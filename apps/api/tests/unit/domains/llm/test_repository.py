@@ -6,18 +6,37 @@ without an explicit ``@pytest.mark.asyncio`` marker.
 """
 
 import uuid
+from typing import Any
 
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.llm.models import LLMProviderEnum
+from src.domains.llm.models import LLMModelKindEnum, LLMProviderEnum, LLMReasoningWidgetEnum
 from src.domains.llm.repository import LLMModelRepository
 
 
 @pytest_asyncio.fixture
 async def repo(async_session: AsyncSession) -> LLMModelRepository:
     return LLMModelRepository(async_session)
+
+
+# Default reasoning + sampling kwargs for repo.create_model() in tests.
+# Mirror the "non-reasoning chat with full sampling" baseline so existing
+# tests stay focused on what they were written to verify (creation, lookup,
+# soft delete, ...) rather than reasoning shape semantics — the latter has
+# its own dedicated suite in test_service.py and test_service_helpers.py.
+_DEFAULT_REASONING_KWARGS: dict[str, Any] = {
+    "kind": LLMModelKindEnum.chat,
+    "reasoning_widget": LLMReasoningWidgetEnum.none,
+    "reasoning_enum_values": None,
+    "reasoning_budget_range": None,
+    "reasoning_doc_i18n_key": None,
+    "supports_temperature": True,
+    "supports_top_p": True,
+    "supports_frequency_penalty": True,
+    "supports_presence_penalty": True,
+}
 
 
 @pytest.mark.unit
@@ -33,6 +52,7 @@ async def test_create_model_inserts_row_and_returns_it(repo: LLMModelRepository)
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_DEFAULT_REASONING_KWARGS,
     )
     assert created.id is not None
     assert created.model_name == "gpt-test-1"
@@ -56,6 +76,7 @@ async def test_get_by_name_returns_existing_row(repo: LLMModelRepository) -> Non
         supports_streaming=True,
         supports_vision=True,
         is_reasoning_model=False,
+        **_DEFAULT_REASONING_KWARGS,
     )
     fetched = await repo.get_by_name("claude-test-2")
     assert fetched is not None
@@ -80,6 +101,7 @@ async def test_get_by_id_round_trip(repo: LLMModelRepository) -> None:
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_DEFAULT_REASONING_KWARGS,
     )
     fetched = await repo.get_by_id(created.id)
     assert fetched is not None
@@ -105,6 +127,7 @@ async def test_get_by_id_excludes_inactive_by_default(repo: LLMModelRepository) 
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_DEFAULT_REASONING_KWARGS,
     )
     await repo.deactivate_by_id(created.id)
     assert await repo.get_by_id(created.id) is None
@@ -127,6 +150,7 @@ async def test_list_active_returns_only_active(repo: LLMModelRepository) -> None
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_DEFAULT_REASONING_KWARGS,
     )
     inactive = await repo.create_model(
         provider=LLMProviderEnum.openai,
@@ -139,6 +163,7 @@ async def test_list_active_returns_only_active(repo: LLMModelRepository) -> None
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_DEFAULT_REASONING_KWARGS,
     )
     await repo.deactivate_by_id(inactive.id)
 
@@ -161,6 +186,7 @@ async def test_update_capabilities_mutates_only_given_fields(repo: LLMModelRepos
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_DEFAULT_REASONING_KWARGS,
     )
     updated = await repo.update_capabilities(
         created.id,
@@ -186,6 +212,7 @@ async def test_update_capabilities_rejects_immutable_fields(repo: LLMModelReposi
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_DEFAULT_REASONING_KWARGS,
     )
     with pytest.raises(ValueError, match="immutable"):
         await repo.update_capabilities(created.id, provider=LLMProviderEnum.anthropic)
@@ -207,6 +234,7 @@ async def test_update_capabilities_rejects_unknown_fields(repo: LLMModelReposito
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_DEFAULT_REASONING_KWARGS,
     )
     with pytest.raises(ValueError, match="Unknown LLMModel fields"):
         await repo.update_capabilities(created.id, supports_tool=True)  # missing 's'
@@ -231,6 +259,7 @@ async def test_deactivate_by_id_sets_is_active_false(repo: LLMModelRepository) -
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_DEFAULT_REASONING_KWARGS,
     )
     await repo.deactivate_by_id(created.id)
     refreshed = await repo.get_by_id(created.id, include_inactive=True)

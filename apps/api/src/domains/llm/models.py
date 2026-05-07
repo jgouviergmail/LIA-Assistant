@@ -6,6 +6,7 @@ import enum
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
     DECIMAL,
@@ -18,7 +19,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.infrastructure.database.models import TimestampMixin, UUIDMixin
@@ -39,6 +40,38 @@ class LLMProviderEnum(str, enum.Enum):
     ollama = "ollama"
     gemini = "gemini"
     qwen = "qwen"
+
+
+class LLMModelKindEnum(str, enum.Enum):
+    """Classifies a model's nature for UI filtering and capability surface.
+
+    A given LLM type ('router', 'image_generation', ...) requires a specific
+    kind via LLMTypeMetadata.required_kind. The Configuration LLM admin UI
+    filters its model dropdown via the GET /llm-config/metadata?kinds= query
+    parameter so the admin only sees models compatible with the LLM type
+    being edited.
+    """
+
+    chat = "chat"
+    image = "image"
+    audio = "audio"
+    realtime = "realtime"
+    tts = "tts"
+    embedding = "embedding"
+
+
+class LLMReasoningWidgetEnum(str, enum.Enum):
+    """Drives the frontend rendering of the reasoning_effort selector.
+
+    Single source of truth: each row of llm_models declares which widget the
+    Configuration LLM dialog must render for this model. The frontend has no
+    regex / hardcoded list — it dispatches purely on this value.
+    """
+
+    none = "none"  # model does not accept reasoning_effort
+    enum = "enum"  # API accepts a string enum (use reasoning_enum_values)
+    budget_int = "budget_int"  # API accepts only a numeric budget (use reasoning_budget_range)
+    toggle_budget = "toggle_budget"  # API accepts boolean toggle + numeric budget (Qwen3 hybrid)
 
 
 class LLMModel(Base, UUIDMixin, TimestampMixin):
@@ -81,6 +114,65 @@ class LLMModel(Base, UUIDMixin, TimestampMixin):
     supports_streaming: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     supports_vision: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_reasoning_model: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Per-model sampling parameter acceptance (added 2026-05-06).
+    # Drives the Configuration LLM admin UI conditional rendering of sampling
+    # inputs (philosophy A — "raw truth": the UI shows only what the API
+    # accepts). Defaults are permissive (True) so unknown models stay editable
+    # and the explicit per-model matrix downgrades when needed.
+    supports_temperature: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    supports_top_p: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    supports_frequency_penalty: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    supports_presence_penalty: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # NEW (2026-05-06): model classification + reasoning UI driver.
+    # See docs/superpowers/specs/2026-05-06-llm-reasoning-effort-overhaul-design.md
+    kind: Mapped[LLMModelKindEnum] = mapped_column(
+        SQLEnum(
+            LLMModelKindEnum,
+            name="llm_model_kind_enum",
+            create_constraint=True,
+            create_type=True,
+            values_callable=lambda enum_cls: [m.value for m in enum_cls],
+        ),
+        nullable=False,
+        default=LLMModelKindEnum.chat,
+        comment="Model nature (chat / image / audio / realtime / tts / embedding)",
+    )
+
+    reasoning_widget: Mapped[LLMReasoningWidgetEnum] = mapped_column(
+        SQLEnum(
+            LLMReasoningWidgetEnum,
+            name="llm_reasoning_widget_enum",
+            create_constraint=True,
+            create_type=True,
+            values_callable=lambda enum_cls: [m.value for m in enum_cls],
+        ),
+        nullable=False,
+        default=LLMReasoningWidgetEnum.none,
+        comment="UI widget shape for reasoning_effort selection",
+    )
+
+    reasoning_enum_values: Mapped[list[str] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Ordered list of accepted reasoning_effort string values (when reasoning_widget='enum')",
+    )
+
+    reasoning_budget_range: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            '{"min":int,"max":int,"off_sentinel":int|null,"dynamic_sentinel":int|null} '
+            'when reasoning_widget in ("budget_int","toggle_budget")'
+        ),
+    )
+
+    reasoning_doc_i18n_key: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Frontend lookup key in REASONING_DOC_TEXT constant table (English-only)",
+    )
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,

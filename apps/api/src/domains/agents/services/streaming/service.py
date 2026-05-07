@@ -1131,7 +1131,22 @@ class StreamingService:
         if node_name in ("__start__", "__end__"):
             return sse_chunks
 
-        # Guard: state_delta must be a dict
+        # Guard: state_delta must be a dict.
+        # LangGraph normalises an empty-dict return from a node into ``None`` in
+        # ``stream_mode="updates"`` (cf. ``langgraph.pregel._io.map_output_updates``):
+        # nodes that ran without producing channel writes yield ``{node_name: None}``.
+        # That is the expected no-op signal — we still emit the node-level step
+        # but at debug level. Anything else (list, str, ...) is a real anomaly
+        # and stays at warning.
+        if state_delta is None:
+            logger.debug(
+                "updates_mode_node_no_op",
+                node_name=node_name,
+            )
+            node_step = self._emit_execution_step(node_name)
+            if node_step:
+                sse_chunks.append((node_step, ""))
+            return sse_chunks
         if not isinstance(state_delta, dict):
             logger.warning(
                 "updates_mode_non_dict_state_delta",

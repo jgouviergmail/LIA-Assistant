@@ -11,7 +11,10 @@ from typing import Final, Literal
 # Cache TTLs (seconds) — match the natural change rate of each source.
 # =============================================================================
 
-BRIEFING_CACHE_PREFIX = "briefing"
+# Bumped to v2 when WeatherData.forecast_alert switched from str to a
+# structured object — old cached payloads would otherwise raise a Pydantic
+# ValidationError on read until their TTL elapses.
+BRIEFING_CACHE_PREFIX = "briefing:v2"
 
 SECTION_WEATHER_TTL_SECONDS = 3600  # 1 h — slow variations + free-tier API
 SECTION_AGENDA_TTL_SECONDS = 600  # 10 min — occasional event edits

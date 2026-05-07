@@ -80,8 +80,27 @@ def get_llm_config_for_agent(settings: Settings, agent_type: str) -> LLMAgentCon
 
 
 def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgentConfig:
-    """Merge DB overrides onto code defaults, producing effective config."""
+    """Merge DB overrides onto code defaults, producing effective config.
+
+    Special handling for ``reasoning_effort``: its shape depends on the
+    target model's ``reasoning_widget``. When the override changes the
+    ``model`` (and the default's ``reasoning_effort`` was set for the OLD
+    model), inheriting the default's ``reasoning_effort`` would carry the
+    wrong shape into the new model — e.g. a Qwen default
+    ``ReasoningEffortToggleBudget`` propagated onto a DeepSeek override
+    would crash the typed builder. Drop ``reasoning_effort`` in that case
+    unless the override explicitly provides a value.
+    """
     merged = defaults.model_dump()
+    override_changes_model = (
+        "model" in overrides
+        and overrides["model"] is not None
+        and overrides["model"] != defaults.model
+    )
+    override_provides_reasoning = "reasoning_effort" in overrides
+    if override_changes_model and not override_provides_reasoning:
+        merged["reasoning_effort"] = None
+
     for key, value in overrides.items():
         if value is not None and key in merged:
             merged[key] = value

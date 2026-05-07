@@ -7,7 +7,7 @@ All changes take effect immediately via in-memory cache invalidation.
 Created: 2026-03-08
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.dependencies import get_db
@@ -170,6 +170,22 @@ async def reset_type(
     summary="Get available models by provider",
 )
 async def get_models_metadata(
+    kinds: str | None = Query(
+        default=None,
+        description=(
+            "Comma-separated list of model kinds to include "
+            "(chat / image / audio / realtime / tts / embedding). "
+            "Default: all kinds. The frontend Configuration LLM dialog "
+            "passes the LLM type's required_kind."
+        ),
+    ),
+    capability: str | None = Query(
+        default=None,
+        description=(
+            "Optional capability filter (vision / tools / structured_output). "
+            "Combined with kinds= via AND."
+        ),
+    ),
     current_user: User = Depends(get_current_superuser_session),
 ) -> ProviderModelsMetadata:
     """Get available models grouped by provider.
@@ -177,8 +193,12 @@ async def get_models_metadata(
     Sources: ``ModelCapabilitiesCache`` (chat) +
     ``ImageOptionsCache.get_models_grouped_by_provider`` (image), both
     DB-backed and populated at boot.
+
+    Filtering: ``?kinds=chat`` / ``?kinds=image`` / ``?kinds=chat,image`` etc.
+    Plus optional ``?capability=vision`` for vision-aware chat models.
     """
-    return LLMConfigService.get_provider_models()
+    kind_list = [k.strip() for k in kinds.split(",") if k.strip()] if kinds else None
+    return LLMConfigService.get_provider_models(kinds=kind_list, capability=capability)
 
 
 @router.get(

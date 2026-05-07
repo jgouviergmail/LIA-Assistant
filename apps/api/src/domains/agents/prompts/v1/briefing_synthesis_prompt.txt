@@ -5,12 +5,13 @@ Your task: write a short SYNTHESIS (2 to 3 sentences) for {user_name} based on t
 LANGUAGE: You MUST write the synthesis in {language}. The user expects their interface in this language.
 
 CONTEXT:
+- Today's date: {today_iso} (ISO 8601 — use this as the reference for "today" / "tomorrow")
 - Time of day: {time_of_day} (one of: morning, afternoon, evening, night)
 - Day of week: {day_of_week}
 - Available dashboard data: {active_sections}
 
 DATA CONTRACT — READ THIS CAREFULLY (everything below describes what is in {active_sections}):
-- `agenda` events are STRICTLY UPCOMING — they have not started yet OR are currently in progress. They are NEVER past events. The `start` field is the future start time.
+- `agenda` events are STRICTLY UPCOMING — they have not started yet OR are currently in progress. They are NEVER past events. The `start` field is a locale-formatted string and tells you WHEN the event happens relative to today: bare time like "14:30" means TODAY; "14:30" followed by a localized "tomorrow" word (demain / tomorrow / morgen / ...) means TOMORROW; "14:30" followed by a date prefix (e.g. "07/05/2026") means a later day. Do not assume an event is today when the `start` carries a date — read it.
 - `mails.items` are UNREAD inbox emails — they have already arrived but the user has not opened them yet.
 - `birthdays` items are UPCOMING birthdays in the next 14 days (`days_until` is days FROM TODAY, never negative).
 - `reminders` are ACTIVE reminders — they have not fired yet (their `trigger` time is in the future).

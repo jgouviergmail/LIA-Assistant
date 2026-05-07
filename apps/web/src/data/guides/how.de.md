@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 2.3
-**Datum**: 2026-05-05
-**Application**: LIA v1.19.1
+**Version**: 2.4
+**Datum**: 2026-05-06
+**Application**: LIA v1.20.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -581,6 +581,12 @@ Jeder Knoten der Pipeline ist über die Admin-UI unabhängig konfigurierbar — 
 ### 12.3. Token Tracking
 
 Der `TrackingContext` verfolgt jeden LLM-Aufruf mit `call_type` ("chat"/"embedding"), `sequence` (monotoner Zähler), `duration_ms`, Tokens (Input/Output/Cache) und aus den DB-Tarifen berechnetem Preis. Tracker teilen eine `run_id` für die Aggregation. Das Debug-Panel zeigt alle Aufrufe (Pipeline + Hintergrundaufgaben) in einer einheitlichen chronologischen Ansicht an.
+
+### 12.4. DB-source-of-truth Admin-Katalog
+
+Die Tabelle `llm_models` trägt den vollständigen Katalog: Provider, klassische funktionale Fähigkeiten (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`) und — strukturierende Ergänzungen — die **modellspezifische Sampling-Matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) sowie die **Reasoning-Form** (`reasoning_widget` ∈ {`none`, `enum`, `budget_int`, `toggle_budget`}, `reasoning_enum_values` JSONB-Liste, `reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`, `reasoning_doc_i18n_key`). Diese pro-Modell-Deklaration ersetzt den früheren Frontend-Regex, der erraten musste, welche Slider auszublenden sind: Der Konfigurations-LLM-Dialog liest die DB-Flags direkt und zeigt nur die Parameter, die die API des Modells tatsächlich akzeptiert.
+
+Das Tarifierungs-LLM-Admin-Formular bietet einen **DB-abgeleiteten dynamischen Template-Mechanismus**: Der Dienst `LLMModelService.list_templates()` gruppiert aktive Zeilen nach ihrem 4-Feld-Reasoning-Fingerprint und gibt einen deterministischen Repräsentanten pro Gruppe zurück (~15 eindeutige Formen heute). Ein neues Reasoning-Modell hinzuzufügen läuft darauf hinaus, „Form von einem solchen vorhandenen Modell kopieren" zu wählen; die 4 Form-Felder werden zum Erstellungszeitpunkt als Snapshot kopiert. **Custom**-Modus für Disruptionen verfügbar; jedes Custom-Modell mit neuartigem Fingerprint wird automatisch zum Template für nachfolgende Einträge. `kind` (chat / image / audio / …), die vier Sampling-Caps und der Tooltip-i18n-Schlüssel werden pro Modell gespeichert, unabhängig vom Template. Siehe `docs/technical/LLM_PRICING_TEMPLATES.md`.
 
 ---
 

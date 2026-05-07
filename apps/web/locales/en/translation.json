@@ -193,6 +193,7 @@
       "updated_just_now": "just now",
       "updated_minutes_ago": "{{minutes}} min ago",
       "synthesis_updated_badge": "updated ✨",
+      "synthesis_unavailable": "Not enough data today to generate a synthesis.",
       "usage_tokens_one": "{{formatted}} token",
       "usage_tokens_other": "{{formatted}} tokens",
       "usage_tooltip": "Model: {{model}}\nIN: {{tokens_in}} · OUT: {{tokens_out}} · CACHE: {{tokens_cache}}\nCost: {{cost}}",
@@ -212,7 +213,11 @@
         "weather": {
           "title": "Weather",
           "empty": "No weather data available",
-          "temp": "{{value}}°C"
+          "temp": "{{value}}°C",
+          "forecast_alert_rain": "Rain at {{time}}",
+          "forecast_alert_thunderstorm": "Storm at {{time}}",
+          "forecast_alert_snow": "Snow at {{time}}",
+          "forecast_alert_drizzle": "Drizzle at {{time}}"
         },
         "agenda": {
           "title": "Agenda",
@@ -2866,6 +2871,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_1": {
+          "title": "v1.20.1 — Admin LLM: per-model sampling matrix and reusable reasoning shape templates",
+          "date": "May 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Configuration LLM: sampling sliders only show what the API accepts</b> — In the per-type LLM Configuration dialog, the four sampling inputs (<code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>) now appear or hide <b>per individual parameter</b> based on what each model's API actually accepts. Anthropic 4.5+ surfaces only temperature; DeepSeek V4 surfaces all four; GPT-5 series surfaces none. The reasoning widget itself (enum select, integer budget, or toggle+budget) is also driven directly by the model's declared shape — the dialog never lets you pick a value the API would reject.",
+            "i2": "<b>Pricing LLM: \"Copy reasoning shape from…\" template selector</b> — When you add a new reasoning model in the Tarification LLM Texte admin form, you no longer have to type the reasoning widget / enum values / budget range by hand. A new dropdown lets you pick a representative model whose reasoning behavior is identical (e.g. \"like gpt-5\" for OpenAI o-series / GPT-5 reasoning, \"like claude-opus-4.5\" for Anthropic 4.5+, \"like deepseek-v4-flash\" for DeepSeek V4) and the four reasoning shape fields are snapshot-copied at creation time. The list deduplicates the catalogue automatically (~15 unique reasoning shapes today) and self-enriches: any model created in <b>Custom (advanced)</b> mode with a novel shape becomes available as a template afterwards.",
+            "i3": "<b>Toggle \"Is reasoning model\" gates the reasoning controls</b> — The Pricing form now hides the template selector and the Custom block whenever the new model is non-reasoning. Switching the toggle off resets the widget to <code>none</code> and clears any pending template choice. <code>kind</code> (chat / image / audio / …), the four sampling toggles and the optional tooltip i18n key remain visible regardless and are saved per model — independent of the reasoning shape choice.",
+            "i4": "<b>Audit log: reasoning template + kind + widget captured on every create / update</b> — The admin audit trail (visible in the security log) now records, for every LLM model creation or edit, which template the admin picked (or null in Custom mode), the model kind and the resolved reasoning widget. Instant forensic visibility on which API contract a given row inherited from."
+          }
+        },
         "v1_20_0": {
           "title": "v1.20.0 — Stratified journal: levels, epistemic status, ambient user-model portrait",
           "date": "May 2026",

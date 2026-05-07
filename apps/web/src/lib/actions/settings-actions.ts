@@ -53,7 +53,34 @@ export type LLMProviderName =
   | 'gemini'
   | 'qwen';
 
-interface LLMPricingData {
+// Mirrors backend LLMModelKindLiteral / ReasoningWidgetLiteral.
+export type LLMModelKindName = 'chat' | 'image' | 'audio' | 'realtime' | 'tts' | 'embedding';
+export type ReasoningWidgetName = 'none' | 'enum' | 'budget_int' | 'toggle_budget';
+
+export interface ReasoningBudgetRangePayload {
+  min: number;
+  max: number;
+  off_sentinel?: number | null;
+  dynamic_sentinel?: number | null;
+}
+
+/** Reasoning + sampling block — Template mode (one field) OR Custom mode (10 fields).
+ *  The backend's model_validator enforces XOR. */
+export interface ReasoningSamplingPayload {
+  reasoning_template?: string | null;
+  kind?: LLMModelKindName | null;
+  is_reasoning_model?: boolean | null;
+  reasoning_widget?: ReasoningWidgetName | null;
+  reasoning_enum_values?: string[] | null;
+  reasoning_budget_range?: ReasoningBudgetRangePayload | null;
+  reasoning_doc_i18n_key?: string | null;
+  supports_temperature?: boolean | null;
+  supports_top_p?: boolean | null;
+  supports_frequency_penalty?: boolean | null;
+  supports_presence_penalty?: boolean | null;
+}
+
+interface LLMPricingData extends ReasoningSamplingPayload {
   // Catalogue
   provider: LLMProviderName;
   model_name: string;
@@ -64,7 +91,6 @@ interface LLMPricingData {
   supports_strict_mode: boolean;
   supports_streaming: boolean;
   supports_vision: boolean;
-  is_reasoning_model: boolean;
   // Pricing
   input_price_per_1m_tokens: string;
   cached_input_price_per_1m_tokens: string | null;
@@ -72,7 +98,7 @@ interface LLMPricingData {
 }
 
 /** Partial update payload — every field is optional. */
-export interface LLMPricingUpdateData {
+export interface LLMPricingUpdateData extends ReasoningSamplingPayload {
   model_name?: string;
   max_input_tokens?: number;
   max_output_tokens?: number;
@@ -81,7 +107,6 @@ export interface LLMPricingUpdateData {
   supports_strict_mode?: boolean;
   supports_streaming?: boolean;
   supports_vision?: boolean;
-  is_reasoning_model?: boolean;
   input_price_per_1m_tokens?: string;
   cached_input_price_per_1m_tokens?: string | null;
   output_price_per_1m_tokens?: string;
@@ -273,6 +298,36 @@ export async function updateLLMPricing(
       error: err.response?.data?.detail || 'Erreur lors de la modification du modèle',
     };
   }
+}
+
+/** Reasoning shape group derived from existing models. Drives the
+ *  "Copy reasoning shape from..." selector. ``kind``, the four
+ *  ``supports_*`` sampling flags AND ``reasoning_doc_i18n_key`` are
+ *  intentionally NOT part of the template — they are saved per model
+ *  regardless of the template chosen. */
+export interface ReasoningTemplate {
+  template_model_name: string;
+  representative_provider: LLMProviderName;
+  description: string;
+  matching_count: number;
+  is_reasoning_model: boolean;
+  reasoning_widget: ReasoningWidgetName;
+  reasoning_enum_values: string[] | null;
+  reasoning_budget_range: ReasoningBudgetRangePayload | null;
+}
+
+interface ReasoningTemplatesResponse {
+  templates: ReasoningTemplate[];
+}
+
+/** Fetch the list of reasoning + sampling templates derived from existing models.
+ *  Drives the admin Pricing form's "Copy behavior from..." selector. */
+export async function fetchReasoningTemplates(): Promise<ReasoningTemplate[]> {
+  const apiServer = await createServerApiClient();
+  const response = await apiServer.get<ReasoningTemplatesResponse>(
+    '/admin/llm/reasoning-templates'
+  );
+  return response.templates;
 }
 
 /**

@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 3.2
-**Datum** : 2026-05-05
-**Anwendung** : LIA v1.19.1
+**Version** : 3.3
+**Datum** : 2026-05-06
+**Anwendung** : LIA v1.20.1
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -83,9 +83,9 @@ Der Administrator hat Zugriff auf eine dritte Registerkarte zur Verwaltung der I
 
 **KI und Konnektoren:**
 
-- **LLM-Konfiguration**: API-Schlüssel der Anbieter konfigurieren (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), ein Modell pro Rolle in der Pipeline zuweisen, Reasoning-Level verwalten — Schlüssel werden verschlüsselt gespeichert
+- **LLM-Konfiguration**: API-Schlüssel der Anbieter konfigurieren (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), ein Modell pro Rolle in der Pipeline zuweisen, Reasoning-Level verwalten — Schlüssel werden verschlüsselt gespeichert. Der Dialog zeigt nur die Parameter an, die das gewählte Modell tatsächlich akzeptiert (modellspezifische DB-Matrix für temperature, top_p, frequency_penalty, presence_penalty und Reasoning-Widget-Form), wodurch die Eingabe eines Werts vermieden wird, den die API ablehnen würde
 - **Konnektoren aktivieren/deaktivieren**: Integrationen auf globaler Ebene aktivieren oder deaktivieren (Google OAuth, Apple, Microsoft 365, Hue, Wetter, Wikipedia, Perplexity, Brave Search). Die Deaktivierung widerruft aktive Verbindungen und benachrichtigt die Benutzer
-- **Preisgestaltung**: Preise pro LLM-Modell verwalten (Kosten pro Million Token), pro Google Maps API (Places, Routes, Geocoding) und pro Bildgenerierung — mit Preishistorie
+- **Preisgestaltung**: Preise pro LLM-Modell verwalten (Kosten pro Million Token), pro Google Maps API (Places, Routes, Geocoding) und pro Bildgenerierung — mit Preishistorie. Beim Hinzufügen eines neuen Reasoning-Modells lässt ein Selektor „Form von einem solchen vorhandenen Modell kopieren" automatisch das Reasoning-Widget und seine Werte ohne manuelle Eingabe erben; der Custom-Modus bleibt für atypische Modelle verfügbar
 
 **Inhalte und Erweiterungen:**
 

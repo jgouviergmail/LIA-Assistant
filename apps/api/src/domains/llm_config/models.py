@@ -9,8 +9,10 @@ Created: 2026-03-08
 """
 
 import uuid
+from typing import Any
 
 from sqlalchemy import Float, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infrastructure.database.models import BaseModel
@@ -70,7 +72,12 @@ class LLMConfigOverride(BaseModel):
         presence_penalty: Presence penalty override (-2.0 to 2.0)
         max_tokens: Max tokens override
         timeout_seconds: Timeout override in seconds
-        reasoning_effort: Reasoning effort override (e.g., "low", "medium", "high")
+        reasoning_effort: Reasoning effort override stored as JSONB.
+            Discriminated by the associated model's ``reasoning_widget``:
+            ``{"effort": "<str>"}`` (widget=enum),
+            ``{"budget": <int>}`` (widget=budget_int),
+            ``{"enabled": <bool>, "budget": <int|null>}`` (widget=toggle_budget),
+            or NULL (no override / model default applies).
         provider_config: Provider-specific JSON config override
         updated_by: Admin user ID who last updated the override
     """
@@ -124,9 +131,17 @@ class LLMConfigOverride(BaseModel):
         nullable=True,
     )
 
-    reasoning_effort: Mapped[str | None] = mapped_column(
-        String(20),
+    reasoning_effort: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB,
         nullable=True,
+        comment=(
+            "Reasoning effort override stored as JSONB. Discriminated by the "
+            "associated model's reasoning_widget: "
+            '{"effort": "<str>"} for widget=enum, '
+            '{"budget": <int>} for widget=budget_int, '
+            '{"enabled": <bool>, "budget": <int|null>} for widget=toggle_budget. '
+            "NULL = no override (use LLM_DEFAULTS or model default)."
+        ),
     )
 
     provider_config: Mapped[str | None] = mapped_column(

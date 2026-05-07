@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 3.2
-**Date**: 2026-05-05
-**Application**: LIA v1.19.1
+**Version**: 3.3
+**Date**: 2026-05-06
+**Application**: LIA v1.20.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -83,9 +83,9 @@ The administrator accesses a third tab dedicated to instance management:
 
 **AI and connectors:**
 
-- **LLM configuration**: configure provider API keys (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), assign a model per role in the pipeline, manage reasoning levels — keys stored encrypted
+- **LLM configuration**: configure provider API keys (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), assign a model per role in the pipeline, manage reasoning levels — keys stored encrypted. The dialog only exposes the parameters the chosen model actually accepts (per-model DB matrix for temperature, top_p, frequency_penalty, presence_penalty and reasoning widget shape), preventing entry of any value the API would reject
 - **Connector activation/deactivation**: enable or disable integrations globally (Google OAuth, Apple, Microsoft 365, Hue, weather, Wikipedia, Perplexity, Brave Search). Deactivation revokes active connections and notifies users
-- **Pricing**: manage pricing per LLM model (cost per million tokens), per Google Maps API (Places, Routes, Geocoding), and per image generation — with price history
+- **Pricing**: manage pricing per LLM model (cost per million tokens), per Google Maps API (Places, Routes, Geocoding), and per image generation — with price history. When adding a new reasoning model, a "copy shape from such existing model" selector lets the operator inherit the reasoning widget and its values without manual entry; Custom mode remains available for atypical models
 
 **Content and extensions:**
 

@@ -185,6 +185,7 @@
       "updated_just_now": "adesso",
       "updated_minutes_ago": "{{minutes}} min fa",
       "synthesis_updated_badge": "aggiornato ✨",
+      "synthesis_unavailable": "Oggi non ci sono abbastanza dati per generare una sintesi.",
       "usage_tokens_one": "{{formatted}} token",
       "usage_tokens_other": "{{formatted}} token",
       "usage_tooltip": "Modello: {{model}}\nIN: {{tokens_in}} · OUT: {{tokens_out}} · CACHE: {{tokens_cache}}\nCosto: {{cost}}",
@@ -204,7 +205,11 @@
         "weather": {
           "title": "Meteo",
           "empty": "Nessun dato meteo disponibile",
-          "temp": "{{value}}°C"
+          "temp": "{{value}}°C",
+          "forecast_alert_rain": "Pioggia alle {{time}}",
+          "forecast_alert_thunderstorm": "Temporale alle {{time}}",
+          "forecast_alert_snow": "Neve alle {{time}}",
+          "forecast_alert_drizzle": "Pioggerella alle {{time}}"
         },
         "agenda": {
           "title": "Agenda",
@@ -2859,6 +2864,17 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_1": {
+          "title": "v1.20.1 — Admin LLM: matrice sampling per modello e template riutilizzabili di forma reasoning",
+          "date": "Maggio 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Configurazione LLM: i cursori sampling mostrano solo ciò che l'API accetta</b> — Nella finestra Configurazione LLM per tipo, i quattro parametri sampling (<code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>) ora appaiono o si nascondono <b>parametro per parametro</b> in base a ciò che l'API di ciascun modello accetta realmente. Anthropic 4.5+ espone solo temperature; DeepSeek V4 espone tutti e quattro; la serie GPT-5 non ne espone nessuno. Anche il widget reasoning (select enum, budget intero, o toggle+budget) è guidato direttamente dalla forma dichiarata del modello — la finestra non vi lascia mai scegliere un valore che l'API rifiuterebbe.",
+            "i2": "<b>Tarification LLM: selettore \"Copia forma reasoning da…\"</b> — Quando aggiungete un nuovo modello reasoning nel form admin Tarification LLM Texte, non dovete più digitare a mano il widget reasoning / i valori enum / il range di budget. Un nuovo menu a tendina vi permette di scegliere un modello rappresentativo con comportamento reasoning identico (es. \"come gpt-5\" per OpenAI o-series / GPT-5, \"come claude-opus-4.5\" per Anthropic 4.5+, \"come deepseek-v4-flash\" per DeepSeek V4) — i quattro campi di forma reasoning vengono copiati (snapshot) alla creazione. L'elenco deduplica automaticamente il catalogo (~15 forme uniche oggi) e si auto-arricchisce: qualsiasi modello creato in modalità <b>Custom (advanced)</b> con una forma nuova diventa disponibile come template in seguito.",
+            "i3": "<b>Il toggle \"Is reasoning model\" condiziona i controlli reasoning</b> — Il form Tarification ora nasconde il selettore template e il blocco Custom appena il nuovo modello non è un reasoning model. Disattivare il toggle riporta il widget a <code>none</code> e cancella ogni scelta di template in corso. <code>kind</code> (chat / image / audio / …), i quattro toggle sampling e la chiave i18n opzionale del tooltip restano visibili e vengono salvati per modello — indipendenti dalla scelta della forma reasoning.",
+            "i4": "<b>Audit log: template reasoning + kind + widget tracciati a ogni create / update</b> — La traccia di audit admin (visibile nel registro di sicurezza) ora registra, per ogni creazione o modifica di modello LLM, quale template l'admin ha scelto (o null in modalità Custom), il kind del modello e il widget reasoning risolto. Visibilità forense immediata sul contratto API ereditato da una riga data."
+          }
+        },
         "v1_20_0": {
           "title": "v1.20.0 — Diario stratificato: livelli, stato epistemico, ritratto utente diffuso",
           "date": "Maggio 2026",

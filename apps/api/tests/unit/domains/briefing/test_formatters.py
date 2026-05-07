@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
@@ -21,6 +21,7 @@ from src.domains.briefing.formatters import (
     make_health_summary_item,
     upcoming_birthdays_from_connections,
 )
+from src.domains.briefing.schemas import ForecastAlertKind
 
 PARIS = ZoneInfo("Europe/Paris")
 NEW_YORK = ZoneInfo("America/New_York")
@@ -78,15 +79,22 @@ class TestDetectForecastAlert:
         forecast = {"list": [{"dt": 0, "weather": [{"main": "Rain"}]}]}
         assert _detect_forecast_alert(current=current, forecast=forecast, user_tz=PARIS) is None
 
-    def test_emits_alert_when_rain_appears_in_forecast(self) -> None:
+    def test_emits_structured_alert_when_rain_appears_in_forecast(self) -> None:
         current = {"weather": [{"main": "Clear"}]}
-        # 16:00 Paris = epoch
         ts = int(datetime(2026, 1, 1, 16, 0, tzinfo=PARIS).timestamp())
         forecast = {"list": [{"dt": ts, "weather": [{"main": "Rain"}]}]}
         out = _detect_forecast_alert(current=current, forecast=forecast, user_tz=PARIS)
         assert out is not None
-        assert "16:00" in out
-        assert "Rain" in out
+        assert out.kind is ForecastAlertKind.RAIN
+        assert out.time == "16:00"
+
+    def test_maps_thunderstorm_to_enum(self) -> None:
+        current = {"weather": [{"main": "Clear"}]}
+        ts = int(datetime(2026, 1, 1, 18, 30, tzinfo=PARIS).timestamp())
+        forecast = {"list": [{"dt": ts, "weather": [{"main": "Thunderstorm"}]}]}
+        out = _detect_forecast_alert(current=current, forecast=forecast, user_tz=PARIS)
+        assert out is not None
+        assert out.kind is ForecastAlertKind.THUNDERSTORM
 
     def test_no_alert_for_clouds_only(self) -> None:
         current = {"weather": [{"main": "Clear"}]}
@@ -104,33 +112,65 @@ class TestFormatEventTime:
     def test_today_event_returns_hh_mm(self) -> None:
         now_local = datetime.now(PARIS)
         iso = now_local.replace(hour=14, minute=0, second=0, microsecond=0).isoformat()
-        out = _format_event_time({"dateTime": iso}, PARIS)
-        assert out == "14:00"
+        assert _format_event_time({"dateTime": iso}, PARIS, "fr") == "14:00"
 
-    def test_other_day_event_returns_full_date(self) -> None:
-        # Tomorrow 09:00 Paris
-        tomorrow = datetime.now(PARIS).date().toordinal() + 1
-        d = date.fromordinal(tomorrow)
-        iso = datetime(d.year, d.month, d.day, 9, 0, tzinfo=PARIS).isoformat()
-        out = _format_event_time({"dateTime": iso}, PARIS)
-        assert out == f"{d.isoformat()} 09:00"
+    def test_tomorrow_event_uses_localized_word_french(self) -> None:
+        tomorrow = datetime.now(PARIS).date() + timedelta(days=1)
+        iso = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 0, tzinfo=PARIS).isoformat()
+        assert _format_event_time({"dateTime": iso}, PARIS, "fr") == "09:00 demain"
 
-    def test_all_day_event(self) -> None:
-        out = _format_event_time({"date": "2026-04-23"}, PARIS)
-        assert out == "2026-04-23 (all day)"
+    def test_tomorrow_event_uses_localized_word_english(self) -> None:
+        tomorrow = datetime.now(PARIS).date() + timedelta(days=1)
+        iso = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 0, tzinfo=PARIS).isoformat()
+        assert _format_event_time({"dateTime": iso}, PARIS, "en") == "09:00 tomorrow"
+
+    def test_other_day_uses_locale_date_format_french(self) -> None:
+        # +5 days @ 09:00 Paris — French dd/mm/yyyy with year.
+        target = datetime.now(PARIS).date() + timedelta(days=5)
+        iso = datetime(target.year, target.month, target.day, 9, 0, tzinfo=PARIS).isoformat()
+        out = _format_event_time({"dateTime": iso}, PARIS, "fr")
+        expected = f"09:00 {target.strftime('%d/%m/%Y')}"
+        assert out == expected
+
+    def test_other_day_uses_locale_date_format_english(self) -> None:
+        # +5 days @ 09:00 Paris — US mm/dd/yyyy with year.
+        target = datetime.now(PARIS).date() + timedelta(days=5)
+        iso = datetime(target.year, target.month, target.day, 9, 0, tzinfo=PARIS).isoformat()
+        out = _format_event_time({"dateTime": iso}, PARIS, "en")
+        expected = f"09:00 {target.strftime('%m/%d/%Y')}"
+        assert out == expected
+
+    def test_all_day_today_returns_localized_word(self) -> None:
+        today_iso = datetime.now(PARIS).date().isoformat()
+        assert _format_event_time({"date": today_iso}, PARIS, "fr") == "toute la journée"
+        assert _format_event_time({"date": today_iso}, PARIS, "en") == "all day"
+
+    def test_all_day_tomorrow_combines_localized_words(self) -> None:
+        tomorrow_iso = (datetime.now(PARIS).date() + timedelta(days=1)).isoformat()
+        out_fr = _format_event_time({"date": tomorrow_iso}, PARIS, "fr")
+        assert out_fr == "demain (toute la journée)"
+        out_en = _format_event_time({"date": tomorrow_iso}, PARIS, "en")
+        assert out_en == "tomorrow (all day)"
+
+    def test_all_day_other_day_uses_locale_date(self) -> None:
+        target = datetime.now(PARIS).date() + timedelta(days=5)
+        out_fr = _format_event_time({"date": target.isoformat()}, PARIS, "fr")
+        assert out_fr == f"{target.strftime('%d/%m/%Y')} (toute la journée)"
+        out_en = _format_event_time({"date": target.isoformat()}, PARIS, "en")
+        assert out_en == f"{target.strftime('%m/%d/%Y')} (all day)"
 
     def test_naive_datetime_with_microsoft_timezone_field(self) -> None:
-        # 10:00 Europe/Paris naive → Paris local
+        # 10:00 Europe/Paris naive → Paris local. In NY: 10:00 Paris ≈ 04:00 NY.
         out = _format_event_time(
             {"dateTime": "2026-04-23T10:00:00", "timeZone": "Europe/Paris"},
             NEW_YORK,
+            "en",
         )
-        # In NEW_YORK, 10:00 Paris = 04:00 NY (CEST in April: Paris UTC+2, NY UTC-4 → 6 h delta)
-        assert out.endswith("04:00")
+        assert out.startswith("04:00")
 
     def test_missing_field_returns_question_mark(self) -> None:
-        assert _format_event_time(None, PARIS) == "?"
-        assert _format_event_time({}, PARIS) == "?"
+        assert _format_event_time(None, PARIS, "fr") == "?"
+        assert _format_event_time({}, PARIS, "fr") == "?"
 
 
 # =============================================================================
@@ -148,15 +188,30 @@ def test_format_agenda_event_extracts_title_and_location() -> None:
             "dateTime": now_local.replace(hour=14, minute=0, second=0, microsecond=0).isoformat(),
         },
     }
-    item = format_agenda_event(raw, PARIS)
+    item = format_agenda_event(raw, PARIS, "fr")
     assert item.title == "Réunion Marc"
     assert item.location == "Bureau"
     assert item.start_local == "14:00"
 
 
 @pytest.mark.unit
+def test_format_agenda_event_tomorrow_uses_locale_word() -> None:
+    tomorrow = datetime.now(PARIS).date() + timedelta(days=1)
+    raw = {
+        "summary": "Atelier",
+        "start": {
+            "dateTime": datetime(
+                tomorrow.year, tomorrow.month, tomorrow.day, 14, 30, tzinfo=PARIS
+            ).isoformat(),
+        },
+    }
+    assert format_agenda_event(raw, PARIS, "fr").start_local == "14:30 demain"
+    assert format_agenda_event(raw, PARIS, "en").start_local == "14:30 tomorrow"
+
+
+@pytest.mark.unit
 def test_format_agenda_event_falls_back_to_untitled() -> None:
-    item = format_agenda_event({}, PARIS)
+    item = format_agenda_event({}, PARIS, "fr")
     assert item.title == "Untitled"
     assert item.location is None
     assert item.start_local == "?"
@@ -170,7 +225,6 @@ def test_format_agenda_event_falls_back_to_untitled() -> None:
 @pytest.mark.unit
 class TestFormatEmailItem:
     def test_today_message(self) -> None:
-        # Today 09:30 Paris in epoch ms
         now_local = datetime.now(PARIS).replace(hour=9, minute=30, second=0, microsecond=0)
         epoch_ms = int(now_local.timestamp() * 1000)
         item = format_email_item(
@@ -180,15 +234,29 @@ class TestFormatEmailItem:
                 "internalDate": str(epoch_ms),
             },
             PARIS,
+            "fr",
         )
         assert (item.sender_name or "").startswith("Sophie")
         assert item.sender_email == "sophie@acme.com"
         assert item.subject == "Brief Q2"
         assert item.received_local == "09:30"
 
+    def test_yesterday_message_uses_locale_date(self) -> None:
+        yesterday_local = datetime.now(PARIS).replace(
+            hour=9, minute=30, second=0, microsecond=0
+        ) - timedelta(days=1)
+        epoch_ms = int(yesterday_local.timestamp() * 1000)
+        item = format_email_item(
+            {"from": "Sophie <sophie@acme.com>", "subject": "Brief", "internalDate": str(epoch_ms)},
+            PARIS,
+            "fr",
+        )
+        # Mails are never tomorrow → falls into the "other day" branch with a
+        # locale-aware date prefix (dd/mm/yyyy in French).
+        assert item.received_local == f"09:30 {yesterday_local.strftime('%d/%m/%Y')}"
+
     def test_missing_fields_use_fallbacks(self) -> None:
-        item = format_email_item({}, PARIS)
-        # Both sender_name and sender_email are None when the From header is missing.
+        item = format_email_item({}, PARIS, "fr")
         assert item.sender_name is None
         assert item.sender_email is None
         assert item.subject == "(no subject)"

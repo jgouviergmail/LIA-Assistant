@@ -185,6 +185,7 @@
       "updated_just_now": "ahora mismo",
       "updated_minutes_ago": "hace {{minutes}} min",
       "synthesis_updated_badge": "actualizado ✨",
+      "synthesis_unavailable": "Hoy no hay suficientes datos para generar una síntesis.",
       "usage_tokens_one": "{{formatted}} token",
       "usage_tokens_other": "{{formatted}} tokens",
       "usage_tooltip": "Modelo: {{model}}\nIN: {{tokens_in}} · OUT: {{tokens_out}} · CACHE: {{tokens_cache}}\nCoste: {{cost}}",
@@ -204,7 +205,11 @@
         "weather": {
           "title": "Clima",
           "empty": "Sin datos meteorológicos disponibles",
-          "temp": "{{value}}°C"
+          "temp": "{{value}}°C",
+          "forecast_alert_rain": "Lluvia a las {{time}}",
+          "forecast_alert_thunderstorm": "Tormenta a las {{time}}",
+          "forecast_alert_snow": "Nieve a las {{time}}",
+          "forecast_alert_drizzle": "Llovizna a las {{time}}"
         },
         "agenda": {
           "title": "Agenda",
@@ -2857,6 +2862,17 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_1": {
+          "title": "v1.20.1 — Admin LLM: matriz de sampling por modelo y plantillas reutilizables de forma de reasoning",
+          "date": "Mayo 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Configuración LLM: los deslizadores de sampling solo muestran lo que la API acepta</b> — En el diálogo de Configuración LLM por tipo, los cuatro parámetros de sampling (<code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>) ahora aparecen u ocultan <b>parámetro por parámetro</b> según lo que la API de cada modelo realmente acepta. Anthropic 4.5+ expone solo temperature; DeepSeek V4 expone los cuatro; la serie GPT-5 no expone ninguno. El widget de reasoning (selector enum, presupuesto entero o toggle+budget) también se rige directamente por la forma declarada del modelo — el diálogo nunca le permite elegir un valor que la API rechazaría.",
+            "i2": "<b>Tarification LLM: selector \"Copiar forma de reasoning desde…\"</b> — Al añadir un nuevo modelo reasoning en el formulario admin Tarification LLM Texte, ya no tiene que escribir a mano el widget reasoning / los valores enum / el rango de presupuesto. Una nueva lista desplegable le permite elegir un modelo representativo con comportamiento reasoning idéntico (p. ej. \"como gpt-5\" para OpenAI o-series / GPT-5, \"como claude-opus-4.5\" para Anthropic 4.5+, \"como deepseek-v4-flash\" para DeepSeek V4) — los cuatro campos de forma reasoning se copian (snapshot) al crear. La lista deduplica el catálogo automáticamente (~15 formas únicas hoy) y se autoenriquece: cualquier modelo creado en modo <b>Custom (advanced)</b> con una forma novedosa queda disponible como plantilla después.",
+            "i3": "<b>El toggle \"Is reasoning model\" controla los ajustes de reasoning</b> — El formulario Tarification ahora oculta el selector de plantillas y el bloque Custom en cuanto el nuevo modelo no es un reasoning model. Desactivar el toggle restaura el widget a <code>none</code> y borra cualquier selección de plantilla pendiente. <code>kind</code> (chat / image / audio / …), los cuatro toggles de sampling y la clave i18n opcional del tooltip permanecen visibles y se guardan por modelo — independientes de la elección de forma reasoning.",
+            "i4": "<b>Registro de auditoría: plantilla reasoning + kind + widget rastreados en cada create / update</b> — La traza de auditoría admin (visible en el registro de seguridad) ahora registra, para cada creación o edición de modelo LLM, qué plantilla eligió el admin (o null en modo Custom), el kind del modelo y el widget reasoning resuelto. Visibilidad forense inmediata sobre qué contrato API hereda una fila dada."
+          }
+        },
         "v1_20_0": {
           "title": "v1.20.0 — Diario estratificado: niveles, estado epistémico, retrato de usuario difundido",
           "date": "Mayo 2026",

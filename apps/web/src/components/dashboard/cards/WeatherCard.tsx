@@ -1,10 +1,34 @@
 'use client';
 
-import { CloudSun, Droplets, Wind } from 'lucide-react';
+import {
+  CloudDrizzle,
+  CloudLightning,
+  CloudRain,
+  CloudSun,
+  Droplets,
+  Snowflake,
+  Wind,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import type { CardSection, DailyForecastItem, WeatherData } from '@/types/briefing';
+import type {
+  CardSection,
+  DailyForecastItem,
+  ForecastAlert,
+  ForecastAlertKind,
+  WeatherData,
+} from '@/types/briefing';
+
+type LucideIcon = ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+
+const FORECAST_ALERT_ICON: Record<ForecastAlertKind, LucideIcon> = {
+  rain: CloudRain,
+  thunderstorm: CloudLightning,
+  snow: Snowflake,
+  drizzle: CloudDrizzle,
+};
 
 interface WeatherCardProps {
   section: CardSection<WeatherData>;
@@ -57,8 +81,11 @@ function WeatherContent({ data }: { data: WeatherData }) {
       ? `${Math.round(data.wind_speed_kmh)} km/h${data.wind_direction_cardinal ? ` ${data.wind_direction_cardinal}` : ''}`
       : null;
 
+  const showMetricsRow =
+    windLabel !== null || popPct !== null || data.forecast_alert !== null;
+
   return (
-    <div className="w-full flex flex-col items-center gap-3">
+    <div className="w-full flex flex-col items-center gap-2">
       {/* Hero: emoji + current temp + min/max */}
       <div className="flex items-baseline justify-center gap-2">
         <span className="text-3xl leading-none" aria-hidden="true">
@@ -78,9 +105,9 @@ function WeatherContent({ data }: { data: WeatherData }) {
         )}
       </p>
 
-      {/* Metrics row: wind + rain probability */}
-      {(windLabel !== null || popPct !== null) && (
-        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+      {/* Metrics row: wind + rain probability + forecast alert (compact) */}
+      {showMetricsRow && (
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {windLabel !== null && (
             <span className="inline-flex items-center gap-1">
               <Wind className="h-3 w-3" aria-hidden="true" />
@@ -93,23 +120,34 @@ function WeatherContent({ data }: { data: WeatherData }) {
               <span className="tabular-nums">{popPct}%</span>
             </span>
           )}
+          {data.forecast_alert && (
+            <ForecastAlertBadge alert={data.forecast_alert} />
+          )}
         </div>
-      )}
-
-      {/* Forecast alert (rain start, etc.) */}
-      {data.forecast_alert && (
-        <p className="text-xs font-medium text-sky-700 dark:text-sky-300 leading-snug">
-          {data.forecast_alert}
-        </p>
       )}
 
       {/* 5-day forecast strip */}
       {data.daily_forecast.length > 0 && (
-        <div className="w-full pt-3 border-t border-border/30">
+        <div className="w-full pt-2 border-t border-border/30">
           <DailyForecastStrip days={data.daily_forecast} />
         </div>
       )}
     </div>
+  );
+}
+
+function ForecastAlertBadge({ alert }: { alert: ForecastAlert }) {
+  const { t } = useTranslation();
+  const Icon = FORECAST_ALERT_ICON[alert.kind];
+  const label = t('dashboard.briefing.cards.weather.forecast_alert', {
+    context: alert.kind,
+    time: alert.time,
+  });
+  return (
+    <span className="inline-flex items-center gap-1 font-medium text-sky-700 dark:text-sky-300">
+      <Icon className="h-3 w-3" aria-hidden={true} />
+      <span className="tabular-nums">{label}</span>
+    </span>
   );
 }
 

@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 2.3
-**Date**: 2026-05-05
-**Application**: LIA v1.19.1
+**Version**: 2.4
+**Date**: 2026-05-06
+**Application**: LIA v1.20.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -581,6 +581,12 @@ Each pipeline node is independently configurable via the Admin UI — without re
 ### 12.3. Token Tracking
 
 The `TrackingContext` tracks each LLM call with `call_type` ("chat"/"embedding"), `sequence` (monotonic counter), `duration_ms`, tokens (input/output/cache), and cost calculated from DB pricing. Trackers share a `run_id` for aggregation. The debug panel displays all invocations (pipeline + background tasks) in a unified chronological view.
+
+### 12.4. DB-source-of-truth admin catalogue
+
+The `llm_models` table carries the full catalogue: provider, classic functional capabilities (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), and — structuring additions — the **per-model sampling matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) plus the **reasoning shape** (`reasoning_widget` ∈ {`none`, `enum`, `budget_int`, `toggle_budget`}, `reasoning_enum_values` JSONB list, `reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`, `reasoning_doc_i18n_key`). This per-model declaration replaces the legacy frontend regex that used to guess which sliders to hide: the Configuration LLM dialog reads the DB flags directly and exposes only the parameters the model's API actually accepts.
+
+The Pricing LLM admin form exposes a **DB-derived dynamic templates mechanism**: the `LLMModelService.list_templates()` service groups active rows by their 4-field reasoning fingerprint and returns one deterministic representative per group (~15 unique shapes today). Adding a new reasoning model boils down to picking "copy shape from such existing model"; the 4 shape fields are snapshot-copied at creation time. **Custom** mode is available for disruptions; any Custom model with a novel fingerprint automatically becomes a template for subsequent additions. `kind` (chat / image / audio / …), the four sampling caps and the tooltip i18n key remain saved per model, independent of the template. See `docs/technical/LLM_PRICING_TEMPLATES.md`.
 
 ---
 

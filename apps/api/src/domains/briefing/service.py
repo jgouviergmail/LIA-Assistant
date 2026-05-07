@@ -23,6 +23,7 @@ from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.domains.auth.models import User
 from src.domains.briefing.constants import (
     BRIEFING_CACHE_PREFIX,
+    BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA,
     ERROR_CODE_INTERNAL,
     SECTION_AGENDA,
     SECTION_AGENDA_TTL_SECONDS,
@@ -164,13 +165,13 @@ class BriefingService:
             ),
             self._section(
                 SECTION_AGENDA,
-                lambda: fetch_agenda(user=self.user, user_tz=self.user_tz),
+                lambda: fetch_agenda(user=self.user, user_tz=self.user_tz, language=self.language),
                 ttl=SECTION_AGENDA_TTL_SECONDS,
                 force=force_all or SECTION_AGENDA in force,
             ),
             self._section(
                 SECTION_MAILS,
-                lambda: fetch_mails(user=self.user, user_tz=self.user_tz),
+                lambda: fetch_mails(user=self.user, user_tz=self.user_tz, language=self.language),
                 ttl=SECTION_MAILS_TTL_SECONDS,
                 force=force_all or SECTION_MAILS in force,
             ),
@@ -238,19 +239,44 @@ class BriefingService:
         )
         return cards
 
-    async def build_text(self) -> SynthesisResponse:
-        """Build the LLM greeting + synthesis from the current cached cards.
+    async def build_text(self, cards: CardsBundle | None = None) -> SynthesisResponse:
+        """Build the LLM greeting + synthesis.
 
-        Reads each section from the Redis cache. Sections without a cache entry
-        are reported as NOT_CONFIGURED to the LLM (the LLM works with what it has).
-        This avoids re-fetching: the cards endpoint is supposed to populate the
-        cache moments before this is called.
+        When ``cards`` is None (the standard ``/briefing/synthesis`` path), the
+        bundle is read from the Redis cache. When the cache is too sparse —
+        typically a cold start where ``/briefing/synthesis`` lands while the
+        parallel ``/briefing/cards`` request is still in flight — the cards
+        are built inline so the LLM does not see an artificially empty
+        dashboard. This keeps the two endpoints independent on the wire while
+        making ``/synthesis`` self-sufficient on the data side.
+
+        When ``cards`` is provided (the bundled ``build_today`` / refresh
+        path), it is used as-is to avoid rebuilding what the caller already
+        produced.
 
         Returns:
-            SynthesisResponse with greeting (always populated, fallback if LLM down)
-            and synthesis (None when too few cards have data).
+            SynthesisResponse with greeting (always populated, fallback if LLM
+            down) and synthesis (None only when the dashboard genuinely has
+            fewer than ``BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA`` populated
+            sections, or when the LLM call itself fails).
         """
-        cards = await self._read_cards_from_cache()
+        if cards is None:
+            cards = await self._read_cards_from_cache()
+
+            # Race-aware: if the cache hasn't been populated yet (cold start,
+            # or /synthesis racing /cards), the synthesis would be silently
+            # skipped because every section reads as NOT_CONFIGURED. Build the
+            # cards inline in that case so the LLM has actual data to work
+            # with.
+            cache_sections_with_data = self._count_sections_with_data(cards)
+            if cache_sections_with_data < BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA:
+                logger.info(
+                    "briefing_synthesis_cache_insufficient_building_inline",
+                    user_id=str(self.user.id),
+                    cache_sections_with_data=cache_sections_with_data,
+                    threshold=BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA,
+                )
+                cards = await self.build_cards()
 
         (greeting_text, greeting_usage), (synthesis_text, synthesis_usage) = await asyncio.gather(
             generate_greeting(
@@ -288,7 +314,10 @@ class BriefingService:
         (/briefing/cards + /briefing/synthesis) for non-blocking rendering.
         """
         cards = await self.build_cards(force_refresh=force_refresh)
-        text = await self.build_text()
+        # Pass the freshly built cards through so build_text doesn't read the
+        # cache (which may already be stale for sections we just refreshed)
+        # and doesn't trigger its inline-rebuild safety net.
+        text = await self.build_text(cards=cards)
         return BriefingResponse(
             greeting=text.greeting,
             synthesis=text.synthesis,
@@ -443,6 +472,27 @@ class BriefingService:
     # =========================================================================
     # Cache state classification (for the duration histogram label)
     # =========================================================================
+
+    @staticmethod
+    def _count_sections_with_data(cards: CardsBundle) -> int:
+        """Return the number of card sections whose status is OK.
+
+        Used by ``build_text`` to decide whether the Redis cache is rich
+        enough to feed the synthesis LLM, or whether cards must be built
+        inline first.
+        """
+        return sum(
+            1
+            for section in (
+                cards.weather,
+                cards.agenda,
+                cards.mails,
+                cards.birthdays,
+                cards.reminders,
+                cards.health,
+            )
+            if section.status == CardStatus.OK
+        )
 
     @staticmethod
     def _classify_cache_state(

@@ -53,6 +53,36 @@ class DailyForecastItem(BaseModel):
     icon_emoji: str = Field(..., description="Single emoji representing the dominant condition")
 
 
+class ForecastAlertKind(str, Enum):
+    """Notable upcoming-weather change kinds detected by the briefing.
+
+    Mirrors the OpenWeatherMap ``main`` field values that warrant a heads-up
+    when the current weather is not already in that state.
+    """
+
+    RAIN = "rain"
+    THUNDERSTORM = "thunderstorm"
+    SNOW = "snow"
+    DRIZZLE = "drizzle"
+
+
+class ForecastAlert(BaseModel):
+    """Structured one-liner alert for the next notable change in the next 24 h.
+
+    Returned as a structured object (not a pre-formatted string) so the
+    frontend renders it through ``react-i18next`` in the user's language —
+    keeping the API contract locale-agnostic.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: ForecastAlertKind = Field(..., description="Kind of upcoming weather change.")
+    time: str = Field(
+        ...,
+        description="Local start time of the change in 'HH:MM' (24 h) format.",
+    )
+
+
 class WeatherData(BaseModel):
     """Weather payload, fully UI-ready (description already localized).
 
@@ -93,9 +123,12 @@ class WeatherData(BaseModel):
         None,
         description="Next 3 h precipitation probability (0.0 – 1.0), from forecast first slot",
     )
-    forecast_alert: str | None = Field(
+    forecast_alert: ForecastAlert | None = Field(
         None,
-        description="Optional pre-formatted one-liner alert: 'Rain expected at 16:00'",
+        description=(
+            "Optional structured alert for an upcoming notable change in the "
+            "next 24 h. The frontend localizes it via i18n."
+        ),
     )
     daily_forecast: list[DailyForecastItem] = Field(
         default_factory=list,

@@ -185,6 +185,7 @@
       "updated_just_now": "gerade eben",
       "updated_minutes_ago": "vor {{minutes}} Min",
       "synthesis_updated_badge": "aktualisiert ✨",
+      "synthesis_unavailable": "Heute liegen zu wenige Daten für eine Zusammenfassung vor.",
       "usage_tokens_one": "{{formatted}} Token",
       "usage_tokens_other": "{{formatted}} Tokens",
       "usage_tooltip": "Modell: {{model}}\nIN: {{tokens_in}} · OUT: {{tokens_out}} · CACHE: {{tokens_cache}}\nKosten: {{cost}}",
@@ -204,7 +205,11 @@
         "weather": {
           "title": "Wetter",
           "empty": "Keine Wetterdaten verfügbar",
-          "temp": "{{value}}°C"
+          "temp": "{{value}}°C",
+          "forecast_alert_rain": "Regen um {{time}}",
+          "forecast_alert_thunderstorm": "Gewitter um {{time}}",
+          "forecast_alert_snow": "Schnee um {{time}}",
+          "forecast_alert_drizzle": "Nieselregen um {{time}}"
         },
         "agenda": {
           "title": "Kalender",
@@ -2857,6 +2862,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_1": {
+          "title": "v1.20.1 — Admin LLM: modellspezifische Sampling-Matrix und wiederverwendbare Reasoning-Shape-Templates",
+          "date": "Mai 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>LLM-Konfiguration: Sampling-Slider zeigen nur, was die API akzeptiert</b> — Im Konfigurationsdialog pro LLM-Typ erscheinen oder verschwinden die vier Sampling-Eingaben (<code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>) jetzt <b>parameterweise</b> auf Basis dessen, was die API jedes Modells tatsächlich akzeptiert. Anthropic 4.5+ zeigt nur temperature; DeepSeek V4 zeigt alle vier; GPT-5-Reihe zeigt keinen. Das Reasoning-Widget selbst (Enum-Auswahl, Integer-Budget oder Toggle+Budget) wird ebenfalls direkt von der deklarierten Form des Modells gesteuert — der Dialog lässt Sie nie einen Wert wählen, den die API ablehnen würde.",
+            "i2": "<b>Tarifierung LLM: Selektor „Reasoning-Form kopieren von…\"</b> — Beim Hinzufügen eines neuen Reasoning-Modells im Admin-Formular Tarification LLM Texte müssen Sie das Reasoning-Widget / die Enum-Werte / die Budget-Range nicht mehr von Hand eingeben. Eine neue Dropdown-Liste lässt Sie ein repräsentatives Modell mit identischem Reasoning-Verhalten wählen (z. B. „wie gpt-5\" für OpenAI o-series / GPT-5, „wie claude-opus-4.5\" für Anthropic 4.5+, „wie deepseek-v4-flash\" für DeepSeek V4) — die vier Reasoning-Shape-Felder werden zum Erstellungszeitpunkt als Snapshot kopiert. Die Liste dedupliziert den Katalog automatisch (~15 eindeutige Reasoning-Formen heute) und reichert sich selbst an: Jedes im <b>Custom (advanced)</b>-Modus mit einer neuartigen Form erstellte Modell wird danach als Template verfügbar.",
+            "i3": "<b>Der Toggle „Is reasoning model\" steuert die Reasoning-Bedienelemente</b> — Das Tarifierungs-Formular blendet jetzt den Template-Selektor und den Custom-Block aus, sobald das neue Modell kein Reasoning-Modell ist. Den Toggle ausschalten setzt das Widget auf <code>none</code> zurück und löscht jede ausstehende Template-Wahl. <code>kind</code> (chat / image / audio / …), die vier Sampling-Toggles und der optionale i18n-Tooltip-Schlüssel bleiben sichtbar und werden pro Modell gespeichert — unabhängig von der Reasoning-Shape-Wahl.",
+            "i4": "<b>Audit-Log: Reasoning-Template + kind + Widget bei jedem Create / Update erfasst</b> — Der Admin-Audit-Trail (sichtbar im Sicherheitsprotokoll) erfasst jetzt für jede LLM-Modell-Erstellung oder -Bearbeitung, welches Template der Admin gewählt hat (oder null im Custom-Modus), den Modell-Kind und das aufgelöste Reasoning-Widget. Sofortige forensische Sichtbarkeit darüber, von welchem API-Vertrag eine bestimmte Zeile geerbt hat."
+          }
+        },
         "v1_20_0": {
           "title": "v1.20.0 — Stratifiziertes Tagebuch: Ebenen, epistemischer Status, ambientes Nutzermodell-Porträt",
           "date": "Mai 2026",

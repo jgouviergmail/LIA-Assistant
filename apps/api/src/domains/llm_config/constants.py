@@ -13,6 +13,11 @@ Created: 2026-03-08
 from dataclasses import dataclass
 
 from src.core.llm_agent_config import LLMAgentConfig
+from src.core.reasoning_types import (
+    ReasoningEffortEnum,
+    ReasoningEffortToggleBudget,
+)
+from src.domains.llm.models import LLMModelKindEnum
 
 # --- LLM Type Metadata ---
 
@@ -37,6 +42,11 @@ class LLMTypeMetadata:
     description_key: str
     required_capabilities: list[str]
     power_tier: str | None = None
+    # The kind of model this LLM type expects. Drives the
+    # ``GET /llm-config/metadata?kinds=`` query param sent by the frontend
+    # when populating the model dropdown for this type. Defaults to ``chat``
+    # (overwhelming majority); ``image_generation`` overrides to ``image``.
+    required_kind: LLMModelKindEnum = LLMModelKindEnum.chat
 
 
 # Categories for grouping in the admin UI
@@ -481,6 +491,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_SPECIALIZED,
         description_key="settings.admin.llmConfig.types.image_generation",
         required_capabilities=[],  # Images API, not chat completions
+        required_kind=LLMModelKindEnum.image,
     ),
 }
 
@@ -511,7 +522,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=180.0,
-        reasoning_effort="low",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=4096),
     ),
     "context_resolver": LLMAgentConfig(
         provider="openai",
@@ -522,7 +533,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort="minimal",
+        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
     ),
     "initiative": LLMAgentConfig(
         provider="qwen",
@@ -533,7 +544,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=60.0,
-        reasoning_effort="none",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     "planner": LLMAgentConfig(
         provider="qwen",
@@ -544,7 +555,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=60.0,
-        reasoning_effort="none",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     "query_analyzer": LLMAgentConfig(
         provider="qwen",
@@ -555,7 +566,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=60.0,
-        reasoning_effort="none",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     "router": LLMAgentConfig(
         provider="openai",
@@ -566,7 +577,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=60.0,
-        reasoning_effort="minimal",
+        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
     ),
     "semantic_pivot": LLMAgentConfig(
         provider="openai",
@@ -577,7 +588,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort="minimal",
+        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
     ),
     "semantic_validator": LLMAgentConfig(
         provider="openai",
@@ -588,7 +599,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort="minimal",
+        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
     ),
     # --- Domain Agents ---
     "brave_agent": LLMAgentConfig(
@@ -610,7 +621,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=50000,
         timeout_seconds=120.0,
-        reasoning_effort="none",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     "calendar_agent": LLMAgentConfig(
         provider="openai",
@@ -671,7 +682,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=50000,
         timeout_seconds=120.0,
-        reasoning_effort="medium",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=16384),
     ),
     # ADR-070: ReAct Execution Mode — autonomous reasoning loop (pipeline alternative)
     "react_agent": LLMAgentConfig(
@@ -683,7 +694,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=50000,
         timeout_seconds=120.0,
-        reasoning_effort="medium",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=16384),
     ),
     "perplexity_agent": LLMAgentConfig(
         provider="openai",
@@ -724,7 +735,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=60.0,
-        reasoning_effort="none",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     "tasks_agent": LLMAgentConfig(
         provider="openai",
@@ -796,7 +807,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=60.0,
-        reasoning_effort="none",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     "response": LLMAgentConfig(
         provider="qwen",
@@ -807,7 +818,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=60.0,
-        reasoning_effort="none",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     # --- HITL ---
     "hitl_classifier": LLMAgentConfig(
@@ -829,7 +840,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.3,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort="none",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     "hitl_question_generator": LLMAgentConfig(
         provider="qwen",
@@ -840,7 +851,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.3,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort="none",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     # --- Memory ---
     "memory_extraction": LLMAgentConfig(
@@ -852,7 +863,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=60.0,
-        reasoning_effort="low",
+        reasoning_effort=ReasoningEffortEnum(effort="low"),
     ),
     "memory_reference_extraction": LLMAgentConfig(
         provider="openai",
@@ -863,7 +874,8 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=500,
         timeout_seconds=30.0,
-        reasoning_effort="minimal",
+        # was "minimal" — invalid for non-reasoning gpt-4.1-nano (option-(a) drop).
+        reasoning_effort=None,
     ),
     "memory_reference_resolution": LLMAgentConfig(
         provider="openai",
@@ -874,7 +886,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort="minimal",
+        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
     ),
     # --- Background ---
     "briefing": LLMAgentConfig(
@@ -896,7 +908,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=30.0,
-        reasoning_effort="minimal",
+        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
     ),
     "heartbeat_decision": LLMAgentConfig(
         provider="qwen",
@@ -907,7 +919,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=60.0,
-        reasoning_effort="low",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=4096),
     ),
     "heartbeat_message": LLMAgentConfig(
         provider="qwen",
@@ -918,7 +930,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=60.0,
-        reasoning_effort="none",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     "interest_content": LLMAgentConfig(
         provider="qwen",
@@ -929,7 +941,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=60.0,
-        reasoning_effort="none",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     "interest_extraction": LLMAgentConfig(
         provider="openai",
@@ -940,7 +952,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=500,
         timeout_seconds=60.0,
-        reasoning_effort="low",
+        reasoning_effort=ReasoningEffortEnum(effort="low"),
     ),
     "journal_consolidation": LLMAgentConfig(
         provider="qwen",
@@ -951,7 +963,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=180.0,
-        reasoning_effort="low",
+        reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=4096),
     ),
     "journal_extraction": LLMAgentConfig(
         provider="openai",
@@ -962,7 +974,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=60.0,
-        reasoning_effort="low",
+        reasoning_effort=ReasoningEffortEnum(effort="low"),
     ),
     "psyche_summary": LLMAgentConfig(
         provider="openai",
@@ -973,7 +985,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort="minimal",
+        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
     ),
     # --- Specialized ---
     "evaluator": LLMAgentConfig(
@@ -1005,18 +1017,18 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort="minimal",
+        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
     ),
     "mcp_app_react_agent": LLMAgentConfig(
         provider="anthropic",
-        model="claude-opus-4-6",
+        model="claude-opus-4.6",
         temperature=0.5,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=50000,
         timeout_seconds=120.0,
-        reasoning_effort="medium",
+        reasoning_effort=ReasoningEffortEnum(effort="medium"),
     ),
     "skill_description_translator": LLMAgentConfig(
         provider="openai",
@@ -1027,7 +1039,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort="minimal",
+        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
     ),
     "vision_analysis": LLMAgentConfig(
         provider="openai",
@@ -1038,7 +1050,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=60.0,
-        reasoning_effort="minimal",
+        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
     ),
     "voice_comment": LLMAgentConfig(
         provider="openai",

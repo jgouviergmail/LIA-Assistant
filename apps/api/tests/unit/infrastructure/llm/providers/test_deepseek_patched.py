@@ -186,8 +186,15 @@ class TestChatDeepSeekPatchedIntegrationWithAdapter:
 
         assert isinstance(llm, ChatDeepSeekPatched)
 
-    def test_v4_thinking_disabled_when_reasoning_effort_none(self) -> None:
-        """reasoning_effort=none → extra_body.thinking.type=disabled."""
+    def test_v4_thinking_disabled_when_reasoning_effort_off(self) -> None:
+        """reasoning_effort={"effort":"off"} → extra_body.thinking.type=disabled.
+
+        Updated 2026-05-06: the legacy 6-level UI scale (none/minimal/low/medium/
+        high/xhigh) was replaced by the 3-value enum (off/high/max) per the
+        philosophy A "raw truth" decision. The DeepSeek adapter delegates to
+        ``build_deepseek_v4_reasoning`` which produces the correct API shape.
+        """
+        from src.core.reasoning_types import ReasoningEffortEnum
         from src.infrastructure.llm.providers.adapter import ProviderAdapter
 
         with patch(
@@ -199,13 +206,20 @@ class TestChatDeepSeekPatchedIntegrationWithAdapter:
                 temperature=0.5,
                 max_tokens=4096,
                 streaming=False,
-                reasoning_effort="none",
+                reasoning_effort=ReasoningEffortEnum(effort="off"),
             )
 
         assert llm.extra_body == {"thinking": {"type": "disabled"}}
 
-    def test_v4_thinking_enabled_high_for_low_medium(self) -> None:
-        """reasoning_effort in {minimal, low, medium} → API effort=high."""
+    def test_v4_thinking_enabled_high(self) -> None:
+        """reasoning_effort={"effort":"high"} → thinking enabled + top-level effort=high.
+
+        Per the DeepSeek V4 API spec, ``reasoning_effort`` is a TOP-LEVEL
+        request field (sibling of ``messages`` / ``model``), NOT nested in
+        ``extra_body``. ``extra_body`` only carries ``thinking={type:...}``.
+        The legacy adapter erroneously merged both into ``extra_body``.
+        """
+        from src.core.reasoning_types import ReasoningEffortEnum
         from src.infrastructure.llm.providers.adapter import ProviderAdapter
 
         with patch(
@@ -217,16 +231,17 @@ class TestChatDeepSeekPatchedIntegrationWithAdapter:
                 temperature=0.5,
                 max_tokens=4096,
                 streaming=False,
-                reasoning_effort="medium",
+                reasoning_effort=ReasoningEffortEnum(effort="high"),
             )
 
-        assert llm.extra_body == {
-            "thinking": {"type": "enabled"},
-            "reasoning_effort": "high",
-        }
+        # extra_body now only carries the thinking toggle.
+        assert llm.extra_body == {"thinking": {"type": "enabled"}}
+        # reasoning_effort lives at the top-level kwargs of the LLM client.
+        assert getattr(llm, "reasoning_effort", None) == "high"
 
-    def test_v4_thinking_enabled_max_for_high_xhigh(self) -> None:
-        """reasoning_effort in {high, xhigh} → API effort=max."""
+    def test_v4_thinking_enabled_max(self) -> None:
+        """reasoning_effort={"effort":"max"} → thinking enabled + top-level effort=max."""
+        from src.core.reasoning_types import ReasoningEffortEnum
         from src.infrastructure.llm.providers.adapter import ProviderAdapter
 
         with patch(
@@ -238,13 +253,11 @@ class TestChatDeepSeekPatchedIntegrationWithAdapter:
                 temperature=0.5,
                 max_tokens=4096,
                 streaming=False,
-                reasoning_effort="xhigh",
+                reasoning_effort=ReasoningEffortEnum(effort="max"),
             )
 
-        assert llm.extra_body == {
-            "thinking": {"type": "enabled"},
-            "reasoning_effort": "max",
-        }
+        assert llm.extra_body == {"thinking": {"type": "enabled"}}
+        assert getattr(llm, "reasoning_effort", None) == "max"
 
     def test_v3_legacy_models_unaffected_by_v4_logic(self) -> None:
         """deepseek-chat/deepseek-reasoner: no extra_body injection."""

@@ -66,6 +66,73 @@ def validate_llm_configuration() -> None:
     )
 
 
+def validate_llm_defaults_against_matrix() -> None:
+    """Sanity check: every LLM_DEFAULTS entry must be compatible with its
+    model's reasoning_widget on ``llm_models``. Fail-fast at boot if any
+    drift exists (e.g. a future LLM_DEFAULTS edit that didn't keep the
+    matrix in sync).
+
+    Reuses the same ``validate_reasoning_effort`` function as the admin
+    write path, so the parametrized matrix tests in
+    ``test_reasoning_validation.py`` also cover the boot-time path.
+
+    Raises:
+        RuntimeError: When any LLM_DEFAULTS entry has a ``reasoning_effort``
+        incompatible with its model's ``reasoning_widget`` /
+        ``reasoning_enum_values`` / ``reasoning_budget_range``.
+
+    Note:
+        Must be called AFTER ``ModelCapabilitiesCache.load_from_db()`` so the
+        cache is populated. Called from ``main.py`` lifespan startup.
+    """
+    from fastapi import HTTPException
+
+    from src.domains.llm.models import LLMModelKindEnum
+    from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_TYPES_REGISTRY
+    from src.domains.llm_config.reasoning_validation import validate_reasoning_effort
+    from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+
+    if not ModelCapabilitiesCache.is_loaded():
+        raise RuntimeError(
+            "validate_llm_defaults_against_matrix() called before "
+            "ModelCapabilitiesCache.load_from_db(). Fix the lifespan order in main.py."
+        )
+
+    errors: list[str] = []
+    for llm_type, cfg in LLM_DEFAULTS.items():
+        # Skip LLM types whose required_kind != "chat" (image_generation uses
+        # image_generation_pricing, not llm_models). The reasoning matrix
+        # check only applies to chat-kind LLM types.
+        metadata = LLM_TYPES_REGISTRY.get(llm_type)
+        if metadata is not None and metadata.required_kind != LLMModelKindEnum.chat:
+            continue
+
+        caps = ModelCapabilitiesCache.get(cfg.model)
+        if caps is None:
+            errors.append(
+                f"  - {llm_type}: model {cfg.model!r} not present in llm_models catalogue"
+            )
+            continue
+        try:
+            validate_reasoning_effort(caps, cfg.reasoning_effort)
+        except HTTPException as e:
+            detail = e.detail if isinstance(e.detail, dict) else {"msg": str(e.detail)}
+            errors.append(f"  - {llm_type} (model={cfg.model}): {detail.get('msg', detail)}")
+
+    if errors:
+        raise RuntimeError(
+            "LLM_DEFAULTS contains entries incompatible with the model "
+            "catalogue:\n" + "\n".join(errors) + "\n"
+            "Update LLM_DEFAULTS in apps/api/src/domains/llm_config/constants.py "
+            "to match the matrix in llm_pricing_seed.sql / llm_models."
+        )
+
+    logger.info(
+        "llm_defaults_matrix_validated",
+        total_types=len(LLM_DEFAULTS),
+    )
+
+
 def validate_critical_configuration() -> None:
     """
     Validate all critical environment variables before deployment.

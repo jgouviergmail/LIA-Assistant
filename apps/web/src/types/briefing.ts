@@ -22,6 +22,14 @@ export interface DailyForecastItem {
   icon_emoji: string;
 }
 
+export type ForecastAlertKind = 'rain' | 'thunderstorm' | 'snow' | 'drizzle';
+
+export interface ForecastAlert {
+  kind: ForecastAlertKind;
+  /** Local 24 h start time of the upcoming change, e.g. '23:00' */
+  time: string;
+}
+
 export interface WeatherData {
   temperature_c: number;
   temperature_min_c: number | null;
@@ -36,7 +44,8 @@ export interface WeatherData {
   wind_direction_cardinal: string | null;
   /** Next 3 h precipitation probability (0.0 – 1.0) */
   precipitation_probability: number | null;
-  forecast_alert: string | null;
+  /** Structured upcoming-change alert. Null when nothing notable is expected. */
+  forecast_alert: ForecastAlert | null;
   /** 5-day daily forecast (today + next 4 days) */
   daily_forecast: DailyForecastItem[];
 }

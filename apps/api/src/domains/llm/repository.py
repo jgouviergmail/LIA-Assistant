@@ -14,7 +14,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
-from src.domains.llm.models import LLMModel, LLMProviderEnum
+from src.domains.llm.models import (
+    LLMModel,
+    LLMModelKindEnum,
+    LLMProviderEnum,
+    LLMReasoningWidgetEnum,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -63,12 +68,23 @@ class LLMModelRepository(BaseRepository[LLMModel]):
         supports_streaming: bool,
         supports_vision: bool,
         is_reasoning_model: bool,
+        kind: LLMModelKindEnum,
+        reasoning_widget: LLMReasoningWidgetEnum,
+        reasoning_enum_values: list[str] | None,
+        reasoning_budget_range: dict[str, Any] | None,
+        reasoning_doc_i18n_key: str | None,
+        supports_temperature: bool,
+        supports_top_p: bool,
+        supports_frequency_penalty: bool,
+        supports_presence_penalty: bool,
     ) -> LLMModel:
         """Insert a new active llm_models row and return it (flushed + refreshed).
 
         Wrapper around ``BaseRepository.create`` that exposes a typed keyword
         signature instead of a free-form dict. ``id`` is generated server-side
-        via ``gen_random_uuid()``.
+        via ``gen_random_uuid()``. The full reasoning + sampling block is
+        required and is typically resolved by the service layer (template
+        copy or explicit Custom payload).
         """
         return await self.create(
             {
@@ -82,6 +98,15 @@ class LLMModelRepository(BaseRepository[LLMModel]):
                 "supports_streaming": supports_streaming,
                 "supports_vision": supports_vision,
                 "is_reasoning_model": is_reasoning_model,
+                "kind": kind,
+                "reasoning_widget": reasoning_widget,
+                "reasoning_enum_values": reasoning_enum_values,
+                "reasoning_budget_range": reasoning_budget_range,
+                "reasoning_doc_i18n_key": reasoning_doc_i18n_key,
+                "supports_temperature": supports_temperature,
+                "supports_top_p": supports_top_p,
+                "supports_frequency_penalty": supports_frequency_penalty,
+                "supports_presence_penalty": supports_presence_penalty,
                 "is_active": True,
             }
         )

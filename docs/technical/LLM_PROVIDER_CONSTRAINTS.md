@@ -3,6 +3,15 @@
 > Technical reference for LLM parameter support across all providers.
 > Used by `adapter.py`, `responses_adapter.py`, and `AdminLLMConfigSection.tsx`.
 
+## Source of truth (v1.20.1+)
+
+The matrix below documents **family-level** behaviour for human reference. The runtime authority is the `llm_models` catalogue in DB:
+
+- 4 sampling acceptance flags per row: `supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`.
+- 1 reasoning shape declaration per row: `reasoning_widget` ∈ `{none, enum, budget_int, toggle_budget}`, plus widget-conditional `reasoning_enum_values` (JSONB list) or `reasoning_budget_range` (JSONB `{min, max, off_sentinel, dynamic_sentinel}`).
+
+`AdminLLMConfigSection.tsx` reads these flags **per individual model** to decide which sliders to show — replacing the legacy `getModelConstraints()` regex matcher. `ProviderAdapter` still does final stripping at API call time, so the admin UI and the runtime stay aligned. See [LLM_CONFIG_ADMIN.md](./LLM_CONFIG_ADMIN.md) for the admin form details and [LLM_PRICING_TEMPLATES.md](./LLM_PRICING_TEMPLATES.md) for the reasoning shape template mechanism that lets new models inherit a known shape.
+
 ## Quick Reference Matrix
 
 | Provider | temperature | top_p | freq_penalty | pres_penalty | reasoning_effort | max_tokens param |

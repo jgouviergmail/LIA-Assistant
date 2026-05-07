@@ -1,7 +1,7 @@
 # Today Briefing — Technical Documentation
 
 > **Bounded context** : `apps/api/src/domains/briefing/`
-> **Endpoints** : `GET /api/v1/briefing/today`, `POST /api/v1/briefing/refresh`
+> **Endpoints** : `GET /api/v1/briefing/cards`, `GET /api/v1/briefing/synthesis`, `POST /api/v1/briefing/refresh`
 > **Frontend** : `apps/web/src/components/dashboard/`
 > **ADR** : [ADR-077 — Today Briefing as a Standalone Bounded Context](../architecture/ADR-077-Today-Briefing-Domain.md)
 
@@ -27,7 +27,7 @@ apps/api/src/domains/briefing/
 ├── fetchers.py          One async fetcher per source (testable in isolation)
 ├── llm.py               generate_greeting() + generate_synthesis() + token tracking
 ├── service.py           BriefingService — orchestrator
-└── router.py            GET /briefing/today + POST /briefing/refresh
+└── router.py            GET /briefing/cards + GET /briefing/synthesis + POST /briefing/refresh
 ```
 
 ### Per-section TTL strategy
@@ -72,11 +72,32 @@ The synthesis is **skipped** (returns `(None, None)`) when fewer than `BRIEFING_
 
 ## API contract
 
-### `GET /api/v1/briefing/today`
+The dashboard load is split into **two non-blocking GET endpoints** — fast cards first, slow LLM-bound synthesis afterwards. A third POST endpoint covers user-triggered refresh.
 
-Returns the user's Today briefing. Uses the cache when fresh (per-section TTL). Greeting + synthesis are always regenerated.
+### `GET /api/v1/briefing/cards`
 
-**Response (200)** — `BriefingResponse`:
+Returns the 6-card bundle. **No LLM call** — fetchers run in parallel via `asyncio.gather` and the response returns as soon as every section has been fetched (or recovered from Redis cache).
+
+**Response (200)** — `CardsResponse`:
+
+```json
+{
+  "cards": {
+    "weather":   { "status": "ok", "data": {...}, "generated_at": "...", "error_code": null, "error_message": null },
+    "agenda":    { "status": "ok", "data": {...}, ... },
+    "mails":     { "status": "empty", "data": null, ... },
+    "birthdays": { "status": "ok", "data": {...}, ... },
+    "reminders": { "status": "empty", "data": null, ... },
+    "health":    { "status": "not_configured", "data": null, "error_code": "connector_not_configured", ... }
+  }
+}
+```
+
+### `GET /api/v1/briefing/synthesis`
+
+Returns the LLM greeting + synthesis. Reads the cards from Redis cache (populated by `/cards` moments before, in normal usage).
+
+**Response (200)** — `SynthesisResponse`:
 
 ```json
 {
@@ -101,21 +122,31 @@ Returns the user's Today briefing. Uses the cache when fresh (per-section TTL). 
       "cost_eur": 0.0001824,
       "model_name": "gpt-4.1-nano"
     }
-  },
-  "cards": {
-    "weather":   { "status": "ok", "data": {...}, "generated_at": "...", "error_code": null, "error_message": null },
-    "agenda":    { "status": "ok", "data": {...}, ... },
-    "mails":     { "status": "empty", "data": null, ... },
-    "birthdays": { "status": "ok", "data": {...}, ... },
-    "reminders": { "status": "empty", "data": null, ... },
-    "health":    { "status": "not_configured", "data": null, "error_code": "connector_not_configured", ... }
   }
 }
 ```
 
+`synthesis` is `null` when fewer than `BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA` (=2) cards have OK data, or when the LLM call itself fails. The frontend renders an i18n fallback line — see "Synthesis fallback" below.
+
 The `usage` field is `null` when no LLM call was made (fallback greeting, skipped synthesis). The frontend only renders the inline `<LLMUsageBadge>` when `usage` is present.
 
 > **Note on `DailyForecastItem`** — the `weekday_short` field shipped before 1.18.0 has been removed. The frontend now derives the localized weekday label from `date_iso` via `Intl.DateTimeFormat` (locale-aware), avoiding the C-locale label that the backend produced.
+
+#### Race-aware fallback (cold cache)
+
+`/cards` and `/synthesis` are called in parallel by the frontend (`useBriefing` fires both via `useApiQuery`). On a cold cache (page first load, or all section TTLs just expired), `/synthesis` may read Redis **before** `/cards` has had time to populate it — every section then reads as `NOT_CONFIGURED`, `cards_with_data` falls below 2, and the synthesis is silently skipped.
+
+To eliminate that race, `BriefingService.build_text()` checks the cache hit count itself:
+
+```python
+cache_sections_with_data = self._count_sections_with_data(cards)
+if cache_sections_with_data < BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA:
+    cards = await self.build_cards()  # inline rebuild
+```
+
+This makes `/synthesis` self-sufficient on the data side while keeping the two endpoints independent on the wire. The trade-off: on a true cold-start race, both `/cards` and `/synthesis` will run their fetchers (one round each, in parallel) — a one-time duplication per session that we accept rather than introduce a Redis lock.
+
+`build_text(cards=...)` accepts a pre-built bundle to bypass the cache read entirely, used by `build_today` (the `/refresh` path) so we never rebuild what the caller already produced.
 
 ### `POST /api/v1/briefing/refresh`
 
@@ -129,7 +160,22 @@ Force-refresh selected sections (bypasses cache). Greeting + synthesis are alway
 
 Or `["all"]` to bypass every cache.
 
-**Response (200)** — same `BriefingResponse` shape.
+**Response (200)** — `BriefingResponse` (cards + greeting + synthesis bundled in one payload — convenient for atomic UI swaps after a user-triggered refresh).
+
+### Synthesis fallback (frontend)
+
+When `text.synthesis === null` after the synthesis query has resolved, `<TodayBriefing>` renders a discreet single-line fallback instead of leaving the slot empty:
+
+```tsx
+{text ? (
+  text.synthesis ? <BriefingSynthesis synthesis={text.synthesis} />
+                 : <p role="status" className="px-1 text-sm italic text-muted-foreground">
+                     {t('dashboard.briefing.synthesis_unavailable')}
+                   </p>
+) : (textLoading ? <SynthesisSkeleton /> : null)}
+```
+
+The i18n key `dashboard.briefing.synthesis_unavailable` is provided in all 6 supported locales (en, fr, de, es, it, zh).
 
 ---
 
@@ -256,7 +302,7 @@ Adding a new card (e.g. "tasks") follows a 5-step recipe:
 1. **Add the section name** to `briefing/constants.py` (`SECTION_TASKS`, TTL constant).
 2. **Add the data schema** to `briefing/schemas.py` (`TasksData`, ensure it's part of the `SectionPayload` union and `CardsBundle`).
 3. **Add a fetcher** to `briefing/fetchers.py` following the existing pattern (raise `ConnectorNotConfiguredError` / `ConnectorAccessError`).
-4. **Wire it in** `BriefingService.build_today()` — add the `_section` call to the `asyncio.gather` block.
+4. **Wire it in** `BriefingService.build_cards()` — add the `_section` call to the `asyncio.gather` block (and update `_count_sections_with_data` if the new section should count toward the synthesis threshold).
 5. **Add a frontend card** under `components/dashboard/cards/TasksCard.tsx` and include it in `<TodayBriefing>` with a `staggerIndex`.
 
 i18n: add new keys to `dashboard.briefing.cards.tasks.*` in the 6 locale files.

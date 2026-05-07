@@ -74,10 +74,12 @@ async def generate_greeting(
             BRIEFING_GREETING_PROMPT_NAME,
             version=app_settings.briefing_greeting_prompt_version,
         )
+        now_local = datetime.now(user_tz)
         rendered = prompt_text.format(
             user_name=_resolve_display_name(user),
+            today_iso=now_local.date().isoformat(),
             time_of_day=_compute_time_of_day(user_tz),
-            day_of_week=datetime.now(user_tz).strftime("%A"),
+            day_of_week=now_local.strftime("%A"),
             language=language,
             personality_brief=await _resolve_personality(user.id),
             active_sections=_summarize_cards_for_llm(cards, verbose=False),
@@ -128,10 +130,12 @@ async def generate_synthesis(
             BRIEFING_SYNTHESIS_PROMPT_NAME,
             version=app_settings.briefing_synthesis_prompt_version,
         )
+        now_local = datetime.now(user_tz)
         rendered = prompt_text.format(
             user_name=_resolve_display_name(user),
+            today_iso=now_local.date().isoformat(),
             time_of_day=_compute_time_of_day(user_tz),
-            day_of_week=datetime.now(user_tz).strftime("%A"),
+            day_of_week=now_local.strftime("%A"),
             language=language,
             personality_brief=await _resolve_personality(user.id),
             active_sections=_summarize_cards_for_llm(cards, verbose=True),
@@ -337,11 +341,14 @@ def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:
 
     if cards.weather.status == CardStatus.OK and cards.weather.data is not None:
         w = cards.weather.data
+        alert = getattr(w, "forecast_alert", None)
         summary["weather"] = {
             "temp_c": getattr(w, "temperature_c", None),
             "condition": getattr(w, "condition_code", None),
             "city": getattr(w, "location_city", None),
-            "forecast_alert": getattr(w, "forecast_alert", None),
+            # Compact "<kind>@<HH:MM>" pivot, e.g. "rain@23:00" — readable by
+            # the LLM without leaking pre-translated strings into the prompt.
+            "forecast_alert": (f"{alert.kind.value}@{alert.time}" if alert is not None else None),
         }
 
     if cards.agenda.status == CardStatus.OK and cards.agenda.data is not None:

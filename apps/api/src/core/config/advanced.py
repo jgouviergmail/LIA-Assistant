@@ -41,7 +41,6 @@ from src.core.constants import (
     PROMPT_TIMEZONE_DEFAULT,
     REDIS_SCAN_COUNT_DEFAULT,
     SUPPORTED_LANGUAGES,
-    TOKEN_COUNT_DEFAULT_MODEL_DEFAULT,
     TOKEN_ENCODING_NAME_DEFAULT,
     TOOL_CONTEXT_CONFIDENCE_THRESHOLD,
     TOOL_CONTEXT_MAX_ITEMS,
@@ -236,10 +235,6 @@ class AdvancedSettings(BaseSettings):
     token_encoding_name: str = Field(
         default=TOKEN_ENCODING_NAME_DEFAULT,
         description="Token encoding name for tiktoken (o200k_base for GPT-4 models)",
-    )
-    token_count_default_model: str = Field(
-        default=TOKEN_COUNT_DEFAULT_MODEL_DEFAULT,
-        description="Default model name for token counting operations",
     )
 
     # NOTE: use_conversation_repository removed - always use optimized v2 implementation

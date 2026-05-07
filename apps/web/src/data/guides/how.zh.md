@@ -4,9 +4,9 @@
 >
 > 面向架构师、工程师和技术专家的技术展示文档。
 
-**版本**：2.3
-**日期**：2026-05-05
-**应用**：LIA v1.19.1
+**版本**：2.4
+**日期**：2026-05-06
+**应用**：LIA v1.20.1
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -581,6 +581,12 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 ### 12.3. Token 追踪
 
 `TrackingContext` 追踪每次 LLM 调用，包含 `call_type`（"chat"/"embedding"）、`sequence`（单调递增计数器）、`duration_ms`、token（输入/输出/缓存）、以及从数据库费率计算的成本。追踪器共享 `run_id` 用于聚合。调试面板以统一的时间线视图显示所有调用（管道 + 后台任务）。
+
+### 12.4. 数据库为唯一真实来源的管理员目录
+
+`llm_models` 表承载完整目录：provider、经典功能能力（`supports_tools`、`supports_structured_output`、`supports_strict_mode`、`supports_streaming`、`supports_vision`），以及结构性新增 — **每模型采样矩阵**（`supports_temperature`、`supports_top_p`、`supports_frequency_penalty`、`supports_presence_penalty`）以及**推理形态**（`reasoning_widget` ∈ {`none`、`enum`、`budget_int`、`toggle_budget`}、`reasoning_enum_values` JSONB 列表、`reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`、`reasoning_doc_i18n_key`）。这种按模型声明取代了以前用前端正则表达式猜测要隐藏哪些滑块：LLM 配置对话框直接读取数据库标志，仅暴露模型 API 实际接受的参数。
+
+LLM 定价管理员表单暴露**从数据库派生的动态模板机制**：`LLMModelService.list_templates()` 服务按其 4 字段推理指纹分组活动行，并为每组返回一个确定性代表（今天约 15 种唯一形态）。添加新的推理模型归结为选择"从某个现有模型复制形态"；4 个形态字段在创建时被快照复制。**Custom** 模式可用于颠覆性场景；任何具有新颖指纹的 Custom 模型自动成为后续添加的模板。`kind`（chat / image / audio / …）、四个采样限制和工具提示 i18n 键按模型保存，独立于模板。请参阅 `docs/technical/LLM_PRICING_TEMPLATES.md`。
 
 ---
 

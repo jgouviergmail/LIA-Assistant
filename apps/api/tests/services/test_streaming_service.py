@@ -5,7 +5,7 @@ Tests SSE formatting logic without requiring full graph execution.
 """
 
 import uuid
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from langchain_core.messages import AIMessage
@@ -85,45 +85,41 @@ async def test_process_values_chunk_avoids_duplicate_router_decisions(streaming_
 
 
 @pytest.mark.asyncio
-async def test_process_messages_chunk_emits_execution_step(streaming_service):
-    """Test that execution_step events are emitted for node transitions."""
-    # Mock AIMessage
+async def test_process_messages_chunk_does_not_emit_execution_step(streaming_service):
+    """``_process_messages_chunk`` no longer emits ``execution_step`` — node
+    transition detection moved to ``_process_updates_chunk`` once LangGraph
+    1.x exposed ``stream_mode="updates"`` reliably. This test guards against
+    a regression that would re-introduce duplicate step events.
+    """
     mock_message = AIMessage(content="Hello")
     metadata = {"langgraph_node": "response"}
     message_tuple = (mock_message, metadata)
 
-    # Process chunk (note: parameter names use underscore prefix: _state, _first_token_time)
     sse_chunks = streaming_service._process_messages_chunk(
         message_tuple,
         _state={},
-        last_emitted_node=None,
         _first_token_time=None,
     )
 
-    # Assert execution_step emitted (first chunk)
-    assert len(sse_chunks) >= 1
-    assert sse_chunks[0][0].type == "execution_step"
-    assert sse_chunks[0][0].metadata["step_name"] == "response"
-    assert sse_chunks[0][1] == ""  # No content for execution_step
+    # No execution_step in the output — only token chunks may appear.
+    step_chunks = [c for c, _ in sse_chunks if c.type == "execution_step"]
+    assert step_chunks == []
 
 
 @pytest.mark.asyncio
-async def test_process_messages_chunk_filters_response_tokens(streaming_service):
-    """Test that tokens are only streamed from response node."""
-    # Mock AIMessage from response node
+async def test_process_messages_chunk_streams_response_tokens(streaming_service):
+    """Tokens from the ``response`` node are forwarded as SSE token chunks
+    (the only node whose tokens reach the client)."""
     mock_message = AIMessage(content="Hello world")
     metadata = {"langgraph_node": "response"}
     message_tuple = (mock_message, metadata)
 
-    # Process chunk (note: parameter names use underscore prefix: _state, _first_token_time)
     sse_chunks = streaming_service._process_messages_chunk(
         message_tuple,
         _state={},
-        last_emitted_node="response",  # Already emitted execution_step
         _first_token_time=None,
     )
 
-    # Assert token emitted
     assert len(sse_chunks) == 1
     assert sse_chunks[0][0].type == "token"
     assert sse_chunks[0][0].content == "Hello world"
@@ -132,22 +128,41 @@ async def test_process_messages_chunk_filters_response_tokens(streaming_service)
 
 @pytest.mark.asyncio
 async def test_process_messages_chunk_filters_router_tokens(streaming_service):
-    """Test that tokens from router node are NOT streamed."""
-    # Mock AIMessage from router node (JSON output)
+    """Tokens from non-response nodes (router, planner, ...) MUST NOT be
+    streamed — they would surface internal JSON / reasoning to the user."""
     mock_message = AIMessage(content='{"intention": "contacts_search"}')
     metadata = {"langgraph_node": "router"}
     message_tuple = (mock_message, metadata)
 
-    # Process chunk (note: parameter names use underscore prefix: _state, _first_token_time)
     sse_chunks = streaming_service._process_messages_chunk(
         message_tuple,
         _state={},
-        last_emitted_node="router",  # Already emitted execution_step
         _first_token_time=None,
     )
 
-    # Assert NO tokens emitted (router is filtered)
-    assert len(sse_chunks) == 0
+    assert sse_chunks == []
+
+
+@pytest.mark.asyncio
+async def test_process_messages_chunk_skips_when_content_replacement_pending(
+    streaming_service,
+):
+    """When ``state["content_final_replacement"]`` is set, the live token is
+    a pre-replacement version that will be superseded by the
+    ``content_replacement`` chunk after the loop. Emitting it here would
+    cause the client to display the response twice. Regression: 2025-12-29.
+    """
+    mock_message = AIMessage(content="Hello world")
+    metadata = {"langgraph_node": "response"}
+    message_tuple = (mock_message, metadata)
+
+    sse_chunks = streaming_service._process_messages_chunk(
+        message_tuple,
+        _state={"content_final_replacement": "Hello world (with photos injected)"},
+        _first_token_time=None,
+    )
+
+    assert sse_chunks == []
 
 
 @pytest.mark.asyncio
@@ -216,14 +231,39 @@ async def test_format_done_chunk(streaming_service):
 
 
 @pytest.mark.asyncio
-async def test_format_error_chunk(streaming_service):
-    """Test error chunk formatting."""
-    error = ValueError("Test error")
+async def test_format_error_chunk_returns_localized_user_message(streaming_service):
+    """``format_error_chunk`` MUST return a user-friendly localized string and
+    MUST NOT leak the raw exception type or message to the client.
+
+    Regression guard: an earlier version exposed
+    ``{"error": exc_message, "error_type": exc_class}`` which leaked
+    implementation details (and sometimes PII) into SSE payloads.
+    """
+    error = ValueError("Internal validation message that must not leak")
     chunk = streaming_service.format_error_chunk(error, context={"run_id": "123"})
+
     assert chunk.type == "error"
-    assert chunk.content["error"] == "Test error"
-    assert chunk.content["error_type"] == "ValueError"
-    assert chunk.content["context"]["run_id"] == "123"
+    # ``content`` is now a single localized string, not a dict.
+    assert isinstance(chunk.content, str)
+    assert chunk.content  # non-empty
+    # Critical: raw exception type / message must not surface to the client.
+    assert "ValueError" not in chunk.content
+    assert "Internal validation message" not in chunk.content
+
+
+@pytest.mark.asyncio
+async def test_format_error_chunk_respects_language(streaming_service):
+    """Localised error message must vary with the ``language`` argument."""
+    error = RuntimeError("boom")
+    chunk_fr = streaming_service.format_error_chunk(error, language="fr")
+    chunk_en = streaming_service.format_error_chunk(error, language="en")
+
+    assert chunk_fr.type == "error"
+    assert chunk_en.type == "error"
+    assert isinstance(chunk_fr.content, str)
+    assert isinstance(chunk_en.content, str)
+    # Different locales must produce different user-facing copy.
+    assert chunk_fr.content != chunk_en.content
 
 
 # =============================================================================
@@ -464,3 +504,86 @@ class TestLARSRegistryUpdate:
         # Assert registry_update emitted
         assert len(registry_updates_received) == 1
         assert registry_updates_received[0].metadata["count"] == 1
+
+
+# =============================================================================
+# _process_updates_chunk — None state_delta (LangGraph no-op normalisation)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_process_updates_chunk_handles_none_state_delta_silently(
+    streaming_service,
+):
+    """LangGraph 1.x normalises an empty-dict return from a node into ``None``
+    in ``stream_mode="updates"`` (cf. ``langgraph.pregel._io.map_output_updates``):
+    nodes that ran without producing channel writes yield ``{node_name: None}``.
+
+    The streaming service must treat that as the expected no-op signal — log
+    at debug level, NOT warning. Regression: previously the path emitted
+    ``logger.warning("updates_mode_non_dict_state_delta", ...)`` for every
+    no-op node (compaction is the most frequent), polluting prod logs.
+    """
+    # Patch the module-level logger to assert log levels.
+    with patch("src.domains.agents.services.streaming.service.logger") as mock_logger:
+        # Use a node that has display metadata so the execution_step path is
+        # also traversed end-to-end.
+        sse_chunks = streaming_service._process_updates_chunk(
+            chunk={"router": None},
+            accumulated_state={},
+        )
+
+    # No-op debug log was emitted, NOT a warning.
+    debug_event_names = [c.args[0] for c in mock_logger.debug.call_args_list if c.args]
+    warning_event_names = [c.args[0] for c in mock_logger.warning.call_args_list if c.args]
+    assert "updates_mode_node_no_op" in debug_event_names
+    assert "updates_mode_non_dict_state_delta" not in warning_event_names
+
+    # The node-level execution_step is still emitted for visible nodes.
+    assert len(sse_chunks) == 1
+    sse_chunk, content = sse_chunks[0]
+    assert sse_chunk.type == "execution_step"
+    assert content == ""
+
+
+@pytest.mark.asyncio
+async def test_process_updates_chunk_handles_none_state_delta_for_invisible_node(
+    streaming_service,
+):
+    """For a no-op on an internal/invisible node (e.g. ``compaction``), the
+    debug log still fires but no execution_step is emitted (the UI does not
+    track that node) — and crucially, no warning is logged either.
+    """
+    with patch("src.domains.agents.services.streaming.service.logger") as mock_logger:
+        sse_chunks = streaming_service._process_updates_chunk(
+            chunk={"compaction": None},
+            accumulated_state={},
+        )
+
+    debug_event_names = [c.args[0] for c in mock_logger.debug.call_args_list if c.args]
+    warning_event_names = [c.args[0] for c in mock_logger.warning.call_args_list if c.args]
+    assert "updates_mode_node_no_op" in debug_event_names
+    assert "updates_mode_non_dict_state_delta" not in warning_event_names
+    # Invisible node → no SSE step emitted (existing behaviour preserved).
+    assert sse_chunks == []
+
+
+@pytest.mark.asyncio
+async def test_process_updates_chunk_warns_on_truly_unexpected_state_delta(
+    streaming_service,
+):
+    """Defence-in-depth: when state_delta is something other than dict/None
+    (list, str, int, ...) — which would indicate a real LangGraph anomaly —
+    the warning path is preserved.
+    """
+    with patch("src.domains.agents.services.streaming.service.logger") as mock_logger:
+        sse_chunks = streaming_service._process_updates_chunk(
+            chunk={"router": ["unexpected", "list"]},
+            accumulated_state={},
+        )
+
+    warning_event_names = [c.args[0] for c in mock_logger.warning.call_args_list if c.args]
+    assert "updates_mode_non_dict_state_delta" in warning_event_names
+    # Visible node → step still emitted (resilience over silence).
+    assert len(sse_chunks) == 1
+    assert sse_chunks[0][0].type == "execution_step"

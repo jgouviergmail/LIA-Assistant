@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**版本**：3.2
-**日期**：2026-05-05
-**应用**：LIA v1.19.1
+**版本**：3.3
+**日期**：2026-05-06
+**应用**：LIA v1.20.1
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -83,9 +83,9 @@ LIA走的是一条不同的路。它不是大厂的正面竞争者——而是�
 
 **AI与连接器：**
 
-- **LLM配置**：配置各提供商API密钥（OpenAI、Anthropic、Google、DeepSeek、Qwen、Perplexity、Ollama），为流水线中每个角色分配模型，管理推理级别——密钥加密存储
+- **LLM配置**：配置各提供商API密钥（OpenAI、Anthropic、Google、DeepSeek、Qwen、Perplexity、Ollama），为流水线中每个角色分配模型，管理推理级别——密钥加密存储。对话框仅显示所选模型实际接受的参数（每模型 DB 矩阵：temperature、top_p、frequency_penalty、presence_penalty 和推理小部件形态），避免输入 API 会拒绝的任何值
 - **连接器开关**：在全局层面启用或禁用各项集成（Google OAuth、Apple、Microsoft 365、Hue、天气、Wikipedia、Perplexity、Brave Search）。禁用时会撤销活跃连接并通知相关用户
-- **定价管理**：管理各LLM模型（每百万token成本）、Google Maps API（Places、Routes、Geocoding）及图像生成的价格，并保留价格历史记录
+- **定价管理**：管理各LLM模型（每百万token成本）、Google Maps API（Places、Routes、Geocoding）及图像生成的价格，并保留价格历史记录。添加新的推理模型时，"从某个现有模型复制形态"选择器允许自动继承推理小部件及其值，无需手动输入；Custom 模式仍可用于非典型模型
 
 **内容与扩展：**
 

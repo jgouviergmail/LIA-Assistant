@@ -72,9 +72,21 @@ export function TodayBriefing() {
           />
         </div>
 
-        {/* Synthesis: placed UNDER section title, ABOVE the cards grid */}
+        {/* Synthesis: placed UNDER section title, ABOVE the cards grid.
+            When the LLM call returns null (legitimate skip due to <2 cards
+            with data, or transient LLM failure) we surface a discreet
+            single-line fallback so the slot is not silently empty. */}
         {text ? (
-          text.synthesis ? <BriefingSynthesis synthesis={text.synthesis} /> : null
+          text.synthesis ? (
+            <BriefingSynthesis synthesis={text.synthesis} />
+          ) : (
+            <p
+              className="px-1 text-sm italic text-muted-foreground"
+              role="status"
+            >
+              {t('dashboard.briefing.synthesis_unavailable')}
+            </p>
+          )
         ) : (
           textLoading ? <SynthesisSkeleton /> : null
         )}

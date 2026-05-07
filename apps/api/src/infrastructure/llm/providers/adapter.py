@@ -22,6 +22,13 @@ from src.core.config import settings
 from src.core.constants import REASONING_MODELS_PATTERN
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_PROVIDERS
+from src.infrastructure.llm.providers.reasoning_builders import (
+    build_anthropic_reasoning,
+    build_deepseek_v4_reasoning,
+    build_gemini_reasoning,
+    build_openai_reasoning,
+    build_qwen_reasoning,
+)
 from src.infrastructure.llm.providers.responses_adapter import (
     ResponsesLLM,
     is_responses_api_eligible,
@@ -318,8 +325,13 @@ class ProviderAdapter:
         Returns:
             ResponsesLLM: LangChain-compatible LLM using Responses API
         """
-        # Extract reasoning_effort (handled natively by ResponsesLLM)
-        reasoning_effort = kwargs.pop("reasoning_effort", None)
+        # Extract reasoning_effort and translate to ResponsesLLM kwargs.
+        # ResponsesLLM expects a string in `reasoning_effort=`; the new
+        # ReasoningEffortValue carries the validated enum which we unwrap
+        # via the builder.
+        reasoning_value = kwargs.pop("reasoning_effort", None)
+        reasoning_kwargs = build_openai_reasoning(reasoning_value, model)
+        reasoning_effort = reasoning_kwargs.get("reasoning_effort")
 
         # Extract top_p if provided
         top_p = kwargs.pop("top_p", 1.0)
@@ -427,30 +439,29 @@ class ProviderAdapter:
 
         is_v4 = model.startswith("deepseek-v4-")
         is_reasoner_v3 = "reasoner" in model and not is_v4
-        reasoning_effort = kwargs.pop("reasoning_effort", None)
+        reasoning_value = kwargs.pop("reasoning_effort", None)
 
-        # V4 thinking mode: map reasoning_effort → extra_body.thinking + reasoning_effort.
-        # Sampling params silently ignored by the API when thinking is enabled — strip
-        # them locally for honesty (request log matches what the model actually consumes).
+        # V4 thinking mode: delegate to typed builder (no silent 6→2 coercion).
+        # The matrix exposes only `off`, `high`, `max` to the admin, so the
+        # builder receives validated values and emits the correct API shape.
         if is_v4:
             extra_body: dict[str, Any] = dict(kwargs.pop("extra_body", {}))
-            if reasoning_effort == "none":
-                extra_body["thinking"] = {"type": "disabled"}
-            elif reasoning_effort:
-                extra_body["thinking"] = {"type": "enabled"}
-                extra_body["reasoning_effort"] = (
-                    "max" if reasoning_effort in ("high", "xhigh") else "high"
-                )
+            v4_kwargs = build_deepseek_v4_reasoning(reasoning_value, model)
+            extra_body.update(v4_kwargs.pop("extra_body", {}))
+            kwargs.update(v4_kwargs)  # adds top-level reasoning_effort when applicable
+
+            # When thinking is enabled, sampling params are silently ignored by
+            # the API — strip them locally for honesty.
+            if extra_body.get("thinking", {}).get("type") == "enabled":
                 for param in ("top_p", "frequency_penalty", "presence_penalty"):
                     kwargs.pop(param, None)
                 logger.info(
                     "deepseek_v4_thinking_configured",
                     model=model,
-                    reasoning_effort=reasoning_effort,
-                    api_effort=extra_body["reasoning_effort"],
-                    msg="V4 thinking enabled — sampling params stripped (silently ignored by API)",
+                    reasoning_effort=getattr(reasoning_value, "effort", None),
+                    api_effort=kwargs.get("reasoning_effort"),
+                    msg="V4 thinking enabled — sampling params stripped",
                 )
-            # else: no reasoning_effort set → use API default (thinking enabled by default for V4)
             if extra_body:
                 kwargs["extra_body"] = extra_body
 
@@ -555,39 +566,19 @@ class ProviderAdapter:
         kwargs.pop("frequency_penalty", None)  # Not supported
         kwargs.pop("presence_penalty", None)  # Not supported
 
-        # Map reasoning_effort to Gemini's native 'thinking_level' parameter
-        # Only Gemini 2.5-flash, 2.5-pro, and 3+ support thinking
-        # Gemini 2.0-flash, 2.0-flash-lite, 2.5-flash-lite do NOT
-        reasoning_effort = kwargs.pop("reasoning_effort", None)
-        supports_thinking = (
-            bool(re.match(r"^gemini-(2\.5-(flash|pro)|[3-9])", model, re.IGNORECASE))
-            and "lite" not in model.lower()
-        )
-        if reasoning_effort and reasoning_effort not in ("none", "minimal") and supports_thinking:
-            thinking_level_mapping = {
-                "low": "low",
-                "medium": "low",  # Gemini has no "medium", map to "low"
-                "high": "high",
-            }
-            thinking_level = thinking_level_mapping.get(reasoning_effort)
-            if thinking_level:
-                kwargs["thinking_level"] = thinking_level
-                logger.info(
-                    "gemini_thinking_level_configured",
-                    reasoning_effort=reasoning_effort,
-                    mapped_to=thinking_level,
-                    msg=f"Mapped reasoning_effort={reasoning_effort} to Gemini thinking_level={thinking_level}",
-                )
-        elif (
-            reasoning_effort
-            and reasoning_effort not in ("none", "minimal")
-            and not supports_thinking
-        ):
-            logger.warning(
-                "gemini_thinking_not_supported",
+        # Reasoning: delegate to typed builder.
+        # Gemini 2.5 uses thinking_budget (int), Gemini 3.x uses thinking_level
+        # (string enum). The builder dispatches on the ReasoningEffortValue shape.
+        # NO silent medium→low remapping — the matrix exposes only what each
+        # model accepts.
+        reasoning_value = kwargs.pop("reasoning_effort", None)
+        gemini_kwargs = build_gemini_reasoning(reasoning_value, model)
+        kwargs.update(gemini_kwargs)
+        if gemini_kwargs:
+            logger.info(
+                "gemini_thinking_configured",
                 model=model,
-                reasoning_effort=reasoning_effort,
-                msg=f"Model {model} does not support thinking — reasoning_effort ignored",
+                reasoning_kwargs=gemini_kwargs,
             )
 
         # Extract top_p (Gemini supports it natively via ChatGoogleGenerativeAI)
@@ -673,29 +664,21 @@ class ProviderAdapter:
             if streaming:
                 additional_kwargs["model_kwargs"] = {"stream_options": {"include_usage": True}}
 
-            # Map reasoning_effort → Qwen enable_thinking + thinking_budget
-            # Pass extra_body as direct kwarg (not inside model_kwargs) to avoid
-            # LangChain UserWarning: "Parameters {'extra_body'} should be specified explicitly"
-            reasoning_effort = additional_kwargs.pop("reasoning_effort", None)
-            extra_body: dict[str, Any] = {}
-            if reasoning_effort and reasoning_effort != "none":
-                extra_body["enable_thinking"] = True
-                budget_mapping = {"low": 4096, "minimal": 2048, "medium": 16384}
-                if reasoning_effort in budget_mapping:
-                    extra_body["thinking_budget"] = budget_mapping[reasoning_effort]
-                # "high"/"xhigh" → no budget limit (model default = max ~81920)
+            # Reasoning: delegate to typed builder.
+            # Qwen3 widget=toggle_budget. The builder receives a validated
+            # ReasoningEffortToggleBudget(enabled, budget) and emits the correct
+            # extra_body shape (enable_thinking + optional thinking_budget).
+            # No legacy enum-string-to-budget mapping.
+            reasoning_value = additional_kwargs.pop("reasoning_effort", None)
+            qwen_kwargs = build_qwen_reasoning(reasoning_value, model)
+            qwen_extra = qwen_kwargs.get("extra_body", {})
+            if qwen_extra:
+                additional_kwargs["extra_body"] = qwen_extra
                 logger.info(
                     "qwen_thinking_configured",
-                    reasoning_effort=reasoning_effort,
-                    thinking_budget=budget_mapping.get(reasoning_effort, "max"),
-                    msg=f"Mapped reasoning_effort={reasoning_effort} to Qwen thinking mode",
+                    model=model,
+                    extra_body=qwen_extra,
                 )
-            elif reasoning_effort == "none":
-                extra_body["enable_thinking"] = False
-            # If no reasoning_effort set, use model's default (thinking=True for qwen3.5-*)
-
-            if extra_body:
-                additional_kwargs["extra_body"] = extra_body
 
             # Qwen does NOT support frequency_penalty
             additional_kwargs.pop("frequency_penalty", None)
@@ -746,11 +729,14 @@ class ProviderAdapter:
                 is_reasoning_model = bool(re.match(REASONING_MODELS_PATTERN, model, re.IGNORECASE))
 
             # gpt-5.1/5.2+ with effort=none behave as standard models (sampling params allowed)
+            # The value is now a ReasoningEffortValue (Pydantic model) — extract `.effort`
+            # for the comparison; fall back to None for absent / unrecognised shapes.
             reasoning_effort_val = additional_kwargs.get("reasoning_effort")
+            reasoning_effort_str = getattr(reasoning_effort_val, "effort", None)
             is_gpt51_plus_none = (
                 is_reasoning_model
                 and bool(re.match(r"^gpt-5\.[1-9]", model, re.IGNORECASE))
-                and reasoning_effort_val == "none"
+                and reasoning_effort_str == "none"
             )
 
             if is_reasoning_model and not is_gpt51_plus_none:
@@ -788,30 +774,20 @@ class ProviderAdapter:
                     # Use sentinel to signal temperature should be omitted
                     temperature_override = "__OMIT__"
 
-            # Reasoning Effort: ONLY pass for reasoning models (o-series, GPT-5)
-            # Standard models (gpt-4, gpt-4.1-mini, gpt-4.1, etc.) do NOT support this parameter
-            reasoning_effort = additional_kwargs.get("reasoning_effort")
-            if reasoning_effort:
-                if is_reasoning_model:
-                    logger.info(
-                        "reasoning_effort_configured",
-                        model=model,
-                        reasoning_effort=reasoning_effort,
-                        msg=f"Configured reasoning_effort={reasoning_effort} for reasoning model {model}",
-                    )
-                else:
-                    # Remove reasoning_effort for non-reasoning models
-                    additional_kwargs.pop("reasoning_effort", None)
-                    logger.warning(
-                        "reasoning_effort_filtered_non_reasoning_model",
-                        model=model,
-                        reasoning_effort=reasoning_effort,
-                        msg=(
-                            f"reasoning_effort={reasoning_effort} is NOT supported by {model}. "
-                            "This parameter is ONLY for o-series and GPT-5 reasoning models. "
-                            "Removed to prevent API error."
-                        ),
-                    )
+            # Reasoning Effort: extract via the typed builder. Validation upstream
+            # guarantees the value matches the model — if a non-reasoning model
+            # somehow has reasoning_effort set, the builder returns {} (None
+            # input) so this is a no-op. The legacy regex-based filter is removed
+            # because validation is now strict at the service / boot layer.
+            reasoning_value = additional_kwargs.pop("reasoning_effort", None)
+            openai_reasoning = build_openai_reasoning(reasoning_value, model)
+            additional_kwargs.update(openai_reasoning)
+            if openai_reasoning:
+                logger.info(
+                    "reasoning_effort_configured",
+                    model=model,
+                    reasoning_effort=openai_reasoning.get("reasoning_effort"),
+                )
 
         # Anthropic: Standard provider with prompt caching enabled
         elif provider == "anthropic":
@@ -823,34 +799,21 @@ class ProviderAdapter:
             # The cache_control kwarg can be passed at invoke time for fine-grained control.
             # Ref: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
 
-            # Map reasoning_effort to Anthropic's native 'effort' parameter
-            # Only claude-3-7-sonnet+ and claude-4.x support extended thinking
-            # claude-3-5-sonnet does NOT support effort — skip to avoid API errors
-            reasoning_effort = additional_kwargs.pop("reasoning_effort", None)
-            supports_thinking = not re.match(r"^claude-3-5", model, re.IGNORECASE)
-            if reasoning_effort and reasoning_effort != "none" and supports_thinking:
-                # Map our values to Anthropic's supported values
-                effort_mapping = {
-                    "minimal": "low",
-                    "low": "low",
-                    "medium": "medium",
-                    "high": "high",
-                }
-                anthropic_effort = effort_mapping.get(reasoning_effort)
-                if anthropic_effort:
-                    additional_kwargs["effort"] = anthropic_effort
-                    logger.info(
-                        "anthropic_effort_configured",
-                        reasoning_effort=reasoning_effort,
-                        mapped_to=anthropic_effort,
-                        msg=f"Mapped reasoning_effort={reasoning_effort} to Anthropic effort={anthropic_effort}",
-                    )
-            elif reasoning_effort and not supports_thinking:
-                logger.warning(
-                    "anthropic_effort_not_supported",
+            # Reasoning: delegate to typed builder.
+            # IMPORTANT FIX: previously this code wrote `additional_kwargs["effort"]`
+            # which was silently dropped by langchain-anthropic (additional_kwargs
+            # is a *messages* convention, NOT a constructor field). The builder
+            # returns `{"effort": "..."}` which we now spread into the constructor
+            # kwargs — langchain-anthropic 1.3.5 maps it to native
+            # output_config.effort (cf. chat_models.py:1186-1197).
+            reasoning_value = additional_kwargs.pop("reasoning_effort", None)
+            anthropic_reasoning = build_anthropic_reasoning(reasoning_value, model)
+            additional_kwargs.update(anthropic_reasoning)
+            if anthropic_reasoning:
+                logger.info(
+                    "anthropic_effort_configured",
                     model=model,
-                    reasoning_effort=reasoning_effort,
-                    msg=f"Model {model} does not support extended thinking — effort parameter ignored",
+                    effort=anthropic_reasoning.get("effort"),
                 )
 
             # Remove parameters not supported by Anthropic

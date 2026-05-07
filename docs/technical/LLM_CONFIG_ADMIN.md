@@ -100,9 +100,11 @@ BaseChatModel
 
 ⁷ DeepSeek V4: temperature/top_p/penalties sont **silencieusement ignorés par l'API** quand thinking est activé (`reasoning_effort != none`). L'adapter les strip localement pour fidélité du log. Avec thinking activé + structured output forcé via `tool_choice` (ce que LangChain `with_structured_output(method="function_calling")` produit), l'API retourne 400 — le dispatch automatique vers JSON-mode fallback dans `structured_output.py` rend cela transparent. Base URL hardcodée via `langchain-deepseek`.
 
-> Les paramètres **omis** sont automatiquement filtrés par `ProviderAdapter` avant l'appel API. L'Admin UI cache également les champs non supportés via `getModelConstraints()`.
+> Les paramètres **omis** sont automatiquement filtrés par `ProviderAdapter` avant l'appel API.
 >
-> Pour la matrice complète par modèle, voir [LLM_PROVIDER_CONSTRAINTS.md](./LLM_PROVIDER_CONSTRAINTS.md).
+> **Admin UI — DB-driven sampling matrix (v1.20.1+)** : la fenêtre Configuration LLM ne calcule plus la visibilité des sliders via une regex côté frontend. Chaque modèle de `llm_models` porte 4 colonnes booléennes (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) qui drivent **paramètre par paramètre** l'affichage des sliders. Le widget de reasoning (`enum`, `budget_int`, `toggle_budget`, `none`) est lui aussi déclaré au niveau modèle via la colonne `reasoning_widget` et ses jeux de valeurs (`reasoning_enum_values` JSONB list, `reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`). Le `ProviderAdapter` reste l'autorité finale (philosophie A : "raw truth"), mais l'admin n'a plus aucune chance de saisir une valeur que l'API rejetterait.
+>
+> Pour la matrice complète par modèle, voir [LLM_PROVIDER_CONSTRAINTS.md](./LLM_PROVIDER_CONSTRAINTS.md). Pour le mécanisme de templates dans l'admin Tarification, voir [LLM_PRICING_TEMPLATES.md](./LLM_PRICING_TEMPLATES.md).
 
 ---
 

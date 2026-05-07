@@ -154,6 +154,11 @@ async def websocket_audio(
     connection_start = time.time()
     user_id: str | None = None
     total_bytes_received = 0  # Initialize early for finally block access
+    # Tracks whether ``websocket.accept()`` succeeded so the ``finally`` block
+    # only decrements ``websocket_connections_active`` when the corresponding
+    # ``inc()`` actually happened. Otherwise an exception raised between auth
+    # success and ``accept()`` would cause a phantom decrement.
+    accepted = False
 
     try:
         # 1. Authenticate via ticket (BFF pattern)
@@ -209,6 +214,7 @@ async def websocket_audio(
 
         # 3. Accept connection
         await websocket.accept()
+        accepted = True
         websocket_connections_active.inc()
         websocket_connections_total.labels(status="connected").inc()
 
@@ -231,6 +237,22 @@ async def websocket_audio(
                     websocket.receive(),
                     timeout=idle_timeout,
                 )
+
+                # Handle client disconnect.
+                # Starlette's raw ``websocket.receive()`` returns the disconnect
+                # message instead of raising ``WebSocketDisconnect`` (only the
+                # ``receive_text/bytes/json`` helpers raise via
+                # ``_raise_on_disconnect``). Without this branch the loop would
+                # iterate again and Starlette would raise
+                # ``RuntimeError: Cannot call "receive" once a disconnect
+                # message has been received.``
+                if data.get("type") == "websocket.disconnect":
+                    logger.info(
+                        "websocket_disconnected_by_client",
+                        user_id=user_id,
+                        code=data.get("code"),
+                    )
+                    break
 
                 # Handle text messages
                 if "text" in data:
@@ -335,8 +357,10 @@ async def websocket_audio(
         )
 
     finally:
-        # Track connection metrics
-        if user_id:
+        # Track connection metrics — only when ``accept()`` actually succeeded,
+        # otherwise the matching ``inc()`` never ran and decrementing would skew
+        # the active-connections gauge negative.
+        if accepted:
             websocket_connections_active.dec()
 
             connection_duration = time.time() - connection_start

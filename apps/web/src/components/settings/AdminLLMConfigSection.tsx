@@ -41,11 +41,44 @@ import type { BaseSettingsProps } from '@/types/settings';
 import type {
   LLMTypeConfig,
   LLMTypeConfigUpdate,
+  ModelCapabilities,
   OllamaModelsResponse,
   ProviderKeyStatus,
-  ReasoningEffort,
+  ReasoningEffortValue,
 } from '@/types/llm-config';
 import { LLM_CATEGORIES_ORDER } from '@/types/llm-config';
+import { ReasoningWidget } from './llm-config/ReasoningWidget';
+
+// --- Reasoning Effort Helpers ---
+
+/** True when the user has set a non-trivial reasoning_effort value, regardless
+ * of widget shape. Used to decide whether sampling-param inputs (temp/top_p/
+ * penalties) should be hidden on a reasoning-capable model. */
+function reasoningEffortIsSet(v: ReasoningEffortValue | null | undefined): boolean {
+  if (v === null || v === undefined) return false;
+  if ('effort' in v) return true;
+  if ('budget' in v && v.budget !== null && v.budget !== undefined) return true;
+  if ('enabled' in v && v.enabled) return true;
+  return false;
+}
+
+/** Compact, human-readable representation of a reasoning_effort value for the
+ * tile display. Mirrors the shape of the discriminated union exposed by the
+ * backend reasoning_widget. */
+function formatReasoningValue(v: ReasoningEffortValue | null | undefined): string {
+  if (v === null || v === undefined) return '-';
+  if ('effort' in v) return v.effort;
+  if ('budget' in v) {
+    if (v.budget === 0) return 'off';
+    if (v.budget === -1) return 'auto';
+    return `${v.budget}t`;
+  }
+  if ('enabled' in v) {
+    if (!v.enabled) return 'off';
+    return v.budget != null ? `on/${v.budget}t` : 'on/max';
+  }
+  return '-';
+}
 
 // --- Provider Key Row ---
 
@@ -183,18 +216,20 @@ function LLMTypeCard({
 }: {
   config: LLMTypeConfig;
   onEdit: (config: LLMTypeConfig) => void;
-  /** DB-sourced capabilities for the currently configured model.
-   * Lets the tile honor admin overrides (e.g. is_reasoning_model=false on a
-   * model whose name still matches the OpenAI reasoning regex). */
-  modelCapabilities?: { is_reasoning_model?: boolean };
+  /** DB-sourced capabilities for the currently configured model. Sourced
+   * from GET /llm-config/metadata; missing when the configured model is
+   * not (or no longer) registered. */
+  modelCapabilities?: ModelCapabilities;
   t: (key: string) => string;
 }) {
-  const tileConstraints = getModelConstraints(
-    config.effective.provider,
-    config.effective.model,
-    config.effective.reasoning_effort,
-    modelCapabilities,
-  );
+  // Use widget + supports_temperature directly (Philosophy A: raw truth).
+  // is_reasoning_model alone is ambiguous — deepseek-reasoner is a reasoning
+  // model but has widget='none' (always-on, no level control), so it shows
+  // neither E: nor T: in the badge.
+  const widget = modelCapabilities?.reasoning_widget ?? 'none';
+  const hasEffort =
+    widget !== 'none' && reasoningEffortIsSet(config.effective.reasoning_effort);
+  const showsTemp = modelCapabilities?.supports_temperature ?? true;
   const tierClass = config.info.power_tier ? (POWER_TIER_STYLES[config.info.power_tier] ?? '') : '';
   return (
     <div
@@ -221,235 +256,14 @@ function LLMTypeCard({
         <span className="text-muted-foreground/50">/</span>
         <span className="font-mono">{config.effective.model}</span>
         <span className="text-muted-foreground/50">|</span>
-        <span>
-          {tileConstraints.isReasoningModel
-            ? `E:${config.effective.reasoning_effort ?? '-'}`
-            : `T:${config.effective.temperature}`}
-        </span>
-        {tileConstraints.isReasoningModel && tileConstraints.supportsTemperature && (
-          <>
-            <span className="text-muted-foreground/50">+</span>
-            <span>T:{config.effective.temperature}</span>
-          </>
+        {hasEffort && (
+          <span>E:{formatReasoningValue(config.effective.reasoning_effort)}</span>
         )}
+        {hasEffort && showsTemp && <span className="text-muted-foreground/50">+</span>}
+        {showsTemp && <span>T:{config.effective.temperature}</span>}
       </div>
     </div>
   );
-}
-
-// --- Model Constraints Helper ---
-
-/** Parameter support constraints per provider/model family.
- * Based on official API documentation for each provider (2026-03). */
-interface ModelConstraints {
-  supportsTemperature: boolean;
-  supportsTopP: boolean;
-  supportsFrequencyPenalty: boolean;
-  supportsPresencePenalty: boolean;
-  supportsReasoningEffort: boolean;
-  isReasoningModel: boolean;
-  /** Max temperature value (1.0 for Anthropic, 2.0 for others) */
-  temperatureMax: number;
-  /** Available reasoning_effort values for the dropdown */
-  reasoningEffortOptions: string[];
-  /** Warning message key if temperature is forced/restricted */
-  temperatureWarning: string | null;
-}
-
-const OPENAI_REASONING_PATTERN = /^(o[0-9](-.*)?|gpt-5([.-].*)?)$/i;
-const OPENAI_O1_MINI_PATTERN = /^o1-mini/i;
-
-/** Subset of ModelCapabilities fields that override the legacy regex-based
- * reasoning detection. Source of truth = the ``llm_models`` DB row, exposed
- * through ``GET /llm-config/metadata`` as ``ModelCapabilities``. */
-interface DbCapabilitiesOverride {
-  is_reasoning_model?: boolean;
-}
-
-function getModelConstraints(
-  provider: string,
-  model: string,
-  reasoningEffort?: string | null,
-  dbCapabilities?: DbCapabilitiesOverride
-): ModelConstraints {
-  const defaults: ModelConstraints = {
-    supportsTemperature: true,
-    supportsTopP: true,
-    supportsFrequencyPenalty: true,
-    supportsPresencePenalty: true,
-    supportsReasoningEffort: false,
-    isReasoningModel: false,
-    temperatureMax: 2.0,
-    reasoningEffortOptions: [],
-    temperatureWarning: null,
-  };
-
-  if (!provider || !model) return defaults;
-
-  // DB-authoritative override: when an admin disables ``is_reasoning_model``
-  // in Tarification LLM Texte for this model, Configuration LLM must drop
-  // the reasoning_effort UI even if the regex would otherwise match (e.g.
-  // a model named "gpt-5-mini" with is_reasoning_model=false).
-  // The regex remains the source for which specific effort values are valid
-  // (an API-quirk that is NOT carried in the DB capability flag).
-  if (dbCapabilities?.is_reasoning_model === false) {
-    return defaults;
-  }
-
-  switch (provider) {
-    case 'openai': {
-      const isReasoning = OPENAI_REASONING_PATTERN.test(model);
-      if (!isReasoning) return defaults;
-
-      // All OpenAI reasoning models: no temperature, top_p, frequency/presence_penalty
-      const isO1Mini = OPENAI_O1_MINI_PATTERN.test(model);
-      const isOSeries = /^o[0-9]/i.test(model);
-      const isGPT52 = /^gpt-5\.2/i.test(model);
-      const isGPT51 = /^gpt-5\.1/i.test(model);
-      const isGPT5X = /^gpt-5\.\d/i.test(model);
-
-      let reasoningOptions: string[];
-      if (isO1Mini) {
-        // o1-mini: no reasoning_effort support
-        reasoningOptions = [];
-      } else if (isGPT52) {
-        reasoningOptions = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'];
-      } else if (isGPT51) {
-        // effort="none" disables reasoning on gpt-5.1 (makes sampling params available at API level)
-        reasoningOptions = ['none', 'low', 'medium', 'high'];
-      } else if (isOSeries) {
-        // o1, o3, o3-mini, o4-mini
-        reasoningOptions = ['low', 'medium', 'high'];
-      } else if (isGPT5X) {
-        // Future gpt-5.X models: conservative
-        reasoningOptions = ['low', 'medium', 'high'];
-      } else {
-        // gpt-5, gpt-5-mini
-        reasoningOptions = ['minimal', 'low', 'medium', 'high'];
-      }
-
-      // gpt-5.1/5.2+ with effort=none: reasoning disabled, sampling params available
-      if ((isGPT51 || isGPT52) && reasoningEffort === 'none') {
-        return {
-          supportsTemperature: true,
-          supportsTopP: true,
-          supportsFrequencyPenalty: false, // Never supported on reasoning model family
-          supportsPresencePenalty: false,
-          supportsReasoningEffort: true,
-          isReasoningModel: true,
-          temperatureMax: 2.0,
-          reasoningEffortOptions: reasoningOptions,
-          temperatureWarning: null,
-        };
-      }
-
-      return {
-        supportsTemperature: false,
-        supportsTopP: false,
-        supportsFrequencyPenalty: false,
-        supportsPresencePenalty: false,
-        supportsReasoningEffort: !isO1Mini,
-        isReasoningModel: true,
-        temperatureMax: 2.0,
-        reasoningEffortOptions: reasoningOptions,
-        temperatureWarning: 'settings.admin.llmConfig.constraints.reasoningTemp',
-      };
-    }
-
-    case 'perplexity':
-      // Perplexity: temperature, top_p, frequency_penalty and presence_penalty all supported
-      // (OpenAI-compatible API; note: freq_penalty uses multiplicative range 1.0–2.0 on Perplexity side)
-      return defaults;
-
-    case 'anthropic': {
-      // Anthropic: temperature max 1.0, NO frequency/presence penalty
-      // top_p supported but mutually exclusive with temperature (handled by adapter)
-      // Effort (extended thinking): only claude-3-7-sonnet+ and claude-4.x support it
-      // claude-3-5-sonnet does NOT support extended thinking
-      const supportsThinking = !model || !/^claude-3-5/i.test(model);
-      return {
-        ...defaults,
-        supportsTopP: false, // Hide to avoid temp+top_p conflict
-        supportsFrequencyPenalty: false,
-        supportsPresencePenalty: false,
-        supportsReasoningEffort: supportsThinking,
-        temperatureMax: 1.0,
-        reasoningEffortOptions: supportsThinking ? ['low', 'medium', 'high'] : [],
-      };
-    }
-
-    case 'gemini': {
-      // Gemini: no frequency/presence penalty
-      // Thinking via thinking_level mapped from reasoning_effort
-      // Only Gemini 2.5-flash, 2.5-pro, and 3+ support thinking
-      // Gemini 2.0-flash, 2.0-flash-lite, 2.5-flash-lite do NOT
-      const supportsGeminiThinking =
-        /^gemini-(2\.5-(flash|pro)|[3-9])/i.test(model) && !/lite/i.test(model);
-      return {
-        ...defaults,
-        supportsFrequencyPenalty: false,
-        supportsPresencePenalty: false,
-        supportsReasoningEffort: supportsGeminiThinking,
-        reasoningEffortOptions: supportsGeminiThinking ? ['low', 'medium', 'high'] : [],
-      };
-    }
-
-    case 'deepseek': {
-      // V4 family (deepseek-v4-flash, deepseek-v4-pro): same model invoked with or
-      // without thinking via reasoning_effort. Sampling params silently ignored by
-      // the API when thinking is on — backend strips them for transparency.
-      const isV4 = /^deepseek-v4-/i.test(model);
-      const isReasonerV3 = /^deepseek-reasoner/i.test(model);
-
-      // The early return at the top of getModelConstraints already exits when
-      // dbCapabilities?.is_reasoning_model === false, so reaching this branch
-      // means V4 thinking is admin-allowed (true or undefined → assume yes).
-      if (isV4) {
-        // 6-level UI compressed to 2-level API at the backend (none/disabled,
-        // minimal+low+medium → high, high+xhigh → max). All 6 levels are kept
-        // here for cross-provider UI consistency.
-        return {
-          ...defaults,
-          supportsReasoningEffort: true,
-          isReasoningModel: true,
-          reasoningEffortOptions: ['none', 'low', 'medium', 'high'],
-        };
-      }
-
-      // V3 deepseek-reasoner (R1): no sampling parameters supported — API rejects them
-      if (isReasonerV3) {
-        return {
-          ...defaults,
-          supportsTemperature: false,
-          supportsTopP: false,
-          supportsFrequencyPenalty: false,
-          supportsPresencePenalty: false,
-          isReasoningModel: true,
-          temperatureWarning: 'settings.admin.llmConfig.constraints.reasoningTemp',
-        };
-      }
-      // deepseek-chat (V3) and V4 with is_reasoning_model=false: all standard params supported
-      return defaults;
-    }
-
-    case 'qwen': {
-      // Qwen: no frequency_penalty, supports thinking via enable_thinking
-      // All 3 models (qwen3-max, qwen3.5-plus, qwen3.5-flash) support thinking
-      return {
-        ...defaults,
-        supportsFrequencyPenalty: false,
-        supportsReasoningEffort: true,
-        reasoningEffortOptions: ['none', 'low', 'medium', 'high'],
-      };
-    }
-
-    case 'ollama':
-      // Ollama: OpenAI-compatible, all standard params
-      return defaults;
-
-    default:
-      return defaults;
-  }
 }
 
 // --- Parameter Tooltip ---
@@ -484,17 +298,7 @@ function LLMConfigDialog({
   onReset: (llmType: string) => Promise<LLMTypeConfig | undefined>;
   saving: boolean;
   metadata: {
-    providers: Record<
-      string,
-      {
-        model_id: string;
-        supports_vision?: boolean;
-        supports_tools?: boolean;
-        supports_structured_output?: boolean;
-        is_reasoning_model?: boolean;
-        is_image_model?: boolean;
-      }[]
-    >;
+    providers: Record<string, ModelCapabilities[]>;
   };
   t: (key: string) => string;
 }) {
@@ -538,7 +342,8 @@ function LLMConfigDialog({
       update.presence_penalty = form.presence_penalty;
     if (form.max_tokens !== d.max_tokens) update.max_tokens = form.max_tokens;
     if (form.timeout_seconds !== d.timeout_seconds) update.timeout_seconds = form.timeout_seconds;
-    if (form.reasoning_effort !== d.reasoning_effort)
+    // reasoning_effort is now a discriminated union object — use deep-equal.
+    if (JSON.stringify(form.reasoning_effort ?? null) !== JSON.stringify(d.reasoning_effort ?? null))
       update.reasoning_effort = form.reasoning_effort;
 
     try {
@@ -582,10 +387,12 @@ function LLMConfigDialog({
   const availableModels = form.provider
     ? modelSource
         .filter(m => {
-          // Image generation type: only show image models
-          // Other types: only show non-image (chat) models
-          if (isImageType && !m.is_image_model) return false;
-          if (!isImageType && m.is_image_model) return false;
+          // Filter by kind: 'image_generation' LLM type wants kind='image', everything
+          // else wants kind='chat'. Backend filtering via ?kinds= query param will be
+          // added in Task 18; this client-side fallback ensures correctness if the
+          // query param is not yet plumbed.
+          if (isImageType && m.kind !== 'image') return false;
+          if (!isImageType && m.kind !== 'chat') return false;
           if (requiredCaps.includes('vision') && !m.supports_vision) return false;
           if (requiredCaps.includes('tools') && !m.supports_tools) return false;
           if (requiredCaps.includes('structured_output') && !m.supports_structured_output)
@@ -598,16 +405,23 @@ function LLMConfigDialog({
   const selectedModelCapabilities = (
     metadata.providers[form.provider ?? ''] ?? []
   ).find(m => m.model_id === form.model);
-  const constraints = getModelConstraints(
-    form.provider ?? '',
-    form.model ?? '',
-    form.reasoning_effort,
-    selectedModelCapabilities,
-  );
+
+  // Sampling-param visibility: each input is shown if and only if the
+  // selected model accepts that specific parameter (Philosophy A: raw
+  // truth from llm_models.supports_* columns). Falls back to permissive
+  // (all true) when the model is not in metadata — e.g. dynamic Ollama.
+  const showTemperature = selectedModelCapabilities?.supports_temperature ?? true;
+  const showTopP = selectedModelCapabilities?.supports_top_p ?? true;
+  const showFrequencyPenalty = selectedModelCapabilities?.supports_frequency_penalty ?? true;
+  const showPresencePenalty = selectedModelCapabilities?.supports_presence_penalty ?? true;
 
   const isModified = (field: keyof LLMTypeConfigUpdate) => {
     if (!config) return false;
     const defaultVal = config.defaults[field as keyof typeof config.defaults];
+    // reasoning_effort is a discriminated union object — JSON-equal it.
+    if (field === 'reasoning_effort') {
+      return JSON.stringify(form[field] ?? null) !== JSON.stringify(defaultVal ?? null);
+    }
     return form[field] !== defaultVal;
   };
 
@@ -702,8 +516,8 @@ function LLMConfigDialog({
             )}
           </div>
 
-          {/* Temperature */}
-          {constraints.supportsTemperature && (
+          {/* Temperature — shown only if the model accepts it (DB-driven). */}
+          {showTemperature && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <Label>{t('settings.admin.llmConfig.fields.temperature')}</Label>
@@ -714,14 +528,11 @@ function LLMConfigDialog({
                   </Badge>
                 )}
               </div>
-              {constraints.temperatureWarning && (
-                <p className="text-[11px] text-amber-500">{t(constraints.temperatureWarning)}</p>
-              )}
               <div className="flex items-center gap-3">
                 <input
                   type="range"
                   min="0"
-                  max={constraints.temperatureMax}
+                  max="2"
                   step="0.1"
                   value={form.temperature ?? 0}
                   onChange={e => setForm({ ...form, temperature: parseFloat(e.target.value) })}
@@ -732,9 +543,6 @@ function LLMConfigDialog({
                 </span>
               </div>
             </div>
-          )}
-          {!constraints.supportsTemperature && constraints.temperatureWarning && (
-            <p className="text-[11px] text-amber-500 py-1">{t(constraints.temperatureWarning)}</p>
           )}
 
           {/* Max Tokens */}
@@ -756,8 +564,8 @@ function LLMConfigDialog({
             />
           </div>
 
-          {/* Top P — hidden for providers that don't support it */}
-          {constraints.supportsTopP && (
+          {/* Top P — shown only if the model accepts it (DB-driven). */}
+          {showTopP && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <Label>{t('settings.admin.llmConfig.fields.topP')}</Label>
@@ -783,8 +591,8 @@ function LLMConfigDialog({
             </div>
           )}
 
-          {/* Frequency Penalty */}
-          {constraints.supportsFrequencyPenalty && (
+          {/* Frequency Penalty — shown only if the model accepts it (DB-driven). */}
+          {showFrequencyPenalty && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <Label>{t('settings.admin.llmConfig.fields.frequencyPenalty')}</Label>
@@ -814,8 +622,8 @@ function LLMConfigDialog({
             </div>
           )}
 
-          {/* Presence Penalty */}
-          {constraints.supportsPresencePenalty && (
+          {/* Presence Penalty — shown only if the model accepts it (DB-driven). */}
+          {showPresencePenalty && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <Label>{t('settings.admin.llmConfig.fields.presencePenalty')}</Label>
@@ -868,8 +676,10 @@ function LLMConfigDialog({
             />
           </div>
 
-          {/* Reasoning Effort — only for providers/models that support it */}
-          {constraints.supportsReasoningEffort && constraints.reasoningEffortOptions.length > 0 && (
+          {/* Reasoning Effort — driven by ModelCapabilities.reasoning_widget.
+              The widget renders nothing when widget='none', so no outer guard
+              is needed. */}
+          {form.provider && form.model && selectedModelCapabilities && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <Label>{t('settings.admin.llmConfig.fields.reasoningEffort')}</Label>
@@ -880,36 +690,14 @@ function LLMConfigDialog({
                   </Badge>
                 )}
               </div>
-              <Select
-                value={form.reasoning_effort ?? '_disabled'}
-                onValueChange={v =>
-                  setForm({
-                    ...form,
-                    reasoning_effort: v === '_disabled' ? null : (v as ReasoningEffort),
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* Only show "None (disabled)" if the model actually supports effort="none" */}
-                  {constraints.reasoningEffortOptions.includes('none') ? (
-                    <SelectItem value="_disabled">
-                      {t('settings.admin.llmConfig.fields.reasoningNone')}
-                    </SelectItem>
-                  ) : (
-                    <SelectItem value="_disabled">
-                      {t('settings.admin.llmConfig.fields.reasoningDefault')}
-                    </SelectItem>
-                  )}
-                  {constraints.reasoningEffortOptions.map(opt => (
-                    <SelectItem key={opt} value={opt}>
-                      {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ReasoningWidget
+                widget={selectedModelCapabilities.reasoning_widget ?? 'none'}
+                enumValues={selectedModelCapabilities.reasoning_enum_values}
+                budgetRange={selectedModelCapabilities.reasoning_budget_range}
+                docI18nKey={selectedModelCapabilities.reasoning_doc_i18n_key}
+                value={form.reasoning_effort ?? null}
+                onChange={next => setForm({ ...form, reasoning_effort: next })}
+              />
             </div>
           )}
         </div>

@@ -46,10 +46,35 @@ class ModelProfile:
         supports_strict_mode: Can use strict=True in structured output (OpenAI only)
         supports_streaming: Can stream responses
         supports_vision: Can process images
+        supports_temperature: Whether the model's API accepts the
+            ``temperature`` sampling parameter. Drives Configuration LLM
+            admin UI conditional rendering (philosophy A — raw truth).
+        supports_top_p: Whether the model's API accepts ``top_p``.
+        supports_frequency_penalty: Whether the model's API accepts
+            ``frequency_penalty``.
+        supports_presence_penalty: Whether the model's API accepts
+            ``presence_penalty``.
         cost_per_1m_input: Cost per 1M input tokens (USD)
         cost_per_1m_cached_input: Cost per 1M cached input tokens (USD)
         cost_per_1m_output: Cost per 1M output tokens (USD)
         is_reasoning_model: Special reasoning model (o-series, GPT-5, deepseek-reasoner)
+        model_id: Identifier of the model (mirrors ``llm_models.model_name``).
+            Required by ``reasoning_validation.validate_reasoning_effort`` to
+            surface the model name in HTTP 422 error contexts.
+        kind: Model classification (chat / image / audio / realtime / tts /
+            embedding) used for UI filtering. Defaults to ``"chat"`` so legacy
+            callers / fallback profiles remain valid.
+        reasoning_widget: UI widget shape declared on ``llm_models`` —
+            one of ``none / enum / budget_int / toggle_budget``. Default is
+            ``"none"`` so models not yet covered by the matrix are safely
+            non-reasoning in the UI.
+        reasoning_enum_values: Ordered list of accepted enum values when
+            ``reasoning_widget == "enum"``. ``None`` otherwise.
+        reasoning_budget_range: ``{"min", "max", "off_sentinel",
+            "dynamic_sentinel"}`` when ``reasoning_widget`` is budget-based.
+            ``None`` otherwise.
+        reasoning_doc_i18n_key: Frontend lookup key for the English-only
+            documentation string shown next to the widget.
         metadata: Additional provider-specific metadata
     """
 
@@ -60,10 +85,24 @@ class ModelProfile:
     supports_strict_mode: bool = False
     supports_streaming: bool = True
     supports_vision: bool = False
+    # Sampling parameter acceptance (added 2026-05-06) — sourced from
+    # ``llm_models.supports_{temperature,top_p,frequency_penalty,presence_penalty}``.
+    supports_temperature: bool = True
+    supports_top_p: bool = True
+    supports_frequency_penalty: bool = True
+    supports_presence_penalty: bool = True
     cost_per_1m_input: float = 0.0
     cost_per_1m_cached_input: float | None = None
     cost_per_1m_output: float = 0.0
     is_reasoning_model: bool = False
+    # Reasoning + classification (added in the v1.x DB-source-of-truth release —
+    # see docs/superpowers/specs/2026-05-06-llm-reasoning-effort-overhaul-design.md).
+    model_id: str = ""
+    kind: str = "chat"
+    reasoning_widget: str = "none"
+    reasoning_enum_values: list[str] | None = None
+    reasoning_budget_range: dict[str, Any] | None = None
+    reasoning_doc_i18n_key: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

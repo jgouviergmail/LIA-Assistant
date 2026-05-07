@@ -293,6 +293,72 @@ async def test_build_today_propagates_llm_usage_into_text_sections() -> None:
 
 
 # =============================================================================
+# BriefingService.build_text — race-aware inline cards fallback
+# =============================================================================
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_build_text_builds_cards_inline_when_cache_is_sparse() -> None:
+    """When the Redis cache holds <2 OK sections (cold start / race with
+    /briefing/cards), ``build_text`` MUST call ``build_cards`` inline so the
+    synthesis LLM is fed real data instead of an artificially empty dashboard.
+
+    Regression: previously ``/synthesis`` raced ``/cards`` and silently
+    skipped the synthesis (``cards_with_data < 2``) on every cold start —
+    surfacing as "the dashboard synthesis sometimes doesn't display".
+    """
+    svc = BriefingService(user=_make_user())
+
+    # Force every cache read to return None (cold cache).
+    with (
+        _patch_redis_off(),
+        patch(
+            "src.domains.briefing.service.fetch_weather", AsyncMock(return_value=_make_weather())
+        ),
+        patch(
+            "src.domains.briefing.service.fetch_agenda",
+            AsyncMock(return_value=_make_agenda_with_events()),
+        ),
+        patch(
+            "src.domains.briefing.service.fetch_mails",
+            AsyncMock(return_value=MailsData(items=[], total_unread_today=0)),
+        ),
+        patch(
+            "src.domains.briefing.service.fetch_birthdays",
+            AsyncMock(side_effect=ConnectorNotConfiguredError("g")),
+        ),
+        patch(
+            "src.domains.briefing.service.fetch_reminders",
+            AsyncMock(return_value=RemindersData(items=[])),
+        ),
+        patch(
+            "src.domains.briefing.service.fetch_health",
+            AsyncMock(side_effect=ConnectorNotConfiguredError("h")),
+        ),
+        patch(
+            "src.domains.briefing.service.generate_greeting",
+            AsyncMock(return_value=("Bonjour.", None)),
+        ),
+        patch(
+            "src.domains.briefing.service.generate_synthesis",
+            AsyncMock(return_value=("Une belle journée.", None)),
+        ) as mock_synth,
+    ):
+        text = await svc.build_text()
+
+    # The synthesis LLM must have been invoked (instead of being skipped on
+    # near-empty cache placeholders), and the returned cards bundle passed to
+    # it must contain at least the two OK sections (weather + agenda).
+    mock_synth.assert_awaited_once()
+    cards_arg = mock_synth.await_args.kwargs["cards"]
+    assert cards_arg.weather.status == CardStatus.OK
+    assert cards_arg.agenda.status == CardStatus.OK
+    assert text.synthesis is not None
+    assert text.synthesis.text == "Une belle journée."
+
+
+# =============================================================================
 # Helpers
 # =============================================================================
 

@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.1] - 2026-05-06
+
+### Added — LLM admin: per-model sampling matrix + reasoning shape templates
+
+Two complementary refinements on the admin LLM catalogue introduced in v1.19.0 ([ADR-078](docs/architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md)). Both target the same principle: every form input must reflect what the API actually accepts ("raw truth"), and every behavioral group must be reusable as a template instead of re-typed by hand.
+
+#### Schema
+
+- New columns on `llm_models` (4 sampling caps, all NOT NULL with permissive `True` defaults): `supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`. Migration `2026_05_06_0002-llm_sampling_flags.py` backfills the verbatim 96-model matrix and reconciles `is_reasoning_model` with `reasoning_widget` (37 stale rows fixed).
+- New columns on `llm_models` (5 reasoning shape fields, materialised in v1.20.0 prep): `kind` (chat / image / audio / realtime / tts / embedding), `reasoning_widget` (none / enum / budget_int / toggle_budget), `reasoning_enum_values` (JSONB list, when widget=enum), `reasoning_budget_range` (JSONB `{min, max, off_sentinel, dynamic_sentinel}`), `reasoning_doc_i18n_key`. Migration `2026_05_06_0001-llm_reasoning_overhaul.py` covers the rollout + 25 row deletions (retired/fictional models).
+
+#### Configuration LLM dialog (admin)
+
+- Sampling parameter sliders (`temperature`, `top_p`, `frequency_penalty`, `presence_penalty`) now appear or hide **per individual parameter** based on the selected model's DB caps, replacing the previous global `showSamplingParams` heuristic. Example: Anthropic 4.5+ models surface only the temperature slider; DeepSeek V4 surfaces all four; GPT-5 series surfaces none. The `reasoning_widget` value drives the widget shape (enum select, integer budget, or toggle+budget) so the dialog never lets the operator pick a value the API would reject.
+- Card badges on the type list use `reasoning_widget !== 'none'` (instead of the bare `is_reasoning_model` flag) to decide whether to render `E:effort`, and `supports_temperature` to decide `T:temp` — covering the deepseek-reasoner edge case (always-on reasoning, no level control) without false positives.
+
+#### Pricing LLM dialog (admin)
+
+- New section **"Reasoning & sampling"** in the model add/edit modal. Layout: `kind` Select → 4 sampling toggles → `Is reasoning model` toggle that gates the reasoning-shape controls below.
+- New endpoint `GET /admin/llm/reasoning-templates` returns the deduplicated set of unique reasoning shapes present in `llm_models` (~15 templates today, e.g. `enum [low/medium/high]` (14 models, like claude-opus-4.5), `enum [minimal/low/medium/high]` (5 models, like gpt-5), `toggle+budget 0..32768` (4 models, like qwen3-max), `no reasoning` (55 models)). The set self-enriches: any model created in Custom mode with a novel fingerprint becomes available as a template on subsequent calls.
+- **Template mode (default)**: the admin picks a representative model from the dropdown — the 4 reasoning shape fields are snapshot-copied at create time. **Custom mode (advanced)** unlocks manual entry for disruptions / brand-new families. `kind`, the four `supports_*` sampling flags and `reasoning_doc_i18n_key` are always saved per model regardless of the template choice — keeping model nature, per-parameter API acceptance and tooltip key independent from the shared reasoning shape.
+- At edit time, the modal pre-selects the template whose fingerprint matches the current row, or falls back to "Custom" if none matches.
+
+#### Backend
+
+- Service `LLMModelService.list_templates()` groups active rows by a 4-field fingerprint (`is_reasoning_model`, `reasoning_widget`, `reasoning_enum_values`, `reasoning_budget_range`) and returns one deterministic representative per group. The fingerprint is derived from a single source of truth `_TEMPLATE_FIELDS` so adding a 5th shape field requires no parallel edit.
+- Schemas `ModelPriceCreate` / `ModelPriceUpdate` enforce template-mode XOR custom-mode at validation time. `model_validator(mode="after")` rejects mixing `reasoning_template` with explicit reasoning shape fields, and validates widget cohesion (`enum` requires `enum_values`, `budget_int`/`toggle_budget` requires `budget_range`, `none` forbids both).
+- New `UnknownReasoningTemplateError(LookupError)` exception — subclass of `LookupError` so legacy `except LookupError` catches keep working, but the router catches it BEFORE plain `LookupError` to translate it to `400 invalid_input` (distinct from the `404 not_found` used when the model being updated does not exist, and from the `409 already_exists` raised on duplicate `model_name`).
+- Audit log on create/update enriched with `kind`, `reasoning_template` (slug or null in Custom mode), `reasoning_widget` (post-update for forensic search). The structured log line follows.
+
+### Changed
+
+- `LLMModelRepository.create_model()` signature now requires the 9 new fields (`kind`, `reasoning_widget`, `reasoning_enum_values`, `reasoning_budget_range`, `reasoning_doc_i18n_key`, `supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) as explicit kwargs. Test fixtures get a `_DEFAULT_REASONING_KWARGS` constant for the non-reasoning baseline.
+- Frontend pricing form helpers (`buildReasoningSamplingPayload`, `fingerprintMatches`, `parseEnumValuesCsv`, `formatEnumValuesCsv`) extracted to `apps/web/src/components/settings/admin-llm-pricing-helpers.ts` so they can be unit-tested independently of the React component.
+
+### Fixed
+
+- **Configuration LLM sampling sliders** — Anthropic 4.5+ models (claude-opus-4.5, claude-sonnet-4.6, claude-haiku-4.5, claude-opus-4.6) used to hide the temperature slider whenever `reasoning_effort` was set; they now correctly expose only the temperature input (no top_p, no penalties) at all times. DeepSeek V4 family (`deepseek-v4-flash`, `deepseek-v4-pro`) used to hide all four sliders behind the `enum` widget; they now surface all four. Qwen 3.x toggle+budget models still expose temperature/top_p/presence_penalty but hide frequency_penalty (matrix-driven).
+- **Pricing admin error semantics** — passing an unknown `reasoning_template` to `POST /admin/llm/pricing` or `PUT /admin/llm/pricing/{name}` previously surfaced `409 already_exists` (overloaded `except ValueError`). Now returns `400 invalid_input` with the original message ("reasoning_template 'X' does not exist in llm_models"), so the admin sees which template name was wrong.
+- **Stale `is_reasoning_model` flag in the pre-PR seed** — 37 rows in `llm_models` had `reasoning_widget != 'none'` but `is_reasoning_model = false`. Migration `2026_05_06_0002` reconciles the two: `is_reasoning_model = (reasoning_widget != 'none') OR model_name = 'deepseek-reasoner'`. Special case kept for deepseek-reasoner (always-on reasoning with no level control: widget='none' but is_reasoning=true).
+
+### Documentation
+
+- New: `docs/technical/LLM_PRICING_TEMPLATES.md` — Template/Custom modes, snapshot semantics, fingerprint dedupe, FAQ on edge cases (deepseek-reasoner, doc_i18n_key exclusion, post-create template edits). Indexed in `docs/INDEX.md` under "Cost Tracking & Billing".
+- Updated docstrings on `ModelPriceCreate` / `ModelPriceUpdate` / `_copy_from_template_row` / `create()` / `update()` — every Raises clause now lists which exception maps to which HTTP code (`ValueError → 409`, `LookupError → 404`, `UnknownReasoningTemplateError → 400`).
+
+### Tests
+
+- Backend: 33 new schema validators tests (`test_schemas_reasoning.py`), 21 service helper tests (`test_service_helpers.py`, pure — no DB), 10 router structural tests (`test_router.py`), 9 service integration tests extended (`test_service.py`). All run on Postgres in CI; pure tests run anywhere.
+- Frontend: 27 vitest tests on the extracted helpers (`__tests__/admin-llm-pricing-helpers.test.ts`) covering Template / Custom / Non-reasoning branches of `buildReasoningSamplingPayload`, fingerprint matching, CSV round-trip.
+
 ## [1.20.0] - 2026-05-06
 
 ### Added — Stratified Journal Consciousness ([ADR-079](docs/architecture/ADR-079-Stratified-Journal-Consciousness.md))

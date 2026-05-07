@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión** : 3.2
-**Fecha** : 2026-05-05
-**Aplicación** : LIA v1.19.1
+**Versión** : 3.3
+**Fecha** : 2026-05-06
+**Aplicación** : LIA v1.20.1
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -83,9 +83,9 @@ El administrador accede a una tercera pestaña dedicada a la gestión de la inst
 
 **IA y conectores:**
 
-- **Configuración LLM**: configurar las claves API de los proveedores (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), asignar un modelo por rol en el pipeline, gestionar los niveles de razonamiento — claves almacenadas cifradas
+- **Configuración LLM**: configurar las claves API de los proveedores (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), asignar un modelo por rol en el pipeline, gestionar los niveles de razonamiento — claves almacenadas cifradas. La interfaz solo expone los parámetros que el modelo elegido realmente acepta (matriz DB por modelo para temperature, top_p, frequency_penalty, presence_penalty y forma del widget reasoning), evitando cualquier entrada de un valor que la API rechazaría
 - **Activación/desactivación de conectores**: activar o desactivar integraciones a nivel global (Google OAuth, Apple, Microsoft 365, Hue, tiempo, Wikipedia, Perplexity, Brave Search). La desactivación revoca las conexiones activas y notifica a los usuarios
-- **Precios**: gestionar los precios por modelo LLM (coste por millón de tokens), por API de Google Maps (Places, Routes, Geocoding) y por generación de imagen — con historial de precios
+- **Precios**: gestionar los precios por modelo LLM (coste por millón de tokens), por API de Google Maps (Places, Routes, Geocoding) y por generación de imagen — con historial de precios. Al añadir un nuevo modelo reasoning, un selector «copiar la forma desde tal modelo existente» permite heredar automáticamente el widget reasoning y sus valores sin entrada manual; el modo Custom permanece disponible para modelos atípicos
 
 **Contenido y extensiones:**
 

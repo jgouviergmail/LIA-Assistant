@@ -9,18 +9,30 @@ from datetime import UTC, date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import format_time_with_date_context
 from src.domains.briefing.constants import BRIEFING_WEATHER_DAILY_FORECAST_DAYS
 from src.domains.briefing.schemas import (
     AgendaEventItem,
     BirthdayItem,
     DailyForecastItem,
+    ForecastAlert,
+    ForecastAlertKind,
     HealthSummaryItem,
     MailItem,
     ReminderItem,
     WeatherData,
 )
 from src.domains.reminders.models import Reminder
+
+# Map OpenWeatherMap notable "main" condition codes to ForecastAlertKind enum
+# values. Centralized so both detection and tests rely on a single source.
+_FORECAST_ALERT_KIND_BY_OWM_MAIN: dict[str, ForecastAlertKind] = {
+    "Rain": ForecastAlertKind.RAIN,
+    "Thunderstorm": ForecastAlertKind.THUNDERSTORM,
+    "Snow": ForecastAlertKind.SNOW,
+    "Drizzle": ForecastAlertKind.DRIZZLE,
+}
 
 # =============================================================================
 # Weather formatting
@@ -300,13 +312,12 @@ def _detect_forecast_alert(
     current: dict[str, Any],
     forecast: dict[str, Any],
     user_tz: ZoneInfo,
-) -> str | None:
+) -> ForecastAlert | None:
     """Detect a notable upcoming change in the next 24 h.
 
     Looks for the first rain/thunder/snow start in the forecast list when the
-    current weather isn't already in that state. Returns a short localized-style
-    string suitable for direct display ("Rain expected at 16:00") — kept short
-    so the LLM synthesis can elaborate if desired.
+    current weather isn't already in that state. Returns a structured alert
+    so the frontend can render it in the user's language.
 
     Args:
         current: Current weather response.
@@ -314,13 +325,12 @@ def _detect_forecast_alert(
         user_tz: User timezone for time formatting.
 
     Returns:
-        One-liner alert string, or None if no notable change.
+        Structured alert, or None if no notable change.
     """
     current_arr = current.get("weather", []) or []
     current_main = (current_arr[0].get("main") if current_arr else "") or ""
 
-    NOTABLE = {"Rain", "Thunderstorm", "Snow", "Drizzle"}
-    if current_main in NOTABLE:
+    if current_main in _FORECAST_ALERT_KIND_BY_OWM_MAIN:
         return None  # already happening — no point alerting
 
     entries = forecast.get("list", []) or []
@@ -329,15 +339,15 @@ def _detect_forecast_alert(
         if not weather_arr:
             continue
         slot_main = weather_arr[0].get("main", "") or ""
-        if slot_main not in NOTABLE:
+        kind = _FORECAST_ALERT_KIND_BY_OWM_MAIN.get(slot_main)
+        if kind is None:
             continue
         try:
             ts = entry.get("dt")
             if ts is None:
                 continue
             dt = datetime.fromtimestamp(int(ts), tz=user_tz)
-            time_str = dt.strftime("%H:%M")
-            return f"{slot_main} expected at {time_str}"
+            return ForecastAlert(kind=kind, time=dt.strftime("%H:%M"))
         except (ValueError, TypeError, OSError):
             continue
     return None
@@ -393,20 +403,24 @@ def is_event_past(raw_event: dict[str, Any], now: datetime, user_tz: ZoneInfo) -
         return False
 
 
-def format_agenda_event(raw_event: dict[str, Any], user_tz: ZoneInfo) -> AgendaEventItem:
+def format_agenda_event(
+    raw_event: dict[str, Any], user_tz: ZoneInfo, language: str
+) -> AgendaEventItem:
     """Convert a Google/Apple/Microsoft event dict to UI item.
 
     Mirrors the proven logic from heartbeat.context_aggregator._format_event_time
     so multi-provider behaviour is consistent across the app. Both start and
-    end are formatted; end is None if missing or formatting fails.
+    end are formatted; end is None if missing or formatting fails. The
+    ``language`` argument drives the locale-aware date / "tomorrow" / "all
+    day" rendering.
     """
     title = raw_event.get("summary") or "Untitled"
     location = raw_event.get("location")
-    start_local = _format_event_time(raw_event.get("start"), user_tz)
+    start_local = _format_event_time(raw_event.get("start"), user_tz, language)
     end_field = raw_event.get("end")
     end_local: str | None = None
     if end_field:
-        formatted_end = _format_event_time(end_field, user_tz)
+        formatted_end = _format_event_time(end_field, user_tz, language)
         # Skip the placeholder for missing data so the UI can hide the line.
         if formatted_end and formatted_end != "?":
             end_local = formatted_end
@@ -418,26 +432,31 @@ def format_agenda_event(raw_event: dict[str, Any], user_tz: ZoneInfo) -> AgendaE
     )
 
 
-def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo) -> str:
+def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo, language: str) -> str:
     """Convert a calendar event start/end dict to a human-readable local time.
 
     Handles all three providers (Google offset, Microsoft timeZone field, Apple
     naive datetime) and all-day events. Naive datetimes default to the user's
-    local timezone — correct for CalDAV.
+    local timezone — correct for CalDAV. Locale-aware rendering is delegated
+    to ``format_time_with_date_context`` so the briefing card matches the
+    "today / tomorrow / dd/mm/yyyy" pattern used elsewhere in the app.
 
     Returns:
-        - 'HH:MM' if today
-        - 'YYYY-MM-DD HH:MM' if other day
-        - 'YYYY-MM-DD (all day)' for all-day events
+        - 'HH:MM' if today (timed event)
+        - 'HH:MM <tomorrow_word>' if tomorrow (locale-aware)
+        - 'HH:MM <DD/MM/YYYY|MM/DD/YYYY|YYYY/MM/DD>' otherwise (locale-aware)
+        - '<all_day_word>' if all-day today (locale-aware)
+        - '<tomorrow_word> (<all_day_word>)' if all-day tomorrow (locale-aware)
+        - '<date_locale> (<all_day_word>)' if all-day other day
         - '?' for missing data
     """
     if not dt_field:
         return "?"
 
-    # All-day event
+    # All-day event — Google convention: "date" is set, "dateTime" is not.
     date_str = dt_field.get("date")
     if date_str and not dt_field.get("dateTime"):
-        return f"{date_str} (all day)"
+        return _format_all_day(date_str, user_tz, language)
 
     raw = dt_field.get("dateTime")
     if not raw:
@@ -457,12 +476,59 @@ def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo) -> st
             dt = dt.replace(tzinfo=event_tz)
 
         local_dt = dt.astimezone(user_tz)
-        now_local = datetime.now(user_tz)
-        if local_dt.date() != now_local.date():
-            return local_dt.strftime("%Y-%m-%d %H:%M")
-        return local_dt.strftime("%H:%M")
+        # Lower-case the helper output to keep the "tomorrow" / "demain" word
+        # mid-string in lowercase — matches the briefing reminder pattern
+        # (cf. _format_trigger_at_local).
+        return format_time_with_date_context(
+            local_dt,
+            reference_dt=datetime.now(user_tz),
+            locale=language,
+            include_year=True,
+            time_first=True,
+        ).lower()
     except (ValueError, TypeError):
         return str(raw)
+
+
+def _format_all_day(date_str: str, user_tz: ZoneInfo, language: str) -> str:
+    """Render an all-day calendar event date in the user's locale.
+
+    Args:
+        date_str: ISO date 'YYYY-MM-DD' from the provider's all-day field.
+        user_tz: User timezone for "today/tomorrow" comparison.
+        language: Locale code for the localized "all day" / "tomorrow" words
+            and the date format.
+
+    Returns:
+        Locale-aware string, e.g. "toute la journée" / "demain (toute la
+        journée)" / "07/05/2026 (toute la journée)".
+    """
+    all_day_word = V3Messages.get_all_day(language, long_form=True).lower()
+    try:
+        target_date = date.fromisoformat(date_str)
+    except ValueError:
+        return f"{date_str} ({all_day_word})"
+
+    today = datetime.now(user_tz).date()
+    if target_date == today:
+        return all_day_word
+
+    # Reuse the canonical helper by anchoring on midnight in user_tz: only the
+    # date prefix matters for all-day events, so we discard the time portion.
+    anchor = datetime.combine(target_date, datetime.min.time(), tzinfo=user_tz)
+    formatted = format_time_with_date_context(
+        anchor,
+        reference_dt=datetime.combine(today, datetime.min.time(), tzinfo=user_tz),
+        locale=language,
+        include_year=True,
+        time_first=True,
+    )
+    # Helper output is "00:00 Demain" / "00:00 07/05/2026" — strip the
+    # leading placeholder time and lowercase the relative-day word so the
+    # mid-string casing matches the reminder pattern.
+    _, _, suffix = formatted.partition(" ")
+    suffix = suffix.strip().lower()
+    return f"{suffix} ({all_day_word})" if suffix else all_day_word
 
 
 # =============================================================================
@@ -470,17 +536,18 @@ def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo) -> st
 # =============================================================================
 
 
-def format_email_item(raw_msg: dict[str, Any], user_tz: ZoneInfo) -> MailItem:
+def format_email_item(raw_msg: dict[str, Any], user_tz: ZoneInfo, language: str) -> MailItem:
     """Convert a normalized email message to a MailItem.
 
     Parses the RFC 2822 ``from`` header to extract display name + email.
     All providers normalize messages to top-level ``from`` / ``subject`` /
-    ``internalDate`` fields, so a single accessor works.
+    ``internalDate`` fields, so a single accessor works. ``language`` drives
+    the locale-aware ``received_local`` formatting (date order, locale).
     """
     raw_from = (raw_msg.get("from") or "").strip()
     sender_name, sender_email = _parse_from_header(raw_from)
     subject = (raw_msg.get("subject") or "").strip() or "(no subject)"
-    received_local = _format_email_internal_date(raw_msg.get("internalDate"), user_tz)
+    received_local = _format_email_internal_date(raw_msg.get("internalDate"), user_tz, language)
     return MailItem(
         sender_name=sender_name,
         sender_email=sender_email,
@@ -516,21 +583,32 @@ def _parse_from_header(raw: str) -> tuple[str | None, str | None]:
     return raw, None
 
 
-def _format_email_internal_date(internal_date: str | int | None, user_tz: ZoneInfo) -> str:
-    """Convert email ``internalDate`` (epoch ms) to a user-local time string.
+def _format_email_internal_date(
+    internal_date: str | int | None, user_tz: ZoneInfo, language: str
+) -> str:
+    """Convert email ``internalDate`` (epoch ms) to a locale-aware local time.
+
+    Delegates to ``format_time_with_date_context`` so the briefing card uses
+    the same "today / tomorrow / dd/mm/yyyy" rendering as the rest of the app
+    (incoming mails are never in the future, so the "tomorrow" branch is
+    effectively unreachable here — kept for free via the canonical helper).
 
     Returns:
-        'HH:MM' if today, 'YYYY-MM-DD HH:MM' otherwise, '?' if missing/invalid.
+        'HH:MM' if today, locale-aware 'HH:MM <date>' otherwise,
+        '?' if missing/invalid.
     """
     if internal_date is None:
         return "?"
     try:
         epoch_ms = int(internal_date)
         dt = datetime.fromtimestamp(epoch_ms / 1000, tz=user_tz)
-        now_local = datetime.now(user_tz)
-        if dt.date() == now_local.date():
-            return dt.strftime("%H:%M")
-        return dt.strftime("%Y-%m-%d %H:%M")
+        return format_time_with_date_context(
+            dt,
+            reference_dt=datetime.now(user_tz),
+            locale=language,
+            include_year=True,
+            time_first=True,
+        )
     except (ValueError, TypeError, OSError):
         return "?"
 

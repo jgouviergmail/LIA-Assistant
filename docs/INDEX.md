@@ -2,8 +2,8 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 7.4
-**Dernière mise à jour**: 2026-05-05
+**Version**: 7.5
+**Dernière mise à jour**: 2026-05-06
 **Statut**: Complète (190+ documents)
 
 ---
@@ -121,6 +121,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Document | Description | Statut |
 |----------|-------------|--------|
 | [LLM_PRICING_MANAGEMENT.md](./technical/LLM_PRICING_MANAGEMENT.md) | Pricing LLM, token counting, exports | ✅ |
+| [LLM_PRICING_TEMPLATES.md](./technical/LLM_PRICING_TEMPLATES.md) | Reasoning shape templates dans l'admin Pricing — Template/Custom modes, snapshot semantics, fingerprint dédupliqué | ✅ |
 | [GOOGLE_API_TRACKING.md](./technical/GOOGLE_API_TRACKING.md) | Google Maps Platform tracking, pricing admin, consumption exports (admin + user v1.9.1) | ✅ |
 
 ### LLM & Intelligence

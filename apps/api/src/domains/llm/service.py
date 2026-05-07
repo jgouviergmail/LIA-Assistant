@@ -15,17 +15,41 @@ transaction boundary so audit logging stays consistent with the data write.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.domains.llm.models import LLMModel, LLMModelPricing, LLMProviderEnum
+from src.core.reasoning_types import ReasoningBudgetRange
+from src.domains.llm.models import (
+    LLMModel,
+    LLMModelKindEnum,
+    LLMModelPricing,
+    LLMProviderEnum,
+    LLMReasoningWidgetEnum,
+)
 from src.domains.llm.repository import LLMModelRepository
-from src.domains.llm.schemas import ModelPriceCreate, ModelPriceUpdate
+from src.domains.llm.schemas import (
+    ModelPriceCreate,
+    ModelPriceUpdate,
+    ReasoningTemplate,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class UnknownReasoningTemplateError(LookupError):
+    """Raised when ``reasoning_template`` does not match any existing row.
+
+    Subclass of :class:`LookupError` so existing ``except LookupError``
+    catches keep working, but the router catches this specific subclass
+    first to translate it to a ``400 invalid_input`` response — distinct
+    from the ``404 not_found`` used for "the model being updated does
+    not exist".
+    """
+
 
 # Field partition between the two tables.
 _CAPABILITY_FIELDS: frozenset[str] = frozenset(
@@ -38,6 +62,15 @@ _CAPABILITY_FIELDS: frozenset[str] = frozenset(
         "supports_streaming",
         "supports_vision",
         "is_reasoning_model",
+        "kind",
+        "reasoning_widget",
+        "reasoning_enum_values",
+        "reasoning_budget_range",
+        "reasoning_doc_i18n_key",
+        "supports_temperature",
+        "supports_top_p",
+        "supports_frequency_penalty",
+        "supports_presence_penalty",
     }
 )
 _PRICING_FIELDS: frozenset[str] = frozenset(
@@ -46,6 +79,20 @@ _PRICING_FIELDS: frozenset[str] = frozenset(
         "cached_input_price_per_1m_tokens",
         "output_price_per_1m_tokens",
     }
+)
+
+# Fields that participate in the reasoning fingerprint used to group existing
+# rows into templates (4 fields). Intentionally excluded — saved explicitly
+# per model:
+#  - ``kind`` (chat / image / audio / ...)
+#  - the four ``supports_*`` sampling flags
+#  - ``reasoning_doc_i18n_key`` (UX tooltip, family-specific — would otherwise
+#    explode the template count for the same reasoning shape).
+_TEMPLATE_FIELDS: tuple[str, ...] = (
+    "is_reasoning_model",
+    "reasoning_widget",
+    "reasoning_enum_values",
+    "reasoning_budget_range",
 )
 
 
@@ -60,11 +107,22 @@ class LLMModelService:
         """Create a new model + its initial active pricing row in one transaction.
 
         Raises:
-            ValueError: if a model with the same ``model_name`` already exists.
+            ValueError: if a model with the same ``model_name`` already
+                exists. Translated by the router to ``409 already_exists``.
+            UnknownReasoningTemplateError: if ``data.reasoning_template`` is
+                set but does not resolve to a known model (raised by
+                :meth:`_copy_from_template_row`). Translated by the router
+                to ``400 invalid_input``.
         """
         existing = await self.repo.get_by_name(data.model_name)
         if existing is not None:
             raise ValueError(f"Model {data.model_name!r} already exists")
+
+        # Resolve the 5-field reasoning block (template-copy or explicit
+        # custom-mode fields, XOR enforced by the schema validator). ``kind``
+        # and the four ``supports_*`` sampling flags are passed straight from
+        # the payload — they are independent of the template choice.
+        reasoning_block = await self._resolve_reasoning_block(data)
 
         model = await self.repo.create_model(
             provider=LLMProviderEnum(data.provider),
@@ -76,7 +134,13 @@ class LLMModelService:
             supports_strict_mode=data.supports_strict_mode,
             supports_streaming=data.supports_streaming,
             supports_vision=data.supports_vision,
-            is_reasoning_model=data.is_reasoning_model,
+            kind=LLMModelKindEnum(data.kind),
+            supports_temperature=data.supports_temperature,
+            supports_top_p=data.supports_top_p,
+            supports_frequency_penalty=data.supports_frequency_penalty,
+            supports_presence_penalty=data.supports_presence_penalty,
+            reasoning_doc_i18n_key=data.reasoning_doc_i18n_key,
+            **reasoning_block,
         )
 
         pricing = LLMModelPricing(
@@ -118,16 +182,39 @@ class LLMModelService:
 
         Raises:
             LookupError: if no active model matches ``model_name``.
+                Translated by the router to ``404 not_found``.
+            UnknownReasoningTemplateError: if ``data.reasoning_template`` is
+                set but does not resolve to a known model. Subclass of
+                ``LookupError`` — caught BEFORE plain ``LookupError`` by the
+                router to surface ``400 invalid_input`` instead of ``404``.
             ValueError: if a rename target conflicts with an existing model.
+                Translated by the router to ``409 already_exists``.
         """
         model = await self.repo.get_by_name(model_name)
         if model is None:
             raise LookupError(f"Model {model_name!r} not found")
 
         provided = data.model_dump(exclude_unset=True, exclude_none=True)
+
+        # Template mode in update: a single ``reasoning_template`` field
+        # replaces the 4 reasoning shape fields in one shot. ``kind``,
+        # the four ``supports_*`` sampling caps AND
+        # ``reasoning_doc_i18n_key`` are independent of the template and
+        # may be updated alongside. The XOR with explicit reasoning shape
+        # fields is already enforced by ModelPriceUpdate.
+        if "reasoning_template" in provided:
+            reasoning_block = await self._copy_from_template_row(provided.pop("reasoning_template"))
+            provided.update(reasoning_block)
+
         cap_changes = {k: v for k, v in provided.items() if k in _CAPABILITY_FIELDS}
         price_changes = {k: v for k, v in provided.items() if k in _PRICING_FIELDS}
         new_name = data.model_name if data.model_name and data.model_name != model_name else None
+
+        # If the caller is partially updating reasoning fields without a
+        # template, validate widget cohesion against the merged state
+        # (current row + incoming changes).
+        if cap_changes and any(f in cap_changes for f in _TEMPLATE_FIELDS):
+            self._validate_reasoning_cohesion(model, cap_changes)
 
         # 1. Rename + capability mutations on llm_models (in place).
         if new_name is not None:
@@ -206,6 +293,220 @@ class LLMModelService:
     async def get_active_pricing_for(self, model_id: uuid.UUID) -> LLMModelPricing | None:
         """Public helper: return the active pricing row for a model, or ``None``."""
         return await self._get_active_pricing(model_id)
+
+    async def list_templates(self) -> list[ReasoningTemplate]:
+        """Group active llm_models rows by reasoning fingerprint (5 fields).
+
+        Returns one representative per unique fingerprint, sorted by descending
+        ``matching_count`` then by ``template_model_name``. The set drives the
+        admin Pricing form's "Copy reasoning from..." selector. Sampling
+        caps and ``kind`` are explicitly NOT part of the fingerprint — they
+        are saved per-model regardless of the template chosen.
+        """
+        rows = await self.repo.list_active()
+
+        groups: dict[tuple[Any, ...], list[LLMModel]] = {}
+        for row in rows:
+            key = self._fingerprint(row)
+            groups.setdefault(key, []).append(row)
+
+        templates: list[ReasoningTemplate] = []
+        for members in groups.values():
+            # Pick the lexicographically smallest model_name as representative
+            # so the choice is deterministic across reloads.
+            rep = min(members, key=lambda m: m.model_name)
+            templates.append(
+                ReasoningTemplate(
+                    template_model_name=rep.model_name,
+                    representative_provider=rep.provider.value,
+                    description=self._render_template_description(rep, len(members)),
+                    matching_count=len(members),
+                    is_reasoning_model=rep.is_reasoning_model,
+                    reasoning_widget=rep.reasoning_widget.value,
+                    reasoning_enum_values=rep.reasoning_enum_values,
+                    reasoning_budget_range=(
+                        ReasoningBudgetRange.model_validate(rep.reasoning_budget_range)
+                        if rep.reasoning_budget_range is not None
+                        else None
+                    ),
+                )
+            )
+
+        templates.sort(key=lambda t: (-t.matching_count, t.template_model_name))
+        return templates
+
+    @staticmethod
+    def _fingerprint(row: LLMModel) -> tuple[Any, ...]:
+        """Hashable identity of a row's reasoning shape.
+
+        The set of participating fields is the single source of truth
+        :data:`_TEMPLATE_FIELDS`. Adding a new shape field there
+        automatically extends the fingerprint without code change here.
+
+        Sampling caps, ``kind``, and ``reasoning_doc_i18n_key`` are
+        intentionally excluded — they are independent of the shape and
+        saved per model.
+
+        JSONB columns (``reasoning_enum_values``, ``reasoning_budget_range``)
+        are normalised to hashable structures: lists become tuples and
+        dicts become sorted item tuples, so semantically-equal payloads
+        always hash equal regardless of insertion order.
+        """
+        return tuple(
+            LLMModelService._normalise_shape_value(getattr(row, field))
+            for field in _TEMPLATE_FIELDS
+        )
+
+    @staticmethod
+    def _normalise_shape_value(value: Any) -> Any:
+        """Convert a shape attribute to a hashable form for fingerprinting.
+
+        - SQLAlchemy enum members are reduced to their ``.value``.
+        - JSONB lists are converted to tuples (preserving order).
+        - JSONB dicts are converted to a sorted tuple of (key, value)
+          pairs so insertion order doesn't bias equality.
+        - Everything else (bool / str / None) passes through.
+        """
+        if isinstance(value, LLMReasoningWidgetEnum):
+            return value.value
+        if isinstance(value, list):
+            return tuple(value)
+        if isinstance(value, dict):
+            return tuple(sorted(value.items()))
+        return value
+
+    @staticmethod
+    def _render_template_description(row: LLMModel, count: int) -> str:
+        """Build a human-readable summary of a reasoning template.
+
+        Mentions only the reasoning shape (widget + enum/range or always-on)
+        plus a representative model name so the admin can map the abstract
+        shape onto a concrete provider+API.
+        """
+        widget = row.reasoning_widget.value
+        if widget == "none" and not row.is_reasoning_model:
+            shape = "no reasoning"
+        elif widget == "none" and row.is_reasoning_model:
+            shape = "always-on reasoning (no level control)"
+        elif widget == "enum" and row.reasoning_enum_values:
+            shape = f"enum [{'/'.join(row.reasoning_enum_values)}]"
+        elif widget == "budget_int" and row.reasoning_budget_range:
+            r = row.reasoning_budget_range
+            shape = f"budget {r.get('min')}..{r.get('max')}"
+        elif widget == "toggle_budget" and row.reasoning_budget_range:
+            r = row.reasoning_budget_range
+            shape = f"toggle+budget {r.get('min')}..{r.get('max')}"
+        else:  # defensive fallback
+            shape = widget
+
+        suffix = f"{count} model{'s' if count > 1 else ''}"
+        return f"{shape} — like {row.model_name} ({suffix})"
+
+    async def _resolve_reasoning_block(self, data: ModelPriceCreate) -> dict[str, Any]:
+        """Return the 4 reasoning shape kwargs to pass to ``create_model``.
+
+        Either copies them from ``data.reasoning_template`` (Template mode)
+        or extracts them from the explicit fields on the payload (Custom
+        mode). The XOR is already enforced by the schema's validator.
+        ``reasoning_doc_i18n_key`` is NOT in this block — it is passed
+        explicitly by the caller of this method.
+        """
+        if data.reasoning_template is not None:
+            return await self._copy_from_template_row(data.reasoning_template)
+
+        # Custom mode: structural fields guaranteed non-None by the schema
+        # validator. The asserts make mypy happy.
+        assert data.is_reasoning_model is not None
+        assert data.reasoning_widget is not None
+        return {
+            "is_reasoning_model": data.is_reasoning_model,
+            "reasoning_widget": LLMReasoningWidgetEnum(data.reasoning_widget),
+            "reasoning_enum_values": data.reasoning_enum_values,
+            "reasoning_budget_range": (
+                data.reasoning_budget_range.model_dump()
+                if data.reasoning_budget_range is not None
+                else None
+            ),
+        }
+
+    async def _copy_from_template_row(self, template_model_name: str) -> dict[str, Any]:
+        """Snapshot-copy the 4 reasoning shape fields from an existing row.
+
+        Snapshot semantics: future edits to the template row do NOT propagate
+        to models that copied from it. ``kind``, the four ``supports_*``
+        sampling flags AND ``reasoning_doc_i18n_key`` are NOT part of this
+        copy — they are passed explicitly by the caller.
+
+        Raises:
+            UnknownReasoningTemplateError: if ``template_model_name`` does
+                not match any ``llm_models`` row. Subclass of ``LookupError``
+                so the router can translate it to a ``400 invalid_input``
+                (distinct from the ``404`` used for missing target model in
+                :meth:`update`) and from the ``409`` used for duplicate
+                ``model_name`` in :meth:`create`.
+        """
+        template = await self.repo.get_by_name(template_model_name)
+        if template is None:
+            raise UnknownReasoningTemplateError(
+                f"reasoning_template {template_model_name!r} does not exist in llm_models"
+            )
+        return {
+            "is_reasoning_model": template.is_reasoning_model,
+            "reasoning_widget": template.reasoning_widget,
+            "reasoning_enum_values": (
+                list(template.reasoning_enum_values)
+                if template.reasoning_enum_values is not None
+                else None
+            ),
+            "reasoning_budget_range": (
+                dict(template.reasoning_budget_range)
+                if template.reasoning_budget_range is not None
+                else None
+            ),
+        }
+
+    @staticmethod
+    def _validate_reasoning_cohesion(model: LLMModel, changes: dict[str, Any]) -> None:
+        """Reject incoherent partial reasoning updates.
+
+        Merges incoming ``changes`` onto the current row's state, then enforces
+        widget-conditional invariants:
+        - widget='enum' requires non-empty reasoning_enum_values
+        - widget in ('budget_int','toggle_budget') requires reasoning_budget_range
+        - widget='none' must clear both reasoning_enum_values + reasoning_budget_range
+
+        Called from ``update()`` only when the caller mutates reasoning
+        fields without going through a template.
+        """
+
+        def _value(field: str) -> Any:
+            if field in changes:
+                return changes[field]
+            current = getattr(model, field)
+            if field == "reasoning_widget" and current is not None:
+                return current.value
+            if field == "kind" and current is not None:
+                return current.value
+            return current
+
+        widget = _value("reasoning_widget")
+        enum_values = _value("reasoning_enum_values")
+        budget = _value("reasoning_budget_range")
+
+        if widget == "enum":
+            if not enum_values:
+                raise ValueError(
+                    "reasoning_widget='enum' requires non-empty reasoning_enum_values."
+                )
+        elif widget in ("budget_int", "toggle_budget"):
+            if budget is None:
+                raise ValueError(f"reasoning_widget={widget!r} requires reasoning_budget_range.")
+        elif widget == "none":
+            if enum_values or budget:
+                raise ValueError(
+                    "reasoning_widget='none' must NOT have reasoning_enum_values "
+                    "or reasoning_budget_range set."
+                )
 
     async def _get_active_pricing(self, model_id: uuid.UUID) -> LLMModelPricing | None:
         stmt = (

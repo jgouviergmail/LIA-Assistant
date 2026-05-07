@@ -444,3 +444,89 @@ class TestAddPiiFilter:
         assert result["request_id"] == "req_abc123"
         assert result["ip_address"] == "192.168.1.100"
         assert result["user_agent"] == "Mozilla/5.0"
+
+    def test_add_pii_filter_preserves_event_names_matching_token_pattern(self):
+        """Structlog meta fields (event/logger/level/timestamp/...) are
+        developer-controlled identifiers and must never be sanitized, even when
+        their value happens to match TOKEN_PATTERN.
+
+        Regression: events like ``database_connection_pool_exhausted`` or
+        ``langgraph_observability_initialized`` were redacted to
+        ``[REDACTED_TOKEN]``.
+        """
+        # Sample developer-controlled event names that historically matched
+        # the over-broad generic TOKEN_PATTERN (now removed).
+        token_like_events = [
+            "database_connection_pool_exhausted",
+            "langgraph_observability_initialized",
+            "callbacks_factory_initialization_complete",
+            "tracking_context_persistence_failed",
+            "subagent_daily_budget_check_failed",
+        ]
+
+        for event_name in token_like_events:
+            event_dict = {
+                "event": event_name,
+                "logger": "src.infrastructure.token_tracking_service",
+                "level": "info",
+                "timestamp": "2024-01-01T12:00:00Z",
+            }
+            result = add_pii_filter(None, "info", event_dict)
+            assert (
+                result["event"] == event_name
+            ), f"Event name {event_name!r} should pass through unchanged"
+            assert result["logger"] == "src.infrastructure.token_tracking_service"
+            assert result["level"] == "info"
+            assert result["timestamp"] == "2024-01-01T12:00:00Z"
+
+    def test_add_pii_filter_preserves_payload_developer_identifiers(self):
+        """Developer-controlled identifiers in payload fields (``note``,
+        ``reason``, ``stage``, ...) must NOT match TOKEN_PATTERN even though
+        they look like ``something_long_with_underscores``. The token pattern
+        is restricted to high-confidence signatures (Stripe / GitHub / JWT).
+
+        Regression: factory.py logged ``note="langfuse_callbacks_added_via_config_enrichment"``
+        and the value was redacted to ``[REDACTED_TOKEN]`` by the previous
+        over-broad generic pattern.
+        """
+        developer_identifiers = [
+            "langfuse_callbacks_added_via_config_enrichment",
+            "skill_registry_loaded_from_database",
+            "fallback_to_static_greeting_on_llm_error",
+            "intelligent_filtering_data_generation_skipped",
+        ]
+        for value in developer_identifiers:
+            event_dict = {"event": "llm_created", "note": value}
+            result = add_pii_filter(None, "info", event_dict)
+            assert (
+                result["note"] == value
+            ), f"Payload developer identifier {value!r} should not be redacted"
+
+    def test_add_pii_filter_still_redacts_real_tokens(self):
+        """Defence-in-depth: real-token signatures must still be caught when
+        they appear in free-text payload values.
+
+        The token literals below are split via runtime concatenation so the
+        source file does not embed full provider-prefixed strings — that
+        keeps GitHub Push Protection (secret scanning) happy while still
+        producing the exact same payload for the regex at runtime.
+        """
+        # Stripe live secret key (>= 24 chars after prefix).
+        stripe_token = "sk_" + "live_" + "AbCdEfGhIjKlMnOpQrStUvWx"
+        stripe_value = f"Some context with {stripe_token} in the middle."
+        # GitHub personal access token (>= 36 chars after prefix).
+        github_token = "gh" + "p_" + "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"
+        github_value = f"Header authorization=Bearer {github_token}"
+        # JWT (three URL-safe-base64 segments).
+        jwt_token = (
+            "ey" + "JhbGciOiJIUzI1NiJ9.ey" + "JzdWIiOiIxMjM0NTY3ODkwIn0."
+            "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        )
+        jwt_value = f"Auth token {jwt_token} rest of message"
+
+        for value in (stripe_value, github_value, jwt_value):
+            event_dict = {"event": "audit", "raw": value}
+            result = add_pii_filter(None, "info", event_dict)
+            assert (
+                "[REDACTED_TOKEN]" in result["raw"]
+            ), f"Expected real token in {value!r} to be redacted"

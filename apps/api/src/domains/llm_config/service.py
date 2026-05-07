@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,6 +40,21 @@ if TYPE_CHECKING:
     from src.core.llm_agent_config import LLMAgentConfig
 
 logger = get_logger(__name__)
+
+
+def _model_has_capability(caps: ModelCapabilities, capability: str) -> bool:
+    """Check whether a ``ModelCapabilities`` declares the given capability.
+
+    Currently only ``"vision"`` is meaningful (filters to ``supports_vision``).
+    Extended in the future when more capability filters are needed.
+    """
+    if capability == "vision":
+        return caps.supports_vision
+    if capability == "tools":
+        return caps.supports_tools
+    if capability == "structured_output":
+        return caps.supports_structured_output
+    return True
 
 
 def _mask_key(key: str) -> str:
@@ -188,6 +204,7 @@ class LLMConfigService:
                         description_key=metadata.description_key,
                         required_capabilities=metadata.required_capabilities,
                         power_tier=metadata.power_tier,
+                        required_kind=metadata.required_kind.value,
                     ),
                     effective=effective,
                     overrides=overrides,
@@ -222,6 +239,7 @@ class LLMConfigService:
                 description_key=metadata.description_key,
                 required_capabilities=metadata.required_capabilities,
                 power_tier=metadata.power_tier,
+                required_kind=metadata.required_kind.value,
             ),
             effective=effective,
             overrides=overrides,
@@ -239,6 +257,34 @@ class LLMConfigService:
         """Update an LLM type's config (full replace semantics)."""
         if llm_type not in LLM_TYPES_REGISTRY:
             raise ValueError(f"Unknown LLM type: {llm_type}")
+
+        # === Strict validation of reasoning_effort against the model's matrix ===
+        # Replaces the old regex-based auto-clearing logic. The new policy
+        # (philosophy A — raw truth) rejects any (model, reasoning_effort)
+        # combination not declared in llm_models.reasoning_widget /
+        # reasoning_enum_values / reasoning_budget_range with HTTP 422 +
+        # structured ctx (see domains/llm_config/reasoning_validation.py).
+        if update.model is not None and update.reasoning_effort is not None:
+            from src.domains.llm_config.reasoning_validation import (
+                validate_reasoning_effort,
+            )
+            from src.infrastructure.llm.model_capabilities_cache import (
+                ModelCapabilitiesCache,
+            )
+
+            caps = ModelCapabilitiesCache.get(update.model)
+            if caps is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "type": "unknown_model",
+                        "loc": ["body", "model"],
+                        "msg": f"Model {update.model!r} is not in the catalogue.",
+                        "input": update.model,
+                        "ctx": {"model": update.model},
+                    },
+                )
+            validate_reasoning_effort(caps, update.reasoning_effort)
 
         result = await self.db.execute(
             select(LLMConfigOverride).where(LLMConfigOverride.llm_type == llm_type)
@@ -259,34 +305,6 @@ class LLMConfigService:
                     **update_data,
                 )
             )
-
-        # Auto-clean reasoning_effort if model changed to non-reasoning (OpenAI only).
-        # Only applies to existing overrides (updates). For new overrides, the validator
-        # in LLMAgentConfig.validate_reasoning_effort() handles cleanup at merge time.
-        target = (
-            existing
-            or (
-                await self.db.execute(
-                    select(LLMConfigOverride).where(LLMConfigOverride.llm_type == llm_type)
-                )
-            ).scalar_one_or_none()
-        )
-        if target and target.model and target.reasoning_effort:
-            defaults = LLM_DEFAULTS.get(llm_type)
-            provider = target.provider or (defaults.provider if defaults else "")
-            if provider == "openai":
-                import re
-
-                from src.core.constants import REASONING_MODELS_PATTERN
-
-                if not re.match(REASONING_MODELS_PATTERN, target.model, re.IGNORECASE):
-                    logger.info(
-                        "auto_clearing_reasoning_effort",
-                        llm_type=llm_type,
-                        model=target.model,
-                        old_reasoning_effort=target.reasoning_effort,
-                    )
-                    target.reasoning_effort = None
 
         self._log_audit(
             admin_user_id,
@@ -331,7 +349,10 @@ class LLMConfigService:
     # --- Metadata ---
 
     @staticmethod
-    def get_provider_models() -> ProviderModelsMetadata:
+    def get_provider_models(
+        kinds: list[str] | None = None,
+        capability: str | None = None,
+    ) -> ProviderModelsMetadata:
         """Get available models grouped by provider.
 
         Both chat and image-generation models are sourced from DB-backed
@@ -345,6 +366,16 @@ class LLMConfigService:
         Cost fields are intentionally None: pricing lives in separate
         caches consumed by ``AsyncPricingService`` and
         ``ImageGenerationPricingService``, not surfaced here.
+
+        Args:
+            kinds: Optional filter on ``ModelCapabilities.kind``. When
+                provided, only models whose kind is in the set are
+                returned. Default ``None`` = no filter (all kinds).
+                The Configuration LLM admin UI passes
+                ``[required_kind]`` from ``LLMTypeMetadata``.
+            capability: Optional capability filter (currently only
+                ``"vision"`` is meaningful — filters to models with
+                ``supports_vision=True``).
         """
         from src.domains.image_generation.options_cache import ImageOptionsCache
         from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
@@ -366,11 +397,20 @@ class LLMConfigService:
                 caps.append(
                     ModelCapabilities(
                         model_id=model_id,
+                        kind=profile.kind,
                         max_output_tokens=profile.max_output_tokens,
                         supports_tools=profile.supports_tool_calling,
                         supports_structured_output=profile.supports_structured_output,
                         supports_vision=profile.supports_vision,
                         is_reasoning_model=profile.is_reasoning_model,
+                        supports_temperature=profile.supports_temperature,
+                        supports_top_p=profile.supports_top_p,
+                        supports_frequency_penalty=profile.supports_frequency_penalty,
+                        supports_presence_penalty=profile.supports_presence_penalty,
+                        reasoning_widget=profile.reasoning_widget,
+                        reasoning_enum_values=profile.reasoning_enum_values,
+                        reasoning_budget_range=profile.reasoning_budget_range,
+                        reasoning_doc_i18n_key=profile.reasoning_doc_i18n_key,
                         cost_input=None,
                         cost_output=None,
                     )
@@ -380,7 +420,8 @@ class LLMConfigService:
         # Image-generation models from ImageOptionsCache. The model list is
         # the DISTINCT of model_name across active image_generation_pricing
         # rows, grouped by provider. Capability flags are False/0 — image
-        # models don't expose chat capabilities.
+        # models don't expose chat capabilities. ``kind="image"`` is the
+        # source of truth (replaces the legacy ``is_image_model`` flag).
         for (
             provider,
             image_model_ids,
@@ -392,15 +433,39 @@ class LLMConfigService:
                     existing.append(
                         ModelCapabilities(
                             model_id=model_id,
+                            kind="image",
                             max_output_tokens=0,
                             supports_tools=False,
                             supports_structured_output=False,
                             supports_vision=False,
                             is_reasoning_model=False,
-                            is_image_model=True,
+                            # Image generation has no sampling parameters.
+                            supports_temperature=False,
+                            supports_top_p=False,
+                            supports_frequency_penalty=False,
+                            supports_presence_penalty=False,
+                            reasoning_widget="none",
+                            reasoning_enum_values=None,
+                            reasoning_budget_range=None,
+                            reasoning_doc_i18n_key=None,
                         )
                     )
             providers[provider] = existing
+
+        # Apply optional filters (?kinds= and ?capability=)
+        if kinds is not None or capability is not None:
+            kind_set = set(kinds) if kinds is not None else None
+            providers = {
+                p: [
+                    m
+                    for m in caps_list
+                    if (kind_set is None or m.kind in kind_set)
+                    and (capability is None or _model_has_capability(m, capability))
+                ]
+                for p, caps_list in providers.items()
+            }
+            # Drop providers with empty lists post-filter
+            providers = {p: caps for p, caps in providers.items() if caps}
 
         return ProviderModelsMetadata(providers=providers)
 
@@ -426,12 +491,23 @@ class LLMConfigService:
                 models.append(
                     OllamaModelCapabilities(
                         model_id=info.name,
+                        kind="chat",  # Ollama models surfaced via /v1/chat are chat
                         max_output_tokens=8192,  # Ollama doesn't expose this; safe default
                         supports_tools="tools" in caps,
                         supports_structured_output="tools"
                         in caps,  # Tool-capable models support JSON mode
                         supports_vision="vision" in caps,
                         is_reasoning_model="thinking" in caps,
+                        # Ollama's OpenAI-compatible bridge accepts the four
+                        # sampling parameters for all chat models.
+                        supports_temperature=True,
+                        supports_top_p=True,
+                        supports_frequency_penalty=True,
+                        supports_presence_penalty=True,
+                        reasoning_widget="none",  # Ollama bridge: no per-model widget surfaced
+                        reasoning_enum_values=None,
+                        reasoning_budget_range=None,
+                        reasoning_doc_i18n_key=None,
                         cost_input=0.0,  # Local = free
                         cost_output=0.0,
                         size=info.size,
@@ -453,11 +529,22 @@ class LLMConfigService:
             models.append(
                 OllamaModelCapabilities(
                     model_id=model_id,
+                    kind=profile.kind,
                     max_output_tokens=profile.max_output_tokens,
                     supports_tools=profile.supports_tool_calling,
                     supports_structured_output=profile.supports_structured_output,
                     supports_vision=profile.supports_vision,
                     is_reasoning_model=profile.is_reasoning_model,
+                    # Mirror the cache profile so fallback discovery agrees
+                    # with the rest of the catalogue.
+                    supports_temperature=profile.supports_temperature,
+                    supports_top_p=profile.supports_top_p,
+                    supports_frequency_penalty=profile.supports_frequency_penalty,
+                    supports_presence_penalty=profile.supports_presence_penalty,
+                    reasoning_widget=profile.reasoning_widget,
+                    reasoning_enum_values=profile.reasoning_enum_values,
+                    reasoning_budget_range=profile.reasoning_budget_range,
+                    reasoning_doc_i18n_key=profile.reasoning_doc_i18n_key,
                     cost_input=0.0,  # Ollama is local — free
                     cost_output=0.0,
                     size=None,

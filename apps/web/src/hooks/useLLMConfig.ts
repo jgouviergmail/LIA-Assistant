@@ -39,10 +39,16 @@ export function useLLMConfig() {
     data: metadata,
     loading: metadataLoading,
     refetch: refetchMetadata,
-  } = useApiQuery<ProviderModelsMetadata>('/admin/llm-config/metadata/models', {
-    componentName: COMPONENT_NAME,
-    initialData: { providers: {} },
-  });
+  } = useApiQuery<ProviderModelsMetadata>(
+    // The Configuration LLM admin only edits chat + image LLM types — exclude
+    // audio/realtime/tts/embedding models from the payload to keep it lean.
+    // Per-type fine-grained filtering happens client-side via LLMTypeInfo.required_kind.
+    '/admin/llm-config/metadata/models?kinds=chat,image',
+    {
+      componentName: COMPONENT_NAME,
+      initialData: { providers: {} },
+    }
+  );
 
   // Refetch metadata when a sibling Tarification pane mutates the catalogue
   // (chat models or image-generation models). Mirrors the backend's ADR-063

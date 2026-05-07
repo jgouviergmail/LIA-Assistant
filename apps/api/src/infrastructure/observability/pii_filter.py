@@ -85,6 +85,27 @@ PHONE_FIELD_NAMES = {
     "tel",
 }
 
+# Structlog metadata fields — never sanitize these. They are the developer-controlled
+# log envelope (event name, logger module, level, timestamp, source position) and
+# never contain user data. Treating them like payload values causes false-positive
+# redactions on event names that happen to resemble token patterns
+# (e.g. `database_connection_pool_exhausted` matches the generic token regex).
+STRUCTLOG_META_FIELDS = {
+    "event",
+    "logger",
+    "level",
+    "timestamp",
+    "func_name",
+    "filename",
+    "lineno",
+    "module",
+    "pathname",
+    "process",
+    "process_name",
+    "thread",
+    "thread_name",
+}
+
 # Regex patterns for PII detection (using industry-standard patterns)
 
 # Email pattern (RFC 5322 simplified)
@@ -104,12 +125,31 @@ CREDIT_CARD_PATTERN = re.compile(
     r"\b(?:\d{4}[-\s]?){3}\d{4}\b",
 )
 
-# Generic token/API key pattern (32+ alphanumeric with underscores/dashes)
-# Conservative: only match strings that look like tokens (no colons, no slashes)
+# High-confidence token patterns only.
+#
+# Strategy: this regex is a defence-in-depth layer behind the field-based
+# redaction (``SENSITIVE_FIELD_NAMES``). It MUST only match strings that look
+# unambiguously like real tokens — every false positive on a developer
+# identifier (snake_case event name, payload tag, ...) directly degrades log
+# observability.
+#
+# What we removed (was the source of ~385 false positives in production logs):
+#   ``[A-Za-z0-9]{8,}_[A-Za-z0-9_-]{24,}``
+# That generic shape ``prefix_suffix`` matches no real token format from any
+# major provider (Stripe uses sk_live_, GitHub uses ghp_, OpenAI uses sk-proj-,
+# Google uses AIza..., none have underscore-separated alphanumeric blobs) but
+# does match many legitimate snake_case identifiers
+# (``langfuse_callbacks_added_via_config_enrichment``,
+# ``database_connection_pool_exhausted``, ...).
+#
+# What we keep / add: signature-prefixed formats from well-known issuers and
+# JWT tokens, all of which have unambiguous structure.
 TOKEN_PATTERN = re.compile(
-    r"\b[A-Za-z0-9]{8,}_[A-Za-z0-9_-]{24,}\b|"  # Typical token format
-    r"\bsk_(?:live|test)_[A-Za-z0-9]{24,}\b|"  # Stripe keys
-    r"\bgh[ps]_[A-Za-z0-9]{36,}\b"  # GitHub tokens
+    r"\bsk_(?:live|test)_[A-Za-z0-9]{24,}\b|"  # Stripe secret keys
+    r"\bgh[ps]_[A-Za-z0-9]{36,}\b|"  # GitHub personal / server / fine-grained tokens
+    # JWT: three URL-safe-base64 segments separated by dots; the header almost
+    # always starts with ``eyJ`` (encoded ``{"alg``).
+    r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"
 )
 
 
@@ -245,6 +285,13 @@ def sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:
 
     for key, value in data.items():
         key_lower = key.lower()
+
+        # Structlog metadata fields are developer-controlled identifiers — never
+        # user data — so they MUST bypass sanitization to avoid false-positive
+        # redactions on event names that resemble token patterns.
+        if key_lower in STRUCTLOG_META_FIELDS:
+            sanitized[key] = value
+            continue
 
         # Check if field name is sensitive (case-insensitive)
         if key_lower in SENSITIVE_FIELD_NAMES:

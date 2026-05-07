@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione** : 3.2
-**Data** : 2026-05-05
-**Applicazione** : LIA v1.19.1
+**Versione** : 3.3
+**Data** : 2026-05-06
+**Applicazione** : LIA v1.20.1
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -83,9 +83,9 @@ L'amministratore ha accesso a una terza scheda dedicata alla gestione dell'istan
 
 **IA e connettori:**
 
-- **Configurazione LLM**: configurare le chiavi API dei provider (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), assegnare un modello per ogni ruolo nella pipeline, gestire i livelli di ragionamento — chiavi archiviate in forma cifrata
+- **Configurazione LLM**: configurare le chiavi API dei provider (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), assegnare un modello per ogni ruolo nella pipeline, gestire i livelli di ragionamento — chiavi archiviate in forma cifrata. L'interfaccia espone solo i parametri che il modello scelto accetta realmente (matrice DB per modello per temperature, top_p, frequency_penalty, presence_penalty e forma del widget reasoning), evitando qualsiasi inserimento di un valore che l'API rifiuterebbe
 - **Attivazione/disattivazione connettori**: abilitare o disabilitare le integrazioni a livello globale (Google OAuth, Apple, Microsoft 365, Hue, meteo, Wikipedia, Perplexity, Brave Search). La disattivazione revoca le connessioni attive e notifica gli utenti
-- **Tariffazione**: gestire i prezzi per modello LLM (costo per milione di token), per API Google Maps (Places, Routes, Geocoding), e per generazione di immagini — con storico dei prezzi
+- **Tariffazione**: gestire i prezzi per modello LLM (costo per milione di token), per API Google Maps (Places, Routes, Geocoding), e per generazione di immagini — con storico dei prezzi. All'aggiunta di un nuovo modello reasoning, un selettore «copia la forma da tale modello esistente» permette di ereditare automaticamente il widget reasoning e i suoi valori senza inserimento manuale; la modalità Custom rimane disponibile per modelli atipici
 
 **Contenuti ed estensioni:**
 

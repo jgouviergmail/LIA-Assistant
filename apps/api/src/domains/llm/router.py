@@ -18,6 +18,7 @@ from src.core.exceptions import (
 )
 from src.core.field_names import FIELD_MODEL_NAME
 from src.core.i18n_api_messages import APIMessages
+from src.core.reasoning_types import ReasoningBudgetRange
 from src.core.session_dependencies import get_current_superuser_session
 from src.domains.auth.models import User
 from src.domains.llm.models import (
@@ -33,8 +34,9 @@ from src.domains.llm.schemas import (
     ModelPriceCreate,
     ModelPriceResponse,
     ModelPriceUpdate,
+    ReasoningTemplatesResponse,
 )
-from src.domains.llm.service import LLMModelService
+from src.domains.llm.service import LLMModelService, UnknownReasoningTemplateError
 from src.domains.users.models import AdminAuditLog
 from src.infrastructure.cache.pricing_cache import PricingCacheService
 from src.infrastructure.cache.redis import get_redis_cache
@@ -70,6 +72,20 @@ def _pricing_to_response(pricing: LLMModelPricing) -> ModelPriceResponse:
             "supports_streaming": model.supports_streaming,
             "supports_vision": model.supports_vision,
             "is_reasoning_model": model.is_reasoning_model,
+            # Kind + reasoning widget + sampling caps
+            "kind": model.kind.value,
+            "reasoning_widget": model.reasoning_widget.value,
+            "reasoning_enum_values": model.reasoning_enum_values,
+            "reasoning_budget_range": (
+                ReasoningBudgetRange.model_validate(model.reasoning_budget_range)
+                if model.reasoning_budget_range is not None
+                else None
+            ),
+            "reasoning_doc_i18n_key": model.reasoning_doc_i18n_key,
+            "supports_temperature": model.supports_temperature,
+            "supports_top_p": model.supports_top_p,
+            "supports_frequency_penalty": model.supports_frequency_penalty,
+            "supports_presence_penalty": model.supports_presence_penalty,
         }
     )
 
@@ -219,6 +235,32 @@ async def list_active_pricing(
     )
 
 
+@router.get("/reasoning-templates", response_model=ReasoningTemplatesResponse)
+async def list_reasoning_templates(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_superuser_session),
+) -> ReasoningTemplatesResponse:
+    """List unique reasoning + sampling behaviors derived from existing models.
+
+    **Requires**: Superuser privileges.
+
+    Drives the admin Pricing form's "Copy behavior from..." selector. Each
+    entry exposes one representative model_name plus the 9 reasoning +
+    sampling fields that will be copied verbatim onto a newly added model
+    when this template is picked. The set self-enriches: a model added in
+    Custom mode with a novel fingerprint becomes available as a template
+    on subsequent calls.
+    """
+    service = LLMModelService(db)
+    templates = await service.list_templates()
+    logger.info(
+        "llm_reasoning_templates_listed",
+        templates_count=len(templates),
+        admin_user_id=str(current_user.id),
+    )
+    return ReasoningTemplatesResponse(templates=templates)
+
+
 @router.post("/pricing", response_model=ModelPriceResponse, status_code=status.HTTP_201_CREATED)
 async def create_pricing(
     data: ModelPriceCreate,
@@ -244,6 +286,10 @@ async def create_pricing(
     service = LLMModelService(db)
     try:
         model, pricing = await service.create(data)
+    except UnknownReasoningTemplateError as exc:
+        # Unknown reasoning_template — surface a 400 with the original
+        # message so the admin sees which template name was wrong.
+        raise_invalid_input(str(exc))
     except ValueError:
         raise_pricing_already_exists(data.model_name)
 
@@ -255,6 +301,13 @@ async def create_pricing(
         details={
             FIELD_MODEL_NAME: model.model_name,
             "provider": model.provider.value,
+            "kind": model.kind.value,
+            # Trace which reasoning template (if any) the new row inherits
+            # from. Snapshot semantics: the value is captured at creation
+            # time and persisted on the row even if the template later
+            # changes — but the source choice is preserved here.
+            "reasoning_template": data.reasoning_template,
+            "reasoning_widget": model.reasoning_widget.value,
             "input_price_per_1m_tokens": float(pricing.input_price_per_1m_tokens),
             "output_price_per_1m_tokens": float(pricing.output_price_per_1m_tokens),
         },
@@ -274,6 +327,9 @@ async def create_pricing(
         "llm_model_created",
         model_name=model.model_name,
         provider=model.provider.value,
+        kind=model.kind.value,
+        reasoning_template=data.reasoning_template,
+        reasoning_widget=model.reasoning_widget.value,
         admin_user_id=str(current_user.id),
         pricing_id=str(pricing.id),
     )
@@ -304,6 +360,11 @@ async def update_pricing(
     service = LLMModelService(db)
     try:
         model, new_pricing = await service.update(model_name, data)
+    except UnknownReasoningTemplateError as exc:
+        # Unknown reasoning_template — 400 with the original message so the
+        # admin sees which template name was wrong. Caught BEFORE plain
+        # LookupError because UnknownReasoningTemplateError subclasses it.
+        raise_invalid_input(str(exc))
     except LookupError:
         raise_pricing_not_found(model_name)
     except ValueError:
@@ -328,6 +389,14 @@ async def update_pricing(
             "model_name": model.model_name,
             "renamed_from": model_name if model.model_name != model_name else None,
             "changed_fields": sorted(data.model_dump(exclude_unset=True, exclude_none=True).keys()),
+            # Trace which reasoning template (if any) was applied in this
+            # update — the field value comes from the request payload, not
+            # from the persisted row (the row only stores the resolved
+            # shape, not the template name).
+            "reasoning_template": data.reasoning_template,
+            # Post-update reasoning shape + kind for forensic search.
+            "kind": model.kind.value,
+            "reasoning_widget": model.reasoning_widget.value,
             "new_pricing_id": str(new_pricing.id) if new_pricing else None,
         },
         ip_address=request.client.host if request.client else None,
@@ -342,6 +411,9 @@ async def update_pricing(
         "llm_model_updated",
         old_model_name=model_name,
         new_model_name=model.model_name,
+        kind=model.kind.value,
+        reasoning_template=data.reasoning_template,
+        reasoning_widget=model.reasoning_widget.value,
         new_pricing_id=str(new_pricing.id) if new_pricing else None,
         admin_user_id=str(current_user.id),
     )

@@ -22,6 +22,7 @@ from src.core.bootstrap import (
     log_rate_limiting_status,
     register_tool_schemas,
     validate_llm_configuration,
+    validate_llm_defaults_against_matrix,
     validate_tool_error_codes,
 )
 from src.core.config import settings
@@ -338,6 +339,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         async with get_db_context() as db:
             await ModelCapabilitiesCache.load_from_db(db)
         logger.info("model_capabilities_cache_initialized")
+
+        # Fail-fast: every LLM_DEFAULTS entry must be compatible with the
+        # matrix exposed by ModelCapabilitiesCache. Catches config drift at
+        # boot rather than at the next admin API write or runtime call.
+        validate_llm_defaults_against_matrix()
     except Exception as exc:
         # Boot continues; get_model_profile() will fall back to a conservative
         # default for any model not in the (possibly empty) cache.

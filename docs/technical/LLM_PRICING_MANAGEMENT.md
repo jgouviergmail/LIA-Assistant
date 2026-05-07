@@ -279,6 +279,17 @@ CREATE TABLE llm_models (
     supports_streaming BOOLEAN NOT NULL DEFAULT TRUE,
     supports_vision BOOLEAN NOT NULL DEFAULT FALSE,
     is_reasoning_model BOOLEAN NOT NULL DEFAULT FALSE,
+    -- v1.20.1+ — model classification + reasoning UI driver
+    kind llm_model_kind_enum NOT NULL DEFAULT 'chat',
+    reasoning_widget llm_reasoning_widget_enum NOT NULL DEFAULT 'none',
+    reasoning_enum_values JSONB,
+    reasoning_budget_range JSONB,
+    reasoning_doc_i18n_key VARCHAR(100),
+    -- v1.20.1+ — per-parameter sampling acceptance (drives admin UI sliders)
+    supports_temperature BOOLEAN NOT NULL DEFAULT TRUE,
+    supports_top_p BOOLEAN NOT NULL DEFAULT TRUE,
+    supports_frequency_penalty BOOLEAN NOT NULL DEFAULT TRUE,
+    supports_presence_penalty BOOLEAN NOT NULL DEFAULT TRUE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

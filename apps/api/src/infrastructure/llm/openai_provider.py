@@ -257,33 +257,3 @@ class OpenAIProvider:
             streaming=False,  # Planner needs full response (JSON plan)
             node_name="planner",
         )
-
-    @staticmethod
-    def count_tokens(text: str, model: str | None = None) -> int:
-        """
-        Count tokens in text using tiktoken encoding for the model.
-
-        Args:
-            text: Text to count tokens for.
-            model: Model name to get encoding for (default: from settings.token_count_default_model).
-
-        Returns:
-            int: Number of tokens.
-        """
-        import tiktoken
-
-        if model is None:
-            model = settings.token_count_default_model
-
-        try:
-            # Use configured token encoding
-            encoding = tiktoken.get_encoding(settings.token_encoding_name)
-            return len(encoding.encode(text))
-        except Exception as e:
-            logger.warning(
-                "token_counting_fallback",
-                error=str(e),
-                model=model,
-            )
-            # Fallback: rough estimation (4 chars per token)
-            return len(text) // 4

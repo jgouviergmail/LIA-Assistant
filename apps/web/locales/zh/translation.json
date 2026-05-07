@@ -185,6 +185,7 @@
       "updated_just_now": "刚刚",
       "updated_minutes_ago": "{{minutes}} 分钟前",
       "synthesis_updated_badge": "已更新 ✨",
+      "synthesis_unavailable": "今天的信息不足以生成综合报告。",
       "usage_tokens_one": "{{formatted}} tokens",
       "usage_tokens_other": "{{formatted}} tokens",
       "usage_tooltip": "模型：{{model}}\nIN：{{tokens_in}} · OUT：{{tokens_out}} · CACHE：{{tokens_cache}}\n费用：{{cost}}",
@@ -204,7 +205,11 @@
         "weather": {
           "title": "天气",
           "empty": "暂无天气数据",
-          "temp": "{{value}}°C"
+          "temp": "{{value}}°C",
+          "forecast_alert_rain": "{{time}}有雨",
+          "forecast_alert_thunderstorm": "{{time}}有雷暴",
+          "forecast_alert_snow": "{{time}}有雪",
+          "forecast_alert_drizzle": "{{time}}有毛毛雨"
         },
         "agenda": {
           "title": "日程",
@@ -2852,6 +2857,17 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_20_1": {
+          "title": "v1.20.1 — 管理员 LLM：每模型采样矩阵和可复用的推理形态模板",
+          "date": "2026 年 5 月",
+          "count": "4",
+          "items": {
+            "i1": "<b>LLM 配置：采样滑块仅显示 API 接受的参数</b> — 在每类型 LLM 配置对话框中，四个采样输入（<code>temperature</code>、<code>top_p</code>、<code>frequency_penalty</code>、<code>presence_penalty</code>）现在根据每个模型 API 实际接受的内容<b>逐参数</b>显示或隐藏。Anthropic 4.5+ 仅显示 temperature；DeepSeek V4 显示全部四个；GPT-5 系列一个都不显示。推理小部件本身（枚举选择、整数预算或开关+预算）也直接由模型声明的形态驱动 — 对话框永远不会让您选择 API 会拒绝的值。",
+            "i2": "<b>LLM 定价：\"从…复制推理形态\" 模板选择器</b> — 当您在 Tarification LLM Texte 管理表单中添加新的推理模型时，您不再需要手动输入推理小部件 / 枚举值 / 预算范围。新的下拉列表让您选择一个具有相同推理行为的代表性模型（例如 OpenAI o-series / GPT-5 选 \"like gpt-5\"，Anthropic 4.5+ 选 \"like claude-opus-4.5\"，DeepSeek V4 选 \"like deepseek-v4-flash\"）— 创建时四个推理形态字段会被快照复制。该列表自动去重目录（今天约 15 种唯一的推理形态）并自我丰富：任何在 <b>Custom (advanced)</b> 模式下用新颖形态创建的模型之后会作为模板可用。",
+            "i3": "<b>\"Is reasoning model\" 切换控制推理设置</b> — 一旦新模型不是推理模型，定价表单现在会隐藏模板选择器和 Custom 块。关闭切换会将小部件重置为 <code>none</code> 并清除任何待定的模板选择。<code>kind</code>（chat / image / audio / …）、四个采样切换和可选的 i18n 工具提示键保持可见并按模型保存 — 独立于推理形态选择。",
+            "i4": "<b>审计日志：每次 create / update 都跟踪推理模板 + kind + widget</b> — 管理员审计跟踪（在安全日志中可见）现在为每次 LLM 模型创建或编辑记录管理员选择了哪个模板（或在 Custom 模式下为 null）、模型 kind 和解析后的推理小部件。关于某行从哪个 API 合约继承的即时取证可见性。"
+          }
+        },
         "v1_20_0": {
           "title": "v1.20.0 — 分层日记：层级、认识论状态、扩散的用户模型肖像",
           "date": "2026年5月",

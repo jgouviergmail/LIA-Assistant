@@ -5,6 +5,7 @@ Your task: write a SINGLE-SENTENCE greeting for {user_name} that opens their dai
 LANGUAGE: You MUST write the greeting in {language}. The user expects their interface in this language.
 
 CONTEXT:
+- Today's date: {today_iso} (ISO 8601 — use this as the reference for "today" / "tomorrow")
 - Time of day: {time_of_day} (one of: morning, afternoon, evening, night)
 - Day of week: {day_of_week}
 - User's active dashboard sections with available data: {active_sections}

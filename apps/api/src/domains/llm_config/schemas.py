@@ -13,6 +13,37 @@ from pydantic import BaseModel, Field
 
 from src.core.llm_agent_config import LLMAgentConfig
 
+# Re-export reasoning types (relocated to src/core/reasoning_types.py to avoid
+# circular import with src.core.llm_agent_config). Listed in ``__all__`` below
+# so import-time consumers can keep referencing them from this module.
+from src.core.reasoning_types import (
+    ReasoningBudgetRange,
+    ReasoningEffortBudget,
+    ReasoningEffortEnum,
+    ReasoningEffortToggleBudget,
+    ReasoningEffortValue,
+)
+
+__all__ = [
+    "LLMConfigListResponse",
+    "LLMTypeConfig",
+    "LLMTypeConfigUpdate",
+    "LLMTypeInfo",
+    "ModelCapabilities",
+    "OllamaModelCapabilities",
+    "OllamaModelsResponse",
+    "ProviderKeyStatus",
+    "ProviderKeyUpdate",
+    "ProviderKeysResponse",
+    "ProviderModelsMetadata",
+    # Re-exports from src.core.reasoning_types
+    "ReasoningBudgetRange",
+    "ReasoningEffortBudget",
+    "ReasoningEffortEnum",
+    "ReasoningEffortToggleBudget",
+    "ReasoningEffortValue",
+]
+
 # --- Provider Keys ---
 
 
@@ -53,6 +84,13 @@ class LLMTypeInfo(BaseModel):
         None,
         description="Visual power tier indicator: critical, high, medium, low, or null",
     )
+    required_kind: Literal["chat", "image", "audio", "realtime", "tts", "embedding"] = Field(
+        default="chat",
+        description=(
+            "The kind of model this LLM type expects. Drives the kinds= filter "
+            "applied by the frontend when fetching /llm-config/metadata."
+        ),
+    )
 
 
 class LLMTypeConfig(BaseModel):
@@ -83,7 +121,10 @@ class LLMTypeConfigUpdate(BaseModel):
     presence_penalty: float | None = Field(None, ge=-2.0, le=2.0)
     max_tokens: int | None = Field(None, gt=0)
     timeout_seconds: int | None = Field(None, gt=0)
-    reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] | None = None
+    # Shape determined by the model's reasoning_widget on llm_models.
+    # None = clear override. Strict validation lives at the service layer
+    # (see domains/llm_config/reasoning_validation.py once Task 5 lands).
+    reasoning_effort: ReasoningEffortValue = None
     provider_config: str | None = None
 
 
@@ -97,15 +138,35 @@ class LLMConfigListResponse(BaseModel):
 
 
 class ModelCapabilities(BaseModel):
-    """Capabilities metadata for a single model."""
+    """Capabilities metadata for a single model.
+
+    Source of truth: ``llm_models`` DB row, exposed via
+    ``GET /llm-config/metadata``.
+    """
 
     model_id: str
+    kind: Literal["chat", "image", "audio", "realtime", "tts", "embedding"]
     max_output_tokens: int
     supports_tools: bool
     supports_structured_output: bool
     supports_vision: bool
     is_reasoning_model: bool
-    is_image_model: bool = False
+
+    # Sampling parameter acceptance — drives the Configuration LLM admin UI
+    # conditional rendering of sampling inputs (philosophy A — raw truth).
+    # Source of truth: ``llm_models.supports_*`` columns.
+    supports_temperature: bool
+    supports_top_p: bool
+    supports_frequency_penalty: bool
+    supports_presence_penalty: bool
+
+    # Reasoning UI driver — single source of truth, replaces the regex-based
+    # frontend logic in getModelConstraints().
+    reasoning_widget: Literal["none", "enum", "budget_int", "toggle_budget"]
+    reasoning_enum_values: list[str] | None = None
+    reasoning_budget_range: ReasoningBudgetRange | None = None
+    reasoning_doc_i18n_key: str | None = None
+
     cost_input: float | None = None
     cost_output: float | None = None
 

@@ -173,12 +173,15 @@ async def fetch_agenda(
     *,
     user: User,
     user_tz: ZoneInfo,
+    language: str,
 ) -> AgendaData:
     """Fetch the next ~24 h calendar events from the active provider.
 
     Uses dynamic provider resolution + the user's preferred default calendar
     (mirrors the heartbeat aggregator pattern — users with a non-primary
-    default calendar see their actual events).
+    default calendar see their actual events). The ``language`` argument is
+    forwarded to ``format_agenda_event`` so event times are rendered in the
+    user's locale (today / tomorrow / dd-mm-yyyy ordering).
 
     Raises:
         ConnectorNotConfiguredError: if no active calendar connector for the user.
@@ -253,7 +256,7 @@ async def fetch_agenda(
     # filter is end-time-based but edge cases like all-day events ending at
     # midnight may still slip through).
     upcoming = [e for e in raw_events if not is_event_past(e, now, user_tz)]
-    return AgendaData(events=[format_agenda_event(e, user_tz) for e in upcoming])
+    return AgendaData(events=[format_agenda_event(e, user_tz, language) for e in upcoming])
 
 
 # =============================================================================
@@ -265,11 +268,14 @@ async def fetch_mails(
     *,
     user: User,
     user_tz: ZoneInfo,
+    language: str,
 ) -> MailsData:
     """Fetch today's unread inbox emails from the active provider.
 
     All providers normalize email shape to top-level from/subject/snippet/internalDate
-    (see context_aggregator._fetch_emails for reference behaviour).
+    (see context_aggregator._fetch_emails for reference behaviour). The
+    ``language`` argument is forwarded to ``format_email_item`` so received
+    timestamps are rendered with the user's locale conventions.
     """
     async with get_db_context() as db:
         connector_service = ConnectorService(db)
@@ -326,7 +332,9 @@ async def fetch_mails(
             else:
                 full_messages.append(msg)
 
-    items = [format_email_item(m, user_tz) for m in full_messages[:BRIEFING_MAX_MAILS_ITEMS]]
+    items = [
+        format_email_item(m, user_tz, language) for m in full_messages[:BRIEFING_MAX_MAILS_ITEMS]
+    ]
     return MailsData(items=items, total_unread_today=len(full_messages))
 
 

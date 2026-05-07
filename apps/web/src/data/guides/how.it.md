@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 2.3
-**Data**: 2026-05-05
-**Applicazione**: LIA v1.19.1
+**Versione**: 2.4
+**Data**: 2026-05-06
+**Applicazione**: LIA v1.20.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -581,6 +581,12 @@ Ogni nodo della pipeline è configurabile indipendentemente tramite l'Admin UI �
 ### 12.3. Token Tracking
 
 Il `TrackingContext` traccia ogni chiamata LLM con `call_type` ("chat"/"embedding"), `sequence` (contatore monotono), `duration_ms`, token (input/output/cache) e costo calcolato dalle tariffe DB. I tracker condividono un `run_id` per l'aggregazione. Il debug panel mostra tutte le invocazioni (pipeline + background task) in una vista unificata cronologica.
+
+### 12.4. Catalogo admin DB-source-of-truth
+
+La tabella `llm_models` porta il catalogo completo: provider, capacità funzionali classiche (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), e — aggiunte strutturanti — la **matrice sampling per modello** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) nonché la **forma reasoning** (`reasoning_widget` ∈ {`none`, `enum`, `budget_int`, `toggle_budget`}, `reasoning_enum_values` lista JSONB, `reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`, `reasoning_doc_i18n_key`). Questa dichiarazione per modello sostituisce la regex frontend che indovinava prima quali slider nascondere: la finestra Configurazione LLM legge direttamente i flag DB ed espone solo i parametri che l'API del modello accetta realmente.
+
+Il form admin Tarification LLM Texte espone un **meccanismo di template dinamici derivati dalla DB**: il servizio `LLMModelService.list_templates()` raggruppa le righe attive per la loro impronta reasoning a 4 campi e restituisce un rappresentante deterministico per gruppo (~15 forme uniche oggi). Aggiungere un nuovo modello reasoning si riduce a scegliere «copia la forma da tale modello esistente»; i 4 campi di forma vengono copiati (snapshot) al momento della creazione. Modalità **Custom** disponibile per disruption; qualsiasi modello Custom con impronta inedita diventa automaticamente template per le aggiunte successive. `kind` (chat / image / audio / …), le quattro cap sampling e la chiave i18n del tooltip vengono salvati per modello, indipendenti dal template. Vedi `docs/technical/LLM_PRICING_TEMPLATES.md`.
 
 ---
 

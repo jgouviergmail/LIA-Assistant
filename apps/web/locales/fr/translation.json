@@ -193,6 +193,7 @@
       "updated_just_now": "à l'instant",
       "updated_minutes_ago": "il y a {{minutes}} min",
       "synthesis_updated_badge": "mis à jour ✨",
+      "synthesis_unavailable": "Pas assez d'informations aujourd'hui pour générer une synthèse.",
       "usage_tokens_one": "{{formatted}} token",
       "usage_tokens_other": "{{formatted}} tokens",
       "usage_tooltip": "Modèle : {{model}}\nIN : {{tokens_in}} · OUT : {{tokens_out}} · CACHE : {{tokens_cache}}\nCoût : {{cost}}",
@@ -212,7 +213,11 @@
         "weather": {
           "title": "Météo",
           "empty": "Pas de données météo disponibles",
-          "temp": "{{value}}°C"
+          "temp": "{{value}}°C",
+          "forecast_alert_rain": "Pluie à {{time}}",
+          "forecast_alert_thunderstorm": "Orage à {{time}}",
+          "forecast_alert_snow": "Neige à {{time}}",
+          "forecast_alert_drizzle": "Bruine à {{time}}"
         },
         "agenda": {
           "title": "Agenda",
@@ -2871,6 +2876,17 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_1": {
+          "title": "v1.20.1 — Admin LLM : matrice sampling par modèle et templates de forme de raisonnement réutilisables",
+          "date": "Mai 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Configuration LLM : les curseurs sampling n'affichent que ce que l'API accepte</b> — Dans la fenêtre Configuration LLM par type, les quatre paramètres de sampling (<code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>) apparaissent ou disparaissent désormais <b>paramètre par paramètre</b> selon ce que l'API du modèle accepte vraiment. Les modèles Anthropic 4.5+ exposent uniquement temperature ; DeepSeek V4 expose les quatre ; les GPT-5 n'en exposent aucun. Le widget de reasoning (select enum, budget entier, ou toggle+budget) est lui aussi piloté directement par la forme déclarée du modèle — la fenêtre ne vous laisse jamais choisir une valeur que l'API rejetterait.",
+            "i2": "<b>Tarification LLM : sélecteur \"Copier la forme de reasoning depuis…\"</b> — Quand vous ajoutez un nouveau modèle reasoning dans le formulaire admin Tarification LLM Texte, vous n'avez plus à saisir à la main le widget reasoning / les valeurs enum / la plage budget. Une nouvelle liste déroulante vous laisse choisir un modèle représentatif au comportement reasoning identique (ex. « comme gpt-5 » pour les o-series / GPT-5 d'OpenAI, « comme claude-opus-4.5 » pour Anthropic 4.5+, « comme deepseek-v4-flash » pour DeepSeek V4) et les quatre champs de forme reasoning sont copiés (snapshot) à la création. La liste dédoublonne automatiquement le catalogue (~15 formes uniques aujourd'hui) et s'auto-enrichit : tout modèle créé en mode <b>Custom (advanced)</b> avec une forme inédite devient disponible comme template par la suite.",
+            "i3": "<b>Le toggle « Is reasoning model » conditionne les réglages reasoning</b> — Le formulaire Tarification masque désormais le sélecteur de template et le bloc Custom dès que le nouveau modèle n'est pas un reasoning model. Désactiver le toggle remet le widget à <code>none</code> et efface toute sélection de template en cours. <code>kind</code> (chat / image / audio / …), les quatre toggles sampling et la clé i18n du tooltip restent visibles et sont sauvegardés par modèle — indépendamment du choix de forme reasoning.",
+            "i4": "<b>Journal d'audit : template reasoning + kind + widget tracés à chaque create / update</b> — La piste d'audit admin (visible dans le journal de sécurité) enregistre désormais, pour chaque création ou modification de modèle LLM, quel template l'admin a choisi (ou null en mode Custom), le kind du modèle et le widget reasoning résolu. Visibilité forensique immédiate sur le contrat API dont une ligne donnée hérite."
+          }
+        },
         "v1_20_0": {
           "title": "v1.20.0 — Journal stratifié : niveaux, statut épistémique, portrait utilisateur diffusé",
           "date": "Mai 2026",
