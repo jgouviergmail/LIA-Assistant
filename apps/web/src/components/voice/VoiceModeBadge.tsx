@@ -44,8 +44,12 @@ const LONG_PRESS_DURATION_MS = 500;
 // ============================================================================
 
 export interface VoiceModeBadgeProps {
-  /** Callback when transcription is received */
-  onTranscription: (text: string) => void;
+  /** Callback when transcription is received. The optional ``meta`` payload
+   *  carries STT cost metadata (set when the backend ran a remote provider). */
+  onTranscription: (
+    text: string,
+    meta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta
+  ) => void;
   /** Callback when TTS should start */
   onStartSpeaking?: () => void;
   /** Callback when TTS finishes */

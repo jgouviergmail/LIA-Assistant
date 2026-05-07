@@ -58,8 +58,11 @@ class _FakeWebSocket:
 @pytest.fixture
 def _ticket_store() -> MagicMock:
     store = MagicMock()
+    # ``voice_stt_mode`` was added to the ticket payload in v1.20.2 (ADR-080)
+    # so the WebSocket handler can route to the local Sherpa or remote
+    # ElevenLabs backend without re-querying the DB.
     store.validate_and_consume_ticket = AsyncMock(
-        return_value={"user_id": "user-uuid", "language": "fr"}
+        return_value={"user_id": "user-uuid", "language": "fr", "voice_stt_mode": "local"}
     )
     return store
 
@@ -92,7 +95,7 @@ async def test_websocket_breaks_cleanly_on_disconnect_message(
         patch("src.domains.voice.router.get_redis_cache", AsyncMock()),
         patch("src.domains.voice.router.WebSocketTicketStore", return_value=_ticket_store),
         patch("src.domains.voice.router.RedisRateLimiter", return_value=_rate_limiter_allow),
-        patch("src.domains.voice.router.get_stt_service", return_value=MagicMock()),
+        patch("src.domains.voice.router.get_stt_service_for_mode", return_value=MagicMock()),
         patch("src.domains.voice.router.websocket_connections_active") as gauge,
         patch("src.domains.voice.router.websocket_connection_duration_seconds"),
         patch("src.domains.voice.router.websocket_connections_total"),
@@ -131,7 +134,7 @@ async def test_websocket_accept_failure_does_not_phantom_decrement(
         patch("src.domains.voice.router.get_redis_cache", AsyncMock()),
         patch("src.domains.voice.router.WebSocketTicketStore", return_value=_ticket_store),
         patch("src.domains.voice.router.RedisRateLimiter", return_value=_rate_limiter_allow),
-        patch("src.domains.voice.router.get_stt_service", return_value=MagicMock()),
+        patch("src.domains.voice.router.get_stt_service_for_mode", return_value=MagicMock()),
         patch("src.domains.voice.router.websocket_connections_active") as gauge,
         patch("src.domains.voice.router.websocket_connection_duration_seconds"),
         patch("src.domains.voice.router.websocket_connections_total"),

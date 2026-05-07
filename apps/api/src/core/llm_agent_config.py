@@ -41,7 +41,15 @@ class LLMAgentConfig(BaseModel):
 
     # Provider configuration
     provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
+        "openai",
+        "anthropic",
+        "deepseek",
+        "perplexity",
+        "ollama",
+        "gemini",
+        "qwen",
+        "elevenlabs",
+        "edge",
     ] = Field(
         default="openai",
         description="LLM provider",

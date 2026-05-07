@@ -11,8 +11,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from src.core.config.voice import VoiceTTSMode
-
 
 class SystemSettingResponse(BaseModel):
     """Generic system setting response."""
@@ -26,49 +24,6 @@ class SystemSettingResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
-
-
-class VoiceTTSModeResponse(BaseModel):
-    """
-    Response for Voice TTS Mode setting.
-
-    Provides the current voice quality mode and metadata.
-    Mode descriptions are handled via i18n on the frontend.
-    """
-
-    mode: VoiceTTSMode = Field(
-        description="Current voice TTS mode: 'standard' (Edge TTS) or 'hd' (OpenAI/Gemini)"
-    )
-    updated_by: UUID | None = Field(
-        default=None,
-        description="Admin user ID who last changed the mode",
-    )
-    updated_at: datetime | None = Field(
-        default=None,
-        description="Timestamp of last mode change",
-    )
-    is_default: bool = Field(
-        default=False,
-        description="True if using default from environment (no DB setting)",
-    )
-
-    model_config = {"from_attributes": True}
-
-
-class VoiceTTSModeUpdate(BaseModel):
-    """
-    Request to update Voice TTS Mode.
-
-    Only administrators can change this setting.
-    The change affects all users immediately.
-    """
-
-    mode: VoiceTTSMode = Field(description="New voice TTS mode: 'standard' or 'hd'")
-    change_reason: str | None = Field(
-        default=None,
-        max_length=500,
-        description="Optional reason for the change (for audit trail)",
-    )
 
 
 # =============================================================================

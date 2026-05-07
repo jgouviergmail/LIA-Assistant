@@ -2,36 +2,63 @@
 
 > **Technical Documentation** - Voice Synthesis Domain
 >
-> **Version**: 3.1
-> **Date**: 2026-01-22
-> **Updated**: Architecture Factory Pattern avec Standard/HD modes + Admin System Settings
+> **Version**: 4.0
+> **Date**: 2026-05-07
+> **Updated**: TTS now lives on the LLM catalogue (ADR-081) — `voice_tts` LLM type, three providers (Edge / OpenAI / ElevenLabs), voice + tuning in `provider_config` JSONB.
 >
-> Related: [ARCHITECTURE.md](../ARCHITECTURE.md) | [SMART_SERVICES.md](./SMART_SERVICES.md)
+> Related: [ADR-081](../architecture/ADR-081-Voice-TTS-Catalogue-Driven.md) | [ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md) | [ARCHITECTURE.md](../ARCHITECTURE.md) | [SMART_SERVICES.md](./SMART_SERVICES.md)
 
 ---
 
 ## Overview
 
-Le domaine Voice fournit une intégration multi-provider TTS avec deux modes contrôlés par l'admin :
-
-- **Standard Mode** : Edge TTS (Microsoft Neural voices - GRATUIT)
-- **HD Mode** : OpenAI/Gemini TTS (Premium quality - PAYANT)
+The Voice domain provides a multi-provider TTS abstraction. As of v1.20.x
+(ADR-081), the active provider/model/voice/tuning is selected through the
+**Configuration LLM** admin (LLM type `voice_tts`) — the same path used
+for chat models since ADR-078 — and stored on
+`llm_config_overrides.voice_tts`. Voice IDs and per-provider tuning live
+in the row's `provider_config` JSONB blob.
 
 ### Key Features
 
-- **Factory Pattern** : Abstraction provider via TTSClient protocol
-- **Admin-Controlled** : Mode TTS contrôlé via System Settings (superuser only)
-- **Multi-Provider** : Edge TTS (gratuit) + OpenAI TTS (premium)
-- **Per-User Preference** : Voice enabled/disabled par utilisateur
-- **Streaming** : Génération audio par chunks pour faible latence
-- **Graceful Degradation** : Fallback vers Standard si HD non disponible
+- **LLM-catalogue-driven**: provider, model, voice IDs, and provider-
+  specific tuning come from a single override row (`llm_config_overrides
+  .voice_tts`) merged with `LLM_DEFAULTS`.
+- **Three providers from day 1**: Edge (free), OpenAI (`tts-1` /
+  `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2` / `eleven_turbo_v2_5`
+  / `eleven_flash_v2_5`).
+- **Per-provider tuning surfaces**:
+  - Edge: SSML `rate` / `pitch` / `volume` strings;
+  - OpenAI: `speed` (0.25–4.0) + `response_format` (mp3/opus/…);
+  - ElevenLabs: `output_format` + `voice_settings` (stability /
+    similarity_boost / style / use_speaker_boost).
+- **Dynamic voice picker**: `GET /admin/voice/voices?provider=X` returns
+  curated lists for Edge/OpenAI and a live `GET /v1/voices` for
+  ElevenLabs (account-scoped).
+- **Per-user opt-in**: voice synthesis enabled per user via the
+  `users.voice_mode_enabled` flag — orthogonal to the admin's TTS
+  provider choice.
+- **Graceful fallback**: when a paid provider is selected but its API
+  key is missing, the factory transparently falls back to Edge (logged
+  warning) so the response surface keeps producing audio.
 
-### Modes TTS
+### Pricing surface
 
-| Mode | Provider | Coût | Qualité | Contrôle |
-|------|----------|------|---------|----------|
-| **standard** | Edge TTS | Gratuit | Haute (Neural) | Admin via System Settings |
-| **hd** | OpenAI TTS | $15-30/1M chars | Premium | Admin via System Settings |
+All TTS rows use the unified `per_1m_tokens` pricing axis (characters
+tracked as tokens — math is identical, label is generic enough). Seeded
+catalogue:
+
+| Provider | Model | Input price |
+|---|---|---|
+| edge | edge-tts | $0.00 (free) |
+| openai | tts-1 | $15.00 / 1M chars |
+| openai | tts-1-hd | $30.00 / 1M chars |
+| elevenlabs | eleven_multilingual_v2 | $100.00 / 1M chars |
+| elevenlabs | eleven_turbo_v2_5 | $50.00 / 1M chars |
+| elevenlabs | eleven_flash_v2_5 | $50.00 / 1M chars |
+
+Admins can edit prices through the same Tarification LLM Texte form used
+for chat models.
 
 ---
 
@@ -39,7 +66,7 @@ Le domaine Voice fournit une intégration multi-provider TTS avec deux modes con
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         VOICE DOMAIN (v3)                                │
+│                         VOICE DOMAIN (v4)                                │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌────────────────────────────────────────────────────────────────────┐ │
@@ -53,20 +80,23 @@ Le domaine Voice fournit une intégration multi-provider TTS avec deux modes con
 │                            │                                             │
 │                            ▼                                             │
 │  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │                    FACTORY LAYER (NEW)                              │ │
+│  │                    FACTORY LAYER                                    │ │
 │  │                                                                      │ │
-│  │   factory.py                                                        │ │
-│  │   ├── get_tts_client()         # Returns TTSClient based on mode   │ │
-│  │   ├── get_tts_config()         # Returns TTSConfig for mode        │ │
-│  │   ├── get_voice_mode()         # Reads mode from cache/DB          │ │
-│  │   └── get_available_modes()    # Lists available modes for admin   │ │
+│  │   factory.py — driven by LLMConfigOverrideCache.voice_tts           │ │
+│  │   ├── get_tts_client()         # Returns TTSClient for the active   │ │
+│  │   │                              override (Edge/OpenAI/ElevenLabs)  │ │
+│  │   ├── get_tts_config()         # Returns parsed TTSConfig           │ │
+│  │   └── get_tts_client_sync(cfg) # Sync variant for non-async sites   │ │
 │  │                                                                      │ │
 │  │   TTSConfig(dataclass)                                              │ │
-│  │   ├── mode: "standard" | "hd"                                       │ │
-│  │   ├── provider: "edge" | "openai" | "gemini"                        │ │
-│  │   ├── voice_male, voice_female                                      │ │
-│  │   ├── rate, pitch, volume (Standard)                                │ │
-│  │   └── model, speed, response_format (HD)                            │ │
+│  │   ├── provider: "edge" | "openai" | "elevenlabs" | "gemini"         │ │
+│  │   ├── model: str                                                    │ │
+│  │   ├── voice_male, voice_female (parsed from provider_config)        │ │
+│  │   ├── rate, pitch, volume (Edge only)                               │ │
+│  │   ├── speed, response_format (OpenAI only)                          │ │
+│  │   ├── output_format, voice_settings (ElevenLabs only)               │ │
+│  │   ├── is_paid: bool         (modern flag)                           │ │
+│  │   └── mode: "standard"|"hd" (back-compat alias = "hd" if is_paid)   │ │
 │  └────────────────────────────────────────────────────────────────────┘ │
 │                            │                                             │
 │                            ▼                                             │
@@ -100,67 +130,91 @@ Le domaine Voice fournit une intégration multi-provider TTS avec deux modes con
 
 ---
 
-## Admin Control: System Settings
+## Admin Control: Configuration LLM
 
-Le mode TTS est contrôlé par l'administrateur via le domaine System Settings.
+The TTS provider/model/voice is controlled through the **Configuration
+LLM** admin form (LLM type `voice_tts`). The override row is persisted to
+`llm_config_overrides.voice_tts` and broadcast across workers via the
+ADR-063 Pub/Sub channel — no env var, no system_settings table involved.
 
 ### Endpoints
 
 ```bash
-# GET mode actuel
-GET /api/v1/admin/system-settings/voice-mode
+# Read current TTS config (effective = defaults merged with override)
+GET /api/v1/admin/llm-config/types/voice_tts
 Authorization: Bearer <admin_token>
 
 # Response:
 {
-  "mode": "standard",
-  "updated_by": null,
-  "updated_at": null,
-  "is_default": true
+  "llm_type": "voice_tts",
+  "info": { "required_kind": "tts", ... },
+  "effective": {
+    "provider": "elevenlabs",
+    "model": "eleven_turbo_v2_5",
+    "provider_config": "{\"voice_male\":\"echo_id\",\"voice_female\":\"nova_id\",\"output_format\":\"mp3_44100_128\",\"voice_settings\":{...}}",
+    ...
+  },
+  "is_overridden": true
 }
 
-# Changer le mode (superuser only)
-PUT /api/v1/admin/system-settings/voice-mode
+# Update (full-replace semantics; null clears the override of that field)
+PUT /api/v1/admin/llm-config/types/voice_tts
 Authorization: Bearer <admin_token>
 {
-  "mode": "hd",
-  "change_reason": "Premium quality enabled for all users"
+  "provider": "elevenlabs",
+  "model": "eleven_turbo_v2_5",
+  "provider_config": "{\"voice_male\":\"<elevenlabs_voice_id>\",...}"
 }
+
+# Reset to code defaults
+POST /api/v1/admin/llm-config/types/voice_tts/reset
+
+# Voice picker — populated dynamically by the admin form when the
+# admin selects a TTS provider. Edge/OpenAI return curated lists,
+# ElevenLabs returns a live GET /v1/voices for the configured account.
+GET /api/v1/admin/voice/voices?provider=elevenlabs
+Authorization: Bearer <admin_token>
 
 # Response:
 {
-  "mode": "hd",
-  "updated_by": "550e8400-e29b-41d4-a716-446655440000",
-  "updated_at": "2026-01-16T10:30:00Z",
-  "is_default": false
+  "provider": "elevenlabs",
+  "voices": [
+    { "voice_id": "21m00Tcm4TlvDq8ikWAM", "label": "Rachel",
+      "gender": "female", "language": "en" },
+    ...
+  ],
+  "source": "live"
 }
 ```
 
-### Architecture Cache
+### Cross-worker propagation
 
 ```
 Admin Request
      │
      ▼
-SystemSettingsService.set_voice_tts_mode()
+PUT /admin/llm-config/types/voice_tts
      │
-     ├── Update PostgreSQL (SystemSetting table)
+     ├── Update llm_config_overrides.voice_tts (PostgreSQL)
      ├── Create AdminAuditLog entry
-     └── invalidate_voice_tts_mode_cache()
+     └── LLMConfigOverrideCache.invalidate_and_reload()
                     │
-                    ▼
-             Redis DELETE
-                    │
-                    ▼
-          Next request:
-          get_voice_tts_mode()
-                    │
-                    ├── Redis Cache miss
-                    │         ↓
-                    ├── PostgreSQL query
-                    │         ↓
-                    └── Redis Cache set (5min TTL)
+                    ├── Reload from DB
+                    └── Publish "llm_config_overrides" on Redis Pub/Sub
+                                    │
+                                    ▼
+                       Other API workers receive the message
+                                    │
+                                    ▼
+                       Each worker reloads its in-memory cache
+                                    │
+                                    ▼
+                       Next get_tts_client() call sees the new override
 ```
+
+The factory reads `LLMConfigOverrideCache.get_override("voice_tts")`
+synchronously at synthesis time — no Redis hit on the hot path, no
+Postgres query.
 
 ---
 
@@ -168,77 +222,53 @@ SystemSettingsService.set_voice_tts_mode()
 
 ### Environment Variables
 
+The 14 legacy `VOICE_TTS_*` env vars (Standard/HD modes) were retired by
+ADR-081. Per-provider tuning now lives in the admin UI's
+`provider_config` JSONB. The remaining voice-related env vars cover the
+voice-comment LLM, the Sherpa local STT pipeline, and the WebSocket
+transport defaults — see [.env.example](../../.env.example) section
+"VOICE — TTS / STT" for the live list.
+
 ```bash
-# .env
+# .env — TTS provider/model/voice/tuning are NOT here anymore.
+# Configure them under "Configuration LLM → Voice Synthesis (TTS)".
 
-# ===== VOICE FEATURE =====
-VOICE_TTS_ENABLED=true
-VOICE_TTS_DEFAULT_MODE=standard      # "standard" | "hd"
-
-# ===== STANDARD MODE (Edge TTS - GRATUIT) =====
-VOICE_TTS_STANDARD_PROVIDER=edge
-VOICE_TTS_STANDARD_VOICE_MALE=fr-FR-HenriNeural
-VOICE_TTS_STANDARD_VOICE_FEMALE=fr-FR-DeniseNeural
-VOICE_TTS_STANDARD_RATE=+10%        # Speaking rate: "+10%", "-5%", "+0%"
-VOICE_TTS_STANDARD_PITCH=+0Hz       # Pitch: "+5Hz", "-10Hz", "+0Hz"
-VOICE_TTS_STANDARD_VOLUME=+0%       # Volume: "+10%", "-5%", "+0%"
-
-# ===== HD MODE (OpenAI TTS - PAYANT) =====
-VOICE_TTS_HD_PROVIDER=openai         # "openai" | "gemini"
-VOICE_TTS_HD_MODEL=tts-1             # tts-1 ($15/1M) ou tts-1-hd ($30/1M)
-VOICE_TTS_HD_VOICE_MALE=onyx
-VOICE_TTS_HD_VOICE_FEMALE=nova
-VOICE_TTS_HD_SPEED=1.0               # 0.25 to 4.0
-VOICE_TTS_HD_RESPONSE_FORMAT=mp3     # mp3, opus, aac, flac, wav, pcm
-
-# ===== VOICE COMMENT LLM =====
+# Voice Comment LLM (still env-driven)
 VOICE_LLM_PROVIDER=openai
 VOICE_LLM_MODEL=gpt-4.1-nano
 VOICE_LLM_TEMPERATURE=0.7
 VOICE_LLM_MAX_TOKENS=500
-VOICE_MAX_SENTENCES=6
+VOICE_MAX_SENTENCES=3
 
-# ===== VOICE CONTEXT =====
+# Voice context
 VOICE_CONTEXT_MAX_CHARS=2000
-VOICE_PARALLEL_TIMEOUT_SECONDS=10.0
+VOICE_PARALLEL_TIMEOUT_SECONDS=15.0
+VOICE_CHAT_MODE_MAX_SENTENCES=3
 ```
 
-### Settings Class
+### `provider_config` JSONB shape
 
-```python
-# apps/api/src/core/config/voice.py
+Documented authoritatively on `apps/api/src/domains/voice/factory.py`.
+Only keys relevant to the active provider need be present; others are
+ignored:
 
-VoiceTTSMode = Literal["standard", "hd"]
-
-class VoiceSettings(BaseSettings):
-    """Voice/TTS configuration with Standard/HD modes."""
-
-    # Feature flag
-    voice_tts_enabled: bool = True
-    voice_tts_default_mode: VoiceTTSMode = "standard"
-
-    # Standard mode (Edge TTS - FREE)
-    voice_tts_standard_provider: str = "edge"
-    voice_tts_standard_voice_male: str = "fr-FR-HenriNeural"
-    voice_tts_standard_voice_female: str = "fr-FR-DeniseNeural"
-    voice_tts_standard_rate: str = "+10%"
-    voice_tts_standard_pitch: str = "+0Hz"
-    voice_tts_standard_volume: str = "+0%"
-
-    # HD mode (OpenAI/Gemini - PAID)
-    voice_tts_hd_provider: str = "openai"
-    voice_tts_hd_model: str = "tts-1"
-    voice_tts_hd_voice_male: str = "onyx"
-    voice_tts_hd_voice_female: str = "nova"
-    voice_tts_hd_speed: float = 1.0
-    voice_tts_hd_response_format: str = "mp3"
-
-    # Voice Comment LLM
-    voice_llm_provider: str = "openai"
-    voice_llm_model: str = "gpt-4.1-nano"
-    voice_llm_temperature: float = 0.7
-    voice_llm_max_tokens: int = 500
-    voice_max_sentences: int = 6
+```json
+{
+  "voice_male": "fr-FR-RemyMultilingualNeural",
+  "voice_female": "fr-FR-VivienneMultilingualNeural",
+  "rate": "+10%",            // edge only (SSML)
+  "pitch": "+0Hz",           // edge only
+  "volume": "+0%",           // edge only
+  "speed": 1.1,              // openai only (0.25..4.0)
+  "response_format": "mp3",  // openai only
+  "output_format": "mp3_44100_128",  // elevenlabs only
+  "voice_settings": {                // elevenlabs only
+    "stability": 0.5,
+    "similarity_boost": 0.75,
+    "style": 0.0,
+    "use_speaker_boost": true
+  }
+}
 ```
 
 ---
@@ -248,25 +278,33 @@ class VoiceSettings(BaseSettings):
 ### Factory Pattern
 
 ```python
-from src.domains.voice.factory import get_tts_client, get_tts_config, get_voice_mode
+from src.domains.voice.factory import get_tts_client, get_tts_config
 
-# Get current mode from cache/DB
-mode = await get_voice_mode()  # "standard" | "hd"
+# Get the current TTSConfig parsed from the active override
+cfg = await get_tts_config()
+# cfg.provider = "elevenlabs"
+# cfg.model = "eleven_turbo_v2_5"
+# cfg.voice_male = "<elevenlabs_voice_id>"
+# cfg.voice_female = "<elevenlabs_voice_id>"
+# cfg.voice_settings = {"stability": 0.5, ...}
+# cfg.is_paid = True            # use this for new code
+# cfg.mode = "hd"               # back-compat alias for legacy call sites
 
-# Get client based on current admin mode
+# Get the matching client (Edge / OpenAI / ElevenLabs)
 client = await get_tts_client()
-audio = await client.synthesize("Bonjour!", voice_name="nova")
+audio = await client.synthesize("Bonjour !", voice_name=cfg.voice_female)
 
-# Force specific mode (for testing)
-client = await get_tts_client(mode="hd")
-
-# Get configuration for UI
-config = await get_tts_config()
-# config.mode = "hd"
-# config.provider = "openai"
-# config.voice_male = "onyx"
-# config.voice_female = "nova"
+# Synchronous variant — for callers that already hold a config
+from src.domains.voice.factory import get_tts_client_sync
+client = get_tts_client_sync(cfg)
 ```
+
+When the active override targets a paid provider whose API key is missing,
+the factory transparently falls back to Edge with neutral SSML tuning
+(see `_fallback_edge_config()`). The fallback emits a structured warning
+log (`openai_tts_missing_api_key_falling_back_to_edge` /
+`elevenlabs_tts_missing_api_key_falling_back_to_edge`) so operators can
+diagnose the missing-key state without losing audio output.
 
 ### TTSClient Protocol
 
@@ -365,7 +403,9 @@ from src.domains.voice.service import VoiceCommentService
 
 service = VoiceCommentService(lia_gender="female")
 
-# Stream voice comment as audio chunks
+# Stream voice comment as audio chunks (uses sentence streaming under
+# the hood — first audio lands as soon as the LLM emits a complete
+# sentence rather than at the end of the full ainvoke).
 async for chunk in service.stream_voice_comment(
     context_summary="L'utilisateur a demandé ses emails...",
     personality_instruction="Tu es enthousiaste.",
@@ -374,6 +414,106 @@ async for chunk in service.stream_voice_comment(
     # chunk is VoiceAudioChunk
     yield chunk
 ```
+
+### Progressive sentence streaming (ADR-082)
+
+Both code paths above (chat-mode `stream_direct_tts` via
+`start_progressive_chat_stream`, and agent-mode `stream_voice_comment`)
+are pipelined at the sentence level by ``ProgressiveSentenceStreamer``
+([apps/api/src/domains/voice/sentence_streamer.py](../../apps/api/src/domains/voice/sentence_streamer.py)).
+
+```
+LLM stream tokens ──► streamer.feed("Bonjour, com")
+                       ↓                                   no terminator → buffer
+LLM stream tokens ──► streamer.feed("ment ça va ?")
+                       ↓                                   "?" → dispatch sentence #0
+                       ├── asyncio.create_task(synth)  ── ▶ TTS provider call (parallel)
+LLM stream tokens ──► streamer.feed("Aujourd'hui je vais bien.")
+                       ↓                                   "." → dispatch sentence #1
+                       ├── asyncio.create_task(synth)  ── ▶ TTS provider call (parallel)
+LLM closes  ────────► streamer.close_input()
+                       ↓                                   trailing buffer empty
+                       ▼
+   in-order delivery via _pending: dict[int, VoiceAudioChunk] + _drain_lock
+                       ▼
+              audio_chunks() async iterator
+                       ▼
+            agents SSE main loop emits VoiceAudioChunk
+```
+
+Three guarantees:
+
+| Invariant | Mechanism |
+|---|---|
+| In-order delivery (sentence #1 before #2 even when #2's TTS is faster) | `_pending` map + `_next_emit_idx` counter under `_drain_lock` |
+| One sentence failure does NOT block the rest | `_failed: set[int]` skipped during drain |
+| End-of-stream sentinel pushed exactly once | `_sentinel_pushed: bool` idempotence flag |
+
+The resulting **Time-To-First-Audio (TTFA)**:
+
+| Scenario | Legacy v4.0 | v4.1 (sentence streaming) |
+|---|---|---|
+| Chat mode, response 5 s, 5 sentences | ~5.5 s | **~0.8–1.2 s** |
+| Agent mode, voice LLM 2 s, 3 sentences | ~3.5 s | **~1–1.5 s** |
+| Agent mode, registry tardif (5 s) | ~6 s | **~3 s** |
+
+Cleanup contract: every SSE generator exit path (HITL `GraphInterrupt`,
+top-level `except`, normal end) MUST call
+`AgentService._cleanup_chat_voice_pipeline(...)` to cancel the drain
+task, the streamer's pending TTS tasks, and the underlying voice service
+(closes the persistent httpx client). The helper is idempotent and safe
+to call when voice was never spun up.
+
+### Per-message TTS cost attribution (ADR-081)
+
+Symmetric with STT (cf. [ADR-080](../architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md)):
+
+```sql
+-- conversation_messages — paid TTS only (Edge stays NULL)
+tts_provider           VARCHAR(50)
+tts_model              VARCHAR(100)
+tts_characters         INTEGER
+tts_cost_usd           NUMERIC(10,6)
+tts_cost_eur           NUMERIC(10,6)
+tts_usd_to_eur_rate    NUMERIC(10,6)
+
+-- user_statistics — lifetime + cycle aggregates
+total_tts_characters   NUMERIC(12,0) NOT NULL DEFAULT 0
+total_tts_cost_eur     NUMERIC(12,6) NOT NULL DEFAULT 0
+cycle_tts_characters   NUMERIC(12,0) NOT NULL DEFAULT 0
+cycle_tts_cost_eur     NUMERIC(12,6) NOT NULL DEFAULT 0
+```
+
+The TTS cost is included in `cycle_cost_eur` / `total_cost_eur` so the
+dashboard "Cost" tile and `user_usage_limits` checks naturally cover it.
+
+UI: a discreet badge `🔊 N chars` is rendered before the grand total on
+the assistant bubble (mirror of the STT `🎤 X.Xs` badge on the user
+bubble). Hidden for Edge synth and historical messages (where the column
+is NULL).
+
+CSV exports: `consumption-summary` includes `total_tts_characters`,
+`total_tts_cost_eur`. New dedicated `tts-usage` export (admin + user)
+returns one row per assistant message with `tts_provider IS NOT NULL`.
+
+#### Backfill double-pass
+
+The TTS finalisation runs AFTER `archive_message` (the assistant row is
+created with `tts_*` columns NULL because parallel-mode voice may still
+be synthesising at archive time). Two pass-through points:
+
+1. **First pass** — between background-task wait and `cleanup_run_records`,
+   `temp_tracker.get_tts_usage_for_archive()` returns the records
+   committed by the parallel voice path (PATH 1) and `update_message_tts`
+   writes them on `conversation_messages.tts_*`. Captures a snapshot
+   `tts_snapshot_for_done` so the SSE `done` chunk metadata can carry
+   `tts_provider`/`tts_model`/`tts_characters`/`tts_cost_eur` to the
+   live frontend without waiting for a reload.
+2. **Second pass** — after the `voice_needs_finalization` block (which
+   covers PATH 2A direct_tts / PATH 2B sync voice_comment), `_run_tts_records`
+   has been re-populated by `tracker.commit()`. A second backfill picks
+   up any records produced by the sync fallback path that wasn't yet
+   captured.
 
 ---
 
@@ -420,17 +560,19 @@ async for chunk in service.stream_voice_comment(
 
 ```python
 # Voice TTS requests
-voice_tts_requests_total{provider="edge|openai", status="success|error"}
+voice_tts_requests_total{provider="edge|openai|elevenlabs", model="..."}
 
 # Voice TTS latency
-voice_tts_latency_seconds{provider="edge|openai"}
+voice_tts_latency_seconds{provider="edge|openai|elevenlabs"}
 
 # Voice TTS errors
-voice_tts_errors_total{provider="edge|openai", error_type="..."}
-
-# Voice mode cache
-voice_tts_mode_cache_total{result="hit|miss|error"}
+voice_tts_errors_total{provider="edge|openai|elevenlabs", error_type="..."}
 ```
+
+The `voice_tts_mode_cache_total` Prometheus counter was retired with
+ADR-081 (no more `voice_tts_mode` system setting). Cache invalidation
+for the new override surface is observed through the existing
+`llm_config_cache_loaded` log event and the ADR-063 Pub/Sub channel.
 
 ---
 
@@ -439,19 +581,26 @@ voice_tts_mode_cache_total{result="hit|miss|error"}
 ### Graceful Degradation
 
 ```python
-# factory.py - HD mode fallback to Standard
-async def _create_hd_client() -> TTSClient:
-    provider = settings.voice_tts_hd_provider
-
-    if provider == "openai":
-        if not settings.openai_api_key:
-            logger.warning("openai_tts_no_api_key", message="Falling back to Standard")
-            return _create_standard_client()
-
+# factory.py — paid provider with missing API key falls back to Edge
+def _instantiate_client(cfg: TTSConfig) -> TTSClient:
+    if cfg.provider == "openai":
+        if not LLMConfigOverrideCache.get_api_key("openai"):
+            logger.warning("openai_tts_missing_api_key_falling_back_to_edge")
+            return _instantiate_client(_fallback_edge_config())
         return OpenAITTSClient(...)
 
-    # Unknown provider: fallback
-    return _create_standard_client()
+    if cfg.provider == "elevenlabs":
+        if not LLMConfigOverrideCache.get_api_key("elevenlabs"):
+            logger.warning("elevenlabs_tts_missing_api_key_falling_back_to_edge")
+            return _instantiate_client(_fallback_edge_config())
+        return ElevenLabsTTSClient(...)
+
+    if cfg.provider == "edge":
+        return EdgeTTSClient(...)
+
+    # Unknown / not-yet-implemented provider (e.g. gemini): Edge fallback
+    logger.error("tts_factory_unknown_provider", provider=cfg.provider)
+    return _instantiate_client(_fallback_edge_config())
 ```
 
 ### Error Recovery
@@ -471,12 +620,15 @@ except Exception as e:
 
 ```
 apps/api/src/domains/voice/
-├── __init__.py           # Module exports
-├── protocol.py           # TTSClient protocol definition
-├── factory.py            # TTS client factory (Standard/HD)
-├── client.py             # EdgeTTSClient (Standard mode)
-├── openai_tts_client.py  # OpenAITTSClient (HD mode)
-└── service.py            # VoiceCommentService
+├── __init__.py                # Module exports
+├── protocol.py                # TTSClient protocol definition
+├── factory.py                 # TTS client factory (LLMConfigOverrideCache-driven)
+├── client.py                  # EdgeTTSClient
+├── openai_tts_client.py       # OpenAITTSClient
+├── elevenlabs_tts_client.py   # ElevenLabsTTSClient (ADR-081)
+├── voices_catalog.py          # Edge / OpenAI static lists + ElevenLabs live API
+├── admin_router.py            # GET /admin/voice/voices
+└── service.py                 # VoiceCommentService
 ```
 
 ---
@@ -487,18 +639,23 @@ apps/api/src/domains/voice/
 |------|---------|--------|
 | 2025-12-24 | 1.0 | Initial implementation avec Google Cloud TTS |
 | 2025-12-29 | 2.0 | Migration vers Edge TTS - Gratuit |
-| 2026-01-15 | 3.0 | **Factory Pattern + Standard/HD modes + Admin System Settings** |
+| 2026-01-15 | 3.0 | Factory Pattern + Standard/HD modes + Admin System Settings |
+| 2026-05-07 | 4.0 | TTS migrated to LLM catalogue (ADR-081) — three providers (Edge / OpenAI / ElevenLabs), `voice_tts` LLM type, voice + tuning in `provider_config` JSONB, `system_settings.voice_tts_mode` retired |
+| 2026-05-07 | 4.1 | **Progressive sentence streaming (ADR-082)** — TTFA divided by ~5× (chat mode) / ~2× (agent mode) via `ProgressiveSentenceStreamer` (LLM `astream` → in-order TTS dispatch). Per-message TTS cost attribution (5 cols on `conversation_messages`, 4 aggregates on `user_statistics`, badge `🔊 N chars`). Persistent httpx client on `ElevenLabsTTSClient`. |
 
 ---
 
 ## Related Documentation
 
-- [SMART_SERVICES.md](./SMART_SERVICES.md) - SystemSettingsService
+- [ADR-082](../architecture/ADR-082-Progressive-Sentence-Streaming.md) - Progressive sentence streaming (low-latency TTS)
+- [ADR-081](../architecture/ADR-081-Voice-TTS-Catalogue-Driven.md) - Voice TTS catalogue-driven architecture
+- [ADR-080](../architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md) - Voice STT remote (ElevenLabs Scribe) + pricing-unit
+- [ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md) - LLM catalogue source of truth
 - [ARCHITECTURE.md](../ARCHITECTURE.md) - System architecture
 - [AUTHENTICATION.md](./AUTHENTICATION.md) - Admin permissions
 
 ---
 
-**VOICE.md** - Version 3.0 - Janvier 2026
+**VOICE.md** - Version 4.1 - 2026-05-07
 
-*Voice TTS System with Factory Pattern and Admin-Controlled Standard/HD Modes*
+*Voice TTS catalogue-driven (ADR-081) + progressive sentence streaming (ADR-082) + per-message cost attribution.*

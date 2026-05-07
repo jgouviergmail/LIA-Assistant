@@ -45,8 +45,10 @@ import {
 export type VoiceInputState = 'idle' | 'connecting' | 'recording' | 'processing';
 
 export interface UseVoiceInputOptions {
-  /** Callback when transcription is received */
-  onTranscription?: (text: string) => void;
+  /** Callback when transcription is received. The optional ``meta`` payload
+   *  carries STT cost metadata when the backend ran a remote provider —
+   *  callers forward it with the next chat send for per-message billing. */
+  onTranscription?: (text: string, meta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta) => void;
   /** Callback when error occurs */
   onError?: (error: Error) => void;
 }
@@ -162,7 +164,11 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
    * Handle transcription result from WebSocket.
    */
   const handleTranscription = useCallback(
-    (text: string, duration: number) => {
+    (
+      text: string,
+      duration: number,
+      meta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta
+    ) => {
       setTranscription(text);
       setDurationSeconds(duration);
       setState('idle');
@@ -174,9 +180,11 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
         component: 'useVoiceInput',
         text_length: text.length,
         duration_seconds: duration,
+        stt_provider: meta?.stt_provider ?? null,
+        stt_cost_eur: meta?.stt_cost_eur ?? null,
       });
 
-      onTranscription?.(text);
+      onTranscription?.(text, meta);
     },
     [onTranscription, cleanupService]
   );

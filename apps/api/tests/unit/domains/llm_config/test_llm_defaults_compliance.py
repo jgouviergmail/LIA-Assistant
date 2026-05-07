@@ -43,6 +43,12 @@ _REFERENCE_MATRIX: dict[str, tuple[str, list[str] | None, dict[str, Any] | None]
     "qwen3.5-plus": ("toggle_budget", None, {"min": 0, "max": 32768}),
     "qwen3.5-flash": ("toggle_budget", None, {"min": 0, "max": 32768}),
     "qwen3-max": ("toggle_budget", None, {"min": 0, "max": 32768}),
+    # Voice catalogue defaults (ADR-080 + ADR-081). All audio/tts kinds
+    # carry widget=none — voice models do not expose a reasoning effort
+    # surface, but they still need to live in this matrix so the boot-time
+    # compliance check for LLM_DEFAULTS does not fail on them.
+    "scribe_v2": ("none", None, None),
+    "edge-tts": ("none", None, None),
 }
 
 

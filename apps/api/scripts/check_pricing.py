@@ -42,8 +42,14 @@ from src.infrastructure.database import get_db_context
 
 async def main():
     """Check pricing."""
+    from sqlalchemy.orm import selectinload
+
     async with get_db_context() as db:
-        result = await db.execute(select(LLMModelPricing).where(LLMModelPricing.is_active))
+        result = await db.execute(
+            select(LLMModelPricing)
+            .options(selectinload(LLMModelPricing.model))
+            .where(LLMModelPricing.is_active)
+        )
         pricings = result.scalars().all()
 
         if not pricings:
@@ -53,9 +59,9 @@ async def main():
             print(f"✅ {len(pricings)} pricings trouvés:")
             for p in pricings[:15]:
                 print(
-                    f"  - {p.model_name}: "
-                    f"${p.input_price_per_1m_tokens}/M in, "
-                    f"${p.output_price_per_1m_tokens}/M out"
+                    f"  - {p.model.model_name} ({p.pricing_unit.value}): "
+                    f"input=${p.input_unit_price}, "
+                    f"output=${p.output_unit_price}"
                 )
 
 

@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 3.3
-**Datum** : 2026-05-06
-**Anwendung** : LIA v1.20.1
+**Datum** : 2026-05-08
+**Anwendung** : LIA v1.20.2
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -92,7 +92,7 @@ Der Administrator hat Zugriff auf eine dritte Registerkarte zur Verwaltung der I
 - **Persönlichkeiten**: Verfügbare Persönlichkeiten für alle Benutzer erstellen, bearbeiten, übersetzen und löschen — Standardpersönlichkeit festlegen
 - **System-Skills**: Expertenfähigkeiten auf Instanzebene verwalten — Import/Export, Aktivierung/Deaktivierung, Übersetzung
 - **System-Wissensbereiche**: FAQ-Wissensbasis verwalten, Indexierungsstatus und Modellmigrationen überwachen
-- **Globale Stimme**: Standard-TTS-Modus (Standard oder HD) für alle Benutzer konfigurieren
+- **Globale Stimme**: Standard-TTS-Provider, -Modell und -Stimme für alle Benutzer konfigurieren (Edge kostenlos, OpenAI oder ElevenLabs), mit providerspezifischer Feinabstimmung (Geschwindigkeit, Stabilität, Audioformat)
 - **System-Debug**: Protokoll- und Diagnose-Konfiguration
 
 ### 2.4. Ein Assistent, kein technisches Projekt
@@ -136,7 +136,7 @@ LIA bietet einen vollständigen Sprachmodus:
 
 - **Push-to-Talk**: Halten Sie die Mikrofon-Schaltfläche gedrückt, um zu sprechen — optimiert für Mobilgeräte
 - **Aktivierungswort "OK Guy"**: Freihändige Erkennung, die **vollständig in Ihrem Browser** via Sherpa-onnx WASM ausgeführt wird — kein Ton wird übertragen, bis das Aktivierungswort erkannt wurde
-- **Sprachsynthese**: Standardmodus (Edge TTS, kostenlos) oder HD (OpenAI TTS / Gemini TTS)
+- **Sprachsynthese**: drei admin-konfigurierbare Provider — Edge TTS (kostenlos), OpenAI TTS (`tts-1` / `tts-1-hd`) oder ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Telegram-Sprachnachrichten**: Senden Sie Audiobotschaften, LIA transkribiert sie und antwortet
 
 ### 3.5. Erstellung und Medien

@@ -1,293 +1,253 @@
+"""TTS client factory — driven by Configuration LLM (``voice_tts`` type).
+
+Reads the active ``voice_tts`` override from :class:`LLMConfigOverrideCache`
+(merged with :data:`LLM_DEFAULTS`) and instantiates the matching client
+(Edge / OpenAI / ElevenLabs / future Gemini). The voice IDs and provider-
+specific tuning (speed, response_format, rate, pitch, volume, voice_settings,
+…) live in the override's ``provider_config`` JSONB blob — see ADR-081.
+
+Shape of the JSONB blob (all keys optional):
+
+```json
+{
+  "voice_male": "fr-FR-RemyMultilingualNeural",
+  "voice_female": "fr-FR-VivienneMultilingualNeural",
+  "rate": "+10%",            // edge only
+  "pitch": "+0Hz",           // edge only
+  "volume": "+0%",           // edge only
+  "speed": 1.1,              // openai only
+  "response_format": "mp3",  // openai only
+  "output_format": "mp3_44100_128",  // elevenlabs only
+  "voice_settings": {        // elevenlabs only
+    "stability": 0.5,
+    "similarity_boost": 0.75,
+    "style": 0.0,
+    "use_speaker_boost": true
+  }
+}
+```
 """
-TTS Client Factory.
 
-Creates TTS client instances based on the current voice mode (Standard/HD).
-The mode is controlled by administrators and stored in the database.
+from __future__ import annotations
 
-Architecture:
-- Standard mode: Edge TTS (free, high quality)
-- HD mode: OpenAI/Gemini TTS (paid, premium quality)
-
-Usage:
-    from src.domains.voice.factory import get_tts_client, get_tts_config
-
-    # Get client based on current admin-controlled mode
-    client = await get_tts_client()
-
-    # Get configuration (voice names, etc.) for current mode
-    config = await get_tts_config()
-
-Created: 2026-01-15
-Updated: 2026-01-16 - Refactored to use Standard/HD mode architecture
-"""
-
-from dataclasses import dataclass
-from typing import Literal
+import json
+from dataclasses import dataclass, field
+from typing import Any, Literal
 
 import structlog
 
-from src.core.config import settings
-from src.core.config.voice import VoiceTTSMode
+from src.core.llm_agent_config import LLMAgentConfig
+from src.core.llm_config_helper import merge_config
 from src.domains.llm_config.cache import LLMConfigOverrideCache
+from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.domains.voice.client import EdgeTTSClient
+from src.domains.voice.elevenlabs_tts_client import ElevenLabsTTSClient
 from src.domains.voice.openai_tts_client import OpenAITTSClient
 from src.domains.voice.protocol import TTSClient
 
 logger = structlog.get_logger(__name__)
 
-# Type alias for TTS providers
-TTSProvider = Literal["edge", "openai", "gemini"]
+TTSProvider = Literal["edge", "openai", "elevenlabs", "gemini"]
+
+# Free providers — used by the cost tracker to skip useless lookups.
+_FREE_PROVIDERS: frozenset[str] = frozenset({"edge"})
 
 
 @dataclass
 class TTSConfig:
-    """
-    TTS configuration for the current mode.
+    """Effective TTS configuration consumed by the voice service.
 
-    Contains all settings needed for TTS synthesis based on the
-    current voice mode (Standard/HD).
+    ``model`` is mandatory (used both by the provider and by the cost
+    tracker for pricing lookups). The remaining fields are populated
+    from the JSONB ``provider_config`` blob — only the keys relevant
+    to the active provider are filled, the rest stay None.
+
+    Notes:
+        - ``mode`` is preserved as a back-compat alias: ``"hd"`` for any
+          paid provider, ``"standard"`` for free providers (Edge). Some
+          downstream call sites still gate logic on ``mode == "hd"``.
+        - ``is_paid`` is the precise modern flag — prefer it in new code.
     """
 
-    mode: VoiceTTSMode
     provider: TTSProvider
+    model: str
     voice_male: str
     voice_female: str
-    # Standard mode (Edge TTS) specific
+    # Edge-specific.
     rate: str | None = None
     pitch: str | None = None
     volume: str | None = None
-    # HD mode (OpenAI/Gemini) specific
-    model: str | None = None
+    # OpenAI-specific.
     speed: float | None = None
     response_format: str | None = None
+    # ElevenLabs-specific.
+    output_format: str | None = None
+    voice_settings: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def is_paid(self) -> bool:
+        return self.provider not in _FREE_PROVIDERS
+
+    @property
+    def mode(self) -> Literal["standard", "hd"]:
+        """Back-compat alias for legacy callers gating on ``mode == "hd"``."""
+        return "hd" if self.is_paid else "standard"
 
 
-async def get_voice_mode() -> VoiceTTSMode:
-    """
-    Get current voice TTS mode from cache/DB.
-
-    Returns:
-        "standard" or "hd"
-    """
-    from src.domains.system_settings.service import get_voice_tts_mode
-
-    return await get_voice_tts_mode()
+# ----------------------------------------------------------------------
+# Public API
+# ----------------------------------------------------------------------
 
 
 async def get_tts_config() -> TTSConfig:
-    """
-    Get TTS configuration for the current voice mode.
+    """Read the active ``voice_tts`` config + parse the provider_config JSONB."""
+    effective = _resolve_effective_config()
+    extras = _parse_provider_config(effective.provider_config)
 
-    Reads the current mode from the database (cached in Redis) and
-    returns the appropriate configuration.
+    voice_male = str(extras.get("voice_male") or _default_voice(effective.provider, "male"))
+    voice_female = str(extras.get("voice_female") or _default_voice(effective.provider, "female"))
 
-    Returns:
-        TTSConfig with all settings for the current mode.
-    """
-    mode = await get_voice_mode()
-
-    if mode == "standard":
-        return TTSConfig(
-            mode="standard",
-            provider=settings.voice_tts_standard_provider,
-            voice_male=settings.voice_tts_standard_voice_male,
-            voice_female=settings.voice_tts_standard_voice_female,
-            rate=settings.voice_tts_standard_rate,
-            pitch=settings.voice_tts_standard_pitch,
-            volume=settings.voice_tts_standard_volume,
-        )
-    else:  # hd
-        return TTSConfig(
-            mode="hd",
-            provider=settings.voice_tts_hd_provider,
-            voice_male=settings.voice_tts_hd_voice_male,
-            voice_female=settings.voice_tts_hd_voice_female,
-            model=settings.voice_tts_hd_model,
-            speed=settings.voice_tts_hd_speed,
-            response_format=settings.voice_tts_hd_response_format,
-        )
+    return TTSConfig(
+        provider=effective.provider,  # type: ignore[arg-type]
+        model=effective.model,
+        voice_male=voice_male,
+        voice_female=voice_female,
+        rate=_str_or_none(extras.get("rate")),
+        pitch=_str_or_none(extras.get("pitch")),
+        volume=_str_or_none(extras.get("volume")),
+        speed=_float_or_none(extras.get("speed")),
+        response_format=_str_or_none(extras.get("response_format")),
+        output_format=_str_or_none(extras.get("output_format")),
+        voice_settings=_dict_or_empty(extras.get("voice_settings")),
+    )
 
 
-async def get_tts_client(mode: VoiceTTSMode | None = None) -> TTSClient:
-    """
-    Get a TTS client instance based on the current voice mode.
-
-    Factory function that creates the appropriate TTS client based on
-    the admin-controlled voice mode setting.
-
-    Args:
-        mode: Optional mode override. If None, reads from database.
-              Use this for testing or when you need a specific mode.
-
-    Returns:
-        TTSClient instance (EdgeTTSClient, OpenAITTSClient, or GeminiTTSClient).
-
-    Example:
-        # Use current mode from database
-        client = await get_tts_client()
-
-        # Force HD mode (for testing)
-        client = await get_tts_client(mode="hd")
-
-        # Synthesize audio
-        audio = await client.synthesize("Hello world", voice_name="nova")
-    """
-    if mode is None:
-        mode = await get_voice_mode()
-
-    logger.debug("tts_factory_create", mode=mode)
-
-    if mode == "standard":
-        return _create_standard_client()
-    else:  # hd
-        return await _create_hd_client()
-
-
-def _create_standard_client() -> TTSClient:
-    """Create client for Standard mode (Edge TTS)."""
+async def get_tts_client() -> TTSClient:
+    """Create the TTS client matching the active ``voice_tts`` config."""
+    cfg = await get_tts_config()
     logger.debug(
-        "tts_factory_standard",
-        provider=settings.voice_tts_standard_provider,
-        voice_male=settings.voice_tts_standard_voice_male,
-        voice_female=settings.voice_tts_standard_voice_female,
+        "tts_factory_resolved",
+        provider=cfg.provider,
+        model=cfg.model,
+        voice_male=cfg.voice_male,
+        voice_female=cfg.voice_female,
+        is_paid=cfg.is_paid,
     )
-
-    # EdgeTTSClient has more specific method signatures than TTSClient protocol
-    # but is runtime-compatible (accepts all protocol-required arguments)
-    return EdgeTTSClient(  # type: ignore[return-value]
-        rate=settings.voice_tts_standard_rate,
-        pitch=settings.voice_tts_standard_pitch,
-        volume=settings.voice_tts_standard_volume,
-    )
+    return _instantiate_client(cfg)
 
 
-async def _create_hd_client() -> TTSClient:
-    """
-    Create client for HD mode (OpenAI/Gemini TTS).
+def get_tts_client_sync(cfg: TTSConfig) -> TTSClient:
+    """Synchronous variant for non-async call sites holding a config already."""
+    return _instantiate_client(cfg)
 
-    Falls back to Standard mode if required API key is missing.
-    """
-    provider = settings.voice_tts_hd_provider
 
-    logger.debug(
-        "tts_factory_hd",
-        provider=provider,
-        model=settings.voice_tts_hd_model,
-        voice_male=settings.voice_tts_hd_voice_male,
-        voice_female=settings.voice_tts_hd_voice_female,
-    )
+# ----------------------------------------------------------------------
+# Internals
+# ----------------------------------------------------------------------
 
+
+def _resolve_effective_config() -> LLMAgentConfig:
+    defaults = LLM_DEFAULTS["voice_tts"]
+    override = LLMConfigOverrideCache.get_override("voice_tts") or {}
+    return merge_config(defaults, override)
+
+
+def _parse_provider_config(raw: object) -> dict[str, Any]:
+    if not raw or not isinstance(raw, str):
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        logger.warning("tts_provider_config_invalid_json", raw_preview=str(raw)[:120])
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _str_or_none(value: object) -> str | None:
+    return str(value) if value is not None else None
+
+
+def _float_or_none(value: object) -> float | None:
+    if value is None:
+        return None
+    if not isinstance(value, (int, float, str)):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _dict_or_empty(value: object) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _default_voice(provider: str, gender: Literal["male", "female"]) -> str:
+    """Conservative defaults so the factory never returns an empty voice_id."""
+    if provider == "edge":
+        return (
+            "fr-FR-RemyMultilingualNeural"
+            if gender == "male"
+            else "fr-FR-VivienneMultilingualNeural"
+        )
     if provider == "openai":
-        # Verify API key is configured in DB
+        return "echo" if gender == "male" else "nova"
+    if provider == "elevenlabs":
+        # The real default lives in the JSONB blob; fall back to the
+        # popular built-in voice_id "Rachel" so a misconfigured account
+        # still produces audible output instead of crashing.
+        return "21m00Tcm4TlvDq8ikWAM"
+    return ""
+
+
+def _instantiate_client(cfg: TTSConfig) -> TTSClient:
+    if cfg.provider == "edge":
+        return EdgeTTSClient(  # type: ignore[return-value]
+            rate=cfg.rate,
+            pitch=cfg.pitch,
+            volume=cfg.volume,
+        )
+    if cfg.provider == "openai":
         if not LLMConfigOverrideCache.get_api_key("openai"):
-            logger.warning(
-                "openai_tts_no_api_key",
-                message="OpenAI API key not configured in DB, falling back to Standard mode",
-            )
-            return _create_standard_client()
-
-        # OpenAITTSClient has more specific method signatures than TTSClient protocol
-        # but is runtime-compatible (accepts all protocol-required arguments)
+            logger.warning("openai_tts_missing_api_key_falling_back_to_edge")
+            return _instantiate_client(_fallback_edge_config())
         return OpenAITTSClient(  # type: ignore[return-value]
-            model=settings.voice_tts_hd_model,
-            speed=settings.voice_tts_hd_speed,
-            response_format=settings.voice_tts_hd_response_format,
+            model=cfg.model,
+            speed=cfg.speed,
+            response_format=cfg.response_format,  # type: ignore[arg-type]
         )
-
-    elif provider == "gemini":
-        # Verify API key is configured
-        if not settings.google_api_key:
-            logger.warning(
-                "gemini_tts_no_api_key",
-                message="GOOGLE_AI_API_KEY not configured, falling back to Standard mode",
-            )
-            return _create_standard_client()
-
-        # Import Gemini client lazily (not implemented yet)
-        # TODO: Implement GeminiTTSClient when needed
-        logger.warning(
-            "gemini_tts_not_implemented",
-            message="Gemini TTS client not yet implemented, falling back to Standard mode",
+    if cfg.provider == "elevenlabs":
+        if not LLMConfigOverrideCache.get_api_key("elevenlabs"):
+            logger.warning("elevenlabs_tts_missing_api_key_falling_back_to_edge")
+            return _instantiate_client(_fallback_edge_config())
+        return ElevenLabsTTSClient(
+            model=cfg.model,
+            output_format=cfg.output_format or "mp3_44100_128",
+            voice_settings=cfg.voice_settings,
         )
-        return _create_standard_client()
+    if cfg.provider == "gemini":
+        # TODO: implement GeminiTTSClient when the provider lands a public
+        # streaming TTS endpoint. Falling back to Edge keeps the voice
+        # comments operational instead of crashing the response node.
+        logger.warning("gemini_tts_not_implemented_falling_back_to_edge")
+        return _instantiate_client(_fallback_edge_config())
 
-    else:
-        logger.error(
-            "tts_factory_unknown_hd_provider",
-            provider=provider,
-            message=f"Unknown HD provider '{provider}', falling back to Standard mode",
-        )
-        return _create_standard_client()
+    logger.error("tts_factory_unknown_provider", provider=cfg.provider)
+    return _instantiate_client(_fallback_edge_config())
 
 
-def get_tts_client_sync(mode: VoiceTTSMode) -> TTSClient:
+def _fallback_edge_config() -> TTSConfig:
+    """Last-resort Edge config when the active override targets a paid
+    provider whose API key is missing. Carries neutral SSML tuning
+    (no rate/pitch/volume offset) so synthesis stays audible without
+    surprising the listener.
     """
-    Get a TTS client synchronously (for non-async contexts).
-
-    Use this only when you already know the mode and can't use async.
-    Prefer get_tts_client() in async contexts.
-
-    Args:
-        mode: Voice mode ("standard" or "hd")
-
-    Returns:
-        TTSClient instance
-    """
-    if mode == "standard":
-        return _create_standard_client()
-    else:  # hd
-        provider = settings.voice_tts_hd_provider
-
-        if provider == "openai":
-            if not LLMConfigOverrideCache.get_api_key("openai"):
-                return _create_standard_client()
-            # OpenAITTSClient has more specific method signatures than TTSClient protocol
-            # but is runtime-compatible (accepts all protocol-required arguments)
-            return OpenAITTSClient(  # type: ignore[return-value]
-                model=settings.voice_tts_hd_model,
-                speed=settings.voice_tts_hd_speed,
-                response_format=settings.voice_tts_hd_response_format,
-            )
-
-        # Fallback for gemini or unknown
-        return _create_standard_client()
-
-
-def get_available_modes() -> list[dict]:
-    """
-    Get list of available voice modes with their status.
-
-    Returns:
-        List of mode info dictionaries for admin UI.
-    """
-    return [
-        {
-            "mode": "standard",
-            "name": "Standard",
-            "description": "Microsoft Edge TTS - Free, high quality neural voices",
-            "provider": settings.voice_tts_standard_provider,
-            "available": True,  # Always available (no API key required)
-            "cost": "Free",
-        },
-        {
-            "mode": "hd",
-            "name": "HD",
-            "description": "OpenAI/Gemini TTS - Premium quality, natural sounding voices",
-            "provider": settings.voice_tts_hd_provider,
-            "available": _is_hd_available(),
-            "cost": "Paid",
-        },
-    ]
-
-
-def _is_hd_available() -> bool:
-    """Check if HD mode is available (API key configured)."""
-    provider = settings.voice_tts_hd_provider
-
-    if provider == "openai":
-        return bool(LLMConfigOverrideCache.get_api_key("openai"))
-    elif provider == "gemini":
-        # Gemini TTS uses GOOGLE_API_KEY (generic), not the LLM Gemini key
-        return bool(settings.google_api_key)
-
-    return False
+    return TTSConfig(
+        provider="edge",
+        model="edge-tts",
+        voice_male=_default_voice("edge", "male"),
+        voice_female=_default_voice("edge", "female"),
+        rate="+0%",
+        pitch="+0Hz",
+        volume="+0%",
+    )

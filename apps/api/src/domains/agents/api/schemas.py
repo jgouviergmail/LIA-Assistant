@@ -83,6 +83,31 @@ class ChatRequest(BaseModel):
         default=None,
         description="Browser context (geolocation, etc.) - sent automatically by frontend",
     )
+    # Optional STT cost metadata forwarded by the frontend after a successful
+    # remote transcription (ElevenLabs Scribe). The voice WebSocket handler
+    # has already updated user_statistics; the backend simply persists these
+    # values on the user ConversationMessage so the per-message cost is
+    # auditable. None for text-only or local-Sherpa user messages.
+    stt_provider: str | None = Field(
+        default=None,
+        max_length=50,
+        description="STT provider that produced this message (e.g. 'elevenlabs').",
+    )
+    stt_audio_duration_seconds: float | None = Field(
+        default=None,
+        ge=0.0,
+        description="Authoritative audio duration in seconds returned by the STT provider.",
+    )
+    stt_cost_usd: float | None = Field(
+        default=None,
+        ge=0.0,
+        description="STT cost in USD computed from the audio-priced model.",
+    )
+    stt_cost_eur: float | None = Field(
+        default=None,
+        ge=0.0,
+        description="STT cost in EUR computed from the audio-priced model.",
+    )
     attachment_ids: list[uuid.UUID] | None = Field(
         default=None,
         max_length=10,

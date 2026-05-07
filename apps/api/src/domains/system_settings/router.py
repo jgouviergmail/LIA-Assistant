@@ -4,9 +4,10 @@ System Settings Admin API Router.
 Provides admin-only endpoints for managing application-wide settings.
 All endpoints require superuser authentication.
 
-Endpoints:
-- GET  /admin/system-settings/voice-mode  - Get current voice TTS mode
-- PUT  /admin/system-settings/voice-mode  - Update voice TTS mode
+The Voice TTS Mode endpoints lived here until v1.20.x — they were retired
+when the TTS provider/model selection moved to ``llm_config_overrides``
+(see ADR-081). The voice picker and provider-specific tuning now live in
+the Configuration LLM admin (``voice_tts`` LLM type).
 
 Created: 2026-01-16
 """
@@ -22,8 +23,6 @@ from src.domains.system_settings.schemas import (
     DebugPanelEnabledUpdate,
     DebugPanelUserAccessResponse,
     DebugPanelUserAccessUpdate,
-    VoiceTTSModeResponse,
-    VoiceTTSModeUpdate,
 )
 from src.domains.system_settings.service import SystemSettingsService
 from src.domains.users.models import User
@@ -35,73 +34,6 @@ router = APIRouter(
     tags=["admin", "system-settings"],
     dependencies=[Depends(get_current_superuser_session)],
 )
-
-
-@router.get(
-    "/voice-mode",
-    response_model=VoiceTTSModeResponse,
-    summary="Get current voice TTS mode",
-    description="Get the current voice TTS mode (standard or HD). Admin only.",
-)
-async def get_voice_mode(
-    current_user: User = Depends(get_current_superuser_session),
-    db: AsyncSession = Depends(get_db),
-) -> VoiceTTSModeResponse:
-    """
-    Get current voice TTS mode.
-
-    Returns the current mode (standard/hd) and metadata including
-    who last changed it and when.
-
-    - **standard**: Edge TTS (free, high quality neural voices)
-    - **hd**: OpenAI/Gemini TTS (premium quality, paid)
-
-    If no admin has changed the mode, returns the default from environment
-    with is_default=true.
-    """
-    service = SystemSettingsService(db)
-    return await service.get_voice_tts_mode()
-
-
-@router.put(
-    "/voice-mode",
-    response_model=VoiceTTSModeResponse,
-    summary="Update voice TTS mode",
-    description="Change the voice TTS mode for all users. Admin only.",
-)
-async def update_voice_mode(
-    update: VoiceTTSModeUpdate,
-    request: Request,
-    current_user: User = Depends(get_current_superuser_session),
-    db: AsyncSession = Depends(get_db),
-) -> VoiceTTSModeResponse:
-    """
-    Update voice TTS mode.
-
-    Changes the voice quality mode for all users immediately.
-    This affects:
-    - Users with voice enabled: new mode takes effect immediately
-    - Users with voice disabled: new mode takes effect when they enable voice
-
-    Modes:
-    - **standard**: Edge TTS (free, high quality neural voices)
-    - **hd**: OpenAI/Gemini TTS (premium quality, paid)
-
-    An audit log is created for this change.
-    """
-    logger.info(
-        "voice_tts_mode_update_requested",
-        admin_user_id=str(current_user.id),
-        new_mode=update.mode,
-        change_reason=update.change_reason,
-    )
-
-    service = SystemSettingsService(db)
-    return await service.set_voice_tts_mode(
-        update=update,
-        admin_user_id=current_user.id,
-        request=request,
-    )
 
 
 # =============================================================================

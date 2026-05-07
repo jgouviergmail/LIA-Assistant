@@ -60,8 +60,12 @@ import {
 // ============================================================================
 
 export interface UseVoiceModeOptions {
-  /** Callback when transcription is received */
-  onTranscription?: (text: string) => void;
+  /** Callback when transcription is received. The optional ``meta`` payload
+   *  carries STT cost metadata (set when the backend ran a remote provider). */
+  onTranscription?: (
+    text: string,
+    meta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta
+  ) => void;
   /** Callback when TTS should start playing */
   onStartSpeaking?: () => void;
   /** Callback when TTS finishes playing */
@@ -333,11 +337,17 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
    * Handle transcription result.
    */
   const handleTranscription = useCallback(
-    (text: string, duration: number) => {
+    (
+      text: string,
+      duration: number,
+      meta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta
+    ) => {
       logger.info('voice_mode_transcription_received', {
         component: 'useVoiceMode',
         text_length: text.length,
         duration_seconds: duration,
+        stt_provider: meta?.stt_provider ?? null,
+        stt_cost_eur: meta?.stt_cost_eur ?? null,
       });
 
       // Clean up service
@@ -345,7 +355,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
 
       if (text.trim()) {
         // Send transcription to parent
-        onTranscription?.(text);
+        onTranscription?.(text, meta);
 
         // If TTS callbacks are provided, go to speaking state and wait for onTtsComplete
         // Otherwise, skip speaking and go directly back to listening

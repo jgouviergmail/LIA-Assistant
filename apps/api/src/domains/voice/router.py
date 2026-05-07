@@ -18,18 +18,35 @@ Created: 2026-02-01
 
 import asyncio
 import time
-from typing import Annotated
+from decimal import Decimal
+from typing import Annotated, cast
+from uuid import UUID
 
-import numpy as np
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from src.core.config import settings
-from src.core.constants import STT_MAX_AUDIO_BYTES
+from src.core.constants import (
+    DEFAULT_ELEVENLABS_STT_MODEL,
+    ELEVENLABS_PROVIDER_NAME,
+    STT_BYTES_PER_SECOND_AT_16KHZ_INT16,
+    STT_MAX_AUDIO_BYTES,
+    WS_CLOSE_CODE_STT_PROVIDER_ERROR,
+)
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.models import User
-from src.domains.voice.stt import get_stt_service
+from src.domains.chat.service import StatisticsService
+from src.domains.llm_config.cache import LLMConfigOverrideCache
+from src.domains.llm_config.constants import LLM_DEFAULTS
+from src.domains.usage_limits.service import UsageLimitService
+from src.domains.voice.stt import (
+    STTProviderError,
+    SttServiceProtocol,
+    VoiceSttMode,
+    get_stt_service_for_mode,
+)
 from src.domains.voice.ticket_store import WebSocketTicketStore
+from src.infrastructure.cache.pricing_cache import get_cached_cost_audio_usd_eur
 from src.infrastructure.cache.redis import get_redis_cache, get_redis_session
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_voice import (
@@ -39,6 +56,12 @@ from src.infrastructure.observability.metrics_voice import (
     websocket_connections_total,
 )
 from src.infrastructure.rate_limiting.redis_limiter import RedisRateLimiter
+
+# WebSocket audio is always 16 kHz mono Int16 LE (frontend AudioWorklet
+# guarantees this). Hard-coded here so the handler is independent of the
+# concrete STT backend (some backends — like ElevenLabs — don't expose a
+# ``sample_rate`` attribute since they accept the rate via the request body).
+_WS_AUDIO_SAMPLE_RATE = 16000
 
 logger = get_logger(__name__)
 
@@ -58,11 +81,20 @@ class WebSocketTicketResponse(BaseModel):
 
 
 class TranscriptionResult(BaseModel):
-    """Result from audio transcription."""
+    """Result from audio transcription.
+
+    The optional ``stt_*`` fields are populated only for remote-STT calls
+    (paid providers). The frontend forwards them with the next chat message
+    so the persistence layer can attach the precise cost to the user
+    bubble — see plan §8.
+    """
 
     type: str = "transcription"
     text: str
     duration_seconds: float
+    stt_provider: str | None = None
+    stt_cost_usd: float | None = None
+    stt_cost_eur: float | None = None
 
 
 # ============================================================================
@@ -97,9 +129,12 @@ async def create_websocket_ticket(
     redis = await get_redis_session()
     ticket_store = WebSocketTicketStore(redis)
 
+    voice_stt_mode = getattr(user, "voice_stt_mode", "local") or "local"
+
     ticket = await ticket_store.create_ticket(
         str(user.id),
         language=user.language or "",
+        voice_stt_mode=voice_stt_mode,
     )
 
     logger.info(
@@ -107,6 +142,7 @@ async def create_websocket_ticket(
         user_id=str(user.id),
         ticket_prefix=ticket[:8],
         ttl_seconds=settings.voice_ws_ticket_ttl_seconds,
+        voice_stt_mode=voice_stt_mode,
     )
 
     return WebSocketTicketResponse(
@@ -179,6 +215,11 @@ async def websocket_audio(
 
         user_id = ticket_data["user_id"]
         user_language = ticket_data.get("language", "")
+        voice_stt_mode_raw = ticket_data.get("voice_stt_mode", "local") or "local"
+        voice_stt_mode: VoiceSttMode = cast(
+            "VoiceSttMode",
+            voice_stt_mode_raw if voice_stt_mode_raw in ("local", "remote") else "local",
+        )
 
         # 2. Rate limit check
         try:
@@ -223,8 +264,9 @@ async def websocket_audio(
             user_id=user_id,
         )
 
-        # 4. Get STT service
-        stt_service = get_stt_service()
+        # 4. Audio buffering — STT service is resolved lazily on the first
+        # "END" so a missing ElevenLabs key (remote mode) closes the WS with
+        # a clear error code rather than silently failing here.
         audio_buffer: list[bytes] = []
         audio_buffer_size = 0  # Track buffer size in bytes
         idle_timeout = settings.voice_ws_idle_timeout_seconds
@@ -261,34 +303,202 @@ async def websocket_audio(
                     if text_message == "END":
                         # End of audio - transcribe accumulated buffer
                         if audio_buffer:
-                            # Convert int16 bytes -> float32 normalized
                             audio_bytes = b"".join(audio_buffer)
-                            audio_np = np.frombuffer(audio_bytes, dtype=np.int16)
-                            audio_float = audio_np.astype(np.float32) / 32768.0
 
-                            # Calculate duration
-                            duration_seconds = len(audio_float) / stt_service.sample_rate
+                            # Pre-flight: enforce remote-only safeguards BEFORE
+                            # paying the provider. Local Sherpa is free so we
+                            # skip every remote check there.
+                            if voice_stt_mode == "remote":
+                                # Remote STT can be globally disabled via config
+                                # (kill switch for incident response or to force
+                                # users back to the local pipeline temporarily).
+                                if not settings.elevenlabs_stt_enabled:
+                                    logger.warning(
+                                        "websocket_stt_remote_disabled",
+                                        user_id=user_id,
+                                    )
+                                    try:
+                                        await websocket.send_json(
+                                            {
+                                                "type": "error",
+                                                "code": "remote_stt_disabled",
+                                                "message": (
+                                                    "Remote STT is currently disabled. "
+                                                    "Switch to local in Settings → Voice mode."
+                                                ),
+                                            }
+                                        )
+                                    except Exception:  # noqa: BLE001
+                                        pass
+                                    await websocket.close(
+                                        code=WS_CLOSE_CODE_STT_PROVIDER_ERROR,
+                                        reason="remote_stt_disabled",
+                                    )
+                                    break
 
-                            # Transcribe (async, non-blocking)
-                            text = await stt_service.transcribe_async(
-                                audio_float.tolist(),
-                                sample_rate=stt_service.sample_rate,
-                                language=user_language,
-                            )
+                                # Hard cap on a single clip's duration to
+                                # defend against accidental cost spikes
+                                # (the per-buffer byte cap STT_MAX_AUDIO_BYTES
+                                # already gates accumulation, but this check
+                                # honours the dedicated remote-STT setting and
+                                # remains correct if either threshold changes).
+                                duration_pre = (
+                                    len(audio_bytes) / STT_BYTES_PER_SECOND_AT_16KHZ_INT16
+                                )
+                                if (
+                                    duration_pre
+                                    > settings.elevenlabs_stt_max_audio_duration_seconds
+                                ):
+                                    logger.warning(
+                                        "websocket_stt_audio_too_long",
+                                        user_id=user_id,
+                                        duration_seconds=duration_pre,
+                                        cap_seconds=(
+                                            settings.elevenlabs_stt_max_audio_duration_seconds
+                                        ),
+                                    )
+                                    try:
+                                        await websocket.send_json(
+                                            {
+                                                "type": "error",
+                                                "code": "audio_too_long",
+                                                "message": (
+                                                    "Audio clip exceeds the remote STT "
+                                                    "duration cap."
+                                                ),
+                                            }
+                                        )
+                                    except Exception:  # noqa: BLE001
+                                        pass
+                                    await websocket.close(
+                                        code=WS_CLOSE_CODE_STT_PROVIDER_ERROR,
+                                        reason="audio_too_long_for_remote",
+                                    )
+                                    break
+
+                                # Pre-flight: enforce per-cycle usage limits
+                                # BEFORE the remote call. Local Sherpa is free.
+                                limit_check = await UsageLimitService.check_user_allowed(
+                                    UUID(user_id)
+                                )
+                                if not limit_check.allowed:
+                                    logger.warning(
+                                        "websocket_stt_blocked_by_usage_limit",
+                                        user_id=user_id,
+                                        status=limit_check.status.value,
+                                        exceeded_limit=limit_check.exceeded_limit,
+                                    )
+                                    await websocket.close(
+                                        code=4029,
+                                        reason=(
+                                            limit_check.blocked_reason or "Usage limit reached"
+                                        ),
+                                    )
+                                    break
+
+                            # Resolve the STT backend lazily based on the
+                            # ticket's voice_stt_mode. Errors here surface as
+                            # explicit close codes instead of a server-side
+                            # crash.
+                            try:
+                                stt_service: SttServiceProtocol = get_stt_service_for_mode(
+                                    voice_stt_mode
+                                )
+                                result = await stt_service.transcribe_pcm_int16_async(
+                                    audio_bytes,
+                                    sample_rate=_WS_AUDIO_SAMPLE_RATE,
+                                    language=user_language or None,
+                                )
+                            except STTProviderError as e:
+                                logger.warning(
+                                    "websocket_stt_provider_error",
+                                    user_id=user_id,
+                                    code=e.code,
+                                    message=e.message,
+                                )
+                                # Surface the structured error to the client
+                                # so the frontend can show a precise toast,
+                                # then close with the dedicated code.
+                                close_code = (
+                                    4029
+                                    if e.code == "provider_rate_limited"
+                                    else WS_CLOSE_CODE_STT_PROVIDER_ERROR
+                                )
+                                try:
+                                    await websocket.send_json(
+                                        {
+                                            "type": "error",
+                                            "code": e.code,
+                                            "message": e.message,
+                                            "retry_after_seconds": e.retry_after_seconds,
+                                        }
+                                    )
+                                except Exception:  # noqa: BLE001
+                                    # Client may have closed already; ignore.
+                                    pass
+                                await websocket.close(code=close_code, reason=e.code[:120])
+                                break
+
+                            duration_seconds = result.audio_duration_seconds
+
+                            # Cost attribution for remote STT.
+                            # The user is billed at the provider's tariff
+                            # ($0.22/h for Scribe v2) — surfaced now in
+                            # user_statistics so the dashboard tile and the
+                            # usage_limits check stay in sync. The detailed
+                            # per-message cost (stt_cost_eur on
+                            # conversation_messages) is set later when the
+                            # frontend forwards these values with the chat
+                            # send.
+                            stt_cost_usd: float | None = None
+                            stt_cost_eur: float | None = None
+                            stt_provider_name: str | None = None
+                            if voice_stt_mode == "remote" and duration_seconds > 0:
+                                stt_provider_name = ELEVENLABS_PROVIDER_NAME
+                                # Resolve the active model name (override or default)
+                                # so the pricing cache lookup matches admin choices.
+                                overrides = (
+                                    LLMConfigOverrideCache.get_override("voice_transcription") or {}
+                                )
+                                stt_model = (
+                                    overrides.get("model")
+                                    or LLM_DEFAULTS["voice_transcription"].model
+                                    or DEFAULT_ELEVENLABS_STT_MODEL
+                                )
+                                cost_usd, cost_eur = get_cached_cost_audio_usd_eur(
+                                    stt_model, duration_seconds
+                                )
+                                stt_cost_usd = cost_usd
+                                stt_cost_eur = cost_eur
+                                try:
+                                    await StatisticsService.record_remote_stt(
+                                        user_id=UUID(user_id),
+                                        audio_duration_seconds=duration_seconds,
+                                        cost_eur=Decimal(str(cost_eur)),
+                                    )
+                                except Exception:  # noqa: BLE001
+                                    # Tracking failure must not break the user-facing
+                                    # transcription delivery; we already logged it.
+                                    pass
 
                             # Send result
                             await websocket.send_json(
                                 TranscriptionResult(
-                                    text=text,
+                                    text=result.text,
                                     duration_seconds=round(duration_seconds, 2),
+                                    stt_provider=stt_provider_name,
+                                    stt_cost_usd=stt_cost_usd,
+                                    stt_cost_eur=stt_cost_eur,
                                 ).model_dump()
                             )
 
                             logger.debug(
                                 "websocket_transcription_sent",
                                 user_id=user_id,
+                                voice_stt_mode=voice_stt_mode,
                                 duration_seconds=round(duration_seconds, 2),
-                                text_length=len(text),
+                                text_length=len(result.text),
+                                stt_cost_eur=stt_cost_eur,
                             )
 
                         # Clear buffer for next utterance

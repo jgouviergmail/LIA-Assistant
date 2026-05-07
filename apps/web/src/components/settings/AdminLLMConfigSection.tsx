@@ -45,6 +45,7 @@ import type {
   OllamaModelsResponse,
   ProviderKeyStatus,
   ReasoningEffortValue,
+  VoicesResponse,
 } from '@/types/llm-config';
 import { LLM_CATEGORIES_ORDER } from '@/types/llm-config';
 import { ReasoningWidget } from './llm-config/ReasoningWidget';
@@ -279,6 +280,362 @@ function ParamTooltip({ text }: { text: string }) {
   );
 }
 
+// --- TTS provider_config helpers ---
+
+/** Parsed shape of the ``provider_config`` JSONB blob stored on
+ * ``llm_config_overrides.provider_config`` for the ``voice_tts`` LLM type.
+ * Mirrors the structure documented in ``apps/api/src/domains/voice/factory.py``.
+ * Each key is optional — only the ones relevant to the active provider are
+ * populated when the admin saves. */
+interface TTSProviderConfig {
+  voice_male?: string;
+  voice_female?: string;
+  // Edge-specific
+  rate?: string;
+  pitch?: string;
+  volume?: string;
+  // OpenAI-specific
+  speed?: number;
+  response_format?: string;
+  // ElevenLabs-specific
+  output_format?: string;
+  voice_settings?: {
+    stability?: number;
+    similarity_boost?: number;
+    style?: number;
+    use_speaker_boost?: boolean;
+  };
+}
+
+const DEFAULT_ELEVENLABS_VOICE_SETTINGS = {
+  stability: 0.5,
+  similarity_boost: 0.75,
+  style: 0.0,
+  use_speaker_boost: true,
+};
+
+const OPENAI_RESPONSE_FORMATS = ['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'] as const;
+const ELEVENLABS_OUTPUT_FORMATS = [
+  'mp3_44100_128',
+  'mp3_44100_64',
+  'mp3_44100_32',
+  'mp3_22050_32',
+  'pcm_16000',
+  'pcm_22050',
+  'pcm_24000',
+  'pcm_44100',
+  'ulaw_8000',
+] as const;
+
+function parseProviderConfig(raw: string | null | undefined): TTSProviderConfig {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as TTSProviderConfig;
+    }
+  } catch {
+    // Malformed override — start from blank rather than crash the form.
+  }
+  return {};
+}
+
+/** Stable JSON stringification (sorted keys, two-level deep) so the diff
+ * against the default is order-independent. The backend stores JSONB so key
+ * order does not matter semantically, but the LLMTypeConfigUpdate diff
+ * compares strings — sort keys to avoid spurious "modified" badges. */
+function stableStringify(obj: TTSProviderConfig): string {
+  const sortKeys = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(sortKeys);
+    if (v && typeof v === 'object') {
+      return Object.keys(v as Record<string, unknown>)
+        .sort()
+        .reduce<Record<string, unknown>>((acc, k) => {
+          acc[k] = sortKeys((v as Record<string, unknown>)[k]);
+          return acc;
+        }, {});
+    }
+    return v;
+  };
+  return JSON.stringify(sortKeys(obj));
+}
+
+// --- TTS Provider-specific configuration block ---
+
+/** Renders the voice pickers (male / female) plus provider-specific tuning
+ * inputs for the voice_tts LLM type. Bound to a parsed ``provider_config``
+ * object exposed by the parent dialog; serialisation back to JSONB happens
+ * only at save time so the form can stay schema-aware. */
+function TTSProviderConfigBlock({
+  provider,
+  providerConfig,
+  setProviderConfig,
+  voicesData,
+  voicesLoading,
+  t,
+}: {
+  provider: 'edge' | 'openai' | 'elevenlabs';
+  providerConfig: TTSProviderConfig;
+  setProviderConfig: React.Dispatch<React.SetStateAction<TTSProviderConfig>>;
+  voicesData: VoicesResponse | null;
+  voicesLoading: boolean;
+  t: (key: string) => string;
+}) {
+  const setKey = <K extends keyof TTSProviderConfig>(key: K, value: TTSProviderConfig[K]) =>
+    setProviderConfig(prev => ({ ...prev, [key]: value }));
+
+  const setVoiceSetting = <K extends keyof NonNullable<TTSProviderConfig['voice_settings']>>(
+    key: K,
+    value: NonNullable<TTSProviderConfig['voice_settings']>[K],
+  ) =>
+    setProviderConfig(prev => ({
+      ...prev,
+      voice_settings: { ...DEFAULT_ELEVENLABS_VOICE_SETTINGS, ...prev.voice_settings, [key]: value },
+    }));
+
+  // Filter the live voice catalogue by gender so the male / female
+  // dropdowns each show only relevant entries; gender-less voices are
+  // appended to both pickers (e.g. OpenAI's "alloy"/"fable").
+  const voices = voicesData?.voices ?? [];
+  const maleVoices = voices.filter(v => v.gender === 'male' || v.gender === null);
+  const femaleVoices = voices.filter(v => v.gender === 'female' || v.gender === null);
+
+  const renderVoicePicker = (
+    labelKey: string,
+    field: 'voice_male' | 'voice_female',
+    options: typeof voices,
+  ) => (
+    <div className="space-y-1.5">
+      <Label>{t(labelKey)}</Label>
+      {voicesLoading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-1.5">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {t('settings.admin.llmConfig.voiceTts.loadingVoices')}
+        </div>
+      ) : options.length > 0 ? (
+        <Select
+          value={providerConfig[field] ?? ''}
+          onValueChange={v => setKey(field, v)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={t('settings.admin.llmConfig.voiceTts.pickVoice')} />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map(o => (
+              <SelectItem key={o.voice_id} value={o.voice_id}>
+                {o.label}
+                {o.language ? ` · ${o.language}` : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input
+          value={providerConfig[field] ?? ''}
+          onChange={e => setKey(field, e.target.value)}
+          placeholder={t('settings.admin.llmConfig.voiceTts.voiceIdPlaceholder')}
+        />
+      )}
+    </div>
+  );
+
+  return (
+    <div className="space-y-4 rounded-md border p-3 bg-muted/20">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        {t('settings.admin.llmConfig.voiceTts.sectionTitle')}
+      </div>
+
+      {renderVoicePicker(
+        'settings.admin.llmConfig.voiceTts.voiceMale',
+        'voice_male',
+        maleVoices,
+      )}
+      {renderVoicePicker(
+        'settings.admin.llmConfig.voiceTts.voiceFemale',
+        'voice_female',
+        femaleVoices,
+      )}
+
+      {/* Edge — SSML rate / pitch / volume strings (e.g. "+10%", "-2Hz"). */}
+      {provider === 'edge' && (
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.rate')}</Label>
+              <Input
+                value={providerConfig.rate ?? ''}
+                onChange={e => setKey('rate', e.target.value)}
+                placeholder="+10%"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.pitch')}</Label>
+              <Input
+                value={providerConfig.pitch ?? ''}
+                onChange={e => setKey('pitch', e.target.value)}
+                placeholder="+0Hz"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.volume')}</Label>
+              <Input
+                value={providerConfig.volume ?? ''}
+                onChange={e => setKey('volume', e.target.value)}
+                placeholder="+0%"
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* OpenAI — speed (0.25..4.0) + response audio container format. */}
+      {provider === 'openai' && (
+        <>
+          <div className="space-y-1.5">
+            <Label>{t('settings.admin.llmConfig.voiceTts.speed')}</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="0.25"
+                max="4"
+                step="0.05"
+                value={providerConfig.speed ?? 1.0}
+                onChange={e => setKey('speed', parseFloat(e.target.value))}
+                className="flex-1"
+              />
+              <span className="text-sm font-mono w-12 text-right">
+                {(providerConfig.speed ?? 1.0).toFixed(2)}x
+              </span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('settings.admin.llmConfig.voiceTts.responseFormat')}</Label>
+            <Select
+              value={providerConfig.response_format ?? 'mp3'}
+              onValueChange={v => setKey('response_format', v)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {OPENAI_RESPONSE_FORMATS.map(f => (
+                  <SelectItem key={f} value={f}>
+                    {f}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
+
+      {/* ElevenLabs — output container + voice_settings (stability/similarity/style). */}
+      {provider === 'elevenlabs' && (
+        <>
+          <div className="space-y-1.5">
+            <Label>{t('settings.admin.llmConfig.voiceTts.outputFormat')}</Label>
+            <Select
+              value={providerConfig.output_format ?? 'mp3_44100_128'}
+              onValueChange={v => setKey('output_format', v)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ELEVENLABS_OUTPUT_FORMATS.map(f => (
+                  <SelectItem key={f} value={f}>
+                    {f}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('settings.admin.llmConfig.voiceTts.stability')}</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={providerConfig.voice_settings?.stability ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.stability}
+                onChange={e => setVoiceSetting('stability', parseFloat(e.target.value))}
+                className="flex-1"
+              />
+              <span className="text-sm font-mono w-12 text-right">
+                {(
+                  providerConfig.voice_settings?.stability ??
+                  DEFAULT_ELEVENLABS_VOICE_SETTINGS.stability
+                ).toFixed(2)}
+              </span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('settings.admin.llmConfig.voiceTts.similarityBoost')}</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={providerConfig.voice_settings?.similarity_boost ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.similarity_boost}
+                onChange={e => setVoiceSetting('similarity_boost', parseFloat(e.target.value))}
+                className="flex-1"
+              />
+              <span className="text-sm font-mono w-12 text-right">
+                {(
+                  providerConfig.voice_settings?.similarity_boost ??
+                  DEFAULT_ELEVENLABS_VOICE_SETTINGS.similarity_boost
+                ).toFixed(2)}
+              </span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('settings.admin.llmConfig.voiceTts.style')}</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={providerConfig.voice_settings?.style ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.style}
+                onChange={e => setVoiceSetting('style', parseFloat(e.target.value))}
+                className="flex-1"
+              />
+              <span className="text-sm font-mono w-12 text-right">
+                {(
+                  providerConfig.voice_settings?.style ??
+                  DEFAULT_ELEVENLABS_VOICE_SETTINGS.style
+                ).toFixed(2)}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">
+              {t('settings.admin.llmConfig.voiceTts.useSpeakerBoost')}
+            </Label>
+            <input
+              type="checkbox"
+              checked={
+                providerConfig.voice_settings?.use_speaker_boost ??
+                DEFAULT_ELEVENLABS_VOICE_SETTINGS.use_speaker_boost
+              }
+              onChange={e => setVoiceSetting('use_speaker_boost', e.target.checked)}
+              className="h-4 w-4"
+            />
+          </div>
+        </>
+      )}
+
+      {voicesData?.source === 'live' && provider === 'elevenlabs' && (
+        <p className="text-[11px] text-emerald-500">
+          {t('settings.admin.llmConfig.voiceTts.liveCatalogue')}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // --- Edit Dialog ---
 
 function LLMConfigDialog({
@@ -303,6 +660,11 @@ function LLMConfigDialog({
   t: (key: string) => string;
 }) {
   const [form, setForm] = useState<LLMTypeConfigUpdate>({});
+  // Parsed ``provider_config`` JSONB blob — only consumed when the LLM type's
+  // required_kind is ``tts``. Stored as an object so the form can bind to
+  // nested fields (e.g. ``voice_settings.stability``); serialised back to a
+  // JSON string in handleSave().
+  const [providerConfig, setProviderConfig] = useState<TTSProviderConfig>({});
 
   // Populate form when config changes (proper useEffect instead of render-time setState)
   useEffect(() => {
@@ -318,11 +680,13 @@ function LLMConfigDialog({
         timeout_seconds: config.effective.timeout_seconds,
         reasoning_effort: config.effective.reasoning_effort,
       });
+      setProviderConfig(parseProviderConfig(config.effective.provider_config));
     }
   }, [config, open]);
 
   const handleClose = () => {
     setForm({});
+    setProviderConfig({});
     onClose();
   };
 
@@ -345,6 +709,17 @@ function LLMConfigDialog({
     // reasoning_effort is now a discriminated union object — use deep-equal.
     if (JSON.stringify(form.reasoning_effort ?? null) !== JSON.stringify(d.reasoning_effort ?? null))
       update.reasoning_effort = form.reasoning_effort;
+
+    // provider_config: only send when the parsed object differs from the
+    // default-parsed object. Compared via stableStringify so a key-order
+    // permutation doesn't trigger a false-positive override.
+    if (config.info.required_kind === 'tts') {
+      const currentSerialised = stableStringify(providerConfig);
+      const defaultSerialised = stableStringify(parseProviderConfig(d.provider_config));
+      if (currentSerialised !== defaultSerialised) {
+        update.provider_config = currentSerialised;
+      }
+    }
 
     try {
       await onSave(config.llm_type, update);
@@ -377,22 +752,40 @@ function LLMConfigDialog({
     }
   );
 
-  // Filter models by required_capabilities from LLM type config
+  // Dynamic voice catalogue for TTS LLM types. Edge / OpenAI return curated
+  // static lists; ElevenLabs triggers a live ``GET /v1/voices`` against the
+  // configured account (account-scoped custom + shared voices). Only the
+  // supported TTS providers are queried — any other provider (or non-TTS
+  // type) keeps voicesData null.
+  const isTts = config?.info.required_kind === 'tts';
+  const ttsProvider =
+    isTts && (form.provider === 'edge' || form.provider === 'openai' || form.provider === 'elevenlabs')
+      ? form.provider
+      : null;
+  const { data: voicesData, loading: voicesLoading } = useApiQuery<VoicesResponse>(
+    `/admin/voice/voices?provider=${ttsProvider ?? 'edge'}`,
+    {
+      componentName: 'LLMConfigDialog',
+      enabled: !!ttsProvider && open,
+      deps: [ttsProvider, open],
+    }
+  );
+
+  // Filter models by required_kind + required_capabilities from LLM type config.
   const requiredCaps = config?.info.required_capabilities ?? [];
+  const requiredKind = config?.info.required_kind ?? 'chat';
   const isOllamaWithDynamic = form.provider === 'ollama' && (ollamaData?.models?.length ?? 0) > 0;
   const modelSource = isOllamaWithDynamic
     ? ollamaData!.models
     : (metadata.providers[form.provider ?? ''] ?? []);
-  const isImageType = config?.info.llm_type === 'image_generation';
   const availableModels = form.provider
     ? modelSource
         .filter(m => {
-          // Filter by kind: 'image_generation' LLM type wants kind='image', everything
-          // else wants kind='chat'. Backend filtering via ?kinds= query param will be
-          // added in Task 18; this client-side fallback ensures correctness if the
-          // query param is not yet plumbed.
-          if (isImageType && m.kind !== 'image') return false;
-          if (!isImageType && m.kind !== 'chat') return false;
+          // Backend authoritative kind filter — drives the selector down to
+          // models that match the LLM type's required_kind exactly. Covers
+          // chat / image / audio / realtime / tts / embedding (the
+          // voice_transcription type added in v1.20.x targets kind='audio').
+          if (m.kind !== requiredKind) return false;
           if (requiredCaps.includes('vision') && !m.supports_vision) return false;
           if (requiredCaps.includes('tools') && !m.supports_tools) return false;
           if (requiredCaps.includes('structured_output') && !m.supports_structured_output)
@@ -451,17 +844,29 @@ function LLMConfigDialog({
             </div>
             <Select
               value={form.provider ?? ''}
-              onValueChange={v => setForm({ ...form, provider: v, model: '' })}
+              onValueChange={v => {
+                setForm({ ...form, provider: v, model: '' });
+                // Voice IDs and per-provider tuning are provider-scoped — wipe
+                // them so the admin can't accidentally save a stale Edge
+                // voice_id under an OpenAI override (would crash at synth).
+                if (isTts) setProviderConfig({});
+              }}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.keys(metadata.providers).map(p => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
+                {Object.entries(metadata.providers)
+                  // Only show providers that actually expose at least one
+                  // model matching the LLM type's required_kind. Avoids
+                  // proposing ``openai`` for voice_transcription when the
+                  // catalogue has no kind=audio model under it (and inversely).
+                  .filter(([, models]) => models.some(m => m.kind === requiredKind))
+                  .map(([p]) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -515,6 +920,21 @@ function LLMConfigDialog({
               </p>
             )}
           </div>
+
+          {/* Voice TTS — voice picker + provider-specific tuning. Rendered
+              only for the voice_tts LLM type (kind=tts). The voice_id and
+              tuning live inside ``provider_config`` JSONB so the per-model
+              defaults and overrides survive a provider switch. */}
+          {isTts && ttsProvider && (
+            <TTSProviderConfigBlock
+              provider={ttsProvider}
+              providerConfig={providerConfig}
+              setProviderConfig={setProviderConfig}
+              voicesData={voicesData ?? null}
+              voicesLoading={voicesLoading}
+              t={t}
+            />
+          )}
 
           {/* Temperature — shown only if the model accepts it (DB-driven). */}
           {showTemperature && (

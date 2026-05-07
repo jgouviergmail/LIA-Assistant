@@ -1,9 +1,22 @@
 # ADR-050: Voice Domain TTS Architecture
 
-**Status**: ✅ IMPLEMENTED (2025-12-24) | UPDATED (2025-12-29 - Migration vers Edge TTS)
+**Status**: 🗄️ SUPERSEDED by [ADR-081](ADR-081-Voice-TTS-Catalogue-Driven.md) (2026-05-07)
+**Original status**: ✅ IMPLEMENTED (2025-12-24) | UPDATED (2025-12-29 - Migration vers Edge TTS) | UPDATED (2026-01-16 - Standard/HD modes via System Settings)
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Phase 7 - Voice Comment Feature avec Edge TTS (Microsoft Neural voices)
-**Related Documentation**: `docs/technical/VOICE_DOMAIN.md`
+**Related Documentation**: `docs/technical/VOICE.md` (current)
+
+> **Superseded note (2026-05-07)** — the binary `standard|hd` mode plus the
+> 14 `VOICE_TTS_*` env vars described in this ADR were retired. TTS
+> provider/model/voice/tuning now live on `llm_config_overrides.voice_tts`
+> (LLM type with `kind=tts`), driven by the Configuration LLM admin form.
+> Three providers seeded: Edge, OpenAI (`tts-1` / `tts-1-hd`), ElevenLabs
+> (`eleven_multilingual_v2` / `eleven_turbo_v2_5` / `eleven_flash_v2_5`).
+> Voice + provider-specific tuning (rate / pitch / volume / speed /
+> response_format / output_format / voice_settings) live in the override's
+> `provider_config` JSONB blob. See [ADR-081](ADR-081-Voice-TTS-Catalogue-Driven.md)
+> for the rationale and migration path. The sentence-streaming layer added on
+> top of this catalogue is documented in [ADR-082](ADR-082-Progressive-Sentence-Streaming.md).
 
 ---
 

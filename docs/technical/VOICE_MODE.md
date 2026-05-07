@@ -491,19 +491,130 @@ class VoiceActivityDetector {
 
 ## Speech-to-Text (STT)
 
-### Deux Modèles Distincts
+### Deux Backends, choix par utilisateur (ADR-080)
+
+Depuis v1.20.x, l'utilisateur choisit son backend STT via la préférence
+`voice_stt_mode` (`local` | `remote`) — applicable au push-to-talk **comme**
+au mode wake-word, indépendamment du toggle `voice_mode_enabled` :
+
+| Backend | Modèle | Coût | Audio | Quand |
+|---------|--------|------|-------|-------|
+| **`local`** (default) | Sherpa-onnx Whisper Small INT8 (Python backend) | Gratuit | Reste sur le serveur LIA | Confidentialité maximum, qualité honnête |
+| **`remote`** | ElevenLabs Scribe v2 (cloud) | $0.22 / heure d'audio | Transmis à ElevenLabs | Qualité supérieure, refacturable |
+
+Le KWS (frontend, Whisper tiny WASM, anglais-only) reste local dans les
+deux cas — seul le segment de parole **après** la détection du wake word
+est routé selon `voice_stt_mode`.
+
+### Routage backend
+
+`apps/api/src/domains/voice/stt/factory.py` expose
+`get_stt_service_for_mode(mode)` qui retourne une instance conforme au
+`SttServiceProtocol` :
+
+```python
+async def transcribe_pcm_int16_async(
+    self,
+    pcm_int16_bytes: bytes,
+    sample_rate: int = 16000,
+    language: str | None = None,
+) -> STTResult: ...
+```
+
+- **`local`** → singleton `SherpaSttService` (existant, inchangé pour le
+  canal Telegram).
+- **`remote`** → nouvelle instance `ElevenLabsSttService(api_key, model,
+  base_url, timeout)`. La clé API est récupérée depuis
+  `LLMConfigOverrideCache.get_api_key("elevenlabs")` (chiffrée Fernet
+  dans `provider_api_keys`). Le modèle est lu via
+  `LLMConfigOverrideCache.get_override("voice_transcription")` mergé
+  avec `LLM_DEFAULTS["voice_transcription"]` (par défaut
+  `elevenlabs/scribe_v2`).
+
+### ElevenLabs Scribe — protocole
+
+`POST {base_url}/speech-to-text` en multipart :
+
+| Champ | Valeur |
+|-------|--------|
+| `file` | `pcm_int16_bytes` (binaire, content-type `application/octet-stream`) |
+| `file_format` | `pcm_s16le_16` — PCM brut Int16 LE 16 kHz mono **sans wrap WAV** (confirmé verbatim par la doc) |
+| `model_id` | `scribe_v2` (default) ou `scribe_v1` |
+| `tag_audio_events` | `false` |
+| `timestamps_granularity` | `none` |
+| `language_code` | ISO-639-1 si dans `{en, fr, de, es, it, zh}` ; sinon omis (auto-detect) |
+
+Header : `xi-api-key: <decrypted_key>`. Permission requise sur la clé :
+**`speech_to_text`** (granulaire ElevenLabs).
+
+Réponse :
+
+```json
+{
+  "text": "Bonjour, quelle heure est-il ?",
+  "audio_duration_secs": 1.85,
+  "language_code": "fr"
+}
+```
+
+`audio_duration_secs` est l'autorité sur la durée — utilisé pour le
+calcul de coût et la persistance par-message. Pas de calcul depuis le
+buffer.
+
+### Mapping erreurs
+
+| HTTP | `STTProviderError.code` | Close code WS |
+|------|-------------------------|---------------|
+| 429 | `provider_rate_limited` (+ `retry_after_seconds`) | 4029 |
+| 422 | `provider_invalid_response` | 4002 |
+| Autres 4xx/5xx | `provider_http_error` | 4002 |
+| Timeout | `provider_timeout` | 4002 |
+| (clé absente) | `elevenlabs_api_key_missing` | 4002 |
+
+Le frontend reçoit `{type: "error", code, message, retry_after_seconds}`
+juste avant la fermeture WS, ce qui permet un toast précis et un retry
+intelligent (pas de fallback silencieux vers Sherpa local).
+
+### Pricing & cost attribution
+
+- Tarif ElevenLabs stocké tel quel dans `llm_model_pricing` :
+  `pricing_unit=per_audio_hour`, `input_unit_price=0.22`. Voir ADR-080
+  pour la décision d'extension du modèle pricing.
+- Cache pricing sync-safe : `get_cached_cost_audio_usd_eur(model,
+  duration_seconds)` dans `infrastructure/cache/pricing_cache.py`.
+- Coût attribué à la **bulle utilisateur** :
+  `conversation_messages.{stt_provider, stt_audio_duration_seconds,
+  stt_cost_usd, stt_cost_eur, stt_usd_to_eur_rate}`.
+- Agrégat dashboard : `user_statistics.{cycle, total}_stt_*` ; le coût
+  s'ajoute à `cycle_cost_eur` / `total_cost_eur` (donc visible
+  automatiquement dans la card "Cost" et inclus dans la check
+  `usage_limits.cost_limit_per_cycle`).
+- Exports CSV : `consumption-summary` enrichi (3 nouvelles colonnes
+  `total_stt_*`) + nouveau type `stt-usage` (user + admin) avec une
+  ligne par message remote-STT.
+
+### Check usage_limits avant l'appel ElevenLabs
+
+`/ws/audio` exécute `UsageLimitService.check_user_allowed(user_id)`
+**avant** l'appel à ElevenLabs lorsque `voice_stt_mode='remote'`. Si
+l'utilisateur dépasse `cost_limit_per_cycle`, la WebSocket se ferme avec
+le close code 4029 et **aucun coût ElevenLabs n'est facturable** —
+défense réelle, pas reactive.
+
+### Ticket WebSocket étendu
+
+`POST /voice/ticket` lit `current_user.voice_stt_mode` au moment de
+l'émission et embarque la valeur dans le payload Redis
+(`{user_id, language, voice_stt_mode}`). Le handler `/ws/audio`
+récupère la pref via le ticket consommé et résout le bon backend via
+la factory — aucun lookup DB par transcription.
+
+### Modèles locaux requis (mode `local`)
 
 | Composant | Modèle | Contexte | Usage |
 |-----------|--------|----------|-------|
-| **KWS (Frontend)** | Whisper tiny | WASM bundled | Détection wake word |
+| **KWS (Frontend)** | Whisper tiny.en | WASM bundled | Détection wake word (anglais only) |
 | **STT (Backend)** | Whisper small INT8 | Python | Transcription complète |
-
-### Pourquoi Deux Modèles ?
-
-- **KWS** : Léger (~3MB WASM), temps réel, détecte juste "OK"
-- **STT** : Plus précis (375MB), 99+ langues, transcription complète
-
-### Installation Modèle STT
 
 ```bash
 # Télécharger le modèle Whisper Small

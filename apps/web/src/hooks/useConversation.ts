@@ -30,6 +30,18 @@ export interface ConversationMessage {
   tokens_cache: number | null;
   cost_eur: number | null;
   google_api_requests: number | null;
+  // Per-message STT cost (only for user messages produced by a remote
+  // transcription provider). All NULL for assistant messages and for typed
+  // text / local-Sherpa user messages.
+  stt_provider: string | null;
+  stt_audio_duration_seconds: number | null;
+  stt_cost_eur: number | null;
+  // Per-message TTS cost (only for assistant messages synthesised by a
+  // paid TTS provider — Edge stays NULL). Mirror of STT pattern.
+  tts_provider: string | null;
+  tts_model: string | null;
+  tts_characters: number | null;
+  tts_cost_eur: number | null;
 }
 
 export interface ConversationTotals {
@@ -116,6 +128,23 @@ export const useConversation = (): UseConversationReturn => {
         tokensCache: msg.tokens_cache ?? undefined,
         costEur: msg.cost_eur ?? undefined,
         googleApiRequests: msg.google_api_requests ?? undefined,
+        // Per-message STT cost (remote-STT user messages only). The
+        // ``source: 'voice'`` flag is what gates the 🎤 badge in
+        // ChatMessage; we set it from `stt_provider` (and mirror the
+        // duration into ``audioDurationSeconds`` for back-compat with the
+        // pre-existing voice indicator).
+        ...(msg.stt_provider
+          ? { source: 'voice' as const }
+          : {}),
+        sttProvider: msg.stt_provider ?? null,
+        sttAudioDurationSeconds: msg.stt_audio_duration_seconds ?? null,
+        sttCostEur: msg.stt_cost_eur ?? null,
+        audioDurationSeconds: msg.stt_audio_duration_seconds ?? undefined,
+        // Per-message TTS cost (assistant bubble badge — paid providers only).
+        ttsProvider: msg.tts_provider ?? null,
+        ttsModel: msg.tts_model ?? null,
+        ttsCharacters: msg.tts_characters ?? null,
+        ttsCostEur: msg.tts_cost_eur ?? null,
         // Message metadata (HITL responses, run_id, etc.) - API uses alias "message_metadata"
         metadata: msg.message_metadata ?? undefined,
         // AI-generated images persisted in message_metadata for history display

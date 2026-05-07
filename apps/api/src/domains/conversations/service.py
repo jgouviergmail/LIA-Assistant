@@ -747,6 +747,18 @@ class ConversationService:
         content: str,
         metadata: dict[str, Any] | None,
         db: AsyncSession,
+        *,
+        stt_provider: str | None = None,
+        stt_audio_duration_seconds: float | None = None,
+        stt_cost_usd: float | None = None,
+        stt_cost_eur: float | None = None,
+        # TTS attribution (assistant messages only).
+        tts_provider: str | None = None,
+        tts_model: str | None = None,
+        tts_characters: int | None = None,
+        tts_cost_usd: float | None = None,
+        tts_cost_eur: float | None = None,
+        tts_usd_to_eur_rate: float | None = None,
     ) -> ConversationMessage:
         """
         Archive message for fast UI display.
@@ -762,6 +774,24 @@ class ConversationService:
             content: Message text content
             metadata: Optional metadata (run_id, intention, confidence, etc.)
             db: Database session
+            stt_provider: STT provider name when this message is the textual
+                output of a remote-STT transcription (only meaningful for
+                ``role='user'``). None otherwise.
+            stt_audio_duration_seconds: Authoritative audio duration returned
+                by the STT provider (e.g. ElevenLabs ``audio_duration_secs``).
+            stt_cost_usd: STT cost in USD computed at transcription time
+                (forwarded from the WebSocket TranscriptionResult).
+            stt_cost_eur: Same in EUR.
+            tts_provider: TTS provider that synthesised the assistant text
+                (paid providers only — Edge stays NULL). Forwarded from the
+                tracker via ``get_tts_usage_for_archive()``. Only meaningful
+                for ``role='assistant'``.
+            tts_model: TTS model used (e.g. ``tts-1``, ``eleven_turbo_v2_5``).
+            tts_characters: Total characters synthesised for this assistant
+                bubble across all parallel + sync TTS calls of the run.
+            tts_cost_usd / tts_cost_eur: Aggregated cost for the bubble.
+            tts_usd_to_eur_rate: Exchange rate used at synthesis time
+                (audit trail mirror of STT).
 
         Returns:
             Created ConversationMessage instance
@@ -774,12 +804,76 @@ class ConversationService:
             ...     {"run_id": "abc123"}
             ... )
         """
+        from decimal import Decimal
+
+        from src.infrastructure.cache.pricing_cache import get_cached_usd_eur_rate
+
+        # Convert STT floats to Decimal for the DB columns. Only attach the
+        # cost data on user messages produced by a remote provider — assistant
+        # messages and local-Sherpa user messages keep all stt_* columns NULL.
+        stt_provider_db: str | None = None
+        stt_duration_db: Decimal | None = None
+        stt_cost_usd_db: Decimal | None = None
+        stt_cost_eur_db: Decimal | None = None
+        stt_rate_db: Decimal | None = None
+        if (
+            role == "user"
+            and stt_provider
+            and stt_audio_duration_seconds is not None
+            and stt_audio_duration_seconds > 0
+        ):
+            stt_provider_db = stt_provider
+            stt_duration_db = Decimal(str(stt_audio_duration_seconds))
+            if stt_cost_usd is not None:
+                stt_cost_usd_db = Decimal(str(stt_cost_usd))
+            if stt_cost_eur is not None:
+                stt_cost_eur_db = Decimal(str(stt_cost_eur))
+            stt_rate_db = Decimal(str(get_cached_usd_eur_rate()))
+
+        # Mirror logic for TTS — only attach on assistant rows produced by a
+        # paid provider (Edge stays NULL: free, no audit value to expose).
+        tts_provider_db: str | None = None
+        tts_model_db: str | None = None
+        tts_characters_db: int | None = None
+        tts_cost_usd_db: Decimal | None = None
+        tts_cost_eur_db: Decimal | None = None
+        tts_rate_db: Decimal | None = None
+        if (
+            role == "assistant"
+            and tts_provider
+            and tts_characters is not None
+            and tts_characters > 0
+        ):
+            tts_provider_db = tts_provider
+            tts_model_db = tts_model
+            tts_characters_db = int(tts_characters)
+            if tts_cost_usd is not None:
+                tts_cost_usd_db = Decimal(str(tts_cost_usd))
+            if tts_cost_eur is not None:
+                tts_cost_eur_db = Decimal(str(tts_cost_eur))
+            tts_rate_db = (
+                Decimal(str(tts_usd_to_eur_rate))
+                if tts_usd_to_eur_rate is not None
+                else Decimal(str(get_cached_usd_eur_rate()))
+            )
+
         repo = ConversationRepository(db)
         message = await repo.create_message(
             conversation_id=conversation_id,
             role=role,
             content=content,
             metadata=metadata,
+            stt_provider=stt_provider_db,
+            stt_audio_duration_seconds=stt_duration_db,
+            stt_cost_usd=stt_cost_usd_db,
+            stt_cost_eur=stt_cost_eur_db,
+            stt_usd_to_eur_rate=stt_rate_db,
+            tts_provider=tts_provider_db,
+            tts_model=tts_model_db,
+            tts_characters=tts_characters_db,
+            tts_cost_usd=tts_cost_usd_db,
+            tts_cost_eur=tts_cost_eur_db,
+            tts_usd_to_eur_rate=tts_rate_db,
         )
 
         # Prometheus metric: dashboard 09 "Messages by Role"
@@ -795,6 +889,49 @@ class ConversationService:
         # Note: Caller is responsible for commit to allow batching
 
         return message
+
+    async def update_message_tts(
+        self,
+        message_id: UUID,
+        tts_data: dict[str, Any],
+        db: AsyncSession,
+    ) -> None:
+        """Backfill TTS attribution on an already-archived assistant message.
+
+        Called from the agents stream after the voice synthesis flow
+        finalises (PATH 1 parallel drain or PATH 2 sync fallback). The
+        ``tts_data`` dict comes verbatim from
+        :meth:`TrackingContext.get_tts_usage_for_archive`, so this method
+        only converts numeric types to ``Decimal`` and delegates to the
+        repository.
+
+        No-op when ``tts_data`` is missing the provider field — this happens
+        for free (Edge) or skipped TTS, in which case all columns stay NULL.
+
+        Caller is responsible for the DB commit.
+        """
+        from decimal import Decimal
+
+        provider = tts_data.get("tts_provider")
+        characters = tts_data.get("tts_characters")
+        if not provider or not characters:
+            return
+
+        def _to_decimal(value: Any) -> Decimal | None:
+            if value is None:
+                return None
+            return value if isinstance(value, Decimal) else Decimal(str(value))
+
+        repo = ConversationRepository(db)
+        await repo.update_message_tts(
+            message_id,
+            tts_provider=str(provider),
+            tts_model=tts_data.get("tts_model"),
+            tts_characters=int(characters),
+            tts_cost_usd=_to_decimal(tts_data.get("tts_cost_usd")),
+            tts_cost_eur=_to_decimal(tts_data.get("tts_cost_eur")),
+            tts_usd_to_eur_rate=_to_decimal(tts_data.get("tts_usd_to_eur_rate")),
+        )
 
     async def update_last_user_message(
         self,
@@ -1078,6 +1215,21 @@ class ConversationService:
                 FIELD_TOKENS_CACHE: None,
                 FIELD_COST_EUR: None,
                 FIELD_GOOGLE_API_REQUESTS: None,
+                # Per-message STT cost (only populated for user messages
+                # produced by a remote-STT transcription).
+                "stt_provider": msg.stt_provider,
+                "stt_audio_duration_seconds": (
+                    float(msg.stt_audio_duration_seconds)
+                    if msg.stt_audio_duration_seconds is not None
+                    else None
+                ),
+                "stt_cost_eur": (float(msg.stt_cost_eur) if msg.stt_cost_eur is not None else None),
+                # Per-message TTS cost (only populated for assistant messages
+                # synthesised by a paid TTS provider — Edge stays NULL).
+                "tts_provider": msg.tts_provider,
+                "tts_model": msg.tts_model,
+                "tts_characters": msg.tts_characters,
+                "tts_cost_eur": (float(msg.tts_cost_eur) if msg.tts_cost_eur is not None else None),
             }
 
             # Add token data if available (from batch query, no extra queries needed)
@@ -1093,9 +1245,12 @@ class ConversationService:
                 google_cost = (
                     float(summary.google_api_cost_eur) if summary.google_api_cost_eur else 0.0
                 )
-                msg_data[FIELD_COST_EUR] = (
-                    llm_cost + google_cost if (llm_cost or google_cost) else None
-                )
+                # TTS cost lives per-message on conversation_messages (silo,
+                # mirror STT). Add it to the displayed cost so the bubble
+                # badge surfaces a single grand total (LLM + Google + TTS).
+                tts_cost = float(msg.tts_cost_eur) if msg.tts_cost_eur is not None else 0.0
+                grand_total = llm_cost + google_cost + tts_cost
+                msg_data[FIELD_COST_EUR] = grand_total if grand_total else None
                 # Google API tracking
                 msg_data[FIELD_GOOGLE_API_REQUESTS] = summary.google_api_requests
 
@@ -1218,6 +1373,23 @@ class ConversationService:
                 FIELD_TOKENS_CACHE: None,
                 FIELD_COST_EUR: None,
                 FIELD_GOOGLE_API_REQUESTS: None,
+                # Per-message STT cost (remote-STT user messages only).
+                "stt_provider": message.stt_provider,
+                "stt_audio_duration_seconds": (
+                    float(message.stt_audio_duration_seconds)
+                    if message.stt_audio_duration_seconds is not None
+                    else None
+                ),
+                "stt_cost_eur": (
+                    float(message.stt_cost_eur) if message.stt_cost_eur is not None else None
+                ),
+                # Per-message TTS cost (paid-TTS assistant messages only).
+                "tts_provider": message.tts_provider,
+                "tts_model": message.tts_model,
+                "tts_characters": message.tts_characters,
+                "tts_cost_eur": (
+                    float(message.tts_cost_eur) if message.tts_cost_eur is not None else None
+                ),
             }
 
             # Add token data if available (from LEFT JOIN, no extra queries needed)
@@ -1226,7 +1398,14 @@ class ConversationService:
                 msg_data[FIELD_TOKENS_OUT] = token_dict["completion_tokens"]
                 msg_data[FIELD_TOKENS_CACHE] = token_dict["cached_tokens"]
                 # Use historical cost from message_token_summary (stored at execution time)
-                msg_data[FIELD_COST_EUR] = token_dict.get("cost_eur")
+                # PLUS the per-message TTS cost so the bubble badge surfaces a
+                # single grand total (LLM + Google API + TTS, mirror v1).
+                base_cost = token_dict.get("cost_eur") or 0.0
+                tts_cost = float(message.tts_cost_eur) if message.tts_cost_eur is not None else 0.0
+                grand_total = float(base_cost) + tts_cost
+                msg_data[FIELD_COST_EUR] = (
+                    grand_total if grand_total else token_dict.get("cost_eur")
+                )
                 # Google API tracking
                 msg_data[FIELD_GOOGLE_API_REQUESTS] = token_dict.get(FIELD_GOOGLE_API_REQUESTS)
 

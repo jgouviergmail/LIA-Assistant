@@ -7,6 +7,7 @@ Provides data access layer with optimized queries.
 
 from collections.abc import Sequence
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -624,6 +625,18 @@ class ConversationRepository(BaseRepository[Conversation]):
         role: str,
         content: str,
         metadata: dict | None = None,
+        *,
+        stt_provider: str | None = None,
+        stt_audio_duration_seconds: Decimal | None = None,
+        stt_cost_usd: Decimal | None = None,
+        stt_cost_eur: Decimal | None = None,
+        stt_usd_to_eur_rate: Decimal | None = None,
+        tts_provider: str | None = None,
+        tts_model: str | None = None,
+        tts_characters: int | None = None,
+        tts_cost_usd: Decimal | None = None,
+        tts_cost_eur: Decimal | None = None,
+        tts_usd_to_eur_rate: Decimal | None = None,
     ) -> ConversationMessage:
         """
         Create a conversation message.
@@ -633,6 +646,18 @@ class ConversationRepository(BaseRepository[Conversation]):
             role: Message role ("user" or "assistant")
             content: Message content
             metadata: Additional metadata (JSON)
+            stt_provider: STT provider name when this message was produced by
+                a remote-STT transcription. NULL otherwise.
+            stt_audio_duration_seconds: Duration of the audio segment.
+            stt_cost_usd: STT cost in USD at the time of the call.
+            stt_cost_eur: STT cost in EUR at the time of the call.
+            stt_usd_to_eur_rate: USD→EUR rate used for the conversion.
+            tts_provider: TTS provider name when this assistant message was
+                synthesised by a paid provider (Edge stays NULL).
+            tts_model: TTS model used (e.g. ``tts-1``, ``eleven_turbo_v2_5``).
+            tts_characters: Number of characters synthesised for this bubble.
+            tts_cost_usd / tts_cost_eur: TTS cost at synthesis time.
+            tts_usd_to_eur_rate: USD→EUR rate used (audit trail).
 
         Returns:
             Created message
@@ -651,6 +676,17 @@ class ConversationRepository(BaseRepository[Conversation]):
                 role=role,
                 content=content,
                 message_metadata=metadata or {},
+                stt_provider=stt_provider,
+                stt_audio_duration_seconds=stt_audio_duration_seconds,
+                stt_cost_usd=stt_cost_usd,
+                stt_cost_eur=stt_cost_eur,
+                stt_usd_to_eur_rate=stt_usd_to_eur_rate,
+                tts_provider=tts_provider,
+                tts_model=tts_model,
+                tts_characters=tts_characters,
+                tts_cost_usd=tts_cost_usd,
+                tts_cost_eur=tts_cost_eur,
+                tts_usd_to_eur_rate=tts_usd_to_eur_rate,
             )
             self.db.add(message)
             await self.db.flush()
@@ -661,6 +697,8 @@ class ConversationRepository(BaseRepository[Conversation]):
                 conversation_id=str(conversation_id),
                 role=role,
                 content_length=len(content),
+                stt_provider=stt_provider,
+                tts_provider=tts_provider,
             )
 
             return message
@@ -673,6 +711,73 @@ class ConversationRepository(BaseRepository[Conversation]):
                 error=str(e),
             )
             raise
+
+    async def update_message_tts(
+        self,
+        message_id: UUID,
+        *,
+        tts_provider: str,
+        tts_model: str | None,
+        tts_characters: int,
+        tts_cost_usd: Decimal | None,
+        tts_cost_eur: Decimal | None,
+        tts_usd_to_eur_rate: Decimal | None,
+    ) -> None:
+        """Backfill TTS attribution on an already-archived assistant row.
+
+        TTS happens AFTER the archive_message call (the voice synthesis
+        finalisation runs once the LangGraph TrackingContext has exited).
+        Rather than restructuring the run lifecycle, we archive the assistant
+        bubble first with NULL TTS columns and UPDATE them once the synthesis
+        records are flushed by the tracker.
+
+        Idempotent: re-running with the same values is a no-op; the partial
+        index ``ix_conversation_messages_tts_provider`` is updated only when
+        the column transitions from NULL to non-NULL.
+
+        Args:
+            message_id: ID of the assistant ConversationMessage row.
+            tts_provider: Provider name (paid only — Edge never reaches this).
+            tts_model: Model used for synthesis.
+            tts_characters: Total characters synthesised for the bubble.
+            tts_cost_usd / tts_cost_eur: Cost at synthesis time.
+            tts_usd_to_eur_rate: Exchange rate (audit trail).
+        """
+        from sqlalchemy import update as sa_update
+
+        try:
+            stmt = (
+                sa_update(ConversationMessage)
+                .where(ConversationMessage.id == message_id)
+                .values(
+                    tts_provider=tts_provider,
+                    tts_model=tts_model,
+                    tts_characters=tts_characters,
+                    tts_cost_usd=tts_cost_usd,
+                    tts_cost_eur=tts_cost_eur,
+                    tts_usd_to_eur_rate=tts_usd_to_eur_rate,
+                )
+            )
+            await self.db.execute(stmt)
+            await self.db.flush()
+
+            logger.debug(
+                "message_tts_updated",
+                message_id=str(message_id),
+                tts_provider=tts_provider,
+                tts_characters=tts_characters,
+                tts_cost_eur=float(tts_cost_eur) if tts_cost_eur is not None else None,
+            )
+        except (SQLAlchemyError, IntegrityError, OperationalError) as e:
+            # Non-fatal: TTS was already produced and played, the cost is
+            # also captured on user_statistics by create_or_update — losing
+            # the per-message detail is degraded but not catastrophic.
+            logger.warning(
+                "update_message_tts_failed",
+                message_id=str(message_id),
+                error_type=type(e).__name__,
+                error=str(e),
+            )
 
     async def mark_interest_feedback_submitted(
         self,

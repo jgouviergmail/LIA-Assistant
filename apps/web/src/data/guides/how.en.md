@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 2.4
-**Date**: 2026-05-06
-**Application**: LIA v1.20.1
+**Date**: 2026-05-08
+**Application**: LIA v1.20.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 400+ Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 71 ADRs, 2,300+ tests, native observability, 6-level HITL |
+| Production reliability | 75 ADRs, ~9,992 pytest-collected tests across 448 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -71,7 +71,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 2,300+ (unit, integration, agents, benchmark) |
+| Tests | ~9,992 collected by pytest across 448 files (unit 8,017 · agents 1,285 · integration 236 · e2e 12) + 41 vitest frontend tests |
 | Reusable fixtures | 170+ |
 | Documentation documents | 260+ |
 | ADRs (Architecture Decision Records) | 70 |
@@ -119,7 +119,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 |----------|--------|-----------|
 | OpenAI | GPT-5.4, GPT-5.4-mini, GPT-5.x, GPT-4.1-x, o1, o3-mini | Native prompt caching, Responses API, reasoning_effort |
 | Anthropic | Claude Opus 4.6/4.5/4, Sonnet 4.6/4.5/4, Haiku 4.5 | Extended thinking, prompt caching |
-| Google | Gemini 3.1/3/2.5 Pro, Flash 3/2.5/2.0 | Multimodal, HD TTS |
+| Google | Gemini 3.1/3/2.5 Pro, Flash 3/2.5/2.0 | Multimodal, dual-vector embeddings |
 | DeepSeek | V3 (chat), R1 (reasoner) | Reduced cost, native reasoning |
 | Perplexity | sonar-small/large-128k-online | Search-augmented generation |
 | Qwen | qwen3-max, qwen3.5-plus, qwen3.5-flash | Thinking mode, tools + vision (Alibaba Cloud) |
@@ -640,7 +640,7 @@ Wake word ("OK Guy") via Sherpa-onnx WASM in the browser (zero external transmis
 
 ### 15.2. TTS
 
-Factory pattern: `TTSFactory.create(mode)` with automatic HD → Standard fallback. Standard = Edge TTS (free), HD = OpenAI TTS or Gemini TTS (premium).
+**Catalogue-driven** factory (ADR-081): `factory.get_tts_client()` reads the active `voice_tts` override (provider + model + voice + tuning, stored in `llm_config_overrides.voice_tts.provider_config` JSONB) and instantiates the matching client. Three providers shipped: Edge (free, default), OpenAI (`tts-1` / `tts-1-hd`), and ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`). When a paid provider's API key is missing, the factory falls back to Edge transparently (logged warning). Progressive sentence-by-sentence streaming via `ProgressiveSentenceStreamer` (ADR-082) to minimize latency — the first sentence is synthesized while the LLM still generates the rest.
 
 ---
 
@@ -944,7 +944,7 @@ LIA accepts external event ingestions (iPhone Apple Health samples, third-party 
 
 ## 24. Architecture Decision Records (ADR)
 
-71 ADRs in MADR format document the major architectural decisions. Some representative examples:
+75 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1027,10 +1027,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 71 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 2,300+ tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 75 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~9,992 tests across 448 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (260+ documents), 71 ADRs, and the changelog (v1.0 to v1.19.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (260+ documents), 75 ADRs, and the changelog (v1.0 to v1.20.2). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -45,7 +45,7 @@
 | **Skills System** | 10 specialized Claude skills + built-in Skill Generator |
 | **FOR_EACH Pattern** | Smart iteration with HITL confirmation for bulk operations |
 | **Voice Mode** | Voice input with wake word, Push-to-Talk, and VAD |
-| **Voice TTS Dual** | Standard (free Edge TTS) or HD (paid OpenAI/Gemini) |
+| **Voice TTS Catalogue** | Catalogue-driven TTS (ADR-081): Edge (free), OpenAI tts-1/tts-1-hd, ElevenLabs multilingual_v2/turbo/flash |
 | **Interest Learning** | Automatic interest extraction via LLM |
 | **OAuth Health Check** | Proactive connector monitoring with notifications |
 | **Hybrid Search** | Combined BM25 + semantic search (alpha=0.6) |
@@ -125,9 +125,11 @@ ExecutionStep(
 | **Wake Word** | Activation by saying "OK" | Sherpa-onnx WASM (KWS) |
 | **Push-to-Talk** | Hold to speak | WebRTC MediaRecorder |
 | **VAD** | End-of-speech detection | Silero VAD WASM |
-| **STT** | Transcription | Whisper Small (OpenAI) |
-| **TTS Standard** | Free synthesis | Edge TTS |
-| **TTS HD** | Premium synthesis | OpenAI TTS (nova/alloy) |
+| **STT (local)** | On-server transcription | Sherpa-onnx Whisper (free) |
+| **STT (remote)** | Cloud transcription | ElevenLabs Scribe ($0.22/h, ADR-080) |
+| **TTS Edge** | Free synthesis | Edge TTS (default) |
+| **TTS OpenAI** | Premium synthesis | tts-1 / tts-1-hd (alloy / echo / nova / …) |
+| **TTS ElevenLabs** | Premium synthesis | eleven_multilingual_v2 / turbo / flash |
 
 ### OAuth Health Check
 
@@ -1043,15 +1045,23 @@ What's the distance between my office and the airport?
 
 #### TTS Configuration
 
+TTS provider/model/voice are configured **through the admin UI**, not via
+env vars (since v1.20.2 / [ADR-081](architecture/ADR-081-Voice-TTS-Catalogue-Driven.md)). Open **Settings → Configuration LLM →
+Voice Synthesis (TTS)** to pick a provider (Edge — free, OpenAI `tts-1` /
+`tts-1-hd`, or ElevenLabs `eleven_multilingual_v2` / `eleven_turbo_v2_5` /
+`eleven_flash_v2_5`) and the male/female voice for each. The admin form
+fetches a live voice catalogue from the provider for ElevenLabs (requires
+the `voices_read` scope on the API key).
+
+For a paid provider, the API key must be set via **Settings → Tarification
+LLM Texte → Provider Keys**.
+
 ```bash
-# In .env
-
-# Default mode: standard (free Edge TTS) or hd (paid OpenAI)
-VOICE_TTS_DEFAULT_MODE=standard
-
-# For TTS HD (OpenAI), OpenAI API key must be configured via Admin UI
-# Available voices: alloy, echo, fable, onyx, nova, shimmer
-VOICE_TTS_HD_VOICE=nova
+# In .env — only the voice-comment LLM and the chat-mode TTS sentence
+# cap remain configurable here. TTS provider/model/voice are admin-driven.
+VOICE_LLM_PROVIDER=openai
+VOICE_LLM_MODEL=gpt-4.1-nano
+VOICE_CHAT_MODE_MAX_SENTENCES=3   # 1..50 hard cap on sentence streaming
 ```
 
 #### STT Configuration
@@ -1664,15 +1674,12 @@ docker stats
 # Look for: "Sherpa KWS initialized"
 ```
 
-#### HD TTS not working
+#### Paid TTS not working (OpenAI / ElevenLabs)
 
-1. Verify OpenAI API key is configured in **Admin UI** (Settings > Administration > LLM Configuration > Provider Keys)
-2. Check TTS mode in `.env`:
-
-```bash
-grep VOICE_TTS_DEFAULT_MODE .env
-# Should be: VOICE_TTS_DEFAULT_MODE=hd
-```
+1. Verify the provider's API key is set via **Settings → Tarification LLM Texte → Provider Keys** (admin only).
+2. In **Settings → Configuration LLM → Voice Synthesis (TTS)**, confirm the active override is on the right provider/model and that both `voice_male` / `voice_female` are filled (use the dynamic dropdown — for ElevenLabs the catalogue is fetched live, so `voices_read` scope is required on the key).
+3. For ElevenLabs Voice Library voices (community voices added to "My Voices"), a paid plan is required — Free tier rejects them with HTTP 402. Use the 9 default voices (Sarah, Charlotte, Rachel, …) on the free tier.
+4. Edge TTS is free and always available — pick it as a fallback while debugging.
 
 ---
 
@@ -1772,7 +1779,7 @@ Before considering your installation complete, verify:
 ### v6.2-v6.3 Features
 
 - [ ] Voice Mode works (microphone authorized, wake word detected)
-- [ ] TTS responds (Standard or HD depending on config)
+- [ ] TTS responds (Edge / OpenAI / ElevenLabs depending on the active `voice_tts` override)
 - [ ] Interest Learning enabled (visible in Settings)
 - [ ] OAuth Health Check active (logs show "health check passed")
 

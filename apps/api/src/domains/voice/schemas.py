@@ -4,9 +4,32 @@ Voice domain schemas (Pydantic models for API).
 Defines the data models for voice comment generation and TTS audio streaming.
 
 Updated: 2025-12-29 - Migrated from Google Cloud TTS to Edge TTS
+Updated: 2026-05-07 - Centralised AUDIO_MIME_TYPES (was duplicated between
+    VoiceCommentService and ProgressiveSentenceStreamer).
 """
 
+from typing import Final
+
 from pydantic import BaseModel, Field
+
+# Mapping from short ``audio_format`` token returned by ``TTSClient``
+# implementations (``mp3`` / ``opus`` / ``aac`` / ``flac`` / ``wav`` /
+# ``pcm``) to the corresponding MIME type used in
+# :class:`VoiceAudioChunk.mime_type`. Centralised here so adding a new
+# format is a one-place change for every consumer (synth loop in
+# :mod:`voice.service`, streamer in :mod:`voice.sentence_streamer`).
+AUDIO_MIME_TYPES: Final[dict[str, str]] = {
+    "mp3": "audio/mpeg",
+    "opus": "audio/opus",
+    "aac": "audio/aac",
+    "flac": "audio/flac",
+    "wav": "audio/wav",
+    "pcm": "audio/pcm",
+}
+
+# Fallback MIME type when ``audio_format`` is unknown — matches the legacy
+# default in the original duplicate maps (``.get(fmt, "audio/mpeg")``).
+DEFAULT_AUDIO_MIME_TYPE: Final[str] = "audio/mpeg"
 
 
 class VoiceCommentRequest(BaseModel):

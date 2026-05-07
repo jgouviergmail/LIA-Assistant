@@ -415,7 +415,9 @@ export default function ChatPage() {
               {/* Center: Voice Mode Badge - Single instance, always mounted to preserve KWS state */}
               <div className="absolute left-1/2 -translate-x-1/2">
                 <VoiceModeBadge
-                  onTranscription={sendMessage}
+                  onTranscription={(text, meta) =>
+                    sendMessage(text, undefined, undefined, meta)
+                  }
                   disabled={!apiAvailable || isTyping || isUsageBlocked}
                 />
               </div>

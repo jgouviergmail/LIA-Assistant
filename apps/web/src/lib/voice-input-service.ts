@@ -42,11 +42,19 @@ export interface WebSocketTicketResponse {
 
 /**
  * Transcription result from WebSocket.
+ *
+ * The optional ``stt_*`` fields are populated only when the backend ran the
+ * transcription via a remote provider (ElevenLabs Scribe). They are
+ * forwarded with the next chat send so the persistence layer can attach
+ * the precise cost to the user bubble.
  */
 export interface TranscriptionResult {
   type: 'transcription';
   text: string;
   duration_seconds: number;
+  stt_provider?: string | null;
+  stt_cost_usd?: number | null;
+  stt_cost_eur?: number | null;
 }
 
 /**
@@ -62,11 +70,31 @@ export interface PongResponse {
 export type WebSocketMessage = TranscriptionResult | PongResponse;
 
 /**
+ * Cost metadata for a remote-STT transcription. Forwarded with the next
+ * chat send so the persistence layer can attach the precise cost to the
+ * user bubble.
+ *
+ * ``stt_audio_duration_seconds`` carries the authoritative duration
+ * returned by the STT provider — used for the on-bubble badge AND for
+ * the per-message cost row stored on conversation_messages.
+ */
+export interface VoiceTranscriptionMeta {
+  stt_provider?: string | null;
+  stt_audio_duration_seconds?: number | null;
+  stt_cost_usd?: number | null;
+  stt_cost_eur?: number | null;
+}
+
+/**
  * Voice input service configuration.
  */
 export interface VoiceInputServiceConfig {
   /** Callback when transcription is received */
-  onTranscription: (text: string, durationSeconds: number) => void;
+  onTranscription: (
+    text: string,
+    durationSeconds: number,
+    meta?: VoiceTranscriptionMeta
+  ) => void;
   /** Callback when connection state changes */
   onConnectionChange?: (isConnected: boolean) => void;
   /** Callback on error */
@@ -260,7 +288,12 @@ export class VoiceInputService {
           duration_seconds: result.duration_seconds,
         });
 
-        this.config.onTranscription(result.text, result.duration_seconds);
+        this.config.onTranscription(result.text, result.duration_seconds, {
+          stt_provider: result.stt_provider ?? null,
+          stt_audio_duration_seconds: result.duration_seconds ?? null,
+          stt_cost_usd: result.stt_cost_usd ?? null,
+          stt_cost_eur: result.stt_cost_eur ?? null,
+        });
       } else if (message.type === 'pong') {
         logger.debug('voice_input_pong', { component: 'VoiceInputService' });
       }

@@ -70,9 +70,9 @@ async def test_list_pricing_as_admin(
     assert "models" in data
     assert len(data["models"]) == 1
     assert data["models"][0]["model_name"] == "gpt-4.1-mini"
-    assert Decimal(data["models"][0]["input_price_per_1m_tokens"]) == Decimal("2.50")
-    assert Decimal(data["models"][0]["cached_input_price_per_1m_tokens"]) == Decimal("1.25")
-    assert Decimal(data["models"][0]["output_price_per_1m_tokens"]) == Decimal("10.00")
+    assert Decimal(data["models"][0]["input_unit_price"]) == Decimal("2.50")
+    assert Decimal(data["models"][0]["cached_input_unit_price"]) == Decimal("1.25")
+    assert Decimal(data["models"][0]["output_unit_price"]) == Decimal("10.00")
 
 
 @pytest.mark.asyncio
@@ -126,9 +126,9 @@ async def test_create_pricing_as_admin(
 
     payload = {
         "model_name": "gpt-4.1-mini",
-        "input_price_per_1m_tokens": "0.15",
-        "cached_input_price_per_1m_tokens": "0.075",
-        "output_price_per_1m_tokens": "0.60",
+        "input_unit_price": "0.15",
+        "cached_input_unit_price": "0.075",
+        "output_unit_price": "0.60",
     }
 
     response = await client.post("/api/v1/admin/llm/pricing", json=payload)
@@ -136,16 +136,16 @@ async def test_create_pricing_as_admin(
     assert response.status_code == 201
     data = response.json()
     assert data["model_name"] == "gpt-4.1-mini"
-    assert Decimal(data["input_price_per_1m_tokens"]) == Decimal("0.15")
-    assert Decimal(data["cached_input_price_per_1m_tokens"]) == Decimal("0.075")
-    assert Decimal(data["output_price_per_1m_tokens"]) == Decimal("0.60")
+    assert Decimal(data["input_unit_price"]) == Decimal("0.15")
+    assert Decimal(data["cached_input_unit_price"]) == Decimal("0.075")
+    assert Decimal(data["output_unit_price"]) == Decimal("0.60")
     assert data["is_active"] is True
 
     # Verify in database
     stmt = select(LLMModelPricing).where(LLMModelPricing.model_name == "gpt-4.1-mini")
     result = await async_session.execute(stmt)
     pricing = result.scalar_one()
-    assert pricing.input_price_per_1m_tokens == Decimal("0.15")
+    assert pricing.input_unit_price == Decimal("0.15")
 
 
 @pytest.mark.asyncio
@@ -158,9 +158,9 @@ async def test_create_pricing_without_cached_input(
 
     payload = {
         "model_name": "o1-mini",
-        "input_price_per_1m_tokens": "3.00",
-        "cached_input_price_per_1m_tokens": None,
-        "output_price_per_1m_tokens": "12.00",
+        "input_unit_price": "3.00",
+        "cached_input_unit_price": None,
+        "output_unit_price": "12.00",
     }
 
     response = await client.post("/api/v1/admin/llm/pricing", json=payload)
@@ -168,7 +168,7 @@ async def test_create_pricing_without_cached_input(
     assert response.status_code == 201
     data = response.json()
     assert data["model_name"] == "o1-mini"
-    assert data["cached_input_price_per_1m_tokens"] is None
+    assert data["cached_input_unit_price"] is None
 
 
 @pytest.mark.asyncio
@@ -181,9 +181,9 @@ async def test_create_pricing_duplicate_model(
 
     payload = {
         "model_name": "gpt-4.1-mini",  # Already exists
-        "input_price_per_1m_tokens": "2.50",
-        "cached_input_price_per_1m_tokens": "1.25",
-        "output_price_per_1m_tokens": "10.00",
+        "input_unit_price": "2.50",
+        "cached_input_unit_price": "1.25",
+        "output_unit_price": "10.00",
     }
 
     response = await client.post("/api/v1/admin/llm/pricing", json=payload)
@@ -200,8 +200,8 @@ async def test_create_pricing_invalid_data(admin_client: tuple[AsyncClient, User
 
     payload = {
         "model_name": "",  # Empty model name
-        "input_price_per_1m_tokens": "2.50",
-        "output_price_per_1m_tokens": "10.00",
+        "input_unit_price": "2.50",
+        "output_unit_price": "10.00",
     }
 
     response = await client.post("/api/v1/admin/llm/pricing", json=payload)
@@ -219,8 +219,8 @@ async def test_create_pricing_as_regular_user_forbidden(
 
     payload = {
         "model_name": "test-model",
-        "input_price_per_1m_tokens": "1.00",
-        "output_price_per_1m_tokens": "5.00",
+        "input_unit_price": "1.00",
+        "output_unit_price": "5.00",
     }
 
     response = await client.post("/api/v1/admin/llm/pricing", json=payload)
@@ -244,9 +244,9 @@ async def test_update_pricing_as_admin(
     client, _ = admin_client
 
     payload = {
-        "input_price_per_1m_tokens": "3.00",  # Updated price
-        "cached_input_price_per_1m_tokens": "1.50",
-        "output_price_per_1m_tokens": "12.00",
+        "input_unit_price": "3.00",  # Updated price
+        "cached_input_unit_price": "1.50",
+        "output_unit_price": "12.00",
     }
 
     response = await client.put("/api/v1/admin/llm/pricing/gpt-4.1-mini", json=payload)
@@ -254,8 +254,8 @@ async def test_update_pricing_as_admin(
     assert response.status_code == 200
     data = response.json()
     assert data["model_name"] == "gpt-4.1-mini"
-    assert Decimal(data["input_price_per_1m_tokens"]) == Decimal("3.00")
-    assert Decimal(data["output_price_per_1m_tokens"]) == Decimal("12.00")
+    assert Decimal(data["input_unit_price"]) == Decimal("3.00")
+    assert Decimal(data["output_unit_price"]) == Decimal("12.00")
     assert data["is_active"] is True
 
     # Verify old entry is deactivated
@@ -270,7 +270,7 @@ async def test_update_pricing_as_admin(
     result = await async_session.execute(stmt)
     new_pricing = result.scalar_one()
     assert new_pricing.id != sample_pricing.id
-    assert new_pricing.input_price_per_1m_tokens == Decimal("3.00")
+    assert new_pricing.input_unit_price == Decimal("3.00")
 
 
 @pytest.mark.asyncio
@@ -280,8 +280,8 @@ async def test_update_pricing_not_found(admin_client: tuple[AsyncClient, User]):
     client, _ = admin_client
 
     payload = {
-        "input_price_per_1m_tokens": "1.00",
-        "output_price_per_1m_tokens": "5.00",
+        "input_unit_price": "1.00",
+        "output_unit_price": "5.00",
     }
 
     response = await client.put("/api/v1/admin/llm/pricing/non-existent-model", json=payload)
@@ -299,8 +299,8 @@ async def test_update_pricing_as_regular_user_forbidden(
     client, _ = authenticated_client
 
     payload = {
-        "input_price_per_1m_tokens": "1.00",
-        "output_price_per_1m_tokens": "5.00",
+        "input_unit_price": "1.00",
+        "output_unit_price": "5.00",
     }
 
     response = await client.put("/api/v1/admin/llm/pricing/gpt-4.1-mini", json=payload)
@@ -677,25 +677,23 @@ async def test_list_pricing_with_sorting(
     assert data["models"][1]["model_name"] == "model-b"
     assert data["models"][2]["model_name"] == "model-a"
 
-    # Sort by input_price_per_1m_tokens ascending
-    response = await client.get(
-        "/api/v1/admin/llm/pricing?sort_by=input_price_per_1m_tokens&sort_order=asc"
-    )
+    # Sort by input_unit_price ascending
+    response = await client.get("/api/v1/admin/llm/pricing?sort_by=input_unit_price&sort_order=asc")
     assert response.status_code == 200
     data = response.json()
-    assert Decimal(data["models"][0]["input_price_per_1m_tokens"]) == Decimal("1.00")
-    assert Decimal(data["models"][1]["input_price_per_1m_tokens"]) == Decimal("2.00")
-    assert Decimal(data["models"][2]["input_price_per_1m_tokens"]) == Decimal("3.00")
+    assert Decimal(data["models"][0]["input_unit_price"]) == Decimal("1.00")
+    assert Decimal(data["models"][1]["input_unit_price"]) == Decimal("2.00")
+    assert Decimal(data["models"][2]["input_unit_price"]) == Decimal("3.00")
 
-    # Sort by output_price_per_1m_tokens descending
+    # Sort by output_unit_price descending
     response = await client.get(
-        "/api/v1/admin/llm/pricing?sort_by=output_price_per_1m_tokens&sort_order=desc"
+        "/api/v1/admin/llm/pricing?sort_by=output_unit_price&sort_order=desc"
     )
     assert response.status_code == 200
     data = response.json()
-    assert Decimal(data["models"][0]["output_price_per_1m_tokens"]) == Decimal("15.00")
-    assert Decimal(data["models"][1]["output_price_per_1m_tokens"]) == Decimal("10.00")
-    assert Decimal(data["models"][2]["output_price_per_1m_tokens"]) == Decimal("5.00")
+    assert Decimal(data["models"][0]["output_unit_price"]) == Decimal("15.00")
+    assert Decimal(data["models"][1]["output_unit_price"]) == Decimal("10.00")
+    assert Decimal(data["models"][2]["output_unit_price"]) == Decimal("5.00")
 
 
 @pytest.mark.asyncio
@@ -726,7 +724,7 @@ async def test_list_pricing_with_combined_filters(
 
     # Search for "gpt", sort by input_price descending, paginate with page_size=3
     response = await client.get(
-        "/api/v1/admin/llm/pricing?search=gpt&sort_by=input_price_per_1m_tokens&sort_order=desc&page=1&page_size=3"
+        "/api/v1/admin/llm/pricing?search=gpt&sort_by=input_unit_price&sort_order=desc&page=1&page_size=3"
     )
     assert response.status_code == 200
     data = response.json()
@@ -736,9 +734,9 @@ async def test_list_pricing_with_combined_filters(
     assert data["total_pages"] == 2
     assert len(data["models"]) == 3
     # Verify descending order
-    assert Decimal(data["models"][0]["input_price_per_1m_tokens"]) >= Decimal(
-        data["models"][1]["input_price_per_1m_tokens"]
+    assert Decimal(data["models"][0]["input_unit_price"]) >= Decimal(
+        data["models"][1]["input_unit_price"]
     )
-    assert Decimal(data["models"][1]["input_price_per_1m_tokens"]) >= Decimal(
-        data["models"][2]["input_price_per_1m_tokens"]
+    assert Decimal(data["models"][1]["input_unit_price"]) >= Decimal(
+        data["models"][2]["input_unit_price"]
     )

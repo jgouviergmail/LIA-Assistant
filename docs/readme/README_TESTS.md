@@ -36,10 +36,10 @@
 The LIA test suite follows a **comprehensive testing strategy** designed to ensure quality, reliability, and maintainability across the entire application. Our testing philosophy is based on:
 
 1. **Test Pyramid Principles** (with LangGraph-specific adaptations)
-   - Large base of unit tests (43% of suite - 72 files)
-   - Integration tests for critical paths (8% - 13 files)
-   - Minimal E2E tests (1% - 1 file)
-   - **Specialized agent testing layer** (31% - 51 files) - unique to our LangGraph architecture
+   - Large base of unit tests (336 files / ~80% of test cases)
+   - Integration tests for critical paths (18 files / ~2% of test cases)
+   - Minimal E2E tests (1 file / ~0.1% of test cases)
+   - **Specialized agent testing layer** (67 files / ~13% of test cases) - unique to our LangGraph architecture
 
 2. **BFF Pattern Testing** (since v0.3.0)
    - Session-based authentication testing
@@ -56,32 +56,36 @@ The LIA test suite follows a **comprehensive testing strategy** designed to ensu
 ### 1.2 Test Statistics
 
 ```
-Test Suite Metrics
+Test Suite Metrics (pytest --collect-only authoritative count)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total Python Files:              197 files
-Test Files (test_*.py):          166 files (84.3%)
-Conftest Files:                  3 files (fixture hierarchy)
-Total Lines of Test Code:        76,609 lines
-Total Size:                      ~11 MB
-Average Lines per Test File:     ~461 lines
-Global Coverage:                 28% (Target: 80%+)
-Test-to-Code Ratio:              1.7:1 (Good)
+Total tests collected:           9,992
+Total Python Files in tests/:    529 files
+Test Files (test_*.py):          448 files
+Conftest Files:                  6 files (fixture hierarchy)
+Total Lines of Test Code:        ~176,000 lines
+Total Size:                      ~6.4 MB
+Average Lines per Test File:     ~390 lines
+Coverage Target:                 43% (enforced in CI)
 ```
 
 ### 1.3 Test Distribution by Type
 
 ```
-Test Type Distribution
+Test Type Distribution (pytest collection per top-level subdir)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Unit Tests:                      ~72 files (43%)
-Integration Tests:               ~13 files (8%)
-E2E Tests:                       ~1 file (1%)
-Agent Tests (Mixed):             ~51 files (31%)
-Contract Tests:                  ~1 file (1%)
-Infrastructure Tests:            ~6 files (4%)
-Core Tests:                      ~5 files (3%)
-Other/Specialized:               ~17 files (9%)
+Unit Tests:                      8,017 cases (336 files, ~80%)
+Agent Tests (mixed unit+integ):  1,285 cases (67 files, ~13%)
+Integration Tests:               236 cases  (18 files, ~2.4%)
+E2E Tests:                       12 cases   (1 file,  ~0.1%)
+Other (helpers, conftests):      ~440 cases (across the rest)
 ```
+
+The agent layer is intentionally a **mixed pyramid by itself** — some
+tests stub the LangGraph state and run pure logic (unit-style), others
+spin up a real PostgreSQL checkpointer and Redis (integration-style).
+That blend is why the global pyramid is reported as 86/12/2 in
+high-level docs (unit-style + half of agents over the rest) rather than
+a strict file-tree split.
 
 ### 1.4 Framework & Dependencies
 
@@ -354,7 +358,7 @@ tests/
 │   ├── __init__.py
 │   └── factories.py                     # User/Connector factories
 │
-├── agents/                              # Agent tests (51 files)
+├── agents/                              # Agent tests (67 files)
 │   ├── integration/
 │   │   └── test_hitl_streaming_e2e.py
 │   ├── mixins/
@@ -398,7 +402,7 @@ tests/
 │       ├── test_invoke_helpers.py
 │       └── test_invoke_helpers_integration.py
 │
-├── integration/                         # Integration tests (13 files)
+├── integration/                         # Integration tests (18 files)
 │   ├── test_auth.py                     # 755 lines - BFF Pattern
 │   ├── test_base_google_client_integration.py
 │   ├── test_bootstrap_integration.py
@@ -416,7 +420,7 @@ tests/
 ├── e2e/                                 # End-to-end tests (1 file)
 │   └── test_hitl_flows_e2e.py
 │
-├── unit/                                # Unit tests (72 files)
+├── unit/                                # Unit tests (336 files)
 │   ├── agents/
 │   │   ├── services/
 │   │   │   └── test_domain_naming_consistency.py
@@ -3256,12 +3260,12 @@ def test_with_mock(mock_function):
 
 ### C. Test Statistics
 
-**Current Statistics:**
-- Total Test Files: 166
-- Total Lines of Test Code: 76,609
-- Global Coverage: 28%
-- Target Coverage: 80%
-- Estimated Test Count: ~700-900 test cases
+**Current Statistics (pytest --collect-only authoritative):**
+- Total Test Files: 448 (`test_*.py`) + 6 conftests
+- Total Lines of Test Code: ~176,000
+- Coverage Target: 43% (enforced in CI)
+- Total Test Count: **9,992 collected by pytest**
+- Frontend (vitest): 41 tests across 3 files
 
 **Coverage Roadmap:**
 - Phase 1 (2-3 weeks): 28% → 50% (+22%)

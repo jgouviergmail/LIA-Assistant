@@ -692,6 +692,28 @@ class CostThresholdStrategy(ApprovalStrategy):
 
 **Key insight**: Semantic domain/tool selection is the **primary optimization** because it runs on every request and reduces the context window by 80-90% before any LLM call.
 
+### Voice silos (TTS / STT) — separate cost surfaces
+
+Voice synthesis and transcription do not flow through the LLM token-tracking
+silo above; they have their own measurement and pricing units while sharing
+the same DB-backed pricing strategy:
+
+| Silo | Unit | Default backend | Paid alternatives | Persistence |
+|------|------|-----------------|-------------------|-------------|
+| **TTS** (ADR-081) | `per_1m_tokens` (characters tracked as tokens — math identical) | Edge TTS (free) | OpenAI `tts-1` / `tts-1-hd`, ElevenLabs `eleven_multilingual_v2` / `eleven_turbo_v2_5` / `eleven_flash_v2_5` | `conversation_messages.tts_*` per assistant message (`tts_provider`, `tts_model`, `tts_characters`, `tts_cost_eur`) + `user_statistics` lifetime/cycle aggregates |
+| **STT** (ADR-080) | `per_audio_hour` (or `per_audio_minute`) — distinct `pricing_unit_enum` row on `llm_model_pricing` | Sherpa-onnx Whisper local (free) | ElevenLabs Scribe `scribe_v2` ($0.22/h) | `conversation_messages.stt_*` per user message (`stt_provider`, `stt_audio_duration_seconds`, `stt_cost_eur`) + `user_statistics` lifetime/cycle aggregates |
+
+Cost-spike protection mirrors the chat path: pre-flight `usage_limits` check
+on the WebSocket handler before any remote STT call, hard cap on a single
+audio clip's duration (`elevenlabs_stt_max_audio_duration_seconds`), and
+global kill-switch (`elevenlabs_stt_enabled`) for incident response.
+
+For TTS, latency is the driving optimisation rather than token count —
+ADR-082 (Progressive Sentence Streaming) dispatches per-sentence synthesis
+in parallel so the first audio chunk lands while the LLM still produces
+the rest of the response. Persistent `httpx.AsyncClient` keepalive pools on
+ElevenLabs / OpenAI clients save ~100–300 ms per synthesis on repeat calls.
+
 ### Consequences
 
 **Positive**:
@@ -733,6 +755,10 @@ class CostThresholdStrategy(ApprovalStrategy):
 - [ADR-048: Semantic Router (Domains & Tools)](ADR-048-Semantic-Tool-Router.md) - Complete semantic selection architecture
 - [ADR-019: Agent Manifest Catalogue System](ADR-019-Agent-Manifest-Catalogue-System.md) - Provides semantic_keywords
 - [ADR-049: Local E5 Embeddings](ADR-049-Local-E5-Embeddings.md) - Historical: superseded by OpenAI text-embedding-3-small (v1.14.0)
+- [ADR-078: LLM Catalogue DB Source-of-Truth](ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md) - Same DB-pricing strategy applied to chat models
+- [ADR-080: Voice STT Remote (Pricing Unit)](ADR-080-Voice-STT-Remote-Pricing-Unit.md) - Per-audio-hour/minute pricing axis on `llm_model_pricing`
+- [ADR-081: Voice TTS Catalogue-Driven](ADR-081-Voice-TTS-Catalogue-Driven.md) - Per-message TTS attribution on `conversation_messages`
+- [ADR-082: Progressive Sentence Streaming](ADR-082-Progressive-Sentence-Streaming.md) - Latency-side optimisation for the TTS silo
 
 ---
 

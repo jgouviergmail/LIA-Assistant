@@ -24,7 +24,6 @@ import type { Language } from '@/i18n/settings';
  * - AdminConnectorsSection
  * - AdminLLMPricingSection
  * - AdminPersonalitiesSection
- * - AdminVoiceSettingsSection
  */
 export interface BaseSettingsProps {
   /** Current language for translations */

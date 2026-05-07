@@ -28,6 +28,7 @@ from src.domains.llm.models import (
     LLMModelPricing,
     LLMProviderEnum,
     LLMReasoningWidgetEnum,
+    PricingUnitEnum,
 )
 from src.domains.llm.repository import LLMModelRepository
 from src.domains.llm.schemas import (
@@ -75,9 +76,10 @@ _CAPABILITY_FIELDS: frozenset[str] = frozenset(
 )
 _PRICING_FIELDS: frozenset[str] = frozenset(
     {
-        "input_price_per_1m_tokens",
-        "cached_input_price_per_1m_tokens",
-        "output_price_per_1m_tokens",
+        "input_unit_price",
+        "cached_input_unit_price",
+        "output_unit_price",
+        "pricing_unit",
     }
 )
 
@@ -145,9 +147,10 @@ class LLMModelService:
 
         pricing = LLMModelPricing(
             model_id=model.id,
-            input_price_per_1m_tokens=data.input_price_per_1m_tokens,
-            cached_input_price_per_1m_tokens=data.cached_input_price_per_1m_tokens,
-            output_price_per_1m_tokens=data.output_price_per_1m_tokens,
+            input_unit_price=data.input_unit_price,
+            cached_input_unit_price=data.cached_input_unit_price,
+            output_unit_price=data.output_unit_price,
+            pricing_unit=PricingUnitEnum(data.pricing_unit),
             is_active=True,
         )
         # Pre-populate the relationship so callers reading pricing.model.model_name
@@ -238,18 +241,16 @@ class LLMModelService:
             current.is_active = False
             await self.db.flush()
 
+            new_pricing_unit_value = price_changes.get("pricing_unit", current.pricing_unit.value)
             new_pricing = LLMModelPricing(
                 model_id=model.id,
-                input_price_per_1m_tokens=price_changes.get(
-                    "input_price_per_1m_tokens", current.input_price_per_1m_tokens
+                input_unit_price=price_changes.get("input_unit_price", current.input_unit_price),
+                cached_input_unit_price=price_changes.get(
+                    "cached_input_unit_price",
+                    current.cached_input_unit_price,
                 ),
-                cached_input_price_per_1m_tokens=price_changes.get(
-                    "cached_input_price_per_1m_tokens",
-                    current.cached_input_price_per_1m_tokens,
-                ),
-                output_price_per_1m_tokens=price_changes.get(
-                    "output_price_per_1m_tokens", current.output_price_per_1m_tokens
-                ),
+                output_unit_price=price_changes.get("output_unit_price", current.output_unit_price),
+                pricing_unit=PricingUnitEnum(new_pricing_unit_value),
                 is_active=True,
             )
             # Pre-populate relationship; do NOT refresh (would clear it and

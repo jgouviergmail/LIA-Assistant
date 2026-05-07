@@ -4,17 +4,19 @@ OpenAI TTS Client.
 Provides TTS synthesis using OpenAI's text-to-speech API.
 Implements the TTSClient protocol for multi-provider support.
 
-Uses generic TTS configuration keys:
-- VOICE_TTS_MODEL: tts-1 or tts-1-hd
-- VOICE_TTS_SPEED: 0.25 to 4.0
-- VOICE_TTS_RESPONSE_FORMAT: mp3, opus, etc.
-- VOICE_TTS_VOICE_MALE / VOICE_TTS_VOICE_FEMALE: voice selection by gender
+Configuration is sourced from the ``voice_tts`` LLM type override
+(``llm_config_overrides.voice_tts``), parsed by the factory in
+``src/domains/voice/factory.py``. The factory feeds the constructor with
+``model`` (tts-1 / tts-1-hd / tts-1-1106), ``speed`` (0.25–4.0) and
+``response_format`` (mp3 / opus / aac / flac / wav / pcm); voice IDs
+(echo / nova / …) are passed per-call via ``voice_name``.
 
 Documentation: https://platform.openai.com/docs/guides/text-to-speech
-Voices: alloy, echo, fable, onyx, nova, shimmer
+Voices: alloy, echo, fable, onyx, nova, shimmer, coral
 
 Created: 2026-01-15
 Updated: 2026-01-15 - Use generic TTS config keys
+Updated: 2026-05-07 - Configured via llm_config_overrides.voice_tts (ADR-081)
 """
 
 import base64
@@ -25,6 +27,7 @@ import structlog
 from openai import AsyncOpenAI
 
 from src.domains.llm_config.cache import LLMConfigOverrideCache
+from src.domains.voice.exceptions import TTSProviderError
 from src.infrastructure.observability.metrics_voice import (
     voice_tts_errors_total,
     voice_tts_latency_seconds,
@@ -119,7 +122,8 @@ class OpenAITTSClient:
 
         Raises:
             ValueError: If voice_name is not provided.
-            Exception: If synthesis fails.
+            TTSProviderError: If synthesis fails (network error, rate limit,
+                empty payload, etc.). Carries a stable ``code`` for callers.
         """
         # Voice is required - should be provided by service based on gender
         if not voice_name:
@@ -157,7 +161,10 @@ class OpenAITTSClient:
 
             if not audio_bytes:
                 voice_tts_errors_total.labels(error_type="empty_response", voice_name=voice).inc()
-                raise ValueError("No audio content from OpenAI TTS")
+                raise TTSProviderError(
+                    code="provider_invalid_response",
+                    message="OpenAI TTS returned an empty audio payload.",
+                )
 
             # Track successful request metrics
             request_duration = time.time() - request_start_time
@@ -175,6 +182,10 @@ class OpenAITTSClient:
 
             return audio_bytes
 
+        except TTSProviderError:
+            # Already structured (e.g. empty payload above) — re-raise as-is
+            # so the metrics & logging that already fired are not duplicated.
+            raise
         except Exception as e:
             # Track error metrics
             request_duration = time.time() - request_start_time
@@ -185,12 +196,16 @@ class OpenAITTSClient:
             error_str = str(e).lower()
             if "rate" in error_str or "limit" in error_str:
                 error_type = "rate_limit"
+                code = "provider_rate_limited"
             elif "auth" in error_str or "key" in error_str:
                 error_type = "auth_error"
+                code = "api_key_missing"
             elif "connect" in error_str or "timeout" in error_str:
                 error_type = "network_error"
+                code = "provider_network_error"
             else:
                 error_type = "synthesis_error"
+                code = "provider_http_error"
 
             voice_tts_errors_total.labels(error_type=error_type, voice_name=voice).inc()
 
@@ -202,7 +217,14 @@ class OpenAITTSClient:
                 voice=voice,
                 model=model,
             )
-            raise
+            # Wrap in TTSProviderError so callers can match a single
+            # structured failure type across all providers (Edge / OpenAI /
+            # ElevenLabs).
+            raise TTSProviderError(
+                code=code,
+                message=f"OpenAI TTS failure: {e}",
+                details={"exception_type": type(e).__name__},
+            ) from e
 
     async def synthesize_base64(
         self,

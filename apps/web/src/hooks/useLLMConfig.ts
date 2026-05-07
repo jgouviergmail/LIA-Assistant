@@ -40,10 +40,14 @@ export function useLLMConfig() {
     loading: metadataLoading,
     refetch: refetchMetadata,
   } = useApiQuery<ProviderModelsMetadata>(
-    // The Configuration LLM admin only edits chat + image LLM types — exclude
-    // audio/realtime/tts/embedding models from the payload to keep it lean.
-    // Per-type fine-grained filtering happens client-side via LLMTypeInfo.required_kind.
-    '/admin/llm-config/metadata/models?kinds=chat,image',
+    // The Configuration LLM admin edits chat + image + audio + tts LLM
+    // types. ``audio`` covers voice_transcription (STT, ElevenLabs Scribe).
+    // ``tts`` covers the voice_tts type added in v1.20.x for voice synthesis
+    // (Edge / OpenAI / ElevenLabs). Without it, kind=tts providers would be
+    // filtered out at the API and never appear in the Provider selector.
+    // Per-type fine-grained filtering happens client-side via
+    // LLMTypeInfo.required_kind.
+    '/admin/llm-config/metadata/models?kinds=chat,image,audio,tts',
     {
       componentName: COMPONENT_NAME,
       initialData: { providers: {} },

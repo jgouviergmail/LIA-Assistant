@@ -56,9 +56,10 @@ def _pricing_to_response(pricing: LLMModelPricing) -> ModelPriceResponse:
         {
             # Pricing
             "id": pricing.id,
-            "input_price_per_1m_tokens": pricing.input_price_per_1m_tokens,
-            "cached_input_price_per_1m_tokens": pricing.cached_input_price_per_1m_tokens,
-            "output_price_per_1m_tokens": pricing.output_price_per_1m_tokens,
+            "input_unit_price": pricing.input_unit_price,
+            "cached_input_unit_price": pricing.cached_input_unit_price,
+            "output_unit_price": pricing.output_unit_price,
+            "pricing_unit": pricing.pricing_unit.value,
             "effective_from": pricing.effective_from,
             "is_active": pricing.is_active,
             # Catalogue
@@ -130,7 +131,7 @@ async def list_active_pricing(
     - `search`: Filter by model name (case-insensitive partial match)
     - `page`: Page number (default: 1)
     - `page_size`: Items per page (default: 10, max: 100)
-    - `sort_by`: Column to sort by (model_name, input_price_per_1m_tokens, output_price_per_1m_tokens)
+    - `sort_by`: Column to sort by (model_name, input_unit_price, output_unit_price)
     - `sort_order`: Sort order (asc or desc, default: asc)
 
     Returns paginated list of active pricing entries.
@@ -171,8 +172,8 @@ async def list_active_pricing(
     # Apply sorting (whitelist for security - prevent column injection)
     ALLOWED_SORT_COLUMNS = {
         "model_name",
-        "input_price_per_1m_tokens",
-        "output_price_per_1m_tokens",
+        "input_unit_price",
+        "output_unit_price",
         "created_at",
         "updated_at",
     }
@@ -308,8 +309,9 @@ async def create_pricing(
             # changes — but the source choice is preserved here.
             "reasoning_template": data.reasoning_template,
             "reasoning_widget": model.reasoning_widget.value,
-            "input_price_per_1m_tokens": float(pricing.input_price_per_1m_tokens),
-            "output_price_per_1m_tokens": float(pricing.output_price_per_1m_tokens),
+            "pricing_unit": pricing.pricing_unit.value,
+            "input_unit_price": float(pricing.input_unit_price),
+            "output_unit_price": float(pricing.output_unit_price),
         },
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),

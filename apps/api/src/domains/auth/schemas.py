@@ -257,10 +257,22 @@ class VoicePreferenceResponse(BaseModel):
 
 
 class VoiceModePreferenceRequest(BaseModel):
-    """Schema for updating user voice mode preference (wake word + STT input)."""
+    """Schema for updating user voice mode preference (wake word + STT input).
 
-    voice_mode_enabled: bool = Field(
-        ..., description="Enable or disable voice mode (wake word detection + STT input)"
+    Both fields are optional so the same endpoint can patch the on/off
+    switch and the STT backend independently.
+    """
+
+    voice_mode_enabled: bool | None = Field(
+        default=None,
+        description="Enable or disable voice mode (wake word detection + STT input)",
+    )
+    voice_stt_mode: Literal["local", "remote"] | None = Field(
+        default=None,
+        description=(
+            "STT backend choice when voice mode is enabled: 'local' (Sherpa, free) "
+            "or 'remote' (ElevenLabs Scribe, billed per audio duration)."
+        ),
     )
 
 
@@ -268,6 +280,17 @@ class VoiceModePreferenceResponse(BaseModel):
     """Schema for voice mode preference update response."""
 
     voice_mode_enabled: bool = Field(..., description="Current voice mode preference state")
+    voice_stt_mode: Literal["local", "remote"] = Field(
+        ...,
+        description="Current STT backend choice ('local' or 'remote').",
+    )
+    stt_remote_available: bool = Field(
+        ...,
+        description=(
+            "True when the remote provider (ElevenLabs) has an API key configured "
+            "and the user can opt into 'remote' STT."
+        ),
+    )
     message: str = Field(
         default="Voice mode preference updated",
         description="Confirmation message",

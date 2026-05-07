@@ -142,6 +142,8 @@ PromptName = Literal[
     # Today Dashboard — Briefing (greeting + synthesis)
     "briefing_greeting_prompt",
     "briefing_synthesis_prompt",
+    # Voice comment (TTS post-response narrative aside)
+    "voice_comment_prompt",
     # Future prompts:
     # "emails_agent_prompt",
     # "calendar_agent_prompt",

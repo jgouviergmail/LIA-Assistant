@@ -10,64 +10,35 @@ Architecture:
               PostgreSQL DB → Cache Set → setting value
 
 Usage:
-    # Get voice mode (cached)
-    mode = await get_voice_tts_mode()  # "standard" or "hd"
-
-    # Admin: Update voice mode
+    # Admin: enable the debug panel
     service = SystemSettingsService(db)
-    await service.set_voice_tts_mode("hd", admin_user_id, request)
+    await service.set_debug_panel_enabled(update, admin_user_id, request)
 
 Created: 2026-01-16
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
-from prometheus_client import Counter
 from redis.exceptions import RedisError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
-from src.core.config.voice import VoiceTTSMode
-from src.core.constants import REDIS_KEY_VOICE_TTS_MODE
 from src.domains.system_settings.models import SystemSetting, SystemSettingKey
 from src.domains.system_settings.schemas import (
     DebugPanelEnabledResponse,
     DebugPanelEnabledUpdate,
     DebugPanelUserAccessResponse,
     DebugPanelUserAccessUpdate,
-    VoiceTTSModeResponse,
-    VoiceTTSModeUpdate,
 )
 
 if TYPE_CHECKING:
-    import redis.asyncio as aioredis
     from fastapi import Request
 
 logger = structlog.get_logger(__name__)
-
-
-# ============================================================================
-# PROMETHEUS METRICS
-# ============================================================================
-
-voice_tts_mode_cache_total = Counter(
-    "voice_tts_mode_cache_total",
-    "Total voice TTS mode cache operations",
-    ["result"],  # "hit", "miss", "error"
-)
-
-
-# ============================================================================
-# CACHE TTL
-# ============================================================================
-
-# Voice TTS mode doesn't change often, cache for 5 minutes
-VOICE_TTS_MODE_CACHE_TTL_SECONDS = 300
 
 
 # ============================================================================
@@ -80,120 +51,12 @@ class SystemSettingsService:
     Service for managing system-wide settings.
 
     Provides methods for getting and setting application configuration
-    that affects all users (e.g., voice TTS mode).
+    that affects all users (e.g., debug panel visibility).
     """
 
     def __init__(self, db: AsyncSession) -> None:
         """Initialize service with database session."""
         self.db = db
-
-    async def get_voice_tts_mode(self) -> VoiceTTSModeResponse:
-        """
-        Get current voice TTS mode from database.
-
-        Returns:
-            VoiceTTSModeResponse with current mode and metadata.
-        """
-        stmt = select(SystemSetting).where(SystemSetting.key == SystemSettingKey.VOICE_TTS_MODE)
-        result = await self.db.execute(stmt)
-        setting = result.scalar_one_or_none()
-
-        if setting:
-            return VoiceTTSModeResponse(
-                mode=setting.value,
-                updated_by=setting.updated_by,
-                updated_at=setting.updated_at,
-                is_default=False,
-            )
-
-        # No DB setting: return default from environment
-        return VoiceTTSModeResponse(
-            mode=settings.voice_tts_default_mode,
-            updated_by=None,
-            updated_at=None,
-            is_default=True,
-        )
-
-    async def set_voice_tts_mode(
-        self,
-        update: VoiceTTSModeUpdate,
-        admin_user_id: UUID,
-        request: Request,
-    ) -> VoiceTTSModeResponse:
-        """
-        Set voice TTS mode (admin only).
-
-        Creates or updates the setting in the database, creates an audit log,
-        and invalidates the cache.
-
-        Args:
-            update: New mode and optional change reason
-            admin_user_id: Admin user making the change
-            request: FastAPI request for audit logging
-
-        Returns:
-            Updated VoiceTTSModeResponse
-        """
-        from src.domains.users.models import AdminAuditLog
-
-        # Get or create setting
-        stmt = select(SystemSetting).where(SystemSetting.key == SystemSettingKey.VOICE_TTS_MODE)
-        result = await self.db.execute(stmt)
-        setting = result.scalar_one_or_none()
-
-        old_value = setting.value if setting else settings.voice_tts_default_mode
-
-        if setting:
-            # Update existing
-            setting.value = update.mode
-            setting.updated_by = admin_user_id
-            setting.change_reason = update.change_reason
-        else:
-            # Create new
-            setting = SystemSetting(
-                key=SystemSettingKey.VOICE_TTS_MODE,
-                value=update.mode,
-                updated_by=admin_user_id,
-                change_reason=update.change_reason,
-            )
-            self.db.add(setting)
-
-        # Create audit log (setting.id is always set via default=uuid.uuid4)
-        audit_entry = AdminAuditLog(
-            admin_user_id=admin_user_id,
-            action="voice_tts_mode_changed",
-            resource_type="system_setting",
-            resource_id=setting.id,
-            details={
-                "old_value": old_value,
-                "new_value": update.mode,
-                "change_reason": update.change_reason,
-            },
-            ip_address=request.client.host if request.client else None,
-            user_agent=request.headers.get("user-agent"),
-        )
-        self.db.add(audit_entry)
-
-        await self.db.commit()
-        await self.db.refresh(setting)
-
-        # Invalidate cache
-        await invalidate_voice_tts_mode_cache()
-
-        logger.info(
-            "voice_tts_mode_updated",
-            old_value=old_value,
-            new_value=update.mode,
-            admin_user_id=str(admin_user_id),
-            change_reason=update.change_reason,
-        )
-
-        return VoiceTTSModeResponse(
-            mode=setting.value,
-            updated_by=setting.updated_by,
-            updated_at=setting.updated_at,
-            is_default=False,
-        )
 
     # =========================================================================
     # DEBUG PANEL SETTINGS
@@ -427,177 +290,6 @@ class SystemSettingsService:
             updated_by=setting.updated_by,
             updated_at=setting.updated_at,
             is_default=False,
-        )
-
-
-# ============================================================================
-# CACHE FUNCTIONS
-# ============================================================================
-
-
-class VoiceTTSModeCache:
-    """
-    Cache service for voice TTS mode setting.
-
-    Provides fast access to the current voice mode without DB queries.
-    """
-
-    def __init__(self, redis_client: aioredis.Redis) -> None:
-        self.redis = redis_client
-        self._key = REDIS_KEY_VOICE_TTS_MODE
-        self._ttl_seconds = VOICE_TTS_MODE_CACHE_TTL_SECONDS
-
-    async def get(self) -> VoiceTTSMode | None:
-        """Get cached voice TTS mode."""
-        result = await self.redis.get(self._key)
-
-        if result:
-            mode_str = result.decode() if isinstance(result, bytes) else str(result)
-            logger.debug("voice_tts_mode_cache_hit", mode=mode_str)
-            voice_tts_mode_cache_total.labels(result="hit").inc()
-            return cast(VoiceTTSMode, mode_str)
-
-        logger.debug("voice_tts_mode_cache_miss")
-        voice_tts_mode_cache_total.labels(result="miss").inc()
-        return None
-
-    async def set(self, mode: VoiceTTSMode) -> None:
-        """Set cached voice TTS mode with TTL."""
-        await self.redis.setex(self._key, self._ttl_seconds, mode)
-        logger.debug(
-            "voice_tts_mode_cache_set",
-            mode=mode,
-            ttl_seconds=self._ttl_seconds,
-        )
-
-    async def invalidate(self) -> None:
-        """Invalidate cached voice TTS mode."""
-        await self.redis.delete(self._key)
-        logger.debug("voice_tts_mode_cache_invalidated")
-
-
-async def get_voice_tts_mode() -> VoiceTTSMode:
-    """
-    Get current voice TTS mode from cache or DB.
-
-    Convenience function that handles Redis connection, cache miss fallback
-    to database, and graceful error handling.
-
-    Flow:
-    1. Check Redis cache first (fast path, ~1ms)
-    2. If cache miss, query DB and cache result
-    3. If Redis error or DB has no setting, use default from environment
-    4. Return mode: "standard" or "hd"
-
-    Returns:
-        VoiceTTSMode: "standard" or "hd"
-
-    Example:
-        >>> mode = await get_voice_tts_mode()
-        >>> if mode == "hd":
-        ...     # Use OpenAI/Gemini TTS
-    """
-    from src.infrastructure.cache.redis import get_redis_cache
-    from src.infrastructure.database import get_db_context
-
-    try:
-        redis = await get_redis_cache()
-        cache = VoiceTTSModeCache(redis)
-
-        # Fast path: check cache
-        cached = await cache.get()
-        if cached:
-            return cached
-
-        # Cache miss: query DB
-        async with get_db_context() as db:
-            stmt = select(SystemSetting).where(SystemSetting.key == SystemSettingKey.VOICE_TTS_MODE)
-            result = await db.execute(stmt)
-            setting = result.scalar_one_or_none()
-
-            if setting:
-                mode = cast(VoiceTTSMode, setting.value)
-
-                # Cache for future requests
-                try:
-                    await cache.set(mode)
-                except RedisError as cache_err:
-                    logger.warning(
-                        "voice_tts_mode_cache_set_failed",
-                        error=str(cache_err),
-                    )
-
-                return mode
-
-            # No DB setting: use default from environment
-            default_mode = settings.voice_tts_default_mode
-            logger.debug(
-                "voice_tts_mode_using_default",
-                default_mode=default_mode,
-            )
-            return default_mode
-
-    except RedisError as e:
-        # Redis unavailable: fallback to DB or default
-        logger.warning(
-            "voice_tts_mode_cache_redis_error",
-            error=str(e),
-        )
-        voice_tts_mode_cache_total.labels(result="error").inc()
-
-        try:
-            async with get_db_context() as db:
-                stmt = select(SystemSetting).where(
-                    SystemSetting.key == SystemSettingKey.VOICE_TTS_MODE
-                )
-                result = await db.execute(stmt)
-                setting = result.scalar_one_or_none()
-                return (
-                    cast(VoiceTTSMode, setting.value)
-                    if setting
-                    else settings.voice_tts_default_mode
-                )
-        except Exception as db_err:
-            logger.error(
-                "voice_tts_mode_fallback_db_error",
-                error=str(db_err),
-            )
-            return settings.voice_tts_default_mode
-
-    except Exception as e:
-        # Unexpected error: use default
-        logger.error(
-            "voice_tts_mode_cache_unexpected_error",
-            error=str(e),
-            error_type=type(e).__name__,
-        )
-        voice_tts_mode_cache_total.labels(result="error").inc()
-        return settings.voice_tts_default_mode
-
-
-async def invalidate_voice_tts_mode_cache() -> None:
-    """
-    Invalidate voice TTS mode cache.
-
-    Call this when:
-    - Admin changes the voice TTS mode
-    - System settings are reset
-
-    Example:
-        >>> await invalidate_voice_tts_mode_cache()
-    """
-    from src.infrastructure.cache.redis import get_redis_cache
-
-    try:
-        redis = await get_redis_cache()
-        cache = VoiceTTSModeCache(redis)
-        await cache.invalidate()
-
-    except RedisError as e:
-        # Non-fatal: cache will expire naturally via TTL
-        logger.warning(
-            "voice_tts_mode_cache_invalidation_redis_error",
-            error=str(e),
         )
 
 

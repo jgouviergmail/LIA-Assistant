@@ -51,11 +51,14 @@ export type LLMProviderName =
   | 'perplexity'
   | 'ollama'
   | 'gemini'
-  | 'qwen';
+  | 'qwen'
+  | 'elevenlabs'
+  | 'edge';
 
-// Mirrors backend LLMModelKindLiteral / ReasoningWidgetLiteral.
+// Mirrors backend LLMModelKindLiteral / ReasoningWidgetLiteral / PricingUnitLiteral.
 export type LLMModelKindName = 'chat' | 'image' | 'audio' | 'realtime' | 'tts' | 'embedding';
 export type ReasoningWidgetName = 'none' | 'enum' | 'budget_int' | 'toggle_budget';
+export type LLMPricingUnitName = 'per_1m_tokens' | 'per_audio_minute' | 'per_audio_hour';
 
 export interface ReasoningBudgetRangePayload {
   min: number;
@@ -91,10 +94,13 @@ interface LLMPricingData extends ReasoningSamplingPayload {
   supports_strict_mode: boolean;
   supports_streaming: boolean;
   supports_vision: boolean;
-  // Pricing
-  input_price_per_1m_tokens: string;
-  cached_input_price_per_1m_tokens: string | null;
-  output_price_per_1m_tokens: string;
+  // Pricing — semantic of the unit prices is given by `pricing_unit`
+  // ('per_1m_tokens' for chat/text models, 'per_audio_minute' / 'per_audio_hour'
+  // for STT/TTS).
+  pricing_unit?: 'per_1m_tokens' | 'per_audio_minute' | 'per_audio_hour';
+  input_unit_price: string;
+  cached_input_unit_price: string | null;
+  output_unit_price: string;
 }
 
 /** Partial update payload — every field is optional. */
@@ -107,9 +113,10 @@ export interface LLMPricingUpdateData extends ReasoningSamplingPayload {
   supports_strict_mode?: boolean;
   supports_streaming?: boolean;
   supports_vision?: boolean;
-  input_price_per_1m_tokens?: string;
-  cached_input_price_per_1m_tokens?: string | null;
-  output_price_per_1m_tokens?: string;
+  pricing_unit?: 'per_1m_tokens' | 'per_audio_minute' | 'per_audio_hour';
+  input_unit_price?: string;
+  cached_input_unit_price?: string | null;
+  output_unit_price?: string;
 }
 
 /**

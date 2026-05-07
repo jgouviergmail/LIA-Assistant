@@ -39,6 +39,19 @@ export interface Message {
   // Voice input metadata (only for user messages)
   source?: 'text' | 'voice';
   audioDurationSeconds?: number;
+  // Per-message STT cost (only for user messages produced by a remote
+  // transcription provider, e.g. ElevenLabs Scribe). Surfaced as a discreet
+  // badge on the user bubble. NULL/absent for typed text and local Sherpa.
+  sttProvider?: string | null;
+  sttAudioDurationSeconds?: number | null;
+  sttCostEur?: number | null;
+  // Per-message TTS cost (only for assistant messages synthesised by a
+  // paid TTS provider — Edge stays NULL/absent). Mirror of STT pattern
+  // surfaced as a discreet badge on the assistant bubble (🔊 N chars).
+  ttsProvider?: string | null;
+  ttsModel?: string | null;
+  ttsCharacters?: number | null;
+  ttsCostEur?: number | null;
   // Message metadata (HITL responses, run_id, etc.)
   metadata?: Record<string, unknown>;
 }
@@ -114,6 +127,13 @@ export interface DoneMetadata {
   cost_eur?: number;
   message_count?: number;
   google_api_requests?: number;
+  // Per-message TTS attribution (paid providers only — Edge stays absent).
+  // Surfaces the 🔊 badge on the assistant bubble immediately at stream end
+  // without requiring a page reload.
+  tts_provider?: string;
+  tts_model?: string;
+  tts_characters?: number;
+  tts_cost_eur?: number;
   // Skill activation
   skill_name?: string;
   // AI-generated images

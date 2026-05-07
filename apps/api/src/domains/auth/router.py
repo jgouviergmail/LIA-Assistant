@@ -725,6 +725,18 @@ async def update_voice_preference(
     )
 
 
+def _stt_remote_available() -> bool:
+    """True iff an ElevenLabs API key is registered.
+
+    Read from the in-memory ``LLMConfigOverrideCache`` (no DB round-trip),
+    so the response can be flipped instantly after the admin saves the key.
+    """
+    from src.core.constants import ELEVENLABS_PROVIDER_NAME
+    from src.domains.llm_config.cache import LLMConfigOverrideCache
+
+    return bool(LLMConfigOverrideCache.get_api_key(ELEVENLABS_PROVIDER_NAME))
+
+
 @router.get(
     "/me/voice-mode-preference",
     response_model=VoiceModePreferenceResponse,
@@ -738,10 +750,15 @@ async def get_voice_mode_preference(
     Get user's voice mode preference.
 
     Returns:
-        VoiceModePreferenceResponse with current state
+        VoiceModePreferenceResponse with current state, including the
+        ``voice_stt_mode`` choice and whether the remote provider is
+        currently usable (``stt_remote_available``).
     """
+    voice_stt_mode = getattr(user, "voice_stt_mode", "local") or "local"
     return VoiceModePreferenceResponse(
         voice_mode_enabled=user.voice_mode_enabled,
+        voice_stt_mode=voice_stt_mode if voice_stt_mode in ("local", "remote") else "local",
+        stt_remote_available=_stt_remote_available(),
         message="",
     )
 
@@ -750,8 +767,10 @@ async def get_voice_mode_preference(
     "/me/voice-mode-preference",
     response_model=VoiceModePreferenceResponse,
     summary="Update voice mode preference",
-    description="Enable or disable voice mode (wake word detection + STT input) for the current user. "
-    "When enabled, the user can activate voice input by saying the wake word or tapping.",
+    description="Enable/disable voice mode and/or pick the STT backend. "
+    "Both fields are optional; pass only the one you want to change. "
+    "Selecting ``voice_stt_mode='remote'`` requires an ElevenLabs API key "
+    "configured by the admin (see Settings → Tarification LLM Texte).",
 )
 async def update_voice_mode_preference(
     data: VoiceModePreferenceRequest,
@@ -765,17 +784,32 @@ async def update_voice_mode_preference(
     - Voice mode badge is active in chat header
     - Wake word detection (Sherpa-onnx KWS) is enabled
     - STT input via WebSocket is available
+    - The STT backend is local (Sherpa) or remote (ElevenLabs)
 
     Args:
-        data: Voice mode preference request with enabled/disabled state
+        data: Partial preference patch (any subset of the two fields)
         user: Current authenticated user
         db: Database session
 
     Returns:
         VoiceModePreferenceResponse with updated state and confirmation
     """
-    # Update user's voice mode preference
-    user.voice_mode_enabled = data.voice_mode_enabled
+    remote_available = _stt_remote_available()
+
+    if data.voice_mode_enabled is not None:
+        user.voice_mode_enabled = data.voice_mode_enabled
+
+    if data.voice_stt_mode is not None:
+        if data.voice_stt_mode == "remote" and not remote_available:
+            from src.core.exceptions import raise_invalid_input
+
+            raise_invalid_input(
+                "Remote STT is not available: ElevenLabs API key is not configured. "
+                "Ask an administrator to add it under Tarification LLM Texte.",
+                voice_stt_mode=data.voice_stt_mode,
+            )
+        user.voice_stt_mode = data.voice_stt_mode
+
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -783,12 +817,16 @@ async def update_voice_mode_preference(
     logger.info(
         "user_voice_mode_preference_updated",
         user_id=str(user.id),
-        voice_mode_enabled=data.voice_mode_enabled,
+        voice_mode_enabled=user.voice_mode_enabled,
+        voice_stt_mode=user.voice_stt_mode,
     )
 
+    voice_stt_mode = getattr(user, "voice_stt_mode", "local") or "local"
     return VoiceModePreferenceResponse(
         voice_mode_enabled=user.voice_mode_enabled,
-        message=APIMessages.voice_mode_preference_updated(enabled=data.voice_mode_enabled),
+        voice_stt_mode=voice_stt_mode if voice_stt_mode in ("local", "remote") else "local",
+        stt_remote_available=remote_available,
+        message=APIMessages.voice_mode_preference_updated(enabled=user.voice_mode_enabled),
     )
 
 

@@ -56,10 +56,12 @@ export interface ModelPricingFormData {
   supports_top_p: boolean;
   supports_frequency_penalty: boolean;
   supports_presence_penalty: boolean;
-  // Pricing
-  input_price_per_1m_tokens: string;
-  cached_input_price_per_1m_tokens: string | null;
-  output_price_per_1m_tokens: string;
+  // Pricing — semantic of the unit prices is given by `pricing_unit`
+  // ('per_1m_tokens' for chat/text models, 'per_audio_*' for STT/TTS).
+  pricing_unit: 'per_1m_tokens' | 'per_audio_minute' | 'per_audio_hour';
+  input_unit_price: string;
+  cached_input_unit_price: string | null;
+  output_unit_price: string;
 }
 
 /** Subset of fields persisted on a model row that participate in the

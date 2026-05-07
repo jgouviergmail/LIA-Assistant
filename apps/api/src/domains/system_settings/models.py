@@ -22,10 +22,11 @@ class SystemSettingKey(str, enum.Enum):
 
     Each key represents a global application setting that can be
     modified by administrators.
-    """
 
-    # Voice TTS mode: "standard" (Edge TTS) or "hd" (OpenAI/Gemini)
-    VOICE_TTS_MODE = "voice_tts_mode"
+    The legacy ``voice_tts_mode`` key was retired in v1.20.x — TTS
+    provider/model selection now lives on ``llm_config_overrides``
+    (LLM type ``voice_tts``).
+    """
 
     # Debug panel: "true" or "false" (controls visibility in chat page)
     DEBUG_PANEL_ENABLED = "debug_panel_enabled"
@@ -54,8 +55,8 @@ class SystemSetting(BaseModel):
 
     Example:
         setting = SystemSetting(
-            key=SystemSettingKey.VOICE_TTS_MODE,
-            value="hd",
+            key=SystemSettingKey.DEBUG_PANEL_ENABLED,
+            value="true",
             updated_by=admin_user.id,
         )
     """

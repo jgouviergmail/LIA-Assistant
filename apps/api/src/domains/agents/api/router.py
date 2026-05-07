@@ -519,6 +519,10 @@ async def stream_chat(
                         user_display_mode=getattr(current_user, "response_display_mode", "cards"),
                         user_execution_mode=getattr(current_user, "execution_mode", "pipeline"),
                         attachment_ids=request.attachment_ids,
+                        stt_provider=request.stt_provider,
+                        stt_audio_duration_seconds=request.stt_audio_duration_seconds,
+                        stt_cost_usd=request.stt_cost_usd,
+                        stt_cost_eur=request.stt_cost_eur,
                     ):
                         # E2E metrics: Extract metadata from chunks (PHASE 1.2)
                         if chunk.type == "router_decision" and chunk.metadata:
@@ -572,6 +576,10 @@ async def stream_chat(
                     user_display_mode=getattr(current_user, "response_display_mode", "cards"),
                     user_execution_mode=getattr(current_user, "execution_mode", "pipeline"),
                     attachment_ids=request.attachment_ids,
+                    stt_provider=request.stt_provider,
+                    stt_audio_duration_seconds=request.stt_audio_duration_seconds,
+                    stt_cost_usd=request.stt_cost_usd,
+                    stt_cost_eur=request.stt_cost_eur,
                 ):
                     # E2E metrics: Extract metadata from chunks (PHASE 1.2)
                     if chunk.type == "router_decision" and chunk.metadata:

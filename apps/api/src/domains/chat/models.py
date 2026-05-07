@@ -192,6 +192,26 @@ class UserStatistics(BaseModel):
         Numeric(12, 6), default=Decimal("0.0")
     )
 
+    # Lifetime STT (remote provider, e.g. ElevenLabs Scribe).
+    # cost_eur is also added to total_cost_eur / cycle_cost_eur so the global
+    # "Cost" tile and usage-limit checks naturally include STT.
+    total_stt_audio_seconds: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.0"))
+    total_stt_cost_eur: Mapped[Decimal] = mapped_column(Numeric(12, 6), default=Decimal("0.0"))
+
+    # Current billing cycle STT
+    cycle_stt_audio_seconds: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.0"))
+    cycle_stt_cost_eur: Mapped[Decimal] = mapped_column(Numeric(12, 6), default=Decimal("0.0"))
+
+    # Lifetime TTS (paid provider, e.g. OpenAI tts-1, ElevenLabs eleven_*).
+    # cost_eur is also added to total_cost_eur / cycle_cost_eur so the global
+    # "Cost" tile and usage-limit checks naturally include TTS. Mirror of STT.
+    total_tts_characters: Mapped[Decimal] = mapped_column(Numeric(12, 0), default=Decimal("0"))
+    total_tts_cost_eur: Mapped[Decimal] = mapped_column(Numeric(12, 6), default=Decimal("0.0"))
+
+    # Current billing cycle TTS
+    cycle_tts_characters: Mapped[Decimal] = mapped_column(Numeric(12, 0), default=Decimal("0"))
+    cycle_tts_cost_eur: Mapped[Decimal] = mapped_column(Numeric(12, 6), default=Decimal("0.0"))
+
     last_updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

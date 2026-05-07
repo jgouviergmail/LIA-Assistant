@@ -493,6 +493,30 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=[],  # Images API, not chat completions
         required_kind=LLMModelKindEnum.image,
     ),
+    # Voice STT (when user opts into the remote provider for the voice mode).
+    # Token-based sampling caps don't apply (STT is audio-billed); the
+    # admin form should hide them for kind=audio rows.
+    "voice_transcription": LLMTypeMetadata(
+        llm_type="voice_transcription",
+        display_name="Voice Transcription (STT)",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.voice_transcription",
+        required_capabilities=[],  # Audio API, not chat completions
+        required_kind=LLMModelKindEnum.audio,
+    ),
+    # Voice TTS — provider/model selection for the voice comments synthesis.
+    # The voice (male + female) and the provider-specific tuning (speed,
+    # response_format, rate, pitch, volume, voice_settings, …) live inside
+    # ``provider_config`` JSONB so the admin form can render the right
+    # inputs per provider (cf. ADR-081).
+    "voice_tts": LLMTypeMetadata(
+        llm_type="voice_tts",
+        display_name="Voice Synthesis (TTS)",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.voice_tts",
+        required_capabilities=[],  # TTS API, not chat completions
+        required_kind=LLMModelKindEnum.tts,
+    ),
 }
 
 
@@ -1008,6 +1032,42 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         max_tokens=50000,
         timeout_seconds=120.0,
     ),
+    # Voice STT — ElevenLabs Scribe v2 by default ($0.22/hour). The sampling
+    # parameters are not consumed by the STT API (no token sampling); they
+    # carry safe placeholders so the LLMAgentConfig validation passes.
+    "voice_transcription": LLMAgentConfig(
+        provider="elevenlabs",
+        model="scribe_v2",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=1000,  # placeholder; STT does not produce token output
+        timeout_seconds=60.0,
+    ),
+    # Voice TTS — Edge (Microsoft) by default, free. Voice + provider-
+    # specific tuning live in ``provider_config`` (JSONB string) so the
+    # admin can switch providers without losing the per-model defaults.
+    # The default carries Edge's standard French voices and rate.
+    "voice_tts": LLMAgentConfig(
+        provider="edge",
+        model="edge-tts",
+        provider_config=(
+            "{"
+            '"voice_male": "fr-FR-RemyMultilingualNeural",'
+            '"voice_female": "fr-FR-VivienneMultilingualNeural",'
+            '"rate": "+10%",'
+            '"pitch": "+0Hz",'
+            '"volume": "+0%"'
+            "}"
+        ),
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=1000,  # placeholder; TTS does not produce token output
+        timeout_seconds=60.0,
+    ),
     "mcp_description": LLMAgentConfig(
         provider="openai",
         model="gpt-5-mini",
@@ -1090,4 +1150,6 @@ LLM_PROVIDERS: dict[str, str] = {
     "ollama": "Ollama",
     "gemini": "Google Gemini",
     "qwen": "Qwen",
+    "elevenlabs": "ElevenLabs",
+    "edge": "Edge TTS (Microsoft)",
 }

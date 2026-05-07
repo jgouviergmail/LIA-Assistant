@@ -148,6 +148,12 @@ export type ChatAction =
           cost_eur?: number;
           message_count?: number;
           google_api_requests?: number;
+          // Per-message TTS attribution carried in the SSE done chunk
+          // — paid providers only. Edge stays absent. Mirror of STT.
+          tts_provider?: string;
+          tts_model?: string;
+          tts_characters?: number;
+          tts_cost_eur?: number;
           skill_name?: string;
           generated_images?: { url: string; alt: string }[];
           browser_screenshot?: { url: string; alt: string };

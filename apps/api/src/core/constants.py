@@ -987,7 +987,6 @@ CONVERSATION_SEARCH_MIN_LENGTH = 2  # Shortest substring accepted (avoid 1-char 
 CONVERSATION_SEARCH_MAX_LENGTH = 200  # Upper bound to prevent pathological queries
 
 # System settings cache keys
-REDIS_KEY_VOICE_TTS_MODE = "system:voice_tts_mode"
 REDIS_KEY_DEBUG_PANEL_ENABLED = "system:debug_panel_enabled"
 REDIS_KEY_DEBUG_PANEL_USER_ACCESS_ENABLED = "system:debug_panel_user_access_enabled"
 
@@ -1949,20 +1948,9 @@ EVALUATOR_LATENCY_ACCEPTABLE_THRESHOLD_MS_DEFAULT = 2000.0
 EVALUATOR_LATENCY_SLOW_THRESHOLD_MS_DEFAULT = 5000.0
 
 # --- Voice config defaults ---
-VOICE_TTS_DEFAULT_MODE_DEFAULT = "standard"
-VOICE_TTS_STANDARD_PROVIDER_DEFAULT = "edge"
-VOICE_TTS_STANDARD_VOICE_MALE_DEFAULT = "fr-FR-RemyMultilingualNeural"
-VOICE_TTS_STANDARD_VOICE_FEMALE_DEFAULT = "fr-FR-VivienneMultilingualNeural"
-VOICE_TTS_STANDARD_RATE_DEFAULT = "+10%"
-VOICE_TTS_STANDARD_PITCH_DEFAULT = "+0Hz"
-VOICE_TTS_STANDARD_VOLUME_DEFAULT = "+0%"
-VOICE_TTS_HD_PROVIDER_DEFAULT = "openai"
-VOICE_TTS_HD_PROVIDER_CONFIG_DEFAULT = "{}"
-VOICE_TTS_HD_VOICE_MALE_DEFAULT = "echo"  # Aligned from .env.prod (was onyx)
-VOICE_TTS_HD_VOICE_FEMALE_DEFAULT = "coral"  # Aligned from .env.prod (was nova)
-VOICE_TTS_HD_MODEL_DEFAULT = "tts-1-1106"  # Aligned from .env.prod (was tts-1)
-VOICE_TTS_HD_SPEED_DEFAULT = 1.1  # Aligned from .env.prod (was 1.0)
-VOICE_TTS_HD_RESPONSE_FORMAT_DEFAULT = "mp3"
+# TTS provider/model/voice/tuning live on llm_config_overrides.voice_tts (ADR-081);
+# their constants were retired in v1.20.x. The voice-comment LLM and the local
+# Sherpa STT pipeline still use env vars / constants below.
 VOICE_LLM_PROVIDER_CONFIG_DEFAULT = "{}"
 VOICE_LLM_MODEL_DEFAULT = "gpt-4.1-nano"
 VOICE_LLM_TEMPERATURE_DEFAULT = 0.7
@@ -1976,6 +1964,14 @@ VOICE_CONTEXT_MAX_CHARS_DEFAULT = 2000
 VOICE_PARALLEL_TIMEOUT_SECONDS_DEFAULT = 15.0
 VOICE_CHAT_MODE_MAX_SENTENCES_DEFAULT = 3
 VOICE_STT_MODEL_PATH_DEFAULT = "/models/whisper-small"
+
+# Approximate playback speed used to surface a ``duration_ms`` hint to the
+# frontend before the audio actually plays — purely informational (the
+# browser plays the bytes for as long as they last, this hint is only used
+# for typing-indicator / progress UI). Calibrated on French TTS output:
+# ~750 chars/min ≈ 80 ms/char. Single source of truth for both the legacy
+# :func:`stream_voice_comment` path and the progressive sentence streamer.
+VOICE_TTS_MS_PER_CHAR_HEURISTIC = 80
 
 # --- MCP config defaults ---
 MCP_DESCRIPTION_LLM_PROVIDER_CONFIG_DEFAULT = "{}"
@@ -2943,7 +2939,7 @@ GMAIL_DEFAULT_SEARCH_DAYS: int = 90
 # - completion_tokens = 0 (audio output is not measured in tokens)
 # - cached_tokens = 0 (no caching for TTS)
 #
-# Pricing is configured in LLMModelPricing.input_price_per_1m_tokens
+# Pricing is configured in LLMModelPricing.input_unit_price (pricing_unit=per_1m_tokens)
 # Model name from settings.voice_tts_hd_model is normalized via llm_utils.py:
 #   tts-1-1106 → tts-1 (DB entry should be "tts-1", not "tts-1-1106")
 # ============================================================================
@@ -3054,6 +3050,28 @@ WS_TICKET_KEY_PREFIX = "ws_ticket:"
 # ThreadPool for CPU-bound STT (avoid blocking async event loop)
 STT_EXECUTOR_MAX_WORKERS = 4
 STT_EXECUTOR_THREAD_PREFIX = "stt"
+
+# ============================================================================
+# REMOTE STT — ElevenLabs Scribe
+# ============================================================================
+# When the user opts into "voice_stt_mode = remote", the WebSocket handler
+# routes the audio buffer to ElevenLabs Scribe (audio-billed, $0.22/h for
+# Scribe v1/v2). The provider key lives in provider_api_keys (Fernet-encrypted)
+# and the active model lives in llm_config_overrides.voice_transcription.
+
+ELEVENLABS_PROVIDER_NAME = "elevenlabs"
+DEFAULT_ELEVENLABS_STT_MODEL = "scribe_v2"
+DEFAULT_ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1"
+# ElevenLabs Scribe rejects clips shorter than 100 ms; below the threshold the
+# WebSocket handler short-circuits with an empty transcription.
+STT_MIN_AUDIO_DURATION_SECONDS = 0.1
+# WebSocket close code emitted on STT provider errors (timeout, 5xx, malformed
+# response). Distinct from 4029 (rate limit) and 4001 (invalid ticket).
+WS_CLOSE_CODE_STT_PROVIDER_ERROR = 4002
+# 16 kHz mono Int16 LE → 16000 samples/s × 2 bytes/sample = 32000 bytes/s.
+# Used to derive an audio clip's duration (and the remote-STT duration cap)
+# from the raw byte buffer length without parsing the PCM stream.
+STT_BYTES_PER_SECOND_AT_16KHZ_INT16 = 32000
 
 # ============================================================================
 # ATTACHMENTS (File Uploads in Chat)

@@ -622,6 +622,26 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
                 <span className="text-green-600">🟢 {formatNumber(tokensOut || 0)} OUT</span>{' '}
                 <span className="text-blue-500">🔵 {formatNumber(tokensCache)} CACHE</span>{' '}
                 <span className="text-purple-500">🟣 {formatNumber(googleApiRequests)} GOOGLE</span>
+                {/* Paid-TTS detail: characters synthesised. NULL/absent for
+                    Edge (free) → no badge, mirror Sherpa local STT. */}
+                {message.ttsCharacters != null && message.ttsCharacters > 0 && (
+                  <>
+                    {' '}
+                    <span
+                      className="text-pink-500"
+                      title={
+                        message.ttsProvider
+                          ? t('chat.message.tts_tooltip_provider', {
+                              provider: message.ttsProvider,
+                              model: message.ttsModel ? ` · ${message.ttsModel}` : '',
+                            })
+                          : t('chat.message.tts_tooltip_fallback')
+                      }
+                    >
+                      🔊 {formatNumber(message.ttsCharacters)} {t('chat.message.tts_unit_chars')}
+                    </span>
+                  </>
+                )}
                 {' • '}
                 <span className="text-foreground font-semibold">{formatEuro(costEur, 6)}</span>
               </span>
@@ -669,8 +689,29 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
             <span className="hidden mobile:inline">
               {' | '}
               <span className="text-purple-500">
-                🎤 {message.audioDurationSeconds?.toFixed(1) ?? '?'}s
+                🎤{' '}
+                {(message.sttAudioDurationSeconds ?? message.audioDurationSeconds)?.toFixed(1)
+                  ?? '?'}
+                {t('chat.message.stt_unit_seconds')}
               </span>
+              {/* Remote-STT per-message cost (NULL for typed text and local Sherpa) */}
+              {message.sttCostEur != null && message.sttCostEur > 0 && showTokens && (
+                <>
+                  {' • '}
+                  <span
+                    className="text-foreground font-semibold"
+                    title={
+                      message.sttProvider
+                        ? t('chat.message.stt_tooltip_provider', {
+                            provider: message.sttProvider,
+                          })
+                        : t('chat.message.stt_tooltip_fallback')
+                    }
+                  >
+                    {formatEuro(message.sttCostEur, 6)}
+                  </span>
+                </>
+              )}
             </span>
           )}
         </span>

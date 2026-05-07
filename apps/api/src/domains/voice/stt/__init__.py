@@ -1,26 +1,35 @@
 """
-Speech-to-Text Module (Sherpa-onnx).
+Speech-to-Text Module.
 
-Provides offline, multi-language transcription using Sherpa-onnx.
-Model: Whisper Small INT8 (99+ languages including FR/EN/DE/ES/IT/ZH)
+Two backends:
+- ``SherpaSttService`` — local Sherpa-onnx Whisper (free, on-server).
+- ``ElevenLabsSttService`` — remote ElevenLabs Scribe (paid, audio-billed).
 
-Components:
-- SherpaSttService: Core transcription service with async support
-- get_stt_service(): Singleton accessor
+Both implement :class:`SttServiceProtocol` (single async method that takes a
+raw PCM Int16 LE buffer and returns an :class:`STTResult`). The
+:func:`get_stt_service_for_mode` factory selects the right backend based on
+the per-user ``voice_stt_mode`` preference embedded in the WebSocket ticket.
 
 Usage:
-    from src.domains.voice.stt import get_stt_service
+    from src.domains.voice.stt import get_stt_service_for_mode
 
-    stt = get_stt_service()
-    text = await stt.transcribe_async(audio_samples)
-
-Reference: plan zippy-drifting-valley.md (section 2.4.3)
-Created: 2026-02-01
+    stt = get_stt_service_for_mode(ticket["voice_stt_mode"])
+    result = await stt.transcribe_pcm_int16_async(buffer, language="fr")
 """
 
+from src.domains.voice.stt.elevenlabs_stt import ElevenLabsSttService
+from src.domains.voice.stt.exceptions import STTProviderError
+from src.domains.voice.stt.factory import VoiceSttMode, get_stt_service_for_mode
+from src.domains.voice.stt.protocol import STTResult, SttServiceProtocol
 from src.domains.voice.stt.sherpa_stt import SherpaSttService, get_stt_service
 
 __all__ = [
+    "ElevenLabsSttService",
+    "STTProviderError",
+    "STTResult",
     "SherpaSttService",
+    "SttServiceProtocol",
+    "VoiceSttMode",
     "get_stt_service",
+    "get_stt_service_for_mode",
 ]

@@ -12,7 +12,12 @@ import { logger } from '@/lib/logger';
 import { useDebounce } from '@/hooks/useDebounce';
 import { cn } from '@/lib/utils';
 
-type ExportType = 'token-usage' | 'google-api-usage' | 'consumption-summary';
+type ExportType =
+  | 'token-usage'
+  | 'google-api-usage'
+  | 'stt-usage'
+  | 'tts-usage'
+  | 'consumption-summary';
 
 interface UserSuggestion {
   id: string;
@@ -381,7 +386,7 @@ export default function ConsumptionExportSection({
       </div>
 
       {/* Export Buttons */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Token Usage Export */}
         <div className="p-4 border border-border rounded-lg bg-card">
           <div className="flex items-center gap-2 mb-2">
@@ -422,6 +427,56 @@ export default function ConsumptionExportSection({
             className="w-full"
           >
             {exporting === 'google-api-usage' ? (
+              <span className="animate-pulse">{t(`${i18n}.exporting`)}</span>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                {t(`${i18n}.download_csv`)}
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* STT Usage Export — remote-STT user messages only */}
+        <div className="p-4 border border-border rounded-lg bg-card">
+          <div className="flex items-center gap-2 mb-2">
+            <FileSpreadsheet className="h-5 w-5 text-primary" />
+            <h4 className="font-medium">{t(`${i18n}.stt_usage_title`)}</h4>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            {t(`${i18n}.stt_usage_description`)}
+          </p>
+          <Button
+            onClick={() => handleExport('stt-usage')}
+            disabled={exporting !== null}
+            className="w-full"
+          >
+            {exporting === 'stt-usage' ? (
+              <span className="animate-pulse">{t(`${i18n}.exporting`)}</span>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                {t(`${i18n}.download_csv`)}
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* TTS Usage Export — paid-TTS assistant messages only */}
+        <div className="p-4 border border-border rounded-lg bg-card">
+          <div className="flex items-center gap-2 mb-2">
+            <FileSpreadsheet className="h-5 w-5 text-primary" />
+            <h4 className="font-medium">{t(`${i18n}.tts_usage_title`)}</h4>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            {t(`${i18n}.tts_usage_description`)}
+          </p>
+          <Button
+            onClick={() => handleExport('tts-usage')}
+            disabled={exporting !== null}
+            className="w-full"
+          >
+            {exporting === 'tts-usage' ? (
               <span className="animate-pulse">{t(`${i18n}.exporting`)}</span>
             ) : (
               <>

@@ -71,7 +71,12 @@ class WebSocketTicketStore:
         self._redis = redis_client
         self._ttl_seconds = settings.voice_ws_ticket_ttl_seconds
 
-    async def create_ticket(self, user_id: str, language: str = "") -> str:
+    async def create_ticket(
+        self,
+        user_id: str,
+        language: str = "",
+        voice_stt_mode: str = "local",
+    ) -> str:
         """
         Create a short-lived WebSocket authentication ticket.
 
@@ -81,6 +86,10 @@ class WebSocketTicketStore:
         Args:
             user_id: Authenticated user's UUID (from session)
             language: User's preferred language (ISO 639-1 code) for STT
+            voice_stt_mode: STT backend selection embedded in the ticket so
+                the WebSocket handler can route to Sherpa (local) or
+                ElevenLabs (remote) without a second DB lookup.
+                Accepted values: "local" (default), "remote".
 
         Returns:
             Ticket string (UUID format) for WebSocket connection
@@ -88,11 +97,14 @@ class WebSocketTicketStore:
         ticket = str(uuid4())
         key = f"{WS_TICKET_KEY_PREFIX}{ticket}"
 
-        # Store ticket data as JSON (includes language for STT)
+        # Store ticket data as JSON (includes language for STT and the
+        # per-user voice_stt_mode preference so the /ws/audio handler can
+        # route to the right backend without re-querying the DB).
         ticket_data = json.dumps(
             {
                 "user_id": user_id,
                 "language": language,
+                "voice_stt_mode": voice_stt_mode,
             }
         )
 
@@ -110,6 +122,7 @@ class WebSocketTicketStore:
             user_id=user_id,
             ticket_prefix=ticket[:8],
             ttl_seconds=self._ttl_seconds,
+            voice_stt_mode=voice_stt_mode,
         )
 
         return ticket

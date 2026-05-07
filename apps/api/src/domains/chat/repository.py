@@ -608,12 +608,22 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
         try:
             stats = await self.get_by_user_id(user_id)
 
+            # TTS deltas (silo, mirror Google API / image gen). Aggregated by
+            # the tracker via record_tts_call(); paid providers only — Edge
+            # never contributes here.
+            tts_chars_delta = int(summary_data.get("tts_characters", 0) or 0)
+            tts_cost_delta = Decimal(str(summary_data.get("tts_cost_eur", 0) or 0))
+            # Total cost MUST include TTS so the dashboard "Cost" tile and
+            # usage-limit checks naturally pick it up (mirror STT semantics).
+            llm_cost_delta = Decimal(str(summary_data[FIELD_COST_EUR]))
+            grand_cost_delta = llm_cost_delta + tts_cost_delta
+
             if stats:
                 # Update existing
                 stats.total_prompt_tokens += summary_data[FIELD_TOKENS_IN]
                 stats.total_completion_tokens += summary_data[FIELD_TOKENS_OUT]
                 stats.total_cached_tokens += summary_data[FIELD_TOKENS_CACHE]
-                stats.total_cost_eur += Decimal(str(summary_data[FIELD_COST_EUR]))
+                stats.total_cost_eur += grand_cost_delta
                 stats.total_messages += summary_data[FIELD_MESSAGE_COUNT]
                 # Google API totals
                 stats.total_google_api_requests += summary_data.get(FIELD_GOOGLE_API_REQUESTS, 0)
@@ -627,6 +637,9 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                 stats.total_image_generation_cost_eur += Decimal(
                     str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
                 )
+                # TTS totals
+                stats.total_tts_characters += Decimal(tts_chars_delta)
+                stats.total_tts_cost_eur += tts_cost_delta
 
                 if is_new_cycle:
                     # Reset cycle counters
@@ -634,7 +647,7 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                     stats.cycle_prompt_tokens = summary_data[FIELD_TOKENS_IN]
                     stats.cycle_completion_tokens = summary_data[FIELD_TOKENS_OUT]
                     stats.cycle_cached_tokens = summary_data[FIELD_TOKENS_CACHE]
-                    stats.cycle_cost_eur = Decimal(str(summary_data[FIELD_COST_EUR]))
+                    stats.cycle_cost_eur = grand_cost_delta
                     stats.cycle_messages = summary_data[FIELD_MESSAGE_COUNT]
                     # Google API cycle (reset)
                     stats.cycle_google_api_requests = summary_data.get(FIELD_GOOGLE_API_REQUESTS, 0)
@@ -648,12 +661,15 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                     stats.cycle_image_generation_cost_eur = Decimal(
                         str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
                     )
+                    # TTS cycle (reset)
+                    stats.cycle_tts_characters = Decimal(tts_chars_delta)
+                    stats.cycle_tts_cost_eur = tts_cost_delta
                 else:
                     # Increment cycle counters
                     stats.cycle_prompt_tokens += summary_data[FIELD_TOKENS_IN]
                     stats.cycle_completion_tokens += summary_data[FIELD_TOKENS_OUT]
                     stats.cycle_cached_tokens += summary_data[FIELD_TOKENS_CACHE]
-                    stats.cycle_cost_eur += Decimal(str(summary_data[FIELD_COST_EUR]))
+                    stats.cycle_cost_eur += grand_cost_delta
                     stats.cycle_messages += summary_data[FIELD_MESSAGE_COUNT]
                     # Google API cycle (increment)
                     stats.cycle_google_api_requests += summary_data.get(
@@ -669,6 +685,9 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                     stats.cycle_image_generation_cost_eur += Decimal(
                         str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
                     )
+                    # TTS cycle (increment)
+                    stats.cycle_tts_characters += Decimal(tts_chars_delta)
+                    stats.cycle_tts_cost_eur += tts_cost_delta
 
                 await self.db.flush()
                 await self.db.refresh(stats)
@@ -688,7 +707,7 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                     total_prompt_tokens=summary_data[FIELD_TOKENS_IN],
                     total_completion_tokens=summary_data[FIELD_TOKENS_OUT],
                     total_cached_tokens=summary_data[FIELD_TOKENS_CACHE],
-                    total_cost_eur=Decimal(str(summary_data[FIELD_COST_EUR])),
+                    total_cost_eur=grand_cost_delta,
                     total_messages=summary_data[FIELD_MESSAGE_COUNT],
                     # Google API totals
                     total_google_api_requests=summary_data.get(FIELD_GOOGLE_API_REQUESTS, 0),
@@ -699,7 +718,7 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                     cycle_prompt_tokens=summary_data[FIELD_TOKENS_IN],
                     cycle_completion_tokens=summary_data[FIELD_TOKENS_OUT],
                     cycle_cached_tokens=summary_data[FIELD_TOKENS_CACHE],
-                    cycle_cost_eur=Decimal(str(summary_data[FIELD_COST_EUR])),
+                    cycle_cost_eur=grand_cost_delta,
                     cycle_messages=summary_data[FIELD_MESSAGE_COUNT],
                     # Google API cycle
                     cycle_google_api_requests=summary_data.get(FIELD_GOOGLE_API_REQUESTS, 0),
@@ -720,6 +739,11 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                     cycle_image_generation_cost_eur=Decimal(
                         str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
                     ),
+                    # TTS totals + cycle
+                    total_tts_characters=Decimal(tts_chars_delta),
+                    total_tts_cost_eur=tts_cost_delta,
+                    cycle_tts_characters=Decimal(tts_chars_delta),
+                    cycle_tts_cost_eur=tts_cost_delta,
                 )
                 self.db.add(stats)
                 await self.db.flush()
@@ -735,6 +759,98 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
         except (SQLAlchemyError, IntegrityError, OperationalError) as e:
             logger.error(
                 "create_or_update_user_statistics_failed",
+                user_id=str(user_id),
+                error_type=type(e).__name__,
+                error=str(e),
+            )
+            raise
+
+    async def add_stt_usage(
+        self,
+        user_id: UUID,
+        audio_duration_seconds: float,
+        cost_eur: Decimal,
+        current_cycle_start: datetime,
+        is_new_cycle: bool = False,
+    ) -> UserStatistics:
+        """Increment user_statistics with one STT (remote provider) call.
+
+        Mirrors the read-modify-write pattern of :meth:`create_or_update`.
+        STT cost is added to **both** the dedicated stt_* columns AND
+        the global cost columns (cycle_cost_eur / total_cost_eur), so the
+        existing dashboard tile and the usage_limits check naturally
+        include the STT spend without any further wiring.
+
+        Args:
+            user_id: User UUID
+            audio_duration_seconds: Audio duration billed by the provider
+            cost_eur: STT cost in EUR (Decimal for precision)
+            current_cycle_start: Start of the current billing cycle (timezone-aware)
+            is_new_cycle: When True, reset the cycle_* counters before
+                applying the increment.
+
+        Returns:
+            The updated (or newly created) UserStatistics row.
+        """
+        try:
+            duration_dec = Decimal(str(audio_duration_seconds))
+            cost_dec = Decimal(str(cost_eur))
+
+            stats = await self.get_by_user_id(user_id)
+
+            if stats:
+                # Lifetime — always accumulates.
+                stats.total_stt_audio_seconds += duration_dec
+                stats.total_stt_cost_eur += cost_dec
+                stats.total_cost_eur += cost_dec
+
+                if is_new_cycle:
+                    stats.current_cycle_start = current_cycle_start
+                    stats.cycle_stt_audio_seconds = duration_dec
+                    stats.cycle_stt_cost_eur = cost_dec
+                    # Reset the global cycle cost too: a brand new cycle
+                    # starts fresh, the first contribution this month is STT.
+                    stats.cycle_cost_eur = cost_dec
+                else:
+                    stats.cycle_stt_audio_seconds += duration_dec
+                    stats.cycle_stt_cost_eur += cost_dec
+                    stats.cycle_cost_eur += cost_dec
+
+                await self.db.flush()
+                await self.db.refresh(stats)
+                logger.info(
+                    "user_statistics_stt_added",
+                    user_id=str(user_id),
+                    audio_duration_seconds=audio_duration_seconds,
+                    cost_eur=float(cost_dec),
+                    new_cycle=is_new_cycle,
+                )
+                return stats
+
+            stats = UserStatistics(
+                user_id=user_id,
+                current_cycle_start=current_cycle_start,
+                total_stt_audio_seconds=duration_dec,
+                total_stt_cost_eur=cost_dec,
+                total_cost_eur=cost_dec,
+                cycle_stt_audio_seconds=duration_dec,
+                cycle_stt_cost_eur=cost_dec,
+                cycle_cost_eur=cost_dec,
+            )
+            self.db.add(stats)
+            await self.db.flush()
+            await self.db.refresh(stats)
+            logger.info(
+                "user_statistics_created_for_stt",
+                user_id=str(user_id),
+                audio_duration_seconds=audio_duration_seconds,
+                cost_eur=float(cost_dec),
+            )
+            return stats
+
+        except (SQLAlchemyError, IntegrityError, OperationalError) as e:
+            logger.error(
+                "add_stt_usage_failed",
                 user_id=str(user_id),
                 error_type=type(e).__name__,
                 error=str(e),

@@ -4,10 +4,11 @@ Manages conversation containers, messages, and audit trail for LangGraph persist
 """
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -112,6 +113,27 @@ class ConversationMessage(BaseModel):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     message_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
+    # STT cost attribution (user messages produced by a remote STT provider).
+    # All five columns are NULL for assistant messages and for user messages
+    # produced by the local Sherpa pipeline (which is free).
+    stt_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    stt_audio_duration_seconds: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2), nullable=True
+    )
+    stt_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
+    stt_cost_eur: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
+    stt_usd_to_eur_rate: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
+
+    # TTS cost attribution (assistant messages synthesised by a paid TTS
+    # provider). All six columns are NULL for user messages, free providers
+    # (Edge), and assistant messages synthesised before TTS billing landed.
+    tts_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    tts_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    tts_characters: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tts_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
+    tts_cost_eur: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
+    tts_usd_to_eur_rate: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
+
     # Relationship
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
 
@@ -121,6 +143,16 @@ class ConversationMessage(BaseModel):
             "conversation_id",
             "created_at",
             postgresql_ops={"created_at": "DESC"},
+        ),
+        Index(
+            "ix_conversation_messages_stt_provider",
+            "stt_provider",
+            postgresql_where="stt_provider IS NOT NULL",
+        ),
+        Index(
+            "ix_conversation_messages_tts_provider",
+            "tts_provider",
+            postgresql_where="tts_provider IS NOT NULL",
         ),
     )
 

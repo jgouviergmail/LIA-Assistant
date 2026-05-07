@@ -5,6 +5,109 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.2] - 2026-05-08
+
+### Added — Voice STT/TTS catalogue, per-message cost attribution, sentence streaming
+
+A four-axis voice rework landing simultaneously: STT distant ElevenLabs, TTS catalogue-driven, per-message TTS cost attribution and sentence-level latency optimisation.
+
+#### Schema (5 Alembic migrations 2026_05_07_0001..0005)
+
+- `pricing_unit_enum` PostgreSQL ENUM added (`per_1m_tokens` / `per_audio_minute` / `per_audio_hour`); the three price columns on `llm_model_pricing` renamed (`input_unit_price`, `output_unit_price`, `cached_input_unit_price`) so the unit can be `per_audio_hour` for ElevenLabs Scribe ($0.22/h) without compromising the chat catalogue. Audit-friendly: prices are stored verbatim, not pre-converted (cf. [ADR-080](docs/architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md)).
+- 5 nullable columns on `conversation_messages` for STT cost attribution: `stt_provider`, `stt_audio_duration_seconds`, `stt_cost_usd`, `stt_cost_eur`, `stt_usd_to_eur_rate`. Partial index `WHERE stt_provider IS NOT NULL` for the export query.
+- 4 aggregates on `user_statistics`: `total_stt_audio_seconds`, `total_stt_cost_eur`, `cycle_stt_audio_seconds`, `cycle_stt_cost_eur`. Plus `users.voice_stt_mode VARCHAR(20)` (local/remote preference).
+- `'edge'` value added to `llm_provider_enum` (dynamic `pg_attribute` loop migrating every dependent column). `system_settings.voice_tts_mode` row dropped — TTS now lives on `llm_config_overrides.voice_tts` (cf. [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md)).
+- 6 nullable columns on `conversation_messages` for TTS cost attribution: `tts_provider`, `tts_model`, `tts_characters`, `tts_cost_usd`, `tts_cost_eur`, `tts_usd_to_eur_rate`. Partial index. Plus 4 aggregates on `user_statistics`: `total_tts_characters`, `total_tts_cost_eur`, `cycle_tts_characters`, `cycle_tts_cost_eur` — symmetric mirror of STT.
+
+#### Voice STT — ElevenLabs Scribe as a remote provider (ADR-080)
+
+- New `voice_transcription` LLM type (`kind=audio`) in `LLM_TYPES_REGISTRY`. Default `provider=elevenlabs, model=scribe_v2`; admin can switch via Configuration LLM. Free Sherpa-onnx Whisper local pipeline kept as the default `voice_stt_mode=local`.
+- `SttServiceProtocol` + factory: `SherpaSttService` (local, free) and `ElevenLabsSttService` (remote, $0.22/h) implement the same `transcribe_pcm_int16_async(bytes, sample_rate, language)` interface. ElevenLabs accepts the raw Int16 LE 16 kHz mono buffer via `file_format=pcm_s16le_16` — no WAV wrapping.
+- WebSocket ticket extended with `voice_stt_mode` so `/ws/audio` routes without re-querying the DB.
+- Per-message STT cost surfaced as a discreet badge `🎤 X.Xs · €X.XXX` on the user bubble; persisted on `conversation_messages.stt_*`. Edge / Sherpa = NULL = no badge.
+- Usage limits: `cycle_cost_eur` automatically includes STT via `add_stt_usage()`. Hard cap before each remote call → close 4029 if the cycle limit is hit.
+- Push-to-talk decoupled from wake-word: the `voice_stt_mode` switch alone gates remote STT, regardless of `voice_mode_enabled`.
+- New CSV exports: `consumption-summary` extended with STT columns; new dedicated `stt-usage` export (admin + user).
+
+#### Voice TTS — catalogue-driven (ADR-081)
+
+- New `voice_tts` LLM type (`kind=tts`) in `LLM_TYPES_REGISTRY`. Voice + provider-specific tuning live in `llm_config_overrides.voice_tts.provider_config` (JSONB), so a single admin form drives provider/model/voice/rate/pitch/volume/speed/voice_settings/output_format.
+- Three providers seeded (Edge $0, OpenAI tts-1 / tts-1-hd $15-30, ElevenLabs eleven_multilingual_v2 / eleven_turbo_v2_5 / eleven_flash_v2_5 $50-100 — all per 1M characters). Edge stays free.
+- Dynamic voice picker: `GET /admin/voice/voices?provider=X` returns curated lists for Edge/OpenAI and a live `GET /v1/voices` against the configured ElevenLabs account. `voices_read` scope required on the API key.
+- Per-message TTS cost: badge `🔊 N chars` on the assistant bubble (paid providers only — Edge stays NULL = no badge). Persisted on `conversation_messages.tts_*` via a double-pass backfill (parallel during streaming + sync fallback after run cleanup) so both PATH 1 (parallel) and PATH 2 (sync direct_tts) populate the row.
+- Legacy retired: `system_settings.voice_tts_mode`, the binary Standard/HD switch, the 14 `VOICE_TTS_*` env vars, the `AdminVoiceSettingsSection.tsx` component, and 13 `VOICE_TTS_*_DEFAULT` constants.
+- New CSV exports: `consumption-summary` extended with TTS columns; new dedicated `tts-usage` export (admin + user). i18n keys aligned across the 6 supported locales.
+
+#### Voice latency — sentence streaming (ADR-082)
+
+- New `ProgressiveSentenceStreamer` (`apps/api/src/domains/voice/sentence_streamer.py`) — buffers a text token stream, dispatches a TTS task per complete sentence (`[.!?]+` boundary), enforces in-order delivery via `_pending: dict[int, VoiceAudioChunk]` + lock, skips failed slots without blocking the queue, idempotent end-of-stream sentinel.
+- Chat mode: agents SSE loop watches `router_decision.intention=conversation` to spin up `VoiceCommentService.start_progressive_chat_stream(...)` and feeds it token-by-token. The user hears the first sentence ~1 s after the question instead of after the full response (~5 s on a 5-sentence response).
+- Agent mode: `stream_voice_comment` rewritten to consume the voice-comment LLM via `astream()` (was `ainvoke()`), feeding each chunk into the streamer. First audio lands ~1.5 s after the registry is captured (was ~3.5 s).
+- Persistent `httpx.AsyncClient` on `ElevenLabsTTSClient`: ~100–300 ms saved per sentence by skipping TLS handshake on calls #2..N within a request. `OpenAITTSClient` already pooled via the OpenAI SDK; Edge runs through the WebSocket-based `edge-tts` library.
+- `_cleanup_chat_voice_pipeline()` helper invoked on every SSE generator exit path (HITL `GraphInterrupt`, top-level `except`, normal end) so the drain task and persistent httpx client are deterministically released.
+- Configuration: `voice_chat_mode_max_sentences` clamp raised from `le=6` to `le=50` with an explicit description (3 default conversational, 10 educational, 50 functional ceiling).
+
+### Tests
+
+**46 new backend tests** across 4 dedicated files cover the v1.20.2 voice surface end-to-end:
+
+- `apps/api/tests/unit/domains/voice/test_elevenlabs_stt.py` — **13 tests** on the ElevenLabs Scribe service: PCM Int16 transport (`pcm_s16le_16` payload), language-code filtering (6 LIA ISO-639-1 codes), HTTP error mapping (timeout, 429 with `Retry-After`, 5xx, 422), audio_duration_secs return + STTResult shape, empty-buffer short-circuit.
+- `apps/api/tests/unit/domains/voice/test_stt_factory.py` — **11 tests** on the local-vs-remote factory: returns the singleton Sherpa for `mode='local'`, instantiates `ElevenLabsSttService` with the active `voice_transcription` override + ElevenLabs key for `mode='remote'`, raises `STTProviderError(elevenlabs_api_key_missing)` when key absent, `provider_config.base_url` parsing (regional residency override).
+- `apps/api/tests/unit/domains/voice/test_sentence_streamer.py` — **12 tests** on `ProgressiveSentenceStreamer`: happy path, trailing flush, max_sentences cap, failed slot skipping, out-of-order arrival reordering, cancel_pending, empty stream, feed-after-close guard, on_chars_synthesized callback (called + throw swallowed), `first_audio_latency_seconds` property, MIME fallback for non-mp3 audio formats.
+- `apps/api/tests/unit/infrastructure/test_pricing_cache_audio.py` — **10 tests** on `get_cached_cost_audio_usd_eur`: per_audio_hour math, per_audio_minute math, mismatched pricing_unit returns (0, 0) + warning, Decimal precision over varied durations (0.5 s / 1 s / 60 s / 3600 s), missing model in cache, EUR conversion via cached usd_eur_rate.
+
+The 46 new tests run inside the existing pytest collection (9992 total tests) — no new markers, no new fixture files. Coverage includes the column rename refactor (input_unit_price / output_unit_price / cached_input_unit_price across 4 modified files in `tests/integration/test_llm_admin_routes.py`, `tests/unit/domains/llm/test_schemas_reasoning.py`, `tests/unit/domains/llm/test_service.py`, `tests/helpers/llm_helpers.py`) which keeps the ADR-080 schema migration verifiable.
+
+### Changed
+
+- `LLMTypeConfigUpdate.provider` Literal extended with `'elevenlabs'` and `'edge'` (PUT used to fail 422 on these providers).
+- `TrackingContext` gains a `_tts_records: list[TTSUsageRecord]` bucket + `record_tts_call(provider, model, characters)`. The legacy `_track_tts_cost → record_node_tokens(node_name='tts_hd')` path retired (TTS no longer mixed in `token_usage_logs` with chat nodes).
+- `archive_message` accepts 6 `tts_*` kwargs and `update_message_tts` is added on the repository for the post-voice backfill (TTS finalises after `archive_message` runs in the parallel mode).
+- `TokenSummaryDTO` extended with `tts_cost_eur` so the SSE `done` chunk's consolidated `cost_eur` includes TTS — the live frontend badge sees the correct grand total without waiting for a reload.
+- `tracker.commit()` early-return guard now checks `pending_tts > 0` too — without this, the sync-fallback voice flow (chat mode without parallel) would skip `_persist_to_database`.
+- `LLMConfigOverrideCache` now persists `provider_config` (was already in the schema but the cache was missing it).
+- `AUDIO_MIME_TYPES` and `DEFAULT_AUDIO_MIME_TYPE` extracted to `voice/schemas.py` (was duplicated between `voice/service.py` and `voice/sentence_streamer.py`).
+
+### Fixed
+
+- HTTP 402 on ElevenLabs library voices surfaced as a clear "ElevenLabs paid plan required" hint when a non-premade voice is selected on a free account.
+- Prometheus counters on `ElevenLabsTTSClient` aligned on `["voice_name"]` / `["error_type", "voice_name"]` (the previous `provider`/`model` labels caused `Incorrect label names` runtime errors that silently broke every ElevenLabs synthesis).
+- `voice_chunk_queue` race condition: when a chat-mode streamer was active and the registry appeared mid-stream, the agent-mode parallel task would create a new queue and silently drop the chat audio. Now mutually exclusive via `chat_voice_drain_task is None` guard.
+- Sentinel duplicated when `cancel_pending()` and the last task's `done_callback` raced for the queue close — now flagged via `_sentinel_pushed`.
+- `feed_task` (LLM streaming feeder) leaked on `CancelledError` and on `Exception` paths in `stream_voice_comment` — now cancelled and awaited via `_abort_voice_comment_pipeline`.
+- `chat_voice_drain_task` leaked on `GraphInterrupt` (HITL fallback) — now cleaned up via the shared `_cleanup_chat_voice_pipeline` helper.
+
+### Removed
+
+- `system_settings.voice_tts_mode` row + DB enum entry.
+- `VoiceTTSMode` Literal (`Literal["standard", "hd"]`) and the 14 settings on `VoiceSettings` it gated (`voice_tts_default_mode`, `voice_tts_standard_*` × 6, `voice_tts_hd_*` × 7).
+- `REDIS_KEY_VOICE_TTS_MODE` constant; `VoiceTTSModeCache` Redis service; `get_voice_tts_mode()` / `invalidate_voice_tts_mode_cache()` module functions; `voice_tts_mode_cache_total` Prometheus counter.
+- 13 `VOICE_TTS_*_DEFAULT` constants from `core/constants.py`.
+- `apps/web/src/components/settings/AdminVoiceSettingsSection.tsx` (replaced by Configuration LLM admin form, type `voice_tts`).
+- Two unused settings on `VoiceSettings` retired: `elevenlabs_stt_api_base_url` and `elevenlabs_stt_request_timeout_seconds`. The model, regional `base_url` and per-call timeout already live on `llm_config_overrides.voice_transcription` (admin UI), so the duplicate `.env` knobs were dead config. Both `.env.example` and `.env.prod.example` lines removed.
+
+### Hardening — voice domain audit remediation
+
+Follow-up pass on the voice rework above to close cost-defence gaps, structure provider errors, and align cross-cutting documentation with the catalogue-driven model.
+
+- **Cost-spike defence: STT remote duration cap actually enforced.** The `ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS` setting (default 300 s) was declared earlier in this same release but never checked at runtime. The WebSocket handler now rejects oversized clips before any provider call (close code 4002 with `audio_too_long` reason; explicit error chunk to the frontend). New constant `STT_BYTES_PER_SECOND_AT_16KHZ_INT16 = 32000` derives the duration from the raw byte buffer without parsing the PCM stream.
+- **Cost-spike defence: STT remote kill switch wired.** `ELEVENLABS_STT_ENABLED=false` now actually disables remote STT at the WebSocket entry point — instant fallback to Sherpa-onnx local for incident response or quota emergencies. Previously the flag existed in config but was ignored.
+- **Structured TTS errors across all 3 providers.** New `TTSProviderError` (`apps/api/src/domains/voice/exceptions.py`) mirrors `STTProviderError`. Edge / OpenAI / ElevenLabs clients now raise typed errors with stable codes (`api_key_missing`, `provider_timeout`, `provider_rate_limited`, `provider_http_error`, `provider_invalid_response`, `provider_network_error`); ElevenLabs HTTP 429 carries `retry_after_seconds` from the `Retry-After` header. `RuntimeError` removed from every TTS code path. Frontend toasts can now match on `code` for precise i18n.
+- **`admin_router.py` raw `HTTPException` calls replaced** by centralized raisers (`raise_invalid_input` / `raise_external_service_fetch_error`) for consistency with the rest of the API surface.
+- **Configurable sentence boundary in the streamer.** `ProgressiveSentenceStreamer.__init__` now accepts a `sentence_delimiters` argument; the regex is built per-instance via `_build_sentence_end_regex(delimiters)` and follows `settings.voice_sentence_delimiters` (admin-tunable). Latin punctuation (`.!?`), Chinese `。！？`, Arabic `؟` etc. all supported when configured.
+- **Magic constants extracted.** `VOICE_TTS_MS_PER_CHAR_HEURISTIC = 80` now lives in `core/constants.py` as the single source of truth used by both `voice/service.py` and `voice/sentence_streamer.py` for the `duration_ms` UI hint. `voice_comment_prompt` added to the `PromptName` Literal so MyPy strict catches any future typo.
+
+### Documentation
+
+- New ADRs: [ADR-080](docs/architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md).
+- ADR-050 (legacy Voice TTS architecture) marked as superseded by ADR-081.
+- [docs/technical/VOICE.md](docs/technical/VOICE.md) v4.1: catalogue-driven config + per-message attribution + sentence streaming sections.
+- [ADR-039](docs/architecture/ADR-039-Cost-Optimization-Token-Management.md) enriched with a "Voice silos (TTS / STT) — separate cost surfaces" section that contrasts the chat token-tracking pipeline with the audio-billed (`per_audio_hour`) and character-billed (`per_1m_tokens`) silos used by STT and TTS.
+- Catalogue-driven TTS narrative propagated across 12 how/why guides (en/fr/de/es/it/zh) — obsolete "Standard / HD" + "Gemini TTS" mentions retired in favour of the three-provider description (Edge / OpenAI / ElevenLabs).
+- Cross-cutting docs realigned: `README.md`, `docs/ARCHITECTURE.md` (line 99 + voice-flow diagram), `docs/GETTING_STARTED.md` (feature/mode tables), `CONTRIBUTING.md` (config map), `docs/INDEX.md` (VOICE.md description), `docs/knowledge/03_settings.md` and `docs/knowledge/20_voice_mode.md` (user-facing voice description). `CLAUDE.md` ADR count updated (75 ADRs).
+- Module docstring on `metrics_voice.py` rewritten for multi-provider TTS — explicitly explains why no `provider` label is added (Prometheus rejects extra labels post-instantiation; provider derivable from voice_id naming pattern).
+- 6 locale files updated with parity for `tts_usage_title`, `tts_usage_description`, `voiceTts.*` keys.
+
 ## [1.20.1] - 2026-05-06
 
 ### Added — LLM admin: per-model sampling matrix + reasoning shape templates

@@ -82,14 +82,20 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class CachedModelPrice:
     """
-    Cached pricing for a single LLM model (USD per 1M tokens).
+    Cached pricing for a single LLM model in USD.
+
+    The semantic of the unit prices is given by ``pricing_unit``:
+    - ``per_1m_tokens``: price per 1 million tokens (LLM chat/text). Default.
+    - ``per_audio_minute`` / ``per_audio_hour``: price per audio duration
+      (STT/TTS).
 
     Stored in Redis as JSON for fast retrieval in callbacks.
     """
 
-    input_price_per_1m: float
-    output_price_per_1m: float
-    cached_input_price_per_1m: float  # 0.0 if caching not supported by model
+    input_unit_price: float
+    output_unit_price: float
+    cached_input_unit_price: float  # 0.0 if caching not supported by model
+    pricing_unit: str = "per_1m_tokens"
 
     def to_json(self) -> str:
         """Serialize to JSON for Redis storage."""
@@ -197,11 +203,10 @@ class PricingCacheService:
                 models: dict[str, CachedModelPrice] = {}
                 for pricing in result.all():
                     models[pricing.model.model_name] = CachedModelPrice(
-                        input_price_per_1m=float(pricing.input_price_per_1m_tokens),
-                        output_price_per_1m=float(pricing.output_price_per_1m_tokens),
-                        cached_input_price_per_1m=float(
-                            pricing.cached_input_price_per_1m_tokens or 0
-                        ),
+                        input_unit_price=float(pricing.input_unit_price),
+                        output_unit_price=float(pricing.output_unit_price),
+                        cached_input_unit_price=float(pricing.cached_input_unit_price or 0),
+                        pricing_unit=pricing.pricing_unit.value,
                     )
 
                 # Load USD/EUR rate using existing service
@@ -260,10 +265,13 @@ class PricingCacheService:
         """
         Load pricing cache from Redis into local memory.
 
-        Called at startup if Redis already has cached data.
+        Called at startup if Redis already has cached data. Returns False
+        (forcing a rebuild from DB) if the serialised payload is incompatible
+        — e.g. after a column rename when the previous deploy left an old
+        format in Redis.
 
         Returns:
-            True if cache was loaded, False if not found or error
+            True if cache was loaded, False if not found or schema mismatch
         """
         global _local_cache
 
@@ -276,6 +284,20 @@ class PricingCacheService:
                     models_count=len(_local_cache.models),
                 )
                 return True
+            return False
+        except (KeyError, TypeError, ValueError) as e:
+            # Redis blob is in an old/incompatible shape (e.g. produced by
+            # a previous deploy before the column rename). Drop it; the
+            # caller will refresh from DB.
+            logger.warning(
+                "pricing_cache_redis_blob_incompatible_dropping",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            try:
+                await self.redis.delete(self._cache_key)
+            except Exception:  # noqa: BLE001
+                pass
             return False
         except Exception as e:
             logger.warning(
@@ -328,6 +350,10 @@ def get_cached_cost_usd_eur(
 
     Mirrors AsyncPricingService.calculate_token_cost() return signature for consistency.
 
+    Token-based costing only applies to ``pricing_unit='per_1m_tokens'`` models.
+    Audio-billed models (STT/TTS) must go through
+    :func:`get_cached_cost_audio_usd_eur` instead.
+
     Args:
         model: LLM model name (e.g., "gpt-4.1-mini", "o1-mini")
         prompt_tokens: Number of prompt/input tokens
@@ -336,7 +362,8 @@ def get_cached_cost_usd_eur(
 
     Returns:
         Tuple of (cost_usd, cost_eur) as floats
-        Returns (0.0, 0.0) if cache not initialized or model not found
+        Returns (0.0, 0.0) if cache not initialized, model not found, or
+        the model uses a non-token pricing unit.
     """
     if _local_cache is None:
         logger.debug("pricing_cache_not_initialized", model=model)
@@ -356,15 +383,85 @@ def get_cached_cost_usd_eur(
         pricing_cache_fallback_total.labels(reason="model_not_found").inc()
         return (0.0, 0.0)
 
+    if prices.pricing_unit != "per_1m_tokens":
+        logger.warning(
+            "token_cost_called_for_non_token_pricing_unit",
+            model=model,
+            pricing_unit=prices.pricing_unit,
+        )
+        return (0.0, 0.0)
+
     # Calculate cost (USD per 1M tokens)
-    input_cost = (prompt_tokens / 1_000_000) * prices.input_price_per_1m
-    output_cost = (completion_tokens / 1_000_000) * prices.output_price_per_1m
-    cached_cost = (cached_tokens / 1_000_000) * prices.cached_input_price_per_1m
+    input_cost = (prompt_tokens / 1_000_000) * prices.input_unit_price
+    output_cost = (completion_tokens / 1_000_000) * prices.output_unit_price
+    cached_cost = (cached_tokens / 1_000_000) * prices.cached_input_unit_price
 
     total_usd = input_cost + output_cost + cached_cost
     total_eur = total_usd * _local_cache.usd_eur_rate
 
     return (total_usd, total_eur)
+
+
+def get_cached_cost_audio_usd_eur(
+    model: str,
+    duration_seconds: float,
+) -> tuple[float, float]:
+    """
+    Estimate audio-billed cost (STT/TTS) in both USD and EUR (sync-safe).
+
+    Mirror of :func:`get_cached_cost_usd_eur` for models priced by audio
+    duration rather than tokens. Selects the multiplier based on
+    ``pricing_unit``:
+
+    - ``per_audio_hour`` (e.g. ElevenLabs Scribe at $0.22/hour):
+      ``cost_usd = duration_seconds / 3600 * input_unit_price``
+    - ``per_audio_minute``:
+      ``cost_usd = duration_seconds / 60 * input_unit_price``
+
+    Args:
+        model: STT/TTS model name (e.g., "scribe_v2")
+        duration_seconds: Duration of the audio segment in seconds
+
+    Returns:
+        Tuple of (cost_usd, cost_eur) as floats. Returns (0.0, 0.0) if cache
+        not initialized, model not found, or the model is token-priced
+        (caller should use ``get_cached_cost_usd_eur`` instead).
+    """
+    if _local_cache is None:
+        logger.debug("pricing_cache_not_initialized", model=model)
+        pricing_cache_fallback_total.labels(reason="cache_not_initialized").inc()
+        return (0.0, 0.0)
+
+    if duration_seconds <= 0:
+        return (0.0, 0.0)
+
+    model_normalized = normalize_model_name(model)
+    prices = _local_cache.models.get(model_normalized)
+
+    if not prices:
+        logger.debug(
+            "pricing_cache_audio_model_not_found",
+            model=model,
+            model_normalized=model_normalized,
+            available_models=len(_local_cache.models),
+        )
+        pricing_cache_fallback_total.labels(reason="model_not_found").inc()
+        return (0.0, 0.0)
+
+    if prices.pricing_unit == "per_audio_hour":
+        cost_usd = (duration_seconds / 3600.0) * prices.input_unit_price
+    elif prices.pricing_unit == "per_audio_minute":
+        cost_usd = (duration_seconds / 60.0) * prices.input_unit_price
+    else:
+        logger.warning(
+            "audio_cost_called_for_non_audio_pricing_unit",
+            model=model,
+            pricing_unit=prices.pricing_unit,
+        )
+        return (0.0, 0.0)
+
+    cost_eur = cost_usd * _local_cache.usd_eur_rate
+    return (cost_usd, cost_eur)
 
 
 def get_cached_cost(

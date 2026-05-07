@@ -271,16 +271,18 @@ Each change is recorded immediately.
 LIA has a **bidirectional voice system**:
 
 **🔊 Voice Synthesis (TTS) - LIA speaks to you:**
-Click the **speaker icon** 🔊 in the title bar. When enabled, LIA reads its responses aloud.
-• **Standard** (default): Microsoft Edge TTS - free
-• **HD**: OpenAI or Gemini TTS - premium quality (if enabled by administrator)
+Click the **speaker icon** 🔊 in the title bar. When enabled, LIA reads its responses aloud. The administrator picks the active provider, model and voice from a single catalogue:
+• **Edge TTS** (default): free, Microsoft neural voices
+• **OpenAI TTS**: `tts-1` or `tts-1-hd` — premium, natural voices (alloy, echo, fable, nova, onyx, shimmer)
+• **ElevenLabs**: `eleven_multilingual_v2`, `eleven_turbo_v2_5`, or `eleven_flash_v2_5` — premium, ultra-natural voices, custom and library voices supported
 
 **🎙️ Voice Mode (STT) - Speak to LIA:**
 Hold the voice badge in the chat header for 500ms to enable voice mode.
 • **Wake word**: Say 'OK Guy' or 'OK Guys' to activate recording
 • **Push-to-talk**: Click the overlay to speak manually
 • **Auto-detection**: LIA detects when you stop speaking (1s silence)
-• **Free and offline**: Transcription uses Whisper locally
+• **Local mode (default)**: free, offline transcription via Sherpa-onnx Whisper — your audio never leaves the LIA server
+• **Remote mode**: ElevenLabs Scribe ($0.22/h, billed per audio duration) — opt-in via Settings → Voice mode
 
 **💡 Tip:**
 Voice mode is ideal for hands-free use or multitasking.
@@ -302,7 +304,7 @@ Choose the **voice gender** that suits you:
 The voice automatically adapts to the interface language. For example, a French voice if the interface is in French.
 
 **⚙️ Quality:**
-LIA uses high-quality neural voices (Microsoft Edge TTS in standard mode, or OpenAI/Gemini TTS in HD mode) for a natural and expressive rendering.
+LIA uses high-quality neural voices. Three providers are available, configured by the administrator: Microsoft Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), and ElevenLabs (`eleven_multilingual_v2` / `eleven_turbo_v2_5` / `eleven_flash_v2_5`). Each provider gets its own per-voice tuning (speed, stability, audio format) for a natural and expressive rendering.
 
 ## How does long-term memory work?
 LIA learns about you through its **intelligent memory**:

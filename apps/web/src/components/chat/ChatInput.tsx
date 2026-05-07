@@ -16,11 +16,24 @@ import { MessageAttachmentMeta } from '@/types/chat';
 /** Attachment metadata passed alongside IDs for immediate local display. */
 export type SendAttachmentMeta = MessageAttachmentMeta;
 
+/**
+ * Per-message remote-STT cost metadata. Optionally captured from the voice
+ * WebSocket and forwarded to ``onSendMessage`` so the persistence layer can
+ * attach the precise cost to the user bubble.
+ */
+export interface SendSttMeta {
+  stt_provider?: string | null;
+  stt_audio_duration_seconds?: number | null;
+  stt_cost_usd?: number | null;
+  stt_cost_eur?: number | null;
+}
+
 export interface ChatInputProps {
   onSendMessage: (
     content: string,
     attachmentIds?: string[],
-    attachmentsMeta?: SendAttachmentMeta[]
+    attachmentsMeta?: SendAttachmentMeta[],
+    sttMeta?: SendSttMeta
   ) => void;
   disabled?: boolean;
   isConnected?: boolean;
@@ -43,6 +56,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const { t } = useTranslation();
   const [message, setMessage] = useState('');
+  // Holds the remote-STT cost metadata of the latest transcription that fed
+  // the input. Cleared once the message is actually sent, or when the user
+  // wipes the input. Stays NULL for text-only typed messages and for local
+  // (Sherpa) transcriptions.
+  const [pendingSttMeta, setPendingSttMeta] = useState<SendSttMeta | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     attachments,
@@ -71,8 +89,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
    * Puts transcribed text into the message input.
    */
   const handleVoiceTranscription = useCallback(
-    (text: string) => {
+    (text: string, meta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta) => {
       if (!text.trim()) return;
+
+      // Capture STT cost metadata for the next send. Only meaningful when
+      // the backend used a remote provider (``stt_provider`` set). For local
+      // Sherpa transcriptions the meta is None and we keep the previous
+      // pending state untouched (it may carry an earlier remote chunk).
+      if (meta?.stt_provider) {
+        setPendingSttMeta({
+          stt_provider: meta.stt_provider ?? null,
+          stt_audio_duration_seconds: meta.stt_audio_duration_seconds ?? null,
+          stt_cost_usd: meta.stt_cost_usd ?? null,
+          stt_cost_eur: meta.stt_cost_eur ?? null,
+        });
+      }
 
       // Append to existing message with space separator
       // Note: We need to compute the new message and update both states separately
@@ -145,8 +176,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 content_type: a.contentType,
               }))
           : undefined;
-      onSendMessage(trimmedMessage, readyIds.length > 0 ? readyIds : undefined, readyMeta);
+      onSendMessage(
+        trimmedMessage,
+        readyIds.length > 0 ? readyIds : undefined,
+        readyMeta,
+        pendingSttMeta ?? undefined
+      );
       setMessage('');
+      setPendingSttMeta(null);
       onMessageChange?.('');
       clearAttachments();
       // Reset textarea height and remove focus (reset iOS zoom)

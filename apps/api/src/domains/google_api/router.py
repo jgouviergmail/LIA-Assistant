@@ -550,3 +550,78 @@ async def export_consumption_summary(
     )
 
     return response
+
+
+@router.get("/export/stt-usage")
+async def export_stt_usage(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    user_id: uuid.UUID | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_superuser_session),
+) -> StreamingResponse:
+    """
+    Export remote-STT usage as CSV (admin).
+
+    **Requires**: Superuser privileges
+
+    One row per user message produced by a remote STT provider
+    (e.g. ElevenLabs Scribe). Local Sherpa transcriptions are excluded.
+
+    **Query Parameters**:
+    - `start_date`: Filter logs from this date (ISO format: YYYY-MM-DD)
+    - `end_date`: Filter logs until this date (ISO format: YYYY-MM-DD)
+    - `user_id`: Filter by specific user (optional)
+    """
+    from src.domains.google_api.export_service import export_stt_usage_csv
+
+    response, rows_count = await export_stt_usage_csv(db, start_date, end_date, user_id)
+
+    logger.info(
+        "stt_usage_exported",
+        rows_count=rows_count,
+        start_date=start_date,
+        end_date=end_date,
+        user_id=str(user_id) if user_id else None,
+        admin_user_id=str(current_user.id),
+    )
+
+    return response
+
+
+@router.get("/export/tts-usage")
+async def export_tts_usage(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    user_id: uuid.UUID | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_superuser_session),
+) -> StreamingResponse:
+    """
+    Export paid-TTS usage as CSV (admin).
+
+    **Requires**: Superuser privileges
+
+    One row per assistant message synthesised by a paid TTS provider
+    (OpenAI tts-1/-hd, ElevenLabs eleven_*). Edge synthesis (free) is
+    excluded — its rows have ``tts_provider IS NULL``.
+
+    **Query Parameters**:
+    - `start_date`: Filter logs from this date (ISO format: YYYY-MM-DD)
+    - `end_date`: Filter logs until this date (ISO format: YYYY-MM-DD)
+    - `user_id`: Filter by specific user (optional)
+    """
+    from src.domains.google_api.export_service import export_tts_usage_csv
+
+    response, rows_count = await export_tts_usage_csv(db, start_date, end_date, user_id)
+
+    logger.info(
+        "tts_usage_exported",
+        rows_count=rows_count,
+        start_date=start_date,
+        end_date=end_date,
+        user_id=str(user_id) if user_id else None,
+        admin_user_id=str(current_user.id),
+    )
+
+    return response

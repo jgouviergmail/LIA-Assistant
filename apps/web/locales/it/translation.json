@@ -522,7 +522,13 @@
       "error": "Errore nell'invio del messaggio",
       "retry": "Riprova",
       "copy": "Copia messaggio",
-      "copied": "Copiato negli appunti"
+      "copied": "Copiato negli appunti",
+      "stt_unit_seconds": "s",
+      "tts_unit_chars": "car.",
+      "stt_tooltip_provider": "Riconoscimento vocale via {{provider}}",
+      "stt_tooltip_fallback": "Costo della trascrizione",
+      "tts_tooltip_provider": "Sintesi vocale via {{provider}}{{model}}",
+      "tts_tooltip_fallback": "Costo della sintesi"
     },
     "code": {
       "copy": "Copia codice",
@@ -992,7 +998,11 @@
         "token_usage_title": "Consumo token LLM",
         "token_usage_description": "Dettagli di ogni chiamata LLM con token e costi.",
         "google_api_usage_title": "Consumo API Google",
-        "google_api_usage_description": "Dettagli di ogni chiamata API Google Maps.",
+        "google_api_usage_description": "Dettagli di ogni chiamata all'API Google Maps.",
+        "stt_usage_title": "Utilizzo STT remoto",
+        "stt_usage_description": "Una riga per trascrizione ElevenLabs Scribe (durata audio + costo).",
+        "tts_usage_title": "Utilizzo TTS a pagamento",
+        "tts_usage_description": "Una riga per sintesi TTS a pagamento (OpenAI / ElevenLabs) — caratteri + costo.",
         "summary_title": "Il mio riepilogo",
         "summary_description": "Totali aggregati del tuo consumo.",
         "download_csv": "Scarica CSV",
@@ -1105,12 +1115,20 @@
           "title_add": "Aggiungi un modello",
           "model_name_label": "Nome modello",
           "model_name_placeholder": "gpt-4.1-mini, o1-mini, claude-sonnet-4-5...",
-          "input_price_label": "Prezzo input ($/1M token)",
+          "input_price_label": "Prezzo input",
           "input_price_placeholder": "2.500000",
-          "cached_input_label": "Prezzo input cache ($/1M token) - Facoltativo",
+          "cached_input_label": "Prezzo input cache - Facoltativo",
           "cached_input_placeholder": "1.250000 (lascia vuoto se non supportato)",
-          "output_price_label": "Prezzo output ($/1M token)",
+          "output_price_label": "Prezzo output",
           "output_price_placeholder": "10.000000",
+          "pricing_unit_label": "Unità di fatturazione",
+          "pricing_unit_hint": "Per token per i modelli chat/testo, per durata audio per i provider STT/TTS (es. ElevenLabs Scribe è fatturato all'ora di audio).",
+          "pricing_unit_per_1m_tokens": "Per 1M token",
+          "pricing_unit_per_audio_minute": "Per minuto di audio",
+          "pricing_unit_per_audio_hour": "Per ora di audio",
+          "pricing_unit_short_per_1m_tokens": "$/1M token",
+          "pricing_unit_short_per_audio_minute": "$/minuto di audio",
+          "pricing_unit_short_per_audio_hour": "$/ora di audio",
           "cancel": "Annulla",
           "submit_edit": "Aggiorna",
           "submit_create": "Crea",
@@ -1205,7 +1223,11 @@
         "token_usage_title": "Utilizzo token LLM",
         "token_usage_description": "Dettagli di ogni chiamata LLM con token e costi.",
         "google_api_usage_title": "Utilizzo API Google",
-        "google_api_usage_description": "Dettagli di ogni chiamata API Google Maps.",
+        "google_api_usage_description": "Dettagli di ogni chiamata all'API Google Maps.",
+        "stt_usage_title": "Utilizzo STT remoto",
+        "stt_usage_description": "Una riga per trascrizione ElevenLabs Scribe (durata audio + costo).",
+        "tts_usage_title": "Utilizzo TTS a pagamento",
+        "tts_usage_description": "Una riga per sintesi TTS a pagamento (OpenAI / ElevenLabs) — caratteri + costo.",
         "summary_title": "Riepilogo per utente",
         "summary_description": "Totali aggregati per utente per la fatturazione.",
         "download_csv": "Scarica CSV",
@@ -1526,7 +1548,28 @@
           "mcp_react_agent": "MCP modalità iterativa: legge la documentazione del server, poi esegue gli strumenti passo dopo passo",
           "image_generation": "Generazione di immagini IA da descrizioni testuali (gpt-image-1, ecc.)",
           "psyche_summary": "Psyche Summary",
-          "briefing": "Genera il saluto e la sintesi della dashboard principale (Today)"
+          "briefing": "Genera il saluto e la sintesi della dashboard principale (Today)",
+          "voice_transcription": "Riconoscimento vocale della modalità vocale (Sherpa locale o ElevenLabs Scribe remoto)",
+          "voice_tts": "Sintesi vocale dell'assistente (Edge / OpenAI / ElevenLabs)"
+        },
+        "voiceTts": {
+          "sectionTitle": "Voce e impostazioni provider",
+          "voiceMale": "Voce maschile",
+          "voiceFemale": "Voce femminile",
+          "pickVoice": "Scegli una voce",
+          "voiceIdPlaceholder": "voice_id",
+          "loadingVoices": "Caricamento voci…",
+          "rate": "Velocità",
+          "pitch": "Tono",
+          "volume": "Volume",
+          "speed": "Velocità",
+          "responseFormat": "Formato audio",
+          "outputFormat": "Formato di uscita",
+          "stability": "Stabilità",
+          "similarityBoost": "Boost di somiglianza",
+          "style": "Stile",
+          "useSpeakerBoost": "Attiva speaker boost",
+          "liveCatalogue": "Catalogo live dal tuo account ElevenLabs"
         },
         "no_compatible_model": "Nessun modello di questo provider supporta questa funzionalità",
         "ollama": {
@@ -1640,14 +1683,22 @@
       "info_note": "💡 Il fuso orario influisce sull'ora e la data visualizzate nelle conversazioni e nelle notifiche. Tutti i fusi orari utilizzano lo standard IANA."
     },
     "voice_mode": {
-      "title": "Modalità vocale 100% locale",
-      "description": "Configura l'input vocale con rilevamento parola di attivazione",
-      "enable": "Attiva modalità vocale",
-      "enable_description": "Consenti input vocale tramite parola di attivazione o tocco",
-      "enabled_success": "Modalità vocale attivata",
-      "disabled_success": "Modalità vocale disattivata",
-      "info": "Quando attivata, appare un badge vocale nell'intestazione della chat. Tocca per parlare o dì \"ok guy\" o \"ok guys\" per attivare l'input vocale.",
-      "experimental_note": "⚠️ Funzionalità sperimentale su mobile. Il rilevamento della parola di attivazione potrebbe essere meno affidabile sui telefoni."
+      "title": "Modalità vocale",
+      "description": "Configura la trascrizione vocale e la parola di attivazione mani libere",
+      "enable": "Modalità mani libere (parola di attivazione)",
+      "enable_description": "Ascolta \"ok guy\" / \"ok guys\" e avvia la registrazione al rilevamento. Il push-to-talk (pressione prolungata sul pulsante invia) funziona indipendentemente.",
+      "enabled_success": "Modalità mani libere attivata",
+      "disabled_success": "Modalità mani libere disattivata",
+      "info": "Il push-to-talk è sempre disponibile — tieni premuto il pulsante invia per registrare. Attiva la parola di attivazione qui sopra per la registrazione mani libere. Il motore di trascrizione (locale o remoto) scelto sopra si applica a entrambi.",
+      "experimental_note": "⚠️ Il rilevamento della parola di attivazione è sperimentale su mobile.",
+      "stt_mode_label": "Motore di trascrizione",
+      "stt_mode_local": "Locale (Sherpa)",
+      "stt_mode_local_description": "Trascrizione gratuita sul server LIA. L'audio non lascia mai LIA.",
+      "stt_mode_remote": "Remoto (ElevenLabs)",
+      "stt_mode_remote_description": "Maggiore precisione tramite ElevenLabs Scribe. Fatturato al minuto di audio.",
+      "stt_mode_updated_success": "Motore di trascrizione aggiornato",
+      "stt_remote_unavailable_warning": "La trascrizione remota non è disponibile: un amministratore deve prima configurare la chiave API ElevenLabs.",
+      "stt_remote_privacy_notice": "In modalità remota, il tuo audio viene inviato a ElevenLabs (cloud) per la trascrizione. La modalità locale mantiene l'audio all'interno di LIA."
     },
     "image_generation": {
       "title": "Generazione immagini IA",
@@ -2731,7 +2782,7 @@
         },
         "voice": {
           "title": "🎙️ Modalità Vocale Completa",
-          "description": "Sistema bidirezionale: TTS (Edge gratuito, OpenAI HD o Gemini HD) per far parlare LIA con te, e STT (Sherpa Whisper offline) per parlare a LIA. Attiva la modalità vocale dicendo 'OK Guy' o 'OK Guys' (wake word), oppure tocca il pulsante microfono. Rilevamento automatico fine discorso (VAD). Trascrizione multilingue (99+ lingue). Completamente gratuito e offline lato server."
+          "description": "Sistema bidirezionale. <b>TTS</b> catalogue-driven (configurato dall'admin): tre provider distribuiti — Edge (voci neurali Microsoft, gratuito, predefinito), OpenAI (<code>tts-1</code> / <code>tts-1-hd</code>) ed ElevenLabs (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>). Lo streaming a livello di frase avvia il primo audio in ~1 s. <b>STT</b> di default Sherpa-onnx Whisper gratuito lato server (99+ lingue, l'audio non lascia mai il server); ogni utente può attivare opzionalmente ElevenLabs Scribe remoto (0,22 $/h) per maggiore precisione sul parlato conversazionale. Badge di costo per messaggio (🎤 utente / 🔊 assistente) per chiamate vocali a pagamento; kill switch admin e cap di durata 5 min proteggono dai picchi di costo. Attivazione con parola chiave \"OK Guy\" o pulsante microfono; rilevamento automatico di fine parlato (VAD)."
         },
         "reminders": {
           "title": "🔔 Promemoria e Notifiche Push",
@@ -2864,6 +2915,20 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_2": {
+          "title": "v1.20.2 — Voce: catalogo STT/TTS, attribuzione dei costi per messaggio, streaming per frase",
+          "date": "Maggio 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>Nuova opzione STT remoto (ElevenLabs Scribe)</b> — La modalità vocale guadagna un selettore per utente in <b>Impostazioni → Modalità vocale</b>: mantenere il Sherpa-onnx Whisper locale gratuito (predefinito, l'audio non lascia mai il server LIA) o attivare ElevenLabs Scribe (0,22 $/h, fatturato a durata audio) per maggiore precisione sul parlato conversazionale. Un badge 🎤 discreto su ogni bolla utente mostra durata e costo in EUR della trascrizione. Il costo alimenta il riquadro <b>Costo</b> del cruscotto e i limiti d'uso — nessuna quota separata.",
+            "i2": "<b>TTS catalogue-driven: 3 provider, un unico modulo admin</b> — La sintesi vocale si configura ora tramite <b>Configurazione LLM → Voice TTS</b> con tre provider distribuiti dal primo giorno: Edge (gratuito, predefinito, voci neurali Microsoft), OpenAI (<code>tts-1</code>, <code>tts-1-hd</code>) ed ElevenLabs (<code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>). Regolazioni fini per provider (Edge SSML rate/pitch/volume, OpenAI speed + format, ElevenLabs stability/similarity_boost/style/use_speaker_boost) e selettore di voci in tempo reale per ElevenLabs (voci custom + libreria del tuo account).",
+            "i3": "<b>Costo TTS per messaggio sulle bolle assistente</b> — I provider TTS a pagamento mostrano ora un badge 🔊 sul messaggio assistente con numero di caratteri e costo in EUR della sintesi (Edge gratuito → nessun badge). Il tooltip elenca provider, modello e tariffa esatta. Aggregato nel riquadro <b>Costo</b> del cruscotto ed esportabile tramite il nuovo CSV <code>tts-usage</code> (admin + utente) e tramite <code>consumption-summary</code> esteso.",
+            "i4": "<b>Latenza vocale: primo audio in ~1 s invece di ~5 s</b> — Un nuovo streamer a livello di frase invia la sintesi TTS non appena l'LLM produce una frase completa, in parallelo. La prima frase inizia ad essere riprodotta mentre l'assistente sta ancora componendo il resto della risposta — invece di attendere il testo completo. Keepalive HTTP persistente su ElevenLabs risparmia altri ~100–300 ms per frase. Attivo sia in modalità chat che in modalità agente.",
+            "i5": "<b>Admin: kill switch STT remoto + cap di durata (difesa anti-cost-spike)</b> — Due leve di sicurezza sulla pipeline STT remota. Il flag d'ambiente <code>ELEVENLABS_STT_ENABLED</code> disattiva ora realmente STT remoto a runtime (ricaduta immediata su Sherpa locale per la risposta agli incidenti o un quota d'emergenza). Il cap <code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code> (5 min predefiniti) viene ora effettivamente verificato prima di ogni chiamata — i clip troppo lunghi vengono rifiutati con un errore chiaro, senza addebito provider.",
+            "i6": "<b>Errori vocali: motivo preciso mostrato</b> — I fallimenti sui tre provider TTS (Edge / OpenAI / ElevenLabs) sono ora segnalati con un codice di errore stabile: timeout, limite di richieste raggiunto (con ritardo retry-after se disponibile), problema di autenticazione, errore di rete, risposta audio vuota, errore HTTP generico. Il frontend può mostrare un toast preciso per ciascuno — invece di un messaggio generico \"voce fallita\".",
+            "i7": "<b>Nuovi export CSV per STT e TTS</b> — <code>stt-usage</code> e <code>tts-usage</code> sono aggiunti in <b>Impostazioni → Export consumi</b> (per utente) e nella scheda export admin (filtro per utente). Elencano ogni chiamata vocale a pagamento con data, conversazione, ID del messaggio, provider, durata / caratteri e costo in EUR. <code>consumption-summary</code> riceve anch'esso nuove colonne STT e TTS in modo che i totali rimangano in un unico posto."
+          }
+        },
         "v1_20_1": {
           "title": "v1.20.1 — Admin LLM: matrice sampling per modello e template riutilizzabili di forma reasoning",
           "date": "Maggio 2026",
@@ -4104,7 +4169,15 @@
           },
           "voice_privacy": {
             "question": "I miei dati vocali vengono inviati a servizi esterni?",
-            "answer": "No. Il rilevamento della parola di attivazione viene eseguito interamente nel tuo browser (Sherpa-onnx WASM). Il riconoscimento vocale viene eseguito sul server di LIA con Whisper. Nessun audio viene inviato a servizi di terze parti."
+            "answer": "Per impostazione predefinita, no. Il rilevamento della parola di attivazione viene eseguito interamente nel tuo browser (Sherpa-onnx WASM, solo inglese). Il riconoscimento vocale usa Sherpa-onnx Whisper eseguito sul server di LIA (il tuo audio non lascia mai il server LIA). Una <b>modalità STT remota</b> opzionale (Impostazioni -> Modalità vocale -> Remoto) trasmette l'audio a ElevenLabs Scribe per maggiore precisione - opt-in, disattivata di default, con un avviso chiaro nel pannello Impostazioni."
+          },
+          "voice_stt_remote": {
+            "question": "Posso usare un riconoscimento vocale più preciso (remoto)?",
+            "answer": "Sì. In <b>Impostazioni -> Modalità vocale</b> puoi passare tra <b>Locale</b> (predefinito, gratuito, Sherpa-onnx Whisper sul server di LIA, l'audio non esce mai) e <b>Remoto</b> (ElevenLabs Scribe, 0,22 $/h, fatturato a durata audio). La modalità remota è più precisa sul parlato conversazionale, soprattutto in ambienti rumorosi. Un badge 🎤 discreto su ogni bolla utente mostra durata e costo in EUR della trascrizione. Il costo alimenta il riquadro <b>Costo</b> del cruscotto e i tuoi limiti d'uso - nessuna quota separata. Due leve di sicurezza proteggono dai picchi di costo: un cap rigido di 5 minuti per clip (regolabile dall'admin) e un kill switch globale che l'amministratore può attivare per riportare tutti al locale."
+          },
+          "voice_tts_provider": {
+            "question": "Quali voci usa LIA per parlare e quanto costa il TTS?",
+            "answer": "La sintesi vocale di LIA è configurata dall'amministratore da un catalogo unico con tre provider: <b>Edge TTS</b> (voci neurali Microsoft, gratuito, predefinito), <b>OpenAI TTS</b> (<code>tts-1</code> / <code>tts-1-hd</code>, voci premium: alloy, echo, nova, ...) ed <b>ElevenLabs</b> (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>, incluse voci custom e di libreria dall'account configurato). Per i provider a pagamento, un badge 🔊 sul messaggio assistente mostra il numero di caratteri e il costo in EUR; Edge resta gratuito, senza badge. Sul fronte della latenza: uno streamer a livello di frase inizia a riprodurre la prima frase in circa 1 secondo, mentre l'assistente sta ancora componendo il resto della risposta."
           }
         }
       },
@@ -5569,8 +5642,8 @@
       },
       "voice-mode": {
         "title": "Modalità vocale: Parla con LIA come un assistente personale",
-        "excerpt": "LIA capisce la tua voce con parola di attivazione, push-to-talk e riconoscimento vocale offline.",
-        "body": "<h2>Tre modalità di attivazione</h2><p>LIA supporta tre modi per interagire con la voce:</p><ul><li><strong>Wake Word</strong> — Di' \"OK Guy\" per attivare l'ascolto. Il rilevamento si basa su un pipeline <strong>VAD + riconoscimento vocale + keyword matching</strong> eseguito tramite WASM lato browser. Nessun dato audio lascia il browser per il rilevamento della wake word.</li><li><strong>Push-to-Talk</strong> — Tieni premuto il pulsante del microfono per parlare</li><li><strong>Rilevamento vocale automatico (VAD)</strong> — L'ascolto si interrompe automaticamente dopo 0,75 secondi di silenzio</li></ul><h2>Riconoscimento vocale offline (STT)</h2><p>La trascrizione parlato-testo utilizza un motore di riconoscimento vocale lato server, in modalità <strong>16 kHz mono</strong>. Il modello supporta <strong>99+ lingue</strong> e funziona interamente offline — nessun dato audio viene inviato a un servizio terzo. La quantizzazione INT8 offre un eccellente compromesso tra precisione e prestazioni su CPU.</p><h2>Sintesi vocale naturale (TTS)</h2><p>LIA propone due livelli di qualità per la sintesi vocale:</p><ul><li><strong>TTS standard</strong> — Voci neurali gratuite, ampia scelta di voci e lingue. Utilizzato per impostazione predefinita.</li><li><strong>TTS premium</strong> — Fornitori TTS premium per voci ancora più naturali ed espressive.</li></ul><p>Formati audio supportati: <strong>MP3, Opus, AAC, FLAC, WAV e PCM</strong>. Il formato viene selezionato automaticamente in base alle capacità del browser.</p><h2>Commenti vocali</h2><p>LIA può aggiungere brevi <strong>commenti vocali</strong> alle sue risposte testuali. Questi commenti sono generati da <strong>un modello LLM leggero</strong> con un massimo di <strong>6 frasi</strong> e una temperatura di <strong>0.7</strong> per un tono naturale e vario. Aggiungono un tocco personale senza appesantire la risposta.</p><h2>Architettura in tempo reale</h2><p>L'audio viene trasmesso in streaming tramite WebSocket per una latenza minima. Un sistema di ticket BFF (Backend-for-Frontend) protegge la connessione con token monouso della durata di 60 secondi.</p>"
+        "excerpt": "Il dominio vocale di LIA combina un STT locale gratuito (Sherpa-onnx Whisper, ElevenLabs Scribe remoto opzionale per maggiore precisione) e un TTS catalogue-driven (Edge / OpenAI / ElevenLabs). Lo streaming a livello di frase porta il primo chunk audio in ~1 secondo. L'attribuzione dei costi per messaggio rende le chiamate vocali a pagamento completamente verificabili.",
+        "body": "<h2>Tre modalità di attivazione</h2><p>LIA supporta tre modi per interagire con la voce:</p><ul><li><strong>Parola di attivazione</strong> — di' \"OK Guy\" per avviare l'ascolto a mani libere. Il rilevamento viene eseguito interamente nel browser tramite Sherpa-onnx WASM (modello solo inglese). Nessun audio lascia il browser per il rilevamento della parola di attivazione.</li><li><strong>Push-to-talk</strong> — tieni premuto il pulsante microfono per parlare. Ottimizzato per il mobile.</li><li><strong>Rilevamento automatico di fine parlato (VAD)</strong> — l'ascolto si interrompe automaticamente dopo ~0,75 s di silenzio.</li></ul><h2>Riconoscimento vocale: locale di default, remoto opzionale</h2><p>Ogni utente sceglie la sua modalità STT in <strong>Impostazioni → Modalità vocale</strong>:</p><ul><li><strong>Locale</strong> (predefinito, gratuito) — Sherpa-onnx Whisper eseguito sul server di LIA a <strong>16 kHz mono</strong> con quantizzazione INT8. Supporta <strong>99+ lingue</strong>. L'audio non lascia mai il server di LIA.</li><li><strong>Remoto</strong> (opt-in) — ElevenLabs Scribe a 0,22 $/h, fatturato a durata audio. Maggiore precisione sul parlato conversazionale, soprattutto in ambienti rumorosi. Un badge 🎤 discreto su ogni bolla utente mostra durata e costo in EUR; il costo alimenta il riquadro <strong>Costo</strong> del cruscotto e i tuoi limiti d'uso — nessuna quota separata.</li></ul><p>Due leve di sicurezza lato admin proteggono dai picchi di costo quando il remoto è attivato: un kill switch globale (<code>ELEVENLABS_STT_ENABLED</code>) e un cap di durata per clip (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, 300 s predefiniti) verificato prima di ogni chiamata provider.</p><h2>Sintesi vocale catalogue-driven</h2><p>La sintesi vocale si configura ora da un unico modulo admin (Configurazione LLM → Voice TTS), con tre provider distribuiti dal primo giorno:</p><ul><li><strong>Edge TTS</strong> — voci neurali Microsoft, gratuito, predefinito. Regolazioni SSML rate / pitch / volume.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> o <code>tts-1-hd</code>, voci premium (alloy, echo, fable, onyx, nova, shimmer). Regolazioni speed + response_format.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. Regolazioni stability, similarity_boost, style, use_speaker_boost. Selettore voci in tempo reale dall'account configurato (voci custom + libreria).</li></ul><p>Per i provider a pagamento, un badge 🔊 sul messaggio assistente mostra il numero di caratteri e il costo in EUR; Edge resta gratuito, senza badge. Formati audio supportati: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — selezionati per provider.</p><h2>Streaming a livello di frase per latenza sotto il secondo</h2><p>La pipeline vocale invia ora la sintesi TTS <strong>per frase completa in parallelo</strong>, invece di attendere la risposta LLM completa. La prima frase inizia ad essere riprodotta in <strong>circa un secondo</strong> mentre l'assistente sta ancora componendo il resto della risposta. Un keep-alive HTTP persistente su ElevenLabs risparmia altri ~100–300 ms per frase sulle chiamate #2…N. La consegna ordinata è garantita da una coda bufferizzata — gli slot falliti vengono saltati senza bloccare il flusso.</p><h2>Commenti vocali ed export</h2><p>LIA può allegare brevi <strong>commenti vocali</strong> (un inciso narrativo TTS) alle sue risposte. L'audio viene streamato via WebSocket con un ticket BFF monouso (TTL 60 s) per la sicurezza. Due nuovi export CSV — <code>stt-usage</code> e <code>tts-usage</code> — elencano ogni chiamata vocale a pagamento con conversazione, ID messaggio, provider, durata / caratteri e costo in EUR. L'export <code>consumption-summary</code> esistente riceve anch'esso colonne STT e TTS in modo che i totali rimangano in un unico posto.</p>"
       },
       "knowledge-spaces": {
         "title": "Knowledge Spaces: Trasforma i tuoi documenti in intelligenza IA",

@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 3.3
-**Date**: 2026-05-06
-**Application**: LIA v1.20.1
+**Date**: 2026-05-08
+**Application**: LIA v1.20.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -92,7 +92,7 @@ The administrator accesses a third tab dedicated to instance management:
 - **Personalities**: create, edit, translate and delete personalities available to all users — set the default personality
 - **System Skills**: manage instance-wide expert competencies — import/export, enable/disable, translate
 - **System Knowledge Spaces**: manage the FAQ knowledge base, monitor indexing status and model migrations
-- **Global voice**: configure the default TTS mode (standard or HD) for all users
+- **Global voice**: configure the default TTS provider, model, and voice for all users (Edge free, OpenAI, or ElevenLabs), with per-provider tuning (speed, stability, audio format)
 - **System debug**: logging and diagnostic configuration
 
 ### 2.4. An assistant, not a technical project
@@ -136,7 +136,7 @@ LIA offers a complete voice mode:
 
 - **Push-to-Talk**: hold the microphone button to speak, optimized for mobile
 - **"OK Guy" wake word**: hands-free detection running **entirely in your browser** via Sherpa-onnx WASM — no audio is transmitted until the wake word is detected
-- **Voice synthesis**: standard mode (Edge TTS, free) or HD (OpenAI TTS / Gemini TTS)
+- **Voice synthesis**: three admin-configurable providers — Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), or ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Telegram voice messages**: send audio messages, LIA transcribes and responds
 
 ### 3.5. Creation and media

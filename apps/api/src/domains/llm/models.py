@@ -40,6 +40,23 @@ class LLMProviderEnum(str, enum.Enum):
     ollama = "ollama"
     gemini = "gemini"
     qwen = "qwen"
+    elevenlabs = "elevenlabs"
+    edge = "edge"
+
+
+class PricingUnitEnum(str, enum.Enum):
+    """Billing unit for an LLMModelPricing row.
+
+    Disambiguates the semantics of the unit-price columns:
+    - ``per_1m_tokens``: price per 1 million tokens (default; LLM chat/text).
+    - ``per_audio_minute``: price per minute of audio transcribed/synthesised.
+    - ``per_audio_hour``: price per hour of audio (e.g. ElevenLabs Scribe at
+      $0.22/hour). Stored verbatim for auditable refacturing.
+    """
+
+    per_1m_tokens = "per_1m_tokens"
+    per_audio_minute = "per_audio_minute"
+    per_audio_hour = "per_audio_hour"
 
 
 class LLMModelKindEnum(str, enum.Enum):
@@ -203,14 +220,25 @@ class LLMModelPricing(Base, TimestampMixin):
     """
     LLM model pricing configuration with temporal versioning.
 
-    Stores pricing per million tokens for input, cached input, and output.
+    Stores unit prices for input, cached input, and output. The semantic of
+    the unit is given by ``pricing_unit``:
+      - ``per_1m_tokens``: price per 1 million tokens (LLM chat/text).
+      - ``per_audio_minute``: price per minute of audio.
+      - ``per_audio_hour``: price per hour of audio.
     Supports versioning through effective_from and is_active flags.
 
-    Example:
-        gpt-5:
-            input_price_per_1m_tokens = 1.25 ($/1M tokens)
-            cached_input_price_per_1m_tokens = 0.125 ($/1M tokens)
-            output_price_per_1m_tokens = 10.00 ($/1M tokens)
+    Examples:
+        gpt-5 (text)::
+            pricing_unit             = per_1m_tokens
+            input_unit_price         = 1.25  ($/1M input tokens)
+            cached_input_unit_price  = 0.125 ($/1M cached input tokens)
+            output_unit_price        = 10.00 ($/1M output tokens)
+
+        ElevenLabs Scribe v2 (STT)::
+            pricing_unit             = per_audio_hour
+            input_unit_price         = 0.22  ($/hour of audio)
+            cached_input_unit_price  = NULL
+            output_unit_price        = 0     (no token output billed)
     """
 
     __tablename__ = "llm_model_pricing"
@@ -239,22 +267,36 @@ class LLMModelPricing(Base, TimestampMixin):
         lazy="raise",
     )
 
-    input_price_per_1m_tokens: Mapped[Decimal] = mapped_column(
+    input_unit_price: Mapped[Decimal] = mapped_column(
         DECIMAL(10, 6),
         nullable=False,
-        comment="Price in USD per 1 million input tokens",
+        comment="Input unit price in USD (semantic = pricing_unit)",
     )
 
-    cached_input_price_per_1m_tokens: Mapped[Decimal | None] = mapped_column(
+    cached_input_unit_price: Mapped[Decimal | None] = mapped_column(
         DECIMAL(10, 6),
         nullable=True,
-        comment="Price in USD per 1M cached input tokens (NULL if not supported)",
+        comment="Cached input unit price in USD (NULL if not supported; semantic = pricing_unit)",
     )
 
-    output_price_per_1m_tokens: Mapped[Decimal] = mapped_column(
+    output_unit_price: Mapped[Decimal] = mapped_column(
         DECIMAL(10, 6),
         nullable=False,
-        comment="Price in USD per 1 million output tokens",
+        comment="Output unit price in USD (semantic = pricing_unit; 0 for STT models)",
+    )
+
+    pricing_unit: Mapped[PricingUnitEnum] = mapped_column(
+        SQLEnum(
+            PricingUnitEnum,
+            name="pricing_unit_enum",
+            create_constraint=True,
+            create_type=False,
+            values_callable=lambda enum_cls: [m.value for m in enum_cls],
+        ),
+        nullable=False,
+        default=PricingUnitEnum.per_1m_tokens,
+        server_default=PricingUnitEnum.per_1m_tokens.value,
+        comment="Billing unit semantics for the unit-price columns",
     )
 
     effective_from: Mapped[datetime] = mapped_column(
@@ -289,8 +331,9 @@ class LLMModelPricing(Base, TimestampMixin):
         # Avoid touching self.model (lazy="raise" would crash without selectinload).
         return (
             f"<LLMModelPricing(model_id={self.model_id}, "
-            f"input=${self.input_price_per_1m_tokens}/1M, "
-            f"output=${self.output_price_per_1m_tokens}/1M, "
+            f"unit={self.pricing_unit.value}, "
+            f"input=${self.input_unit_price}, "
+            f"output=${self.output_unit_price}, "
             f"active={self.is_active})>"
         )
 

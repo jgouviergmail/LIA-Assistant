@@ -153,6 +153,13 @@ async def get_conversation_messages(
                 tokens_cache=msg["tokens_cache"],
                 cost_eur=msg["cost_eur"],
                 google_api_requests=msg["google_api_requests"],
+                stt_provider=msg.get("stt_provider"),
+                stt_audio_duration_seconds=msg.get("stt_audio_duration_seconds"),
+                stt_cost_eur=msg.get("stt_cost_eur"),
+                tts_provider=msg.get("tts_provider"),
+                tts_model=msg.get("tts_model"),
+                tts_characters=msg.get("tts_characters"),
+                tts_cost_eur=msg.get("tts_cost_eur"),
             )
             for msg in messages
         ],

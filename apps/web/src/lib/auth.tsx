@@ -18,6 +18,7 @@ export interface User {
   execution_mode: string;
   voice_enabled: boolean;
   voice_mode_enabled: boolean;
+  voice_stt_mode: 'local' | 'remote';
   tokens_display_enabled: boolean;
   debug_panel_enabled: boolean;
   sub_agents_enabled: boolean;

@@ -2,8 +2,8 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 7.5
-**Dernière mise à jour**: 2026-05-06
+**Version**: 7.6
+**Dernière mise à jour**: 2026-05-07
 **Statut**: Complète (190+ documents)
 
 ---
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 50+ |
 | Guides pratiques | 15+ |
 | Runbooks | 34+ |
-| ADRs | 71 |
+| ADRs | 82 |
 | Skills Claude | 10 |
 
 ---
@@ -101,8 +101,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) | Patterns connecteurs OAuth/API Key | ✅ |
 | [CONNECTOR_PHILIPS_HUE.md](./connectors/CONNECTOR_PHILIPS_HUE.md) | Philips Hue smart lighting connector (local + remote) | ✅ |
 | [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md) | Intégration Microsoft 365 (Outlook, Calendar, Contacts, To Do) | ✅ |
-| [VOICE.md](./technical/VOICE.md) | Voice/TTS Standard/HD, Factory Pattern | ✅ |
-| [VOICE_MODE.md](./technical/VOICE_MODE.md) | STT, Wake Word, Push-to-Talk | ✅ |
+| [VOICE.md](./technical/VOICE.md) | Voice/TTS catalogue-driven (Edge / OpenAI / ElevenLabs, ADR-081), per-message attribution, progressive sentence streaming (ADR-082) | ✅ |
+| [VOICE_MODE.md](./technical/VOICE_MODE.md) | STT (local Sherpa + remote ElevenLabs Scribe), Wake Word, Push-to-Talk, voice_stt_mode opt-in (v1.20.x) | ✅ |
 | [ROUTES.md](./technical/ROUTES.md) | Google Routes API, directions | ✅ |
 | [WEB_FETCH.md](./technical/WEB_FETCH.md) | Extraction contenu pages web (URL → Markdown), SSRF prevention | ✅ |
 | [BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) | Browser automation (Playwright) — navigation, interaction, extraction JS, progressive screenshots (SSE side-channel) — evolution F7 | ✅ |
@@ -160,6 +160,9 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ADR-069-Gemini-Embedding-Migration.md](./architecture/ADR-069-Gemini-Embedding-Migration.md) | Gemini embedding migration (OpenAI → Google) — ADR | ✅ |
 | [ADR-075-Rich-Skill-Outputs.md](./architecture/ADR-075-Rich-Skill-Outputs.md) | Rich Skill Outputs — SkillScriptOutput JSON contract, SKILL_APP registry type, sandboxed iframe widget, theme/locale sync (v1.16.8) | ✅ |
 | [ADR-079-Stratified-Journal-Consciousness.md](./architecture/ADR-079-Stratified-Journal-Consciousness.md) | Stratified Journal Consciousness — L0/L1/L2/L3 levels, epistemic status, deferred self-evaluation, ambient portrait diffusion | ✅ |
+| [ADR-080-Voice-STT-Remote-Pricing-Unit.md](./architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md) | Remote Voice STT (ElevenLabs Scribe) opt-in per user + `pricing_unit` extension on `llm_model_pricing` (per_1m_tokens / per_audio_minute / per_audio_hour); per-message cost attribution on `conversation_messages.stt_*`; CSV exports | ✅ |
+| [ADR-081-Voice-TTS-Catalogue-Driven.md](./architecture/ADR-081-Voice-TTS-Catalogue-Driven.md) | Voice TTS migrated to the LLM catalogue: `voice_tts` LLM type (kind=tts), Edge/OpenAI/ElevenLabs seeded with prices, voice + tuning in `provider_config` JSONB, dynamic admin voice picker (`/admin/voice/voices?provider=X`), retirement of `system_settings.voice_tts_mode` and 14 `VOICE_TTS_*` env vars | ✅ |
+| [ADR-082-Progressive-Sentence-Streaming.md](./architecture/ADR-082-Progressive-Sentence-Streaming.md) | Progressive sentence streaming for low-latency TTS — `ProgressiveSentenceStreamer` (in-order delivery, lock-protected drain, sentinel idempotence), persistent httpx ElevenLabs client, voice LLM in `astream`, 5× TTFA reduction in chat mode, 2× in agent mode | ✅ |
 
 ### Human-in-the-Loop (HITL)
 
@@ -250,12 +253,15 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 71 ADRs | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 82 ADRs | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-082 | Progressive sentence streaming for low-latency TTS | 2026-05 |
+| ADR-081 | Voice TTS configuration driven by the LLM catalogue | 2026-05 |
+| ADR-080 | Remote Voice STT (ElevenLabs Scribe) and pricing-unit extension | 2026-05 |
 | ADR-079 | Stratified Journal Consciousness | 2026-05 |
 | ADR-078 | LLM Catalogue DB-Source-of-Truth | 2026-05 |
 | ADR-077 | Today Briefing as a Standalone Bounded Context | 2026-04 |
@@ -452,7 +458,7 @@ LIA/
 │   │   │   ├── core/           # Configuration, security, middleware
 │   │   │   ├── domains/        # DDD: agents, auth, chat, connectors, google_api, etc.
 │   │   │   └── infrastructure/ # Database, cache, LLM, observability
-│   │   ├── tests/              # Tests pytest (2,300+)
+│   │   ├── tests/              # Tests pytest (~9,992 collected, 448 files)
 │   │   └── alembic/            # Migrations DB
 │   └── web/                    # Frontend Next.js
 │       ├── src/
@@ -464,7 +470,7 @@ LIA/
 ├── docs/                       # Documentation (ce répertoire)
 │   ├── technical/              # Docs techniques détaillées (50+)
 │   ├── guides/                 # Guides pratiques (15+)
-│   ├── architecture/           # ADRs (73)
+│   ├── architecture/           # ADRs (82)
 │   ├── runbooks/               # Procédures opérationnelles (34+)
 │   └── readme/                 # README spécialisés (15+)
 ├── infrastructure/             # Docker, observabilité

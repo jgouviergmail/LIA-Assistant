@@ -124,6 +124,9 @@ class TokenSummaryDTO:
     google_api_cost_eur: float = 0.0
     image_generation_requests: int = 0
     image_generation_cost_eur: float = 0.0
+    # TTS (paid providers) — silo on conversation_messages.tts_cost_eur,
+    # included in the consolidated cost surfaced to the frontend.
+    tts_cost_eur: float = 0.0
 
     @classmethod
     def from_tracker(cls, tracker: Any) -> "TokenSummaryDTO":
@@ -151,6 +154,7 @@ class TokenSummaryDTO:
             google_api_cost_eur=mem_summary.get(FIELD_GOOGLE_API_COST_EUR, 0.0),
             image_generation_requests=mem_summary.get(FIELD_IMAGE_GENERATION_REQUESTS, 0),
             image_generation_cost_eur=mem_summary.get(FIELD_IMAGE_GENERATION_COST_EUR, 0.0),
+            tts_cost_eur=float(mem_summary.get("tts_cost_eur", 0.0) or 0.0),
         )
 
     @classmethod
@@ -178,6 +182,7 @@ class TokenSummaryDTO:
             google_api_cost_eur=data.get(FIELD_GOOGLE_API_COST_EUR, 0.0),
             image_generation_requests=data.get(FIELD_IMAGE_GENERATION_REQUESTS, 0),
             image_generation_cost_eur=data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0.0),
+            tts_cost_eur=float(data.get("tts_cost_eur", 0.0) or 0.0),
         )
 
     @classmethod
@@ -215,9 +220,14 @@ class TokenSummaryDTO:
             >>> assert "tokens_in" in metadata
             >>> assert "cost_eur" in metadata
         """
-        # Consolidate all costs (LLM tokens + Google API + image generation)
-        # into cost_eur so the frontend shows the true total
-        total_cost = self.cost_eur + self.google_api_cost_eur + self.image_generation_cost_eur
+        # Consolidate all costs (LLM tokens + Google API + image generation
+        # + paid TTS) into cost_eur so the frontend shows the true total.
+        total_cost = (
+            self.cost_eur
+            + self.google_api_cost_eur
+            + self.image_generation_cost_eur
+            + self.tts_cost_eur
+        )
         return {
             FIELD_TOKENS_IN: self.tokens_in,
             FIELD_TOKENS_OUT: self.tokens_out,

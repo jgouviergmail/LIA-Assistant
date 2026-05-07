@@ -32,7 +32,6 @@ import AdminLLMPricingSection from '@/components/settings/AdminLLMPricingSection
 import AdminGoogleApiPricingSection from '@/components/settings/AdminGoogleApiPricingSection';
 import AdminImagePricingSection from '@/components/settings/AdminImagePricingSection';
 import AdminPersonalitiesSection from '@/components/settings/AdminPersonalitiesSection';
-import AdminVoiceSettingsSection from '@/components/settings/AdminVoiceSettingsSection';
 import AdminBroadcastSection from '@/components/settings/AdminBroadcastSection';
 import AdminConsumptionExportSection from '@/components/settings/AdminConsumptionExportSection';
 import AdminDebugSettingsSection from '@/components/settings/AdminDebugSettingsSection';
@@ -357,7 +356,6 @@ export default function SettingsPage({ params }: SettingsPageProps) {
 
               {/* Group: System */}
               <SettingsGroupLabel label={t('settings.groups.system')} icon={Wrench} />
-              <AdminVoiceSettingsSection lng={lng} />
               <AdminDebugSettingsSection lng={lng} />
             </Accordion>
           </TabsContent>

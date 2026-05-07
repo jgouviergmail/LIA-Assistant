@@ -535,7 +535,13 @@
       "error": "发送消息失败",
       "retry": "重试",
       "copy": "复制消息",
-      "copied": "已复制到剪贴板"
+      "copied": "已复制到剪贴板",
+      "stt_unit_seconds": "秒",
+      "tts_unit_chars": "字",
+      "stt_tooltip_provider": "语音识别 via {{provider}}",
+      "stt_tooltip_fallback": "语音转文字成本",
+      "tts_tooltip_provider": "语音合成 via {{provider}}{{model}}",
+      "tts_tooltip_fallback": "文字转语音成本"
     },
     "code": {
       "copy": "复制代码",
@@ -998,7 +1004,11 @@
         "token_usage_title": "LLM Token消费",
         "token_usage_description": "每次LLM调用的详细信息，包括Token和费用。",
         "google_api_usage_title": "Google API消费",
-        "google_api_usage_description": "每次Google Maps API调用的详细信息。",
+        "google_api_usage_description": "每次 Google Maps API 调用的详情。",
+        "stt_usage_title": "远程 STT 使用情况",
+        "stt_usage_description": "每行对应一次 ElevenLabs Scribe 转录（音频时长 + 费用）。",
+        "tts_usage_title": "付费 TTS 使用情况",
+        "tts_usage_description": "每行对应一次付费 TTS 合成（OpenAI / ElevenLabs） — 字符数 + 费用。",
         "summary_title": "我的摘要",
         "summary_description": "您的消费汇总数据。",
         "download_csv": "下载CSV",
@@ -1111,12 +1121,20 @@
           "title_add": "添加模型",
           "model_name_label": "模型名称",
           "model_name_placeholder": "gpt-4.1-mini, o1-mini, claude-sonnet-4-5...",
-          "input_price_label": "输入价格（$/100万令牌）",
+          "input_price_label": "输入价格",
           "input_price_placeholder": "2.500000",
-          "cached_input_label": "缓存输入价格（$/100万令牌）- 可选",
+          "cached_input_label": "缓存输入价格 - 可选",
           "cached_input_placeholder": "1.250000（如果不支持则留空）",
-          "output_price_label": "输出价格（$/100万令牌）",
+          "output_price_label": "输出价格",
           "output_price_placeholder": "10.000000",
+          "pricing_unit_label": "计费单位",
+          "pricing_unit_hint": "聊天/文本模型按令牌计费；STT/TTS 提供商按音频时长计费（例如 ElevenLabs Scribe 按音频小时计费）。",
+          "pricing_unit_per_1m_tokens": "每 100 万令牌",
+          "pricing_unit_per_audio_minute": "每音频分钟",
+          "pricing_unit_per_audio_hour": "每音频小时",
+          "pricing_unit_short_per_1m_tokens": "$/100万令牌",
+          "pricing_unit_short_per_audio_minute": "$/音频分钟",
+          "pricing_unit_short_per_audio_hour": "$/音频小时",
           "cancel": "取消",
           "submit_edit": "更新",
           "submit_create": "创建",
@@ -1211,7 +1229,11 @@
         "token_usage_title": "LLM Token 使用情况",
         "token_usage_description": "每次 LLM 调用的详细信息，包括 token 和成本。",
         "google_api_usage_title": "Google API 使用情况",
-        "google_api_usage_description": "每次 Google Maps API 调用的详细信息。",
+        "google_api_usage_description": "每次 Google Maps API 调用的详情。",
+        "stt_usage_title": "远程 STT 使用情况",
+        "stt_usage_description": "每行对应一次 ElevenLabs Scribe 转录（音频时长 + 费用）。",
+        "tts_usage_title": "付费 TTS 使用情况",
+        "tts_usage_description": "每行对应一次付费 TTS 合成（OpenAI / ElevenLabs） — 字符数 + 费用。",
         "summary_title": "用户汇总",
         "summary_description": "按用户汇总的总计数据，用于计费。",
         "download_csv": "下载 CSV",
@@ -1532,7 +1554,28 @@
           "mcp_react_agent": "MCP迭代模式：先读取服务器文档，然后逐步执行工具",
           "image_generation": "从文本描述生成AI图像（gpt-image-1等）",
           "psyche_summary": "Psyche Summary",
-          "briefing": "生成主页仪表盘的问候和概要 (Today)"
+          "briefing": "生成主页仪表盘的问候和概要 (Today)",
+          "voice_transcription": "语音模式的语音识别（本地 Sherpa 或远程 ElevenLabs Scribe）",
+          "voice_tts": "助手语音合成（Edge / OpenAI / ElevenLabs）"
+        },
+        "voiceTts": {
+          "sectionTitle": "语音和提供商设置",
+          "voiceMale": "男声",
+          "voiceFemale": "女声",
+          "pickVoice": "选择一个声音",
+          "voiceIdPlaceholder": "voice_id",
+          "loadingVoices": "正在加载语音…",
+          "rate": "语速",
+          "pitch": "音高",
+          "volume": "音量",
+          "speed": "速度",
+          "responseFormat": "音频格式",
+          "outputFormat": "输出格式",
+          "stability": "稳定性",
+          "similarityBoost": "相似度增强",
+          "style": "风格",
+          "useSpeakerBoost": "启用扬声器增强",
+          "liveCatalogue": "来自您 ElevenLabs 账户的实时目录"
         },
         "no_compatible_model": "该提供商没有支持此功能的模型",
         "ollama": {
@@ -1646,14 +1689,22 @@
       "info_note": "💡 时区会影响对话和通知中显示的时间和日期。所有时区都使用 IANA 标准。"
     },
     "voice_mode": {
-      "title": "100%本地语音模式",
-      "description": "配置唤醒词检测的语音输入",
-      "enable": "启用语音模式",
-      "enable_description": "允许通过唤醒词或点击进行语音输入",
-      "enabled_success": "语音模式已启用",
-      "disabled_success": "语音模式已禁用",
-      "info": "启用后，聊天头部会出现语音徽章。点击说话或说 \"ok guy\" 或 \"ok guys\" 激活语音输入。",
-      "experimental_note": "⚠️ 移动端实验性功能。唤醒词检测在手机上可能不太可靠。"
+      "title": "语音模式",
+      "description": "配置语音转文字和免提唤醒词",
+      "enable": "免提模式（唤醒词）",
+      "enable_description": "监听 \"ok guy\" / \"ok guys\"，检测到后自动开始录音。无论此项是否启用，长按发送按钮的语音输入始终可用。",
+      "enabled_success": "免提模式已启用",
+      "disabled_success": "免提模式已禁用",
+      "info": "长按发送按钮的语音输入始终可用。上方启用唤醒词可实现免提录音。上方选择的转录后端（本地或远程）同时适用于两种方式。",
+      "experimental_note": "⚠️ 移动端唤醒词检测为实验性功能。",
+      "stt_mode_label": "语音转文字后端",
+      "stt_mode_local": "本地（Sherpa）",
+      "stt_mode_local_description": "在 LIA 服务器上免费转录，音频不会离开 LIA。",
+      "stt_mode_remote": "远程（ElevenLabs）",
+      "stt_mode_remote_description": "通过 ElevenLabs Scribe 提供更高的准确度，按音频分钟计费。",
+      "stt_mode_updated_success": "语音转文字后端已更新",
+      "stt_remote_unavailable_warning": "远程转录不可用：管理员需要先配置 ElevenLabs API 密钥。",
+      "stt_remote_privacy_notice": "在远程模式下，您的音频会发送到 ElevenLabs（云端）进行转录。本地模式将音频保留在 LIA 内部。"
     },
     "image_generation": {
       "title": "AI 图像生成",
@@ -2724,7 +2775,7 @@
         },
         "voice": {
           "title": "🎙️ 完整语音模式",
-          "description": "双向系统：TTS（免费Edge、OpenAI HD或Gemini HD）让LIA与您对话，STT（离线Sherpa Whisper）让您与LIA对话。通过说'OK Guy'或'OK Guys'（唤醒词）激活语音模式，或点击麦克风按钮。自动语音结束检测（VAD）。多语言转录（99+种语言）。服务器端完全免费且离线。"
+          "description": "双向系统。<b>TTS</b> 由目录驱动（由管理员配置）：内置三家提供商——Edge（Microsoft 神经语音、免费、默认）、OpenAI（<code>tts-1</code> / <code>tts-1-hd</code>）和 ElevenLabs（<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>）。按句级流式合成在约 1 秒内启动第一段音频。<b>STT</b> 默认使用免费的服务器端 Sherpa-onnx Whisper（99+ 语言，音频不会离开服务器）；每位用户可选择启用远程 ElevenLabs Scribe（0.22 美元/小时）以在对话语音上获得更高精度。每条消息的成本徽章（🎤 用户 / 🔊 助手）用于付费语音调用；管理员级总开关和 5 分钟时长上限可防止成本激增。通过\"OK Guy\"唤醒词或麦克风按钮激活；自动语音结束检测（VAD）。"
         },
         "reminders": {
           "title": "🔔 提醒与推送通知",
@@ -2857,6 +2908,20 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_20_2": {
+          "title": "v1.20.2 — 语音：STT/TTS 目录、按消息成本归属、按句流式合成",
+          "date": "2026 年 5 月",
+          "count": "7",
+          "items": {
+            "i1": "<b>新增远程 STT 选项（ElevenLabs Scribe）</b> — 语音模式在 <b>设置 → 语音模式</b> 中新增按用户切换：保留免费的本地 Sherpa-onnx Whisper（默认，音频从不离开 LIA 服务器）或启用 ElevenLabs Scribe（0.22 美元/小时，按音频时长计费）以获得更精准的对话语音识别。每条用户气泡上的低调 🎤 徽章显示转录的时长与欧元成本。成本会汇入仪表板的常规<b>成本</b>磁贴和使用上限——无独立配额。",
+            "i2": "<b>TTS 转为目录驱动：3 家提供商，单一管理表单</b> — 语音合成现在通过 <b>LLM 配置 → Voice TTS</b> 进行配置，第一天起即提供三家：Edge（免费、默认、Microsoft 神经语音）、OpenAI（<code>tts-1</code>、<code>tts-1-hd</code>）和 ElevenLabs（<code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>）。各提供商专属调优面板（Edge SSML rate/pitch/volume，OpenAI speed + format，ElevenLabs stability/similarity_boost/style/use_speaker_boost）以及 ElevenLabs 实时声音选择器（来自您账户的自定义 + 库声音）。",
+            "i3": "<b>助手气泡上的按消息 TTS 成本</b> — 付费 TTS 提供商现在在助手消息上显示 🔊 徽章，标明字符数与合成的欧元成本（Edge 免费 → 无徽章）。悬停徽章可查看提供商、模型和精确费率。汇总至仪表板<b>成本</b>磁贴，并可通过新的 <code>tts-usage</code> CSV（管理员 + 用户）和扩展的 <code>consumption-summary</code> 导出。",
+            "i4": "<b>语音延迟：第一段音频在约 1 秒内到达，而非约 5 秒</b> — 一个新的按句级流式合成器在 LLM 一产生完整句子时即并行触发 TTS 合成。第一句开始播放时，助手仍在撰写答案的其余部分——无需等待完整文本。ElevenLabs 上的持久 HTTP 长连接每句再节省约 100–300 毫秒。在聊天和代理两种模式下均生效。",
+            "i5": "<b>管理员：远程 STT 总开关 + 时长上限（防成本激增）</b> — 远程 STT 管线上的两个安全杠杆。环境变量 <code>ELEVENLABS_STT_ENABLED</code> 现在确实会在运行时禁用远程 STT（事件响应或紧急配额时立即回退到本地 Sherpa）。<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code> 上限（默认 5 分钟）现在每次调用前会真正校验——超长片段会以清晰的错误被拒绝，不产生提供商费用。",
+            "i6": "<b>语音错误：显示精确原因</b> — 三家 TTS 提供商（Edge / OpenAI / ElevenLabs）的失败现在会以稳定的错误码上报：超时、达到速率限制（如可用，附带 retry-after 延迟）、认证问题、网络错误、空音频响应、通用 HTTP 错误。前端可为每种情形展示精确提示——而非通用的「语音失败」消息。",
+            "i7": "<b>STT 与 TTS 的全新 CSV 导出</b> — <code>stt-usage</code> 与 <code>tts-usage</code> 已加入 <b>设置 → 消耗导出</b>（按用户）以及管理员导出标签页（按用户筛选）。它们列出每次付费语音调用的日期、对话、消息 ID、提供商、时长 / 字符数和欧元成本。<code>consumption-summary</code> 也新增 STT 和 TTS 列，让总计始终汇于一处。"
+          }
+        },
         "v1_20_1": {
           "title": "v1.20.1 — 管理员 LLM：每模型采样矩阵和可复用的推理形态模板",
           "date": "2026 年 5 月",
@@ -4097,7 +4162,15 @@
           },
           "voice_privacy": {
             "question": "我的语音数据会发送到外部服务吗？",
-            "answer": "不会。唤醒词检测完全在您的浏览器中运行（Sherpa-onnx WASM）。语音识别在LIA自己的服务器上使用Whisper运行。没有任何音频会发送给第三方服务。"
+            "answer": "默认情况下不会。唤醒词检测完全在您的浏览器中运行（Sherpa-onnx WASM，仅支持英语）。语音识别使用运行在 LIA 服务器上的 Sherpa-onnx Whisper（您的音频永远不会离开 LIA 服务器）。一个可选的 <b>远程 STT 模式</b>（设置 -> 语音模式 -> 远程）会将音频传输到 ElevenLabs Scribe 以获得更高的精度 - 仅在用户主动启用时生效，默认关闭，并在设置面板中明确告知。"
+          },
+          "voice_stt_remote": {
+            "question": "我可以使用更精准的（远程）语音识别吗？",
+            "answer": "可以。在 <b>设置 -> 语音模式</b> 中，您可以在 <b>本地</b>（默认、免费、运行于 LIA 服务器上的 Sherpa-onnx Whisper，音频不会离开服务器）和 <b>远程</b>（ElevenLabs Scribe，0.22 美元/小时，按音频时长计费）之间切换。远程模式对对话语音尤其在嚏杂环境下更为精准。每条用户气泡上的低调 🎤 徽章显示转录的时长和欧元成本。成本汇入仪表板的常规 <b>成本</b> 磁贴和您的使用上限——没有独立配额。两个安全杠杆防止成本激增：每段不超过 5 分钟的硬上限（管理员可调）以及一个全局总开关，管理员可一键启用以强制所有人回退到本地。"
+          },
+          "voice_tts_provider": {
+            "question": "LIA 用什么声音说话？TTS 的费用是多少？",
+            "answer": "LIA 的语音合成由管理员从一个统一的目录配置，目录提供三家提供商：<b>Edge TTS</b>（Microsoft 神经语音、免费、默认）、<b>OpenAI TTS</b>（<code>tts-1</code> / <code>tts-1-hd</code>，高品质语音：alloy、echo、nova 等）以及 <b>ElevenLabs</b>（<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>，包含已配置账户中的自定义和库声音）。对于付费提供商，助手消息上的 🔊 徽章会显示字符数和欧元成本；Edge 保持免费，无徽章。延迟方面：一个按句级流式合成器约 1 秒后即开始播放第一句，而助手仍在撰写其余部分的回答。"
           }
         }
       },
@@ -5562,8 +5635,8 @@
       },
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",
-        "excerpt": "LIA通过唤醒词、按住说话和离线语音识别理解您的声音。",
-        "body": "<h2>三种激活模式</h2><p>LIA支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"激活监听。检测基于在浏览器端通过WASM执行的<strong>VAD + 语音转录 + 关键词匹配</strong>管线。唤醒词检测不会将任何音频数据发送出浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话</li><li><strong>语音活动自动检测（VAD）</strong> — 静默1秒后自动停止监听</li></ul><h2>离线语音识别（STT）</h2><p>语音转文本使用服务端的<strong>离线语音识别引擎（Whisper Small INT8）</strong>，<strong>16 kHz单声道</strong>模式。该模型支持<strong>99+种语言</strong>，完全离线运行——没有任何音频数据发送给第三方服务。INT8量化在CPU上提供了精度和性能的出色平衡。</p><h2>自然语音合成（TTS）</h2><p>LIA提供两个级别的语音合成质量：</p><ul><li><strong>标准TTS — 免费神经网络语音</strong>，丰富的语音和语言选择。默认使用。</li><li><strong>TTS HD（高级）</strong> — 可选<strong>高级TTS供应商</strong>，提供更自然和富有表现力的语音。</li></ul><p>支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV和PCM</strong>。格式根据浏览器能力自动选择。</p><h2>语音评论</h2><p>LIA可以为其文本回复添加简短的<strong>语音评论</strong>。这些评论由<strong>轻量级LLM模型</strong>生成，最多<strong>6句话</strong>，温度为<strong>0.7</strong>，以获得自然多变的语调。它们增添了个人化的风格，而不会加重回复负担。</p><h2>实时架构</h2><p>音频通过WebSocket流传输以实现最低延迟。BFF（Backend-for-Frontend）票证系统使用一次性Token（有效期60秒）保护连接安全。</p>"
+        "excerpt": "LIA 的语音领域结合了免费的本地 STT（Sherpa-onnx Whisper，可选远程 ElevenLabs Scribe 以获得更高精度）和目录驱动的 TTS（Edge / OpenAI / ElevenLabs）。按句级流式合成在约 1 秒内带来第一段音频。按消息的成本归属使付费语音调用完全可审计。",
+        "body": "<h2>三种激活模式</h2><p>LIA 支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"启动免提聆听。检测完全在浏览器中通过 Sherpa-onnx WASM 进行（仅英语模型）。唤醒词检测不会有任何音频离开浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话。已针对移动端优化。</li><li><strong>自动语音结束检测 (VAD)</strong> — 静音 ~0.75 秒后自动停止聆听。</li></ul><h2>语音识别：本地默认，远程可选</h2><p>每位用户在 <strong>设置 → 语音模式</strong> 选择 STT 模式：</p><ul><li><strong>本地</strong>（默认，免费）— 在 LIA 服务器上以 <strong>16 kHz 单声道</strong> 运行的 Sherpa-onnx Whisper，采用 INT8 量化。支持 <strong>99+ 种语言</strong>。音频从不离开 LIA 服务器。</li><li><strong>远程</strong>（可选启用）— ElevenLabs Scribe，0.22 美元/小时，按音频时长计费。在对话语音上精度更高，尤其在嘈杂环境下。每条用户气泡上的低调 🎤 徽章显示时长和欧元成本；成本汇入仪表板的常规 <strong>成本</strong> 磁贴和您的使用上限——无独立配额。</li></ul><p>启用远程时，两个管理员侧的安全杠杆可防范成本激增：全局总开关（<code>ELEVENLABS_STT_ENABLED</code>）和按片段的时长上限（<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>，默认 300 秒），在任何提供商调用前都会校验。</p><h2>目录驱动的语音合成</h2><p>语音合成现在通过单一管理表单（LLM 配置 → Voice TTS）配置，第一天即提供三家提供商：</p><ul><li><strong>Edge TTS</strong> — Microsoft 神经语音、免费、默认。SSML rate / pitch / volume 微调。</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> 或 <code>tts-1-hd</code>，高品质语音（alloy、echo、fable、onyx、nova、shimmer）。speed + response_format 微调。</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>。stability、similarity_boost、style、use_speaker_boost 微调。从已配置账户实时选择声音（自定义 + 库声音）。</li></ul><p>对于付费提供商，助手消息上的 🔊 徽章显示字符数和欧元成本；Edge 保持免费，无徽章。支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV、PCM</strong>——按提供商选择。</p><h2>按句级流式合成实现亚秒级延迟</h2><p>语音管线现在 <strong>按完整句子并行</strong> 触发 TTS 合成，而不再等待完整的 LLM 响应。第一句在 <strong>约 1 秒</strong> 内开始播放，而助手仍在撰写答案的其余部分。ElevenLabs 上的持久 HTTP 长连接在 #2…N 调用中每句再节省约 100–300 毫秒。有序送达由缓冲队列保证——失败槽位会被跳过，不阻塞整体流。</p><h2>语音评论与导出</h2><p>LIA 可在其响应上附加简短的 <strong>语音评论</strong>（一种 TTS 叙述插入）。音频通过 WebSocket 流式传输，使用一次性 BFF 票据（TTL 60 秒）确保安全。两项新的 CSV 导出——<code>stt-usage</code> 和 <code>tts-usage</code>——列出每次付费语音调用的对话、消息 ID、提供商、时长 / 字符数与欧元成本。现有的 <code>consumption-summary</code> 导出也新增 STT 和 TTS 列，使总计始终位于一处。</p>"
       },
       "knowledge-spaces": {
         "title": "知识空间：将文档转化为AI智能",

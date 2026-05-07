@@ -512,7 +512,7 @@ settings.redis_url
 # - llm.py           : LLM providers configs
 # - agents.py        : SSE, HITL, Router, Planner
 # - connectors.py    : Google APIs, rate limiting
-# - voice.py         : TTS Standard/HD, Voice settings
+# - voice.py         : Voice WebSocket transport, sentence streaming, STT remote kill switch (TTS catalogue lives in DB)
 # - advanced.py      : Pricing, i18n, feature flags
 ```
 

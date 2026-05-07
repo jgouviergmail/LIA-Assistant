@@ -54,7 +54,15 @@ export interface UseChatReturn {
   sendMessage: (
     content: string,
     attachmentIds?: string[],
-    attachmentsMeta?: MessageAttachmentMeta[]
+    attachmentsMeta?: MessageAttachmentMeta[],
+    /**
+     * Optional remote-STT cost metadata. Forwarded to the backend so the
+     * resulting user-bubble row carries the precise cost. NULL/absent for
+     * text-only sends or local-Sherpa transcriptions.
+     */
+    sttMeta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta & {
+      stt_audio_duration_seconds?: number | null;
+    }
   ) => Promise<void>;
   clearMessages: () => void;
   setMessages: (messages: Message[]) => void;
@@ -170,7 +178,10 @@ export const useChat = ({
     async (
       content: string,
       attachmentIds?: string[],
-      attachmentsMeta?: MessageAttachmentMeta[]
+      attachmentsMeta?: MessageAttachmentMeta[],
+      sttMeta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta & {
+        stt_audio_duration_seconds?: number | null;
+      }
     ) => {
       // ✅ CRITICAL: Cancel any pending stream before starting new one
       // Prevents double token counting and ensures clean state
@@ -234,6 +245,17 @@ export const useChat = ({
         ...(attachmentsMeta && attachmentsMeta.length > 0
           ? { metadata: { attachments: attachmentsMeta } }
           : {}),
+        // Surface remote-STT cost on the optimistic user bubble immediately
+        // so the badge appears at send time (before backend echoes the row).
+        ...(sttMeta?.stt_provider
+          ? {
+              source: 'voice' as const,
+              sttProvider: sttMeta.stt_provider ?? null,
+              sttAudioDurationSeconds: sttMeta.stt_audio_duration_seconds ?? null,
+              sttCostEur: sttMeta.stt_cost_eur ?? null,
+              audioDurationSeconds: sttMeta.stt_audio_duration_seconds ?? undefined,
+            }
+          : {}),
       };
 
       // Dispatch user message (state: idle → sending)
@@ -291,6 +313,17 @@ export const useChat = ({
         session_id: sessionId,
         context: browserContext,
         ...(attachmentIds && attachmentIds.length > 0 ? { attachment_ids: attachmentIds } : {}),
+        // Forward remote-STT cost metadata so the backend persists it on
+        // the user ConversationMessage row. All four fields are optional and
+        // ignored when the user message did not come from a remote provider.
+        ...(sttMeta?.stt_provider
+          ? {
+              stt_provider: sttMeta.stt_provider,
+              stt_audio_duration_seconds: sttMeta.stt_audio_duration_seconds ?? null,
+              stt_cost_usd: sttMeta.stt_cost_usd ?? null,
+              stt_cost_eur: sttMeta.stt_cost_eur ?? null,
+            }
+          : {}),
       };
 
       try {

@@ -134,6 +134,16 @@ FIELD_IMAGE_GENERATION_REQUESTS = "image_generation_requests"
 FIELD_IMAGE_GENERATION_COST_EUR = "image_generation_cost_eur"
 
 # ============================================================
+# TTS (per-message cost on conversation_messages, mirror STT)
+# ============================================================
+FIELD_TTS_PROVIDER = "tts_provider"
+FIELD_TTS_MODEL = "tts_model"
+FIELD_TTS_CHARACTERS = "tts_characters"
+FIELD_TTS_COST_USD = "tts_cost_usd"
+FIELD_TTS_COST_EUR = "tts_cost_eur"
+FIELD_TTS_USD_TO_EUR_RATE = "tts_usd_to_eur_rate"
+
+# ============================================================
 # HEALTH METRICS (iPhone Shortcuts ingestion)
 # ============================================================
 FIELD_HEART_RATE = "heart_rate"
@@ -306,6 +316,13 @@ __all__ = [
     # Image Generation
     "FIELD_IMAGE_GENERATION_REQUESTS",
     "FIELD_IMAGE_GENERATION_COST_EUR",
+    # TTS (per-message)
+    "FIELD_TTS_PROVIDER",
+    "FIELD_TTS_MODEL",
+    "FIELD_TTS_CHARACTERS",
+    "FIELD_TTS_COST_USD",
+    "FIELD_TTS_COST_EUR",
+    "FIELD_TTS_USD_TO_EUR_RATE",
     # Health Metrics
     "FIELD_HEART_RATE",
     "FIELD_STEPS",

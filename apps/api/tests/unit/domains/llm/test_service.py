@@ -39,9 +39,9 @@ def _make_create(model_name: str, **overrides) -> ModelPriceCreate:
     return ModelPriceCreate(
         provider="openai",
         model_name=model_name,
-        input_price_per_1m_tokens=Decimal("1.0"),
-        cached_input_price_per_1m_tokens=None,
-        output_price_per_1m_tokens=Decimal("3.0"),
+        input_unit_price=Decimal("1.0"),
+        cached_input_unit_price=None,
+        output_unit_price=Decimal("3.0"),
         **{**_BASE_CREATE_FIELDS, **overrides},
     )
 
@@ -57,7 +57,7 @@ async def test_create_inserts_model_and_pricing_atomically(
     assert model.is_active is True
     assert pricing.model_id == model.id
     assert pricing.is_active is True
-    assert pricing.input_price_per_1m_tokens == Decimal("1.0")
+    assert pricing.input_unit_price == Decimal("1.0")
 
 
 @pytest.mark.unit
@@ -98,14 +98,14 @@ async def test_update_pricing_only_creates_new_versioned_row_and_deactivates_old
     model, old_pricing = await service.create(_make_create("svc-price"))
     await async_session.commit()
 
-    update = ModelPriceUpdate(input_price_per_1m_tokens=Decimal("2.5"))
+    update = ModelPriceUpdate(input_unit_price=Decimal("2.5"))
     new_model, new_pricing = await service.update("svc-price", update)
 
     assert new_pricing is not None
-    assert new_pricing.input_price_per_1m_tokens == Decimal("2.5")
+    assert new_pricing.input_unit_price == Decimal("2.5")
     assert new_pricing.is_active is True
     # Output price preserved from old row (only input changed)
-    assert new_pricing.output_price_per_1m_tokens == Decimal("3.0")
+    assert new_pricing.output_unit_price == Decimal("3.0")
     # Old row deactivated
     await async_session.refresh(old_pricing)
     assert old_pricing.is_active is False
@@ -121,13 +121,13 @@ async def test_update_mixed_does_both_in_one_transaction(
 
     update = ModelPriceUpdate(
         max_output_tokens=4242,
-        input_price_per_1m_tokens=Decimal("5.0"),
+        input_unit_price=Decimal("5.0"),
     )
     new_model, new_pricing = await service.update("svc-mixed", update)
 
     assert new_model.max_output_tokens == 4242
     assert new_pricing is not None
-    assert new_pricing.input_price_per_1m_tokens == Decimal("5.0")
+    assert new_pricing.input_unit_price == Decimal("5.0")
     await async_session.refresh(old_pricing)
     assert old_pricing.is_active is False
 
@@ -167,9 +167,7 @@ async def test_update_raises_lookup_error_when_model_missing(
 ) -> None:
     service = LLMModelService(async_session)
     with pytest.raises(LookupError):
-        await service.update(
-            "no-such-model", ModelPriceUpdate(input_price_per_1m_tokens=Decimal("1.0"))
-        )
+        await service.update("no-such-model", ModelPriceUpdate(input_unit_price=Decimal("1.0")))
 
 
 @pytest.mark.unit
@@ -288,9 +286,9 @@ async def test_create_template_mode_copies_reasoning_shape(
         supports_frequency_penalty=False,
         supports_presence_penalty=False,
         reasoning_template="svc-tmpl-source",
-        input_price_per_1m_tokens=Decimal("1.0"),
-        cached_input_price_per_1m_tokens=None,
-        output_price_per_1m_tokens=Decimal("3.0"),
+        input_unit_price=Decimal("1.0"),
+        cached_input_unit_price=None,
+        output_unit_price=Decimal("3.0"),
     )
     target, _ = await service.create(payload)
 
@@ -327,9 +325,9 @@ async def test_create_template_mode_unknown_template_raises(
         supports_frequency_penalty=True,
         supports_presence_penalty=True,
         reasoning_template="does-not-exist",
-        input_price_per_1m_tokens=Decimal("1.0"),
-        cached_input_price_per_1m_tokens=None,
-        output_price_per_1m_tokens=Decimal("3.0"),
+        input_unit_price=Decimal("1.0"),
+        cached_input_unit_price=None,
+        output_unit_price=Decimal("3.0"),
     )
     with pytest.raises(UnknownReasoningTemplateError, match="does-not-exist"):
         await service.create(payload)

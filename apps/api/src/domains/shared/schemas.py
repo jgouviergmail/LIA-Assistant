@@ -280,6 +280,13 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     voice_mode_enabled: bool = Field(
         default=False, description="Voice mode (wake word + STT input) enabled"
     )
+    voice_stt_mode: str = Field(
+        default="local",
+        description=(
+            "Voice STT backend: 'local' (Sherpa-onnx, free) or 'remote' "
+            "(ElevenLabs Scribe, billed per audio duration)."
+        ),
+    )
     tokens_display_enabled: bool = Field(
         default=False, description="Token usage and costs display enabled"
     )
@@ -350,6 +357,14 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     def set_voice_mode_enabled_default(cls, v: bool | None) -> bool:
         """Ensure voice_mode_enabled defaults to False if None."""
         return v if v is not None else False
+
+    @field_validator("voice_stt_mode", mode="before")
+    @classmethod
+    def set_voice_stt_mode_default(cls, v: str | None) -> str:
+        """Coerce ``voice_stt_mode`` to 'local' for any unexpected value."""
+        if v in ("local", "remote"):
+            return v
+        return "local"
 
     @field_validator("tokens_display_enabled", mode="before")
     @classmethod

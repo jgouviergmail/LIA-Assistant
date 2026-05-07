@@ -29,12 +29,18 @@ import structlog
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
-from src.core.constants import TTS_NODE_NAME
+from src.core.constants import VOICE_TTS_MS_PER_CHAR_HEURISTIC
 from src.core.i18n_types import get_language_name
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.voice.factory import TTSConfig, get_tts_client, get_tts_config
 from src.domains.voice.protocol import TTSClient
-from src.domains.voice.schemas import VoiceAudioChunk, VoiceCommentRequest
+from src.domains.voice.schemas import (
+    AUDIO_MIME_TYPES,
+    DEFAULT_AUDIO_MIME_TYPE,
+    VoiceAudioChunk,
+    VoiceCommentRequest,
+)
+from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 from src.infrastructure.observability.metrics_voice import (
@@ -49,6 +55,8 @@ from src.infrastructure.observability.metrics_voice import (
 )
 
 if TYPE_CHECKING:
+    from langchain_core.language_models.chat_models import BaseChatModel
+
     from src.domains.chat.service import TrackingContext
 
 logger = structlog.get_logger(__name__)
@@ -297,19 +305,11 @@ class VoiceCommentService:
                     sample_rate="24000",  # Approximate, varies by provider
                 ).inc(audio_bytes_count)
 
-                # Estimate duration (rough: ~80ms per character for French)
-                duration_ms = len(sentence) * 80
+                # Estimate duration via the shared TTS heuristic.
+                duration_ms = len(sentence) * VOICE_TTS_MS_PER_CHAR_HEURISTIC
 
-                # Determine MIME type based on audio format
-                mime_types = {
-                    "mp3": "audio/mpeg",
-                    "opus": "audio/opus",
-                    "aac": "audio/aac",
-                    "flac": "audio/flac",
-                    "wav": "audio/wav",
-                    "pcm": "audio/pcm",
-                }
-                mime_type = mime_types.get(tts_client.audio_format, "audio/mpeg")
+                # Determine MIME type based on audio format (shared map).
+                mime_type = AUDIO_MIME_TYPES.get(tts_client.audio_format, DEFAULT_AUDIO_MIME_TYPE)
 
                 yield VoiceAudioChunk(
                     audio_base64=audio_base64,
@@ -342,26 +342,29 @@ class VoiceCommentService:
                 # Continue with next sentence on error
                 continue
 
-        # Track TTS costs for HD mode (Standard/Edge TTS is free)
-        # Characters are tracked as prompt_tokens (input) since TTS takes text input
-        if tts_config.mode == "hd" and self._tracker and total_characters_synthesized > 0:
-            await self._track_tts_cost(
-                total_characters=total_characters_synthesized,
-                model_name=tts_config.model or settings.voice_tts_hd_model,
+        # Record TTS usage for paid providers (Edge is free → never recorded).
+        # The tracker accumulates a TTSUsageRecord per call; the aggregate is
+        # later read by archive_message() and persisted on
+        # ``conversation_messages.tts_*`` columns (mirror of STT pattern,
+        # see ADR-081). The same aggregate also surfaces in
+        # ``user_statistics.cycle_tts_*`` via create_or_update, so the
+        # dashboard "Cost" tile picks up TTS automatically.
+        if tts_config.is_paid and self._tracker and total_characters_synthesized > 0:
+            self._tracker.record_tts_call(
+                provider=tts_config.provider,
+                model=tts_config.model,
+                characters=total_characters_synthesized,
             )
 
-    async def generate_voice_comment(
+    async def _build_voice_llm_invocation(
         self,
         request: VoiceCommentRequest,
-    ) -> str:
-        """
-        Generate complete voice comment text (non-streaming).
+    ) -> tuple["BaseChatModel", str, RunnableConfig | None]:
+        """Resolve the voice LLM, prompt and tracking config for a request.
 
-        Args:
-            request: Voice comment request with context and personality.
-
-        Returns:
-            Complete voice comment text.
+        Shared by ``generate_voice_comment`` (non-streaming) and
+        ``stream_voice_comment`` (sentence-streaming) so both paths build the
+        same prompt + token tracking surface.
         """
         # Resolve psyche context before template formatting
         psyche_block = ""
@@ -397,7 +400,6 @@ class VoiceCommentService:
         if user_model_block:
             prompt = prompt + "\n\n" + user_model_block
 
-        # Get LLM for voice comment generation (uses centralized config from settings)
         llm = get_llm("voice_comment")
 
         # Build config with metrics tracking (always) + DB token tracking (if tracker)
@@ -415,7 +417,22 @@ class VoiceCommentService:
             config=base_config,
             node_name="voice_comment",
         )
+        return llm, prompt, config
 
+    async def generate_voice_comment(
+        self,
+        request: VoiceCommentRequest,
+    ) -> str:
+        """
+        Generate complete voice comment text (non-streaming).
+
+        Args:
+            request: Voice comment request with context and personality.
+
+        Returns:
+            Complete voice comment text.
+        """
+        llm, prompt, config = await self._build_voice_llm_invocation(request)
         response = await llm.ainvoke(prompt, config=config)
         content = response.content if hasattr(response, "content") else str(response)
         # Ensure we return a string (content can be list for some models)
@@ -455,10 +472,12 @@ class VoiceCommentService:
         user_query: str = "",
     ) -> AsyncGenerator[VoiceAudioChunk, None]:
         """
-        Stream voice comment as audio chunks.
+        Stream voice comment as audio chunks using sentence-level pipelining.
 
-        Generates comment text via LLM, then synthesizes each sentence
-        via TTS and yields audio chunks for streaming.
+        The voice LLM is consumed via ``astream`` so each generated sentence is
+        dispatched to TTS as soon as it crosses a punctuation boundary —
+        instead of waiting for the LLM to fully complete (legacy behaviour
+        that wasted 1–3 s of dead air on long comments).
 
         Args:
             context_summary: Summary of results to comment on.
@@ -468,12 +487,13 @@ class VoiceCommentService:
             user_query: Original user query for better context (optional).
 
         Yields:
-            VoiceAudioChunk for each synthesized sentence.
+            VoiceAudioChunk for each synthesized sentence (in completion order;
+            phrase_index respects dispatch order, so the consumer can sort if
+            strict playback order matters).
         """
         if not current_datetime:
             current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-        # Build request
         request = VoiceCommentRequest(
             context_summary=context_summary,
             personality_instruction=personality_instruction,
@@ -495,49 +515,110 @@ class VoiceCommentService:
         # Track session
         voice_sessions_total.labels(lia_gender=self._lia_gender).inc()
 
-        try:
-            # Generate complete comment first
-            # (Streaming LLM + sentence detection would add complexity)
-            llm_start_time = time.time()
-            comment_text = await self.generate_voice_comment(request)
-            llm_duration = time.time() - llm_start_time
+        # Resolve TTS surface
+        tts_client = await self._get_tts_client()
+        tts_config = await self._get_tts_config()
+        voice_name = await self._get_voice_for_language(user_language)
 
-            # Track LLM generation duration
-            from src.core.llm_config_helper import get_llm_config_for_agent
+        chars_total = 0
 
-            voice_comment_generation_duration_seconds.labels(
-                model=get_llm_config_for_agent(settings, "voice_comment").model
-            ).observe(llm_duration)
+        def _on_chars(chars: int) -> None:
+            nonlocal chars_total
+            chars_total += chars
 
-            if not comment_text:
-                logger.warning("voice_comment_empty")
-                voice_fallback_total.labels(reason="empty_comment").inc()
-                return
-
-            # Extract and limit sentences
-            sentences = self._extract_sentences(comment_text)
-            complete_sentences = [s for s, is_complete in sentences if is_complete or s]
-            complete_sentences = complete_sentences[: settings.voice_max_sentences]
-
-            # Track sentence count
-            voice_comment_sentences_total.inc(len(complete_sentences))
-
-            logger.info(
-                "voice_comment_sentences",
-                total_sentences=len(complete_sentences),
-                max_sentences=settings.voice_max_sentences,
+        async def _synth(sentence: str) -> str:
+            return await tts_client.synthesize_base64(
+                text=sentence,
+                voice_name=voice_name,
             )
 
-            # Delegate to common TTS synthesis loop (DRY)
-            async for chunk in self._synthesize_sentences(
-                sentences=complete_sentences,
-                user_language=user_language,
-                metrics=metrics,
-                mode="voice_comment",
-            ):
+        streamer = ProgressiveSentenceStreamer(
+            synth=_synth,
+            max_sentences=settings.voice_max_sentences,
+            audio_format=tts_client.audio_format,
+            sentence_delimiters=settings.voice_sentence_delimiters,
+            on_chars_synthesized=_on_chars,
+        )
+
+        # Build the LLM call and feed its astream into the streamer.
+        # The LLM token-tracking callback wired in _build_voice_llm_invocation
+        # records prompt/completion tokens via the standard tracker path.
+        llm, prompt, config = await self._build_voice_llm_invocation(request)
+
+        llm_start_time = time.time()
+
+        async def _feed_llm() -> None:
+            try:
+                async for delta in llm.astream(prompt, config=config):
+                    raw = getattr(delta, "content", None)
+                    if raw is None:
+                        raw = str(delta) if delta else ""
+                    content = raw if isinstance(raw, str) else str(raw)
+                    if content:
+                        streamer.feed(content)
+            except asyncio.CancelledError:
+                raise
+            except Exception as llm_err:
+                logger.error(
+                    "voice_comment_llm_stream_error",
+                    error=str(llm_err),
+                    error_type=type(llm_err).__name__,
+                )
+            finally:
+                streamer.close_input()
+                # Track LLM generation duration once the stream ends.
+                try:
+                    from src.core.llm_config_helper import get_llm_config_for_agent
+
+                    voice_comment_generation_duration_seconds.labels(
+                        model=get_llm_config_for_agent(settings, "voice_comment").model
+                    ).observe(time.time() - llm_start_time)
+                except Exception:
+                    pass
+
+        feed_task = asyncio.create_task(_feed_llm())
+
+        try:
+            async for chunk in streamer.audio_chunks():
+                # Track chunk metrics for parity with the legacy synth loop.
+                if metrics.first_audio_time is None:
+                    metrics.first_audio_time = time.time()
+                    voice_time_to_first_audio_seconds.observe(
+                        metrics.first_audio_time - metrics.streaming_start_time
+                    )
+                metrics.chunks_yielded += 1
+                metrics.total_audio_bytes += int(len(chunk.audio_base64) * 0.75)
+                voice_audio_chunks_total.inc()
                 yield chunk
 
-            # Track total streaming duration
+            voice_comment_sentences_total.inc(streamer.dispatched_sentences)
+
+            # Wait for the LLM feeder to wrap up (it may still be writing
+            # the final tokens when the queue's sentinel arrives).
+            try:
+                await feed_task
+            except Exception as feed_err:
+                logger.warning(
+                    "voice_comment_feed_task_error",
+                    error=str(feed_err),
+                    error_type=type(feed_err).__name__,
+                )
+
+            # Record TTS cost once for the whole bubble (paid providers only).
+            if tts_config.is_paid and self._tracker and chars_total > 0:
+                try:
+                    self._tracker.record_tts_call(
+                        provider=tts_config.provider,
+                        model=tts_config.model,
+                        characters=chars_total,
+                    )
+                except Exception as track_err:
+                    logger.warning(
+                        "voice_comment_tts_tracking_failed",
+                        error=str(track_err),
+                        chars=chars_total,
+                    )
+
             total_duration = time.time() - metrics.streaming_start_time
             voice_streaming_duration_seconds.observe(total_duration)
 
@@ -546,11 +627,18 @@ class VoiceCommentService:
                 total_chunks=metrics.chunks_yielded,
                 total_audio_bytes=metrics.total_audio_bytes,
                 total_duration_seconds=total_duration,
-                voice_name=await self._get_voice_for_language(user_language),
+                first_audio_latency_seconds=streamer.first_audio_latency_seconds,
+                dispatched_sentences=streamer.dispatched_sentences,
+                voice_name=voice_name,
             )
 
         except asyncio.CancelledError:
-            # Client disconnected or user interrupted audio playback
+            # Client disconnected or user interrupted audio playback. The
+            # feeder task and any in-flight TTS tasks would otherwise leak
+            # (they keep streaming the LLM and pushing into a queue nobody
+            # consumes), holding httpx connections and hogging the event
+            # loop.
+            await self._abort_voice_comment_pipeline(streamer, feed_task)
             try:
                 from src.infrastructure.observability.metrics_voice import (
                     voice_interruptions_total,
@@ -561,6 +649,10 @@ class VoiceCommentService:
                 pass
             raise
         except Exception as e:
+            # Same cleanup contract as on cancellation — leak avoidance is
+            # mandatory here too: voice synthesis is best-effort and must
+            # not orphan tasks when the consumer side raises.
+            await self._abort_voice_comment_pipeline(streamer, feed_task)
             logger.error(
                 "voice_comment_generation_error",
                 error=str(e),
@@ -569,6 +661,25 @@ class VoiceCommentService:
             voice_fallback_total.labels(reason="llm_error").inc()
             # Don't re-raise - voice is optional, response continues without audio
             return
+
+    @staticmethod
+    async def _abort_voice_comment_pipeline(
+        streamer: ProgressiveSentenceStreamer,
+        feed_task: asyncio.Task[None],
+    ) -> None:
+        """Cancel the LLM feeder and every in-flight TTS task.
+
+        Symmetric cleanup hook called by both ``stream_voice_comment``
+        exception branches. Idempotent and tolerant to already-completed
+        tasks.
+        """
+        if not feed_task.done():
+            feed_task.cancel()
+        streamer.cancel_pending()
+        try:
+            await feed_task
+        except (asyncio.CancelledError, Exception):  # noqa: BLE001
+            pass
 
     async def stream_direct_tts(
         self,
@@ -662,6 +773,120 @@ class VoiceCommentService:
             voice_fallback_total.labels(reason="direct_tts_error").inc()
             return
 
+    async def start_progressive_chat_stream(
+        self,
+        user_language: str,
+        chunk_queue: asyncio.Queue[VoiceAudioChunk | None],
+        max_sentences: int | None = None,
+    ) -> tuple[ProgressiveSentenceStreamer, asyncio.Task[None]]:
+        """Spin up a sentence-streaming TTS pipeline for chat mode.
+
+        The caller owns the LLM token stream (it lives in the agents SSE
+        loop). It feeds tokens to the returned streamer as they arrive via
+        ``streamer.feed(text)`` and signals end-of-stream with
+        ``streamer.close_input()``. Audio chunks land in ``chunk_queue`` as
+        soon as each sentence is synthesised — the same queue the legacy
+        parallel path uses, so the SSE drain loop stays unchanged.
+
+        Latency win vs ``stream_direct_tts``: TTFA drops from "stream
+        complete + first sentence TTS" to "first sentence ready + first
+        sentence TTS" — typically 5–10× faster on long responses.
+
+        Args:
+            user_language: ISO-639 code used to pick the gendered voice.
+            chunk_queue: Shared asyncio queue the SSE loop drains. The
+                drain task pushes :class:`VoiceAudioChunk` here, then a
+                ``None`` sentinel once every dispatched sentence is done.
+            max_sentences: Hard cap on dispatched sentences. Defaults to
+                ``settings.voice_chat_mode_max_sentences``.
+
+        Returns:
+            ``(streamer, drain_task)``. The caller MUST eventually call
+            ``streamer.close_input()`` and ``await drain_task`` (the latter
+            unblocks once every sentence has been synthesised and pushed).
+        """
+        if max_sentences is None:
+            max_sentences = settings.voice_chat_mode_max_sentences
+
+        tts_client = await self._get_tts_client()
+        tts_config = await self._get_tts_config()
+        voice_name = await self._get_voice_for_language(user_language)
+
+        # Track session (chat-mode progressive). Mirrors voice_sessions_total
+        # behaviour from stream_direct_tts so dashboards stay coherent.
+        voice_sessions_total.labels(lia_gender=self._lia_gender).inc()
+
+        # Aggregate character count synthesised by this stream so the
+        # tracker can record a single TTSUsageRecord at end-of-stream
+        # (matching the legacy stream_direct_tts behaviour).
+        chars_total = 0
+
+        def _on_chars(chars: int) -> None:
+            nonlocal chars_total
+            chars_total += chars
+
+        async def _synth(sentence: str) -> str:
+            return await tts_client.synthesize_base64(
+                text=sentence,
+                voice_name=voice_name,
+            )
+
+        streamer = ProgressiveSentenceStreamer(
+            synth=_synth,
+            max_sentences=max_sentences,
+            audio_format=tts_client.audio_format,
+            sentence_delimiters=settings.voice_sentence_delimiters,
+            on_chars_synthesized=_on_chars,
+        )
+
+        async def _drain() -> None:
+            """Pump chunks from streamer into the shared SSE queue."""
+            try:
+                async for chunk in streamer.audio_chunks():
+                    await chunk_queue.put(chunk)
+            except asyncio.CancelledError:
+                streamer.cancel_pending()
+                raise
+            finally:
+                # Sentinel so the SSE drain loop knows the stream is done.
+                await chunk_queue.put(None)
+
+                # Record TTS cost once for the whole bubble (paid providers
+                # only — Edge stays free). Mirror of stream_direct_tts /
+                # stream_voice_comment behaviour.
+                if tts_config.is_paid and self._tracker and chars_total > 0:
+                    try:
+                        self._tracker.record_tts_call(
+                            provider=tts_config.provider,
+                            model=tts_config.model,
+                            characters=chars_total,
+                        )
+                    except Exception as track_err:
+                        logger.warning(
+                            "progressive_chat_tts_tracking_failed",
+                            error=str(track_err),
+                            chars=chars_total,
+                        )
+
+                logger.info(
+                    "voice_progressive_chat_stream_complete",
+                    dispatched_sentences=streamer.dispatched_sentences,
+                    chars=chars_total,
+                    first_audio_latency_seconds=streamer.first_audio_latency_seconds,
+                    voice_name=voice_name,
+                )
+
+        drain_task = asyncio.create_task(_drain())
+        logger.info(
+            "voice_progressive_chat_stream_started",
+            user_language=user_language,
+            max_sentences=max_sentences,
+            voice_name=voice_name,
+            provider=tts_config.provider,
+            model=tts_config.model,
+        )
+        return streamer, drain_task
+
     async def _get_voice_for_language(self, language: str) -> str:
         """
         Get appropriate TTS voice name based on gender and current mode.
@@ -689,55 +914,12 @@ class VoiceCommentService:
         else:
             return config.voice_female
 
-    async def _track_tts_cost(self, total_characters: int, model_name: str) -> None:
-        """
-        Track TTS cost in the TrackingContext for aggregated billing.
-
-        TTS pricing is per character (not per token). To integrate with existing
-        token tracking infrastructure, characters are tracked as prompt_tokens
-        (input) since TTS takes text input and produces audio output.
-
-        Pricing lookup uses LLMModelPricing.input_price_per_1m_tokens where
-        "tokens" are actually characters for TTS models. Model name is normalized
-        by llm_utils.normalize_model_name() (e.g., tts-1-1106 → tts-1).
-
-        Args:
-            total_characters: Total number of characters synthesized to audio.
-            model_name: TTS model name (e.g., "tts-1-1106"), normalized for pricing.
-        """
-        if not self._tracker:
-            return
-
-        try:
-            # Record TTS usage: characters as prompt_tokens (input)
-            # prompt_tokens = character count (text input to TTS)
-            # completion_tokens = 0 (audio output not measured in tokens)
-            # cached_tokens = 0 (no caching for TTS)
-            await self._tracker.record_node_tokens(
-                node_name=TTS_NODE_NAME,
-                model_name=model_name,
-                prompt_tokens=total_characters,
-                completion_tokens=0,
-                cached_tokens=0,
-            )
-
-            logger.debug(
-                "tts_cost_tracked",
-                run_id=self._run_id,
-                model_name=model_name,
-                characters=total_characters,
-                node_name=TTS_NODE_NAME,
-            )
-
-        except Exception as e:
-            # Don't fail voice generation if tracking fails
-            logger.warning(
-                "tts_cost_tracking_failed",
-                error=str(e),
-                error_type=type(e).__name__,
-                characters=total_characters,
-                model_name=model_name,
-            )
+    # NOTE: ``_track_tts_cost`` was retired in favour of
+    # ``self._tracker.record_tts_call(provider, model, characters)``.
+    # The new path lives on a dedicated TTS bucket on the TrackingContext
+    # (mirror of ImageGenerationRecord) and is later persisted on
+    # ``conversation_messages.tts_*`` columns by archive_message() — see
+    # ADR-081 for the full rationale.
 
     async def close(self) -> None:
         """Close resources."""

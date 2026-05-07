@@ -44,6 +44,35 @@ class ConversationMessageResponse(BaseModel):
     )
     google_api_requests: int | None = Field(None, description="Number of Google API requests")
 
+    # Per-message STT cost (remote-STT user messages only). All None for
+    # assistant messages and for user messages produced by the local Sherpa
+    # pipeline.
+    stt_provider: str | None = Field(
+        None, description="STT provider that produced this user message ('elevenlabs', etc.)"
+    )
+    stt_audio_duration_seconds: float | None = Field(
+        None, description="Audio duration of the transcription in seconds"
+    )
+    stt_cost_eur: float | None = Field(
+        None, description="STT cost in euros at the time of the call"
+    )
+
+    # Per-message TTS cost (paid-TTS assistant messages only). All None for
+    # user messages and for assistant messages synthesised by Edge (free).
+    tts_provider: str | None = Field(
+        None,
+        description="TTS provider that synthesised this assistant message ('openai', 'elevenlabs', …)",
+    )
+    tts_model: str | None = Field(
+        None, description="TTS model used (e.g. 'tts-1', 'eleven_turbo_v2_5')"
+    )
+    tts_characters: int | None = Field(
+        None, description="Number of characters synthesised for this bubble"
+    )
+    tts_cost_eur: float | None = Field(
+        None, description="TTS cost in euros at the time of the synthesis"
+    )
+
     model_config = {
         "from_attributes": True,
         "populate_by_name": True,  # Allow using both 'metadata' and 'message_metadata'

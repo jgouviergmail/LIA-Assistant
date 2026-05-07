@@ -220,10 +220,12 @@ class TestExportConsumptionSummaryCsv:
         user_id = uuid4()
         email = "alice@example.com"
 
-        # Mock db.execute to return different results for each call:
-        # 1st call: token usage aggregated rows
-        # 2nd call: google api usage aggregated rows
-        # 3rd call: user emails
+        # Mock db.execute to return different results for each call (v1.20.2):
+        # 1) token usage aggregated rows
+        # 2) google api usage aggregated rows
+        # 3) STT usage aggregated rows (ADR-080)
+        # 4) TTS usage aggregated rows (ADR-081)
+        # 5) user emails
         token_row = (user_id, 1500, 450, 100, Decimal("0.75"), 12)
         google_row = (user_id, 5, Decimal("0.2325"))
         email_row = (user_id, email)
@@ -232,11 +234,21 @@ class TestExportConsumptionSummaryCsv:
         token_result.all.return_value = [token_row]
         google_result = MagicMock()
         google_result.all.return_value = [google_row]
+        stt_result = MagicMock()
+        stt_result.all.return_value = []  # No STT for this user
+        tts_result = MagicMock()
+        tts_result.all.return_value = []  # No TTS for this user
         email_result = MagicMock()
         email_result.all.return_value = [email_row]
 
         db = AsyncMock()
-        db.execute.side_effect = [token_result, google_result, email_result]
+        db.execute.side_effect = [
+            token_result,
+            google_result,
+            stt_result,
+            tts_result,
+            email_result,
+        ]
 
         response, count = await export_consumption_summary_csv(db, user_id=user_id)
 
@@ -252,7 +264,14 @@ class TestExportConsumptionSummaryCsv:
         empty_result.all.return_value = []
 
         db = AsyncMock()
-        db.execute.side_effect = [empty_result, empty_result, empty_result]
+        # 5 queries now (token, google, STT, TTS, users) \u2014 all empty.
+        db.execute.side_effect = [
+            empty_result,
+            empty_result,
+            empty_result,
+            empty_result,
+            empty_result,
+        ]
 
         response, count = await export_consumption_summary_csv(db)
 
@@ -261,7 +280,7 @@ class TestExportConsumptionSummaryCsv:
         assert content == "\ufeff"
 
     async def test_user_with_only_token_usage(self) -> None:
-        """Test user who has token usage but no Google API usage."""
+        """Test user who has token usage but no Google API / STT / TTS usage."""
         user_id = uuid4()
         email = "bob@example.com"
 
@@ -272,11 +291,21 @@ class TestExportConsumptionSummaryCsv:
         token_result.all.return_value = [token_row]
         google_result = MagicMock()
         google_result.all.return_value = []
+        stt_result = MagicMock()
+        stt_result.all.return_value = []
+        tts_result = MagicMock()
+        tts_result.all.return_value = []
         email_result = MagicMock()
         email_result.all.return_value = [email_row]
 
         db = AsyncMock()
-        db.execute.side_effect = [token_result, google_result, email_result]
+        db.execute.side_effect = [
+            token_result,
+            google_result,
+            stt_result,
+            tts_result,
+            email_result,
+        ]
 
         response, count = await export_consumption_summary_csv(db, user_id=user_id)
 

@@ -49,7 +49,26 @@ const PROVIDER_OPTIONS: readonly LLMProviderName[] = [
   'ollama',
   'gemini',
   'qwen',
+  'elevenlabs',
+  'edge',
 ] as const;
+
+type PricingUnitName = 'per_1m_tokens' | 'per_audio_minute' | 'per_audio_hour';
+
+const PRICING_UNIT_OPTIONS: readonly PricingUnitName[] = [
+  'per_1m_tokens',
+  'per_audio_minute',
+  'per_audio_hour',
+] as const;
+
+// Mapping kind → default pricing_unit. Audio/TTS models are billed by the
+// provider per audio duration ($/hour for ElevenLabs Scribe), text/chat models
+// by tokens. The select stays editable so an admin can override if a provider
+// prices differently.
+function defaultPricingUnitForKind(kind: LLMModelKindName): PricingUnitName {
+  if (kind === 'audio' || kind === 'tts') return 'per_audio_hour';
+  return 'per_1m_tokens';
+}
 
 // Capability toggles directly editable in the form (independent of the
 // reasoning + sampling block, which is driven by the template selector).
@@ -100,10 +119,11 @@ interface LLMModelPricing {
   supports_top_p: boolean;
   supports_frequency_penalty: boolean;
   supports_presence_penalty: boolean;
-  // Pricing
-  input_price_per_1m_tokens: string;
-  cached_input_price_per_1m_tokens: string | null;
-  output_price_per_1m_tokens: string;
+  // Pricing — semantic given by pricing_unit
+  pricing_unit: PricingUnitName;
+  input_unit_price: string;
+  cached_input_unit_price: string | null;
+  output_unit_price: string;
   effective_from: string;
   is_active: boolean;
 }
@@ -163,7 +183,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<
-    'model_name' | 'input_price_per_1m_tokens' | 'output_price_per_1m_tokens'
+    'model_name' | 'input_unit_price' | 'output_unit_price'
   >('model_name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
@@ -277,9 +297,10 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         supports_top_p: formData.supports_top_p,
         supports_frequency_penalty: formData.supports_frequency_penalty,
         supports_presence_penalty: formData.supports_presence_penalty,
-        input_price_per_1m_tokens: formData.input_price_per_1m_tokens,
-        cached_input_price_per_1m_tokens: formData.cached_input_price_per_1m_tokens,
-        output_price_per_1m_tokens: formData.output_price_per_1m_tokens,
+        pricing_unit: formData.pricing_unit,
+        input_unit_price: formData.input_unit_price,
+        cached_input_unit_price: formData.cached_input_unit_price,
+        output_unit_price: formData.output_unit_price,
         effective_from: new Date().toISOString(),
         is_active: true,
       };
@@ -297,9 +318,10 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
           supports_strict_mode: formData.supports_strict_mode,
           supports_streaming: formData.supports_streaming,
           supports_vision: formData.supports_vision,
-          input_price_per_1m_tokens: formData.input_price_per_1m_tokens,
-          cached_input_price_per_1m_tokens: formData.cached_input_price_per_1m_tokens,
-          output_price_per_1m_tokens: formData.output_price_per_1m_tokens,
+          pricing_unit: formData.pricing_unit,
+          input_unit_price: formData.input_unit_price,
+          cached_input_unit_price: formData.cached_input_unit_price,
+          output_unit_price: formData.output_unit_price,
           ...reasoningSampling,
         });
         if (result.success) {
@@ -337,9 +359,10 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         supports_strict_mode: formData.supports_strict_mode,
         supports_streaming: formData.supports_streaming,
         supports_vision: formData.supports_vision,
-        input_price_per_1m_tokens: formData.input_price_per_1m_tokens,
-        cached_input_price_per_1m_tokens: formData.cached_input_price_per_1m_tokens,
-        output_price_per_1m_tokens: formData.output_price_per_1m_tokens,
+        pricing_unit: formData.pricing_unit,
+        input_unit_price: formData.input_unit_price,
+        cached_input_unit_price: formData.cached_input_unit_price,
+        output_unit_price: formData.output_unit_price,
         ...reasoningSampling,
       };
 
@@ -354,9 +377,10 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
           supports_strict_mode: formData.supports_strict_mode,
           supports_streaming: formData.supports_streaming,
           supports_vision: formData.supports_vision,
-          input_price_per_1m_tokens: formData.input_price_per_1m_tokens,
-          cached_input_price_per_1m_tokens: formData.cached_input_price_per_1m_tokens,
-          output_price_per_1m_tokens: formData.output_price_per_1m_tokens,
+          pricing_unit: formData.pricing_unit,
+          input_unit_price: formData.input_unit_price,
+          cached_input_unit_price: formData.cached_input_unit_price,
+          output_unit_price: formData.output_unit_price,
         },
       });
 
@@ -487,9 +511,9 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
               </th>
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
-                onClick={() => handleSort('input_price_per_1m_tokens')}
+                onClick={() => handleSort('input_unit_price')}
                 aria-sort={
-                  sortBy === 'input_price_per_1m_tokens'
+                  sortBy === 'input_unit_price'
                     ? sortOrder === 'asc'
                       ? 'ascending'
                       : 'descending'
@@ -499,7 +523,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
               >
                 <div className="flex items-center space-x-1">
                   <span>{t('settings.admin.llm.table.input_price')}</span>
-                  {sortBy === 'input_price_per_1m_tokens' && (
+                  {sortBy === 'input_unit_price' && (
                     <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </div>
@@ -512,9 +536,9 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
               </th>
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
-                onClick={() => handleSort('output_price_per_1m_tokens')}
+                onClick={() => handleSort('output_unit_price')}
                 aria-sort={
-                  sortBy === 'output_price_per_1m_tokens'
+                  sortBy === 'output_unit_price'
                     ? sortOrder === 'asc'
                       ? 'ascending'
                       : 'descending'
@@ -524,7 +548,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
               >
                 <div className="flex items-center space-x-1">
                   <span>{t('settings.admin.llm.table.output_price')}</span>
-                  {sortBy === 'output_price_per_1m_tokens' && (
+                  {sortBy === 'output_unit_price' && (
                     <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </div>
@@ -550,15 +574,15 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
                   {model.provider}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                  ${parseFloat(model.input_price_per_1m_tokens).toFixed(6)}
+                  ${parseFloat(model.input_unit_price).toFixed(6)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                  {model.cached_input_price_per_1m_tokens
-                    ? `$${parseFloat(model.cached_input_price_per_1m_tokens).toFixed(6)}`
+                  {model.cached_input_unit_price
+                    ? `$${parseFloat(model.cached_input_unit_price).toFixed(6)}`
                     : 'N/A'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                  ${parseFloat(model.output_price_per_1m_tokens).toFixed(6)}
+                  ${parseFloat(model.output_unit_price).toFixed(6)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <div className="flex gap-2">
@@ -675,9 +699,12 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
     supports_top_p: model?.supports_top_p ?? true,
     supports_frequency_penalty: model?.supports_frequency_penalty ?? true,
     supports_presence_penalty: model?.supports_presence_penalty ?? true,
-    input_price_per_1m_tokens: model?.input_price_per_1m_tokens ?? '',
-    cached_input_price_per_1m_tokens: model?.cached_input_price_per_1m_tokens ?? '',
-    output_price_per_1m_tokens: model?.output_price_per_1m_tokens ?? '',
+    pricing_unit:
+      (model?.pricing_unit as PricingUnitName | undefined) ??
+      defaultPricingUnitForKind(model?.kind ?? 'chat'),
+    input_unit_price: model?.input_unit_price ?? '',
+    cached_input_unit_price: model?.cached_input_unit_price ?? '',
+    output_unit_price: model?.output_unit_price ?? '',
   });
 
   // Fetch the dedup'd template list once; auto-select the matching one in
@@ -725,7 +752,7 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
     e.preventDefault();
     onSubmit({
       ...formData,
-      cached_input_price_per_1m_tokens: formData.cached_input_price_per_1m_tokens || null,
+      cached_input_unit_price: formData.cached_input_unit_price || null,
     });
   };
 
@@ -891,9 +918,18 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
               <select
                 id="kind"
                 value={formData.kind}
-                onChange={e =>
-                  setFormData({ ...formData, kind: e.target.value as LLMModelKindName })
-                }
+                onChange={e => {
+                  const nextKind = e.target.value as LLMModelKindName;
+                  setFormData(prev => ({
+                    ...prev,
+                    kind: nextKind,
+                    // Re-align pricing_unit with the new kind so audio/tts rows
+                    // default to per_audio_hour and chat rows back to
+                    // per_1m_tokens. The admin can still override afterwards
+                    // — this only sets the suggested default.
+                    pricing_unit: defaultPricingUnitForKind(nextKind),
+                  }));
+                }}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 {KIND_OPTIONS.map(k => (
@@ -1197,10 +1233,42 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
 
             <div>
               <label
+                htmlFor="pricing-unit"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
+                {t('settings.admin.llm.modal.pricing_unit_label')}
+              </label>
+              <select
+                id="pricing-unit"
+                value={formData.pricing_unit}
+                onChange={e =>
+                  setFormData({
+                    ...formData,
+                    pricing_unit: e.target.value as PricingUnitName,
+                  })
+                }
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {PRICING_UNIT_OPTIONS.map(u => (
+                  <option key={u} value={u}>
+                    {t(`settings.admin.llm.modal.pricing_unit_${u}`)}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('settings.admin.llm.modal.pricing_unit_hint')}
+              </p>
+            </div>
+
+            <div>
+              <label
                 htmlFor="input-price"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('settings.admin.llm.modal.input_price_label')}
+                {t('settings.admin.llm.modal.input_price_label')}{' '}
+                <span className="text-xs text-muted-foreground font-normal">
+                  ({t(`settings.admin.llm.modal.pricing_unit_short_${formData.pricing_unit}`)})
+                </span>
               </label>
               <Input
                 id="input-price"
@@ -1208,9 +1276,9 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
                 step="0.000001"
                 min="0"
                 required
-                value={formData.input_price_per_1m_tokens}
+                value={formData.input_unit_price}
                 onChange={e =>
-                  setFormData({ ...formData, input_price_per_1m_tokens: e.target.value })
+                  setFormData({ ...formData, input_unit_price: e.target.value })
                 }
                 placeholder={t('settings.admin.llm.modal.input_price_placeholder')}
               />
@@ -1221,18 +1289,21 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
                 htmlFor="cached-input-price"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('settings.admin.llm.modal.cached_input_label')}
+                {t('settings.admin.llm.modal.cached_input_label')}{' '}
+                <span className="text-xs text-muted-foreground font-normal">
+                  ({t(`settings.admin.llm.modal.pricing_unit_short_${formData.pricing_unit}`)})
+                </span>
               </label>
               <Input
                 id="cached-input-price"
                 type="number"
                 step="0.000001"
                 min="0"
-                value={formData.cached_input_price_per_1m_tokens ?? ''}
+                value={formData.cached_input_unit_price ?? ''}
                 onChange={e =>
                   setFormData({
                     ...formData,
-                    cached_input_price_per_1m_tokens: e.target.value,
+                    cached_input_unit_price: e.target.value,
                   })
                 }
                 placeholder={t('settings.admin.llm.modal.cached_input_placeholder')}
@@ -1244,7 +1315,10 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
                 htmlFor="output-price"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('settings.admin.llm.modal.output_price_label')}
+                {t('settings.admin.llm.modal.output_price_label')}{' '}
+                <span className="text-xs text-muted-foreground font-normal">
+                  ({t(`settings.admin.llm.modal.pricing_unit_short_${formData.pricing_unit}`)})
+                </span>
               </label>
               <Input
                 id="output-price"
@@ -1252,9 +1326,9 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
                 step="0.000001"
                 min="0"
                 required
-                value={formData.output_price_per_1m_tokens}
+                value={formData.output_unit_price}
                 onChange={e =>
-                  setFormData({ ...formData, output_price_per_1m_tokens: e.target.value })
+                  setFormData({ ...formData, output_unit_price: e.target.value })
                 }
                 placeholder={t('settings.admin.llm.modal.output_price_placeholder')}
               />

@@ -27,7 +27,8 @@ from src.domains.agents.utils import generate_run_id
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
-    pass
+    from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
+    from src.domains.voice.service import VoiceCommentService
 
 logger = get_logger(__name__)
 
@@ -241,6 +242,60 @@ class AgentService(
             await chunk_queue.put(None)
 
     @staticmethod
+    async def _cleanup_chat_voice_pipeline(
+        streamer: "ProgressiveSentenceStreamer | None",
+        drain_task: asyncio.Task[None] | None,
+        run_id: str,
+        service: "VoiceCommentService | None" = None,
+    ) -> None:
+        """Tear down the chat-mode sentence streaming pipeline.
+
+        Called from every code path that exits the SSE generator before the
+        normal cleanup ran (HITL interrupt fallback, GraphInterrupt at the
+        outer except, exception in the streaming loop) AND from the success
+        path so the persistent httpx pool inside the ElevenLabs TTS client
+        is released deterministically.
+
+        Steps (each best-effort, never re-raises):
+            1. Cancel any in-flight TTS task via ``streamer.cancel_pending``.
+            2. Cancel and await the drain task — without this, the
+               ``_drain()`` coroutine keeps consuming the streamer queue
+               forever and holds a TCP connection to the TTS provider.
+            3. Close the underlying ``VoiceCommentService`` so its
+               persistent httpx client is properly aclosed (otherwise we
+               leak the keep-alive connection pool until process restart).
+
+        Idempotent and tolerant to already-completed/None values.
+        """
+        if streamer is None and drain_task is None and service is None:
+            return
+        try:
+            if streamer is not None:
+                streamer.cancel_pending()
+            if drain_task is not None and not drain_task.done():
+                drain_task.cancel()
+                try:
+                    await drain_task
+                except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                    pass
+            if service is not None:
+                try:
+                    await service.close()
+                except Exception as close_err:  # noqa: BLE001
+                    logger.warning(
+                        "chat_voice_service_close_failed",
+                        run_id=run_id,
+                        error=str(close_err),
+                    )
+        except Exception as cleanup_err:  # noqa: BLE001 — non-fatal cleanup
+            logger.warning(
+                "chat_voice_pipeline_cleanup_failed",
+                run_id=run_id,
+                error=str(cleanup_err),
+                error_type=type(cleanup_err).__name__,
+            )
+
+    @staticmethod
     def _format_voice_audio_chunk(audio_chunk: Any) -> "ChatStreamChunk":
         """
         Format a voice audio chunk for SSE emission (DRY helper).
@@ -390,6 +445,10 @@ class AgentService(
         user_execution_mode: str = "pipeline",
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
+        stt_provider: str | None = None,
+        stt_audio_duration_seconds: float | None = None,
+        stt_cost_usd: float | None = None,
+        stt_cost_eur: float | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
         """
         Stream chat response with SSE chunks and conversation persistence.
@@ -483,6 +542,10 @@ class AgentService(
             user_execution_mode,
             auto_approve_plan,
             attachment_ids,
+            stt_provider=stt_provider,
+            stt_audio_duration_seconds=stt_audio_duration_seconds,
+            stt_cost_usd=stt_cost_usd,
+            stt_cost_eur=stt_cost_eur,
         ):
             yield chunk
 
@@ -502,6 +565,11 @@ class AgentService(
         user_execution_mode: str = "pipeline",
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
+        *,
+        stt_provider: str | None = None,
+        stt_audio_duration_seconds: float | None = None,
+        stt_cost_usd: float | None = None,
+        stt_cost_eur: float | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
         """
         Stream agent response using service-oriented architecture (Phase 3.3).
@@ -654,6 +722,13 @@ class AgentService(
 
             _user_mcp_token = None  # Initialized before try for safe cleanup in except
             _manifests_token = None  # Initialized before try for safe cleanup in except
+            # Voice services initialised here (instead of inside ``async with tracker``)
+            # so the outer ``except`` cleanup branch can reference them even
+            # when the exception fires before the inner block's declarations.
+            chat_voice_streamer: ProgressiveSentenceStreamer | None = None
+            chat_voice_drain_task: asyncio.Task[None] | None = None
+            chat_voice_service: VoiceCommentService | None = None
+            voice_service_parallel: VoiceCommentService | None = None
             try:
                 async with tracker:
                     # === Per-user MCP tools setup (evolution F2.1) ===
@@ -770,11 +845,23 @@ class AgentService(
                     # Parallel voice generation: task starts when registry available
                     # This runs voice LLM + TTS in parallel with response_node streaming
                     # Uses asyncio.Queue for PROGRESSIVE chunk emission (not wait for all)
+                    # NOTE: voice_service_parallel is initialised at the outer
+                    # try/except level (above) so it stays accessible from
+                    # the cleanup branch even when an early exception fires.
                     voice_parallel_task: asyncio.Task | None = None
                     voice_chunk_queue: asyncio.Queue | None = None  # Queue for progressive emission
                     voice_start_emitted = False  # Track if voice_comment_start was emitted
                     voice_complete_emitted = False  # Track if voice_complete was emitted
                     voice_chunk_count = 0  # Count emitted chunks for voice_complete metadata
+
+                    # Sentence streaming for chat-mode (intention=conversation):
+                    # spun up on the FIRST router_decision and fed token-by-token
+                    # so the user hears audio as soon as the first sentence is ready
+                    # — bypasses "wait full response then split + TTS" sync path.
+                    # NOTE: actual variables (``chat_voice_streamer`` /
+                    # ``chat_voice_drain_task`` / ``chat_voice_service``) are
+                    # declared at the outer ``try/except`` level for cleanup
+                    # symmetry — see comment in the outer scope.
 
                     # Extract LIA gender once for both parallel and sync voice paths
                     # (DRY: avoid duplicating this extraction in multiple code paths)
@@ -871,11 +958,69 @@ class AgentService(
                             if sse_chunk.type == "router_decision":
                                 intention_label = sse_chunk.metadata.get("intention", "unknown")
 
+                                # === CHAT-MODE PROGRESSIVE TTS ===
+                                # When the router classifies the turn as
+                                # ``conversation`` (chat mode, no tools), the
+                                # voice context registry will stay None and the
+                                # legacy path would wait for response completion
+                                # before starting TTS. Spin up a sentence
+                                # streamer NOW so each sentence is synthesised
+                                # as soon as it's complete in the chat LLM
+                                # stream — first audio lands within ~1 s.
+                                if (
+                                    chat_voice_streamer is None
+                                    and voice_parallel_task is None
+                                    and intention_label == "conversation"
+                                    and user_obj is not None
+                                    and user_obj.voice_enabled
+                                ):
+                                    try:
+                                        from src.domains.voice.service import (
+                                            VoiceCommentService,
+                                        )
+
+                                        chat_voice_service = VoiceCommentService(
+                                            tracker=tracker,
+                                            run_id=run_id,
+                                            lia_gender=voice_lia_gender,
+                                            user_id=str(user_id),
+                                        )
+                                        if voice_chunk_queue is None:
+                                            voice_chunk_queue = asyncio.Queue()
+                                        (
+                                            chat_voice_streamer,
+                                            chat_voice_drain_task,
+                                        ) = await chat_voice_service.start_progressive_chat_stream(
+                                            user_language=user_language,
+                                            chunk_queue=voice_chunk_queue,
+                                        )
+                                        logger.info(
+                                            "chat_voice_progressive_started",
+                                            run_id=run_id,
+                                            elapsed_since_start_ms=int(
+                                                (time.time() - start_time) * 1000
+                                            ),
+                                        )
+                                    except Exception as chat_voice_err:
+                                        logger.warning(
+                                            "chat_voice_progressive_start_failed",
+                                            run_id=run_id,
+                                            error=str(chat_voice_err),
+                                            error_type=type(chat_voice_err).__name__,
+                                        )
+                                        chat_voice_streamer = None
+                                        chat_voice_drain_task = None
+
                             # Track token count and first token time
                             if sse_chunk.type == "token":
                                 if first_token_time is None:
                                     first_token_time = time.time()
                                 token_count += 1
+                                # Feed the chat-mode streamer with each new
+                                # response token so sentences are extracted
+                                # and TTS-dispatched as they complete.
+                                if chat_voice_streamer is not None and content_fragment:
+                                    chat_voice_streamer.feed(content_fragment)
 
                             # === PARALLEL VOICE: Start when registry becomes available ===
                             # Registry is populated after task_orchestrator completes tools
@@ -897,6 +1042,14 @@ class AgentService(
 
                             if (
                                 voice_parallel_task is None
+                                and chat_voice_drain_task is None
+                                # If a chat-mode sentence streamer is already
+                                # running (router said ``conversation``) we
+                                # must NOT spawn the agent-mode parallel
+                                # voice — both producers would race on
+                                # ``voice_chunk_queue`` and the chat audio
+                                # would silently disappear when the parallel
+                                # path overwrites the queue reference below.
                                 and streaming_service.voice_context_registry is not None
                                 and user_obj is not None
                                 and user_obj.voice_enabled
@@ -1054,6 +1207,18 @@ class AgentService(
                         # Commit tracking data BEFORE generator exits
                         await tracker.commit()
 
+                        # Cancel the chat-mode sentence streamer if it was
+                        # spun up — otherwise the LLM feeder + in-flight TTS
+                        # tasks would leak when this generator returns
+                        # (the tracker context exit does not propagate
+                        # to background tasks).
+                        await self._cleanup_chat_voice_pipeline(
+                            chat_voice_streamer,
+                            chat_voice_drain_task,
+                            run_id,
+                            chat_voice_service,
+                        )
+
                         logger.info(
                             "tracking_committed_on_graph_interrupt_fallback",
                             run_id=run_id,
@@ -1089,6 +1254,20 @@ class AgentService(
                                 ]
                             }
 
+                    # Signal end-of-input to the chat-mode sentence streamer
+                    # so its trailing buffer (last sentence — likely without
+                    # a punctuation terminator) is flushed and the drain task
+                    # can finalise once every TTS call resolves.
+                    if chat_voice_streamer is not None:
+                        try:
+                            chat_voice_streamer.close_input()
+                        except Exception as close_err:
+                            logger.warning(
+                                "chat_voice_streamer_close_failed",
+                                run_id=run_id,
+                                error=str(close_err),
+                            )
+
                     # === Archive messages BEFORE exiting tracker context ===
                     # Messages must be persisted to DB for frontend to load on page refresh
                     #
@@ -1103,6 +1282,16 @@ class AgentService(
                     # Track number of messages archived for accurate stats
                     messages_archived = 0
                     archived_assistant_msg_id: uuid.UUID | None = None
+
+                    # Per-message STT cost — only attached on the first
+                    # user-bubble archival of the turn (guard against double
+                    # accounting if the same turn produces several rows).
+                    stt_kwargs = {
+                        "stt_provider": stt_provider,
+                        "stt_audio_duration_seconds": stt_audio_duration_seconds,
+                        "stt_cost_usd": stt_cost_usd,
+                        "stt_cost_eur": stt_cost_eur,
+                    }
 
                     async with get_db_context() as archive_db:
                         # Determine archiving mode based on HITL state
@@ -1122,6 +1311,7 @@ class AgentService(
                                     **_attachment_meta,
                                 },
                                 archive_db,
+                                **stt_kwargs,
                             )
                             messages_archived += 1
 
@@ -1145,6 +1335,7 @@ class AgentService(
                                     **_attachment_meta,
                                 },
                                 archive_db,
+                                **stt_kwargs,
                             )
                             messages_archived += 1
 
@@ -1163,6 +1354,7 @@ class AgentService(
                                 user_message,
                                 {FIELD_RUN_ID: run_id, **_attachment_meta},
                                 archive_db,
+                                **stt_kwargs,
                             )
                             messages_archived += 1
 
@@ -1393,6 +1585,47 @@ class AgentService(
                         message_increment=messages_archived,
                     )
 
+                # === Backfill the assistant row with TTS attribution ===
+                # The voice synthesis (parallel progressive OR sync fallback)
+                # has had its calls recorded by tracker.record_tts_call(); the
+                # tracker context already exited and pushed the records to the
+                # module-level _run_tts_records bucket. We MUST run this UPDATE
+                # before cleanup_run_records() below — the cleanup wipes that
+                # bucket and the second aggregated_summary in the done chunk
+                # would then read tts=0 from in-memory.
+                #
+                # The captured snapshot survives the cleanup and feeds the
+                # done chunk metadata so the live frontend badge can render
+                # immediately without waiting for a page reload.
+                tts_snapshot_for_done: dict[str, Any] | None = None
+                if archived_assistant_msg_id is not None:
+                    try:
+                        tts_usage = temp_tracker.get_tts_usage_for_archive()
+                        if tts_usage:
+                            tts_snapshot_for_done = dict(tts_usage)
+                            async with get_db_context() as tts_db:
+                                await conv_service.update_message_tts(
+                                    archived_assistant_msg_id,
+                                    tts_usage,
+                                    tts_db,
+                                )
+                                await tts_db.commit()
+                            logger.debug(
+                                "tts_backfill_done",
+                                run_id=run_id,
+                                message_id=str(archived_assistant_msg_id),
+                                tts_provider=tts_usage.get("tts_provider"),
+                                tts_characters=tts_usage.get("tts_characters"),
+                            )
+                    except Exception as tts_archive_err:
+                        logger.warning(
+                            "tts_backfill_failed",
+                            run_id=run_id,
+                            message_id=str(archived_assistant_msg_id),
+                            error=str(tts_archive_err),
+                            error_type=type(tts_archive_err).__name__,
+                        )
+
                 # Cleanup run-level record collector (prevents memory leak)
                 TrackingContext.cleanup_run_records(run_id)
 
@@ -1517,16 +1750,26 @@ class AgentService(
                         chunk_count = voice_chunk_count  # Continue from progressive count
                         voice_source = "unknown"
 
-                        # === PATH 1: Drain remaining chunks from queue if parallel task active ===
-                        if voice_chunk_queue is not None and voice_parallel_task is not None:
+                        # === PATH 1: Drain remaining chunks from queue ===
+                        # Two queue producers can populate voice_chunk_queue:
+                        # - voice_parallel_task (agent mode, registry-driven)
+                        # - chat_voice_drain_task (chat mode, sentence streamer)
+                        # Both push the same VoiceAudioChunk shape and end with
+                        # a None sentinel — the drain loop is identical.
+                        active_voice_task = voice_parallel_task or chat_voice_drain_task
+                        if voice_chunk_queue is not None and active_voice_task is not None:
                             try:
-                                # Wait for parallel task with configurable timeout
+                                # Wait for the producer task with configurable timeout
                                 # This ensures all chunks are in the queue
                                 await asyncio.wait_for(
-                                    voice_parallel_task,
+                                    active_voice_task,
                                     timeout=settings.voice_parallel_timeout_seconds,
                                 )
-                                voice_source = "parallel_drain"
+                                voice_source = (
+                                    "parallel_drain"
+                                    if voice_parallel_task is not None
+                                    else "chat_progressive_drain"
+                                )
 
                                 # Drain remaining chunks from queue
                                 while True:
@@ -1574,13 +1817,14 @@ class AgentService(
                                     timeout_seconds=settings.voice_parallel_timeout_seconds,
                                 )
                                 # Cancel and await for proper cleanup (asyncio best practice)
-                                voice_parallel_task.cancel()
+                                active_voice_task.cancel()
                                 try:
-                                    await voice_parallel_task
+                                    await active_voice_task
                                 except asyncio.CancelledError:
                                     pass
                                 # Fall through to sync generation
                                 voice_parallel_task = None
+                                chat_voice_drain_task = None
                                 voice_chunk_queue = None
 
                             except Exception as parallel_error:
@@ -1592,10 +1836,18 @@ class AgentService(
                                 )
                                 # Fall through to sync generation
                                 voice_parallel_task = None
+                                chat_voice_drain_task = None
                                 voice_chunk_queue = None
 
                         # === PATH 2: Sync fallback (chat mode or parallel failed) ===
-                        if voice_parallel_task is None and chunk_count == 0:
+                        # Skip if a chat-mode progressive streamer already
+                        # synthesised the audio (its drain task above is the
+                        # producer, voice_complete_emitted will be True).
+                        if (
+                            voice_parallel_task is None
+                            and chat_voice_drain_task is None
+                            and chunk_count == 0
+                        ):
                             # Emit voice_comment_start for sync path
                             yield ChatStreamChunk(
                                 type="voice_comment_start",
@@ -1732,6 +1984,51 @@ class AgentService(
                             metadata={"error_type": "voice_error"},
                         )
 
+                # === Second TTS backfill pass (sync fallback path) ===
+                # The first backfill (above, before cleanup_run_records) covers
+                # the parallel-progressive path where voice synthesis happens
+                # during streaming. The sync fallback (PATH 2A direct_tts /
+                # PATH 2B voice_comment) runs only INSIDE the
+                # voice_needs_finalization block above — i.e. AFTER the first
+                # backfill and AFTER cleanup_run_records. The voice service's
+                # ``await tracker.commit()`` re-populates _run_tts_records
+                # for this run_id, so a second backfill picks them up here.
+                # The done chunk's tts_snapshot_for_done is also refreshed
+                # so the live frontend badge sees the data.
+                if (
+                    voice_needs_finalization
+                    and archived_assistant_msg_id is not None
+                    and tts_snapshot_for_done is None  # only if first pass found nothing
+                ):
+                    try:
+                        late_tts_usage = temp_tracker.get_tts_usage_for_archive()
+                        if late_tts_usage:
+                            tts_snapshot_for_done = dict(late_tts_usage)
+                            async with get_db_context() as late_tts_db:
+                                await conv_service.update_message_tts(
+                                    archived_assistant_msg_id,
+                                    late_tts_usage,
+                                    late_tts_db,
+                                )
+                                await late_tts_db.commit()
+                            logger.debug(
+                                "tts_backfill_done",
+                                run_id=run_id,
+                                message_id=str(archived_assistant_msg_id),
+                                tts_provider=late_tts_usage.get("tts_provider"),
+                                tts_characters=late_tts_usage.get("tts_characters"),
+                                pass_="sync_fallback",
+                            )
+                    except Exception as late_tts_err:
+                        logger.warning(
+                            "tts_backfill_failed",
+                            run_id=run_id,
+                            message_id=str(archived_assistant_msg_id),
+                            error=str(late_tts_err),
+                            error_type=type(late_tts_err).__name__,
+                            pass_="sync_fallback",
+                        )
+
                 # =============================================================
                 # Debug Panel: Emit journal extraction results (post-background)
                 # =============================================================
@@ -1775,6 +2072,23 @@ class AgentService(
                     }
                     if streaming_service.activated_skill_name:
                         done_metadata["skill_name"] = streaming_service.activated_skill_name
+
+                    # Per-message TTS attribution for the live badge — sourced
+                    # from the snapshot captured before cleanup_run_records()
+                    # wiped the in-memory bucket. Mirror of STT: provider /
+                    # model / characters surface the 🔊 badge under the
+                    # assistant bubble immediately, without waiting for a
+                    # page reload.
+                    if tts_snapshot_for_done:
+                        done_metadata["tts_provider"] = tts_snapshot_for_done.get("tts_provider")
+                        done_metadata["tts_model"] = tts_snapshot_for_done.get("tts_model")
+                        done_metadata["tts_characters"] = tts_snapshot_for_done.get(
+                            "tts_characters"
+                        )
+                        if tts_snapshot_for_done.get("tts_cost_eur") is not None:
+                            done_metadata["tts_cost_eur"] = float(
+                                tts_snapshot_for_done["tts_cost_eur"]
+                            )
 
                     # === IMAGE GENERATION: Include image URLs in done metadata ===
                     # Images are saved as Attachments by the tool. We pass the
@@ -1834,6 +2148,32 @@ class AgentService(
                 if _manifests_token is not None:
                     request_tool_manifests_ctx.reset(_manifests_token)
 
+                # Voice services own a persistent httpx client (TTS) that
+                # must be closed deterministically — without this, the
+                # keep-alive pool leaks until process restart. Cleanup is
+                # idempotent: if voice was never invoked the helpers are
+                # no-ops and ``service.close()`` short-circuits on the
+                # already-released httpx client.
+                await self._cleanup_chat_voice_pipeline(
+                    chat_voice_streamer,
+                    chat_voice_drain_task,
+                    run_id,
+                    chat_voice_service,
+                )
+                # Parallel-mode (agent) voice service is closed via the
+                # task that owns it — but we close defensively here too in
+                # case the task already finished with an exception that
+                # bypassed the local cleanup.
+                if voice_service_parallel is not None:
+                    try:
+                        await voice_service_parallel.close()
+                    except Exception as voice_close_err:  # noqa: BLE001
+                        logger.warning(
+                            "voice_service_parallel_close_failed",
+                            run_id=run_id,
+                            error=str(voice_close_err),
+                        )
+
             except Exception as e:
                 # Cleanup user MCP tools ContextVar on error (evolution F2.1)
                 cleanup_user_mcp_tools(_user_mcp_token)
@@ -1846,6 +2186,21 @@ class AgentService(
                 # Cleanup per-request tool manifests ContextVar on error
                 if _manifests_token is not None:
                     request_tool_manifests_ctx.reset(_manifests_token)
+
+                # Voice services owned by this generator must be torn down
+                # so their persistent httpx clients aren't leaked when the
+                # exception propagates upwards.
+                try:
+                    await self._cleanup_chat_voice_pipeline(
+                        chat_voice_streamer,
+                        chat_voice_drain_task,
+                        run_id,
+                        chat_voice_service,
+                    )
+                    if voice_service_parallel is not None:
+                        await voice_service_parallel.close()
+                except Exception:  # noqa: BLE001 — best-effort
+                    pass
 
                 logger.error(
                     "new_service_architecture_error",

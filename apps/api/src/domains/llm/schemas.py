@@ -22,12 +22,16 @@ ProviderLiteral = Literal[
     "ollama",
     "gemini",
     "qwen",
+    "elevenlabs",
+    "edge",
 ]
 
-# Mirrors LLMModelKindEnum / LLMReasoningWidgetEnum (domains/llm/models.py).
-# Kept as Literal here so the API surface stays import-cycle-free.
+# Mirrors LLMModelKindEnum / LLMReasoningWidgetEnum / PricingUnitEnum
+# (domains/llm/models.py). Kept as Literal here so the API surface stays
+# import-cycle-free.
 LLMModelKindLiteral = Literal["chat", "image", "audio", "realtime", "tts", "embedding"]
 ReasoningWidgetLiteral = Literal["none", "enum", "budget_int", "toggle_budget"]
+PricingUnitLiteral = Literal["per_1m_tokens", "per_audio_minute", "per_audio_hour"]
 
 
 class ModelPriceResponse(BaseModel):
@@ -42,9 +46,10 @@ class ModelPriceResponse(BaseModel):
 
     # Pricing row identity + pricing fields
     id: uuid.UUID
-    input_price_per_1m_tokens: Decimal
-    cached_input_price_per_1m_tokens: Decimal | None
-    output_price_per_1m_tokens: Decimal
+    input_unit_price: Decimal
+    cached_input_unit_price: Decimal | None
+    output_unit_price: Decimal
+    pricing_unit: PricingUnitLiteral
     effective_from: datetime
     is_active: bool
 
@@ -192,14 +197,22 @@ class ModelPriceCreate(BaseModel):
     )
 
     # --- Pricing ---
-    input_price_per_1m_tokens: Decimal = Field(
-        ..., ge=0, description="Price in USD per 1M input tokens"
+    pricing_unit: PricingUnitLiteral = Field(
+        default="per_1m_tokens",
+        description=(
+            "Billing unit semantics. 'per_1m_tokens' for chat/text models. "
+            "'per_audio_minute' or 'per_audio_hour' for STT/TTS models "
+            "(e.g. ElevenLabs Scribe = per_audio_hour at $0.22/h)."
+        ),
     )
-    cached_input_price_per_1m_tokens: Decimal | None = Field(
-        None, ge=0, description="Price in USD per 1M cached input tokens (optional)"
+    input_unit_price: Decimal = Field(
+        ..., ge=0, description="Input unit price in USD (semantic = pricing_unit)"
     )
-    output_price_per_1m_tokens: Decimal = Field(
-        ..., ge=0, description="Price in USD per 1M output tokens"
+    cached_input_unit_price: Decimal | None = Field(
+        None, ge=0, description="Cached input unit price in USD (optional)"
+    )
+    output_unit_price: Decimal = Field(
+        ..., ge=0, description="Output unit price in USD (0 for STT models)"
     )
 
     @model_validator(mode="after")
@@ -332,9 +345,10 @@ class ModelPriceUpdate(BaseModel):
     reasoning_doc_i18n_key: str | None = Field(default=None, max_length=100)
 
     # --- Pricing (all optional) ---
-    input_price_per_1m_tokens: Decimal | None = Field(default=None, ge=0)
-    cached_input_price_per_1m_tokens: Decimal | None = Field(default=None, ge=0)
-    output_price_per_1m_tokens: Decimal | None = Field(default=None, ge=0)
+    pricing_unit: PricingUnitLiteral | None = None
+    input_unit_price: Decimal | None = Field(default=None, ge=0)
+    cached_input_unit_price: Decimal | None = Field(default=None, ge=0)
+    output_unit_price: Decimal | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def _reject_template_with_explicit_reasoning(self) -> "ModelPriceUpdate":

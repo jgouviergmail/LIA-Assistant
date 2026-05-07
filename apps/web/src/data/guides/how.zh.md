@@ -5,8 +5,8 @@
 > 面向架构师、工程师和技术专家的技术展示文档。
 
 **版本**：2.4
-**日期**：2026-05-06
-**应用**：LIA v1.20.1
+**日期**：2026-05-08
+**应用**：LIA v1.20.2
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -53,7 +53,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | 数据主权 | 本地 PostgreSQL（非 SaaS 数据库）、Fernet 静态加密、本地 Redis 会话 |
 | 多 LLM 供应商 | Factory 模式搭配 8 个适配器，按节点配置，不与特定供应商强耦合 |
 | 完全透明 | 400+ Prometheus 指标、内嵌调试面板、逐 token 追踪 |
-| 生产可靠性 | 71 篇 ADR、2,300+ 测试、原生可观测性、6 层 HITL |
+| 生产可靠性 | 75 篇 ADR、由 pytest 在 448 个文件中收集的 ~9,992 个测试、原生可观测性、6 层 HITL |
 | 成本可控 | Smart Services（节省 89% token）、语义嵌入、prompt 缓存、目录过滤 |
 
 ### 1.2. 架构原则
@@ -71,7 +71,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 
 | 指标 | 数值 |
 |------|------|
-| 测试 | 2,300+（单元、集成、智能体、基准） |
+| 测试 | 由 pytest 在 448 个文件中收集的 ~9,992 个（单元 8,017 · 智能体 1,285 · 集成 236 · e2e 12）+ 前端 41 个 vitest 测试 |
 | 可复用 Fixtures | 170+ |
 | 文档 | 260+ |
 | ADR（架构决策记录） | 70 |
@@ -119,7 +119,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 |--------|------|------|
 | OpenAI | GPT-5.4、GPT-5.4-mini、GPT-5.x、GPT-4.1-x、o1、o3-mini | 原生 prompt 缓存、Responses API、reasoning_effort |
 | Anthropic | Claude Opus 4.6/4.5/4、Sonnet 4.6/4.5/4、Haiku 4.5 | Extended thinking、prompt 缓存 |
-| Google | Gemini 3.1/3/2.5 Pro、Flash 3/2.5/2.0 | 多模态、HD TTS |
+| Google | Gemini 3.1/3/2.5 Pro、Flash 3/2.5/2.0 | 多模态、双向量嵌入 |
 | DeepSeek | V3（对话）、R1（推理） | 低成本、原生推理 |
 | Perplexity | sonar-small/large-128k-online | 搜索增强生成 |
 | Qwen | qwen3-max、qwen3.5-plus、qwen3.5-flash | 思考模式、工具 + 视觉（阿里云） |
@@ -640,7 +640,7 @@ ConnectorTool (base.py) → ClientRegistry → resolve_client(type) → Protocol
 
 ### 15.2. TTS
 
-Factory 模式：`TTSFactory.create(mode)` 带自动降级 HD → Standard。Standard = Edge TTS（免费），HD = OpenAI TTS 或 Gemini TTS（高级）。
+**目录驱动**的 Factory（ADR-081）：`factory.get_tts_client()` 读取激活的 `voice_tts` 覆盖（提供商 + 模型 + 声音 + 调优，存储于 `llm_config_overrides.voice_tts.provider_config` JSONB 字段）并实例化对应的客户端。已交付三家提供商：Edge（免费、默认）、OpenAI（`tts-1` / `tts-1-hd`）和 ElevenLabs（`eleven_multilingual_v2`、`eleven_turbo_v2_5`、`eleven_flash_v2_5`）。当付费提供商的 API 密钥缺失时，Factory 会透明地回退到 Edge（记录警告）。通过 `ProgressiveSentenceStreamer`（ADR-082）实现按句逐步流式合成以最小化延迟——首句在 LLM 生成后续句子的同时即被合成。
 
 ---
 
@@ -998,10 +998,10 @@ LIA 通过统一模式接受外部事件摄入（iPhone Apple Health 样本、�
 
 LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个生产级的多智能体 AI 助手，透明、安全、可扩展，并且能在 Raspberry Pi 上运行。
 
-71 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。2,300+ 测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
+75 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。448 个文件里的 ~9,992 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
 
 子系统之间的交织 — 心理记忆、贝叶斯学习、语义路由、系统化 HITL、LLM 驱动的主动性、内省日志 — 创造了一个各组件相互增强的系统。HITL 为模式学习提供数据，模式学习降低成本，降低的成本支撑更多功能，更多功能为记忆产生更多数据，记忆改善响应质量。这是一个设计中的良性循环，而非偶然。
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（260+ 份文档）、71 篇 ADR 及变更日志（v1.0 至 v1.19.1）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（260+ 份文档）、75 篇 ADR 及变更日志（v1.0 至 v1.20.2）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

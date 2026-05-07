@@ -81,12 +81,12 @@ class TestUserExportRouterSecurity:
 class TestUserExportRouterStructure:
     """Structure tests for user export router."""
 
-    def test_three_get_endpoints_registered(self) -> None:
-        """Verify exactly 3 GET endpoints are registered."""
+    def test_five_get_endpoints_registered(self) -> None:
+        """Verify exactly 5 GET endpoints are registered (3 historical + STT + TTS in v1.20.2)."""
         get_routes = [
             route for route in router.routes if hasattr(route, "methods") and "GET" in route.methods
         ]
-        assert len(get_routes) == 3
+        assert len(get_routes) == 5
 
     def test_expected_paths(self) -> None:
         """Verify the expected endpoint paths exist."""
@@ -94,3 +94,6 @@ class TestUserExportRouterStructure:
         assert "/usage/export/token-usage" in paths
         assert "/usage/export/google-api-usage" in paths
         assert "/usage/export/consumption-summary" in paths
+        # ADR-080 / ADR-081: per-message voice cost exports.
+        assert "/usage/export/stt-usage" in paths
+        assert "/usage/export/tts-usage" in paths

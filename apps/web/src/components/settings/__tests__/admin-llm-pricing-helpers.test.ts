@@ -42,9 +42,10 @@ const baseFormData: ModelPricingFormData = {
   supports_top_p: true,
   supports_frequency_penalty: true,
   supports_presence_penalty: true,
-  input_price_per_1m_tokens: '1.0',
-  cached_input_price_per_1m_tokens: null,
-  output_price_per_1m_tokens: '3.0',
+  pricing_unit: 'per_1m_tokens',
+  input_unit_price: '1.0',
+  cached_input_unit_price: null,
+  output_unit_price: '3.0',
 };
 
 describe('parseEnumValuesCsv', () => {

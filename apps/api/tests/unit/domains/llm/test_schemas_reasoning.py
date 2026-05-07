@@ -42,9 +42,9 @@ def _create_payload(**overrides: Any) -> dict[str, Any]:
         "supports_frequency_penalty": True,
         "supports_presence_penalty": True,
         "reasoning_template": "gpt-4.1",  # Template mode by default
-        "input_price_per_1m_tokens": Decimal("1.0"),
-        "cached_input_price_per_1m_tokens": None,
-        "output_price_per_1m_tokens": Decimal("3.0"),
+        "input_unit_price": Decimal("1.0"),
+        "cached_input_unit_price": None,
+        "output_unit_price": Decimal("3.0"),
     }
     base.update(overrides)
     return base
@@ -387,6 +387,6 @@ def test_update_explicit_reasoning_without_template_validates() -> None:
 @pytest.mark.unit
 def test_update_pricing_only_validates() -> None:
     """Pricing-only update — no reasoning fields involved."""
-    obj = ModelPriceUpdate(input_price_per_1m_tokens=Decimal("2.5"))
-    assert obj.input_price_per_1m_tokens == Decimal("2.5")
+    obj = ModelPriceUpdate(input_unit_price=Decimal("2.5"))
+    assert obj.input_unit_price == Decimal("2.5")
     assert obj.reasoning_template is None

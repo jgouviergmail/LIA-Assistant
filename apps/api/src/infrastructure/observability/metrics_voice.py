@@ -2,47 +2,58 @@
 Prometheus metrics for Voice feature (TTS and STT).
 
 Implements RED metrics (Rate, Errors, Duration) for:
-- TTS: Edge TTS API calls (Microsoft neural voices)
+- TTS: multi-provider synthesis (Edge / OpenAI / ElevenLabs, ADR-081)
 - TTS: Voice comment LLM generation
-- TTS: Audio streaming performance
-- STT: Sherpa-onnx transcription (offline, multi-language)
+- TTS: Audio streaming performance (sentence streaming, ADR-082)
+- STT: Sherpa-onnx local transcription + ElevenLabs Scribe remote (ADR-080)
 - WebSocket: Audio streaming connections and throughput
 
 Phase: Voice Feature Implementation (2025-12-24)
 Updated: 2025-12-29 - Migrated from Google Cloud TTS to Edge TTS
 Updated: 2026-02-01 - Added STT and WebSocket metrics (Sherpa-onnx)
+Updated: 2026-05-07 - Multi-provider TTS catalogue (ADR-081); STT remote (ADR-080)
+
+Provider attribution: the ``voice_name`` label is provider-implicit — Edge
+voices use Microsoft naming (``fr-FR-RemyMultilingualNeural``…), OpenAI
+voices are short tokens (``alloy``/``echo``/``nova``…), and ElevenLabs
+voices are UUIDs from the account-scoped catalogue. Adding an explicit
+``provider`` label is intentionally avoided: ``prometheus_client`` raises
+``Incorrect label names`` if extra labels are appended after the first
+metric instantiation, and silently breaks every downstream synthesise
+call. Provider can be derived from voice naming pattern at query time.
 """
 
 from prometheus_client import Counter, Gauge, Histogram
 
 # ============================================================================
-# EDGE TTS API METRICS
+# TTS API METRICS (multi-provider: Edge / OpenAI / ElevenLabs)
 # ============================================================================
 
 voice_tts_requests_total = Counter(
     "voice_tts_requests_total",
-    "Total Edge TTS API requests",
+    "Total TTS API requests across providers (Edge, OpenAI, ElevenLabs)",
     ["status", "voice_name"],
     # status: success/error
-    # voice_name: fr-FR-RemyMultilingualNeural, fr-FR-VivienneMultilingualNeural, etc.
-    # Tracks TTS usage patterns per voice
+    # voice_name: provider-specific (Edge voice id, OpenAI voice token, or
+    # ElevenLabs UUID). Tracks usage patterns per voice.
 )
 
 voice_tts_latency_seconds = Histogram(
     "voice_tts_latency_seconds",
-    "Edge TTS API call latency",
+    "TTS API call latency across providers",
     ["voice_name"],
     # Buckets optimized for TTS API response times
-    # Expected: 100ms-1s (Edge TTS is fast)
+    # Expected: 100ms-1s for Edge/OpenAI, 200ms-2s for ElevenLabs
     buckets=[0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0],
 )
 
 voice_tts_errors_total = Counter(
     "voice_tts_errors_total",
-    "Total Edge TTS API errors by type",
+    "Total TTS API errors by type across providers",
     ["error_type", "voice_name"],
-    # error_type: network_error/synthesis_error/empty_response/unknown
-    # Tracks error patterns for reliability monitoring
+    # error_type: network_error / synthesis_error / empty_response / timeout
+    # / http_<code> / rate_limit / auth_error.
+    # Tracks error patterns for reliability monitoring.
 )
 
 # ============================================================================
@@ -82,10 +93,12 @@ voice_audio_bytes_total = Counter(
     "voice_audio_bytes_total",
     "Total audio bytes generated and streamed",
     ["voice_name", "encoding", "sample_rate"],
-    # voice_name: fr-FR-RemyMultilingualNeural, etc.
-    # encoding: MP3 (Edge TTS default)
-    # sample_rate: 24000
-    # Tracks audio payload sizes for bandwidth analysis
+    # voice_name: provider-specific (Edge / OpenAI / ElevenLabs).
+    # encoding: MP3 (Edge & OpenAI default), or provider-specific (OPUS,
+    # AAC, FLAC, WAV, PCM, ULAW depending on the active config).
+    # sample_rate: provider-specific (24000 for Edge, configurable for
+    # OpenAI / ElevenLabs).
+    # Tracks audio payload sizes for bandwidth analysis.
 )
 
 voice_audio_chunks_total = Counter(

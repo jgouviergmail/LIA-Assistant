@@ -64,7 +64,7 @@ LIA est une **plateforme d'assistant conversationnel entreprise** construite sur
 | **Lignes de Code** | 150,000+ |
 | **Fichiers** | 1,500+ |
 | **Modules Python** | 300+ |
-| **Tests** | 2,300+ |
+| **Tests** | ~9,992 (pytest collected, 448 files) |
 | **Métriques Prometheus** | 500+ |
 | **Dashboards Grafana** | 18 |
 | **API Endpoints** | 90+ |
@@ -96,7 +96,7 @@ Chaque domaine est un **bounded context** isolé avec :
 7. **llm** - Pricing et cost tracking LLM
 8. **google_api** - Google Maps Platform tracking, pricing, and consumption exports (v6.1, user export v1.9.1)
 9. **personalities** - Personnalités assistant (ton, style réponses)
-10. **voice** - Synthèse vocale TTS (Edge/OpenAI) et STT (Whisper)
+10. **voice** - Synthèse vocale TTS (Edge / OpenAI / ElevenLabs, catalogue-driven ADR-081) et STT (Whisper local ou ElevenLabs Scribe distant ADR-080)
 11. **memories** - Mémoire long-terme sémantique (pgvector + BM25)
 12. **interests** - Interest Learning System (extraction automatique)
 13. **system_settings** - Configuration système et préférences globales
@@ -3392,9 +3392,10 @@ data/skills/
 │       └────────────────────┴──────────────────┘                     │
 │                            │                                         │
 │                            ▼                                         │
-│                    TTS Response                                     │
-│                    ├─ Standard (Edge TTS - Gratuit)                │
-│                    └─ HD (OpenAI TTS - Payant)                     │
+│                    TTS Response (catalogue-driven, ADR-081)         │
+│                    ├─ Edge TTS (gratuit, défaut)                    │
+│                    ├─ OpenAI TTS (tts-1 / tts-1-hd)                 │
+│                    └─ ElevenLabs (multilingual_v2 / turbo / flash)  │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -3403,29 +3404,46 @@ data/skills/
 
 ```
 apps/api/src/domains/voice/
-├── router.py                 # WebSocket /ws/voice
-├── stt/
-│   ├── service.py           # STT orchestration
-│   └── whisper_provider.py  # OpenAI Whisper integration
-└── tts/
-    ├── factory.py           # TTS provider factory
-    ├── edge_provider.py     # Edge TTS (gratuit)
-    └── openai_provider.py   # OpenAI TTS (HD)
+├── router.py                  # WebSocket /ws/audio (STT) + REST endpoints
+├── admin_router.py            # GET /admin/voice/voices?provider=X (voice picker)
+├── factory.py                 # TTS factory — reads llm_config_overrides.voice_tts
+├── service.py                 # VoiceCommentService (sentence streaming, ADR-082)
+├── sentence_streamer.py       # ProgressiveSentenceStreamer (ADR-082)
+├── client.py                  # EdgeTTSClient (free)
+├── openai_tts_client.py       # OpenAITTSClient (paid)
+├── elevenlabs_tts_client.py   # ElevenLabsTTSClient (paid, persistent httpx)
+├── voices_catalog.py          # Edge / OpenAI static lists + ElevenLabs live API
+├── protocol.py                # TTSClient runtime protocol
+├── schemas.py                 # VoiceAudioChunk + AUDIO_MIME_TYPES
+└── stt/
+    ├── factory.py             # STT factory — local Sherpa vs remote ElevenLabs
+    ├── sherpa_stt.py          # Sherpa-onnx Whisper (local, free)
+    └── elevenlabs_stt.py      # ElevenLabsSttService (remote, $0.22/h)
 ```
 
 **Configuration** :
 
-```bash
-# TTS Mode
-VOICE_TTS_DEFAULT_MODE=standard  # standard (Edge) | hd (OpenAI)
-VOICE_TTS_HD_VOICE=nova          # alloy, echo, fable, onyx, nova, shimmer
+TTS provider/model/voice/tuning is admin-driven through Configuration LLM
+(LLM type `voice_tts`) — settings live on `llm_config_overrides.voice_tts`
+(`provider_config` JSONB). Three providers seeded: Edge (free), OpenAI
+`tts-1` / `tts-1-hd`, ElevenLabs `eleven_multilingual_v2` /
+`eleven_turbo_v2_5` / `eleven_flash_v2_5`. STT mode is per-user
+(`users.voice_stt_mode`: `local` for Sherpa-onnx, `remote` for ElevenLabs
+Scribe).
 
-# Wake Word
+```bash
+# .env — TTS no longer here (moved to admin LLM catalogue)
+# Only voice-comment LLM, Sherpa STT path, and WebSocket transport vars remain
+VOICE_LLM_PROVIDER=openai
+VOICE_LLM_MODEL=gpt-4.1-nano
+VOICE_CHAT_MODE_MAX_SENTENCES=3   # 1..50 cap on sentence streaming
+
+# Wake Word (browser-side WASM model)
 VOICE_WAKE_WORD_ENABLED=true
 VOICE_VAD_THRESHOLD=0.5
 ```
 
-> Voir [VOICE_MODE.md](./technical/VOICE_MODE.md) pour la documentation complète.
+> Voir [VOICE.md](./technical/VOICE.md) (TTS) et [VOICE_MODE.md](./technical/VOICE_MODE.md) (STT/wake word). ADRs : [ADR-080](./architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md), [ADR-081](./architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](./architecture/ADR-082-Progressive-Sentence-Streaming.md).
 
 ### Interest Learning System
 

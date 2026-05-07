@@ -40,13 +40,13 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.20.1</strong> — Admin LLM catalogue: per-model sampling matrix and reusable reasoning shape templates. Configuration LLM dialog now shows or hides each sampling slider (<code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>) <em>per individual parameter</em> based on the selected model's DB-declared acceptance — Anthropic 4.5+ surfaces only temperature, DeepSeek V4 surfaces all four, GPT-5 series surfaces none. Pricing LLM admin form gains a "Copy reasoning shape from…" selector that lets the operator pick a representative model (e.g. "like gpt-5", "like claude-opus-4.5", "like deepseek-v4-flash") whose 4 reasoning shape fields (<code>is_reasoning_model</code>, <code>reasoning_widget</code>, <code>reasoning_enum_values</code>, <code>reasoning_budget_range</code>) are snapshot-copied at create time. The dropdown deduplicates the catalogue dynamically (~15 unique reasoning shapes today) and self-enriches: any model created in <em>Custom (advanced)</em> mode with a novel shape becomes available as a template afterwards. <code>kind</code>, the four sampling toggles and the optional <code>reasoning_doc_i18n_key</code> stay independent of the template. Audit log captures the template choice + kind + widget on every create/update. New endpoint <code>GET /admin/llm/reasoning-templates</code>, dedicated <code>UnknownReasoningTemplateError</code> exception (400 invalid_input ≠ 404 not_found ≠ 409 already_exists), full doc at <a href="./docs/technical/LLM_PRICING_TEMPLATES.md">LLM_PRICING_TEMPLATES.md</a>. 90 new tests (54 schema/helper unit, 9 integration, 27 vitest frontend). — May 2026
+  <strong>Version 1.20.2</strong> — Voice STT/TTS catalogue, per-message cost attribution, sentence streaming, hardening. Speech-to-Text gains a remote provider (ElevenLabs Scribe, $0.22/h, opt-in per user via <code>voice_stt_mode=remote</code>) alongside the free local Sherpa-onnx Whisper, with usage-limit gating, runtime kill switch (<code>ELEVENLABS_STT_ENABLED</code>) and a hard duration cap (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, default 300 s) actually enforced before each call (<a href="./docs/architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md">ADR-080</a>). Text-to-Speech becomes catalogue-driven: a single Configuration LLM admin form now picks provider + model + voice + per-provider tuning across Edge (free), OpenAI <code>tts-1</code> / <code>tts-1-hd</code>, and ElevenLabs <code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code> — with a live voice picker for ElevenLabs (<a href="./docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md">ADR-081</a>). Per-message cost badges on the chat bubbles: 🎤 <em>X.X s · €X.XXX</em> on user messages (paid STT only), 🔊 <em>N chars</em> on assistant messages (paid TTS only). Latency-side: a new <code>ProgressiveSentenceStreamer</code> dispatches per-sentence TTS in parallel — first audio lands ~1 s after the question instead of ~5 s for a 5-sentence response (<a href="./docs/architecture/ADR-082-Progressive-Sentence-Streaming.md">ADR-082</a>). Persistent <code>httpx.AsyncClient</code> on ElevenLabs saves another ~100–300 ms per sentence. Structured <code>TTSProviderError</code> across all 3 providers with stable codes (<code>provider_timeout</code>, <code>provider_rate_limited</code>, <code>provider_http_error</code>, <code>provider_invalid_response</code>, <code>provider_network_error</code>, <code>api_key_missing</code>) — frontend toasts can match precise i18n. New <code>stt-usage</code> and <code>tts-usage</code> CSV exports (admin + user); <code>consumption-summary</code> extended with both silos. — 8 May 2026
 </p>
 
 <details>
-<summary><strong>Previous release: v1.20.0 — Stratified Journal Consciousness</strong></summary>
+<summary><strong>Previous release: v1.20.1 — LLM admin: per-model sampling matrix and reasoning shape templates</strong></summary>
 <p>
-The personal journal becomes a stratified consciousness organ (<a href="./docs/architecture/ADR-079-Stratified-Journal-Consciousness.md">ADR-079</a>). Every entry now carries an abstraction <code>level</code> (<code>L0</code> raw observation, <code>L1</code> operational directive, <code>L2</code> transversal pattern, <code>L3</code> portrait facet) and an epistemic status (<code>confidence</code> low/medium/high + <code>evidence</code> / <code>contradiction</code> counters). A deferred self-evaluation loop measures, at the next turn, whether each injected directive was confirmed or contradicted by the user — at zero added LLM cost (same extraction call, enriched prompt). The same consolidation call now compiles a <strong>user-model portrait</strong> (full ~200 tokens, brief ~60 tokens) diffused across 8 flows where LIA speaks (conversation, planner, ReAct, voice, reminders, heartbeat, proactive interest, fallback) — your assistant doesn't "forget who you are" depending on the channel. A new <em>"How LIA sees you"</em> Settings section exposes the portrait (read-only) with three corrective levers: edit L3 source entries, 🚩 signal a problem (synchronous re-consolidation with the user signal pinned), 🔄 consolidate now (manual run, bypasses cooldown). Per-entry badges, group-by Theme/Level toggle, "show only entries never used" filter, level + confidence editable. 11 dedicated Prometheus metrics, 4-layer anti-hallucination (UUID + atomic counter increments). Portrait scrubbed on account deletion (GDPR). 50 new tests (4 unit files + 1 integration file, real Postgres). — May 2026
+Configuration LLM dialog now shows or hides each sampling slider (<code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>) <em>per individual parameter</em> based on the selected model's DB-declared acceptance — Anthropic 4.5+ surfaces only temperature, DeepSeek V4 surfaces all four, GPT-5 series surfaces none. Pricing LLM admin form gains a "Copy reasoning shape from…" selector that lets the operator pick a representative model (e.g. "like gpt-5", "like claude-opus-4.5", "like deepseek-v4-flash") whose 4 reasoning shape fields (<code>is_reasoning_model</code>, <code>reasoning_widget</code>, <code>reasoning_enum_values</code>, <code>reasoning_budget_range</code>) are snapshot-copied at create time. The dropdown deduplicates the catalogue dynamically (~15 unique reasoning shapes today) and self-enriches: any model created in <em>Custom (advanced)</em> mode with a novel shape becomes available as a template afterwards. <code>kind</code>, the four sampling toggles and the optional <code>reasoning_doc_i18n_key</code> stay independent of the template. Audit log captures the template choice + kind + widget on every create/update. New endpoint <code>GET /admin/llm/reasoning-templates</code>, dedicated <code>UnknownReasoningTemplateError</code> exception (400 invalid_input ≠ 404 not_found ≠ 409 already_exists), full doc at <a href="./docs/technical/LLM_PRICING_TEMPLATES.md">LLM_PRICING_TEMPLATES.md</a>. 90 new tests (54 schema/helper unit, 9 integration, 27 vitest frontend). — May 2026
 </p>
 </details>
 
@@ -217,15 +217,19 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 **Voice Output (TTS)**
 
-| Mode | Provider | Cost | Quality |
-|------|----------|------|---------|
-| **Standard** | Edge TTS (Microsoft Neural) | Free | High |
-| **HD** | OpenAI TTS | $15-30/1M chars | Premium |
-| **HD** | Gemini TTS | Variable | Premium |
+| Provider | Models | Cost | Latency (TTFA) | Notes |
+|----------|--------|------|---------------|-------|
+| Edge TTS (Microsoft Neural) | `edge-tts` | Free | ~250 ms | Multilingual neural voices, free fallback |
+| OpenAI TTS | `tts-1` / `tts-1-hd` | $15 / $30 per 1M chars | ~500 ms | 6 stable voices (alloy, echo, fable, onyx, nova, shimmer) |
+| ElevenLabs TTS | `eleven_multilingual_v2` | $100 / 1M chars | ~300 ms | High-quality multilingual, Voice Library access |
+|              | `eleven_turbo_v2_5` | $50 / 1M chars | ~250 ms | Sweet-spot quality / latency |
+|              | `eleven_flash_v2_5` | $50 / 1M chars | ~75 ms | Ultra-low-latency for conversational agents |
 
-- **Factory Pattern**: Interchangeable implementations
-- **Admin Control**: Mode controlled via System Settings
-- **Graceful Degradation**: Automatic HD to Standard fallback
+- **Catalogue-driven** (ADR-081): provider/model/voice are admin-controlled via Configuration LLM (LLM type `voice_tts`). Voice + tuning live in `provider_config` JSONB. No env vars to maintain across deployments.
+- **Sentence streaming** (ADR-082): TTS runs sentence-by-sentence pipelined with the LLM stream. First audio lands in ~1 s on chat mode (was ~5 s).
+- **Per-message cost transparency**: `🔊 N chars · €X.XXX` badge on the assistant bubble (paid providers only — Edge stays badge-free as it's $0).
+- **Graceful degradation**: missing API key on a paid provider transparently falls back to Edge with a structured warning log.
+- **Persistent HTTP pool** on ElevenLabs: keep-alive across sentences saves ~100–300 ms TLS handshake per call.
 
 ### FOR_EACH Iteration Pattern
 
@@ -480,7 +484,7 @@ A web-based administration panel covering every operational aspect:
 | **LLM Pricing** | CRUD for the full LLM catalogue — provider, 8 capability flags (max input/output tokens, tools, structured output, strict mode, streaming, vision, reasoning) and pricing (input/output/cache tokens) per model. Source of truth for the LangChain factory and the agent constraints. Live cross-worker invalidation, no redeploy |
 | **Image Generation Pricing** | CRUD for image models — provider, quality, size and pricing. Drives the user preferences dropdowns directly |
 | **Google API Pricing** | Per-endpoint pricing configuration for Google Maps Platform services |
-| **Voice Settings** | TTS mode selection (Standard/HD), provider configuration |
+| **Voice Settings** | TTS catalogue management (Edge / OpenAI / ElevenLabs) via Configuration LLM (`voice_tts` type), per-provider tuning, voice picker (live ElevenLabs voices) |
 | **Broadcasting** | Send system-wide notifications to all users or targeted groups |
 | **Debug Settings** | Toggle debug panel visibility, configure diagnostic verbosity per user |
 | **Usage Limits** | Per-user token/message/cost quotas (period + global), real-time gauges, manual block/unblock, WebSocket live updates |
@@ -846,12 +850,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md) | Complete development workflow |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md) | How to create a new tool |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (2,300+ tests) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (~10,000 tests across 448 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md) | LangGraph and log debugging |
 
 ### Architecture Decision Records (ADR)
 
-59 ADRs documenting major architectural decisions:
+75 ADRs documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
@@ -885,8 +889,9 @@ pytest --cov=src --cov-report=html -v
 
 | Metric | Value |
 |--------|-------|
-| Total tests | 2,300+ |
-| Reusable fixtures | 170+ |
+| Total tests | ~9,992 (pytest collected, 448 test files) |
+| Backend breakdown | unit 8,017 · agents 1,285 · integration 236 · e2e 12 |
+| Frontend tests (vitest) | 41 |
 | Coverage target | 43% |
 | CI Workflows | 3 (CI, Security, Release) |
 

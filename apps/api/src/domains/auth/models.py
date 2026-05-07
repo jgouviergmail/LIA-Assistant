@@ -176,6 +176,15 @@ class User(BaseModel):
         comment="User preference for voice mode (wake word + STT input). False = disabled by default (opt-in).",
     )
 
+    # Voice STT provider preference: 'local' (Sherpa-onnx, free) or 'remote' (ElevenLabs Scribe, paid).
+    voice_stt_mode: Mapped[str] = mapped_column(
+        String(20),
+        default="local",
+        nullable=False,
+        server_default="local",
+        comment="Voice STT provider: 'local' (Sherpa-onnx) or 'remote' (ElevenLabs Scribe, billed per audio duration).",
+    )
+
     # Tokens display preference (desktop only)
     tokens_display_enabled: Mapped[bool] = mapped_column(
         default=False,

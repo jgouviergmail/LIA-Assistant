@@ -30,11 +30,19 @@ class ModelPrice(NamedTuple):
     """
     Container for LLM model pricing information.
 
+    The semantic of the unit prices is given by ``pricing_unit``:
+    - ``per_1m_tokens``: price per 1 million tokens (LLM chat/text). Default.
+    - ``per_audio_minute`` / ``per_audio_hour``: price per audio duration
+      (STT/TTS). Token-based callers (``calculate_token_cost``) early-exit
+      with cost = 0 in this case; audio-based costing goes through
+      :func:`infrastructure.cache.pricing_cache.get_cached_cost_audio_usd_eur`.
+
     Attributes:
         model_name: LLM model identifier
-        input_price: Price per 1M input tokens (USD)
-        cached_input_price: Price per 1M cached input tokens (USD), None if not supported
-        output_price: Price per 1M output tokens (USD)
+        input_price: Input unit price (USD)
+        cached_input_price: Cached input unit price (USD), None if not supported
+        output_price: Output unit price (USD)
+        pricing_unit: Billing unit semantics (per_1m_tokens / per_audio_minute / per_audio_hour)
         effective_from: Date when this pricing became effective
     """
 
@@ -42,6 +50,7 @@ class ModelPrice(NamedTuple):
     input_price: Decimal
     cached_input_price: Decimal | None
     output_price: Decimal
+    pricing_unit: str
     effective_from: datetime
 
 
@@ -165,16 +174,18 @@ class AsyncPricingService:
         logger.debug(
             "model_pricing_retrieved",
             model_name=model_name,
-            input_price=float(pricing.input_price_per_1m_tokens),
-            output_price=float(pricing.output_price_per_1m_tokens),
-            cached_input_supported=pricing.cached_input_price_per_1m_tokens is not None,
+            input_price=float(pricing.input_unit_price),
+            output_price=float(pricing.output_unit_price),
+            pricing_unit=pricing.pricing_unit.value,
+            cached_input_supported=pricing.cached_input_unit_price is not None,
         )
 
         return ModelPrice(
             model_name=pricing.model.model_name,
-            input_price=pricing.input_price_per_1m_tokens,
-            cached_input_price=pricing.cached_input_price_per_1m_tokens,
-            output_price=pricing.output_price_per_1m_tokens,
+            input_price=pricing.input_unit_price,
+            cached_input_price=pricing.cached_input_unit_price,
+            output_price=pricing.output_unit_price,
+            pricing_unit=pricing.pricing_unit.value,
             effective_from=pricing.effective_from,
         )
 
@@ -317,9 +328,10 @@ class AsyncPricingService:
 
         return ModelPrice(
             model_name=pricing.model.model_name,
-            input_price=pricing.input_price_per_1m_tokens,
-            cached_input_price=pricing.cached_input_price_per_1m_tokens,
-            output_price=pricing.output_price_per_1m_tokens,
+            input_price=pricing.input_unit_price,
+            cached_input_price=pricing.cached_input_unit_price,
+            output_price=pricing.output_unit_price,
+            pricing_unit=pricing.pricing_unit.value,
             effective_from=pricing.effective_from,
         )
 
@@ -375,6 +387,17 @@ class AsyncPricingService:
                 at_date=at_date.isoformat(),
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
+            )
+            return 0.0
+
+        # Token-based costing only applies to per_1m_tokens pricing.
+        # Audio-billed models (STT/TTS) must go through
+        # get_cached_cost_audio_usd_eur() instead.
+        if pricing.pricing_unit != "per_1m_tokens":
+            logger.warning(
+                "token_cost_called_for_non_token_pricing_unit",
+                model=model,
+                pricing_unit=pricing.pricing_unit,
             )
             return 0.0
 
@@ -487,6 +510,17 @@ class AsyncPricingService:
                 model_normalized=model_normalized,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
+            )
+            return (0.0, 0.0)
+
+        # Token-based costing only applies to per_1m_tokens pricing.
+        # Audio-billed models (STT/TTS) must go through
+        # get_cached_cost_audio_usd_eur() instead.
+        if pricing.pricing_unit != "per_1m_tokens":
+            logger.warning(
+                "token_cost_called_for_non_token_pricing_unit",
+                model=model,
+                pricing_unit=pricing.pricing_unit,
             )
             return (0.0, 0.0)
 

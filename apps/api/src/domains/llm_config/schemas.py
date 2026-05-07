@@ -112,7 +112,18 @@ class LLMTypeConfigUpdate(BaseModel):
     """
 
     provider: (
-        Literal["openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"] | None
+        Literal[
+            "openai",
+            "anthropic",
+            "deepseek",
+            "perplexity",
+            "ollama",
+            "gemini",
+            "qwen",
+            "elevenlabs",
+            "edge",
+        ]
+        | None
     ) = None
     model: str | None = None
     temperature: float | None = Field(None, ge=0.0, le=2.0)

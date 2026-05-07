@@ -22,6 +22,7 @@ import time
 import edge_tts
 import structlog
 
+from src.domains.voice.exceptions import TTSProviderError
 from src.infrastructure.observability.metrics_voice import (
     voice_tts_errors_total,
     voice_tts_latency_seconds,
@@ -148,7 +149,10 @@ class EdgeTTSClient:
                 voice_tts_errors_total.labels(
                     error_type="empty_response", voice_name=voice_name
                 ).inc()
-                raise ValueError("No audio content from Edge TTS")
+                raise TTSProviderError(
+                    code="provider_invalid_response",
+                    message="Edge TTS returned an empty audio payload.",
+                )
 
             # Track successful request metrics
             request_duration = time.time() - request_start_time
@@ -165,6 +169,10 @@ class EdgeTTSClient:
 
             return audio_bytes
 
+        except TTSProviderError:
+            # Already structured (empty payload above) — re-raise without
+            # double-counting metrics.
+            raise
         except Exception as e:
             # Track error metrics
             request_duration = time.time() - request_start_time
@@ -172,7 +180,9 @@ class EdgeTTSClient:
             voice_tts_requests_total.labels(status="error", voice_name=voice_name).inc()
 
             # Categorize error type
-            error_type = "network_error" if "connect" in str(e).lower() else "synthesis_error"
+            is_network = "connect" in str(e).lower()
+            error_type = "network_error" if is_network else "synthesis_error"
+            code = "provider_network_error" if is_network else "provider_http_error"
             voice_tts_errors_total.labels(error_type=error_type, voice_name=voice_name).inc()
 
             logger.error(
@@ -182,7 +192,11 @@ class EdgeTTSClient:
                 text_length=len(text),
                 voice_name=voice_name,
             )
-            raise
+            raise TTSProviderError(
+                code=code,
+                message=f"Edge TTS failure: {e}",
+                details={"exception_type": type(e).__name__},
+            ) from e
 
     async def synthesize_base64(
         self,

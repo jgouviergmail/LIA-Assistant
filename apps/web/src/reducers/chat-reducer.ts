@@ -308,6 +308,11 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                   tokensCache: metadata.tokens_cache,
                   costEur: metadata.cost_eur,
                   googleApiRequests: metadata.google_api_requests,
+                  // Per-message TTS attribution (live badge — paid providers only)
+                  ttsProvider: metadata.tts_provider ?? null,
+                  ttsModel: metadata.tts_model ?? null,
+                  ttsCharacters: metadata.tts_characters ?? null,
+                  ttsCostEur: metadata.tts_cost_eur ?? null,
                   skillName: metadata.skill_name,
                   generatedImages: metadata.generated_images as
                     | { url: string; alt: string }[]
@@ -352,6 +357,11 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                       tokensCache: metadata.tokens_cache,
                       costEur: metadata.cost_eur,
                       googleApiRequests: metadata.google_api_requests,
+                      // Per-message TTS attribution (live badge — paid providers only)
+                      ttsProvider: metadata.tts_provider ?? null,
+                      ttsModel: metadata.tts_model ?? null,
+                      ttsCharacters: metadata.tts_characters ?? null,
+                      ttsCostEur: metadata.tts_cost_eur ?? null,
                       skillName: metadata.skill_name,
                       generatedImages: metadata.generated_images as
                         | { url: string; alt: string }[]

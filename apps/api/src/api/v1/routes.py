@@ -28,6 +28,7 @@ from src.domains.scheduled_actions.router import router as scheduled_actions_rou
 from src.domains.system_settings.public_router import router as system_settings_public_router
 from src.domains.system_settings.router import router as system_settings_router
 from src.domains.users.router import router as users_router
+from src.domains.voice.admin_router import router as voice_admin_router
 from src.domains.voice.router import router as voice_router
 
 # Create main API router
@@ -98,6 +99,7 @@ if getattr(settings, "usage_limits_enabled", False):
     api_router.include_router(usage_limits_router)
     api_router.include_router(usage_limits_ws_router)
 api_router.include_router(voice_router)
+api_router.include_router(voice_admin_router)
 api_router.include_router(user_export_router)
 api_router.include_router(system_settings_public_router)
 

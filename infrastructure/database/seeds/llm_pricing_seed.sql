@@ -157,15 +157,16 @@ ON CONFLICT (model_name) DO NOTHING;
 INSERT INTO llm_model_pricing (
     id,
     model_id,
-    input_price_per_1m_tokens,
-    cached_input_price_per_1m_tokens,
-    output_price_per_1m_tokens,
+    input_unit_price,
+    cached_input_unit_price,
+    output_unit_price,
+    pricing_unit,
     effective_from,
     is_active,
     created_at,
     updated_at
 )
-SELECT gen_random_uuid(), m.id, p.input, p.cached, p.output, p.effective_from::timestamptz, p.is_active, NOW(), NOW()
+SELECT gen_random_uuid(), m.id, p.input, p.cached, p.output, 'per_1m_tokens'::pricing_unit_enum, p.effective_from::timestamptz, p.is_active, NOW(), NOW()
 FROM (VALUES
     ('gpt-5', 1.250000::numeric, 0.125000, 10.000000::numeric, '2026-01-01T00:00:00Z', true),
     ('gpt-5-chat-latest', 1.250000::numeric, 0.125000, 10.000000::numeric, '2026-01-01T00:00:00Z', true),
@@ -265,6 +266,99 @@ FROM (VALUES
     ('text-embedding-3-large', 0.130000::numeric, NULL::numeric, 0.000000::numeric, '2026-01-01T00:00:00Z', true),
     ('text-embedding-3-small', 0.020000::numeric, NULL::numeric, 0.000000::numeric, '2026-01-01T00:00:00Z', true),
     ('text-embedding-ada-002', 0.100000::numeric, NULL::numeric, 0.000000::numeric, '2026-01-01T00:00:00Z', true)
+) AS p(model_name, input, cached, output, effective_from, is_active)
+JOIN llm_models m ON m.model_name = p.model_name
+ON CONFLICT (model_id, effective_from) DO NOTHING;
+
+
+-- ==========================================================================
+-- 3) ElevenLabs Speech-to-Text models (audio-billed).
+-- Scribe v2 / v1 are billed per audio hour (not tokens). The pricing_unit
+-- column drives the cost computation in the runtime callbacks
+-- (cf. infrastructure/cache/pricing_cache.get_cached_cost_audio_usd_eur).
+-- Reference: https://elevenlabs.io/pricing/api ($0.22/hour Scribe v1/v2).
+-- ==========================================================================
+INSERT INTO llm_models (
+    provider, model_name, max_input_tokens, max_output_tokens,
+    supports_tools, supports_structured_output, supports_strict_mode,
+    supports_streaming, supports_vision, is_reasoning_model,
+    supports_temperature, supports_top_p, supports_frequency_penalty, supports_presence_penalty,
+    kind, reasoning_widget, reasoning_enum_values, reasoning_budget_range, reasoning_doc_i18n_key,
+    is_active
+) VALUES
+    ('elevenlabs', 'scribe_v2', 0, 0, false, false, false, false, false, false, false, false, false, false, 'audio', 'none', NULL, NULL, NULL, true),
+    ('elevenlabs', 'scribe_v1', 0, 0, false, false, false, false, false, false, false, false, false, false, 'audio', 'none', NULL, NULL, NULL, true)
+ON CONFLICT (model_name) DO NOTHING;
+
+INSERT INTO llm_model_pricing (
+    id, model_id, input_unit_price, cached_input_unit_price, output_unit_price,
+    pricing_unit, effective_from, is_active, created_at, updated_at
+)
+SELECT gen_random_uuid(), m.id, p.input, p.cached, p.output, 'per_audio_hour'::pricing_unit_enum,
+       p.effective_from::timestamptz, p.is_active, NOW(), NOW()
+FROM (VALUES
+    ('scribe_v2', 0.220000::numeric, NULL::numeric, 0.000000::numeric, '2026-05-07T00:00:00Z', true),
+    ('scribe_v1', 0.220000::numeric, NULL::numeric, 0.000000::numeric, '2026-05-07T00:00:00Z', true)
+) AS p(model_name, input, cached, output, effective_from, is_active)
+JOIN llm_models m ON m.model_name = p.model_name
+ON CONFLICT (model_id, effective_from) DO NOTHING;
+
+
+-- ==========================================================================
+-- 4) Text-to-Speech catalogue — Edge (free), OpenAI, ElevenLabs.
+--
+-- TTS is character-billed by every paid provider: characters are tracked
+-- as ``prompt_tokens`` in ``token_usage_logs``, so the existing
+-- per_1m_tokens accounting already produces the right cost when we set
+-- ``input_unit_price`` to "USD per 1M characters".
+--
+-- - Edge TTS (free) gets a $0 row so it surfaces in the admin selector.
+-- - OpenAI tts-1 = $15 / 1M chars, tts-1-hd = $30 / 1M chars
+-- - ElevenLabs:
+--     eleven_multilingual_v2 = $100 / 1M chars (HD, ~250-300ms)
+--     eleven_turbo_v2_5      = $50  / 1M chars (turbo)
+--     eleven_flash_v2_5      = $50  / 1M chars (~75ms ultra-low latency)
+-- References:
+--   https://platform.openai.com/docs/pricing
+--   https://elevenlabs.io/pricing/api
+-- ==========================================================================
+INSERT INTO llm_models (
+    provider, model_name, max_input_tokens, max_output_tokens,
+    supports_tools, supports_structured_output, supports_strict_mode,
+    supports_streaming, supports_vision, is_reasoning_model,
+    supports_temperature, supports_top_p, supports_frequency_penalty, supports_presence_penalty,
+    kind, reasoning_widget, reasoning_enum_values, reasoning_budget_range, reasoning_doc_i18n_key,
+    is_active
+) VALUES
+    -- Edge TTS — free Microsoft Azure voice library used by the historical
+    -- "standard" mode. No real model_id; the value is a placeholder so the
+    -- admin can pick this provider in Configuration LLM > voice_tts.
+    ('edge', 'edge-tts', 0, 0, false, false, false, true, false, false, false, false, false, false, 'tts', 'none', NULL, NULL, NULL, true),
+    -- OpenAI TTS
+    ('openai', 'tts-1', 4096, 0, false, false, false, true, false, false, false, false, false, false, 'tts', 'none', NULL, NULL, NULL, true),
+    ('openai', 'tts-1-hd', 4096, 0, false, false, false, true, false, false, false, false, false, false, 'tts', 'none', NULL, NULL, NULL, true),
+    -- ElevenLabs TTS
+    ('elevenlabs', 'eleven_multilingual_v2', 5000, 0, false, false, false, true, false, false, false, false, false, false, 'tts', 'none', NULL, NULL, NULL, true),
+    ('elevenlabs', 'eleven_turbo_v2_5', 40000, 0, false, false, false, true, false, false, false, false, false, false, 'tts', 'none', NULL, NULL, NULL, true),
+    ('elevenlabs', 'eleven_flash_v2_5', 40000, 0, false, false, false, true, false, false, false, false, false, false, 'tts', 'none', NULL, NULL, NULL, true)
+ON CONFLICT (model_name) DO NOTHING;
+
+INSERT INTO llm_model_pricing (
+    id, model_id, input_unit_price, cached_input_unit_price, output_unit_price,
+    pricing_unit, effective_from, is_active, created_at, updated_at
+)
+SELECT gen_random_uuid(), m.id, p.input, p.cached, p.output, 'per_1m_tokens'::pricing_unit_enum,
+       p.effective_from::timestamptz, p.is_active, NOW(), NOW()
+FROM (VALUES
+    -- Edge TTS — free.
+    ('edge-tts',                 0.000000::numeric, NULL::numeric, 0.000000::numeric, '2026-05-07T00:00:00Z', true),
+    -- OpenAI TTS — $/1M characters (tracked as tokens).
+    ('tts-1',                   15.000000::numeric, NULL::numeric, 0.000000::numeric, '2026-05-07T00:00:00Z', true),
+    ('tts-1-hd',                30.000000::numeric, NULL::numeric, 0.000000::numeric, '2026-05-07T00:00:00Z', true),
+    -- ElevenLabs TTS — $/1M characters.
+    ('eleven_multilingual_v2', 100.000000::numeric, NULL::numeric, 0.000000::numeric, '2026-05-07T00:00:00Z', true),
+    ('eleven_turbo_v2_5',       50.000000::numeric, NULL::numeric, 0.000000::numeric, '2026-05-07T00:00:00Z', true),
+    ('eleven_flash_v2_5',       50.000000::numeric, NULL::numeric, 0.000000::numeric, '2026-05-07T00:00:00Z', true)
 ) AS p(model_name, input, cached, output, effective_from, is_active)
 JOIN llm_models m ON m.model_name = p.model_name
 ON CONFLICT (model_id, effective_from) DO NOTHING;

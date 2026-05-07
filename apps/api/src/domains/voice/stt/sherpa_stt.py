@@ -47,6 +47,7 @@ from src.infrastructure.observability.metrics_voice import (
 
 if TYPE_CHECKING:
     from src.core.config import Settings
+    from src.domains.voice.stt.protocol import STTResult
 
 logger = get_logger(__name__)
 
@@ -327,6 +328,43 @@ class SherpaSttService:
                 detail=f"Async transcription failed: {e}",
                 operation="transcribe_async",
             )
+
+    async def transcribe_pcm_int16_async(
+        self,
+        pcm_int16_bytes: bytes,
+        sample_rate: int = 16000,
+        language: str | None = None,
+    ) -> "STTResult":
+        """Conform to ``SttServiceProtocol``.
+
+        Converts the raw PCM Int16 LE buffer (the format streamed by the
+        WebSocket frontend) into a normalised float32 list expected by
+        Sherpa-onnx, then reuses :meth:`transcribe_async`. The audio
+        duration is computed from the buffer length (deterministic for raw
+        PCM).
+        """
+        # Local imports to keep the module-level surface narrow.
+        import numpy as np
+
+        from src.domains.voice.stt.protocol import STTResult
+
+        if not pcm_int16_bytes:
+            return STTResult(text="", audio_duration_seconds=0.0, language_code=language)
+
+        audio_np = np.frombuffer(pcm_int16_bytes, dtype=np.int16)
+        audio_float = (audio_np.astype(np.float32) / 32768.0).tolist()
+        duration_seconds = len(audio_np) / float(sample_rate) if sample_rate else 0.0
+
+        text = await self.transcribe_async(
+            audio_float,
+            sample_rate=sample_rate,
+            language=language or "",
+        )
+        return STTResult(
+            text=text,
+            audio_duration_seconds=duration_seconds,
+            language_code=language or None,
+        )
 
     @property
     def sample_rate(self) -> int:

@@ -2,12 +2,15 @@
 Voice configuration module (Text-to-Speech and Speech-to-Text).
 
 Contains settings for:
-- TTS Mode selection (Standard/HD) - Admin-controlled global setting
-- TTS Standard mode parameters (Edge TTS: free, high quality)
-- TTS HD mode parameters (OpenAI/Gemini: paid, premium quality)
 - Voice comment LLM (model, temperature, max tokens, provider, reasoning_effort)
 - STT configuration (Sherpa-onnx: offline, multi-language, free)
 - WebSocket STT settings (ticket auth, rate limiting, timeouts)
+- ElevenLabs Scribe remote STT (paid, audio-billed)
+
+The TTS provider/model/voice selection moved to ``llm_config_overrides``
+(LLM type ``voice_tts``) in v1.20.x — see ADR-081. Voice tuning (rate,
+pitch, volume, speed, voice_settings, …) is now stored as JSONB on the
+override row's ``provider_config`` field, not in env vars.
 
 Phase: Voice Feature Implementation
 Created: 2025-12-24
@@ -16,6 +19,7 @@ Updated: 2026-01-15 - Aligned LLM config with standard pattern (provider_config,
 Updated: 2026-01-15 - Added multi-provider TTS support with generic config keys
 Updated: 2026-01-16 - Refactored to Standard/HD mode architecture (admin-controlled)
 Updated: 2026-02-01 - Added STT configuration (Sherpa-onnx Whisper Small INT8)
+Updated: 2026-05-07 - TTS provider config relocated to llm_config_overrides (ADR-081)
 """
 
 from typing import Any, Literal
@@ -41,165 +45,23 @@ from src.core.constants import (
     VOICE_STT_MODEL_PATH_DEFAULT,
     VOICE_STT_NUM_THREADS_DEFAULT,
     VOICE_STT_TASK_DEFAULT,
-    VOICE_TTS_DEFAULT_MODE_DEFAULT,
-    VOICE_TTS_HD_MODEL_DEFAULT,
-    VOICE_TTS_HD_PROVIDER_CONFIG_DEFAULT,
-    VOICE_TTS_HD_PROVIDER_DEFAULT,
-    VOICE_TTS_HD_RESPONSE_FORMAT_DEFAULT,
-    VOICE_TTS_HD_SPEED_DEFAULT,
-    VOICE_TTS_HD_VOICE_FEMALE_DEFAULT,
-    VOICE_TTS_HD_VOICE_MALE_DEFAULT,
-    VOICE_TTS_STANDARD_PITCH_DEFAULT,
-    VOICE_TTS_STANDARD_PROVIDER_DEFAULT,
-    VOICE_TTS_STANDARD_RATE_DEFAULT,
-    VOICE_TTS_STANDARD_VOICE_FEMALE_DEFAULT,
-    VOICE_TTS_STANDARD_VOICE_MALE_DEFAULT,
-    VOICE_TTS_STANDARD_VOLUME_DEFAULT,
     VOICE_WS_IDLE_TIMEOUT_SECONDS_DEFAULT,
     VOICE_WS_RATE_LIMIT_MAX_CALLS_DEFAULT,
     VOICE_WS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
     VOICE_WS_TICKET_TTL_SECONDS_DEFAULT,
 )
 
-# Type alias for voice quality mode
-VoiceTTSMode = Literal["standard", "hd"]
-
 
 class VoiceSettings(BaseSettings):
-    """Voice (TTS) settings for generating audio comments."""
+    """Voice (TTS / STT) settings.
 
-    # ========================================================================
-    # TTS Mode Selection (Admin-controlled)
-    # ========================================================================
-    # The active mode is stored in the database (SystemSettings table) and
-    # controlled by administrators. This env var sets the default mode when
-    # no database setting exists yet.
-    #
-    # - standard: Free, high quality (Edge TTS)
-    # - hd: Premium quality, paid (OpenAI/Gemini TTS)
-    # ========================================================================
-
-    voice_tts_default_mode: VoiceTTSMode = Field(
-        default=VOICE_TTS_DEFAULT_MODE_DEFAULT,  # type: ignore[arg-type]
-        description=(
-            "Default TTS mode when no admin setting exists. "
-            "standard = Edge TTS (free), hd = OpenAI/Gemini TTS (paid)"
-        ),
-    )
-
-    # ========================================================================
-    # STANDARD MODE Configuration (Edge TTS - Free)
-    # ========================================================================
-    # Microsoft Edge neural voices - free, high quality
-    # Voices: fr-FR-RemyMultilingualNeural, en-US-AriaNeural, etc.
-    # ========================================================================
-
-    voice_tts_standard_provider: Literal["edge"] = Field(
-        default=VOICE_TTS_STANDARD_PROVIDER_DEFAULT,  # type: ignore[arg-type]
-        description="TTS provider for Standard mode (edge = Microsoft Edge TTS)",
-    )
-
-    voice_tts_standard_voice_male: str = Field(
-        default=VOICE_TTS_STANDARD_VOICE_MALE_DEFAULT,
-        description=(
-            "Standard mode male voice. "
-            "Edge voices: fr-FR-RemyMultilingualNeural, en-US-GuyNeural, etc."
-        ),
-    )
-
-    voice_tts_standard_voice_female: str = Field(
-        default=VOICE_TTS_STANDARD_VOICE_FEMALE_DEFAULT,
-        description=(
-            "Standard mode female voice. "
-            "Edge voices: fr-FR-VivienneMultilingualNeural, en-US-AriaNeural, etc."
-        ),
-    )
-
-    voice_tts_standard_rate: str = Field(
-        default=VOICE_TTS_STANDARD_RATE_DEFAULT,
-        description=(
-            "Standard mode (Edge TTS) speaking rate adjustment. "
-            "Examples: '+10%' (faster), '-5%' (slower), '+0%' (normal)"
-        ),
-    )
-
-    voice_tts_standard_pitch: str = Field(
-        default=VOICE_TTS_STANDARD_PITCH_DEFAULT,
-        description=(
-            "Standard mode (Edge TTS) voice pitch adjustment. "
-            "Examples: '+5Hz' (higher), '-10Hz' (lower), '+0Hz' (normal)"
-        ),
-    )
-
-    voice_tts_standard_volume: str = Field(
-        default=VOICE_TTS_STANDARD_VOLUME_DEFAULT,
-        description=(
-            "Standard mode (Edge TTS) volume adjustment. "
-            "Examples: '+10%' (louder), '-5%' (quieter), '+0%' (normal)"
-        ),
-    )
-
-    # ========================================================================
-    # HD MODE Configuration (OpenAI/Gemini TTS - Paid)
-    # ========================================================================
-    # Premium TTS providers - paid, highest quality
-    # OpenAI voices: alloy, echo, fable, onyx, nova, shimmer
-    # Gemini voices: Kore, Puck, Charon, etc.
-    # ========================================================================
-
-    voice_tts_hd_provider: Literal["openai", "gemini"] = Field(
-        default=VOICE_TTS_HD_PROVIDER_DEFAULT,  # type: ignore[arg-type]
-        description=(
-            "TTS provider for HD mode. " "openai = OpenAI TTS API, gemini = Google Gemini TTS"
-        ),
-    )
-
-    voice_tts_hd_provider_config: str = Field(
-        default=VOICE_TTS_HD_PROVIDER_CONFIG_DEFAULT,
-        description="Advanced provider-specific config for HD TTS (JSON string)",
-    )
-
-    voice_tts_hd_voice_male: str = Field(
-        default=VOICE_TTS_HD_VOICE_MALE_DEFAULT,
-        description=(
-            "HD mode male voice. "
-            "OpenAI: onyx (deep), echo (warm). "
-            "Gemini: Charon (informative), Puck (upbeat)"
-        ),
-    )
-
-    voice_tts_hd_voice_female: str = Field(
-        default=VOICE_TTS_HD_VOICE_FEMALE_DEFAULT,
-        description=(
-            "HD mode female voice. "
-            "OpenAI: nova (warm), shimmer (soft), alloy (neutral). "
-            "Gemini: Kore (firm), Aoede (warm)"
-        ),
-    )
-
-    voice_tts_hd_model: str = Field(
-        default=VOICE_TTS_HD_MODEL_DEFAULT,
-        description=(
-            "HD mode TTS model. "
-            "OpenAI: tts-1 (faster/cheaper), tts-1-hd (higher quality). "
-            "Gemini: gemini-2.5-flash-tts, gemini-2.5-pro-tts"
-        ),
-    )
-
-    voice_tts_hd_speed: float = Field(
-        default=VOICE_TTS_HD_SPEED_DEFAULT,
-        ge=0.25,
-        le=4.0,
-        description="HD mode speaking speed (0.25 to 4.0). 1.0 = normal speed.",
-    )
-
-    voice_tts_hd_response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
-        default=VOICE_TTS_HD_RESPONSE_FORMAT_DEFAULT,  # type: ignore[arg-type]
-        description=(
-            "HD mode audio output format. "
-            "mp3 = best compatibility, opus = smaller size, wav = uncompressed"
-        ),
-    )
+    TTS provider/model/voice selection lives on
+    ``llm_config_overrides.voice_tts`` — the runtime factory in
+    ``src/domains/voice/factory.py`` reads it via
+    ``LLMConfigOverrideCache``. This module only carries the voice-comment
+    LLM, the local Sherpa STT pipeline, the WebSocket transport defaults,
+    and the ElevenLabs Scribe transport defaults.
+    """
 
     # ========================================================================
     # Voice Comment LLM Configuration
@@ -335,9 +197,15 @@ class VoiceSettings(BaseSettings):
     voice_chat_mode_max_sentences: int = Field(
         default=VOICE_CHAT_MODE_MAX_SENTENCES_DEFAULT,
         ge=1,
-        le=6,
-        description="Max sentences to TTS in chat mode direct TTS. "
-        "Chat responses don't need full commentary.",
+        le=50,
+        description=(
+            "Maximum number of sentences synthesised by the chat-mode TTS "
+            "stream (response read aloud, no voice-comment LLM). Hard cap to "
+            "prevent very long replies producing minutes of audio. "
+            "Recommended values: 3 (default, conversational style), 10 "
+            "(longer educational answers), 50 (functional ceiling — 'read "
+            "everything' mode for content-rich replies)."
+        ),
     )
 
     # ========================================================================
@@ -426,4 +294,29 @@ class VoiceSettings(BaseSettings):
         le=600,
         description="Close WebSocket after N seconds of inactivity. "
         "Prevents resource leaks from abandoned connections.",
+    )
+
+    # ========================================================================
+    # ElevenLabs Scribe STT (Remote — paid, audio-billed)
+    # ========================================================================
+    # Active when the user opts into ``voice_stt_mode='remote'``. The API key
+    # itself is stored encrypted in ``provider_api_keys`` and the active model
+    # plus per-row ``base_url`` (regional residency override) and
+    # ``timeout_seconds`` live in ``llm_config_overrides.voice_transcription``.
+    # These two settings cover only the global remote-STT kill switch and the
+    # cost-spike duration cap, both enforced at the WebSocket entry point.
+
+    elevenlabs_stt_enabled: bool = Field(
+        default=True,
+        description="Allow ElevenLabs Scribe as a remote STT provider. "
+        "Disable to force every user back to the local Sherpa pipeline.",
+    )
+
+    elevenlabs_stt_max_audio_duration_seconds: int = Field(
+        default=300,
+        ge=10,
+        le=3600,
+        description="Hard cap on a single STT call duration (seconds). "
+        "Defends against accidental cost spikes; ElevenLabs accepts much "
+        "longer files but a 5-minute conversational clip is plenty.",
     )

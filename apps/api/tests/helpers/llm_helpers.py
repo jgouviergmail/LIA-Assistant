@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, selectinload
 
-from src.domains.llm.models import LLMModel, LLMModelPricing, LLMProviderEnum
+from src.domains.llm.models import LLMModel, LLMModelPricing, LLMProviderEnum, PricingUnitEnum
 
 logger = structlog.get_logger(__name__)
 
@@ -69,9 +69,10 @@ async def create_llm_pricing_async(
     model = await ensure_llm_model_async(db, model_name, provider)
     pricing = LLMModelPricing(
         model_id=model.id,
-        input_price_per_1m_tokens=input_price,
-        cached_input_price_per_1m_tokens=cached_input_price,
-        output_price_per_1m_tokens=output_price,
+        input_unit_price=input_price,
+        cached_input_unit_price=cached_input_price,
+        output_unit_price=output_price,
+        pricing_unit=PricingUnitEnum.per_1m_tokens,
         effective_from=datetime.now(UTC),
         is_active=is_active,
     )
@@ -111,9 +112,10 @@ def create_llm_pricing_entry(
 
     pricing = LLMModelPricing(
         model_id=model.id,
-        input_price_per_1m_tokens=input_price,
-        cached_input_price_per_1m_tokens=cached_input_price,
-        output_price_per_1m_tokens=output_price,
+        input_unit_price=input_price,
+        cached_input_unit_price=cached_input_price,
+        output_unit_price=output_price,
+        pricing_unit=PricingUnitEnum.per_1m_tokens,
         effective_from=datetime.now(UTC),
         is_active=True,
     )

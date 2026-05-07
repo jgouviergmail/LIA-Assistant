@@ -37,8 +37,8 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 51 LLM types (+1 Today Briefing slot in v1.18.0)."""
-        assert len(LLM_DEFAULTS) == 51
+        """Should have 53 LLM types: 51 (v1.18.0) + voice_transcription (ADR-080) + voice_tts (ADR-081)."""
+        assert len(LLM_DEFAULTS) == 53
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",
@@ -92,6 +92,16 @@ class TestLLMProviders:
     """Tests for LLM_PROVIDERS."""
 
     def test_known_providers(self) -> None:
-        """Should have all 7 known providers."""
-        expected = {"openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"}
+        """Should have all 9 known providers (chat + voice catalogue)."""
+        expected = {
+            "openai",
+            "anthropic",
+            "deepseek",
+            "perplexity",
+            "ollama",
+            "gemini",
+            "qwen",
+            "elevenlabs",  # ADR-080 (STT) + ADR-081 (TTS)
+            "edge",  # ADR-081 (free TTS provider, default)
+        }
         assert set(LLM_PROVIDERS.keys()) == expected

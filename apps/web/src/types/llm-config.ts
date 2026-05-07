@@ -139,6 +139,24 @@ export interface ProviderModelsMetadata {
   providers: Record<string, ModelCapabilities[]>;
 }
 
+// --- Voice picker (admin TTS) ---
+
+/** One voice exposed to the admin TTS picker. Mirrors the backend
+ * ``VoiceOptionPayload`` from src/domains/voice/admin_router.py. */
+export interface VoiceOption {
+  voice_id: string;
+  label: string;
+  gender: string | null;
+  language: string | null;
+}
+
+/** Response shape for ``GET /admin/voice/voices?provider=X``. */
+export interface VoicesResponse {
+  provider: 'edge' | 'openai' | 'elevenlabs';
+  voices: VoiceOption[];
+  source: 'static' | 'live';
+}
+
 // --- Ollama dynamic discovery ---
 
 export interface OllamaModelCapabilities extends ModelCapabilities {

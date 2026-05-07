@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versione** : 3.3
-**Data** : 2026-05-06
-**Applicazione** : LIA v1.20.1
+**Data** : 2026-05-08
+**Applicazione** : LIA v1.20.2
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -92,7 +92,7 @@ L'amministratore ha accesso a una terza scheda dedicata alla gestione dell'istan
 - **Personalità**: creare, modificare, tradurre ed eliminare le personalità disponibili per tutti gli utenti — definire la personalità predefinita
 - **Skills di sistema**: gestire le competenze specializzate a livello di istanza — import/export, attivazione/disattivazione, traduzione
 - **Spazi di conoscenza di sistema**: gestire la base di conoscenza FAQ, monitorare lo stato dell'indicizzazione e le migrazioni di modelli
-- **Voce globale**: configurare la modalità TTS predefinita (standard o HD) per tutti gli utenti
+- **Voce globale**: configurare il provider, modello e voce TTS predefiniti per tutti gli utenti (Edge gratuito, OpenAI o ElevenLabs), con regolazione fine per provider (velocità, stabilità, formato audio)
 - **Debug di sistema**: configurazione dei log e della diagnostica
 
 ### 2.4. Un assistente, non un progetto tecnico
@@ -136,7 +136,7 @@ LIA offre una modalità vocale completa:
 
 - **Push-to-Talk**: tieni premuto il pulsante microfono per parlare, ottimizzato per il mobile
 - **Parola chiave "OK Guy"**: rilevamento hands-free eseguito **interamente nel tuo browser** via Sherpa-onnx WASM — nessun audio viene trasmesso finché la parola chiave non viene rilevata
-- **Sintesi vocale**: modalità standard (Edge TTS, gratuita) o HD (OpenAI TTS / Gemini TTS)
+- **Sintesi vocale**: tre provider configurabili da admin — Edge TTS (gratuito), OpenAI TTS (`tts-1` / `tts-1-hd`) o ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Messaggi vocali Telegram**: invia messaggi audio, LIA li trascrive e risponde
 
 ### 3.5. Creazione e media

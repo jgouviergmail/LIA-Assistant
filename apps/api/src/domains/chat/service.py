@@ -103,6 +103,25 @@ class GoogleApiRecord(NamedTuple):
     cached: bool = False
 
 
+class TTSUsageRecord(NamedTuple):
+    """
+    In-memory record of a TTS synthesis call (immutable).
+
+    Mirrors STT cost attribution but on the assistant bubble: each call adds
+    one row to the in-memory list and the aggregate is later persisted on
+    ``conversation_messages.tts_*`` columns by ``archive_message``. Edge TTS
+    (free) does NOT call ``record_tts_call`` — its row stays NULL.
+    """
+
+    provider: str
+    model: str
+    characters: int
+    cost_usd: Decimal
+    cost_eur: Decimal
+    usd_to_eur_rate: Decimal
+    duration_ms: float = 0.0
+
+
 # =============================================================================
 # Run-level record collector
 # =============================================================================
@@ -123,6 +142,7 @@ class GoogleApiRecord(NamedTuple):
 _run_records: dict[str, list[TokenUsageRecord]] = {}
 _run_google_api_records: dict[str, list[GoogleApiRecord]] = {}
 _run_image_generation_records: dict[str, list[ImageGenerationRecord]] = {}
+_run_tts_records: dict[str, list[TTSUsageRecord]] = {}
 
 
 class TrackingContext:
@@ -189,6 +209,12 @@ class TrackingContext:
 
         # Image Generation tracking (gpt-image-1, etc.)
         self._image_generation_records: list[ImageGenerationRecord] = []
+
+        # TTS tracking (paid providers: OpenAI tts-1/-hd, ElevenLabs eleven_*).
+        # Edge TTS is free and never records here. Aggregated and propagated
+        # to ``conversation_messages.tts_*`` columns by archive_message via
+        # ``get_tts_usage_for_archive()`` (mirror of STT pattern).
+        self._tts_records: list[TTSUsageRecord] = []
 
         # Debug Panel: Keep a copy of records after commit for debug metrics
         # This allows get_llm_calls_breakdown() to return data even after commit()
@@ -494,6 +520,108 @@ class TrackingContext:
             cost_eur=float(total_cost_eur),
         )
 
+    def record_tts_call(
+        self,
+        provider: str,
+        model: str,
+        characters: int,
+        duration_ms: float = 0.0,
+    ) -> None:
+        """Record a TTS synthesis call (synchronous; uses pre-loaded pricing cache).
+
+        Mirrors the STT cost-attribution pattern but on the assistant bubble.
+        Each call adds to an in-memory list; the aggregate (sum of characters
+        and cost) is later read by ``get_tts_usage_for_archive()`` and
+        persisted on ``conversation_messages.tts_*`` columns by
+        ``archive_message`` of the assistant turn.
+
+        Edge TTS is free and MUST NOT call this method (the row stays NULL).
+        Free providers don't carry a meaningful "USD per character" axis, so
+        recording would inflate the audit trail with zero-value rows.
+
+        Args:
+            provider: TTS provider (``openai``, ``elevenlabs``, ``gemini``).
+            model: TTS model used (``tts-1``, ``tts-1-hd``, ``eleven_*``, …).
+            characters: Number of characters synthesised in this call.
+            duration_ms: Synthesis duration in milliseconds (debug panel hint).
+        """
+        from src.infrastructure.cache.pricing_cache import (
+            get_cached_cost_usd_eur,
+            get_cached_usd_eur_rate,
+        )
+
+        # TTS is character-billed; the pricing cache treats characters as
+        # ``prompt_tokens`` (cf. ADR-081 — tts pricing rows live on the same
+        # ``per_1m_tokens`` axis as chat models, with chars-as-tokens).
+        cost_usd_f, cost_eur_f = get_cached_cost_usd_eur(
+            model=model,
+            prompt_tokens=characters,
+            completion_tokens=0,
+            cached_tokens=0,
+        )
+        usd_to_eur_rate = Decimal(str(get_cached_usd_eur_rate()))
+
+        record = TTSUsageRecord(
+            provider=provider,
+            model=model,
+            characters=characters,
+            cost_usd=Decimal(str(cost_usd_f)),
+            cost_eur=Decimal(str(cost_eur_f)),
+            usd_to_eur_rate=usd_to_eur_rate,
+            duration_ms=duration_ms,
+        )
+        self._tts_records.append(record)
+
+        logger.debug(
+            "tts_call_recorded",
+            run_id=self.run_id,
+            provider=provider,
+            model=model,
+            characters=characters,
+            cost_eur=float(record.cost_eur),
+        )
+
+    def get_tts_usage_for_archive(self) -> dict | None:
+        """Aggregate TTS records committed by this run for assistant-bubble archive.
+
+        Returns the sum across all calls accumulated by the parallel +
+        sync-fallback voice paths. Called once by ``archive_message`` when it
+        persists the assistant row; the resulting dict is unpacked into the
+        ``tts_*`` columns. Returns ``None`` when no paid TTS happened (Edge
+        free, voice disabled, or no synthesis at all) so the caller can leave
+        the columns NULL — symmetric with the STT pattern.
+
+        The dict keys mirror ``conversation_messages.tts_*`` exactly.
+        """
+        # Pull from BOTH the live records (during the run) AND the committed
+        # records buffer (so a re-call after commit() still sees the data).
+        committed = _run_tts_records.get(self.run_id, [])
+        records = committed + list(self._tts_records)
+        if not records:
+            return None
+
+        total_characters = sum(r.characters for r in records)
+        total_cost_usd = sum((r.cost_usd for r in records), Decimal("0"))
+        total_cost_eur = sum((r.cost_eur for r in records), Decimal("0"))
+
+        # Provider / model: in practice all records share the same pair (one
+        # voice_tts override per run). Pick the first record as the canonical
+        # provider/model; if a future flow ever mixes providers in one run we
+        # can revisit (the columns hold a single string per message).
+        first = records[0]
+        # Use the rate from the most recent record (rates rarely change
+        # mid-run; if they do, the latest is the most accurate audit value).
+        usd_to_eur_rate = records[-1].usd_to_eur_rate
+
+        return {
+            "tts_provider": first.provider,
+            "tts_model": first.model,
+            "tts_characters": total_characters,
+            "tts_cost_usd": total_cost_usd,
+            "tts_cost_eur": total_cost_eur,
+            "tts_usd_to_eur_rate": usd_to_eur_rate,
+        }
+
     def get_summary(self) -> dict:
         """
         Get aggregated summary for SSE metadata.
@@ -522,6 +650,10 @@ class TrackingContext:
         image_generation_requests = sum(r.image_count for r in self._image_generation_records)
         image_generation_cost_eur = sum(float(r.cost_eur) for r in self._image_generation_records)
 
+        # TTS: sum characters and cost (paid providers only — Edge never records)
+        tts_characters = sum(r.characters for r in self._tts_records)
+        tts_cost_eur = sum(float(r.cost_eur) for r in self._tts_records)
+
         summary = {
             FIELD_TOKENS_IN: sum(r.prompt_tokens for r in self._node_records),
             FIELD_TOKENS_OUT: sum(r.completion_tokens for r in self._node_records),
@@ -534,6 +666,10 @@ class TrackingContext:
             # Image Generation tracking
             FIELD_IMAGE_GENERATION_REQUESTS: image_generation_requests,
             FIELD_IMAGE_GENERATION_COST_EUR: image_generation_cost_eur,
+            # TTS tracking (mirror Google API / image gen pattern; aggregated
+            # into user_statistics by create_or_update via the same flow)
+            "tts_characters": tts_characters,
+            "tts_cost_eur": tts_cost_eur,
         }
 
         # DEBUG: Log detailed breakdown by node for token verification.
@@ -580,6 +716,7 @@ class TrackingContext:
         _run_records.pop(run_id, None)
         _run_google_api_records.pop(run_id, None)
         _run_image_generation_records.pop(run_id, None)
+        _run_tts_records.pop(run_id, None)
 
     def _get_all_run_records(self) -> list[TokenUsageRecord]:
         """Return all LLM call records for this run_id from the run-level collector.
@@ -731,6 +868,36 @@ class TrackingContext:
             summary = await chat_repo.get_token_summary_by_run_id(self.run_id)
 
             if summary:
+                # Pull TTS cost from the assistant row attached to this run_id
+                # (silo on conversation_messages.tts_cost_eur, mirror STT). The
+                # tracker.get_tts_usage_for_archive() in-memory bucket is the
+                # primary source; the DB lookup below covers the case where
+                # this method is called from a fresh worker context.
+                tts_cost_value = 0.0
+                tts_in_memory = self.get_tts_usage_for_archive()
+                if tts_in_memory and tts_in_memory.get("tts_cost_eur") is not None:
+                    tts_cost_value = float(tts_in_memory["tts_cost_eur"])
+                else:
+                    try:
+                        from sqlalchemy import select as sa_select
+
+                        from src.domains.conversations.models import ConversationMessage
+
+                        tts_stmt = sa_select(ConversationMessage.tts_cost_eur).where(
+                            ConversationMessage.message_metadata.contains({"run_id": self.run_id}),
+                            ConversationMessage.role == "assistant",
+                            ConversationMessage.tts_cost_eur.is_not(None),
+                        )
+                        tts_row = (await db.execute(tts_stmt)).first()
+                        if tts_row and tts_row[0] is not None:
+                            tts_cost_value = float(tts_row[0])
+                    except Exception as tts_lookup_err:
+                        logger.debug(
+                            "aggregated_summary_tts_lookup_failed",
+                            run_id=self.run_id,
+                            error=str(tts_lookup_err),
+                        )
+
                 logger.debug(
                     "aggregated_summary_retrieved_from_db",
                     run_id=self.run_id,
@@ -739,6 +906,7 @@ class TrackingContext:
                     tokens_cache=summary.total_cached_tokens,
                     cost_eur=float(summary.total_cost_eur),
                     google_api_requests=summary.google_api_requests,
+                    tts_cost_eur=tts_cost_value,
                 )
                 # Return raw DB values — cost consolidation happens in TokenSummaryDTO.to_metadata()
                 return {
@@ -756,6 +924,7 @@ class TrackingContext:
                     FIELD_IMAGE_GENERATION_COST_EUR: float(
                         getattr(summary, "image_generation_cost_eur", 0) or 0
                     ),
+                    "tts_cost_eur": tts_cost_value,
                 }
             else:
                 # Fallback to in-memory if DB not yet updated (should not happen normally)
@@ -830,8 +999,13 @@ class TrackingContext:
         # Check for pending records (not yet committed)
         pending_records = len(self._node_records)
         pending_message = self._message_count > 0 and not self._message_count_committed
+        # TTS records sit in their own bucket — a sync-fallback voice flow
+        # (PATH 2A direct_tts / PATH 2B sync voice_comment) records ONLY
+        # TTS, no LLM. Without this guard the commit would short-circuit and
+        # _run_tts_records would never be populated for the late backfill.
+        pending_tts = len(self._tts_records)
 
-        if pending_records == 0 and not pending_message:
+        if pending_records == 0 and not pending_message and pending_tts == 0:
             logger.debug(
                 "tracking_context_commit_skipped_no_pending",
                 run_id=self.run_id,
@@ -1000,6 +1174,9 @@ class TrackingContext:
         _run_image_generation_records.setdefault(self.run_id, []).extend(
             self._image_generation_records
         )
+        # TTS records are kept in the run-level collector so a delayed
+        # archive_message (e.g. parallel voice path) still sees the data.
+        _run_tts_records.setdefault(self.run_id, []).extend(self._tts_records)
 
         # Legacy: keep local copy for backward compatibility
         self._committed_records_copy.extend(self._node_records)
@@ -1008,6 +1185,7 @@ class TrackingContext:
         self._node_records.clear()
         self._google_api_records.clear()
         self._image_generation_records.clear()
+        self._tts_records.clear()
 
     async def _update_user_statistics(self, db: AsyncSession, summary: dict) -> None:
         """
@@ -1215,3 +1393,63 @@ class StatisticsService:
         response.cycle_cost_eur = response.cycle_cost_eur + response.cycle_google_api_cost_eur
 
         return response
+
+    @staticmethod
+    async def record_remote_stt(
+        user_id: UUID,
+        audio_duration_seconds: float,
+        cost_eur: Decimal,
+    ) -> None:
+        """Persist a remote-STT call into ``user_statistics``.
+
+        Resolves the current billing cycle (aligned with the user's signup
+        date), delegates to ``UserStatisticsRepository.add_stt_usage`` and
+        invalidates the usage-limit cache so the next limit check sees the
+        fresh spend. Owns its own DB session so it can be called from places
+        without a per-request ``db`` parameter (e.g. the WebSocket handler).
+        """
+        from src.domains.chat.repository import UserStatisticsRepository
+        from src.domains.users.repository import UserRepository
+        from src.infrastructure.database import get_db_context
+
+        try:
+            async with get_db_context() as db:
+                user_repo = UserRepository(db)
+                user = await user_repo.get_by_id(user_id)
+                if not user:
+                    logger.error(
+                        "stt_usage_user_not_found",
+                        user_id=str(user_id),
+                    )
+                    return
+
+                current_cycle_start = StatisticsService.calculate_cycle_start(user.created_at)
+
+                stats_repo = UserStatisticsRepository(db)
+                existing = await stats_repo.get_by_user_id(user_id)
+                is_new_cycle = bool(existing and existing.current_cycle_start < current_cycle_start)
+
+                await stats_repo.add_stt_usage(
+                    user_id=user_id,
+                    audio_duration_seconds=audio_duration_seconds,
+                    cost_eur=cost_eur,
+                    current_cycle_start=current_cycle_start,
+                    is_new_cycle=is_new_cycle,
+                )
+                await db.commit()
+        except Exception:
+            logger.exception(
+                "record_remote_stt_failed",
+                user_id=str(user_id),
+                audio_duration_seconds=audio_duration_seconds,
+            )
+            return
+
+        if getattr(settings, "usage_limits_enabled", False):
+            try:
+                from src.domains.usage_limits.service import UsageLimitService
+
+                await UsageLimitService.invalidate_cache_static(user_id)
+            except Exception:  # noqa: BLE001
+                # Cache invalidation failure must never break STT tracking.
+                pass
