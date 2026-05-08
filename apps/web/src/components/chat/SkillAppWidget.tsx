@@ -66,9 +66,7 @@ export function SkillAppWidget({ registryId }: SkillAppWidgetProps) {
   return (
     <div className="lia-skill-app-widget">
       <div className="lia-skill-app-widget__header">
-        <span className="lia-badge lia-badge--accent">
-          {payload.title || payload.skill_name}
-        </span>
+        <span className="lia-badge lia-badge--accent">{payload.title || payload.skill_name}</span>
         {payload.frame_url ? (
           <span className="lia-skill-app-widget__external-badge" title={payload.frame_url}>
             {t('skill_apps.external_frame', { defaultValue: 'External' })}
@@ -76,9 +74,7 @@ export function SkillAppWidget({ registryId }: SkillAppWidgetProps) {
         ) : null}
       </div>
 
-      {hasImage ? (
-        <SkillImageCard url={payload.image_url!} alt={payload.image_alt || ''} />
-      ) : null}
+      {hasImage ? <SkillImageCard url={payload.image_url!} alt={payload.image_alt || ''} /> : null}
 
       {hasFrame ? <SkillFrameCard payload={payload} /> : null}
     </div>
@@ -96,12 +92,7 @@ function SkillImageCard({ url, alt }: { url: string; alt: string }) {
         aria-label={alt || 'Open image'}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={url}
-          alt={alt}
-          className="lia-skill-app-widget__image"
-          loading="lazy"
-        />
+        <img src={url} alt={alt} className="lia-skill-app-widget__image" loading="lazy" />
       </button>
       {isLightboxOpen ? (
         <Suspense fallback={null}>
@@ -157,9 +148,7 @@ function SkillFrameCard({ payload }: { payload: SkillAppRegistryPayload }) {
     return <iframe ref={iframeRef} srcDoc={payload.html_content} {...commonProps} />;
   }
   if (payload.frame_url) {
-    return (
-      <iframe ref={iframeRef} src={payload.frame_url} {...commonProps} {...extraFrameAttrs} />
-    );
+    return <iframe ref={iframeRef} src={payload.frame_url} {...commonProps} {...extraFrameAttrs} />;
   }
   return null;
 }

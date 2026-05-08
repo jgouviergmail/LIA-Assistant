@@ -36,9 +36,7 @@ export function UsageStatistics() {
           cycleDates={cycleDates}
           value={statsLoading ? '-' : formatNumber(statistics?.cycle_messages || 0)}
           totalLabel={t('dashboard.statistics.messages.total')}
-          totalValue={
-            !statsLoading && statistics ? formatNumber(statistics.total_messages) : null
-          }
+          totalValue={!statsLoading && statistics ? formatNumber(statistics.total_messages) : null}
           totalSinceIso={totalSinceIso}
         />
 
@@ -52,7 +50,7 @@ export function UsageStatistics() {
               : formatNumber(
                   (statistics?.cycle_prompt_tokens || 0) +
                     (statistics?.cycle_completion_tokens || 0) +
-                    (statistics?.cycle_cached_tokens || 0),
+                    (statistics?.cycle_cached_tokens || 0)
                 )
           }
           totalLabel={t('dashboard.statistics.tokens.total')}
@@ -61,7 +59,7 @@ export function UsageStatistics() {
               ? formatNumber(
                   statistics.total_prompt_tokens +
                     statistics.total_completion_tokens +
-                    statistics.total_cached_tokens,
+                    statistics.total_cached_tokens
                 )
               : null
           }
@@ -75,9 +73,7 @@ export function UsageStatistics() {
           value={statsLoading ? '-' : formatNumber(statistics?.cycle_google_api_requests || 0)}
           totalLabel={t('dashboard.statistics.google_api.total')}
           totalValue={
-            !statsLoading && statistics
-              ? formatNumber(statistics.total_google_api_requests)
-              : null
+            !statsLoading && statistics ? formatNumber(statistics.total_google_api_requests) : null
           }
           totalSinceIso={totalSinceIso}
         />
@@ -88,9 +84,7 @@ export function UsageStatistics() {
           cycleDates={cycleDates}
           value={statsLoading ? '-' : formatEuro(statistics?.cycle_cost_eur || 0, 2)}
           totalLabel={t('dashboard.statistics.cost.total')}
-          totalValue={
-            !statsLoading && statistics ? formatEuro(statistics.total_cost_eur, 2) : null
-          }
+          totalValue={!statsLoading && statistics ? formatEuro(statistics.total_cost_eur, 2) : null}
           totalSinceIso={totalSinceIso}
         />
 

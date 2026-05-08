@@ -2927,6 +2927,14 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_3": {
+          "title": "v1.20.3 — Itinéraire robuste : la carte s'affiche même quand le RDV vient de commencer",
+          "date": "Mai 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>L'itinéraire vers un RDV en cours fonctionne enfin</b> — Quand vous demandiez à LIA <em>« Quel itinéraire pour aller à mon prochain rdv ? »</em> alors que le rendez-vous avait déjà commencé (réservation sur la journée, réunion consultée 30 minutes après son début, etc.), la réponse retombait silencieusement sur un texte sans carte ni ETA. L'API Google Routes refusait la requête car LIA transmettait l'heure de début de l'événement comme heure d'arrivée cible — donc une heure désormais passée. Désormais, les horaires d'arrivée/départ situés dans le passé sont silencieusement ramenés à <em>maintenant + 60 secondes</em> avant d'atteindre l'API ; les horaires réellement futurs restent intacts pour préserver la précision des prédictions de trafic. Résultat : la carte d'itinéraire et l'ETA s'affichent de manière fiable, même si vous interrogez LIA après le début du rendez-vous."
+          }
+        },
         "v1_20_2": {
           "title": "v1.20.2 — Voix : catalogue STT/TTS, attribution des coûts par message, streaming par phrase",
           "date": "Mai 2026",

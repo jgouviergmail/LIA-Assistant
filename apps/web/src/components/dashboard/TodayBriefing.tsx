@@ -49,10 +49,7 @@ export function TodayBriefing() {
   return (
     <div className="space-y-8 sm:space-y-10">
       {/* Hero — headline swaps from fallback tagline to LLM greeting once ready */}
-      <HeroLiaCard
-        greeting={text?.greeting ?? null}
-        isLoadingGreeting={textLoading}
-      />
+      <HeroLiaCard greeting={text?.greeting ?? null} isLoadingGreeting={textLoading} />
 
       {/* Quick Access — placed ABOVE the cards grid as requested */}
       <QuickAccessCompact />
@@ -80,16 +77,13 @@ export function TodayBriefing() {
           text.synthesis ? (
             <BriefingSynthesis synthesis={text.synthesis} />
           ) : (
-            <p
-              className="px-1 text-sm italic text-muted-foreground"
-              role="status"
-            >
+            <p className="px-1 text-sm italic text-muted-foreground" role="status">
               {t('dashboard.briefing.synthesis_unavailable')}
             </p>
           )
-        ) : (
-          textLoading ? <SynthesisSkeleton /> : null
-        )}
+        ) : textLoading ? (
+          <SynthesisSkeleton />
+        ) : null}
 
         {/* Cards: skeleton during initial load → real cards once arrived */}
         {cards ? (
@@ -131,9 +125,9 @@ export function TodayBriefing() {
               staggerIndex={5}
             />
           </div>
-        ) : (
-          cardsLoading ? <CardsGridSkeleton /> : null
-        )}
+        ) : cardsLoading ? (
+          <CardsGridSkeleton />
+        ) : null}
       </section>
     </div>
   );

@@ -222,12 +222,12 @@ export function useJournals() {
   });
 
   // Fetch compiled portrait (commit 3 of ADR-079)
-  const {
-    data: portraitData,
-    refetch: refetchPortrait,
-  } = useApiQuery<JournalPortrait>('/journals/portrait', {
-    componentName: 'useJournals',
-  });
+  const { data: portraitData, refetch: refetchPortrait } = useApiQuery<JournalPortrait>(
+    '/journals/portrait',
+    {
+      componentName: 'useJournals',
+    }
+  );
 
   // Mutations
   const { mutate: createMutate, loading: creating } = useApiMutation<

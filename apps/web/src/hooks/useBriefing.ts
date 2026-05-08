@@ -92,7 +92,7 @@ export function useBriefing(): UseBriefingResult {
         });
       }
     },
-    [cardsQuery, synthesisQuery],
+    [cardsQuery, synthesisQuery]
   );
 
   const refetchAll = useCallback(async () => {

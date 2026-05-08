@@ -107,13 +107,13 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
         toast.success(
           enabled
             ? t('healthMetrics.agents.enabled_toast', 'Assistant santé activé.')
-            : t('healthMetrics.agents.disabled_toast', 'Assistant santé désactivé.'),
+            : t('healthMetrics.agents.disabled_toast', 'Assistant santé désactivé.')
         );
       } else {
         toast.error(t('common.error', 'Une erreur est survenue.'));
       }
     },
-    [updateAgentsEnabled, refreshUser, t],
+    [updateAgentsEnabled, refreshUser, t]
   );
 
   const [ingestStepsUrl, setIngestStepsUrl] = useState<string>(INGEST_STEPS_PATH);
@@ -181,10 +181,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
     ? Math.max(...hrPoints.map(p => p.heart_rate_max ?? Number.NEGATIVE_INFINITY))
     : null;
 
-  const stepsTotal = (aggregate?.points ?? []).reduce(
-    (sum, p) => sum + (p.steps_total ?? 0),
-    0
-  );
+  const stepsTotal = (aggregate?.points ?? []).reduce((sum, p) => sum + (p.steps_total ?? 0), 0);
 
   // Window range disclosure — HR aggregates (avg/min/max) are invariant
   // under window expansion when all data fits in the smallest window, so
@@ -221,10 +218,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
           <Label htmlFor="hm-period" className="text-sm">
             {t('healthMetrics.charts.periodLabel', 'Période')}
           </Label>
-          <Select
-            value={period}
-            onValueChange={value => setPeriod(value as HealthMetricsPeriod)}
-          >
+          <Select value={period} onValueChange={value => setPeriod(value as HealthMetricsPeriod)}>
             <SelectTrigger id="hm-period" className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -292,11 +286,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                     )}
                   </Label>
                   <div className="flex gap-2">
-                    <Input
-                      value={ingestHeartRateUrl}
-                      readOnly
-                      className="font-mono text-xs"
-                    />
+                    <Input value={ingestHeartRateUrl} readOnly className="font-mono text-xs" />
                     <Button
                       type="button"
                       variant="outline"
@@ -391,17 +381,10 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                     <Input
                       value={newTokenLabel}
                       onChange={e => setNewTokenLabel(e.target.value)}
-                      placeholder={t(
-                        'healthMetrics.tokens.labelPlaceholder',
-                        'iPhone perso'
-                      )}
+                      placeholder={t('healthMetrics.tokens.labelPlaceholder', 'iPhone perso')}
                       maxLength={64}
                     />
-                    <Button
-                      type="button"
-                      onClick={handleCreateToken}
-                      disabled={isCreatingToken}
-                    >
+                    <Button type="button" onClick={handleCreateToken} disabled={isCreatingToken}>
                       <Plus className="h-4 w-4 mr-2" />
                       {t('healthMetrics.tokens.generate', 'Générer')}
                     </Button>
@@ -426,9 +409,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <code className="font-mono text-xs">
-                                {token.token_prefix}…
-                              </code>
+                              <code className="font-mono text-xs">{token.token_prefix}…</code>
                               {token.label && (
                                 <span className="text-xs text-muted-foreground truncate">
                                   · {token.label}
@@ -446,10 +427,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                               {token.last_used_at && (
                                 <>
                                   {' · '}
-                                  {t(
-                                    'healthMetrics.tokens.lastUsed',
-                                    'Dernière utilisation'
-                                  )}{' '}
+                                  {t('healthMetrics.tokens.lastUsed', 'Dernière utilisation')}{' '}
                                   {new Date(token.last_used_at).toLocaleString(lng)}
                                 </>
                               )}
@@ -489,7 +467,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                 <p className="text-sm text-muted-foreground">
                   {t(
                     'healthMetrics.agents.description',
-                    'Autorisez l’assistant à lire vos données de santé pour répondre à vos questions, les intégrer aux notifications proactives, et enrichir ses journaux et mémoires.',
+                    'Autorisez l’assistant à lire vos données de santé pour répondre à vos questions, les intégrer aux notifications proactives, et enrichir ses journaux et mémoires.'
                   )}
                 </p>
                 <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 p-3">
@@ -501,11 +479,11 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                       {user?.health_metrics_agents_enabled
                         ? t(
                             'healthMetrics.agents.enabled_hint',
-                            'L’assistant peut consulter vos données de santé (pas, rythme cardiaque).',
+                            'L’assistant peut consulter vos données de santé (pas, rythme cardiaque).'
                           )
                         : t(
                             'healthMetrics.agents.disabled_hint',
-                            'L’assistant n’a pas accès à vos données de santé (désactivé par défaut).',
+                            'L’assistant n’a pas accès à vos données de santé (désactivé par défaut).'
                           )}
                     </p>
                   </div>
@@ -561,15 +539,11 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                 />
                 <StatTile
                   label={t('healthMetrics.stats.hrMin', 'FC min')}
-                  value={
-                    hrMin !== null && Number.isFinite(hrMin) ? `${hrMin} bpm` : '—'
-                  }
+                  value={hrMin !== null && Number.isFinite(hrMin) ? `${hrMin} bpm` : '—'}
                 />
                 <StatTile
                   label={t('healthMetrics.stats.hrMax', 'FC max')}
-                  value={
-                    hrMax !== null && Number.isFinite(hrMax) ? `${hrMax} bpm` : '—'
-                  }
+                  value={hrMax !== null && Number.isFinite(hrMax) ? `${hrMax} bpm` : '—'}
                 />
                 <StatTile
                   label={t('healthMetrics.stats.stepsAvg', 'Pas moyens / jour')}

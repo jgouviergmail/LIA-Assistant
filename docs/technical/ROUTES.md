@@ -91,6 +91,20 @@ Calcule un itinéraire entre deux points.
 > calendar mixin. Setting it before conversion would pass the raw UTC value
 > (e.g., `13:00:00Z`) instead of the converted local time (`15:00:00+02:00`),
 > causing a timezone-offset error in departure time calculations.
+>
+> **Past timestamp clamping (v1.20.3):** Google Routes API requires
+> `departureTime` and `arrivalTime` to be strictly in the future and rejects
+> past values with `400 INVALID_ARGUMENT: "Timestamp must be set to a future
+> time"`. The LLM legitimately passes the start time of a calendar event as
+> `arrival_time`, which can already be in the past when the user asks for
+> directions to an in-progress event. The helper `_clamp_to_future_iso()` in
+> `routes_tools.py` silently rewrites past values to `now + 60 s` (UTC, ISO
+> 8601) before the API call, while genuinely future timestamps are returned
+> unchanged so traffic prediction stays accurate. Each clamp emits a
+> `route_timestamp_clamped_to_now` `WARNING` log (`field`, `original`,
+> `clamped`). This guard lives in the agent tool, not the client, because the
+> "past intent → still compute the route now" semantics belong to the user
+> layer; `google_routes_client.py` stays agnostic of past/future.
 
 **Retour** : `UnifiedToolOutput` avec `RouteItem`
 

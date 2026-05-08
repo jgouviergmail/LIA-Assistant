@@ -270,9 +270,7 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
 
           {/* Weather location cascade (Phase 3 — ADR-073) */}
           <div className="space-y-2 border-t pt-4">
-            <Label className="text-sm">
-              {t('heartbeat.weather_location.section_label')}
-            </Label>
+            <Label className="text-sm">{t('heartbeat.weather_location.section_label')}</Label>
             <WeatherLocationBlock lng={lng} />
           </div>
         </div>

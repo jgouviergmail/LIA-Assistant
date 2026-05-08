@@ -1,15 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import {
-  Blocks,
-  BookOpen,
-  ChevronDown,
-  Download,
-  ShieldCheck,
-  Trash2,
-  Upload,
-} from 'lucide-react';
+import { Blocks, BookOpen, ChevronDown, Download, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 import { Button } from '@/components/ui/button';

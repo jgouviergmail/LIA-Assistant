@@ -13,12 +13,7 @@ interface HealthCardProps {
   staggerIndex?: number;
 }
 
-export function HealthCard({
-  section,
-  isRefreshing,
-  onRefresh,
-  staggerIndex,
-}: HealthCardProps) {
+export function HealthCard({ section, isRefreshing, onRefresh, staggerIndex }: HealthCardProps) {
   return (
     <BriefingCard<HealthData>
       titleKey="dashboard.briefing.cards.health.title"
@@ -55,9 +50,7 @@ function HealthMetricRow({ item }: { item: HealthSummaryItem }) {
   const locale = i18n.language || 'fr';
   const Icon = item.kind === 'steps' ? Footprints : Heart;
   const todayLabel =
-    item.value_today !== null
-      ? formatNumberLocale(Math.round(item.value_today), locale)
-      : '—';
+    item.value_today !== null ? formatNumberLocale(Math.round(item.value_today), locale) : '—';
   const windowLabel =
     item.value_avg_window !== null
       ? formatNumberLocale(Math.round(item.value_avg_window), locale)
@@ -82,9 +75,7 @@ function HealthMetricRow({ item }: { item: HealthSummaryItem }) {
       <div className="flex flex-col items-end leading-tight">
         <span className="text-base font-bold tabular-nums text-foreground">
           {todayLabel}
-          <span className="ml-1 text-xs font-normal text-muted-foreground">
-            {unitLabel}
-          </span>
+          <span className="ml-1 text-xs font-normal text-muted-foreground">{unitLabel}</span>
         </span>
         <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
           {t('dashboard.briefing.cards.health.today')}
@@ -98,9 +89,7 @@ function HealthMetricRow({ item }: { item: HealthSummaryItem }) {
       <div className="flex flex-col items-start leading-tight">
         <span className="text-base font-bold tabular-nums text-foreground/80">
           {windowLabel}
-          <span className="ml-1 text-xs font-normal text-muted-foreground">
-            {unitLabel}
-          </span>
+          <span className="ml-1 text-xs font-normal text-muted-foreground">{unitLabel}</span>
         </span>
         <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
           {t('dashboard.briefing.cards.health.avg_window', { window: item.window_days })}

@@ -71,7 +71,7 @@ export function ShuffledBlogGrid({
                     <span
                       className={cn(
                         'text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full',
-                        CATEGORY_BADGE[article.category],
+                        CATEGORY_BADGE[article.category]
                       )}
                     >
                       {t.category}

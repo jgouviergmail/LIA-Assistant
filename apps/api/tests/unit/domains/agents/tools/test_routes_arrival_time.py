@@ -303,3 +303,87 @@ class TestI18nArrivalMessages:
         assert V3Messages.get_suggested_departure("fr") == "Départ conseillé"
         assert V3Messages.get_suggested_departure("en") == "Suggested departure"
         assert V3Messages.get_suggested_departure("es") == "Salida sugerida"
+
+
+class TestClampToFutureIso:
+    """Tests for ``_clamp_to_future_iso`` past-timestamp guard.
+
+    Google Routes API rejects ``departureTime`` / ``arrivalTime`` values that
+    are not strictly in the future. The helper preserves the caller's intent
+    by clamping past timestamps to ``now`` while leaving future ones intact.
+    """
+
+    def test_returns_none_when_input_is_none(self):
+        from src.domains.agents.tools.routes_tools import _clamp_to_future_iso
+
+        result, was_clamped = _clamp_to_future_iso(None)
+
+        assert result is None
+        assert was_clamped is False
+
+    def test_future_timestamp_is_left_intact(self):
+        """A timestamp comfortably in the future must not be modified."""
+        from datetime import UTC, datetime, timedelta
+
+        from src.domains.agents.tools.routes_tools import _clamp_to_future_iso
+
+        future = (datetime.now(UTC) + timedelta(hours=2)).isoformat()
+
+        result, was_clamped = _clamp_to_future_iso(future)
+
+        assert result == future
+        assert was_clamped is False
+
+    def test_past_timestamp_is_clamped_to_now_with_buffer(self):
+        """A timestamp in the past must be clamped to now + buffer."""
+        from datetime import UTC, datetime, timedelta
+
+        from src.domains.agents.tools.routes_tools import _clamp_to_future_iso
+
+        past = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+        before_call = datetime.now(UTC)
+
+        result, was_clamped = _clamp_to_future_iso(past, buffer_seconds=60)
+
+        assert was_clamped is True
+        assert result is not None
+        clamped = datetime.fromisoformat(result)
+        assert clamped >= before_call + timedelta(seconds=59)
+        assert clamped <= datetime.now(UTC) + timedelta(seconds=61)
+
+    def test_naive_past_timestamp_is_treated_as_utc_and_clamped(self):
+        """A timestamp without tz info is interpreted as UTC, then clamped."""
+        from src.domains.agents.tools.routes_tools import _clamp_to_future_iso
+
+        result, was_clamped = _clamp_to_future_iso("2000-01-01T00:00:00")
+
+        assert was_clamped is True
+        assert result is not None
+        # Result must be a parseable ISO string with tz info.
+        parsed = datetime.fromisoformat(result)
+        assert parsed.tzinfo is not None
+
+    def test_malformed_timestamp_is_returned_unchanged(self):
+        """Unparsable input is returned as-is so Google's error stays explicit."""
+        from src.domains.agents.tools.routes_tools import _clamp_to_future_iso
+
+        result, was_clamped = _clamp_to_future_iso("tomorrow at 8am")
+
+        assert result == "tomorrow at 8am"
+        assert was_clamped is False
+
+    def test_arrival_time_at_event_already_started_is_clamped(self):
+        """Regression test: LLM passes start time of an in-progress event."""
+        from datetime import UTC, datetime, timedelta
+
+        from src.domains.agents.tools.routes_tools import _clamp_to_future_iso
+
+        # Event that started 30 minutes ago in Europe/Paris.
+        event_start = (datetime.now(ZoneInfo("Europe/Paris")) - timedelta(minutes=30)).isoformat()
+
+        result, was_clamped = _clamp_to_future_iso(event_start)
+
+        assert was_clamped is True
+        assert result is not None
+        clamped = datetime.fromisoformat(result)
+        assert clamped > datetime.now(UTC)

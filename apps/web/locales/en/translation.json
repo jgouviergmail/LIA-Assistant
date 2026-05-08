@@ -2922,6 +2922,14 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_3": {
+          "title": "v1.20.3 — Itinerary tool resilience: directions still work for events that have already started",
+          "date": "May 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Directions to an in-progress meeting now work as expected</b> — Asking LIA for the route to your <em>next appointment</em> when that appointment had already started (an all-day reservation, a meeting reviewed 30 minutes after kick-off, etc.) used to silently produce a chatty fallback with no map card and no ETA. The Google Routes API rejected the call because LIA passed the event's original start time as the target arrival time, which by then was in the past. Past arrival/departure times are now silently clamped to <em>now + 60 seconds</em> before reaching the API, while genuinely future timestamps remain untouched so traffic prediction stays accurate. Result: the HTML route card and ETA appear reliably, even when you ask after the meeting began."
+          }
+        },
         "v1_20_2": {
           "title": "v1.20.2 — Voice STT/TTS catalogue, per-message cost attribution, sentence streaming",
           "date": "May 2026",

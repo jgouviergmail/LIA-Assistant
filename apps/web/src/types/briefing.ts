@@ -172,13 +172,7 @@ export interface BriefingResponse {
 // Section identifiers and refresh request
 // =============================================================================
 
-export type BriefingSection =
-  | 'weather'
-  | 'agenda'
-  | 'mails'
-  | 'birthdays'
-  | 'reminders'
-  | 'health';
+export type BriefingSection = 'weather' | 'agenda' | 'mails' | 'birthdays' | 'reminders' | 'health';
 
 export type RefreshScope = BriefingSection | 'all';
 

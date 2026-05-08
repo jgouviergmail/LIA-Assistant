@@ -13,12 +13,7 @@ interface MailsCardProps {
   staggerIndex?: number;
 }
 
-export function MailsCard({
-  section,
-  isRefreshing,
-  onRefresh,
-  staggerIndex,
-}: MailsCardProps) {
+export function MailsCard({ section, isRefreshing, onRefresh, staggerIndex }: MailsCardProps) {
   const router = useRouter();
   const { i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
@@ -56,9 +51,7 @@ function MailsContent({ data }: { data: MailsData }) {
             <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums">
               {mail.received_local}
             </span>
-            <span className="text-sm font-medium text-foreground/90 truncate">
-              {mail.subject}
-            </span>
+            <span className="text-sm font-medium text-foreground/90 truncate">{mail.subject}</span>
             <span className="text-xs text-muted-foreground/80 truncate">
               {mail.sender_email || mail.sender_name || '—'}
             </span>

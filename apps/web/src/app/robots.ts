@@ -29,7 +29,7 @@ export default function robots(): MetadataRoute.Robots {
   const publicPaths = [
     '/',
     ...basePublicPaths,
-    ...locales.flatMap((lng) => [`/${lng}`, ...basePublicPaths.map((p) => `/${lng}${p}`)]),
+    ...locales.flatMap(lng => [`/${lng}`, ...basePublicPaths.map(p => `/${lng}${p}`)]),
   ];
 
   const baseBlockedPaths = ['/dashboard', '/dashboard/*', '/account-inactive'];
@@ -38,7 +38,7 @@ export default function robots(): MetadataRoute.Robots {
     ...baseBlockedPaths,
     '/api/*',
     '/_next/*',
-    ...locales.flatMap((lng) => baseBlockedPaths.map((p) => `/${lng}${p}`)),
+    ...locales.flatMap(lng => baseBlockedPaths.map(p => `/${lng}${p}`)),
   ];
 
   return {

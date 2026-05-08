@@ -2915,6 +2915,14 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_3": {
+          "title": "v1.20.3 — Itinerario robusto: le indicazioni funzionano anche per eventi già iniziati",
+          "date": "Maggio 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Le indicazioni verso un appuntamento in corso ora funzionano</b> — Chiedere a LIA il percorso per il <em>prossimo appuntamento</em> quando questo era già iniziato (prenotazione giornaliera, riunione consultata 30 minuti dopo l'inizio, ecc.) produceva silenziosamente una risposta testuale priva di card mappa e di ETA. L'API Google Routes rifiutava la chiamata perché LIA passava l'orario di inizio originale dell'evento come orario di arrivo target — ormai nel passato. Gli orari di arrivo/partenza nel passato vengono ora silenziosamente riportati a <em>adesso + 60 secondi</em> prima di raggiungere l'API, mentre i timestamp realmente futuri restano intatti per preservare l'accuratezza della previsione del traffico. Risultato: la card del percorso HTML e l'ETA compaiono in modo affidabile, anche se chiedi dopo l'inizio dell'appuntamento."
+          }
+        },
         "v1_20_2": {
           "title": "v1.20.2 — Voce: catalogo STT/TTS, attribuzione dei costi per messaggio, streaming per frase",
           "date": "Maggio 2026",

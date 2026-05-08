@@ -29,11 +29,11 @@ export async function BlogPreviewSection({ lng }: BlogPreviewSectionProps) {
   const { t } = await initI18next(lng);
   const blogPath = buildLocalizedPath('/blog', lng as Language);
 
-  const pinned = PINNED_SLUGS.map((slug) => BLOG_ARTICLES.find((a) => a.slug === slug)).filter(
-    (a): a is BlogArticle => a !== undefined,
+  const pinned = PINNED_SLUGS.map(slug => BLOG_ARTICLES.find(a => a.slug === slug)).filter(
+    (a): a is BlogArticle => a !== undefined
   );
 
-  const pool = BLOG_ARTICLES.filter((a) => !PINNED_SLUGS.includes(a.slug));
+  const pool = BLOG_ARTICLES.filter(a => !PINNED_SLUGS.includes(a.slug));
 
   const translations: Record<
     string,

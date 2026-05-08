@@ -23,9 +23,7 @@ export function BriefingError({ onRetry }: BriefingErrorProps) {
           <AlertTriangle className="h-6 w-6 text-destructive" />
         </div>
         <div className="space-y-1">
-          <h2 className="text-base font-semibold">
-            {t('dashboard.briefing.errors.page_title')}
-          </h2>
+          <h2 className="text-base font-semibold">{t('dashboard.briefing.errors.page_title')}</h2>
           <p className="text-sm text-muted-foreground">
             {t('dashboard.briefing.errors.page_description')}
           </p>

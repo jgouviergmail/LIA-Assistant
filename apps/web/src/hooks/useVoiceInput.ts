@@ -48,7 +48,10 @@ export interface UseVoiceInputOptions {
   /** Callback when transcription is received. The optional ``meta`` payload
    *  carries STT cost metadata when the backend ran a remote provider —
    *  callers forward it with the next chat send for per-message billing. */
-  onTranscription?: (text: string, meta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta) => void;
+  onTranscription?: (
+    text: string,
+    meta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta
+  ) => void;
   /** Callback when error occurs */
   onError?: (error: Error) => void;
 }

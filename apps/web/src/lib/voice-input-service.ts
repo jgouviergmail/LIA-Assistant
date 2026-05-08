@@ -90,11 +90,7 @@ export interface VoiceTranscriptionMeta {
  */
 export interface VoiceInputServiceConfig {
   /** Callback when transcription is received */
-  onTranscription: (
-    text: string,
-    durationSeconds: number,
-    meta?: VoiceTranscriptionMeta
-  ) => void;
+  onTranscription: (text: string, durationSeconds: number, meta?: VoiceTranscriptionMeta) => void;
   /** Callback when connection state changes */
   onConnectionChange?: (isConnected: boolean) => void;
   /** Callback on error */

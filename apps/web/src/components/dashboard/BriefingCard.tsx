@@ -93,11 +93,9 @@ export function BriefingCard<T extends SectionData>({
         'transition-all duration-300 ease-out',
         'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500',
         'motion-safe:hover:-translate-y-1 motion-safe:hover:shadow-2xl',
-        isError
-          ? 'border-destructive/30'
-          : 'border-border/50 hover:border-primary/30',
+        isError ? 'border-destructive/30' : 'border-border/50 hover:border-primary/30',
         isRefreshing && 'pointer-events-none',
-        className,
+        className
       )}
     >
       {/* Primary-themed gradient overlay (top-right → transparent) */}
@@ -125,7 +123,7 @@ export function BriefingCard<T extends SectionData>({
                 'flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20',
                 'transition-transform duration-300',
                 'motion-safe:group-hover:scale-110 motion-safe:group-hover:rotate-3 self-center',
-                iconColorClass,
+                iconColorClass
               )}
               aria-hidden="true"
             >
@@ -134,12 +132,7 @@ export function BriefingCard<T extends SectionData>({
             <h3 className="text-sm font-semibold text-foreground tracking-tight truncate">
               {titleLabel}
             </h3>
-            {!isError && (
-              <UpdatedAtBadge
-                generatedAt={section.generated_at}
-                className="shrink-0"
-              />
-            )}
+            {!isError && <UpdatedAtBadge generatedAt={section.generated_at} className="shrink-0" />}
           </div>
           <button
             type="button"
@@ -154,7 +147,7 @@ export function BriefingCard<T extends SectionData>({
               // Mobile: always visible (no hover on touch devices).
               // Desktop (sm+): hidden until card hover, with a subtle rotate.
               'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 motion-safe:sm:group-hover:rotate-12',
-              isRefreshing && 'opacity-100',
+              isRefreshing && 'opacity-100'
             )}
           >
             <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'motion-safe:animate-spin')} />
@@ -167,7 +160,7 @@ export function BriefingCard<T extends SectionData>({
             <div
               className={cn(
                 'motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300',
-                centerContent && 'flex-1 flex flex-col items-center justify-center text-center',
+                centerContent && 'flex-1 flex flex-col items-center justify-center text-center'
               )}
             >
               {renderContent(section.data)}

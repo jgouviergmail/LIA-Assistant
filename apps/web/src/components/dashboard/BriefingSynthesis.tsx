@@ -45,7 +45,7 @@ export function BriefingSynthesis({ synthesis }: BriefingSynthesisProps) {
         'relative overflow-hidden rounded-2xl border border-primary/15',
         'bg-gradient-to-br from-primary/8 via-card/80 to-card backdrop-blur-md',
         'shadow-[var(--lia-shadow-lg)]',
-        'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500',
+        'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500'
       )}
     >
       {/* Left accent bar — vertical primary gradient */}
@@ -67,10 +67,7 @@ export function BriefingSynthesis({ synthesis }: BriefingSynthesisProps) {
           {synthesis.text}
         </p>
         <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 pt-3">
-          <UpdatedAtBadge
-            generatedAt={synthesis.generated_at}
-            showJustUpdated={showJustUpdated}
-          />
+          <UpdatedAtBadge generatedAt={synthesis.generated_at} showJustUpdated={showJustUpdated} />
           {synthesis.usage && <LLMUsageBadge usage={synthesis.usage} />}
         </div>
       </div>

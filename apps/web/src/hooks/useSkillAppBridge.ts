@@ -50,9 +50,7 @@ export function useSkillAppBridge(
       try {
         switch (msg.method) {
           case 'ui/initialize': {
-            const theme = document.documentElement.classList.contains('dark')
-              ? 'dark'
-              : 'light';
+            const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
             const iframe = iframeRef.current;
             response = {
               jsonrpc: '2.0',
@@ -73,8 +71,7 @@ export function useSkillAppBridge(
                   theme,
                   containerDimensions: {
                     maxWidth: iframe?.clientWidth || undefined,
-                    maxHeight:
-                      iframe?.clientHeight || Math.round(window.innerHeight * 0.8),
+                    maxHeight: iframe?.clientHeight || Math.round(window.innerHeight * 0.8),
                   },
                   locale: document.documentElement.lang || 'fr',
                   platform: 'web',
@@ -93,18 +90,13 @@ export function useSkillAppBridge(
           case 'ui/open-link':
           case 'ui/open': {
             const params = msg.params as { url?: string } | undefined;
-            if (
-              typeof params?.url === 'string' &&
-              params.url.startsWith('https://')
-            ) {
+            if (typeof params?.url === 'string' && params.url.startsWith('https://')) {
               const opened = window.open(params.url, '_blank', 'noopener');
               if (!opened) {
                 // Popup blocker — inject a clickable banner fallback
                 const container = iframeRef.current?.parentElement;
                 if (container) {
-                  container
-                    .querySelector('.lia-skill-app-widget__link-banner')
-                    ?.remove();
+                  container.querySelector('.lia-skill-app-widget__link-banner')?.remove();
                   const banner = document.createElement('div');
                   banner.className = 'lia-skill-app-widget__link-banner';
                   const link = document.createElement('a');
@@ -139,9 +131,7 @@ export function useSkillAppBridge(
           }
 
           case 'ui/notifications/size-changed': {
-            const sizeParams = msg.params as
-              | { height?: number; width?: number }
-              | undefined;
+            const sizeParams = msg.params as { height?: number; width?: number } | undefined;
             const iframe = iframeRef.current;
             if (iframe && typeof sizeParams?.height === 'number' && isFinite(sizeParams.height)) {
               const maxH = window.innerHeight * 0.8;
@@ -217,9 +207,7 @@ export function useSkillAppBridge(
     //     ``<html lang>`` keeps the iframe in sync when the user toggles
     //     the theme or language mid-session.
     const notifyTheme = () => {
-      const theme = document.documentElement.classList.contains('dark')
-        ? 'dark'
-        : 'light';
+      const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
       iframeRef.current?.contentWindow?.postMessage(
         {
           jsonrpc: '2.0',
@@ -257,8 +245,7 @@ export function useSkillAppBridge(
     // load synchronously for srcDoc, so both paths cover all timings.
     if (iframeEl) {
       const hasLoaded =
-        iframeEl.contentDocument &&
-        iframeEl.contentDocument.readyState === 'complete';
+        iframeEl.contentDocument && iframeEl.contentDocument.readyState === 'complete';
       if (hasLoaded) {
         pushInitial();
       } else {

@@ -135,16 +135,14 @@ export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
   });
 
   // v1.17.2 — assistant toggle
-  const {
-    mutate: updateAgentsPreferenceMutate,
-    loading: updatingAgentsPreference,
-  } = useApiMutation<
-    { health_metrics_agents_enabled: boolean },
-    { health_metrics_agents_enabled: boolean; message: string }
-  >({
-    method: 'PATCH',
-    componentName: 'useHealthMetrics',
-  });
+  const { mutate: updateAgentsPreferenceMutate, loading: updatingAgentsPreference } =
+    useApiMutation<
+      { health_metrics_agents_enabled: boolean },
+      { health_metrics_agents_enabled: boolean; message: string }
+    >({
+      method: 'PATCH',
+      componentName: 'useHealthMetrics',
+    });
 
   const createToken = useCallback(
     async (label?: string): Promise<HealthMetricsTokenCreateResponse | null> => {

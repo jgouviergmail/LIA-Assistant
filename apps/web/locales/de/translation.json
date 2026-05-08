@@ -2913,6 +2913,14 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_3": {
+          "title": "v1.20.3 — Routenrobustheit: Wegbeschreibungen funktionieren auch bei bereits begonnenen Terminen",
+          "date": "Mai 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Routen zu laufenden Terminen funktionieren jetzt zuverlässig</b> — Wenn du LIA nach der Route zu deinem <em>nächsten Termin</em> gefragt hast, der bereits begonnen hatte (Ganztagsreservierung, Meeting 30 Minuten nach Beginn, …), bekamst du bisher stillschweigend nur eine Textantwort ohne Kartenwidget und ohne ETA. Die Google Routes API lehnte den Aufruf ab, weil LIA die ursprüngliche Startzeit des Termins als Zielankunftszeit übergab — und diese damit in der Vergangenheit lag. Vergangene Ankunfts-/Abfahrtszeiten werden nun stillschweigend auf <em>jetzt + 60 Sekunden</em> getaktet, bevor sie die API erreichen, während wirklich in der Zukunft liegende Zeitstempel unverändert bleiben, damit die Verkehrsvorhersage präzise bleibt. Ergebnis: HTML-Routenkarte und ETA erscheinen zuverlässig, auch wenn du LIA nach Beginn des Termins fragst."
+          }
+        },
         "v1_20_2": {
           "title": "v1.20.2 — Sprache: STT/TTS-Katalog, Kostenzuordnung pro Nachricht, satzweises Streaming",
           "date": "Mai 2026",

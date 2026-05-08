@@ -26,10 +26,7 @@ import {
 
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import type {
-  HealthMetricsAggregateResponse,
-  HealthMetricsPeriod,
-} from '@/hooks/useHealthMetrics';
+import type { HealthMetricsAggregateResponse, HealthMetricsPeriod } from '@/hooks/useHealthMetrics';
 
 interface HealthMetricsChartsProps {
   lng: Language;

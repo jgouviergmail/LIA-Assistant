@@ -277,9 +277,13 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
       if (result) {
         const seconds = Math.max(1, Math.round(result.duration_ms / 1000));
         toast.success(
-          t('journals.portraitFeedbackSuccess', 'Feedback applied — portrait recompiled in {{s}}s', {
-            s: seconds,
-          })
+          t(
+            'journals.portraitFeedbackSuccess',
+            'Feedback applied — portrait recompiled in {{s}}s',
+            {
+              s: seconds,
+            }
+          )
         );
         setFeedbackOpen(false);
         setFeedbackComment('');
@@ -430,9 +434,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 </div>
 
                 <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                  {portraitFormat === 'full'
-                    ? portrait?.full ?? ''
-                    : portrait?.brief ?? ''}
+                  {portraitFormat === 'full' ? (portrait?.full ?? '') : (portrait?.brief ?? '')}
                 </p>
 
                 <p className="text-[10px] text-muted-foreground italic">
@@ -872,129 +874,135 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                             ) : (
                               <div className="space-y-2">
                                 {groupEntries.map(entry => (
-                              <div
-                                key={entry.id}
-                                className="flex items-start justify-between p-3 rounded-lg border bg-card"
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mb-1">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      <span className="text-xs">
-                                        {MOOD_EMOJI[entry.mood] ?? ''}
-                                      </span>
-                                      <span className="font-medium text-sm truncate">
-                                        {entry.title}
-                                      </span>
-                                    </div>
-                                    <Badge variant="outline" className="text-xs w-fit">
-                                      {SOURCE_EMOJI[entry.source] ?? ''} {entry.source}
-                                    </Badge>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">
-                                    {entry.content}
-                                  </p>
-                                  {entry.search_hints && entry.search_hints.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {entry.search_hints.map((hint, idx) => (
-                                        <Badge
-                                          key={idx}
-                                          variant="outline"
-                                          className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground"
-                                        >
-                                          {hint}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {/* Epistemic + lifecycle metrics row (commit 1) */}
-                                  <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-                                    <span
-                                      className="flex items-center gap-1"
-                                      title={t(
-                                        `journals.confidence.${entry.confidence}`,
-                                        entry.confidence
-                                      )}
-                                    >
-                                      <span
-                                        className={`inline-block h-2 w-2 rounded-full ${CONFIDENCE_DOT[entry.confidence]}`}
-                                      />
-                                      {t(`journals.confidence.${entry.confidence}`, entry.confidence)}
-                                    </span>
-                                    <Badge
-                                      variant="outline"
-                                      className={`text-[10px] px-1.5 py-0 font-mono ${LEVEL_BADGE[entry.level]}`}
-                                      title={t(
-                                        `journals.levels.${entry.level}.description`,
-                                        entry.level
-                                      )}
-                                    >
-                                      {entry.level}
-                                    </Badge>
-                                    <span title={t('journals.injectionCount', 'Times used')}>
-                                      ✨ {entry.injection_count}
-                                    </span>
-                                    <span title={t('journals.lastInjected', 'Last used')}>
-                                      {t('journals.lastUsed', 'last')}: {formatRelativeDate(entry.last_injected_at)}
-                                    </span>
-                                    {(entry.evidence_count > 0 ||
-                                      entry.contradiction_count > 0) && (
-                                      <span
-                                        title={t(
-                                          'journals.evidenceTooltip',
-                                          'Confirmations / contradictions'
-                                        )}
-                                      >
-                                        ✓{entry.evidence_count} / ✗{entry.contradiction_count}
-                                      </span>
-                                    )}
-                                    <span>
-                                      · {new Date(entry.created_at).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="flex gap-1 ml-2">
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7"
-                                    onClick={() => openEdit(entry)}
+                                  <div
+                                    key={entry.id}
+                                    className="flex items-start justify-between p-3 rounded-lg border bg-card"
                                   >
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mb-1">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <span className="text-xs">
+                                            {MOOD_EMOJI[entry.mood] ?? ''}
+                                          </span>
+                                          <span className="font-medium text-sm truncate">
+                                            {entry.title}
+                                          </span>
+                                        </div>
+                                        <Badge variant="outline" className="text-xs w-fit">
+                                          {SOURCE_EMOJI[entry.source] ?? ''} {entry.source}
+                                        </Badge>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                                        {entry.content}
+                                      </p>
+                                      {entry.search_hints && entry.search_hints.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {entry.search_hints.map((hint, idx) => (
+                                            <Badge
+                                              key={idx}
+                                              variant="outline"
+                                              className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground"
+                                            >
+                                              {hint}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {/* Epistemic + lifecycle metrics row (commit 1) */}
+                                      <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+                                        <span
+                                          className="flex items-center gap-1"
+                                          title={t(
+                                            `journals.confidence.${entry.confidence}`,
+                                            entry.confidence
+                                          )}
+                                        >
+                                          <span
+                                            className={`inline-block h-2 w-2 rounded-full ${CONFIDENCE_DOT[entry.confidence]}`}
+                                          />
+                                          {t(
+                                            `journals.confidence.${entry.confidence}`,
+                                            entry.confidence
+                                          )}
+                                        </span>
+                                        <Badge
+                                          variant="outline"
+                                          className={`text-[10px] px-1.5 py-0 font-mono ${LEVEL_BADGE[entry.level]}`}
+                                          title={t(
+                                            `journals.levels.${entry.level}.description`,
+                                            entry.level
+                                          )}
+                                        >
+                                          {entry.level}
+                                        </Badge>
+                                        <span title={t('journals.injectionCount', 'Times used')}>
+                                          ✨ {entry.injection_count}
+                                        </span>
+                                        <span title={t('journals.lastInjected', 'Last used')}>
+                                          {t('journals.lastUsed', 'last')}:{' '}
+                                          {formatRelativeDate(entry.last_injected_at)}
+                                        </span>
+                                        {(entry.evidence_count > 0 ||
+                                          entry.contradiction_count > 0) && (
+                                          <span
+                                            title={t(
+                                              'journals.evidenceTooltip',
+                                              'Confirmations / contradictions'
+                                            )}
+                                          >
+                                            ✓{entry.evidence_count} / ✗{entry.contradiction_count}
+                                          </span>
+                                        )}
+                                        <span>
+                                          · {new Date(entry.created_at).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-1 ml-2">
                                       <Button
                                         size="icon"
                                         variant="ghost"
-                                        className="h-7 w-7 text-destructive"
+                                        className="h-7 w-7"
+                                        onClick={() => openEdit(entry)}
                                       >
-                                        <Trash2 className="h-3 w-3" />
+                                        <Pencil className="h-3 w-3" />
                                       </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>
-                                          {t('journals.deleteTitle', 'Delete entry?')}
-                                        </AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          {t(
-                                            'journals.deleteDescription',
-                                            'This entry will be permanently deleted.'
-                                          )}
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>
-                                          {t('common.cancel', 'Cancel')}
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDelete(entry.id)}>
-                                          {t('common.delete', 'Delete')}
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
-                              </div>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7 text-destructive"
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>
+                                              {t('journals.deleteTitle', 'Delete entry?')}
+                                            </AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              {t(
+                                                'journals.deleteDescription',
+                                                'This entry will be permanently deleted.'
+                                              )}
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>
+                                              {t('common.cancel', 'Cancel')}
+                                            </AlertDialogCancel>
+                                            <AlertDialogAction
+                                              onClick={() => handleDelete(entry.id)}
+                                            >
+                                              {t('common.delete', 'Delete')}
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                  </div>
                                 ))}
                               </div>
                             )}
@@ -1047,9 +1055,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               />
             </div>
             <div>
-              <Label>
-                {t('journals.portraitFeedbackCommentLabel', 'Your correction')}
-              </Label>
+              <Label>{t('journals.portraitFeedbackCommentLabel', 'Your correction')}</Label>
               <Textarea
                 value={feedbackComment}
                 onChange={e => setFeedbackComment(e.target.value)}
@@ -1297,9 +1303,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               </p>
               <Select
                 value={editForm.level}
-                onValueChange={v =>
-                  setEditForm({ ...editForm, level: v as JournalEntryLevel })
-                }
+                onValueChange={v => setEditForm({ ...editForm, level: v as JournalEntryLevel })}
               >
                 <SelectTrigger>
                   <SelectValue />

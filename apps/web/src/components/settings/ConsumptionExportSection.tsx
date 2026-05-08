@@ -443,9 +443,7 @@ export default function ConsumptionExportSection({
             <FileSpreadsheet className="h-5 w-5 text-primary" />
             <h4 className="font-medium">{t(`${i18n}.stt_usage_title`)}</h4>
           </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            {t(`${i18n}.stt_usage_description`)}
-          </p>
+          <p className="text-sm text-muted-foreground mb-4">{t(`${i18n}.stt_usage_description`)}</p>
           <Button
             onClick={() => handleExport('stt-usage')}
             disabled={exporting !== null}
@@ -468,9 +466,7 @@ export default function ConsumptionExportSection({
             <FileSpreadsheet className="h-5 w-5 text-primary" />
             <h4 className="font-medium">{t(`${i18n}.tts_usage_title`)}</h4>
           </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            {t(`${i18n}.tts_usage_description`)}
-          </p>
+          <p className="text-sm text-muted-foreground mb-4">{t(`${i18n}.tts_usage_description`)}</p>
           <Button
             onClick={() => handleExport('tts-usage')}
             disabled={exporting !== null}

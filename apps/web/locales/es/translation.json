@@ -2913,6 +2913,14 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_3": {
+          "title": "v1.20.3 — Itinerario robusto: las indicaciones funcionan incluso para eventos ya iniciados",
+          "date": "Mayo 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Las indicaciones a una cita en curso funcionan como deberían</b> — Pedirle a LIA la ruta a tu <em>próxima cita</em> cuando esta ya había comenzado (reserva de día completo, reunión consultada 30 minutos después de su inicio, etc.) producía silenciosamente una respuesta conversacional sin tarjeta de mapa ni ETA. La API de Google Routes rechazaba la llamada porque LIA enviaba la hora de inicio original del evento como hora de llegada objetivo, ya en el pasado. Ahora las horas de llegada/salida en el pasado se ajustan silenciosamente a <em>ahora + 60 segundos</em> antes de alcanzar la API, mientras que las marcas de tiempo realmente futuras se mantienen intactas para conservar la precisión de la predicción del tráfico. Resultado: la tarjeta HTML del itinerario y el ETA aparecen de forma fiable, incluso si preguntas tras el inicio de la reunión."
+          }
+        },
         "v1_20_2": {
           "title": "v1.20.2 — Voz: catálogo STT/TTS, atribución de costos por mensaje, streaming por frase",
           "date": "Mayo 2026",

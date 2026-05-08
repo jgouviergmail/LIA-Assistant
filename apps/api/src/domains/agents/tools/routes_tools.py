@@ -18,7 +18,7 @@ API Reference:
 - https://developers.google.com/maps/documentation/routes/overview
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
@@ -1241,6 +1241,47 @@ def _create_route_registry_item(
     return item_id, registry_item
 
 
+def _clamp_to_future_iso(
+    timestamp: str | None,
+    *,
+    buffer_seconds: int = 60,
+) -> tuple[str | None, bool]:
+    """Clamp an ISO 8601 timestamp to ``now + buffer`` if it lies in the past.
+
+    Google Routes API rejects ``departureTime`` / ``arrivalTime`` values that
+    are not strictly in the future ("Timestamp must be set to a future time").
+    When the LLM passes the start time of a calendar event whose start has
+    already elapsed (e.g. asking for directions to an in-progress meeting),
+    the call would fail with HTTP 400. Clamping past values to the current
+    instant preserves the caller's intent (compute the route now) while
+    leaving genuinely future timestamps untouched so traffic predictions
+    remain accurate.
+
+    Args:
+        timestamp: ISO 8601 timestamp with timezone (already normalized
+            upstream by ``normalize_user_datetime``), or ``None``.
+        buffer_seconds: Small offset added to ``now`` when clamping so the
+            value stays valid by the time the request reaches Google.
+
+    Returns:
+        Tuple ``(timestamp, was_clamped)``. ``timestamp`` is the original
+        value when in the future or unparsable, the clamped ``now + buffer``
+        ISO string when in the past, and ``None`` when the input is ``None``.
+    """
+    if not timestamp:
+        return None, False
+    try:
+        parsed = datetime.fromisoformat(timestamp)
+    except ValueError:
+        return timestamp, False
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    now_with_buffer = datetime.now(UTC) + timedelta(seconds=buffer_seconds)
+    if parsed < now_with_buffer:
+        return now_with_buffer.isoformat(), True
+    return timestamp, False
+
+
 # ============================================================================
 # TOOL 1: GET ROUTE
 # ============================================================================
@@ -1438,6 +1479,28 @@ async def get_route_tool(
             )
         if arrival_time:
             arrival_time = normalize_user_datetime(arrival_time, user_timezone) or arrival_time
+
+        # Clamp past timestamps to "now" to avoid Google Routes 400 errors when
+        # the LLM passes the start time of an already-elapsed calendar event.
+        # Future values are left intact so traffic prediction stays accurate.
+        original_departure_time = departure_time
+        original_arrival_time = arrival_time
+        departure_time, departure_clamped = _clamp_to_future_iso(departure_time)
+        arrival_time, arrival_clamped = _clamp_to_future_iso(arrival_time)
+        if departure_clamped:
+            logger.warning(
+                "route_timestamp_clamped_to_now",
+                field="departure_time",
+                original=original_departure_time,
+                clamped=departure_time,
+            )
+        if arrival_clamped:
+            logger.warning(
+                "route_timestamp_clamped_to_now",
+                field="arrival_time",
+                original=original_arrival_time,
+                clamped=arrival_time,
+            )
 
         # For arrival_time with non-TRANSIT modes, we use it as departure_time proxy
         # to get traffic conditions for the same time period, then calculate backwards

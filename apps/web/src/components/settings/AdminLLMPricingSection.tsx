@@ -182,9 +182,9 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
   const [pageSize, setPageSize] = useState(ADMIN_LLM_PRICING_PAGE_SIZE);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [sortBy, setSortBy] = useState<
-    'model_name' | 'input_unit_price' | 'output_unit_price'
-  >('model_name');
+  const [sortBy, setSortBy] = useState<'model_name' | 'input_unit_price' | 'output_unit_price'>(
+    'model_name'
+  );
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const fetchModels = useCallback(
@@ -778,10 +778,7 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
             </legend>
 
             <div>
-              <label
-                htmlFor="provider"
-                className="block text-sm font-medium text-foreground mb-1"
-              >
+              <label htmlFor="provider" className="block text-sm font-medium text-foreground mb-1">
                 {t('settings.admin.llm.modal.provider_label')}
               </label>
               <select
@@ -1050,8 +1047,8 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
             {formData.is_reasoning_model && isCustomMode && (
               <div className="space-y-3 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/20 px-3 py-3">
                 <p className="text-xs text-amber-700 dark:text-amber-400">
-                  Custom reasoning shape — pick a template above instead when the new model
-                  follows an existing reasoning API contract.
+                  Custom reasoning shape — pick a template above instead when the new model follows
+                  an existing reasoning API contract.
                 </p>
 
                 <div>
@@ -1214,9 +1211,7 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
                 id="reasoning-doc-key"
                 type="text"
                 value={formData.reasoning_doc_i18n_key}
-                onChange={e =>
-                  setFormData({ ...formData, reasoning_doc_i18n_key: e.target.value })
-                }
+                onChange={e => setFormData({ ...formData, reasoning_doc_i18n_key: e.target.value })}
                 placeholder="e.g. openai_o_series_effort"
               />
               <p className="text-xs text-muted-foreground mt-1">
@@ -1277,9 +1272,7 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
                 min="0"
                 required
                 value={formData.input_unit_price}
-                onChange={e =>
-                  setFormData({ ...formData, input_unit_price: e.target.value })
-                }
+                onChange={e => setFormData({ ...formData, input_unit_price: e.target.value })}
                 placeholder={t('settings.admin.llm.modal.input_price_placeholder')}
               />
             </div>
@@ -1327,9 +1320,7 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
                 min="0"
                 required
                 value={formData.output_unit_price}
-                onChange={e =>
-                  setFormData({ ...formData, output_unit_price: e.target.value })
-                }
+                onChange={e => setFormData({ ...formData, output_unit_price: e.target.value })}
                 placeholder={t('settings.admin.llm.modal.output_price_placeholder')}
               />
             </div>

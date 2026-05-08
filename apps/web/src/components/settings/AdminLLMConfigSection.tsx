@@ -228,8 +228,7 @@ function LLMTypeCard({
   // model but has widget='none' (always-on, no level control), so it shows
   // neither E: nor T: in the badge.
   const widget = modelCapabilities?.reasoning_widget ?? 'none';
-  const hasEffort =
-    widget !== 'none' && reasoningEffortIsSet(config.effective.reasoning_effort);
+  const hasEffort = widget !== 'none' && reasoningEffortIsSet(config.effective.reasoning_effort);
   const showsTemp = modelCapabilities?.supports_temperature ?? true;
   const tierClass = config.info.power_tier ? (POWER_TIER_STYLES[config.info.power_tier] ?? '') : '';
   return (
@@ -257,9 +256,7 @@ function LLMTypeCard({
         <span className="text-muted-foreground/50">/</span>
         <span className="font-mono">{config.effective.model}</span>
         <span className="text-muted-foreground/50">|</span>
-        {hasEffort && (
-          <span>E:{formatReasoningValue(config.effective.reasoning_effort)}</span>
-        )}
+        {hasEffort && <span>E:{formatReasoningValue(config.effective.reasoning_effort)}</span>}
         {hasEffort && showsTemp && <span className="text-muted-foreground/50">+</span>}
         {showsTemp && <span>T:{config.effective.temperature}</span>}
       </div>
@@ -386,11 +383,15 @@ function TTSProviderConfigBlock({
 
   const setVoiceSetting = <K extends keyof NonNullable<TTSProviderConfig['voice_settings']>>(
     key: K,
-    value: NonNullable<TTSProviderConfig['voice_settings']>[K],
+    value: NonNullable<TTSProviderConfig['voice_settings']>[K]
   ) =>
     setProviderConfig(prev => ({
       ...prev,
-      voice_settings: { ...DEFAULT_ELEVENLABS_VOICE_SETTINGS, ...prev.voice_settings, [key]: value },
+      voice_settings: {
+        ...DEFAULT_ELEVENLABS_VOICE_SETTINGS,
+        ...prev.voice_settings,
+        [key]: value,
+      },
     }));
 
   // Filter the live voice catalogue by gender so the male / female
@@ -403,7 +404,7 @@ function TTSProviderConfigBlock({
   const renderVoicePicker = (
     labelKey: string,
     field: 'voice_male' | 'voice_female',
-    options: typeof voices,
+    options: typeof voices
   ) => (
     <div className="space-y-1.5">
       <Label>{t(labelKey)}</Label>
@@ -413,10 +414,7 @@ function TTSProviderConfigBlock({
           {t('settings.admin.llmConfig.voiceTts.loadingVoices')}
         </div>
       ) : options.length > 0 ? (
-        <Select
-          value={providerConfig[field] ?? ''}
-          onValueChange={v => setKey(field, v)}
-        >
+        <Select value={providerConfig[field] ?? ''} onValueChange={v => setKey(field, v)}>
           <SelectTrigger>
             <SelectValue placeholder={t('settings.admin.llmConfig.voiceTts.pickVoice')} />
           </SelectTrigger>
@@ -445,15 +443,11 @@ function TTSProviderConfigBlock({
         {t('settings.admin.llmConfig.voiceTts.sectionTitle')}
       </div>
 
-      {renderVoicePicker(
-        'settings.admin.llmConfig.voiceTts.voiceMale',
-        'voice_male',
-        maleVoices,
-      )}
+      {renderVoicePicker('settings.admin.llmConfig.voiceTts.voiceMale', 'voice_male', maleVoices)}
       {renderVoicePicker(
         'settings.admin.llmConfig.voiceTts.voiceFemale',
         'voice_female',
-        femaleVoices,
+        femaleVoices
       )}
 
       {/* Edge — SSML rate / pitch / volume strings (e.g. "+10%", "-2Hz"). */}
@@ -558,7 +552,10 @@ function TTSProviderConfigBlock({
                 min="0"
                 max="1"
                 step="0.05"
-                value={providerConfig.voice_settings?.stability ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.stability}
+                value={
+                  providerConfig.voice_settings?.stability ??
+                  DEFAULT_ELEVENLABS_VOICE_SETTINGS.stability
+                }
                 onChange={e => setVoiceSetting('stability', parseFloat(e.target.value))}
                 className="flex-1"
               />
@@ -578,7 +575,10 @@ function TTSProviderConfigBlock({
                 min="0"
                 max="1"
                 step="0.05"
-                value={providerConfig.voice_settings?.similarity_boost ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.similarity_boost}
+                value={
+                  providerConfig.voice_settings?.similarity_boost ??
+                  DEFAULT_ELEVENLABS_VOICE_SETTINGS.similarity_boost
+                }
                 onChange={e => setVoiceSetting('similarity_boost', parseFloat(e.target.value))}
                 className="flex-1"
               />
@@ -598,14 +598,15 @@ function TTSProviderConfigBlock({
                 min="0"
                 max="1"
                 step="0.05"
-                value={providerConfig.voice_settings?.style ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.style}
+                value={
+                  providerConfig.voice_settings?.style ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.style
+                }
                 onChange={e => setVoiceSetting('style', parseFloat(e.target.value))}
                 className="flex-1"
               />
               <span className="text-sm font-mono w-12 text-right">
                 {(
-                  providerConfig.voice_settings?.style ??
-                  DEFAULT_ELEVENLABS_VOICE_SETTINGS.style
+                  providerConfig.voice_settings?.style ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.style
                 ).toFixed(2)}
               </span>
             </div>
@@ -707,7 +708,9 @@ function LLMConfigDialog({
     if (form.max_tokens !== d.max_tokens) update.max_tokens = form.max_tokens;
     if (form.timeout_seconds !== d.timeout_seconds) update.timeout_seconds = form.timeout_seconds;
     // reasoning_effort is now a discriminated union object — use deep-equal.
-    if (JSON.stringify(form.reasoning_effort ?? null) !== JSON.stringify(d.reasoning_effort ?? null))
+    if (
+      JSON.stringify(form.reasoning_effort ?? null) !== JSON.stringify(d.reasoning_effort ?? null)
+    )
       update.reasoning_effort = form.reasoning_effort;
 
     // provider_config: only send when the parsed object differs from the
@@ -759,7 +762,8 @@ function LLMConfigDialog({
   // type) keeps voicesData null.
   const isTts = config?.info.required_kind === 'tts';
   const ttsProvider =
-    isTts && (form.provider === 'edge' || form.provider === 'openai' || form.provider === 'elevenlabs')
+    isTts &&
+    (form.provider === 'edge' || form.provider === 'openai' || form.provider === 'elevenlabs')
       ? form.provider
       : null;
   const { data: voicesData, loading: voicesLoading } = useApiQuery<VoicesResponse>(
@@ -795,9 +799,9 @@ function LLMConfigDialog({
         .map(m => m.model_id)
     : [];
 
-  const selectedModelCapabilities = (
-    metadata.providers[form.provider ?? ''] ?? []
-  ).find(m => m.model_id === form.model);
+  const selectedModelCapabilities = (metadata.providers[form.provider ?? ''] ?? []).find(
+    m => m.model_id === form.model
+  );
 
   // Sampling-param visibility: each input is shown if and only if the
   // selected model accepts that specific parameter (Philosophy A: raw
@@ -1226,9 +1230,9 @@ export default function AdminLLMConfigSection({ lng, collapsible = true }: BaseS
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {catConfigs.map(c => {
-                    const modelCapabilities = (
-                      metadata.providers[c.effective.provider] ?? []
-                    ).find(m => m.model_id === c.effective.model);
+                    const modelCapabilities = (metadata.providers[c.effective.provider] ?? []).find(
+                      m => m.model_id === c.effective.model
+                    );
                     return (
                       <LLMTypeCard
                         key={c.llm_type}

@@ -452,9 +452,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const diffDays = Math.round(
-      (startOfToday.getTime() - startOfDate.getTime()) / 86_400_000
-    );
+    const diffDays = Math.round((startOfToday.getTime() - startOfDate.getTime()) / 86_400_000);
 
     // Today: just the time (e.g. "14:30")
     if (diffDays === 0) return time;
@@ -690,8 +688,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
               {' | '}
               <span className="text-purple-500">
                 🎤{' '}
-                {(message.sttAudioDurationSeconds ?? message.audioDurationSeconds)?.toFixed(1)
-                  ?? '?'}
+                {(message.sttAudioDurationSeconds ?? message.audioDurationSeconds)?.toFixed(1) ??
+                  '?'}
                 {t('chat.message.stt_unit_seconds')}
               </span>
               {/* Remote-STT per-message cost (NULL for typed text and local Sherpa) */}

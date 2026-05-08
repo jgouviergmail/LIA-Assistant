@@ -84,7 +84,7 @@ function QuickActionCard({ onClick, icon, label, sublabel, tone }: QuickActionCa
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
         toneClasses.gradient,
         toneClasses.border,
-        toneClasses.hoverGlow,
+        toneClasses.hoverGlow
       )}
     >
       <div className="flex items-center gap-4">
@@ -94,21 +94,19 @@ function QuickActionCard({ onClick, icon, label, sublabel, tone }: QuickActionCa
             'motion-safe:group-hover:scale-110 motion-safe:group-hover:rotate-3',
             toneClasses.iconBg,
             toneClasses.iconText,
-            toneClasses.iconRing,
+            toneClasses.iconRing
           )}
         >
           {icon}
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-base sm:text-lg font-semibold text-foreground">{label}</div>
-          <div className="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">
-            {sublabel}
-          </div>
+          <div className="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">{sublabel}</div>
         </div>
         <ChevronRight
           className={cn(
             'h-5 w-5 text-muted-foreground/50 transition-transform duration-300',
-            'motion-safe:group-hover:translate-x-1 motion-safe:group-hover:text-foreground',
+            'motion-safe:group-hover:translate-x-1 motion-safe:group-hover:text-foreground'
           )}
         />
       </div>
@@ -118,7 +116,7 @@ function QuickActionCard({ onClick, icon, label, sublabel, tone }: QuickActionCa
         className={cn(
           'pointer-events-none absolute -bottom-12 -right-12 h-32 w-32 rounded-full opacity-30 blur-2xl transition-opacity duration-500',
           'motion-safe:group-hover:opacity-50',
-          tone === 'primary' ? 'bg-primary' : 'bg-warning',
+          tone === 'primary' ? 'bg-primary' : 'bg-warning'
         )}
         aria-hidden="true"
       />

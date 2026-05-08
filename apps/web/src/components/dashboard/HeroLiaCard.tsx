@@ -32,10 +32,7 @@ interface HeroLiaCardProps {
  * Click anywhere on the image (outside the CTA buttons) toggles the LIA gender
  * via useLiaGender — same behavior as before the refactor.
  */
-export function HeroLiaCard({
-  greeting = null,
-  isLoadingGreeting = false,
-}: HeroLiaCardProps = {}) {
+export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: HeroLiaCardProps = {}) {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];

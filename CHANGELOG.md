@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.3] - 2026-05-08
+
+### Fixed — Itinerary tool resilience against past timestamps
+
+When the user asked "Quel itinéraire pour aller à mon prochain rdv ?", the planner correctly produced a 2-step plan (`get_events_tool` → `get_route_tool`) and the LLM legitimately passed the targeted event's start time as `arrival_time`. If that event had already started — e.g. an in-progress all-day reservation, or a meeting whose start was 30 minutes ago — Google Routes API rejected the call with `400 INVALID_ARGUMENT: "Timestamp must be set to a future time"`, the adaptive replanner retried twice with the same arguments, the step ended in `failed`, and `response_node` synthesised an answer with no route data: no HTML map card, no ETA, just a chatty fallback.
+
+#### Cause
+
+`get_route_tool` forwards `arrival_time` to `GoogleRoutesClient.compute_route` and (for non-TRANSIT modes) reuses it as a `departureTime` proxy to fetch traffic predictions for the same window. `_normalize_departure_time` in `google_routes_client.py` only handled formatting (timezone suffix, `T` separator) — neither tool nor client validated that the value was strictly in the future, which Google Routes mandates.
+
+#### Fix
+
+- New module-level helper `_clamp_to_future_iso(timestamp, *, buffer_seconds=60)` in `apps/api/src/domains/agents/tools/routes_tools.py`. Returns `(timestamp, was_clamped)`. Past values become `now + buffer` (UTC, ISO 8601); genuinely future values are returned unchanged so traffic prediction stays accurate; malformed inputs are returned as-is so Google's own error stays explicit; `None` flows through unchanged.
+- Applied to both `departure_time` and `arrival_time` after `normalize_user_datetime` (timezone normalisation) and before the `effective_departure_time` proxy logic for non-TRANSIT modes. Naive timestamps that lost their tzinfo upstream are interpreted as UTC by the helper for safety.
+- Each clamp emits a `route_timestamp_clamped_to_now` `WARNING` log with `field`, `original`, `clamped` for observability — surfaces planner mistakes (LLM passing past events) without breaking the user-facing flow.
+- `google_routes_client.py` is unchanged; the past/future semantics live in the agent tool, where the timestamp's user-intent is known.
+
+### Tests
+
+6 new unit tests in `apps/api/tests/unit/domains/agents/tools/test_routes_arrival_time.py::TestClampToFutureIso` cover the clamp helper end-to-end:
+
+- `test_returns_none_when_input_is_none` — `None` flows through unchanged
+- `test_future_timestamp_is_left_intact` — future timestamps untouched (traffic accuracy preserved)
+- `test_past_timestamp_is_clamped_to_now_with_buffer` — past ISO 8601 clamped to `now + 60s ± tolerance`
+- `test_naive_past_timestamp_is_treated_as_utc_and_clamped` — defensive handling of naive datetimes
+- `test_malformed_timestamp_is_returned_unchanged` — unparsable strings forwarded so the API surfaces the real error
+- `test_arrival_time_at_event_already_started_is_clamped` — end-to-end regression for the exact scenario captured from prod logs
+
+### Documentation
+
+- `docs/technical/ROUTES.md` gains a "Past timestamp clamping (v1.20.3)" note next to the existing "Timezone handling" callout, documenting that arrival/departure times in the past are silently clamped to `now + 60 s` and that genuine future intents are preserved.
+
 ## [1.20.2] - 2026-05-08
 
 ### Added — Voice STT/TTS catalogue, per-message cost attribution, sentence streaming

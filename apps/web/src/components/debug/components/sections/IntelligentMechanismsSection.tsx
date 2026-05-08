@@ -28,7 +28,8 @@ export const IntelligentMechanismsSection = React.memo(function IntelligentMecha
   if (!data) return <EmptySection value="mechanisms" title="Intelligent Mechanisms" />;
 
   const mechanismsApplied = Object.values(data).filter(m => m?.applied).length;
-  if (mechanismsApplied === 0) return <EmptySection value="mechanisms" title="Intelligent Mechanisms" />;
+  if (mechanismsApplied === 0)
+    return <EmptySection value="mechanisms" title="Intelligent Mechanisms" />;
 
   return (
     <AccordionItem value="mechanisms">

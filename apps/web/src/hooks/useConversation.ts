@@ -133,9 +133,7 @@ export const useConversation = (): UseConversationReturn => {
         // ChatMessage; we set it from `stt_provider` (and mirror the
         // duration into ``audioDurationSeconds`` for back-compat with the
         // pre-existing voice indicator).
-        ...(msg.stt_provider
-          ? { source: 'voice' as const }
-          : {}),
+        ...(msg.stt_provider ? { source: 'voice' as const } : {}),
         sttProvider: msg.stt_provider ?? null,
         sttAudioDurationSeconds: msg.stt_audio_duration_seconds ?? null,
         sttCostEur: msg.stt_cost_eur ?? null,

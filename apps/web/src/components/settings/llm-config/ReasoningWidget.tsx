@@ -83,10 +83,7 @@ export function ReasoningWidget({
           </p>
         )}
         {isInvalid && (
-          <p
-            role="alert"
-            className="flex items-center gap-1 text-[10px] text-destructive"
-          >
+          <p role="alert" className="flex items-center gap-1 text-[10px] text-destructive">
             <AlertCircle className="h-3 w-3" />
             Invalid: {`'${current}'`} not in [{allowed.join(', ')}]
           </p>
@@ -105,8 +102,7 @@ export function ReasoningWidget({
     let preset: string;
     if (currentBudget === null || currentBudget === undefined) preset = PRESET_CUSTOM;
     else if (offSentinel !== null && currentBudget === offSentinel) preset = PRESET_OFF;
-    else if (dynamicSentinel !== null && currentBudget === dynamicSentinel)
-      preset = PRESET_DYNAMIC;
+    else if (dynamicSentinel !== null && currentBudget === dynamicSentinel) preset = PRESET_DYNAMIC;
     else preset = PRESET_CUSTOM;
 
     const handlePreset = (next: string) => {

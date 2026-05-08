@@ -44,9 +44,9 @@ export interface ReasoningBudgetRange {
 /** Discriminated union for reasoning_effort storage. Shape follows the
  * model's reasoning_widget. Mirrors backend ReasoningEffortValue. */
 export type ReasoningEffortValue =
-  | { effort: string }                              // widget=enum
-  | { budget: number }                              // widget=budget_int
-  | { enabled: boolean; budget?: number | null }    // widget=toggle_budget
+  | { effort: string } // widget=enum
+  | { budget: number } // widget=budget_int
+  | { enabled: boolean; budget?: number | null } // widget=toggle_budget
   | null;
 
 // --- LLM Agent Config ---

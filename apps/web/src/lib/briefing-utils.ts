@@ -31,10 +31,7 @@ export interface TimeAgoBucket {
   count: number;
 }
 
-export function computeTimeAgo(
-  generatedAtIso: string,
-  now: Date = new Date(),
-): TimeAgoBucket {
+export function computeTimeAgo(generatedAtIso: string, now: Date = new Date()): TimeAgoBucket {
   const ts = new Date(generatedAtIso).getTime();
   if (Number.isNaN(ts)) return { kind: 'just_now', count: 0 };
   const deltaMs = Math.max(0, now.getTime() - ts);

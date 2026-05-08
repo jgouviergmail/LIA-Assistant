@@ -37,12 +37,7 @@ interface WeatherCardProps {
   staggerIndex?: number;
 }
 
-export function WeatherCard({
-  section,
-  isRefreshing,
-  onRefresh,
-  staggerIndex,
-}: WeatherCardProps) {
+export function WeatherCard({ section, isRefreshing, onRefresh, staggerIndex }: WeatherCardProps) {
   const router = useRouter();
   const { i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
@@ -81,8 +76,7 @@ function WeatherContent({ data }: { data: WeatherData }) {
       ? `${Math.round(data.wind_speed_kmh)} km/h${data.wind_direction_cardinal ? ` ${data.wind_direction_cardinal}` : ''}`
       : null;
 
-  const showMetricsRow =
-    windLabel !== null || popPct !== null || data.forecast_alert !== null;
+  const showMetricsRow = windLabel !== null || popPct !== null || data.forecast_alert !== null;
 
   return (
     <div className="w-full flex flex-col items-center gap-2">
@@ -120,9 +114,7 @@ function WeatherContent({ data }: { data: WeatherData }) {
               <span className="tabular-nums">{popPct}%</span>
             </span>
           )}
-          {data.forecast_alert && (
-            <ForecastAlertBadge alert={data.forecast_alert} />
-          )}
+          {data.forecast_alert && <ForecastAlertBadge alert={data.forecast_alert} />}
         </div>
       )}
 
@@ -179,13 +171,8 @@ function DailyForecastStrip({ days }: { days: DailyForecastItem[] }) {
               {day.icon_emoji}
             </span>
             <span className="text-[10px] tabular-nums leading-tight">
-              <span className="font-semibold text-foreground">
-                {Math.round(day.temp_max_c)}°
-              </span>
-              <span className="text-muted-foreground/70">
-                {' '}
-                / {Math.round(day.temp_min_c)}°
-              </span>
+              <span className="font-semibold text-foreground">{Math.round(day.temp_max_c)}°</span>
+              <span className="text-muted-foreground/70"> / {Math.round(day.temp_min_c)}°</span>
             </span>
           </li>
         );

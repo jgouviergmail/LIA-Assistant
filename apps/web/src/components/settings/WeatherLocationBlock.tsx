@@ -147,9 +147,7 @@ export function WeatherLocationBlock({ lng }: WeatherLocationBlockProps) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
-          <p className="text-sm font-medium">
-            {t('heartbeat.weather_location.toggle_label')}
-          </p>
+          <p className="text-sm font-medium">{t('heartbeat.weather_location.toggle_label')}</p>
           <p className="text-xs text-muted-foreground">
             {t('heartbeat.weather_location.toggle_description')}
           </p>
@@ -182,9 +180,7 @@ export function WeatherLocationBlock({ lng }: WeatherLocationBlockProps) {
           )}
 
           <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-            <p className="text-xs font-medium">
-              {t('heartbeat.weather_location.stored_title')}
-            </p>
+            <p className="text-xs font-medium">{t('heartbeat.weather_location.stored_title')}</p>
             {stored?.stored ? (
               <div className="space-y-1 text-xs text-muted-foreground">
                 <div className="flex justify-between gap-4">
@@ -203,12 +199,7 @@ export function WeatherLocationBlock({ lng }: WeatherLocationBlockProps) {
                   </p>
                 )}
                 <div className="pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleClearNow}
-                    disabled={updating}
-                  >
+                  <Button variant="outline" size="sm" onClick={handleClearNow} disabled={updating}>
                     <Trash2 className="mr-2 h-3 w-3" />
                     {t('heartbeat.weather_location.clear_button')}
                   </Button>

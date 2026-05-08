@@ -18,12 +18,7 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import {
-  SyntaxHighlighter,
-  LANGUAGE_LOADERS,
-  loadStyle,
-  type PrismStyle,
-} from './codeblock-lazy';
+import { SyntaxHighlighter, LANGUAGE_LOADERS, loadStyle, type PrismStyle } from './codeblock-lazy';
 
 interface CodeBlockProps {
   language: string;
@@ -94,11 +89,7 @@ export function CodeBlock({ language, children }: CodeBlockProps) {
               className="p-1 rounded hover:bg-muted transition-colors"
               aria-label={t('chat.code.copy')}
             >
-              {copied ? (
-                <Check className="h-3 w-3 text-green-600" />
-              ) : (
-                <Copy className="h-3 w-3" />
-              )}
+              {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
             </button>
           </TooltipTrigger>
           <TooltipContent>{t('chat.code.copy')}</TooltipContent>

@@ -276,14 +276,14 @@ export const BLOG_ARTICLES: BlogArticle[] = [
  * Get articles filtered by category.
  */
 export function getArticlesByCategory(category: BlogCategory): BlogArticle[] {
-  return BLOG_ARTICLES.filter((a) => a.category === category);
+  return BLOG_ARTICLES.filter(a => a.category === category);
 }
 
 /**
  * Find an article by its slug.
  */
 export function getArticleBySlug(slug: string): BlogArticle | undefined {
-  return BLOG_ARTICLES.find((a) => a.slug === slug);
+  return BLOG_ARTICLES.find(a => a.slug === slug);
 }
 
 /**
@@ -293,7 +293,7 @@ export function getAdjacentArticles(slug: string): {
   prev: BlogArticle | undefined;
   next: BlogArticle | undefined;
 } {
-  const idx = BLOG_ARTICLES.findIndex((a) => a.slug === slug);
+  const idx = BLOG_ARTICLES.findIndex(a => a.slug === slug);
   return {
     prev: idx > 0 ? BLOG_ARTICLES[idx - 1] : undefined,
     next: idx < BLOG_ARTICLES.length - 1 ? BLOG_ARTICLES[idx + 1] : undefined,

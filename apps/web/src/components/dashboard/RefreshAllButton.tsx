@@ -36,7 +36,7 @@ export function RefreshAllButton({ onClick, isRefreshing }: RefreshAllButtonProp
             'text-muted-foreground hover:text-foreground hover:bg-muted/60',
             'transition-colors duration-200',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1',
-            'disabled:opacity-50 disabled:cursor-not-allowed',
+            'disabled:opacity-50 disabled:cursor-not-allowed'
           )}
         >
           <RefreshCw
