@@ -33,7 +33,7 @@ structlog==25.5.0
 geoip2==5.2.0  # IP geolocation (DB-IP Lite MMDB — free, CC-BY-4.0)
 opentelemetry-api==1.41.0
 opentelemetry-sdk==1.41.0
-opentelemetry-instrumentation-fastapi==0.62b0
+opentelemetry-instrumentation-fastapi==0.62b1
 opentelemetry-exporter-otlp==1.41.0
 prometheus-client==0.25.0
 langfuse==4.2.0  # Phase 6 - LLM Observability
