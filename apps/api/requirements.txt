@@ -100,7 +100,7 @@ pydub>=0.25.1  # Audio format conversion for voice messages (OGG→PCM, requires
 
 # Apple iCloud Connectors — Email (IMAP), Calendar (CalDAV), Contacts (CardDAV)
 caldav[async]>=3.0.1  # CalDAV client with async support (caldav.aio)
-imap-tools>=1.7.0  # IMAP email client (synchronous, wrapped via asyncio.to_thread)
+imap-tools>=1.12.1  # IMAP email client (synchronous, wrapped via asyncio.to_thread)
 vobject>=0.9.8  # vCard/vCalendar parser (iCloud uses vCard 3.0)
 
 # Attachments — File Uploads & Vision Analysis (evolution F4)
