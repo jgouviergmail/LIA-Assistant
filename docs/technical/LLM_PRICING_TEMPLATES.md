@@ -51,7 +51,7 @@ L'admin :
 1. Saisit `provider`, `model_name`, `kind`, max tokens, capacités classiques.
 2. Toggle `Is reasoning model` → ON.
 3. Le Select **"Copy reasoning shape from..."** apparaît, peuplé via `GET /admin/llm/reasoning-templates`.
-4. L'admin choisit le template représentatif de la famille (ex : `gpt-5` pour les OpenAI o-series / GPT-5 reasoning, `claude-opus-4.5` pour Anthropic 4.5+, `deepseek-v4-flash` pour DeepSeek V4, etc.).
+4. L'admin choisit le template représentatif de la famille (ex : `gpt-5` pour les OpenAI o-series / GPT-5 reasoning, `claude-opus-4-5` pour Anthropic 4.5+, `deepseek-v4-flash` pour DeepSeek V4, etc.).
 5. Le panneau readonly affiche les 4 valeurs qui seront copiées (`widget`, `enum_values` ou `budget_range`, `is_reasoning_model`).
 6. L'admin saisit indépendamment les 4 toggles sampling et le `reasoning_doc_i18n_key` (optionnel).
 7. Soumission. Le service `LLMModelService.create()` :
@@ -87,7 +87,7 @@ L'admin laisse `Is reasoning model` → OFF. Le Select template et le Custom blo
 class ReasoningTemplate(BaseModel):
     template_model_name: str
     representative_provider: ProviderLiteral
-    description: str           # "enum [low/medium/high] — like claude-opus-4.5 (14 models)"
+    description: str           # "enum [low/medium/high] — like claude-opus-4-5 (14 models)"
     matching_count: int
     is_reasoning_model: bool
     reasoning_widget: ReasoningWidgetLiteral

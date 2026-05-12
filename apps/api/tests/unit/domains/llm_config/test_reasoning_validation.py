@@ -24,7 +24,10 @@ from src.core.reasoning_types import (
     ReasoningEffortToggleBudget,
     ReasoningEffortValue,
 )
-from src.domains.llm_config.reasoning_validation import validate_reasoning_effort
+from src.domains.llm_config.reasoning_validation import (
+    reasoning_effort_matches_widget,
+    validate_reasoning_effort,
+)
 
 CapsFactory = Callable[..., Any]
 
@@ -397,7 +400,7 @@ def _build_value(case: dict[str, Any] | None) -> ReasoningEffortValue:
         ("gpt-4o", "none", None, None, [None], [{"effort": "low"}]),
         # Anthropic 4.5+
         (
-            "claude-opus-4.5",
+            "claude-opus-4-5",
             "enum",
             ["low", "medium", "high"],
             None,
@@ -405,7 +408,7 @@ def _build_value(case: dict[str, Any] | None) -> ReasoningEffortValue:
             [{"effort": "max"}, {"effort": "minimal"}],
         ),
         (
-            "claude-opus-4.6",
+            "claude-opus-4-6",
             "enum",
             ["low", "medium", "high", "max"],
             None,
@@ -413,14 +416,14 @@ def _build_value(case: dict[str, Any] | None) -> ReasoningEffortValue:
             [{"effort": "xhigh"}],
         ),
         (
-            "claude-sonnet-4.6",
+            "claude-sonnet-4-6",
             "enum",
             ["low", "medium", "high"],
             None,
             [{"effort": "high"}],
             [{"effort": "max"}],
         ),
-        ("claude-haiku-4.5", "none", None, None, [None], [{"effort": "low"}]),
+        ("claude-haiku-4-5", "none", None, None, [None], [{"effort": "low"}]),
         # DeepSeek V4
         (
             "deepseek-v4-flash",
@@ -516,3 +519,80 @@ def test_validate_matrix_per_model(
             exc.value.status_code == 422
         ), f"Expected 422 for {model_name} + {case}, got {exc.value.status_code}"
         assert _detail(exc)["ctx"]["model"] == model_name
+
+
+@pytest.mark.unit
+class TestReasoningEffortMatchesWidget:
+    """Non-raising twin of ``validate_reasoning_effort``.
+
+    Used by callers that *reconcile* rather than *reject* — notably
+    ``core.llm_config_helper.merge_config`` (drops a stale/incompatible
+    reasoning_effort instead of crashing the typed reasoning builder) and the
+    admin UI (clears the field when the model changes). Regression: the
+    DeepSeek-style ``{"effort": "off"}`` must be rejected for a Qwen
+    ``toggle_budget`` model.
+    """
+
+    def test_none_widget_accepts_only_null(self, caps_factory: CapsFactory) -> None:
+        caps = caps_factory(reasoning_widget="none")
+        assert reasoning_effort_matches_widget(caps, None) is True
+        assert reasoning_effort_matches_widget(caps, ReasoningEffortEnum(effort="low")) is False
+        assert (
+            reasoning_effort_matches_widget(caps, ReasoningEffortToggleBudget(enabled=False))
+            is False
+        )
+
+    def test_enum_widget_shape_and_allowed_value(self, caps_factory: CapsFactory) -> None:
+        caps = caps_factory(
+            reasoning_widget="enum", reasoning_enum_values=["low", "medium", "high"]
+        )
+        assert reasoning_effort_matches_widget(caps, ReasoningEffortEnum(effort="high")) is True
+        # value not in the allowed set
+        assert reasoning_effort_matches_widget(caps, ReasoningEffortEnum(effort="off")) is False
+        # wrong shape (toggle on an enum widget)
+        assert (
+            reasoning_effort_matches_widget(caps, ReasoningEffortToggleBudget(enabled=False))
+            is False
+        )
+        # null is not valid for a reasoning-capable widget
+        assert reasoning_effort_matches_widget(caps, None) is False
+
+    def test_toggle_budget_widget_rejects_enum_shape(self, caps_factory: CapsFactory) -> None:
+        caps = caps_factory(
+            reasoning_widget="toggle_budget",
+            reasoning_budget_range={"min": 0, "max": 32768},
+        )
+        assert (
+            reasoning_effort_matches_widget(caps, ReasoningEffortToggleBudget(enabled=False))
+            is True
+        )
+        assert (
+            reasoning_effort_matches_widget(
+                caps, ReasoningEffortToggleBudget(enabled=True, budget=8192)
+            )
+            is True
+        )
+        # the production bug: enum-shaped "off" left over from a DeepSeek model
+        assert reasoning_effort_matches_widget(caps, ReasoningEffortEnum(effort="off")) is False
+        # out-of-range budget
+        assert (
+            reasoning_effort_matches_widget(
+                caps, ReasoningEffortToggleBudget(enabled=True, budget=10_000_000)
+            )
+            is False
+        )
+
+    def test_budget_int_widget(self, caps_factory: CapsFactory) -> None:
+        caps = caps_factory(
+            reasoning_widget="budget_int",
+            reasoning_budget_range={"min": 512, "max": 24576, "off_sentinel": 0},
+        )
+        assert reasoning_effort_matches_widget(caps, ReasoningEffortBudget(budget=8192)) is True
+        assert reasoning_effort_matches_widget(caps, ReasoningEffortBudget(budget=0)) is True
+        # out of range and not a sentinel
+        assert reasoning_effort_matches_widget(caps, ReasoningEffortBudget(budget=100)) is False
+        # wrong shape
+        assert (
+            reasoning_effort_matches_widget(caps, ReasoningEffortToggleBudget(enabled=False))
+            is False
+        )

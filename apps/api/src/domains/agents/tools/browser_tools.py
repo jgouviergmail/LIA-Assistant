@@ -295,7 +295,7 @@ async def browser_task_tool(
             prompt_vars={"context_instructions": ""},
             parent_runtime=runtime,
             thread_prefix="browser",
-            recursion_limit=15,
+            recursion_limit=settings.browser_react_max_iterations,
         )
         final_message = react_result.final_message
 

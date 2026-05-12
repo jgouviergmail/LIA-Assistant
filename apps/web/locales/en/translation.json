@@ -2885,7 +2885,7 @@
         },
         "browserControl": {
           "title": "🌐 Browser Control",
-          "description": "Interactive web browsing with autonomous navigation: search products on e-commerce sites, fill forms, extract data from JavaScript-rendered pages. The browser agent handles multi-step interactions automatically."
+          "description": "Interactive web browsing with autonomous navigation: search products on e-commerce sites, fill forms, extract data from JavaScript-rendered pages. The browser agent handles multi-step interactions through the site's own controls (search boxes, autocomplete, forms), re-checks the page after each action, and — on transactional flows — stops at the login / payment step and reports a summary; it never enters credentials or submits a payment."
         },
         "psycheEngine": {
           "title": "🧠 Psyche Engine",
@@ -2922,6 +2922,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_4": {
+          "title": "v1.20.4 — Reliable web browsing agent, Anthropic Claude 4.x fix, robust LLM config on model change",
+          "date": "May 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>The web browsing agent now completes multi-step tasks reliably</b> — Asking LIA to \"go to a website and do X\" used to work for a quick lookup but fall apart on anything longer: the browsing loop was cut off after ~30 seconds, saw only a truncated view of the page, sometimes invented URLs with guessed parameters, and rarely reached the right form. Now the loop gets a real time budget (up to several minutes), sees far more of the page (accessibility-tree budget raised from 5 000 to 15 000 tokens), navigates through the site's own controls instead of fabricating URLs, handles autocomplete fields (it clicks the matching suggestion), re-checks the page after each action, detects when it's stuck and changes strategy, and — on transactional flows — advances up to (but not past) the login / payment / final-validation step, then stops and reports what it found and what you still need to do. A new admin setting <code>BROWSER_REACT_MAX_ITERATIONS</code> (default 15) caps how many reason↔act iterations a single browsing task may run.",
+            "i2": "<b>Admin: the Anthropic Claude 4.x models in the LLM Configuration dropdown now work</b> — \"Claude Opus 4.6 / 4.5\", \"Claude Sonnet 4.6\" and \"Claude Haiku 4.5\" were registered in the model catalogue with a dotted id (<code>claude-opus-4.6</code>) that the Anthropic API rejects with <code>404 not_found_error</code> — picking one of them for any LLM type made that feature fail immediately. The catalogue, the <code>mcp_app_react_agent</code> default and the affected database rows are corrected to the dashed form the API expects (<code>claude-opus-4-6</code>, …); a one-shot migration rewrites existing configuration rows.",
+            "i3": "<b>Admin: changing the model or provider of an LLM type can no longer break that type</b> — In <b>Configuration LLM</b>, switching an LLM type from one model to another could leave behind a \"reasoning effort\" value whose shape no longer fit the newly selected model (for example a DeepSeek-style \"off\" left on a config now pointing at a Qwen model) — the feature then crashed on its next call. The reasoning-effort value is now automatically re-normalized to the new model when you change it (kept if compatible, otherwise cleared), the save endpoint rejects an incompatible combination with a clear error, and — as a final safety net — the runtime silently falls back to the model's default if a stale incompatible value ever slips through (logged for the admin)."
+          }
+        },
         "v1_20_3": {
           "title": "v1.20.3 — Itinerary tool resilience: directions still work for events that have already started",
           "date": "May 2026",
@@ -2950,7 +2960,7 @@
           "count": "4",
           "items": {
             "i1": "<b>Configuration LLM: sampling sliders only show what the API accepts</b> — In the per-type LLM Configuration dialog, the four sampling inputs (<code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>) now appear or hide <b>per individual parameter</b> based on what each model's API actually accepts. Anthropic 4.5+ surfaces only temperature; DeepSeek V4 surfaces all four; GPT-5 series surfaces none. The reasoning widget itself (enum select, integer budget, or toggle+budget) is also driven directly by the model's declared shape — the dialog never lets you pick a value the API would reject.",
-            "i2": "<b>Pricing LLM: \"Copy reasoning shape from…\" template selector</b> — When you add a new reasoning model in the Tarification LLM Texte admin form, you no longer have to type the reasoning widget / enum values / budget range by hand. A new dropdown lets you pick a representative model whose reasoning behavior is identical (e.g. \"like gpt-5\" for OpenAI o-series / GPT-5 reasoning, \"like claude-opus-4.5\" for Anthropic 4.5+, \"like deepseek-v4-flash\" for DeepSeek V4) and the four reasoning shape fields are snapshot-copied at creation time. The list deduplicates the catalogue automatically (~15 unique reasoning shapes today) and self-enriches: any model created in <b>Custom (advanced)</b> mode with a novel shape becomes available as a template afterwards.",
+            "i2": "<b>Pricing LLM: \"Copy reasoning shape from…\" template selector</b> — When you add a new reasoning model in the Tarification LLM Texte admin form, you no longer have to type the reasoning widget / enum values / budget range by hand. A new dropdown lets you pick a representative model whose reasoning behavior is identical (e.g. \"like gpt-5\" for OpenAI o-series / GPT-5 reasoning, \"like claude-opus-4-5\" for Anthropic 4.5+, \"like deepseek-v4-flash\" for DeepSeek V4) and the four reasoning shape fields are snapshot-copied at creation time. The list deduplicates the catalogue automatically (~15 unique reasoning shapes today) and self-enriches: any model created in <b>Custom (advanced)</b> mode with a novel shape becomes available as a template afterwards.",
             "i3": "<b>Toggle \"Is reasoning model\" gates the reasoning controls</b> — The Pricing form now hides the template selector and the Custom block whenever the new model is non-reasoning. Switching the toggle off resets the widget to <code>none</code> and clears any pending template choice. <code>kind</code> (chat / image / audio / …), the four sampling toggles and the optional tooltip i18n key remain visible regardless and are saved per model — independent of the reasoning shape choice.",
             "i4": "<b>Audit log: reasoning template + kind + widget captured on every create / update</b> — The admin audit trail (visible in the security log) now records, for every LLM model creation or edit, which template the admin picked (or null in Custom mode), the model kind and the resolved reasoning widget. Instant forensic visibility on which API contract a given row inherited from."
           }
@@ -3742,11 +3752,11 @@
           },
           "q18": {
             "question": "What is Browser Control and when should I use it?",
-            "answer": "Browser Control lets LIA interact with websites like a real user: navigate, search, click, fill forms, and extract data from JavaScript-rendered pages.<br><br><strong>Use for:</strong> searching products on e-commerce, filling forms, extracting dynamic content.<br><strong>Examples:</strong><br>- Use the web browser to go to amazon.fr and search for MacBook Pro M4<br>- Use the web browser to go to nike.com and find white Nike Air for men with prices"
+            "answer": "Browser Control lets LIA interact with websites like a real user: navigate, search, click, fill forms, and extract data from JavaScript-rendered pages.<br><br><strong>Use for:</strong> searching products on e-commerce, filling forms, extracting dynamic content, walking through multi-step flows.<br><strong>Examples:</strong><br>- Use the web browser to go to amazon.fr and search for MacBook Pro M4<br>- Use the web browser to go to nike.com and find white Nike Air for men with prices<br>- Go to a booking site, find the agency in my city and show me the available cars for next weekend<br><br><strong>Good to know:</strong> on a transactional flow LIA advances up to the login / payment step, then stops and reports what it found — it never enters credentials or submits a payment."
           },
           "q19": {
             "question": "How does the browser agent work?",
-            "answer": "It uses headless Chromium (Playwright) to: navigate, handle cookies automatically, wait for JS rendering, extract visible content, and interact if needed. The agent decides autonomously which actions to take. Takes 15-60 seconds per task."
+            "answer": "It uses headless Chromium (Playwright) to: navigate, handle cookies automatically, wait for JS rendering, extract visible content, and interact if needed. The agent decides autonomously which actions to take, re-checks the page after each action to confirm it worked, and detects when it's stuck and changes strategy. A simple lookup takes 15-60 seconds; a multi-step flow (several pages, a form to fill) can take a few minutes."
           },
           "q20": {
             "question": "What is the difference between Browser Control and Web Fetch?",

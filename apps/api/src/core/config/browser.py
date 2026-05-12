@@ -3,6 +3,7 @@ Browser automation configuration module.
 
 Contains settings for:
 - Browser feature toggle (enabled/disabled)
+- ReAct loop (max iterations of the browser agent)
 - Session management (timeout, max sessions, max navigations)
 - Accessibility tree extraction (max tokens, max depth)
 - Rate limiting (read/write/expensive tool calls)
@@ -19,9 +20,29 @@ from __future__ import annotations
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
+from src.core.constants import (
+    BROWSER_AX_TREE_MAX_TOKENS_DEFAULT,
+    BROWSER_REACT_MAX_ITERATIONS_DEFAULT,
+)
+
 
 class BrowserSettings(BaseSettings):
     """Browser automation settings for Playwright-based web interaction."""
+
+    # ========================================================================
+    # ReAct Loop
+    # ========================================================================
+
+    browser_react_max_iterations: int = Field(
+        default=BROWSER_REACT_MAX_ITERATIONS_DEFAULT,
+        ge=1,
+        le=50,
+        description=(
+            "Max ReAct iterations for the browser agent loop "
+            "(create_react_agent recursion_limit). Each iteration is one "
+            "LLM call plus the resulting browser tool execution."
+        ),
+    )
 
     # ========================================================================
     # Session Management
@@ -85,7 +106,7 @@ class BrowserSettings(BaseSettings):
     )
 
     browser_ax_tree_max_tokens: int = Field(
-        default=5000,
+        default=BROWSER_AX_TREE_MAX_TOKENS_DEFAULT,
         ge=500,
         le=50000,
         description="Maximum tokens for accessibility tree output. Hard-truncated if exceeded.",

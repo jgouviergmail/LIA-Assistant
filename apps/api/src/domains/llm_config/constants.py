@@ -1081,7 +1081,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "mcp_app_react_agent": LLMAgentConfig(
         provider="anthropic",
-        model="claude-opus-4.6",
+        model="claude-opus-4-6",
         temperature=0.5,
         top_p=1.0,
         frequency_penalty=0.0,

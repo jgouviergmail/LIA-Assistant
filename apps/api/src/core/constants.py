@@ -925,6 +925,15 @@ DEFAULT_TOOL_TIMEOUT_MS = 30000  # 30 seconds in milliseconds
 # Maximum allowed timeout per step (hard limit)
 MAX_TOOL_TIMEOUT_SECONDS = 120.0  # 2 minutes - prevents runaway operations
 
+# Browser agent task tool runs a full nested ReAct loop (browser_task_tool ->
+# ReactSubAgentRunner, up to BROWSER_REACT_MAX_ITERATIONS iterations, each
+# iteration = navigate/snapshot/click + one LLM call). A multi-step browsing
+# task easily needs several minutes, so it gets a dedicated floor + ceiling
+# instead of the generic DEFAULT_TOOL_TIMEOUT_SECONDS / MAX_TOOL_TIMEOUT_SECONDS
+# (which would otherwise let the planner kill the loop after ~30-120s).
+BROWSER_TOOL_TIMEOUT_SECONDS = 300.0  # 5 minutes - default floor for browser_task_tool steps
+MAX_BROWSER_TOOL_TIMEOUT_SECONDS = 600.0  # 10 minutes - hard ceiling for browser_task_tool steps
+
 # Default rate limit for Google API clients (requests per second)
 DEFAULT_RATE_LIMIT_PER_SECOND = 10  # Conservative: 10 req/s = 600/minute
 
@@ -3308,6 +3317,16 @@ SCHEDULER_JOB_BROWSER_CLEANUP = "browser_session_cleanup"
 # Default timeout for browser agent task (ms)
 # Must accommodate multi-step ReAct browsing (navigate + search + read ~60-90s)
 BROWSER_DEFAULT_TIMEOUT_MS = 120_000
+
+# Browser agent ReAct loop (browser_task_tool -> ReactSubAgentRunner)
+# create_react_agent recursion_limit: max LLM<->tool iterations per browsing task.
+# Mirrors REACT_AGENT_MAX_ITERATIONS / MCP_REACT_MAX_ITERATIONS.
+BROWSER_REACT_MAX_ITERATIONS_DEFAULT = 15
+
+# Default token budget for the accessibility-tree snapshot handed to the LLM.
+# Too low and the model can't see forms / interactive elements past the cutoff
+# (browser_ax_tree_truncated); too high inflates per-step LLM input cost.
+BROWSER_AX_TREE_MAX_TOKENS_DEFAULT = 15000
 
 # Redis key prefix for cross-worker session recovery
 REDIS_KEY_BROWSER_SESSION_PREFIX = "browser:session:"

@@ -49,6 +49,7 @@ import type {
 } from '@/types/llm-config';
 import { LLM_CATEGORIES_ORDER } from '@/types/llm-config';
 import { ReasoningWidget } from './llm-config/ReasoningWidget';
+import { coerceReasoningEffortForModel } from './llm-config/reasoningHelpers';
 
 // --- Reasoning Effort Helpers ---
 
@@ -849,7 +850,12 @@ function LLMConfigDialog({
             <Select
               value={form.provider ?? ''}
               onValueChange={v => {
-                setForm({ ...form, provider: v, model: '' });
+                // reasoning_effort shape is model-scoped — clearing the model
+                // means there is no valid reasoning_effort to keep (a stale
+                // value would be persisted as-is and crash the typed reasoning
+                // builder once a model is re-picked). Same rationale as the
+                // voice_id / provider_config wipe below.
+                setForm({ ...form, provider: v, model: '', reasoning_effort: null });
                 // Voice IDs and per-provider tuning are provider-scoped — wipe
                 // them so the admin can't accidentally save a stale Edge
                 // voice_id under an OpenAI override (would crash at synth).
@@ -891,7 +897,25 @@ function LLMConfigDialog({
                 {t('settings.admin.llmConfig.ollama.loading')}
               </div>
             ) : availableModels.length > 0 ? (
-              <Select value={form.model ?? ''} onValueChange={v => setForm({ ...form, model: v })}>
+              <Select
+                value={form.model ?? ''}
+                onValueChange={v => {
+                  // Keep reasoning_effort only if its shape still fits the newly
+                  // selected model's reasoning widget; otherwise drop it to null
+                  // (= use the model's default). Prevents a stale value (e.g. an
+                  // enum effort from a previous model) being saved onto a model
+                  // with a different reasoning widget and crashing the typed
+                  // reasoning builder at runtime.
+                  const newCaps =
+                    (metadata.providers[form.provider ?? ''] ?? []).find(m => m.model_id === v) ??
+                    (ollamaData?.models ?? []).find(m => m.model_id === v);
+                  setForm({
+                    ...form,
+                    model: v,
+                    reasoning_effort: coerceReasoningEffortForModel(form.reasoning_effort, newCaps),
+                  });
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -910,7 +934,10 @@ function LLMConfigDialog({
             ) : (
               <Input
                 value={form.model ?? ''}
-                onChange={e => setForm({ ...form, model: e.target.value })}
+                // Free-typed model name (e.g. a dynamic Ollama model): its
+                // reasoning widget is unknown here, so we cannot keep any
+                // reasoning_effort override — clear it to null (= model default).
+                onChange={e => setForm({ ...form, model: e.target.value, reasoning_effort: null })}
                 placeholder="model-name"
               />
             )}

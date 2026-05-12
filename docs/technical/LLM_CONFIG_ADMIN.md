@@ -65,6 +65,18 @@ BaseChatModel
 | `LLM_DEFAULTS` (code) | Valeurs éprouvées, baseline | Fallback |
 | DB override (cache) | Modifications admin | Prioritaire |
 
+Le merge (`core/llm_config_helper.py::merge_config`) applique les champs non-null de l'override par-dessus les défauts code, avec deux réconciliations sur `reasoning_effort` (voir ci-dessous).
+
+### Cohérence `reasoning_effort` ↔ modèle (robustesse au changement de modèle/provider)
+
+La **forme** d'un `reasoning_effort` dépend du `reasoning_widget` du modèle : `none` → `null` ; `enum` → `{"effort": "<valeur>"}` ; `budget_int` → `{"budget": <int>}` ; `toggle_budget` → `{"enabled": <bool>, "budget"?: <int|null>}`. Changer de modèle ou de provider sur un type LLM ne doit **jamais** laisser une valeur de forme incompatible — sinon le builder de raisonnement typé (`infrastructure/llm/providers/reasoning_builders.py`) lèverait un `RuntimeError` à l'instanciation du LLM. Trois couches le garantissent :
+
+1. **Frontend** (`components/settings/AdminLLMConfigSection.tsx`) — au changement de `model` ou de `provider`, `reasoning_effort` est conservé **uniquement** si sa forme matche le `reasoning_widget` du nouveau modèle (et, pour `enum`, si la valeur est dans `reasoning_enum_values`), sinon remis à `null`. Helper `coerceReasoningEffortForModel` dans `components/settings/llm-config/reasoningHelpers.ts`. Changement de provider → `model` reset à `''` → `reasoning_effort: null`.
+2. **Write path** (`LLMConfigService.update_config`) — `reasoning_effort` est validé (`validate_reasoning_effort`) contre le **modèle effectif** (`update.model`, ou `LLM_DEFAULTS[llm_type].model` si `update.model` est `null`) ; une combinaison invalide est rejetée en `422` avec un `ctx` structuré (`domains/llm_config/reasoning_validation.py`).
+3. **Merge runtime** (`merge_config` → `_reconcile_reasoning_effort`) — filet de sécurité ultime : si la config effective (défauts + override) porte un `reasoning_effort` dont la forme/valeur ne matche pas le `reasoning_widget` du modèle effectif (ligne d'override périmée après un changement de modèle non géré côté UI, seed obsolète, édition manuelle, bug antérieur), il est **droppé** (→ défaut intrinsèque du modèle) et un warning structuré `llm_config_reasoning_effort_dropped` est loggé. `get_llm()` ne plante donc jamais sur ce motif, quelle que soit l'origine de l'incohérence.
+
+Prédicat partagé : `reasoning_effort_matches_widget(caps, value)` (jumeau non-levant de `validate_reasoning_effort`), réutilisé par les couches 1 et 3 — une seule source de vérité pour « cette valeur est-elle valide pour ce modèle ? ».
+
 ### Résolution Clé API
 
 | Source | Rôle | Priorité |
@@ -119,8 +131,9 @@ BaseChatModel
 | `domains/llm_config/schemas.py` | Schemas Pydantic (request/response) |
 | `domains/llm_config/cache.py` | `LLMConfigOverrideCache` — cache in-memory (sync read, async populate) |
 | `domains/llm_config/service.py` | `LLMConfigService` — CRUD + merge + audit |
+| `domains/llm_config/reasoning_validation.py` | `validate_reasoning_effort` (levant, 422) + `reasoning_effort_matches_widget` (prédicat) — cohérence `reasoning_effort` ↔ `reasoning_widget` |
 | `domains/llm_config/router.py` | Endpoints REST admin (`/admin/llm-config/`) |
-| `core/llm_config_helper.py` | `get_llm_config_for_agent()` — lit `LLM_DEFAULTS` + cache |
+| `core/llm_config_helper.py` | `get_llm_config_for_agent()` / `merge_config()` / `_reconcile_reasoning_effort()` — défauts code + cache + réconciliation |
 
 ### Frontend
 
@@ -129,6 +142,8 @@ BaseChatModel
 | `types/llm-config.ts` | Interfaces TypeScript (miroir des schemas backend) |
 | `hooks/useLLMConfig.ts` | Hook React (queries + mutations) |
 | `components/settings/AdminLLMConfigSection.tsx` | Composant admin (providers + types + dialog édition) |
+| `components/settings/llm-config/ReasoningWidget.tsx` | Widget reasoning_effort (rendu piloté par `reasoning_widget`) |
+| `components/settings/llm-config/reasoningHelpers.ts` | `coerceReasoningEffortForModel` — normalise `reasoning_effort` au changement de modèle |
 
 ---
 
@@ -167,6 +182,7 @@ Le frontend déclenche ce fetch uniquement quand l'admin sélectionne Ollama com
 Chaque PUT remplace **toute** la row d'override. Le frontend envoie l'état complet :
 - Un champ `null` = utiliser le défaut code (`LLM_DEFAULTS`)
 - Un champ non-null = override appliqué
+- Sélectionner un modèle/provider qui rend la forme du `reasoning_effort` courant incompatible le remet à `null` côté frontend avant l'envoi (cf. la section « Cohérence `reasoning_effort` ↔ modèle » ci-dessus) ; le write path le revalide de toute façon contre le modèle effectif.
 
 ---
 

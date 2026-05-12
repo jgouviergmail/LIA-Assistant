@@ -240,4 +240,39 @@ def _serialize(value: ReasoningEffortValue) -> Any:
     return value.model_dump()
 
 
-__all__ = ["validate_reasoning_effort"]
+def reasoning_effort_matches_widget(
+    caps: _CapsLike,
+    value: ReasoningEffortValue,
+) -> bool:
+    """Non-raising twin of :func:`validate_reasoning_effort`.
+
+    Used by callers that need to *reconcile* rather than *reject* — e.g. the
+    effective-config merge (``core.llm_config_helper.merge_config``) drops an
+    incompatible reasoning_effort instead of crashing the typed reasoning
+    builder, and the admin UI normalizes the field when the model changes.
+
+    Args:
+        caps: Model capabilities — must expose ``model_id``, ``reasoning_widget``,
+            ``reasoning_enum_values`` and ``reasoning_budget_range``.
+        value: The reasoning_effort value to check. ``None`` is valid only for a
+            ``"none"`` widget.
+
+    Returns:
+        ``True`` when ``value`` has the correct shape for the model's
+        ``reasoning_widget`` and (where applicable) an allowed / in-range value;
+        ``False`` otherwise — including the defensive case where ``caps`` carries
+        an unknown ``reasoning_widget`` (an unvalidatable value is treated as
+        not matching, so the caller falls back to the model default).
+    """
+    try:
+        validate_reasoning_effort(caps, value)
+        return True
+    except (HTTPException, RuntimeError):
+        # HTTPException(422): documented "value invalid for this widget" outcome.
+        # RuntimeError: validate_reasoning_effort's defensive guard for an
+        # unknown reasoning_widget — treat as not-matching rather than letting
+        # it propagate and crash the LLM-resolution path.
+        return False
+
+
+__all__ = ["validate_reasoning_effort", "reasoning_effort_matches_widget"]

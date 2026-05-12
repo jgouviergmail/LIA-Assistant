@@ -229,13 +229,16 @@ Choose the right tool based on your needs:
 ## What is Browser Control and when should I use it?
 Browser Control lets LIA interact with websites like a real user: navigate, search, click, fill forms, and extract data from JavaScript-rendered pages.
 
-**Use for:** searching products on e-commerce, filling forms, extracting dynamic content.
+**Use for:** searching products on e-commerce, filling forms, extracting dynamic content, walking through multi-step flows.
 **Examples:**
 - Go to amazon.fr and search for MacBook Pro M4
 - Go to nike.com and find white Nike Air for men with prices
+- Go to a booking site, find the agency in my city and show me the available cars for next weekend
+
+**Good to know:** on a transactional flow LIA advances up to the login / payment step, then stops and reports what it found — it never enters credentials or submits a payment.
 
 ## How does the browser agent work?
-It uses headless Chromium (Playwright) to: navigate, handle cookies automatically, wait for JS rendering, extract visible content, and interact if needed. The agent decides autonomously which actions to take. Takes 15-60 seconds per task.
+It uses headless Chromium (Playwright) to: navigate, handle cookies automatically, wait for JS rendering, extract visible content, and interact if needed. The agent decides autonomously which actions to take, re-checks the page after each action to confirm it worked, and detects when it's stuck and changes strategy. A simple lookup takes 15-60 seconds; a multi-step flow (several pages, a form to fill) can take a few minutes.
 
 ## How do I get the weather forecast?
 **OpenWeatherMap** - Detailed forecasts:

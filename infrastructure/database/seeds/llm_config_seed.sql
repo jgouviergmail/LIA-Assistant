@@ -83,7 +83,7 @@ VALUES
     -- Creative / extraction entries (interest_extraction, journal_extraction,
     -- memory_extraction, hitl_plan_approval_question_generator) referenced
     -- claude-sonnet-4-6 which has been retired — rows removed entirely.
-    -- Admins should re-add overrides via UI pointing at claude-sonnet-4.6.
+    -- Admins should re-add overrides via UI pointing at claude-sonnet-4-6.
 
     -- Planning (cost-effective reasoning — qwen3.5-plus)
     (gen_random_uuid(), 'planner', 'qwen', 'qwen3.5-plus', NULL, 10000, NULL, NOW(), NOW()),

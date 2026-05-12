@@ -1,12 +1,16 @@
 """Tests for the rewritten get_llm_config_for_agent (code = source of truth)."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.reasoning_types import ReasoningEffortToggleBudget
 from src.domains.llm_config.cache import LLMConfigOverrideCache
+from src.domains.llm_config.constants import LLM_DEFAULTS
+from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
 
 
 class TestGetLLMConfigForAgent:
@@ -103,3 +107,86 @@ class TestGetLLMConfigForAgent:
         assert config.model == "qwen3.5-plus"  # Default preserved
         assert config.max_tokens == 10000  # Default preserved
         assert config.provider == "qwen"  # Default preserved
+
+
+@pytest.mark.unit
+class TestEffectiveConfigReasoningReconciliation:
+    """A DB override must never let a stale / incompatible ``reasoning_effort``
+    reach the typed reasoning builder.
+
+    ``merge_config`` (via ``get_llm_config_for_agent``) drops a stored
+    ``reasoning_effort`` whose shape/value does not match the *effective* model's
+    ``reasoning_widget``, falling back to the model's intrinsic default. Other
+    override fields are untouched.
+
+    Regression: switching ``browser_agent`` from a DeepSeek model (enum widget,
+    value ``{"effort": "off"}``) to the Qwen code-default model (toggle widget)
+    left the stale enum-shaped value in the override row and crashed
+    ``get_llm("browser_agent")`` with ``RuntimeError: ... must be
+    ReasoningEffortToggleBudget, got ReasoningEffortEnum``.
+    """
+
+    _DEFAULT_MODEL = LLM_DEFAULTS["browser_agent"].model
+
+    def setup_method(self) -> None:
+        LLMConfigOverrideCache.reset()
+
+    @staticmethod
+    def _toggle_widget_caps(model: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            model_id=model,
+            reasoning_widget="toggle_budget",
+            reasoning_enum_values=None,
+            reasoning_budget_range={"min": 0, "max": 32768},
+        )
+
+    def test_incompatible_reasoning_effort_override_is_dropped(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # browser_agent's code-default model uses a Qwen toggle widget.
+        monkeypatch.setattr(
+            ModelCapabilitiesCache,
+            "_cache",
+            {self._DEFAULT_MODEL: self._toggle_widget_caps(self._DEFAULT_MODEL)},
+        )
+        # Override carries an enum-shaped effort left over from a previous model.
+        LLMConfigOverrideCache._overrides = {
+            "browser_agent": {"reasoning_effort": {"effort": "off"}, "temperature": 0.5}
+        }
+
+        config = get_llm_config_for_agent(MagicMock(), "browser_agent")
+
+        assert config.model == self._DEFAULT_MODEL  # override didn't change the model
+        assert config.reasoning_effort is None  # incompatible → dropped to model default
+        assert config.temperature == 0.5  # unrelated override preserved
+
+    def test_compatible_reasoning_effort_override_is_kept(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            ModelCapabilitiesCache,
+            "_cache",
+            {self._DEFAULT_MODEL: self._toggle_widget_caps(self._DEFAULT_MODEL)},
+        )
+        LLMConfigOverrideCache._overrides = {
+            "browser_agent": {"reasoning_effort": {"enabled": True, "budget": 8192}}
+        }
+
+        config = get_llm_config_for_agent(MagicMock(), "browser_agent")
+
+        assert isinstance(config.reasoning_effort, ReasoningEffortToggleBudget)
+        assert config.reasoning_effort.enabled is True
+        assert config.reasoning_effort.budget == 8192
+
+    def test_unknown_model_is_left_alone(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Empty capabilities cache (e.g. a dynamically discovered model not in
+        # the catalogue): merge_config cannot validate, so it must not mutate.
+        monkeypatch.setattr(ModelCapabilitiesCache, "_cache", {})
+        LLMConfigOverrideCache._overrides = {
+            "browser_agent": {"reasoning_effort": {"enabled": False}}
+        }
+
+        config = get_llm_config_for_agent(MagicMock(), "browser_agent")
+
+        assert isinstance(config.reasoning_effort, ReasoningEffortToggleBudget)
+        assert config.reasoning_effort.enabled is False

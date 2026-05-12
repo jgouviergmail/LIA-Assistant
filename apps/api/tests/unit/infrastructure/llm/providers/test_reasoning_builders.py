@@ -56,7 +56,7 @@ def test_openai_wrong_shape_raises() -> None:
 
 @pytest.mark.unit
 def test_anthropic_none_returns_empty() -> None:
-    assert build_anthropic_reasoning(None, "claude-opus-4.6") == {}
+    assert build_anthropic_reasoning(None, "claude-opus-4-6") == {}
 
 
 @pytest.mark.unit
@@ -64,7 +64,7 @@ def test_anthropic_enum_returns_constructor_kwarg() -> None:
     """Critical: must return ``effort=`` (constructor kwarg consumed by
     ChatAnthropic, mapped to native output_config.effort by langchain-
     anthropic 1.3.5), NOT additional_kwargs (which is silently dropped)."""
-    result = build_anthropic_reasoning(ReasoningEffortEnum(effort="max"), "claude-opus-4.6")
+    result = build_anthropic_reasoning(ReasoningEffortEnum(effort="max"), "claude-opus-4-6")
     assert result == {"effort": "max"}
     # Negative assertion: ensure we didn't fall back to the broken pattern
     assert "additional_kwargs" not in result
@@ -73,7 +73,7 @@ def test_anthropic_enum_returns_constructor_kwarg() -> None:
 @pytest.mark.unit
 def test_anthropic_wrong_shape_raises() -> None:
     with pytest.raises(RuntimeError):
-        build_anthropic_reasoning(ReasoningEffortBudget(budget=4096), "claude-opus-4.6")
+        build_anthropic_reasoning(ReasoningEffortBudget(budget=4096), "claude-opus-4-6")
 
 
 # ============================================================================

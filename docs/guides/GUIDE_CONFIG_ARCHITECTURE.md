@@ -148,7 +148,7 @@ class LLMSettings(BaseSettings):
 
     # Anthropic
     anthropic_api_key: str | None = Field(None, env="ANTHROPIC_API_KEY")
-    anthropic_model: str = Field("claude-sonnet-4.5", env="ANTHROPIC_MODEL")
+    anthropic_model: str = Field("claude-sonnet-4-5", env="ANTHROPIC_MODEL")
 
     # DeepSeek
     deepseek_api_key: str | None = Field(None, env="DEEPSEEK_API_KEY")

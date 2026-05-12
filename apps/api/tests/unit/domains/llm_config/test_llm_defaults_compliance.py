@@ -33,10 +33,10 @@ _REFERENCE_MATRIX: dict[str, tuple[str, list[str] | None, dict[str, Any] | None]
     "gpt-4.1-mini": ("none", None, None),
     "gpt-4.1-nano": ("none", None, None),
     # Anthropic reasoning models used in defaults (widget=enum). The
-    # canonical name is the dotted ``claude-opus-4.6`` matching the
-    # llm_models row produced by the seed; the spec section 8.1 lists
-    # ``["low", "medium", "high", "max"]``.
-    "claude-opus-4.6": ("enum", ["low", "medium", "high", "max"], None),
+    # canonical name ``claude-opus-4-6`` matches the llm_models row
+    # produced by the seed and the real Anthropic API model id; the spec
+    # section 8.1 lists ``["low", "medium", "high", "max"]``.
+    "claude-opus-4-6": ("enum", ["low", "medium", "high", "max"], None),
     # OpenAI image model (no reasoning) used by image_generation
     "gpt-image-1": ("none", None, None),
     # Qwen toggle_budget models used in defaults

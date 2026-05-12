@@ -89,7 +89,11 @@ def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgen
     wrong shape into the new model — e.g. a Qwen default
     ``ReasoningEffortToggleBudget`` propagated onto a DeepSeek override
     would crash the typed builder. Drop ``reasoning_effort`` in that case
-    unless the override explicitly provides a value.
+    unless the override explicitly provides a value. As a final safety net,
+    :func:`_reconcile_reasoning_effort` then drops any ``reasoning_effort``
+    that still doesn't match the effective model's ``reasoning_widget`` (so a
+    stale DB override / seed / manual edit degrades to the model default
+    instead of crashing the typed reasoning builder at LLM-instantiation time).
     """
     merged = defaults.model_dump()
     override_changes_model = (
@@ -104,7 +108,55 @@ def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgen
     for key, value in overrides.items():
         if value is not None and key in merged:
             merged[key] = value
-    return LLMAgentConfig(**merged)
+    return _reconcile_reasoning_effort(LLMAgentConfig(**merged))
+
+
+def _reconcile_reasoning_effort(cfg: LLMAgentConfig) -> LLMAgentConfig:
+    """Drop a ``reasoning_effort`` that is incompatible with ``cfg.model``.
+
+    Robustness guarantee: changing a model/provider — or any stale value left
+    over from a prior model (old DB override row, outdated seed, manual edit, a
+    past bug) — must never crash the typed reasoning builder at ``get_llm()``
+    time. If the stored ``reasoning_effort`` shape/value does not match the
+    effective model's ``reasoning_widget``, fall back to the model's intrinsic
+    default (``None``) and log a warning so the drift is visible. No-ops when
+    there is nothing to check, when the model is unknown to the catalogue
+    (e.g. a dynamically discovered Ollama model), or when the value is already
+    valid.
+
+    Args:
+        cfg: The merged effective config (code defaults + DB overrides).
+
+    Returns:
+        ``cfg`` unchanged when its ``reasoning_effort`` is valid (or absent, or
+        unverifiable), otherwise a copy with ``reasoning_effort`` set to ``None``.
+    """
+    if cfg.reasoning_effort is None or cfg.model is None:
+        return cfg
+
+    from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+
+    caps = ModelCapabilitiesCache.get(cfg.model)
+    if caps is None:
+        return cfg
+
+    from src.domains.llm_config.reasoning_validation import reasoning_effort_matches_widget
+
+    if reasoning_effort_matches_widget(caps, cfg.reasoning_effort):
+        return cfg
+
+    logger.warning(
+        "llm_config_reasoning_effort_dropped",
+        model=cfg.model,
+        reasoning_widget=caps.reasoning_widget,
+        reasoning_effort=cfg.reasoning_effort.model_dump(),
+        msg=(
+            "Stored reasoning_effort is incompatible with the effective model "
+            "(wrong shape or out-of-range value); falling back to the model's "
+            "default reasoning behaviour."
+        ),
+    )
+    return cfg.model_copy(update={"reasoning_effort": None})
 
 
 def get_all_llm_configs(settings: Settings) -> dict[str, LLMAgentConfig]:

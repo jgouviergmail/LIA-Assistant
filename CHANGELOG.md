@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.4] - 2026-05-12
+
+### Fixed — Browser agent: model 404, premature step kill, AX-tree starvation
+
+- **`claude-opus-4.6` (and `claude-opus-4.5`, `claude-sonnet-4.6`, `claude-haiku-4.5`) → `404 not_found_error`** — the LLM catalogue (`llm_models`, `llm_config_overrides`) and `domains/llm_config/constants.py` stored Anthropic 4.x model ids with a dot (`claude-opus-4.6`), but the Anthropic API only accepts the dashed form (`claude-opus-4-6`, …) — `core/config/llm.py` already used the dashed form. Any LLM type pointed at one of these (e.g. `browser_agent` after the admin picked "Claude Opus 4.6") crashed at instantiation. Renamed to the dashed form everywhere: pricing/config seeds, `mcp_app_react_agent` default, unit tests, frontend i18n strings (`claude-opus-4-5` template label), docs. New Alembic migration `rename_anthropic_model_ids_001` rewrites the existing `llm_models.model_name` / `llm_config_overrides.model` rows (idempotent regex `^(claude-[a-z]+-[0-9]+)\.([0-9]+)$` → `\1-\2`, reversible); DEV migrated, PROD updated via the equivalent in-transaction SQL.
+- **`browser_task_tool` step killed mid-task** — the parallel executor wraps each tool step in `asyncio.wait_for(timeout=step.timeout_seconds or DEFAULT_TOOL_TIMEOUT_SECONDS)`, and `browser_task_tool` (a full nested ReAct loop) was absent from `_HIGH_LATENCY_TOOLS`, so the planner's 30/60/120 s `timeout_seconds` cancelled the loop before it could finish (observed step durations: exactly 30 009 / 60 020 / 120 009 ms, then `asyncio.CancelledError` inside `browser_task_tool`). Added `browser_task_tool` to `_HIGH_LATENCY_TOOLS` with a dedicated floor `BROWSER_TOOL_TIMEOUT_SECONDS = 300 s` and ceiling `MAX_BROWSER_TOOL_TIMEOUT_SECONDS = 600 s` (the generic `MAX_TOOL_TIMEOUT_SECONDS = 120 s` no longer applies to it).
+- **Accessibility-tree truncation hid form controls** — `BROWSER_AX_TREE_MAX_TOKENS` code default raised `5000 → 15000` (new `BROWSER_AX_TREE_MAX_TOKENS_DEFAULT` constant, referenced from `BrowserSettings`); `.env.example` / `.env.prod.example` updated.
+
+### Added — `BROWSER_REACT_MAX_ITERATIONS`
+
+New env var (default 15, range 1–50) capping the `create_react_agent` `recursion_limit` of the browser agent loop run by `browser_task_tool` — mirrors `REACT_AGENT_MAX_ITERATIONS` / `MCP_REACT_MAX_ITERATIONS`. Constant `BROWSER_REACT_MAX_ITERATIONS_DEFAULT`, field `browser_react_max_iterations` on `BrowserSettings`, wired in `browser_tools.py` (was a hard-coded `15`); `.env.example` / `.env.prod.example` and `BROWSER_CONTROL.md` updated.
+
+### Changed — Browser agent prompt (`prompts/v1/browser_agent_prompt.txt`)
+
+Rewritten from web-research best practices (notably the `browser-use` agent prompt): explicit read-vs-transactional task modes, no fabricated query-param URLs, observe→act→verify loop with a mandatory snapshot after state-changing actions, stale-`[ref]` handling, autocomplete → click-the-suggestion (not Enter), `fill` only on real input controls (textbox/searchbox/combobox/spinbutton), cookie-banner/403/login obstacle handling, stuck-loop detection, stop-before-payment + report-only-facts. `browser_agent_prompt` added to the `PromptName` `Literal` (was missing — pre-existing gap).
+
+### Fixed — `reasoning_effort` ↔ model coherence (robustness on model/provider change)
+
+Switching a model/provider on an LLM type could leave a `reasoning_effort` whose **shape** no longer matched the new model's `reasoning_widget` (e.g. a DeepSeek `{"effort": "off"}` enum value left on a config whose effective model became the Qwen `toggle_budget` default — the admin UI rendered it as "thinking disabled", so it looked fine), which then crashed the typed reasoning builder at `get_llm()` time (`RuntimeError: ... must be ReasoningEffortToggleBudget, got ReasoningEffortEnum. Validation upstream is broken.`). Three layers now prevent this:
+
+1. **Frontend** — the admin dialog normalizes `reasoning_effort` to the newly selected model on `model`/`provider` change: kept only if its shape fits the new `reasoning_widget` (and, for `enum`, the value is allowed), otherwise reset to `null`. New `coerceReasoningEffortForModel` / `reasoningEffortMatchesModel` in `components/settings/llm-config/reasoningHelpers.ts`.
+2. **Write path** — `LLMConfigService.update_config` validates `reasoning_effort` against the **effective** model (`update.model`, or `LLM_DEFAULTS[llm_type].model` when the model override is `null`), rejecting an incompatible combination with `422` + structured `ctx`.
+3. **Merge runtime** — `core/llm_config_helper.py::merge_config` → new `_reconcile_reasoning_effort` drops any still-incompatible `reasoning_effort` at merge time (stale override row, outdated seed, manual edit, a past bug), falling back to the model's default and logging `llm_config_reasoning_effort_dropped` — `get_llm()` degrades gracefully regardless of the drift's origin.
+
+Shared non-raising predicate `reasoning_effort_matches_widget(caps, value)` (twin of `validate_reasoning_effort`) in `domains/llm_config/reasoning_validation.py` — one source of truth for "is this value valid for this model?", reused by layers 1 and 3.
+
+### Tests
+
+- `tests/unit/domains/llm_config/test_reasoning_validation.py::TestReasoningEffortMatchesWidget` — none/enum/budget_int/toggle_budget cases incl. the `{"effort": "off"}`-on-Qwen regression.
+- `tests/unit/domains/llm_config/test_config_helper.py::TestEffectiveConfigReasoningReconciliation` — incompatible `reasoning_effort` override dropped, compatible kept, unknown model left untouched.
+- `apps/web/src/components/settings/llm-config/__tests__/reasoningHelpers.test.ts` — 10 cases for `reasoningEffortShape` / `reasoningEffortMatchesModel` / `coerceReasoningEffortForModel`.
+- `test_reasoning_validation.py` / `test_constants.py` / `test_llm_defaults_compliance.py` / `test_reasoning_builders.py` updated for the `claude-opus-4-6` etc. rename.
+
+### Documentation
+
+- `docs/technical/LLM_CONFIG_ADMIN.md` — new "Cohérence `reasoning_effort` ↔ modèle" section (the 3-layer guarantee), `reasoning_validation.py` / `ReasoningWidget.tsx` / `reasoningHelpers.ts` added to the file map, PUT-semantics note.
+- `docs/technical/BROWSER_CONTROL.md` — `BROWSER_REACT_MAX_ITERATIONS` + browser step-timeout + `BROWSER_AX_TREE_MAX_TOKENS` notes; new "Agent prompt" section summarising the prompt's behavioural contract.
+- In-app FAQ (`apps/web/locales/*/translation.json`, 6 languages): new `faq.changelog.versions.v1_20_4` entry (3 user/admin items); `faq.intro.features.browserControl` blurb refined (multi-step flow, stops at login/payment, reports a summary); `faq.sections.tool_examples_external` q18/q19 refined (multi-step example, "good to know" note, corrected timing). `docs/knowledge/06_external_services.md` propagated from the updated FAQ. `docs/GETTING_STARTED.md` compatibility line bumped to v1.20.4 (with v1.20.1–v1.20.4 highlights). `README.md` top banner updated to v1.20.4 (v1.20.3 demoted to a `<details>` block).
+- `README.md` / `docs/technical/LLM_PRICING_TEMPLATES.md` / `docs/guides/GUIDE_CONFIG_ARCHITECTURE.md` / the 6 `apps/web/locales/*/translation.json` — `claude-opus-4.5` → `claude-opus-4-5` in prose/examples.
+- Version bumped to `1.20.4` across `apps/api/pyproject.toml`, `apps/web/package.json`, `package.json`, and `apps/web/src/lib/version.ts` (`LAST_UPDATED = 2026-05-12T22:48:00`, shown on the landing page).
+
 ## [1.20.3] - 2026-05-08
 
 ### Fixed — Itinerary tool resilience against past timestamps

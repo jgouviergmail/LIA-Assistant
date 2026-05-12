@@ -83,8 +83,10 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict
 
 from src.core.constants import (
+    BROWSER_TOOL_TIMEOUT_SECONDS,
     DEFAULT_TOOL_TIMEOUT_SECONDS,
     HTTP_TIMEOUT_CONDITIONAL_EVAL,
+    MAX_BROWSER_TOOL_TIMEOUT_SECONDS,
     MAX_TOOL_TIMEOUT_SECONDS,
 )
 from src.core.field_names import (
@@ -1593,30 +1595,49 @@ async def _execute_single_step_async(
     # Get timeout from step or use default, capped at MAX
     # F6: Sub-agent delegation needs more time (full graph execution)
     # Image generation needs more time (OpenAI API can take 30-60s for high quality)
+    # browser_task_tool runs a full nested ReAct loop (navigate/snapshot/click +
+    # one LLM call per iteration, up to BROWSER_REACT_MAX_ITERATIONS) — a
+    # multi-step browsing task needs minutes, so it gets a dedicated floor +
+    # a higher ceiling than the generic MAX_TOOL_TIMEOUT_SECONDS.
     _SUBAGENT_TOOL_TIMEOUT = 120.0
     _IMAGE_TOOL_TIMEOUT = 90.0
     _DEVOPS_TOOL_TIMEOUT = 120.0  # Claude CLI can take 15-60s per investigation
+    _BROWSER_TOOL = "browser_task_tool"
     _IMAGE_TOOLS = {"generate_image", "edit_image"}
-    _HIGH_LATENCY_TOOLS = _IMAGE_TOOLS | {"delegate_to_sub_agent_tool", "claude_server_task_tool"}
+    _HIGH_LATENCY_TOOLS = _IMAGE_TOOLS | {
+        "delegate_to_sub_agent_tool",
+        "claude_server_task_tool",
+        _BROWSER_TOOL,
+    }
     if step.tool_name == "delegate_to_sub_agent_tool":
         effective_default = _SUBAGENT_TOOL_TIMEOUT
     elif step.tool_name in _IMAGE_TOOLS:
         effective_default = _IMAGE_TOOL_TIMEOUT
     elif step.tool_name == "claude_server_task_tool":
         effective_default = _DEVOPS_TOOL_TIMEOUT
+    elif step.tool_name == _BROWSER_TOOL:
+        effective_default = BROWSER_TOOL_TIMEOUT_SECONDS
     else:
         effective_default = DEFAULT_TOOL_TIMEOUT_SECONDS
-    # Use max(step, default) for tools with known high latency (image gen, sub-agents, devops)
-    # to prevent the planner from imposing a too-short timeout
+    # browser_task_tool keeps its own (higher) ceiling so a multi-step browse
+    # loop is never killed mid-task; everything else stays under MAX_TOOL_TIMEOUT.
+    max_timeout = (
+        MAX_BROWSER_TOOL_TIMEOUT_SECONDS
+        if step.tool_name == _BROWSER_TOOL
+        else MAX_TOOL_TIMEOUT_SECONDS
+    )
+    # Use max(step, default) for tools with known high latency (image gen,
+    # sub-agents, devops, browser) to prevent the planner from imposing a
+    # too-short timeout.
     if step.tool_name in _HIGH_LATENCY_TOOLS:
         timeout_seconds = min(
             max(step.timeout_seconds or effective_default, effective_default),
-            MAX_TOOL_TIMEOUT_SECONDS,
+            max_timeout,
         )
     else:
         timeout_seconds = min(
             step.timeout_seconds or effective_default,
-            MAX_TOOL_TIMEOUT_SECONDS,
+            max_timeout,
         )
 
     logger.info(
