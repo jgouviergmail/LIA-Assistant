@@ -31,6 +31,10 @@ Switching a model/provider on an LLM type could leave a `reasoning_effort` whose
 
 Shared non-raising predicate `reasoning_effort_matches_widget(caps, value)` (twin of `validate_reasoning_effort`) in `domains/llm_config/reasoning_validation.py` — one source of truth for "is this value valid for this model?", reused by layers 1 and 3.
 
+### Fixed — Production build: stale GeoIP database date
+
+`apps/api/Dockerfile.prod` hard-coded `ARG DBIP_DATE=2026-03` for the DB-IP City Lite GeoIP download; db-ip.com keeps only the last ~2 months online, so the URL started returning `404` ("not in gzip format" after `curl -L` wrote the error page) and `gunzip` failed the production image build. The `geoip-downloader` stage now resolves the latest available month at build time — current month, then the previous one — using `curl -fsSL` (so a 404 cleanly falls through to the next candidate); still overridable with `--build-arg DBIP_DATE=YYYY-MM`. Build-only change, no runtime impact.
+
 ### Tests
 
 - `tests/unit/domains/llm_config/test_reasoning_validation.py::TestReasoningEffortMatchesWidget` — none/enum/budget_int/toggle_budget cases incl. the `{"effort": "off"}`-on-Qwen regression.
