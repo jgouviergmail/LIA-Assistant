@@ -427,7 +427,11 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
     ),
     "subagent": LLMTypeMetadata(
         llm_type="subagent",
-        display_name="Sub-Agent",
+        # ADR-083: drives a scoped ReAct loop (read-only tools, tight iteration
+        # budget) — mirrors the "MCP Iterative (ReAct)" naming of mcp_react_agent.
+        # llm_type id stays "subagent" — DB rows, config overrides, code refs
+        # (get_llm("subagent")) are unaffected by this display change.
+        display_name="Sub-Agent (ReAct)",
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.subagent",
         required_capabilities=["tools"],

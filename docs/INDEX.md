@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 50+ |
 | Guides pratiques | 15+ |
 | Runbooks | 34+ |
-| ADRs | 82 |
+| ADRs | 83 |
 | Skills Claude | 10 |
 
 ---
@@ -163,6 +163,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ADR-080-Voice-STT-Remote-Pricing-Unit.md](./architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md) | Remote Voice STT (ElevenLabs Scribe) opt-in per user + `pricing_unit` extension on `llm_model_pricing` (per_1m_tokens / per_audio_minute / per_audio_hour); per-message cost attribution on `conversation_messages.stt_*`; CSV exports | ✅ |
 | [ADR-081-Voice-TTS-Catalogue-Driven.md](./architecture/ADR-081-Voice-TTS-Catalogue-Driven.md) | Voice TTS migrated to the LLM catalogue: `voice_tts` LLM type (kind=tts), Edge/OpenAI/ElevenLabs seeded with prices, voice + tuning in `provider_config` JSONB, dynamic admin voice picker (`/admin/voice/voices?provider=X`), retirement of `system_settings.voice_tts_mode` and 14 `VOICE_TTS_*` env vars | ✅ |
 | [ADR-082-Progressive-Sentence-Streaming.md](./architecture/ADR-082-Progressive-Sentence-Streaming.md) | Progressive sentence streaming for low-latency TTS — `ProgressiveSentenceStreamer` (in-order delivery, lock-protected drain, sentinel idempotence), persistent httpx ElevenLabs client, voice LLM in `astream`, 5× TTFA reduction in chat mode, 2× in agent mode | ✅ |
+| [ADR-083-Sub-Agent-Delegation-React.md](./architecture/ADR-083-Sub-Agent-Delegation-React.md) | Sub-Agent Delegation — from ReAct loop (Phase 1, 2026-05-13) to one-shot expert LLM call (Phase 1bis, 2026-05-14). `delegate_to_sub_agent_tool` is a single LLM invocation with persona+expertise written by the principal and all data inlined in instruction; no tools, no graph. Phase 2 cleanup deleted the legacy persistent F6 plumbing | ✅ |
 
 ### Human-in-the-Loop (HITL)
 
@@ -259,6 +260,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-083 | Sub-Agent Delegation — from ReAct loop to one-shot expert LLM call | 2026-05 |
 | ADR-082 | Progressive sentence streaming for low-latency TTS | 2026-05 |
 | ADR-081 | Voice TTS configuration driven by the LLM catalogue | 2026-05 |
 | ADR-080 | Remote Voice STT (ElevenLabs Scribe) and pricing-unit extension | 2026-05 |

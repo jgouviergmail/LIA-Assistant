@@ -84,11 +84,14 @@ unified_web_search_catalogue_manifest = ToolManifest(
             required=False,
             description=(
                 "Freshness filter. MUST be one of these exact values: "
-                "'day' (last 24h), 'week' (last 7 days), 'month' (last 30 days). "
-                "Omit or set to null for no time filter."
+                "'day' (last 24h), 'week' (last 7 days), 'month' (last 30 days), "
+                "'year' (last 365 days). Omit or set to null for no time filter. "
+                "Do NOT use abbreviations like '7d', '30d', '365d' — the tool's "
+                "runtime normalizer accepts them as a fallback, but the planner "
+                "must emit one of the four canonical values above."
             ),
             constraints=[
-                ParameterConstraint(kind="enum", value=["day", "week", "month"]),
+                ParameterConstraint(kind="enum", value=["day", "week", "month", "year"]),
             ],
         ),
     ],

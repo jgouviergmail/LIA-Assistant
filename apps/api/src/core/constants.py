@@ -934,6 +934,18 @@ MAX_TOOL_TIMEOUT_SECONDS = 120.0  # 2 minutes - prevents runaway operations
 BROWSER_TOOL_TIMEOUT_SECONDS = 300.0  # 5 minutes - default floor for browser_task_tool steps
 MAX_BROWSER_TOOL_TIMEOUT_SECONDS = 600.0  # 10 minutes - hard ceiling for browser_task_tool steps
 
+# Sub-agent delegation tool runs a bounded ReAct loop over a read-only toolset
+# (ADR-083). With slower reasoning models and multiple research tool calls,
+# the step can legitimately need 2-3 minutes — well above the generic
+# MAX_TOOL_TIMEOUT_SECONDS. Dedicated floor + ceiling, both tunable via
+# Settings (subagent_tool_timeout_seconds / subagent_tool_max_timeout_seconds).
+SUBAGENT_TOOL_TIMEOUT_SECONDS_DEFAULT = (
+    180.0  # 3 minutes - default floor for delegate_to_sub_agent_tool
+)
+SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS_DEFAULT = (
+    300.0  # 5 minutes - hard ceiling for delegate_to_sub_agent_tool
+)
+
 # Default rate limit for Google API clients (requests per second)
 DEFAULT_RATE_LIMIT_PER_SECOND = 10  # Conservative: 10 req/s = 600/minute
 
@@ -3284,25 +3296,39 @@ TOOL_NAME_DELEGATE_SUB_AGENT = "delegate_to_sub_agent_tool"
 # Feature flag
 SUB_AGENTS_ENABLED_DEFAULT = True
 
-# Per-user limits
-SUBAGENT_MAX_PER_USER_DEFAULT = 10
-SUBAGENT_MAX_CONCURRENT_DEFAULT = 3
-SUBAGENT_MAX_DEPTH_DEFAULT = 1  # V1: no nesting
+# Max LLM iterations per sub-agent execution. Reused by the ephemeral path
+# (ADR-083) as the `recursion_limit` of the ReAct loop driving the sub-agent.
+# LangGraph counts each node visit as one superstep, so a single ReAct round
+# (call_model -> execute_tools) costs 2 supersteps. With 5 the sub-agent can
+# only afford 1-2 tool calls before the final synthesis, which the LLM
+# routinely overruns when it batches multiple search queries in a single
+# pass — leading to GraphRecursionError without a coherent answer. 10 leaves
+# headroom for ~3-4 tool rounds + synthesis without exploding cost.
+SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT = 10
 
-# Execution defaults
-SUBAGENT_DEFAULT_TIMEOUT_DEFAULT = 120  # seconds
-SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT = 5
+# Hard cap (tokens) on `delegate_to_sub_agent_tool.instruction` AFTER $ref
+# resolution. Blocks the "shovel raw data via $steps.X.<payload> into
+# instruction" anti-pattern (cf. incident 2026-05-12 / ADR-083).
+SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED_DEFAULT = 3000
 
-# Token guard-rails
-SUBAGENT_MAX_TOKEN_BUDGET_DEFAULT = 50000  # per single execution
-SUBAGENT_MAX_TOTAL_TOKENS_PER_DAY_DEFAULT = 500000  # per user per day
-SUBAGENT_MAX_CONSECUTIVE_FAILURES_DEFAULT = 3  # auto-disable threshold
+# Whitelist of tool names the ReAct sub-agent is allowed to call (comma-
+# separated). When set (non-empty), `resolve_tools_for_subagent` switches to
+# allowlist mode — every tool NOT in this list is filtered out, regardless of
+# `SUBAGENT_DEFAULT_BLOCKED_TOOLS`. This is the recommended setup: the
+# principal already inlines the user data the sub-agent needs, so the
+# sub-agent only needs sharp factual verification (brave_search) and URL
+# reading (fetch_web_page). With ~80 tools exposed instead, the ReAct loop
+# burns its `recursion_limit` exploring options and hits GraphRecursionError
+# without converging on a synthesis. Empty string = legacy blocklist-only
+# behavior.
+SUBAGENT_RESEARCH_TOOLS_WHITELIST_DEFAULT = "brave_search_tool,fetch_web_page_tool"
 
-# Stale recovery job interval (seconds)
-SUBAGENT_STALE_RECOVERY_INTERVAL_DEFAULT = 120
-
-# Scheduler job name
-SCHEDULER_JOB_SUBAGENT_STALE_RECOVERY = "subagent_stale_recovery"
+# ADR-083 Phase 2 cleanup: SUBAGENT_MAX_PER_USER / SUBAGENT_MAX_CONCURRENT /
+# SUBAGENT_MAX_DEPTH / SUBAGENT_DEFAULT_TIMEOUT / SUBAGENT_MAX_TOKEN_BUDGET /
+# SUBAGENT_MAX_TOTAL_TOKENS_PER_DAY / SUBAGENT_MAX_CONSECUTIVE_FAILURES /
+# SUBAGENT_STALE_RECOVERY_INTERVAL / SCHEDULER_JOB_SUBAGENT_STALE_RECOVERY
+# defaults were removed. They governed the deleted SubAgentExecutor pipeline
+# and its /sub-agents REST API (no consumer anymore).
 
 # ============================================================================
 # BROWSER CONTROL (F7 — Playwright-based Web Interaction)

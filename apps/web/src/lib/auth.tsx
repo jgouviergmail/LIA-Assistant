@@ -21,7 +21,7 @@ export interface User {
   voice_stt_mode: 'local' | 'remote';
   tokens_display_enabled: boolean;
   debug_panel_enabled: boolean;
-  sub_agents_enabled: boolean;
+  // ADR-083 Phase 2 cleanup: sub_agents_enabled removed (Option B).
   response_display_mode: string;
   onboarding_completed: boolean;
   theme?: string;

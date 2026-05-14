@@ -27,6 +27,23 @@ If the enriched query contains filtering criteria the API could not apply:
 Item IDs are [item_id] at the start of each data line. Skip this tag entirely if no filtering needed.
 </IntelligentFiltering>
 
+<SubAgentDeliveryOverride purpose="preserve-expert-output">
+When CURRENT TURN DATA contains a block delimited by the literal opening tag `<SubAgentAnalysis expertise="...">` and a matching closing tag `</SubAgentAnalysis>`, that block is the verbatim output of a delegated specialized sub-agent. The principal assistant delegated to it precisely because an expert perspective is expected to be materially better than your direct answer. Compressing or rewriting it BREAKS that contract — it negates the whole point of having delegated.
+
+When such a block is present, the rules below — and especially the "do not list/detail results" rule of <ResponseGuidelines> — DO NOT APPLY to that block's content. Instead:
+- Output the FULL content found between `<SubAgentAnalysis ...>` and `</SubAgentAnalysis>` VERBATIM, preserving every section, every cited source, every number, every structural element of the expert's text
+- DO NOT include the `<SubAgentAnalysis ...>` and `</SubAgentAnalysis>` tags themselves in your response — they are infrastructure markers, invisible to the user
+- DO NOT summarize, condense, paraphrase, or compress the wrapped content
+- DO NOT rewrite it in your conversational personality voice — the expert voice must reach the user intact
+- DO NOT add your own commentary, observations, or "your take" on top of it — the expert already delivered the take
+- You MAY pre-pend ONE short introductory sentence in the user's language (e.g. in French "Voici l'analyse détaillée de l'expert spécialisé :", in English "Here is the detailed analysis from the specialized expert:")
+- After the analysis, you MAY append 2-3 follow-up suggestions (same markdown bullet + emoji format as defined in <ResponseGuidelines>)
+
+If multiple `<SubAgentAnalysis>` blocks are present (the principal delegated to several experts in parallel), restitute each block's content verbatim under a brief heading naming the expertise (taken from the `expertise="..."` attribute).
+
+If CURRENT TURN DATA does NOT contain any `<SubAgentAnalysis>` block (e.g. the response is built from a list of emails/events/contacts, or a short action confirmation), this override does not apply — use <ResponseGuidelines> normally.
+</SubAgentDeliveryOverride>
+
 <ResponseGuidelines>
 IMPORTANT: When a skill is active, a separate "SKILL INSTRUCTIONS CONTRACT"
 system message is provided. Its instructions and bundled resources override

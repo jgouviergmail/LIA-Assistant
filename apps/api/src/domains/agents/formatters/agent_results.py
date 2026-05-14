@@ -146,6 +146,33 @@ def _format_status_messages(
     return "\n".join(summaries)
 
 
+def _wrap_subagent_analysis(*, analysis_text: str, expertise: str) -> str:
+    """Wrap a sub-agent's full analysis in a deterministic delivery tag.
+
+    The ``response_node`` prompt's ``<SubAgentDeliveryOverride>`` block keys
+    off this tag to switch to verbatim restitution (see
+    ``response_system_prompt_base.txt``). The tag is the deterministic
+    signal — the LLM no longer has to detect a sub-agent analysis via
+    heuristics on length / markdown structure / voice.
+
+    Args:
+        analysis_text: Full markdown-formatted expert text from
+            ``structured_data["analysis"]`` (set by ``delegate_to_sub_agent_tool``).
+        expertise: Persona / role of the sub-agent
+            (``structured_data["expertise"]``). Truncated and sanitised before
+            being interpolated into the tag attribute.
+
+    Returns:
+        Tag-wrapped string ready to be injected into the response_node prompt.
+    """
+    safe_expertise = ((expertise or "expert").replace('"', "'").replace("\n", " ").strip())[:120]
+    return (
+        f'<SubAgentAnalysis expertise="{safe_expertise}">\n'
+        f"{analysis_text}\n"
+        f"</SubAgentAnalysis>"
+    )
+
+
 def _extract_action_success_messages(data: dict[str, Any]) -> list[str]:
     """
     Extract action success confirmation messages from result data.
@@ -158,6 +185,13 @@ def _extract_action_success_messages(data: dict[str, Any]) -> list[str]:
     - data["aggregated_results"][i]["result"] - aggregated format (str or list[str])
     - data["message"] - direct message field
 
+    Special case: ``delegate_to_sub_agent_tool`` results carry
+    ``type == "sub_agent_analysis"`` and an ``analysis`` field with the FULL
+    expert text (the ``result``/``message`` field is the 200-char truncated
+    summary). For these, this function wraps the full ``analysis`` with a
+    deterministic ``<SubAgentAnalysis>`` tag (see ``_wrap_subagent_analysis``)
+    so the response_node can detect it without an LLM heuristic.
+
     BugFix 2026-01-22: FOR_EACH aggregation now collects all "result" strings into a list.
     This function handles both str and list[str] for the "result" field.
 
@@ -165,29 +199,51 @@ def _extract_action_success_messages(data: dict[str, Any]) -> list[str]:
         data: Result data dict from agent execution
 
     Returns:
-        List of action confirmation messages (e.g., ["🔔 Rappel créé pour..."])
+        List of action confirmation messages (e.g., ["🔔 Rappel créé pour..."]).
+        Sub-agent analyses are returned wrapped in ``<SubAgentAnalysis>`` tags.
     """
     messages: list[str] = []
 
     # Check step_results and aggregated_results (from plan_executor mapping)
     for key in ("step_results", "aggregated_results"):
         results_list = data.get(key, [])
-        if isinstance(results_list, list):
-            for item in results_list:
-                if isinstance(item, dict):
-                    # UnifiedToolOutput.action_success stores message in "result" key
-                    # BugFix 2026-01-22: FOR_EACH aggregation may return list[str]
-                    result_msg = item.get("result")
-                    if result_msg:
-                        if isinstance(result_msg, str):
-                            # Single message (non-FOR_EACH or single iteration)
-                            if result_msg not in messages:
-                                messages.append(result_msg)
-                        elif isinstance(result_msg, list):
-                            # Multiple messages from FOR_EACH aggregation
-                            for msg in result_msg:
-                                if isinstance(msg, str) and msg not in messages:
-                                    messages.append(msg)
+        if not isinstance(results_list, list):
+            continue
+        for item in results_list:
+            if not isinstance(item, dict):
+                continue
+
+            # Sub-agent analysis detection (deterministic signal — set by
+            # `delegate_to_sub_agent_tool` via `UnifiedToolOutput.action_success(
+            # structured_data={"type": "sub_agent_analysis", "analysis": ...,
+            # "expertise": ...})`). Wrapping with a dedicated tag lets the
+            # response_node restitute the full analysis verbatim without
+            # relying on heuristics over length / markdown structure / voice.
+            if item.get("type") == "sub_agent_analysis" and item.get("analysis"):
+                wrapped = _wrap_subagent_analysis(
+                    analysis_text=str(item["analysis"]),
+                    expertise=str(item.get("expertise") or "expert"),
+                )
+                if wrapped not in messages:
+                    messages.append(wrapped)
+                # Skip the regular `result` extraction below — the truncated
+                # summary would otherwise be appended in addition to the full
+                # wrapped analysis (duplication).
+                continue
+
+            # UnifiedToolOutput.action_success stores message in "result" key
+            # BugFix 2026-01-22: FOR_EACH aggregation may return list[str]
+            result_msg = item.get("result")
+            if result_msg:
+                if isinstance(result_msg, str):
+                    # Single message (non-FOR_EACH or single iteration)
+                    if result_msg not in messages:
+                        messages.append(result_msg)
+                elif isinstance(result_msg, list):
+                    # Multiple messages from FOR_EACH aggregation
+                    for msg in result_msg:
+                        if isinstance(msg, str) and msg not in messages:
+                            messages.append(msg)
 
     # Check direct message field (fallback)
     direct_msg = data.get("message")

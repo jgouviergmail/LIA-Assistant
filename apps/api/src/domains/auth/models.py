@@ -44,7 +44,6 @@ if TYPE_CHECKING:
     from src.domains.reminders.models import Reminder
     from src.domains.scheduled_actions.models import ScheduledAction
     from src.domains.skills.models import UserSkillState
-    from src.domains.sub_agents.models import SubAgent
     from src.domains.usage_limits.models import UserUsageLimit
 
 
@@ -201,13 +200,8 @@ class User(BaseModel):
         comment="User preference for debug panel. False = disabled by default (opt-in). Requires admin debug_panel_user_access_enabled.",
     )
 
-    # Sub-agents delegation preference (F6)
-    sub_agents_enabled: Mapped[bool] = mapped_column(
-        default=True,
-        nullable=False,
-        server_default="true",
-        comment="User preference for sub-agent delegation. True = assistant can delegate tasks to specialized sub-agents.",
-    )
+    # ADR-083 Phase 2 cleanup: per-user `sub_agents_enabled` column removed
+    # (Option B). Delegation is gated by the global SUB_AGENTS_ENABLED flag.
 
     # Response display mode: "cards" (HTML data cards), "html" (rich HTML), "markdown" (plain)
     response_display_mode: Mapped[str] = mapped_column(
@@ -533,9 +527,9 @@ class User(BaseModel):
     scheduled_actions: Mapped[list["ScheduledAction"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    sub_agents: Mapped[list["SubAgent"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
-    )
+    # ADR-083 Phase 2 cleanup: `sub_agents` ORM relationship + table + the
+    # per-user `sub_agents_enabled` preference column were all removed
+    # (Option B). Delegation is gated by the global SUB_AGENTS_ENABLED flag.
     # NOTE: No relationship to UserMCPServer — user_id FK + CASCADE handles
     # deletion. ORM relationship was unused and caused import-order issues
     # (UserMCPServer mapper configuration requires User to be loaded first).

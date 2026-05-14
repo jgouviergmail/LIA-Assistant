@@ -48,7 +48,6 @@ from src.core.constants import (
     SCHEDULER_JOB_PSYCHE_DREAM_CYCLE,
     SCHEDULER_JOB_REMINDER_NOTIFICATION,
     SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
-    SCHEDULER_JOB_SUBAGENT_STALE_RECOVERY,
     SCHEDULER_JOB_TOKEN_REFRESH,
     SCHEDULER_JOB_UNVERIFIED_CLEANUP,
     SCHEDULER_JOB_USER_MCP_EVICTION,
@@ -838,25 +837,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             interval_seconds=SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS,
         )
 
-        # Schedule sub-agent stale recovery (feature-flagged)
-        if getattr(settings, "sub_agents_enabled", False):
-            from src.domains.sub_agents.executor import SubAgentExecutor
-
-            stale_interval = getattr(settings, "subagent_stale_recovery_interval_seconds", 120)
-            scheduler.add_job(
-                SubAgentExecutor.recover_stale_subagents,
-                trigger="interval",
-                seconds=stale_interval,
-                id=SCHEDULER_JOB_SUBAGENT_STALE_RECOVERY,
-                name="Recover stale sub-agents",
-                replace_existing=True,
-                max_instances=1,
-                misfire_grace_time=30,
-            )
-            logger.info(
-                "subagent_stale_recovery_job_scheduled",
-                interval_seconds=stale_interval,
-            )
+        # ADR-083 Phase 2 cleanup: SubAgentExecutor + its stale-recovery
+        # scheduler job were removed. The ephemeral planner-delegation path
+        # runs on ReactSubAgentRunner (no ORM records, no stale rows to
+        # recover). The persistent /sub-agents REST API was deleted too.
 
         # Schedule proactive interest notifications (configurable interval, default 15 min)
         # Sends personalized content about user's interests (Wikipedia, Perplexity, LLM)

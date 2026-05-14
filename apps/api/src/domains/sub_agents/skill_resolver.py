@@ -1,16 +1,23 @@
-"""
-Sub-Agent skill and tool resolution.
+"""Sub-agent tool & skill resolution.
 
-Resolves which skills and tools a sub-agent has access to,
-and builds the complete system prompt with read-only constraints.
+After ADR-083 Phase 2 cleanup, this module only provides what the ephemeral
+planner-delegation path (`delegate_to_sub_agent_tool` → `ReactSubAgentRunner`)
+still needs:
+
+- `resolve_tools_for_subagent`: filter the tool registry down to a read-only
+  subset for the ReAct sub-agent loop (excludes the delegate tool itself,
+  anti-recursion).
+- `is_skill_visible_to_agent`: thin re-export of the canonical visibility
+  check used by both the principal agent and (transitively) any skill-aware
+  sub-agent prompt builder a caller may wire up.
+
+The previous `build_subagent_system_prompt` and `resolve_skills_context`
+helpers were tied to the removed `SubAgentExecutor` and are gone.
 """
 
 import structlog
 
-from src.domains.sub_agents.constants import (
-    SUBAGENT_CONTEXT_SUMMARY_PREFIX,
-    SUBAGENT_READ_ONLY_PREFIX,
-)
+from src.core.constants import TOOL_NAME_DELEGATE_SUB_AGENT
 
 logger = structlog.get_logger(__name__)
 
@@ -22,22 +29,29 @@ def resolve_tools_for_subagent(
 ) -> list:
     """Filter tools based on sub-agent's allowed/blocked configuration.
 
-    The sub_agent_tools themselves are always excluded (depth=1 enforcement).
+    The sub-agent meta-tools and `delegate_to_sub_agent_tool` itself are
+    always excluded (anti-recursion / depth=1 enforcement).
 
     Args:
         allowed_tools: Tool whitelist (empty = all except blocked).
-        blocked_tools: Tool blacklist (V1 templates include all write tools).
+        blocked_tools: Tool blacklist (caller typically passes
+            `SUBAGENT_DEFAULT_BLOCKED_TOOLS`).
         all_tools: Full list of available BaseTool instances.
 
     Returns:
         Filtered list of BaseTool instances.
     """
-    # Sub-agent tools are always excluded to prevent recursive spawning
+    # Sub-agent tools are always excluded to prevent recursive spawning.
+    # `delegate_to_sub_agent_tool` is the one a sub-agent's ReAct loop would
+    # be most tempted to call (ADR-083). Excluding it here is the primary
+    # anti-recursion mechanism — the session_id/thread_id depth check in
+    # `delegate_to_sub_agent_tool` itself is belt-and-suspenders.
     sub_agent_tool_names = {
         "list_sub_agents_tool",
         "execute_sub_agent_tool",
         "create_sub_agent_tool",
         "get_sub_agent_results_tool",
+        TOOL_NAME_DELEGATE_SUB_AGENT,
     }
 
     blocked = set(blocked_tools) | sub_agent_tool_names
@@ -62,120 +76,16 @@ def resolve_tools_for_subagent(
     return filtered
 
 
-def build_subagent_system_prompt(
-    system_prompt: str,
-    personality_instruction: str | None = None,
-    context_instructions: str | None = None,
-    last_execution_summary: str | None = None,
-    skills_context: str = "",
-) -> str:
-    """Assemble the complete sub-agent system prompt.
-
-    Structure:
-    1. Read-only prefix (V1 constraint)
-    2. Custom system prompt (from sub-agent config)
-    3. Personality instruction (if any)
-    4. Skills L2 context (if any)
-    5. Context instructions (if any)
-    6. Last execution summary (continuity)
-
-    Args:
-        system_prompt: Sub-agent's custom instructions.
-        personality_instruction: Optional personality override.
-        context_instructions: Additional context.
-        last_execution_summary: Summary from previous execution.
-        skills_context: Compiled L2 skills text.
-
-    Returns:
-        Complete system prompt string.
-    """
-    parts = [SUBAGENT_READ_ONLY_PREFIX, system_prompt]
-
-    if personality_instruction:
-        parts.append(f"\n{personality_instruction}")
-
-    if skills_context:
-        parts.append(f"\n{skills_context}")
-
-    if context_instructions:
-        parts.append(f"\n{context_instructions}")
-
-    if last_execution_summary:
-        parts.append(f"\n{SUBAGENT_CONTEXT_SUMMARY_PREFIX}{last_execution_summary}")
-
-    return "\n".join(parts)
-
-
-def resolve_skills_context(
-    skill_ids: list[str],
-    user_id: str,
-    agent_type: str,
-) -> str:
-    """Resolve and compile L2 skills context for a sub-agent.
-
-    Loads skills from cache, filters by agent_type visibility,
-    and activates L2 content for each.
-
-    Args:
-        skill_ids: Skill IDs assigned to this sub-agent.
-        user_id: Owner user ID.
-        agent_type: Sub-agent name/type for visibility filtering.
-
-    Returns:
-        Compiled L2 skills text (may be empty).
-    """
-    if not skill_ids:
-        return ""
-
-    from src.domains.skills.cache import SkillsCache
-
-    skills = SkillsCache.get_for_user(user_id)
-    if not skills:
-        return ""
-
-    skill_map = {s["name"]: s for s in skills}
-    activated_parts = []
-
-    for skill_id in skill_ids:
-        skill = skill_map.get(skill_id)
-        if not skill:
-            logger.warning(
-                "subagent_skill_not_found",
-                skill_id=skill_id,
-                user_id=user_id,
-                agent_type=agent_type,
-            )
-            continue
-
-        # Check visibility
-        if not is_skill_visible_to_agent(skill, agent_type):
-            continue
-
-        instructions = skill.get("instructions", "")
-        if instructions:
-            activated_parts.append(f"## Skill: {skill['name']}\n{instructions}")
-
-    if not activated_parts:
-        return ""
-
-    logger.debug(
-        "subagent_skills_resolved",
-        agent_type=agent_type,
-        skill_count=len(activated_parts),
-    )
-
-    return "\n\n".join(activated_parts)
-
-
 def is_skill_visible_to_agent(skill: dict, agent_type: str) -> bool:
     """Check if a skill is visible to the given agent type.
 
     Delegates to the canonical implementation in skills.injection to avoid
-    duplication (DRY). See _is_skill_visible_to_agent() in injection.py
+    duplication (DRY). See `_is_skill_visible_to_agent()` in injection.py
     for the full visibility rules documentation.
 
     Args:
-        skill: Skill dict with optional agent_visibility and visibility_mode fields.
+        skill: Skill dict with optional agent_visibility and visibility_mode
+            fields.
         agent_type: Agent type to check (sub-agent name or "principal").
 
     Returns:

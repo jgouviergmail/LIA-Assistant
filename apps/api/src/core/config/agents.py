@@ -16,6 +16,7 @@ Phase: PHASE 2.1 - Config Split
 Created: 2025-11-20
 """
 
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -254,14 +255,10 @@ from src.core.constants import (
     SSE_HEARTBEAT_INTERVAL_DEFAULT,
     SUB_AGENTS_ENABLED_DEFAULT,
     SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT,
-    SUBAGENT_DEFAULT_TIMEOUT_DEFAULT,
-    SUBAGENT_MAX_CONCURRENT_DEFAULT,
-    SUBAGENT_MAX_CONSECUTIVE_FAILURES_DEFAULT,
-    SUBAGENT_MAX_DEPTH_DEFAULT,
-    SUBAGENT_MAX_PER_USER_DEFAULT,
-    SUBAGENT_MAX_TOKEN_BUDGET_DEFAULT,
-    SUBAGENT_MAX_TOTAL_TOKENS_PER_DAY_DEFAULT,
-    SUBAGENT_STALE_RECOVERY_INTERVAL_DEFAULT,
+    SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED_DEFAULT,
+    SUBAGENT_RESEARCH_TOOLS_WHITELIST_DEFAULT,
+    SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS_DEFAULT,
+    SUBAGENT_TOOL_TIMEOUT_SECONDS_DEFAULT,
     SUMMARIZATION_KEEP_MESSAGES_DEFAULT,
     SUMMARIZATION_MODEL_DEFAULT,
     SUMMARIZATION_TRIGGER_FRACTION_DEFAULT,
@@ -2767,68 +2764,133 @@ class AgentsSettings(BaseSettings):
         return v
 
     # ========================================================================
-    # Sub-Agents (F6 — Persistent Specialized Sub-Agents)
+    # Sub-Agents (ADR-083 — Parameterized ReAct Loop)
     # ========================================================================
+    # After Phase 2 cleanup, this block only carries the settings still used
+    # by the ephemeral planner-delegation path (`delegate_to_sub_agent_tool`
+    # → `ReactSubAgentRunner`). The persistent CRUD / executor / scheduler
+    # config (max_per_user, max_concurrent, max_depth, default_timeout,
+    # max_token_budget, max_total_tokens_per_day, max_consecutive_failures,
+    # stale_recovery_interval_seconds) was removed alongside the dead code.
     sub_agents_enabled: bool = Field(
         default=SUB_AGENTS_ENABLED_DEFAULT,
         description="Enable the sub-agents system (feature flag).",
     )
-    subagent_max_per_user: int = Field(
-        default=SUBAGENT_MAX_PER_USER_DEFAULT,
-        ge=1,
-        le=50,
-        description="Maximum number of sub-agents per user.",
-    )
-    subagent_max_concurrent: int = Field(
-        default=SUBAGENT_MAX_CONCURRENT_DEFAULT,
-        ge=1,
-        le=10,
-        description="Maximum concurrent sub-agent executions per user.",
-    )
-    subagent_max_depth: int = Field(
-        default=SUBAGENT_MAX_DEPTH_DEFAULT,
-        ge=1,
-        le=1,
-        description="Maximum sub-agent nesting depth (V1: always 1).",
-    )
-    subagent_default_timeout: int = Field(
-        default=SUBAGENT_DEFAULT_TIMEOUT_DEFAULT,
-        ge=10,
-        le=600,
-        description="Default execution timeout in seconds.",
-    )
     subagent_default_max_iterations: int = Field(
         default=SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT,
         ge=1,
-        le=15,
-        description="Default max LLM iterations per sub-agent execution.",
+        le=30,
+        description=(
+            "Max LLM iterations per sub-agent execution. Reused as the "
+            "`recursion_limit` of the ReAct loop (ADR-083)."
+        ),
     )
     # Sub-agent LLM model is configured via Admin > LLM Configuration > Sub-Agent
     # (type "subagent" in LLM_TYPES_REGISTRY / LLM_DEFAULTS)
-    subagent_max_token_budget: int = Field(
-        default=SUBAGENT_MAX_TOKEN_BUDGET_DEFAULT,
-        ge=1000,
-        le=500000,
-        description="Maximum tokens per single sub-agent execution.",
+    # ReAct delegation redesign (ADR-083) — H1 veto + H2 instruction cap
+    subagent_instruction_max_tokens_resolved: int = Field(
+        default=SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED_DEFAULT,
+        ge=500,
+        le=20000,
+        description=(
+            "Hard cap (tokens) on the resolved `instruction` of "
+            "`delegate_to_sub_agent_tool` after $ref expansion. Above this, "
+            "the step fails with INVALID_INPUT — prevents the planner from "
+            "shoveling raw data payloads into a sub-agent."
+        ),
     )
-    subagent_max_total_tokens_per_day: int = Field(
-        default=SUBAGENT_MAX_TOTAL_TOKENS_PER_DAY_DEFAULT,
-        ge=10000,
-        le=5000000,
-        description="Maximum total tokens for all sub-agent executions per user per day.",
+    subagent_tool_timeout_seconds: float = Field(
+        default=SUBAGENT_TOOL_TIMEOUT_SECONDS_DEFAULT,
+        ge=30.0,
+        le=600.0,
+        description=(
+            "Default timeout (seconds) for a `delegate_to_sub_agent_tool` "
+            "step in the parallel executor. The sub-agent runs a bounded "
+            "ReAct loop over a read-only toolset, which can take longer "
+            "than a regular tool call — especially with slower reasoning "
+            "models. The planner may request a lower value per step; the "
+            "effective timeout is `max(step.timeout_seconds, this default)` "
+            "capped by `subagent_tool_max_timeout_seconds`."
+        ),
     )
-    subagent_max_consecutive_failures: int = Field(
-        default=SUBAGENT_MAX_CONSECUTIVE_FAILURES_DEFAULT,
-        ge=1,
-        le=10,
-        description="Auto-disable sub-agent after N consecutive failures.",
+    subagent_tool_max_timeout_seconds: float = Field(
+        default=SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS_DEFAULT,
+        ge=60.0,
+        le=900.0,
+        description=(
+            "Hard ceiling (seconds) on the effective timeout of a "
+            "`delegate_to_sub_agent_tool` step, even if the planner requests "
+            "more. Dedicated cap so the sub-agent's longer reasoning budget "
+            "does not require raising the application-wide "
+            "`MAX_TOOL_TIMEOUT_SECONDS`."
+        ),
     )
-    subagent_stale_recovery_interval_seconds: int = Field(
-        default=SUBAGENT_STALE_RECOVERY_INTERVAL_DEFAULT,
-        ge=30,
-        le=600,
-        description="Interval in seconds for the stale sub-agent recovery job.",
+    subagent_research_tools_whitelist: str = Field(
+        default=SUBAGENT_RESEARCH_TOOLS_WHITELIST_DEFAULT,
+        description=(
+            "Comma-separated whitelist of tool names the ReAct sub-agent is "
+            "allowed to invoke. When non-empty, switches "
+            "`resolve_tools_for_subagent` to allowlist mode — every tool NOT "
+            "in this list is filtered out, regardless of the blocklist. "
+            "Keeps the sub-agent focused on factual verification (default: "
+            "brave_search + fetch_web_page) instead of exploring the full "
+            "~80-tool catalogue, which otherwise burns the ReAct "
+            "`recursion_limit` without converging. Empty string = legacy "
+            "blocklist-only behavior."
+        ),
     )
+
+    @field_validator("subagent_research_tools_whitelist", mode="after")
+    @classmethod
+    def _validate_research_tools_whitelist_format(cls, value: str) -> str:
+        """Validate the whitelist is a well-formed CSV of snake_case tool names.
+
+        Catches common operator typos (dashes instead of underscores,
+        semicolons instead of commas, stray characters) at config-load time
+        rather than letting them silently produce an empty effective whitelist
+        — which would degrade the sub-agent to blocklist-only mode (~80 tools
+        exposed, the known cause of GraphRecursionError).
+
+        Args:
+            value: Raw comma-separated string from `.env` or default.
+
+        Returns:
+            The unchanged value if every item is a valid snake_case identifier.
+
+        Raises:
+            ValueError: If any item does not match `^[a-z_][a-z0-9_]*$`.
+        """
+        if not value:
+            return value
+        snake_case = re.compile(r"^[a-z_][a-z0-9_]*$")
+        for part in value.split(","):
+            stripped = part.strip()
+            if not stripped:
+                continue
+            if not snake_case.match(stripped):
+                raise ValueError(
+                    f"Invalid tool name '{stripped}' in "
+                    f"subagent_research_tools_whitelist: must be a snake_case "
+                    f"identifier (e.g. 'brave_search_tool'). Check for typos "
+                    f"(dashes vs underscores) or wrong separator (use commas, "
+                    f"not semicolons)."
+                )
+        return value
+
+    @property
+    def subagent_research_tools_whitelist_parsed(self) -> list[str]:
+        """Return the whitelist as a list of trimmed tool names (no empties).
+
+        The raw setting is a comma-separated string (validated for snake_case
+        format by `_validate_research_tools_whitelist_format`). This property
+        materializes it as the list shape expected by
+        `resolve_tools_for_subagent(allowed_tools=...)`.
+
+        Returns:
+            List of tool names. Empty if the setting is empty or whitespace-only.
+        """
+        raw = self.subagent_research_tools_whitelist or ""
+        return [t.strip() for t in raw.split(",") if t.strip()]
 
     # ========================================================================
     # Initiative Phase (ADR-062)

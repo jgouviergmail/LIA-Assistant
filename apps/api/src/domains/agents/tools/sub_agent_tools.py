@@ -1,20 +1,37 @@
 """
 LangChain v1 tool for sub-agent delegation.
 
-Single tool: delegate_to_sub_agent_tool — creates an ephemeral expert
-sub-agent and executes it through the full LIA graph.
+Single tool: delegate_to_sub_agent_tool — runs a scoped expert ReAct loop
+via the generic ReactSubAgentRunner (ADR-083).
 
-Architecture:
-- The planner decides autonomously when to delegate (complex, specialized tasks)
-- The tool creates an ephemeral SubAgent record (tracking), builds a system
-  prompt with the expertise directive, and executes via stream_chat_response()
-- Multiple delegates with no depends_on run in PARALLEL (wave-based executor)
-- Sub-agents are read-only (blocked_tools enforced)
-- Depth limit: sub-agents cannot spawn sub-sub-agents (session_id prefix check)
+Architecture (ADR-083 — Sub-Agent Delegation as Parameterized ReAct Loop):
+- The planner decides autonomously when to delegate (H1: an expert persona
+  must produce a MATERIALLY BETTER answer than the assistant directly).
+- This tool DOES NOT spin up a bespoke mini-pipeline anymore (no
+  query_analyzer / SmartPlannerService / synthesis chain). Instead it
+  instantiates the generic ReactSubAgentRunner with:
+    - llm_type = "subagent"
+    - prompt   = "subagent_react_prompt" (expertise persona + read-only rules)
+    - tools    = full registry, filtered to a read-only subset
+    - recursion_limit = settings.subagent_default_max_iterations
+- Multiple delegates with no depends_on still run in PARALLEL (wave-based
+  executor at the parent level).
+- Sub-agents are READ-ONLY (blocked_tools enforced via resolve_tools_for_subagent).
+- Depth limit: a sub-agent cannot spawn a sub-sub-agent. Two guards:
+    1. resolve_tools_for_subagent excludes delegate_to_sub_agent_tool itself
+       (primary anti-recursion mechanism).
+    2. This function rejects calls when the inbound session_id starts with
+       "subagent_" (belt-and-suspenders).
 
-Push-based, ephemeral, orchestrated delegation pattern.
+Token attribution flows automatically into the parent TokenTrackingCallback
+via metadata["node_name_override"] = "sub-agent: <expertise>" (set by the
+runner). No separate MessageTokenSummary, no manual consolidation.
 
-Phase: F6 — Persistent Specialized Sub-Agents
+After ADR-083 Phase 2 cleanup, this is the ONLY sub-agent execution path
+in the codebase. The bespoke SubAgentExecutor pipeline, the /sub-agents REST
+API, the sub_agents DB table, and the per-user `sub_agents_enabled` toggle
+were all removed (no UI consumer, no real usage). The whole subsystem is
+gated by the global `SUB_AGENTS_ENABLED` flag.
 """
 
 from typing import Annotated
@@ -22,12 +39,16 @@ from typing import Annotated
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 
+from src.core.config import get_settings
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.react_runner import ReactSubAgentRunner
 from src.domains.agents.tools.runtime_helpers import (
     handle_tool_exception,
-    parse_user_id,
     validate_runtime_config,
 )
+from src.domains.agents.tools.tool_registry import get_all_tools
+from src.domains.sub_agents.constants import SUBAGENT_DEFAULT_BLOCKED_TOOLS
+from src.domains.sub_agents.skill_resolver import resolve_tools_for_subagent
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
@@ -36,6 +57,10 @@ from src.infrastructure.observability.metrics_agents import (
 
 # Agent name for metrics
 _AGENT_NAME = "sub_agent_tools"
+
+# Truncation length for the message field of the success UnifiedToolOutput
+# (the full text is preserved in structured_data["analysis"]).
+_MAX_SUMMARY_LENGTH = 200
 
 
 @tool
@@ -53,214 +78,104 @@ async def delegate_to_sub_agent_tool(
     ],
     instruction: Annotated[
         str,
-        "Detailed task instruction with all necessary context " "and expected output format",
+        "Detailed task statement for the sub-agent. Do NOT paste raw data — "
+        "the sub-agent has its own read-only tools and fetches what it needs. "
+        "Resolved $ref payloads exceeding the configured cap are rejected.",
     ],
     runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
-    """Delegate a task to a specialized ephemeral sub-agent.
+    """Delegate a UNITARY expert task to an ephemeral sub-agent (ReAct loop).
 
-    Creates a temporary expert sub-agent with the given expertise and
-    executes it through the full LIA pipeline. The sub-agent has access
-    to search, fetch, and analysis tools but CANNOT perform write
-    operations (send email, create event, etc.).
-
-    Use this for tasks requiring deep domain expertise, parallel research,
-    or specialized analysis. The sub-agent works independently and returns
-    its complete analysis.
+    The sub-agent runs a single scoped ReAct loop over a read-only toolset,
+    with a tight `recursion_limit`, and returns its final analytical text.
+    Multiple delegates with no `depends_on` run in PARALLEL.
 
     IMPORTANT:
-    - Sub-agents are READ-ONLY (no mutations, no HITL operations)
-    - Multiple delegates with no depends_on run in PARALLEL
-    - Reference results via $steps.step_N.analysis in subsequent steps
-    - Handle HITL operations (send_email, etc.) YOURSELF after sub-agent results
+    - Sub-agents are READ-ONLY (no mutations, no HITL operations).
+    - Reference results via `$steps.step_N.analysis` in subsequent steps.
+    - Handle mutations (send_email, etc.) YOURSELF after sub-agent results.
 
     Args:
-        expertise: Role description for the sub-agent specialist.
-        instruction: Detailed task with context and expected output.
-        runtime: Tool runtime (injected).
+        expertise: Specialist role / directives (becomes the sub-agent persona).
+        instruction: Task statement (NOT raw data — the sub-agent fetches its own).
+        runtime: Tool runtime (injected by LangChain).
 
     Returns:
-        Sub-agent analysis result in structured_data["analysis"].
+        UnifiedToolOutput with the sub-agent's text in `structured_data["analysis"]`.
     """
     config = validate_runtime_config(runtime, "delegate_to_sub_agent_tool")
     if isinstance(config, UnifiedToolOutput):
         return config
 
     try:
-        # Depth check: prevent sub-agent from spawning sub-sub-agents
+        # Depth check (belt-and-suspenders): the primary anti-recursion is in
+        # resolve_tools_for_subagent, which excludes this tool from a sub-agent's
+        # toolset. This guard catches legacy or odd invocation paths.
         if config.session_id and config.session_id.startswith("subagent_"):
             return UnifiedToolOutput.failure(
-                message="Sub-agents cannot delegate to other sub-agents " "(depth limit reached).",
+                message="Sub-agents cannot delegate to other sub-agents (depth limit reached).",
                 error_code="DEPTH_LIMIT_EXCEEDED",
             )
 
-        user_id = parse_user_id(config.user_id)
+        # ADR-083 Phase 2 cleanup: the per-user `sub_agents_enabled` preference
+        # toggle (Option B) was removed — the global `SUB_AGENTS_ENABLED` flag
+        # gates the whole subsystem (planner catalogue + this tool's
+        # registration) at startup. No need for a per-call DB lookup.
 
-        from src.infrastructure.database.session import get_db_context
+        # Build the read-only toolset for the sub-agent.
+        # `resolve_tools_for_subagent` filters out write tools AND excludes
+        # `delegate_to_sub_agent_tool` itself (primary anti-recursion).
+        # The whitelist (Settings) keeps the sub-agent focused on factual
+        # research instead of exploring the full ~80-tool catalogue — which
+        # would otherwise burn the ReAct recursion_limit without converging.
+        all_tools_dict = get_all_tools()
+        read_only_tools = resolve_tools_for_subagent(
+            allowed_tools=get_settings().subagent_research_tools_whitelist_parsed,
+            blocked_tools=SUBAGENT_DEFAULT_BLOCKED_TOOLS,
+            all_tools=list(all_tools_dict.values()),
+        )
 
-        async with get_db_context() as db:
-            # Check user preference (within same DB session)
-            from src.domains.users.service import UserService
+        # Run the scoped ReAct loop via the existing generic runner
+        # (same machinery as browser_task_tool / mcp_server_task_tool).
+        runner = ReactSubAgentRunner("subagent", "subagent_react_prompt")
+        react_result = await runner.run(
+            task=instruction,
+            tools=read_only_tools,
+            prompt_vars={"expertise": expertise},
+            parent_runtime=runtime,
+            thread_prefix="subagent",
+            recursion_limit=get_settings().subagent_default_max_iterations,
+            display_name=f"sub-agent: {expertise[:40]}",
+        )
 
-            user_service = UserService(db)
-            user_obj = await user_service.get_user_by_id(user_id)
-            if user_obj and not getattr(user_obj, "sub_agents_enabled", True):
-                return UnifiedToolOutput.failure(
-                    message="Sub-agents are disabled in your preferences. "
-                    "Enable them in Settings to use this feature.",
-                    error_code="FEATURE_DISABLED",
-                )
-
-            # Preventive cleanup: delete stale ephemeral sub-agents
-            # from previous runs to avoid hitting per-user limit
-            from src.domains.sub_agents.repository import SubAgentRepository
-
-            repo = SubAgentRepository(db)
-            stale_ephemerals = await repo.get_all_for_user(user_id, include_disabled=True)
-            for sa in stale_ephemerals:
-                if sa.name.startswith("ephemeral_") and sa.status != "executing":
-                    await repo.delete(sa)
-            await db.flush()
-            from src.domains.sub_agents.constants import (
-                SUBAGENT_DEFAULT_BLOCKED_TOOLS,
-            )
-            from src.domains.sub_agents.executor import SubAgentExecutor
-            from src.domains.sub_agents.models import SubAgentCreatedBy
-            from src.domains.sub_agents.schemas import SubAgentCreate
-            from src.domains.sub_agents.service import SubAgentService
-
-            service = SubAgentService(db)
-
-            # Create ephemeral sub-agent record (tracking + audit)
-            # UUID suffix ensures uniqueness for parallel delegates
-            from uuid import uuid4
-
-            unique_suffix = uuid4().hex[:8]
-            subagent_data = SubAgentCreate(
-                name=f"ephemeral_{expertise[:40]}_{unique_suffix}",
-                description=f"Ephemeral expert: {expertise[:100]}",
-                system_prompt=expertise,
-                blocked_tools=SUBAGENT_DEFAULT_BLOCKED_TOOLS,
-            )
-            subagent = await service.create(
-                user_id=user_id,
-                data=subagent_data,
-                created_by=SubAgentCreatedBy.ASSISTANT.value,
-            )
-            await db.commit()
-
-            # Execute via full graph
-            executor = SubAgentExecutor()
-
-            from src.domains.agents.tools.runtime_helpers import (
-                get_user_preferences,
-            )
-
-            user_timezone, user_language, _ = await get_user_preferences(runtime)
-
-            result = await executor.execute(
-                subagent=subagent,
-                instruction=instruction,
-                user_id=user_id,
-                user_timezone=user_timezone,
-                user_language=user_language,
-                db=db,
-            )
-
-            # Record result then cleanup ephemeral sub-agent
-            _MAX_SUMMARY_LENGTH = 200
-            summary = (
-                result.result[:_MAX_SUMMARY_LENGTH] + "..."
-                if result.result and len(result.result) > _MAX_SUMMARY_LENGTH
-                else result.result or ""
-            )
-
-            # Delete ephemeral sub-agent (avoid hitting per-user limit)
-            # Use repo.delete directly (bypasses status check)
-            await repo.delete(subagent)
-            await db.commit()
-
-            # Consolidate sub-agent tokens AND costs into parent TrackingContext.
-            # Sub-agents are isolated (direct pipeline, no conversation).
-            # Their tokens are in separate MessageTokenSummary rows.
-            # We inject them into the parent tracker so the user sees
-            # the real total cost in their chat bubble.
-            if result.session_id:
-                try:
-                    from src.core.context import current_tracker
-                    from src.domains.chat.models import MessageTokenSummary
-
-                    parent_tracker = current_tracker.get()
-                    if parent_tracker:
-                        from decimal import Decimal
-
-                        from sqlalchemy import select
-
-                        from src.infrastructure.cache.pricing_cache import (
-                            get_cached_usd_eur_rate,
-                        )
-
-                        stmt = (
-                            select(MessageTokenSummary)
-                            .where(MessageTokenSummary.session_id == result.session_id)
-                            .limit(1)
-                        )
-                        sa_summary = (await db.execute(stmt)).scalar_one_or_none()
-
-                        if sa_summary and sa_summary.total_prompt_tokens > 0:
-                            # Pass real costs from sub-agent summary
-                            # instead of model_name="subagent" (which
-                            # the pricing cache doesn't recognize → cost=0).
-                            sa_cost_eur = float(sa_summary.total_cost_eur or 0)
-                            rate = Decimal(str(get_cached_usd_eur_rate()))
-                            sa_cost_usd = (
-                                float(sa_summary.total_cost_eur / rate) if rate > 0 else 0.0
-                            )
-
-                            await parent_tracker.record_node_tokens(
-                                node_name=f"subagent:{expertise[:30]}",
-                                model_name="subagent-aggregate",
-                                prompt_tokens=(sa_summary.total_prompt_tokens),
-                                completion_tokens=(sa_summary.total_completion_tokens),
-                                cached_tokens=(sa_summary.total_cached_tokens),
-                                cost_usd=sa_cost_usd,
-                                cost_eur=sa_cost_eur,
-                                usd_to_eur_rate=rate,
-                                duration_ms=(result.duration_seconds * 1000),
-                            )
-                except Exception as consolidation_err:
-                    # Must not break execution, but log for debuggability
-                    import structlog
-
-                    structlog.get_logger(__name__).warning(
-                        "subagent_token_consolidation_failed",
-                        expertise=expertise[:30],
-                        error=f"{type(consolidation_err).__name__}: {consolidation_err}",
-                    )
-
-            if not result.success:
-                return UnifiedToolOutput.failure(
-                    message=(f"Sub-agent '{expertise}' failed: {result.error}"),
-                    error_code="EXECUTION_FAILED",
-                    metadata={
-                        "expertise": expertise,
-                        "duration_seconds": result.duration_seconds,
-                    },
-                )
-
-            return UnifiedToolOutput.action_success(
-                message=summary,
-                structured_data={
-                    "analysis": result.result or "",
-                    "expertise": expertise,
-                    "type": "sub_agent_analysis",
-                },
+        # Map the ReactSubAgentResult to a UnifiedToolOutput.
+        final = react_result.final_message or ""
+        if final.startswith("Error:"):
+            return UnifiedToolOutput.failure(
+                message=(f"Sub-agent '{expertise[:60]}' did not complete: {final[:300]}"),
+                error_code="EXECUTION_FAILED",
                 metadata={
                     "expertise": expertise,
-                    "duration_seconds": result.duration_seconds,
-                    "tokens_used": result.tokens_used,
+                    "duration_ms": react_result.duration_ms,
+                    "iteration_count": react_result.iteration_count,
                 },
             )
+
+        summary = final[:_MAX_SUMMARY_LENGTH] + "..." if len(final) > _MAX_SUMMARY_LENGTH else final
+
+        return UnifiedToolOutput.action_success(
+            message=summary,
+            structured_data={
+                "analysis": final,
+                "expertise": expertise,
+                "type": "sub_agent_analysis",
+            },
+            metadata={
+                "expertise": expertise,
+                "duration_ms": react_result.duration_ms,
+                "iteration_count": react_result.iteration_count,
+            },
+        )
 
     except Exception as e:
         return handle_tool_exception(

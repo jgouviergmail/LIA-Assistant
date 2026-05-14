@@ -135,9 +135,9 @@ async def reindex_interests(dry_run: bool, batch_size: int) -> dict[str, int]:
     """
     from sqlalchemy import select
 
+    from src.domains.interests.embedding import get_interest_embeddings
     from src.domains.interests.models import UserInterest
     from src.infrastructure.database.session import AsyncSessionLocal
-    from src.domains.interests.embedding import get_interest_embeddings
 
     embeddings = get_interest_embeddings()
     stats: dict[str, int] = {"total": 0, "reindexed": 0, "errors": 0}
@@ -289,10 +289,7 @@ async def reindex_journals(dry_run: bool, batch_size: int) -> dict[str, int]:
 
             # Build texts: title+content for embedding, search_hints for keyword_embedding
             content_texts = [f"{e.title}. {e.content}." for e in batch]
-            hint_texts = [
-                " ".join(e.search_hints) if e.search_hints else ""
-                for e in batch
-            ]
+            hint_texts = [" ".join(e.search_hints) if e.search_hints else "" for e in batch]
 
             if dry_run:
                 print(

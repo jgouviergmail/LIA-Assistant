@@ -1906,7 +1906,7 @@
           "skill_description_translator": "Traduit les descriptions des skills système dans les 6 langues supportées",
           "evaluator": "Pipeline d'évaluation LLM-as-Judge (pertinence, hallucination)",
           "compaction": "Résume l'historique de conversation ancien pour libérer la fenêtre de contexte",
-          "subagent": "Exécute les tâches déléguées via des sous-agents spécialisés (recherche, analyse, synthèse)",
+          "subagent": "Boucle ReAct cadrée (outils en lecture seule, budget d'itérations et de tokens serré) pour les délégations expertes de l'assistant principal",
           "browser_agent": "Agent de navigation web interactive (naviguer, cliquer, remplir des formulaires)",
           "journal_extraction": "Extraction d'entrées de journal à partir des conversations (introspection de l'assistant)",
           "journal_consolidation": "Revue et consolidation périodique des entrées de journal",
@@ -2927,6 +2927,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_5": {
+          "title": "v1.20.5 — Sous-agents : analyses expertes enfin substantielles, voix d'expert préservée, 3 nouveaux réglages admin",
+          "date": "Mai 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>Les analyses déléguées à un sous-agent sont enfin substantielles</b> — Quand vous demandiez <em>« réponds-moi comme un analyste senior, utilise un sous-agent spécialisé »</em>, le sous-agent partait en exploration tous azimuts (jusqu'à 30+ recherches successives), épuisait son budget avant la synthèse et renvoyait soit une réponse tronquée, soit un message creux que l'assistant principal noyait ensuite dans son propre ton conversationnel — la délégation n'apportait aucune valeur ajoutée. Désormais le sous-agent suit un contrat clair (« si un assistant pourrait écrire la même chose sans toi, c'est un échec »), calibre la forme de sa sortie selon les signaux de la demande (analyse approfondie → rapport multi-sections sourcé ; résumé → condensé fidèle ; comparaison → structure parallèle dimension par dimension), cite ses URL pour chaque chiffre, distingue les faits des inférences, signale les données manquantes plutôt que de les inventer — et l'assistant principal restitue son analyse <b>verbatim</b> (sections, sources, structure intactes) sans la compresser ni la réécrire en voix sarcastique. Bonus : <b>plus de tableaux markdown forcés</b> dans ces réponses — les comparaisons utilisent désormais des listes parallèles ou des sections, plus lisibles.",
+            "i2": "<b>Admin : 3 nouveaux réglages pour piloter les sous-agents</b> — <code>SUBAGENT_TOOL_TIMEOUT_SECONDS</code> (défaut 180 s, plage 30-600) et <code>SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS</code> (défaut 300 s, plage 60-900) découplent l'enveloppe de temps des délégations du plafond générique <code>MAX_TOOL_TIMEOUT_SECONDS</code> (120 s, inchangé pour les autres outils) — les boucles ReAct avec modèle de raisonnement lent (deepseek high, gpt-5.2 high) peuvent désormais légitimement durer 90-150 s sans être tuées en cours de synthèse. <code>SUBAGENT_RESEARCH_TOOLS_WHITELIST</code> (défaut <code>brave_search_tool,fetch_web_page_tool</code>) recentre le sous-agent sur la vérification factuelle au lieu d'explorer un catalogue de ~80 outils (qui faisait perdre tout son budget en explorations stériles). Validation au chargement : un nom mal écrit dans <code>.env</code> (tirets au lieu de soulignés, point-virgules au lieu de virgules) fait remonter une erreur claire au lieu d'une whitelist silencieusement vide.",
+            "i3": "<b>Admin : budget d'itérations du sous-agent porté à 10 par défaut</b> — <code>SUBAGENT_DEFAULT_MAX_ITERATIONS</code> passe de 5 à 10 (plage élargie à 1-30, contre 1-15 avant). LangGraph compte chaque visite de nœud comme un superpas, donc 5 supportait à peine 2 rondes d'outils + synthèse — à 10, le sous-agent a la marge pour 3-4 rondes d'outils puis une synthèse complète sans <code>GraphRecursionError</code>. Réglage <code>SUBAGENT_DEFAULT_MAX_ITERATIONS</code> dans <code>.env</code> si vous voulez ajuster encore (jusqu'à 30 pour des analyses très profondes, ou réduire à 5-6 pour économiser des tokens sur des tâches simples)."
+          }
+        },
         "v1_20_4": {
           "title": "v1.20.4 — Agent de navigation web fiable, correction des modèles Anthropic Claude 4.x, configuration LLM robuste au changement de modèle",
           "date": "Mai 2026",
@@ -3994,7 +4004,7 @@
           },
           "q3": {
             "question": "Puis-je désactiver les sous-agents ?",
-            "answer": "<p>Oui. Allez dans <strong>Paramètres &gt; Fonctionnalités &gt; Sous-agents</strong> et désactivez le commutateur. L'assistant utilisera alors des outils directs (recherche web, etc.) au lieu de déléguer.</p>"
+            "answer": "<p>L'activation des sous-agents est <strong>gérée au niveau de l'application par votre administrateur</strong> (via une configuration globale) — ce n'est plus un réglage de votre compte utilisateur.</p><p><strong>Vous gardez le contrôle au cas par cas :</strong> avant de lancer un sous-agent, LIA vous demande systématiquement confirmation. Si vous refusez, l'assistant bascule automatiquement sur un plan standard sans délégation à un expert — vous pouvez refuser autant de fois que nécessaire.</p><p>Si vous souhaitez ne <em>jamais</em> voir de délégation à un sous-agent, demandez à votre administrateur de désactiver la fonctionnalité globalement.</p>"
           },
           "q4": {
             "question": "Les sous-agents coûtent-ils plus de tokens ?",
@@ -5429,31 +5439,6 @@
       "liability": "Responsabilité",
       "termination": "Résiliation",
       "applicable_law": "Droit applicable"
-    }
-  },
-  "sub_agents": {
-    "templates": {
-      "research_assistant": {
-        "name": "Assistant de recherche",
-        "description": "Spécialisé dans la recherche web approfondie, la synthèse multi-sources et la vérification des faits"
-      },
-      "writing_assistant": {
-        "name": "Assistant rédaction",
-        "description": "Spécialisé dans la rédaction, l'édition et l'amélioration de contenus écrits"
-      },
-      "data_analyst": {
-        "name": "Analyste de données",
-        "description": "Spécialisé dans l'analyse de données issues des emails, du calendrier et des fichiers"
-      }
-    },
-    "settings": {
-      "title": "Sous-agents",
-      "description": "Assistants spécialisés pour les tâches déléguées",
-      "enable_toggle": "Activer les sous-agents",
-      "enable_description": "Permettre à l'assistant de déléguer des tâches à des sous-agents spécialisés",
-      "enabled_success": "Sous-agents activés",
-      "disabled_success": "Sous-agents désactivés",
-      "info": "Lorsqu’ils sont activés, l’assistant peut déléguer des tâches de recherche, d’analyse et de synthèse à des sous-agents spécialisés pour de meilleurs résultats."
     }
   },
   "browser": {

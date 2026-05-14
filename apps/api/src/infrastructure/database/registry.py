@@ -44,7 +44,8 @@ def import_all_models() -> None:
     import src.domains.reminders.models  # noqa: F401
     import src.domains.scheduled_actions.models  # noqa: F401
     import src.domains.skills.models  # noqa: F401
-    import src.domains.sub_agents.models  # noqa: F401
+
+    # ADR-083 Phase 2 cleanup: sub_agents.models removed (table dropped).
     import src.domains.system_settings.models  # noqa: F401
     import src.domains.usage_limits.models  # noqa: F401
     import src.domains.user_mcp.models  # noqa: F401

@@ -48,8 +48,6 @@ from src.domains.auth.schemas import (
     OnboardingPreferenceResponse,
     PasswordResetConfirm,
     PasswordResetRequest,
-    SubAgentsPreferenceRequest,
-    SubAgentsPreferenceResponse,
     TokenRefreshRequest,
     TokensDisplayPreferenceRequest,
     TokensDisplayPreferenceResponse,
@@ -965,45 +963,9 @@ async def update_debug_panel_preference(
     )
 
 
-@router.patch(
-    "/me/sub-agents-preference",
-    response_model=SubAgentsPreferenceResponse,
-    summary="Update sub-agents delegation preference",
-    description="Enable or disable delegation to specialized sub-agents for the current user.",
-)
-async def update_sub_agents_preference(
-    data: SubAgentsPreferenceRequest,
-    user: User = Depends(get_current_active_session),
-    db: AsyncSession = Depends(get_db),
-) -> SubAgentsPreferenceResponse:
-    """Update user's sub-agents delegation preference.
-
-    Controls whether the principal assistant can delegate tasks
-    to specialized sub-agents (research, analysis, writing, etc.).
-
-    Args:
-        data: Sub-agents preference request with enabled/disabled state.
-        user: Current authenticated user.
-        db: Database session.
-
-    Returns:
-        SubAgentsPreferenceResponse with updated state and confirmation.
-    """
-    user.sub_agents_enabled = data.sub_agents_enabled
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-
-    logger.info(
-        "user_sub_agents_preference_updated",
-        user_id=str(user.id),
-        sub_agents_enabled=data.sub_agents_enabled,
-    )
-
-    return SubAgentsPreferenceResponse(
-        sub_agents_enabled=user.sub_agents_enabled,
-        message=APIMessages.sub_agents_preference_updated(enabled=data.sub_agents_enabled),
-    )
+# ADR-083 Phase 2 cleanup: PATCH /me/sub-agents-preference and the per-user
+# `sub_agents_enabled` toggle were removed (Option B). Delegation is now
+# gated only by the global SUB_AGENTS_ENABLED feature flag.
 
 
 @router.patch(

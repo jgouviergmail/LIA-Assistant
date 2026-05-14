@@ -1,13 +1,12 @@
-"""
-Unit tests for sub-agent skill resolver.
+"""Unit tests for sub-agent tool filtering and skill visibility (post-ADR-083 Phase 2).
 
-Tests tool filtering, system prompt building, and skill visibility.
+`build_subagent_system_prompt` and `resolve_skills_context` were deleted along
+with the bespoke `SubAgentExecutor` pipeline; tests for them are gone too.
 """
 
 from unittest.mock import MagicMock
 
 from src.domains.sub_agents.skill_resolver import (
-    build_subagent_system_prompt,
     is_skill_visible_to_agent,
     resolve_tools_for_subagent,
 )
@@ -41,6 +40,24 @@ class TestResolveToolsForSubagent:
         assert len(result) == 1
         assert result[0].name == "search_emails_tool"
 
+    def test_block_delegate_to_sub_agent_tool(self):
+        """ADR-083: delegate_to_sub_agent_tool MUST be excluded from a sub-agent's toolset.
+
+        Anti-recursion: with ReactSubAgentRunner picking up tools from the global
+        registry, the delegate tool would otherwise be available — a sub-agent
+        could spawn another sub-agent and the depth limit would only catch it
+        after the fact. Exclusion at the tool-resolution layer is the primary
+        anti-recursion mechanism.
+        """
+        tools = [
+            self._make_tool("search_emails_tool"),
+            self._make_tool("delegate_to_sub_agent_tool"),
+        ]
+        result = resolve_tools_for_subagent(allowed_tools=[], blocked_tools=[], all_tools=tools)
+        names = {t.name for t in result}
+        assert "delegate_to_sub_agent_tool" not in names
+        assert "search_emails_tool" in names
+
     def test_allowed_tools_whitelist(self):
         """Only allowed tools are included when whitelist is non-empty."""
         tools = [
@@ -72,36 +89,6 @@ class TestResolveToolsForSubagent:
             all_tools=tools,
         )
         assert len(result) == 0
-
-
-class TestBuildSubagentSystemPrompt:
-    """Tests for build_subagent_system_prompt()."""
-
-    def test_basic_prompt(self):
-        """Build prompt with required fields only."""
-        prompt = build_subagent_system_prompt(system_prompt="You are a research specialist.")
-        assert "read-only" in prompt.lower()
-        assert "You are a research specialist." in prompt
-
-    def test_with_all_fields(self):
-        """Build prompt with all optional fields."""
-        prompt = build_subagent_system_prompt(
-            system_prompt="Research specialist.",
-            personality_instruction="Be concise.",
-            context_instructions="Focus on recent data.",
-            last_execution_summary="Found 3 articles.",
-            skills_context="## Skill: deep-search\nInstructions here.",
-        )
-        assert "Research specialist." in prompt
-        assert "Be concise." in prompt
-        assert "Focus on recent data." in prompt
-        assert "Previous execution context: Found 3 articles." in prompt
-        assert "deep-search" in prompt
-
-    def test_read_only_prefix_first(self):
-        """Read-only prefix is at the beginning."""
-        prompt = build_subagent_system_prompt(system_prompt="Custom instructions.")
-        assert prompt.startswith("You are a read-only sub-agent.")
 
 
 class TestIsSkillVisibleToAgent:

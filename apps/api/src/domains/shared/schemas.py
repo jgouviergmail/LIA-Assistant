@@ -293,7 +293,8 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     debug_panel_enabled: bool = Field(
         default=False, description="Debug panel enabled (requires admin user access setting)"
     )
-    sub_agents_enabled: bool = Field(default=True, description="Sub-agent delegation enabled")
+    # ADR-083 Phase 2 cleanup: per-user `sub_agents_enabled` toggle removed
+    # (Option B). Delegation is gated by the global SUB_AGENTS_ENABLED flag.
     response_display_mode: str = Field(
         default="cards",
         description="Response display mode: cards (HTML data cards), html (rich formatting), markdown (plain text)",
@@ -377,12 +378,6 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     def set_debug_panel_enabled_default(cls, v: bool | None) -> bool:
         """Ensure debug_panel_enabled defaults to False if None."""
         return v if v is not None else False
-
-    @field_validator("sub_agents_enabled", mode="before")
-    @classmethod
-    def set_sub_agents_enabled_default(cls, v: bool | None) -> bool:
-        """Ensure sub_agents_enabled defaults to True if None (opt-out)."""
-        return v if v is not None else True
 
     @field_validator("weather_use_last_known_location", mode="before")
     @classmethod

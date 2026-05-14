@@ -52,7 +52,6 @@ from src.domains.rag_spaces.models import RAGSpace
 from src.domains.reminders.models import Reminder
 from src.domains.scheduled_actions.models import ScheduledAction
 from src.domains.skills.models import Skill, UserSkillState
-from src.domains.sub_agents.models import SubAgent
 from src.domains.usage_limits.models import UserUsageLimit
 from src.domains.user_mcp.models import UserMCPServer
 from src.infrastructure.observability.logging import get_logger
@@ -356,19 +355,21 @@ class AccountDeletionService:
                 REDIS_KEY_PSYCHE_STATE_PREFIX,
                 REDIS_KEY_USAGE_LIMIT_PREFIX,
             )
-            from src.domains.sub_agents.constants import SUBAGENT_DAILY_BUDGET_KEY_PREFIX
             from src.infrastructure.cache.redis import get_redis_cache
 
             redis = await get_redis_cache()
             uid = str(user_id)
 
-            # Explicit known keys (using centralized constants)
+            # Explicit known keys (using centralized constants).
+            # NOTE: SUBAGENT_DAILY_BUDGET_KEY_PREFIX was removed in ADR-083
+            # Phase 2 cleanup — the bespoke executor that wrote those keys is
+            # gone, so any pre-existing keys (if any) become harmless orphans
+            # that Redis will expire naturally (24h TTL).
             explicit_keys = [
                 f"{REDIS_KEY_USAGE_LIMIT_PREFIX}{uid}",
                 f"{REDIS_KEY_CONVERSATION_ID_PREFIX}{uid}",
                 f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{uid}",
                 f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{uid}:full",
-                f"{SUBAGENT_DAILY_BUDGET_KEY_PREFIX}{uid}",
                 f"{REDIS_KEY_PSYCHE_STATE_PREFIX}{uid}",
             ]
             for key in explicit_keys:
@@ -614,7 +615,7 @@ class AccountDeletionService:
             ("user_skill_states", delete(UserSkillState).where(UserSkillState.user_id == user_id)),
             ("skills", delete(Skill).where(Skill.owner_id == user_id)),
             ("user_mcp_servers", delete(UserMCPServer).where(UserMCPServer.user_id == user_id)),
-            ("sub_agents", delete(SubAgent).where(SubAgent.user_id == user_id)),
+            # ADR-083 Phase 2 cleanup: sub_agents table dropped — nothing to delete.
             ("rag_spaces", delete(RAGSpace).where(RAGSpace.user_id == user_id)),
             ("user_fcm_tokens", delete(UserFCMToken).where(UserFCMToken.user_id == user_id)),
             ("channels", delete(UserChannelBinding).where(UserChannelBinding.user_id == user_id)),

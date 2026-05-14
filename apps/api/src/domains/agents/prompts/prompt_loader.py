@@ -123,6 +123,10 @@ PromptName = Literal[
     "mcp_react_agent_prompt",
     # ADR-070: ReAct Execution Mode
     "react_agent_prompt",
+    # ADR-083: Sub-Agent Delegation as Parameterized ReAct Loop
+    # (the legacy "subagent_synthesis_prompt" was removed in Phase 2 cleanup
+    # along with the bespoke SubAgentExecutor pipeline.)
+    "subagent_react_prompt",
     # Long-term Memory (psychological profiling)
     "memory_extraction_prompt",
     "memory_extraction_personality_addon",

@@ -767,8 +767,8 @@ class TrackingContext:
     def get_cumulative_tokens(self) -> int:
         """Get total tokens consumed (prompt + completion) across all recorded nodes.
 
-        Public API for SubAgentTokenGuard and other consumers that need to check
-        cumulative token usage without accessing internal _node_records directly.
+        Public API for consumers that need to check cumulative token usage
+        without accessing internal `_node_records` directly.
 
         Returns:
             Total tokens (prompt + completion) across all LLM calls in this context.

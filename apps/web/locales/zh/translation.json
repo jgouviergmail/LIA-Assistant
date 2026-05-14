@@ -1546,7 +1546,7 @@
           "skill_description_translator": "将技能描述翻译为所有6种支持的语言",
           "evaluator": "LLM-as-Judge 评估管道（相关性、幻觉检测）",
           "compaction": "总结旧对话历史以释放上下文窗口空间",
-          "subagent": "通过专业子代理执行委派任务（研究、分析、综合）",
+          "subagent": "为主助手的专家委派运行受限的 ReAct 循环（只读工具，严格的迭代与 token 预算）",
           "browser_agent": "交互式网页浏览代理（导航、点击、填写表单）",
           "journal_extraction": "从对话中提取日志条目（助手自省）",
           "journal_consolidation": "定期审查和整合日志条目",
@@ -2908,6 +2908,16 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_20_5": {
+          "title": "v1.20.5 — 子代理：专家分析终于言之有物、专家口吻得以保留、3 项新的管理员设置",
+          "date": "2026 年 5 月",
+          "count": "3",
+          "items": {
+            "i1": "<b>委派给子代理的分析终于言之有物</b> — 当你要求 LIA <em>「以高级分析师的口吻回答我，使用一个专门的子代理」</em>时，子代理过去会四处乱跑（连续多达 30 多次搜索），还没开始综合就耗尽了预算，结果要么返回被截断的回答，要么返回一段空洞的话，主助手随后再用自己的闲聊语气把它淹没——委派并未带来任何附加价值。现在子代理遵循一份清晰的契约（「如果一个助手不靠你也能写出同样的内容，那就是失败」），根据请求中的信号校准输出形态（深度分析 → 多段、有出处的报告；摘要 → 忠实的浓缩版；比较 → 维度逐项对齐的并列结构），为每一个数字标注 URL，区分事实与推断，对缺失的数据标注说明而不是凭空捏造——主助手则<b>原样</b>转述其分析（段落、出处、结构完全保留），不压缩、不以挖苦的口吻改写。额外好处：这类回答里<b>不再强制使用 Markdown 表格</b>——比较改为使用并列列表或分段，更易读。",
+            "i2": "<b>管理员：3 项用于驾驭子代理的新设置</b> — <code>SUBAGENT_TOOL_TIMEOUT_SECONDS</code>（默认 180 秒，范围 30-600）和 <code>SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS</code>（默认 300 秒，范围 60-900）将委派的时间预算与通用上限 <code>MAX_TOOL_TIMEOUT_SECONDS</code>（120 秒，对其他工具保持不变）解耦——使用慢速推理模型（deepseek high、gpt-5.2 high）的 ReAct 循环现在可以合法地运行 90-150 秒，而不会在综合阶段中途被杀掉。<code>SUBAGENT_RESEARCH_TOOLS_WHITELIST</code>（默认 <code>brave_search_tool,fetch_web_page_tool</code>）让子代理重新聚焦于事实核验，而不是去探索一份约 80 个工具的目录（之前它的全部预算都耗在了无效的探索上）。加载时校验：<code>.env</code> 中拼写错误的名称（用连字符代替下划线、用分号代替逗号）会抛出明确错误，而不是悄悄地变成空白名单。",
+            "i3": "<b>管理员：子代理迭代预算的默认值提高到 10</b> — <code>SUBAGENT_DEFAULT_MAX_ITERATIONS</code> 从 5 提升到 10（范围由 1-15 扩大为 1-30）。LangGraph 把每一次节点访问都计为一个超步，因此 5 仅够支撑 2 轮工具调用加综合——在 10 这个值下，子代理有余量进行 3-4 轮工具调用并完成完整的综合，而不会触发 <code>GraphRecursionError</code>。如需进一步调整，请在 <code>.env</code> 中调整 <code>SUBAGENT_DEFAULT_MAX_ITERATIONS</code>（极深入的分析可调到 30，简单任务为节省 token 可降到 5-6）。"
+          }
+        },
         "v1_20_4": {
           "title": "v1.20.4 — 可靠的网页浏览代理、修复 Anthropic Claude 4.x 模型、模型切换时 LLM 配置更稳健",
           "date": "2026 年 5 月",
@@ -3975,7 +3985,7 @@
           },
           "q3": {
             "question": "我可以禁用子代理吗？",
-            "answer": "<p>可以。前往<strong>设置 &gt; 功能 &gt; 子代理</strong>并关闭开关。助手将使用直接工具（网络搜索等）而不是委派。</p>"
+            "answer": "<p>子代理的启用<strong>由您的管理员在应用层级统一管理</strong>（通过全局配置）——这不再是您账户中的个人设置。</p><p><strong>您在每次委派时仍掌握主动权：</strong>启动子代理之前，LIA 都会向您请求确认。如果您拒绝，助手会自动切换到不调用专家的标准方案——您可以根据需要反复拒绝。</p><p>如果您希望<em>永远</em>不再看到子代理委派，请联系管理员在全局范围内停用该功能。</p>"
           },
           "q4": {
             "question": "子代理会消耗更多token吗？",
@@ -5418,31 +5428,6 @@
       "liability": "责任",
       "termination": "终止",
       "applicable_law": "适用法律"
-    }
-  },
-  "sub_agents": {
-    "templates": {
-      "research_assistant": {
-        "name": "研究助手",
-        "description": "专注于深度网络研究、多源综合和事实核查"
-      },
-      "writing_assistant": {
-        "name": "写作助手",
-        "description": "专注于撰写、编辑和改善书面内容"
-      },
-      "data_analyst": {
-        "name": "数据分析师",
-        "description": "专注于分析电子邮件、日历和文件中的数据"
-      }
-    },
-    "settings": {
-      "title": "子代理",
-      "description": "用于委派任务的专业助手",
-      "enable_toggle": "启用子代理",
-      "enable_description": "允许助手将任务委派给专门的子代理",
-      "enabled_success": "子代理已启用",
-      "disabled_success": "子代理已禁用",
-      "info": "启用后，助手可以将研究、分析和综合任务委派给专业的子代理以获得更好的结果。"
     }
   },
   "browser": {

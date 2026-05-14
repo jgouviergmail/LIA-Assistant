@@ -1719,7 +1719,7 @@
           "skill_description_translator": "Translates system skill descriptions into all 6 supported languages",
           "evaluator": "LLM-as-Judge evaluation pipeline (relevance, hallucination)",
           "compaction": "Summarizes old conversation history to free context window space",
-          "subagent": "Executes delegated tasks via specialized sub-agents (research, analysis, synthesis)",
+          "subagent": "Runs a scoped ReAct loop (read-only tools, tight iteration & token budget) for the principal assistant's expert delegations",
           "browser_agent": "Interactive web browsing agent (navigate, click, fill forms)",
           "journal_extraction": "Extracts journal entries from conversations (assistant introspection)",
           "journal_consolidation": "Reviews and consolidates journal entries periodically",
@@ -2922,6 +2922,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_5": {
+          "title": "v1.20.5 — Sub-agents: expert analyses finally substantive, expert voice preserved, 3 new admin settings",
+          "date": "May 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>Analyses delegated to a sub-agent are finally substantive</b> — When you asked <em>\"answer me like a senior analyst, use a specialised sub-agent\"</em>, the sub-agent used to go off exploring in every direction (up to 30+ successive searches), exhausted its budget before any synthesis, and returned either a truncated answer or a hollow blurb that the main assistant then drowned in its own conversational tone — the delegation added no real value. The sub-agent now follows a clear contract (\"if an assistant could write the same thing without you, it's a failure\"), calibrates the shape of its output to the signals in the request (deep analysis → sourced multi-section report; summary → faithful condensed version; comparison → parallel dimension-by-dimension structure), cites a URL for every figure, distinguishes facts from inferences, flags missing data instead of inventing it — and the main assistant relays its analysis <b>verbatim</b> (sections, sources, structure intact) without compressing or rewriting it in a sarcastic voice. Bonus: <b>no more forced markdown tables</b> in these answers — comparisons now use parallel lists or sections, which read better.",
+            "i2": "<b>Admin: 3 new settings to pilot the sub-agents</b> — <code>SUBAGENT_TOOL_TIMEOUT_SECONDS</code> (default 180 s, range 30-600) and <code>SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS</code> (default 300 s, range 60-900) decouple the delegation time budget from the generic <code>MAX_TOOL_TIMEOUT_SECONDS</code> ceiling (120 s, unchanged for other tools) — ReAct loops running on a slow reasoning model (deepseek high, gpt-5.2 high) can now legitimately last 90-150 s without being killed mid-synthesis. <code>SUBAGENT_RESEARCH_TOOLS_WHITELIST</code> (default <code>brave_search_tool,fetch_web_page_tool</code>) refocuses the sub-agent on factual verification instead of exploring a catalogue of ~80 tools (which used to burn its entire budget on sterile exploration). Validation at load time: a misspelled name in <code>.env</code> (dashes instead of underscores, semicolons instead of commas) raises a clear error instead of a silently empty whitelist.",
+            "i3": "<b>Admin: sub-agent iteration budget raised to 10 by default</b> — <code>SUBAGENT_DEFAULT_MAX_ITERATIONS</code> moves from 5 to 10 (range widened to 1-30, up from 1-15). LangGraph counts every node visit as a superstep, so 5 barely supported 2 tool rounds + synthesis — at 10, the sub-agent has the headroom for 3-4 tool rounds and a complete synthesis without hitting <code>GraphRecursionError</code>. Tune <code>SUBAGENT_DEFAULT_MAX_ITERATIONS</code> in <code>.env</code> if you want to push further (up to 30 for very deep analyses, or drop to 5-6 to save tokens on simple tasks)."
+          }
+        },
         "v1_20_4": {
           "title": "v1.20.4 — Reliable web browsing agent, Anthropic Claude 4.x fix, robust LLM config on model change",
           "date": "May 2026",
@@ -3989,7 +3999,7 @@
           },
           "q3": {
             "question": "Can I disable sub-agents?",
-            "answer": "<p>Yes. Go to <strong>Settings &gt; Features &gt; Sub-Agents</strong> and toggle the switch off. The assistant will then use direct tools (web search, etc.) instead of delegating.</p>"
+            "answer": "<p>Sub-agent activation is <strong>managed at the application level by your administrator</strong> (via a global configuration flag) — it's no longer a per-user setting in your account.</p><p><strong>You stay in control on each delegation:</strong> before launching a sub-agent, LIA systematically asks for your confirmation. If you decline, the assistant automatically switches to a standard plan without expert delegation — you can keep declining as often as needed.</p><p>If you'd prefer to <em>never</em> see a sub-agent delegation, ask your administrator to disable the feature globally.</p>"
           },
           "q4": {
             "question": "Do sub-agents cost more tokens?",
@@ -5503,31 +5513,6 @@
       "liability": "Liability",
       "termination": "Termination",
       "applicable_law": "Applicable law"
-    }
-  },
-  "sub_agents": {
-    "templates": {
-      "research_assistant": {
-        "name": "Research Assistant",
-        "description": "Specialized in deep web research, multi-source synthesis, and fact-checking"
-      },
-      "writing_assistant": {
-        "name": "Writing Assistant",
-        "description": "Specialized in drafting, editing, and improving written content"
-      },
-      "data_analyst": {
-        "name": "Data Analyst",
-        "description": "Specialized in analyzing data from emails, calendar, and files"
-      }
-    },
-    "settings": {
-      "title": "Sub-Agents",
-      "description": "Specialized assistants for delegated tasks",
-      "enable_toggle": "Enable sub-agents",
-      "enable_description": "Allow the assistant to delegate tasks to specialized sub-agents",
-      "enabled_success": "Sub-agents enabled",
-      "disabled_success": "Sub-agents disabled",
-      "info": "When enabled, the assistant can delegate research, analysis, and synthesis tasks to specialized sub-agents for better results."
     }
   },
   "browser": {

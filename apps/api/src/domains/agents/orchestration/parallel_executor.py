@@ -88,6 +88,7 @@ from src.core.constants import (
     HTTP_TIMEOUT_CONDITIONAL_EVAL,
     MAX_BROWSER_TOOL_TIMEOUT_SECONDS,
     MAX_TOOL_TIMEOUT_SECONDS,
+    TOOL_NAME_DELEGATE_SUB_AGENT,
 )
 from src.core.field_names import (
     FIELD_CORRELATED_TO,
@@ -1557,6 +1558,95 @@ async def execute_plan_parallel(
 # ============================================================================
 
 
+# Tool-name groupings consumed by `_compute_step_timeout`. Kept at module scope
+# (not inside the helper) so the timeout policy is greppable and constants are
+# evaluated once, not on every step.
+_BROWSER_TOOL_NAME = "browser_task_tool"
+_IMAGE_TOOL_NAMES: frozenset[str] = frozenset({"generate_image", "edit_image"})
+_DEVOPS_TOOL_NAME = "claude_server_task_tool"
+_SUB_AGENT_TOOL_NAME = "delegate_to_sub_agent_tool"
+_HIGH_LATENCY_TOOL_NAMES: frozenset[str] = _IMAGE_TOOL_NAMES | frozenset(
+    {_SUB_AGENT_TOOL_NAME, _DEVOPS_TOOL_NAME, _BROWSER_TOOL_NAME}
+)
+# Inline defaults — kept here (not in core/constants.py) because they are an
+# implementation detail of the parallel executor's timeout policy, not a
+# domain-level config. Sub-agent and browser timeouts ARE in
+# `core/constants.py` because operators tune them via `.env`; image and
+# devops have never needed that level of tunability.
+_IMAGE_TOOL_TIMEOUT_SECONDS = 90.0
+_DEVOPS_TOOL_TIMEOUT_SECONDS = 120.0  # Claude CLI can take 15-60s per investigation
+
+
+def _compute_step_timeout(
+    step_tool_name: str | None,
+    step_requested_timeout: float | None,
+) -> float:
+    """Compute the effective timeout (seconds) for an ExecutionStep.
+
+    Implements the per-tool-family policy:
+
+    - ``delegate_to_sub_agent_tool``: floor / ceiling tunable via Settings
+      (`subagent_tool_timeout_seconds` / `subagent_tool_max_timeout_seconds`),
+      so operators can adjust without touching application-wide constants.
+    - ``browser_task_tool``: dedicated higher floor / ceiling
+      (`BROWSER_TOOL_TIMEOUT_SECONDS` / `MAX_BROWSER_TOOL_TIMEOUT_SECONDS`)
+      because the nested ReAct loop legitimately takes minutes.
+    - Image tools (``generate_image``, ``edit_image``): 90 s floor,
+      `MAX_TOOL_TIMEOUT_SECONDS` ceiling.
+    - ``claude_server_task_tool``: 120 s floor, `MAX_TOOL_TIMEOUT_SECONDS`
+      ceiling.
+    - Everything else: `DEFAULT_TOOL_TIMEOUT_SECONDS` (30 s) floor,
+      `MAX_TOOL_TIMEOUT_SECONDS` (120 s) ceiling.
+
+    For high-latency tools (image / sub-agent / devops / browser), the
+    effective timeout is ``max(planner_request, family_default)`` capped by
+    the family ceiling — this prevents the planner from imposing a too-short
+    timeout that would kill the loop mid-task. For regular tools, it is just
+    ``min(planner_request or default, ceiling)``.
+
+    Args:
+        step_tool_name: ``ExecutionStep.tool_name`` (``None`` falls back to
+            the generic policy — happens for CONDITIONAL steps).
+        step_requested_timeout: ``ExecutionStep.timeout_seconds`` as set by
+            the planner (``None`` means "use the family default").
+
+    Returns:
+        Effective timeout in seconds. Always positive.
+    """
+    settings = get_settings()
+    sub_agent_floor: float = settings.subagent_tool_timeout_seconds
+    sub_agent_ceiling: float = settings.subagent_tool_max_timeout_seconds
+
+    # Floor (effective default if planner left it unset, AND minimum for
+    # high-latency tools — see docstring).
+    if step_tool_name == _SUB_AGENT_TOOL_NAME:
+        effective_default: float = sub_agent_floor
+    elif step_tool_name in _IMAGE_TOOL_NAMES:
+        effective_default = _IMAGE_TOOL_TIMEOUT_SECONDS
+    elif step_tool_name == _DEVOPS_TOOL_NAME:
+        effective_default = _DEVOPS_TOOL_TIMEOUT_SECONDS
+    elif step_tool_name == _BROWSER_TOOL_NAME:
+        effective_default = BROWSER_TOOL_TIMEOUT_SECONDS
+    else:
+        effective_default = DEFAULT_TOOL_TIMEOUT_SECONDS
+
+    # Ceiling.
+    if step_tool_name == _BROWSER_TOOL_NAME:
+        max_timeout: float = MAX_BROWSER_TOOL_TIMEOUT_SECONDS
+    elif step_tool_name == _SUB_AGENT_TOOL_NAME:
+        max_timeout = sub_agent_ceiling
+    else:
+        max_timeout = MAX_TOOL_TIMEOUT_SECONDS
+
+    # High-latency tools: enforce family floor even if planner asked for less.
+    if step_tool_name in _HIGH_LATENCY_TOOL_NAMES:
+        return min(
+            max(step_requested_timeout or effective_default, effective_default),
+            max_timeout,
+        )
+    return min(step_requested_timeout or effective_default, max_timeout)
+
+
 async def _execute_single_step_async(
     step: ExecutionStep,
     completed_steps: dict[str, dict[str, Any]],
@@ -1592,53 +1682,9 @@ async def _execute_single_step_async(
         enriched_config[FIELD_METADATA] = {}
     enriched_config[FIELD_METADATA][FIELD_NODE_NAME] = f"parallel_executor:{step.step_id}"
 
-    # Get timeout from step or use default, capped at MAX
-    # F6: Sub-agent delegation needs more time (full graph execution)
-    # Image generation needs more time (OpenAI API can take 30-60s for high quality)
-    # browser_task_tool runs a full nested ReAct loop (navigate/snapshot/click +
-    # one LLM call per iteration, up to BROWSER_REACT_MAX_ITERATIONS) — a
-    # multi-step browsing task needs minutes, so it gets a dedicated floor +
-    # a higher ceiling than the generic MAX_TOOL_TIMEOUT_SECONDS.
-    _SUBAGENT_TOOL_TIMEOUT = 120.0
-    _IMAGE_TOOL_TIMEOUT = 90.0
-    _DEVOPS_TOOL_TIMEOUT = 120.0  # Claude CLI can take 15-60s per investigation
-    _BROWSER_TOOL = "browser_task_tool"
-    _IMAGE_TOOLS = {"generate_image", "edit_image"}
-    _HIGH_LATENCY_TOOLS = _IMAGE_TOOLS | {
-        "delegate_to_sub_agent_tool",
-        "claude_server_task_tool",
-        _BROWSER_TOOL,
-    }
-    if step.tool_name == "delegate_to_sub_agent_tool":
-        effective_default = _SUBAGENT_TOOL_TIMEOUT
-    elif step.tool_name in _IMAGE_TOOLS:
-        effective_default = _IMAGE_TOOL_TIMEOUT
-    elif step.tool_name == "claude_server_task_tool":
-        effective_default = _DEVOPS_TOOL_TIMEOUT
-    elif step.tool_name == _BROWSER_TOOL:
-        effective_default = BROWSER_TOOL_TIMEOUT_SECONDS
-    else:
-        effective_default = DEFAULT_TOOL_TIMEOUT_SECONDS
-    # browser_task_tool keeps its own (higher) ceiling so a multi-step browse
-    # loop is never killed mid-task; everything else stays under MAX_TOOL_TIMEOUT.
-    max_timeout = (
-        MAX_BROWSER_TOOL_TIMEOUT_SECONDS
-        if step.tool_name == _BROWSER_TOOL
-        else MAX_TOOL_TIMEOUT_SECONDS
-    )
-    # Use max(step, default) for tools with known high latency (image gen,
-    # sub-agents, devops, browser) to prevent the planner from imposing a
-    # too-short timeout.
-    if step.tool_name in _HIGH_LATENCY_TOOLS:
-        timeout_seconds = min(
-            max(step.timeout_seconds or effective_default, effective_default),
-            max_timeout,
-        )
-    else:
-        timeout_seconds = min(
-            step.timeout_seconds or effective_default,
-            max_timeout,
-        )
+    # Per-tool-family timeout policy (sub-agent / browser tunable via Settings).
+    # See `_compute_step_timeout` for the full policy and rationale.
+    timeout_seconds = _compute_step_timeout(step.tool_name, step.timeout_seconds)
 
     logger.info(
         "step_execution_started",
@@ -2282,6 +2328,47 @@ async def _execute_tool_step(
     )
     if error_result:
         return error_result
+
+    # 1bis. ADR-083 — Post-resolution cap on delegate_to_sub_agent_tool.instruction.
+    # The manifest's max_length=5000 chars only constrains the TEMPLATE before $ref
+    # expansion ("...$steps.X..." ≈ 50 chars). After resolution, raw payloads can
+    # explode the string (incident 2026-05-12: 114K tokens of inlined HTML emails).
+    # Re-validate the resolved value here — the only point where the actual
+    # size is known. Honors SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED (.env).
+    if step.tool_name == TOOL_NAME_DELEGATE_SUB_AGENT:
+        from src.core.config import get_settings
+        from src.infrastructure.llm.providers.token_counter import EstimationTokenCounter
+
+        instruction_value = resolved_args.get("instruction") or ""
+        if isinstance(instruction_value, str) and instruction_value:
+            token_estimate = EstimationTokenCounter().count(instruction_value, model="any")
+            cap = get_settings().subagent_instruction_max_tokens_resolved
+            if token_estimate > cap:
+                logger.warning(
+                    "subagent_instruction_oversized_after_resolution",
+                    step_id=step.step_id,
+                    token_estimate=token_estimate,
+                    cap=cap,
+                    sample=instruction_value[:200],
+                )
+                execution_time_ms = int((time.time() - start_time) * 1000)
+                return StepResult(
+                    step_id=step.step_id,
+                    step_type=StepType.TOOL,
+                    tool_name=step.tool_name,
+                    args=resolved_args,
+                    success=False,
+                    error=(
+                        f"Sub-agent instruction too large after reference "
+                        f"resolution ({token_estimate} tokens > cap {cap}) — "
+                        f"likely a $steps reference to a raw payload. "
+                        f"Pass a task statement, not data; the sub-agent will "
+                        f"fetch what it needs with its own tools."
+                    ),
+                    error_code=ToolErrorCode.INVALID_INPUT,
+                    execution_time_ms=execution_time_ms,
+                    wave_id=wave_id,
+                )
 
     # 2. Get tool manifest from registry (Session 22 - Helper #7)
     _manifest, error_result = _get_tool_manifest_for_step(

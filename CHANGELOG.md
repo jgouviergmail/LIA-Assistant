@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.5] - 2026-05-14
+
+### Fixed — Sub-agent delegation: vague outputs, runaway exploration, dilution by the response node
+
+After the ADR-083 Phase 2 rewrite of `delegate_to_sub_agent_tool` onto `ReactSubAgentRunner`, observed runs of "as a senior analyst, use a specialized sub-agent" queries surfaced three failure modes that combined to make delegation produce **no measurable value over a direct answer**:
+
+- **`GraphRecursionError` / 47-char final message** — `subagent_default_max_iterations` defaulted to `5`, which LangGraph spends on `2 × call_model + 2 × execute_tools + 1` supersteps. Sub-agents that batched 4-5 parallel searches in pass 1 then ran out of budget for the synthesis pass and exited with a near-empty `final_message` (one observed run: 9 iterations, 31 brave_search calls, **47 chars** returned). Default bumped to `10` (range `1–30`); the per-step ReAct loop now has headroom for ~3-4 tool rounds plus synthesis.
+- **80+ tools exposed to the sub-agent** — `resolve_tools_for_subagent` was called with `allowed_tools=[]`, so it fell back to "everything except `SUBAGENT_DEFAULT_BLOCKED_TOOLS`" (~83 read-only tools). Faced with that catalogue, the sub-agent's ReAct loop burns its recursion budget exploring options instead of converging. New whitelist mode wired through `SUBAGENT_RESEARCH_TOOLS_WHITELIST` (default `brave_search_tool,fetch_web_page_tool`) — when set, the resolver becomes an allow-list and the sub-agent stays focused on factual verification.
+- **`delegate_to_sub_agent_tool` step killed at 120 s** — the generic `MAX_TOOL_TIMEOUT_SECONDS = 120` is fine for a single API call but starves a slow-reasoning ReAct loop (deepseek with high effort, 3-4 tool rounds + synthesis can legitimately need 90-150 s). Pair of dedicated env vars added — `SUBAGENT_TOOL_TIMEOUT_SECONDS` floor (default `180`, range `30-600`) and `SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS` ceiling (default `300`, range `60-900`) — wired through `parallel_executor._execute_step_with_timeout` via a `tool_name == "delegate_to_sub_agent_tool"` branch so other tools keep the global `MAX_TOOL_TIMEOUT_SECONDS = 120` (unchanged).
+- **`response_node` compressing 26 KB of expert analysis to 2 KB and overlaying the principal's voice** — the `<ResponseGuidelines>` rule "do not list/detail results (handled by cards)" is correct for record lists (emails, events) but defeats the purpose of delegation when the payload is a multi-section expert analysis written specifically as the response body. New conditional `<SubAgentDeliveryOverride>` block in `response_system_prompt_base.txt` detects substantial textual analyses (markdown sections + expert voice + cited sources + several thousand characters) and switches the response node to verbatim restitution: no compression, no rewriting in the assistant's conversational personality voice, only a one-sentence intro and 2-3 follow-up suggestions allowed. For non-textual payloads (record lists, action confirmations), `<ResponseGuidelines>` apply unchanged.
+
+### Changed — `subagent_react_prompt.txt` rewritten for delivery discipline
+
+Previous prompt (~17 lines) stated "produce a concise factual analytical text" — too vague. The sub-agent was tempted to over-explore (31 brave_search calls in one observed run) and under-deliver (47-char final message in the same run, 203 chars in another). Rewrite (~65 lines) introduces:
+
+- **Value contract**: "If a knowledgeable assistant could write the same thing without consulting you, you have failed. The bar is what an expert with 10+ years in this domain would produce."
+- **Task calibration lexicon**: keywords like *analyse / étude / compte rendu / détaillé / approfondi* trigger a multi-section structured report; *résumé / brief / concis* triggers a tight condensation; *comparaison / vs / benchmark* triggers parallel structure across dimensions. Depth modifiers win on ambiguous wording (e.g. "synthèse détaillée" → deeper form).
+- **Epistemic rigor**: cite URLs for every numeric/factual claim, mark inferences explicitly ("Inference:", "Per my analysis:"), name gaps when sources are insufficient instead of fabricating, quote numbers/dates/names exactly.
+- **Execution discipline**: 1-3 rounds of tool calls preferred, "5+ parallel searches in one round" called out as a tool-spam tell, "when you have enough material, STOP and write" — soft signal complementing the hard `recursion_limit` cap.
+- **Negative voice anchor**: explicitly forbids the principal's conversational tone (sarcasm, orality, "tour de contrôle"/"vieux briscard" rhetoric, first-person banter). The sub-agent is a written expert document; the principal's voice is the principal's.
+- **NO markdown tables** — tables are explicitly penalised in `Output style`. For comparisons or multi-dimensional data, the prompt mandates parallel bullet lists, one section per item with the same sub-headings, or inline structured prose. For numeric data, figures are integrated into prose with sources cited inline.
+- **Pre-emit self-check** — 6-question checklist (sources cited? inferences marked? depth proportional? expert voice preserved? gaps named? endorsable by a senior practitioner?) before producing the final answer.
+- **Explicit anti-patterns** — 7 documented failure modes (e.g. *"announcing 'Voici l'analyse complète' then delivering 47 characters"*) — LLMs exclude better than they prescribe.
+
+### Added — New env vars (4 settings, all tunable via `.env`)
+
+| Variable | Default | Range | Purpose |
+|----------|---------|-------|---------|
+| `SUBAGENT_TOOL_TIMEOUT_SECONDS` | `180.0` | 30-600 | Floor on `delegate_to_sub_agent_tool` step timeout. Replaces the generic 120 s. |
+| `SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS` | `300.0` | 60-900 | Dedicated ceiling — operators can raise the sub-agent budget without touching the app-wide `MAX_TOOL_TIMEOUT_SECONDS`. |
+| `SUBAGENT_RESEARCH_TOOLS_WHITELIST` | `brave_search_tool,fetch_web_page_tool` | snake_case CSV | Tools the ReAct sub-agent may invoke. Empty = legacy blocklist-only behaviour. |
+| `SUBAGENT_DEFAULT_MAX_ITERATIONS` | bumped `5 → 10` | 1-30 (ceiling raised from 15) | LangGraph `recursion_limit` of the sub-agent ReAct loop. |
+
+A Pydantic `field_validator` on `subagent_research_tools_whitelist` rejects malformed values (dashes instead of underscores, semicolons instead of commas, leading digits, uppercase) with a clear error at config-load time — silent typo-induced empty whitelists would otherwise degrade the sub-agent to blocklist-only mode (the known cause of `GraphRecursionError`).
+
+### Tests
+
+- `tests/unit/test_subagent_settings.py` — 21 cases covering defaults (180/300/10), Pydantic ranges (rejected below 30 / above 600 for timeout, below 60 / above 900 for max timeout, above 30 for iterations), the `subagent_research_tools_whitelist_parsed` property (CSV parsing edge cases: trailing comma, whitespace-only entries, single value, empty input), and the new `field_validator` (rejects dashes, semicolons, uppercase, leading digits; accepts empty; accepts default).
+- `tests/unit/domains/sub_agents/test_subagent_prompt.py` — 8 cases asserting the rewritten prompt contains the value contract ("materially better", "10+ years"), explicit `NO markdown tables` directive, the task calibration lexicon (analyse / synthèse / résumé / comparaison), the self-check protocol, and explicit anti-patterns. New case for the `<SubAgentDeliveryOverride>` block in `response_system_prompt_base.txt`.
+
+### Documentation
+
+- `docs/technical/SUB_AGENTS.md` — new env vars table (4 settings, ranges, rationale), new `Why dedicated timeout + whitelist` section explaining why the generic `MAX_TOOL_TIMEOUT_SECONDS` was insufficient and why the 80-tool catalogue starved the recursion budget, new `Response Node — Verbatim Delivery Override (2026-05-14)` section documenting the conditional `<SubAgentDeliveryOverride>` block.
+- In-app FAQ (`apps/web/locales/*/translation.json`, 6 languages): new `faq.changelog.versions.v1_20_5` entry (3 user/admin items focused on observable quality improvement, no internal implementation details).
+- `docs/GETTING_STARTED.md` compatibility line bumped to v1.20.5.
+- `README.md` top banner updated to v1.20.5 (v1.20.4 demoted to a `<details>` block).
+- Version bumped to `1.20.5` across `apps/api/pyproject.toml`, `apps/web/package.json`, `package.json`, and `apps/web/src/lib/version.ts` (`LAST_UPDATED = 2026-05-14T17:30:00`, shown on the landing page).
+
 ## [1.20.4] - 2026-05-12
 
 ### Fixed — Browser agent: model 404, premature step kill, AX-tree starvation

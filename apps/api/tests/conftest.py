@@ -45,7 +45,8 @@ from sqlalchemy.pool import StaticPool
 from testcontainers.postgres import PostgresContainer
 
 import src.domains.skills.models  # noqa: F401 — UserSkillState mapper registration
-import src.domains.sub_agents.models  # noqa: F401 — F6 SubAgent mapper registration
+
+# ADR-083 Phase 2 cleanup: sub_agents.models removed (table dropped).
 from src.core.config import Settings
 from src.core.dependencies import get_db
 from src.domains.agents.context.registry import ContextTypeRegistry

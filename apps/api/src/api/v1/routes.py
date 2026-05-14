@@ -46,10 +46,10 @@ api_router.include_router(interests_router)
 api_router.include_router(notifications_router)
 api_router.include_router(scheduled_actions_router)
 api_router.include_router(briefing_router)  # Today dashboard
-if getattr(settings, "sub_agents_enabled", False):
-    from src.domains.sub_agents.router import router as sub_agents_router
-
-    api_router.include_router(sub_agents_router)
+# ADR-083 Phase 2 cleanup: /sub-agents REST router removed (no frontend
+# consumer; the planner's ephemeral delegation path runs on ReactSubAgentRunner
+# and never touched the REST surface). SUB_AGENTS_ENABLED still gates the
+# delegate_to_sub_agent_tool tool itself, but no router is mounted.
 if getattr(settings, "mcp_enabled", False):
     from src.domains.user_mcp.admin_router import router as admin_mcp_router
 

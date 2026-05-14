@@ -1,8 +1,14 @@
 """
 Unit tests for delegate_to_sub_agent_tool.
 
-Verifies tool definition, parameters, and depth-check logic.
+Verifies tool definition, parameters, depth-check logic, and (post ADR-083)
+the rewrite onto ReactSubAgentRunner.
 """
+
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class TestDelegateToolDefinition:
@@ -115,3 +121,210 @@ class TestDepthCheck:
         """Normal session IDs don't trigger depth check."""
         session_id = "user_conversation_abc123"
         assert not session_id.startswith("subagent_")
+
+
+# ============================================================================
+# ADR-083: delegate_to_sub_agent_tool runs on ReactSubAgentRunner
+# ============================================================================
+
+
+class _FakeRuntime:
+    """Minimal ToolRuntime stand-in (dict-shaped config + truthy store)."""
+
+    def __init__(
+        self,
+        user_id: str = "00000000-0000-0000-0000-000000000001",
+        thread_id: str = "thread_abc",
+    ) -> None:
+        self.config = {
+            "configurable": {
+                "user_id": user_id,
+                "thread_id": thread_id,
+                "user_timezone": "Europe/Paris",
+                "user_language": "fr",
+            },
+            "metadata": {},
+            "callbacks": [],
+        }
+        self.store = MagicMock()  # truthy
+
+
+# ADR-083 Phase 2 Task 4 (Option B): the per-user `sub_agents_enabled`
+# preference check was removed — the tool no longer touches the DB on its
+# main path. Tests below run without DB/UserService mocks.
+
+
+class TestDelegateRunsOnReactSubAgentRunner:
+    """ADR-083 behavior tests: the tool must run on ReactSubAgentRunner, not SubAgentExecutor."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_invokes_react_runner_with_correct_args(self):
+        """delegate_to_sub_agent_tool calls ReactSubAgentRunner('subagent', 'subagent_react_prompt').run(...).
+
+        Verifies:
+        - LLM type and prompt name are exactly the ADR-083 values.
+        - task=instruction, expertise injected via prompt_vars.
+        - recursion_limit comes from settings.subagent_default_max_iterations.
+        - display_name carries an "sub-agent: <expertise>" prefix (token attribution).
+        - parent_runtime is propagated (config + store + callbacks isolation).
+        """
+        from src.core.config import get_settings
+        from src.domains.agents.tools.sub_agent_tools import delegate_to_sub_agent_tool
+
+        runner_mock = MagicMock()
+        runner_mock.run = AsyncMock(
+            return_value=SimpleNamespace(
+                final_message="Analysis of 5 emails: subject A, B, C.",
+                messages=[],
+                accumulated_registry={},
+                iteration_count=2,
+                duration_ms=1234,
+            )
+        )
+
+        fake_runtime = _FakeRuntime()
+
+        with (
+            patch(
+                "src.domains.agents.tools.sub_agent_tools.ReactSubAgentRunner",
+                return_value=runner_mock,
+            ) as runner_ctor,
+            patch(
+                "src.domains.agents.tools.sub_agent_tools.get_all_tools",
+                return_value={"get_emails_tool": MagicMock(name="get_emails_tool")},
+            ),
+        ):
+            result = await delegate_to_sub_agent_tool.coroutine(
+                expertise="expert comptable specialise en analyse de tresorerie",
+                instruction="Analyse les flux Q1 et identifie les anomalies.",
+                runtime=fake_runtime,
+            )
+
+        runner_ctor.assert_called_once_with("subagent", "subagent_react_prompt")
+        run_kwargs = runner_mock.run.await_args.kwargs
+        assert run_kwargs["task"] == "Analyse les flux Q1 et identifie les anomalies."
+        assert run_kwargs["prompt_vars"] == {
+            "expertise": "expert comptable specialise en analyse de tresorerie"
+        }
+        assert run_kwargs["thread_prefix"] == "subagent"
+        assert run_kwargs["display_name"].startswith("sub-agent: ")
+        assert run_kwargs["recursion_limit"] == get_settings().subagent_default_max_iterations
+        assert run_kwargs["parent_runtime"] is fake_runtime
+
+        # Output mapping: final_message → structured_data["analysis"].
+        assert result.success is True
+        assert result.structured_data["analysis"].startswith("Analysis of 5 emails")
+        assert (
+            result.structured_data["expertise"]
+            == "expert comptable specialise en analyse de tresorerie"
+        )
+        assert result.structured_data["type"] == "sub_agent_analysis"
+        assert result.metadata["iteration_count"] == 2
+        assert result.metadata["duration_ms"] == 1234
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_returns_failure_when_runner_signals_error(self):
+        """If ReactSubAgentRunner.run returns final_message starting with 'Error:', tool returns failure."""
+        from src.domains.agents.tools.sub_agent_tools import delegate_to_sub_agent_tool
+
+        runner_mock = MagicMock()
+        runner_mock.run = AsyncMock(
+            return_value=SimpleNamespace(
+                final_message="Error: GraphRecursionError: limit reached",
+                messages=[],
+                accumulated_registry={},
+                iteration_count=5,
+                duration_ms=9999,
+            )
+        )
+
+        with (
+            patch(
+                "src.domains.agents.tools.sub_agent_tools.ReactSubAgentRunner",
+                return_value=runner_mock,
+            ),
+            patch(
+                "src.domains.agents.tools.sub_agent_tools.get_all_tools",
+                return_value={},
+            ),
+        ):
+            result = await delegate_to_sub_agent_tool.coroutine(
+                expertise="x",
+                instruction="y",
+                runtime=_FakeRuntime(),
+            )
+
+        assert result.success is False
+        assert result.error_code == "EXECUTION_FAILED"
+        assert "did not complete" in (result.message or "")
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_blocked_when_already_inside_subagent(self):
+        """Depth guard: thread_id starting with 'subagent_' → DEPTH_LIMIT_EXCEEDED."""
+        from src.domains.agents.tools.sub_agent_tools import delegate_to_sub_agent_tool
+
+        result = await delegate_to_sub_agent_tool.coroutine(
+            expertise="x",
+            instruction="y",
+            runtime=_FakeRuntime(thread_id="subagent_abc123"),
+        )
+
+        assert result.success is False
+        assert result.error_code == "DEPTH_LIMIT_EXCEEDED"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_does_not_import_legacy_executor_or_crud_classes(self):
+        """Regression: the ephemeral path must not depend on the deleted persistent code.
+
+        After ADR-083 Phase 2 cleanup, SubAgentService/SubAgentExecutor/SubAgentRepository
+        no longer exist in the codebase, and UserService is no longer imported by this
+        tool (the per-user preference check was removed in Option B). The tool also
+        must not open a DB session on its main path.
+        """
+        import src.domains.agents.tools.sub_agent_tools as tool_module
+        from src.domains.agents.tools.sub_agent_tools import delegate_to_sub_agent_tool
+
+        for symbol in (
+            "SubAgentService",
+            "SubAgentExecutor",
+            "SubAgentRepository",
+            "UserService",
+            "get_db_context",
+        ):
+            assert not hasattr(
+                tool_module, symbol
+            ), f"ADR-083 Phase 2: {symbol} must not be imported by sub_agent_tools.py"
+
+        # And the tool runs end-to-end without DB / UserService plumbing.
+        runner_mock = MagicMock()
+        runner_mock.run = AsyncMock(
+            return_value=SimpleNamespace(
+                final_message="ok",
+                messages=[],
+                accumulated_registry={},
+                iteration_count=1,
+                duration_ms=10,
+            )
+        )
+
+        with (
+            patch(
+                "src.domains.agents.tools.sub_agent_tools.ReactSubAgentRunner",
+                return_value=runner_mock,
+            ),
+            patch(
+                "src.domains.agents.tools.sub_agent_tools.get_all_tools",
+                return_value={},
+            ),
+        ):
+            result = await delegate_to_sub_agent_tool.coroutine(
+                expertise="x",
+                instruction="y",
+                runtime=_FakeRuntime(),
+            )
+
+        assert result.success is True

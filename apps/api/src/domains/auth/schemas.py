@@ -349,24 +349,8 @@ class DebugPanelPreferenceResponse(BaseModel):
     )
 
 
-class SubAgentsPreferenceRequest(BaseModel):
-    """Schema for updating user sub-agents delegation preference."""
-
-    sub_agents_enabled: bool = Field(
-        ..., description="Enable or disable delegation to specialized sub-agents"
-    )
-
-
-class SubAgentsPreferenceResponse(BaseModel):
-    """Schema for sub-agents preference update response."""
-
-    sub_agents_enabled: bool = Field(
-        ..., description="Current sub-agents delegation preference state"
-    )
-    message: str = Field(
-        default="Sub-agents preference updated",
-        description="Confirmation message",
-    )
+# ADR-083 Phase 2 cleanup: SubAgentsPreferenceRequest/Response were removed
+# along with the PATCH /me/sub-agents-preference endpoint (Option B).
 
 
 class DisplayModePreferenceRequest(BaseModel):

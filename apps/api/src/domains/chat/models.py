@@ -107,13 +107,6 @@ class MessageTokenSummary(BaseModel):
         Numeric(10, 6), default=Decimal("0.0")
     )
 
-    # Sub-agent cost attribution (F6): links background sub-agent run to parent turn
-    parent_run_id: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-        doc="Parent run_id for sub-agent background executions (cost attribution)",
-    )
-
     __table_args__ = (Index("ix_message_token_summary_user_created", "user_id", "created_at"),)
 
 
