@@ -471,7 +471,7 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
         else:
             prefix = "SYSTEM"
 
-        content = msg.content if isinstance(msg.content, str) else str(msg.content)
+        content = str(msg.text)
         # Truncate very long messages
         if len(content) > max_chars:
             content = content[:max_chars] + "..."
@@ -846,7 +846,7 @@ async def _analyze_interests_core(
             user_id=user_id,
         )
         _llm_duration_ms = (_time.time() - _llm_start) * 1000
-        result_content = result.content if isinstance(result.content, str) else str(result.content)
+        result_content = result.text
 
         # DEBUG: Log LLM response
         logger.info(

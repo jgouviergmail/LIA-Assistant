@@ -23,7 +23,6 @@ from uuid import UUID
 import httpx
 
 from src.core.config import settings
-from src.core.constants import HTTP_TIMEOUT_BRAVE_SEARCH
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -80,7 +79,7 @@ class BraveSearchClient:
         """Get or create reusable HTTP client."""
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(
-                timeout=httpx.Timeout(HTTP_TIMEOUT_BRAVE_SEARCH),
+                timeout=httpx.Timeout(settings.http_timeout_brave_search),
                 headers={"X-Subscription-Token": self.api_key},
                 follow_redirects=True,
             )

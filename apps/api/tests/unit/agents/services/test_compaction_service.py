@@ -280,6 +280,10 @@ class TestCompact:
         # Mock LLM response
         mock_response = MagicMock()
         mock_response.content = "## Summary\nUser asked about contacts."
+        # Migration BaseMessage.text (LangChain Core 1.2+): production code now
+        # reads ``.text`` instead of ``.content``; mirror the value on the mock
+        # so the assertion on returned text still holds.
+        mock_response.text = "## Summary\nUser asked about contacts."
         mock_response.usage_metadata = MagicMock(input_tokens=500, output_tokens=100)
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = mock_response

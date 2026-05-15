@@ -37,7 +37,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from src.core.constants import BROWSER_DEFAULT_TIMEOUT_MS, DEFAULT_TOOL_TIMEOUT_MS
+from src.core.config import settings
 
 from .catalogue import AgentManifest
 
@@ -58,7 +58,7 @@ CONTACT_AGENT_MANIFEST = AgentManifest(
         "delete_contact_tool",
     ],
     max_parallel_runs=1,
-    default_timeout_ms=DEFAULT_TOOL_TIMEOUT_MS,
+    default_timeout_ms=settings.default_tool_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",
@@ -110,7 +110,7 @@ EMAIL_AGENT_MANIFEST = AgentManifest(
         "delete_email_tool",
     ],
     max_parallel_runs=1,
-    default_timeout_ms=DEFAULT_TOOL_TIMEOUT_MS,
+    default_timeout_ms=settings.default_tool_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",
@@ -139,7 +139,7 @@ EVENT_AGENT_MANIFEST = AgentManifest(
         "list_calendars_tool",  # Metadata tool (list containers)
     ],
     max_parallel_runs=1,
-    default_timeout_ms=DEFAULT_TOOL_TIMEOUT_MS,
+    default_timeout_ms=settings.default_tool_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",
@@ -162,7 +162,7 @@ FILE_AGENT_MANIFEST = AgentManifest(
         "get_files_tool",  # Unified tool (v2.0 - replaces search + list + details)
     ],
     max_parallel_runs=1,
-    default_timeout_ms=DEFAULT_TOOL_TIMEOUT_MS,
+    default_timeout_ms=settings.default_tool_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",
@@ -191,7 +191,7 @@ TASK_AGENT_MANIFEST = AgentManifest(
         "list_task_lists_tool",  # Metadata tool (list containers)
     ],
     max_parallel_runs=1,
-    default_timeout_ms=DEFAULT_TOOL_TIMEOUT_MS,
+    default_timeout_ms=settings.default_tool_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",
@@ -318,7 +318,7 @@ PLACE_AGENT_MANIFEST = AgentManifest(
         "get_current_location_tool",  # Reverse geocoding for location queries
     ],
     max_parallel_runs=1,
-    default_timeout_ms=DEFAULT_TOOL_TIMEOUT_MS,
+    default_timeout_ms=settings.default_tool_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",
@@ -345,7 +345,7 @@ ROUTE_AGENT_MANIFEST = AgentManifest(
         "get_route_matrix_tool",  # Distance/duration matrix
     ],
     max_parallel_runs=1,
-    default_timeout_ms=DEFAULT_TOOL_TIMEOUT_MS,
+    default_timeout_ms=settings.default_tool_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",
@@ -369,7 +369,7 @@ BRAVE_AGENT_MANIFEST = AgentManifest(
         "brave_news_tool",
     ],
     max_parallel_runs=3,
-    default_timeout_ms=DEFAULT_TOOL_TIMEOUT_MS,
+    default_timeout_ms=settings.default_tool_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",
@@ -393,7 +393,7 @@ WEB_SEARCH_AGENT_MANIFEST = AgentManifest(
         "unified_web_search_tool",
     ],
     max_parallel_runs=2,  # Lower due to triple source orchestration
-    default_timeout_ms=DEFAULT_TOOL_TIMEOUT_MS * 2,  # Double timeout for parallel calls
+    default_timeout_ms=settings.default_tool_timeout_ms * 2,  # Double timeout for parallel calls
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",
@@ -414,7 +414,7 @@ BROWSER_AGENT_MANIFEST = AgentManifest(
         "browser_task_tool",
     ],
     max_parallel_runs=1,
-    default_timeout_ms=BROWSER_DEFAULT_TIMEOUT_MS,
+    default_timeout_ms=settings.browser_default_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",
@@ -434,7 +434,7 @@ WEB_FETCH_AGENT_MANIFEST = AgentManifest(
         "fetch_web_page_tool",
     ],
     max_parallel_runs=2,
-    default_timeout_ms=DEFAULT_TOOL_TIMEOUT_MS,
+    default_timeout_ms=settings.default_tool_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",

@@ -31,7 +31,6 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from src.core.config import settings
 from src.core.constants import (
-    BRAVE_SEARCH_ENRICHMENT_TIMEOUT,
     BRAVE_SEARCH_MAX_CONTEXT_CHARS,
     BRAVE_SEARCH_MAX_RESULTS,
 )
@@ -352,7 +351,7 @@ class KnowledgeEnrichmentService:
                     count=BRAVE_SEARCH_MAX_RESULTS,
                     freshness=freshness,
                 ),
-                timeout=BRAVE_SEARCH_ENRICHMENT_TIMEOUT,
+                timeout=settings.brave_search_enrichment_timeout_seconds,
             )
 
             if not api_response:
@@ -388,7 +387,7 @@ class KnowledgeEnrichmentService:
                 "knowledge_enrichment_api_timeout",
                 keyword=keyword,
                 endpoint=endpoint,
-                timeout=BRAVE_SEARCH_ENRICHMENT_TIMEOUT,
+                timeout=settings.brave_search_enrichment_timeout_seconds,
             )
             return None
 

@@ -572,7 +572,11 @@ REDIS_HEALTH_CHECK_INTERVAL_DEFAULT = 30  # Seconds between PING health checks
 LLM_PRICING_CACHE_TTL_DEFAULT = 3600  # 1 hour
 PERPLEXITY_SEARCH_CACHE_TTL = 300  # 5 minutes - search results
 BRAVE_SEARCH_CACHE_TTL = 3600  # 1 hour - knowledge enrichment results
-BRAVE_SEARCH_ENRICHMENT_TIMEOUT = 3.0  # Service-level timeout (cache + API call)
+BRAVE_SEARCH_ENRICHMENT_TIMEOUT = 8.0  # Service-level timeout (cache + API call).
+# NOTE: must remain >= HTTP_TIMEOUT_BRAVE_SEARCH * 1.5 (per-request HTTP timeout
+# defined below in HTTP CLIENT TIMEOUTS) to avoid the cascade inversion bug
+# where the job-level wrapper fired before the underlying HTTP request had a
+# chance to complete (was 3.0s with HTTP at 5.0s — see TIMEOUT_REGISTRY G2).
 AGENT_REGISTRY_CACHE_TTL = 3600  # 1 hour - full tool catalog
 AGENT_REGISTRY_FILTERED_CACHE_TTL = 300  # 5 minutes - filtered catalog
 TOKEN_SUMMARY_CACHE_TTL = 3600  # 1 hour - streaming token summaries
@@ -777,7 +781,9 @@ HTTP_TIMEOUT_PERPLEXITY = 60.0  # Perplexity AI (complex queries can be slow)
 HTTP_TIMEOUT_WEATHER = 10.0  # OpenWeatherMap API
 HTTP_TIMEOUT_WIKIPEDIA = 15.0  # Wikipedia API
 HTTP_TIMEOUT_BRAVE_SEARCH = 5.0  # Brave Search API (per request)
-HTTP_TIMEOUT_CURRENCY_API = 5.0  # Currency exchange rate API
+# NOTE: HTTP_TIMEOUT_CURRENCY_API removed in Wave 4 (G1, 2026-05-15) — duplicate
+# of CURRENCY_API_TIMEOUT_SECONDS_DEFAULT. The currency client reads
+# settings.currency_api_timeout_seconds (advanced.py).
 HTTP_TIMEOUT_EXTERNAL_API = 5.0  # Generic external API calls (fallback)
 
 # Connector operations
@@ -785,7 +791,6 @@ HTTP_TIMEOUT_CONNECTOR_STANDARD = 15.0  # Standard connector operations
 HTTP_TIMEOUT_CONNECTOR_LONG = 30.0  # Long connector operations (bulk, attachments)
 
 # Internal infrastructure
-HTTP_TIMEOUT_PROMPT_REGISTRY = 5.0  # Prompt registry fetch
 HTTP_TIMEOUT_CONDITIONAL_EVAL = 5.0  # Conditional evaluation (parallel executor)
 HTTP_TIMEOUT_SSE_POLLING = 30.0  # SSE long-polling for notifications
 
@@ -823,13 +828,6 @@ SCHEDULER_LEADER_LOCK_TTL_SECONDS = 120  # 2 minutes (renewed every 30s)
 SCHEDULER_LEADER_RENEW_INTERVAL_SECONDS = 30  # Renewal frequency
 SCHEDULER_LEADER_RE_ELECTION_INTERVAL_SECONDS = 5  # Background re-election check interval
 SCHEDULER_JOB_LEADER_LOCK_RENEWAL = "scheduler_leader_lock_renewal"  # Leader lock renewal job ID
-
-# ============================================================================
-# BACKGROUND TASKS
-# ============================================================================
-
-# Default timeout for background task execution (in seconds)
-BACKGROUND_TASK_TIMEOUT_DEFAULT = 30.0  # 30 seconds
 
 # ============================================================================
 # FUZZY MATCHING (Reference Validator)
@@ -933,6 +931,18 @@ MAX_TOOL_TIMEOUT_SECONDS = 120.0  # 2 minutes - prevents runaway operations
 # (which would otherwise let the planner kill the loop after ~30-120s).
 BROWSER_TOOL_TIMEOUT_SECONDS = 300.0  # 5 minutes - default floor for browser_task_tool steps
 MAX_BROWSER_TOOL_TIMEOUT_SECONDS = 600.0  # 10 minutes - hard ceiling for browser_task_tool steps
+
+# Image generation tool (generate_image / edit_image) — provider HTTP calls
+# (gpt-image-1, etc.) take noticeably longer than a regular API call. Dedicated
+# floor so the planner does not undercut it via the generic 30s default.
+IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT = 90.0
+
+# DevOps `claude_server_task_tool` runs a Claude CLI investigation over SSH on
+# a remote server. The wall-clock at the parallel-executor level is shorter
+# than the SSH-side `devops_command_timeout` (which bounds the remote command
+# itself), but still longer than the generic tool default because the round
+# trip includes SSH connect + Claude CLI startup.
+DEVOPS_CLAUDE_TOOL_TIMEOUT_SECONDS_DEFAULT = 120.0
 
 # Sub-agent delegation tool runs a bounded ReAct loop over a read-only toolset
 # (ADR-083). With slower reasoning models and multiple research tool calls,
@@ -2830,6 +2840,28 @@ PLANNER_FIELD_TO_PARAM_NAMES: dict[str, frozenset[str]] = _build_field_to_param_
 CLARIFICATION_RECIPIENT_FIELDS: frozenset[str] = frozenset(
     ["to", "recipient", "attendees", "participants"]
 )
+
+# ============================================================================
+# INDEXABLE vs SEMANTIC CRITERIA (Universal Planning Principle)
+# ============================================================================
+# Free-text/search parameter names exposed by tools across all connectors.
+# Used by the validator to detect semantic terms leaked into a literal text
+# search (which would return 0 hits or false positives). The list is
+# intentionally broad to cover the most common naming conventions; a tool
+# that does NOT use one of these names is exempt by construction.
+#
+# Reference: smart_planner_prompt.txt — "INDEXABLE vs SEMANTIC CRITERIA"
+# Used by: orchestration/validator.py (semantic leak detection)
+# ============================================================================
+TEXT_SEARCH_PARAM_NAMES: frozenset[str] = frozenset(
+    {"query", "q", "search", "search_query", "text", "keywords"}
+)
+
+# Default broad batch size when a semantic filter requires downstream
+# filtering. The Response LLM filters/ranks within this batch.
+# Range: PLANNER_SEMANTIC_BROAD_BATCH_MIN (20) to ~50.
+PLANNER_SEMANTIC_BROAD_BATCH_DEFAULT: int = 25
+PLANNER_SEMANTIC_BROAD_BATCH_MIN: int = 20
 
 # ============================================================================
 # EARLY INSUFFICIENT CONTENT DETECTION (Pre-Planner Optimization)

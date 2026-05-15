@@ -33,6 +33,7 @@ from src.core.constants import (
     APPLE_SMTP_MAX_SIZE_MB_DEFAULT,
     APPLE_SMTP_PORT_DEFAULT,
     BRAVE_SEARCH_CACHE_TTL,
+    BRAVE_SEARCH_ENRICHMENT_TIMEOUT,
     CALENDAR_CACHE_DETAILS_TTL,
     CALENDAR_CACHE_LIST_TTL,
     CALENDAR_CACHE_SEARCH_TTL,
@@ -66,15 +67,22 @@ from src.core.constants import (
     GOOGLE_CONTACTS_DETAILS_CACHE_TTL,
     GOOGLE_CONTACTS_LIST_CACHE_TTL,
     GOOGLE_CONTACTS_SEARCH_CACHE_TTL,
-    HTTP_TIMEOUT_CURRENCY_API,
+    HTTP_TIMEOUT_BRAVE_SEARCH,
+    HTTP_TIMEOUT_CONNECTOR_LONG,
+    HTTP_TIMEOUT_CONNECTOR_STANDARD,
     HTTP_TIMEOUT_EXTERNAL_API,
     HTTP_TIMEOUT_GEOCODING_API,
     HTTP_TIMEOUT_HUE_API,
     HTTP_TIMEOUT_OAUTH,
+    HTTP_TIMEOUT_PERPLEXITY,
     HTTP_TIMEOUT_PLACES_API,
     HTTP_TIMEOUT_ROUTES_API,
+    HTTP_TIMEOUT_SSE_POLLING,
     HTTP_TIMEOUT_TOKEN,
+    HTTP_TIMEOUT_WEATHER,
+    HTTP_TIMEOUT_WIKIPEDIA,
     HUE_DEFAULT_RATE_LIMIT_PER_SECOND,
+    HUE_PAIRING_TIMEOUT_SECONDS,
     INTEREST_PERPLEXITY_RECENCY_FILTER_DEFAULT,
     INTEREST_PERPLEXITY_RETURN_RELATED_QUESTIONS_DEFAULT,
     INTEREST_WIKIPEDIA_SEARCH_LIMIT_DEFAULT,
@@ -318,24 +326,34 @@ class ConnectorsSettings(BaseSettings):
     # ========================================================================
     http_timeout_oauth: float = Field(
         default=HTTP_TIMEOUT_OAUTH,
-        gt=0.0,
-        description="Timeout for OAuth authorization requests (seconds)",
+        ge=1.0,
+        le=60.0,
+        description=(
+            "Timeout for OAuth authorization requests (seconds, default 10s). "
+            "Bound aligned with validate_config.py / TIMEOUT_REGISTRY (1.0–60.0)."
+        ),
     )
     http_timeout_token: float = Field(
         default=HTTP_TIMEOUT_TOKEN,
-        gt=0.0,
-        description="Timeout for token exchange endpoint (seconds)",
+        ge=1.0,
+        le=60.0,
+        description=(
+            "Timeout for token exchange endpoint (seconds, default 5s). "
+            "Bound aligned with validate_config.py / TIMEOUT_REGISTRY (1.0–60.0)."
+        ),
     )
     http_timeout_external_api: float = Field(
         default=HTTP_TIMEOUT_EXTERNAL_API,
-        gt=0.0,
-        description="Timeout for generic external API calls (seconds)",
+        ge=1.0,
+        le=60.0,
+        description=(
+            "Timeout for generic external API calls (seconds, default 5s). "
+            "Bound aligned with validate_config.py / TIMEOUT_REGISTRY (1.0–60.0)."
+        ),
     )
-    http_timeout_currency_api: float = Field(
-        default=HTTP_TIMEOUT_CURRENCY_API,
-        gt=0.0,
-        description="Timeout for currency exchange rate API (seconds)",
-    )
+    # NOTE: `http_timeout_currency_api` was removed in v1.21 (Vague 4 / G1).
+    # The currency API timeout is owned by `AdvancedSettings.currency_api_timeout_seconds`
+    # (env var `CURRENCY_API_TIMEOUT_SECONDS`). See TIMEOUT_REGISTRY G1 for context.
     http_timeout_routes_api: float = Field(
         default=HTTP_TIMEOUT_ROUTES_API,
         gt=0.0,
@@ -350,6 +368,89 @@ class ConnectorsSettings(BaseSettings):
         default=HTTP_TIMEOUT_GEOCODING_API,
         gt=0.0,
         description="Timeout for Google Geocoding API (seconds, default: 5s)",
+    )
+    http_timeout_perplexity: float = Field(
+        default=HTTP_TIMEOUT_PERPLEXITY,
+        ge=1.0,
+        le=180.0,
+        description=(
+            "Timeout for Perplexity AI search calls (seconds). "
+            "Default 60s — deep-search queries can be slow. "
+            "Too short: legitimate queries fail with timeout. "
+            "Too long: stuck calls block tool budget."
+        ),
+    )
+    http_timeout_weather: float = Field(
+        default=HTTP_TIMEOUT_WEATHER,
+        ge=1.0,
+        le=60.0,
+        description=(
+            "Timeout for OpenWeatherMap API calls (seconds, default 10s). "
+            "Increase if the provider sits behind a slow CDN."
+        ),
+    )
+    http_timeout_wikipedia: float = Field(
+        default=HTTP_TIMEOUT_WIKIPEDIA,
+        ge=1.0,
+        le=60.0,
+        description=(
+            "Timeout for Wikipedia API calls (seconds, default 15s). "
+            "Article fetch can be heavier than search."
+        ),
+    )
+    http_timeout_brave_search: float = Field(
+        default=HTTP_TIMEOUT_BRAVE_SEARCH,
+        ge=1.0,
+        le=60.0,
+        description=(
+            "Timeout for a single Brave Search HTTP request (seconds, default 5s). "
+            "Operators raising this value MUST also raise "
+            "BRAVE_SEARCH_ENRICHMENT_TIMEOUT_SECONDS to keep "
+            "enrichment >= http * 1.5 (see TIMEOUT_REGISTRY G2)."
+        ),
+    )
+    brave_search_enrichment_timeout_seconds: float = Field(
+        default=BRAVE_SEARCH_ENRICHMENT_TIMEOUT,
+        ge=2.0,
+        le=60.0,
+        description=(
+            "Job-level timeout for Brave Search knowledge enrichment (seconds). "
+            "Default 8s — wraps cache lookup + HTTP call. "
+            "MUST stay >= http_timeout_brave_search * 1.5 to avoid cascade "
+            "inversion (TIMEOUT_REGISTRY G2). Was 3s historically (broken)."
+        ),
+    )
+    http_timeout_connector_standard: float = Field(
+        default=HTTP_TIMEOUT_CONNECTOR_STANDARD,
+        ge=1.0,
+        le=120.0,
+        description=(
+            "Timeout for standard connector HTTP operations (seconds, default 15s). "
+            "Used for typical read/write paths in connectors/router.py. "
+            "Symptom if too low: legitimate connector ops fail with timeout. "
+            "Symptom if too high: hung calls block worker slots."
+        ),
+    )
+    http_timeout_connector_long: float = Field(
+        default=HTTP_TIMEOUT_CONNECTOR_LONG,
+        ge=1.0,
+        le=300.0,
+        description=(
+            "Timeout for long connector HTTP operations (seconds, default 30s). "
+            "Used for bulk reads, attachment downloads, large API key client calls. "
+            "Symptom if too low: large attachments / bulk fetches truncate or fail."
+        ),
+    )
+    http_timeout_sse_polling: float = Field(
+        default=HTTP_TIMEOUT_SSE_POLLING,
+        ge=5.0,
+        le=120.0,
+        description=(
+            "Long-poll timeout for the SSE notifications endpoint (seconds, default 30s). "
+            "Determines how long the server waits on Redis pub/sub before yielding a "
+            "keepalive frame to the client. Symptom if too low: more keepalive traffic. "
+            "Symptom if too high: longer detection window for stale client connections."
+        ),
     )
 
     # ========================================================================
@@ -692,8 +793,14 @@ class ConnectorsSettings(BaseSettings):
     # Common Apple settings
     apple_connection_timeout: float = Field(
         default=APPLE_CONNECTION_TIMEOUT_DEFAULT,
-        gt=0.0,
-        description="Timeout for Apple iCloud connections (seconds)",
+        ge=1.0,
+        le=120.0,
+        description=(
+            "Timeout for Apple iCloud connections — IMAP / CardDAV / SMTP "
+            "(seconds, default 30s). Apple endpoints can be slow under load; "
+            "ceiling kept at 120s to allow retries on flaky regions but bound "
+            "the worst case. Aligned with validate_config.py."
+        ),
     )
     client_rate_limit_apple_per_second: int = Field(
         default=CLIENT_RATE_LIMIT_APPLE_PER_SECOND_DEFAULT,
@@ -727,6 +834,17 @@ class ConnectorsSettings(BaseSettings):
         ge=1.0,
         le=30.0,
         description="HTTP timeout for Hue Bridge API calls (seconds)",
+    )
+    hue_pairing_timeout_seconds: float = Field(
+        default=float(HUE_PAIRING_TIMEOUT_SECONDS),
+        ge=5.0,
+        le=120.0,
+        description=(
+            "HTTP timeout for the Hue Bridge pairing handshake (seconds, default 30s). "
+            "Pairing requires the user to physically press the link button on the bridge "
+            "within this window — the value MUST be large enough to cover that delay. "
+            "Distinct from hue_bridge_timeout_seconds which governs steady-state API calls."
+        ),
     )
     hue_remote_client_id: str = Field(
         default="",

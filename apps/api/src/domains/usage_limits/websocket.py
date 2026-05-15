@@ -26,8 +26,8 @@ import structlog
 from fastapi import APIRouter, Depends, Query, WebSocket
 from starlette.websockets import WebSocketDisconnect
 
+from src.core.config import settings
 from src.core.constants import (
-    USAGE_LIMIT_WS_IDLE_TIMEOUT_SECONDS,
     USAGE_LIMIT_WS_PUSH_INTERVAL_SECONDS,
     USAGE_LIMIT_WS_TICKET_TTL_SECONDS_DEFAULT,
 )
@@ -160,7 +160,7 @@ async def admin_usage_ws(
 
                 except TimeoutError:
                     # No message received — check idle timeout then loop (push next update)
-                    if time.time() - last_activity > USAGE_LIMIT_WS_IDLE_TIMEOUT_SECONDS:
+                    if time.time() - last_activity > settings.usage_limit_ws_idle_timeout_seconds:
                         logger.info(
                             "usage_limit_ws_idle_timeout",
                             user_id=user_id,

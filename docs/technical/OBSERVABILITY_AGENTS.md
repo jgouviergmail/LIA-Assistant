@@ -670,7 +670,7 @@ agent_node_duration_seconds = Histogram(
 
 **Utilisé par** : `@track_metrics` decorator.
 
-#### 5. Planner Metrics (8 métriques)
+#### 5. Planner Metrics (11 métriques)
 
 ```python
 # Plans created by execution mode
@@ -729,7 +729,46 @@ planner_domain_confidence_score = Histogram(
     ["fallback_triggered"],
     buckets=[0.0, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0],
 )
+
+# Indexable vs Semantic — leak detection (ADR-084, v1.20.6)
+# Drives the `observe → autocorrect` rollout decision.
+planner_semantic_filter_terms_emitted = Counter(
+    "lia_planner_semantic_filter_terms_emitted_total",
+    "Query analyzer emitted a non-empty semantic_filter_terms hint",
+    ["model", "term_count_bucket"],  # term_count_bucket: "1" / "2-3" / "4+"
+)
+
+planner_semantic_leak_detected = Counter(
+    "lia_planner_semantic_leak_detected_total",
+    "Validator detected a semantic term leaked into a text-search param of a plan step",
+    ["tool_name", "param_name", "mode"],  # mode: observe|autocorrect
+)
+
+planner_semantic_leak_autocorrected = Counter(
+    "lia_planner_semantic_leak_autocorrected_total",
+    "Validator rewrote a leaky step (param set to None, max_results bumped)",
+    ["tool_name", "param_name"],
+)
 ```
+
+**Exemple — Rollout decision (`observe → autocorrect`)** :
+
+```promql
+# Detection rate per 1000 plans (observe mode) — target > 30 to justify flipping to autocorrect
+1000 * (
+  sum(rate(lia_planner_semantic_leak_detected_total{mode="observe"}[1h]))
+  /
+  sum(rate(planner_plans_created_total[1h]))
+)
+
+# Distribution of detections per tool — identifies which connectors need text_search_mode="hybrid" upgrades
+sum by (tool_name) (rate(lia_planner_semantic_leak_detected_total[24h]))
+
+# Hint emission rate per model — identifies which query_analyzer models cooperate vs rely entirely on the runtime check
+sum by (model) (rate(lia_planner_semantic_filter_terms_emitted_total[1h]))
+```
+
+The `query` value itself is **not logged or labeled** (potential PII) — only the matched semantic terms, the step id, the param name, and the tool name appear in the `semantic_leak_in_plan` structured warning. See [ADR-084](../architecture/ADR-084-Indexable-vs-Semantic-Criteria.md).
 
 **Exemple - Monitoring du retry mechanism** :
 

@@ -203,11 +203,16 @@ def _serialize_arg(arg: Any) -> Any:
         return _serialize_arg(arg.model_dump())
 
     # LangChain BaseMessage - serialize only content and type (skip additional_kwargs, response_metadata)
-    # This prevents serialization of nested State/Store references
+    # This prevents serialization of nested State/Store references.
+    # Use BaseMessage.text (LangChain Core 1.2+) when available so Gemini 3.x
+    # list[dict] content blocks serialize as their concatenated text instead of
+    # the Python repr — otherwise cache keys differ between provider versions
+    # for semantically identical messages.
     if hasattr(arg, "content") and hasattr(arg, "type"):
+        text_repr = str(arg.text) if hasattr(arg, "text") else str(arg.content)
         return {
             "type": arg.type,
-            FIELD_CONTENT: str(arg.content),  # Ensure content is string
+            FIELD_CONTENT: text_repr,
         }
 
     # Dataclasses - SAFE conversion (Phase 6 fix for psycopg PGconn errors)

@@ -5,6 +5,217 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.6] - 2026-05-15
+
+### Added — Indexable vs Semantic criteria: universal planning principle + leak detector
+
+Repeated diagnostics of "mes deux prochains rdv médicaux" surfaced a class of failures invisible to the existing validator: the planner LLM was passing semantic qualifiers (e.g. `medical`, `urgent`, `important`) as the `query` of literal-text-search tools (Google Calendar / Gmail / Notion-like stores), which then returned 0 hits or false positives, then no `web_searchs`/`events` card was rendered. Cause is twofold and **independent of any specific connector**:
+
+- **Weaker / non-reasoning query analyzers** (`deepseek-v4-flash` without `reasoning_effort`) misclassified specific filtered queries as broad skill activations (e.g. `briefing-quotidien`) → `SkillBypassStrategy` short-circuited the LLM planner entirely → fixed 5-step generic plan with `max_results=5` and a 2-day window → 0 events of the requested category. Adding `reasoning_effort=high` fixed the skill misclassification but exposed the second failure mode.
+- **Reasoning-enabled planners still leaked semantic terms into `query`** — e.g. `get_events_tool(query="medical", max_results=2, time_max=now+1y)` against a calendar API that indexes by title literals. The smart_planner prompt's pre-existing rule 4 ("Non-searchable field criteria → broad results, Response LLM filters") was too abstract and required an inference about each connector's indexing semantics that only top-tier reasoning models (e.g. `gpt-5.2`) reliably made.
+
+A 3-layer defense addresses this generically, gated by a feature flag in `observe` mode for the rollout — **no plans are altered in production until metrics confirm safe activation in Phase 2**.
+
+#### Layer 1 — Universal planning principle in the smart_planner prompt
+
+New section `INDEXABLE vs SEMANTIC CRITERIA (universal planning principle)` in `apps/api/src/domains/agents/prompts/v1/smart_planner_prompt.txt`, placed before `PLANNING RULES` so it is a conceptual framing applied to every rule below. Generic, English (cohérent avec le pipeline post-`semantic_pivot`), agnostic au connecteur (Google / Microsoft / Apple / Notion / Slack / JIRA / futurs MCPs traités identiquement). Covers:
+
+- The two-class taxonomy: **indexable** values (literal counterpart in a structured field — dates, IDs, sender, status, label id, location…) → tool parameter; **semantic** qualifiers (no literal counterpart — categories, priorities, quality/ranking, relative time without date) → Response LLM filtering downstream.
+- A concept-level example list grouped by sub-class (`nature/category`, `priority/urgency`, `quality/ranking`, `relative time without a date`) explicitly marked non-exhaustive — bias on principle, not casuistic list.
+- The **CARDINALITY × SEMANTIC trap**: "the N <semantic> X" → N is the FINAL count after Response filtering, not `max_results`. Bring back a 20–50 batch.
+- Two **EXCEPTIONS** to preserve legitimate cases: (1) user explicitly cites the term as a literal string to match (quoted, "with X in the title/subject"), (2) tool description states it performs semantic/vector search on `query`.
+- Interpolation placeholder `{semantic_filter_terms_hint}` — when empty renders as `(none)` to keep prompt-cache-friendly stable length; when non-empty lists the terms flagged by the query analyzer for the current request.
+
+Prompt size impact: **~370 tokens added** — recovered by Anthropic/OpenAI prompt caches after the first call, so steady-state cost is null.
+
+#### Layer 2 — Structured hint emitted by the query analyzer
+
+New `semantic_filter_terms: list[str]` field on `QueryAnalysisOutput` (Pydantic, `default_factory=list` → schema rétro-compatible; if the LLM ignores it, comportement actuel préservé). Description explicitly frames this as a **probabilistic hint, NOT authoritative** — the planner still owns the decision. Propagated through `QueryAnalysisResult` → `QueryIntelligence.semantic_filter_terms: tuple[str, ...]` (frozen) → `ValidationContext.semantic_filter_terms`. Also cleared by the existing `chat_override` (same hygiene rationale as the existing `skill_name` clear, lines 1162-1173 of `query_analyzer_service.py`).
+
+Corresponding new section in `query_analyzer_prompt.txt` (`INDEXABLE vs SEMANTIC HINT`) instructing the LLM what to emit: english-pivoted form, leave empty when user cites the term as a literal value, do NOT include indexable values. Cohérent avec la langue du pipeline post-`semantic_pivot`.
+
+Metric `lia_planner_semantic_filter_terms_emitted_total{model, term_count_bucket}` (`1` / `2-3` / `4+`) records emission rate per model — drives the Phase 2 rollout decision.
+
+#### Layer 3 — Universal validator (`observe` by default, `autocorrect` on flip)
+
+New `_check_semantic_leak` method on `PlanValidator` in `apps/api/src/domains/agents/orchestration/validator.py`, invoked from `validate_execution_plan` for every step of every plan (single-domain, multi-domain, future strategies). Tool-agnostic: iterates over `TEXT_SEARCH_PARAM_NAMES` (`query`, `q`, `search`, `search_query`, `text`, `keywords`) on each TOOL step. Word-boundary match against the term set (split + strip on punctuation) to avoid substring false positives (`medical` ⊄ `medicalign`).
+
+Mode-gated by `PLANNER_SEMANTIC_LEAK_MODE` (settings field `planner_semantic_leak_mode: Literal["off", "observe", "autocorrect"]`):
+
+- `off` — kill switch.
+- `observe` (default) — log + metric `lia_planner_semantic_leak_detected_total{tool_name, param_name, mode}`, plan untouched. **Zero regression guarantee for Phase 1 ship**.
+- `autocorrect` — NULL the leaky parameter and bump `max_results` to `PLANNER_SEMANTIC_BROAD_BATCH` (default `25`, range `10-100`) **only when** the existing `max_results` is `< PLANNER_SEMANTIC_BROAD_BATCH_MIN` (= `20`). Already-broad values are preserved (test row covered). Emits the dedicated `lia_planner_semantic_leak_autocorrected_total{tool_name, param_name}` counter.
+
+Two escape hatches honored by the validator (mirror the prompt exceptions): (1) any quote character in the param value (`"medical"` or `"urgent"` patterns) → skip (literal-match intent), (2) tool's manifest `text_search_mode != "literal"` → skip (the store performs semantic search natively).
+
+Rollout strategy explicitly **observe → measure → autocorrect**: ship Layer 3 in `observe`, accumulate 1-2 weeks of `lia_planner_semantic_leak_detected_total{mode="observe"}` data, then flip via `.env` (no code redeploy) once leak frequency is confirmed and a manual sample shows no false positives.
+
+#### New `ToolManifest.text_search_mode` (Layer 4, structural)
+
+New field `text_search_mode: Literal["literal", "semantic", "hybrid"] = "literal"` on `ToolManifest` (`apps/api/src/domains/agents/registry/catalogue.py`). Default `"literal"` preserves the current behavior of every existing tool — **no tool needs to be updated to ship Phase 1**. Future MCP tools, Notion AI search, vector-search backends can declare `"semantic"` or `"hybrid"` to opt out of the leak detector cleanly. Documented in the field's inline comment with reference to the prompt section and the validator.
+
+### Added — New env vars (4 settings, all tunable via `.env`)
+
+| Variable | Default | Range | Purpose |
+|----------|---------|-------|---------|
+| `PLANNER_SEMANTIC_LEAK_MODE` | `observe` | `off` / `observe` / `autocorrect` | Validator behavior on a detected leak. Ship in `observe` for the rollout, flip to `autocorrect` in Phase 2. |
+| `PLANNER_SEMANTIC_BROAD_BATCH` | `25` | 10-100 | `max_results` bump applied by `autocorrect`, only when the existing value is `< 20`. |
+
+Constants centralised in `src/core/constants.py`: `TEXT_SEARCH_PARAM_NAMES` (frozenset of free-text query parameter names), `PLANNER_SEMANTIC_BROAD_BATCH_DEFAULT` (25), `PLANNER_SEMANTIC_BROAD_BATCH_MIN` (20). `.env.example` and `.env.prod.example` updated.
+
+### Tests
+
+- `tests/unit/domains/agents/orchestration/test_validator_semantic_leak.py` — 17 cases covering the 10-row regression matrix (generic listing without semantic filter, indexable filter such as `from:marc`, quoted literal `"urgent"`, semantic-search tool exception, target case `mes deux prochains rdv médicaux` in both `observe` and `autocorrect` modes, cardinality × semantic combo such as "the 3 most important emails from boss", mixed indexable + semantic, multi-step per-step independent detection, conservatism when no hint is emitted, word-boundary true positive on `medical clinic Paris` and absence of false positive on `medicalign software`) plus 3 mode-gating tests (`off` is a no-op, `observe` does not mutate the plan, `autocorrect` preserves an already-broad `max_results`) and 2 backward-compatibility tests (default `ValidationContext.semantic_filter_terms == ()`, full `validate_execution_plan` pipeline runs cleanly with no hint).
+- Non-regression verified by running adjacent suites: 521 cases in `tests/unit/domains/agents/orchestration/` pass after the change, 276 in `tests/unit/domains/agents/registry/`, 60 across `tests/unit/domains/agents/services/` matching `planner` or `query_analyzer`. Docker `lia-api-dev` restarted cleanly (healthy after ~50 s, no startup exception related to the new code).
+
+### Observability
+
+- Three Prometheus counters in `src/infrastructure/observability/metrics_agents.py`: `lia_planner_semantic_filter_terms_emitted_total{model, term_count_bucket}`, `lia_planner_semantic_leak_detected_total{tool_name, param_name, mode}`, `lia_planner_semantic_leak_autocorrected_total{tool_name, param_name}`.
+- New structured log events: `semantic_filter_terms_emitted` (query analyzer), `semantic_leak_in_plan` (validator), `semantic_leak_autocorrected` (validator). The leaky `query` value itself is **not logged** (potential PII); only the matched semantic terms, the step id, the param name, and the tool name appear in the warning.
+
+### Refactor — Timeout configuration centralization (Vagues 1–5): 24 timeouts moved to Settings + `.env`, 2 magic numbers extracted, 1 orphan wired, 2 dead constants + 1 duplicate Field removed
+
+Audit (V1 → V3 in [docs/technical/TIMEOUT_REGISTRY.md](docs/technical/TIMEOUT_REGISTRY.md)) inventoried ~80 timeouts across the backend (HTTP outbound, tools, DB, Redis, locks, scheduler, SSE, WebSocket, browser, voice, MCP, sub-agents, infra) and surfaced three classes of debt:
+
+- **Hardcoded constants used in production paths** but never exposed to operators (no `Settings` Field, no `.env` entry) — required a Docker rebuild to tune. Examples: `HTTP_TIMEOUT_PERPLEXITY` (60 s), `DEFAULT_TOOL_TIMEOUT_SECONDS` (30 s), `BROWSER_TOOL_TIMEOUT_SECONDS` (300 s), `OAUTH_LOCK_TIMEOUT_SECONDS` (10 s), `MCP_OAUTH_HTTP_TIMEOUT_SECONDS` (10 s), 17 others.
+- **Inline magic numbers** (`90.0` for image-generation tools, `120.0` for `claude_server_task_tool`) embedded in `parallel_executor._compute_step_timeout` without a named constant.
+- **Orphans, duplicates, dead code, inverted cascades**: `task_orchestrator_execution_timeout_seconds` declared in `agents.py` + `.env.example` but **never read** at runtime; `http_timeout_currency_api` and `currency_api_timeout_seconds` shadowing each other (only the latter actually used by the Frankfurter client); `HTTP_TIMEOUT_PROMPT_REGISTRY` and `BACKGROUND_TASK_TIMEOUT_DEFAULT` defined in `constants.py` with zero call sites; `BRAVE_SEARCH_ENRICHMENT_TIMEOUT = 3.0 s` firing **before** the per-request `HTTP_TIMEOUT_BRAVE_SEARCH = 5.0 s` it was supposed to wrap (G2 cascade inversion).
+
+LLM-call timeouts (`router`, `response`, `planner`, `query_analyzer`, etc.) are deliberately **out of scope** — they are governed per-LLM-type by the `llm_config` table and the Admin → Configuration LLM UI; per-row granularity does not fit env vars. Annex A of the registry cross-references them for reading.
+
+The migration is split into five waves; each wave preserves the historical default value for every migrated entry — **no behavioural change of normal traffic** unless the operator overrides via `.env`. The only intentional behavioural changes are: (a) the Brave G2 cascade fix, (b) the wiring of the previously-orphan `task_orchestrator_execution_timeout_seconds` as a soft wave-scheduling cap.
+
+#### Vague 1 — HTTP outbound (7 timeouts)
+
+`HTTP_TIMEOUT_PERPLEXITY` (60.0), `HTTP_TIMEOUT_WEATHER` (10.0), `HTTP_TIMEOUT_WIKIPEDIA` (15.0), `HTTP_TIMEOUT_BRAVE_SEARCH` (5.0), `BRAVE_SEARCH_ENRICHMENT_TIMEOUT_SECONDS` (**3.0 → 8.0**, G2 fix), `OLLAMA_DISCOVERY_TIMEOUT_SECONDS` (5.0), `WEB_FETCH_TIMEOUT_SECONDS` (15.0). Migrated as Pydantic Fields in `connectors.py` / `agents.py` / `llm.py`. Consumers updated: `perplexity_client`, `openweathermap_client`, `wikipedia_client`, `brave_search_client`, `ollama_discovery`, `web_fetch_tools`, `response_node` (3 sites), `knowledge_enrichment_service` (2 sites). The Brave fix preserves the documented constraint `enrichment ≥ HTTP × 1.5`.
+
+#### Vague 2 — Connectors / locks / SSE / scheduler (11 timeouts, 2 new modules)
+
+Created `apps/api/src/core/config/scheduler.py` (`SchedulerSettings` — `scheduled_actions_execution_timeout_seconds`, `scheduled_actions_stale_timeout_minutes`) and `apps/api/src/core/config/locks.py` (`LocksSettings` — `oauth_lock_timeout_seconds`). Both added to the `Settings` MRO in `__init__.py` (positions 21 and 22). The remaining nine entries enriched existing modules: `connectors.py` (`http_timeout_connector_standard/long`, `http_timeout_sse_polling`, `hue_pairing_timeout_seconds`), `agents.py` (`http_timeout_conditional_eval`), `mcp.py` (`mcp_oauth_http_timeout_seconds`), `usage_limits.py` (`usage_limit_ws_idle_timeout_seconds`), `health_metrics.py` (`health_metrics_heartbeat_fetch_timeout_seconds`).
+
+Consumers migrated to `settings.<field>`: `connectors/router.py` (5 sites), `base_api_key_client`, `parallel_executor` (conditional eval), `notifications/router`, `infrastructure/locks/oauth_lock` (`__init__` signature now takes `int | None` and resolves at call time to preserve testability), `mcp/auth.py`, `mcp/oauth_flow.py` (3 sites), `philips_hue_client`, `usage_limits/websocket`, `heartbeat/context_aggregator`, `scheduled_action_executor` (2 sites).
+
+#### Vague 3 — Tool execution & extraction of inline magic numbers (8 settings)
+
+`default_tool_timeout_seconds` / `max_tool_timeout_seconds` / `default_tool_timeout_ms` / `browser_tool_timeout_seconds` / `max_browser_tool_timeout_seconds` (all in `agents.py`), `browser_default_timeout_ms` (in `browser.py`, used by the catalogue manifest), and **two new constants** introduced for the magic-number extraction: `IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT = 90.0` (formerly inline `_IMAGE_TOOL_TIMEOUT_SECONDS`) → `image_generation_tool_timeout_seconds` Field in `image_generation.py`; `DEVOPS_CLAUDE_TOOL_TIMEOUT_SECONDS_DEFAULT = 120.0` (formerly inline `_DEVOPS_TOOL_TIMEOUT_SECONDS`) → `devops_claude_tool_timeout_seconds` Field in `devops.py`. Both new constants follow the new naming convention `<DOMAIN>_<USAGE>_TIMEOUT_<UNIT>_DEFAULT` (existing constants kept under their legacy names — boy-scout for new code only).
+
+`parallel_executor._compute_step_timeout` rewritten to read every value from `settings` (sub-agent floor/ceiling already used `settings.subagent_tool_*` since ADR-083; now the same applies to generic / browser / image / devops). `catalogue_loader.py` reads `settings.default_tool_timeout_ms` (10 manifest sites) and `settings.browser_default_timeout_ms` (1 site) instead of the constants. The constants themselves remain in `constants.py` as the single source of truth for defaults consumed by Pydantic Fields and by the existing `test_parallel_executor_compute_step_timeout.py` matrix (no test rewrite needed).
+
+#### Vague 4 — Hygiene
+
+- Removed dead constants: `HTTP_TIMEOUT_PROMPT_REGISTRY` (defined in `constants.py:788`, **zero call sites**), `BACKGROUND_TASK_TIMEOUT_DEFAULT` (defined in `constants.py:832`, **zero call sites**).
+- Resolved the **G1 currency_api duplicate**: removed `http_timeout_currency_api` Field (`connectors.py:343`), the matching constant `HTTP_TIMEOUT_CURRENCY_API` (`constants.py:784`), the env line `HTTP_TIMEOUT_CURRENCY_API` (both `.env.example` and `.env.prod.example`), and the `validate_config.py` range entry. The actually-used `currency_api_timeout_seconds` Field in `advanced.py` (read by `currency_api.py:65`) is the surviving setting. Notes left at the deleted call sites point at the resolution for archaeological clarity.
+
+#### Vague 5 — Wiring `task_orchestrator_execution_timeout_seconds`
+
+The Field was declared in `agents.py:466` and listed in both `.env` files since Sprint 17.4 but **never read**. Wired in `parallel_executor.execute_plan_parallel` as a **soft check at the start of each wave-scheduling iteration** (lines 1346–1370): when `time.time() - start_time` exceeds `settings.task_orchestrator_execution_timeout_seconds`, the loop breaks (no new wave is scheduled) but the in-flight wave is **never violently cancelled** — preserves sub-agents and browser flows that legitimately need their full per-step budget. A `parallel_execution_global_timeout` warning log records the breach with `elapsed_seconds`, `completed_count`, `total_steps`, and the configured timeout. Default 120 s preserved; HITL pauses do not count (LangGraph `interrupt()` exits the function and `start_time` is re-initialised on resume).
+
+`hitl_max_wait_seconds` (declared, 900 s) remains intentionally **non-wired** — kept as an orphan Field documented in TIMEOUT_REGISTRY § 6, pending a product decision (auto-cancel HITL after N minutes vs. soft-watchdog log only vs. delete). Consumers who want this guard today must implement at the application layer.
+
+### Added — TIMEOUT_REGISTRY.md (single source of documentation truth)
+
+[`docs/technical/TIMEOUT_REGISTRY.md`](docs/technical/TIMEOUT_REGISTRY.md) — 12 sections covering every backend timeout with the conventions, every Field's range, default, consumer file, and notes on cascade relationships. Sections cover HTTP outbound (connectors, LLM provider discovery), database / cache, locks, tool execution (`parallel_executor`), conditional / micro-eval, SSE & WebSocket, scheduler, resilience / circuit breaker, agent-level (`react_agent_timeout_seconds`, the now-wired `task_orchestrator_execution_timeout_seconds`, `hitl_max_wait_seconds`), browser, devops. Annex A enumerates the LLM-call timeouts deliberately out of scope (managed by `llm_config` UI). Annex B mirrors the frontend-side timeouts (`apps/web/src/lib/constants.ts`, `apps/web/src/constants/timing.ts`). Annex C explicitly lists known gaps deferred to a future Vague 6: `postgres_statement_timeout`, `app_startup_timeout_seconds` / `app_shutdown_timeout_seconds`, `mcp_session_close_timeout_seconds`, sub-agent / browser / MCP nested-ReAct temporal guards, frontend chat SSE watchdog, APScheduler per-job timeout. The known-conflicts section documents G1 and G2 resolutions for posterity.
+
+### Added — New env vars exposed by the centralization (24 settings, all tunable via `.env`)
+
+Full alphabetical list (every entry has the same default as before — operators can now change them without rebuilding):
+
+| Variable | Default | Range | Purpose |
+|----------|---------|-------|---------|
+| `BRAVE_SEARCH_ENRICHMENT_TIMEOUT_SECONDS` | `8.0` | 2.0–60.0 | Wraps Brave cache lookup + HTTP. **Was 3.0 s** — raised to fix G2 inversion. |
+| `BROWSER_DEFAULT_TIMEOUT_MS` | `120000` | 30000–600000 | `browser_agent` catalogue manifest default (planner-facing display). |
+| `BROWSER_TOOL_TIMEOUT_SECONDS` | `300.0` | 30.0–1800.0 | Floor for `browser_task_tool` step timeout. |
+| `DEFAULT_TOOL_TIMEOUT_MS` | `30000` | 1000–300000 | Catalogue manifest default for non-browser tools. |
+| `DEFAULT_TOOL_TIMEOUT_SECONDS` | `30.0` | 1.0–300.0 | Generic-tool floor in `parallel_executor`. |
+| `DEVOPS_CLAUDE_TOOL_TIMEOUT_SECONDS` | `120.0` | 30.0–900.0 | `claude_server_task_tool` step floor (formerly inline magic). |
+| `HEALTH_METRICS_HEARTBEAT_FETCH_TIMEOUT_SECONDS` | `2.0` | 0.5–30.0 | Safety wrap on health-metrics fetch in heartbeat context. |
+| `HTTP_TIMEOUT_BRAVE_SEARCH` | `5.0` | 1.0–60.0 | Per-request HTTP timeout. |
+| `HTTP_TIMEOUT_CONDITIONAL_EVAL` | `5.0` | 1.0–30.0 | Jinja conditional evaluation in `parallel_executor`. |
+| `HTTP_TIMEOUT_CONNECTOR_LONG` | `30.0` | 1.0–300.0 | Bulk fetches, attachment downloads. |
+| `HTTP_TIMEOUT_CONNECTOR_STANDARD` | `15.0` | 1.0–120.0 | Standard connector HTTP ops. |
+| `HTTP_TIMEOUT_PERPLEXITY` | `60.0` | 1.0–180.0 | Perplexity API (deep queries). |
+| `HTTP_TIMEOUT_SSE_POLLING` | `30.0` | 5.0–120.0 | Long-poll on the notifications SSE endpoint. |
+| `HTTP_TIMEOUT_WEATHER` | `10.0` | 1.0–60.0 | OpenWeatherMap. |
+| `HTTP_TIMEOUT_WIKIPEDIA` | `15.0` | 1.0–60.0 | Wikipedia API. |
+| `HUE_PAIRING_TIMEOUT_SECONDS` | `30.0` | 5.0–120.0 | Philips Hue Bridge pairing handshake. |
+| `IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS` | `90.0` | 10.0–600.0 | `generate_image` / `edit_image` step floor (formerly inline magic). |
+| `MAX_BROWSER_TOOL_TIMEOUT_SECONDS` | `600.0` | 60.0–3600.0 | Hard ceiling for `browser_task_tool` (planner cannot exceed). |
+| `MAX_TOOL_TIMEOUT_SECONDS` | `120.0` | 30.0–600.0 | Hard ceiling for generic tools. |
+| `MCP_OAUTH_HTTP_TIMEOUT_SECONDS` | `10` | 1–60 | MCP OAuth 2.1 helper calls (discovery, token exchange, refresh). |
+| `OAUTH_LOCK_TIMEOUT_SECONDS` | `10` | 1–120 | Per-(user, connector) Redis lock acquisition for OAuth refresh. |
+| `OLLAMA_DISCOVERY_TIMEOUT_SECONDS` | `5.0` | 1.0–60.0 | `/api/tags` + `/api/show` (NOT a chat completion). |
+| `SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS` | `300` | 30–1800 | Per-action wall-clock (already in `.env`, now in `SchedulerSettings`). |
+| `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` | `10` | 1–120 | `recover_stale_executing()` threshold (already in `.env`, now in `SchedulerSettings`). |
+| `USAGE_LIMIT_WS_IDLE_TIMEOUT_SECONDS` | `120` | 30–600 | Idle close on the usage-limits live-update WebSocket. |
+| `WEB_FETCH_TIMEOUT_SECONDS` | `15.0` | 1.0–120.0 | `fetch_web_page` tool single HTTP request. |
+
+`scripts/validate_config.py` updated with matching ranges in `INT_VARS` / `FLOAT_VARS` for every new entry. The cross-check `validate_config range == Pydantic Field range` is followed for the Vague 1–3 additions; legacy Fields (`http_timeout_oauth/token/external_api`, `currency_api_timeout_seconds`) keep their pre-migration `gt=0` upper-bound-less form — flagged for alignment in a future hardening pass (audit V3 § A3).
+
+### Removed
+
+- Constant `HTTP_TIMEOUT_PROMPT_REGISTRY` (`constants.py`) — dead code.
+- Constant `HTTP_TIMEOUT_CURRENCY_API` (`constants.py`) — duplicate (G1).
+- Constant `BACKGROUND_TASK_TIMEOUT_DEFAULT` (`constants.py`) — dead code.
+- Field `http_timeout_currency_api` (`connectors.py`) — duplicate (G1). Surviving Field: `currency_api_timeout_seconds` in `advanced.py`.
+- Env var `HTTP_TIMEOUT_CURRENCY_API` (both `.env.example` and `.env.prod.example`) — G1.
+- Inline magic numbers `_IMAGE_TOOL_TIMEOUT_SECONDS = 90.0` and `_DEVOPS_TOOL_TIMEOUT_SECONDS = 120.0` from `parallel_executor.py` — extracted as named constants + Settings Fields (Vague 3).
+
+### Tests
+
+No test rewriting was necessary: `test_parallel_executor_compute_step_timeout.py` continues to import the constants (`BROWSER_TOOL_TIMEOUT_SECONDS`, `DEFAULT_TOOL_TIMEOUT_SECONDS`, `MAX_BROWSER_TOOL_TIMEOUT_SECONDS`, `MAX_TOOL_TIMEOUT_SECONDS`) as the assertion source — these constants now back the Settings Fields as defaults, so the test matrix passes unchanged. The previously-acknowledged audit V3 § A8 coverage gap is **closed** in this changeset: `tests/unit/domains/agents/orchestration/test_parallel_executor_global_timeout.py` adds two cases that prove the soft check at `parallel_executor.py:1360` (Vague 5 wiring) fires when budget is exceeded (counter increments with `plan_outcome=empty`, structured warning logged) and stays silent when budget is generous. The `parallel_execution_global_timeout_total` Counter was also added in `metrics_agents.py` and incremented at the break point.
+
+### Audit V3 — known follow-ups (intentionally not in this changeset)
+
+The 8-angle rigorous review (cascades, default-vs-range, validate_config-vs-Field, units, semantic duplicates, soft-check edge cases, HITL × timer, test coverage) flagged 8 errors and 8 warnings. Those that remain after the five waves:
+
+- **Cascade browser/sub-agent step ceilings** (1800 / 900 s) can mathematically exceed the parent `task_orchestrator_execution_timeout_seconds` ceiling (600 s). Intentional (preserve sub-agents in flight) but the docstring should explicitly state the soft semantics.
+- **`validate_config.py` ↔ Field Pydantic ranges**: realigned end-to-end. The 4 Vague-3 mismatches initially listed here (`DEFAULT_TOOL_TIMEOUT_MS/SECONDS`, `BROWSER_TOOL_TIMEOUT_SECONDS`, `MAX_BROWSER_TOOL_TIMEOUT_SECONDS`) were aligned on the Pydantic Field bounds (single source of enforcement truth). The 4 legacy `gt=0`-only Fields in `connectors.py` (`http_timeout_oauth`, `http_timeout_token`, `http_timeout_external_api`, `apple_connection_timeout`) were also tightened to `ge=1.0, le=60.0` (Apple: `le=120.0`) to match `validate_config.py`. `APPLE_CONNECTION_TIMEOUT` was added to `validate_config.FLOAT_VARS` for completeness. No remaining range divergence between Pydantic and `validate_config.py`.
+- **Unit drift** between `default_tool_timeout_seconds` and `default_tool_timeout_ms`, and between `browser_tool_timeout_seconds` (300 s, executor) and `browser_default_timeout_ms` (120 s = 120 000 ms, manifest). No cross-validator.
+- **DB column `user_mcp.timeout_seconds`** uses the constant `MCP_DEFAULT_TIMEOUT_SECONDS` as `server_default`, not `settings.mcp_tool_timeout_seconds` — overriding the env at runtime does not update the DB default.
+- **Vague 5 soft-check edge cases**: steps not yet scheduled when the check fires generate **no `StepResult`** (silent skip rather than `TIMEOUT` error); no Prometheus metric; no test coverage.
+
+These are tracked in TIMEOUT_REGISTRY.md and are explicit candidates for a future P1-hardening PR.
+
+### Fixed — Gemini 3.x `response.content` shape: planner JSON parse error + 27 latent sites
+
+Switching the `query_analyzer` and `planner` LLM types to `gemini-3.1-pro-preview` surfaced a `smart_planner_panic_failed` with `JSON decode error: Expecting property name enclosed in double quotes: line 1 column 3 (char 2)`. The pipeline degraded to a conversational fallback instead of executing the plan. Root cause: `langchain_google_genai/chat_models.py:933` wraps `response.content` as `list[dict]` (content blocks, like Anthropic) **specifically for Gemini 3.x** — condition `if thought_sig or _is_gemini_3_or_later(effective_model_name)`. Every other provider (Gemini 2.5, OpenAI, Anthropic, DeepSeek, Qwen, Perplexity, Ollama) keeps `response.content` as `str`.
+
+Two pervasive patterns across the codebase silently broke on this shape:
+
+- **Pattern A** — `str(response.content).strip()` (8 sites). `str(list[dict])` produces the **Python `repr()`** of the list (single-quoted keys/values), not valid JSON. The parser error signature (`char 2`) maps exactly to `[` then `{` then `'`.
+- **Pattern B** — `X.content if isinstance(X.content, str) else str(X.content)` (20 sites). The `isinstance` branch correctly handles the `str` case, but the `else` branch produces the same Python-repr garbage as Pattern A. Looks defensive, isn't.
+
+The planner failure was loud (JSON parser exception caught and surfaced as `panic_failed`). The other 27 sites would have manifested progressively as Gemini 3.x usage widened to other LLM types — corrupted token counts (`token_counter_service`), garbled message previews (`memory_extractor`, `extraction_service` ×2, `compaction_service`), broken HITL classification (`hitl_classifier`, `item_filter`, `draft_modifier`), wrong summaries (`compaction_service`, `psyche/service`, `heartbeat/prompts`), etc.
+
+Fix: replaced all 28 occurrences with the **LangChain Core 1.2+ official `BaseMessage.text` property**, which handles both shapes — for `str` content it returns the string; for `list[dict]` content it concatenates the `text` blocks and ignores `thinking` blocks. The property returns a `TextAccessor` (a `str` subclass kept for backward compat with the deprecated `.text()` method form), so `isinstance(message.text, str) == True` and runtime behaviour is identical to `content` for the previously-working `str` case. Where MyPy strict mode could not reconcile `TextAccessor` with a later `str` reassignment or `str` return (6 sites), the read is wrapped in `str(...)` — runtime no-op since `TextAccessor` IS-A `str`.
+
+Sites touched (28 occurrences across 21 files):
+
+- `domains/agents/services/smart_planner_service.py` (×2 — single-domain + panic retry)
+- `domains/agents/services/planner/strategies/{single_domain,multi_domain}.py`
+- `domains/agents/services/compaction_service.py` (×3 — `_extract_identifiers`, `_format_messages_for_summary`, `_summarize_chunk`)
+- `domains/agents/services/semantic_pivot_service.py` — also dropped a paranoid `hasattr(result, "content")` fallback since `BaseChatModel.ainvoke` always returns a `BaseMessage`
+- `domains/agents/services/token_counter_service.py`
+- `domains/agents/services/memory_extractor.py` (×2 — message formatting + LLM-result text)
+- `domains/agents/services/hitl_classifier.py`, `…/hitl/item_filter.py`, `…/hitl/draft_modifier.py`
+- `domains/agents/nodes/compaction_node.py`, `…/response_node.py`
+- `domains/notifications/broadcast_service.py`
+- `domains/user_mcp/service.py`
+- `domains/journals/extraction_service.py` (×2), `…/consolidation_service.py`
+- `domains/interests/services/extraction_service.py` (×2), `…/content_sources/llm_reflection_source.py`, `domains/interests/proactive_task.py`
+- `domains/psyche/service.py` (×2 — `psyche_summary`, `psyche_narrative`)
+- `domains/heartbeat/prompts.py`
+
+Sites intentionally not touched:
+
+- `domains/agents/nodes/react_nodes.py:551` — already has a custom block-text extractor (`" ".join(block.get("text", "") for block in last_message.content if isinstance(block, dict))`) that works correctly on Gemini 3.x.
+- `domains/channels/inbound_handler.py:259` — `chunk` is a custom streaming object (`chunk.type` is `"token"`/`"content_replacement"`/`"error"`/…), not a LangChain `BaseMessage`; `.text` is not available.
+- `domains/agents/utils/message_filters.py:251` — `str(msg.content)[:100]` in a debug-log preview; latent but cosmetic only.
+- `infrastructure/llm/providers/responses_adapter.py:572/586/595/733` — outbound serialization of messages to the OpenAI Responses API payload, different semantics from reading an LLM response.
+- `domains/agents/services/query_analyzer_service.py:1344` + `domains/agents/services/analysis/goal_inferrer.py:116` — defensive `if hasattr(msg, "content")` fallbacks on objects that may not be `BaseMessage`; outside the LLM-response hot path.
+
+Validation: trace `617d5411-1ee6-4b08-9d50-550fe0deddc1` (2026-05-15 17:10) — full Gemini 3.1 Pro Preview pipeline runs end-to-end: `query_analyzer` → `planner_v3_success` (`steps=2`, `used_panic_mode=false`) → `task_orchestrator` → `initiative` → `response` → persist (19 400 tokens, 0.049 EUR). Same query before the fix: `smart_planner_panic_failed` → conversational fallback. Ruff, Black, MyPy strict all pass on the 21 modified files.
+
 ## [1.20.5] - 2026-05-14
 
 ### Fixed — Sub-agent delegation: vague outputs, runaway exploration, dilution by the response node

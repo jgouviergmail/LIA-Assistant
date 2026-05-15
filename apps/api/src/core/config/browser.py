@@ -22,6 +22,7 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     BROWSER_AX_TREE_MAX_TOKENS_DEFAULT,
+    BROWSER_DEFAULT_TIMEOUT_MS,
     BROWSER_REACT_MAX_ITERATIONS_DEFAULT,
 )
 
@@ -92,6 +93,19 @@ class BrowserSettings(BaseSettings):
         ge=3,
         le=60,
         description="Maximum wait time for individual browser actions (click, fill).",
+    )
+
+    browser_default_timeout_ms: int = Field(
+        default=BROWSER_DEFAULT_TIMEOUT_MS,
+        ge=30_000,
+        le=600_000,
+        description=(
+            "Default timeout (milliseconds) embedded in the ``browser_agent`` "
+            "manifest by ``catalogue_loader`` and surfaced to the planner. "
+            "Catalogue manifests use ms to match the frontend display contract. "
+            "Independent from ``browser_tool_timeout_seconds`` which is the "
+            "actual ``asyncio.wait_for`` value applied by the parallel executor."
+        ),
     )
 
     # ========================================================================

@@ -417,7 +417,7 @@ class SmartPlannerService:
 
             config = enrich_config_with_node_metadata(config, "planner")
             response = await llm.ainvoke(messages, config=config)
-            response_text = str(response.content).strip()
+            response_text = response.text.strip()
 
             logger.debug(
                 "planner_response_debug",
@@ -565,7 +565,7 @@ class SmartPlannerService:
 
             config = enrich_config_with_node_metadata(config, "planner_multi_domain")
             response = await llm.ainvoke(messages, config=config)
-            response_text = str(response.content).strip()
+            response_text = response.text.strip()
 
             parse_result = extract_json_from_llm_response(
                 response_text=response_text,
@@ -1260,6 +1260,7 @@ class SmartPlannerService:
             journal_context=journal_context,
             primary_domain=intelligence.primary_domain,
             is_multi_domain=is_multi_domain,
+            semantic_filter_terms=intelligence.semantic_filter_terms,
         )
 
     async def _build_multi_domain_prompt(

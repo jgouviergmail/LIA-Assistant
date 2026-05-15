@@ -221,7 +221,7 @@ async def generate_heartbeat_message(
         user_id="system",
     )
 
-    message = result.content if isinstance(result.content, str) else str(result.content)
+    message = result.text
 
     # Extract token usage
     tokens_in = 0

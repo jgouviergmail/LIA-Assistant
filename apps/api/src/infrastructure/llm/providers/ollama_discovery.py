@@ -19,10 +19,8 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from src.core.constants import (
-    OLLAMA_DISCOVERY_TIMEOUT_SECONDS,
-    OLLAMA_MODEL_CACHE_TTL_SECONDS,
-)
+from src.core.config import settings
+from src.core.constants import OLLAMA_MODEL_CACHE_TTL_SECONDS
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -154,7 +152,7 @@ async def discover_ollama_models() -> list[OllamaModelInfo]:
         return []
 
     try:
-        async with httpx.AsyncClient(timeout=OLLAMA_DISCOVERY_TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(timeout=settings.ollama_discovery_timeout_seconds) as client:
             # Phase 1: List all models
             response = await client.get(f"{base_url}/api/tags")
             response.raise_for_status()

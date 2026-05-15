@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import HTTP_TIMEOUT_SSE_POLLING
+from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     raise_invalid_input,
@@ -231,7 +231,6 @@ async def stream_notifications(
 
     async def event_generator() -> AsyncGenerator[str, None]:
         """Generate SSE events from Redis Pub/Sub."""
-        from src.core.config import settings
         from src.core.constants import SSE_CONNECTION_KEY_PREFIX
         from src.infrastructure.cache.redis import get_redis_cache
 
@@ -268,7 +267,7 @@ async def stream_notifications(
                     # With timeout=30.0, it blocks for up to 30s waiting for a message
                     message = await pubsub.get_message(
                         ignore_subscribe_messages=True,
-                        timeout=HTTP_TIMEOUT_SSE_POLLING,
+                        timeout=settings.http_timeout_sse_polling,
                     )
 
                     if message is None:
@@ -476,7 +475,6 @@ async def send_test_notification(
 
     Only available in development mode.
     """
-    from src.core.config import settings
 
     if settings.is_production:
         raise_test_endpoint_disabled()

@@ -12,10 +12,10 @@ from uuid import UUID
 import redis.asyncio as aioredis
 import structlog
 
+from src.core.config import settings
 from src.core.constants import (
     OAUTH_LOCK_MAX_BACKOFF_EXPONENT,
     OAUTH_LOCK_RETRY_INTERVAL_MS,
-    OAUTH_LOCK_TIMEOUT_SECONDS,
 )
 from src.domains.connectors.models import ConnectorType
 
@@ -41,7 +41,7 @@ class OAuthLock:
         redis_client: aioredis.Redis,
         user_id: UUID,
         connector_type: ConnectorType,
-        timeout_seconds: int = OAUTH_LOCK_TIMEOUT_SECONDS,
+        timeout_seconds: int | None = None,
         retry_interval_ms: int = OAUTH_LOCK_RETRY_INTERVAL_MS,
     ) -> None:
         """
@@ -51,13 +51,16 @@ class OAuthLock:
             redis_client: Redis async client.
             user_id: User UUID.
             connector_type: Type of connector.
-            timeout_seconds: Lock TTL in seconds (default 10s).
+            timeout_seconds: Lock TTL in seconds. None (default) reads from
+                ``settings.oauth_lock_timeout_seconds`` (env-tunable).
             retry_interval_ms: Retry interval if lock busy (default 100ms).
         """
         self.redis = redis_client
         self.user_id = user_id
         self.connector_type = connector_type
-        self.timeout_seconds = timeout_seconds
+        self.timeout_seconds = (
+            timeout_seconds if timeout_seconds is not None else settings.oauth_lock_timeout_seconds
+        )
         self.retry_interval_ms = retry_interval_ms
 
         # Lock key: oauth_lock:{user_id}:{connector_type}

@@ -1012,10 +1012,7 @@ class ContextAggregator:
             A dict ready to attach to ``HeartbeatContext.health_signals``,
             or ``None`` when disabled / empty / failed.
         """
-        from src.core.constants import (
-            HEALTH_METRICS_HEARTBEAT_FETCH_TIMEOUT_SECONDS,
-            HEALTH_METRICS_USER_TOGGLE_ATTR,
-        )
+        from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
 
         if not getattr(settings, "health_metrics_enabled", False):
             return None
@@ -1026,7 +1023,7 @@ class ContextAggregator:
         from src.infrastructure.database.session import get_db_context
 
         try:
-            async with asyncio.timeout(HEALTH_METRICS_HEARTBEAT_FETCH_TIMEOUT_SECONDS):
+            async with asyncio.timeout(settings.health_metrics_heartbeat_fetch_timeout_seconds):
                 async with get_db_context() as db:
                     service = HealthMetricsService(db)
                     return await service.build_heartbeat_health_signals(user_id)

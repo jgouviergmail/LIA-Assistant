@@ -24,7 +24,6 @@ import httpx
 import structlog
 
 from src.core.config import settings
-from src.core.constants import HTTP_TIMEOUT_PERPLEXITY
 from src.core.exceptions import MaxRetriesExceededError
 
 logger = structlog.get_logger(__name__)
@@ -88,7 +87,7 @@ class PerplexityClient:
         """Get or create reusable HTTP client."""
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(
-                timeout=HTTP_TIMEOUT_PERPLEXITY,
+                timeout=settings.http_timeout_perplexity,
                 limits=httpx.Limits(
                     max_keepalive_connections=5,
                     max_connections=10,

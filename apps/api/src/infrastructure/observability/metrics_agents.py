@@ -1096,6 +1096,49 @@ planner_for_each_auto_corrections = Counter(
 )
 
 # ============================================================================
+# INDEXABLE vs SEMANTIC CRITERIA (Universal Planning Principle)
+# ============================================================================
+# Track how often the query analyzer flags a semantic qualifier and whether
+# the planner leaks it into a text-search parameter (which would return 0
+# hits or false positives). Drives the rollout from 'observe' to 'autocorrect'.
+#
+# Reference: orchestration/validator.py, smart_planner_prompt.txt
+# ============================================================================
+
+planner_semantic_filter_terms_emitted = Counter(
+    "lia_planner_semantic_filter_terms_emitted_total",
+    "Query analyzer emitted a non-empty semantic_filter_terms hint",
+    ["model", "term_count_bucket"],  # term_count_bucket: 1, 2-3, 4+
+)
+
+planner_semantic_leak_detected = Counter(
+    "lia_planner_semantic_leak_detected_total",
+    "Validator detected a semantic term leaked into a text-search param of a plan step",
+    ["tool_name", "param_name", "mode"],  # mode: observe|autocorrect
+)
+
+planner_semantic_leak_autocorrected = Counter(
+    "lia_planner_semantic_leak_autocorrected_total",
+    "Validator rewrote a leaky step (param set to None, max_results bumped)",
+    ["tool_name", "param_name"],
+)
+
+# ============================================================================
+# PARALLEL EXECUTOR — GLOBAL TIMEOUT (Vague 5)
+# ============================================================================
+# Counts plans whose wave-scheduling loop was cut short by the soft
+# task_orchestrator_execution_timeout_seconds budget in
+# parallel_executor.execute_plan_parallel. Without this, operators have no
+# visibility on how often the global cap truncates legitimate work.
+# ============================================================================
+
+parallel_execution_global_timeout_total = Counter(
+    "lia_parallel_execution_global_timeout_total",
+    "Parallel executor exceeded task_orchestrator_execution_timeout_seconds and stopped scheduling new waves",
+    ["plan_outcome"],  # plan_outcome: partial (some steps completed) | empty (none)
+)
+
+# ============================================================================
 # PLAN EXECUTION METRICS (ADR-005)
 # ============================================================================
 

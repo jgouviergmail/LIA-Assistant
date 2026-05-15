@@ -57,6 +57,9 @@ from src.domains.agents.analysis.query_intelligence import (
     UserGoal,
 )
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_agents import (
+    planner_semantic_filter_terms_emitted,
+)
 
 if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig
@@ -436,6 +439,21 @@ class QueryAnalysisOutput(BaseModel):
         default=None,
         description="Matching skill name from AVAILABLE SKILLS, or null",
     )
+    semantic_filter_terms: list[str] = PydanticField(
+        default_factory=list,
+        description=(
+            "Probabilistic HINT for downstream planning — not authoritative. "
+            "List semantic qualifiers in the user query that describe item "
+            "categories, qualities, or priorities WITHOUT literal counterparts "
+            "in structured fields (e.g., 'medical', 'urgent', 'important', "
+            "'best', 'professional', 'recent'). Emit the English-pivoted form "
+            "(lowercase). Leave empty if: (a) no such qualifiers, OR (b) the "
+            "user explicitly cites the term as a literal value to match "
+            "(quoted, or 'with X in the title'). These terms should NOT be "
+            "passed as `query` to indexable stores — they need downstream "
+            "filtering by the Response LLM."
+        ),
+    )
 
 
 # =============================================================================
@@ -501,6 +519,8 @@ class QueryAnalysisResult:
     # App self-knowledge
     is_app_help_query: bool = False
     skill_name: str | None = None
+    # Indexable vs Semantic — probabilistic hint for the planner
+    semantic_filter_terms: list[str] = field(default_factory=list)
     # Context reference (LLM-first, 2026-04)
     context_reference: ContextReferenceOutput = field(default_factory=ContextReferenceOutput)
     raw_output: dict[str, Any] = field(default_factory=dict)
@@ -789,6 +809,10 @@ async def analyze_query(
             is_news_query=result.is_news_query,
             is_app_help_query=result.is_app_help_query,
             skill_name=result.skill_name,
+            # Indexable vs Semantic — probabilistic hint for the planner
+            semantic_filter_terms=[
+                t.strip().lower() for t in (result.semantic_filter_terms or []) if t.strip()
+            ],
             # Context reference (LLM-first, 2026-04)
             context_reference=result.context_reference,
             raw_output=result.model_dump(),
@@ -1171,6 +1195,11 @@ class QueryAnalyzerService:
                             f"Chat Override: skill_name cleared ({analysis_result.skill_name})"
                         )
                         analysis_result.skill_name = None
+                    # Same rationale for semantic_filter_terms: a chat-classified
+                    # turn won't reach the planner, but downstream consumers may
+                    # still inspect this field; clear it for hygiene.
+                    if analysis_result.semantic_filter_terms:
+                        analysis_result.semantic_filter_terms = []
 
             # === STEP 5: Context Resolution (LLM-first) ===
             # Uses context_reference from LLM structured output (Step 2) instead of
@@ -1271,6 +1300,22 @@ class QueryAnalyzerService:
             # This ensures the user's actual query (in their language) is preserved for debug panel
             actual_original_query = original_query if original_query is not None else query
 
+            # Observability: track non-empty semantic_filter_terms emission rate
+            # by model. Drives the rollout from 'observe' to 'autocorrect' modes.
+            if analysis_result.semantic_filter_terms:
+                _term_count = len(analysis_result.semantic_filter_terms)
+                _bucket = "1" if _term_count == 1 else "2-3" if _term_count <= 3 else "4+"
+                planner_semantic_filter_terms_emitted.labels(
+                    model=settings.query_analyzer_llm_model,
+                    term_count_bucket=_bucket,
+                ).inc()
+                logger.info(
+                    "semantic_filter_terms_emitted",
+                    terms=analysis_result.semantic_filter_terms,
+                    term_count=_term_count,
+                    model=settings.query_analyzer_llm_model,
+                )
+
             return QueryIntelligence(
                 original_query=actual_original_query,
                 english_query=english_query,
@@ -1315,6 +1360,8 @@ class QueryAnalyzerService:
                 is_app_help_query=analysis_result.is_app_help_query,
                 # Skill activation
                 detected_skill_name=analysis_result.skill_name,
+                # Indexable vs Semantic — probabilistic hint (frozen tuple)
+                semantic_filter_terms=tuple(analysis_result.semantic_filter_terms),
             )
 
         except Exception as e:

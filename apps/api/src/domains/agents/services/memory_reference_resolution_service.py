@@ -358,10 +358,9 @@ class MemoryReferenceResolutionService:
                 timeout=timeout_seconds,
             )
 
-            # Extract response content (ensure string)
-            raw_content = result.content if hasattr(result, "content") else str(result)
-            response = raw_content if isinstance(raw_content, str) else str(raw_content)
-            response = response.strip()
+            # Extract response text via BaseMessage.text (LangChain Core 1.2+).
+            # Handles both str content and Gemini 3.x list[dict] content blocks.
+            response = result.text.strip()
 
             # Check for "NONE" or empty response
             if not response or response.upper() == "NONE":
@@ -511,10 +510,9 @@ class MemoryReferenceResolutionService:
                 timeout=timeout_seconds,
             )
 
-            raw_content = result.content if hasattr(result, "content") else str(result)
-            response = (
-                raw_content.strip() if isinstance(raw_content, str) else str(raw_content).strip()
-            )
+            # Extract response text via BaseMessage.text (LangChain Core 1.2+).
+            # Handles both str content and Gemini 3.x list[dict] content blocks.
+            response = result.text.strip()
 
             logger.debug(
                 "memory_resolution_llm_raw_response",

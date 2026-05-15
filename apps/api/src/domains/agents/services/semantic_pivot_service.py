@@ -75,9 +75,7 @@ async def _cached_translate_llm_call(
     prompt = f"{system_prompt}\n\nQuery: {query}\nEnglish intent:"
 
     result = await llm.ainvoke(prompt, config=config)
-    english_query = (
-        str(result.content).strip() if hasattr(result, "content") else str(result).strip()
-    )
+    english_query = result.text.strip()
 
     # Clean up any quotes or extra formatting
     return english_query.strip("\"'")

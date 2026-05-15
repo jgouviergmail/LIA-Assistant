@@ -2841,6 +2841,10 @@
           "title": "🔄 自适应重新规划",
           "description": "执行失败时的智能自主恢复（空结果、部分失败、依赖错误、语义不一致）。基于规则的分析，无需额外LLM调用以保证速度。恢复策略：使用调整后的参数重试、跳过非关键步骤、必要时完全重新规划。PANIC模式带指数退避。用户始终收到最佳可能的回答，即使出现部分故障。"
         },
+        "semanticLeakDefense": {
+          "title": "🛡️ 可索引与语义化条件区分",
+          "description": "通用验证层，将<em>可索引</em>条件（日期、标识符、发件人、状态、地点——作为工具参数传递）与<em>语义化</em>条件（类别、紧急程度、质量、优先级——由响应 LLM 在下游过滤）区分开来。当规划器试图将「医疗」或「紧急」等概念性词语<em>直接</em>放入字面搜索工具（Google 日历、Gmail、类 Notion 存储……）的查询中时，该层会通过针对查询分析器提供的提示进行整词边界匹配来检测此类泄漏，并发出专用的 Prometheus 计数器。通用机制：当前所有连接器或未来 MCP 服务器都无需修改——通过 <code>ToolManifest.text_search_mode</code>（「semantic」/「hybrid」）声明式地选择退出。运营方通过 <code>PLANNER_SEMANTIC_LEAK_MODE=observe|autocorrect|off</code> 进行控制。"
+        },
         "parallelExecution": {
           "title": "⚡ Wave-by-Wave 并行执行",
           "description": "基于asyncio.gather()的原生并行执行引擎，替代LangGraph有缺陷的Command+Send模式。通过依赖图自动计算执行波次：独立步骤同时执行，依赖步骤等待前置条件完成。结果：复杂的多域计划（天气+路线+地点+日历）在几秒内完成，而非顺序执行。"
@@ -2908,6 +2912,17 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_20_6": {
+          "title": "v1.20.6 — 网页搜索更可靠、Gemini 3.x 大模型端到端支持、28 项超时无需重建即可调整",
+          "date": "2026 年 5 月",
+          "count": "4",
+          "items": {
+            "i1": "<b>网页搜索（Brave）补充答案更可靠</b> — 当 LIA 触发网页搜索来丰富回答（事实核查、最新上下文等）时，一个错误配置的内部超时（3 秒）会在搜索引擎来得及响应（5 秒）<em>之前</em>就切断请求。结果：搜索看似已运行但什么都没返回，回答上下文单薄。包装超时现已调整为 8 秒，并与底层 HTTP 调用保持一致（内部规则：包裹超时 ≥ HTTP × 1.5）。无需调整任何设置——后台已修复。",
+            "i2": "<b>Gemini 3.x 大模型：完整流水线（规划器、记忆、语音、HITL）现已兼容</b> — 如果您（或您的管理员）在<b>大模型配置</b>中将任何 LLM 类型切换到了 <em>Gemini 3.1 Pro Preview</em>（或未来的 Gemini 3.x），多个流程会悄悄回退到兜底行为，甚至显示损坏的输出。原因：Gemini 3.x 以结构化形式（块）返回内容，而所有其他提供商使用普通字符串。代码中有 33 处在没有保护的情况下读取该字符串。所有这些位置已迁移到官方 <code>BaseMessage.text</code> API（LangChain Core 1.2+），它能处理两种形式。具体来说：规划器、记忆引用解析、HITL 问题生成（工具批准 + 计划批准）、语音评论、广播通知，甚至 LLM 缓存键现在与 Gemini 3.x 或任何其他提供商表现完全一致。",
+            "i3": "<b>管理员：之前硬编码的 28 项超时现可通过 <code>.env</code> 调整</b> — 整套超时管线（出站 HTTP 到 Brave / Perplexity / Wikipedia / OpenWeatherMap / Ollama、短/长连接器操作、SSE 轮询、OAuth 锁、计划任务执行器、WebSocket 空闲窗口、图像生成、浏览器代理、子代理、devops Claude……）现已作为运营方可调设置暴露——不必再为调整一个超时而重建 Docker。中央参考 <code>docs/technical/TIMEOUT_REGISTRY.md</code> 记录每个参数（角色、默认值、范围、消费方文件、级联）并附三个附录：附录 A（不在范围内的 LLM 调用超时，通过大模型配置管理）、附录 B（前端 timing.ts 镜像）、附录 C（推迟到未来一波的已知缺口）。所有默认值都与历史值一致——默认行为不变。途中三项清理：移除 2 个死常量、解决 1 处重复（currency API）、将 1 个孤立字段（<code>task_orchestrator_execution_timeout_seconds</code>）实际接入作为多波次计划总时长的软上限 + 新增 Prometheus 计数器 <code>lia_parallel_execution_global_timeout_total</code>。",
+            "i4": "<b>规划器上的预防性防御层（观察模式）</b> — 当您询问类似<em>「我接下来两个医疗约会」</em>这样的问题时，规划器可能会尝试将「医疗」一词<em>直接</em>放入搜索过滤（这对 Google 日历、Gmail 等仅按字面文本索引的存储不起作用）——结果：0 条命中或错误结果。新的验证层（ADR-084）现在会检测字面搜索工具的文本搜索参数中此类语义限定符（「紧急」「重要」「医疗」……）的泄漏，并通过专用 Prometheus 计数器进行报告。<b>当前模式：仅观察</b>——本版本不会修改任何计划，先用一段时间验证频率和假阳性的缺失。第二阶段（自动纠正激活）计划在几周遥测后启动。通过 <code>PLANNER_SEMANTIC_LEAK_MODE=observe|autocorrect|off</code> 控制。"
+          }
+        },
         "v1_20_5": {
           "title": "v1.20.5 — 子代理：专家分析终于言之有物、专家口吻得以保留、3 项新的管理员设置",
           "date": "2026 年 5 月",
@@ -5604,7 +5619,7 @@
       "execution-plans": {
         "title": "ExecutionPlan：LIA如何规划和执行复杂请求",
         "excerpt": "LIA将您的多步骤请求分解为结构化执行计划，经过语义验证并并行执行。",
-        "body": "<h2>结构化计划语言</h2><p>LIA的规划器生成<strong>ExecutionPlan</strong>：一个经过Pydantic验证的对象，包含<code>plan_id</code>（UUID）、<code>execution_mode</code>（顺序或并行）、<code>max_cost_usd</code>、<code>estimated_cost_usd</code>和<code>version</code>版本号。每个计划包含一组<strong>ExecutionStep</strong>，字段包括：<code>step_id</code>、<code>step_type</code>（TOOL、CONDITIONAL、REPLAN或HUMAN）、<code>agent_name</code>、<code>tool_name</code>、<code>parameters</code>、<code>depends_on</code>和<code>timeout_seconds</code>。</p><p>例如，对于\"明天早上给Jean发一份天气摘要\"，计划将包含：(1) 获取明天的天气，(2) 查找联系人Jean，(3) 编写并发送邮件——步骤1→3和2→3之间存在依赖关系。</p><h2>FOR_EACH模式</h2><p>对于批量操作，步骤支持<code>for_each</code>字段，可迭代前一步骤产生的集合。<code>for_each_max</code>参数限制迭代次数，每个元素的错误独立处理，不会中断整个批次。</p><h2>11项语义验证检查</h2><p>在执行之前，<strong>语义验证器</strong>检查11类问题：</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — LLM编造的工具或能力</li><li><strong>GHOST_DEPENDENCY</strong> — 引用不存在的步骤</li><li><strong>LOGICAL_CYCLE</strong> — 循环依赖</li><li><strong>CARDINALITY_MISMATCH</strong> — 步骤间基数不匹配</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — 计划范围过大或不足</li><li><strong>WRONG_PARAMETERS</strong> — 工具参数不正确</li><li><strong>MISSING_STEP</strong> — 缺少满足请求所需的步骤</li><li><strong>DANGEROUS_AMBIGUITY</strong> — 可能导致错误的歧义</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — 未经验证的假设</li></ul><h2>波次并行执行</h2><p><strong>DependencyGraph</strong>计算执行波次：所有无依赖的步骤构成第一波并行执行。后续波次等待其前置步骤完成。这一机制使得涉及3到5个领域的复杂请求能够以接近简单请求的响应时间处理。</p><h2>自适应重新规划</h2><p>如果某个步骤失败，系统可以通过<code>REPLAN</code>类型动态重新规划。例如，如果未找到联系人，LIA可以向用户请求澄清，而不是放弃整个计划。</p><h2>自增强反幻觉注册表</h2><p>LLM有时会在计划中发明不存在的工具。LIA维护一个持久化的幻觉模式注册表（<code>hallucinated_tools.json</code>），每次检测到新的幻觉时自动更新。在计划验证期间，每个工具都会与此注册表进行核对——幻觉步骤被移除，规划器被强制使用真实的目录工具重新规划。</p>"
+        "body": "<h2>结构化计划语言</h2><p>LIA的规划器生成<strong>ExecutionPlan</strong>：一个经过Pydantic验证的对象，包含<code>plan_id</code>（UUID）、<code>execution_mode</code>（顺序或并行）、<code>max_cost_usd</code>、<code>estimated_cost_usd</code>和<code>version</code>版本号。每个计划包含一组<strong>ExecutionStep</strong>，字段包括：<code>step_id</code>、<code>step_type</code>（TOOL、CONDITIONAL、REPLAN或HUMAN）、<code>agent_name</code>、<code>tool_name</code>、<code>parameters</code>、<code>depends_on</code>和<code>timeout_seconds</code>。</p><p>例如，对于\"明天早上给Jean发一份天气摘要\"，计划将包含：(1) 获取明天的天气，(2) 查找联系人Jean，(3) 编写并发送邮件——步骤1→3和2→3之间存在依赖关系。</p><h2>FOR_EACH模式</h2><p>对于批量操作，步骤支持<code>for_each</code>字段，可迭代前一步骤产生的集合。<code>for_each_max</code>参数限制迭代次数，每个元素的错误独立处理，不会中断整个批次。</p><h2>11项语义验证检查</h2><p>在执行之前，<strong>语义验证器</strong>检查11类问题：</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — LLM编造的工具或能力</li><li><strong>GHOST_DEPENDENCY</strong> — 引用不存在的步骤</li><li><strong>LOGICAL_CYCLE</strong> — 循环依赖</li><li><strong>CARDINALITY_MISMATCH</strong> — 步骤间基数不匹配</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — 计划范围过大或不足</li><li><strong>WRONG_PARAMETERS</strong> — 工具参数不正确</li><li><strong>MISSING_STEP</strong> — 缺少满足请求所需的步骤</li><li><strong>DANGEROUS_AMBIGUITY</strong> — 可能导致错误的歧义</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — 未经验证的假设</li></ul><h2>可索引与语义化条件区分</h2><p>除了十一项结构性检查外，验证器还执行一项<strong>通用规划原则</strong>：将<em>可索引</em>条件（日期、标识符、发件人、状态、地点——作为工具参数传递）与<em>语义化</em>条件（类别、紧急程度、质量、优先级——由响应 LLM 在下游过滤）区分开来。当规划器试图将「医疗」或「紧急」等概念性词语硬塞进字面搜索工具（Google 日历、Gmail、类 Notion 存储……）的查询中时，检测层会通过针对查询分析器发出的提示进行整词边界匹配来标记此类泄漏。工具无关机制：当前所有连接器或未来 MCP 服务器都无需修改——通过 <code>ToolManifest.text_search_mode</code> 为提供原生语义搜索的存储声明式地选择退出。</p><h2>波次并行执行</h2><p><strong>DependencyGraph</strong>计算执行波次：所有无依赖的步骤构成第一波并行执行。后续波次等待其前置步骤完成。这一机制使得涉及3到5个领域的复杂请求能够以接近简单请求的响应时间处理。</p><h2>自适应重新规划</h2><p>如果某个步骤失败，系统可以通过<code>REPLAN</code>类型动态重新规划。例如，如果未找到联系人，LIA可以向用户请求澄清，而不是放弃整个计划。</p><h2>自增强反幻觉注册表</h2><p>LLM有时会在计划中发明不存在的工具。LIA维护一个持久化的幻觉模式注册表（<code>hallucinated_tools.json</code>），每次检测到新的幻觉时自动更新。在计划验证期间，每个工具都会与此注册表进行核对——幻觉步骤被移除，规划器被强制使用真实的目录工具重新规划。</p>"
       },
       "human-in-the-loop": {
         "title": "人在回路中：6级审批保持您的控制",

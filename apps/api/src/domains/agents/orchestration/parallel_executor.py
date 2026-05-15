@@ -82,12 +82,8 @@ import structlog
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict
 
+from src.core.config import settings
 from src.core.constants import (
-    BROWSER_TOOL_TIMEOUT_SECONDS,
-    DEFAULT_TOOL_TIMEOUT_SECONDS,
-    HTTP_TIMEOUT_CONDITIONAL_EVAL,
-    MAX_BROWSER_TOOL_TIMEOUT_SECONDS,
-    MAX_TOOL_TIMEOUT_SECONDS,
     TOOL_NAME_DELEGATE_SUB_AGENT,
 )
 from src.core.field_names import (
@@ -860,6 +856,15 @@ async def _execute_wave_parallel(
     # FIX 2026-02-06: Use return_exceptions=True to isolate step failures
     # Without this, one failing step cancels all parallel steps, causing
     # incomplete plan execution and data inconsistency
+    #
+    # NOTE: per-step timeouts are already enforced individually inside
+    # `_execute_single_step_async` via `_compute_step_timeout`, so each task
+    # in this gather is already wall-clock bounded (sub-agent 180–300s,
+    # browser 300–600s, generic 30–120s, image 90s, devops 120s). The
+    # plan-wide budget (`task_orchestrator_execution_timeout_seconds`) is
+    # enforced at the next-wave boundary in the outer loop — see the soft
+    # check in `execute_plan_parallel` — to avoid cancelling a legitimate
+    # sub-agent in flight.
     raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # Convert exceptions to failed StepResults for consistent handling
@@ -868,6 +873,7 @@ async def _execute_wave_parallel(
         if isinstance(result, Exception):
             step_id = step_ids_ordered[i]
             step = steps_by_id[step_id]
+            is_timeout = isinstance(result, TimeoutError)
             logger.error(
                 "step_execution_exception",
                 step_id=step_id,
@@ -882,7 +888,9 @@ async def _execute_wave_parallel(
                     tool_name=step.tool_name,
                     success=False,
                     error=f"{type(result).__name__}: {result}",
-                    error_code=ToolErrorCode.INTERNAL_ERROR,
+                    error_code=(
+                        ToolErrorCode.TIMEOUT if is_timeout else ToolErrorCode.INTERNAL_ERROR
+                    ),
                     execution_time_ms=0,
                     wave_id=current_wave_id,
                 )
@@ -1265,7 +1273,12 @@ async def execute_plan_parallel(
             registry={},
         )
 
-    start_time = time.time()
+    # Plan-level start time. Distinct from the per-step ``start_time`` declared
+    # inside ``_execute_single_step_async`` and from ``wave_start_time`` inside
+    # ``_execute_wave_parallel`` — those measure step / wave latency, this one
+    # bounds the whole multi-wave execution against
+    # ``settings.task_orchestrator_execution_timeout_seconds``.
+    plan_start_time = time.time()
 
     # Build dependency graph and calculate waves
     dep_graph = DependencyGraph(execution_plan)
@@ -1336,6 +1349,38 @@ async def execute_plan_parallel(
     excluded_steps: set[str] = set()
 
     while True:
+        # =====================================================================
+        # GLOBAL ORCHESTRATOR TIMEOUT (Vague 5 — wires the previously orphan
+        # `task_orchestrator_execution_timeout_seconds` setting).
+        # =====================================================================
+        # Soft timeout applied at the start of each wave iteration: when the
+        # wall-clock budget is exceeded, we stop scheduling new waves and
+        # return whatever is already in `completed_steps`. We do NOT cancel
+        # in-flight tasks (the previous wave's `gather` already completed
+        # before reaching here) — this is intentional, the goal is to bound
+        # plan duration without violently truncating an active wave.
+        # The default 120 s matches the historical .env value; the field
+        # was previously declared but never read (audit V3, F1).
+        elapsed_total = time.time() - plan_start_time
+        if elapsed_total > settings.task_orchestrator_execution_timeout_seconds:
+            from src.infrastructure.observability.metrics_agents import (
+                parallel_execution_global_timeout_total,
+            )
+
+            plan_outcome = "partial" if completed_steps else "empty"
+            parallel_execution_global_timeout_total.labels(plan_outcome=plan_outcome).inc()
+            logger.warning(
+                "parallel_execution_global_timeout",
+                run_id=run_id,
+                plan_id=execution_plan.plan_id,
+                elapsed_seconds=round(elapsed_total, 1),
+                timeout_seconds=settings.task_orchestrator_execution_timeout_seconds,
+                completed_count=len(completed_steps),
+                total_steps=len(execution_plan.steps),
+                plan_outcome=plan_outcome,
+            )
+            break
+
         # =====================================================================
         # FOR_EACH PRE-EXPANSION CHECK (DRY - uses shared helper)
         # =====================================================================
@@ -1462,7 +1507,7 @@ async def execute_plan_parallel(
 
         current_wave_id += 1
 
-    total_execution_time_ms = int((time.time() - start_time) * 1000)
+    total_execution_time_ms = int((time.time() - plan_start_time) * 1000)
 
     logger.info(
         "parallel_execution_completed",
@@ -1573,8 +1618,10 @@ _HIGH_LATENCY_TOOL_NAMES: frozenset[str] = _IMAGE_TOOL_NAMES | frozenset(
 # domain-level config. Sub-agent and browser timeouts ARE in
 # `core/constants.py` because operators tune them via `.env`; image and
 # devops have never needed that level of tunability.
-_IMAGE_TOOL_TIMEOUT_SECONDS = 90.0
-_DEVOPS_TOOL_TIMEOUT_SECONDS = 120.0  # Claude CLI can take 15-60s per investigation
+# NOTE: per-family timeout defaults migrated to Settings — image-generation
+# (settings.image_generation_tool_timeout_seconds) and devops-Claude
+# (settings.devops_claude_tool_timeout_seconds) are read directly inside
+# _compute_step_timeout below.
 
 
 def _compute_step_timeout(
@@ -1613,30 +1660,30 @@ def _compute_step_timeout(
     Returns:
         Effective timeout in seconds. Always positive.
     """
-    settings = get_settings()
-    sub_agent_floor: float = settings.subagent_tool_timeout_seconds
-    sub_agent_ceiling: float = settings.subagent_tool_max_timeout_seconds
+    cfg = get_settings()
+    sub_agent_floor: float = cfg.subagent_tool_timeout_seconds
+    sub_agent_ceiling: float = cfg.subagent_tool_max_timeout_seconds
 
     # Floor (effective default if planner left it unset, AND minimum for
     # high-latency tools — see docstring).
     if step_tool_name == _SUB_AGENT_TOOL_NAME:
         effective_default: float = sub_agent_floor
     elif step_tool_name in _IMAGE_TOOL_NAMES:
-        effective_default = _IMAGE_TOOL_TIMEOUT_SECONDS
+        effective_default = cfg.image_generation_tool_timeout_seconds
     elif step_tool_name == _DEVOPS_TOOL_NAME:
-        effective_default = _DEVOPS_TOOL_TIMEOUT_SECONDS
+        effective_default = cfg.devops_claude_tool_timeout_seconds
     elif step_tool_name == _BROWSER_TOOL_NAME:
-        effective_default = BROWSER_TOOL_TIMEOUT_SECONDS
+        effective_default = cfg.browser_tool_timeout_seconds
     else:
-        effective_default = DEFAULT_TOOL_TIMEOUT_SECONDS
+        effective_default = cfg.default_tool_timeout_seconds
 
     # Ceiling.
     if step_tool_name == _BROWSER_TOOL_NAME:
-        max_timeout: float = MAX_BROWSER_TOOL_TIMEOUT_SECONDS
+        max_timeout: float = cfg.max_browser_tool_timeout_seconds
     elif step_tool_name == _SUB_AGENT_TOOL_NAME:
         max_timeout = sub_agent_ceiling
     else:
-        max_timeout = MAX_TOOL_TIMEOUT_SECONDS
+        max_timeout = cfg.max_tool_timeout_seconds
 
     # High-latency tools: enforce family floor even if planner asked for less.
     if step_tool_name in _HIGH_LATENCY_TOOL_NAMES:
@@ -1724,7 +1771,7 @@ async def _execute_single_step_async(
                     completed_steps=completed_steps,
                     wave_id=wave_id,
                 ),
-                timeout=HTTP_TIMEOUT_CONDITIONAL_EVAL,
+                timeout=settings.http_timeout_conditional_eval,
             )
         else:
             # Unsupported step type

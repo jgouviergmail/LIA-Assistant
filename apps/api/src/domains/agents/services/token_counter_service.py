@@ -162,7 +162,7 @@ class TokenCounterService:
         Returns:
             Number of tokens including overhead
         """
-        content = message.content if isinstance(message.content, str) else str(message.content)
+        content = message.text
         base_tokens = self.count_tokens(content)
 
         # Add overhead for message formatting (role, etc.)

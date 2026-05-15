@@ -1095,6 +1095,11 @@ class ValidationContext:
         budget_usd: Budget max en USD (None = pas de limite)
         allow_hitl: Si False, rejette tools nécessitant HITL
         max_steps: Nombre max de steps autorisés (None = pas de limite)
+        semantic_filter_terms: Indexable vs Semantic — probabilistic hint
+            from the query analyzer. When non-empty, the validator checks
+            that no step passes any of these terms as a text-search
+            parameter to a literal-search tool. Empty tuple = no hint,
+            semantic-leak check is a no-op (default). See ADR-084.
     """
 
     user_id: str
@@ -1104,6 +1109,7 @@ class ValidationContext:
     budget_usd: float | None = None
     allow_hitl: bool = True
     max_steps: int | None = None
+    semantic_filter_terms: tuple[str, ...] = field(default_factory=tuple)
 ```
 
 ### ValidationResult
@@ -1156,6 +1162,59 @@ graph TD
     P -->|No| R[Return ValidationResult<br/>is_valid=False, errors]
 ```
 
+### Indexable vs Semantic — Semantic Leak Detection (ADR-084)
+
+**Added in v1.20.6 (2026-05-15)** — universal defense layer that catches semantic qualifiers (`medical`, `urgent`, `important`, `best`…) leaked into the free-text `query` of literal-search tools (Google Calendar / Gmail / any future MCP). See [ADR-084](../architecture/ADR-084-Indexable-vs-Semantic-Criteria.md) for the full diagnosis story and design rationale.
+
+The check runs **per step, on every plan** (single-domain, multi-domain, future strategies) — no per-strategy duplication. It is invoked from `validate_execution_plan` after the standard step validation, and is a no-op when `context.semantic_filter_terms` is empty (default), preserving backwards compatibility for legacy callers.
+
+**Mode gated by `settings.planner_semantic_leak_mode`** (env var `PLANNER_SEMANTIC_LEAK_MODE`):
+
+| Mode | Behavior |
+|---|---|
+| `off` | Kill switch. Nothing logged, no metric, no plan change. |
+| `observe` (default) | Logs `semantic_leak_in_plan` warning + emits `lia_planner_semantic_leak_detected_total`. **Plan untouched** — zero regression guarantee. |
+| `autocorrect` | NULL the leaky parameter and bump `max_results` to `PLANNER_SEMANTIC_BROAD_BATCH` (default `25`) **only when** the existing `max_results < PLANNER_SEMANTIC_BROAD_BATCH_MIN` (= `20`). Emits `lia_planner_semantic_leak_autocorrected_total`. |
+
+**Free-text parameter names scanned** (`src/core/constants.py::TEXT_SEARCH_PARAM_NAMES`): `query`, `q`, `search`, `search_query`, `text`, `keywords`.
+
+**Two exceptions** (skip the check):
+1. **Quoted literal** — presence of `"` or `'` anywhere in the param value signals literal-match intent.
+2. **Semantic-search tool** — `ToolManifest.text_search_mode != "literal"` (e.g. `"semantic"` or `"hybrid"` for vector-search backends).
+
+**Word-boundary matching** — the param value is split on whitespace, each token stripped of `.,;:!?()[]`, lowercased, then intersected with the term set. `"medical"` matches `"medical clinic Paris"` but not `"medicalign software"`.
+
+```python
+# Pseudo-code of the per-step check
+for step in plan.steps:
+    if step.step_type != StepType.TOOL:
+        continue
+    manifest = self.registry.get_tool_manifest(step.tool_name)
+    if manifest.text_search_mode != "literal":
+        continue  # Exception #2
+    for param_name in TEXT_SEARCH_PARAM_NAMES:
+        value = step.parameters.get(param_name)
+        if not value or not isinstance(value, str):
+            continue
+        if '"' in value or value.startswith(("'", '"')):
+            continue  # Exception #1
+        tokens = {t.strip(".,;:!?()[]") for t in value.lower().split()}
+        matched = sorted(set(context.semantic_filter_terms) & tokens)
+        if matched:
+            # observe: log + metric
+            # autocorrect: ALSO step.parameters[param_name] = None + bump max_results
+            ...
+```
+
+**Environment variables**:
+
+| Variable | Default | Range | Purpose |
+|---|---|---|---|
+| `PLANNER_SEMANTIC_LEAK_MODE` | `observe` | `off` / `observe` / `autocorrect` | Validator behavior on a detected leak. Ship in `observe` for the rollout, flip to `autocorrect` once observe-mode telemetry confirms safe activation. |
+| `PLANNER_SEMANTIC_BROAD_BATCH` | `25` | 10–100 | `max_results` bump applied by `autocorrect`, only when the existing value is `< PLANNER_SEMANTIC_BROAD_BATCH_MIN` (= `20`). |
+
+The `semantic_filter_terms` themselves are emitted by the query analyzer (cf. [SMART_SERVICES.md §QueryIntelligence Output](./SMART_SERVICES.md#queryintelligence-output) and the `INDEXABLE vs SEMANTIC HINT` section in `query_analyzer_prompt.txt`) and propagated through the `_query_intelligence_obj` state field into `planner_node_v3.py::ValidationContext(semantic_filter_terms=...)`.
+
 ### Code Validation Complète
 
 ```python
@@ -1169,6 +1228,7 @@ class PlanValidator:
     3. Coûts : budget total, coût par step
     4. HITL : détection tools nécessitant approbation humaine
     5. Structure : steps valides, tools existants, dépendances
+    6. Indexable vs Semantic : semantic terms leaked into text-search params (ADR-084)
     """
 
     def __init__(self, registry: AgentRegistry) -> None:

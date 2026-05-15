@@ -95,9 +95,12 @@ class TestFilterMethod:
     @pytest.mark.asyncio
     async def test_filters_matching_items(self, mock_service):
         """Test filtering excludes matching items."""
-        # Configure mock to return indices to exclude
+        # Configure mock to return indices to exclude.
+        # Migration BaseMessage.text (LangChain Core 1.2+): production code reads
+        # ``.text``; mirror the value on the mock so assertions still hold.
         mock_response = MagicMock()
         mock_response.content = "[1]"  # Exclude item at index 1
+        mock_response.text = "[1]"
         mock_service.llm.ainvoke.return_value = mock_response
 
         items = [
@@ -119,6 +122,7 @@ class TestFilterMethod:
         """Test no matches returns all indices."""
         mock_response = MagicMock()
         mock_response.content = "[]"  # No items to exclude
+        mock_response.text = "[]"
         mock_service.llm.ainvoke.return_value = mock_response
 
         items = [
@@ -138,6 +142,7 @@ class TestFilterMethod:
         """Test all items matching returns empty list."""
         mock_response = MagicMock()
         mock_response.content = "[0, 1, 2]"  # Exclude all
+        mock_response.text = "[0, 1, 2]"
         mock_service.llm.ainvoke.return_value = mock_response
 
         items = [
@@ -173,6 +178,7 @@ class TestFilterMethod:
         """Test run_id is passed in config."""
         mock_response = MagicMock()
         mock_response.content = "[]"
+        mock_response.text = "[]"
         mock_service.llm.ainvoke.return_value = mock_response
 
         with patch(
@@ -420,6 +426,7 @@ class TestItemFilterIntegration:
             mock_llm = MagicMock()
             mock_response = MagicMock()
             mock_response.content = "[0, 2]"
+            mock_response.text = "[0, 2]"
             mock_llm.ainvoke = AsyncMock(return_value=mock_response)
             mock_get_llm.return_value = mock_llm
 
@@ -449,6 +456,7 @@ class TestItemFilterIntegration:
             mock_llm = MagicMock()
             mock_response = MagicMock()
             mock_response.content = "[1]"  # Exclude carrefour
+            mock_response.text = "[1]"
             mock_llm.ainvoke = AsyncMock(return_value=mock_response)
             mock_get_llm.return_value = mock_llm
 
@@ -473,6 +481,7 @@ class TestItemFilterIntegration:
             mock_llm = MagicMock()
             mock_response = MagicMock()
             mock_response.content = "[0, 1]"  # Exclude both Johns
+            mock_response.text = "[0, 1]"
             mock_llm.ainvoke = AsyncMock(return_value=mock_response)
             mock_get_llm.return_value = mock_llm
 

@@ -580,7 +580,7 @@ class UserMCPServerService:
                 config=invoke_config,
             )
 
-            generated = str(response.content).strip()
+            generated = response.text.strip()
 
             # Remove surrounding quotes if present
             if (generated.startswith('"') and generated.endswith('"')) or (

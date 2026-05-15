@@ -274,7 +274,7 @@ class BroadcastService:
             config=invoke_config,
         )
 
-        translated = str(response.content).strip()
+        translated = response.text.strip()
 
         # Remove surrounding quotes if present
         if (translated.startswith('"') and translated.endswith('"')) or (

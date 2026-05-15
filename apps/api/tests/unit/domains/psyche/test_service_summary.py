@@ -102,6 +102,9 @@ class TestGenerateSummary:
 
         mock_llm_result = MagicMock()
         mock_llm_result.content = "LIA is feeling curious and energized today."
+        # Migration BaseMessage.text (LangChain Core 1.2+): production code now
+        # reads ``.text``; mirror the value on the mock so the assertion holds.
+        mock_llm_result.text = "LIA is feeling curious and energized today."
 
         db = AsyncMock()
         service = PsycheService(db)
@@ -179,6 +182,7 @@ class TestGenerateSummary:
 
         mock_llm_result = MagicMock()
         mock_llm_result.content = "Summary with emotions."
+        mock_llm_result.text = "Summary with emotions."
 
         db = AsyncMock()
         service = PsycheService(db)

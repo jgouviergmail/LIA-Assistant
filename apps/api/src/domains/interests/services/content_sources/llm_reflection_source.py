@@ -125,7 +125,7 @@ class LLMReflectionContentSource:
                 user_id=user_id or "system",
             )
 
-            content = result.content if isinstance(result.content, str) else str(result.content)
+            content = result.text
 
             if not content or len(content.strip()) < 20:
                 logger.debug(

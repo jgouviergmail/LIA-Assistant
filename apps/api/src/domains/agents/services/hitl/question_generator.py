@@ -247,9 +247,9 @@ class HitlQuestionGenerator:
         except Exception:
             pass
 
-        # Ensure we return a string (content can be str or list in some cases)
-        content = response.content
-        raw_question = content if isinstance(content, str) else str(content)
+        # BaseMessage.text (LangChain Core 1.2+) handles both str content and
+        # Gemini 3.x list[dict] content blocks transparently.
+        raw_question = str(response.text)
 
         # Normalize Markdown for proper ReactMarkdown rendering
         # LLMs often generate Markdown without proper spacing (e.g., "text--- ## Header")
@@ -355,8 +355,10 @@ class HitlQuestionGenerator:
                         tool_name=tool_name,
                     )
 
-                # Extract and yield token content
-                content = chunk.content if chunk.content else ""
+                # Extract and yield token text — BaseMessageChunk.text handles
+                # both str and Gemini 3.x list[dict] content blocks (concatenates
+                # text blocks, ignores thinking blocks).
+                content = str(chunk.text) if chunk.text else ""
                 full_question += content
                 yield content
 
@@ -473,9 +475,9 @@ class HitlQuestionGenerator:
         # Invoke LLM with instrumented config (Langfuse + TokenTracking + node_name)
         response = await self.plan_approval_llm.ainvoke(prompt, config=config)
 
-        # Ensure we return a string (content can be str or list in some cases)
-        content = response.content
-        raw_question = content if isinstance(content, str) else str(content)
+        # BaseMessage.text (LangChain Core 1.2+) handles both str content and
+        # Gemini 3.x list[dict] content blocks transparently.
+        raw_question = str(response.text)
 
         # Normalize Markdown for proper ReactMarkdown rendering
         # LLMs often generate Markdown without proper spacing (e.g., "text--- ## Header")
@@ -595,8 +597,10 @@ class HitlQuestionGenerator:
                         plan_id=plan_summary.plan_id,
                     )
 
-                # Extract and yield token content
-                content = chunk.content if chunk.content else ""
+                # Extract and yield token text — BaseMessageChunk.text handles
+                # both str and Gemini 3.x list[dict] content blocks (concatenates
+                # text blocks, ignores thinking blocks).
+                content = str(chunk.text) if chunk.text else ""
                 full_question += content
                 yield content
 

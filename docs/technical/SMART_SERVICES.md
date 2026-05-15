@@ -182,6 +182,14 @@ class QueryIntelligence:
     is_mutation_intent: bool  # create/update/delete/send
     has_cardinality_risk: bool  # "all/every/each"
     is_app_help_query: bool  # Detected by LLM when user asks about the app itself. Used by RoutingDecider Rule 0.
+
+    # Indexable vs Semantic hint (ADR-084, v1.20.6) — probabilistic, NOT authoritative.
+    # Lower-cased English-pivoted form. Forwarded to:
+    #   1. The smart_planner prompt as {semantic_filter_terms_hint}
+    #   2. ValidationContext.semantic_filter_terms (PlanValidator semantic-leak check)
+    # Empty when the analyzer detects no semantic qualifier OR when the user
+    # explicitly quoted the term as a literal value to match.
+    semantic_filter_terms: tuple[str, ...]  # ("medical", "urgent", "important", ...)
 ```
 
 ### Thresholds de Routing
@@ -341,8 +349,24 @@ Public prompt functions:
 
 | Function | Description |
 |----------|-------------|
-| `get_smart_planner_prompt(is_multi_domain, primary_domain)` | Unified prompt function with `is_multi_domain` and `primary_domain` params |
+| `get_smart_planner_prompt(is_multi_domain, primary_domain, semantic_filter_terms)` | Unified prompt function with `is_multi_domain` and `primary_domain` params, plus the `semantic_filter_terms` hint forwarded from the query analyzer (ADR-084) |
 | `get_smart_planner_multi_domain_prompt()` | Backward-compatible wrapper, calls `get_smart_planner_prompt(is_multi_domain=True)` |
+
+### Indexable vs Semantic Criteria (ADR-084, v1.20.6)
+
+The prompt includes a universal section `INDEXABLE vs SEMANTIC CRITERIA (universal planning principle)` placed **before** `PLANNING RULES` so it acts as a conceptual frame for every rule that follows. Generic, English (coherent with the post-`semantic_pivot` pipeline), connector-agnostic. The section covers:
+
+- **The two-class taxonomy**: indexable (date, ID, sender, status, label id…) → tool parameter ; semantic (medical, urgent, important, best…) → Response LLM filtering downstream.
+- **The cardinality × semantic trap**: "the N <semantic> X" → N is the FINAL count after Response filtering, not `max_results`. Ramener a 20–50 batch.
+- **Two exceptions**: user quoted the term as a literal string, OR tool's `text_search_mode != "literal"`.
+
+The placeholder `{semantic_filter_terms_hint}` is interpolated from `QueryIntelligence.semantic_filter_terms`:
+- Non-empty → rendered as comma-separated terms (`"medical, urgent"`)
+- Empty → rendered as `(none)` (stable string length, prompt-cache-friendly)
+
+**Cost**: ~370 tokens added to the planner prompt — recovered by provider prompt caches in steady state (Anthropic 5-min TTL, OpenAI Responses API caching).
+
+The downstream **runtime backstop** is implemented in `PlanValidator._check_semantic_leak` ; see [PLANNER.md §Indexable vs Semantic — Semantic Leak Detection](./PLANNER.md#indexable-vs-semantic--semantic-leak-detection-adr-084) for the mode flag (`off` / `observe` / `autocorrect`) and the env-var rollout strategy.
 
 ### Reference Bypass
 

@@ -149,6 +149,15 @@ class QueryIntelligence:
     # When set, the response_node activates this skill (runner or L2 passive).
     detected_skill_name: str | None = None
 
+    # === INDEXABLE vs SEMANTIC HINT ===
+    # Semantic qualifiers (e.g. "medical", "urgent", "important") that have no
+    # literal counterpart in any structured field of the target store. The
+    # planner must NOT pass these as `query`/`q`/`search` text values — the
+    # store would return 0 hits. Used by the validator to detect leaks.
+    # Probabilistic hint; empty when no semantic qualifiers were detected
+    # OR when the user explicitly cited the term as a literal value.
+    semantic_filter_terms: tuple[str, ...] = ()
+
     # === INTELLIGENT METHODS ===
 
     def requires_planner(self) -> bool:
@@ -460,6 +469,8 @@ class QueryIntelligence:
             "is_app_help_query": self.is_app_help_query,
             # Skill activation
             "detected_skill_name": self.detected_skill_name,
+            # Indexable vs Semantic — probabilistic planner hint
+            "semantic_filter_terms": list(self.semantic_filter_terms),
         }
 
 

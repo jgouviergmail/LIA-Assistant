@@ -28,12 +28,10 @@ from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
     SCHEDULED_ACTIONS_BATCH_SIZE,
-    SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS,
     SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES,
     SCHEDULED_ACTIONS_MAX_RETRIES,
     SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
     SCHEDULED_ACTIONS_SESSION_PREFIX,
-    SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES,
     SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
 )
 
@@ -219,7 +217,7 @@ async def execute_single_action(
 
                 response_content = await asyncio.wait_for(
                     _run_stream(),
-                    timeout=SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS,
+                    timeout=settings.scheduled_actions_execution_timeout_seconds,
                 )
 
                 # Success — recalculate next trigger
@@ -280,7 +278,7 @@ async def execute_single_action(
         if last_error is not None:
             if isinstance(last_error, TimeoutError):
                 error_msg = (
-                    f"Execution timed out after {SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS}s"
+                    f"Execution timed out after {settings.scheduled_actions_execution_timeout_seconds}s"
                     f" ({SCHEDULED_ACTIONS_MAX_RETRIES + 1} attempts)"
                 )
             else:
@@ -399,7 +397,7 @@ async def process_scheduled_actions() -> dict[str, Any]:
 
                 # 1. Recovery: reset stale 'executing' actions
                 recovered = await repo.recover_stale_executing(
-                    timeout_minutes=SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES
+                    timeout_minutes=settings.scheduled_actions_stale_timeout_minutes
                 )
                 stats["recovered"] = recovered
 

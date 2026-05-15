@@ -2,8 +2,8 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 7.6
-**Dernière mise à jour**: 2026-05-07
+**Version**: 7.7
+**Dernière mise à jour**: 2026-05-15
 **Statut**: Complète (190+ documents)
 
 ---
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 50+ |
 | Guides pratiques | 15+ |
 | Runbooks | 34+ |
-| ADRs | 83 |
+| ADRs | 84 |
 | Skills Claude | 10 |
 
 ---
@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (71) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (84) |
 
 ### Pour les Product Managers
 
@@ -60,6 +60,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GETTING_STARTED.md](./GETTING_STARTED.md) | Déploiement Docker |
 | [CI_CD.md](./technical/CI_CD.md) | Pipeline CI, pre-commit, branch protection |
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack observabilité complète |
+| [TIMEOUT_REGISTRY.md](./technical/TIMEOUT_REGISTRY.md) | Référence centralisée de tous les timeouts backend (HTTP, tools, locks, scheduler, SSE/WS) — Settings, ranges, defaults, cascades |
 | [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Guide observabilité quickstart |
 | [runbooks/](./runbooks/) | Runbooks opérationnels (34+ procédures) |
 
@@ -164,6 +165,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ADR-081-Voice-TTS-Catalogue-Driven.md](./architecture/ADR-081-Voice-TTS-Catalogue-Driven.md) | Voice TTS migrated to the LLM catalogue: `voice_tts` LLM type (kind=tts), Edge/OpenAI/ElevenLabs seeded with prices, voice + tuning in `provider_config` JSONB, dynamic admin voice picker (`/admin/voice/voices?provider=X`), retirement of `system_settings.voice_tts_mode` and 14 `VOICE_TTS_*` env vars | ✅ |
 | [ADR-082-Progressive-Sentence-Streaming.md](./architecture/ADR-082-Progressive-Sentence-Streaming.md) | Progressive sentence streaming for low-latency TTS — `ProgressiveSentenceStreamer` (in-order delivery, lock-protected drain, sentinel idempotence), persistent httpx ElevenLabs client, voice LLM in `astream`, 5× TTFA reduction in chat mode, 2× in agent mode | ✅ |
 | [ADR-083-Sub-Agent-Delegation-React.md](./architecture/ADR-083-Sub-Agent-Delegation-React.md) | Sub-Agent Delegation — from ReAct loop (Phase 1, 2026-05-13) to one-shot expert LLM call (Phase 1bis, 2026-05-14). `delegate_to_sub_agent_tool` is a single LLM invocation with persona+expertise written by the principal and all data inlined in instruction; no tools, no graph. Phase 2 cleanup deleted the legacy persistent F6 plumbing | ✅ |
+| [ADR-084-Indexable-vs-Semantic-Criteria.md](./architecture/ADR-084-Indexable-vs-Semantic-Criteria.md) | Universal planning principle (`INDEXABLE vs SEMANTIC CRITERIA`) + 4-layer defense (prompt section, structured `semantic_filter_terms` hint emitted by the query analyzer, universal `PlanValidator._check_semantic_leak` gated by `PLANNER_SEMANTIC_LEAK_MODE` in `off`/`observe`/`autocorrect`, `ToolManifest.text_search_mode` opt-out). Catches semantic qualifiers (medical, urgent, important) leaked into literal-search `query` params on any connector. Phase 1 shipped 2026-05-15 in `observe` mode (zero plan mutation); Phase 2 promotion to `autocorrect` gated on operational telemetry | ✅ |
 
 ### Human-in-the-Loop (HITL)
 
@@ -260,6 +262,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-084 | Indexable vs Semantic Criteria — universal planning principle + leak detector | 2026-05 |
 | ADR-083 | Sub-Agent Delegation — from ReAct loop to one-shot expert LLM call | 2026-05 |
 | ADR-082 | Progressive sentence streaming for low-latency TTS | 2026-05 |
 | ADR-081 | Voice TTS configuration driven by the LLM catalogue | 2026-05 |

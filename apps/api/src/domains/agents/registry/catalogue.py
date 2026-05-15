@@ -520,6 +520,17 @@ class ToolManifest:
     # enrichment (e.g., list_calendars, get_hourly_forecast, get_route_matrix).
     initiative_eligible: bool | None = None
 
+    # Text-search mode for the tool's free-text query parameter (if any).
+    # - "literal" (default): the store matches the query as a literal text in
+    #   titles/subjects/names. Passing a semantic qualifier ("medical", "urgent")
+    #   would return 0 hits or false positives — see smart_planner_prompt.txt
+    #   "INDEXABLE vs SEMANTIC CRITERIA" and the validator semantic-leak check.
+    # - "semantic": the store performs semantic/vector search and can match
+    #   conceptual qualifiers. Validator skips the semantic-leak check.
+    # - "hybrid": both modes are supported. Validator skips the check.
+    # Default "literal" preserves current behavior for every existing tool.
+    text_search_mode: Literal["literal", "semantic", "hybrid"] = "literal"
+
     def __post_init__(self) -> None:
         """Validate the manifest."""
         if not self.name:

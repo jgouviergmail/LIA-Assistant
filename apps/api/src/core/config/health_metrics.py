@@ -20,6 +20,7 @@ from src.core.constants import (
     HEALTH_METRICS_ENABLED_DEFAULT,
     HEALTH_METRICS_HEART_RATE_MAX,
     HEALTH_METRICS_HEART_RATE_MIN,
+    HEALTH_METRICS_HEARTBEAT_FETCH_TIMEOUT_SECONDS,
     HEALTH_METRICS_MAX_SAMPLES_PER_REQUEST_DEFAULT,
     HEALTH_METRICS_RATE_LIMIT_PER_HOUR_DEFAULT,
     HEALTH_METRICS_STEPS_MAX,
@@ -151,5 +152,21 @@ class HealthMetricsSettings(BaseSettings):
         description=(
             "Per-day delta threshold (percent vs baseline) for a day to be "
             "counted as part of a directional streak."
+        ),
+    )
+
+    # ========================================================================
+    # Heartbeat Aggregator (consumed by domains/heartbeat)
+    # ========================================================================
+
+    health_metrics_heartbeat_fetch_timeout_seconds: float = Field(
+        default=HEALTH_METRICS_HEARTBEAT_FETCH_TIMEOUT_SECONDS,
+        ge=0.5,
+        le=30.0,
+        description=(
+            "Safety timeout (seconds) on the health-metrics fetch performed "
+            "by the heartbeat context aggregator. Default 2s. The heartbeat "
+            "must remain snappy: if the metrics layer is slow we prefer "
+            "skipping the section over delaying the heartbeat."
         ),
     )

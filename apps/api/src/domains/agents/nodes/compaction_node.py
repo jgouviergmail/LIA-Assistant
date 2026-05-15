@@ -41,7 +41,7 @@ def _is_resume_command(messages: list[BaseMessage]) -> bool:
     last_msg = messages[-1]
     if not isinstance(last_msg, HumanMessage):
         return False
-    content = last_msg.content if isinstance(last_msg.content, str) else str(last_msg.content)
+    content = last_msg.text
     return content.strip().lower() == _RESUME_COMMAND
 
 

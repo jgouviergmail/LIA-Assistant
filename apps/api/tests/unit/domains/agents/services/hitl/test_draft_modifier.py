@@ -473,6 +473,7 @@ class TestModifyMethod:
 
         mock_response = MagicMock()
         mock_response.content = '{"body": "Modified body text"}'
+        mock_response.text = '{"body": "Modified body text"}'
         mock_llm = MagicMock()
         mock_llm.ainvoke = AsyncMock(return_value=mock_response)
         mock_get_llm.return_value = mock_llm
@@ -535,6 +536,7 @@ class TestModifyMethod:
 
         mock_response = MagicMock()
         mock_response.content = '{"to": "jean@carven.com", "body": "Modified"}'
+        mock_response.text = '{"to": "jean@carven.com", "body": "Modified"}'
         mock_llm = MagicMock()
         mock_llm.ainvoke = AsyncMock(return_value=mock_response)
         mock_get_llm.return_value = mock_llm
@@ -567,6 +569,7 @@ class TestModifyMethod:
 
         mock_response = MagicMock()
         mock_response.content = "{}"
+        mock_response.text = "{}"
         mock_llm = MagicMock()
         mock_llm.ainvoke = AsyncMock(return_value=mock_response)
         mock_get_llm.return_value = mock_llm

@@ -776,7 +776,7 @@ class PsycheService:
                 session_id=f"psyche_summary_{uuid4().hex[:8]}",
                 user_id=str(user_id),
             )
-            summary = result.content if isinstance(result.content, str) else str(result.content)
+            summary = str(result.text)
 
             # Track token usage for user billing
             try:
@@ -928,7 +928,7 @@ class PsycheService:
                 session_id=f"psyche_narrative_{uuid4().hex[:8]}",
                 user_id=str(user_id),
             )
-            narrative = result.content if isinstance(result.content, str) else str(result.content)
+            narrative = str(result.text)
 
             state.narrative_identity = narrative
             await self.repo.update(state)

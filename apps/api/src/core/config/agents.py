@@ -40,6 +40,7 @@ from src.core.constants import (
     BROADCAST_TRANSLATOR_LLM_PROVIDER_CONFIG_DEFAULT,
     BROADCAST_TRANSLATOR_LLM_TEMPERATURE_DEFAULT,
     BROADCAST_TRANSLATOR_LLM_TOP_P_DEFAULT,
+    BROWSER_TOOL_TIMEOUT_SECONDS,
     COMPACTION_CHUNK_MAX_TOKENS_DEFAULT,
     COMPACTION_ENABLED_DEFAULT,
     COMPACTION_MIN_MESSAGES_DEFAULT,
@@ -55,6 +56,8 @@ from src.core.constants import (
     CONTEXT_RESOLUTION_TIMEOUT_MS_DEFAULT,
     DEFAULT_ITEM_CONFIDENCE,
     DEFAULT_MESSAGE_WINDOW_SIZE,
+    DEFAULT_TOOL_TIMEOUT_MS,
+    DEFAULT_TOOL_TIMEOUT_SECONDS,
     EMAILS_AGENT_PROMPT_VERSION_DEFAULT,
     FALLBACK_MODELS_DEFAULT,
     FOR_EACH_APPROVAL_THRESHOLD,
@@ -109,6 +112,7 @@ from src.core.constants import (
     HITL_QUESTION_GENERATOR_LLM_TEMPERATURE_DEFAULT,
     HITL_QUESTION_GENERATOR_LLM_TOP_P_DEFAULT,
     HITL_QUESTION_GENERATOR_PROMPT_VERSION_DEFAULT,
+    HTTP_TIMEOUT_CONDITIONAL_EVAL,
     INITIATIVE_ENABLED_DEFAULT,
     INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT,
     INITIATIVE_MAX_ITERATIONS_DEFAULT,
@@ -134,10 +138,12 @@ from src.core.constants import (
     LAST_KNOWN_LOCATION_MIN_DISTANCE_KM_DEFAULT,
     LAST_KNOWN_LOCATION_TTL_HOURS_DEFAULT,
     MAX_AGENT_RESULTS_DEFAULT,
+    MAX_BROWSER_TOOL_TIMEOUT_SECONDS,
     MAX_CONTEXT_BATCH_SIZE_DEFAULT,
     MAX_MESSAGES_HISTORY_DEFAULT,
     MAX_ROUTING_HISTORY_DEFAULT,
     MAX_TOKENS_HISTORY_DEFAULT,
+    MAX_TOOL_TIMEOUT_SECONDS,
     MCP_REACT_ENABLED_DEFAULT,
     MCP_REACT_MAX_ITERATIONS_DEFAULT,
     MEMORY_BM25_CACHE_MAX_USERS_DEFAULT,
@@ -207,6 +213,7 @@ from src.core.constants import (
     PLANNER_MAX_STEPS_HARD_LIMIT,
     PLANNER_MESSAGE_WINDOW_SIZE_DEFAULT,
     PLANNER_PROMPT_VERSION_DEFAULT,
+    PLANNER_SEMANTIC_BROAD_BATCH_DEFAULT,
     PLANNER_TIMEOUT_SECONDS,
     PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES_DEFAULT,
     QUERY_ENGINE_SIMILARITY_THRESHOLD_DEFAULT,
@@ -302,6 +309,7 @@ from src.core.constants import (
     V3_TOOL_SELECTOR_HYBRID_ALPHA_DEFAULT,
     V3_TOOL_SELECTOR_HYBRID_MODE_DEFAULT,
     V3_TOOL_SOFTMAX_TEMPERATURE,
+    WEB_FETCH_TIMEOUT_SECONDS,
 )
 
 
@@ -459,13 +467,28 @@ class AgentsSettings(BaseSettings):
         default=TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS_DEFAULT,
         ge=30.0,
         le=600.0,
-        description="Max execution time for task orchestrator (all steps combined)",
+        description=(
+            "Soft wall-clock budget (seconds) for the whole multi-wave plan "
+            "execution in `parallel_executor.execute_plan_parallel`. Wired in "
+            "v1.21 (Vague 5) — a wave that finishes after this deadline stops "
+            "scheduling subsequent waves; the in-flight wave always completes "
+            "(no mid-wave cancellation). The previously orphan setting now "
+            "behaves as a soft cap on plan duration. See TIMEOUT_REGISTRY § 6."
+        ),
     )
     hitl_max_wait_seconds: int = Field(
         default=HITL_MAX_WAIT_SECONDS_DEFAULT,
         ge=60,
         le=3600,
-        description="Max time to wait for HITL user response (15 min default)",
+        description=(
+            "Max time (seconds) to wait for a HITL user response (15 min default). "
+            "ORPHAN as of v1.21 (Vague 5) — the field is declared and tunable via "
+            "`.env`, but the runtime does not yet enforce it. Wiring is a product "
+            "decision: option (a) auto-cancel a HITL pending action past the "
+            "deadline (requires a sweep job + state transition), option (b) leave "
+            "as documentation hint for ops dashboards. See TIMEOUT_REGISTRY § "
+            "'Pending decisions' for context."
+        ),
     )
 
     # ========================================================================
@@ -1372,6 +1395,27 @@ class AgentsSettings(BaseSettings):
             "Auto-correct for_each_max values exceeding hard limit instead of failing. "
             "When True, values are capped to for_each_max_hard_limit with a warning log. "
             "Enables defensive programming against non-deterministic LLM outputs."
+        ),
+    )
+    planner_semantic_leak_mode: Literal["off", "observe", "autocorrect"] = Field(
+        default="observe",
+        description=(
+            "Validator behavior when a semantic term (e.g. 'medical', 'urgent') "
+            "leaks into a tool's text-search parameter. "
+            "off=disabled, observe=log+metrics only (no plan change, safe default), "
+            "autocorrect=NULL the parameter and bump max_results. "
+            "Rollout strategy: ship in 'observe', validate via metrics, "
+            "then flip to 'autocorrect' once leak frequency is confirmed."
+        ),
+    )
+    planner_semantic_broad_batch: int = Field(
+        default=PLANNER_SEMANTIC_BROAD_BATCH_DEFAULT,
+        ge=10,
+        le=100,
+        description=(
+            "Broad batch size used when autocorrecting a semantic leak: "
+            "max_results is bumped to this value to give the Response LLM "
+            "enough items to filter and rank. Only used in 'autocorrect' mode."
         ),
     )
     for_each_mutation_threshold: int = Field(
@@ -2929,6 +2973,105 @@ class AgentsSettings(BaseSettings):
         ge=3,
         le=20,
         description="Max ReAct iterations for MCP sub-agent (recursion_limit).",
+    )
+
+    # ========================================================================
+    # External Tool Timeouts
+    # ========================================================================
+    # Wall-clock timeouts for HTTP-bound tools that are part of the agent
+    # toolset but live outside the connectors layer. Per-tool defaults that
+    # the planner cannot override (it can request a wall-clock cap on the
+    # whole step via ExecutionPlan.timeout_seconds, but the underlying HTTP
+    # call still uses these values).
+
+    web_fetch_timeout_seconds: float = Field(
+        default=float(WEB_FETCH_TIMEOUT_SECONDS),
+        ge=1.0,
+        le=120.0,
+        description=(
+            "HTTP timeout for the `fetch_web_page` tool (seconds, default 15s). "
+            "Bounds a single page fetch + readability extraction. Increase if "
+            "you regularly fetch large or slow-loading pages; decrease if you "
+            "want to fail-fast on flaky sites."
+        ),
+    )
+    http_timeout_conditional_eval: float = Field(
+        default=HTTP_TIMEOUT_CONDITIONAL_EVAL,
+        ge=1.0,
+        le=30.0,
+        description=(
+            "Timeout for Jinja conditional evaluation in the parallel executor "
+            "(seconds, default 5s). Each conditional step is wrapped in "
+            "asyncio.wait_for with this value. Symptom if too low: complex "
+            "conditions with $ref resolution time out and the step is skipped. "
+            "Symptom if too high: stuck conditional eval blocks the wave."
+        ),
+    )
+
+    # ========================================================================
+    # Tool Execution Defaults & Caps (parallel executor)
+    # ========================================================================
+    # Per-step ``asyncio.wait_for`` budgets enforced by ``_compute_step_timeout``
+    # in ``parallel_executor.py``. The planner can request a per-step timeout via
+    # ``ExecutionStep.timeout_seconds``; the values below define the family-level
+    # default (when the planner leaves it ``None``) and the hard ceiling (above
+    # which the planner request is clamped). Sub-agent tool has its own dedicated
+    # pair (``subagent_tool_timeout_seconds`` / ``subagent_tool_max_timeout_seconds``).
+
+    default_tool_timeout_seconds: float = Field(
+        default=DEFAULT_TOOL_TIMEOUT_SECONDS,
+        ge=1.0,
+        le=300.0,
+        description=(
+            "Default per-step timeout (seconds) for generic tool execution in "
+            "the parallel executor. Applies when the planner did not request a "
+            "specific timeout AND the tool does not belong to a high-latency "
+            "family (browser / sub-agent / image / devops). Default 30s — "
+            "enough for most API-bound tools."
+        ),
+    )
+    max_tool_timeout_seconds: float = Field(
+        default=MAX_TOOL_TIMEOUT_SECONDS,
+        ge=30.0,
+        le=600.0,
+        description=(
+            "Hard ceiling (seconds) on the planner-requested per-step timeout "
+            "for generic tools. The planner cannot override this — a request "
+            "above this value is silently clamped. Default 120s — prevents "
+            "runaway tool calls that would consume worker capacity."
+        ),
+    )
+    default_tool_timeout_ms: int = Field(
+        default=DEFAULT_TOOL_TIMEOUT_MS,
+        ge=1000,
+        le=300000,
+        description=(
+            "Default tool timeout (milliseconds) embedded in agent manifests "
+            "by ``catalogue_loader``. Mirrors ``default_tool_timeout_seconds`` "
+            "for consumers that read the catalogue directly (frontend / "
+            "validators). MUST equal default_tool_timeout_seconds * 1000."
+        ),
+    )
+    browser_tool_timeout_seconds: float = Field(
+        default=BROWSER_TOOL_TIMEOUT_SECONDS,
+        ge=30.0,
+        le=1800.0,
+        description=(
+            "Default per-step timeout (seconds) for ``browser_task_tool``. "
+            "Browser tasks run a nested ReAct loop (navigate + snapshot + "
+            "click + LLM, up to browser_react_max_iterations) so they need "
+            "more headroom than generic tools. Default 300s (5 min)."
+        ),
+    )
+    max_browser_tool_timeout_seconds: float = Field(
+        default=MAX_BROWSER_TOOL_TIMEOUT_SECONDS,
+        ge=60.0,
+        le=3600.0,
+        description=(
+            "Hard ceiling (seconds) on planner-requested timeout for "
+            "``browser_task_tool``. Default 600s (10 min) — bounds the worst "
+            "case while still allowing legitimately long browser flows."
+        ),
     )
 
 

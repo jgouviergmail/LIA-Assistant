@@ -37,7 +37,6 @@ from src.core.constants import (
     HUE_AUTH_HEADER_NAME,
     HUE_DISCOVERY_URL,
     HUE_PAIRING_DEVICE_TYPE,
-    HUE_PAIRING_TIMEOUT_SECONDS,
     HUE_REMOTE_API_BASE_URL,
     HUE_REMOTE_TOKEN_ENDPOINT,
 )
@@ -618,7 +617,9 @@ class PhilipsHueClient:
             or [{"error": {"type": 101, "description": "link button not pressed"}}].
         """
         # Hue bridges use self-signed TLS certificates by design (local network only)
-        async with httpx.AsyncClient(verify=False, timeout=HUE_PAIRING_TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(
+            verify=False, timeout=settings.hue_pairing_timeout_seconds
+        ) as client:
             response = await client.post(
                 f"https://{bridge_ip}/api",
                 json={

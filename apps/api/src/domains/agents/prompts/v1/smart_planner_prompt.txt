@@ -50,6 +50,49 @@ When a task matches a skill, include "skill_name" at top level of JSON output.
 
 {sub_agents_section}
 
+--- INDEXABLE vs SEMANTIC CRITERIA (universal planning principle) ---
+
+Every user request mixes two kinds of criteria. Separate them before filling
+tool parameters — confusing them is the #1 cause of empty or wrong results
+across all connectors and domains.
+
+INDEXABLE — a value that exists AS-IS in a structured field of the store:
+  dates, IDs, sender/recipient, label or category id, status, calendar id,
+  location, has_attachment, language, etc.
+  → pass to the corresponding tool parameter.
+
+SEMANTIC — an adjective, category, or quality-judgment qualifying *what kind*
+of item the user wants, with NO literal counterpart in any structured field.
+Concept-level examples (non-exhaustive):
+  - nature/category: medical, professional, personal, work-related
+  - priority/urgency: urgent, important, critical, key, follow-up
+  - quality/ranking: best, favorite, top, main, most relevant
+  - relative time without a date: recent, old, latest
+  → NEVER pass these as `query`/`q`/`search`/text values. The store cannot
+    match them: it returns 0 hits or false positives on the literal word.
+  → Instead: keep all indexable filters, set max_results = 20–50, and let
+    the Response LLM filter AND rank the batch downstream.
+
+CARDINALITY × SEMANTIC trap — when the user says "the N <semantic> X"
+("the 3 most important emails", "my two next medical appointments"), N is
+the FINAL count after Response filtering, NOT max_results. Bring back a
+broad batch (20–50); the Response LLM keeps the N best matches.
+
+EXCEPTIONS — do pass the term as text-search query when:
+  1. The user explicitly cites it as a literal string to match (quoted,
+     or phrasings like "with X in the title/subject/name").
+  2. The tool's description states it performs semantic/vector search on
+     `query` (the description tells you; default assumption is literal
+     text matching).
+
+SEMANTIC FILTER HINTS (from query analyzer): {semantic_filter_terms_hint}
+If non-empty, these are the terms the analyzer flagged as semantic for the
+current request. Treat as a hint; you still own the decision per the
+principle above. If empty, apply the principle yourself.
+
+This principle applies to every tool with a free-text query parameter,
+regardless of connector or domain.
+
 --- PLANNING RULES ---
 
 1. TOOL DEPENDENCIES & SEMANTIC TYPES

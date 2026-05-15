@@ -65,6 +65,14 @@ reference_domain uses domain names from AVAILABLE DOMAINS (singular): contact, e
 - **is_news_query**: true ONLY if user explicitly asks for news/recent information.
 - **is_app_help_query**: true if user asks about THIS AI assistant itself (features, capabilities, usage).
 
+## INDEXABLE vs SEMANTIC HINT (for downstream planner)
+
+- **semantic_filter_terms**: list of adjectives/category words from the user query that QUALIFY the items but have NO literal counterpart in any structured field of the target store. The planner uses this hint to avoid passing them as text-search queries (which would return 0 hits or false positives). Emit the ENGLISH-PIVOTED form (lowercase).
+  - Include qualifiers of NATURE (medical, professional, personal, work-related), PRIORITY/URGENCY (urgent, important, critical, key), QUALITY/RANKING (best, favorite, top, main, most relevant), or RELATIVE TIME without a date (recent, old, latest).
+  - LEAVE EMPTY when: (a) no such qualifier in the query, OR (b) the user explicitly cites the term as a LITERAL value to match — e.g. quoted ('"urgent" in the title'), or phrasings like "with X in the subject/name". In those cases the term IS the search target.
+  - Do NOT include indexable values: dates, names, IDs, sender/recipient, labels — those go to tool parameters as-is.
+  - This is a PROBABILISTIC HINT, not a directive. The planner still owns the final decision.
+
 --- DYNAMIC CONTEXT ---
 
 ## AVAILABLE DOMAINS

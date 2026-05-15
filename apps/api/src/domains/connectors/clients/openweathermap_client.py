@@ -29,7 +29,7 @@ import httpx
 import structlog
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, HTTP_TIMEOUT_WEATHER
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.exceptions import MaxRetriesExceededError
 
 logger = structlog.get_logger(__name__)
@@ -85,7 +85,7 @@ class OpenWeatherMapClient:
         """Get or create reusable HTTP client."""
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(
-                timeout=HTTP_TIMEOUT_WEATHER,
+                timeout=settings.http_timeout_weather,
                 limits=httpx.Limits(
                     max_keepalive_connections=10,
                     max_connections=20,

@@ -337,7 +337,7 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
         else:
             continue  # Skip tool messages, system messages
 
-        content = msg.content if isinstance(msg.content, str) else str(msg.content)
+        content = str(msg.text)
         if len(content) > max_chars:
             content = content[:max_chars] + "..."
 
@@ -975,7 +975,7 @@ async def extract_journal_entry_background(
             )
         except Exception:  # pragma: no cover
             pass
-        result_content = result.content if isinstance(result.content, str) else str(result.content)
+        result_content = result.text
 
         # Persist token usage (use effective config, not defaults — admin overrides matter)
         model_name = get_llm_config_for_agent(settings, "journal_extraction").model

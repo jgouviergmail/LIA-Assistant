@@ -226,7 +226,7 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
         else:
             prefix = "SYSTEM"
 
-        content = msg.content if isinstance(msg.content, str) else str(msg.content)
+        content = str(msg.text)
         max_chars = settings.memory_extraction_message_max_chars
         if len(content) > max_chars:
             content = content[:max_chars] + "..."
@@ -618,7 +618,7 @@ async def extract_memories_background(
             user_id=user_id,
         )
         _llm_duration_ms = (time.time() - _llm_start) * 1000
-        result_content = result.content if isinstance(result.content, str) else str(result.content)
+        result_content = result.text
 
         # Persist token usage
         llm_config = get_llm_config_for_agent(settings, "memory_extraction")

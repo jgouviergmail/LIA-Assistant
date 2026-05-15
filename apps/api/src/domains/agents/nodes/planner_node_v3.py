@@ -526,6 +526,9 @@ async def planner_node_v3(
             session_id=configurable.get("session_id", run_id),
             available_scopes=state.get("oauth_scopes", []),
             allow_hitl=True,  # Allow HITL by default
+            # Indexable vs Semantic — probabilistic hint forwarded to the
+            # semantic-leak detector (no-op when empty).
+            semantic_filter_terms=tuple(intelligence.semantic_filter_terms or ()),
         )
         validation_result = validator.validate_execution_plan(
             planning_result.plan, validation_context

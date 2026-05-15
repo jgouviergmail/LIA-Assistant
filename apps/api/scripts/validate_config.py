@@ -227,6 +227,22 @@ INT_VARS = {
     "SUMMARIZATION_KEEP_MESSAGES": (3, 50),
     # Jinja
     "JINJA_MAX_RECURSION_DEPTH": (5, 50),
+    # OAuth / Locks
+    "OAUTH_LOCK_TIMEOUT_SECONDS": (1, 120),
+    "MCP_OAUTH_HTTP_TIMEOUT_SECONDS": (1, 60),
+    # Scheduler
+    "SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS": (30, 1800),
+    "SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES": (1, 120),
+    # Usage limits WS
+    "USAGE_LIMIT_WS_IDLE_TIMEOUT_SECONDS": (30, 600),
+    # Planner — semantic leak autocorrect batch size
+    "PLANNER_SEMANTIC_BROAD_BATCH": (10, 100),
+    # Vague 3 — Tool catalogue manifests (ms). Ranges aligned with the
+    # corresponding Pydantic Fields (single source of enforcement truth):
+    # - DEFAULT_TOOL_TIMEOUT_MS  : agents.py default_tool_timeout_ms (ge=1000, le=300000)
+    # - BROWSER_DEFAULT_TIMEOUT_MS : browser.py browser_default_timeout_ms
+    "DEFAULT_TOOL_TIMEOUT_MS": (1000, 300000),
+    "BROWSER_DEFAULT_TIMEOUT_MS": (30000, 600000),
 }
 
 # Variables that must be floats with optional ranges
@@ -234,7 +250,34 @@ FLOAT_VARS = {
     "HTTP_TIMEOUT_OAUTH": (1.0, 60.0),
     "HTTP_TIMEOUT_TOKEN": (1.0, 60.0),
     "HTTP_TIMEOUT_EXTERNAL_API": (1.0, 60.0),
-    "HTTP_TIMEOUT_CURRENCY_API": (1.0, 60.0),
+    "APPLE_CONNECTION_TIMEOUT": (1.0, 120.0),
+    # NOTE: `HTTP_TIMEOUT_CURRENCY_API` removed in v1.21 (Vague 4 / G1) — was a duplicate.
+    # Surviving setting:
+    "CURRENCY_API_TIMEOUT_SECONDS": (1.0, 60.0),
+    "HTTP_TIMEOUT_PERPLEXITY": (1.0, 180.0),
+    "HTTP_TIMEOUT_WEATHER": (1.0, 60.0),
+    "HTTP_TIMEOUT_WIKIPEDIA": (1.0, 60.0),
+    "HTTP_TIMEOUT_BRAVE_SEARCH": (1.0, 60.0),
+    "BRAVE_SEARCH_ENRICHMENT_TIMEOUT_SECONDS": (2.0, 60.0),
+    "WEB_FETCH_TIMEOUT_SECONDS": (1.0, 120.0),
+    "OLLAMA_DISCOVERY_TIMEOUT_SECONDS": (1.0, 60.0),
+    "HTTP_TIMEOUT_CONNECTOR_STANDARD": (1.0, 120.0),
+    "HTTP_TIMEOUT_CONNECTOR_LONG": (1.0, 300.0),
+    "HTTP_TIMEOUT_CONDITIONAL_EVAL": (1.0, 30.0),
+    "HTTP_TIMEOUT_SSE_POLLING": (5.0, 120.0),
+    "HUE_PAIRING_TIMEOUT_SECONDS": (5.0, 120.0),
+    "HEALTH_METRICS_HEARTBEAT_FETCH_TIMEOUT_SECONDS": (0.5, 30.0),
+    # Vague 3 — Tool execution wall-clock budgets. Ranges aligned with the
+    # corresponding Pydantic Fields (agents.py / image_generation.py / devops.py
+    # — single source of enforcement truth). A divergence here would either
+    # silently allow values Pydantic later rejects at startup, or flag values
+    # the runtime accepts.
+    "DEFAULT_TOOL_TIMEOUT_SECONDS": (1.0, 300.0),
+    "MAX_TOOL_TIMEOUT_SECONDS": (30.0, 600.0),
+    "BROWSER_TOOL_TIMEOUT_SECONDS": (30.0, 1800.0),
+    "MAX_BROWSER_TOOL_TIMEOUT_SECONDS": (60.0, 3600.0),
+    "IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS": (10.0, 600.0),
+    "DEVOPS_CLAUDE_TOOL_TIMEOUT_SECONDS": (30.0, 900.0),
     "SEMANTIC_VALIDATION_TIMEOUT_SECONDS": (0.5, 30.0),
     "SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD": (0.0, 1.0),
     "TOOL_CONTEXT_CONFIDENCE_THRESHOLD": (0.0, 1.0),

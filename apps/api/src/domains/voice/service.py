@@ -434,9 +434,9 @@ class VoiceCommentService:
         """
         llm, prompt, config = await self._build_voice_llm_invocation(request)
         response = await llm.ainvoke(prompt, config=config)
-        content = response.content if hasattr(response, "content") else str(response)
-        # Ensure we return a string (content can be list for some models)
-        result = content if isinstance(content, str) else str(content)
+        # BaseMessage.text (LangChain Core 1.2+) handles both str content and
+        # Gemini 3.x list[dict] content blocks transparently.
+        result = str(response.text)
 
         # Prometheus: voice comment tokens (dashboard 11).
         # token_type values follow the codebase convention used by llm_tokens_consumed_total

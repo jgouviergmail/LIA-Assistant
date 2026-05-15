@@ -125,7 +125,7 @@ class ItemFilterService:
         try:
             # Call LLM
             result = await self.llm.ainvoke(prompt, config=config)
-            content = result.content if isinstance(result.content, str) else str(result.content)
+            content = result.text
 
             # Parse the response
             indices_to_exclude = self._parse_filter_response(content, len(item_previews))

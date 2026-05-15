@@ -202,7 +202,7 @@ class CompactionService:
         """Extract unique identifiers from messages for preservation tracking."""
         identifiers: set[str] = set()
         for msg in messages:
-            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+            content = msg.text
             identifiers.update(_IDENTIFIER_PATTERN.findall(content))
         return sorted(identifiers)
 
@@ -242,7 +242,7 @@ class CompactionService:
         lines: list[str] = []
         for msg in messages:
             role = msg.type  # human / ai / system / tool
-            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+            content = str(msg.text)
             # Truncate very long tool results to avoid blowing the compaction budget
             if role == "tool" and len(content) > COMPACTION_TOOL_OUTPUT_TRUNCATE_CHARS_DEFAULT:
                 content = (
@@ -286,7 +286,7 @@ class CompactionService:
         prompt_tokens = getattr(usage, "input_tokens", 0) if usage else 0
         completion_tokens = getattr(usage, "output_tokens", 0) if usage else 0
 
-        summary = response.content if isinstance(response.content, str) else str(response.content)
+        summary = response.text
         return summary, prompt_tokens, completion_tokens
 
     async def compact(

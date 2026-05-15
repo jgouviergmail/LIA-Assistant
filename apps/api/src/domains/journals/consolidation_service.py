@@ -484,7 +484,7 @@ async def consolidate_journals_for_user(
             messages=prompt,
             user_id=str(user_id),
         )
-        result_content = result.content if isinstance(result.content, str) else str(result.content)
+        result_content = result.text
 
         # Persist token usage (use effective config, not defaults — admin overrides matter)
         model_name = get_llm_config_for_agent(settings, "journal_consolidation").model

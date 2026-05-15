@@ -199,7 +199,7 @@ class DraftModificationService:
         try:
             # Call LLM
             result = await self.llm.ainvoke(prompt, config=config)
-            content = result.content if isinstance(result.content, str) else str(result.content)
+            content = result.text
 
             logger.debug(
                 "draft_modification_llm_raw_response",

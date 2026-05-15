@@ -386,7 +386,7 @@ class InterestProactiveTask:
                 user_id="system",
             )
 
-            presented = result.content if isinstance(result.content, str) else str(result.content)
+            presented = result.text
 
             # Extract token usage from LLM response
             tokens_in, tokens_out = extract_llm_tokens(result)

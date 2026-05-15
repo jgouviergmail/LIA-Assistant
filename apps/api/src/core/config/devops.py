@@ -24,6 +24,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    DEVOPS_CLAUDE_TOOL_TIMEOUT_SECONDS_DEFAULT,
     DEVOPS_DEFAULT_COMMAND_TIMEOUT,
     DEVOPS_DEFAULT_MAX_OUTPUT_CHARS,
     DEVOPS_DEFAULT_SSH_TIMEOUT,
@@ -52,4 +53,18 @@ class DevOpsSettings(BaseSettings):
     devops_max_output_chars: int = Field(
         default=DEVOPS_DEFAULT_MAX_OUTPUT_CHARS,
         description="Maximum output characters before truncation.",
+    )
+    devops_claude_tool_timeout_seconds: float = Field(
+        default=DEVOPS_CLAUDE_TOOL_TIMEOUT_SECONDS_DEFAULT,
+        ge=30.0,
+        le=900.0,
+        description=(
+            "Wall-clock timeout (seconds) applied by the parallel executor "
+            "to a single `claude_server_task_tool` step. Default 120s. "
+            "Distinct from `devops_command_timeout` (which bounds the remote "
+            "Claude CLI itself) — this one bounds the round trip including "
+            "SSH connect + CLI startup. Should normally be smaller than "
+            "`devops_command_timeout` so we surface a parallel-executor "
+            "timeout rather than a hung step."
+        ),
     )

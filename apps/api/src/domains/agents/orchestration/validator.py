@@ -98,6 +98,11 @@ class ValidationContext:
     budget_usd: float | None = None
     allow_hitl: bool = True
     max_steps: int | None = None
+    # Indexable vs Semantic — probabilistic hint from query analyzer.
+    # When non-empty, the validator checks that no plan step passes any of
+    # these terms as a text-search parameter to a literal-search tool.
+    # Empty tuple = no hint, semantic-leak check is a no-op (default).
+    semantic_filter_terms: tuple[str, ...] = field(default_factory=tuple)
 
 
 # ============================================================================
@@ -758,6 +763,12 @@ class PlanValidator:
         for idx, step in enumerate(plan.steps):
             self._validate_execution_step(step, idx, context, result)
 
+        # Indexable vs Semantic — detect semantic terms leaked into text-search
+        # parameters of literal-search tools. Universal across single/multi
+        # domain plans; mode (off|observe|autocorrect) gated by Settings.
+        if context.semantic_filter_terms:
+            self._check_semantic_leak(plan, context, result)
+
         # Validate dependencies (no cycles)
         self._validate_dependencies(plan.steps, result)
 
@@ -932,6 +943,180 @@ class PlanValidator:
                 step_index=step_index,
                 context={"step_type": step.step_type.value},
             )
+
+    # ============================================================================
+    # Indexable vs Semantic — Semantic Leak Detection (Universal)
+    # ============================================================================
+
+    def _check_semantic_leak(
+        self,
+        plan: ExecutionPlan,
+        context: ValidationContext,
+        result: ValidationResult,
+    ) -> None:
+        """
+        Detect semantic terms (e.g. "medical", "urgent") leaked into a literal
+        text-search parameter of a plan step.
+
+        A literal-search tool indexes by exact text in titles/subjects/names —
+        passing a semantic qualifier returns 0 hits or false positives. The
+        Response LLM should filter such criteria downstream; the planner must
+        ramener a broad batch (max_results=20+) and leave the query empty.
+
+        Mode is gated by `settings.planner_semantic_leak_mode`:
+        - "off": do nothing (kill switch).
+        - "observe": log + Prometheus counter, plan untouched (default).
+        - "autocorrect": NULL the leaky param and bump max_results to the
+          configured broad-batch size; emits both detection and autocorrect
+          counters.
+
+        Reference: smart_planner_prompt.txt → INDEXABLE vs SEMANTIC CRITERIA.
+
+        Args:
+            plan: The ExecutionPlan to inspect (in-place autocorrect possible).
+            context: ValidationContext carrying semantic_filter_terms.
+            result: ValidationResult (warnings appended on detection).
+
+        Returns:
+            None. Side effects: warnings appended to ``result``, Prometheus
+            counters incremented, and (in autocorrect mode) ``plan.steps``
+            mutated in place.
+        """
+        # Lazy imports to avoid pulling Settings at module import time and to
+        # let test fixtures override settings cleanly per-test.
+        from src.core.config import get_settings
+        from src.core.constants import (
+            PLANNER_SEMANTIC_BROAD_BATCH_MIN,
+            TEXT_SEARCH_PARAM_NAMES,
+        )
+        from src.infrastructure.observability.metrics_agents import (
+            planner_semantic_leak_autocorrected,
+            planner_semantic_leak_detected,
+        )
+
+        _settings = get_settings()
+        mode = getattr(_settings, "planner_semantic_leak_mode", "observe")
+        if mode == "off":
+            return
+
+        broad_batch = getattr(_settings, "planner_semantic_broad_batch", 25)
+        terms_lower = {t.strip().lower() for t in context.semantic_filter_terms if t.strip()}
+        if not terms_lower:
+            return
+
+        for step_index, step in enumerate(plan.steps):
+            if step.step_type != StepType.TOOL or not step.tool_name:
+                continue
+
+            # Resolve manifest for text_search_mode (Exception #2 from the prompt).
+            # Failures are non-fatal: if the manifest can't be resolved here
+            # (already reported by _validate_execution_step), skip the leak check
+            # — the plan is already invalid for another reason.
+            try:
+                manifest = self.registry.get_tool_manifest(step.tool_name)
+            except ToolManifestNotFound:
+                continue
+
+            if getattr(manifest, "text_search_mode", "literal") != "literal":
+                # Tool performs semantic/vector search; the terms are legitimate.
+                continue
+
+            for param_name, param_value in step.parameters.items():
+                if param_name not in TEXT_SEARCH_PARAM_NAMES:
+                    continue
+                if not isinstance(param_value, str) or not param_value.strip():
+                    continue
+                # Exception #1: user explicitly quoted the literal value.
+                # Only the double-quote (`"`) is treated as a citation signal;
+                # the single-quote (`'`) is intentionally NOT skipped because
+                # it commonly appears as a French linguistic apostrophe inside
+                # tokens (e.g. "d'urgence", "l'hôpital", "rendez-vous d'équipe")
+                # and would silently disable the whole detection on legitimate
+                # francophone queries.
+                if '"' in param_value:
+                    continue
+
+                # Word-boundary match against the term set to avoid false
+                # positives on substrings (e.g. "medical" ⊄ "medicalign").
+                value_tokens = {tok.strip(".,;:!?()[]") for tok in param_value.lower().split()}
+                matched = sorted(terms_lower & value_tokens)
+                if not matched:
+                    continue
+
+                # Detection — always logged + counted (in both modes).
+                planner_semantic_leak_detected.labels(
+                    tool_name=step.tool_name,
+                    param_name=param_name,
+                    mode=mode,
+                ).inc()
+                logger.warning(
+                    "semantic_leak_in_plan",
+                    plan_id=plan.plan_id,
+                    step_id=step.step_id,
+                    step_index=step_index,
+                    tool_name=step.tool_name,
+                    param_name=param_name,
+                    matched_terms=matched,
+                    mode=mode,
+                )
+                result.add_warning(
+                    code=ToolErrorCode.CONSTRAINT_VIOLATION,
+                    message=(
+                        f"Step {step.step_id}: semantic term(s) {matched} leaked "
+                        f"into '{param_name}' of literal-search tool {step.tool_name}"
+                    ),
+                    step_index=step_index,
+                    tool_name=step.tool_name,
+                    context={
+                        "param": param_name,
+                        "matched_terms": matched,
+                        "mode": mode,
+                    },
+                )
+
+                # Autocorrect — gated, applied in-place.
+                if mode == "autocorrect":
+                    # Skip mutation when the param is declared required by the
+                    # tool manifest: NULLing it would produce a plan that passes
+                    # this validator (we run after _validate_execution_step and
+                    # do not re-validate) but fails at execution with an opaque
+                    # missing-parameter error. The detection warning above is
+                    # still emitted so operators can address the underlying
+                    # planner mistake.
+                    param_schema = next(
+                        (p for p in manifest.parameters if p.name == param_name),
+                        None,
+                    )
+                    if param_schema is not None and param_schema.required:
+                        logger.warning(
+                            "semantic_leak_autocorrect_skipped_required_param",
+                            plan_id=plan.plan_id,
+                            step_id=step.step_id,
+                            tool_name=step.tool_name,
+                            param_name=param_name,
+                        )
+                        continue
+
+                    step.parameters[param_name] = None
+                    original_max = step.parameters.get("max_results")
+                    if (
+                        not isinstance(original_max, int)
+                        or original_max < PLANNER_SEMANTIC_BROAD_BATCH_MIN
+                    ):
+                        step.parameters["max_results"] = broad_batch
+                    planner_semantic_leak_autocorrected.labels(
+                        tool_name=step.tool_name,
+                        param_name=param_name,
+                    ).inc()
+                    logger.info(
+                        "semantic_leak_autocorrected",
+                        plan_id=plan.plan_id,
+                        step_id=step.step_id,
+                        tool_name=step.tool_name,
+                        param_name=param_name,
+                        original_max_results=original_max,
+                        corrected_max_results=step.parameters["max_results"],
+                    )
 
     def _validate_step_parameters(
         self,

@@ -31,7 +31,6 @@ import structlog
 from src.core.config import settings
 from src.core.constants import (
     MCP_OAUTH_CLIENT_NAME,
-    MCP_OAUTH_HTTP_TIMEOUT_SECONDS,
     MCP_USER_OAUTH_CALLBACK_PATH,
     MCP_USER_OAUTH_STATE_REDIS_PREFIX,
     MCP_USER_OAUTH_STATE_TTL_SECONDS,
@@ -77,7 +76,7 @@ class MCPOAuthFlowHandler:
     """
 
     def __init__(self) -> None:
-        self._http_client = httpx.AsyncClient(timeout=MCP_OAUTH_HTTP_TIMEOUT_SECONDS)
+        self._http_client = httpx.AsyncClient(timeout=settings.mcp_oauth_http_timeout_seconds)
 
     async def __aenter__(self) -> MCPOAuthFlowHandler:
         return self
@@ -321,7 +320,7 @@ class MCPOAuthFlowHandler:
                 token_endpoint,
                 data=token_data,
                 headers={"Accept": "application/json"},
-                timeout=MCP_OAUTH_HTTP_TIMEOUT_SECONDS,
+                timeout=settings.mcp_oauth_http_timeout_seconds,
             )
         except httpx.HTTPError as e:
             raise ValueError(f"Token exchange failed: {e}") from e
@@ -531,7 +530,7 @@ class MCPOAuthFlowHandler:
                     "token_endpoint_auth_method": "none",
                     "scope": "",
                 },
-                timeout=MCP_OAUTH_HTTP_TIMEOUT_SECONDS,
+                timeout=settings.mcp_oauth_http_timeout_seconds,
             )
             if resp.status_code in (200, 201):
                 data: dict[str, Any] = resp.json()

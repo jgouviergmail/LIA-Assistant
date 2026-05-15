@@ -24,8 +24,8 @@ from uuid import UUID
 import httpx
 import structlog
 
+from src.core.config import settings
 from src.core.constants import (
-    MCP_OAUTH_HTTP_TIMEOUT_SECONDS,
     MCP_OAUTH_REFRESH_LOCK_TTL_SECONDS,
     MCP_USER_DEFAULT_API_KEY_HEADER,
 )
@@ -166,7 +166,7 @@ class MCPOAuth2Auth(httpx.Auth):
                 resp = await client.post(
                     self._token_endpoint,
                     data=data,
-                    timeout=MCP_OAUTH_HTTP_TIMEOUT_SECONDS,
+                    timeout=settings.mcp_oauth_http_timeout_seconds,
                 )
 
             if resp.status_code != 200:

@@ -25,6 +25,7 @@ from src.core.constants import (
     DEFAULT_TOKEN_LIMIT_ABSOLUTE,
     DEFAULT_TOKEN_LIMIT_PER_CYCLE,
     USAGE_LIMIT_CACHE_TTL_SECONDS_DEFAULT,
+    USAGE_LIMIT_WS_IDLE_TIMEOUT_SECONDS,
     USAGE_LIMITS_ENABLED_DEFAULT,
 )
 
@@ -119,5 +120,22 @@ class UsageLimitsSettings(BaseSettings):
         description=(
             "Redis cache TTL (seconds) for usage limit check results. "
             "Lower values = more accurate enforcement, higher values = less DB load."
+        ),
+    )
+
+    # ========================================================================
+    # WebSocket Idle Timeout (Live Updates)
+    # ========================================================================
+
+    usage_limit_ws_idle_timeout_seconds: int = Field(
+        default=USAGE_LIMIT_WS_IDLE_TIMEOUT_SECONDS,
+        ge=30,
+        le=600,
+        description=(
+            "Idle timeout (seconds) for the usage-limit live-update WebSocket. "
+            "If no message is received from the client within this window, the "
+            "server closes the socket. Default 120s (2 min) is comfortable for "
+            "the front-end PING cadence (every 30s) while bounding zombie "
+            "connections after a tab is closed."
         ),
     )

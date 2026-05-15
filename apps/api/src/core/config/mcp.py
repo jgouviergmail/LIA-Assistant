@@ -38,6 +38,7 @@ from src.core.constants import (
     MCP_MAX_SERVERS_DEFAULT,
     MCP_MAX_STRUCTURED_ITEMS_PER_CALL,
     MCP_MAX_TOOLS_PER_SERVER_DEFAULT,
+    MCP_OAUTH_HTTP_TIMEOUT_SECONDS,
     MCP_REFERENCE_CONTENT_MAX_CHARS_DEFAULT,
     MCP_USER_MAX_SERVERS_PER_USER_DEFAULT,
     MCP_USER_POOL_EVICTION_INTERVAL_DEFAULT,
@@ -274,6 +275,18 @@ class MCPSettings(BaseSettings):
         description=(
             "Base URL for OAuth 2.1 callbacks (e.g., 'https://app.example.com'). "
             "Required for OAuth-authenticated MCP servers."
+        ),
+    )
+
+    mcp_oauth_http_timeout_seconds: int = Field(
+        default=MCP_OAUTH_HTTP_TIMEOUT_SECONDS,
+        ge=1,
+        le=60,
+        description=(
+            "HTTP timeout (seconds) for MCP OAuth 2.1 helper calls "
+            "(authorization-server discovery, token exchange, refresh). "
+            "Default 10s — these endpoints are normally fast; raise only if "
+            "an external authorization server is consistently slow."
         ),
     )
 

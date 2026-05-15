@@ -7,7 +7,7 @@ These are internal tools (no OAuth required).
 
 from datetime import UTC, datetime
 
-from src.core.constants import DEFAULT_TOOL_TIMEOUT_MS
+from src.core.config import settings
 from src.domains.agents.registry.catalogue import (
     AgentManifest,
     CostProfile,
@@ -37,7 +37,7 @@ REMINDER_AGENT_MANIFEST = AgentManifest(
         "cancel_reminder_tool",
     ],
     max_parallel_runs=1,
-    default_timeout_ms=DEFAULT_TOOL_TIMEOUT_MS,
+    default_timeout_ms=settings.default_tool_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",

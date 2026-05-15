@@ -41,11 +41,13 @@ from .llm import (
     LLMSettings,
     get_model_context_window,
 )
+from .locks import LocksSettings
 from .mcp import MCPSettings
 from .notifications import NotificationSettings
 from .observability import ObservabilitySettings
 from .psyche import PsycheSettings
 from .rag_spaces import RAGSpacesSettings
+from .scheduler import SchedulerSettings
 from .security import SecuritySettings
 from .skills import SkillsSettings
 from .usage_limits import UsageLimitsSettings
@@ -98,6 +100,8 @@ class Settings(
     ImageGenerationSettings,
     DevOpsSettings,
     HealthMetricsSettings,
+    SchedulerSettings,
+    LocksSettings,
     BaseSettings,
 ):
     """
@@ -126,7 +130,9 @@ class Settings(
         18. ImageGenerationSettings (AI image generation: gpt-image-1, multi-provider)
         19. DevOpsSettings (Claude CLI remote server management via SSH)
         20. HealthMetricsSettings (iPhone Shortcuts health metrics ingestion + visualization)
-        21. BaseSettings (Pydantic base class)
+        21. SchedulerSettings (Background job scheduling, scheduled-actions executor)
+        22. LocksSettings (Distributed locks: OAuth refresh)
+        23. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
     """
@@ -364,4 +370,6 @@ __all__ = [
     "ImageGenerationSettings",
     "DevOpsSettings",
     "HealthMetricsSettings",
+    "SchedulerSettings",
+    "LocksSettings",
 ]

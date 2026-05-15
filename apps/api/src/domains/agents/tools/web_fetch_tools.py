@@ -57,7 +57,6 @@ from src.core.constants import (
     WEB_FETCH_MIN_OUTPUT_LENGTH,
     WEB_FETCH_RATE_LIMIT_CALLS,
     WEB_FETCH_RATE_LIMIT_WINDOW,
-    WEB_FETCH_TIMEOUT_SECONDS,
     WEB_FETCH_TRUNCATION_MARKER,
     WEB_FETCH_USER_AGENT,
 )
@@ -374,7 +373,7 @@ async def fetch_web_page_tool(
     # 6. Fetch page with streaming (check headers before downloading body)
     try:
         async with httpx.AsyncClient(
-            timeout=WEB_FETCH_TIMEOUT_SECONDS,
+            timeout=settings.web_fetch_timeout_seconds,
             follow_redirects=True,
             max_redirects=WEB_FETCH_MAX_REDIRECTS,
             headers={"User-Agent": WEB_FETCH_USER_AGENT},
@@ -440,7 +439,7 @@ async def fetch_web_page_tool(
 
     except httpx.TimeoutException:
         return UnifiedToolOutput.failure(
-            message=f"Request timed out after {WEB_FETCH_TIMEOUT_SECONDS}s",
+            message=f"Request timed out after {settings.web_fetch_timeout_seconds}s",
             error_code="TIMEOUT",
         )
     except httpx.HTTPStatusError as e:

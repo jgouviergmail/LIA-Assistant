@@ -34,7 +34,7 @@ import structlog
 from fastapi import HTTPException, status
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_RATE_LIMIT_PER_SECOND, HTTP_TIMEOUT_CONNECTOR_LONG
+from src.core.constants import DEFAULT_RATE_LIMIT_PER_SECOND
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
 from src.infrastructure.cache.redis import get_redis_session
@@ -114,7 +114,7 @@ class BaseAPIKeyClient(ABC):
         """
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(
-                timeout=HTTP_TIMEOUT_CONNECTOR_LONG,
+                timeout=settings.http_timeout_connector_long,
                 limits=httpx.Limits(
                     max_keepalive_connections=20,
                     max_connections=100,

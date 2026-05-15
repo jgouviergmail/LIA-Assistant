@@ -76,6 +76,7 @@ from src.core.constants import (
     INTEREST_EXTRACTION_LLM_PROVIDER_CONFIG_DEFAULT,
     INTEREST_EXTRACTION_LLM_TEMPERATURE_DEFAULT,
     INTEREST_EXTRACTION_LLM_TOP_P_DEFAULT,
+    OLLAMA_DISCOVERY_TIMEOUT_SECONDS,
     PERPLEXITY_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
     PERPLEXITY_AGENT_LLM_MAX_TOKENS_DEFAULT,
     PERPLEXITY_AGENT_LLM_MODEL_DEFAULT,
@@ -1527,6 +1528,26 @@ class LLMSettings(BaseSettings):
     ) = Field(
         default=None,
         description="Reasoning effort for content presentation LLM (OpenAI o-series/GPT-5 only).",
+    )
+
+    # ========================================================================
+    # Ollama Provider — Discovery
+    # ========================================================================
+    # The Ollama provider exposes `/api/tags` (model list) and `/api/show`
+    # (per-model details). These are NOT chat completions — they are short
+    # GET calls used at startup and on provider/model UI refresh. We keep
+    # their HTTP timeout outside of the per-LLM-type table (which governs
+    # actual chat completions) because there is nothing to tune per node.
+
+    ollama_discovery_timeout_seconds: float = Field(
+        default=float(OLLAMA_DISCOVERY_TIMEOUT_SECONDS),
+        ge=1.0,
+        le=60.0,
+        description=(
+            "HTTP timeout for Ollama discovery endpoints `/api/tags` and "
+            "`/api/show` (seconds, default 5s). Bumped if the Ollama host "
+            "runs many large models and the cold-cache `/api/show` is slow."
+        ),
     )
 
     # ========================================================================

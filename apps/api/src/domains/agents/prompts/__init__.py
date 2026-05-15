@@ -652,6 +652,8 @@ def get_smart_planner_prompt(
     # Multi-domain support (unified prompt)
     primary_domain: str = "",
     is_multi_domain: bool = False,
+    # Indexable vs Semantic — probabilistic hint from query analyzer
+    semantic_filter_terms: list[str] | tuple[str, ...] = (),
 ) -> str:
     """Get formatted smart planner prompt (unified single + multi-domain).
 
@@ -717,6 +719,13 @@ def get_smart_planner_prompt(
             "  → Plan: ONE step: get_places_tool(query='Restaurant La Table')"
         )
 
+    # Format the semantic filter hint for the planner.
+    # Empty list/tuple → "(none)" placeholder makes the prompt cache-friendly
+    # (stable string length) and tells the model to apply the principle itself.
+    semantic_filter_terms_hint = (
+        ", ".join(semantic_filter_terms) if semantic_filter_terms else "(none)"
+    )
+
     return template.format(
         user_goal=user_goal,
         intent=intent,
@@ -739,6 +748,7 @@ def get_smart_planner_prompt(
         journal_context=escape_braces(journal_context) if journal_context else "",
         multi_domain_section=multi_domain_section,
         primary_domain=primary_domain or domains.split(",")[0].strip() if domains else "",
+        semantic_filter_terms_hint=semantic_filter_terms_hint,
     )
 
 

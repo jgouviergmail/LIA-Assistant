@@ -234,7 +234,7 @@ class HitlResponseClassifier:
                     msg="Structured output failed, falling back to raw invoke + JSON parsing",
                 )
                 result = await self.llm.ainvoke(prompt, config=config)
-                content = result.content if isinstance(result.content, str) else str(result.content)
+                content = result.text
                 classification = self._parse_result(content)
             classification_duration = time.time() - classification_start
 

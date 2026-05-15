@@ -10,10 +10,9 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.constants import (
     GOOGLE_STATIC_MAPS_URL_LIMIT,
-    HTTP_TIMEOUT_CONNECTOR_LONG,
-    HTTP_TIMEOUT_CONNECTOR_STANDARD,
     STATIC_MAP_MARKER_DEST_COLOR,
     STATIC_MAP_MARKER_ORIGIN_COLOR,
     STATIC_MAP_MAX_DIMENSION,
@@ -154,8 +153,6 @@ async def proxy_routes_static_map(
 
     import httpx
 
-    from src.core.config import settings
-
     try:
         api_key = settings.google_api_key
         if not api_key:
@@ -222,7 +219,7 @@ async def proxy_routes_static_map(
             response = await client.get(
                 static_map_url,
                 follow_redirects=True,
-                timeout=HTTP_TIMEOUT_CONNECTOR_STANDARD,
+                timeout=settings.http_timeout_connector_standard,
             )
 
             if response.status_code != 200:
@@ -306,8 +303,6 @@ async def proxy_location_static_map(
 
     import httpx
 
-    from src.core.config import settings
-
     try:
         api_key = settings.google_api_key
         if not api_key:
@@ -346,7 +341,7 @@ async def proxy_location_static_map(
             response = await client.get(
                 static_map_url,
                 follow_redirects=True,
-                timeout=HTTP_TIMEOUT_CONNECTOR_STANDARD,
+                timeout=settings.http_timeout_connector_standard,
             )
 
             if response.status_code != 200:
@@ -502,7 +497,6 @@ async def get_health_settings() -> ConnectorHealthSettingsResponse:
     Returns:
         ConnectorHealthSettingsResponse with polling and cooldown values in milliseconds.
     """
-    from src.core.config import settings
 
     return ConnectorHealthSettingsResponse(
         polling_interval_ms=settings.oauth_health_check_interval_minutes * 60 * 1000,
@@ -934,7 +928,6 @@ async def gmail_oauth_callback(
     Security Model: Same as Google Contacts callback.
     See google_contacts_oauth_callback() for detailed documentation.
     """
-    from src.core.config import settings
 
     service = ConnectorService(db)
 
@@ -1009,7 +1002,6 @@ async def google_contacts_oauth_callback(
     4. Create connector linked to user
     5. Redirect to frontend with success/error params
     """
-    from src.core.config import settings
 
     service = ConnectorService(db)
 
@@ -1085,7 +1077,6 @@ async def google_calendar_oauth_callback(
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Google Calendar OAuth callback."""
-    from src.core.config import settings
 
     service = ConnectorService(db)
 
@@ -1144,7 +1135,6 @@ async def google_drive_oauth_callback(
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Google Drive OAuth callback."""
-    from src.core.config import settings
 
     service = ConnectorService(db)
 
@@ -1203,7 +1193,6 @@ async def google_tasks_oauth_callback(
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Google Tasks OAuth callback."""
-    from src.core.config import settings
 
     service = ConnectorService(db)
 
@@ -1258,7 +1247,6 @@ async def microsoft_outlook_oauth_callback(
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Microsoft Outlook OAuth callback."""
-    from src.core.config import settings
 
     service = ConnectorService(db)
     try:
@@ -1305,7 +1293,6 @@ async def microsoft_calendar_oauth_callback(
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Microsoft Calendar OAuth callback."""
-    from src.core.config import settings
 
     service = ConnectorService(db)
     try:
@@ -1352,7 +1339,6 @@ async def microsoft_contacts_oauth_callback(
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Microsoft Contacts OAuth callback."""
-    from src.core.config import settings
 
     service = ConnectorService(db)
     try:
@@ -1399,7 +1385,6 @@ async def microsoft_tasks_oauth_callback(
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Microsoft To Do OAuth callback."""
-    from src.core.config import settings
 
     service = ConnectorService(db)
     try:
@@ -1474,8 +1459,6 @@ async def proxy_drive_thumbnail(
     """
     import httpx
 
-    from src.core.config import settings
-
     api_key = settings.google_api_key
     if not api_key:
         logger.warning("google_api_key_not_configured")
@@ -1496,7 +1479,7 @@ async def proxy_drive_thumbnail(
             response = await client.get(
                 thumbnail_url,
                 follow_redirects=True,
-                timeout=HTTP_TIMEOUT_CONNECTOR_STANDARD,
+                timeout=settings.http_timeout_connector_standard,
             )
 
             if response.status_code != 200:
@@ -1575,7 +1558,6 @@ async def proxy_places_photo(
     import httpx
     from fastapi import HTTPException
 
-    from src.core.config import settings
     from src.core.exceptions import raise_configuration_missing, raise_permission_denied
 
     # Validate photo_name format to prevent path manipulation on Google API
@@ -1625,7 +1607,7 @@ async def proxy_places_photo(
             response = await client.get(
                 photo_url,
                 follow_redirects=True,
-                timeout=HTTP_TIMEOUT_CONNECTOR_LONG,
+                timeout=settings.http_timeout_connector_long,
             )
 
             if response.status_code != 200:

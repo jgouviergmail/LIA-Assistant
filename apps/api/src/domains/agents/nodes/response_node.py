@@ -30,7 +30,6 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
 from src.core.constants import (
-    BRAVE_SEARCH_ENRICHMENT_TIMEOUT,
     DEFAULT_USER_DISPLAY_TIMEZONE,
     SCHEDULED_ACTIONS_SESSION_PREFIX,
 )
@@ -1271,9 +1270,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         last_user_message = ""
         for msg in reversed(state[STATE_KEY_MESSAGES]):
             if isinstance(msg, HumanMessage) and msg.content:
-                last_user_message = (
-                    msg.content if isinstance(msg.content, str) else str(msg.content)
-                )
+                last_user_message = msg.text
                 break
 
         # =====================================================================
@@ -1595,7 +1592,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             try:
                 context_obj = await asyncio.wait_for(
                     enrichment_task,
-                    timeout=BRAVE_SEARCH_ENRICHMENT_TIMEOUT,
+                    timeout=settings.brave_search_enrichment_timeout_seconds,
                 )
                 if context_obj:
                     knowledge_context = context_obj.to_prompt_context()
@@ -1626,12 +1623,12 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             except TimeoutError:
                 knowledge_enrichment_result = {
                     "error": "timeout",
-                    "timeout_seconds": BRAVE_SEARCH_ENRICHMENT_TIMEOUT,
+                    "timeout_seconds": settings.brave_search_enrichment_timeout_seconds,
                 }
                 logger.warning(
                     "knowledge_enrichment_timeout",
                     run_id=run_id,
-                    timeout=BRAVE_SEARCH_ENRICHMENT_TIMEOUT,
+                    timeout=settings.brave_search_enrichment_timeout_seconds,
                 )
             except Exception as e:
                 knowledge_enrichment_result = {

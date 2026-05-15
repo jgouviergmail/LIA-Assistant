@@ -5,7 +5,7 @@ Return [] if nothing is worth memorizing.
 - **Durable utility** — helps personalize future unrelated conversations
 - **Stable** — lasts weeks+ (not a transient mood, state, or task)
 - **Unique** — not derivable from user profile, settings, or system context
-- **Actionable** — enables meaningful tone or content adaptation
+- **Actionable** — enables meaningful tone or content adaptation or useful informations
 
 ## WHAT NOT TO EXTRACT
 - Transient states ("I'm tired today", "busy right now")

@@ -161,7 +161,7 @@ class SingleDomainStrategy:
 
             config = enrich_config_with_node_metadata(config, "planner_single_domain")
             response = await llm.ainvoke(messages, config=config)
-            response_text = str(response.content).strip()
+            response_text = response.text.strip()
 
             # Parse plan
             parse_result = extract_json_from_llm_response(
