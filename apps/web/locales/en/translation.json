@@ -2926,6 +2926,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_7": {
+          "title": "v1.20.7 — Bulk reminder deletion: the summary is finally readable, with each reminder's name and trigger time",
+          "date": "May 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>The summary after a bulk deletion is finally readable</b> — When you said <em>\"delete all my reminders\"</em> and confirmed the bulk operation, LIA used to reply with a generic block \"✅ 3/3 / ✅ Action completed successfully / ✅ Action completed successfully / ✅ Action completed successfully\" — no reminder name, no date, just a counter and three identical lines. Each row now carries the deleted reminder and its trigger time, with a header that agrees grammatically with your language: <code>🔔 ✅ 3 reminders deleted / ✅ Buy groceries — Friday May 16, 2026 at 2:00 PM / ✅ Call Mom — Saturday May 17, 2026 at 9:00 AM / ✅ Doctor appointment — Sunday May 18, 2026 at 11:00 AM</code>. The same format applies automatically to bulk deletions of emails, events, contacts, tasks, Drive files, and Gmail labels.",
+            "i2": "<b>The confirmation panel before a bulk deletion finally looks the same regardless of the internal path</b> — Before this release, asking for a bulk deletion could present two different looks depending on which code path was taken internally (FOR_EACH on one side, draft-critique batch on the other) — one showed <code>Reminder: Doctor on May 17, 2026 at 7:00 PM</code>, the other showed <code>🔔 Reminder: Doctor 🔔 Sunday May 17, 2026 at 7:00 PM</code> (doubled emoji, broken formatting). You now see the same unified rendering on both sides: <code>🔔 Reminder : Doctor - Sunday May 17, 2026 at 7:00 PM</code> — one domain emoji, the category noun (Reminder / Email / Event / Task / Contact / File / Label) before the title, the weekday included in the date, and a dash separator between title and date. The dialog title also moves from <em>\"Confirmation required\"</em> to <em>\"Confirm deletion\"</em> for reminders, consistent with other deletion types."
+          }
+        },
         "v1_20_6": {
           "title": "v1.20.6 — More reliable web searches, end-to-end Gemini 3.x LLM support, 28 timeouts now tunable without rebuild",
           "date": "May 2026",

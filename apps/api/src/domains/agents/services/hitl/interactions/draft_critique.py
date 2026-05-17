@@ -46,6 +46,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import FIELD_CONTENT, FIELD_CONVERSATION_ID
+from src.core.i18n_drafts import format_hitl_item_preview
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
 from src.core.time_utils import format_value_if_datetime_string
 from src.domains.agents.drafts.models import DraftAction
@@ -686,23 +687,41 @@ Generate the review question:"""
             Formatted batch confirmation message
         """
 
-        emoji = HitlMessages.get_draft_emoji(draft_type)
         translations = HitlMessages.get_destructive_confirm_translations(user_language)
         specific_title = HitlMessages.get_destructive_confirm_title(draft_type, user_language)
 
         # Header with action-specific title (e.g., "Confirmation de suppression")
         header = f"⚠️ **{specific_title}**\n\n"
 
-        # Build item list
+        # Build item list — unified rendering via the draft display registry
+        # (ADR-085). Output per row: "{emoji} {Noun} : {label} - {date_with_day}".
         items_section = f"**{translations['affected_items']} :**\n"
         for draft_data in batch_drafts:
             content = draft_data.get("draft_content", {})
-            label, detail_line = self._extract_batch_item_preview(
-                draft_type, content, emoji, user_timezone, user_language
+            row = format_hitl_item_preview(
+                draft_type=draft_type,
+                content=content,
+                language=user_language,
+                user_timezone=user_timezone,
             )
-            items_section += f"- {label}\n"
-            if detail_line:
-                items_section += f"  {detail_line}\n"
+            if row is None:
+                # Defensive fallback for unknown draft types. Startup assertion
+                # (assert_registry_completeness) makes this unreachable for
+                # registered DraftType values, but the chain mirrors the field
+                # priority of the legacy renderer to preserve behavior if the
+                # invariant is ever broken at runtime.
+                emoji = HitlMessages.get_draft_emoji(draft_type)
+                label = (
+                    content.get("subject")
+                    or content.get("summary")
+                    or content.get("title")
+                    or content.get("name")
+                    or content.get("content")
+                    or content.get("label_name")
+                    or "?"
+                )
+                row = f"{emoji} {label}".strip()
+            items_section += f"- {row}\n"
 
         items_section += "\n"
 
@@ -711,105 +730,6 @@ Generate the review question:"""
         question = f"**{translations['confirm_question']}**"
 
         return header + items_section + warning + question
-
-    @staticmethod
-    def _extract_batch_item_preview(
-        draft_type: str,
-        content: dict[str, Any],
-        emoji: str,
-        user_timezone: str,
-        user_language: str,
-    ) -> tuple[str, str]:
-        """
-        Extract label and detail line for a single batch item, per domain.
-
-        Args:
-            draft_type: Draft type (email_delete, event_delete, etc.)
-            content: Draft content dict from the tool
-            emoji: Domain emoji prefix
-            user_timezone: User's IANA timezone
-            user_language: User's locale
-
-        Returns:
-            Tuple of (main_label, detail_line). detail_line may be empty.
-        """
-        from src.core.time_utils import format_datetime_for_display
-
-        detail_parts: list[str] = []
-
-        if draft_type == "email_delete":
-            label = content.get("subject", "?")
-            from_addr = content.get("from_addr") or content.get("from", "")
-            if from_addr:
-                detail_parts.append(f"📧 {' '.join(str(from_addr).split())}")
-            date = content.get("date")
-            if date:
-                detail_parts.append(
-                    f"📅 {format_datetime_for_display(date, user_timezone, user_language)}"
-                )
-
-        elif draft_type == "event_delete":
-            event = content.get("current_event", {})
-            label = event.get("summary", content.get("event_id", "?"))
-            start = event.get("start", {}).get("dateTime")
-            if start:
-                detail_parts.append(
-                    f"🕐 {format_datetime_for_display(start, user_timezone, user_language)}"
-                )
-
-        elif draft_type == "contact_delete":
-            contact = content.get("current_contact", {})
-            names = contact.get("names", [])
-            label = names[0].get("displayName", "?") if names else "?"
-            emails = contact.get("emailAddresses", [])
-            if emails:
-                detail_parts.append(f"📧 {emails[0].get('value', '')}")
-
-        elif draft_type == "task_delete":
-            label = content.get("title", "?")
-            due = content.get("due")
-            if due:
-                detail_parts.append(
-                    f"📅 {format_datetime_for_display(due, user_timezone, user_language, include_time=False)}"
-                )
-
-        elif draft_type == "file_delete":
-            label = content.get("name", "?")
-            mime = content.get("mime_type")
-            if mime:
-                detail_parts.append(f"📄 {mime}")
-
-        elif draft_type == "label_delete":
-            label = content.get("label_name", "?")
-
-        elif draft_type == "reminder_delete":
-            label = content.get("content", "?")
-            trigger_at = content.get("trigger_at")
-            if trigger_at:
-                detail_parts.append(
-                    f"🔔 {format_datetime_for_display(trigger_at, user_timezone, user_language)}"
-                )
-
-        else:
-            # Generic fallback
-            label = (
-                content.get("subject")
-                or content.get("summary")
-                or content.get("title")
-                or content.get("name")
-                or content.get("content")
-                or content.get("label_name")
-                or "?"
-            )
-
-        # Sanitize and truncate label
-        label = " ".join(str(label).split())
-        if len(label) > 60:
-            label = label[:57] + "..."
-
-        main_label = f"{emoji} {label}"
-        detail_line = " | ".join(detail_parts)
-        return main_label, detail_line
 
     @staticmethod
     def _preconvert_dates_for_display(

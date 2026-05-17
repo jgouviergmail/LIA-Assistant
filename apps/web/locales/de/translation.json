@@ -2917,6 +2917,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_7": {
+          "title": "v1.20.7 — Massenlöschung von Erinnerungen: die Zusammenfassung ist endlich lesbar, mit Name und Auslösezeit jeder Erinnerung",
+          "date": "Mai 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Die Zusammenfassung nach einer Massenlöschung ist endlich lesbar</b> — Wenn Sie <em>« lösche alle meine Erinnerungen »</em> sagten und die Massenoperation bestätigten, antwortete LIA bisher mit einem generischen Block « ✅ 3/3 / ✅ Aktion erfolgreich ausgeführt / ✅ Aktion erfolgreich ausgeführt / ✅ Aktion erfolgreich ausgeführt » — kein Erinnerungsname, kein Datum, nur ein Zähler und drei identische Zeilen. Jede Zeile trägt jetzt die gelöschte Erinnerung und ihre Auslösezeit, mit einer Überschrift, die grammatikalisch mit Ihrer Sprache übereinstimmt: <code>🔔 ✅ 3 Erinnerungen gelöscht / ✅ Einkaufen — Freitag, 16. Mai 2026, 14:00 Uhr / ✅ Mama anrufen — Samstag, 17. Mai 2026, 09:00 Uhr / ✅ Arzttermin — Sonntag, 18. Mai 2026, 11:00 Uhr</code>. Das gleiche Format gilt automatisch für Massenlöschungen von E-Mails, Terminen, Kontakten, Aufgaben, Drive-Dateien und Gmail-Labels.",
+            "i2": "<b>Das Bestätigungsfenster vor einer Massenlöschung sieht endlich auf beiden internen Wegen gleich aus</b> — Vor dieser Version konnte eine Anfrage nach einer Massenlöschung zwei verschiedene Darstellungen zeigen, je nachdem, welcher interne Pfad genommen wurde (FOR_EACH einerseits, draft-critique-Batch andererseits) — der eine zeigte <code>Erinnerung: Arzt am 17. Mai 2026 um 19:00</code>, der andere <code>🔔 Erinnerung: Arzt 🔔 Sonntag, 17. Mai 2026 um 19:00</code> (doppeltes Emoji, defektes Format). Sie sehen jetzt auf beiden Seiten dieselbe einheitliche Darstellung: <code>🔔 Erinnerung : Arzt - Sonntag, 17. Mai 2026 um 19:00</code> — ein einziges Domänen-Emoji, der Kategoriename (Erinnerung / E-Mail / Termin / Aufgabe / Kontakt / Datei / Label) vor dem Titel, der Wochentag im Datum enthalten, und ein Bindestrich-Trennzeichen zwischen Titel und Datum. Der Dialog-Titel wechselt für Erinnerungen ebenfalls von <em>« Bestätigung erforderlich »</em> zu <em>« Löschung bestätigen »</em>, konsistent mit anderen Löschungstypen."
+          }
+        },
         "v1_20_6": {
           "title": "v1.20.6 — Zuverlässigere Websuchen, durchgängige Gemini-3.x-LLM-Unterstützung, 28 Timeouts ohne Rebuild anpassbar",
           "date": "Mai 2026",

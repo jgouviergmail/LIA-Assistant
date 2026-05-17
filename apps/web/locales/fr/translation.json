@@ -2931,6 +2931,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_7": {
+          "title": "v1.20.7 — Suppression de rappels en lot : affichage enfin propre, avec le nom et l'heure de chaque rappel",
+          "date": "Mai 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Le récapitulatif après une suppression en lot est enfin lisible</b> — Quand tu demandais <em>« supprime tous mes rappels »</em> et confirmais l'opération en masse, LIA répondait précédemment avec un bloc générique « ✅ 3/3 / ✅ Action exécutée avec succès / ✅ Action exécutée avec succès / ✅ Action exécutée avec succès » — pas de nom de rappel, pas de date, juste un compteur et trois lignes identiques. Désormais chaque ligne porte le rappel supprimé et son heure de déclenchement, avec un en-tête qui s'accorde grammaticalement à ta langue : <code>🔔 ✅ 3 rappels supprimés / ✅ Faire les courses — vendredi 16 mai 2026 à 14h00 / ✅ Appeler Maman — samedi 17 mai 2026 à 09h00 / ✅ Rendez-vous médecin — dimanche 18 mai 2026 à 11h00</code>. Le même format s'applique automatiquement aux suppressions en lot d'emails, d'événements, de contacts, de tâches, de fichiers Drive et de labels Gmail.",
+            "i2": "<b>Le panneau de confirmation avant suppression en lot affiche enfin de la même manière dans les deux flux</b> — Avant cette version, demander une suppression en lot pouvait te présenter deux looks différents selon le chemin emprunté en interne (FOR_EACH d'un côté, draft critique batch de l'autre) — l'un montrait <code>Rappel : Médecin le 17 mai 2026 à 19:00</code>, l'autre affichait <code>🔔 Rappel : Médecin 🔔 dimanche 17 mai 2026 à 19:00</code> (double emoji, formatage cassé). Tu vois désormais le même rendu unifié des deux côtés : <code>🔔 Rappel : Médecin - dimanche 17 mai 2026 à 19:00</code> — un seul emoji domaine, le nom de la catégorie (Rappel / Email / Événement / Tâche / Contact / Fichier / Label) avant le titre, le jour de la semaine inclus dans la date, et un séparateur tiret entre le titre et la date. Le titre de la fenêtre passe également de <em>« Confirmation requise »</em> à <em>« Confirmation de suppression »</em> pour les rappels, cohérent avec les autres types de suppression."
+          }
+        },
         "v1_20_6": {
           "title": "v1.20.6 — Recherches web plus fiables, LLM Gemini 3.x supporté de bout en bout, 28 délais désormais ajustables sans rebuild",
           "date": "Mai 2026",

@@ -189,6 +189,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.error("tool_error_codes_invalid", error=str(exc), exc_info=True)
         raise
 
+    # Validate Draft Display Registry exhaustivity (ADR-085: fail-fast if a
+    # DraftType has been added without registering its display configuration).
+    try:
+        from src.domains.agents.drafts.display import assert_registry_completeness
+
+        assert_registry_completeness()
+    except AssertionError as exc:
+        logger.error("draft_display_registry_incomplete", error=str(exc), exc_info=True)
+        raise RuntimeError(f"Draft display registry incomplete: {exc}") from exc
+
     # Log rate limiting configuration
     log_rate_limiting_status()
 

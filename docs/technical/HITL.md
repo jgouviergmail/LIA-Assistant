@@ -1121,12 +1121,32 @@ async def hitl_dispatch_node(state: MessagesState) -> dict:
 
 ```
 services/hitl/interactions/
-├── draft_critique.py (647 lines) - Draft review logic
-├── entity_disambiguation.py (313 lines) - Multiple match resolution
-├── tool_confirmation.py (257 lines) - Sensitive action confirmation
-├── plan_approval.py (305 lines) - Plan-level approval
-└── clarification.py (300 lines) - Clarification questions
+├── draft_critique.py (~900 lines) - Draft review logic
+├── entity_disambiguation.py (~315 lines) - Multiple match resolution
+├── tool_confirmation.py (~260 lines) - Sensitive action confirmation
+├── plan_approval.py (~305 lines) - Plan-level approval
+├── clarification.py (~300 lines) - Clarification questions
+├── for_each_confirmation.py (~500 lines) - Bulk iteration confirmation
+└── destructive_confirm.py (~430 lines) - Bulk destructive confirmation
 ```
+
+### Unified per-item preview rendering (ADR-085 extension)
+
+Both `DraftCritiqueInteraction._generate_batch_critique` (batch confirmation) and `ForEachConfirmationInteraction._build_item_previews_section` (FOR_EACH informed HITL) render the per-item bullet list via a single helper:
+
+```python
+from src.core.i18n_drafts import format_hitl_item_preview
+
+row = format_hitl_item_preview(
+    draft_type=draft_type,    # e.g. "reminder_delete"
+    content=draft_content,    # the draft's typed content dict
+    language=user_language,
+    user_timezone=user_timezone,
+)
+# → "🔔 Rappel : Médecin - dimanche 17 mai 2026 à 19:00"
+```
+
+The helper consumes `DRAFT_DISPLAY_REGISTRY` (see ADR-085) for emoji, label-extraction fields, optional secondary datetime, and the localized capitalized noun. Output format is invariant across the two paths: `{emoji} {Noun_capitalized} : {label} - {datetime_with_day_name}`. For `ForEachConfirmationInteraction`, a static helper `_steps_to_draft_type(steps)` resolves the FOR_EACH `tool_name` to a canonical `DraftType` string (e.g. `cancel_reminder_tool` → `"reminder_delete"`); when the mapping fails (non-draft domains like places/weather/routes), a legacy generic renderer takes over.
 
 ### Draft Modification Service (v1.11.4)
 

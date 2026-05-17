@@ -2917,6 +2917,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_7": {
+          "title": "v1.20.7 — Eliminación masiva de recordatorios: el resumen por fin se lee, con el nombre y la hora de cada recordatorio",
+          "date": "Mayo 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>El resumen tras una eliminación masiva por fin se lee</b> — Cuando le decías <em>« elimina todos mis recordatorios »</em> y confirmabas la operación masiva, LIA respondía antes con un bloque genérico « ✅ 3/3 / ✅ Acción ejecutada con éxito / ✅ Acción ejecutada con éxito / ✅ Acción ejecutada con éxito » — sin nombre de recordatorio, sin fecha, solo un contador y tres líneas idénticas. Ahora cada línea lleva el recordatorio eliminado y su hora de disparo, con un encabezado que concuerda gramaticalmente con tu idioma: <code>🔔 ✅ 3 recordatorios eliminados / ✅ Hacer la compra — viernes 16 de mayo de 2026 a las 14:00 / ✅ Llamar a Mamá — sábado 17 de mayo de 2026 a las 09:00 / ✅ Cita médica — domingo 18 de mayo de 2026 a las 11:00</code>. El mismo formato se aplica automáticamente a las eliminaciones masivas de emails, eventos, contactos, tareas, archivos de Drive y etiquetas de Gmail.",
+            "i2": "<b>El panel de confirmación antes de una eliminación masiva por fin tiene el mismo aspecto sea cual sea el flujo interno</b> — Antes de esta versión, pedir una eliminación masiva podía presentarte dos aspectos diferentes según el camino tomado internamente (FOR_EACH por un lado, draft critique batch por el otro) — uno mostraba <code>Recordatorio: Médico el 17 de mayo de 2026 a las 19:00</code>, el otro mostraba <code>🔔 Recordatorio: Médico 🔔 domingo 17 de mayo de 2026 a las 19:00</code> (emoji duplicado, formato roto). Ahora ves el mismo renderizado unificado en ambos lados: <code>🔔 Recordatorio : Médico - domingo 17 de mayo de 2026 a las 19:00</code> — un solo emoji de dominio, el nombre de la categoría (Recordatorio / Email / Evento / Tarea / Contacto / Archivo / Etiqueta) antes del título, el día de la semana incluido en la fecha, y un guión separador entre título y fecha. El título del diálogo también pasa de <em>« Confirmación requerida »</em> a <em>« Confirmar eliminación »</em> para los recordatorios, coherente con los demás tipos de eliminación."
+          }
+        },
         "v1_20_6": {
           "title": "v1.20.6 — Búsquedas web más fiables, soporte LLM Gemini 3.x de extremo a extremo, 28 timeouts ahora ajustables sin rebuild",
           "date": "Mayo 2026",

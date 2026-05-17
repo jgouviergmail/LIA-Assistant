@@ -37,6 +37,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import FIELD_CONVERSATION_ID
+from src.core.i18n_drafts import format_hitl_item_preview
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
 from src.core.time_utils import format_value_if_iso_datetime
 from src.infrastructure.observability.logging import get_logger
@@ -218,6 +219,7 @@ class ForEachConfirmationInteraction:
                 translations=translations,
                 user_language=user_language,
                 user_timezone=user_timezone,
+                steps=steps,
             )
 
         # Add step details if multiple
@@ -243,38 +245,57 @@ class ForEachConfirmationInteraction:
         translations: dict[str, str],
         user_language: str,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+        steps: list[dict[str, Any]] | None = None,
     ) -> str:
         """
         Build the item previews section for "Informed HITL".
 
-        Shows ALL items with their key fields so users know exactly what
-        will be affected. Items are already bounded by api_max_items_per_request
-        at the API layer, so no artificial truncation is needed here.
-
-        ISO datetime strings are automatically formatted for display.
+        Uses the unified rendering helper :func:`format_hitl_item_preview`
+        (ADR-085) whenever the steps' tool name can be resolved to a known
+        ``DraftType``. For non-draft domains (places, weather, routes, etc.)
+        or unresolvable tool names, falls back to the legacy generic
+        rendering that joins preview-dict values with a localized connector.
 
         Args:
-            item_previews: List of preview dicts with key fields
-            total_affected: Total number of items
-            translations: Localized UI strings
-            user_language: Language code for date formatting
-            user_timezone: Timezone for date formatting
+            item_previews: List of preview dicts with key fields per item.
+            total_affected: Total number of items targeted by the operation.
+            translations: Localized UI strings for the FOR_EACH dialog.
+            user_language: Language code for date formatting.
+            user_timezone: User's IANA timezone for date formatting.
+            steps: Optional FOR_EACH step descriptors — used to synthesize a
+                ``DraftType`` candidate from the first step's ``tool_name``.
 
         Returns:
-            Formatted previews section string
+            Formatted previews section string.
         """
         section = f"**{translations['affected_items']} :**\n"
 
+        # Try to resolve the operation to a known DraftType so the unified
+        # registry-driven renderer applies. Returns ``None`` when the tool
+        # name does not map to a draft (e.g. for places/weather queries).
+        draft_type_candidate = self._steps_to_draft_type(steps or [])
+
         # Show ALL items - no artificial limit since API already bounds results
         for preview in item_previews:
-            # Build a compact one-line preview from available fields
-            preview_parts = []
-            for _key, value in preview.items():
-                if value is not None:
-                    str_value = str(value)
-                    # Sanitize newlines/tabs to keep bullet on one line
-                    str_value = " ".join(str_value.split())
-                    # Format ISO datetime strings for display (centralized in time_utils)
+            row: str | None = None
+
+            # Preferred path: unified registry-driven rendering.
+            if draft_type_candidate:
+                row = format_hitl_item_preview(
+                    draft_type=draft_type_candidate,
+                    content=preview,
+                    language=user_language,
+                    user_timezone=user_timezone,
+                )
+
+            # Fallback path: legacy generic rendering for non-draft domains.
+            if row is None:
+                preview_parts: list[str] = []
+                for _key, value in preview.items():
+                    if value is None:
+                        continue
+                    str_value = " ".join(str(value).split())
+                    # Format ISO datetime strings for display.
                     str_value = format_value_if_iso_datetime(
                         str_value,
                         user_timezone=user_timezone,
@@ -282,23 +303,23 @@ class ForEachConfirmationInteraction:
                         include_time=True,
                         include_day_name=False,
                     )
-                    # Truncate long values
                     if len(str_value) > 50:
                         str_value = str_value[:47] + "..."
                     preview_parts.append(str_value)
 
-            if preview_parts:
-                # Use first 2 fields with localized connector (e.g., "test | Feb 06")
+                if not preview_parts:
+                    continue
+
                 if len(preview_parts) >= 2:
                     connector = translations.get("item_date_connector", "|")
-                    # Handle empty connector (e.g., Chinese)
                     if connector:
-                        preview_text = f"{preview_parts[0]} {connector} {preview_parts[1]}"
+                        row = f"{preview_parts[0]} {connector} {preview_parts[1]}"
                     else:
-                        preview_text = f"{preview_parts[0]} {preview_parts[1]}"
+                        row = f"{preview_parts[0]} {preview_parts[1]}"
                 else:
-                    preview_text = preview_parts[0]
-                section += f"- {preview_text}\n"
+                    row = preview_parts[0]
+
+            section += f"- {row}\n"
 
         # Show "and N more" only if total_affected > previews received
         # (can happen if provider returns more items than extracted previews)
@@ -309,6 +330,62 @@ class ForEachConfirmationInteraction:
 
         section += "\n"
         return section
+
+    @staticmethod
+    def _steps_to_draft_type(steps: list[dict[str, Any]]) -> str | None:
+        """Synthesize a ``DraftType``-compatible string from FOR_EACH steps.
+
+        Inspects the first step's ``tool_name`` to identify a target domain
+        (reminder / email / event / contact / task / file / label) and a
+        mutation verb (delete / send / create / update). The combination is
+        mapped to the canonical ``DraftType`` string consumed by the draft
+        display registry (ADR-085).
+
+        Mapping rules:
+            - ``cancel_reminder`` → ``"reminder_delete"``
+            - ``delete_event`` / ``remove_event`` → ``"event_delete"``
+            - ``update_contact`` / ``modify_contact`` → ``"contact_update"``
+            - ``send_email`` → ``"email"`` (DraftType.EMAIL has no suffix)
+            - ``create_event`` → ``"event"`` (base DraftType)
+            - Unrecognized tool name → ``None`` (caller falls back).
+
+        Args:
+            steps: FOR_EACH step descriptors. Only the first is inspected
+                — a FOR_EACH executes a single tool per iteration.
+
+        Returns:
+            A draft-type string accepted by
+            :func:`src.domains.agents.drafts.display.get_draft_display_config`,
+            or ``None`` when no mapping can be inferred.
+        """
+        if not steps:
+            return None
+
+        tool_name = str(steps[0].get("tool_name", "")).lower()
+        if not tool_name:
+            return None
+
+        domain = next(
+            (
+                d
+                for d in ("reminder", "email", "event", "contact", "task", "file", "label")
+                if d in tool_name
+            ),
+            None,
+        )
+        if domain is None:
+            return None
+
+        if any(v in tool_name for v in ("delete", "cancel", "remove", "trash")):
+            return f"{domain}_delete"
+        if any(v in tool_name for v in ("update", "modify", "edit")):
+            return f"{domain}_update"
+        if any(v in tool_name for v in ("reply",)) and domain == "email":
+            return "email_reply"
+        if any(v in tool_name for v in ("forward",)) and domain == "email":
+            return "email_forward"
+        # Default for send / create / unknown verbs → base DraftType (e.g. "email", "event")
+        return domain
 
     def _detect_mutation_type(
         self,

@@ -5,6 +5,74 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.7] - 2026-05-17
+
+### Fixed — Pre-confirmation HITL preview rendering: unified across DraftCritique and ForEachConfirmation (ADR-085 extension)
+
+After fixing the post-execution rendering, the **pre-confirmation** previews — the bullet list of items the user is about to mutate, shown before the destructive/for_each HITL question — were found to use two distinct codepaths that produced incoherent rows for the same scenario. For `Supprime tous mes rappels`:
+
+```
+# Path A — ForEachConfirmationInteraction          # Path B — DraftCritiqueInteraction (batch)
+Rappel : Médecin le 17 mai 2026 à 19:00            🔔 Médecin 🔔 dimanche 17 mai 2026 à 19:00
+```
+
+Path A built rows from a generic `item_previews: list[dict]` joined by a localized connector (`"le"`/`"on"`/`"el"`/...) — **no emoji prefix**. Path B built rows via a ~100-line per-`draft_type` if/elif chain that injected the row emoji both as `main_label` prefix and inside the appended `detail_parts` — **duplicated 🔔** when the markdown bullet got flattened by the chat UI. And `_DESTRUCTIVE_CONFIRM_ACTION_TITLES` had no `reminder_delete` entry, so the title fell back to the generic *"Confirmation requise"* instead of *"Confirmation de suppression"* — same systemic oversight that motivated ADR-085.
+
+Unified both paths to share a single registry-driven helper:
+
+- New public function `apps/api/src/core/i18n_drafts.py::format_hitl_item_preview(draft_type, content, language, user_timezone)` consumes `DRAFT_DISPLAY_REGISTRY` (ADR-085) — emoji, ordered label-extraction fields, optional secondary datetime, localized capitalized noun via `DRAFT_RESULT_NOUNS`. Always renders the datetime with `include_day_name=True`. Output: `{emoji} {Noun_capitalized} : {label} - {datetime_with_day_name}` (Chinese uses its own word order template inherited from `RESULT_HEADER_TEMPLATES`).
+- `DraftCritiqueInteraction._generate_batch_critique` — removed the ~100-line `_extract_batch_item_preview` if/elif chain; calls the helper directly. Defensive 6-field fallback (`subject/summary/title/name/content/label_name`) preserved for unregistered draft types.
+- `ForEachConfirmationInteraction._build_item_previews_section` — added a `steps: list[dict[str, Any]] | None` parameter and a static helper `_steps_to_draft_type(steps)` that maps a FOR_EACH `tool_name` to a canonical `DraftType` string (`cancel_reminder_tool` → `"reminder_delete"`, `update_event_tool` → `"event_update"`, `send_email_tool` → `"email"`, etc.). When the mapping resolves, the unified helper is used; otherwise the legacy generic renderer remains intact (preserved for non-draft domains: places, weather, routes, web_fetch, mcp).
+- `_DESTRUCTIVE_CONFIRM_ACTION_TITLES` — `reminder_delete` added in all 6 languages (`"Confirmation de suppression"` / `"Confirm deletion"` / `"Confirmar eliminación"` / `"Löschung bestätigen"` / `"Conferma eliminazione"` / `"确认删除"`).
+
+Final rendering for `Supprime tous mes rappels` (both HITL paths converge):
+
+```
+⚠️ **Confirmation de suppression**
+
+**Éléments concernés :**
+- 🔔 Rappel : Médecin - dimanche 17 mai 2026 à 19:00
+- 🔔 Rappel : Ramonage - jeudi 21 mai 2026 à 19:00
+- 🔔 Rappel : Alsace - vendredi 22 mai 2026 à 19:00
+
+⚠️ Cette action est irréversible.
+
+**Confirmes-tu cette suppression ?**
+```
+
+Other domains inherit the same shape: `📅 Événement : Réunion équipe - lundi 20 mai 2026 à 10:00`, `📧 Email : Confirmation rdv jeudi - jeudi 16 mai 2026 à 14:00`, `👤 Contact : Marie Dupont`, `✅ Tâche : Préparer démo - mardi 20 mai 2026 à 17:00`.
+
+**Backwards-compat preserved**: `HitlMessages.get_draft_emoji()` unchanged. The legacy generic FOR_EACH fallback (with `item_date_connector`) remains for non-draft domains. All existing tests in `tests/unit/domains/agents/` keep passing.
+
+**Files**: MODIFY `apps/api/src/core/i18n_drafts.py` (+ `format_hitl_item_preview`), `apps/api/src/core/i18n_hitl.py` (+ `reminder_delete` × 6 languages in `_DESTRUCTIVE_CONFIRM_ACTION_TITLES`), `apps/api/src/domains/agents/services/hitl/interactions/draft_critique.py` (- `_extract_batch_item_preview`, refactor `_generate_batch_critique`), `apps/api/src/domains/agents/services/hitl/interactions/for_each_confirmation.py` (+ `_steps_to_draft_type`, refactor `_build_item_previews_section`). NEW tests `apps/api/tests/unit/domains/agents/drafts/test_hitl_item_preview.py` (119 parametrized cases) and `apps/api/tests/unit/domains/agents/drafts/test_for_each_draft_type_mapping.py` (25 cases). Architecture: `docs/architecture/ADR-085-Draft-Display-Registry.md` extension section.
+
+---
+
+### Fixed — Post-HITL confirmation rendering: from "Action exécutée avec succès" × N to a localized, structured result block (ADR-085)
+
+`Supprime tous mes rappels` (3 reminders) used to render after confirmation as `✅ 3/3 / ✅ Action exécutée avec succès × 3` — no domain emoji, no per-item label, no datetime context, bland default message repeated. Forensic trace exposed **4 disjoint sources of per-`DraftType` knowledge** in the post-HITL rendering pipeline with hetereogeneous coverage (13/16, 15/16, 6/16, plus a hard-coded label-extraction chain), of which the recently-added `REMINDER_DELETE` type had only been registered in one. `file_delete` and `label_delete` silently suffered the same defect in batch mode — never spotted because never exercised under batch.
+
+Replaced the 4 sources with a **single declarative registry** keyed by `DraftType` (`DRAFT_DISPLAY_REGISTRY` in `apps/api/src/domains/agents/drafts/display.py`) that captures, per type: the domain emoji, the ordered label-extraction fields, an optional secondary datetime key (e.g. `trigger_at` for reminders), the rich detail rows for single-confirm, and i18n keys driving header composition. `assert_registry_completeness()` is invoked at lifespan startup *and* in a parametrized unit test — a new `DraftType` without a registered display config either fails to boot or fails the PR.
+
+Localized **batch header now uses correct grammar in all 6 supported languages** (`apps/api/src/core/i18n_drafts.py`): two new tables (`DRAFT_RESULT_NOUNS` and `DRAFT_RESULT_VERBS_PAST`) encode noun forms (singular/plural + gender for fr/es/it) and past-participle forms (4 gender/number combinations for fr/es/it, invariant string for en/de/zh-CN). `RESULT_HEADER_TEMPLATES` handles Chinese's different word order (`已删除 3 个提醒`). `compose_result_header(success, total, noun_key, verb_past_key, language)` assembles `"3 rappels supprimés"` (fr m+plur), `"1 tâche créée"` (fr f+sing), `"3 reminders deleted"` (en invariant), `"3 Termine gelöscht"` (de invariant), `"3 attività create"` (it noun-invariant + verb agreement). Pluralization rule per language: French treats 0 and 1 as singular; English/Spanish/German/Italian treat 1 as singular and everything else as plural; Chinese is invariant.
+
+Each batch row now carries both the **item label** (sourced via the registry's `item_label_fields` priority chain, with dotted notation for nested keys like `file.name` or `contact.names.0.displayName`) **and an optional contextual datetime** (`item_secondary_datetime_key` — e.g. `trigger_at` for reminders → ` — 16 mai à 14h00`). When extraction fails, a `draft_result_format_empty_label` warning is logged with the available content keys.
+
+Final rendering for `Supprime tous mes rappels`:
+
+```
+🔔 ✅ 3 rappels supprimés
+✅ **Faire les courses** — 16 mai à 14h00
+✅ **Appeler Maman** — 17 mai à 09h00
+✅ **Rendez-vous médecin** — 18 mai à 11h00
+```
+
+**Backwards-compat preserved**: `HitlMessages.get_draft_emoji()` keeps the same shape (becomes a one-line wrapper over the registry), the three external callsites in `draft_critique.py` are untouched, and `DRAFT_SUCCESS_MESSAGES` / `DRAFT_CANCEL_MESSAGES` are kept (still used by `Draft.get_summary()`), with the missing `reminder_delete` entry added in all 6 languages.
+
+**Files**: NEW `apps/api/src/domains/agents/drafts/display.py`, MODIFY `apps/api/src/core/i18n_drafts.py` / `apps/api/src/core/i18n_hitl.py` / `apps/api/src/domains/agents/nodes/response_node.py` / `apps/api/src/main.py`, NEW tests `apps/api/tests/unit/domains/agents/drafts/test_display_registry.py` (~30 parametrized cases on `DraftType` × 6 languages) and `apps/api/tests/unit/domains/agents/nodes/test_format_draft_execution_result.py` (19 cases covering batch/single/cancel/error per type + per-language header snapshots). Architecture: `docs/architecture/ADR-085-Draft-Display-Registry.md`.
+
+---
+
 ## [1.20.6] - 2026-05-15
 
 ### Added — Indexable vs Semantic criteria: universal planning principle + leak detector

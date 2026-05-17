@@ -34,6 +34,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "Supprimée avec succès",
         "file_delete": "Supprimé avec succès",
         "label_delete": "Label supprimé avec succès",
+        "reminder_delete": "Rappel '{content}' supprimé",
         "_default": "Action exécutée avec succès",
     },
     "en": {
@@ -52,6 +53,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "Deleted successfully",
         "file_delete": "Deleted successfully",
         "label_delete": "Label deleted successfully",
+        "reminder_delete": "Reminder '{content}' deleted",
         "_default": "Action completed successfully",
     },
     "es": {
@@ -70,6 +72,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "Eliminada con éxito",
         "file_delete": "Eliminado con éxito",
         "label_delete": "Etiqueta eliminada con éxito",
+        "reminder_delete": "Recordatorio '{content}' eliminado",
         "_default": "Acción ejecutada con éxito",
     },
     "de": {
@@ -88,6 +91,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "Erfolgreich gelöscht",
         "file_delete": "Erfolgreich gelöscht",
         "label_delete": "Label erfolgreich gelöscht",
+        "reminder_delete": "Erinnerung '{content}' gelöscht",
         "_default": "Aktion erfolgreich ausgeführt",
     },
     "it": {
@@ -106,6 +110,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "Eliminata con successo",
         "file_delete": "Eliminato con successo",
         "label_delete": "Etichetta eliminata con successo",
+        "reminder_delete": "Promemoria '{content}' eliminato",
         "_default": "Azione eseguita con successo",
     },
     "zh-CN": {
@@ -124,6 +129,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "删除成功",
         "file_delete": "删除成功",
         "label_delete": "标签删除成功",
+        "reminder_delete": "提醒 '{content}' 已删除",
         "_default": "操作成功完成",
     },
 }
@@ -150,6 +156,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "Suppression annulée",
         "file_delete": "Suppression annulée",
         "label_delete": "Suppression annulée",
+        "reminder_delete": "Suppression annulée",
         "_default": "Action annulée",
     },
     "en": {
@@ -168,6 +175,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "Deletion cancelled",
         "file_delete": "Deletion cancelled",
         "label_delete": "Deletion cancelled",
+        "reminder_delete": "Deletion cancelled",
         "_default": "Action cancelled",
     },
     "es": {
@@ -186,6 +194,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "Eliminación cancelada",
         "file_delete": "Eliminación cancelada",
         "label_delete": "Eliminación cancelada",
+        "reminder_delete": "Eliminación cancelada",
         "_default": "Acción cancelada",
     },
     "de": {
@@ -204,6 +213,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "Löschung abgebrochen",
         "file_delete": "Löschung abgebrochen",
         "label_delete": "Löschung abgebrochen",
+        "reminder_delete": "Löschung abgebrochen",
         "_default": "Aktion abgebrochen",
     },
     "it": {
@@ -222,6 +232,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "Eliminazione annullata",
         "file_delete": "Eliminazione annullata",
         "label_delete": "Eliminazione annullata",
+        "reminder_delete": "Eliminazione annullata",
         "_default": "Azione annullata",
     },
     "zh-CN": {
@@ -240,6 +251,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "task_delete": "删除已取消",
         "file_delete": "删除已取消",
         "label_delete": "删除已取消",
+        "reminder_delete": "删除已取消",
         "_default": "操作已取消",
     },
 }
@@ -745,3 +757,414 @@ def get_draft_preview_labels(
     """
     lang = _normalize_language(language)
     return DRAFT_PREVIEW_LABELS.get(lang, DRAFT_PREVIEW_LABELS[DEFAULT_LANGUAGE])
+
+
+# ============================================================================
+# DRAFT RESULT HEADER COMPOSITION
+# ============================================================================
+# Tables and helpers for composing the localized result header displayed after
+# a HITL confirmation, e.g. "3 rappels supprimés" / "2/3 emails envoyés".
+#
+# Design (ADR-085):
+# - DRAFT_RESULT_NOUNS: per-language noun forms (singular/plural) + grammatical
+#   gender for languages that need participle agreement (fr/es/it).
+# - DRAFT_RESULT_VERBS_PAST: past-participle forms. ``str`` for invariant
+#   languages (en/de/zh-CN); ``dict`` with 4 gender/number keys for languages
+#   with agreement (fr/es/it). Keys: ``m_sing``, ``m_plur``, ``f_sing``,
+#   ``f_plur``.
+# - RESULT_HEADER_TEMPLATES: per-language word-order template (Chinese differs).
+# - get_plural_form: per-language pluralization rule (French treats 0 as
+#   singular; English/Spanish/German/Italian treat 0 as plural; Chinese is
+#   invariant).
+# - compose_result_header: assembles the localized header from a count and the
+#   noun/verb keys declared in DRAFT_DISPLAY_REGISTRY.
+#
+# Invariant: noun_key and verb_past_key referenced by any
+# DraftDisplayConfig MUST exist in DRAFT_RESULT_NOUNS / DRAFT_RESULT_VERBS_PAST
+# for every supported language. Enforced by test_display_registry.py.
+
+DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
+    "fr": {
+        "reminder": {"singular": "rappel", "plural": "rappels", "gender": "m"},
+        "email": {"singular": "email", "plural": "emails", "gender": "m"},
+        "event": {"singular": "événement", "plural": "événements", "gender": "m"},
+        "contact": {"singular": "contact", "plural": "contacts", "gender": "m"},
+        "task": {"singular": "tâche", "plural": "tâches", "gender": "f"},
+        "file": {"singular": "fichier", "plural": "fichiers", "gender": "m"},
+        "label": {"singular": "label", "plural": "labels", "gender": "m"},
+    },
+    "en": {
+        "reminder": {"singular": "reminder", "plural": "reminders"},
+        "email": {"singular": "email", "plural": "emails"},
+        "event": {"singular": "event", "plural": "events"},
+        "contact": {"singular": "contact", "plural": "contacts"},
+        "task": {"singular": "task", "plural": "tasks"},
+        "file": {"singular": "file", "plural": "files"},
+        "label": {"singular": "label", "plural": "labels"},
+    },
+    "es": {
+        "reminder": {"singular": "recordatorio", "plural": "recordatorios", "gender": "m"},
+        "email": {"singular": "email", "plural": "emails", "gender": "m"},
+        "event": {"singular": "evento", "plural": "eventos", "gender": "m"},
+        "contact": {"singular": "contacto", "plural": "contactos", "gender": "m"},
+        "task": {"singular": "tarea", "plural": "tareas", "gender": "f"},
+        "file": {"singular": "archivo", "plural": "archivos", "gender": "m"},
+        "label": {"singular": "etiqueta", "plural": "etiquetas", "gender": "f"},
+    },
+    "de": {
+        "reminder": {"singular": "Erinnerung", "plural": "Erinnerungen"},
+        "email": {"singular": "E-Mail", "plural": "E-Mails"},
+        "event": {"singular": "Termin", "plural": "Termine"},
+        "contact": {"singular": "Kontakt", "plural": "Kontakte"},
+        "task": {"singular": "Aufgabe", "plural": "Aufgaben"},
+        "file": {"singular": "Datei", "plural": "Dateien"},
+        "label": {"singular": "Label", "plural": "Labels"},
+    },
+    "it": {
+        # Italian: "promemoria", "email", "attività", "file" are invariant for number.
+        "reminder": {"singular": "promemoria", "plural": "promemoria", "gender": "m"},
+        "email": {"singular": "email", "plural": "email", "gender": "f"},
+        "event": {"singular": "evento", "plural": "eventi", "gender": "m"},
+        "contact": {"singular": "contatto", "plural": "contatti", "gender": "m"},
+        "task": {"singular": "attività", "plural": "attività", "gender": "f"},
+        "file": {"singular": "file", "plural": "file", "gender": "m"},
+        "label": {"singular": "etichetta", "plural": "etichette", "gender": "f"},
+    },
+    "zh-CN": {
+        # Chinese has no grammatical number; both forms hold the same string.
+        "reminder": {"singular": "提醒", "plural": "提醒"},
+        "email": {"singular": "邮件", "plural": "邮件"},
+        "event": {"singular": "事件", "plural": "事件"},
+        "contact": {"singular": "联系人", "plural": "联系人"},
+        "task": {"singular": "任务", "plural": "任务"},
+        "file": {"singular": "文件", "plural": "文件"},
+        "label": {"singular": "标签", "plural": "标签"},
+    },
+}
+
+# Past-participle table. Two possible shapes per language:
+# - dict[str, str]              for invariant languages (en/de/zh-CN)
+# - dict[str, dict[str, str]]   for languages with gender+number agreement
+#                                with keys: m_sing / m_plur / f_sing / f_plur
+DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
+    "fr": {
+        "sent": {
+            "m_sing": "envoyé",
+            "m_plur": "envoyés",
+            "f_sing": "envoyée",
+            "f_plur": "envoyées",
+        },
+        "deleted": {
+            "m_sing": "supprimé",
+            "m_plur": "supprimés",
+            "f_sing": "supprimée",
+            "f_plur": "supprimées",
+        },
+        "created": {
+            "m_sing": "créé",
+            "m_plur": "créés",
+            "f_sing": "créée",
+            "f_plur": "créées",
+        },
+        "updated": {
+            "m_sing": "modifié",
+            "m_plur": "modifiés",
+            "f_sing": "modifiée",
+            "f_plur": "modifiées",
+        },
+    },
+    "en": {
+        "sent": "sent",
+        "deleted": "deleted",
+        "created": "created",
+        "updated": "updated",
+    },
+    "es": {
+        "sent": {
+            "m_sing": "enviado",
+            "m_plur": "enviados",
+            "f_sing": "enviada",
+            "f_plur": "enviadas",
+        },
+        "deleted": {
+            "m_sing": "eliminado",
+            "m_plur": "eliminados",
+            "f_sing": "eliminada",
+            "f_plur": "eliminadas",
+        },
+        "created": {
+            "m_sing": "creado",
+            "m_plur": "creados",
+            "f_sing": "creada",
+            "f_plur": "creadas",
+        },
+        "updated": {
+            "m_sing": "actualizado",
+            "m_plur": "actualizados",
+            "f_sing": "actualizada",
+            "f_plur": "actualizadas",
+        },
+    },
+    "de": {
+        "sent": "gesendet",
+        "deleted": "gelöscht",
+        "created": "erstellt",
+        "updated": "aktualisiert",
+    },
+    "it": {
+        "sent": {
+            "m_sing": "inviato",
+            "m_plur": "inviati",
+            "f_sing": "inviata",
+            "f_plur": "inviate",
+        },
+        "deleted": {
+            "m_sing": "eliminato",
+            "m_plur": "eliminati",
+            "f_sing": "eliminata",
+            "f_plur": "eliminate",
+        },
+        "created": {
+            "m_sing": "creato",
+            "m_plur": "creati",
+            "f_sing": "creata",
+            "f_plur": "create",
+        },
+        "updated": {
+            "m_sing": "modificato",
+            "m_plur": "modificati",
+            "f_sing": "modificata",
+            "f_plur": "modificate",
+        },
+    },
+    "zh-CN": {
+        "sent": "已发送",
+        "deleted": "已删除",
+        "created": "已创建",
+        "updated": "已更新",
+    },
+}
+
+# Header word-order template per language.
+# Placeholders: {count}, {noun}, {verb}.
+RESULT_HEADER_TEMPLATES: dict[Language, str] = {
+    "fr": "{count} {noun} {verb}",
+    "en": "{count} {noun} {verb}",
+    "es": "{count} {noun} {verb}",
+    "de": "{count} {noun} {verb}",
+    "it": "{count} {noun} {verb}",
+    "zh-CN": "{verb} {count} 个{noun}",
+}
+
+# Pluralization rules per language (CLDR-aligned for the languages we support).
+# - French: 0 and 1 → singular (RFC 3066 fr-FR convention).
+# - English/Spanish/German/Italian: 1 → singular, everything else (0, ≥2) → plural.
+# - Chinese: no grammatical number, returns "singular" as a no-op label.
+_PLURAL_RULES_SINGULAR_FOR_ZERO: frozenset[Language] = frozenset({"fr"})
+_PLURAL_RULES_INVARIANT: frozenset[Language] = frozenset({"zh-CN"})
+
+
+def get_plural_form(count: int, language: str | None = None) -> str:
+    """Return the grammatical number for a count in a given language.
+
+    Args:
+        count: The cardinal number being modified.
+        language: Language code (any normalized form accepted).
+
+    Returns:
+        Either ``"singular"`` or ``"plural"``. For Chinese (invariant
+        number), always returns ``"singular"`` since both forms in
+        :data:`DRAFT_RESULT_NOUNS` hold the same string.
+
+    Example:
+        >>> get_plural_form(0, "fr")
+        'singular'
+        >>> get_plural_form(0, "en")
+        'plural'
+        >>> get_plural_form(1, "en")
+        'singular'
+        >>> get_plural_form(3, "fr")
+        'plural'
+        >>> get_plural_form(3, "zh-CN")
+        'singular'
+    """
+    lang = _normalize_language(language)
+    if lang in _PLURAL_RULES_INVARIANT:
+        return "singular"
+    if lang in _PLURAL_RULES_SINGULAR_FOR_ZERO:
+        return "singular" if count <= 1 else "plural"
+    return "singular" if count == 1 else "plural"
+
+
+def format_hitl_item_preview(
+    draft_type: str,
+    content: dict[str, object],
+    language: str | None = None,
+    user_timezone: str | None = None,
+) -> str | None:
+    """Format a single HITL item preview consistently across all interactions.
+
+    Unified rendering used by both ``DraftCritiqueInteraction`` (batch path)
+    and ``ForEachConfirmationInteraction`` (item previews section). Reads
+    everything from :data:`DRAFT_DISPLAY_REGISTRY` (ADR-085) so the result
+    is grammatically correct and structurally consistent for every
+    ``DraftType`` in every supported language.
+
+    Output format::
+
+        {emoji} {Noun} : {label} - {datetime_with_day_name}
+
+    Examples (fr):
+        ``🔔 Rappel : Médecin - dimanche 17 mai 2026 à 19:00``
+        ``📧 Email : Confirmation rdv jeudi - jeudi 16 mai 2026 à 14:00``
+        ``📅 Événement : Réunion équipe - lundi 20 mai 2026 à 10:00``
+        ``👤 Contact : Marie Dupont``
+
+    Args:
+        draft_type: Draft type identifier (e.g. ``"reminder_delete"``,
+            ``"email_delete"``). For paths that only know a base domain and
+            a mutation verb, the caller is responsible for synthesizing the
+            ``"{domain}_{mutation}"`` candidate first and falling back to
+            the bare ``domain`` if the registry has no specific entry.
+        content: Item dict carrying the fields declared in the registry's
+            ``item_label_fields`` and ``item_secondary_datetime_key``.
+            Nested keys are resolved via :func:`resolve_nested_value`.
+        language: Target language (fr/en/es/de/it/zh-CN); falls back to
+            :data:`DEFAULT_LANGUAGE`.
+        user_timezone: User's IANA timezone for datetime formatting; falls
+            back to :data:`src.core.constants.DEFAULT_USER_DISPLAY_TIMEZONE`.
+
+    Returns:
+        Localized preview string, or ``None`` if ``draft_type`` is not
+        registered. ``None`` lets the caller fall back to a legacy/generic
+        renderer (useful for FOR_EACH on non-draft domains like ``place``
+        or ``weather``).
+    """
+    from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+    from src.core.time_utils import format_datetime_for_display
+    from src.domains.agents.drafts.display import (
+        get_draft_display_config,
+        resolve_nested_value,
+    )
+
+    config = get_draft_display_config(draft_type)
+    if config is None:
+        return None
+
+    lang = _normalize_language(language)
+    tz = user_timezone or DEFAULT_USER_DISPLAY_TIMEZONE
+
+    # Localized capitalized noun (e.g. "rappel" → "Rappel"). Chinese has no
+    # case but ``.capitalize()`` is a no-op on it, so this is safe.
+    noun_entry = DRAFT_RESULT_NOUNS.get(lang, {}).get(config.noun_key)
+    noun: str = noun_entry["singular"].capitalize() if noun_entry else ""
+
+    # Extract label using the registry's priority chain.
+    label: str = ""
+    for key in config.item_label_fields:
+        value = resolve_nested_value(content, key) if "." in key else content.get(key)
+        if value:
+            label = " ".join(str(value).split())
+            break
+
+    # Extract and format the contextual datetime (with weekday name).
+    dt_str: str = ""
+    if config.item_secondary_datetime_key:
+        dt_value = (
+            resolve_nested_value(content, config.item_secondary_datetime_key)
+            if "." in config.item_secondary_datetime_key
+            else content.get(config.item_secondary_datetime_key)
+        )
+        if dt_value and isinstance(dt_value, str):
+            try:
+                dt_str = format_datetime_for_display(
+                    dt_value,
+                    user_timezone=tz,
+                    locale=lang,
+                    include_time=True,
+                    include_day_name=True,
+                )
+            except (ValueError, TypeError):
+                dt_str = ""
+
+    # Compose: "{emoji} {Noun} : {label}" + optional " - {date}".
+    head_parts: list[str] = [config.emoji]
+    if noun and label:
+        head_parts.append(f"{noun} : {label}")
+    elif noun:
+        head_parts.append(noun)
+    elif label:
+        head_parts.append(label)
+    head = " ".join(head_parts).strip()
+
+    return f"{head} - {dt_str}" if dt_str else head
+
+
+def compose_result_header(
+    success_count: int,
+    total_count: int,
+    noun_key: str,
+    verb_past_key: str,
+    language: str | None = None,
+) -> str:
+    """Compose a localized batch result header with proper grammar.
+
+    Produces strings like ``"3 rappels supprimés"`` (fr, m, plur),
+    ``"1 tâche créée"`` (fr, f, sing), or ``"已删除 2/3 个提醒"`` (zh-CN).
+    When ``success_count != total_count``, the count rendered is
+    ``"{success}/{total}"`` to signal a partial result; the noun and verb
+    still agree with ``total_count`` (we attempted total, we succeeded
+    success).
+
+    Args:
+        success_count: Items that succeeded.
+        total_count: Total items attempted. Drives grammatical agreement.
+        noun_key: Key in :data:`DRAFT_RESULT_NOUNS` (e.g. ``"reminder"``).
+            Sourced from :attr:`DraftDisplayConfig.noun_key`.
+        verb_past_key: Key in :data:`DRAFT_RESULT_VERBS_PAST` (e.g.
+            ``"deleted"``). Sourced from
+            :attr:`DraftDisplayConfig.verb_past_key`.
+        language: Target language code (fr/en/es/de/it/zh-CN); falls back
+            to :data:`DEFAULT_LANGUAGE`.
+
+    Returns:
+        Localized, grammatically agreed header string.
+
+    Raises:
+        KeyError: If ``noun_key`` or ``verb_past_key`` is missing for the
+            resolved language. The registry self-test in
+            ``test_display_registry.py`` is designed to catch this before
+            runtime.
+
+    Example:
+        >>> compose_result_header(3, 3, "reminder", "deleted", "fr")
+        '3 rappels supprimés'
+        >>> compose_result_header(1, 1, "task", "created", "fr")
+        '1 tâche créée'
+        >>> compose_result_header(2, 3, "email", "sent", "en")
+        '2/3 emails sent'
+        >>> compose_result_header(3, 3, "reminder", "deleted", "zh-CN")
+        '已删除 3 个提醒'
+    """
+    lang = _normalize_language(language)
+
+    noun_entry = DRAFT_RESULT_NOUNS[lang][noun_key]
+    verb_entry = DRAFT_RESULT_VERBS_PAST[lang][verb_past_key]
+
+    plural_form = get_plural_form(total_count, lang)
+    noun_str = noun_entry["singular" if plural_form == "singular" else "plural"]
+
+    if isinstance(verb_entry, str):
+        # Invariant participle (en, de, zh-CN).
+        verb_str = verb_entry
+    else:
+        gender = noun_entry.get("gender", "m")
+        gender_number_key = f"{gender}_{'sing' if plural_form == 'singular' else 'plur'}"
+        verb_str = verb_entry[gender_number_key]
+
+    count_part = (
+        str(success_count) if success_count == total_count else f"{success_count}/{total_count}"
+    )
+
+    template = RESULT_HEADER_TEMPLATES[lang]
+    return template.format(count=count_part, noun=noun_str, verb=verb_str)

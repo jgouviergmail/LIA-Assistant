@@ -2919,6 +2919,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_7": {
+          "title": "v1.20.7 — Eliminazione di promemoria in massa: il riepilogo è finalmente leggibile, con nome e orario di attivazione di ogni promemoria",
+          "date": "Maggio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Il riepilogo dopo un'eliminazione in massa è finalmente leggibile</b> — Quando dicevi <em>« elimina tutti i miei promemoria »</em> e confermavi l'operazione di massa, LIA rispondeva prima con un blocco generico « ✅ 3/3 / ✅ Azione eseguita con successo / ✅ Azione eseguita con successo / ✅ Azione eseguita con successo » — nessun nome di promemoria, nessuna data, solo un contatore e tre righe identiche. Ora ogni riga porta il promemoria eliminato e il suo orario di attivazione, con un'intestazione che concorda grammaticalmente con la tua lingua: <code>🔔 ✅ 3 promemoria eliminati / ✅ Fare la spesa — venerdì 16 maggio 2026 alle 14:00 / ✅ Chiamare la mamma — sabato 17 maggio 2026 alle 09:00 / ✅ Appuntamento medico — domenica 18 maggio 2026 alle 11:00</code>. Lo stesso formato si applica automaticamente alle eliminazioni in massa di email, eventi, contatti, attività, file Drive ed etichette Gmail.",
+            "i2": "<b>Il pannello di conferma prima di un'eliminazione in massa ha finalmente lo stesso aspetto indipendentemente dal percorso interno</b> — Prima di questa versione, chiedere un'eliminazione in massa poteva presentare due aspetti diversi a seconda del percorso preso internamente (FOR_EACH da un lato, draft-critique batch dall'altro) — uno mostrava <code>Promemoria: Medico il 17 maggio 2026 alle 19:00</code>, l'altro mostrava <code>🔔 Promemoria: Medico 🔔 domenica 17 maggio 2026 alle 19:00</code> (emoji doppio, formattazione rotta). Ora vedi lo stesso rendering unificato su entrambi i lati: <code>🔔 Promemoria : Medico - domenica 17 maggio 2026 alle 19:00</code> — un solo emoji di dominio, il nome della categoria (Promemoria / Email / Evento / Attività / Contatto / File / Etichetta) prima del titolo, il giorno della settimana incluso nella data, e un trattino separatore tra titolo e data. Il titolo del dialogo passa anche da <em>« Conferma richiesta »</em> a <em>« Conferma eliminazione »</em> per i promemoria, coerente con gli altri tipi di eliminazione."
+          }
+        },
         "v1_20_6": {
           "title": "v1.20.6 — Ricerche web più affidabili, supporto LLM Gemini 3.x end-to-end, 28 timeout ora regolabili senza rebuild",
           "date": "Maggio 2026",

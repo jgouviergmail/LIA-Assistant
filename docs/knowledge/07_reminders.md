@@ -62,6 +62,14 @@ Several ways to cancel a reminder:
 **✅ Confirmation:**
 LIA confirms the cancellation by showing the deleted reminder's content.
 
+**🧹 Bulk cancellation:**
+You can also cancel several reminders in a single command:
+• "*Cancel all my reminders*"
+• "*Cancel my reminders for tomorrow*"
+• "*Cancel all reminders about the meeting*"
+
+Before deleting, LIA shows a confirmation panel listing every reminder targeted — each row carries the reminder's content, the day of the week and the trigger time, so you can verify there is no false positive before approving. After approval, the summary recaps every deleted reminder by name and time (no more anonymous "Action completed successfully" lines).
+
 **⚠️ Important:**
 • Only pending reminders can be cancelled
 • Already sent reminders cannot be cancelled

@@ -512,6 +512,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "task_delete": "Confirmation de suppression",
         "file_delete": "Confirmation de suppression",
         "label_delete": "Confirmation de suppression",
+        "reminder_delete": "Confirmation de suppression",
         "email": "Confirmation d'envoi",
         "email_reply": "Confirmation de réponse",
         "email_forward": "Confirmation de transfert",
@@ -529,6 +530,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "task_delete": "Confirm deletion",
         "file_delete": "Confirm deletion",
         "label_delete": "Confirm deletion",
+        "reminder_delete": "Confirm deletion",
         "email": "Confirm sending",
         "email_reply": "Confirm reply",
         "email_forward": "Confirm forwarding",
@@ -546,6 +548,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "task_delete": "Confirmar eliminación",
         "file_delete": "Confirmar eliminación",
         "label_delete": "Confirmar eliminación",
+        "reminder_delete": "Confirmar eliminación",
         "email": "Confirmar envío",
         "email_reply": "Confirmar respuesta",
         "email_forward": "Confirmar reenvío",
@@ -563,6 +566,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "task_delete": "Löschung bestätigen",
         "file_delete": "Löschung bestätigen",
         "label_delete": "Löschung bestätigen",
+        "reminder_delete": "Löschung bestätigen",
         "email": "Versand bestätigen",
         "email_reply": "Antwort bestätigen",
         "email_forward": "Weiterleitung bestätigen",
@@ -580,6 +584,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "task_delete": "Conferma eliminazione",
         "file_delete": "Conferma eliminazione",
         "label_delete": "Conferma eliminazione",
+        "reminder_delete": "Conferma eliminazione",
         "email": "Conferma invio",
         "email_reply": "Conferma risposta",
         "email_forward": "Conferma inoltro",
@@ -597,6 +602,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "task_delete": "确认删除",
         "file_delete": "确认删除",
         "label_delete": "确认删除",
+        "reminder_delete": "确认删除",
         "email": "确认发送",
         "email_reply": "确认回复",
         "email_forward": "确认转发",
@@ -1092,33 +1098,12 @@ _INSUFFICIENT_CONTENT_PATTERNS: dict[str, list[str]] = {
 EARLY_RECIPIENT_PATTERNS: list[str] = [" to ", " for "]
 
 # =============================================================================
-# DRAFT TYPE EMOJIS - Visual icons for draft types
+# DRAFT TYPE EMOJIS
 # =============================================================================
-
-DRAFT_TYPE_EMOJIS: dict[str, str] = {
-    # Email
-    "email": "📧",
-    "email_reply": "↩️",
-    "email_forward": "↪️",
-    # Calendar events
-    "event": "📅",
-    "event_update": "📝📅",
-    "event_delete": "🗑️📅",
-    # Contacts
-    "contact": "👤",
-    "contact_update": "📝👤",
-    "contact_delete": "🗑️👤",
-    # Tasks
-    "task": "✅",
-    "task_update": "📝✅",
-    "task_delete": "🗑️✅",
-    # Drive files
-    "file_delete": "🗑️📁",
-    # Labels
-    "label_delete": "🗑️🏷️",
-    # Future
-    "note": "📝",
-}
+# Note: per-DraftType emojis now live in DRAFT_DISPLAY_REGISTRY (see ADR-085).
+# This file no longer holds a dedicated DRAFT_TYPE_EMOJIS map — the canonical
+# accessor is HitlMessages.get_draft_emoji() further below, which delegates to
+# the registry.
 
 # =============================================================================
 # DRAFT UPDATE BLOCK LABELS - Two-blocks structure for UPDATE critiques
@@ -1496,13 +1481,18 @@ class HitlMessages:
         """
         Get emoji for draft type.
 
+        Delegates to the centralized draft display registry (ADR-085).
+
         Args:
             draft_type: Type of draft (email, event, contact, etc.)
 
         Returns:
-            Emoji string for the draft type
+            Emoji string for the draft type, or ``""`` for unknown types.
         """
-        return DRAFT_TYPE_EMOJIS.get(draft_type, "")
+        # Local import keeps i18n_hitl free of cross-domain imports at module load.
+        from src.domains.agents.drafts.display import get_draft_emoji as _get
+
+        return _get(draft_type)
 
     @staticmethod
     def get_draft_summary(
