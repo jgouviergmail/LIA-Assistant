@@ -1404,7 +1404,7 @@ adaptive_replanner_recovery_success_total = Counter(
 react_agent_executions_total = Counter(
     "react_agent_executions_total",
     "Total ReAct agent node executions",
-    ["status"],  # success, error, timeout
+    ["status"],  # success, empty, draft (draft-confirmation handoff), error, timeout
 )
 react_agent_iterations = Histogram(
     "react_agent_iterations",

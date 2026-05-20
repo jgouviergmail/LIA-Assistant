@@ -163,6 +163,76 @@ def _build_system_prompt(state: MessagesState) -> str:
     )
 
 
+def _record_react_metrics(iteration: int, duration_s: float, status: str) -> None:
+    """Record ReAct loop completion metrics.
+
+    Shared by ``react_finalize_node`` (normal completion) and
+    ``react_execute_tools_node`` (when the loop is short-circuited because a
+    mutation tool produced a draft that is handed off to the draft_critique HITL
+    flow). Without this, draft-terminated ReAct turns would be invisible in the
+    ReAct dashboards.
+
+    Args:
+        iteration: Number of ReAct iterations performed during the turn.
+        duration_s: Total ReAct loop duration in seconds.
+        status: Outcome label for ``react_agent_executions_total``
+            ("success", "empty" or "draft").
+    """
+    react_agent_iterations.observe(iteration)
+    react_agent_duration_seconds.observe(duration_s)
+    react_agent_executions_total.labels(status=status).inc()
+
+
+def _extract_draft_info(raw_result: Any, tool_name: str) -> dict[str, Any] | None:
+    """Extract draft metadata from a tool result requiring confirmation.
+
+    Mirrors the pipeline's ``parallel_executor`` draft detection so the ReAct
+    loop can hand a prepared draft off to the shared draft_critique HITL flow.
+    A mutation tool (create/update/delete) returns ``requires_confirmation=True``
+    and stores the executable payload in its registry item — the actual action
+    is only performed after the user confirms.
+
+    Args:
+        raw_result: Raw tool output (``UnifiedToolOutput`` for draft tools).
+        tool_name: Name of the tool that produced the result.
+
+    Returns:
+        A ``PendingDraftInfo``-compatible dict (draft_id, draft_type,
+        draft_content, draft_summary, registry_ids, tool_name, step_id), or
+        ``None`` when the result is not a confirmable draft.
+    """
+    tool_metadata = getattr(raw_result, "tool_metadata", None)
+    if not isinstance(tool_metadata, dict) or not tool_metadata.get("requires_confirmation"):
+        return None
+
+    draft_id = tool_metadata.get("draft_id")
+    if not draft_id:
+        return None
+
+    registry_updates = getattr(raw_result, "registry_updates", None) or {}
+
+    # Extract the executable draft content from the registry item payload — the
+    # same source the pipeline's DraftExecutor consumes to perform the real action.
+    draft_content: dict[str, Any] = {}
+    item = registry_updates.get(draft_id)
+    if item is not None:
+        payload = getattr(item, "payload", None)
+        if payload is None and isinstance(item, dict):
+            payload = item.get("payload")
+        if isinstance(payload, dict):
+            draft_content = payload.get("content") or {}
+
+    return {
+        "draft_id": draft_id,
+        "draft_type": tool_metadata.get("draft_type"),
+        "draft_content": draft_content,
+        "draft_summary": getattr(raw_result, "summary_for_llm", "") or "",
+        "registry_ids": list(registry_updates.keys()),
+        "tool_name": tool_name,
+        "step_id": None,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Node 1: react_setup
 # ---------------------------------------------------------------------------
@@ -406,6 +476,7 @@ async def react_execute_tools_node(
 
     new_messages: list[ToolMessage] = []
     collected_registry: dict[str, Any] = {}
+    pending_drafts: list[dict[str, Any]] = []
 
     for tool_call in last_message.tool_calls:
         tc_id: str = tool_call["id"]
@@ -470,6 +541,12 @@ async def react_execute_tools_node(
             raw_result = await wrapper._original_tool.coroutine(**injected_args)
             # Process through wrapper for string conversion + registry collection
             content = wrapper._process_result(raw_result)
+            # Draft detection: a mutation tool (create/update/delete) returns
+            # requires_confirmation=True — it prepared a DRAFT, not the real
+            # action. Collect it for the HITL handoff (see return below).
+            draft_info = _extract_draft_info(raw_result, tc_name)
+            if draft_info is not None:
+                pending_drafts.append(draft_info)
         except Exception as exc:
             content = f"Error executing {tc_name}: {exc!s}"
             logger.warning(
@@ -496,6 +573,7 @@ async def react_execute_tools_node(
         "react_execute_tools_complete",
         tools_executed=len(new_messages),
         registry_items=len(collected_registry),
+        pending_drafts=len(pending_drafts),
     )
 
     result: dict[str, Any] = {"messages": new_messages}
@@ -510,6 +588,40 @@ async def react_execute_tools_node(
         existing_turn_registry = dict(state.get("current_turn_registry") or {})
         existing_turn_registry.update(collected_registry)
         result["current_turn_registry"] = existing_turn_registry
+
+    # Draft HITL handoff (parity with the pipeline draft_critique flow).
+    # When a mutation tool prepared a draft, hand it off to the shared
+    # hitl_dispatch → draft_critique → response flow via pending_draft_critique
+    # instead of looping back to the LLM (which would hallucinate "done" without
+    # ever executing the action). route_from_react_execute_tools routes on this.
+    # We ALWAYS set these keys (None / [] when no draft) so a stale value from a
+    # previous turn can never mis-route the loop — the router does not reset them.
+    result["pending_draft_critique"] = pending_drafts[0] if pending_drafts else None
+    result["pending_drafts_queue"] = pending_drafts[1:] if len(pending_drafts) > 1 else []
+
+    if pending_drafts:
+        # The draft handoff short-circuits the loop before react_finalize, so emit
+        # the ReAct completion metrics here to keep the dashboards accurate.
+        iteration = state.get("react_iteration", 0)
+        start_time = state.get("react_start_time")
+        duration_s = time.time() - start_time if start_time else 0.0
+        _record_react_metrics(iteration, duration_s, "draft")
+        # Minimal metadata for debug/observability. final_message is intentionally
+        # empty so response_node uses the draft execution result (not a passthrough,
+        # which is guarded by `if react_result.get("final_message")`).
+        result["react_agent_result"] = {
+            "final_message": "",
+            "iteration_count": iteration,
+            "mode": "react",
+        }
+        logger.info(
+            "react_draft_handoff",
+            draft_count=len(pending_drafts),
+            primary_draft_id=pending_drafts[0].get("draft_id"),
+            primary_draft_type=pending_drafts[0].get("draft_type"),
+            iteration=iteration,
+        )
+
     return result
 
 
@@ -551,11 +663,9 @@ async def react_finalize_node(
                 block.get("text", "") for block in last_message.content if isinstance(block, dict)
             )
 
-    # Prometheus metrics
+    # Prometheus metrics (shared helper — also used by the draft handoff path)
     duration_s = time.time() - start_time if start_time else 0.0
-    react_agent_iterations.observe(iteration)
-    react_agent_duration_seconds.observe(duration_s)
-    react_agent_executions_total.labels(status="success" if final_content else "empty").inc()
+    _record_react_metrics(iteration, duration_s, "success" if final_content else "empty")
 
     logger.info(
         "react_finalize_complete",

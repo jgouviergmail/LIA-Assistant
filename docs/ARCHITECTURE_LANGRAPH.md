@@ -105,30 +105,34 @@ LIA utilise **LangGraph v1.1.6** avec exécution parallèle native **asyncio** p
 Alternative path when `execution_mode == "react"`: the router routes to `react_setup` instead of `planner`.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          ReAct Execution Loop                               │
-│                                                                             │
-│   router_node ──(react)──► react_setup ──► react_call_model ◄──┐           │
-│                                                │                │           │
-│                                         tool_calls?             │           │
-│                                        yes │    no │            │           │
-│                                            ▼       ▼            │           │
-│                                  react_execute   react_         │           │
-│                                  _tools          finalize       │           │
-│                                     │               │           │           │
-│                                     └───────────────┘           │           │
-│                                                 │                           │
-│                                                 ▼                           │
-│                                           response_node                     │
-│                                                 │                           │
-│                                               [END]                         │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                            ReAct Execution Loop                                │
+│                                                                                │
+│   router ──(react)──► react_setup ──► react_call_model ◄────────────┐          │
+│                                            │                        │          │
+│                                     tool_calls?                     │          │
+│                                    yes │    no │                    │          │
+│                                        ▼       ▼                    │          │
+│                              react_execute    react_finalize        │          │
+│                              _tools                │                │          │
+│                                 │                  │                │          │
+│                         draft? ─┤                  │                │          │
+│                    no (loop) ───┼──────────────────┼────────────────┘          │
+│                          yes    │                  │                           │
+│                                 ▼                  │                           │
+│                  hitl_dispatch ─► initiative       │                           │
+│                  (draft_critique)      │           │                           │
+│                                        ▼           ▼                           │
+│                                       response_node ──► [END]                  │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 - **react_setup**: Selects all available tools, builds system prompt, injects memory + skills catalogue
 - **react_call_model**: Calls LLM with bound tools, applies message windowing
-- **react_execute_tools**: Executes tools with HITL (`interrupt()`) for mutations, idempotence pattern
+- **react_execute_tools**: Executes tools. Two HITL paths: `interrupt()` pre-approval for tools flagged `hitl_required` (idempotence pattern), and — for mutation tools that prepare a **draft** (`requires_confirmation`, e.g. create/update/delete event·email·contact·task·file·label) — a hand-off to the shared `hitl_dispatch → draft_critique` flow via `pending_draft_critique` instead of looping back to the model. This gives ReAct the same confirm/edit/cancel-then-execute guarantee as pipeline mode (the agent no longer reports an action as done before it is confirmed and executed).
 - **react_finalize**: Records metrics, sets `react_agent_result` for response node
+
+> **Draft hand-off (parity with pipeline)**: when `react_execute_tools` detects a prepared draft, `route_from_react_execute_tools` routes to `hitl_dispatch` (the same node the pipeline uses) → `initiative` → `response_node`, where the confirmed draft is actually executed (`execute_draft_if_confirmed`). The ReAct completion metrics are still emitted on this short-circuited path (`status="draft"`).
 
 Safety: max iterations (`REACT_AGENT_MAX_ITERATIONS`) + hard timeout (`REACT_AGENT_TIMEOUT_SECONDS`).
 

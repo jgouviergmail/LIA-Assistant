@@ -2929,6 +2929,14 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_9": {
+          "title": "v1.20.9 — In modalità ReAct, creare, modificare o eliminare ora chiede la tua conferma prima di agire — basta falsi «Fatto!» senza che accada nulla",
+          "date": "Maggio 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>La modalità ReAct ora chiede conferma prima delle azioni sensibili, proprio come la modalità predefinita</b> — Quando usavi la modalità ⚡ ReAct (la modalità di ragionamento autonomo, passo dopo passo) e chiedevi a LIA di creare un appuntamento, inviare o rispondere a un'e-mail, aggiungere un contatto, creare un'attività o eliminare qualcosa, a volte rispondeva <em>«Fatto! Ho creato l'appuntamento…»</em> mentre in realtà <strong>non era stato creato nulla</strong>. L'azione veniva solo <em>preparata</em> internamente e poi scartata silenziosamente: mancava il passaggio di conferma che esiste già nella modalità predefinita (Pipeline). Da questa versione entrambe le modalità si comportano in modo identico: un'azione sensibile (creare / modificare / rispondere / inoltrare / eliminare un evento, un'e-mail, un contatto, un'attività, un file o un'etichetta) mostra ora la stessa scheda di conferma con i dettagli, e l'azione viene eseguita davvero <strong>solo dopo la tua conferma</strong> — puoi anche modificarla o annullarla. I promemoria, progettati per essere creati istantaneamente, continuano a funzionare senza passaggio di conferma in entrambe le modalità."
+          }
+        },
         "v1_20_8": {
           "title": "v1.20.8 — La conversazione non si blocca più quando lo storico diventa lungo, indicatore di utilizzo del contesto nella chat, avviso visibile quando il riepilogo non riesce",
           "date": "Maggio 2026",

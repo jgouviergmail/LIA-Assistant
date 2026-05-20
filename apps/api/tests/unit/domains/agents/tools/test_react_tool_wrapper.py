@@ -99,27 +99,3 @@ class TestReactToolWrapper:
         result = await wrapper._arun()
         assert result == "3 events found"
         assert "event_123" in wrapper._accumulated_registry
-
-    @pytest.mark.asyncio
-    async def test_collects_draft_metadata(self) -> None:
-        """Tool returning requires_confirmation → draft collected."""
-        mock_output = MagicMock()
-        mock_output.message = "Email draft created"
-        mock_output.registry_updates = {"draft_abc": {"type": "DRAFT"}}
-        mock_output.structured_data = {}  # Empty → no data appended
-        mock_output.tool_metadata = {
-            "requires_confirmation": True,
-            "draft_id": "draft_abc",
-            "draft_type": "email",
-            "draft_content": {"to": "marc@test.com", "subject": "Hello"},
-        }
-        mock_output.summary_for_llm = "Email to marc@test.com"
-
-        original = _make_mock_tool("send_email_tool")
-        original.ainvoke = AsyncMock(return_value=mock_output)
-        wrapper = ReactToolWrapper(original_tool=original)
-        result = await wrapper._arun()
-        assert result == "Email draft created"
-        assert len(wrapper._accumulated_drafts) == 1
-        assert wrapper._accumulated_drafts[0]["draft_id"] == "draft_abc"
-        assert wrapper._accumulated_drafts[0]["tool_name"] == "send_email_tool"

@@ -2941,6 +2941,14 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_9": {
+          "title": "v1.20.9 — En mode ReAct, créer, modifier ou supprimer demande désormais votre confirmation avant d'agir — fini les faux « C'est fait ! » sans que rien ne se passe",
+          "date": "Mai 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Le mode ReAct demande maintenant confirmation avant les actions sensibles, comme le mode par défaut</b> — Lorsque vous utilisiez le mode ⚡ ReAct (le mode de raisonnement autonome, étape par étape) et demandiez à LIA de créer un rendez-vous, d'envoyer ou de répondre à un e-mail, d'ajouter un contact, de créer une tâche ou de supprimer quelque chose, elle répondait parfois <em>« C'est fait ! J'ai créé le rendez-vous… »</em> alors qu'en réalité <strong>rien n'avait été créé</strong>. L'action était seulement <em>préparée</em> en interne puis silencieusement abandonnée — l'étape de confirmation qui existe déjà dans le mode par défaut (Pipeline) manquait en mode ReAct. À partir de cette version, les deux modes se comportent de façon identique : une action sensible (créer / modifier / répondre / transférer / supprimer un événement, un e-mail, un contact, une tâche, un fichier ou un libellé) affiche désormais la même fiche de confirmation avec les détails, et l'action n'est réellement effectuée <strong>qu'après votre confirmation</strong> — vous pouvez aussi la modifier ou l'annuler. Les rappels, conçus pour être créés instantanément, continuent de fonctionner sans étape de confirmation dans les deux modes."
+          }
+        },
         "v1_20_8": {
           "title": "v1.20.8 — Conversation qui ne se bloque plus quand l'historique devient long, indicateur de contexte dans le chat, résumé visible en cas de coupure",
           "date": "Mai 2026",

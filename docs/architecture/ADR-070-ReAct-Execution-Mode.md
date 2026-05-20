@@ -22,13 +22,17 @@ Implement ReAct as a **user-toggleable preference** alongside the existing pipel
 
 ```
 react_setup → react_call_model ←→ react_execute_tools → react_finalize → response
+                                          │
+                                   (draft prepared)
+                                          ▼
+                          hitl_dispatch (draft_critique) → initiative → response
 ```
 
 1. **`react_setup`**: Initializes ReAct state (iteration counter, system prompt with tool descriptions, conversation context). Entry point from the router when ReAct mode is active.
 
 2. **`react_call_model`**: Invokes the ReAct LLM with the current message history. The model either produces tool calls (→ `react_execute_tools`) or a final answer (→ `react_finalize`). Conditional edge based on presence of tool calls in the response.
 
-3. **`react_execute_tools`**: Executes the requested tools. HITL approval is handled via native `interrupt()` at this node level (not in a subgraph), ensuring clean checkpoint/resume semantics. Implements an **idempotence pattern** for multi-interrupt re-execution: each tool call is tagged with a unique ID, and completed calls are skipped on resume.
+3. **`react_execute_tools`**: Executes the requested tools. HITL approval is handled via native `interrupt()` at this node level (not in a subgraph), ensuring clean checkpoint/resume semantics. Implements an **idempotence pattern** for multi-interrupt re-execution: each tool call is tagged with a unique ID, and completed calls are skipped on resume. Mutation tools (create/update/delete) that prepare a **draft** (`requires_confirmation`) do not loop back to the model; they hand off to the shared draft-confirmation flow (see Amendment 2026-05-20).
 
 4. **`react_finalize`**: Post-processes the final answer (display card rendering, memory extraction, psyche evaluation) and routes to the standard `response` node.
 
@@ -43,6 +47,22 @@ react_setup → react_call_model ←→ react_execute_tools → react_finalize �
 4. **Shared infrastructure**: ReAct mode reuses the same tool registry, tool implementations, HITL classifier, catalogue manifests, and display components as the pipeline mode. No tool duplication.
 
 5. **Iteration guard**: Maximum iteration count (configurable, default 10) prevents runaway loops. Each iteration is logged with structured metrics for observability.
+
+## Amendment (2026-05-20): Draft HITL Parity in ReAct Mode
+
+The initial implementation handled HITL only for tools flagged `hitl_required` in their manifest (e.g. `delegate_to_sub_agent_tool`), via the `interrupt()` in `react_execute_tools`. **Draft-based mutation tools** (`create_event`, `send_email`, `update_*`, `delete_*`, … — which return `requires_confirmation=True` and prepare a draft rather than executing) were not covered: the prepared draft was silently dropped and the loop continued, so the model reported the action as done while nothing was ever confirmed or executed.
+
+This is fixed by giving ReAct the same draft-confirmation flow as the pipeline, reusing the existing nodes — no new HITL machinery:
+
+1. `react_execute_tools` detects a prepared draft (`tool_metadata.requires_confirmation`), extracts the executable payload from the draft's registry item, and sets `pending_draft_critique` / `pending_drafts_queue` (always set — `None` / `[]` when no draft — so a stale value can never mis-route the loop).
+2. `route_from_react_execute_tools` routes to `hitl_dispatch` (the shared `NODE_DRAFT_CRITIQUE` node) when a draft is pending, otherwise loops back to `react_call_model`.
+3. `hitl_dispatch → initiative → response_node` is the **same** path the pipeline uses: the user confirms/edits/cancels, then `response_node` executes the confirmed draft via `execute_draft_if_confirmed` and synthesizes the real result (overriding any react passthrough).
+
+Because the draft confirmation lives in a node downstream of `react_execute_tools`, resume after the interrupt re-enters `hitl_dispatch` only — the draft tool is never re-executed (no duplicate drafts). ReAct completion metrics are still emitted on this short-circuited path (`react_agent_executions_total{status="draft"}`).
+
+Reminder creation (`create_reminder_tool`) executes directly and is intentionally **not** draft-gated, so it is unaffected (consistent with pipeline mode).
+
+Related: ADR-044 (Draft & HITL Approval Flow).
 
 ## Trade-offs
 

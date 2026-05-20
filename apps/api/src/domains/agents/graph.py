@@ -739,7 +739,10 @@ async def build_graph(
         react_finalize_node,
         react_setup_node,
     )
-    from src.domains.agents.nodes.routing import route_from_react_call_model
+    from src.domains.agents.nodes.routing import (
+        route_from_react_call_model,
+        route_from_react_execute_tools,
+    )
 
     graph.add_node(NODE_REACT_SETUP, react_setup_node)
     graph.add_node(NODE_REACT_CALL_MODEL, react_call_model_node)
@@ -747,6 +750,8 @@ async def build_graph(
     graph.add_node(NODE_REACT_FINALIZE, react_finalize_node)
 
     # ReAct flow: setup → call_model ←→ execute_tools → finalize → response
+    #   execute_tools → hitl_dispatch (draft_critique) when a mutation tool
+    #   prepared a draft requiring confirmation (parity with the pipeline flow).
     graph.add_edge(NODE_REACT_SETUP, NODE_REACT_CALL_MODEL)
     graph.add_conditional_edges(
         NODE_REACT_CALL_MODEL,
@@ -756,7 +761,15 @@ async def build_graph(
             NODE_REACT_FINALIZE: NODE_REACT_FINALIZE,
         },
     )
-    graph.add_edge(NODE_REACT_EXECUTE_TOOLS, NODE_REACT_CALL_MODEL)  # Loop back
+    # Draft confirmation handoff vs. normal loop-back to the model.
+    graph.add_conditional_edges(
+        NODE_REACT_EXECUTE_TOOLS,
+        route_from_react_execute_tools,
+        {
+            NODE_REACT_CALL_MODEL: NODE_REACT_CALL_MODEL,  # Loop back (no draft)
+            NODE_DRAFT_CRITIQUE: NODE_DRAFT_CRITIQUE,  # Draft → shared HITL dispatch
+        },
+    )
     graph.add_edge(NODE_REACT_FINALIZE, NODE_RESPONSE)
 
     # Response is terminal

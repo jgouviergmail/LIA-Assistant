@@ -37,7 +37,7 @@ The user toggles between modes via a frontend toggle (Zap icon). The preference 
 | **Tool selection** | Planner selects by domain | LLM chooses from all available tools |
 | **Token cost** | Lower (1 planner + 1 response LLM call) | Higher (1 LLM call per iteration) |
 | **Best for** | Well-structured requests, multi-domain | Exploratory, research, ambiguous queries |
-| **HITL** | Plan-level approval + tool-level drafts | Tool-level interrupt per mutation |
+| **HITL** | Plan-level approval + draft confirmation | Tool-level interrupt + draft confirmation (shared flow) |
 | **Initiative** | Dedicated initiative_node (LLM evaluation) | Integrated in ReAct prompt (CROSS-CHECK step) |
 
 ## Architecture
@@ -77,7 +77,7 @@ Custom ReAct loop as **4 nodes in the parent LangGraph graph** (not a `create_re
        └─────────────────────────────────────────────┘     │
 ```
 
-Each node benefits from the parent graph's PostgreSQL checkpointer, so `interrupt()` works natively in `react_execute_tools` for HITL on mutation tools.
+Each node benefits from the parent graph's PostgreSQL checkpointer, so `interrupt()` works natively in `react_execute_tools` (and in the shared `hitl_dispatch` node reached for draft confirmation) — see [HITL in ReAct](#hitl-in-react).
 
 ## Graph Wiring
 
@@ -120,7 +120,7 @@ Calls the ReAct LLM with bound tools:
 ### react_execute_tools
 
 Executes tools from the last AIMessage:
-- HITL: mutation tools trigger `interrupt()` for user approval
+- HITL: tools flagged `hitl_required` trigger `interrupt()` for pre-execution approval; draft-preparing mutation tools (`requires_confirmation`) instead hand off to the shared draft-confirmation flow (see [HITL in ReAct](#hitl-in-react))
 - Idempotence: on re-execution after interrupt resume, already-resolved tool calls are skipped
 - ToolRuntime injection via `_build_tool_runtime()` (same pattern as pipeline)
 - Registry items accumulated across iterations via `current_turn_registry` merge
@@ -143,9 +143,13 @@ Tools are NOT stored in state (non-serializable). Tool names and HITL map are st
 
 ## HITL in ReAct
 
-Mutation tools (e.g., `send_email_tool`, `create_event_tool`) trigger `interrupt()` in `react_execute_tools`. The graph pauses and waits for user approval.
+ReAct has two HITL paths, both reusing existing infrastructure (no ReAct-specific HITL machinery):
 
-On resume, LangGraph replays the node. The idempotence pattern skips tool calls that already have a `ToolMessage` in state (matched by `tool_call_id`).
+1. **Pre-execution approval** — tools flagged `hitl_required` in their manifest (e.g. `delegate_to_sub_agent_tool`) trigger `interrupt()` directly in `react_execute_tools`. The graph pauses and waits for user approval. On resume, LangGraph replays the node; the idempotence pattern skips tool calls that already have a `ToolMessage` in state (matched by `tool_call_id`).
+
+2. **Draft confirmation** — draft-preparing mutation tools (`create_event_tool`, `send_email_tool`, `update_*`, `delete_*`, …) return `requires_confirmation=True` and prepare a **draft** instead of executing. `react_execute_tools` extracts the draft and sets `pending_draft_critique`; `route_from_react_execute_tools` then routes to `hitl_dispatch` (the shared `draft_critique` node) → `initiative` → `response_node` — exactly the path pipeline mode uses. The user confirms/edits/cancels, then `response_node` executes the confirmed draft via `execute_draft_if_confirmed` and synthesizes the real result. Because confirmation happens in a node **downstream** of `react_execute_tools`, resume re-enters `hitl_dispatch` only — the draft tool is never re-run (no duplicate drafts). Completion metrics are still emitted on this short-circuited path (`react_agent_executions_total{status="draft"}`).
+
+> Tools that execute directly without a draft (e.g. `create_reminder_tool`) are not draft-gated and behave identically in both modes.
 
 ## Token Tracking
 

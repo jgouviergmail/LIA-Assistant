@@ -2927,6 +2927,14 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_9": {
+          "title": "v1.20.9 — En modo ReAct, crear, modificar o eliminar ahora pide tu confirmación antes de actuar — se acabaron los falsos «¡Hecho!» sin que pase nada",
+          "date": "Mayo 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>El modo ReAct ahora pide confirmación antes de las acciones sensibles, igual que el modo predeterminado</b> — Cuando usabas el modo ⚡ ReAct (el modo de razonamiento autónomo, paso a paso) y pedías a LIA crear una cita, enviar o responder un correo, añadir un contacto, crear una tarea o eliminar algo, a veces respondía <em>«¡Hecho! He creado la cita…»</em> cuando en realidad <strong>no se había creado nada</strong>. La acción solo se <em>preparaba</em> internamente y luego se descartaba en silencio: faltaba el paso de confirmación que ya existe en el modo predeterminado (Pipeline). A partir de esta versión, ambos modos se comportan de forma idéntica: una acción sensible (crear / modificar / responder / reenviar / eliminar un evento, un correo, un contacto, una tarea, un archivo o una etiqueta) ahora muestra la misma tarjeta de confirmación con los detalles, y la acción solo se realiza realmente <strong>después de tu confirmación</strong> — también puedes editarla o cancelarla. Los recordatorios, diseñados para crearse al instante, siguen funcionando sin paso de confirmación en ambos modos."
+          }
+        },
         "v1_20_8": {
           "title": "v1.20.8 — La conversación ya no se bloquea cuando el historial se vuelve largo, indicador de uso de contexto en el chat, aviso visible cuando el resumen falla",
           "date": "Mayo 2026",

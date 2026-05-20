@@ -2927,6 +2927,14 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_9": {
+          "title": "v1.20.9 — Im ReAct-Modus fragt das Erstellen, Ändern oder Löschen jetzt vor der Ausführung nach Ihrer Bestätigung — keine falschen „Erledigt!“ mehr, ohne dass etwas geschieht",
+          "date": "Mai 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Der ReAct-Modus fragt jetzt vor sensiblen Aktionen nach Bestätigung, genau wie der Standardmodus</b> — Wenn Sie den ⚡ ReAct-Modus (den autonomen, schrittweise denkenden Modus) verwendeten und LIA baten, einen Termin zu erstellen, eine E-Mail zu senden oder zu beantworten, einen Kontakt hinzuzufügen, eine Aufgabe zu erstellen oder etwas zu löschen, antwortete sie manchmal <em>„Erledigt! Ich habe den Termin erstellt…“</em>, obwohl in Wirklichkeit <strong>nichts erstellt worden war</strong>. Die Aktion wurde nur intern <em>vorbereitet</em> und dann stillschweigend verworfen — der Bestätigungsschritt, der im Standardmodus (Pipeline) bereits existiert, fehlte im ReAct-Modus. Ab dieser Version verhalten sich beide Modi identisch: Eine sensible Aktion (Erstellen / Ändern / Beantworten / Weiterleiten / Löschen eines Termins, einer E-Mail, eines Kontakts, einer Aufgabe, einer Datei oder eines Labels) zeigt jetzt dieselbe Bestätigungskarte mit den Details, und die Aktion wird erst <strong>nach Ihrer Bestätigung</strong> tatsächlich ausgeführt — Sie können sie auch bearbeiten oder abbrechen. Erinnerungen, die für die sofortige Erstellung konzipiert sind, funktionieren in beiden Modi weiterhin ohne Bestätigungsschritt."
+          }
+        },
         "v1_20_8": {
           "title": "v1.20.8 — Konversationen blockieren nicht mehr bei langem Verlauf, Kontext-Anzeige im Chat, sichtbarer Wiederherstellungshinweis bei fehlgeschlagener Zusammenfassung",
           "date": "Mai 2026",

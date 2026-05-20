@@ -11,8 +11,16 @@ from unittest.mock import patch
 import pytest
 from langchain_core.messages import AIMessage
 
-from src.domains.agents.constants import NODE_REACT_EXECUTE_TOOLS, NODE_REACT_FINALIZE
-from src.domains.agents.nodes.routing import route_from_react_call_model
+from src.domains.agents.constants import (
+    NODE_DRAFT_CRITIQUE,
+    NODE_REACT_CALL_MODEL,
+    NODE_REACT_EXECUTE_TOOLS,
+    NODE_REACT_FINALIZE,
+)
+from src.domains.agents.nodes.routing import (
+    route_from_react_call_model,
+    route_from_react_execute_tools,
+)
 
 
 @pytest.mark.unit
@@ -93,3 +101,30 @@ class TestRouteFromReactCallModel:
             "react_start_time": time.time() - 10,
         }
         assert route_from_react_call_model(state) == NODE_REACT_EXECUTE_TOOLS
+
+
+@pytest.mark.unit
+class TestRouteFromReactExecuteTools:
+    """Tests for route_from_react_execute_tools routing function."""
+
+    def test_pending_draft_routes_to_hitl_dispatch(self) -> None:
+        """A prepared draft → hand off to the shared HITL dispatch node."""
+        state: dict = {
+            "pending_draft_critique": {"draft_id": "draft_1", "draft_type": "event"},
+        }
+        assert route_from_react_execute_tools(state) == NODE_DRAFT_CRITIQUE
+
+    def test_no_draft_routes_to_call_model(self) -> None:
+        """No draft (None) → continue the normal ReAct loop."""
+        state: dict = {"pending_draft_critique": None}
+        assert route_from_react_execute_tools(state) == NODE_REACT_CALL_MODEL
+
+    def test_missing_key_routes_to_call_model(self) -> None:
+        """Absent key → continue the normal ReAct loop (no mis-route)."""
+        state: dict = {}
+        assert route_from_react_execute_tools(state) == NODE_REACT_CALL_MODEL
+
+    def test_empty_draft_dict_routes_to_call_model(self) -> None:
+        """Falsy draft value (empty dict) → continue the loop, not a handoff."""
+        state: dict = {"pending_draft_critique": {}}
+        assert route_from_react_execute_tools(state) == NODE_REACT_CALL_MODEL

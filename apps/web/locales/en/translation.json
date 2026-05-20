@@ -2936,6 +2936,14 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_9": {
+          "title": "v1.20.9 — In ReAct mode, creating, modifying or deleting now asks for your confirmation before acting — no more false \"Done!\" with nothing actually happening",
+          "date": "May 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>ReAct mode now asks for confirmation before sensitive actions, just like the default mode</b> — When you use the ⚡ ReAct mode (the autonomous, step-by-step reasoning mode) and asked LIA to create an appointment, send or reply to an email, add a contact, create a task or delete something, it would sometimes answer <em>\"Done! I've created the appointment…\"</em> while in reality <strong>nothing had been created</strong>. The action was only <em>prepared</em> internally and then silently dropped — the confirmation step that already exists in the default (Pipeline) mode was missing in ReAct mode. From this release both modes behave identically: a sensitive action (create / modify / reply / forward / delete an event, email, contact, task, file or label) now shows you the same confirmation card with the details, and the action is only really carried out <strong>after you confirm</strong> — you can also edit or cancel it. Reminders, which are designed to be created instantly, keep working without a confirmation step in both modes."
+          }
+        },
         "v1_20_8": {
           "title": "v1.20.8 — Conversations no longer freeze on long history, context-usage indicator in the chat, visible recovery notice when the summary fails",
           "date": "May 2026",

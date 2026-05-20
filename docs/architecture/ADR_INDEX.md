@@ -2334,6 +2334,7 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 - ✅ Pattern d'idempotence pour re-exécution multi-interrupt
 - ✅ LLM type dédié `react_agent` (qwen3.5-plus, thinking medium)
 - ✅ Toggle utilisateur sur la page chat (persisté en DB)
+- ✅ (Amendement 2026-05-20) Parité HITL des drafts: les outils de mutation (create/update/delete) basculent vers le flux partagé `hitl_dispatch → draft_critique → response` via `pending_draft_critique` au lieu de boucler — confirmation/édition/annulation puis exécution réelle, comme en pipeline
 
 **Trade-offs**:
 - ReAct: 3-10x plus d'appels LLM, mais adaptatif et autonome

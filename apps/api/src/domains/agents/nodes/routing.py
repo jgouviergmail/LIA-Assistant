@@ -748,3 +748,38 @@ def route_from_react_call_model(
         decision=NODE_REACT_FINALIZE,
     ).inc()
     return NODE_REACT_FINALIZE
+
+
+def route_from_react_execute_tools(
+    state: MessagesState,
+) -> Literal["react_call_model", "hitl_dispatch"]:
+    """Route after ReAct tool execution: draft confirmation or continue the loop.
+
+    When a mutation tool prepared a draft, ``react_execute_tools_node`` sets
+    ``pending_draft_critique`` in state. In that case, hand off to the shared HITL
+    dispatch node (the same one the pipeline uses) so the user can
+    confirm/edit/cancel before the action is actually executed — instead of
+    looping back to the LLM, which would otherwise report the action as done
+    without it ever being performed. Otherwise, continue the normal ReAct loop.
+
+    Args:
+        state: Current graph state, possibly carrying ``pending_draft_critique``.
+
+    Returns:
+        ``"hitl_dispatch"`` when a draft awaits confirmation, else
+        ``"react_call_model"``.
+    """
+    from src.domains.agents.constants import NODE_DRAFT_CRITIQUE, NODE_REACT_CALL_MODEL
+
+    if state.get("pending_draft_critique"):
+        langgraph_conditional_edges_total.labels(
+            edge_name="route_from_react_execute_tools",
+            decision=NODE_DRAFT_CRITIQUE,
+        ).inc()
+        return NODE_DRAFT_CRITIQUE
+
+    langgraph_conditional_edges_total.labels(
+        edge_name="route_from_react_execute_tools",
+        decision=NODE_REACT_CALL_MODEL,
+    ).inc()
+    return NODE_REACT_CALL_MODEL
