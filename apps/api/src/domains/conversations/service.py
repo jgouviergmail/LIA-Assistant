@@ -1552,9 +1552,64 @@ class ConversationService:
             **token_totals,
         )
 
-        return {
+        result: dict[str, Any] = {
             FIELD_CONVERSATION_ID: conversation.id,
             **token_totals,  # Contains FIELD_TOTAL_TOKENS_IN/OUT/CACHE, FIELD_TOTAL_COST_EUR
+        }
+
+        # Context-usage pill (2026-05): expose current checkpoint token footprint
+        # and dynamic compaction threshold so the frontend can hydrate the pill
+        # on page refresh. Best-effort — failure is silent (returns nothing).
+        try:
+            context_usage = await self._compute_checkpoint_context_usage(conversation.id)
+            if context_usage:
+                result.update(context_usage)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug(
+                "context_usage_load_failed",
+                conversation_id=str(conversation.id),
+                error=str(e),
+            )
+
+        return result
+
+    async def _compute_checkpoint_context_usage(
+        self, conversation_id: UUID
+    ) -> dict[str, int] | None:
+        """Read the latest LangGraph checkpoint for the conversation and return
+        the current token footprint along with the compaction threshold.
+
+        Used by `get_conversation_totals` to persist the context-usage pill
+        across page refreshes. Returns None if no checkpoint exists yet (eg
+        brand-new conversation) or if the deserialised state is missing the
+        `messages` list.
+
+        Uses `aget_tuple()` (not `aget()`) so we operate against the canonical
+        `CheckpointTuple` API. `aget()` is annotated `CheckpointTuple | None`
+        on `InstrumentedAsyncPostgresSaver` even though it returns a `Checkpoint`
+        dict at runtime — calling `.get()` on it relies on that mismatch and
+        would break the moment LangGraph honours its declared return type.
+        """
+        from langchain_core.runnables import RunnableConfig
+
+        from src.domains.agents.services.compaction_service import CompactionService
+        from src.domains.conversations.checkpointer import get_checkpointer
+
+        checkpointer = await get_checkpointer()
+        config = RunnableConfig(configurable={"thread_id": str(conversation_id)})
+        snapshot = await checkpointer.aget_tuple(config)
+        if snapshot is None:
+            return None
+        messages = snapshot.checkpoint.get("channel_values", {}).get("messages")
+        if not messages:
+            return None
+
+        service = CompactionService()
+        tokens = service._token_counter.count_messages_tokens(messages)
+        threshold = service.compute_effective_threshold()
+        return {
+            "context_tokens": int(tokens),
+            "context_threshold": int(threshold),
         }
 
     def _generate_title(self) -> str:

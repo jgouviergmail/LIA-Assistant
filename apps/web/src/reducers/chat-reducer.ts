@@ -43,6 +43,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         currentDebugMetrics: null,
         // Clear browser screenshot overlay from previous request
         browserScreenshot: null,
+        // Clear any previous compaction banner — a new turn starts fresh.
+        compaction: null,
       };
 
     case 'CLEAR_MESSAGES':
@@ -68,6 +70,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         currentDebugMetrics: null, // Debug Panel: Clear current metrics when clearing messages
         debugMetricsHistory: [], // Debug Panel: Clear history when clearing messages
         browserScreenshot: null, // Browser Screenshots: Clear overlay when clearing messages
+        compaction: null, // Compaction v2: clear banner when clearing messages
+        contextUsage: null, // Context pill: stale once messages are wiped
       };
 
     case 'SET_MESSAGES': {
@@ -396,6 +400,23 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           }
         : state.totals;
 
+      // Context-usage pill (2026-05): pick up the latest tokens/threshold
+      // figures so the header indicator refreshes. Keep the previous value if
+      // the backend did not include them in this `done` (best-effort).
+      const nextContextUsage =
+        metadata?.context_tokens !== undefined &&
+        metadata?.context_threshold !== undefined &&
+        metadata.context_threshold > 0
+          ? {
+              tokens: metadata.context_tokens,
+              threshold: metadata.context_threshold,
+              ratio: Math.min(
+                1.5,
+                metadata.context_tokens / metadata.context_threshold
+              ),
+            }
+          : state.contextUsage;
+
       return {
         ...state,
         status: 'idle',
@@ -407,6 +428,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           sseStatus: 'disconnected',
         },
         browserScreenshot: null, // Clear overlay when stream completes
+        contextUsage: nextContextUsage,
       };
     }
 
@@ -547,6 +569,59 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case 'BROWSER_SCREENSHOT_CLEAR':
       return { ...state, browserScreenshot: null };
+
+    // ========================================================================
+    // Context-usage pill hydration (2026-05): seeded on page load from
+    // /conversations/me/totals so the pill is visible before any new turn.
+    // ========================================================================
+
+    case 'CONTEXT_USAGE_HYDRATE': {
+      const { tokens, threshold } = action.payload;
+      if (threshold <= 0) {
+        return state;
+      }
+      return {
+        ...state,
+        contextUsage: {
+          tokens,
+          threshold,
+          ratio: Math.min(1.5, tokens / threshold),
+        },
+      };
+    }
+
+    // ========================================================================
+    // Compaction v2 (2026-05): conversation history summarization signal
+    // ========================================================================
+
+    case 'STREAM_COMPACTION_START':
+      return {
+        ...state,
+        status: 'compacting',
+        compaction: {
+          phase: 'in_progress',
+          estimatedDurationSeconds: action.payload.estimatedDurationSeconds,
+          strategy: action.payload.strategy,
+          startedAt: Date.now(),
+        },
+      };
+
+    case 'STREAM_COMPACTION_DONE':
+      return {
+        ...state,
+        // Compaction is followed by the real LLM response stream; rewind to
+        // 'streaming' so the existing token-streaming UX takes over. If a
+        // late event arrives in a non-compacting state (defensive), keep the
+        // status untouched.
+        status: state.status === 'compacting' ? 'streaming' : state.status,
+        compaction: {
+          phase:
+            action.payload.strategy === 'truncation' ? 'truncated' : 'done',
+          tokensSaved: action.payload.tokensSaved,
+          durationMs: action.payload.durationMs,
+          strategy: action.payload.strategy,
+        },
+      };
 
     // ========================================================================
     // Default

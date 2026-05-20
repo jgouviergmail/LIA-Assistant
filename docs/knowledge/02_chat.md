@@ -161,6 +161,14 @@ The **/resume** command triggers **intelligent context compaction**:
 3. Recent messages are preserved intact
 4. LIA confirms the compaction with a brief summary
 
+**💡 While compaction runs:**
+• A **toast** appears at the top of the screen reading *"Summarizing the conversation…"*
+• The input area is **locked** automatically while the summary completes
+• When done, the toast morphs into a confirmation *"Conversation summarized — N tokens freed"*
+• If the summary cannot complete (LLM outage, timeout), an **explicit fallback** cleanly truncates the older history with a visible notice rather than a silent loss
+
+**📊 Persistent indicator:** A discreet pill in the chat header (next to the search box) continuously shows your *tokens/threshold* usage as a coloured ring — you can see at any moment when the next compaction will fire.
+
 **💡 Note:** Compaction also triggers automatically when the conversation becomes very long. The /resume command lets you force it at any time.
 
 ## What is ReAct mode?

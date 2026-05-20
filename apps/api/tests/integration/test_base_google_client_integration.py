@@ -60,7 +60,7 @@ class TestGoogleClientInheritance:
         mock_redis.setex = AsyncMock(return_value=True)
 
         with patch(
-            "src.domains.connectors.clients.base_google_client.get_redis_session",
+            "src.domains.connectors.clients.base_oauth_client.get_redis_session",
             return_value=mock_redis,
         ):
             client = GooglePeopleClient(
@@ -101,7 +101,7 @@ class TestGoogleClientInheritance:
         mock_redis.setex = AsyncMock(return_value=True)
 
         with patch(
-            "src.domains.connectors.clients.base_google_client.get_redis_session",
+            "src.domains.connectors.clients.base_oauth_client.get_redis_session",
             return_value=mock_redis,
         ):
             client = GoogleGmailClient(
@@ -132,7 +132,7 @@ class TestGoogleClientInheritance:
         from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
         from src.domains.connectors.clients.google_people_client import GooglePeopleClient
 
-        with patch("src.domains.connectors.clients.base_google_client.get_redis_session"):
+        with patch("src.domains.connectors.clients.base_oauth_client.get_redis_session"):
             people_client = GooglePeopleClient(
                 user_id=user_id,
                 credentials=valid_credentials,
@@ -202,7 +202,7 @@ class TestClientRateLimiting:
         mock_redis.setex = AsyncMock(return_value=True)
 
         with patch(
-            "src.domains.connectors.clients.base_google_client.get_redis_session",
+            "src.domains.connectors.clients.base_oauth_client.get_redis_session",
             return_value=mock_redis,
         ):
             people_client = GooglePeopleClient(

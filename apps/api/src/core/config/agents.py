@@ -43,8 +43,13 @@ from src.core.constants import (
     BROWSER_TOOL_TIMEOUT_SECONDS,
     COMPACTION_CHUNK_MAX_TOKENS_DEFAULT,
     COMPACTION_ENABLED_DEFAULT,
+    COMPACTION_GLOBAL_TIMEOUT_SECONDS_DEFAULT,
+    COMPACTION_INCLUDE_PREVIOUS_SUMMARIES_DEFAULT,
+    COMPACTION_MAX_RETRIES_DEFAULT,
     COMPACTION_MIN_MESSAGES_DEFAULT,
+    COMPACTION_PER_CHUNK_TIMEOUT_SECONDS_DEFAULT,
     COMPACTION_PRESERVE_RECENT_MESSAGES_DEFAULT,
+    COMPACTION_RETRY_BACKOFF_BASE_SECONDS_DEFAULT,
     COMPACTION_THRESHOLD_RATIO_DEFAULT,
     COMPACTION_TOKEN_THRESHOLD_DEFAULT,
     CONTACTS_AGENT_PROMPT_VERSION_DEFAULT,
@@ -920,6 +925,45 @@ class AgentsSettings(BaseSettings):
         description=(
             "Minimum number of messages before considering compaction. "
             "Fast-path: skip token counting if fewer messages than this."
+        ),
+    )
+
+    # ------------------------------------------------------------------------
+    # Compaction v2 — Hardening (2026-05)
+    # ------------------------------------------------------------------------
+    # Robustness layer added after the 2026-05-16 incident where llm.ainvoke()
+    # hung without a timeout. These settings cap per-chunk and global durations,
+    # add retries with exponential backoff, and enable consolidation of prior
+    # `compaction #N` SystemMessages into the new summary.
+    compaction_per_chunk_timeout_seconds: float = Field(
+        default=COMPACTION_PER_CHUNK_TIMEOUT_SECONDS_DEFAULT,
+        ge=5.0,
+        le=300.0,
+        description="asyncio.wait_for budget per LLM compaction chunk call.",
+    )
+    compaction_global_timeout_seconds: float = Field(
+        default=COMPACTION_GLOBAL_TIMEOUT_SECONDS_DEFAULT,
+        ge=10.0,
+        le=600.0,
+        description="Whole compact() budget covering all chunks and merge.",
+    )
+    compaction_max_retries: int = Field(
+        default=COMPACTION_MAX_RETRIES_DEFAULT,
+        ge=1,
+        le=10,
+        description="Tenacity attempts per chunk on transient errors.",
+    )
+    compaction_retry_backoff_base_seconds: float = Field(
+        default=COMPACTION_RETRY_BACKOFF_BASE_SECONDS_DEFAULT,
+        ge=0.1,
+        le=10.0,
+        description="Exponential backoff base for retries (1s, 2s, 4s, ...).",
+    )
+    compaction_include_previous_summaries: bool = Field(
+        default=COMPACTION_INCLUDE_PREVIOUS_SUMMARIES_DEFAULT,
+        description=(
+            "Include previous 'compaction #N' SystemMessages in the merge prompt "
+            "so they get consolidated instead of accumulating."
         ),
     )
 

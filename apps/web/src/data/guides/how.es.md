@@ -494,6 +494,10 @@ El state LangGraph es un `TypedDict` con un reducer `add_messages_with_truncate`
 
 Cuando el número de tokens supera un umbral dinámico (ratio de la context window del modelo de respuesta), se genera un resumen LLM. Los identificadores críticos (UUIDs, URLs, emails) se preservan. Ratio de ahorro: ~60 % por compactación. Comando `/resume` para activación manual.
 
+**Resiliencia operativa**: cada llamada al LLM se envuelve en un `asyncio.wait_for` por chunk (35 s por defecto) y un presupuesto global de 120 s. En errores transitorios, `tenacity.AsyncRetrying` reintenta hasta 3 veces con backoff exponencial. Si el resumen aún no puede completarse, un repliegue explícito (`_truncation_fallback`) trunca limpiamente el historial antiguo con un `SystemMessage` legible que preserva los identificadores — sin stub silencioso. Los resúmenes anteriores `compaction #N` se consolidan en el merge en lugar de apilarse turno tras turno.
+
+**Señal SSE custom mode**: el nodo emite `compaction_start` / `compaction_done` mediante `langgraph.config.get_stream_writer()` a través de un `stream_mode="custom"` (LangGraph 1.x). El streaming service traduce estos payloads en `ChatStreamChunk(type="execution_step")`. En el frontend, un toast sonner morfeado sobre un id estable (`COMPACTION_TOAST_ID`) permanece visible durante toda la compactación, la entrada queda bloqueada vía `status="compacting"`, y un `ContextUsagePill` muestra de forma continua el ratio tokens/umbral. El keepalive SSE concurrente (`iter_with_keepalive`) emite `: heartbeat` cada 15 s durante los awaits silenciosos para neutralizar los cortes por inactividad de Cloudflare. Cinco métricas Prometheus (`compaction_chunk_timeouts_total`, `compaction_global_timeouts_total`, `compaction_total_duration_seconds`, `compaction_writer_unavailable_total`, `compaction_executions_total{strategy}`) alimentan un panel de Grafana dedicado.
+
 ### 10.4. Checkpointing PostgreSQL
 
 State completo checkpointeado después de cada nodo. P95 save < 50 ms, P95 load < 100 ms, tamaño medio ~15 KB/conversación.

@@ -263,3 +263,238 @@ class TestCompactionNode:
         # Auto-trigger: no extra HumanMessage added (real user msg is in preserved recent)
         human_msgs = [m for m in result["messages"] if isinstance(m, HumanMessage)]
         assert len(human_msgs) == 0
+
+    # ========================================================================
+    # Task 1.5 — Removal of prior "compaction #N" SystemMessages
+    # ========================================================================
+
+    @pytest.mark.asyncio
+    @patch("src.domains.agents.nodes.compaction_node.settings")
+    @patch("src.domains.agents.nodes.compaction_node.CompactionService")
+    async def test_prior_summaries_removed_only_when_consolidated(
+        self, mock_svc_cls, mock_settings
+    ):
+        """Prior 'compaction #N' SystemMessages are removed iff result.consolidated_previous_summaries=True."""
+        mock_settings.compaction_enabled = True
+        mock_settings.compaction_preserve_recent_messages = 2
+        mock_settings.compaction_include_previous_summaries = True
+
+        mock_svc = MagicMock()
+        mock_svc.should_compact.return_value = True
+        mock_svc.is_safe_to_compact.return_value = SafetyCheckResult(safe=True)
+        mock_svc.compact = AsyncMock(
+            return_value=CompactionResult(
+                summary="Consolidated everything.",
+                tokens_before=80000,
+                tokens_after=500,
+                tokens_saved=79500,
+                identifiers_preserved=[],
+                strategy="multi_chunk",
+                consolidated_previous_summaries=True,
+            )
+        )
+        mock_svc_cls.return_value = mock_svc
+
+        prior1 = SystemMessage(
+            content="[Conversation history compacted — compaction #1.]\n\nOld summary 1",
+            id="prior-1",
+        )
+        prior2 = SystemMessage(
+            content="[Conversation history compacted — compaction #2.]\n\nOld summary 2",
+            id="prior-2",
+        )
+        msgs = [
+            prior1,
+            prior2,
+            HumanMessage(content="msg1", id="h1"),
+            HumanMessage(content="msg2", id="h2"),
+            HumanMessage(content="msg3", id="h3"),
+        ]
+        state = {
+            "messages": msgs,
+            "user_language": "fr",
+            "compaction_count": 2,
+            "pending_draft_critique": None,
+            "pending_entity_disambiguation": None,
+            "pending_disambiguations_queue": [],
+        }
+
+        result = await compaction_node(state, config={})
+        remove_ids = {m.id for m in result["messages"] if isinstance(m, RemoveMessage)}
+        assert "prior-1" in remove_ids
+        assert "prior-2" in remove_ids
+
+    @pytest.mark.asyncio
+    @patch("src.domains.agents.nodes.compaction_node.settings")
+    @patch("src.domains.agents.nodes.compaction_node.CompactionService")
+    async def test_prior_summaries_preserved_on_truncation_fallback(
+        self, mock_svc_cls, mock_settings
+    ):
+        """When the service falls back to truncation, prior summaries stay in state.
+
+        This is the regression guard for Task 1.5: even though previous compaction
+        summaries are now eligible to be consolidated, the node must NEVER emit
+        RemoveMessage for them when the fallback path runs — otherwise we lose
+        information v1 preserved.
+        """
+        mock_settings.compaction_enabled = True
+        mock_settings.compaction_preserve_recent_messages = 2
+        mock_settings.compaction_include_previous_summaries = True
+
+        mock_svc = MagicMock()
+        mock_svc.should_compact.return_value = True
+        mock_svc.is_safe_to_compact.return_value = SafetyCheckResult(safe=True)
+        mock_svc.compact = AsyncMock(
+            return_value=CompactionResult(
+                summary="[Older conversation truncated — 3 messages removed because the automatic summary could not complete (global_timeout). Key identifiers preserved: ]",
+                tokens_before=80000,
+                tokens_after=300,
+                tokens_saved=79700,
+                identifiers_preserved=[],
+                strategy="truncation",
+                consolidated_previous_summaries=False,
+            )
+        )
+        mock_svc_cls.return_value = mock_svc
+
+        prior1 = SystemMessage(
+            content="[Conversation history compacted — compaction #1.]\n\nOld summary 1",
+            id="prior-1",
+        )
+        msgs = [
+            prior1,
+            HumanMessage(content="msg1", id="h1"),
+            HumanMessage(content="msg2", id="h2"),
+            HumanMessage(content="msg3", id="h3"),
+        ]
+        state = {
+            "messages": msgs,
+            "user_language": "fr",
+            "compaction_count": 1,
+            "pending_draft_critique": None,
+            "pending_entity_disambiguation": None,
+            "pending_disambiguations_queue": [],
+        }
+
+        result = await compaction_node(state, config={})
+        remove_ids = {m.id for m in result["messages"] if isinstance(m, RemoveMessage)}
+        # The prior summary must NOT be removed — v1's preserved context stays.
+        assert "prior-1" not in remove_ids
+
+    # ========================================================================
+    # Task 2.2 — SSE events emitted via get_stream_writer
+    # ========================================================================
+
+    @pytest.mark.asyncio
+    @patch("src.domains.agents.nodes.compaction_node.get_stream_writer")
+    @patch("src.domains.agents.nodes.compaction_node.settings")
+    @patch("src.domains.agents.nodes.compaction_node.CompactionService")
+    async def test_emits_compaction_start_and_done_on_success(
+        self, mock_svc_cls, mock_settings, mock_get_writer
+    ):
+        """When compaction runs successfully, exactly one compaction_start and one
+        compaction_done event are emitted via the LangGraph stream writer."""
+        mock_settings.compaction_enabled = True
+        mock_settings.compaction_preserve_recent_messages = 2
+        mock_settings.compaction_include_previous_summaries = True
+
+        captured: list[dict] = []
+        mock_writer = MagicMock(side_effect=captured.append)
+        mock_get_writer.return_value = mock_writer
+
+        mock_svc = MagicMock()
+        mock_svc.should_compact.return_value = True
+        mock_svc.is_safe_to_compact.return_value = SafetyCheckResult(safe=True)
+        mock_svc.compact = AsyncMock(
+            return_value=CompactionResult(
+                summary="Recap",
+                tokens_before=50000,
+                tokens_after=400,
+                tokens_saved=49600,
+                identifiers_preserved=[],
+                strategy="single_chunk",
+            )
+        )
+        mock_svc_cls.return_value = mock_svc
+
+        msgs = [
+            HumanMessage(content="msg1", id="h1"),
+            HumanMessage(content="msg2", id="h2"),
+            HumanMessage(content="msg3", id="h3"),
+        ]
+        state = {
+            "messages": msgs,
+            "user_language": "fr",
+            "compaction_count": 0,
+            "pending_draft_critique": None,
+            "pending_entity_disambiguation": None,
+            "pending_disambiguations_queue": [],
+        }
+
+        await compaction_node(state, config={})
+
+        labels = [c.get("step_label") for c in captured]
+        assert labels == ["compaction_start", "compaction_done"]
+        assert captured[0]["step_type"] == "compaction"
+        assert captured[0]["metadata"]["phase"] == "start"
+        assert "estimated_duration_seconds" in captured[0]["metadata"]
+        assert captured[1]["metadata"]["phase"] == "done"
+        assert captured[1]["metadata"]["strategy"] == "single_chunk"
+        assert captured[1]["metadata"]["tokens_saved"] == 49600
+        assert captured[1]["metadata"]["duration_ms"] >= 0
+
+    @pytest.mark.asyncio
+    @patch("src.domains.agents.nodes.compaction_node.get_stream_writer")
+    @patch("src.domains.agents.nodes.compaction_node.settings")
+    @patch("src.domains.agents.nodes.compaction_node.CompactionService")
+    async def test_emits_compaction_done_with_truncation_strategy(
+        self, mock_svc_cls, mock_settings, mock_get_writer
+    ):
+        """On truncation fallback, compaction_done carries strategy='truncation'.
+
+        The frontend uses this to show the "older conversation truncated" banner
+        instead of the regular "summary in progress" one.
+        """
+        mock_settings.compaction_enabled = True
+        mock_settings.compaction_preserve_recent_messages = 2
+        mock_settings.compaction_include_previous_summaries = True
+
+        captured: list[dict] = []
+        mock_writer = MagicMock(side_effect=captured.append)
+        mock_get_writer.return_value = mock_writer
+
+        mock_svc = MagicMock()
+        mock_svc.should_compact.return_value = True
+        mock_svc.is_safe_to_compact.return_value = SafetyCheckResult(safe=True)
+        mock_svc.compact = AsyncMock(
+            return_value=CompactionResult(
+                summary="[Older conversation truncated — 3 messages removed because the automatic summary could not complete (global_timeout). Key identifiers preserved: ]",
+                tokens_before=80000,
+                tokens_after=300,
+                tokens_saved=79700,
+                identifiers_preserved=[],
+                strategy="truncation",
+                consolidated_previous_summaries=False,
+            )
+        )
+        mock_svc_cls.return_value = mock_svc
+
+        msgs = [
+            HumanMessage(content="m1", id="h1"),
+            HumanMessage(content="m2", id="h2"),
+            HumanMessage(content="m3", id="h3"),
+        ]
+        state = {
+            "messages": msgs,
+            "user_language": "fr",
+            "compaction_count": 0,
+            "pending_draft_critique": None,
+            "pending_entity_disambiguation": None,
+            "pending_disambiguations_queue": [],
+        }
+
+        await compaction_node(state, config={})
+
+        done_events = [c for c in captured if c.get("step_label") == "compaction_done"]
+        assert len(done_events) == 1
+        assert done_events[0]["metadata"]["strategy"] == "truncation"

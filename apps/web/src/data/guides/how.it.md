@@ -494,6 +494,10 @@ Lo state LangGraph è un `TypedDict` con un reducer `add_messages_with_truncate`
 
 Quando il numero di token supera una soglia dinamica (rapporto della context window del modello di risposta), viene generato un riassunto LLM. Gli identificatori critici (UUID, URL, email) vengono preservati. Rapporto di risparmio: ~60% per compaction. Comando `/resume` per attivazione manuale.
 
+**Resilienza operativa**: ogni chiamata LLM è racchiusa in un `asyncio.wait_for` per chunk (35 s di default) e un budget globale di 120 s. In caso di errori transitori, `tenacity.AsyncRetrying` riprova fino a 3 volte con backoff esponenziale. Se il riassunto continua a non completarsi, un fallback esplicito (`_truncation_fallback`) tronca pulitamente la cronologia più vecchia con un `SystemMessage` leggibile che preserva gli identificatori — nessuno stub silenzioso. I riassunti precedenti `compaction #N` vengono consolidati nel merge invece di accumularsi turno dopo turno.
+
+**Segnale SSE custom mode**: il nodo emette `compaction_start` / `compaction_done` tramite `langgraph.config.get_stream_writer()` attraverso uno `stream_mode="custom"` (LangGraph 1.x). Lo streaming service traduce questi payload in `ChatStreamChunk(type="execution_step")`. Sul frontend, un toast sonner trasformato su un id stabile (`COMPACTION_TOAST_ID`) rimane visibile per tutta la durata della compattazione, l'input è bloccato tramite `status="compacting"`, e una `ContextUsagePill` mostra in continuo il rapporto token/soglia. Il keepalive SSE concorrente (`iter_with_keepalive`) emette `: heartbeat` ogni 15 s durante gli await silenziosi per neutralizzare i tagli per inattività di Cloudflare. Cinque metriche Prometheus (`compaction_chunk_timeouts_total`, `compaction_global_timeouts_total`, `compaction_total_duration_seconds`, `compaction_writer_unavailable_total`, `compaction_executions_total{strategy}`) alimentano una dashboard Grafana dedicata.
+
 ### 10.4. Checkpointing PostgreSQL
 
 State completo sottoposto a checkpoint dopo ogni nodo. P95 save < 50 ms, P95 load < 100 ms, dimensione media ~15 KB/conversazione.

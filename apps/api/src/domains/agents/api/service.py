@@ -2073,6 +2073,15 @@ class AgentService(
                     if streaming_service.activated_skill_name:
                         done_metadata["skill_name"] = streaming_service.activated_skill_name
 
+                    # Context-usage pill (2026-05): expose the current token
+                    # footprint of the conversation plus the dynamic compaction
+                    # threshold so the frontend can render a small progress
+                    # indicator in the chat header bar. Best-effort — a counting
+                    # failure leaves done_metadata otherwise untouched.
+                    context_usage = streaming_service.compute_context_usage()
+                    if context_usage:
+                        done_metadata.update(context_usage)
+
                     # Per-message TTS attribution for the live badge — sourced
                     # from the snapshot captured before cleanup_run_records()
                     # wiped the in-memory bucket. Mirror of STT: provider /

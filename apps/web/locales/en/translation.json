@@ -477,6 +477,16 @@
       "error_connection": "Failed to connect to voice service. Please try again.",
       "error_generic": "An error occurred during voice input. Please try again."
     },
+    "compaction": {
+      "in_progress": "Summarizing the conversation to free up context...",
+      "completed": "Conversation summarized — {{tokens}} tokens freed.",
+      "truncated": "The older conversation was truncated because the summary could not be generated."
+    },
+    "context_usage": {
+      "tooltip": "Conversation context: {{tokens}} of {{threshold}} tokens used ({{percent}}%). Automatic compaction triggers at 100%.",
+      "tooltip_compact": "{{tokens}} / {{threshold}} ({{percent}}%)",
+      "tooltip_overflow": "Conversation context: {{tokens}} of {{threshold}} tokens used ({{percent}}%). Threshold exceeded — automatic compaction will run on your next message."
+    },
     "voice_mode": {
       "enable": "Enable voice mode",
       "disable": "Disable voice mode",
@@ -2753,7 +2763,7 @@
         },
         "memory": {
           "title": "💾 Dual Short/Long-Term Memory",
-          "description": "Short-term: sliding message window with automatic context summarization. Long-term: extraction of facts about you (preferences, relationships, habits) stored with semantic embeddings. Hybrid BM25 + semantic search for optimal recall: both exact keywords AND meaning are used to retrieve your relevant memories."
+          "description": "Short-term: sliding message window with automatic conversation-context summarization. The summary is resilient — per-chunk and global timeouts, exponential-backoff retries, explicit truncation fallback if the LLM fails; a visual toast surfaces while it runs and the input is locked for the duration, while a pill in the chat header continuously shows the tokens/threshold ratio. Long-term: extraction of facts about you (preferences, relationships, habits) stored with semantic embeddings. Hybrid BM25 + semantic search for optimal recall: both exact keywords AND meaning are used to retrieve your relevant memories."
         },
         "interests": {
           "title": "✨ Smart Interest Learning",
@@ -2926,6 +2936,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_8": {
+          "title": "v1.20.8 — Conversations no longer freeze on long history, context-usage indicator in the chat, visible recovery notice when the summary fails",
+          "date": "May 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Conversations no longer get stuck when the history grows long</b> — When your conversation accumulates many messages, LIA runs a background <em>compaction</em> step that summarises the older turns to free up context room. On May 16, 2026 a production user could no longer send any message: every turn re-triggered the summary, the language model answered once and then went silent for ~93 s until the connection was finally dropped at 125 s with <em>\"Erreur de connexion: network error\"</em>. Root cause: no maximum delay on the LLM call, no retry on transient errors, no signal sent to the frontend during the wait. This release rebuilds end-to-end resilience: per-chunk timeout (35 s), global timeout (2 min), three attempts with progressive backoff, and — if all of that still fails — an explicit fallback that cleanly truncates the older history rather than leaving you with a silent useless summary. You'll literally see the note <em>\"The older conversation was truncated because the summary could not be generated\"</em> when that fallback fires, rather than a mute loss of information.",
+            "i2": "<b>Visible indicator in the chat while compaction runs</b> — Before this release, when LIA was summarising your history you had no visual feedback: the send button froze for ~30 s without explanation. Now, the moment compaction starts, a notification (toast) appears at the top of the screen reading <em>\"Summarizing the conversation to free up context…\"</em> with a spinner; the message input is locked while the summary runs; when it's done the toast morphs into a confirmation <em>\"Conversation summarized — N tokens freed\"</em> (or a warning if the truncation fallback fired). The toast stays visible no matter where you've scrolled in the conversation.",
+            "i3": "<b>Context-usage pill in the chat header</b> — A new discreet pill next to the search box continuously shows <code>tokens used / compaction threshold</code> as a coloured ring and a percentage. Green below 50 %, amber from 50 to 75 %, orange from 75 to 90 %, rose above 90 %. The displayed percentage is capped at 100 % to stay legible; in case of overshoot (typical right after a long answer), the hover tooltip explains <em>\"compaction will run on your next message\"</em>. The pill persists across page refreshes — no need to send a message just to see it.",
+            "i4": "<b>Admin: new operator settings, Grafana dashboard, transactional recovery script</b> — Five new <code>.env</code> settings drive compaction without a rebuild: <code>COMPACTION_PER_CHUNK_TIMEOUT_SECONDS</code> (default 35), <code>COMPACTION_GLOBAL_TIMEOUT_SECONDS</code> (default 120), <code>COMPACTION_MAX_RETRIES</code> (default 3), <code>COMPACTION_RETRY_BACKOFF_BASE_SECONDS</code> (default 1), <code>COMPACTION_INCLUDE_PREVIOUS_SUMMARIES</code> (default <code>true</code>, consolidates prior summaries instead of stacking them turn after turn). New Grafana dashboard <code>14-compaction.json</code> with 7 panels (strategy mix, latencies p50/p95/p99, per-chunk timeouts, global timeouts, errors by type, skip reasons, tokens saved). Five new Prometheus metrics including <code>compaction_writer_unavailable_total</code> which makes any silent SSE-signal degradation visible. A transactional SQL script <code>scripts/admin/reset_user_checkpoints.sql</code> resets a single user's checkpoints for stuck-conversation recovery, without touching messages or the application. Full operator documentation in <code>docs/technical/COMPACTION_v2.md</code>."
+          }
+        },
         "v1_20_7": {
           "title": "v1.20.7 — Bulk reminder deletion: the summary is finally readable, with each reminder's name and trigger time",
           "date": "May 2026",
@@ -3490,7 +3511,7 @@
           },
           "q9": {
             "question": "What is the /resume command?",
-            "answer": "The <strong>/resume</strong> command triggers <strong>intelligent context compaction</strong>:<br><br><strong>What it does:</strong><br>• Summarizes old conversation history using AI<br>• Preserves critical identifiers (names, emails, IDs)<br>• Frees up context window space for longer conversations<br><br><strong>When to use it:</strong><br>• When your conversation has been going on for a long time<br>• When LIA seems to lose track of earlier context<br>• When you want to \"reset\" the context without losing important information<br><br><strong>How it works:</strong><br>1. Type <strong>/resume</strong> in the chat<br>2. LIA summarizes old messages into a concise recap<br>3. Recent messages are preserved intact<br>4. LIA confirms the compaction with a brief summary<br><br><strong>💡 Note:</strong> Compaction also triggers automatically when the conversation becomes very long. The /resume command lets you force it at any time."
+            "answer": "The <strong>/resume</strong> command triggers <strong>intelligent context compaction</strong>:<br><br><strong>What it does:</strong><br>• Summarizes old conversation history using AI<br>• Preserves critical identifiers (names, emails, IDs)<br>• Frees up context window space for longer conversations<br><br><strong>When to use it:</strong><br>• When your conversation has been going on for a long time<br>• When LIA seems to lose track of earlier context<br>• When you want to \"reset\" the context without losing important information<br><br><strong>How it works:</strong><br>1. Type <strong>/resume</strong> in the chat<br>2. LIA summarizes old messages into a concise recap<br>3. Recent messages are preserved intact<br>4. LIA confirms the compaction with a brief summary<br><br><strong>💡 While compaction runs:</strong><br>• A <strong>toast</strong> appears at the top of the screen reading <em>\"Summarizing the conversation…\"</em><br>• The input area is <strong>locked</strong> automatically while the summary completes<br>• When done, the toast morphs into a confirmation <em>\"Conversation summarized — N tokens freed\"</em><br>• If the summary cannot complete (LLM outage, timeout), an <strong>explicit fallback</strong> cleanly truncates the older history with a visible notice rather than a silent loss<br><br><strong>📊 Persistent indicator:</strong> A discreet pill in the chat header (next to the search box) continuously shows your <em>tokens/threshold</em> usage as a coloured ring — you can see at any moment when the next compaction will fire.<br><br><strong>💡 Note:</strong> Compaction also triggers automatically when the conversation becomes very long. The /resume command lets you force it at any time."
           },
           "q10": {
             "question": "What is the difference between Pipeline (🔀) and ReAct (⚡) mode?",

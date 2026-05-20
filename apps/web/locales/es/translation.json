@@ -456,6 +456,16 @@
       "error_connection": "No se pudo conectar al servicio de voz. Por favor, inténtelo de nuevo.",
       "error_generic": "Se produjo un error durante la entrada de voz. Por favor, inténtelo de nuevo."
     },
+    "compaction": {
+      "in_progress": "Resumiendo la conversación para liberar contexto...",
+      "completed": "Conversación resumida — {{tokens}} tokens liberados.",
+      "truncated": "La conversación anterior se truncó porque no se pudo generar el resumen."
+    },
+    "context_usage": {
+      "tooltip": "Contexto de la conversación: {{tokens}} de {{threshold}} tokens usados ({{percent}}%). Compactación automática al 100%.",
+      "tooltip_compact": "{{tokens}} / {{threshold}} ({{percent}}%)",
+      "tooltip_overflow": "Contexto de la conversación: {{tokens}} de {{threshold}} tokens usados ({{percent}}%). Umbral superado — la compactación se realizará en el próximo mensaje."
+    },
     "voice_mode": {
       "enable": "Activar modo de voz",
       "disable": "Desactivar modo de voz",
@@ -2744,7 +2754,7 @@
         },
         "memory": {
           "title": "💾 Doble Memoria Corto/Largo Plazo",
-          "description": "Corto plazo: ventana deslizante de mensajes con resumen automático de contexto. Largo plazo: extracción de hechos sobre usted (preferencias, relaciones, hábitos) almacenados con embeddings semánticos. Búsqueda híbrida BM25 + semántica para un recuerdo óptimo: tanto las palabras clave exactas COMO el significado se utilizan para recuperar sus recuerdos relevantes."
+          "description": "Corto plazo: ventana deslizante de mensajes con resumen automático del contexto conversacional. El resumen es resiliente — tiempos límite por chunk y global, reintentos con backoff exponencial, repliegue explícito de truncado si el LLM falla; un toast visual se muestra mientras se ejecuta y la entrada queda bloqueada el tiempo necesario, y una pastilla en la cabecera del chat muestra de forma continua la relación tokens/umbral. Largo plazo: extracción de hechos sobre usted (preferencias, relaciones, hábitos) almacenados con embeddings semánticos. Búsqueda híbrida BM25 + semántica para un recuerdo óptimo: tanto las palabras clave exactas COMO el significado se utilizan para recuperar sus recuerdos relevantes."
         },
         "interests": {
           "title": "✨ Aprendizaje Inteligente de Intereses",
@@ -2917,6 +2927,17 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_8": {
+          "title": "v1.20.8 — La conversación ya no se bloquea cuando el historial se vuelve largo, indicador de uso de contexto en el chat, aviso visible cuando el resumen falla",
+          "date": "Mayo 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>La conversación ya no se queda bloqueada cuando el historial crece</b> — Cuando tu conversación acumula muchos mensajes, LIA ejecuta en segundo plano una <em>compactación</em> que resume los turnos antiguos para liberar espacio en su contexto. El 16 de mayo de 2026 un usuario en producción no pudo enviar ningún mensaje más: cada turno relanzaba el resumen, el modelo de lenguaje respondía una vez y luego permanecía en silencio ~93 s hasta que la conexión se cortaba a los 125 s con <em>«Erreur de connexion: network error»</em>. Causa raíz: sin tiempo máximo en la llamada al modelo, sin reintentos en errores transitorios, sin señal enviada al frontend durante la espera. Esta versión reconstruye la resiliencia de extremo a extremo: tiempo límite por chunk (35 s), tiempo límite global (2 min), tres intentos con backoff progresivo, y — si nada funciona — un repliegue explícito que trunca limpiamente el historial antiguo en lugar de dejarte con un resumen silencioso e inútil. Verás literalmente la nota <em>«La conversación anterior se truncó porque no se pudo generar el resumen»</em> cuando ese repliegue se active, en lugar de una pérdida muda de información.",
+            "i2": "<b>Indicador visual en el chat mientras se ejecuta la compactación</b> — Antes de esta versión, cuando LIA resumía tu historial no tenías ningún retorno visual: el botón de enviar se congelaba durante ~30 s sin explicación. Ahora, en cuanto la compactación arranca, aparece una notificación (toast) en la parte superior de la pantalla con <em>«Resumiendo la conversación para liberar contexto…»</em> y un spinner; el área de entrada queda bloqueada mientras dura el resumen; al finalizar, el toast se transforma en una confirmación <em>«Conversación resumida — N tokens liberados»</em> (o un aviso si el repliegue truncado se activó). El toast permanece visible sin importar dónde te hayas desplazado en la conversación.",
+            "i3": "<b>Pastilla de uso de contexto en la cabecera del chat</b> — Una nueva pastilla discreta junto al cuadro de búsqueda muestra de forma continua <code>tokens usados / umbral de compactación</code> en forma de anillo coloreado y porcentaje. Verde por debajo del 50 %, ámbar entre 50 y 75 %, naranja entre 75 y 90 %, rosa por encima del 90 %. El porcentaje mostrado se acota al 100 % para mantenerlo legible; en caso de exceso (típico justo después de una respuesta larga), la información sobre el ratón al pasar explica <em>«la compactación se activará en tu próximo mensaje»</em>. La pastilla persiste entre recargas de la página — no necesitas enviar un mensaje para verla.",
+            "i4": "<b>Admin: nuevos parámetros de operador, panel de Grafana, script de recuperación transaccional</b> — Cinco nuevos parámetros en <code>.env</code> controlan la compactación sin rebuild: <code>COMPACTION_PER_CHUNK_TIMEOUT_SECONDS</code> (por defecto 35), <code>COMPACTION_GLOBAL_TIMEOUT_SECONDS</code> (por defecto 120), <code>COMPACTION_MAX_RETRIES</code> (por defecto 3), <code>COMPACTION_RETRY_BACKOFF_BASE_SECONDS</code> (por defecto 1), <code>COMPACTION_INCLUDE_PREVIOUS_SUMMARIES</code> (por defecto <code>true</code>, consolida los resúmenes anteriores en lugar de apilarlos turno tras turno). Nuevo panel de Grafana <code>14-compaction.json</code> con 7 paneles (mezcla de estrategias, latencias p50/p95/p99, tiempos límite por chunk, tiempos límite globales, errores por tipo, motivos de skip, tokens liberados). Cinco nuevas métricas Prometheus, incluida <code>compaction_writer_unavailable_total</code> que hace visible cualquier degradación silenciosa de la señal SSE. Un script SQL transaccional <code>scripts/admin/reset_user_checkpoints.sql</code> reinicia los checkpoints de un único usuario para recuperar una conversación bloqueada, sin tocar mensajes ni la aplicación. Documentación completa para operadores en <code>docs/technical/COMPACTION_v2.md</code>."
+          }
+        },
         "v1_20_7": {
           "title": "v1.20.7 — Eliminación masiva de recordatorios: el resumen por fin se lee, con el nombre y la hora de cada recordatorio",
           "date": "Mayo 2026",
@@ -3481,7 +3502,7 @@
           },
           "q9": {
             "question": "¿Qué es el comando /resume?",
-            "answer": "El comando <strong>/resume</strong> activa la <strong>compactación inteligente del contexto</strong>:<br><br><strong>Qué hace:</strong><br>• Resume el historial antiguo de la conversación usando IA<br>• Preserva identificadores críticos (nombres, correos, IDs)<br>• Libera espacio en la ventana de contexto para conversaciones más largas<br><br><strong>Cuándo usarlo:</strong><br>• Cuando tu conversación lleva mucho tiempo<br>• Cuando LIA parece perder el hilo del contexto anterior<br>• Cuando quieras «reiniciar» el contexto sin perder información importante<br><br><strong>Cómo funciona:</strong><br>1. Escribe <strong>/resume</strong> en el chat<br>2. LIA resume los mensajes antiguos en un resumen conciso<br>3. Los mensajes recientes se conservan intactos<br>4. LIA confirma la compactación con un breve resumen<br><br><strong>💡 Nota:</strong> La compactación también se activa automáticamente cuando la conversación se vuelve muy larga. El comando /resume te permite forzarla en cualquier momento."
+            "answer": "El comando <strong>/resume</strong> activa la <strong>compactación inteligente del contexto</strong>:<br><br><strong>Qué hace:</strong><br>• Resume el historial antiguo de la conversación usando IA<br>• Preserva identificadores críticos (nombres, correos, IDs)<br>• Libera espacio en la ventana de contexto para conversaciones más largas<br><br><strong>Cuándo usarlo:</strong><br>• Cuando tu conversación lleva mucho tiempo<br>• Cuando LIA parece perder el hilo del contexto anterior<br>• Cuando quieras «reiniciar» el contexto sin perder información importante<br><br><strong>Cómo funciona:</strong><br>1. Escribe <strong>/resume</strong> en el chat<br>2. LIA resume los mensajes antiguos en un resumen conciso<br>3. Los mensajes recientes se conservan intactos<br>4. LIA confirma la compactación con un breve resumen<br><br><strong>💡 Mientras se ejecuta la compactación:</strong><br>• Aparece un <strong>toast</strong> en la parte superior de la pantalla con <em>«Resumiendo la conversación…»</em><br>• El área de entrada se <strong>bloquea</strong> automáticamente mientras se completa el resumen<br>• Al finalizar, el toast se transforma en una confirmación <em>«Conversación resumida — N tokens liberados»</em><br>• Si el resumen no puede completarse (caída del LLM, tiempo agotado), un <strong>repliegue explícito</strong> trunca limpiamente el historial antiguo con una nota visible en lugar de una pérdida silenciosa<br><br><strong>📊 Indicador permanente:</strong> Una pastilla discreta en la cabecera del chat (junto al cuadro de búsqueda) muestra de forma continua tu uso <em>tokens/umbral</em> en forma de anillo coloreado — puedes ver en todo momento cuándo se activará la próxima compactación.<br><br><strong>💡 Nota:</strong> La compactación también se activa automáticamente cuando la conversación se vuelve muy larga. El comando /resume te permite forzarla en cualquier momento."
           },
           "q10": {
             "question": "¿Cuál es la diferencia entre el modo Pipeline (🔀) y el modo ReAct (⚡)?",

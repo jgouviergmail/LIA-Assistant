@@ -456,6 +456,16 @@
       "error_connection": "Verbindung zum Sprachdienst fehlgeschlagen. Bitte versuchen Sie es erneut.",
       "error_generic": "Bei der Spracheingabe ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut."
     },
+    "compaction": {
+      "in_progress": "Konversation wird zusammengefasst, um Kontext freizugeben...",
+      "completed": "Konversation zusammengefasst — {{tokens}} Tokens freigegeben.",
+      "truncated": "Die ältere Konversation wurde gekürzt, da die Zusammenfassung nicht erstellt werden konnte."
+    },
+    "context_usage": {
+      "tooltip": "Konversationskontext: {{tokens}} von {{threshold}} Token verwendet ({{percent}}%). Automatische Komprimierung bei 100%.",
+      "tooltip_compact": "{{tokens}} / {{threshold}} ({{percent}}%)",
+      "tooltip_overflow": "Konversationskontext: {{tokens}} von {{threshold}} Token verwendet ({{percent}}%). Schwelle überschritten — die Komprimierung erfolgt bei der nächsten Nachricht."
+    },
     "voice_mode": {
       "enable": "Sprachmodus aktivieren",
       "disable": "Sprachmodus deaktivieren",
@@ -2744,7 +2754,7 @@
         },
         "memory": {
           "title": "💾 Duales Kurz-/Langzeitgedächtnis",
-          "description": "Kurzzeit: gleitendes Nachrichtenfenster mit automatischer Kontextzusammenfassung. Langzeit: Extraktion von Fakten über Sie (Präferenzen, Beziehungen, Gewohnheiten) mit semantischen Embeddings gespeichert. Hybride BM25 + semantische Suche für optimalen Abruf: Sowohl exakte Schlüsselwörter ALS AUCH Bedeutung werden verwendet, um Ihre relevanten Erinnerungen abzurufen."
+          "description": "Kurzzeit: gleitendes Nachrichtenfenster mit automatischer Zusammenfassung des Konversationskontexts. Die Zusammenfassung ist resilient — Timeouts pro Chunk und global, Wiederholungsversuche mit exponentiellem Backoff, expliziter Kürzungs-Fallback, wenn das LLM versagt; während des Vorgangs erscheint ein visueller Toast und die Eingabe ist gesperrt, und eine Pill in der Chat-Kopfzeile zeigt fortlaufend das Verhältnis Tokens/Schwelle an. Langzeit: Extraktion von Fakten über Sie (Präferenzen, Beziehungen, Gewohnheiten) mit semantischen Embeddings gespeichert. Hybride BM25 + semantische Suche für optimalen Abruf: Sowohl exakte Schlüsselwörter ALS AUCH Bedeutung werden verwendet, um Ihre relevanten Erinnerungen abzurufen."
         },
         "interests": {
           "title": "✨ Intelligentes Interessenlernen",
@@ -2917,6 +2927,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_8": {
+          "title": "v1.20.8 — Konversationen blockieren nicht mehr bei langem Verlauf, Kontext-Anzeige im Chat, sichtbarer Wiederherstellungshinweis bei fehlgeschlagener Zusammenfassung",
+          "date": "Mai 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Konversationen blockieren nicht mehr, wenn der Verlauf lang wird</b> — Wenn deine Konversation viele Nachrichten ansammelt, führt LIA im Hintergrund eine <em>Kompaktierung</em> durch, die die älteren Turns zusammenfasst, um Platz im Kontext freizugeben. Am 16. Mai 2026 konnte ein Produktionsbenutzer keine einzige Nachricht mehr senden: jeder Turn löste die Zusammenfassung erneut aus, das Sprachmodell antwortete einmal und schwieg dann ~93 s, bis die Verbindung nach 125 s mit <em>„Erreur de connexion: network error\"</em> abgebrochen wurde. Ursache: keine Höchstdauer für den LLM-Aufruf, kein Wiederholungsversuch bei vorübergehenden Fehlern, kein Signal an das Frontend während des Wartens. Diese Version baut die Resilienz Ende-zu-Ende neu auf: Timeout pro Chunk (35 s), globales Timeout (2 min), drei Versuche mit progressivem Backoff, und — falls alles fehlschlägt — ein expliziter Fallback, der den älteren Verlauf sauber kürzt, anstatt dich mit einer stillen, nutzlosen Zusammenfassung zurückzulassen. Du wirst buchstäblich den Hinweis <em>„Die ältere Konversation wurde gekürzt, da die Zusammenfassung nicht erstellt werden konnte\"</em> sehen, wenn dieser Fallback greift, statt eines stummen Informationsverlusts.",
+            "i2": "<b>Sichtbarer Hinweis im Chat während der Kompaktierung</b> — Vor dieser Version hattest du keinerlei visuelles Feedback, wenn LIA deinen Verlauf zusammenfasste: der Senden-Button war einfach ~30 s lang eingefroren, ohne Erklärung. Sobald die Kompaktierung jetzt startet, erscheint oben auf dem Bildschirm eine Benachrichtigung (Toast) mit <em>„Konversation wird zusammengefasst, um Kontext freizugeben…\"</em> und einem Spinner; das Eingabefeld wird gesperrt, bis die Zusammenfassung abgeschlossen ist; am Ende verwandelt sich der Toast in eine Bestätigung <em>„Konversation zusammengefasst — N Tokens freigegeben\"</em> (oder eine Warnung, wenn der Kürzungs-Fallback aktiv wurde). Der Toast bleibt sichtbar, egal wo du in der Konversation gescrollt hast.",
+            "i3": "<b>Kontext-Nutzungs-Pill in der Chat-Kopfzeile</b> — Eine neue dezente Pill neben dem Suchfeld zeigt fortlaufend <code>verwendete Tokens / Kompaktierungsschwelle</code> als farbigen Ring und Prozentwert an. Grün unter 50 %, bernsteinfarben zwischen 50 und 75 %, orange zwischen 75 und 90 %, rosa über 90 %. Der angezeigte Prozentwert ist bei 100 % gedeckelt, um lesbar zu bleiben; bei Überschreitung (typisch direkt nach einer langen Antwort) erklärt der Tooltip beim Überfahren <em>„Die Kompaktierung wird bei deiner nächsten Nachricht ausgelöst\"</em>. Die Pill bleibt über Seiten-Reloads hinweg erhalten — du musst keine Nachricht senden, um sie zu sehen.",
+            "i4": "<b>Admin: neue Operator-Parameter, Grafana-Dashboard, transaktionales Wiederherstellungsskript</b> — Fünf neue <code>.env</code>-Parameter steuern die Kompaktierung ohne Rebuild: <code>COMPACTION_PER_CHUNK_TIMEOUT_SECONDS</code> (Standard 35), <code>COMPACTION_GLOBAL_TIMEOUT_SECONDS</code> (Standard 120), <code>COMPACTION_MAX_RETRIES</code> (Standard 3), <code>COMPACTION_RETRY_BACKOFF_BASE_SECONDS</code> (Standard 1), <code>COMPACTION_INCLUDE_PREVIOUS_SUMMARIES</code> (Standard <code>true</code>, konsolidiert frühere Zusammenfassungen anstatt sie Turn für Turn anzuhäufen). Neues Grafana-Dashboard <code>14-compaction.json</code> mit 7 Panels (Strategie-Mix, Latenzen p50/p95/p99, Chunk-Timeouts, globale Timeouts, Fehler nach Typ, Skip-Gründe, eingesparte Tokens). Fünf neue Prometheus-Metriken einschließlich <code>compaction_writer_unavailable_total</code>, das jede stille Degradation des SSE-Signals sichtbar macht. Ein transaktionales SQL-Skript <code>scripts/admin/reset_user_checkpoints.sql</code> setzt die Checkpoints eines einzelnen Benutzers zurück, um eine blockierte Konversation wiederherzustellen, ohne Nachrichten oder die Anwendung anzufassen. Vollständige Betreiberdokumentation in <code>docs/technical/COMPACTION_v2.md</code>."
+          }
+        },
         "v1_20_7": {
           "title": "v1.20.7 — Massenlöschung von Erinnerungen: die Zusammenfassung ist endlich lesbar, mit Name und Auslösezeit jeder Erinnerung",
           "date": "Mai 2026",
@@ -3481,7 +3502,7 @@
           },
           "q9": {
             "question": "Was ist der Befehl /resume?",
-            "answer": "Der Befehl <strong>/resume</strong> löst die <strong>intelligente Kontextkomprimierung</strong> aus:<br><br><strong>Was er tut:</strong><br>• Fasst den alten Gesprächsverlauf mithilfe von KI zusammen<br>• Bewahrt wichtige Kennungen (Namen, E-Mails, IDs)<br>• Gibt Platz im Kontextfenster für längere Gespräche frei<br><br><strong>Wann verwenden:</strong><br>• Wenn Ihr Gespräch schon lange dauert<br>• Wenn LIA den früheren Kontext zu verlieren scheint<br>• Wenn Sie den Kontext ‚zurücksetzen' möchten, ohne wichtige Informationen zu verlieren<br><br><strong>So funktioniert es:</strong><br>1. Geben Sie <strong>/resume</strong> im Chat ein<br>2. LIA fasst alte Nachrichten in einer kurzen Zusammenfassung zusammen<br>3. Aktuelle Nachrichten bleiben unverändert<br>4. LIA bestätigt die Komprimierung mit einer kurzen Zusammenfassung<br><br><strong>💡 Hinweis:</strong> Die Komprimierung wird auch automatisch ausgelöst, wenn das Gespräch sehr lang wird. Mit /resume können Sie sie jederzeit erzwingen."
+            "answer": "Der Befehl <strong>/resume</strong> löst die <strong>intelligente Kontextkomprimierung</strong> aus:<br><br><strong>Was er tut:</strong><br>• Fasst den alten Gesprächsverlauf mithilfe von KI zusammen<br>• Bewahrt wichtige Kennungen (Namen, E-Mails, IDs)<br>• Gibt Platz im Kontextfenster für längere Gespräche frei<br><br><strong>Wann verwenden:</strong><br>• Wenn Ihr Gespräch schon lange dauert<br>• Wenn LIA den früheren Kontext zu verlieren scheint<br>• Wenn Sie den Kontext ‚zurücksetzen' möchten, ohne wichtige Informationen zu verlieren<br><br><strong>So funktioniert es:</strong><br>1. Geben Sie <strong>/resume</strong> im Chat ein<br>2. LIA fasst alte Nachrichten in einer kurzen Zusammenfassung zusammen<br>3. Aktuelle Nachrichten bleiben unverändert<br>4. LIA bestätigt die Komprimierung mit einer kurzen Zusammenfassung<br><br><strong>💡 Während die Komprimierung läuft:</strong><br>• Ein <strong>Toast</strong> erscheint oben auf dem Bildschirm mit <em>„Konversation wird zusammengefasst…\"</em><br>• Das Eingabefeld wird automatisch <strong>gesperrt</strong>, bis die Zusammenfassung abgeschlossen ist<br>• Am Ende verwandelt sich der Toast in eine Bestätigung <em>„Konversation zusammengefasst — N Tokens freigegeben\"</em><br>• Falls die Zusammenfassung nicht abgeschlossen werden kann (LLM-Ausfall, Timeout), kürzt ein <strong>expliziter Fallback</strong> den älteren Verlauf sauber mit einem sichtbaren Hinweis, statt eines stillen Verlusts<br><br><strong>📊 Persistente Anzeige:</strong> Eine dezente Pill in der Chat-Kopfzeile (neben dem Suchfeld) zeigt fortlaufend deine Nutzung <em>Tokens/Schwelle</em> als farbigen Ring an — du siehst jederzeit, wann die nächste Komprimierung ausgelöst wird.<br><br><strong>💡 Hinweis:</strong> Die Komprimierung wird auch automatisch ausgelöst, wenn das Gespräch sehr lang wird. Mit /resume können Sie sie jederzeit erzwingen."
           },
           "q10": {
             "question": "Was ist der Unterschied zwischen Pipeline- (🔀) und ReAct-Modus (⚡)?",

@@ -15,23 +15,97 @@ Phase: F4 — Intelligent Context Compaction
 Created: 2026-03-16
 """
 
+import time
+from collections.abc import Callable
 from typing import Any
 
 from langchain_core.messages import BaseMessage, HumanMessage, RemoveMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
+from src.core.constants import (
+    COMPACTION_SSE_STEP_TYPE,
+    COMPACTION_UI_ESTIMATE_CHARS_PER_TOKEN,
+    COMPACTION_UI_ESTIMATE_MAX_SECONDS,
+    COMPACTION_UI_ESTIMATE_SECONDS_PER_CHUNK,
+    COMPACTION_UI_ESTIMATE_TOKENS_PER_CHUNK,
+)
 from src.domains.agents.models import MessagesState
 from src.domains.agents.services.compaction_service import CompactionService
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_compaction import (
     compaction_skipped_total,
+    compaction_writer_unavailable_total,
 )
+
+# LangGraph 1.x publishes a per-node writer (`get_stream_writer`) that lets a
+# node push payloads through the `"custom"` stream_mode. The import is wrapped
+# defensively so the node still works in unit tests / older LangGraph versions
+# where the symbol is unavailable.
+try:
+    from langgraph.config import get_stream_writer
+except ImportError:  # pragma: no cover - defensive
+    get_stream_writer = None
 
 logger = get_logger(__name__)
 
 # Command that triggers forced compaction
 _RESUME_COMMAND = "/resume"
+
+
+def _safe_writer() -> Callable[[dict[str, Any]], None]:
+    """Return a writer callable, or a no-op when the stream writer is unavailable.
+
+    `get_stream_writer()` raises `RuntimeError` outside a LangGraph run (eg in
+    unit tests that call `compaction_node` directly). Falling back to a no-op
+    keeps the node testable without injecting test-only branches into the
+    production code. The fallback is logged at WARNING so a misconfiguration
+    in production (eg. graph not running with `stream_mode=["custom"]`) does
+    not silently swallow the start/done UI events.
+    """
+    if get_stream_writer is None:
+        logger.warning(
+            "compaction_writer_unavailable",
+            reason="get_stream_writer_import_failed",
+        )
+        compaction_writer_unavailable_total.labels(reason="get_stream_writer_import_failed").inc()
+        return lambda _chunk: None
+    try:
+        return get_stream_writer()
+    except Exception as e:
+        logger.warning(
+            "compaction_writer_unavailable",
+            reason="get_stream_writer_raised",
+            error_type=type(e).__name__,
+            error=str(e),
+        )
+        compaction_writer_unavailable_total.labels(reason="get_stream_writer_raised").inc()
+        return lambda _chunk: None
+
+
+def _estimate_compaction_seconds(messages: list[BaseMessage]) -> int:
+    """Heuristic estimate of compaction duration for the UI progress hint.
+
+    Approximates the number of LLM chunks needed and applies a p50 per-chunk
+    wall-clock. Capped so the UI never displays an estimate larger than the
+    global compaction budget minus the safety margin. All thresholds are
+    centralised in `src/core/constants.py` so they stay aligned with the LLM
+    chunk size and the global timeout.
+
+    Args:
+        messages: The conversation history about to be compacted.
+
+    Returns:
+        Estimated wall-clock duration in whole seconds, capped at
+        `COMPACTION_UI_ESTIMATE_MAX_SECONDS`.
+    """
+    total_chars = sum(len(str(m.content)) for m in messages)
+    approx_tokens = total_chars // COMPACTION_UI_ESTIMATE_CHARS_PER_TOKEN
+    chunks = max(1, approx_tokens // COMPACTION_UI_ESTIMATE_TOKENS_PER_CHUNK)
+    return min(
+        COMPACTION_UI_ESTIMATE_MAX_SECONDS,
+        chunks * COMPACTION_UI_ESTIMATE_SECONDS_PER_CHUNK,
+    )
 
 
 def _is_resume_command(messages: list[BaseMessage]) -> bool:
@@ -99,6 +173,24 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
     language = state.get("user_language", "en")
     preserve_n = settings.compaction_preserve_recent_messages
 
+    # Emit `compaction_start` so the frontend can lock the chat input and show
+    # a progress banner (Day 2 — Task 2.2). The chunk reaches the SSE stream
+    # via the `"custom"` stream_mode handler added in Task 2.1.
+    writer = _safe_writer()
+    start_monotonic = time.monotonic()
+    writer(
+        {
+            "type": "execution_step",
+            "step_type": COMPACTION_SSE_STEP_TYPE,
+            "step_label": "compaction_start",
+            "metadata": {
+                "phase": "start",
+                "estimated_duration_seconds": _estimate_compaction_seconds(messages),
+                "is_resume": is_resume,
+            },
+        }
+    )
+
     result = await service.compact(
         messages=messages,
         preserve_recent_n=preserve_n,
@@ -107,9 +199,40 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
     )
 
     if result.strategy == "noop" or not result.summary:
+        # No work was done — still close the UI loop so the banner can clear.
+        writer(
+            {
+                "type": "execution_step",
+                "step_type": COMPACTION_SSE_STEP_TYPE,
+                "step_label": "compaction_done",
+                "metadata": {
+                    "phase": "done",
+                    "strategy": "noop",
+                    "tokens_saved": 0,
+                    "duration_ms": int((time.monotonic() - start_monotonic) * 1000),
+                },
+            }
+        )
         if is_resume:
             return _consume_resume_command(messages, "nothing_to_compact")
         return {}
+
+    # Emit `compaction_done` with the real outcome (strategy, tokens saved,
+    # duration). Truncation fallback uses `strategy="truncation"` so the
+    # frontend can display the explicit "older conversation truncated" banner.
+    writer(
+        {
+            "type": "execution_step",
+            "step_type": COMPACTION_SSE_STEP_TYPE,
+            "step_label": "compaction_done",
+            "metadata": {
+                "phase": "done",
+                "strategy": result.strategy,
+                "tokens_saved": result.tokens_saved,
+                "duration_ms": int((time.monotonic() - start_monotonic) * 1000),
+            },
+        }
+    )
 
     # Build the new message list:
     # 1. RemoveMessage for each old message that was compacted
@@ -128,6 +251,22 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
     for msg in to_remove:
         if hasattr(msg, "id") and msg.id:
             new_messages.append(RemoveMessage(id=msg.id))
+
+    # v2 (Task 1.5): also remove prior "compaction #N" SystemMessages IFF the
+    # new summary actually consolidated them. On truncation fallback (or any
+    # path where the service did not merge them in), we leave them in place
+    # so the conversation does not lose information v1 had preserved.
+    if settings.compaction_include_previous_summaries and getattr(
+        result, "consolidated_previous_summaries", False
+    ):
+        for m in messages:
+            content = m.content if isinstance(m, SystemMessage) else None
+            if (
+                isinstance(content, str)
+                and content.startswith("[Conversation history compacted")
+                and getattr(m, "id", None)
+            ):
+                new_messages.append(RemoveMessage(id=m.id))
 
     # If /resume, also remove the /resume message itself
     if is_resume and messages:

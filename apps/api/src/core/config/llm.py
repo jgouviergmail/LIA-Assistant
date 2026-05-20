@@ -240,7 +240,11 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     "gemini-2.0-flash-lite": 1_000_000,
     "gemini-1.5-pro": 1_000_000,
     "gemini-1.5-flash": 1_000_000,
-    # DeepSeek series
+    # DeepSeek series — v4 (2026) brought the family up to 1M; v3 stays at 128K
+    "deepseek-v4-flash": 1_000_000,
+    "deepseek-v4-pro": 1_000_000,
+    "deepseek-v4-reasoner": 1_000_000,
+    "deepseek-v4": 1_000_000,  # matches any "deepseek-v4-…" suffix via startswith fallback
     "deepseek-chat": 128_000,
     "deepseek-reasoner": 128_000,
     "deepseek-coder": 128_000,

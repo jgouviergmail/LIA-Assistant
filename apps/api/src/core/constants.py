@@ -3315,6 +3315,31 @@ COMPACTION_TOOL_OUTPUT_TRUNCATE_CHARS_DEFAULT = 2000
 # Feature flag
 COMPACTION_ENABLED_DEFAULT = True
 
+# Compaction v2 — Hardening (2026-05)
+COMPACTION_PER_CHUNK_TIMEOUT_SECONDS_DEFAULT = 35.0
+COMPACTION_GLOBAL_TIMEOUT_SECONDS_DEFAULT = 120.0
+COMPACTION_MAX_RETRIES_DEFAULT = 3
+COMPACTION_RETRY_BACKOFF_BASE_SECONDS_DEFAULT = 1.0
+COMPACTION_INCLUDE_PREVIOUS_SUMMARIES_DEFAULT = True
+COMPACTION_SSE_STEP_TYPE = "compaction"
+
+# UI progress-estimate heuristic used by `compaction_node._estimate_compaction_seconds`.
+# Tokens per chunk that the LLM is expected to digest, derived from
+# `COMPACTION_CHUNK_MAX_TOKENS_DEFAULT` (20000) minus the prompt overhead.
+COMPACTION_UI_ESTIMATE_TOKENS_PER_CHUNK = 18_000
+# Approximate wall-clock per chunk at p50 latency.
+COMPACTION_UI_ESTIMATE_SECONDS_PER_CHUNK = 12
+# Cap the estimate so the UI never reports a value larger than the global
+# compaction budget minus a safety margin.
+COMPACTION_UI_ESTIMATE_MAX_SECONDS = 90
+# Character → token ratio for the cheap estimate (tiktoken would be more
+# accurate but the heuristic is good enough at the progress-hint level).
+COMPACTION_UI_ESTIMATE_CHARS_PER_TOKEN = 4
+
+# Note: SSE keepalive cadence reuses the existing `sse_heartbeat_interval` setting
+# (SSE_HEARTBEAT_INTERVAL_DEFAULT = 15s). The router-level heartbeat is rebuilt as
+# a concurrent wrapper in Day 2 so that it pulses during long silent phases too.
+
 # Scheduler
 SCHEDULER_JOB_ATTACHMENT_CLEANUP = "attachment_cleanup"
 

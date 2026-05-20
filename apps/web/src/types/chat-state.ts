@@ -42,7 +42,41 @@ export type ChatStatus =
   | 'idle' // No active conversation
   | 'sending' // User message sent, waiting for response
   | 'streaming' // Assistant response streaming
+  | 'compacting' // Conversation history summarization in progress (compaction v2)
   | 'error'; // Error state
+
+/**
+ * State of a conversation history compaction surfaced by backend SSE events.
+ *
+ * - phase = 'in_progress': compaction_start received; UI shows the progress banner
+ *   and locks the chat input.
+ * - phase = 'done': compaction_done received with a real LLM summary.
+ * - phase = 'truncated': compaction_done received with strategy='truncation'
+ *   (the fallback path); UI shows the explicit truncation notice.
+ */
+export interface CompactionState {
+  phase: 'in_progress' | 'done' | 'truncated';
+  estimatedDurationSeconds?: number;
+  startedAt?: number; // Date.now() at compaction_start arrival
+  tokensSaved?: number;
+  durationMs?: number;
+  strategy?: string;
+}
+
+/**
+ * Snapshot of the conversation's current token footprint relative to the
+ * compaction threshold. Updated on every `done` SSE event when the backend
+ * exposes `context_tokens` + `context_threshold` in the metadata.
+ *
+ * Drives the small progress pill rendered in the chat header bar.
+ */
+export interface ContextUsage {
+  tokens: number;
+  threshold: number;
+  /** `tokens / threshold` clamped to [0, 1.5] so a slightly post-threshold
+   * compaction window still displays a meaningful value. */
+  ratio: number;
+}
 
 export interface ConversationTotals {
   totalTokensIn: number;
@@ -111,6 +145,18 @@ export interface ChatState {
 
   // Browser Screenshots: Current overlay data (progressive screenshots during browsing)
   browserScreenshot: BrowserScreenshotData | null;
+
+  // Compaction v2 (2026-05): state of an in-flight or just-finished history
+  // compaction. Drives the chat-input lock (`status === 'compacting'` flows
+  // through useChat's `isTyping` derived state) and the sonner toast emitted
+  // from `handleCompactionStep`. `null` when no compaction has run yet or
+  // after the next user turn cleared it.
+  compaction: CompactionState | null;
+
+  // Context-usage pill (2026-05): current conversation token footprint vs
+  // compaction threshold. Set on every `done` SSE event when the backend
+  // exposes the figures. `null` until the first turn completes.
+  contextUsage: ContextUsage | null;
 }
 
 // ============================================================================
@@ -155,6 +201,11 @@ export type ChatAction =
           tts_characters?: number;
           tts_cost_eur?: number;
           skill_name?: string;
+          // Context-usage pill (2026-05): current conversation token footprint
+          // and the dynamic compaction threshold. Used to render a small
+          // progress pill in the chat header bar.
+          context_tokens?: number;
+          context_threshold?: number;
           generated_images?: { url: string; alt: string }[];
           browser_screenshot?: { url: string; alt: string };
           psyche_state?: {
@@ -210,7 +261,27 @@ export type ChatAction =
 
   // Browser Screenshots: Progressive screenshot overlay
   | { type: 'BROWSER_SCREENSHOT'; payload: BrowserScreenshotData }
-  | { type: 'BROWSER_SCREENSHOT_CLEAR' };
+  | { type: 'BROWSER_SCREENSHOT_CLEAR' }
+
+  // Compaction v2 (2026-05): SSE compaction_start/compaction_done events
+  // emitted by the backend's compaction_node via the LangGraph "custom"
+  // stream mode. Drive the chat-input lock and progress banner.
+  | {
+      type: 'STREAM_COMPACTION_START';
+      payload: { estimatedDurationSeconds?: number; strategy?: string };
+    }
+  | {
+      type: 'STREAM_COMPACTION_DONE';
+      payload: { tokensSaved?: number; durationMs?: number; strategy?: string };
+    }
+
+  // Context-usage pill hydration (2026-05): set on page load from the
+  // /conversations/me/totals payload so the pill is visible immediately,
+  // not only after the first `done` event.
+  | {
+      type: 'CONTEXT_USAGE_HYDRATE';
+      payload: { tokens: number; threshold: number };
+    };
 
 // ============================================================================
 // Initial State
@@ -238,6 +309,8 @@ export const initialChatState: ChatState = {
   currentDebugMetrics: null, // Debug Panel: No current metrics at start
   debugMetricsHistory: [], // Debug Panel: Empty history at start
   browserScreenshot: null, // Browser Screenshots: No overlay at start
+  compaction: null, // Compaction v2: no compaction in flight or recorded
+  contextUsage: null, // Context pill: no measurement yet (first turn not done)
 };
 
 // ============================================================================

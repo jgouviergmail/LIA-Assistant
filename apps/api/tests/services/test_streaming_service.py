@@ -587,3 +587,63 @@ async def test_process_updates_chunk_warns_on_truly_unexpected_state_delta(
     # Visible node → step still emitted (resilience over silence).
     assert len(sse_chunks) == 1
     assert sse_chunks[0][0].type == "execution_step"
+
+
+# ============================================================================
+# "custom" stream_mode handler (Day 2 — Task 2.1)
+# ============================================================================
+
+
+class TestProcessCustomChunk:
+    """Tests for _process_custom_chunk which forwards node-emitted custom events."""
+
+    def test_forwards_well_formed_chunk_into_metadata(self, streaming_service):
+        """step_type and step_label are folded into metadata; chunk type preserved."""
+        chunk = {
+            "type": "execution_step",
+            "step_type": "compaction",
+            "step_label": "compaction_start",
+            "metadata": {"phase": "start", "estimated_duration_seconds": 30},
+        }
+        result = streaming_service._process_custom_chunk(chunk)
+
+        assert len(result) == 1
+        sse, content = result[0]
+        assert content == ""
+        assert sse.type == "execution_step"
+        assert sse.metadata is not None
+        assert sse.metadata["step_type"] == "compaction"
+        assert sse.metadata["step_label"] == "compaction_start"
+        assert sse.metadata["phase"] == "start"
+        assert sse.metadata["estimated_duration_seconds"] == 30
+
+    def test_drops_non_dict_chunk_with_warning(self, streaming_service):
+        """A non-dict payload yields no SSE chunks (defensive)."""
+        result = streaming_service._process_custom_chunk("not a dict")
+        assert result == []
+        result_list = streaming_service._process_custom_chunk(["also bad"])
+        assert result_list == []
+
+    def test_handles_missing_metadata(self, streaming_service):
+        """Missing or None metadata becomes an empty dict; step_type/_label still folded."""
+        chunk = {
+            "type": "execution_step",
+            "step_type": "compaction",
+            "step_label": "compaction_done",
+        }
+        sse, _ = streaming_service._process_custom_chunk(chunk)[0]
+        assert sse.metadata == {
+            "step_type": "compaction",
+            "step_label": "compaction_done",
+        }
+
+    def test_root_metadata_takes_precedence_over_folded_fields(self, streaming_service):
+        """If metadata already has step_type, the root-level step_type does not overwrite it."""
+        chunk = {
+            "type": "execution_step",
+            "step_type": "compaction",
+            "metadata": {"step_type": "from_metadata"},
+        }
+        sse, _ = streaming_service._process_custom_chunk(chunk)[0]
+        assert sse.metadata is not None
+        assert sse.metadata["step_type"] == "from_metadata"

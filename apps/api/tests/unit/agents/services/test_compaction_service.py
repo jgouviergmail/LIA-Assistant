@@ -94,9 +94,13 @@ class TestShouldCompact:
 
     @patch("src.domains.agents.services.compaction_service.settings")
     def test_too_few_messages(self, mock_settings, service):
-        """Fast-path: skip when fewer messages than min threshold."""
+        """Fast-path: skip when fewer messages than min threshold AND token
+        count is below the threshold (otherwise the token signal wins — see
+        the 2026-05 reorder in should_compact)."""
         mock_settings.compaction_enabled = True
         mock_settings.compaction_min_messages = 20
+        mock_settings.compaction_token_threshold = 60_000
+        service._token_counter.count_messages_tokens.return_value = 1_000
         assert service.should_compact(_make_messages(5)) is False
 
     @patch("src.domains.agents.services.compaction_service.settings")
@@ -108,6 +112,20 @@ class TestShouldCompact:
         service._token_counter.count_messages_tokens.return_value = 30_000
 
         assert service.should_compact(_make_messages(25)) is False
+
+    @patch("src.domains.agents.services.compaction_service.settings")
+    def test_token_heavy_but_few_messages_triggers_compaction(self, mock_settings, service):
+        """Regression guard (2026-05): a conversation with FEW messages but
+        TOKEN-HEAVY contents (eg. one big AIMessage carrying embedded data)
+        must still trigger compaction. Before the reorder, the
+        `compaction_min_messages` fast-path returned False even when token
+        count was above the threshold."""
+        mock_settings.compaction_enabled = True
+        mock_settings.compaction_min_messages = 20  # high floor
+        mock_settings.compaction_token_threshold = 20_000
+        service._token_counter.count_messages_tokens.return_value = 22_600
+
+        assert service.should_compact(_make_messages(13)) is True
 
     @patch("src.domains.agents.services.compaction_service.settings")
     def test_above_threshold(self, mock_settings, service):
@@ -275,6 +293,11 @@ class TestCompact:
     ):
         """Compact with a single chunk produces a summary."""
         mock_settings.compaction_chunk_max_tokens = 100000
+        # v2 hardening (Tasks 1.2/1.3): real numeric values for tenacity + wait_for.
+        mock_settings.compaction_per_chunk_timeout_seconds = 5.0
+        mock_settings.compaction_global_timeout_seconds = 10.0
+        mock_settings.compaction_max_retries = 1
+        mock_settings.compaction_retry_backoff_base_seconds = 0.01
         mock_load_prompt.return_value = "Summarize this."
 
         # Mock LLM response
@@ -305,6 +328,8 @@ class TestCompact:
         self, mock_load_prompt, mock_get_llm, mock_settings, service
     ):
         """Returns noop when preserve_recent_n >= non-system messages."""
+        # v2 hardening (Task 1.3): wait_for needs a numeric global timeout.
+        mock_settings.compaction_global_timeout_seconds = 10.0
         msgs = _make_messages(5, with_system=True)
         result = await service.compact(msgs, preserve_recent_n=10, language="en")
 
@@ -318,8 +343,18 @@ class TestCompact:
     async def test_compact_llm_failure_fallback(
         self, mock_load_prompt, mock_get_llm, mock_settings, service
     ):
-        """Falls back to descriptive note when LLM fails."""
+        """Falls back to explicit truncation when LLM fails.
+
+        v2 (2026-05): the old `descriptive_fallback` branch is removed in favour
+        of an explicit truncation notice routed through the outer `compact()`
+        method via `_truncation_fallback`.
+        """
         mock_settings.compaction_chunk_max_tokens = 100000
+        # v2 hardening: provide numeric values so tenacity + global timeout work.
+        mock_settings.compaction_per_chunk_timeout_seconds = 5.0
+        mock_settings.compaction_global_timeout_seconds = 10.0
+        mock_settings.compaction_max_retries = 1
+        mock_settings.compaction_retry_backoff_base_seconds = 0.01
         mock_load_prompt.return_value = "Summarize this."
 
         mock_llm = AsyncMock()
@@ -329,5 +364,6 @@ class TestCompact:
         msgs = _make_messages(20, with_system=True)
         result = await service.compact(msgs, preserve_recent_n=5, language="en")
 
-        assert result.strategy == "descriptive_fallback"
-        assert "compacted" in result.summary.lower()
+        assert result.strategy == "truncation"
+        assert "truncated" in result.summary.lower()
+        assert result.consolidated_previous_summaries is False

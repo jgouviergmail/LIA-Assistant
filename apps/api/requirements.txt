@@ -78,6 +78,9 @@ rank-bm25==0.2.2  # Okapi BM25 algorithm for keyword-based retrieval
 # Graph library - used by SemanticIntentDetector type registry
 networkx==3.6.1  # Dependency graph for semantic type expansion
 
+# Resilience - explicit declaration (also transitive via langchain-core)
+tenacity==9.1.4  # Retry with exponential backoff (used by compaction service)
+
 # LLM Provider Integrations
 langchain-deepseek==1.0.1  # DeepSeek V3 (chat/reasoner) + V4 (flash/pro). Patched locally via _deepseek_patched.py for V4 reasoning_content round-trip in tool flows; track issue #37178 for upstream fix.
 langchain-anthropic==1.4.0  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix)

@@ -199,6 +199,11 @@ class StreamingService:
         # (task_orchestrator just completed). This enables true parallel voice generation
         # DURING response_node streaming, not after.
         self.voice_context_registry: dict[str, Any] | None = None
+        # Latest snapshot of state.messages from the "values" stream mode. Updated
+        # on every values chunk so api/service.py can compute the context-usage
+        # indicator (tokens / threshold) for the SSE `done` chunk metadata.
+        # Context-usage pill — 2026-05.
+        self.latest_state_messages: list[Any] | None = None
         # Skill name activated during this turn (from plan metadata)
         # Used by service.py to include in done SSE metadata for frontend badge
         self.activated_skill_name: str | None = None
@@ -379,6 +384,18 @@ class StreamingService:
                             if step_name:
                                 last_emitted_node = step_name
 
+                        yield (sse_chunk, content_fragment)
+
+                elif mode == "custom":
+                    # Node-emitted custom events (Day 2 — Task 2.1).
+                    # Nodes call langgraph.config.get_stream_writer() and push a
+                    # dict shaped like {type, step_type, step_label, metadata}.
+                    # We translate that to a ChatStreamChunk and forward it.
+                    sse_chunks = self._process_custom_chunk(chunk)
+
+                    for sse_chunk, content_fragment in sse_chunks:
+                        event_type = _get_chunk_event_type(sse_chunk.type)
+                        langgraph_streaming_chunks_total.labels(event_type=event_type).inc()
                         yield (sse_chunk, content_fragment)
 
             # =========================================================================
@@ -833,6 +850,13 @@ class StreamingService:
         # Initialize sent_registry_ids if not provided
         if sent_registry_ids is None:
             sent_registry_ids = set()
+
+        # 0. Snapshot the latest state.messages so api/service.py can compute the
+        # context-usage indicator (tokens vs compaction threshold) when emitting
+        # the SSE `done` chunk. Cheap reference assignment; never copies.
+        latest_messages = chunk.get("messages")
+        if latest_messages is not None:
+            self.latest_state_messages = latest_messages
 
         # 1. Track agent_results changes to detect task_orchestrator completion
         agent_results_changed = self._track_agent_results_change(chunk)
@@ -1387,6 +1411,101 @@ class StreamingService:
                 "category": "tool",
             },
         )
+
+    # ============================================================================
+    # Context-usage pill — token count + compaction threshold for the SSE `done`
+    # ============================================================================
+
+    def compute_context_usage(self) -> dict[str, int] | None:
+        """Return current context-usage stats for the SSE `done` metadata.
+
+        Counts the tokens of the latest state.messages snapshot captured in
+        `_process_values_chunk` and queries the same dynamic threshold that
+        the compaction node uses (`CompactionService.compute_effective_threshold`).
+
+        The frontend renders this as a small progress pill in the chat header
+        bar (between the voice mode badge and the delete button).
+
+        Returns:
+            A dict with `context_tokens` and `context_threshold` keys, or None
+            if no state snapshot is available yet (eg. very first turn with no
+            persisted messages).
+        """
+        if not self.latest_state_messages:
+            return None
+        try:
+            from src.domains.agents.services.compaction_service import (
+                CompactionService,
+            )
+
+            service = CompactionService()
+            tokens = service._token_counter.count_messages_tokens(self.latest_state_messages)
+            threshold = service.compute_effective_threshold()
+            return {
+                "context_tokens": int(tokens),
+                "context_threshold": int(threshold),
+            }
+        except Exception as e:
+            # Best-effort: the pill is purely informational, never fail the
+            # `done` chunk because of a counting hiccup.
+            logger.debug("context_usage_compute_failed", error=str(e))
+            return None
+
+    # ============================================================================
+    # "custom" mode processing — Node-emitted events (Day 2 / Task 2.1)
+    # ============================================================================
+
+    def _process_custom_chunk(
+        self,
+        chunk: Any,
+    ) -> list[tuple[ChatStreamChunk, str]]:
+        """
+        Forward a node-emitted custom event as an SSE chunk.
+
+        Nodes use `langgraph.config.get_stream_writer()` to push dicts shaped
+        like:
+
+            {
+                "type": "execution_step",
+                "step_type": "compaction",
+                "step_label": "compaction_start",
+                "metadata": {"phase": "start", "estimated_duration_seconds": 30},
+            }
+
+        ChatStreamChunk does not expose `step_type`/`step_label` as root fields
+        (see api/schemas.py); we therefore merge them into the `metadata` dict
+        so the frontend can dispatch on `metadata.step_type` and
+        `metadata.step_label` consistently with the existing execution_step
+        events emitted by `_emit_execution_step`.
+
+        Non-dict or malformed payloads are dropped with a warning to avoid
+        propagating garbage into the SSE stream.
+        """
+        if not isinstance(chunk, dict):
+            logger.warning(
+                "custom_mode_non_dict_chunk",
+                chunk_type=type(chunk).__name__,
+            )
+            return []
+
+        chunk_type = chunk.get("type", "execution_step")
+        metadata = chunk.get("metadata") or {}
+        if not isinstance(metadata, dict):
+            metadata = {}
+        # Fold step_type / step_label into metadata to fit the ChatStreamChunk
+        # contract (root-level type/content/metadata only).
+        merged_metadata: dict[str, Any] = dict(metadata)
+        if chunk.get("step_type") is not None:
+            merged_metadata.setdefault("step_type", chunk["step_type"])
+        if chunk.get("step_label") is not None:
+            merged_metadata.setdefault("step_label", chunk["step_label"])
+
+        sse_chunk = ChatStreamChunk(
+            type=chunk_type,
+            content="",
+            metadata=merged_metadata,
+        )
+        return [(sse_chunk, "")]
 
     # ============================================================================
     # "messages" mode processing — Token streaming

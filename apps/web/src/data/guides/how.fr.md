@@ -493,6 +493,10 @@ Le state LangGraph est un `TypedDict` avec un reducer `add_messages_with_truncat
 
 Quand le nombre de tokens dépasse un seuil dynamique (ratio du context window du modèle de réponse), un résumé LLM est généré. Les identifiants critiques (UUIDs, URLs, emails) sont préservés. Ratio d'économie : ~60 % par compaction. Commande `/resume` pour déclenchement manuel.
 
+**Résilience opérationnelle** : chaque appel LLM est encadré par un `asyncio.wait_for` par chunk (35 s par défaut) et un budget global de 120 s. Sur erreur transitoire, `tenacity.AsyncRetrying` rejoue jusqu'à 3 tentatives avec backoff exponentiel. Si le résumé n'aboutit toujours pas, un fallback explicite (`_truncation_fallback`) tronque proprement l'historique ancien avec un `SystemMessage` lisible préservant les identifiants — pas de stub silencieux. Les anciens résumés `compaction #N` sont consolidés dans le merge plutôt que d'être accumulés tour après tour.
+
+**Signal SSE custom mode** : le nœud émet `compaction_start` / `compaction_done` via `langgraph.config.get_stream_writer()` à travers un `stream_mode="custom"` (LangGraph 1.x). Le streaming service les traduit en `ChatStreamChunk(type="execution_step")`. Côté frontend, un toast sonner morphé sur un id stable (`COMPACTION_TOAST_ID`) reste visible pendant toute la compaction, l'input est verrouillé via `status="compacting"`, et une pastille « ContextUsagePill » affiche en continu le ratio tokens/seuil. Le keepalive SSE concurrent (`iter_with_keepalive`) pulse `: heartbeat` toutes les 15 s pendant les awaits silencieux pour neutraliser les coupures Cloudflare. Cinq métriques Prometheus (`compaction_chunk_timeouts_total`, `compaction_global_timeouts_total`, `compaction_total_duration_seconds`, `compaction_writer_unavailable_total`, `compaction_executions_total{strategy}`) alimentent un dashboard Grafana dédié.
+
 ### 10.4. Checkpointing PostgreSQL
 
 State complet checkpointé après chaque nœud. P95 save < 50 ms, P95 load < 100 ms, taille moyenne ~15 KB/conversation.

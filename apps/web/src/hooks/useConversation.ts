@@ -51,6 +51,10 @@ export interface ConversationTotals {
   total_tokens_cache: number;
   total_cost_eur: number;
   total_google_api_requests: number;
+  // Context-usage pill (2026-05): current checkpoint token footprint vs
+  // dynamic compaction threshold. Null when no checkpoint exists yet.
+  context_tokens?: number | null;
+  context_threshold?: number | null;
 }
 
 export interface UseConversationReturn {

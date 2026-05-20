@@ -31,6 +31,7 @@ from src.core.session_dependencies import get_current_active_session
 from src.domains.agents.api.error_messages import SSEErrorMessages
 from src.domains.agents.api.schemas import ChatRequest
 from src.domains.agents.api.service import AgentService
+from src.domains.agents.api.sse_keepalive import KeepalivePulse, iter_with_keepalive
 from src.domains.auth.models import User
 from src.domains.chat.schemas import TokenSummaryDTO
 from src.infrastructure.observability.logging import get_logger
@@ -303,7 +304,8 @@ async def stream_chat(
         - Uses same entry point for both flows (simplified architecture)
         """
         # NOTE: SSE connection monitoring now done via http_requests_in_progress in PrometheusMiddleware
-        last_heartbeat = time.time()
+        # Day 2 / Task 2.3: heartbeats are now driven by `iter_with_keepalive` on the
+        # chat stream, so the inline `last_heartbeat` tracker is no longer needed.
 
         # E2E metrics tracking (PHASE 1.2 - Instrumentation)
         request_start_time = time.time()
@@ -505,7 +507,11 @@ async def stream_chat(
                     )
 
                     # CRITICAL: Pass original_run_id for token aggregation across HITL invocations
-                    async for chunk in agent_service.stream_chat_response(
+                    # Wrap the chat stream with a concurrent keepalive so SSE comments
+                    # (": heartbeat") pulse during long silent phases (eg compaction
+                    # LLM call). The legacy post-chunk heartbeat in this block was
+                    # blind to in-flight awaits — Day 2 / Task 2.3 replaces it.
+                    chat_stream = agent_service.stream_chat_response(
                         user_message=request.message,
                         user_id=request.user_id,
                         session_id=request.session_id,
@@ -523,7 +529,16 @@ async def stream_chat(
                         stt_audio_duration_seconds=request.stt_audio_duration_seconds,
                         stt_cost_usd=request.stt_cost_usd,
                         stt_cost_eur=request.stt_cost_eur,
+                    )
+                    async for item in iter_with_keepalive(
+                        chat_stream,
+                        keepalive_interval_seconds=settings.sse_heartbeat_interval,
                     ):
+                        if isinstance(item, KeepalivePulse):
+                            yield ": heartbeat\n\n"
+                            continue
+
+                        chunk = item
                         # E2E metrics: Extract metadata from chunks (PHASE 1.2)
                         if chunk.type == "router_decision" and chunk.metadata:
                             intention_label = chunk.metadata.get("intention", "unknown")
@@ -535,12 +550,6 @@ async def stream_chat(
                         # Send chunk as SSE data
                         chunk_json = chunk.model_dump_json()
                         yield f"data: {chunk_json}\n\n"
-
-                        # Send heartbeat if needed
-                        current_time = time.time()
-                        if current_time - last_heartbeat > settings.sse_heartbeat_interval:
-                            yield ": heartbeat\n\n"
-                            last_heartbeat = current_time
 
                         # Small delay
                         await asyncio.sleep(settings.agent_stream_sleep_interval)
@@ -563,7 +572,10 @@ async def stream_chat(
                     accept_language_header=accept_language,
                 )
 
-                async for chunk in agent_service.stream_chat_response(
+                # Wrap with concurrent keepalive so heartbeats fire during long
+                # silent awaits (Day 2 / Task 2.3) — the legacy inline check
+                # only pulsed between received chunks.
+                chat_stream = agent_service.stream_chat_response(
                     user_message=request.message,
                     user_id=request.user_id,
                     session_id=request.session_id,
@@ -580,7 +592,21 @@ async def stream_chat(
                     stt_audio_duration_seconds=request.stt_audio_duration_seconds,
                     stt_cost_usd=request.stt_cost_usd,
                     stt_cost_eur=request.stt_cost_eur,
+                )
+                async for item in iter_with_keepalive(
+                    chat_stream,
+                    keepalive_interval_seconds=settings.sse_heartbeat_interval,
                 ):
+                    if isinstance(item, KeepalivePulse):
+                        yield ": heartbeat\n\n"
+                        logger.debug(
+                            "sse_heartbeat_sent",
+                            user_id=str(current_user.id),
+                            session_id=request.session_id,
+                        )
+                        continue
+
+                    chunk = item
                     # E2E metrics: Extract metadata from chunks (PHASE 1.2)
                     if chunk.type == "router_decision" and chunk.metadata:
                         intention_label = chunk.metadata.get("intention", "unknown")
@@ -592,19 +618,6 @@ async def stream_chat(
                     # Send chunk as SSE data
                     chunk_json = chunk.model_dump_json()
                     yield f"data: {chunk_json}\n\n"
-
-                    # Send heartbeat if needed (prevent timeout)
-                    current_time = time.time()
-                    if current_time - last_heartbeat > settings.sse_heartbeat_interval:
-                        yield ": heartbeat\n\n"
-                        last_heartbeat = current_time
-                        # NOTE: Heartbeat metric removed - SSE streams are short-lived, no need to track
-
-                        logger.debug(
-                            "sse_heartbeat_sent",
-                            user_id=str(current_user.id),
-                            session_id=request.session_id,
-                        )
 
                     # Small delay to prevent overwhelming client
                     await asyncio.sleep(settings.agent_stream_sleep_interval)

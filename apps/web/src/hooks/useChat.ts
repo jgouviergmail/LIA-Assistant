@@ -8,7 +8,12 @@ import {
   DebugMetrics,
   BrowserScreenshotData,
 } from '@/types/chat';
-import { ConversationTotals, ChatAction, DebugMetricsEntry } from '@/types/chat-state';
+import {
+  ConversationTotals,
+  ChatAction,
+  DebugMetricsEntry,
+  ContextUsage,
+} from '@/types/chat-state';
 import {
   chatReducer,
   createInitialState,
@@ -78,6 +83,20 @@ export interface UseChatReturn {
   // Browser Screenshots: Current overlay data
   browserScreenshot: BrowserScreenshotData | null;
   clearBrowserScreenshot: () => void;
+  // Context-usage pill (2026-05): current conversation token footprint vs the
+  // dynamic compaction threshold. `null` until the first turn completes. The
+  // compaction in-flight state itself stays in the reducer (drives
+  // `status === 'compacting'` → input lock) but no consumer needs to read it
+  // — the sonner toast is fully managed by `handleCompactionStep`.
+  contextUsage: ContextUsage | null;
+  /**
+   * Hydrate the context-usage pill from the server-side totals payload.
+   * No-op on missing or invalid values.
+   */
+  hydrateContextUsage: (
+    tokens: number | null | undefined,
+    threshold: number | null | undefined
+  ) => void;
 }
 
 export const useChat = ({
@@ -545,8 +564,30 @@ export const useChat = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // dispatch excluded: stable from useReducer
 
+  /**
+   * Hydrate the context-usage pill from server totals on page load.
+   * No-op when threshold is zero/negative (defensive) or values missing.
+   * Called by the chat page after /conversations/me/totals returns.
+   */
+  const hydrateContextUsage = useCallback(
+    (tokens: number | null | undefined, threshold: number | null | undefined) => {
+      if (typeof tokens !== 'number' || typeof threshold !== 'number' || threshold <= 0) {
+        return;
+      }
+      dispatch({ type: 'CONTEXT_USAGE_HYDRATE', payload: { tokens, threshold } });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [] // dispatch excluded: stable from useReducer
+  );
+
   // Derived state (computed from reducer state)
-  const isTyping = state.status === 'streaming' || state.status === 'sending';
+  // Compaction v2 (Task 3.3): `compacting` is treated as an in-flight state so
+  // that the existing `disabled={isTyping || isUsageBlocked}` wiring on
+  // ChatInput automatically locks the textarea while the server summarizes.
+  const isTyping =
+    state.status === 'streaming' ||
+    state.status === 'sending' ||
+    state.status === 'compacting';
   const isConnected = state.apiAvailable && state.streaming.sseStatus !== 'error';
 
   return {
@@ -570,5 +611,8 @@ export const useChat = ({
     // Browser Screenshots: Current overlay data
     browserScreenshot: state.browserScreenshot,
     clearBrowserScreenshot,
+    // Context-usage pill: tokens vs compaction threshold (null on first load)
+    contextUsage: state.contextUsage,
+    hydrateContextUsage,
   };
 };

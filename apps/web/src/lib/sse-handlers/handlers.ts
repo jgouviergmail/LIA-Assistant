@@ -23,6 +23,10 @@ import {
 import { DebugMetricsEntry } from '@/types/chat-state';
 import { SSEHandlerContext, ProgressMessageMetadata } from './types';
 
+// Stable id used to morph the compaction toast in place (loading → success/warn)
+// rather than stacking distinct toasts.
+const COMPACTION_TOAST_ID = 'compaction-progress';
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -320,9 +324,92 @@ export function handlePlannerMetadata(chunk: ChatStreamChunk, context: SSEHandle
 }
 
 /**
+ * Handle execution_step subtypes specific to compaction v2 (Task 3.2).
+ *
+ * The backend emits compaction_start / compaction_done events from the
+ * compaction node (`apps/api/src/domains/agents/nodes/compaction_node.py`)
+ * via LangGraph's "custom" stream_mode. They are typed as `execution_step`
+ * on the wire but carry `metadata.step_type === 'compaction'` so we can
+ * intercept them before the generic progress-message accumulator runs.
+ *
+ * The user-facing feedback is a sonner toast that morphs in place (loading →
+ * success/warning) so the indicator stays visible no matter where the chat
+ * scrollbar is. The reducer dispatches drive the chat-input lock via
+ * `status === 'compacting'` → `isTyping`.
+ *
+ * Returns `true` when the chunk was handled here (no further processing
+ * needed by `handleExecutionStep`).
+ */
+function handleCompactionStep(
+  chunk: ChatStreamChunk,
+  context: SSEHandlerContext
+): boolean {
+  const metadata = chunk.metadata as Record<string, unknown> | undefined;
+  if (!metadata || metadata.step_type !== 'compaction') {
+    return false;
+  }
+
+  const stepLabel = metadata.step_label as string | undefined;
+  if (stepLabel === 'compaction_start') {
+    // Persistent loading toast — same `id` is reused on `compaction_done` so
+    // sonner morphs the same toast into a success/warning rather than
+    // stacking. Toasts live outside the chat scroll container, so they remain
+    // visible no matter where the user is scrolled.
+    toast.loading(context.t('chat.compaction.in_progress'), {
+      id: COMPACTION_TOAST_ID,
+    });
+    context.dispatch({
+      type: 'STREAM_COMPACTION_START',
+      payload: {
+        estimatedDurationSeconds: metadata.estimated_duration_seconds as
+          | number
+          | undefined,
+        strategy: metadata.strategy as string | undefined,
+      },
+    });
+    return true;
+  }
+  if (stepLabel === 'compaction_done') {
+    const tokensSaved = metadata.tokens_saved as number | undefined;
+    const strategy = metadata.strategy as string | undefined;
+    // Truncation = the LLM summary failed and we fell back to dropping older
+    // messages. Surface as a warning so the user knows the recap is degraded.
+    if (strategy === 'truncation') {
+      toast.warning(context.t('chat.compaction.truncated'), {
+        id: COMPACTION_TOAST_ID,
+        duration: 6000,
+      });
+    } else {
+      toast.success(
+        context.t('chat.compaction.completed', { tokens: tokensSaved ?? 0 }),
+        { id: COMPACTION_TOAST_ID, duration: 4000 },
+      );
+    }
+    context.dispatch({
+      type: 'STREAM_COMPACTION_DONE',
+      payload: {
+        tokensSaved,
+        durationMs: metadata.duration_ms as number | undefined,
+        strategy,
+      },
+    });
+    return true;
+  }
+  // Unknown step_label for a compaction event — fall through to the generic
+  // execution_step handler so we still emit *some* progress feedback.
+  return false;
+}
+
+/**
  * Handle execution_step: Dynamic execution progress messages (accumulated)
  */
 export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
+  // Intercept compaction-specific events first — they drive the chat-input
+  // lock + sonner toast rather than the generic execution_step accumulator.
+  if (handleCompactionStep(chunk, context)) {
+    return;
+  }
+
   const {
     dispatch,
     withContext,

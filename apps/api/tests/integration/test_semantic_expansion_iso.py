@@ -70,7 +70,7 @@ class TestQueryAnalyzerIntegration:
         """
         # Simulate agent_registry providing required_types
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             # Mock agent registry
             mock_agent_reg = Mock()
@@ -86,9 +86,13 @@ class TestQueryAnalyzerIntegration:
                 reasoning_trace=[],
             )
 
-            # ISO-FUNCTIONAL verifications
+            # ISO-FUNCTIONAL verifications. The expansion service inserts the
+            # canonical singular domain name `"contact"` (see
+            # `core_types.py:source_domains=["contact", ...]` and the literal in
+            # `expansion_service._expand_domains_iso_functional`). Tests have to
+            # assert on the singular form, not the plural alias.
             assert "routes" in result, "Original domain should be preserved"
-            assert "contacts" in result, "Contacts should be added (provides physical_address)"
+            assert "contact" in result, "Contact should be added (provides physical_address)"
             assert len(result) == 2
 
     @pytest.mark.asyncio
@@ -102,7 +106,7 @@ class TestQueryAnalyzerIntegration:
         - Expected: ["calendar", "contacts"]
         """
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             mock_agent_reg = Mock()
             mock_agent_reg.get_required_semantic_types_for_domains.return_value = {
@@ -117,7 +121,7 @@ class TestQueryAnalyzerIntegration:
             )
 
             assert "calendar" in result
-            assert "contacts" in result
+            assert "contact" in result
 
     @pytest.mark.asyncio
     async def test_no_expansion_without_person_reference(self, query_analyzer_service):
@@ -130,7 +134,7 @@ class TestQueryAnalyzerIntegration:
         - Expected: ["calendar"] (NO expansion)
         """
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             mock_agent_reg = Mock()
             mock_agent_reg.get_required_semantic_types_for_domains.return_value = {
@@ -146,7 +150,7 @@ class TestQueryAnalyzerIntegration:
 
             # NO expansion
             assert result == ["calendar"]
-            assert "contacts" not in result
+            assert "contact" not in result
 
     @pytest.mark.asyncio
     async def test_expansion_with_multiple_types(self, query_analyzer_service):
@@ -159,7 +163,7 @@ class TestQueryAnalyzerIntegration:
         - Expected: ["calendar", "contacts"] (contacts added only once)
         """
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             mock_agent_reg = Mock()
             mock_agent_reg.get_required_semantic_types_for_domains.return_value = {
@@ -175,9 +179,9 @@ class TestQueryAnalyzerIntegration:
             )
 
             assert "calendar" in result
-            assert "contacts" in result
+            assert "contact" in result
             # Contacts should only be added once
-            assert result.count("contacts") == 1
+            assert result.count("contact") == 1
 
     @pytest.mark.asyncio
     async def test_expansion_reasoning_trace(self, query_analyzer_service):
@@ -185,7 +189,7 @@ class TestQueryAnalyzerIntegration:
         reasoning_trace = []
 
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             mock_agent_reg = Mock()
             mock_agent_reg.get_required_semantic_types_for_domains.return_value = {
@@ -200,7 +204,7 @@ class TestQueryAnalyzerIntegration:
             )
 
             assert "routes" in result
-            assert "contacts" in result
+            assert "contact" in result
             # Verify that reasoning_trace was populated
             assert len(reasoning_trace) > 0
             assert any("expansion" in str(r).lower() for r in reasoning_trace)
@@ -209,7 +213,7 @@ class TestQueryAnalyzerIntegration:
     async def test_expansion_with_empty_required_types(self, query_analyzer_service):
         """Test: no required types."""
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             mock_agent_reg = Mock()
             # No required types
@@ -229,7 +233,7 @@ class TestQueryAnalyzerIntegration:
     async def test_expansion_error_handling(self, query_analyzer_service):
         """Test: error handling when registry fails."""
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             # Simulate an error
             mock_registry.side_effect = Exception("Registry error")
@@ -266,11 +270,11 @@ class TestExpansionServiceValidation:
 
         # Contacts must provide physical_address
         address_providers = service.get_providers_for_type("physical_address")
-        assert "contacts" in address_providers
+        assert "contact" in address_providers
 
         # Contacts must provide email_address
         email_providers = service.get_providers_for_type("email_address")
-        assert "contacts" in email_providers
+        assert "contact" in email_providers
 
     def test_registry_contains_all_explicit_types(self):
         """Verify that the 5 explicit types exist."""
@@ -308,7 +312,7 @@ class TestRegressionScenarios:
         Expected: get_contacts_tool -> get_route_tool
         """
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             mock_agent_reg = Mock()
             mock_agent_reg.get_required_semantic_types_for_domains.return_value = {
@@ -322,7 +326,7 @@ class TestRegressionScenarios:
                 reasoning_trace=[],
             )
 
-            assert result == ["routes", "contacts"]
+            assert result == ["routes", "contact"]
 
     @pytest.mark.asyncio
     async def test_scenario_rdv_avec_frere(self, query_analyzer_service):
@@ -336,7 +340,7 @@ class TestRegressionScenarios:
         Expected: get_contacts_tool -> create_event_tool
         """
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             mock_agent_reg = Mock()
             mock_agent_reg.get_required_semantic_types_for_domains.return_value = {
@@ -350,7 +354,7 @@ class TestRegressionScenarios:
                 reasoning_trace=[],
             )
 
-            assert result == ["calendar", "contacts"]
+            assert result == ["calendar", "contact"]
 
     @pytest.mark.asyncio
     async def test_scenario_mes_prochains_rdv(self, query_analyzer_service):
@@ -364,7 +368,7 @@ class TestRegressionScenarios:
         Expected: ONLY calendar, NO contacts
         """
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             mock_agent_reg = Mock()
             mock_agent_reg.get_required_semantic_types_for_domains.return_value = {
@@ -380,7 +384,7 @@ class TestRegressionScenarios:
 
             # NO expansion
             assert result == ["calendar"]
-            assert "contacts" not in result
+            assert "contact" not in result
 
 
 class TestEdgeCasesIntegration:
@@ -389,7 +393,7 @@ class TestEdgeCasesIntegration:
     @pytest.mark.asyncio
     async def test_empty_domains_list(self, query_analyzer_service):
         """Test: empty domain list."""
-        with patch("src.domains.agents.services.query_analyzer_service.get_global_registry"):
+        with patch("src.domains.agents.registry.agent_registry.get_global_registry"):
             result = await query_analyzer_service._expand_domains_for_semantic_types(
                 domains=[],
                 has_person_reference=True,
@@ -402,7 +406,7 @@ class TestEdgeCasesIntegration:
     async def test_contacts_already_in_domains(self, query_analyzer_service):
         """Test: contacts already in the domains."""
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             mock_agent_reg = Mock()
             mock_agent_reg.get_required_semantic_types_for_domains.return_value = {
@@ -411,13 +415,13 @@ class TestEdgeCasesIntegration:
             mock_registry.return_value = mock_agent_reg
 
             result = await query_analyzer_service._expand_domains_for_semantic_types(
-                domains=["routes", "contacts"],  # contacts already present
+                domains=["routes", "contact"],  # contacts already present
                 has_person_reference=True,
                 reasoning_trace=[],
             )
 
             # No duplication
-            assert result.count("contacts") == 1
+            assert result.count("contact") == 1
             assert len(result) == 2
 
     @pytest.mark.asyncio
@@ -426,7 +430,7 @@ class TestEdgeCasesIntegration:
         expansion_reasons = []
 
         with patch(
-            "src.domains.agents.services.query_analyzer_service.get_global_registry"
+            "src.domains.agents.registry.agent_registry.get_global_registry"
         ) as mock_registry:
             mock_agent_reg = Mock()
             mock_agent_reg.get_required_semantic_types_for_domains.return_value = {
@@ -441,7 +445,7 @@ class TestEdgeCasesIntegration:
                 expansion_reasons=expansion_reasons,
             )
 
-            assert "contacts" in result
+            assert "contact" in result
             # expansion_reasons should be populated
             assert len(expansion_reasons) > 0
             assert any("physical_address" in r for r in expansion_reasons)

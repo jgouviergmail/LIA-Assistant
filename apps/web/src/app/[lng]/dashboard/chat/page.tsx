@@ -10,6 +10,7 @@ import { Message } from '@/types/chat';
 import { RegistryProvider } from '@/lib/registry-context';
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { ChatInput } from '@/components/chat/ChatInput';
+import { ContextUsagePill } from '@/components/chat/ContextUsagePill';
 import { GeolocationPrompt } from '@/components/chat/GeolocationPrompt';
 import { DebugPanel } from '@/components/debug/DebugPanel';
 import { useDebugMetrics } from '@/components/debug/hooks/useDebugMetrics';
@@ -64,6 +65,8 @@ export default function ChatPage() {
     currentDebugMetrics, // Debug Panel: Scoring metrics for current request
     debugMetricsHistory, // Debug Panel: Cumulative history of all request metrics
     browserScreenshot, // Browser Screenshots: Current overlay data
+    contextUsage, // Context-usage pill: tokens vs compaction threshold
+    hydrateContextUsage, // Seeds the pill from /me/totals on page load
   } = useChat({ debugPanelVisible: showDebugPanel });
   const { loadConversationHistory, loadConversationTotals, resetConversation } = useConversation();
   const router = useLocalizedRouter();
@@ -273,6 +276,10 @@ export default function ChatPage() {
         // These totals include ALL tokens, including those from HITL messages
         if (totals) {
           setApiTotals(totals);
+          // Context-usage pill (2026-05): hydrate from the same payload so the
+          // pill is visible immediately on page refresh, not only after the
+          // first new SSE `done` event.
+          hydrateContextUsage(totals.context_tokens, totals.context_threshold);
         }
       }
     };
@@ -423,7 +430,7 @@ export default function ChatPage() {
               {/* RAG Spaces Indicator */}
               <ActiveSpacesIndicator />
 
-              {/* Right side: Search + Delete/New chat */}
+              {/* Right side: Search + Context-usage pill + Delete/New chat */}
               <div className="flex items-center gap-2">
                 {/* Search input — filters currently loaded messages by content */}
                 <div className="relative hidden mobile:flex items-center">
@@ -447,6 +454,11 @@ export default function ChatPage() {
                     </button>
                   )}
                 </div>
+                {/* Context-usage pill — shows tokens vs compaction threshold.
+                    Hidden until the first turn completes (no data yet).
+                    Placed AFTER the search field so on desktop the order is
+                    [Search] [Pill] [Delete]. */}
+                {contextUsage && <ContextUsagePill usage={contextUsage} />}
                 {/* Delete/New chat button */}
                 <button
                   onClick={handleResetConversation}

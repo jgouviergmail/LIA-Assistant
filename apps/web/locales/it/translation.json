@@ -456,6 +456,16 @@
       "error_connection": "Impossibile connettersi al servizio vocale. Riprova.",
       "error_generic": "Si è verificato un errore durante l'input vocale. Riprova."
     },
+    "compaction": {
+      "in_progress": "Riepilogo della conversazione in corso per liberare contesto...",
+      "completed": "Conversazione riepilogata — {{tokens}} token liberati.",
+      "truncated": "La conversazione precedente è stata troncata perché il riepilogo non è stato generato."
+    },
+    "context_usage": {
+      "tooltip": "Contesto della conversazione: {{tokens}} di {{threshold}} token utilizzati ({{percent}}%). Compattazione automatica al 100%.",
+      "tooltip_compact": "{{tokens}} / {{threshold}} ({{percent}}%)",
+      "tooltip_overflow": "Contesto della conversazione: {{tokens}} di {{threshold}} token utilizzati ({{percent}}%). Soglia superata — la compattazione avverrà al prossimo messaggio."
+    },
     "voice_mode": {
       "enable": "Attiva modalità vocale",
       "disable": "Disattiva modalità vocale",
@@ -2746,7 +2756,7 @@
         },
         "memory": {
           "title": "💾 Doppia Memoria Breve/Lungo Termine",
-          "description": "Breve termine: finestra scorrevole di messaggi con riassunto automatico del contesto. Lungo termine: estrazione di fatti su di te (preferenze, relazioni, abitudini) memorizzati con embeddings semantici. Ricerca ibrida BM25 + semantica per un richiamo ottimale: sia le parole chiave esatte CHE il significato vengono utilizzati per recuperare i tuoi ricordi rilevanti."
+          "description": "Breve termine: finestra scorrevole di messaggi con riassunto automatico del contesto conversazionale. Il riassunto è resiliente — timeout per chunk e globale, retry con backoff esponenziale, fallback esplicito di troncamento se l'LLM fallisce; un toast visivo viene mostrato durante l'operazione e l'input è bloccato per tutto il tempo necessario, e una pillola nell'intestazione della chat mostra in continuo il rapporto token/soglia. Lungo termine: estrazione di fatti su di te (preferenze, relazioni, abitudini) memorizzati con embeddings semantici. Ricerca ibrida BM25 + semantica per un richiamo ottimale: sia le parole chiave esatte CHE il significato vengono utilizzati per recuperare i tuoi ricordi rilevanti."
         },
         "interests": {
           "title": "✨ Apprendimento Intelligente degli Interessi",
@@ -2919,6 +2929,17 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_8": {
+          "title": "v1.20.8 — La conversazione non si blocca più quando lo storico diventa lungo, indicatore di utilizzo del contesto nella chat, avviso visibile quando il riepilogo non riesce",
+          "date": "Maggio 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>La conversazione non si blocca più quando lo storico cresce</b> — Quando la tua conversazione accumula molti messaggi, LIA esegue in background una <em>compattazione</em> che riepiloga i turni più vecchi per liberare spazio nel suo contesto. Il 16 maggio 2026 un utente in produzione non è più riuscito a inviare alcun messaggio: ogni turno rilanciava il riepilogo, il modello di linguaggio rispondeva una volta poi restava in silenzio ~93 s finché la connessione cadeva a 125 s con <em>«Erreur de connexion: network error»</em>. Causa: nessun tempo massimo sulla chiamata al modello, nessun tentativo di rilancio, nessun segnale inviato al frontend durante l'attesa. Questa versione ricostruisce la resilienza end-to-end: timeout per chunk (35 s), timeout globale (2 min), tre tentativi con backoff progressivo, e — se nulla funziona — un fallback esplicito che tronca pulitamente lo storico vecchio invece di lasciarti con un riepilogo silenzioso e inutile. Vedrai letteralmente la nota <em>«La conversazione precedente è stata troncata perché il riepilogo non è stato generato»</em> quando questo fallback si attiva, anziché una perdita muta di informazioni.",
+            "i2": "<b>Indicatore visivo nella chat durante la compattazione</b> — Prima di questa versione, quando LIA riepilogava il tuo storico non avevi alcun feedback visivo: il pulsante di invio si bloccava per ~30 s senza spiegazioni. Ora, non appena la compattazione parte, una notifica (toast) appare in alto sullo schermo con <em>«Riepilogo della conversazione in corso per liberare contesto…»</em> e uno spinner; l'area di input è bloccata per tutta la durata del riepilogo; alla fine il toast si trasforma in una conferma <em>«Conversazione riepilogata — N token liberati»</em> (o in un avviso se il fallback di troncamento si è attivato). Il toast rimane visibile indipendentemente da dove hai scorso nella conversazione.",
+            "i3": "<b>Pillola di utilizzo del contesto nell'intestazione della chat</b> — Una nuova pillola discreta accanto al campo di ricerca mostra in modo continuo <code>token usati / soglia di compattazione</code> sotto forma di anello colorato e percentuale. Verde sotto il 50 %, ambra tra 50 e 75 %, arancione tra 75 e 90 %, rosa sopra il 90 %. La percentuale mostrata è limitata al 100 % per restare leggibile; in caso di superamento (tipico subito dopo una risposta lunga), il tooltip al passaggio del mouse spiega <em>«la compattazione si attiverà al prossimo messaggio»</em>. La pillola persiste tra i ricaricamenti della pagina — non serve inviare un messaggio per vederla.",
+            "i4": "<b>Admin: nuovi parametri operatore, dashboard Grafana, script di ripristino transazionale</b> — Cinque nuovi parametri <code>.env</code> pilotano la compattazione senza rebuild: <code>COMPACTION_PER_CHUNK_TIMEOUT_SECONDS</code> (default 35), <code>COMPACTION_GLOBAL_TIMEOUT_SECONDS</code> (default 120), <code>COMPACTION_MAX_RETRIES</code> (default 3), <code>COMPACTION_RETRY_BACKOFF_BASE_SECONDS</code> (default 1), <code>COMPACTION_INCLUDE_PREVIOUS_SUMMARIES</code> (default <code>true</code>, consolida i riepiloghi precedenti invece di accumularli turno dopo turno). Nuova dashboard Grafana <code>14-compaction.json</code> con 7 pannelli (mix di strategie, latenze p50/p95/p99, timeout per chunk, timeout globali, errori per tipo, motivi di skip, token liberati). Cinque nuove metriche Prometheus tra cui <code>compaction_writer_unavailable_total</code> che rende visibile qualsiasi degrado silenzioso del segnale SSE. Uno script SQL transazionale <code>scripts/admin/reset_user_checkpoints.sql</code> resetta i checkpoint di un singolo utente per recuperare una conversazione bloccata, senza toccare messaggi o applicazione. Documentazione operatore completa in <code>docs/technical/COMPACTION_v2.md</code>."
+          }
+        },
         "v1_20_7": {
           "title": "v1.20.7 — Eliminazione di promemoria in massa: il riepilogo è finalmente leggibile, con nome e orario di attivazione di ogni promemoria",
           "date": "Maggio 2026",
@@ -3483,7 +3504,7 @@
           },
           "q9": {
             "question": "Cos'è il comando /resume?",
-            "answer": "Il comando <strong>/resume</strong> attiva la <strong>compattazione intelligente del contesto</strong>:<br><br><strong>Cosa fa:</strong><br>• Riassume la cronologia delle conversazioni precedenti usando l'IA<br>• Preserva gli identificatori critici (nomi, email, ID)<br>• Libera spazio nella finestra di contesto per conversazioni più lunghe<br><br><strong>Quando usarlo:</strong><br>• Quando la conversazione dura da molto tempo<br>• Quando LIA sembra perdere il filo del contesto precedente<br>• Quando vuoi «resettare» il contesto senza perdere informazioni importanti<br><br><strong>Come funziona:</strong><br>1. Digita <strong>/resume</strong> nella chat<br>2. LIA riassume i vecchi messaggi in un riepilogo conciso<br>3. I messaggi recenti vengono conservati intatti<br>4. LIA conferma la compattazione con un breve riepilogo<br><br><strong>💡 Nota:</strong> La compattazione si attiva anche automaticamente quando la conversazione diventa molto lunga. Il comando /resume ti permette di forzarla in qualsiasi momento."
+            "answer": "Il comando <strong>/resume</strong> attiva la <strong>compattazione intelligente del contesto</strong>:<br><br><strong>Cosa fa:</strong><br>• Riassume la cronologia delle conversazioni precedenti usando l'IA<br>• Preserva gli identificatori critici (nomi, email, ID)<br>• Libera spazio nella finestra di contesto per conversazioni più lunghe<br><br><strong>Quando usarlo:</strong><br>• Quando la conversazione dura da molto tempo<br>• Quando LIA sembra perdere il filo del contesto precedente<br>• Quando vuoi «resettare» il contesto senza perdere informazioni importanti<br><br><strong>Come funziona:</strong><br>1. Digita <strong>/resume</strong> nella chat<br>2. LIA riassume i vecchi messaggi in un riepilogo conciso<br>3. I messaggi recenti vengono conservati intatti<br>4. LIA conferma la compattazione con un breve riepilogo<br><br><strong>💡 Mentre la compattazione è in corso:</strong><br>• Appare un <strong>toast</strong> in alto sullo schermo con <em>«Riepilogo della conversazione in corso…»</em><br>• L'area di input viene <strong>bloccata</strong> automaticamente fino al termine del riepilogo<br>• Al termine, il toast si trasforma in una conferma <em>«Conversazione riepilogata — N token liberati»</em><br>• Se il riepilogo non riesce a completarsi (guasto LLM, timeout), un <strong>fallback esplicito</strong> tronca pulitamente la cronologia più vecchia con una nota visibile invece di una perdita silenziosa<br><br><strong>📊 Indicatore permanente:</strong> Una pillola discreta nell'intestazione della chat (accanto al campo di ricerca) mostra in continuo il tuo utilizzo <em>token/soglia</em> sotto forma di anello colorato — puoi vedere in qualsiasi momento quando si attiverà la prossima compattazione.<br><br><strong>💡 Nota:</strong> La compattazione si attiva anche automaticamente quando la conversazione diventa molto lunga. Il comando /resume ti permette di forzarla in qualsiasi momento."
           },
           "q10": {
             "question": "Qual è la differenza tra modalità Pipeline (🔀) e ReAct (⚡)?",

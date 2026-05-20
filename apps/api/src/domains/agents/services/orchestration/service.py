@@ -1394,7 +1394,10 @@ class OrchestrationService:
                 async for mode, chunk in graph.astream(
                     command_input,
                     runnable_config,
-                    stream_mode=["values", "messages", "updates"],
+                    # "custom" added in Day 2: nodes use langgraph.config.get_stream_writer
+                    # to push compaction_start/done events that the streaming service
+                    # forwards to the frontend SSE stream.
+                    stream_mode=["values", "messages", "updates", "custom"],
                     context=context_dict,
                 ):
                     yield (mode, chunk)
@@ -1403,7 +1406,7 @@ class OrchestrationService:
                 async for mode, chunk in graph.astream(
                     state,
                     runnable_config,
-                    stream_mode=["values", "messages", "updates"],
+                    stream_mode=["values", "messages", "updates", "custom"],
                     context=context_dict,
                 ):
                     yield (mode, chunk)

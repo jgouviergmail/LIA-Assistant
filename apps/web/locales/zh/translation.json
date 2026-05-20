@@ -469,6 +469,16 @@
       "error_connection": "无法连接到语音服务。请重试。",
       "error_generic": "语音输入时发生错误。请重试。"
     },
+    "compaction": {
+      "in_progress": "正在总结对话以释放上下文...",
+      "completed": "对话已总结 — 释放了 {{tokens}} 个 token。",
+      "truncated": "由于无法生成摘要，较早的对话已被截断。"
+    },
+    "context_usage": {
+      "tooltip": "对话上下文：已使用 {{tokens}} / {{threshold}} 个 token（{{percent}}%）。达到 100% 时自动压缩。",
+      "tooltip_compact": "{{tokens}} / {{threshold}}（{{percent}}%）",
+      "tooltip_overflow": "对话上下文：已使用 {{tokens}} / {{threshold}} 个 token（{{percent}}%）。已超过阈值 — 下条消息发送时将自动压缩。"
+    },
     "voice_mode": {
       "enable": "启用语音模式",
       "disable": "禁用语音模式",
@@ -2739,7 +2749,7 @@
         },
         "memory": {
           "title": "💾 短期/长期双重记忆",
-          "description": "短期：滑动消息窗口，自动总结上下文。长期：提取关于您的信息（偏好、关系、习惯）使用语义嵌入向量存储。混合BM25+语义搜索实现最佳召回：同时使用精确关键词和语义来检索您的相关记忆。"
+          "description": "短期：滑动消息窗口，自动总结对话上下文。该摘要具有韧性 — 每个分块和全局都有超时、指数退避重试、若 LLM 失败则触发显式截断回退；执行期间会显示一个可见的 toast,输入框在此过程中被锁定,并且聊天标题栏的胶囊持续显示 token/阈值的比率。长期：提取关于您的信息（偏好、关系、习惯）使用语义嵌入向量存储。混合 BM25 + 语义搜索实现最佳召回：同时使用精确关键词和语义来检索您的相关记忆。"
         },
         "interests": {
           "title": "✨ 智能兴趣学习",
@@ -2912,6 +2922,17 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_20_8": {
+          "title": "v1.20.8 — 长历史不再让对话卡死,聊天中加入上下文使用指示器,摘要失败时也有清晰提示",
+          "date": "2026 年 5 月",
+          "count": "4",
+          "items": {
+            "i1": "<b>历史变长时对话不再卡死</b> — 当你的对话积累大量消息时,LIA 会在后台运行一次<em>压缩</em>,把较早的轮次总结起来,为上下文腾出空间。2026 年 5 月 16 日,一位生产环境的用户完全无法再发送任何消息:每一轮都会重新触发摘要,语言模型回答一次后便沉默约 93 秒,直到连接在 125 秒时被断开,提示 <em>「Erreur de connexion: network error」</em>。根因是:模型调用没有最大时长限制,瞬时错误没有重试,等待期间没有任何信号发给前端。本版本端到端重建了韧性:每个分块超时(35 秒)、全局超时(2 分钟)、三次递进退避重试,如果还是失败,会触发显式回退,把旧历史干净地截断,而不是丢给你一个空洞无用的摘要。当该回退被触发时,你会真正看到 <em>「由于无法生成摘要,较早的对话已被截断」</em>,而不是悄无声息地丢失信息。",
+            "i2": "<b>压缩进行中聊天里有可见提示</b> — 在此版本之前,LIA 总结你的历史时你没有任何视觉反馈:发送按钮就是冻结大约 30 秒,且没有任何说明。现在压缩一开始,屏幕顶部就会出现一条通知(toast),内容为 <em>「正在总结对话以释放上下文…」</em> 并带有一个 spinner;摘要期间输入框被锁定;结束时 toast 会变成确认信息 <em>「对话已总结 — 释放了 N 个 token」</em>(或在截断回退触发时变成警告)。无论你滚动到对话的哪个位置,toast 都保持可见。",
+            "i3": "<b>聊天标题栏中的上下文使用胶囊</b> — 搜索框旁边新增了一颗低调的胶囊,持续显示 <code>已用 token / 压缩阈值</code>,以彩色圆环加百分比的形式展示。低于 50 % 显示绿色,50 % 至 75 % 显示琥珀色,75 % 至 90 % 显示橙色,高于 90 % 显示玫红色。显示的百分比上限为 100 % 以保持可读;若发生溢出(通常发生在长回答之后),悬停提示会解释 <em>「压缩将在你的下一条消息时触发」</em>。胶囊在页面刷新后依然保留 — 你不必发消息就能看到。",
+            "i4": "<b>管理员:新增运维参数、Grafana 仪表盘、事务化恢复脚本</b> — <code>.env</code> 中新增五个参数控制压缩,无需重新构建:<code>COMPACTION_PER_CHUNK_TIMEOUT_SECONDS</code>(默认 35)、<code>COMPACTION_GLOBAL_TIMEOUT_SECONDS</code>(默认 120)、<code>COMPACTION_MAX_RETRIES</code>(默认 3)、<code>COMPACTION_RETRY_BACKOFF_BASE_SECONDS</code>(默认 1)、<code>COMPACTION_INCLUDE_PREVIOUS_SUMMARIES</code>(默认 <code>true</code>,把过去的摘要合并整合,而不是一轮接一轮地堆叠)。新增 Grafana 仪表盘 <code>14-compaction.json</code>,包含 7 个面板(策略分布、p50/p95/p99 时延、每个分块的超时、全局超时、按类型分组的错误、跳过原因、释放的 token)。新增五个 Prometheus 指标,其中 <code>compaction_writer_unavailable_total</code> 让 SSE 信号的任何静默退化也变得可观测。事务化 SQL 脚本 <code>scripts/admin/reset_user_checkpoints.sql</code> 可重置单个用户的检查点,用于恢复卡死的对话,不会影响消息或应用本身。完整的运维文档位于 <code>docs/technical/COMPACTION_v2.md</code>。"
+          }
+        },
         "v1_20_7": {
           "title": "v1.20.7 — 批量删除提醒:摘要终于易读,每条提醒的名称和触发时间清晰可见",
           "date": "2026 年 5 月",
@@ -3476,7 +3497,7 @@
           },
           "q9": {
             "question": "/resume 命令是什么？",
-            "answer": "<strong>/resume</strong> 命令触发<strong>智能上下文压缩</strong>：<br><br><strong>功能：</strong><br>• 使用 AI 总结旧对话历史<br>• 保留关键标识符（姓名、电子邮件、ID）<br>• 释放上下文窗口空间以支持更长的对话<br><br><strong>使用时机：</strong><br>• 对话持续时间较长时<br>• LIA 似乎丢失了先前上下文时<br>• 想要「重置」上下文但不丢失重要信息时<br><br><strong>工作原理：</strong><br>1. 在聊天中输入 <strong>/resume</strong><br>2. LIA 将旧消息总结为简洁摘要<br>3. 最近的消息保持不变<br>4. LIA 用简短摘要确认压缩<br><br><strong>💡 提示：</strong>当对话变得很长时，压缩也会自动触发。/resume 命令允许您随时强制执行。"
+            "answer": "<strong>/resume</strong> 命令触发<strong>智能上下文压缩</strong>：<br><br><strong>功能：</strong><br>• 使用 AI 总结旧对话历史<br>• 保留关键标识符（姓名、电子邮件、ID）<br>• 释放上下文窗口空间以支持更长的对话<br><br><strong>使用时机：</strong><br>• 对话持续时间较长时<br>• LIA 似乎丢失了先前上下文时<br>• 想要「重置」上下文但不丢失重要信息时<br><br><strong>工作原理：</strong><br>1. 在聊天中输入 <strong>/resume</strong><br>2. LIA 将旧消息总结为简洁摘要<br>3. 最近的消息保持不变<br>4. LIA 用简短摘要确认压缩<br><br><strong>💡 压缩进行期间：</strong><br>• 屏幕顶部会出现一条 <strong>toast</strong>，内容为 <em>「正在总结对话…」</em><br>• 输入框会在摘要完成前自动 <strong>锁定</strong><br>• 完成后,toast 变成确认信息 <em>「对话已总结 — 释放了 N 个 token」</em><br>• 若摘要无法完成（LLM 故障、超时），会触发 <strong>显式回退</strong>，把较旧的历史干净截断,并附带可见提示,而不是悄无声息地丢失<br><br><strong>📊 常驻指示器：</strong> 聊天标题栏（搜索框旁）有一颗低调的胶囊,持续以彩色圆环显示你的 <em>token/阈值</em> 使用情况 — 你随时都能看到下一次压缩会在何时触发。<br><br><strong>💡 提示：</strong>当对话变得很长时，压缩也会自动触发。/resume 命令允许您随时强制执行。"
           },
           "q10": {
             "question": "Pipeline模式（🔀）和ReAct模式（⚡）有什么区别？",

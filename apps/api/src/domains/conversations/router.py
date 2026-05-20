@@ -312,4 +312,6 @@ async def get_conversation_totals(
         total_tokens_cache=totals[FIELD_TOTAL_TOKENS_CACHE],
         total_cost_eur=totals[FIELD_TOTAL_COST_EUR],
         total_google_api_requests=totals[FIELD_TOTAL_GOOGLE_API_REQUESTS],
+        context_tokens=totals.get("context_tokens"),
+        context_threshold=totals.get("context_threshold"),
     )

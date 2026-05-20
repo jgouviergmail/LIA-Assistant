@@ -494,6 +494,10 @@ LangGraph 状态是一个 `TypedDict`，配合 `add_messages_with_truncate` redu
 
 当 token 数超过动态阈值（响应模型上下文窗口的比率）时，生成 LLM 摘要。关键标识符（UUID、URL、邮箱）被保留。节省比率：每次压缩约 60%。`/resume` 命令用于手动触发。
 
+**运行时韧性**：每次 LLM 调用都用每个分块的 `asyncio.wait_for`（默认 35 秒）和全局 120 秒预算包裹。对于瞬时错误，`tenacity.AsyncRetrying` 以指数退避最多重试 3 次。如果摘要仍无法完成,显式回退（`_truncation_fallback`）会用一个可读且保留标识符的 `SystemMessage` 干净地截断较旧的历史 — 不再有静默的占位符。先前的 `compaction #N` 摘要会被整合进 merge,而不是一轮一轮堆叠。
+
+**SSE custom mode 信号**：节点通过 `langgraph.config.get_stream_writer()` 经由一个 `stream_mode="custom"`（LangGraph 1.x）发出 `compaction_start` / `compaction_done`。streaming service 将这些 payload 转换为 `ChatStreamChunk(type="execution_step")`。前端中,基于稳定 id (`COMPACTION_TOAST_ID`) 变形的 sonner toast 在整个压缩期间保持可见,输入通过 `status="compacting"` 被锁定,并且一颗 `ContextUsagePill` 持续显示 token/阈值比率。并发 SSE keepalive (`iter_with_keepalive`) 在静默 await 期间每 15 秒发出 `: heartbeat`,以抵消 Cloudflare 的空闲切断。五个 Prometheus 指标（`compaction_chunk_timeouts_total`、`compaction_global_timeouts_total`、`compaction_total_duration_seconds`、`compaction_writer_unavailable_total`、`compaction_executions_total{strategy}`）供养一个专用 Grafana 仪表盘。
+
 ### 10.4. PostgreSQL 检查点
 
 每个节点后完整检查点状态。P95 保存 < 50 ms，P95 加载 < 100 ms，平均大小约 15 KB/对话。

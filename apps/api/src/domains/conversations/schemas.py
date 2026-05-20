@@ -128,3 +128,14 @@ class ConversationTotalsResponse(BaseModel):
         0.0, description="Total cost in euros (historical cost at time of execution)"
     )
     total_google_api_requests: int = Field(0, description="Total Google API requests (historical)")
+    # Context-usage pill (2026-05): current checkpoint footprint vs the dynamic
+    # compaction threshold. Optional so older clients keep working. None when
+    # no checkpoint exists yet (eg. brand-new conversation).
+    context_tokens: int | None = Field(
+        default=None,
+        description="Tokens currently in the LangGraph checkpoint for this conversation.",
+    )
+    context_threshold: int | None = Field(
+        default=None,
+        description="Compaction threshold (tokens) computed from the response model's context window.",
+    )

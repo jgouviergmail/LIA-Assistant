@@ -26,10 +26,19 @@ class TestLLMConfigIntegration:
     @pytest.mark.integration
     def test_helper_function_with_real_settings(self):
         """Test helper function with real settings."""
+        from typing import get_args
+
+        from src.infrastructure.llm.providers.adapter import ProviderType
+
         config = get_llm_config_for_agent(settings, "response")
 
+        # Drive the allowlist from the canonical `ProviderType` Literal so the
+        # assertion automatically tracks any new provider added there (Gemini,
+        # Qwen, etc.) instead of silently going stale.
+        supported_providers = list(get_args(ProviderType))
+
         assert isinstance(config, LLMAgentConfig)
-        assert config.provider in ["openai", "anthropic", "deepseek", "perplexity", "ollama"]
+        assert config.provider in supported_providers
         assert config.temperature >= 0.0 and config.temperature <= 2.0
         assert config.max_tokens > 0
 

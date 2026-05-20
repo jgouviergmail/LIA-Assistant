@@ -494,6 +494,10 @@ The LangGraph state is a `TypedDict` with an `add_messages_with_truncate` reduce
 
 When the token count exceeds a dynamic threshold (ratio of the response model's context window), an LLM summary is generated. Critical identifiers (UUIDs, URLs, emails) are preserved. Savings ratio: ~60% per compaction. `/resume` command for manual triggering.
 
+**Operational resilience**: every LLM call is wrapped in an `asyncio.wait_for` per chunk (35 s default) and a global 120 s budget. On transient errors, `tenacity.AsyncRetrying` retries up to 3 times with exponential backoff. If the summary still cannot complete, an explicit fallback (`_truncation_fallback`) cleanly truncates the older history with a readable `SystemMessage` that preserves identifiers — no silent stub. Prior `compaction #N` summaries are consolidated into the merge instead of stacking turn after turn.
+
+**SSE custom-mode signal**: the node emits `compaction_start` / `compaction_done` via `langgraph.config.get_stream_writer()` through a `stream_mode="custom"` (LangGraph 1.x). The streaming service translates these payloads into `ChatStreamChunk(type="execution_step")`. On the frontend a sonner toast morphed on a stable id (`COMPACTION_TOAST_ID`) stays visible for the duration of the compaction, the input is locked via `status="compacting"`, and a `ContextUsagePill` continuously shows the tokens/threshold ratio. The concurrent SSE keepalive (`iter_with_keepalive`) pulses `: heartbeat` every 15 s during silent awaits to neutralize Cloudflare idle cuts. Five Prometheus metrics (`compaction_chunk_timeouts_total`, `compaction_global_timeouts_total`, `compaction_total_duration_seconds`, `compaction_writer_unavailable_total`, `compaction_executions_total{strategy}`) feed a dedicated Grafana dashboard.
+
 ### 10.4. PostgreSQL Checkpointing
 
 Full state checkpointed after each node. P95 save < 50 ms, P95 load < 100 ms, average size ~15 KB/conversation.

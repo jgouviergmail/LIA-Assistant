@@ -494,6 +494,10 @@ Der LangGraph-State ist ein `TypedDict` mit einem Reducer `add_messages_with_tru
 
 Wenn die Token-Anzahl einen dynamischen Schwellenwert überschreitet (Verhältnis zum Context Window des Antwortmodells), wird eine LLM-Zusammenfassung generiert. Kritische Identifikatoren (UUIDs, URLs, E-Mails) werden beibehalten. Einsparverhältnis: ~60 % pro Komprimierung. Befehl `/resume` für manuelles Auslösen.
 
+**Betriebliche Resilienz**: Jeder LLM-Aufruf wird in ein `asyncio.wait_for` pro Chunk (Standard 35 s) und ein globales Budget von 120 s eingebettet. Bei vorübergehenden Fehlern wiederholt `tenacity.AsyncRetrying` bis zu 3-mal mit exponentiellem Backoff. Wenn die Zusammenfassung weiterhin nicht abgeschlossen werden kann, kürzt ein expliziter Fallback (`_truncation_fallback`) den älteren Verlauf sauber mit einer lesbaren `SystemMessage`, die Identifikatoren bewahrt — kein stiller Stub. Frühere `compaction #N`-Zusammenfassungen werden im Merge konsolidiert, statt Turn für Turn angehäuft.
+
+**SSE-Custom-Mode-Signal**: Der Knoten emittiert `compaction_start` / `compaction_done` über `langgraph.config.get_stream_writer()` durch einen `stream_mode="custom"` (LangGraph 1.x). Der Streaming-Service übersetzt diese Payloads in `ChatStreamChunk(type="execution_step")`. Im Frontend bleibt ein auf einer stabilen ID (`COMPACTION_TOAST_ID`) gemorphter sonner-Toast während der gesamten Komprimierung sichtbar, das Eingabefeld ist über `status="compacting"` gesperrt, und eine `ContextUsagePill` zeigt fortlaufend das Tokens/Schwellen-Verhältnis. Das gleichzeitige SSE-Keepalive (`iter_with_keepalive`) pulst alle 15 s `: heartbeat` während stiller Awaits, um Cloudflare-Idle-Cuts zu neutralisieren. Fünf Prometheus-Metriken (`compaction_chunk_timeouts_total`, `compaction_global_timeouts_total`, `compaction_total_duration_seconds`, `compaction_writer_unavailable_total`, `compaction_executions_total{strategy}`) speisen ein dediziertes Grafana-Dashboard.
+
 ### 10.4. PostgreSQL-Checkpointing
 
 Vollständiger State wird nach jedem Knoten checkpointet. P95 Save < 50 ms, P95 Load < 100 ms, durchschnittliche Größe ~15 KB/Konversation.
