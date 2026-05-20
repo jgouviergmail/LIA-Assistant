@@ -8,7 +8,7 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, AIMessageChunk
 
 from src.domains.agents.services.streaming.service import StreamingService
 
@@ -144,25 +144,68 @@ async def test_process_messages_chunk_filters_router_tokens(streaming_service):
 
 
 @pytest.mark.asyncio
-async def test_process_messages_chunk_skips_when_content_replacement_pending(
+async def test_process_messages_chunk_skips_complete_message_after_deltas(
     streaming_service,
 ):
-    """When ``state["content_final_replacement"]`` is set, the live token is
-    a pre-replacement version that will be superseded by the
-    ``content_replacement`` chunk after the loop. Emitting it here would
-    cause the client to display the response twice. Regression: 2025-12-29.
+    """Duplicate-display fix: LangGraph "messages" mode emits the LLM's streaming
+    deltas (``AIMessageChunk``) AND the complete ``AIMessage`` the response node
+    returns to the ``messages`` channel. Once deltas have streamed, the complete
+    message is a duplicate and MUST be skipped (otherwise the client shows the
+    whole reply twice before the post-loop ``content_replacement`` collapses it).
     """
-    mock_message = AIMessage(content="Hello world")
-    metadata = {"langgraph_node": "response"}
-    message_tuple = (mock_message, metadata)
+    node = {"langgraph_node": "response"}
 
-    sse_chunks = streaming_service._process_messages_chunk(
-        message_tuple,
+    # 1) A streaming delta is forwarded and marks that deltas were seen.
+    delta_chunks = streaming_service._process_messages_chunk(
+        (AIMessageChunk(content="Hello world"), node),
+        _state={},
+        _first_token_time=None,
+    )
+    assert len(delta_chunks) == 1
+    assert delta_chunks[0][0].type == "token"
+    assert streaming_service._response_deltas_streamed is True
+
+    # 2) The complete returned message (post-processed AIMessage) is the duplicate.
+    dup_chunks = streaming_service._process_messages_chunk(
+        (AIMessage(content="Hello world (with photos injected)"), node),
         _state={"content_final_replacement": "Hello world (with photos injected)"},
         _first_token_time=None,
     )
+    assert dup_chunks == []
 
-    assert sse_chunks == []
+
+@pytest.mark.asyncio
+async def test_process_messages_chunk_emits_complete_message_when_no_deltas(
+    streaming_service,
+):
+    """Non-streaming path: if the response LLM never emitted token deltas, the
+    single complete ``AIMessage`` is the only content we have — it MUST be emitted
+    once (skipping it would lose the entire reply)."""
+    sse_chunks = streaming_service._process_messages_chunk(
+        (AIMessage(content="Full reply"), {"langgraph_node": "response"}),
+        _state={},
+        _first_token_time=None,
+    )
+
+    assert len(sse_chunks) == 1
+    assert sse_chunks[0][0].type == "token"
+    assert sse_chunks[0][1] == "Full reply"
+
+
+@pytest.mark.asyncio
+async def test_process_messages_chunk_streams_consecutive_deltas(streaming_service):
+    """Consecutive streaming deltas are all forwarded (no false-positive skip)."""
+    node = {"langgraph_node": "response"}
+
+    first = streaming_service._process_messages_chunk(
+        (AIMessageChunk(content="Hello "), node), _state={}, _first_token_time=None
+    )
+    second = streaming_service._process_messages_chunk(
+        (AIMessageChunk(content="world"), node), _state={}, _first_token_time=None
+    )
+
+    assert [c.content for c, _ in first] == ["Hello "]
+    assert [c.content for c, _ in second] == ["world"]
 
 
 @pytest.mark.asyncio

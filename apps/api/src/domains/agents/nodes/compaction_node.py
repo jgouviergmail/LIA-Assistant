@@ -25,6 +25,7 @@ from langchain_core.runnables import RunnableConfig
 from src.core.config import settings
 from src.core.constants import (
     COMPACTION_SSE_STEP_TYPE,
+    COMPACTION_SUMMARY_MARKER,
     COMPACTION_UI_ESTIMATE_CHARS_PER_TOKEN,
     COMPACTION_UI_ESTIMATE_MAX_SECONDS,
     COMPACTION_UI_ESTIMATE_SECONDS_PER_CHUNK,
@@ -263,7 +264,7 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
             content = m.content if isinstance(m, SystemMessage) else None
             if (
                 isinstance(content, str)
-                and content.startswith("[Conversation history compacted")
+                and content.startswith(COMPACTION_SUMMARY_MARKER)
                 and getattr(m, "id", None)
             ):
                 new_messages.append(RemoveMessage(id=m.id))
@@ -278,7 +279,7 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
     # The router takes messages[-1] as the user query; a SystemMessage won't be picked up.
     summary_system = SystemMessage(
         content=(
-            f"[Conversation history compacted — compaction #{compacted_count}. "
+            f"{COMPACTION_SUMMARY_MARKER} — compaction #{compacted_count}. "
             f"{result.tokens_saved} tokens saved. "
             f"Strategy: {result.strategy}.]\n\n{result.summary}"
         ),

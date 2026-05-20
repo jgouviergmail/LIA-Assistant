@@ -151,6 +151,16 @@ ReAct has two HITL paths, both reusing existing infrastructure (no ReAct-specifi
 
 > Tools that execute directly without a draft (e.g. `create_reminder_tool`) are not draft-gated and behave identically in both modes.
 
+## Response Synthesis
+
+The ReAct loop never streams its own tokens to the user. `react_finalize` stores the loop's final answer in `react_agent_result.final_message`, and `response_node` delivers it — preserving all post-processing (personality, display mode, voice, registry cards, memory/journal extraction). Three invariants keep that hand-off clean:
+
+1. **Authoritative answer** — `response_node` injects the final answer as `agent_results[…]["data"]["react_synthesis"]`. `_format_status_messages()` (in `formatters/agent_results.py`) surfaces it verbatim as the authoritative current-turn data the response LLM reformulates. Writer and reader use the same `FIELD_REACT_SYNTHESIS` constant, so the contract cannot drift (a missing/renamed key previously dropped the answer into a `"Statut inconnu"` status message, forcing the response LLM to reconstruct one).
+
+2. **No reasoning leak** — `react_setup` injects the `react_agent_prompt` (with its PLAN/ACT/OBSERVE/CROSS-CHECK `<Workflow>` and tool-calling role) as `SystemMessage`s that accumulate in `state["messages"]`. `filter_for_llm_context()` (in `utils/message_filters.py`) **excludes every internal-scaffolding `SystemMessage`** from the response LLM's conversational context, allowlisting only the compaction summary (matched via `COMPACTION_SUMMARY_MARKER`, the message that carries compacted history). Without this, the response LLM mimics the agent's reasoning structure (`PLAN … OBSERVATION … CROSS-CHECK …`) or impersonates its role instead of answering.
+
+3. **Single, de-duplicated stream** — LangGraph `stream_mode="messages"` emits **both** the response LLM's token deltas (`AIMessageChunk`) and the complete post-processed `AIMessage` the node returns to the `messages` channel. `StreamingService._process_messages_chunk()` streams the deltas only and skips the complete message once deltas have been seen (with a non-streaming fallback that emits it when no delta occurred), so the reply is never shown twice. The canonical post-processed content (HTML cards, psyche-tag cleanup) is still delivered by the `content_replacement` chunk after the stream loop.
+
 ## Token Tracking
 
 Token tracking works for all providers through the `TokenTrackingCallback`:

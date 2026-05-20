@@ -37,6 +37,7 @@ from src.core.constants import (
 from src.core.field_names import (
     FIELD_METADATA,
     FIELD_PLAN_ID,
+    FIELD_REACT_SYNTHESIS,
     FIELD_RUN_ID,
     FIELD_SESSION_ID,
 )
@@ -1229,7 +1230,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             if not state.get(STATE_KEY_AGENT_RESULTS):
                 state[STATE_KEY_AGENT_RESULTS] = {
                     f"{current_turn}:react_agent": {
-                        "data": {"react_synthesis": react_message},
+                        "data": {FIELD_REACT_SYNTHESIS: react_message},
                         "registry_updates": current_registry,
                     }
                 }

@@ -37,7 +37,10 @@ from tenacity import (
 
 from src.core.config import settings
 from src.core.config.llm import get_model_context_window
-from src.core.constants import COMPACTION_TOOL_OUTPUT_TRUNCATE_CHARS_DEFAULT
+from src.core.constants import (
+    COMPACTION_SUMMARY_MARKER,
+    COMPACTION_TOOL_OUTPUT_TRUNCATE_CHARS_DEFAULT,
+)
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.token_counter_service import (
@@ -476,9 +479,7 @@ class CompactionService:
         if settings.compaction_include_previous_summaries:
             for m in messages:
                 content = m.content if isinstance(m, SystemMessage) else None
-                if isinstance(content, str) and content.startswith(
-                    "[Conversation history compacted"
-                ):
+                if isinstance(content, str) and content.startswith(COMPACTION_SUMMARY_MARKER):
                     previous_summaries.append(content)
 
         tokens_before = self._token_counter.count_messages_tokens(to_compact)

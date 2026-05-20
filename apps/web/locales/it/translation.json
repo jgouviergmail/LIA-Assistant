@@ -2929,6 +2929,14 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_10": {
+          "title": "v1.20.10 — In modalità ReAct, la risposta non mostra più il ragionamento interno dell'assistente e non appare più doppia",
+          "date": "Maggio 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Risposte più pulite in modalità ⚡ ReAct</b> — In modalità ReAct (la modalità di ragionamento autonomo, passo dopo passo), due difetti potevano rovinare la risposta finale. (1) L'assistente a volte lasciava trasparire i suoi passaggi di ragionamento interni — etichette come «PLAN», «OBSERVATION», «CROSS-CHECK» seguite dalla «risposta finale» — invece di mostrare solo la risposta. (2) Il testo della risposta appariva brevemente duplicato prima di ridursi a una sola versione. Entrambi sono risolti: LIA ora fornisce solo la risposta finale, pulita e unica, in modalità ReAct come nella modalità predefinita. Non devi cambiare nulla."
+          }
+        },
         "v1_20_9": {
           "title": "v1.20.9 — In modalità ReAct, creare, modificare o eliminare ora chiede la tua conferma prima di agire — basta falsi «Fatto!» senza che accada nulla",
           "date": "Maggio 2026",

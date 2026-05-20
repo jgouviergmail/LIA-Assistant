@@ -131,6 +131,17 @@ OLLAMA_MODEL_CACHE_TTL_SECONDS = 60  # In-memory cache for discovered models
 OLLAMA_DISCOVERY_TIMEOUT_SECONDS = 5  # HTTP timeout for Ollama /api/tags + /api/show calls
 
 # ============================================================================
+# CONVERSATION COMPACTION (ADR-086)
+# ============================================================================
+# Content prefix of the SystemMessage that carries a compacted conversation
+# summary (built by compaction_node / compaction_service). Used both to detect
+# prior summaries during re-compaction AND to allowlist this single legitimate
+# SystemMessage when building the response LLM's conversational context — every
+# other SystemMessage in state["messages"] is internal node scaffolding (e.g. the
+# ReAct agent system prompt) that must NOT reach the response synthesizer.
+COMPACTION_SUMMARY_MARKER = "[Conversation history compacted"
+
+# ============================================================================
 # EXTERNAL CONTENT WRAPPING (prompt injection prevention)
 # ============================================================================
 EXTERNAL_CONTENT_OPEN_TAG = "<external_content"

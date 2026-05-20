@@ -9,6 +9,7 @@ All functions preserve immutability - input lists are never modified.
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 
+from src.core.constants import COMPACTION_SUMMARY_MARKER
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -279,11 +280,16 @@ def filter_for_llm_context(messages: list[BaseMessage]) -> list[BaseMessage]:
     - HumanMessage (user input)
     - ToolMessage (JSON results from tools)
     - AIMessage WITHOUT HTML content (simple chat responses)
+    - SystemMessage carrying a compaction summary (prefixed with
+      ``COMPACTION_SUMMARY_MARKER``) — the only legitimate SystemMessage here, as it
+      holds the compacted conversation history and is not re-injected elsewhere.
 
     Removes:
     - AIMessage with tool_calls (internal agent reasoning)
     - AIMessage containing HTML (class="lia-) - formatted display responses
-    - SystemMessage starting with __ (internal markers)
+    - Every OTHER SystemMessage — internal node scaffolding (the ReAct agent system
+      prompt with its PLAN/OBSERVE workflow + tool-calling role, memory/skills context
+      blocks, ``__`` internal markers) that must never reach the response synthesizer.
 
     Args:
         messages: Full message history from state.
@@ -332,11 +338,21 @@ def filter_for_llm_context(messages: list[BaseMessage]) -> list[BaseMessage]:
             # Keep simple chat responses
             filtered.append(msg)
         elif isinstance(msg, SystemMessage):
-            # Skip internal system markers
-            content = getattr(msg, "content", "") or ""
-            if content.startswith("__"):
-                continue
-            filtered.append(msg)
+            # Keep ONLY the compaction summary. It carries the compacted conversation
+            # history and is the response LLM's sole source for it (the `compaction_summary`
+            # state field is not re-injected into the response prompt). Every OTHER
+            # SystemMessage in state["messages"] is internal node scaffolding — notably the
+            # ReAct agent system prompt (with its PLAN/OBSERVE workflow + tool-calling role)
+            # injected by react_setup_node, plus redundant memory/skills context blocks. If
+            # those reach the response synthesizer, the model mimics the agent's reasoning
+            # structure (PLAN/OBSERVATION leak) or adopts its role ("I'll search…, call
+            # tool…") instead of delivering the answer. So we drop them here.
+            # ``content`` may be a list (provider block format); only a str summary qualifies.
+            raw_content = getattr(msg, "content", "")
+            content = raw_content if isinstance(raw_content, str) else ""
+            if content.startswith(COMPACTION_SUMMARY_MARKER):
+                filtered.append(msg)
+            # else: drop ReAct scaffolding, memory/skills context, and "__" internal markers
 
     logger.debug(
         "filter_for_llm_context",

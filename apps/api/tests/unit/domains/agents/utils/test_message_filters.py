@@ -901,18 +901,57 @@ class TestFilterForLlmContext:
         assert len(result) == 1
         assert result[0].content == "[Résultats affichés]"
 
-    def test_filters_internal_system_markers(self):
-        """Test that SystemMessages starting with __ are filtered."""
+    def test_drops_all_system_messages_except_compaction_summary(self):
+        """Only the compaction-summary SystemMessage survives; every other SystemMessage
+        (internal markers, ReAct agent prompt, memory/skills scaffolding) is dropped so
+        it never pollutes the response LLM's conversational context."""
+        from src.core.constants import COMPACTION_SUMMARY_MARKER
+
+        summary = SystemMessage(content=f"{COMPACTION_SUMMARY_MARKER} — compaction #1.]\n\nDigest")
         messages = [
             SystemMessage(content="__INTERNAL_MARKER__"),
             SystemMessage(content="Normal system message"),
+            SystemMessage(content="<Personality>...</Personality>\n<Role>ReAct mode</Role>"),
+            SystemMessage(content="<AvailableSkills>...</AvailableSkills>"),
+            summary,
         ]
 
         with patch("src.domains.agents.utils.message_filters.logger"):
             result = filter_for_llm_context(messages)
 
         assert len(result) == 1
-        assert result[0].content == "Normal system message"
+        assert result[0] is summary
+
+    def test_drops_react_agent_scaffolding_keeps_conversation(self):
+        """ReAct setup SystemMessages (react_agent_prompt with PLAN/OBSERVE workflow) must
+        not reach the response LLM, while Human/AI turns are preserved untouched."""
+        messages = [
+            SystemMessage(
+                content="<Personality>...</Personality>\n<Workflow>1. PLAN ...</Workflow>"
+            ),
+            SystemMessage(content='<MemoryContext>\n- "mon frangin" = Alexandre\n</MemoryContext>'),
+            HumanMessage(content="quelle est l'adresse de mon frangin ?"),
+            AIMessage(content="Il habite au 36 Boulevard Léon Gambetta, Mulhouse."),
+        ]
+
+        with patch("src.domains.agents.utils.message_filters.logger"):
+            result = filter_for_llm_context(messages)
+
+        assert [type(m) for m in result] == [HumanMessage, AIMessage]
+        assert all(not isinstance(m, SystemMessage) for m in result)
+
+    def test_system_message_with_list_content_is_dropped_without_crash(self):
+        """A SystemMessage whose content is a provider block list (not a str) must be
+        dropped gracefully, never crash on ``.startswith`` (it cannot be a summary)."""
+        messages = [
+            SystemMessage(content=[{"type": "text", "text": "scaffolding"}]),
+            HumanMessage(content="hi"),
+        ]
+
+        with patch("src.domains.agents.utils.message_filters.logger"):
+            result = filter_for_llm_context(messages)
+
+        assert [type(m) for m in result] == [HumanMessage]
 
     def test_empty_list_returns_empty(self):
         """Test that empty input returns empty output."""
@@ -947,8 +986,9 @@ class TestFilterForLlmContext:
         with patch("src.domains.agents.utils.message_filters.logger"):
             result = filter_for_llm_context(full_conversation)
 
-        # Should keep: SystemMessage, HumanMessages, ToolMessages, AIMessages without tool_calls
-        # Removes: AIMessages with tool_calls
+        # Should keep: HumanMessages, ToolMessages, AIMessages without tool_calls
+        # Removes: AIMessages with tool_calls AND all non-compaction SystemMessages
+        # (the fixture's plain "You are a helpful assistant." is internal scaffolding)
         human_count = sum(1 for m in result if isinstance(m, HumanMessage))
         tool_count = sum(1 for m in result if isinstance(m, ToolMessage))
         ai_count = sum(1 for m in result if isinstance(m, AIMessage))
@@ -957,7 +997,7 @@ class TestFilterForLlmContext:
         assert human_count == 2
         assert tool_count == 2
         assert ai_count == 2  # Only AIMessages without tool_calls
-        assert system_count == 1
+        assert system_count == 0  # Plain SystemMessage dropped (not a compaction summary)
 
     def test_logs_filtering_stats(self, full_conversation):
         """Test that filtering statistics are logged."""
@@ -981,15 +1021,15 @@ class TestFilterForLlmContext:
         assert len(result) == 1
 
     def test_handles_system_message_with_empty_content(self):
-        """Test handling SystemMessage with empty content."""
+        """An empty-content SystemMessage is dropped: it is not a compaction summary,
+        so it is treated as internal scaffolding and excluded from the response context."""
         sys_msg = SystemMessage(content="")
         messages = [sys_msg]
 
         with patch("src.domains.agents.utils.message_filters.logger"):
             result = filter_for_llm_context(messages)
 
-        # Should be kept (doesn't start with __)
-        assert len(result) == 1
+        assert result == []
 
     def test_preserves_message_order(self):
         """Test that message order is preserved."""

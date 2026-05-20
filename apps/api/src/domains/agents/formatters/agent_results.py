@@ -15,7 +15,7 @@ Usage:
 
 from typing import Any
 
-from src.core.field_names import FIELD_STATUS
+from src.core.field_names import FIELD_REACT_SYNTHESIS, FIELD_STATUS
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.profiling import profile_performance
 
@@ -105,6 +105,22 @@ def _format_status_messages(
                     logger.warning("invalid_turn_id_in_key", composite_key=composite_key)
         else:
             agent_name = composite_key
+
+        # ADR-070 (ReAct mode): the autonomous ReAct loop hands its final answer to the
+        # response synthesizer via ``data["react_synthesis"]`` instead of a status/registry
+        # payload. Surface it here as the authoritative answer text so the response LLM
+        # reformulates it (with personality) rather than reconstructing one from the raw
+        # registry + conversation history — which leaks the agent's internal reasoning
+        # structure into the user-facing reply. Without this branch the entry has no
+        # ``status`` and falls through to the "Statut inconnu" message below, silently
+        # dropping the answer.
+        react_synthesis = None
+        react_data = result.get("data")
+        if isinstance(react_data, dict):
+            react_synthesis = react_data.get(FIELD_REACT_SYNTHESIS)
+        if react_synthesis:
+            summaries.append(str(react_synthesis))
+            continue
 
         status = result.get(FIELD_STATUS, "unknown")
 

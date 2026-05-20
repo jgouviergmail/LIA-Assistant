@@ -17,6 +17,7 @@ import uuid
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
+from langchain_core.messages import AIMessageChunk
 from structlog import get_logger
 
 from src.core.config import settings
@@ -183,6 +184,12 @@ class StreamingService:
         # Flag to track if HITL interrupt occurred during streaming
         # Used by service.py to determine appropriate archiving metadata
         self.hitl_interrupt_detected = False
+        # Duplicate-display fix: track whether the response node streamed token deltas
+        # (AIMessageChunk). LangGraph "messages" mode also emits the complete AIMessage the
+        # node returns to the ``messages`` channel; emitting it after the deltas duplicates
+        # the whole reply on screen. We skip that complete message only once deltas were
+        # seen — preserving the non-streaming path where the complete message is all we get.
+        self._response_deltas_streamed = False
         # Store the generated HITL question for archiving by service.py
         # This ensures the question appears in conversation history on reload
         self.hitl_generated_question: str | None = None
@@ -1546,14 +1553,29 @@ class StreamingService:
         # Stream tokens ONLY from response node
         if node_name == "response" and self._should_stream_token(node_name):
             if hasattr(message, "content") and message.content:
-                # BugFix 2025-12-29: Skip replacement messages to avoid duplicate display
-                # When content_final_replacement is set, this message is a post-processed
-                # version (with injected photos, etc.) that will be sent via content_replacement
-                # chunk after the streaming loop. Emitting it here would cause duplicate display.
-                # LangGraph emission order guarantees "values" mode (which sets state) comes
-                # BEFORE "messages" mode, so _state is already updated when we receive this.
-                if _state.get("content_final_replacement"):
-                    return sse_chunks  # Skip - replacement will be sent after loop
+                # Duplicate-display fix: LangGraph "messages" mode emits BOTH the LLM's
+                # streaming token deltas (AIMessageChunk) AND the complete AIMessage the
+                # response node returns to the ``messages`` channel after post-processing.
+                # Streaming that complete message after the deltas reproduces the whole
+                # reply a second time on screen — the "double then single" flash, since the
+                # post-loop content_replacement then collapses it back to one copy.
+                #
+                # Stream token deltas only. If the LLM never streamed (non-streaming
+                # provider), no delta was seen and the complete message is the only content
+                # we have — emit it once. The canonical post-processed content (HTML cards,
+                # psyche-tag cleanup) is still delivered by the content_replacement chunk
+                # emitted after the loop when post-processing modified the text.
+                # NOTE: replaces the former ``content_final_replacement`` guard, which could
+                # never fire for the current turn (the flag is set by the response node only
+                # AFTER its own tokens have already streamed).
+                if isinstance(message, AIMessageChunk):
+                    self._response_deltas_streamed = True
+                elif self._response_deltas_streamed:
+                    logger.debug(
+                        "response_duplicate_message_skipped",
+                        message_type=type(message).__name__,
+                    )
+                    return sse_chunks  # Complete returned message = duplicate; skip it.
 
                 content = message.content
 

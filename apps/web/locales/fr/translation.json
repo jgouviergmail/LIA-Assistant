@@ -2941,6 +2941,14 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_10": {
+          "title": "v1.20.10 — En mode ReAct, la réponse ne laisse plus apparaître le raisonnement interne de l'assistant et ne s'affiche plus en double",
+          "date": "Mai 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Réponses plus nettes en mode ⚡ ReAct</b> — En mode ReAct (le mode de raisonnement autonome, étape par étape), deux défauts pouvaient gâcher la réponse finale. (1) L'assistant laissait parfois apparaître ses étapes de réflexion internes — des intitulés comme « PLAN », « OBSERVATION », « CROSS-CHECK » suivis de la « réponse finale » — au lieu de ne montrer que la réponse elle-même. (2) Le texte de la réponse s'affichait brièvement en double avant de se réduire à une seule version. Les deux sont corrigés : LIA ne livre désormais que la réponse finale, propre et unique, en mode ReAct comme dans le mode par défaut. Rien à changer de votre côté."
+          }
+        },
         "v1_20_9": {
           "title": "v1.20.9 — En mode ReAct, créer, modifier ou supprimer demande désormais votre confirmation avant d'agir — fini les faux « C'est fait ! » sans que rien ne se passe",
           "date": "Mai 2026",

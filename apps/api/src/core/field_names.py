@@ -61,6 +61,7 @@ FIELD_INDEX = "index"  # Item index in lists (1-based)
 FIELD_METADATA = "metadata"  # Metadata dictionaries (LangChain, LangGraph, custom)
 FIELD_PARAMETERS = "parameters"  # Tool/function parameters
 FIELD_RESULT = "result"  # Tool/agent result data
+FIELD_REACT_SYNTHESIS = "react_synthesis"  # ReAct loop's final answer (response passthrough key)
 
 # Connectors & OAuth
 FIELD_CONNECTOR = "connector"
@@ -289,6 +290,7 @@ __all__ = [
     "FIELD_METADATA",
     "FIELD_PARAMETERS",
     "FIELD_RESULT",
+    "FIELD_REACT_SYNTHESIS",
     "FIELD_ACTION_REQUESTS",
     "FIELD_DECISION",
     "FIELD_INTERRUPT_DATA",

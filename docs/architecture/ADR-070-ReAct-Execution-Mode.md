@@ -64,6 +64,20 @@ Reminder creation (`create_reminder_tool`) executes directly and is intentionall
 
 Related: ADR-044 (Draft & HITL Approval Flow).
 
+## Amendment (2026-05-21): Clean Response Synthesis in ReAct Mode
+
+The ReAct loop's final answer is delivered to the user by `response_node` (the loop never streams its own tokens). Two regressions broke that hand-off — the agent's internal reasoning leaked into the reply (`PLAN … OBSERVATION … CROSS-CHECK …`, or the model impersonating the agent), and the reply was streamed twice — both because the response node was consuming ReAct internals it should never see.
+
+The hand-off now enforces three invariants (detail in [REACT_EXECUTION_MODE.md](../technical/REACT_EXECUTION_MODE.md#response-synthesis)):
+
+1. **Authoritative answer** — the loop's final message is surfaced verbatim as the response LLM's current-turn data via the shared `FIELD_REACT_SYNTHESIS` key (writer and reader use the same constant). Previously the key carried no `status`, so the formatter dropped it into a `"Statut inconnu"` message and the model reconstructed the answer from raw data + history.
+2. **Context isolation** — `filter_for_llm_context()` excludes the ReAct scaffolding `SystemMessage`s (the `react_agent_prompt` with its `<Workflow>` and tool-calling role) that `react_setup` accumulates in `state["messages"]`, allowlisting only the compaction summary. Without isolation the response LLM mimicked the agent's reasoning structure or impersonated its role.
+3. **Single stream** — the streaming layer forwards the response LLM's token deltas only and skips the duplicate complete message LangGraph re-emits for the `messages` channel.
+
+This is an implementation-correctness fix; the ADR-070 decision (parent-graph nodes, shared infrastructure, user toggle) is unchanged.
+
+Related: ADR-086 (Conversation History Compaction — owner of the compaction-summary `SystemMessage` preserved by invariant 2).
+
 ## Trade-offs
 
 ### ReAct Mode

@@ -2936,6 +2936,14 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_10": {
+          "title": "v1.20.10 — In ReAct mode, the reply no longer exposes the assistant's internal reasoning and no longer appears twice",
+          "date": "May 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Cleaner replies in ⚡ ReAct mode</b> — In ReAct mode (the autonomous, step-by-step reasoning mode), two glitches could spoil the final reply. (1) The assistant sometimes let its internal thinking steps show through — labels like \"PLAN\", \"OBSERVATION\", \"CROSS-CHECK\" followed by the \"final answer\" — instead of showing only the answer itself. (2) The reply text briefly appeared duplicated before collapsing to a single copy. Both are fixed: LIA now delivers only the final, clean, single reply, in ReAct mode just like in the default mode. Nothing changes on your side."
+          }
+        },
         "v1_20_9": {
           "title": "v1.20.9 — In ReAct mode, creating, modifying or deleting now asks for your confirmation before acting — no more false \"Done!\" with nothing actually happening",
           "date": "May 2026",
