@@ -1963,7 +1963,10 @@ APPLE_EMAIL_MESSAGE_CACHE_TTL_DEFAULT = 60
 LLM_CACHE_TTL_SECONDS_DEFAULT = 60  # Aligned from .env.prod (was 300)
 
 # --- Advanced config defaults ---
-CURRENCY_API_URL_DEFAULT = "https://api.frankfurter.dev"
+# Frankfurter `.dev` host requires the versioned `/v1` path prefix; the code
+# appends `/latest`, so the base must include `/v1` (a bare `/latest` on `.dev`
+# returns 404, and the legacy `.app` host now 301-redirects). Verified 2026-05-21.
+CURRENCY_API_URL_DEFAULT = "https://api.frankfurter.dev/v1"
 CURRENCY_API_TIMEOUT_SECONDS_DEFAULT = 5.0
 DEFAULT_LANGUAGE_DEFAULT = "fr"
 ENTITY_RESOLUTION_AUTO_THRESHOLD_DEFAULT = 0.9
@@ -2266,10 +2269,30 @@ STATE_KEY_INITIATIVE_SUGGESTION = "initiative_suggestion"
 INITIATIVE_ENABLED_DEFAULT = True
 INITIATIVE_MAX_ITERATIONS_DEFAULT = 1  # Conservative: one evaluation pass
 INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT = 3
+# ReAct-mode Initiative (ADR-070): gate the nominal ReAct path through the
+# Initiative node independently of the pipeline. Default off -> ship dark; the
+# ReAct draft path (already wired to initiative) is unaffected by this flag.
+INITIATIVE_REACT_ENABLED_DEFAULT = False
 INITIATIVE_LLM_TIMEOUT_SECONDS = 30  # Structured output needs parsing time
 INITIATIVE_MEMORY_LIMIT = 3  # Max memory facts injected
 INITIATIVE_MEMORY_MIN_SCORE = 0.45  # Calibrated for Gemini embeddings (may need re-tuning)
 INITIATIVE_INTERESTS_LIMIT = 5  # Top N active interests
+
+# ============================================================================
+# TODAY BRIEFING — per-widget content limits
+# ============================================================================
+# Defaults for the home dashboard widgets, overridable via BriefingSettings
+# (BRIEFING_* env vars). They live here (not in the briefing domain) so that
+# src/core/config can import them without importing src.domains.briefing, whose
+# package __init__ pulls in the router → a config↔domain circular import.
+BRIEFING_MAX_AGENDA_ITEMS_DEFAULT = 10
+BRIEFING_AGENDA_LOOKAHEAD_HOURS_DEFAULT = 24
+BRIEFING_MAX_MAILS_ITEMS_DEFAULT = 5
+BRIEFING_MAX_BIRTHDAYS_ITEMS_DEFAULT = 5
+BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS_DEFAULT = 14
+BRIEFING_MAX_REMINDERS_ITEMS_DEFAULT = 5
+BRIEFING_HEALTH_WINDOW_DAYS_DEFAULT = 14
+BRIEFING_WEATHER_DAILY_FORECAST_DAYS_DEFAULT = 5
 
 # ============================================================================
 # MEMORY REFERENCE EXTRACTION (3-Phase Resolution Pipeline)

@@ -358,7 +358,13 @@ def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:
                 {"title": e.title, "start": e.start_local, "loc": e.location} for e in events[:3]
             ]
         else:
-            summary["agenda_count"] = len(events)
+            # Greeting: give the upcoming events (≤3, next ~24h) with a per-event
+            # day-aware start ("15:00" = today, "demain 08:00" = tomorrow). The
+            # greeting reacts to the day's SHAPE (empty/busy, today vs tomorrow) and
+            # can name an imminent one. Deliberately NO aggregate count — a bare
+            # count made the greeting lump tomorrow's events into today ("deux
+            # rendez-vous cet après-midi"); a per-event list keeps each day explicit.
+            summary["agenda"] = [{"title": e.title, "start": e.start_local} for e in events[:3]]
 
     if cards.mails.status == CardStatus.OK and cards.mails.data is not None:
         items = getattr(cards.mails.data, "items", []) or []

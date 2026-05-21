@@ -1143,6 +1143,39 @@ def format_nested_results_as_html(
 # Import at top of file provides: format_agent_results_for_prompt
 
 
+def _merge_react_synthesis_result(
+    agent_results: dict[str, Any] | None,
+    react_message: str,
+    current_turn: int,
+    current_registry: dict[str, Any],
+) -> dict[str, Any]:
+    """Merge the ReAct final answer into agent_results without overwriting entries.
+
+    The ReAct answer is keyed ``{turn}:react_agent``. When the Initiative node ran on
+    the ReAct nominal path (react_finalize -> initiative -> response), it has already
+    written ``{turn}:initiative`` into agent_results; a plain ``if not agent_results``
+    guard would then skip the ReAct answer entirely, dropping the user-facing reply.
+    This merge is idempotent on the react key, so graph re-entry never duplicates it.
+
+    Args:
+        agent_results: Existing agent_results map (possibly populated by Initiative).
+        react_message: The ReAct loop's final answer text.
+        current_turn: Current turn id (for the composite key).
+        current_registry: Registry items for this turn (drives HTML cards / display).
+
+    Returns:
+        A new dict containing every existing entry plus the ``{turn}:react_agent`` one.
+    """
+    merged = dict(agent_results or {})
+    react_key = f"{current_turn}:react_agent"
+    if react_key not in merged:
+        merged[react_key] = {
+            "data": {FIELD_REACT_SYNTHESIS: react_message},
+            "registry_updates": current_registry,
+        }
+    return merged
+
+
 @trace_node("response")
 @track_metrics(
     node_name="response",
@@ -1227,13 +1260,15 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             # registry items and generate_data_for_filtering() produces data
             # for HTML cards / display mode.
             current_registry = state.get("current_turn_registry") or state.get("registry") or {}
-            if not state.get(STATE_KEY_AGENT_RESULTS):
-                state[STATE_KEY_AGENT_RESULTS] = {
-                    f"{current_turn}:react_agent": {
-                        "data": {FIELD_REACT_SYNTHESIS: react_message},
-                        "registry_updates": current_registry,
-                    }
-                }
+            # Merge (not gate): the Initiative node may have written {turn}:initiative
+            # before us on the ReAct nominal path. A plain "if not agent_results" guard
+            # would drop the ReAct answer; merging preserves both (ADR-070).
+            state[STATE_KEY_AGENT_RESULTS] = _merge_react_synthesis_result(
+                state.get(STATE_KEY_AGENT_RESULTS),
+                react_message,
+                current_turn,
+                current_registry,
+            )
             logger.info(
                 "response_node_react_passthrough",
                 run_id=run_id,
@@ -2214,8 +2249,11 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         if user_model_block:
             base_system_prompt += "\n\n" + user_model_block
 
-        # ADR-062: Inject initiative suggestion into prompt if available
-        from src.core.constants import STATE_KEY_INITIATIVE_SUGGESTION
+        # ADR-062 / ADR-070: initiative suggestion + ReAct proactive-findings injection.
+        from src.core.constants import (
+            STATE_KEY_INITIATIVE_RESULTS,
+            STATE_KEY_INITIATIVE_SUGGESTION,
+        )
 
         initiative_suggestion = state.get(STATE_KEY_INITIATIVE_SUGGESTION)
         if initiative_suggestion:
@@ -2225,6 +2263,30 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 "Include this suggestion naturally in your response as a helpful offer:\n"
                 f"{initiative_suggestion}\n"
                 "</InitiativeSuggestion>"
+            )
+
+        # ADR-070: in ReAct mode the agent's answer is delivered as authoritative
+        # (the response LLM is told not to re-derive). When the Initiative node
+        # gathered proactive read-only findings AFTER that answer was written, they
+        # would otherwise surface only as orphan cards. The findings are already in
+        # the prompt via `data_for_filtering`; this directive invites weaving them in.
+        # Gated to ReAct + Initiative-acted to keep zero impact elsewhere (pipeline
+        # already synthesises from the registry directly).
+        _initiative_results = state.get(STATE_KEY_INITIATIVE_RESULTS) or []
+        _initiative_acted = any(r.get("actions_executed", 0) > 0 for r in _initiative_results)
+        if (
+            state.get("execution_mode") == "react"
+            and _initiative_acted
+            and react_result
+            and react_result.get("final_message")
+        ):
+            base_system_prompt += (
+                "\n\n<ProactiveFindings>\n"
+                "Beyond the direct answer, additional proactive read-only findings were "
+                "gathered this turn (present in the current turn data). Weave the relevant "
+                "ones naturally into your reply as a helpful complement — do not list them "
+                "mechanically and never expose how they were obtained.\n"
+                "</ProactiveFindings>"
             )
 
         # DISPLAY MODE: Read user preference from configurable

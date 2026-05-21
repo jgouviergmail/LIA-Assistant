@@ -742,6 +742,7 @@ async def build_graph(
     from src.domains.agents.nodes.routing import (
         route_from_react_call_model,
         route_from_react_execute_tools,
+        route_from_react_finalize,
     )
 
     graph.add_node(NODE_REACT_SETUP, react_setup_node)
@@ -770,7 +771,14 @@ async def build_graph(
             NODE_DRAFT_CRITIQUE: NODE_DRAFT_CRITIQUE,  # Draft → shared HITL dispatch
         },
     )
-    graph.add_edge(NODE_REACT_FINALIZE, NODE_RESPONSE)
+    # ADR-070 + ADR-062: nominal ReAct path may pass through Initiative for proactive
+    # read-only enrichment (gated by INITIATIVE_REACT_ENABLED). The draft path keeps
+    # its own independent edge into NODE_INITIATIVE, so this does not affect drafts.
+    graph.add_conditional_edges(
+        NODE_REACT_FINALIZE,
+        route_from_react_finalize,
+        {NODE_INITIATIVE: NODE_INITIATIVE, NODE_RESPONSE: NODE_RESPONSE},
+    )
 
     # Response is terminal
     graph.add_edge(NODE_RESPONSE, END)

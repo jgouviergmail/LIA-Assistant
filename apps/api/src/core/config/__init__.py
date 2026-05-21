@@ -27,6 +27,7 @@ from src.core.constants import (
 from .advanced import AdvancedSettings
 from .agents import AgentsSettings
 from .attachments import AttachmentsSettings
+from .briefing import BriefingSettings
 from .browser import BrowserSettings
 from .channels import ChannelsSettings
 from .connectors import ConnectorsSettings
@@ -91,6 +92,7 @@ class Settings(
     MCPSettings,
     ChannelsSettings,
     AttachmentsSettings,
+    BriefingSettings,
     RAGSpacesSettings,
     SkillsSettings,
     BrowserSettings,

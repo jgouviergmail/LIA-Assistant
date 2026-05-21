@@ -2914,7 +2914,7 @@
         },
         "proactiveInitiative": {
           "title": "🎯 Iniciativa Proactiva",
-          "description": "Tras completar la solicitud principal, el asistente evalúa si los resultados revelan conexiones cross-dominio relevantes. Ejemplo: el clima anuncia lluvia el sábado → consulta el calendario para actividades al aire libre. En modo Pipeline, un nodo dedicado con evaluación LLM. En modo ReAct, integrado directamente en el razonamiento del agente."
+          "description": "Tras completar la solicitud principal, el asistente evalúa si los resultados revelan conexiones cross-dominio relevantes. Ejemplo: el clima anuncia lluvia el sábado → consulta el calendario para actividades al aire libre. En modo Pipeline, un nodo dedicado ejecuta la evaluación LLM tras la respuesta. En modo ReAct, el agente también verifica durante su propio razonamiento (el paso CROSS-CHECK) y —cuando está habilitado— el mismo nodo de iniciativa se ejecuta ahora tras el bucle, de modo que ambos modos obtienen el enriquecimiento proactivo."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -2927,6 +2927,17 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_11": {
+          "title": "v1.20.11 — El modo ⚡ ReAct se vuelve proactivo, un saludo de inicio fiel a tu día real y varias correcciones de visualización y exactitud",
+          "date": "Mayo 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>El modo ⚡ ReAct ahora es proactivo, como el modo por defecto</b> — En el modo ReAct (el modo de razonamiento autónomo, paso a paso), tras responder a tu solicitud LIA puede ahora realizar algunas comprobaciones adicionales de solo lectura en ámbitos relacionados e integrar el resultado en su respuesta — por ejemplo el tiempo y la duración del trayecto para tu próxima cita, o el contacto detrás de un correo. Esta «Iniciativa» proactiva ya existía en el modo por defecto (Pipeline); ahora ambos modos la ofrecen. Solo se activa cuando es realmente útil y siempre se limita a leer — nunca crea ni modifica nada por sí misma.",
+            "i2": "<b>Un saludo de inicio fiel a tu día real</b> — El saludo de una línea en la parte superior de tu panel ahora lee tu agenda correctamente: distingue hoy de mañana, nombra la próxima cita y reacciona a la forma de tu día (un día libre, uno cargado o un único evento próximo) — en lugar de insinuar de forma vaga (y a veces errónea) que ocurría algo «hoy».",
+            "i3": "<b>Los importes monetarios se muestran ahora correctamente</b> — Los importes escritos con el signo del dólar (p. ej. «1,50$» … «9$») en el chat o en las notificaciones proactivas a veces se transformaban en una fórmula matemática, con los espacios eliminados y los caracteres apilados. Ahora se muestran como texto normal en todas partes.",
+            "i4": "<b>Admin — límites del panel configurables y conversión de costes corregida</b> — La cantidad de contenido que muestra cada tarjeta del Briefing del día (agenda, correos, cumpleaños, recordatorios, etc.) ahora es configurable mediante variables de entorno — la agenda muestra hasta 10 eventos próximos en lugar de 3 por defecto. Además, se corrigió la fuente de tipo de cambio usada para convertir los costes de LLM a euros (recurría a un tipo almacenado), de modo que el informe de costes vuelve a ser exacto."
+          }
+        },
         "v1_20_10": {
           "title": "v1.20.10 — En modo ReAct, la respuesta ya no deja ver el razonamiento interno del asistente ni aparece por duplicado",
           "date": "Mayo 2026",

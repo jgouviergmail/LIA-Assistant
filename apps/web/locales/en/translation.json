@@ -2923,7 +2923,7 @@
         },
         "proactiveInitiative": {
           "title": "🎯 Proactive Initiative",
-          "description": "After completing the main request, the assistant evaluates whether results reveal cross-domain connections relevant to the user. Example: weather shows rain Saturday → checks calendar for outdoor activities. In Pipeline mode, a dedicated node with LLM evaluation. In ReAct mode, integrated directly into the agent's reasoning via the CROSS-CHECK prompt step."
+          "description": "After completing the main request, the assistant evaluates whether results reveal cross-domain connections relevant to the user. Example: weather shows rain Saturday → checks calendar for outdoor activities. In Pipeline mode, a dedicated node runs the LLM evaluation after the answer. In ReAct mode the agent also cross-checks during its own reasoning (the CROSS-CHECK step) and — when enabled — the same dedicated initiative node now runs after the loop, so both modes get the proactive enrichment."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -2936,6 +2936,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_11": {
+          "title": "v1.20.11 — ⚡ ReAct mode becomes proactive, a home greeting that matches your real day, and several display and accuracy fixes",
+          "date": "May 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>⚡ ReAct mode is now proactive, like the default mode</b> — In ReAct mode (the autonomous, step-by-step reasoning mode), after answering your request LIA can now run a few extra read-only checks in related areas and weave the result into its reply — for example the weather and the travel time for your next appointment, or the contact behind an email. This proactive \"Initiative\" already existed in the default (Pipeline) mode; both modes now offer it. It only triggers when genuinely useful, and only ever reads — it never creates or changes anything on its own.",
+            "i2": "<b>A home greeting that matches your real day</b> — The one-line greeting at the top of your dashboard now reads your agenda correctly: it tells today from tomorrow, names the next appointment, and reacts to the shape of your day (a free day, a busy one, or a single thing coming up) — instead of vaguely (and sometimes wrongly) implying something was happening \"today\".",
+            "i3": "<b>Money amounts now display correctly</b> — Amounts written with a dollar sign (e.g. \"1.50$\" … \"9$\") in the chat or in proactive notifications were sometimes mangled into a mathematical formula, with spaces removed and characters stacked. They now display as plain text everywhere.",
+            "i4": "<b>Admin — configurable home dashboard limits and accurate cost conversion</b> — How much content each Today Briefing card shows (calendar, emails, birthdays, reminders, etc.) is now configurable via environment variables — the agenda now shows up to 10 upcoming events instead of 3 by default. Separately, the exchange-rate source used to convert LLM costs into euros was fixed (it had been falling back to a stored rate), so cost reporting is accurate again."
+          }
+        },
         "v1_20_10": {
           "title": "v1.20.10 — In ReAct mode, the reply no longer exposes the assistant's internal reasoning and no longer appears twice",
           "date": "May 2026",

@@ -2335,6 +2335,7 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 - ✅ LLM type dédié `react_agent` (qwen3.5-plus, thinking medium)
 - ✅ Toggle utilisateur sur la page chat (persisté en DB)
 - ✅ (Amendement 2026-05-20) Parité HITL des drafts: les outils de mutation (create/update/delete) basculent vers le flux partagé `hitl_dispatch → draft_critique → response` via `pending_draft_critique` au lieu de boucler — confirmation/édition/annulation puis exécution réelle, comme en pipeline
+- ✅ (Amendement 2026-05-21) Parité Initiative en ReAct: le chemin nominal `react_finalize` route optionnellement vers `initiative` (nouvelle edge `route_from_react_finalize`, flag `INITIATIVE_REACT_ENABLED` défaut off) — enrichissement proactif cross-domaine identique au pipeline ; la réponse ReAct et les résultats Initiative sont fusionnés (pas de perte)
 
 **Trade-offs**:
 - ReAct: 3-10x plus d'appels LLM, mais adaptatif et autonome

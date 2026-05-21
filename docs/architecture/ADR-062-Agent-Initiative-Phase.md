@@ -171,3 +171,23 @@ If any of these keys is present in state, the node returns immediately with `ini
 **Solution 2**: Extended the protection mechanism to cover items of type `MCP_APP` and `DRAFT` (interactive widgets and HITL confirmation flows). These items are extracted before filtering and unconditionally re-injected after, alongside initiative-protected items. Handles both dict (serialized) and Pydantic RegistryItem object formats.
 
 **Files changed:** `response_node.py`, `smart_planner_service.py`, `llm_config/constants.py`.
+
+### Amendment 2026-05-21: ReAct Nominal-Path Entry (ADR-070 parity)
+
+The Initiative node had two entry points in ReAct mode, but only one was useful:
+
+- **Draft path (incidental)** — `react_execute_tools → draft_critique → initiative` already routed through `initiative_node`, but only when a mutation tool prepared a draft.
+- **Nominal path (new)** — `react_finalize → response` bypassed Initiative entirely, so a normal autonomous ReAct answer never received proactive cross-domain enrichment.
+
+The nominal path now optionally routes through Initiative via a new conditional edge `route_from_react_finalize`, gated by `INITIATIVE_REACT_ENABLED` (default `false`, ship dark). The node is **reused almost as-is** — in ReAct its pre-filter reads the same `query_intelligence.domains` (populated by the router), its execution summary reads `current_turn_registry` (populated by `react_execute_tools`), and the per-request tool manifests come from the same ContextVar as the pipeline.
+
+One robustness fix was required: `_format_execution_summary` only handled registry items in `dict` form (their shape in the pipeline after a PostgreSQL checkpoint round-trip), but in ReAct the registry is built in-memory by `react_execute_tools` and the items are live Pydantic `RegistryItem` objects. The function skipped them all (`isinstance(item, dict)` guard), so the summary collapsed to `"No execution results."` and the LLM declined to act (observed live on "mes deux prochains rdv": `should_act=false`, *"sans détails sur les rendez-vous"*). It now normalizes both shapes (mirroring `react_tool_wrapper` and `generate_data_for_filtering`).
+
+Two ReAct-specific adaptations live outside the node:
+
+1. `route_from_initiative` short-circuits to `response` when `execution_mode == "react"` (no orchestrator loop to re-evaluate against — exactly one enrichment pass).
+2. `response_node` merges the ReAct answer (`{turn}:react_agent`) with the Initiative entry (`{turn}:initiative`) via `_merge_react_synthesis_result` instead of the previous `if not agent_results` gate, which would otherwise have dropped the answer once Initiative wrote its results first.
+
+Findings are woven into the reply via a ReAct-only `<ProactiveFindings>` directive (the data already reaches the response LLM through `data_for_filtering`); the suggestion uses the existing `<InitiativeSuggestion>` injection.
+
+**Files changed:** `routing.py`, `graph.py`, `response_node.py`, `initiative_node.py`, `core/constants.py`, `core/config/agents.py`. See ADR-070 Amendment (2026-05-21).

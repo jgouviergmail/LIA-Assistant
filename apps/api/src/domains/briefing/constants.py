@@ -23,18 +23,15 @@ SECTION_BIRTHDAYS_TTL_SECONDS = 604800  # 7 days — quasi-static, full contacts
 SECTION_REMINDERS_TTL_SECONDS = 0  # Live (local DB, < 10 ms)
 SECTION_HEALTH_TTL_SECONDS = 900  # 15 min — Shortcuts ingest cadence
 
-# Health metrics rolling window for the dashboard card (per-kind daily average).
-BRIEFING_HEALTH_WINDOW_DAYS = 14
-
 # =============================================================================
-# Item limits per section (UI-facing budgets — keep cards scannable).
+# Per-widget content limits (agenda/mails/birthdays/reminders item caps, agenda
+# lookahead, birthdays horizon, health window, weather forecast days) are
+# env-overridable: their defaults live in src/core/constants.py
+# (``BRIEFING_*_DEFAULT``) and are exposed via ``BriefingSettings``. Read them
+# through ``settings.briefing_*`` — never inline constants here — so env
+# overrides take effect. (They live in core, not this domain module, to avoid a
+# config↔briefing-domain circular import.)
 # =============================================================================
-
-BRIEFING_MAX_AGENDA_ITEMS = 3
-BRIEFING_MAX_MAILS_ITEMS = 5
-BRIEFING_MAX_BIRTHDAYS_ITEMS = 5
-BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS = 14
-BRIEFING_MAX_REMINDERS_ITEMS = 5
 
 # Birthday lookup pagination.
 #
@@ -51,16 +48,10 @@ BRIEFING_MAX_REMINDERS_ITEMS = 5
 BRIEFING_BIRTHDAY_PAGE_SIZE = 1000  # People API native max
 BRIEFING_BIRTHDAY_PAGINATION_MAX_PAGES = 5  # 5 × 1000 = 5000 contacts (more than any address book)
 
-# Calendar fetch window (hours forward from now) — covers today + tomorrow morning.
-BRIEFING_AGENDA_LOOKAHEAD_HOURS = 24
-
 # Forecast 3-h slots fetched from OpenWeatherMap.
 # 40 slots × 3 h = 120 h = 5 days (the free-tier maximum).
 # Used both to detect short-term alerts AND to aggregate the 5-day forecast.
 BRIEFING_WEATHER_FORECAST_CNT = 40
-
-# Daily forecast horizon shown on the weather card (rolling next N days).
-BRIEFING_WEATHER_DAILY_FORECAST_DAYS = 5
 
 # =============================================================================
 # Section names (Literal alignment for RefreshRequest schema).

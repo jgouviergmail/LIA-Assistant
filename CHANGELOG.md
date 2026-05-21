@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.11] - 2026-05-21
+
+### Added — ReAct mode now enriches answers with the proactive Initiative phase (ADR-070 / ADR-062 parity)
+
+The Initiative phase — the post-execution step that, after the main answer, optionally runs read-only cross-domain lookups to enrich the reply (e.g. the weather and the drive time before an appointment) — only ran in Pipeline mode. In ReAct mode it was reachable *incidentally* on the draft-confirmation path, but the nominal path (`react_finalize → response`) bypassed it, so an autonomous ReAct answer never received this enrichment.
+
+ReAct now reaches Initiative on the nominal path too, reusing the existing `initiative_node` (its pre-filter reads `query_intelligence.domains`, its execution summary reads `current_turn_registry`, and the per-request tool manifests are all already populated in ReAct). Wiring: `react_finalize` routes through a new conditional edge `route_from_react_finalize` → `initiative` when `INITIATIVE_ENABLED` **and** the new `INITIATIVE_REACT_ENABLED` flag are set (default `false` — ship dark), otherwise straight to `response`. The ReAct **draft** path is intentionally not gated by the new flag, so default-off behaviour is byte-identical to before this release.
+
+Two ReAct-specific adaptations live outside the node: (1) `route_from_initiative` short-circuits to `response` in ReAct (there is no orchestrator loop to re-evaluate against — exactly one enrichment pass); (2) `response_node` previously injected the ReAct answer only `if not agent_results`, which would have dropped it once Initiative wrote `{turn}:initiative` first — it now **merges** via `_merge_react_synthesis_result` (idempotent on `{turn}:react_agent`) so the answer and the proactive findings coexist. A ReAct-only `<ProactiveFindings>` prompt directive invites the response LLM to weave the findings (already present via `data_for_filtering`) into the reply; the suggestion uses the existing `<InitiativeSuggestion>` injection.
+
+One robustness fix in the node itself: `_format_execution_summary` only handled registry items in `dict` form (their shape in the pipeline after a PostgreSQL checkpoint round-trip), but in ReAct the registry is built in-memory by `react_execute_tools` and the items are live Pydantic `RegistryItem` objects. The function skipped them all, so the summary collapsed to `"No execution results."` and the LLM declined to act (observed live: *"sans détails sur les rendez-vous"*, `should_act=false`). It now normalizes both shapes.
+
+**Config** — new `INITIATIVE_REACT_ENABLED` (default `false`). **Tests** — `test_routing_react_initiative.py`, `test_response_node_react_merge.py`, `test_initiative_execution_summary.py`, `test_react_initiative_flow.py`. Docs: ADR-070 + ADR-062 amendments, `docs/ARCHITECTURE_LANGRAPH.md`, `docs/technical/REACT_EXECUTION_MODE.md`.
+
+### Added — Configurable Today Briefing widget content limits (`BriefingSettings`)
+
+The per-widget content limits of the Today Briefing home page were hard-coded constants. They are now env-overridable via a new `BriefingSettings` module added to the `Settings` MRO: `BRIEFING_MAX_AGENDA_ITEMS` (default raised **3 → 10**), `BRIEFING_AGENDA_LOOKAHEAD_HOURS`, `BRIEFING_MAX_MAILS_ITEMS`, `BRIEFING_MAX_BIRTHDAYS_ITEMS`, `BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS`, `BRIEFING_MAX_REMINDERS_ITEMS`, `BRIEFING_HEALTH_WINDOW_DAYS`, `BRIEFING_WEATHER_DAILY_FORECAST_DAYS`. Defaults live in `core/constants.py` (`BRIEFING_*_DEFAULT`) — not in the briefing domain — so `core/config` can import them without triggering the briefing package `__init__` (which would create a config↔domain circular import). The pure formatters stay pure: `daily_forecast_days` is threaded as a parameter, not read from `settings`.
+
+**Tests** — `test_briefing_settings.py`. Docs: `docs/technical/BRIEFING_DOMAIN.md`, `.env.example` / `.env.prod.example`.
+
+### Fixed — Today Briefing greeting now reflects the actual agenda (right day, named event)
+
+The dashboard greeting (a one-sentence LLM line) received only an aggregate `agenda_count` and **no dates**, so it could neither tell that the only event was *tomorrow* (it implied today) nor name it, and a raw count made it lump tomorrow's events into "this afternoon". The greeting now receives the upcoming events (≤ the agenda cap, next ~24 h) with a per-event day-aware start (`"15:00"` = today, `"demain 08:00"` = tomorrow); the prompt reacts to the day's shape (empty/busy, today vs tomorrow) and names an imminent event, without inventing counts. (Side fix found via this work: a literal `{…}` introduced in the prompt broke `str.format` and silently degraded the greeting to its static fallback — the prompt is now brace-safe and a regression test pins the `str.format` contract.)
+
+**Tests** — `test_greeting_agenda_hint.py`.
+
+### Fixed — Currency amounts (`$`) no longer rendered as broken LaTeX in chat and notifications
+
+The markdown renderer (`MarkdownContent`) had KaTeX inline-math enabled with single-`$` delimiters, so a message containing two `$` (e.g. *"1,50$ … 9$"* in an interest notification) had the span between them rendered as a math formula — spaces dropped, `*`→`∗`, `é`→`eˊ`. `remark-math` is now configured with `singleDollarTextMath: false`: a single `$` is literal text, while `$$…$$` display math still works for the rare intentional case.
+
+### Fixed — Currency exchange-rate API endpoint corrected (Frankfurter `.dev/v1`)
+
+`CURRENCY_API_URL_DEFAULT` pointed at `https://api.frankfurter.dev` while the code appends `/latest`; the `.dev` host returns 404 on `/latest` (it requires the versioned `/v1` prefix) and the legacy `.app` host now 301-redirects. The default is now `https://api.frankfurter.dev/v1`, restoring accurate USD→EUR LLM-cost conversion (it had been falling back to the stale DB rate). `CURRENCY_API_URL` is now documented in `.env.example` / `.env.prod.example`.
+
+### Changed — Scheduler leader-election "lock busy" log demoted from warning to info
+
+`_log_stale_lock_info` logged `scheduler_leader_stale_lock_detected` at **warning** on every `SETNX` miss — i.e. every non-leader worker start, and in dev with `--reload` every fresh PID seeing the previous process's still-valid lock. It is now `scheduler_leader_lock_busy` at **info** (the normal case); a genuinely stuck lock (TTL `-1`, no expiry) is escalated to `scheduler_leader_lock_no_expiry` at warning. `docs/guides/GUIDE_DEBUGGING.md` updated to match.
+
+Files: `apps/api/src/core/config/{briefing,agents,advanced}.py`, `apps/api/src/core/constants.py`, `apps/api/src/domains/agents/graph.py`, `apps/api/src/domains/agents/nodes/{routing,initiative_node,response_node}.py`, `apps/api/src/domains/agents/prompts/v1/briefing_greeting_prompt.txt`, `apps/api/src/domains/briefing/{constants,fetchers,formatters,llm}.py`, `apps/api/src/infrastructure/external/currency_api.py`, `apps/api/src/infrastructure/scheduler/leader_elector.py`, `apps/web/src/components/chat/MarkdownContent.tsx`, plus the test files above and the docs noted per section.
+
 ## [1.20.10] - 2026-05-21
 
 ### Fixed — ReAct mode: the agent's internal reasoning no longer leaks into the reply, and the answer is no longer shown twice

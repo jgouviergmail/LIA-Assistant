@@ -20,7 +20,7 @@ Architecture in one line: **lecture pure, asyncio.gather parallel, per-section R
 ```
 apps/api/src/domains/briefing/
 ├── __init__.py          Exposes only the router for FastAPI wiring
-├── constants.py         TTLs, item limits, error codes, prompt names
+├── constants.py         TTLs, internal limits, error codes, prompt names
 ├── exceptions.py        ConnectorNotConfiguredError, ConnectorAccessError
 ├── schemas.py           Pydantic v2 models (CardStatus, *Data, BriefingResponse)
 ├── formatters.py        Pure functions: raw API/DB → UI strings
@@ -29,6 +29,25 @@ apps/api/src/domains/briefing/
 ├── service.py           BriefingService — orchestrator
 └── router.py            GET /briefing/cards + GET /briefing/synthesis + POST /briefing/refresh
 ```
+
+> **Per-widget content limits are env-configurable.** The item caps and scope
+> windows (agenda items + lookahead, mails/birthdays/reminders caps, birthdays
+> horizon, health window, weather forecast days) are exposed via `BriefingSettings`
+> (`BRIEFING_*` env vars). Their defaults live in `src/core/constants.py`
+> (`BRIEFING_*_DEFAULT`) — not in the domain `constants.py` — so `src/core/config`
+> can import them without triggering a config↔domain circular import. Read them at
+> runtime through `settings.briefing_*`, never the constants directly.
+
+| Env var | Default | Bounds | Effect |
+|---------|---------|--------|--------|
+| `BRIEFING_MAX_AGENDA_ITEMS` | 10 | 1–50 | Max events on the agenda card (within the lookahead window) |
+| `BRIEFING_AGENDA_LOOKAHEAD_HOURS` | 24 | 1–168 | Forward window (h) scanned for agenda events |
+| `BRIEFING_MAX_MAILS_ITEMS` | 5 | 1–50 | Max emails on the mails card |
+| `BRIEFING_MAX_BIRTHDAYS_ITEMS` | 5 | 1–50 | Max upcoming birthdays |
+| `BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS` | 14 | 1–365 | Forward window (days) for upcoming birthdays |
+| `BRIEFING_MAX_REMINDERS_ITEMS` | 5 | 1–50 | Max pending reminders |
+| `BRIEFING_HEALTH_WINDOW_DAYS` | 14 | 1–90 | Rolling window (days) for the health card averages |
+| `BRIEFING_WEATHER_DAILY_FORECAST_DAYS` | 5 | 1–5 | Forecast days on the weather card (OpenWeatherMap free-tier cap) |
 
 ### Per-section TTL strategy
 

@@ -25,6 +25,7 @@ from zoneinfo import ZoneInfo
 import httpx
 import structlog
 
+from src.core.config import settings
 from src.core.constants import (
     GMAIL_FORMAT_METADATA,
     HEALTH_METRICS_USER_TOGGLE_ATTR,
@@ -35,15 +36,8 @@ from src.domains.auth.user_location_service import (
     UserLocationService,
 )
 from src.domains.briefing.constants import (
-    BRIEFING_AGENDA_LOOKAHEAD_HOURS,
     BRIEFING_BIRTHDAY_PAGE_SIZE,
     BRIEFING_BIRTHDAY_PAGINATION_MAX_PAGES,
-    BRIEFING_HEALTH_WINDOW_DAYS,
-    BRIEFING_MAX_AGENDA_ITEMS,
-    BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS,
-    BRIEFING_MAX_BIRTHDAYS_ITEMS,
-    BRIEFING_MAX_MAILS_ITEMS,
-    BRIEFING_MAX_REMINDERS_ITEMS,
     BRIEFING_WEATHER_FORECAST_CNT,
     ERROR_CODE_CONNECTOR_NETWORK,
     ERROR_CODE_CONNECTOR_OAUTH_EXPIRED,
@@ -161,6 +155,7 @@ async def fetch_weather(
         forecast=forecast,
         city=city if isinstance(city, str) else None,
         user_tz=user_tz,
+        daily_forecast_days=settings.briefing_weather_daily_forecast_days,
     )
 
 
@@ -243,8 +238,10 @@ async def fetch_agenda(
         try:
             result = await client.list_events(
                 time_min=now.isoformat(),
-                time_max=(now + timedelta(hours=BRIEFING_AGENDA_LOOKAHEAD_HOURS)).isoformat(),
-                max_results=BRIEFING_MAX_AGENDA_ITEMS,
+                time_max=(
+                    now + timedelta(hours=settings.briefing_agenda_lookahead_hours)
+                ).isoformat(),
+                max_results=settings.briefing_max_agenda_items,
                 calendar_id=calendar_id,
                 fields=["id", "summary", "start", "end", "location"],
             )
@@ -305,7 +302,7 @@ async def fetch_mails(
         try:
             result = await client.search_emails(
                 query="is:unread in:inbox",
-                max_results=BRIEFING_MAX_MAILS_ITEMS,
+                max_results=settings.briefing_max_mails_items,
                 use_cache=True,
             )
         except (TimeoutError, httpx.HTTPError) as exc:
@@ -333,7 +330,8 @@ async def fetch_mails(
                 full_messages.append(msg)
 
     items = [
-        format_email_item(m, user_tz, language) for m in full_messages[:BRIEFING_MAX_MAILS_ITEMS]
+        format_email_item(m, user_tz, language)
+        for m in full_messages[: settings.briefing_max_mails_items]
     ]
     return MailsData(items=items, total_unread_today=len(full_messages))
 
@@ -417,8 +415,8 @@ async def fetch_birthdays(*, user: User, user_tz: ZoneInfo) -> BirthdaysData:
     # yesterday's birthday as "today" with days_until=0.
     items = upcoming_birthdays_from_connections(
         all_connections,
-        horizon_days=BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS,
-        max_items=BRIEFING_MAX_BIRTHDAYS_ITEMS,
+        horizon_days=settings.briefing_max_birthdays_horizon_days,
+        max_items=settings.briefing_max_birthdays_items,
         today=datetime.now(user_tz).date(),
     )
     return BirthdaysData(items=items)
@@ -448,7 +446,8 @@ async def fetch_reminders(
         service = ReminderService(db)
         pending = await service.list_pending_for_user(user_id)
     items = [
-        format_reminder_item(r, user_tz, language) for r in pending[:BRIEFING_MAX_REMINDERS_ITEMS]
+        format_reminder_item(r, user_tz, language)
+        for r in pending[: settings.briefing_max_reminders_items]
     ]
     return RemindersData(items=items)
 
@@ -485,7 +484,7 @@ async def fetch_health(*, user: User) -> HealthData:
         for kind in HEALTH_KINDS:
             today_summary = await service.compute_kind_summary(user.id, kind)
             window_breakdown = await service.compute_kind_daily_breakdown(
-                user.id, kind, days=BRIEFING_HEALTH_WINDOW_DAYS
+                user.id, kind, days=settings.briefing_health_window_days
             )
             per_kind_data.append((kind, today_summary, window_breakdown))
 
@@ -495,7 +494,7 @@ async def fetch_health(*, user: User) -> HealthData:
             continue
         value_today = extract_today_value_from_summary(today_summary, kind=kind)
         avg_window, days_count = daily_average_from_breakdown(
-            breakdown, window_days=BRIEFING_HEALTH_WINDOW_DAYS
+            breakdown, window_days=settings.briefing_health_window_days
         )
         # Skip the kind only when BOTH values are missing (no data anywhere).
         if value_today is None and avg_window is None:
@@ -507,7 +506,7 @@ async def fetch_health(*, user: User) -> HealthData:
                 value_today=value_today,
                 value_avg_window=avg_window,
                 unit=spec.unit,
-                window_days=BRIEFING_HEALTH_WINDOW_DAYS,
+                window_days=settings.briefing_health_window_days,
                 days_with_data=days_count,
             )
         )

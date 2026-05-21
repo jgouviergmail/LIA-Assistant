@@ -347,16 +347,32 @@ class SchedulerLeaderElector:
             )
 
     async def _log_stale_lock_info(self) -> None:
-        """Log diagnostic info about the existing lock holder (best-effort)."""
+        """Log diagnostic info about the existing lock holder (best-effort).
+
+        Reaching here simply means another worker already holds the leadership
+        lock (SETNX failed) — the normal case for non-leader workers and, in dev
+        with ``--reload``, for a fresh PID-based worker that sees the previous
+        process's lock until it expires. This is informational, not an anomaly,
+        so it is logged at ``info``. A genuinely stuck lock (TTL ``-1`` = key
+        with no expiry) is escalated to ``warning``.
+        """
         try:
             if self._redis is not None:
                 lock_holder = await self._redis.get(self._lock_key)
                 lock_ttl = await self._redis.ttl(self._lock_key)
-                logger.warning(
-                    "scheduler_leader_stale_lock_detected",
-                    worker_id=self._worker_id,
-                    lock_holder=lock_holder,  # str (decode_responses=True)
-                    lock_ttl_remaining=lock_ttl,
-                )
+                if isinstance(lock_ttl, int) and lock_ttl == -1:
+                    logger.warning(
+                        "scheduler_leader_lock_no_expiry",
+                        worker_id=self._worker_id,
+                        lock_holder=lock_holder,
+                        lock_ttl_remaining=lock_ttl,
+                    )
+                else:
+                    logger.info(
+                        "scheduler_leader_lock_busy",
+                        worker_id=self._worker_id,
+                        lock_holder=lock_holder,  # str (decode_responses=True)
+                        lock_ttl_remaining=lock_ttl,
+                    )
         except Exception:
             pass  # Best-effort diagnostics

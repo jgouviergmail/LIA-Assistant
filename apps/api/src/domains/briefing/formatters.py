@@ -11,7 +11,6 @@ from zoneinfo import ZoneInfo
 
 from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import format_time_with_date_context
-from src.domains.briefing.constants import BRIEFING_WEATHER_DAILY_FORECAST_DAYS
 from src.domains.briefing.schemas import (
     AgendaEventItem,
     BirthdayItem,
@@ -66,6 +65,7 @@ def format_weather_data(
     forecast: dict[str, Any],
     city: str | None,
     user_tz: ZoneInfo,
+    daily_forecast_days: int,
 ) -> WeatherData:
     """Build a WeatherData payload from OpenWeatherMap responses.
 
@@ -78,6 +78,9 @@ def format_weather_data(
         forecast: Response of ``client.get_forecast()`` (cnt=8 = next ~24 h).
         city: Reverse-geocoded city name (or None if resolution failed).
         user_tz: User timezone for slot filtering and time labels.
+        daily_forecast_days: Number of forecast days to aggregate/return (caller
+            passes ``settings.briefing_weather_daily_forecast_days`` — keeps this
+            formatter pure / free of global state).
 
     Returns:
         WeatherData ready for the UI.
@@ -113,7 +116,7 @@ def format_weather_data(
     forecast_alert = _detect_forecast_alert(current=current, forecast=forecast, user_tz=user_tz)
 
     # 5-day daily summary aggregated from the 3-h forecast slots.
-    daily_forecast = _aggregate_daily_forecast(forecast, user_tz)
+    daily_forecast = _aggregate_daily_forecast(forecast, user_tz, daily_forecast_days)
 
     return WeatherData(
         temperature_c=round(temp, 1),
@@ -174,6 +177,7 @@ def _pick_dominant_condition(condition_codes: list[str]) -> str:
 def _aggregate_daily_forecast(
     forecast: dict[str, Any],
     user_tz: ZoneInfo,
+    daily_forecast_days: int,
 ) -> list[DailyForecastItem]:
     """Aggregate the 3-h forecast slots into per-day summaries (today + next N days).
 
@@ -186,7 +190,7 @@ def _aggregate_daily_forecast(
     still surfaced — the user benefits from any signal beyond today.
     """
     today_local = datetime.now(user_tz).date()
-    horizon_end = today_local.toordinal() + (BRIEFING_WEATHER_DAILY_FORECAST_DAYS - 1)
+    horizon_end = today_local.toordinal() + (daily_forecast_days - 1)
 
     by_day: dict[str, dict[str, Any]] = {}
     for entry in forecast.get("list", []) or []:
@@ -234,7 +238,7 @@ def _aggregate_daily_forecast(
                 icon_emoji=WEATHER_EMOJI_MAP.get(condition, WEATHER_EMOJI_DEFAULT),
             )
         )
-    return items[:BRIEFING_WEATHER_DAILY_FORECAST_DAYS]
+    return items[:daily_forecast_days]
 
 
 # Cardinal direction lookup — 8 sectors of 45° each, centered on N=0°.

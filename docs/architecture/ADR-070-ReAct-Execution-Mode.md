@@ -21,11 +21,13 @@ Implement ReAct as a **user-toggleable preference** alongside the existing pipel
 ### Architecture: 4-Node ReAct Loop
 
 ```
-react_setup → react_call_model ←→ react_execute_tools → react_finalize → response
+react_setup → react_call_model ←→ react_execute_tools → react_finalize → [initiative]* → response
                                           │
                                    (draft prepared)
                                           ▼
                           hitl_dispatch (draft_critique) → initiative → response
+
+* nominal path through Initiative gated by INITIATIVE_REACT_ENABLED (Amendment 2026-05-21).
 ```
 
 1. **`react_setup`**: Initializes ReAct state (iteration counter, system prompt with tool descriptions, conversation context). Entry point from the router when ReAct mode is active.
@@ -34,7 +36,7 @@ react_setup → react_call_model ←→ react_execute_tools → react_finalize �
 
 3. **`react_execute_tools`**: Executes the requested tools. HITL approval is handled via native `interrupt()` at this node level (not in a subgraph), ensuring clean checkpoint/resume semantics. Implements an **idempotence pattern** for multi-interrupt re-execution: each tool call is tagged with a unique ID, and completed calls are skipped on resume. Mutation tools (create/update/delete) that prepare a **draft** (`requires_confirmation`) do not loop back to the model; they hand off to the shared draft-confirmation flow (see Amendment 2026-05-20).
 
-4. **`react_finalize`**: Post-processes the final answer (display card rendering, memory extraction, psyche evaluation) and routes to the standard `response` node.
+4. **`react_finalize`**: Post-processes the final answer (display card rendering, memory extraction, psyche evaluation) and routes to the standard `response` node — optionally via the Initiative node for proactive enrichment (see Amendment 2026-05-21).
 
 ### Key Design Choices
 
@@ -77,6 +79,19 @@ The hand-off now enforces three invariants (detail in [REACT_EXECUTION_MODE.md](
 This is an implementation-correctness fix; the ADR-070 decision (parent-graph nodes, shared infrastructure, user toggle) is unchanged.
 
 Related: ADR-086 (Conversation History Compaction — owner of the compaction-summary `SystemMessage` preserved by invariant 2).
+
+## Amendment (2026-05-21): Initiative Parity in ReAct Mode
+
+The pipeline's Initiative phase (ADR-062 — post-execution proactive read-only enrichment) was reachable from ReAct only incidentally, on the draft path (`react_execute_tools → draft_critique → initiative`). The nominal path (`react_finalize → response`) bypassed it, so an autonomous ReAct answer never received the cross-domain enrichment the pipeline offers.
+
+ReAct now reaches Initiative on the nominal path too, reusing `initiative_node` almost unchanged — its pre-filter reads `query_intelligence.domains`, its execution summary reads `current_turn_registry`, and the per-request tool manifests are all already populated in ReAct. The one fix the node needed: `_format_execution_summary` previously only read registry items in `dict` form (the shape they have in the pipeline after a checkpoint round-trip); in ReAct they are live Pydantic `RegistryItem` objects, so the summary collapsed to "No execution results." and the LLM declined to act ("sans détails …"). The summary now normalizes both shapes. The integration is then:
+
+1. **Gated nominal edge** — `react_finalize` routes through a new conditional edge `route_from_react_finalize`: `→ initiative` when `INITIATIVE_ENABLED` **and** `INITIATIVE_REACT_ENABLED` (new flag, default `false` → ship dark), `→ response` otherwise. The **draft path is intentionally not gated** by the new flag, so default-off behaviour is byte-identical to before this amendment.
+2. **Answer preserved** — `response_node` previously injected the ReAct answer only `if not agent_results`; since Initiative writes `{turn}:initiative` first, that guard would have dropped the answer. It now **merges** (`_merge_react_synthesis_result`, idempotent on `{turn}:react_agent`), so the autonomous answer and the proactive findings coexist.
+3. **No orchestrator loop** — `route_from_initiative` short-circuits to `response` in ReAct mode (there is no plan to re-evaluate against), so Initiative runs exactly one enrichment pass.
+4. **Prose weaving** — the proactive findings already reach the response LLM via `data_for_filtering` (registry serialization); a ReAct-only `<ProactiveFindings>` directive invites weaving them into the reply rather than leaving them as orphan cards. The Initiative suggestion is surfaced via the existing mode-agnostic `<InitiativeSuggestion>` injection.
+
+Unlike the pipeline, where `response_node` synthesises the whole answer from the registry, the ReAct answer is already written by the loop; Initiative therefore enriches *after* the fact (cards + woven findings + suggestion) rather than as part of the original synthesis. This is an additive, flag-gated change; the ADR-070 decision is unchanged. Related: ADR-062 (Initiative phase).
 
 ## Trade-offs
 

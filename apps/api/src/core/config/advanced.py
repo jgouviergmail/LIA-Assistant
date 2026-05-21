@@ -84,7 +84,7 @@ class AdvancedSettings(BaseSettings):
     # ========================================================================
     currency_api_url: str = Field(
         default=CURRENCY_API_URL_DEFAULT,
-        description="Currency exchange rates API base URL (default: frankfurter.app - free, ECB source)",
+        description="Currency exchange rates API base URL (default: frankfurter.dev/v1 - free, ECB source)",
     )
     currency_api_timeout_seconds: float = Field(
         default=CURRENCY_API_TIMEOUT_SECONDS_DEFAULT,

@@ -653,6 +653,16 @@ def route_from_initiative(state: MessagesState) -> Literal["initiative", "respon
     if not settings.initiative_enabled:
         return NODE_RESPONSE
 
+    # ReAct mode (ADR-070): single post-finalize enrichment pass — there is no
+    # orchestrator loop to re-evaluate against, so always proceed to response
+    # (never loop back to initiative, regardless of actions_executed).
+    if state.get("execution_mode") == "react":
+        langgraph_conditional_edges_total.labels(
+            edge_name="route_from_initiative",
+            decision=NODE_RESPONSE,
+        ).inc()
+        return NODE_RESPONSE
+
     iteration = state.get(STATE_KEY_INITIATIVE_ITERATION, 0)
     if iteration <= 0:
         return NODE_RESPONSE
@@ -783,3 +793,41 @@ def route_from_react_execute_tools(
         decision=NODE_REACT_CALL_MODEL,
     ).inc()
     return NODE_REACT_CALL_MODEL
+
+
+def route_from_react_finalize(
+    state: MessagesState,
+) -> Literal["initiative", "response"]:
+    """Route after ReAct finalize: optional Initiative enrichment, then response.
+
+    The nominal ReAct path (the LLM stopped calling tools) lands here. When both the
+    global Initiative phase and its ReAct-specific flag are enabled, route through
+    NODE_INITIATIVE so the autonomous answer is enriched with proactive cross-domain
+    read-only findings (ADR-062 parity for ReAct). Otherwise proceed straight to
+    response — preserving the pre-feature behaviour exactly.
+
+    The ReAct *draft* path (execute_tools -> draft_critique -> initiative) is wired
+    independently and is intentionally NOT gated here, so this edge introduces zero
+    change to draft turns.
+
+    Args:
+        state: Current graph state.
+
+    Returns:
+        ``"initiative"`` when ReAct-Initiative is enabled, else ``"response"``.
+    """
+    from src.core.config import settings
+    from src.core.constants import NODE_INITIATIVE
+
+    if settings.initiative_enabled and settings.initiative_react_enabled:
+        langgraph_conditional_edges_total.labels(
+            edge_name="route_from_react_finalize",
+            decision=NODE_INITIATIVE,
+        ).inc()
+        return NODE_INITIATIVE
+
+    langgraph_conditional_edges_total.labels(
+        edge_name="route_from_react_finalize",
+        decision=NODE_RESPONSE,
+    ).inc()
+    return NODE_RESPONSE

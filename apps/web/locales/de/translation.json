@@ -2914,7 +2914,7 @@
         },
         "proactiveInitiative": {
           "title": "🎯 Proaktive Initiative",
-          "description": "Nach Abschluss der Hauptanfrage prüft der Assistent, ob die Ergebnisse domainübergreifende Verbindungen offenbaren. Beispiel: Wetter zeigt Regen am Samstag → prüft Kalender auf Outdoor-Aktivitäten. Im Pipeline-Modus ein dedizierter Node mit LLM-Bewertung. Im ReAct-Modus direkt in die Agentenlogik integriert."
+          "description": "Nach Abschluss der Hauptanfrage prüft der Assistent, ob die Ergebnisse domainübergreifende Verbindungen offenbaren. Beispiel: Wetter zeigt Regen am Samstag → prüft Kalender auf Outdoor-Aktivitäten. Im Pipeline-Modus führt ein dedizierter Node die LLM-Bewertung nach der Antwort aus. Im ReAct-Modus prüft der Agent auch während seiner eigenen Überlegung (der CROSS-CHECK-Schritt) und — sofern aktiviert — läuft nun derselbe dedizierte Initiative-Node nach der Schleife, sodass beide Modi die proaktive Anreicherung erhalten."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -2927,6 +2927,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_11": {
+          "title": "v1.20.11 — Der ⚡ ReAct-Modus wird proaktiv, eine Startseiten-Begrüßung, die zu deinem echten Tag passt, und mehrere Anzeige- und Genauigkeitskorrekturen",
+          "date": "Mai 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Der ⚡ ReAct-Modus ist jetzt proaktiv, wie der Standardmodus</b> — Im ReAct-Modus (dem autonomen, schrittweisen Denkmodus) kann LIA nach der Beantwortung deiner Anfrage nun einige zusätzliche, rein lesende Prüfungen in verwandten Bereichen durchführen und das Ergebnis in die Antwort einfließen lassen — zum Beispiel das Wetter und die Fahrzeit für deinen nächsten Termin oder den Kontakt hinter einer E-Mail. Diese proaktive „Initiative“ gab es bereits im Standardmodus (Pipeline); nun bieten beide Modi sie. Sie wird nur ausgelöst, wenn sie wirklich nützlich ist, und liest immer nur — sie erstellt oder ändert nie etwas von selbst.",
+            "i2": "<b>Eine Startseiten-Begrüßung, die zu deinem echten Tag passt</b> — Die einzeilige Begrüßung oben in deinem Dashboard liest deinen Kalender jetzt korrekt: Sie unterscheidet heute von morgen, nennt den nächsten Termin und reagiert auf die Form deines Tages (ein freier Tag, ein voller Tag oder ein einzelner anstehender Termin) — statt vage (und manchmal fälschlich) anzudeuten, dass „heute“ etwas passiert.",
+            "i3": "<b>Geldbeträge werden jetzt korrekt angezeigt</b> — Beträge mit Dollarzeichen (z. B. „1,50$“ … „9$“) im Chat oder in proaktiven Benachrichtigungen wurden manchmal in eine mathematische Formel verwandelt — Leerzeichen entfernt und Zeichen gestapelt. Sie werden jetzt überall als normaler Text angezeigt.",
+            "i4": "<b>Admin — konfigurierbare Dashboard-Limits und korrigierte Kostenumrechnung</b> — Wie viel Inhalt jede Karte des Today-Briefings anzeigt (Kalender, E-Mails, Geburtstage, Erinnerungen usw.), ist jetzt über Umgebungsvariablen konfigurierbar — der Kalender zeigt jetzt standardmäßig bis zu 10 anstehende Termine statt 3. Außerdem wurde die Wechselkursquelle zur Umrechnung der LLM-Kosten in Euro korrigiert (sie griff zuvor auf einen gespeicherten Kurs zurück), sodass das Kosten-Reporting wieder korrekt ist."
+          }
+        },
         "v1_20_10": {
           "title": "v1.20.10 — Im ReAct-Modus zeigt die Antwort nicht mehr die interne Überlegung des Assistenten und erscheint nicht mehr doppelt",
           "date": "Mai 2026",

@@ -2928,7 +2928,7 @@
         },
         "proactiveInitiative": {
           "title": "🎯 Initiative Proactive",
-          "description": "Après l'exécution de la demande principale, l'assistant évalue si les résultats révèlent des connexions cross-domaines pertinentes pour l'utilisateur. Exemple : météo annonce pluie samedi → vérifie le calendrier pour signaler des activités en extérieur. En mode Pipeline, un node dédié avec évaluation LLM. En mode ReAct, intégré directement dans le raisonnement de l'agent via le step CROSS-CHECK du prompt."
+          "description": "Après l'exécution de la demande principale, l'assistant évalue si les résultats révèlent des connexions cross-domaines pertinentes pour l'utilisateur. Exemple : météo annonce pluie samedi → vérifie le calendrier pour signaler des activités en extérieur. En mode Pipeline, un node dédié exécute l'évaluation LLM après la réponse. En mode ReAct, l'agent vérifie aussi pendant son propre raisonnement (le step CROSS-CHECK) et — lorsque c'est activé — le même node d'initiative s'exécute désormais après la boucle : les deux modes bénéficient ainsi de l'enrichissement proactif."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -2941,6 +2941,17 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_11": {
+          "title": "v1.20.11 — Le mode ⚡ ReAct devient proactif, un message d'accueil fidèle à votre vraie journée, et plusieurs corrections d'affichage et d'exactitude",
+          "date": "Mai 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Le mode ⚡ ReAct est désormais proactif, comme le mode par défaut</b> — En mode ReAct (le mode de raisonnement autonome, étape par étape), après avoir répondu à votre demande, LIA peut maintenant effectuer quelques vérifications complémentaires en lecture seule dans des domaines liés et les intégrer à sa réponse — par exemple la météo et le temps de trajet pour votre prochain rendez-vous, ou le contact derrière un e-mail. Cette « Initiative » proactive existait déjà dans le mode par défaut (Pipeline) ; les deux modes en bénéficient désormais. Elle ne se déclenche que lorsqu'elle est réellement utile, et se contente toujours de lire — elle ne crée ni ne modifie jamais rien d'elle-même.",
+            "i2": "<b>Un message d'accueil fidèle à votre vraie journée</b> — La phrase d'accueil en haut de votre tableau de bord lit désormais correctement votre agenda : elle distingue aujourd'hui de demain, nomme le prochain rendez-vous et réagit à la forme de votre journée (journée libre, chargée, ou un seul événement à venir) — au lieu de laisser entendre vaguement (et parfois à tort) qu'il se passait quelque chose « aujourd'hui ».",
+            "i3": "<b>Les montants en devise s'affichent désormais correctement</b> — Les montants écrits avec le signe dollar (par ex. « 1,50$ » … « 9$ ») dans le chat ou les notifications proactives étaient parfois transformés en formule mathématique, espaces supprimés et caractères empilés. Ils s'affichent désormais en texte normal partout.",
+            "i4": "<b>Admin — limites du tableau de bord configurables et conversion des coûts corrigée</b> — La quantité de contenu affichée par chaque carte du Briefing du jour (agenda, e-mails, anniversaires, rappels, etc.) est désormais configurable via des variables d'environnement — l'agenda affiche jusqu'à 10 événements à venir au lieu de 3 par défaut. Par ailleurs, la source de taux de change utilisée pour convertir les coûts LLM en euros a été corrigée (elle se rabattait sur un taux stocké), rendant le reporting de coûts à nouveau exact."
+          }
+        },
         "v1_20_10": {
           "title": "v1.20.10 — En mode ReAct, la réponse ne laisse plus apparaître le raisonnement interne de l'assistant et ne s'affiche plus en double",
           "date": "Mai 2026",

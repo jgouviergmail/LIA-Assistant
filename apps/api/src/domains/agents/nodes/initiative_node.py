@@ -332,11 +332,22 @@ def _format_execution_summary(
     # 1. Extract from registry (rich data: weather details, event names, etc.)
     if registry:
         for _item_id, item in registry.items():
-            if not isinstance(item, dict):
+            # Registry items reach this node in two shapes: plain dicts in the
+            # pipeline (after a checkpoint serialization round-trip) and Pydantic
+            # RegistryItem objects in ReAct (built in-memory by react_execute_tools,
+            # no round-trip). Normalize both — mirrors the dual-format handling in
+            # react_tool_wrapper and generate_data_for_filtering. Without this, ReAct
+            # items were skipped and the summary collapsed to "No execution results.",
+            # blinding the initiative LLM to the data the loop had just fetched.
+            if isinstance(item, dict):
+                payload = item.get("payload") or {}
+                meta = item.get("meta") or {}
+                domain = (meta.get("domain") if isinstance(meta, dict) else None) or "unknown"
+            else:
+                payload = getattr(item, "payload", None) or {}
+                domain = getattr(getattr(item, "meta", None), "domain", None) or "unknown"
+            if not isinstance(payload, dict):
                 continue
-            payload = item.get("payload", {})
-            meta = item.get("meta", {})
-            domain = meta.get("domain", "unknown")
 
             # Generic extraction: iterate all payload fields, exclude technical ones
             summary_parts: list[str] = []
@@ -489,6 +500,7 @@ async def initiative_node(
 
     run_id = _extract_run_id(config)
     _initiative_start = _time.perf_counter()
+    execution_mode = state.get("execution_mode", "pipeline")
 
     # ── 1b. Skip after HITL resolution (accept/refuse) ──────────────
     # When the user just approved or refused a draft, disambiguation, or tool
@@ -545,6 +557,7 @@ async def initiative_node(
         executed_domains=executed_domains,
         adjacent_tool_count=len(adjacent_manifests),
         run_id=run_id,
+        execution_mode=execution_mode,
     )
     if not adjacent_manifests:
         return {
@@ -614,6 +627,7 @@ async def initiative_node(
         has_suggestion=decision.suggestion is not None,
         reasoning=decision.reasoning,
         run_id=run_id,
+        execution_mode=execution_mode,
     )
 
     # Prometheus: evaluation decision (dashboard 13) — non-critical

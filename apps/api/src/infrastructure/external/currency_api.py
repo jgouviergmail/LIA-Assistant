@@ -1,7 +1,7 @@
 """
 External API integration for currency exchange rates.
 
-Uses frankfurter.app (free, reliable, BCE source) with 24h cache.
+Uses frankfurter.dev/v1 (free, reliable, ECB source) with 24h cache.
 
 Cache is class-level (shared across all instances) so that callers creating
 short-lived ``CurrencyRateService()`` instances still benefit from previous
@@ -36,7 +36,7 @@ class CurrencyRateService:
     Fetch live currency exchange rates from external API.
 
     Features:
-    - Source: api.frankfurter.app (European Central Bank data)
+    - Source: api.frankfurter.dev/v1 (European Central Bank data)
     - Cache: class-level, 24h TTL (rates update 1x/day around 16:00 CET)
     - Negative cache: 5 min TTL when API is unreachable (avoids retry storms)
     - Async: httpx.AsyncClient for non-blocking requests

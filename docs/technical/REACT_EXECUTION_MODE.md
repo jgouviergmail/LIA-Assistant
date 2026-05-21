@@ -38,7 +38,7 @@ The user toggles between modes via a frontend toggle (Zap icon). The preference 
 | **Token cost** | Lower (1 planner + 1 response LLM call) | Higher (1 LLM call per iteration) |
 | **Best for** | Well-structured requests, multi-domain | Exploratory, research, ambiguous queries |
 | **HITL** | Plan-level approval + draft confirmation | Tool-level interrupt + draft confirmation (shared flow) |
-| **Initiative** | Dedicated initiative_node (LLM evaluation) | Integrated in ReAct prompt (CROSS-CHECK step) |
+| **Initiative** | Dedicated `initiative_node` (post-execution LLM evaluation) | Same `initiative_node` on the nominal path when `INITIATIVE_REACT_ENABLED` (ADR-070 amendment 2026-05-21), in addition to the in-loop CROSS-CHECK step |
 
 ## Architecture
 
@@ -161,6 +161,17 @@ The ReAct loop never streams its own tokens to the user. `react_finalize` stores
 
 3. **Single, de-duplicated stream** — LangGraph `stream_mode="messages"` emits **both** the response LLM's token deltas (`AIMessageChunk`) and the complete post-processed `AIMessage` the node returns to the `messages` channel. `StreamingService._process_messages_chunk()` streams the deltas only and skips the complete message once deltas have been seen (with a non-streaming fallback that emits it when no delta occurred), so the reply is never shown twice. The canonical post-processed content (HTML cards, psyche-tag cleanup) is still delivered by the `content_replacement` chunk after the stream loop.
 
+## Initiative enrichment on the nominal path (ADR-070 / ADR-062)
+
+When `INITIATIVE_ENABLED` **and** `INITIATIVE_REACT_ENABLED` are set, the nominal ReAct path routes `react_finalize → initiative → response` instead of `react_finalize → response`. The conditional edge `route_from_react_finalize` (in `nodes/routing.py`) gates this; the **draft** path (`react_execute_tools → draft_critique → initiative`) is wired independently and is never gated by the flag, so default-off (the default) is byte-identical to the pre-amendment behaviour.
+
+The existing pipeline `initiative_node` is reused almost as-is — its pre-filter reads `query_intelligence.domains`, its execution summary reads `current_turn_registry`, and the per-request tool manifests are all already populated in ReAct. Two ReAct-specific adaptations live outside the node:
+
+- `route_from_initiative` short-circuits to `response` in ReAct (`execution_mode == "react"`): there is no orchestrator loop to re-evaluate against, so exactly one enrichment pass runs.
+- `response_node` **merges** the ReAct answer (`{turn}:react_agent`) with any Initiative entry (`{turn}:initiative`) via `_merge_react_synthesis_result` (idempotent on the react key) instead of the previous `if not agent_results` gate, which would otherwise have dropped the answer once Initiative wrote its results first. A ReAct-only `<ProactiveFindings>` prompt directive invites the response LLM to weave the proactive findings (already present via `data_for_filtering`) into the reply; the suggestion uses the existing `<InitiativeSuggestion>` injection.
+
+One node-level fix made this work in ReAct: `_format_execution_summary` now normalizes registry items in both `dict` form (pipeline, after a checkpoint round-trip) and live Pydantic `RegistryItem` form (ReAct, built in-memory by `react_execute_tools`). It previously skipped the latter, so the summary collapsed to `"No execution results."` and the Initiative LLM declined to act.
+
 ## Token Tracking
 
 Token tracking works for all providers through the `TokenTrackingCallback`:
@@ -187,6 +198,7 @@ REACT_AGENT_MAX_ITERATIONS=15         # Max ReAct loop iterations
 REACT_AGENT_TIMEOUT_SECONDS=120       # Hard timeout for entire execution
 REACT_AGENT_MAX_TOOLS=25              # Max tools bound to LLM
 REACT_AGENT_HISTORY_WINDOW_TURNS=5    # Conversation history window
+INITIATIVE_REACT_ENABLED=false        # Run the Initiative phase on the ReAct nominal path (ADR-070; pipeline uses INITIATIVE_ENABLED)
 ```
 
 LLM type: `react_agent` — configurable in admin LLM config panel.

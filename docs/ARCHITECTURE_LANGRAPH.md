@@ -130,9 +130,11 @@ Alternative path when `execution_mode == "react"`: the router routes to `react_s
 - **react_setup**: Selects all available tools, builds system prompt, injects memory + skills catalogue
 - **react_call_model**: Calls LLM with bound tools, applies message windowing
 - **react_execute_tools**: Executes tools. Two HITL paths: `interrupt()` pre-approval for tools flagged `hitl_required` (idempotence pattern), and — for mutation tools that prepare a **draft** (`requires_confirmation`, e.g. create/update/delete event·email·contact·task·file·label) — a hand-off to the shared `hitl_dispatch → draft_critique` flow via `pending_draft_critique` instead of looping back to the model. This gives ReAct the same confirm/edit/cancel-then-execute guarantee as pipeline mode (the agent no longer reports an action as done before it is confirmed and executed).
-- **react_finalize**: Records metrics, sets `react_agent_result` for response node
+- **react_finalize**: Records metrics, sets `react_agent_result`; routes to `response_node` — optionally via `initiative` on the nominal path (see note below)
 
 > **Draft hand-off (parity with pipeline)**: when `react_execute_tools` detects a prepared draft, `route_from_react_execute_tools` routes to `hitl_dispatch` (the same node the pipeline uses) → `initiative` → `response_node`, where the confirmed draft is actually executed (`execute_draft_if_confirmed`). The ReAct completion metrics are still emitted on this short-circuited path (`status="draft"`).
+
+> **Nominal-path Initiative (ADR-062 parity, ADR-070 amendment 2026-05-21)**: when no draft is pending, `route_from_react_finalize` optionally routes `react_finalize → initiative → response_node` (gated by `INITIATIVE_REACT_ENABLED`, default off) so the autonomous answer gets the same proactive cross-domain enrichment as the pipeline. `route_from_initiative` short-circuits to `response_node` in ReAct (one pass, no orchestrator loop), and `response_node` merges the ReAct answer (`{turn}:react_agent`) with the Initiative results (`{turn}:initiative`) so neither is dropped.
 
 Safety: max iterations (`REACT_AGENT_MAX_ITERATIONS`) + hard timeout (`REACT_AGENT_TIMEOUT_SECONDS`).
 

@@ -2184,7 +2184,7 @@ DEL "scheduler_lock:scheduled_action_executor"
 
 #### Leader election stale lock
 
-**Symptôme** : Aucun job schedulé ne s'exécute après un redémarrage du conteneur. Les logs montrent `scheduler_leader_stale_lock_detected` au démarrage suivi de `scheduler_leader_starting_re_election`.
+**Symptôme** : Aucun job schedulé ne s'exécute après un redémarrage du conteneur. Les logs montrent `scheduler_leader_lock_busy` (info — un autre worker, ou l'ancien process en dev `--reload`, détient encore le lock) au démarrage, suivi de `scheduler_leader_starting_re_election`.
 
 **Diagnostic** :
 
@@ -2197,7 +2197,8 @@ TTL "scheduler:leader"        # Temps restant
 # Vérifier les logs
 # Events à chercher :
 #   scheduler_leader_elected (method=immediate | re_election)
-#   scheduler_leader_stale_lock_detected (lock_holder, lock_ttl_remaining)
+#   scheduler_leader_lock_busy (info — lock détenu par un autre worker ; cas normal, lock_holder/lock_ttl_remaining)
+#   scheduler_leader_lock_no_expiry (warning — lock sans TTL = vrai lock zombie)
 #   scheduler_leader_starting_re_election
 ```
 

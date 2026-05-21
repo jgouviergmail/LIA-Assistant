@@ -40,7 +40,9 @@ class TestFormatWeatherData:
             "weather": [{"main": "Clear", "description": "ciel dégagé"}],
         }
         forecast = {"list": []}
-        out = format_weather_data(current=current, forecast=forecast, city="Paris", user_tz=PARIS)
+        out = format_weather_data(
+            current=current, forecast=forecast, city="Paris", user_tz=PARIS, daily_forecast_days=5
+        )
         assert out.temperature_c == 18.4
         assert out.condition_code == "Clear"
         assert out.icon_emoji == WEATHER_EMOJI_MAP["Clear"]
@@ -53,7 +55,9 @@ class TestFormatWeatherData:
             "main": {"temp": 12},
             "weather": [{"main": "Wibble", "description": "weird stuff"}],
         }
-        out = format_weather_data(current=current, forecast={"list": []}, city=None, user_tz=PARIS)
+        out = format_weather_data(
+            current=current, forecast={"list": []}, city=None, user_tz=PARIS, daily_forecast_days=5
+        )
         assert out.icon_emoji == WEATHER_EMOJI_DEFAULT
 
     def test_missing_weather_array_uses_unknown(self) -> None:
@@ -62,6 +66,7 @@ class TestFormatWeatherData:
             forecast={"list": []},
             city=None,
             user_tz=PARIS,
+            daily_forecast_days=5,
         )
         assert out.condition_code == "Unknown"
         assert out.description == "Unknown"

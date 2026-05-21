@@ -460,7 +460,11 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
     return (
       <div className={cn('markdown-content text-[13px] mobile:text-sm leading-relaxed', className)}>
         <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkMath]}
+          // singleDollarTextMath: false — a single `$` is NOT a math delimiter,
+          // so currency amounts ("1,50$", "9$") render as literal text instead of
+          // being swallowed into a KaTeX formula (spaces dropped, `*`→`∗`, `é`→`eˊ`).
+          // Display math `$$…$$` still works for the rare intentional case.
+          remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: false }]]}
           remarkRehypeOptions={{ allowDangerousHtml: true }}
           rehypePlugins={[rehypeRaw, rehypeKatex]}
           // Custom URL transform to allow tel: and mailto: protocols

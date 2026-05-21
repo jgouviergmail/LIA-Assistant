@@ -121,6 +121,7 @@ from src.core.constants import (
     INITIATIVE_ENABLED_DEFAULT,
     INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT,
     INITIATIVE_MAX_ITERATIONS_DEFAULT,
+    INITIATIVE_REACT_ENABLED_DEFAULT,
     INSUFFICIENT_CONTENT_MIN_CHARS_THRESHOLD_DEFAULT,
     INTEREST_ACTIVITY_COOLDOWN_MINUTES_DEFAULT,
     INTEREST_CONTENT_LOOKBACK_DAYS_DEFAULT,
@@ -2999,6 +3000,14 @@ class AgentsSettings(BaseSettings):
         ge=1,
         le=5,
         description="Maximum read-only actions per initiative evaluation.",
+    )
+    initiative_react_enabled: bool = Field(
+        default=INITIATIVE_REACT_ENABLED_DEFAULT,
+        description=(
+            "Enable the Initiative phase on the ReAct nominal path "
+            "(react_finalize -> initiative -> response). Independent of the pipeline "
+            "Initiative; the ReAct draft path is never gated by this flag."
+        ),
     )
 
     # ========================================================================
