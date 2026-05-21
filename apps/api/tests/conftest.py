@@ -38,7 +38,7 @@ import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -248,6 +248,10 @@ async def async_engine(test_database_url: str):
     )
 
     async with engine.begin() as conn:
+        # pgvector tables (Vector columns) require the extension to exist before
+        # create_all. Idempotent + no-op when already present (local dev DB);
+        # the CI test DB (pgvector image) needs it created explicitly.
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
@@ -309,6 +313,9 @@ def sync_engine(test_database_url_sync: str):
         poolclass=StaticPool,
     )
 
+    with engine.begin() as conn:
+        # pgvector extension must exist before create_all on Vector-column tables.
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
