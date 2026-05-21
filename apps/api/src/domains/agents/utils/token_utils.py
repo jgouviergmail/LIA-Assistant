@@ -10,6 +10,7 @@ from langchain_core.messages import BaseMessage
 
 from src.core.config import get_settings
 from src.core.field_names import FIELD_TOTAL
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -78,8 +79,10 @@ def count_messages_tokens(messages: list[BaseMessage], encoding_name: str | None
         encoding_name = settings.token_encoding_name
     total = 0
     for msg in messages:
-        content = msg.content or ""
-        total += count_tokens(str(content), encoding_name)
+        # Gemini 3.x content is list[dict]; coerce to text so the token count
+        # reflects the actual text, not the Python repr of the block list.
+        content = coerce_content_to_text(msg.content)
+        total += count_tokens(content, encoding_name)
 
     return total
 

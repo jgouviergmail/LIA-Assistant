@@ -42,6 +42,7 @@ from src.domains.agents.prompts.prompt_loader import load_prompt_with_fallback
 # "expression 'Reminder' failed to locate a name" when User.reminders relationship
 # is resolved during the first DB query.
 from src.domains.reminders.models import Reminder  # noqa: F401
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
@@ -270,12 +271,9 @@ Generate a short, natural message in {language}.
 
         invoke_config = enrich_config_with_node_metadata(None, "reminder_notification")
         response = await llm.ainvoke(system_prompt, config=invoke_config)
-        raw_content = response.content
-        if isinstance(raw_content, list):
-            # Handle list of content blocks
-            message = " ".join(str(c) for c in raw_content).strip()
-        else:
-            message = str(raw_content).strip()
+        # Gemini 3.x returns content as list[dict] blocks; coerce to text so the
+        # reminder message is the actual text, not a Python repr of the blocks.
+        message = coerce_content_to_text(response.content).strip()
 
         # Extract token usage from response metadata
         tokens_in = 0

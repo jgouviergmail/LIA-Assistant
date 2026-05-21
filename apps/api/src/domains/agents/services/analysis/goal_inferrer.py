@@ -14,6 +14,7 @@ Design Philosophy:
 from langchain_core.messages import BaseMessage
 
 from src.domains.agents.analysis.query_intelligence import UserGoal
+from src.infrastructure.llm.message_text import coerce_content_to_text
 
 # =============================================================================
 # GOAL PATTERNS (Module-level constants for performance)
@@ -113,7 +114,7 @@ class GoalInferrer:
         """
         recent = messages[-4:]
         for msg in recent:
-            content = str(msg.content).lower() if hasattr(msg, "content") else ""
+            content = coerce_content_to_text(getattr(msg, "content", "")).lower()
             if "contact" in content and intent == "send":
                 return UserGoal.COMMUNICATE, "Following contact search"
             if "email" in content and intent == "search":

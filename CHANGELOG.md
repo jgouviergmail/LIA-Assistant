@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.13] - 2026-05-22
+
+### Fixed — Responses no longer fail or degrade with Gemini 3.x models
+
+Gemini 3.x (e.g. `gemini-3.5-flash`, `gemini-3-pro-preview`) returns `AIMessage`/`AIMessageChunk.content` as a **list of content blocks** (`[{"type": "text", "text": "...", "index": 0}]`) instead of a plain string like earlier Gemini and every other provider. Several code paths assumed `str` and broke under Gemini 3.x:
+
+- **SSE token streaming** aborted with a `ChatStreamChunk` `ValidationError`, surfacing to the user as *"Un problème est survenu lors de la génération de la réponse. Veuillez réessayer."* — in **both** Pipeline and ReAct modes (they share the response-node token stream).
+- **ReAct mode** additionally crashed in `format_conversation_history` (`'list' object has no attribute 'strip'`) whenever the conversation history contained Gemini-produced list-content messages. This is **independent of the response model**: a mixed-provider setup (Gemini driving the ReAct loop, another model synthesizing the response) was equally affected.
+- Silent degradations elsewhere: skipped psyche-tag / registry-filtering / HTML-widget post-processing, garbled voice (TTS) output, distorted token counts, dropped tokens after a HITL resumption, email-draft generation, and the `structured_output` JSON-mode fallback.
+
+### Changed — Canonical content-normalization primitive (DRY)
+
+Introduced `coerce_content_to_text()` (`src/infrastructure/llm/message_text.py`): a single, defensive primitive that normalizes any message `.content` shape (`str`, Gemini 3.x `list[dict]` blocks, `None`, or anything else) to plain text, mirroring LangChain Core 1.2+ `BaseMessage.text` semantics (concatenate `text` blocks, ignore reasoning/thought-signature). Applied at the **shared chokepoints** — the SSE token formatter (`format_token_chunk`), `format_conversation_history` / `get_conversation_summary_for_logging`, and the `structured_output` JSON-mode fallback — so all their callers are protected, plus the remaining direct consumers. Four pre-existing bespoke `list → text` implementations (`react_finalize`, `react_runner`, `_extract_reasoning_detail`, the translation service) were consolidated onto it. **Non-destructive**: the source-of-truth messages stored in graph state are never mutated — normalization happens at the consumption boundary where a `str` is contractually required.
+
+Files: `apps/api/src/infrastructure/llm/message_text.py` (new), `apps/api/src/infrastructure/llm/structured_output.py`, `apps/api/src/domains/agents/{services/streaming/service,nodes/response_node,nodes/react_nodes,nodes/router_node_v3,nodes/semantic_validator_node,nodes/planner_node_v3,services/fallback_response,services/query_analyzer_service,services/analysis/goal_inferrer,services/hitl/interactions/draft_critique,services/hitl/resumption_strategies,tools/emails_tools,tools/react_runner,utils/conversation_context,utils/message_filters,utils/token_utils}.py`, `apps/api/src/domains/{voice/service,briefing/llm,personalities/translation_service}.py`, `apps/api/src/infrastructure/scheduler/reminder_notification.py`. **Tests**: `tests/unit/infrastructure/llm/test_message_text.py` + regression tests reproducing both crashes (`test_streaming_service.py`, `test_conversation_context.py`); Ruff / Black / MyPy clean; 4447 unit tests green. **Docs**: `docs/technical/LLM_PROVIDER_CONSTRAINTS.md` (Gemini 3.x response content shape). No DB migration, no new env var, no endpoint change.
+
 ## [1.20.12] - 2026-05-21
 
 ### Added — Dormant interests are visible and manageable again (no more silent loss of control)

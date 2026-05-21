@@ -44,6 +44,7 @@ from src.domains.agents.constants import (
 from src.domains.agents.orchestration.semantic_validator import (
     PlanSemanticValidator,
 )
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -232,7 +233,9 @@ async def semantic_validator_node(
             # Get last user message content
             last_message = messages[-1]
             user_request = (
-                last_message.content if hasattr(last_message, "content") else str(last_message)
+                coerce_content_to_text(last_message.content)
+                if hasattr(last_message, "content")
+                else str(last_message)
             )
         logger.debug(
             "semantic_validator_using_original_message",

@@ -71,6 +71,7 @@ from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.models import ConnectorType
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm import get_llm
+from src.infrastructure.llm.message_text import coerce_content_to_text
 
 logger = structlog.get_logger(__name__)
 
@@ -1917,8 +1918,9 @@ async def _generate_email_content(
 
     result = await llm.ainvoke(prompt, config=enriched_config)
 
-    # Extract content
-    content = result.content if hasattr(result, "content") else str(result)
+    # Extract content. Gemini 3.x returns content as list[dict] blocks; coerce to
+    # text so .strip()/.startswith()/json.loads below stay str-safe.
+    content = coerce_content_to_text(result.content) if hasattr(result, "content") else str(result)
     content = content.strip()
 
     # Clean potential markdown code blocks

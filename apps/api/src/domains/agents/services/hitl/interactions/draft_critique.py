@@ -51,6 +51,7 @@ from src.core.i18n_hitl import HitlMessages, HitlMessageType
 from src.core.time_utils import format_value_if_datetime_string
 from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.prompts import format_with_current_datetime
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 from ..protocols import HitlInteractionType
@@ -360,7 +361,8 @@ class DraftCritiqueInteraction:
         async for chunk in self._question_generator.tool_question_llm.astream(
             prompt, config=config
         ):
-            content = chunk.content if chunk.content else ""
+            # Gemini 3.x streams list[dict] content blocks; normalize to text.
+            content = coerce_content_to_text(chunk.content)
             yield content
 
     def _build_critique_prompt(

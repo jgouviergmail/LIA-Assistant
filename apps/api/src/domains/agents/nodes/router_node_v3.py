@@ -39,6 +39,7 @@ from src.domains.agents.constants import (
 from src.domains.agents.domain_schemas import RouterOutput
 from src.domains.agents.models import MessagesState
 from src.domains.agents.utils.turn_type import normalize_turn_type
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics import router_confidence_score
@@ -102,11 +103,7 @@ async def router_node_v3(
     last_message = messages[-1] if messages else None
     query = ""
     if last_message and hasattr(last_message, "content"):
-        query = (
-            last_message.content
-            if isinstance(last_message.content, str)
-            else str(last_message.content)
-        )
+        query = coerce_content_to_text(last_message.content)
 
     logger.info(
         "router_v3_start",

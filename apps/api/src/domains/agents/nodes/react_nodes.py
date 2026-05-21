@@ -35,6 +35,7 @@ from src.domains.agents.services.react_tool_selector import ReactToolSelector
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_registry import get_tool
 from src.infrastructure.llm.factory import get_llm
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.metrics_agents import (
     react_agent_duration_seconds,
@@ -655,13 +656,8 @@ async def react_finalize_node(
     last_message = state["messages"][-1] if state.get("messages") else None
     final_content = ""
     if isinstance(last_message, AIMessage):
-        if isinstance(last_message.content, str):
-            final_content = last_message.content
-        elif isinstance(last_message.content, list):
-            # Anthropic format: list of content blocks
-            final_content = " ".join(
-                block.get("text", "") for block in last_message.content if isinstance(block, dict)
-            )
+        # Normalize str (most providers) and list[dict] blocks (Gemini 3.x) to text.
+        final_content = coerce_content_to_text(last_message.content)
 
     # Prometheus metrics (shared helper — also used by the draft handoff path)
     duration_s = time.time() - start_time if start_time else 0.0

@@ -51,6 +51,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from src.domains.agents.utils.message_filters import (
     filter_for_llm_context,
 )
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -90,7 +91,9 @@ def format_conversation_history(
 
     lines = []
     for msg in messages:
-        content = getattr(msg, "content", "")
+        # Gemini 3.x stores content as list[dict] blocks; normalize to text so
+        # the .strip()/slicing below stay str-safe (otherwise AttributeError).
+        content = coerce_content_to_text(getattr(msg, "content", ""))
 
         # Truncate long content
         if len(content) > max_content_length:
@@ -242,7 +245,7 @@ def get_conversation_summary_for_logging(
     summary = []
     for msg in messages:
         msg_type = type(msg).__name__
-        content = getattr(msg, "content", "")
+        content = coerce_content_to_text(getattr(msg, "content", ""))
         preview = (
             content[:max_preview_length] + "..." if len(content) > max_preview_length else content
         )

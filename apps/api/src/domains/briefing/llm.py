@@ -40,6 +40,7 @@ from src.domains.personalities.service import PersonalityService
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.factory import get_llm
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.metrics_briefing import (
     briefing_llm_invocations_total,
 )
@@ -195,13 +196,9 @@ async def _invoke_and_track(
     model_name = get_llm_config_for_agent(app_settings, BRIEFING_LLM_TYPE).model
 
     response = await llm.ainvoke([HumanMessage(content=rendered)])
-    # LangChain may return content as either str or list[str | dict]; we only
-    # care about plain text for the greeting / synthesis.
-    raw_content = response.content
-    if isinstance(raw_content, list):
-        text = "".join(part for part in raw_content if isinstance(part, str)).strip()
-    else:
-        text = (raw_content or "").strip()
+    # LangChain may return content as str or list[str | dict] (Gemini 3.x blocks);
+    # coerce to plain text for the greeting / synthesis.
+    text = coerce_content_to_text(response.content).strip()
 
     # Token usage extraction. LangChain v1 surfaces .usage_metadata as a
     # standard dict on the AIMessage; defensive .get() to tolerate provider

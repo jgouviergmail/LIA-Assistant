@@ -15,6 +15,7 @@ from collections.abc import AsyncGenerator, Callable
 from typing import TYPE_CHECKING, Any
 
 from src.domains.agents.prompts import load_prompt
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -114,8 +115,12 @@ async def generate_fallback_response(
 
         async for chunk in llm.astream(prompt, config=enriched_config):
             if hasattr(chunk, "content") and chunk.content:
-                formatted_chunk = format_chunk_fn(chunk.content)
-                yield (formatted_chunk, chunk.content)  # type: ignore
+                # Gemini 3.x streams list[dict] content blocks; normalize to text.
+                text = coerce_content_to_text(chunk.content)
+                if not text:
+                    continue
+                formatted_chunk = format_chunk_fn(text)
+                yield (formatted_chunk, text)
 
         logger.info(
             "fallback_response_completed",

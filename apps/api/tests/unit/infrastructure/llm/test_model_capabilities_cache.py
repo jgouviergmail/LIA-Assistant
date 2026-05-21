@@ -6,16 +6,36 @@ without an explicit ``@pytest.mark.asyncio`` marker.
 """
 
 from collections.abc import Generator
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import CACHE_NAME_MODEL_CAPABILITIES
-from src.domains.llm.models import LLMProviderEnum
+from src.domains.llm.models import (
+    LLMModelKindEnum,
+    LLMProviderEnum,
+    LLMReasoningWidgetEnum,
+)
 from src.domains.llm.repository import LLMModelRepository
 from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
 from src.infrastructure.llm.model_profiles import ModelProfile
+
+# Reasoning + sampling block required by create_model() since v1.20.1. These
+# tests exercise the capability cache, not reasoning specifics, so uniform
+# non-reasoning defaults are sufficient.
+_NON_REASONING_DEFAULTS: dict[str, Any] = {
+    "kind": LLMModelKindEnum.chat,
+    "reasoning_widget": LLMReasoningWidgetEnum.none,
+    "reasoning_enum_values": None,
+    "reasoning_budget_range": None,
+    "reasoning_doc_i18n_key": None,
+    "supports_temperature": True,
+    "supports_top_p": True,
+    "supports_frequency_penalty": True,
+    "supports_presence_penalty": True,
+}
 
 
 @pytest.fixture(autouse=True)
@@ -42,6 +62,7 @@ async def test_load_from_db_populates_cache_with_active_models_only(
         supports_streaming=True,
         supports_vision=True,
         is_reasoning_model=False,
+        **_NON_REASONING_DEFAULTS,
     )
     inactive = await repo.create_model(
         provider=LLMProviderEnum.openai,
@@ -54,6 +75,7 @@ async def test_load_from_db_populates_cache_with_active_models_only(
         supports_streaming=False,
         supports_vision=False,
         is_reasoning_model=False,
+        **_NON_REASONING_DEFAULTS,
     )
     await repo.deactivate_by_id(inactive.id)
 
@@ -80,6 +102,7 @@ async def test_get_returns_model_profile_with_correct_fields(
         supports_streaming=True,
         supports_vision=True,
         is_reasoning_model=False,
+        **_NON_REASONING_DEFAULTS,
     )
     await ModelCapabilitiesCache.load_from_db(async_session)
 
@@ -114,6 +137,7 @@ async def test_get_provider_returns_provider_string(async_session: AsyncSession)
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_NON_REASONING_DEFAULTS,
     )
     await ModelCapabilitiesCache.load_from_db(async_session)
 
@@ -135,6 +159,7 @@ async def test_get_models_grouped_by_provider(async_session: AsyncSession) -> No
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_NON_REASONING_DEFAULTS,
     )
     await repo.create_model(
         provider=LLMProviderEnum.openai,
@@ -147,6 +172,7 @@ async def test_get_models_grouped_by_provider(async_session: AsyncSession) -> No
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_NON_REASONING_DEFAULTS,
     )
     await repo.create_model(
         provider=LLMProviderEnum.gemini,
@@ -159,6 +185,7 @@ async def test_get_models_grouped_by_provider(async_session: AsyncSession) -> No
         supports_streaming=True,
         supports_vision=True,
         is_reasoning_model=False,
+        **_NON_REASONING_DEFAULTS,
     )
     await ModelCapabilitiesCache.load_from_db(async_session)
 
@@ -189,6 +216,7 @@ async def test_invalidate_and_reload_swaps_data_and_publishes(
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_NON_REASONING_DEFAULTS,
     )
     await ModelCapabilitiesCache.load_from_db(async_session)
     assert ModelCapabilitiesCache.get("reload-1") is not None
@@ -204,6 +232,7 @@ async def test_invalidate_and_reload_swaps_data_and_publishes(
         supports_streaming=True,
         supports_vision=False,
         is_reasoning_model=False,
+        **_NON_REASONING_DEFAULTS,
     )
 
     # Patch the source module — invalidate_and_reload imports it lazily inside

@@ -43,6 +43,7 @@ from src.domains.voice.schemas import (
 from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.metrics_voice import (
     voice_audio_bytes_total,
     voice_audio_chunks_total,
@@ -550,10 +551,9 @@ class VoiceCommentService:
         async def _feed_llm() -> None:
             try:
                 async for delta in llm.astream(prompt, config=config):
-                    raw = getattr(delta, "content", None)
-                    if raw is None:
-                        raw = str(delta) if delta else ""
-                    content = raw if isinstance(raw, str) else str(raw)
+                    # Gemini 3.x streams list[dict] content blocks; coerce to text
+                    # so the TTS speaks the answer, not a Python repr of the blocks.
+                    content = coerce_content_to_text(getattr(delta, "content", None))
                     if content:
                         streamer.feed(content)
             except asyncio.CancelledError:

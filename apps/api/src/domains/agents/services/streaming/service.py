@@ -29,6 +29,7 @@ from src.core.field_names import (
     FIELD_STATUS,
 )
 from src.domains.agents.api.schemas import ChatStreamChunk
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.metrics_agents import (
     sse_streaming_duration_seconds,
     sse_time_to_first_token_seconds,
@@ -1341,18 +1342,8 @@ class StreamingService:
         if not content:
             return None
 
-        # Extract text from content
-        text = ""
-        if isinstance(content, str):
-            text = content
-        elif isinstance(content, list):
-            # Anthropic format: [{"type": "text", "text": "..."}, ...]
-            parts = []
-            for block in content:
-                if isinstance(block, dict) and block.get("type") == "text":
-                    parts.append(block.get("text", ""))
-            text = " ".join(parts)
-
+        # Normalize str (most providers) and list[dict] blocks (Gemini 3.x/Anthropic).
+        text = coerce_content_to_text(content)
         if not text or not text.strip():
             return None
 
@@ -1577,7 +1568,9 @@ class StreamingService:
                     )
                     return sse_chunks  # Complete returned message = duplicate; skip it.
 
-                content = message.content
+                # Gemini 3.x streams content as list[dict] blocks; normalize to
+                # text so the psyche check below and ChatStreamChunk stay str-safe.
+                content = coerce_content_to_text(message.content)
 
                 # Psyche Engine: Strip psyche_eval tag fragments from streaming tokens
                 # Prevents brief flash of the tag during SSE streaming.
@@ -1640,17 +1633,21 @@ class StreamingService:
         # Only stream tokens from response node
         return node_name == "response"
 
-    def format_token_chunk(self, content: str) -> ChatStreamChunk:
+    def format_token_chunk(self, content: str | list[Any]) -> ChatStreamChunk:
         """
         Format token for SSE streaming.
 
+        Coerces Gemini 3.x list[dict] content blocks to text so the
+        ``ChatStreamChunk.content`` (str | dict) contract is never violated.
+        This is the streaming chokepoint shared with the fallback-response path.
+
         Args:
-            content: Token content
+            content: Token content (str, or Gemini 3.x list of content blocks)
 
         Returns:
             ChatStreamChunk with type="token"
         """
-        return ChatStreamChunk(type="token", content=content)
+        return ChatStreamChunk(type="token", content=coerce_content_to_text(content))
 
     def format_router_decision(self, metadata: dict[str, Any]) -> ChatStreamChunk:
         """

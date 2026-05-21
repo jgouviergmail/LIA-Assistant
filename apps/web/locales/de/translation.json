@@ -2927,6 +2927,14 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_13": {
+          "title": "v1.20.13 — 🔧 Antworten schlagen mit den neuesten Gemini-Modellen nicht mehr fehl (Gemini-3-Serie)",
+          "date": "Mai 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔧 Korrektur — die neuesten Gemini-3.x-Modelle lösen keinen Generierungsfehler mehr aus</b> — Mit den neuesten Gemini-KI-Modellen (der Gemini-3-Serie, z. B. Gemini 3.5 Flash) konnten manche Antworten mit der Meldung „Bei der Erstellung der Antwort ist ein Problem aufgetreten“ fehlschlagen oder still beeinträchtigt werden (gelegentlich unverständliche Sprachausgabe, unvollständige Formatierung). Diese Modelle liefern ihren Text in einem anderen Format, das LIA nicht überall interpretierte. Das ist jetzt durchgängig behoben — im Standardmodus wie im ⚡ ReAct-Modus, auch wenn Sie mehrere KI-Modelle kombinieren. Sie müssen nichts ändern."
+          }
+        },
         "v1_20_12": {
           "title": "v1.20.12 — 🌙 Ruhende Interessen bleiben sichtbar und verwaltbar, und dein Langzeitgedächtnis warnt dich, bevor es vergisst",
           "date": "Mai 2026",

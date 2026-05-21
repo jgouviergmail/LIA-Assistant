@@ -10,6 +10,7 @@ All functions preserve immutability - input lists are never modified.
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 
 from src.core.constants import COMPACTION_SUMMARY_MARKER
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -323,8 +324,9 @@ def filter_for_llm_context(messages: list[BaseMessage]) -> list[BaseMessage]:
             # Exclude AI messages with tool_calls (internal reasoning)
             if hasattr(msg, "tool_calls") and msg.tool_calls:
                 continue
-            # Handle AI messages containing HTML formatting
-            content = getattr(msg, "content", "") or ""
+            # Handle AI messages containing HTML formatting. Gemini 3.x content is
+            # list[dict] blocks; coerce to text so the HTML-card check works.
+            content = coerce_content_to_text(getattr(msg, "content", ""))
             if 'class="lia-' in content or "class='lia-" in content:
                 # Extract text before HTML, or use placeholder to indicate response was given
                 # This prevents LLM from thinking previous query is unanswered

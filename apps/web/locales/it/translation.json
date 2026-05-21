@@ -2929,6 +2929,14 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_13": {
+          "title": "v1.20.13 — 🔧 Le risposte non si interrompono più con i modelli Gemini più recenti (serie Gemini 3)",
+          "date": "Maggio 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔧 Correzione — i modelli Gemini 3.x più recenti non causano più un errore di generazione</b> — Con i modelli di IA Gemini più recenti (la serie Gemini 3, ad esempio Gemini 3.5 Flash), alcune risposte potevano fallire con il messaggio «Si è verificato un problema durante la generazione della risposta», oppure degradarsi silenziosamente (sintesi vocale a volte incomprensibile, formattazione incompleta). Questi modelli restituiscono il loro testo in un formato diverso che LIA non interpretava ovunque. Ora è corretto end-to-end, sia nella modalità predefinita sia nella modalità ⚡ ReAct — anche quando combini più modelli di IA. Non devi cambiare nulla."
+          }
+        },
         "v1_20_12": {
           "title": "v1.20.12 — 🌙 Gli interessi in pausa restano visibili e gestibili, e la tua memoria a lungo termine ti avvisa prima di dimenticare",
           "date": "Maggio 2026",

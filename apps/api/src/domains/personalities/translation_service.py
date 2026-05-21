@@ -11,6 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import settings
 from src.core.i18n_types import LANGUAGE_NAMES
+from src.infrastructure.llm.message_text import coerce_content_to_text
 
 logger = structlog.get_logger(__name__)
 
@@ -113,17 +114,9 @@ Description: {source_description}"""
                 config=invoke_config,
             )
 
-            # Parse response
-            raw_content = response.content
-            if isinstance(raw_content, list):
-                # Extract text from message blocks if needed
-                content = "".join(
-                    str(block) if isinstance(block, str) else str(block.get("text", ""))
-                    for block in raw_content
-                    if isinstance(block, str | dict)
-                ).strip()
-            else:
-                content = str(raw_content).strip()
+            # Parse response. Gemini 3.x returns content as list[dict] blocks;
+            # coerce to text so .startswith()/json.loads below stay str-safe.
+            content = coerce_content_to_text(response.content).strip()
 
             # Handle markdown code blocks
             if content.startswith("```"):

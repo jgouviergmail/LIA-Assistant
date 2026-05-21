@@ -58,6 +58,7 @@ from pydantic import BaseModel, ValidationError
 from src.core.config import settings
 from src.core.field_names import FIELD_METADATA
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -681,8 +682,13 @@ async def _get_json_mode_fallback[T: BaseModel](
         # The augmented prompt is explicit enough to enforce JSON output
         response = await llm.ainvoke(augmented_messages, **invoke_kwargs)
 
-        # Extract text content
-        raw_output = response.content if hasattr(response, "content") else str(response)
+        # Extract text content. Gemini 3.x returns content as list[dict] blocks;
+        # coerce to text so len()/slicing/json.loads below stay str-safe.
+        raw_output = (
+            coerce_content_to_text(response.content)
+            if hasattr(response, "content")
+            else str(response)
+        )
 
         logger.debug(
             "json_mode_raw_output",

@@ -32,6 +32,7 @@ from langgraph.prebuilt import create_react_agent
 from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.llm.factory import get_llm
+from src.infrastructure.llm.message_text import coerce_content_to_text
 
 logger = structlog.get_logger(__name__)
 
@@ -226,16 +227,12 @@ class ReactSubAgentRunner:
         final_message = ""
         if messages:
             last_msg = messages[-1]
-            raw_content = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
-            # Normalize content: Anthropic returns list of content blocks
-            # (e.g., [{"type": "text", "text": "..."}]), other providers return str.
-            if isinstance(raw_content, list):
-                final_message = "\n".join(
-                    block.get("text", "") if isinstance(block, dict) else str(block)
-                    for block in raw_content
-                )
-            else:
-                final_message = str(raw_content) if raw_content else ""
+            # Normalize str (most providers) and list[dict] blocks (Gemini 3.x) to text.
+            final_message = (
+                coerce_content_to_text(last_msg.content)
+                if hasattr(last_msg, "content")
+                else str(last_msg)
+            )
 
         # Collect registry items via extensible hook
         accumulated_registry = self._registry_collector(tools)

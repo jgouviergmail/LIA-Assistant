@@ -47,6 +47,7 @@ from src.domains.agents.constants import (
     STATE_KEY_VALIDATION_RESULT,
 )
 from src.domains.agents.models import MessagesState
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -105,7 +106,7 @@ async def planner_node_v3(
         query = ""
         if messages:
             last = messages[-1]
-            query = last.content if hasattr(last, "content") else str(last)
+            query = coerce_content_to_text(last.content) if hasattr(last, "content") else str(last)
 
         routing_history = state.get(STATE_KEY_ROUTING_HISTORY, [])
         domains = []

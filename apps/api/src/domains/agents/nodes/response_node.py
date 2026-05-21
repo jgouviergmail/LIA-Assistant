@@ -116,6 +116,7 @@ from src.domains.interests.services import extract_interests_background
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics import graph_exceptions_total
@@ -2848,10 +2849,15 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             agent_type=agent_type_for_metrics,
         )
 
+        # Normalize once: Gemini 3.x returns content as list[dict] blocks; all
+        # downstream regex/psyche/HTML processing requires str. This baseline also
+        # lets us detect post-processing modifications (vs the raw list .content).
+        original_content = coerce_content_to_text(result.content)
+
         logger.info(
             "response_node_completed",
             run_id=run_id,
-            response_length=len(result.content),
+            response_length=len(original_content),
         )
 
         # =====================================================================
@@ -2863,9 +2869,9 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # current_turn_registry is already available from earlier in this function
         # (lines ~2008-2010) - no need to re-filter here
 
-        # Post-processing: Inject place photo if LLM didn't include it
-        # LLMs sometimes omit images despite fewshot instructions
-        final_content = result.content
+        # Post-processing: Inject place photo if LLM didn't include it.
+        # LLMs sometimes omit images despite fewshot instructions.
+        final_content = original_content
 
         # =====================================================================
         # PSYCHE ENGINE: Parse self-report tag and strip from output
@@ -2968,7 +2974,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             elif relevant_ids == []:
                 # Empty list explicitly returned - LLM found no matches
                 # Check if there was a filtering tag (meaning LLM tried to filter)
-                if "<relevant_ids>" in result.content.lower():
+                if "<relevant_ids>" in original_content.lower():
                     # Skip filtering for domains where it doesn't make sense
                     # Weather: temporal references ("vendredi") shouldn't empty results
                     # Search/fetch/MCP: results are always relevant to user's query
@@ -3130,7 +3136,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 # Response continues with LLM output only (no HTML)
 
         # Update result content if modified
-        content_was_modified = final_content != result.content
+        content_was_modified = final_content != original_content
         if content_was_modified:
             result = AIMessage(content=final_content)
 

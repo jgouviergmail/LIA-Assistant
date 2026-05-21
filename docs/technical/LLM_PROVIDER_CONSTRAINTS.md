@@ -191,6 +191,12 @@ Anthropic also supports `budget_tokens` in the `thinking` block (separate from `
 
 **Frontend**: Exposes reasoning_effort dropdown only for thinking-capable models. Note: `medium` is mapped to `low` by the backend since Gemini only supports two thinking levels.
 
+**Response content shape (Gemini 3.x)** ⚠️
+
+Gemini 3.x (e.g. `gemini-3-pro-preview`, `gemini-3.5-flash`) returns `AIMessage`/`AIMessageChunk.content` as a **`list[dict]` of content blocks** (`[{"type": "text", "text": "...", "index": 0}]`), not a plain `str` like earlier Gemini and other providers. Code that treats LLM message content as a string then breaks: regex / `.strip()` / `.lower()` raise `AttributeError`/`TypeError`; a list assigned to a `str`-typed Pydantic field (e.g. `ChatStreamChunk`) raises `ValidationError` and aborts the SSE stream; `json.loads(list)` raises `TypeError`; f-strings silently embed the dict repr.
+
+**Always normalize via `coerce_content_to_text()`** (`src/infrastructure/llm/message_text.py`) — or LangChain's `BaseMessage.text` — before any string operation on an LLM message's `.content`. This is independent of the response model: in a mixed-provider setup, Gemini-produced list-content messages sitting in the conversation history break a non-Gemini response node's history formatting too. Shared chokepoints already hardened: the SSE token formatter (`format_token_chunk`), `format_conversation_history`, and the `structured_output` JSON-mode fallback.
+
 ### DeepSeek
 
 **deepseek-chat (V3, legacy — slated for deprecation)**:

@@ -690,3 +690,37 @@ class TestProcessCustomChunk:
         sse, _ = streaming_service._process_custom_chunk(chunk)[0]
         assert sse.metadata is not None
         assert sse.metadata["step_type"] == "from_metadata"
+
+
+@pytest.mark.asyncio
+async def test_format_token_chunk_coerces_gemini3_list_content(streaming_service):
+    """Regression: Gemini 3.x list[dict] content is coerced to text.
+
+    Before the fix, ``ChatStreamChunk(content=<list>)`` raised a Pydantic
+    ValidationError that aborted the SSE stream ("Un problème est survenu...").
+    """
+    content = [{"type": "text", "text": "Bonjour", "index": 0}]
+    chunk = streaming_service.format_token_chunk(content)
+    assert chunk.type == "token"
+    assert chunk.content == "Bonjour"
+
+
+@pytest.mark.asyncio
+async def test_process_messages_chunk_handles_gemini3_list_content(streaming_service):
+    """Regression: the response-node token path must not crash on list content.
+
+    Reproduces the production failure where Gemini 3.5 Flash streamed an
+    AIMessageChunk whose ``content`` was ``[{'type': 'text', ...}]``.
+    """
+    mock_message = AIMessageChunk(content=[{"type": "text", "text": "Voici tes rdv", "index": 0}])
+    message_tuple = (mock_message, {"langgraph_node": "response"})
+
+    sse_chunks = streaming_service._process_messages_chunk(
+        message_tuple,
+        _state={},
+        _first_token_time=None,
+    )
+
+    assert len(sse_chunks) == 1
+    assert sse_chunks[0][0].type == "token"
+    assert sse_chunks[0][0].content == "Voici tes rdv"

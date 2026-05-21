@@ -2936,6 +2936,14 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_13": {
+          "title": "v1.20.13 — 🔧 Responses no longer fail with the latest Gemini models (Gemini 3 series)",
+          "date": "May 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔧 Fix — the latest Gemini 3.x models no longer trigger a generation error</b> — With the most recent Gemini AI models (the Gemini 3 series, e.g. Gemini 3.5 Flash), some responses could fail with the message “A problem occurred while generating the response”, or degrade silently (occasionally unintelligible voice output, incomplete formatting). These models return their text in a different format that LIA didn't interpret everywhere. This is now fixed end to end, in both the default mode and ⚡ ReAct mode — including when you mix several AI models. Nothing to change on your side."
+          }
+        },
         "v1_20_12": {
           "title": "v1.20.12 — 🌙 Dormant interests stay visible and manageable, and your long-term memory warns you before forgetting",
           "date": "May 2026",

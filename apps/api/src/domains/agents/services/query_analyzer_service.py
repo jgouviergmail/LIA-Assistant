@@ -56,6 +56,7 @@ from src.domains.agents.analysis.query_intelligence import (
     SemanticFallback,
     UserGoal,
 )
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     planner_semantic_filter_terms_emitted,
@@ -1388,7 +1389,7 @@ class QueryAnalyzerService:
         history = []
         for msg in messages[-window_size * 2 :]:
             role = "user" if msg.type == "human" else "assistant"
-            content = str(msg.content) if hasattr(msg, "content") else ""
+            content = coerce_content_to_text(getattr(msg, "content", ""))
             if content:
                 history.append({"role": role, "content": content[:500]})
         return history

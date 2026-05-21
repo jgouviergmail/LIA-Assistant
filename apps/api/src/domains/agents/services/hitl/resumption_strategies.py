@@ -39,6 +39,7 @@ from src.domains.agents.services.hitl.validator import HitlValidator
 from src.domains.chat.schemas import TokenSummaryDTO
 from src.domains.chat.service import TrackingContext
 from src.domains.conversations.service import ConversationService
+from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.callbacks import TokenTrackingCallback
 from src.infrastructure.observability.logging import get_logger
 
@@ -1320,10 +1321,14 @@ class ConversationalHitlResumption:
                         message_type_name = type(message).__name__
                         is_streamable = message_type_name == "AIMessageChunk"
 
-                        # Stream only AIMessageChunk content
-                        if content and isinstance(content, str) and is_streamable:
-                            assistant_response_content += content
-                            yield ChatStreamChunk(type="token", content=content)
+                        # Stream only AIMessageChunk content. Gemini 3.x emits
+                        # list[dict] blocks, so coerce to text before the str gate
+                        # (otherwise tokens are silently dropped on resumption).
+                        if is_streamable:
+                            text = coerce_content_to_text(content)
+                            if text:
+                                assistant_response_content += text
+                                yield ChatStreamChunk(type="token", content=text)
 
         except Exception as e:
             # Record resumption error metric

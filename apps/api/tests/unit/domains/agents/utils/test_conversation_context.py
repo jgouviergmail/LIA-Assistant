@@ -696,3 +696,33 @@ class TestConversationContextIntegration:
 
         assert len(result) == 4
         assert "planner" in str(result)  # From logging
+
+
+class TestFormatConversationHistoryGemini3:
+    """Regression: Gemini 3.x returns AIMessage.content as a list of content blocks.
+
+    Before the fix, ``content.strip()`` raised ``AttributeError: 'list' object
+    has no attribute 'strip'`` and aborted the whole response node.
+    """
+
+    def test_format_handles_list_content_ai_message(self):
+        """A list[dict] AIMessage content is flattened to text, not crashed."""
+        messages = [
+            HumanMessage(content="mes deux prochains rdv"),
+            AIMessage(content=[{"type": "text", "text": "Voici tes rdv.", "index": 0}]),
+        ]
+        result = format_conversation_history(messages)
+        assert "[USER]: mes deux prochains rdv" in result
+        assert "[ASSISTANT]: Voici tes rdv." in result
+
+    def test_format_skips_empty_list_content(self):
+        """A reasoning-only list (no text block) yields no line, no crash."""
+        messages = [AIMessage(content=[{"type": "thinking", "thinking": "..."}])]
+        result = format_conversation_history(messages)
+        assert result == "(aucun historique)"
+
+    def test_summary_for_logging_handles_list_content(self):
+        """get_conversation_summary_for_logging coerces list content to text."""
+        messages = [AIMessage(content=[{"type": "text", "text": "Hello"}])]
+        summary = get_conversation_summary_for_logging(messages)
+        assert summary[0]["preview"] == "Hello"
