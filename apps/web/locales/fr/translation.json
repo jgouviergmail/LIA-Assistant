@@ -2941,6 +2941,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_12": {
+          "title": "v1.20.12 — 🌙 Vos centres d'intérêt en sommeil restent visibles et gérables, et votre mémoire long terme vous prévient avant d'oublier",
+          "date": "Mai 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🌙 Vos centres d'intérêt en sommeil ne sont plus perdus</b> — Quand vous cessez d'évoquer un sujet pendant un temps, LIA met le centre d'intérêt correspondant en sommeil (« dormant ») plutôt que de l'exploiter. Jusqu'ici, ces centres d'intérêt en sommeil disparaissaient simplement de vos Réglages alors qu'ils étaient toujours enregistrés — vous ne pouviez ni les consulter, ni les modifier, ni les supprimer, et ils étaient supprimés automatiquement au bout de 90 jours. Ils apparaissent désormais dans une section « En sommeil » dédiée, clairement identifiée, où vous pouvez les <b>réactiver</b>, les modifier ou les supprimer à tout moment. Un centre d'intérêt réactivé repart à neuf, comme s'il venait d'être détecté. Le compteur affiche aussi la répartition : actifs · en sommeil · bloqués.",
+            "i2": "<b>⚠️ Votre mémoire vous prévient désormais avant d'oublier</b> — LIA oublie automatiquement les souvenirs long terme devenus sans importance et inutilisés (sauf ceux que vous avez épinglés). Jusqu'ici, rien ne vous signalait qu'un souvenir allait être oublié. Les souvenirs proches de la suppression automatique sont maintenant signalés dans la liste de vos Réglages par un avertissement « risque d'oubli », pour que vous puissiez épingler ceux qui comptent avant qu'ils ne disparaissent."
+          }
+        },
         "v1_20_11": {
           "title": "v1.20.11 — Le mode ⚡ ReAct devient proactif, un message d'accueil fidèle à votre vraie journée, et plusieurs corrections d'affichage et d'exactitude",
           "date": "Mai 2026",
@@ -3602,7 +3611,7 @@
           },
           "q10": {
             "question": "Comment gérer mes mémoires stockées ?",
-            "answer": "Vous avez un <strong>contrôle total</strong> sur ce que LIA retient :<br><br><strong>📋 Consulter vos mémoires :</strong><br>Allez dans <strong>Paramètres > Mémoire long terme</strong> pour voir tout ce que LIA a retenu.<br><br><strong>✏️ Modifier une mémoire :</strong><br>• Cliquez sur le bouton d'édition<br>• Corrigez le contenu ou la catégorie<br>• Ajustez les nuances d'usage<br><br><strong>📌 Épingler une mémoire :</strong><br>Les mémoires épinglées sont protégées du nettoyage automatique. Utile pour les informations importantes.<br><br><strong>🗑️ Supprimer :</strong><br>• Supprimez individuellement ou en masse<br>• Option de conserver les mémoires épinglées<br><br><strong>📤 Exporter :</strong><br>Exportez toutes vos mémoires pour sauvegarde (conformité RGPD).<br><br><strong>🔄 Nettoyage automatique :</strong><br>Les mémoires peu utilisées et non épinglées sont automatiquement purgées après 6 mois pour garder le système pertinent."
+            "answer": "Vous avez un <strong>contrôle total</strong> sur ce que LIA retient :<br><br><strong>📋 Consulter vos mémoires :</strong><br>Allez dans <strong>Paramètres > Mémoire long terme</strong> pour voir tout ce que LIA a retenu.<br><br><strong>✏️ Modifier une mémoire :</strong><br>• Cliquez sur le bouton d'édition<br>• Corrigez le contenu ou la catégorie<br>• Ajustez les nuances d'usage<br><br><strong>📌 Épingler une mémoire :</strong><br>Les mémoires épinglées sont protégées du nettoyage automatique. Utile pour les informations importantes.<br><br><strong>🗑️ Supprimer :</strong><br>• Supprimez individuellement ou en masse<br>• Option de conserver les mémoires épinglées<br><br><strong>📤 Exporter :</strong><br>Exportez toutes vos mémoires pour sauvegarde (conformité RGPD).<br><br><strong>🔄 Nettoyage automatique :</strong><br>Les mémoires non épinglées sont automatiquement purgées selon un score de rétention (importance, récence et utilisation réelle) pour garder le système pertinent.<br><br><strong>⚠️ Risque d'oubli :</strong><br>Les mémoires proches d'être automatiquement oubliées sont signalées dans la liste, pour que vous puissiez épingler à temps celles qui comptent."
           },
           "q11": {
             "question": "Comment configurer ma géolocalisation et mon adresse du domicile ?",
@@ -3901,7 +3910,7 @@
           },
           "q4": {
             "question": "Comment fonctionne le système de poids ?",
-            "answer": "Chaque centre d'intérêt a un <strong>poids</strong> qui évolue :<br><br><strong>📊 Calcul du poids :</strong><br>• Algorithme <strong>bayésien</strong> (Beta distribution)<br>• Démarre avec un prior légèrement positif<br>• Augmente avec les signaux positifs<br>• Diminue avec les signaux négatifs<br><br><strong>📈 Signaux positifs (+poids) :</strong><br>• Mention du sujet dans une conversation<br>• Clic sur \"<em>J'aime ce sujet</em>\" 👍<br><br><strong>📉 Signaux négatifs (-poids) :</strong><br>• Clic sur \"<em>Moins intéressé</em>\" 👎<br>• Décroissance temporelle (1%/jour sans mention)<br><br><strong>⏳ Décroissance temporelle :</strong><br>• Si vous ne parlez plus d'un sujet, son poids diminue<br>• Intérêts dormants après 30 jours<br>• Suppression automatique après 90 jours d'inactivité<br><br><strong>🎯 Sélection pour notification :</strong><br>Les intérêts avec le <strong>poids le plus élevé</strong> ont plus de chances d'être choisis"
+            "answer": "Chaque centre d'intérêt a un <strong>poids</strong> qui évolue :<br><br><strong>📊 Calcul du poids :</strong><br>• Algorithme <strong>bayésien</strong> (Beta distribution)<br>• Démarre avec un prior légèrement positif<br>• Augmente avec les signaux positifs<br>• Diminue avec les signaux négatifs<br><br><strong>📈 Signaux positifs (+poids) :</strong><br>• Mention du sujet dans une conversation<br>• Clic sur \"<em>J'aime ce sujet</em>\" 👍<br><br><strong>📉 Signaux négatifs (-poids) :</strong><br>• Clic sur \"<em>Moins intéressé</em>\" 👎<br>• Décroissance temporelle (1%/jour sans mention)<br><br><strong>⏳ Décroissance temporelle :</strong><br>• Si vous ne parlez plus d'un sujet, son poids diminue<br>• Intérêts en sommeil après 15 jours sans mention — mais ils restent visibles et gérables (réactiver, modifier ou supprimer) dans une section dédiée des Réglages<br>• Suppression automatique après 90 jours d'inactivité<br><br><strong>🎯 Sélection pour notification :</strong><br>Les intérêts avec le <strong>poids le plus élevé</strong> ont plus de chances d'être choisis"
           },
           "q5": {
             "question": "Comment donner un feedback sur une notification ?",
@@ -4494,6 +4503,9 @@
     }
   },
   "memories": {
+    "purge_risk_badge_at_risk": "Risque d'oubli",
+    "purge_risk_badge_imminent": "Bientôt oublié",
+    "purge_risk_tooltip": "Ce souvenir risque d'être oublié — épinglez-le pour le conserver.",
     "settings": {
       "title": "Mémoire long terme",
       "description": "Ce que l'assistant se souvient de vous"
@@ -4575,6 +4587,13 @@
     "create_error": "Erreur lors de la création"
   },
   "interests": {
+    "dormant_section": "En sommeil",
+    "dormant_badge": "En sommeil",
+    "reactivate": "Réactiver",
+    "reactivate_success": "Centre d'intérêt réactivé",
+    "reactivate_error": "Échec de la réactivation",
+    "active": "actifs",
+    "dormant": "en sommeil",
     "settings": {
       "title": "Centres d'intérêt",
       "description": "Recevez des suggestions personnalisées sur vos sujets favoris"

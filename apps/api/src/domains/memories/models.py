@@ -57,6 +57,20 @@ class MemoryCategory(str, Enum):
     SENSITIVITY = "sensitivity"
 
 
+class PurgeRiskLevel(str, Enum):
+    """Auto-purge risk classification for a memory (read-only, computed).
+
+    Not persisted — derived at request time from the retention score. Mirrors
+    the str-Enum pattern used by ``MemoryCategory`` so it serializes to its
+    value in API responses.
+    """
+
+    PROTECTED = "protected"  # pinned: never auto-purged
+    SAFE = "safe"  # not eligible (grace) or comfortably above threshold
+    AT_RISK = "at_risk"  # eligible and close to the purge threshold
+    IMMINENT = "imminent"  # eligible and below threshold (purged next run)
+
+
 class Memory(BaseModel):
     """Long-term user memory with semantic embedding.
 

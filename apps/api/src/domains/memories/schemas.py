@@ -10,6 +10,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from src.domains.memories.models import PurgeRiskLevel
+
 # Memory categories matching the MemorySchema
 MemoryCategoryType = Literal[
     "preference",
@@ -125,6 +127,14 @@ class MemoryResponse(MemoryBase):
             "Optional Health Metrics snapshot captured at extraction time "
             "(baseline deltas, trends, events — never raw values)."
         ),
+    )
+    purge_risk: PurgeRiskLevel = Field(
+        default=PurgeRiskLevel.SAFE,
+        description="Auto-purge risk state (read-only, computed). Does not affect the purge job.",
+    )
+    retention_score: float | None = Field(
+        default=None,
+        description="Computed retention score (0-1); None when pinned or within grace period.",
     )
 
 

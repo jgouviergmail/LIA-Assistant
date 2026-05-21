@@ -69,6 +69,7 @@ export interface InterestListResponse {
   total: number;
   active_count: number;
   blocked_count: number;
+  dormant_count: number;
 }
 
 /**
@@ -157,7 +158,7 @@ export function useInterests() {
     setData,
   } = useApiQuery<InterestListResponse>('/interests', {
     componentName: 'useInterests',
-    initialData: { interests: [], total: 0, active_count: 0, blocked_count: 0 },
+    initialData: { interests: [], total: 0, active_count: 0, blocked_count: 0, dormant_count: 0 },
   });
 
   // Fetch categories
@@ -199,6 +200,15 @@ export function useInterests() {
 
   // Feedback mutation
   const { mutate: feedbackMutate, loading: submittingFeedback } = useApiMutation({
+    method: 'POST',
+    componentName: 'useInterests',
+  });
+
+  // Reactivate mutation
+  const { mutate: reactivateMutate, loading: reactivating } = useApiMutation<
+    Record<string, never>,
+    Interest
+  >({
     method: 'POST',
     componentName: 'useInterests',
   });
@@ -333,6 +343,29 @@ export function useInterests() {
   );
 
   /**
+   * Reactivate a dormant interest (reset to a fresh active state).
+   */
+  const reactivateInterest = useCallback(
+    async (interestId: string) => {
+      const result = await reactivateMutate(`/interests/${interestId}/reactivate`, {});
+
+      setData(prev => {
+        if (!prev) return prev;
+        const newInterests = prev.interests.map(i =>
+          i.id === interestId && result ? result : i
+        );
+        return {
+          ...prev,
+          interests: newInterests,
+          active_count: newInterests.filter(i => i.status === 'active').length,
+          dormant_count: newInterests.filter(i => i.status === 'dormant').length,
+        };
+      });
+    },
+    [reactivateMutate, setData]
+  );
+
+  /**
    * Update an existing interest (optimistic update).
    */
   const updateInterest = useCallback(
@@ -389,6 +422,7 @@ export function useInterests() {
     total: interestsData?.total ?? 0,
     activeCount: interestsData?.active_count ?? 0,
     blockedCount: interestsData?.blocked_count ?? 0,
+    dormantCount: interestsData?.dormant_count ?? 0,
     categories: categoriesData?.categories ?? [],
     settings: settingsData,
     loading,
@@ -400,6 +434,7 @@ export function useInterests() {
     submittingFeedback,
     updatingSettings,
     updating,
+    reactivating,
     categoryFilter,
     setCategoryFilter,
     statusFilter,
@@ -411,5 +446,6 @@ export function useInterests() {
     submitFeedback,
     updateSettings,
     updateInterest,
+    reactivateInterest,
   };
 }

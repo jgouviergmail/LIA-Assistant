@@ -30,6 +30,9 @@ export interface Memory {
   pinned?: boolean;
   usage_count?: number;
   last_accessed_at?: string;
+  // Purge-risk exposure (read-only, computed by the API)
+  purge_risk?: 'protected' | 'safe' | 'at_risk' | 'imminent';
+  retention_score?: number | null;
 }
 
 /**

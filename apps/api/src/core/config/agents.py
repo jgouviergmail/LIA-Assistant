@@ -177,6 +177,7 @@ from src.core.constants import (
     MEMORY_MAX_RESULTS_DEFAULT,
     MEMORY_MIN_AGE_FOR_CLEANUP_DAYS_DEFAULT,
     MEMORY_MIN_SEARCH_SCORE_DEFAULT,
+    MEMORY_PURGE_AT_RISK_MARGIN_DEFAULT,
     MEMORY_PURGE_THRESHOLD_DEFAULT,
     MEMORY_RECENCY_DECAY_DAYS_DEFAULT,
     MEMORY_REFERENCE_RESOLUTION_LLM_FREQUENCY_PENALTY_DEFAULT,
@@ -1739,6 +1740,15 @@ class AgentsSettings(BaseSettings):
             "Retention score threshold below which memories are purged (0.0-1.0). "
             "Score = weight_importance * importance + weight_recency * recency_factor. "
             "Lower threshold = more aggressive purge."
+        ),
+    )
+    memory_purge_at_risk_margin: float = Field(
+        default=MEMORY_PURGE_AT_RISK_MARGIN_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Score band above the purge threshold within which a memory is flagged "
+            "'at_risk' in the API (read-only UI hint). Does not affect purge decisions."
         ),
     )
     memory_cleanup_hour: int = Field(

@@ -83,8 +83,12 @@ Each interest has a **weight** that evolves:
 
 **⏳ Temporal decay:**
 • If you stop talking about a topic, its weight decreases
-• Dormant interests after 30 days
+• Dormant interests after 15 days without mention
 • Automatic deletion after 90 days of inactivity
+
+**🌙 Dormant ≠ lost:**
+• Dormant interests stay visible in Settings, in a dedicated section
+• You can reactivate, edit or delete them at any time
 
 **🎯 Selection for notification:**
 Interests with the **highest weight** are more likely to be chosen

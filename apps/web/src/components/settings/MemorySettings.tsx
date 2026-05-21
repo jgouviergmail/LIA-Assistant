@@ -118,6 +118,13 @@ function sortMemoriesByDate(memories: Memory[]): Memory[] {
   });
 }
 
+/**
+ * Whether a memory should show a purge-risk warning.
+ */
+function isAtPurgeRisk(memory: Memory): boolean {
+  return memory.purge_risk === 'at_risk' || memory.purge_risk === 'imminent';
+}
+
 export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
@@ -562,6 +569,22 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                                   title={t('memories.field_importance')}
                                 >
                                   ★ {(memory.importance * 100).toFixed(0)}%
+                                </span>
+                              )}
+                              {isAtPurgeRisk(memory) && !memory.pinned && (
+                                <span
+                                  className={
+                                    'text-xs flex items-center gap-1 ' +
+                                    (memory.purge_risk === 'imminent'
+                                      ? 'text-destructive'
+                                      : 'text-amber-600 dark:text-amber-500')
+                                  }
+                                  title={t('memories.purge_risk_tooltip')}
+                                >
+                                  <AlertTriangle className="h-3 w-3" />
+                                  {memory.purge_risk === 'imminent'
+                                    ? t('memories.purge_risk_badge_imminent')
+                                    : t('memories.purge_risk_badge_at_risk')}
                                 </span>
                               )}
                             </div>

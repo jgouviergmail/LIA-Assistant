@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Sparkles, Trash2, Plus, Ban, Clock, Pencil, Download } from 'lucide-react';
+import { Sparkles, Trash2, Plus, Ban, Clock, Pencil, Download, Moon, RotateCcw } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -96,6 +96,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
     interests,
     total,
     blockedCount,
+    dormantCount,
     categories,
     settings,
     loading,
@@ -106,12 +107,14 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
     submittingFeedback,
     updatingSettings,
     updating,
+    reactivating,
     createInterest,
     deleteInterest,
     deleteAllInterests,
     submitFeedback,
     updateSettings,
     updateInterest,
+    reactivateInterest,
   } = useInterests();
 
   // State for create dialog
@@ -163,6 +166,12 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
     [sortedInterests]
   );
 
+  // Dormant interests (separate section, distinct style)
+  const dormantInterests = useMemo(
+    () => sortedInterests.filter(i => i.status === 'dormant'),
+    [sortedInterests]
+  );
+
   // Get localized category label
   const getCategoryLabel = (category: InterestCategory): string => {
     return t(`interests.categories.${category}`) || category;
@@ -209,6 +218,15 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
       }
     } catch {
       toast.error(t('interests.feedback_error'));
+    }
+  };
+
+  const handleReactivate = async (interest: Interest) => {
+    try {
+      await reactivateInterest(interest.id);
+      toast.success(t('interests.reactivate_success'));
+    } catch {
+      toast.error(t('interests.reactivate_error'));
     }
   };
 
@@ -411,11 +429,22 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
               {total} {t('interests.count', { count: total })}
-              {blockedCount > 0 && (
-                <span className="ml-2 text-xs">
-                  ({blockedCount} {t('interests.blocked')})
-                </span>
-              )}
+              <span className="ml-2 text-xs">
+                ({total - dormantCount - blockedCount} {t('interests.active')}
+                {dormantCount > 0 && (
+                  <>
+                    {' · '}
+                    {dormantCount} {t('interests.dormant')}
+                  </>
+                )}
+                {blockedCount > 0 && (
+                  <>
+                    {' · '}
+                    {blockedCount} {t('interests.blocked')}
+                  </>
+                )}
+                )
+              </span>
             </div>
             <div className="flex gap-2">
               {/* Create button */}
@@ -566,6 +595,75 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   </AccordionContent>
                 </AccordionItem>
               ))}
+
+              {/* Dormant Interests */}
+              {dormantInterests.length > 0 && (
+                <AccordionItem value="dormant" className="border rounded-lg px-3">
+                  <AccordionTrigger className="py-3 hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Moon className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-muted-foreground">
+                        {t('interests.dormant_section')}
+                      </span>
+                      <span className="text-muted-foreground text-sm">
+                        ({dormantInterests.length})
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-2 opacity-70">
+                      {dormantInterests.map(interest => (
+                        <div
+                          key={interest.id}
+                          className="group flex items-center gap-3 rounded-lg border border-dashed p-3 bg-muted/20"
+                        >
+                          <span className="text-lg shrink-0">
+                            {INTEREST_CATEGORY_ICONS[interest.category]}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{interest.topic}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs">
+                                <Moon className="h-3 w-3 mr-1" />
+                                {t('interests.dormant_badge')}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleReactivate(interest)}
+                              disabled={reactivating}
+                              title={t('interests.reactivate')}
+                            >
+                              <RotateCcw className="h-4 w-4 text-primary" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenEdit(interest)}
+                              disabled={updating}
+                              title={t('interests.edit')}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setPendingDelete(interest)}
+                              disabled={deleting}
+                              title={t('interests.delete')}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
 
               {/* Blocked Interests */}
               {blockedInterests.length > 0 && (

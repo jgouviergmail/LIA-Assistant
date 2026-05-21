@@ -2927,6 +2927,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_12": {
+          "title": "v1.20.12 — 🌙 Los intereses inactivos siguen visibles y gestionables, y tu memoria a largo plazo te avisa antes de olvidar",
+          "date": "Mayo 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🌙 Tus intereses inactivos ya no se pierden</b> — Cuando dejas de mencionar un tema durante un tiempo, LIA pone el interés correspondiente en reposo (« inactivo ») en lugar de usarlo. Hasta ahora, estos intereses inactivos simplemente desaparecían de tus Ajustes aunque seguían almacenados — no podías consultarlos, editarlos ni eliminarlos, y se eliminaban automáticamente a los 90 días. Ahora aparecen en una sección « Inactivos » dedicada, claramente señalada, donde puedes <b>reactivarlos</b>, editarlos o eliminarlos en cualquier momento. Un interés reactivado empieza de cero, como si se acabara de detectar. El contador muestra ahora también el desglose: activos · inactivos · bloqueados.",
+            "i2": "<b>⚠️ Tu memoria ahora te avisa antes de olvidar</b> — LIA olvida automáticamente los recuerdos a largo plazo que han dejado de ser importantes y no se usan (salvo los que hayas fijado). Hasta ahora, nada te indicaba que un recuerdo estaba a punto de olvidarse. Los recuerdos próximos a su eliminación automática se señalan ahora en la lista de tus Ajustes con un aviso « puede olvidarse », para que puedas fijar los que importan antes de que desaparezcan."
+          }
+        },
         "v1_20_11": {
           "title": "v1.20.11 — El modo ⚡ ReAct se vuelve proactivo, un saludo de inicio fiel a tu día real y varias correcciones de visualización y exactitud",
           "date": "Mayo 2026",
@@ -3588,7 +3597,7 @@
           },
           "q10": {
             "question": "¿Cómo gestiono mis memorias almacenadas?",
-            "answer": "Tiene <strong>control total</strong> sobre lo que LIA recuerda:<br><br><strong>📋 Consultar sus memorias:</strong><br>Vaya a <strong>Configuración > Memoria a largo plazo</strong> para ver todo lo que LIA ha recordado.<br><br><strong>✏️ Modificar una memoria:</strong><br>• Haga clic en el botón de edición<br>• Corrija el contenido o la categoría<br>• Ajuste los matices de uso<br><br><strong>📌 Fijar una memoria:</strong><br>Las memorias fijadas están protegidas de la limpieza automática. Útil para información importante.<br><br><strong>🗑️ Eliminar:</strong><br>• Elimine individualmente o en masa<br>• Opción de conservar las memorias fijadas<br><br><strong>📤 Exportar:</strong><br>Exporte todas sus memorias para respaldo (conformidad RGPD).<br><br><strong>🔄 Limpieza automática:</strong><br>Las memorias poco usadas y no fijadas se purgan automáticamente después de 6 meses para mantener el sistema relevante."
+            "answer": "Tiene <strong>control total</strong> sobre lo que LIA recuerda:<br><br><strong>📋 Consultar sus memorias:</strong><br>Vaya a <strong>Configuración > Memoria a largo plazo</strong> para ver todo lo que LIA ha recordado.<br><br><strong>✏️ Modificar una memoria:</strong><br>• Haga clic en el botón de edición<br>• Corrija el contenido o la categoría<br>• Ajuste los matices de uso<br><br><strong>📌 Fijar una memoria:</strong><br>Las memorias fijadas están protegidas de la limpieza automática. Útil para información importante.<br><br><strong>🗑️ Eliminar:</strong><br>• Elimine individualmente o en masa<br>• Opción de conservar las memorias fijadas<br><br><strong>📤 Exportar:</strong><br>Exporte todas sus memorias para respaldo (conformidad RGPD).<br><br><strong>🔄 Limpieza automática:</strong><br>Las memorias no fijadas se purgan automáticamente según una puntuación de retención (importancia, recencia y uso real) para mantener el sistema relevante.<br><br><strong>⚠️ Riesgo de olvido:</strong><br>Las memorias próximas a ser olvidadas automáticamente se señalan en la lista, para que pueda fijar a tiempo las que importan."
           },
           "q11": {
             "question": "¿Cómo configuro mi geolocalización y dirección de domicilio?",
@@ -3887,7 +3896,7 @@
           },
           "q4": {
             "question": "¿Cómo funciona el sistema de pesos?",
-            "answer": "Cada interés tiene un <strong>peso</strong> que evoluciona:<br><br><strong>📊 Cálculo del peso:</strong><br>• Algoritmo <strong>bayesiano</strong> (distribución Beta)<br>• Comienza con un prior ligeramente positivo<br>• Aumenta con señales positivas<br>• Disminuye con señales negativas<br><br><strong>📈 Señales positivas (+peso):</strong><br>• Mención del tema en una conversación<br>• Clic en \"<em>Me gusta este tema</em>\" 👍<br><br><strong>📉 Señales negativas (-peso):</strong><br>• Clic en \"<em>Menos interesado</em>\" 👎<br>• Decaimiento temporal (1%/día sin mención)<br><br><strong>⏳ Decaimiento temporal:</strong><br>• Si deja de hablar de un tema, su peso disminuye<br>• Intereses dormidos después de 30 días<br>• Eliminación automática después de 90 días de inactividad<br><br><strong>🎯 Selección para notificación:</strong><br>Los intereses con el <strong>peso más alto</strong> tienen más probabilidades de ser elegidos"
+            "answer": "Cada interés tiene un <strong>peso</strong> que evoluciona:<br><br><strong>📊 Cálculo del peso:</strong><br>• Algoritmo <strong>bayesiano</strong> (distribución Beta)<br>• Comienza con un prior ligeramente positivo<br>• Aumenta con señales positivas<br>• Disminuye con señales negativas<br><br><strong>📈 Señales positivas (+peso):</strong><br>• Mención del tema en una conversación<br>• Clic en \"<em>Me gusta este tema</em>\" 👍<br><br><strong>📉 Señales negativas (-peso):</strong><br>• Clic en \"<em>Menos interesado</em>\" 👎<br>• Decaimiento temporal (1%/día sin mención)<br><br><strong>⏳ Decaimiento temporal:</strong><br>• Si deja de hablar de un tema, su peso disminuye<br>• Intereses inactivos después de 15 días sin mención — pero siguen visibles y gestionables (reactivar, editar o eliminar) en una sección dedicada de Ajustes<br>• Eliminación automática después de 90 días de inactividad<br><br><strong>🎯 Selección para notificación:</strong><br>Los intereses con el <strong>peso más alto</strong> tienen más probabilidades de ser elegidos"
           },
           "q5": {
             "question": "¿Cómo doy feedback sobre una notificación?",
@@ -4480,6 +4489,9 @@
     }
   },
   "memories": {
+    "purge_risk_badge_at_risk": "Puede olvidarse",
+    "purge_risk_badge_imminent": "A punto de olvidarse",
+    "purge_risk_tooltip": "Este recuerdo puede olvidarse: fíjalo para conservarlo.",
     "settings": {
       "title": "Memoria a largo plazo",
       "description": "Lo que el asistente recuerda sobre ti"
@@ -4833,6 +4845,13 @@
     }
   },
   "interests": {
+    "dormant_section": "Inactivos",
+    "dormant_badge": "Inactivo",
+    "reactivate": "Reactivar",
+    "reactivate_success": "Interés reactivado",
+    "reactivate_error": "Error al reactivar",
+    "active": "activos",
+    "dormant": "inactivos",
     "active_section": "Activos",
     "all_categories": "Todas",
     "block": "No sugerir más",

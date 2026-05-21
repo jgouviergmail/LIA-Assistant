@@ -18,6 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.constants import (
     INTEREST_ACTIVE_LIST_LIMIT,
+    INTEREST_INITIAL_NEGATIVE_SIGNALS,
+    INTEREST_INITIAL_POSITIVE_SIGNALS,
     INTEREST_USER_LIST_LIMIT,
 )
 from src.domains.interests.models import (
@@ -71,8 +73,8 @@ class InterestRepository:
             user_id=user_id,
             topic=topic,
             category=category,
-            positive_signals=1,
-            negative_signals=0,
+            positive_signals=INTEREST_INITIAL_POSITIVE_SIGNALS,
+            negative_signals=INTEREST_INITIAL_NEGATIVE_SIGNALS,
             status=InterestStatus.ACTIVE.value,
             last_mentioned_at=datetime.now(UTC),
             embedding=embedding,
@@ -409,6 +411,43 @@ class InterestRepository:
             interest_id=str(interest.id),
             user_id=str(interest.user_id),
         )
+
+    async def reactivate(
+        self,
+        interest: UserInterest,
+        now: datetime | None = None,
+    ) -> UserInterest:
+        """Reactivate a dormant interest by resetting it to a fresh state.
+
+        Mirrors the initial state set by ``create()``: signal counters reset,
+        status returns to ACTIVE, and ``last_mentioned_at`` is refreshed so the
+        nightly cleanup will not immediately re-dormant it (a fresh interest's
+        effective weight is ~0.75, above the 0.5 dormancy threshold). The topic,
+        category, and embedding are preserved.
+
+        Args:
+            interest: UserInterest to reactivate.
+            now: Current datetime (defaults to UTC now).
+
+        Returns:
+            The reactivated UserInterest.
+        """
+        now = now or datetime.now(UTC)
+        interest.positive_signals = INTEREST_INITIAL_POSITIVE_SIGNALS
+        interest.negative_signals = INTEREST_INITIAL_NEGATIVE_SIGNALS
+        interest.status = InterestStatus.ACTIVE.value
+        interest.last_mentioned_at = now
+        interest.last_notified_at = None
+        interest.dormant_since = None
+
+        await self.db.flush()
+
+        logger.info(
+            "interest_reactivated",
+            interest_id=str(interest.id),
+            user_id=str(interest.user_id),
+        )
+        return interest
 
     # =========================================================================
     # Bulk Operations

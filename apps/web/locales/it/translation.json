@@ -2929,6 +2929,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_12": {
+          "title": "v1.20.12 — 🌙 Gli interessi in pausa restano visibili e gestibili, e la tua memoria a lungo termine ti avvisa prima di dimenticare",
+          "date": "Maggio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🌙 I tuoi interessi in pausa non sono più persi</b> — Quando smetti di menzionare un argomento per un po', LIA mette in pausa l'interesse corrispondente (« dormant ») invece di utilizzarlo. Finora questi interessi in pausa sparivano semplicemente dalle tue Impostazioni pur restando memorizzati — non potevi consultarli, modificarli o eliminarli, e venivano eliminati automaticamente dopo 90 giorni. Ora compaiono in una sezione « In pausa » dedicata, chiaramente indicata, dove puoi <b>riattivarli</b>, modificarli o eliminarli in qualsiasi momento. Un interesse riattivato riparte da zero, come se fosse appena rilevato. Il contatore mostra ora anche la suddivisione: attivi · in pausa · bloccati.",
+            "i2": "<b>⚠️ La tua memoria ora ti avvisa prima di dimenticare</b> — LIA dimentica automaticamente i ricordi a lungo termine diventati irrilevanti e inutilizzati (tranne quelli che hai fissato). Finora nulla ti segnalava che un ricordo stava per essere dimenticato. I ricordi vicini alla rimozione automatica vengono ora segnalati nella lista delle tue Impostazioni con un avviso « rischio di oblio », così puoi fissare quelli importanti prima che spariscano."
+          }
+        },
         "v1_20_11": {
           "title": "v1.20.11 — La modalità ⚡ ReAct diventa proattiva, un saluto iniziale fedele alla tua giornata reale e diverse correzioni di visualizzazione e accuratezza",
           "date": "Maggio 2026",
@@ -3590,7 +3599,7 @@
           },
           "q10": {
             "question": "Come gestisco i miei ricordi?",
-            "answer": "Hai il controllo completo sui ricordi di LIA su di te. Vai su <strong>Impostazioni > Aspetto > Memoria a lungo termine</strong>:<br><br><strong>Azioni disponibili:</strong><br>• <strong>Visualizzare</strong>: Elenco di tutti i ricordi con categoria e data<br>• <strong>Modificare</strong>: Correggere o affinare un ricordo<br>• <strong>Eliminare</strong>: Rimuovere ricordi singoli o tutti<br>• <strong>Fissare</strong>: Proteggere ricordi importanti dalla cancellazione automatica<br>• <strong>Esportare</strong>: Scaricare tutti i tuoi dati (GDPR)<br><br><strong>📝 Categorie:</strong> Preferenze, Personale, Relazioni, Eventi, Pattern, Sensibile<br><br><strong>🛡️ Privacy:</strong> I tuoi ricordi sono crittografati e accessibili solo da te."
+            "answer": "Hai il controllo completo sui ricordi di LIA su di te. Vai su <strong>Impostazioni > Aspetto > Memoria a lungo termine</strong>:<br><br><strong>Azioni disponibili:</strong><br>• <strong>Visualizzare</strong>: Elenco di tutti i ricordi con categoria e data<br>• <strong>Modificare</strong>: Correggere o affinare un ricordo<br>• <strong>Eliminare</strong>: Rimuovere ricordi singoli o tutti<br>• <strong>Fissare</strong>: Proteggere ricordi importanti dalla cancellazione automatica<br>• <strong>Esportare</strong>: Scaricare tutti i tuoi dati (GDPR)<br><br><strong>📝 Categorie:</strong> Preferenze, Personale, Relazioni, Eventi, Pattern, Sensibile<br><br><strong>🛡️ Privacy:</strong> I tuoi ricordi sono crittografati e accessibili solo da te.<br><br><strong>⚠️ Rischio di oblio:</strong> I ricordi prossimi a essere dimenticati automaticamente vengono segnalati nell'elenco, così puoi fissare in tempo quelli importanti."
           },
           "q11": {
             "question": "Come configuro la mia posizione per le richieste basate sulla posizione?",
@@ -3889,7 +3898,7 @@
           },
           "q4": {
             "question": "Come funziona il sistema di pesi?",
-            "answer": "Ogni interesse ha un <strong>peso</strong> che evolve:<br><br><strong>📊 Calcolo del peso:</strong><br>• Algoritmo <strong>bayesiano</strong> (distribuzione Beta)<br>• Inizia con un prior leggermente positivo<br>• Aumenta con segnali positivi<br>• Diminuisce con segnali negativi<br><br><strong>📈 Segnali positivi (+peso):</strong><br>• Menzione dell'argomento in una conversazione<br>• Clic su \"<em>Mi piace questo argomento</em>\" 👍<br><br><strong>📉 Segnali negativi (-peso):</strong><br>• Clic su \"<em>Meno interessato</em>\" 👎<br>• Decadimento temporale (1%/giorno senza menzione)<br><br><strong>⏳ Decadimento temporale:</strong><br>• Se smetti di parlare di un argomento, il suo peso diminuisce<br>• Interessi dormienti dopo 30 giorni<br>• Eliminazione automatica dopo 90 giorni di inattività<br><br><strong>🎯 Selezione per notifica:</strong><br>Gli interessi con il <strong>peso più alto</strong> hanno più probabilità di essere scelti"
+            "answer": "Ogni interesse ha un <strong>peso</strong> che evolve:<br><br><strong>📊 Calcolo del peso:</strong><br>• Algoritmo <strong>bayesiano</strong> (distribuzione Beta)<br>• Inizia con un prior leggermente positivo<br>• Aumenta con segnali positivi<br>• Diminuisce con segnali negativi<br><br><strong>📈 Segnali positivi (+peso):</strong><br>• Menzione dell'argomento in una conversazione<br>• Clic su \"<em>Mi piace questo argomento</em>\" 👍<br><br><strong>📉 Segnali negativi (-peso):</strong><br>• Clic su \"<em>Meno interessato</em>\" 👎<br>• Decadimento temporale (1%/giorno senza menzione)<br><br><strong>⏳ Decadimento temporale:</strong><br>• Se smetti di parlare di un argomento, il suo peso diminuisce<br>• Interessi in pausa dopo 15 giorni senza menzione — ma restano visibili e gestibili (riattivare, modificare o eliminare) in una sezione dedicata delle Impostazioni<br>• Eliminazione automatica dopo 90 giorni di inattività<br><br><strong>🎯 Selezione per notifica:</strong><br>Gli interessi con il <strong>peso più alto</strong> hanno più probabilità di essere scelti"
           },
           "q5": {
             "question": "Come do feedback su una notifica?",
@@ -4482,6 +4491,9 @@
     }
   },
   "memories": {
+    "purge_risk_badge_at_risk": "Rischio di oblio",
+    "purge_risk_badge_imminent": "Sta per essere dimenticato",
+    "purge_risk_tooltip": "Questo ricordo potrebbe essere dimenticato: fissalo per conservarlo.",
     "settings": {
       "title": "Memoria a lungo termine",
       "description": "Cosa ricorda l'assistente su di te"
@@ -4835,6 +4847,13 @@
     }
   },
   "interests": {
+    "dormant_section": "In pausa",
+    "dormant_badge": "In pausa",
+    "reactivate": "Riattiva",
+    "reactivate_success": "Interesse riattivato",
+    "reactivate_error": "Riattivazione non riuscita",
+    "active": "attivi",
+    "dormant": "in pausa",
     "active_section": "Attivi",
     "all_categories": "Tutte",
     "block": "Non suggerire più",

@@ -820,6 +820,32 @@ class APIMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def interest_not_dormant(language: SupportedLanguage = "fr") -> str:
+        """Error - interest is not dormant (cannot reactivate)."""
+        messages = {
+            "fr": "Ce centre d'intérêt n'est pas en sommeil",
+            "en": "This interest is not dormant",
+            "es": "Este interés no está inactivo",
+            "de": "Dieses Interesse ist nicht im Ruhezustand",
+            "it": "Questo interesse non è in pausa",
+            "zh-CN": "此兴趣未处于休眠状态",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def failed_to_reactivate_interest(language: SupportedLanguage = "fr") -> str:
+        """Error - failed to reactivate interest."""
+        messages = {
+            "fr": "Échec de la réactivation du centre d'intérêt",
+            "en": "Failed to reactivate interest",
+            "es": "Error al reactivar el interés",
+            "de": "Interesse konnte nicht reaktiviert werden",
+            "it": "Impossibile riattivare l'interesse",
+            "zh-CN": "重新激活兴趣失败",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
     def failed_to_update_interest(language: SupportedLanguage = "fr") -> str:
         """Error - failed to update interest."""
         messages = {

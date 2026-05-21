@@ -95,6 +95,10 @@ class InterestListResponse(BaseModel):
     total: int
     active_count: int
     blocked_count: int
+    dormant_count: int = Field(
+        default=0,
+        description="Number of dormant interests (low weight, awaiting reactivation)",
+    )
 
 
 # =============================================================================

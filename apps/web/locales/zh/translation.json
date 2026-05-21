@@ -2922,6 +2922,15 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_20_12": {
+          "title": "v1.20.12 — 🌙 休眠的兴趣保持可见且可管理，长期记忆会在遗忘前提醒你",
+          "date": "2026年5月",
+          "count": "2",
+          "items": {
+            "i1": "<b>🌙 你休眠的兴趣不再丢失</b> — 当你一段时间不再提及某个主题时，LIA 会将对应的兴趣转入休眠状态（dormant），而不是继续使用它。此前，这些休眠的兴趣会直接从你的设置中消失，尽管它们仍被保存——你无法查看、编辑或删除它们，并且会在 90 天后被自动删除。现在它们会出现在一个专门的「休眠」区域，清晰标识，你可以随时<b>重新激活</b>、编辑或删除它们。重新激活的兴趣会重新开始，就像刚被检测到一样。计数器现在还会显示明细：活跃 · 休眠 · 已屏蔽。",
+            "i2": "<b>⚠️ 你的记忆现在会在遗忘前提醒你</b> — LIA 会自动忘记那些已变得不重要且未被使用的长期记忆（除非你已置顶）。此前，没有任何提示告诉你某条记忆即将被遗忘。现在，接近自动删除的记忆会在你的设置列表中以「可能被遗忘」的警告标出，以便你在重要记忆消失前将其置顶。"
+          }
+        },
         "v1_20_11": {
           "title": "v1.20.11 — ⚡ ReAct 模式变得主动，首页问候语贴合你真实的一天，以及多项显示与准确性修复",
           "date": "2026年5月",
@@ -3583,7 +3592,7 @@
           },
           "q10": {
             "question": "如何管理我的记忆？",
-            "answer": "您可以完全控制LIA的记忆：<br><br>转到<strong>设置 > 个人资料 > 长期记忆</strong>：<br><br>• <strong>查看</strong>所有存储的记忆<br>• <strong>编辑</strong>记忆以更正或细化<br>• <strong>删除</strong>单个记忆或全部<br>• <strong>固定</strong>重要记忆以防止自动清理<br>• <strong>导出</strong>您的数据（GDPR合规）<br><br>您也可以通过主屏幕上头像下方的<strong>🧠记忆图标</strong>临时禁用记忆。"
+            "answer": "您可以完全控制LIA的记忆：<br><br>转到<strong>设置 > 个人资料 > 长期记忆</strong>：<br><br>• <strong>查看</strong>所有存储的记忆<br>• <strong>编辑</strong>记忆以更正或细化<br>• <strong>删除</strong>单个记忆或全部<br>• <strong>固定</strong>重要记忆以防止自动清理<br>• <strong>导出</strong>您的数据（GDPR合规）<br><br>您也可以通过主屏幕上头像下方的<strong>🧠记忆图标</strong>临时禁用记忆。<br><br><strong>⚠️ 遗忘风险：</strong>接近被自动遗忘的记忆会在列表中标注，以便你及时置顶重要的记忆。"
           },
           "q11": {
             "question": "地理定位是如何工作的？",
@@ -3882,7 +3891,7 @@
           },
           "q4": {
             "question": "权重系统如何工作？",
-            "answer": "每个兴趣都有一个会演变的<strong>权重</strong>：<br><br><strong>📊 权重计算：</strong><br>• <strong>贝叶斯</strong>算法（Beta分布）<br>• 从略微正向的先验开始<br>• 随正向信号增加<br>• 随负向信号减少<br><br><strong>📈 正向信号（+权重）：</strong><br>• 在对话中提及该话题<br>• 点击\"<em>我喜欢这个话题</em>\" 👍<br><br><strong>📉 负向信号（-权重）：</strong><br>• 点击\"<em>不太感兴趣</em>\" 👎<br>• 时间衰减（无提及每天1%）<br><br><strong>⏳ 时间衰减：</strong><br>• 如果您不再谈论某个话题，其权重会下降<br>• 30天后兴趣进入休眠<br>• 90天不活跃后自动删除<br><br><strong>🎯 通知选择：</strong><br><strong>权重最高</strong>的兴趣更可能被选中"
+            "answer": "每个兴趣都有一个会演变的<strong>权重</strong>：<br><br><strong>📊 权重计算：</strong><br>• <strong>贝叶斯</strong>算法（Beta分布）<br>• 从略微正向的先验开始<br>• 随正向信号增加<br>• 随负向信号减少<br><br><strong>📈 正向信号（+权重）：</strong><br>• 在对话中提及该话题<br>• 点击\"<em>我喜欢这个话题</em>\" 👍<br><br><strong>📉 负向信号（-权重）：</strong><br>• 点击\"<em>不太感兴趣</em>\" 👎<br>• 时间衰减（无提及每天1%）<br><br><strong>⏳ 时间衰减：</strong><br>• 如果您不再谈论某个话题，其权重会下降<br>• 15天未提及后兴趣进入休眠——但它们仍可在设置的专门区域中查看和管理（重新激活、编辑或删除）<br>• 90天不活跃后自动删除<br><br><strong>🎯 通知选择：</strong><br><strong>权重最高</strong>的兴趣更可能被选中"
           },
           "q5": {
             "question": "如何对通知提供反馈？",
@@ -4475,6 +4484,9 @@
     }
   },
   "memories": {
+    "purge_risk_badge_at_risk": "可能被遗忘",
+    "purge_risk_badge_imminent": "即将被遗忘",
+    "purge_risk_tooltip": "这条记忆可能会被遗忘——置顶以保留它。",
     "settings": {
       "title": "长期记忆",
       "description": "助手记住的关于你的信息"
@@ -4828,6 +4840,13 @@
     }
   },
   "interests": {
+    "dormant_section": "休眠",
+    "dormant_badge": "休眠",
+    "reactivate": "重新激活",
+    "reactivate_success": "兴趣已重新激活",
+    "reactivate_error": "重新激活失败",
+    "active": "活跃",
+    "dormant": "休眠",
     "active_section": "活跃",
     "all_categories": "全部",
     "block": "不再建议",

@@ -2927,6 +2927,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_12": {
+          "title": "v1.20.12 — 🌙 Ruhende Interessen bleiben sichtbar und verwaltbar, und dein Langzeitgedächtnis warnt dich, bevor es vergisst",
+          "date": "Mai 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🌙 Deine ruhenden Interessen gehen nicht mehr verloren</b> — Wenn du ein Thema eine Weile nicht mehr erwähnst, versetzt LIA das zugehörige Interesse in den Ruhezustand (« dormant ») statt es zu verwenden. Bisher verschwanden diese ruhenden Interessen einfach aus deinen Einstellungen, obwohl sie weiterhin gespeichert waren — du konntest sie weder ansehen noch bearbeiten oder löschen, und sie wurden nach 90 Tagen automatisch gelöscht. Sie erscheinen jetzt in einem eigenen, klar gekennzeichneten Abschnitt « Im Ruhezustand », in dem du sie jederzeit <b>reaktivieren</b>, bearbeiten oder löschen kannst. Ein reaktiviertes Interesse beginnt von vorn, als wäre es neu erkannt worden. Der Zähler zeigt nun auch die Aufschlüsselung: aktiv · ruhend · blockiert.",
+            "i2": "<b>⚠️ Dein Gedächtnis warnt dich jetzt, bevor es vergisst</b> — LIA vergisst automatisch Langzeit-Erinnerungen, die unwichtig und ungenutzt geworden sind (außer du hast sie angeheftet). Bisher wies dich nichts darauf hin, dass eine Erinnerung bald vergessen würde. Erinnerungen kurz vor der automatischen Entfernung werden jetzt in deiner Einstellungsliste mit einem Hinweis « könnte vergessen werden » markiert, damit du die wichtigen rechtzeitig anheften kannst, bevor sie verschwinden."
+          }
+        },
         "v1_20_11": {
           "title": "v1.20.11 — Der ⚡ ReAct-Modus wird proaktiv, eine Startseiten-Begrüßung, die zu deinem echten Tag passt, und mehrere Anzeige- und Genauigkeitskorrekturen",
           "date": "Mai 2026",
@@ -3588,7 +3597,7 @@
           },
           "q10": {
             "question": "Wie verwalte ich meine Erinnerungen?",
-            "answer": "Sie haben vollständige Kontrolle über LIAs Erinnerungen über Sie. Gehen Sie zu <strong>Einstellungen > Erscheinungsbild > Langzeitgedächtnis</strong>:<br><br><strong>Verfügbare Aktionen:</strong><br>• <strong>Anzeigen</strong>: Liste aller Erinnerungen mit Kategorie und Datum<br>• <strong>Bearbeiten</strong>: Eine Erinnerung korrigieren oder verfeinern<br>• <strong>Löschen</strong>: Einzelne oder alle Erinnerungen löschen<br>• <strong>Anheften</strong>: Wichtige Erinnerungen vor automatischem Löschen schützen<br>• <strong>Exportieren</strong>: Alle Ihre Daten herunterladen (DSGVO)<br><br><strong>📝 Kategorien:</strong> Vorlieben, Persönlich, Beziehungen, Ereignisse, Muster, Sensibel<br><br><strong>🛡️ Datenschutz:</strong> Ihre Erinnerungen werden verschlüsselt und sind nur für Sie zugänglich."
+            "answer": "Sie haben vollständige Kontrolle über LIAs Erinnerungen über Sie. Gehen Sie zu <strong>Einstellungen > Erscheinungsbild > Langzeitgedächtnis</strong>:<br><br><strong>Verfügbare Aktionen:</strong><br>• <strong>Anzeigen</strong>: Liste aller Erinnerungen mit Kategorie und Datum<br>• <strong>Bearbeiten</strong>: Eine Erinnerung korrigieren oder verfeinern<br>• <strong>Löschen</strong>: Einzelne oder alle Erinnerungen löschen<br>• <strong>Anheften</strong>: Wichtige Erinnerungen vor automatischem Löschen schützen<br>• <strong>Exportieren</strong>: Alle Ihre Daten herunterladen (DSGVO)<br><br><strong>📝 Kategorien:</strong> Vorlieben, Persönlich, Beziehungen, Ereignisse, Muster, Sensibel<br><br><strong>🛡️ Datenschutz:</strong> Ihre Erinnerungen werden verschlüsselt und sind nur für Sie zugänglich.<br><br><strong>⚠️ Vergessensrisiko:</strong> Erinnerungen, die bald automatisch vergessen werden, werden in der Liste markiert, damit Sie die wichtigen rechtzeitig anheften können."
           },
           "q11": {
             "question": "Wie konfiguriere ich meinen Standort für standortbezogene Anfragen?",
@@ -3887,7 +3896,7 @@
           },
           "q4": {
             "question": "Wie funktioniert das Gewichtungssystem?",
-            "answer": "Jedes Interesse hat ein <strong>Gewicht</strong>, das sich entwickelt:<br><br><strong>📊 Gewichtsberechnung:</strong><br>• <strong>Bayesscher</strong> Algorithmus (Beta-Verteilung)<br>• Beginnt mit einem leicht positiven Prior<br>• Steigt mit positiven Signalen<br>• Sinkt mit negativen Signalen<br><br><strong>📈 Positive Signale (+Gewicht):</strong><br>• Erwähnung des Themas in einem Gespräch<br>• Klick auf \"<em>Ich mag dieses Thema</em>\" 👍<br><br><strong>📉 Negative Signale (-Gewicht):</strong><br>• Klick auf \"<em>Weniger interessiert</em>\" 👎<br>• Zeitlicher Verfall (1%/Tag ohne Erwähnung)<br><br><strong>⏳ Zeitlicher Verfall:</strong><br>• Wenn Sie nicht mehr über ein Thema sprechen, sinkt sein Gewicht<br>• Ruhende Interessen nach 30 Tagen<br>• Automatische Löschung nach 90 Tagen Inaktivität<br><br><strong>🎯 Auswahl für Benachrichtigung:</strong><br>Interessen mit dem <strong>höchsten Gewicht</strong> werden eher ausgewählt"
+            "answer": "Jedes Interesse hat ein <strong>Gewicht</strong>, das sich entwickelt:<br><br><strong>📊 Gewichtsberechnung:</strong><br>• <strong>Bayesscher</strong> Algorithmus (Beta-Verteilung)<br>• Beginnt mit einem leicht positiven Prior<br>• Steigt mit positiven Signalen<br>• Sinkt mit negativen Signalen<br><br><strong>📈 Positive Signale (+Gewicht):</strong><br>• Erwähnung des Themas in einem Gespräch<br>• Klick auf \"<em>Ich mag dieses Thema</em>\" 👍<br><br><strong>📉 Negative Signale (-Gewicht):</strong><br>• Klick auf \"<em>Weniger interessiert</em>\" 👎<br>• Zeitlicher Verfall (1%/Tag ohne Erwähnung)<br><br><strong>⏳ Zeitlicher Verfall:</strong><br>• Wenn Sie nicht mehr über ein Thema sprechen, sinkt sein Gewicht<br>• Ruhende Interessen nach 15 Tagen ohne Erwähnung — sie bleiben jedoch in einem eigenen Bereich der Einstellungen sichtbar und verwaltbar (reaktivieren, bearbeiten oder löschen)<br>• Automatische Löschung nach 90 Tagen Inaktivität<br><br><strong>🎯 Auswahl für Benachrichtigung:</strong><br>Interessen mit dem <strong>höchsten Gewicht</strong> werden eher ausgewählt"
           },
           "q5": {
             "question": "Wie gebe ich Feedback zu einer Benachrichtigung?",
@@ -4480,6 +4489,9 @@
     }
   },
   "memories": {
+    "purge_risk_badge_at_risk": "Könnte vergessen werden",
+    "purge_risk_badge_imminent": "Wird bald vergessen",
+    "purge_risk_tooltip": "Diese Erinnerung könnte vergessen werden – heften Sie sie an, um sie zu behalten.",
     "settings": {
       "title": "Langzeitgedächtnis",
       "description": "Was sich der Assistent über Sie merkt"
@@ -4833,6 +4845,13 @@
     }
   },
   "interests": {
+    "dormant_section": "Im Ruhezustand",
+    "dormant_badge": "Ruhend",
+    "reactivate": "Reaktivieren",
+    "reactivate_success": "Interesse reaktiviert",
+    "reactivate_error": "Reaktivierung fehlgeschlagen",
+    "active": "aktiv",
+    "dormant": "ruhend",
     "active_section": "Aktiv",
     "all_categories": "Alle",
     "block": "Nicht mehr vorschlagen",

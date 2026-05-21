@@ -2936,6 +2936,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_12": {
+          "title": "v1.20.12 — 🌙 Dormant interests stay visible and manageable, and your long-term memory warns you before forgetting",
+          "date": "May 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🌙 Your dormant interests are no longer lost</b> — When you stop mentioning a topic for a while, LIA puts the matching interest to sleep (\"dormant\") rather than acting on it. Until now, dormant interests simply vanished from your Settings even though they were still stored — you couldn't review, edit or remove them, and they were deleted automatically after 90 days. They now appear in a dedicated \"Dormant\" section, clearly marked, where you can <b>reactivate</b>, edit or delete them at any time. A reactivated interest starts fresh, as if newly detected. The counter now also shows the breakdown: active · dormant · blocked.",
+            "i2": "<b>⚠️ Your memory now warns you before forgetting</b> — LIA automatically forgets long-term memories that have become unimportant and unused (unless you've pinned them). Until now, nothing told you a memory was about to be forgotten. Memories close to automatic removal are now flagged in your Settings list with a \"may be forgotten\" warning, so you can pin the ones that matter before they disappear."
+          }
+        },
         "v1_20_11": {
           "title": "v1.20.11 — ⚡ ReAct mode becomes proactive, a home greeting that matches your real day, and several display and accuracy fixes",
           "date": "May 2026",
@@ -3597,7 +3606,7 @@
           },
           "q10": {
             "question": "How do I manage my stored memories?",
-            "answer": "You have <strong>full control</strong> over what LIA remembers:<br><br><strong>📋 View your memories:</strong><br>Go to <strong>Settings > Long-term Memory</strong> to see everything LIA has remembered.<br><br><strong>✏️ Edit a memory:</strong><br>• Click the edit button<br>• Correct the content or category<br>• Adjust usage nuances<br><br><strong>📌 Pin a memory:</strong><br>Pinned memories are protected from automatic cleanup. Useful for important information.<br><br><strong>🗑️ Delete:</strong><br>• Delete individually or in bulk<br>• Option to keep pinned memories<br><br><strong>📤 Export:</strong><br>Export all your memories for backup (GDPR compliance).<br><br><strong>🔄 Automatic cleanup:</strong><br>Rarely used and unpinned memories are automatically purged after 6 months to keep the system relevant."
+            "answer": "You have <strong>full control</strong> over what LIA remembers:<br><br><strong>📋 View your memories:</strong><br>Go to <strong>Settings > Long-term Memory</strong> to see everything LIA has remembered.<br><br><strong>✏️ Edit a memory:</strong><br>• Click the edit button<br>• Correct the content or category<br>• Adjust usage nuances<br><br><strong>📌 Pin a memory:</strong><br>Pinned memories are protected from automatic cleanup. Useful for important information.<br><br><strong>🗑️ Delete:</strong><br>• Delete individually or in bulk<br>• Option to keep pinned memories<br><br><strong>📤 Export:</strong><br>Export all your memories for backup (GDPR compliance).<br><br><strong>🔄 Automatic cleanup:</strong><br>Unpinned memories are automatically purged based on a retention score (importance, recency and actual usage) to keep the system relevant.<br><br><strong>⚠️ Forgetting risk:</strong><br>Memories close to being automatically forgotten are flagged in the list, so you can pin the ones that matter in time."
           },
           "q11": {
             "question": "How do I configure my geolocation and home address?",
@@ -3896,7 +3905,7 @@
           },
           "q4": {
             "question": "How does the weight system work?",
-            "answer": "Each interest has a <strong>weight</strong> that evolves:<br><br><strong>📊 Weight calculation:</strong><br>• <strong>Bayesian</strong> algorithm (Beta distribution)<br>• Starts with a slightly positive prior<br>• Increases with positive signals<br>• Decreases with negative signals<br><br><strong>📈 Positive signals (+weight):</strong><br>• Mentioning the topic in a conversation<br>• Clicking \"<em>I like this topic</em>\" 👍<br><br><strong>📉 Negative signals (-weight):</strong><br>• Clicking \"<em>Less interested</em>\" 👎<br>• Temporal decay (1%/day without mention)<br><br><strong>⏳ Temporal decay:</strong><br>• If you stop talking about a topic, its weight decreases<br>• Dormant interests after 30 days<br>• Automatic deletion after 90 days of inactivity<br><br><strong>🎯 Selection for notification:</strong><br>Interests with the <strong>highest weight</strong> are more likely to be chosen"
+            "answer": "Each interest has a <strong>weight</strong> that evolves:<br><br><strong>📊 Weight calculation:</strong><br>• <strong>Bayesian</strong> algorithm (Beta distribution)<br>• Starts with a slightly positive prior<br>• Increases with positive signals<br>• Decreases with negative signals<br><br><strong>📈 Positive signals (+weight):</strong><br>• Mentioning the topic in a conversation<br>• Clicking \"<em>I like this topic</em>\" 👍<br><br><strong>📉 Negative signals (-weight):</strong><br>• Clicking \"<em>Less interested</em>\" 👎<br>• Temporal decay (1%/day without mention)<br><br><strong>⏳ Temporal decay:</strong><br>• If you stop talking about a topic, its weight decreases<br>• Dormant interests after 15 days without mention — but they stay visible and manageable (reactivate, edit or delete) in a dedicated section of Settings<br>• Automatic deletion after 90 days of inactivity<br><br><strong>🎯 Selection for notification:</strong><br>Interests with the <strong>highest weight</strong> are more likely to be chosen"
           },
           "q5": {
             "question": "How do I give feedback on a notification?",
@@ -4568,6 +4577,9 @@
     }
   },
   "memories": {
+    "purge_risk_badge_at_risk": "May be forgotten",
+    "purge_risk_badge_imminent": "About to be forgotten",
+    "purge_risk_tooltip": "This memory may be forgotten — pin it to keep it.",
     "settings": {
       "title": "Long-term Memory",
       "description": "What the assistant remembers about you"
@@ -4649,6 +4661,13 @@
     "create_error": "Error creating memory"
   },
   "interests": {
+    "dormant_section": "Dormant",
+    "dormant_badge": "Dormant",
+    "reactivate": "Reactivate",
+    "reactivate_success": "Interest reactivated",
+    "reactivate_error": "Failed to reactivate",
+    "active": "active",
+    "dormant": "dormant",
     "settings": {
       "title": "Interests",
       "description": "Receive personalized suggestions about your favorite topics"

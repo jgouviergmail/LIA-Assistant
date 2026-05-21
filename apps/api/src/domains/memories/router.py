@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     ResourceNotFoundError,
@@ -32,6 +33,7 @@ from src.domains.agents.tools.memory_tools import get_memory_categories
 from src.domains.auth.models import User
 from src.domains.memories.models import Memory
 from src.domains.memories.repository import MemoryRepository
+from src.domains.memories.retention import RetentionConfig, classify_purge_risk
 from src.domains.memories.schemas import (
     MemoryCategoriesResponse,
     MemoryCategoryInfo,
@@ -52,15 +54,44 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/memories", tags=["Memories"])
 
 
-def _memory_to_response(memory: Memory) -> MemoryResponse:
-    """Convert a Memory ORM object to MemoryResponse.
+def _build_retention_config() -> RetentionConfig:
+    """Snapshot the current retention settings for risk classification.
+
+    Returns:
+        A frozen ``RetentionConfig`` built from the current settings.
+    """
+    return RetentionConfig(
+        min_age_for_cleanup_days=settings.memory_min_age_for_cleanup_days,
+        recency_decay_days=settings.memory_recency_decay_days,
+        usage_penalty_age_days=settings.memory_usage_penalty_age_days,
+        usage_penalty_factor=settings.memory_usage_penalty_factor,
+        purge_threshold=settings.memory_purge_threshold,
+        at_risk_margin=settings.memory_purge_at_risk_margin,
+        weight_importance=settings.memory_retention_weight_importance,
+        weight_recency=settings.memory_retention_weight_recency,
+    )
+
+
+def _memory_to_response(
+    memory: Memory,
+    now: datetime | None = None,
+    config: RetentionConfig | None = None,
+) -> MemoryResponse:
+    """Convert a Memory ORM object to MemoryResponse (with computed purge risk).
 
     Args:
         memory: Memory ORM instance.
+        now: Current datetime (one snapshot per request; defaults to UTC now).
+        config: Retention configuration snapshot (defaults to current settings).
+            Pass a shared instance when converting a list to avoid rebuilding it
+            per item.
 
     Returns:
-        MemoryResponse with all fields.
+        MemoryResponse with all fields, including read-only purge-risk data.
     """
+    now = now or datetime.now(UTC)
+    config = config or _build_retention_config()
+    purge_risk, retention_score = classify_purge_risk(memory, now, config)
     return MemoryResponse(
         id=str(memory.id),
         content=memory.content or "",
@@ -74,6 +105,8 @@ def _memory_to_response(memory: Memory) -> MemoryResponse:
         pinned=memory.pinned or False,
         usage_count=memory.usage_count or 0,
         last_accessed_at=memory.last_accessed_at,
+        purge_risk=purge_risk,
+        retention_score=retention_score,
     )
 
 
@@ -108,7 +141,9 @@ async def export_memories(
     try:
         repo = MemoryRepository(db)
         all_memories = await repo.get_all_for_user(user.id)
-        memories = [_memory_to_response(m) for m in all_memories]
+        now = datetime.now(UTC)
+        config = _build_retention_config()
+        memories = [_memory_to_response(m, now, config) for m in all_memories]
 
         logger.info(
             "memories_exported",
@@ -189,7 +224,9 @@ async def list_memories(
             cat = m.category or "personal"
             by_category[cat] = by_category.get(cat, 0) + 1
 
-        items = [_memory_to_response(m) for m in filtered]
+        now = datetime.now(UTC)
+        config = _build_retention_config()
+        items = [_memory_to_response(m, now, config) for m in filtered]
 
         logger.info(
             "memories_listed",

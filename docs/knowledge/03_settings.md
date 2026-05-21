@@ -36,7 +36,10 @@ Pinned memories are protected from automatic cleanup. Useful for important infor
 Export all your memories for backup (GDPR compliance).
 
 **🔄 Automatic cleanup:**
-Rarely used and unpinned memories are automatically purged after 6 months to keep the system relevant.
+Unpinned memories are automatically purged based on a retention score (importance, recency, and actual usage) to keep the system relevant.
+
+**⚠️ Forgetting risk:**
+Memories close to being automatically forgotten are flagged in the list, so you can pin them in time.
 
 ## How do I configure my geolocation and home address?
 LIA can use your **geographic location** for contextual searches:

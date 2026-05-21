@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.12] - 2026-05-21
+
+### Added — Dormant interests are visible and manageable again (no more silent loss of control)
+
+An interest decays over time (Bayesian weight × temporal decay); the nightly `cleanup_interests` job flips it to `status = "dormant"` once its effective weight stays below `0.5` for `interest_dormant_threshold_days` (15 days in prod), then deletes it after 90 days. `GET /interests` already returned dormant interests, but the Settings UI rendered only the `active` (grouped by category) and `blocked` buckets — `dormant` was filtered nowhere, so dormant interests were **invisible and uncontrollable** from the UI (yet still counted in the total) and were silently deleted at 90 days.
+
+Dormant interests now render in a dedicated, visually-distinct "Dormant" accordion section (muted, moon badge — not struck-through like blocked ones) with full Edit / Delete control and an explicit **Reactivate** action. Reactivation resets the interest to a fresh state (`positive_signals = 1`, `negative_signals = 0`, `status = active`, `last_mentioned_at = now`, `dormant_since = None`) — mirroring `create()` via shared `INTEREST_INITIAL_*` constants — so its effective weight returns to ~0.75 (> the 0.5 dormancy threshold) and the nightly job won't immediately re-dormant it; this also sidesteps the temporal-decay dead zone (an old dormant cannot exceed the threshold through signals alone). New endpoint `POST /interests/{id}/reactivate` (ownership guard + `409` when the interest is not dormant); `dormant_count` added to `InterestListResponse`; the stats bar now breaks down as active / dormant / blocked.
+
+### Added — Long-term memory now signals which memories are about to be forgotten
+
+The nightly `cleanup_memories` job hard-deletes any non-pinned memory whose retention score (`weight_importance × importance + weight_recency × recency_factor`, minus a zero-usage penalty) falls below `memory_purge_threshold`, after a grace period. Memories stayed visible and pinnable, but the user had **no signal** of an impending purge — nothing prompted pinning before the irreversible deletion.
+
+`MemoryResponse` now exposes a read-only `purge_risk` (`PurgeRiskLevel` enum: `protected` / `safe` / `at_risk` / `imminent`) and `retention_score`, computed on the fly. The Settings list flags `at_risk` / `imminent` (non-pinned) memories with an amber/red "may be forgotten" badge + tooltip inviting a pin. A new parameterizable `memory_purge_at_risk_margin` (default `0.1`) sets the band above the threshold flagged as `at_risk`. Read-only — the purge decision itself is unchanged.
+
+### Changed — Retention scoring extracted to a pure domain module (Boy Scout)
+
+`calculate_retention_score` and `should_purge` moved **verbatim** from `infrastructure/scheduler/memory_cleanup.py` into a new pure module `src/domains/memories/retention.py` (which also adds `RetentionConfig` and `classify_purge_risk`). The scheduler imports them back (`infrastructure → domain`, correct direction) and the API reuses the same functions — DRY, no behaviour change to the purge job, calibration tests preserved byte-for-byte (moved to `tests/unit/domains/memories/test_retention.py`).
+
+Strictly additive — **no DB migration**, no existing endpoint signature changed, no scheduler trigger changed.
+
+Files: `apps/api/src/core/{constants,config/agents,i18n_api_messages}.py`, `apps/api/src/domains/interests/{repository,router,schemas}.py`, `apps/api/src/domains/memories/{models,retention,schemas,router}.py`, `apps/api/src/infrastructure/scheduler/memory_cleanup.py`, `apps/web/src/hooks/{useInterests,useMemories}.ts`, `apps/web/src/components/settings/{InterestsSettings,MemorySettings}.tsx`, the 6 locale files, `.env.example` / `.env.prod.example`. **Tests** — `test_repository_reactivate.py`, `test_router_reactivate.py`, `test_retention.py`. Docs: `docs/knowledge/{08_interests,03_settings}.md`.
+
 ## [1.20.11] - 2026-05-21
 
 ### Added — ReAct mode now enriches answers with the proactive Initiative phase (ADR-070 / ADR-062 parity)

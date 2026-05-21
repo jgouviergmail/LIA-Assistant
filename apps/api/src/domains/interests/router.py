@@ -171,6 +171,7 @@ async def list_interests(
         # Count by status
         active_count = sum(1 for i in items if i.status == InterestStatus.ACTIVE)
         blocked_count = sum(1 for i in items if i.status == InterestStatus.BLOCKED)
+        dormant_count = sum(1 for i in items if i.status == InterestStatus.DORMANT)
 
         logger.info(
             "interests_listed",
@@ -178,6 +179,7 @@ async def list_interests(
             total=len(items),
             active=active_count,
             blocked=blocked_count,
+            dormant=dormant_count,
         )
 
         return InterestListResponse(
@@ -185,6 +187,7 @@ async def list_interests(
             total=len(items),
             active_count=active_count,
             blocked_count=blocked_count,
+            dormant_count=dormant_count,
         )
 
     except Exception as e:
@@ -720,5 +723,79 @@ async def submit_feedback(
         raise_interest_store_error(
             operation="feedback",
             detail=APIMessages.failed_to_submit_feedback(),
+            interest_id=str(interest_id),
+        )
+
+
+# =============================================================================
+# Reactivation
+# =============================================================================
+
+
+@router.post(
+    "/{interest_id}/reactivate",
+    response_model=InterestResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Reactivate a dormant interest",
+    description="Reactivate a dormant interest, resetting its signals to a fresh state.",
+)
+async def reactivate_interest(
+    interest_id: UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> InterestResponse:
+    """Reactivate a dormant interest (reset counters to a fresh state).
+
+    Args:
+        interest_id: UUID of the interest to reactivate.
+        user: Authenticated owner (injected).
+        db: Database session (injected).
+
+    Returns:
+        The reactivated interest as an ``InterestResponse``.
+
+    Raises:
+        ResourceNotFoundError: If the interest is missing or not owned by the user.
+        ResourceConflictError: If the interest is not in the ``dormant`` status.
+    """
+    try:
+        repo = InterestRepository(db)
+        interest = await repo.get_by_id(interest_id)
+
+        if not interest or interest.user_id != user.id:
+            raise_interest_not_found(interest_id)
+
+        if interest.status != InterestStatus.DORMANT.value:
+            raise ResourceConflictError(
+                resource_type="interest",
+                detail=APIMessages.interest_not_dormant(),
+            )
+
+        await repo.reactivate(interest)
+        await db.commit()
+        await db.refresh(interest)
+
+        logger.info(
+            "interest_reactivated",
+            user_id=str(user.id),
+            interest_id=str(interest_id),
+        )
+
+        return _interest_to_response(interest, repo)
+
+    except (ResourceNotFoundError, ResourceConflictError):
+        raise
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(
+            "interest_reactivate_failed",
+            user_id=str(user.id),
+            interest_id=str(interest_id),
+            error=str(e),
+        )
+        raise_interest_store_error(
+            operation="reactivate",
+            detail=APIMessages.failed_to_reactivate_interest(),
             interest_id=str(interest_id),
         )

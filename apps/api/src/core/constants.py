@@ -1386,6 +1386,11 @@ DEBUG_PIPELINE_NODE_ORDER: tuple[str, ...] = (
 INTEREST_PRIOR_ALPHA = 2
 INTEREST_PRIOR_BETA = 1
 
+# Initial signal counters for a new (or reactivated) interest.
+# A reactivated interest is reset to these values so it behaves as brand-new.
+INTEREST_INITIAL_POSITIVE_SIGNALS = 1
+INTEREST_INITIAL_NEGATIVE_SIGNALS = 0
+
 # Query truncation for LLM analysis (characters)
 INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH = 500
 
@@ -1836,6 +1841,7 @@ MEMORY_EMBEDDING_DIMENSIONS_DEFAULT = 1536
 INTEREST_EMBEDDING_MODEL_DEFAULT = "models/gemini-embedding-001"
 INTEREST_EMBEDDING_DIMENSIONS_DEFAULT = 1536
 MEMORY_PURGE_THRESHOLD_DEFAULT = 0.5  # Score below this triggers purge
+MEMORY_PURGE_AT_RISK_MARGIN_DEFAULT = 0.1  # "At risk" band above purge threshold (UI hint)
 MEMORY_CLEANUP_HOUR_DEFAULT = 4
 MEMORY_CLEANUP_MINUTE_DEFAULT = 0
 MEMORY_RELEVANCE_THRESHOLD_DEFAULT = 0.76  # Calibrated for Gemini embedding-001 (2026-04-09)
