@@ -68,7 +68,22 @@ export default function ChatPage() {
     contextUsage, // Context-usage pill: tokens vs compaction threshold
     hydrateContextUsage, // Seeds the pill from /me/totals on page load
   } = useChat({ debugPanelVisible: showDebugPanel });
-  const { loadConversationHistory, loadConversationTotals, resetConversation } = useConversation();
+  const {
+    loadConversationPage,
+    loadOlderMessages,
+    isLoadingOlder,
+    loadConversationTotals,
+    resetConversation,
+  } = useConversation();
+
+  // Scroll-up pagination state.
+  // ``oldestCursor`` is the ``created_at`` of the oldest message currently
+  // loaded (``next_cursor`` from the backend). ``hasMoreOlder`` toggles the
+  // top sentinel in ChatMessageList. Reset to ``(null, false)`` whenever the
+  // history is fully reloaded (initial mount, visibility return, post-action
+  // refresh) so pagination state stays in sync with the rendered message list.
+  const [oldestCursor, setOldestCursor] = useState<string | null>(null);
+  const [hasMoreOlder, setHasMoreOlder] = useState(false);
   const router = useLocalizedRouter();
   const { t } = useTranslation();
   const [isResetting, setIsResetting] = useState(false);
@@ -172,10 +187,13 @@ export default function ChatPage() {
 
       // 2. Reload full conversation history (result already archived by stream_chat_response)
       try {
-        const history = await loadConversationHistory();
-        if (history.length > 0) {
-          setMessages(history);
+        const page = await loadConversationPage();
+        if (page.messages.length > 0) {
+          setMessages(page.messages);
         }
+        // Reset pagination state — list snaps back to the newest page.
+        setHasMoreOlder(page.hasMore);
+        setOldestCursor(page.nextCursor);
       } catch (error) {
         logger.warn('Failed to reload conversation after scheduled action', {
           component: 'ChatPage',
@@ -183,7 +201,7 @@ export default function ChatPage() {
         });
       }
     },
-    [loadConversationHistory, setMessages]
+    [loadConversationPage, setMessages]
   );
 
   // Connect to SSE notifications for real-time reminders, proactive notifications, and scheduled actions
@@ -250,6 +268,41 @@ export default function ChatPage() {
     return messages.filter(msg => msg.content.toLowerCase().includes(q));
   }, [messages, searchQuery]);
 
+  // ``setMessages`` accepts only ``Message[]`` (the underlying reducer doesn't
+  // support a functional updater). To prepend without staleness we read the
+  // current list from a ref kept in sync with the state — this avoids
+  // rebuilding ``handleLoadOlder`` on every message append, which would in
+  // turn rebind the IntersectionObserver in ChatMessageList on every render.
+  const messagesRef = useRef<Message[]>(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  // Scroll-up handler — prepends an older page to the message list.
+  //
+  // Dedup is essential because the same message could come back if the cursor
+  // window overlaps (e.g. a new message landed during the fetch and shifted
+  // the page boundary). Existing ids in the current ``messages`` are
+  // skip-listed before prepending.
+  const handleLoadOlder = useCallback(async () => {
+    if (!oldestCursor || !hasMoreOlder) return;
+    const page = await loadOlderMessages(oldestCursor);
+    if (page.messages.length === 0) {
+      // Even an empty page must commit ``hasMore=false`` so the sentinel stops
+      // firing — without this the IntersectionObserver would loop forever at
+      // the start of the conversation.
+      setHasMoreOlder(page.hasMore);
+      setOldestCursor(page.nextCursor);
+      return;
+    }
+    const current = messagesRef.current;
+    const seen = new Set(current.map(m => m.id));
+    const fresh = page.messages.filter(m => !seen.has(m.id));
+    setMessages([...fresh, ...current]);
+    setHasMoreOlder(page.hasMore);
+    setOldestCursor(page.nextCursor);
+  }, [oldestCursor, hasMoreOlder, loadOlderMessages, setMessages]);
+
   // Verify that the user is active
   useEffect(() => {
     if (!isLoading && user && !user.is_active) {
@@ -262,15 +315,17 @@ export default function ChatPage() {
   useEffect(() => {
     const loadData = async () => {
       if (user && apiAvailable) {
-        // Load history and totals in parallel (independent API calls)
-        const [history, totals] = await Promise.all([
-          loadConversationHistory(),
+        // Load first page (with pagination metadata) and totals in parallel
+        const [page, totals] = await Promise.all([
+          loadConversationPage(),
           loadConversationTotals(),
         ]);
 
-        if (history.length > 0) {
-          setMessages(history);
+        if (page.messages.length > 0) {
+          setMessages(page.messages);
         }
+        setHasMoreOlder(page.hasMore);
+        setOldestCursor(page.nextCursor);
 
         // Totals from API (source of truth for full history)
         // These totals include ALL tokens, including those from HITL messages
@@ -318,16 +373,19 @@ export default function ChatPage() {
       isReloadingRef.current = true;
 
       try {
-        const history = await loadConversationHistory();
+        const page = await loadConversationPage();
 
         // Only update if there are new messages (avoid unnecessary re-renders)
-        if (history.length > lastMessageCountRef.current) {
+        if (page.messages.length > lastMessageCountRef.current) {
           logger.debug('New messages detected on foreground return', {
             component: 'ChatPage',
             previousCount: lastMessageCountRef.current,
-            newCount: history.length,
+            newCount: page.messages.length,
           });
-          setMessages(history);
+          setMessages(page.messages);
+          // Pagination state aligned with the freshly loaded newest page.
+          setHasMoreOlder(page.hasMore);
+          setOldestCursor(page.nextCursor);
         }
       } catch (error) {
         logger.warn('Failed to reload messages on visibility change', {
@@ -344,7 +402,7 @@ export default function ChatPage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user, apiAvailable, isTyping, loadConversationHistory, setMessages]);
+  }, [user, apiAvailable, isTyping, loadConversationPage, setMessages]);
 
   // Handle conversation reset with confirmation
   const handleResetConversation = async () => {
@@ -360,6 +418,9 @@ export default function ChatPage() {
       clearMessages();
       // Reset API totals (conversation was deleted)
       setApiTotals(null);
+      // Pagination state must follow the now-empty conversation.
+      setHasMoreOlder(false);
+      setOldestCursor(null);
       toast.success(t('chat.conversation_reset_success'));
     } catch {
       toast.error(t('chat.conversation_reset_error'));
@@ -529,6 +590,13 @@ export default function ChatPage() {
                 messages={displayedMessages}
                 isTyping={isTyping && !searchQuery}
                 browserScreenshot={browserScreenshot}
+                // Scroll-up pagination — disabled while the user is searching
+                // (search filters client-side over already-loaded messages
+                // only, so a sentinel would conflate "no match in this page"
+                // with "more remote history exists").
+                hasMoreOlder={hasMoreOlder && !searchQuery}
+                isLoadingOlder={isLoadingOlder}
+                onLoadOlder={handleLoadOlder}
               />
             </RegistryProvider>
           </div>

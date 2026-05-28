@@ -24,6 +24,8 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     AGENT_STREAM_SLEEP_INTERVAL_DEFAULT,
+    CONVERSATION_HISTORY_DEFAULT_LIMIT_DEFAULT,
+    CONVERSATION_HISTORY_MAX_LIMIT_DEFAULT,
     CURRENCY_API_TIMEOUT_SECONDS_DEFAULT,
     CURRENCY_API_URL_DEFAULT,
     CURRENCY_CACHE_TTL_HOURS_DEFAULT,
@@ -90,6 +92,27 @@ class AdvancedSettings(BaseSettings):
         default=CURRENCY_API_TIMEOUT_SECONDS_DEFAULT,
         gt=0.0,
         description="Timeout for currency exchange rate API requests (seconds)",
+    )
+
+    # ========================================================================
+    # Conversation Message History Pagination
+    # ========================================================================
+    # Keyset (scroll-up) pagination for GET /conversations/me/messages.
+    # Defaults match the chat UI page size. Increase ``default_limit`` to load
+    # more on the first page (heavier initial payload but fewer scroll-up
+    # round-trips); ``max_limit`` is the hard cap on the ``limit`` query param
+    # and protects against pathological page sizes.
+    conversation_history_default_limit: int = Field(
+        default=CONVERSATION_HISTORY_DEFAULT_LIMIT_DEFAULT,
+        ge=1,
+        le=1000,
+        description="Default page size for /conversations/me/messages",
+    )
+    conversation_history_max_limit: int = Field(
+        default=CONVERSATION_HISTORY_MAX_LIMIT_DEFAULT,
+        ge=1,
+        le=1000,
+        description="Hard cap on the ``limit`` query param (prevents pathological page sizes)",
     )
 
     # ========================================================================

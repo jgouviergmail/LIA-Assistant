@@ -886,11 +886,12 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 内置技能库展示了该契约：`interactive-map`、`weather-dashboard`、`calendar-month`、`qr-code`、`pomodoro-timer`、`unit-converter`、`dice-roller` — 每个都演示了三通道的不同组合。
 
-### 23.8. 对话搜索与富聊天渲染
+### 23.8. 对话历史、搜索与富聊天渲染
 
-三个横切能力共享同一产品理念：**即时反馈，不必要时零服务器成本**。
+四个横切能力共享同一产品理念：**即时反馈，不必要时零服务器成本**。
 
 - **对话历史搜索** — `GET /conversations/me/messages` 的 `?search=` 查询参数。过滤使用 PostgreSQL `ILIKE`（不区分大小写、区分重音 — 契约已由测试锁定）。前端使用 `useMemo` 对 `messages` 进行即时过滤；后端端点作为潜在能力保留，供未来深度搜索 UI 使用。
+- **向上滚动分页** — 同一个端点，键集游标 `?before=<created_at>` 返回 `has_more` 和 `next_cursor`。聊天 UI 在第一条消息上方绑定一个 1 px 的哨兵元素并使用 `IntersectionObserver`；更早的页面会按 id 去重后前置插入，并通过共享的 `wasPrependRef` 让自动滚动到底部的 `useEffect` 在该轮跳过，从而让视图精确停留在用户正在阅读的位置。已有的复合索引 `(conversation_id, created_at DESC)` 让每一页都成为索引-only 的 seek，与对话长度无关。分页上下限（默认 50、硬上限 200）可通过环境变量 `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT` 调整。
 - **LaTeX 渲染** — `remark-math` + `rehype-katex` 接入 `MarkdownContent.tsx`。语法 `$inline$` / `$$block$$`。插件顺序 `rehypeRaw → rehypeKatex`，避免在原始 HTML 上双重执行。KaTeX 生成自身已消毒的 HTML（类型化 span），不新增 `rehypeRaw` 已允许之外的攻击面。
 - **语法高亮** — `react-syntax-highlighter`（PrismAsyncLight）懒加载。25 种语言按需通过 `SyntaxHighlighter.registerLanguage(...)` 注册以保持初始 bundle 较小（语言在首次出现代码块时才拉取）。主题由 `next-themes` 驱动自动切换 `one-dark` / `one-light`。
 

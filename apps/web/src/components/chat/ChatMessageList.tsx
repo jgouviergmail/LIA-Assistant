@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Message, BrowserScreenshotData } from '@/types/chat';
 import { ChatMessage } from './ChatMessage';
 import { BrowserScreenshotOverlay } from './BrowserScreenshotOverlay';
@@ -12,12 +12,23 @@ export interface ChatMessageListProps {
   messages: Message[];
   isTyping?: boolean;
   browserScreenshot?: BrowserScreenshotData | null;
+  /** When true, the scroll-up sentinel is rendered and triggers ``onLoadOlder``
+   *  as soon as it enters the viewport. */
+  hasMoreOlder?: boolean;
+  /** Renders the inline loader at the top while older messages are fetched. */
+  isLoadingOlder?: boolean;
+  /** Called when the top sentinel becomes visible. The parent owns the cursor
+   *  and the state update (prepend + dedup). */
+  onLoadOlder?: () => void;
 }
 
 export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   messages,
   isTyping = false,
   browserScreenshot,
+  hasMoreOlder = false,
+  isLoadingOlder = false,
+  onLoadOlder,
 }) => {
   const { t } = useTranslation();
 
@@ -30,11 +41,40 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const wasTypingRef = useRef(false);
   // Flag to cancel pending scroll-to-user if component unmounts during RAF
   const pendingScrollRef = useRef(false);
+  // Scroll-up pagination state. ``prevFirstIdRef`` tracks the first-rendered
+  // message id so we can detect a prepend; ``prevScrollHeightRef`` is captured
+  // right before triggering ``onLoadOlder`` so the post-prepend useLayoutEffect
+  // can offset ``scrollTop`` by the new content height — without this the
+  // viewport jumps to the top as older messages push the existing ones down.
+  //
+  // ``wasPrependRef`` is the signal shared with the auto-scroll effect below:
+  // when a prepend has just been applied, that effect MUST NOT run its
+  // ``scrollIntoView`` (which would yank the viewport back to the bottom and
+  // make the freshly loaded older messages invisible). The flag is raised
+  // from the scroll-preservation useLayoutEffect once a prepend is detected,
+  // and consumed (lowered) by the auto-scroll useEffect in the same render
+  // cycle.
+  const topSentinelRef = useRef<HTMLDivElement>(null);
+  const prevFirstIdRef = useRef<string | null>(null);
+  const prevScrollHeightRef = useRef<number | null>(null);
+  const wasPrependRef = useRef(false);
 
   // Auto-scroll behavior:
   // - Default: scroll to bottom (preserves original behavior for history load, new messages, etc.)
   // - When streaming ends: scroll to last user message aligned at top
+  // - Skipped entirely when the last messages update was a scroll-up prepend
+  //   (the scroll-preservation useLayoutEffect has already restored ``scrollTop``;
+  //   scrolling to bottom here would undo it and hide the freshly loaded
+  //   older messages).
   useEffect(() => {
+    if (wasPrependRef.current) {
+      // Consume the prepend flag and short-circuit. Still update
+      // ``wasTypingRef`` so the streaming-just-ended branch fires correctly
+      // on the next non-prepend update.
+      wasPrependRef.current = false;
+      wasTypingRef.current = isTyping;
+      return;
+    }
     if (!isTyping && wasTypingRef.current) {
       // Streaming just ended: scroll to last user message aligned at top
       // Double RAF ensures the DOM is fully painted before scrolling
@@ -72,6 +112,63 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       pendingScrollRef.current = false;
     };
   }, [messages, isTyping]);
+
+  // Scroll-position preservation after a scroll-up prepend.
+  //
+  // Runs synchronously after the DOM mutation (useLayoutEffect) so the
+  // viewport never visibly jumps. Detection is based on the first message id
+  // changing while ``prevScrollHeightRef`` is set — that combo only occurs
+  // when the parent prepended older messages in response to ``onLoadOlder``.
+  // When a prepend is detected, ``wasPrependRef`` is raised so the auto-scroll
+  // useEffect below knows to skip its scrollIntoView this cycle.
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const newFirstId = messages[0]?.id ?? null;
+
+    if (
+      container &&
+      prevScrollHeightRef.current !== null &&
+      prevFirstIdRef.current !== null &&
+      newFirstId !== null &&
+      newFirstId !== prevFirstIdRef.current
+    ) {
+      const delta = container.scrollHeight - prevScrollHeightRef.current;
+      if (delta > 0) {
+        container.scrollTop += delta;
+      }
+      wasPrependRef.current = true;
+    }
+
+    prevFirstIdRef.current = newFirstId;
+    prevScrollHeightRef.current = null;
+  }, [messages]);
+
+  // IntersectionObserver on the top sentinel — fires ``onLoadOlder`` as soon
+  // as the user scrolls within ``rootMargin`` of the top of the list. Re-bound
+  // whenever pagination availability or the loading flag changes so we don't
+  // call back into the parent while a fetch is already in flight.
+  useEffect(() => {
+    if (!onLoadOlder || !hasMoreOlder) return;
+    const sentinel = topSentinelRef.current;
+    const container = containerRef.current;
+    if (!sentinel || !container) return;
+
+    const observer = new IntersectionObserver(
+      entries => {
+        const entry = entries[0];
+        if (entry?.isIntersecting && !isLoadingOlder) {
+          // Capture pre-prepend height — useLayoutEffect above uses it to
+          // restore the scroll position after the new rows mount.
+          prevScrollHeightRef.current = container.scrollHeight;
+          onLoadOlder();
+        }
+      },
+      { root: container, rootMargin: '200px 0px 0px 0px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [onLoadOlder, hasMoreOlder, isLoadingOlder]);
 
   // DEFENSIVE: Handle case where messages is not an array
   if (!Array.isArray(messages)) {
@@ -118,6 +215,22 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       className="flex-1 overflow-y-auto px-2 pt-8 pb-6 mobile:px-6 scroll-smooth"
     >
       <div className="mobile:max-w-5xl mobile:mx-auto [&>*:first-child]:mt-2">
+        {/* Scroll-up sentinel: rendered while older history remains. The
+            IntersectionObserver above fires ``onLoadOlder`` as soon as it
+            enters the viewport. ``aria-hidden`` because it's an invisible
+            scroll trigger, not content. */}
+        {hasMoreOlder && (
+          <div ref={topSentinelRef} aria-hidden="true" className="h-1" />
+        )}
+        {isLoadingOlder && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex justify-center py-3 text-xs text-muted-foreground"
+          >
+            <span className="animate-pulse">{t('chat.loading_older_messages')}</span>
+          </div>
+        )}
         {messages.map(message => (
           // scroll-mt-8 must match container's pt-8 for scrollIntoView alignment
           <div

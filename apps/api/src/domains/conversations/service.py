@@ -1314,6 +1314,7 @@ class ConversationService:
         db: AsyncSession,
         hide_hitl_approvals: bool = False,
         search: str | None = None,
+        before_created_at: datetime | None = None,
     ) -> list[dict[str, Any]]:
         """
         OPTIMIZED version of get_messages_with_tokens using ConversationRepository.
@@ -1332,6 +1333,9 @@ class ConversationService:
             db: Database session
             hide_hitl_approvals: If True, exclude HITL APPROVE/REJECT responses from history.
                                  Default: False (show all messages for complete token counting)
+            search: Optional case-insensitive ILIKE filter on message content.
+            before_created_at: Keyset pagination cursor (scroll-up). When set,
+                only returns messages strictly older than this timestamp.
 
         Returns:
             List of dicts with message fields + tokens_in/out/cache/cost_eur
@@ -1357,6 +1361,7 @@ class ConversationService:
             conversation_id=conversation.id,
             limit=limit,
             search=search,
+            before_created_at=before_created_at,
         )
 
         # Build enriched message list - O(n) with no additional DB queries
@@ -1470,6 +1475,7 @@ class ConversationService:
         db: AsyncSession,
         hide_hitl_approvals: bool = False,
         search: str | None = None,
+        before_created_at: datetime | None = None,
     ) -> list[dict[str, Any]]:
         """
         Automatic routing between old and new implementation based on feature flag.
@@ -1489,6 +1495,9 @@ class ConversationService:
             db: Database session
             hide_hitl_approvals: If True, exclude HITL APPROVE/REJECT responses from history.
                                  Default: False (show all messages for complete token counting)
+            search: Optional case-insensitive ILIKE filter on message content.
+            before_created_at: Keyset pagination cursor (scroll-up). When set,
+                only returns messages strictly older than this timestamp.
 
         Returns:
             List of dicts with message fields + tokens_in/out/cache/cost_eur
@@ -1505,6 +1514,7 @@ class ConversationService:
                 db,
                 hide_hitl_approvals=hide_hitl_approvals,
                 search=search,
+                before_created_at=before_created_at,
             )
 
     async def get_conversation_totals(self, user_id: UUID, db: AsyncSession) -> dict[str, Any]:

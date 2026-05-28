@@ -229,9 +229,28 @@ Yes, since v1.16.9:
 - Search is case-insensitive ("pizza" also finds "Pizza")
 
 **💡 Current limitations**
-- Searches through already-loaded messages (the last 50)
+- Searches through messages currently loaded in the chat — by default the last 50, but you can **load more by scrolling up** (see the next section)
 - Accent-sensitive ("reunion" won't find "réunion")
 - Click ✕ to clear the search and see all messages again
 
 **🎯 When to use it?**
 Find an address, a name, a decision or a detail mentioned earlier in the conversation without scrolling.
+
+## How do I access older messages in a very long conversation?
+
+Since v1.20.14, you can **scroll up in the chat** to reach the beginning of any conversation, even one that has grown to thousands of messages:
+
+**📜 How it works**
+- When you open a conversation, the **50 newest messages** are loaded instantly
+- **Scroll up** in the chat — as soon as you reach the top, the previous 50 messages load automatically
+- A small "*Loading older messages…*" indicator appears briefly at the top during each fetch
+- Repeat as needed — you can scroll all the way back to the very first message
+
+**✨ What stays smooth**
+- Your reading position is preserved — the viewport stays exactly where you were, the new content slides in above without jumping
+- Duplicates are filtered out, so no message ever appears twice
+
+**📌 Good to know**
+- Messages are **always preserved in the database** — nothing is ever lost, even after compaction (which only summarises older messages for the AI's working memory, not the displayed history)
+- The in-chat search continues to filter on what's currently loaded, so loading more messages also expands the searchable scope
+- Returning to the conversation later, switching tabs, or running a scheduled action all reload the newest page from scratch — so you start fresh at the bottom

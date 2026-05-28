@@ -580,6 +580,7 @@
       "title": "Commencer une conversation",
       "description": "Posez votre première question pour commencer une conversation avec LIA."
     },
+    "loading_older_messages": "Chargement des messages plus anciens…",
     "tokens": {
       "in": "IN",
       "out": "OUT",
@@ -2941,6 +2942,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_14": {
+          "title": "v1.20.14 — 🔊 Le mode voix prononce à nouveau un court commentaire (et pas le texte à l'écran), et 📜 l'historique complet des longues conversations redevient accessible",
+          "date": "Mai 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔊 Le mode voix ne lit plus à voix haute le texte affiché lorsque des outils sont utilisés</b> — Lorsque le mode voix est activé et que ta demande mobilise un outil (consulter tes mails, ton agenda, tes contacts, la météo, etc.), la voix doit prononcer un <b>court commentaire parlé</b>, distinct de la réponse affichée à l'écran (qui peut être longue, structurée, avec des cartes ou des widgets). Récemment, la voix lisait à la place le texte affiché tel quel, ce qui était à la fois plus bruyant et moins naturel. La cause était un signal périmé hérité du tour précédent de la conversation, qui activait prématurément la lecture vocale directe propre au mode discussion. Corrigé — le commentaire vocal revient sur les tours qui mobilisent des outils.",
+            "i2": "<b>📜 Longues conversations : remonte jusqu'au début de la discussion</b> — Dans une conversation devenue très longue (des milliers de messages), le début n'était pas accessible depuis le chat — seuls les ~50 derniers messages étaient chargés, sans moyen de remonter plus loin (les messages étaient bien conservés en base, simplement pas affichés). Tu peux désormais <b>faire défiler vers le haut</b> dans le chat : les messages plus anciens se chargent progressivement par paquets, dédupliqués, et la position de lecture est conservée (aucun saut visuel). Un petit indicateur « Chargement des messages plus anciens… » apparaît en haut pendant chaque chargement. Fonctionne dans toutes les conversations ; la recherche intégrée continue de filtrer ce qui est déjà chargé."
+          }
+        },
         "v1_20_13": {
           "title": "v1.20.13 — 🔧 Les réponses ne plantent plus avec les modèles Gemini les plus récents (série Gemini 3)",
           "date": "Mai 2026",
@@ -3524,7 +3534,7 @@
       "chat": {
         "title": "Conversations",
         "description": "Utilisation du chat et des conversations",
-        "count": "12",
+        "count": "13",
         "questions": {
           "q1": {
             "question": "Puis-je avoir plusieurs conversations en même temps ?",
@@ -3572,7 +3582,11 @@
           },
           "q12": {
             "question": "Puis-je rechercher dans l'historique de mes conversations ?",
-            "answer": "Oui, depuis la v1.16.9 :<br><br><strong>🔍 Barre de recherche dans le chat</strong><br>• Une zone de recherche apparaît dans l'en-tête du chat (icône 🔍)<br>• Tapez un mot ou une expression → les messages correspondants sont filtrés instantanément<br>• La recherche ignore la casse (« pizza » trouve aussi « Pizza »)<br><br><strong>💡 Limitations actuelles</strong><br>• La recherche porte sur les messages déjà chargés (les 50 derniers)<br>• Elle est sensible aux accents (« reunion » ne trouvera pas « réunion »)<br>• Cliquez sur le ✕ pour effacer la recherche et revoir tous les messages<br><br><strong>🎯 Quand l'utiliser ?</strong><br>Retrouver une adresse, un nom, une décision ou un détail mentionné plus tôt dans la conversation sans scroller."
+            "answer": "Oui, depuis la v1.16.9 :<br><br><strong>🔍 Barre de recherche dans le chat</strong><br>• Une zone de recherche apparaît dans l'en-tête du chat (icône 🔍)<br>• Tapez un mot ou une expression → les messages correspondants sont filtrés instantanément<br>• La recherche ignore la casse (« pizza » trouve aussi « Pizza »)<br><br><strong>💡 Limitations actuelles</strong><br>• La recherche porte sur les messages actuellement chargés dans le chat — par défaut les 50 derniers, mais tu peux en <strong>charger davantage en faisant défiler vers le haut</strong> (voir la question suivante)<br>• Elle est sensible aux accents (« reunion » ne trouvera pas « réunion »)<br>• Cliquez sur le ✕ pour effacer la recherche et revoir tous les messages<br><br><strong>🎯 Quand l'utiliser ?</strong><br>Retrouver une adresse, un nom, une décision ou un détail mentionné plus tôt dans la conversation sans scroller."
+          },
+          "q13": {
+            "question": "Comment accéder aux messages anciens dans une très longue conversation ?",
+            "answer": "Depuis la v1.20.14, tu peux <strong>faire défiler vers le haut dans le chat</strong> pour remonter jusqu'au début d'une conversation, même si elle compte plusieurs milliers de messages :<br><br><strong>📜 Comment ça fonctionne</strong><br>• À l'ouverture d'une conversation, les <strong>50 messages les plus récents</strong> sont chargés instantanément<br>• <strong>Fais défiler vers le haut</strong> dans le chat — dès que tu atteins le sommet, les 50 messages précédents se chargent automatiquement<br>• Un petit indicateur « <em>Chargement des messages plus anciens…</em> » apparaît brièvement en haut pendant chaque chargement<br>• Répète l'opération autant de fois que nécessaire — tu peux remonter jusqu'au tout premier message<br><br><strong>✨ Ce qui reste fluide</strong><br>• Ta position de lecture est conservée — la vue reste exactement là où tu étais, le nouveau contenu se glisse au-dessus sans saut<br>• Les doublons sont filtrés, donc aucun message n'apparaît deux fois<br><br><strong>📌 Bon à savoir</strong><br>• Les messages sont <strong>toujours conservés en base de données</strong> — rien n'est jamais perdu, même après une compaction (qui ne résume que les anciens messages pour la mémoire de travail de l'IA, pas l'historique affiché)<br>• La recherche intégrée continue de filtrer ce qui est déjà chargé, donc charger plus de messages élargit également le champ de recherche<br>• Revenir plus tard sur la conversation, changer d'onglet ou exécuter une action planifiée recharge la page la plus récente — tu repars en bas, propre"
           }
         }
       },

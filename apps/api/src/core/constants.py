@@ -1028,6 +1028,15 @@ REDIS_CONVERSATION_ID_TTL_SECONDS_DEFAULT = 60  # 1 minute (configurable via .en
 CONVERSATION_SEARCH_MIN_LENGTH = 2  # Shortest substring accepted (avoid 1-char noise)
 CONVERSATION_SEARCH_MAX_LENGTH = 200  # Upper bound to prevent pathological queries
 
+# Conversation message history pagination (GET /conversations/me/messages)
+# Keyset (scroll-up) pagination — see ConversationRepository.get_messages_with_token_summaries.
+# Defaults are tuned for the chat UI: 50 messages is one screen-and-a-bit on desktop, the
+# 200 cap defends the JSON payload size since each row carries token/cost metadata.
+CONVERSATION_HISTORY_DEFAULT_LIMIT_DEFAULT = (
+    50  # Default page size on initial load + each scroll-up
+)
+CONVERSATION_HISTORY_MAX_LIMIT_DEFAULT = 200  # Hard cap on the limit query param
+
 # System settings cache keys
 REDIS_KEY_DEBUG_PANEL_ENABLED = "system:debug_panel_enabled"
 REDIS_KEY_DEBUG_PANEL_USER_ACCESS_ENABLED = "system:debug_panel_user_access_enabled"

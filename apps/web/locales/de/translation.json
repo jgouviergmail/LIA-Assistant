@@ -559,6 +559,7 @@
       "title": "Gespräch beginnen",
       "description": "Stellen Sie Ihre erste Frage, um ein Gespräch mit LIA zu beginnen."
     },
+    "loading_older_messages": "Ältere Nachrichten werden geladen…",
     "tokens": {
       "in": "EINGABE",
       "out": "AUSGABE",
@@ -2927,6 +2928,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_14": {
+          "title": "v1.20.14 — 🔊 Der Sprachmodus spricht wieder einen kurzen Kommentar (und nicht den angezeigten Text), und 📜 die vollständige Historie langer Gespräche wird wieder erreichbar",
+          "date": "Mai 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔊 Der Sprachmodus liest nicht mehr den angezeigten Text vor, wenn Werkzeuge verwendet werden</b> — Wenn der Sprachmodus aktiviert ist und deine Anfrage ein Werkzeug nutzt (E-Mails prüfen, Kalender, Kontakte, Wetter usw.), soll die Stimme einen <b>kurzen gesprochenen Kommentar</b> abgeben, der sich vom angezeigten Antworttext unterscheidet (der lang, strukturiert, mit Karten oder Widgets sein kann). Kürzlich las die Stimme stattdessen den angezeigten Text wörtlich vor – das war zugleich lauter und weniger natürlich. Ursache war ein veraltetes Signal aus dem vorherigen Gesprächsturn, das die für den Chat-Modus typische direkte Sprachausgabe vorzeitig auslöste. Behoben – der Sprachkommentar kehrt für Turns mit Werkzeugnutzung zurück.",
+            "i2": "<b>📜 Lange Gespräche: bis zum Anfang der Diskussion scrollen</b> — In sehr langen Gesprächen (Tausende Nachrichten) war der Anfang aus dem Chat heraus nicht erreichbar – nur die letzten ~50 Nachrichten waren geladen und es gab keine Möglichkeit, weiter zurückzugehen (die Nachrichten blieben in der Datenbank erhalten, wurden aber nicht angezeigt). Du kannst jetzt <b>nach oben scrollen</b>: ältere Nachrichten werden schrittweise in Paketen geladen, dedupliziert, und die Leseposition bleibt erhalten (kein sichtbarer Sprung). Eine kleine Anzeige „Ältere Nachrichten werden geladen…\" erscheint oben während jedes Ladevorgangs. Funktioniert in allen Gesprächen; die integrierte Suche filtert weiterhin das bereits Geladene."
+          }
+        },
         "v1_20_13": {
           "title": "v1.20.13 — 🔧 Antworten schlagen mit den neuesten Gemini-Modellen nicht mehr fehl (Gemini-3-Serie)",
           "date": "Mai 2026",
@@ -3510,7 +3520,7 @@
       "chat": {
         "title": "Unterhaltungen",
         "description": "Chat- und Unterhaltungsnutzung",
-        "count": "12",
+        "count": "13",
         "questions": {
           "q1": {
             "question": "Kann ich mehrere Unterhaltungen gleichzeitig führen?",
@@ -3558,7 +3568,11 @@
           },
           "q12": {
             "question": "Kann ich meinen Gesprächsverlauf durchsuchen?",
-            "answer": "Ja, seit v1.16.9:<br><br><strong>🔍 Suchleiste im Chat</strong><br>• Eine Sucheingabe erscheint nun im Chat-Header (🔍-Symbol)<br>• Geben Sie ein Wort oder einen Ausdruck ein → passende Nachrichten werden sofort gefiltert<br>• Die Suche ignoriert Groß-/Kleinschreibung („pizza\" findet auch „Pizza\")<br><br><strong>💡 Aktuelle Einschränkungen</strong><br>• Die Suche umfasst bereits geladene Nachrichten (die letzten 50)<br>• Akzent-sensitiv („reunion\" findet nicht „réunion\")<br>• Klicken Sie auf ✕, um die Suche zu löschen und alle Nachrichten wieder zu sehen<br><br><strong>🎯 Wann verwenden?</strong><br>Finden Sie eine Adresse, einen Namen, eine Entscheidung oder ein Detail, das zuvor im Gespräch erwähnt wurde, ohne zu scrollen."
+            "answer": "Ja, seit v1.16.9:<br><br><strong>🔍 Suchleiste im Chat</strong><br>• Eine Sucheingabe erscheint nun im Chat-Header (🔍-Symbol)<br>• Geben Sie ein Wort oder einen Ausdruck ein → passende Nachrichten werden sofort gefiltert<br>• Die Suche ignoriert Groß-/Kleinschreibung („pizza\" findet auch „Pizza\")<br><br><strong>💡 Aktuelle Einschränkungen</strong><br>• Die Suche umfasst die aktuell im Chat geladenen Nachrichten — standardmäßig die letzten 50, aber du kannst <strong>weitere Nachrichten durch Hochscrollen nachladen</strong> (siehe die nächste Frage)<br>• Akzent-sensitiv („reunion\" findet nicht „réunion\")<br>• Klicken Sie auf ✕, um die Suche zu löschen und alle Nachrichten wieder zu sehen<br><br><strong>🎯 Wann verwenden?</strong><br>Finden Sie eine Adresse, einen Namen, eine Entscheidung oder ein Detail, das zuvor im Gespräch erwähnt wurde, ohne zu scrollen."
+          },
+          "q13": {
+            "question": "Wie greife ich auf ältere Nachrichten in einer sehr langen Konversation zu?",
+            "answer": "Seit v1.20.14 kannst du <strong>im Chat nach oben scrollen</strong>, um den Anfang jeder Konversation zu erreichen, selbst wenn sie auf Tausende von Nachrichten angewachsen ist:<br><br><strong>📜 So funktioniert es</strong><br>• Beim Öffnen einer Konversation werden die <strong>50 neuesten Nachrichten</strong> sofort geladen<br>• <strong>Scrolle nach oben</strong> im Chat — sobald du den oberen Rand erreichst, werden die vorherigen 50 Nachrichten automatisch nachgeladen<br>• Eine kleine Anzeige „<em>Ältere Nachrichten werden geladen…</em>\" erscheint kurz oben während jedes Ladevorgangs<br>• Wiederhole das Verfahren so oft wie nötig — du kannst bis zur allerersten Nachricht zurückscrollen<br><br><strong>✨ Was reibungslos bleibt</strong><br>• Deine Leseposition wird erhalten — die Ansicht bleibt genau dort, wo du warst, der neue Inhalt schiebt sich darüber, ohne dass es springt<br>• Duplikate werden herausgefiltert, sodass keine Nachricht zweimal erscheint<br><br><strong>📌 Gut zu wissen</strong><br>• Nachrichten werden <strong>immer in der Datenbank gespeichert</strong> — es geht nie etwas verloren, selbst nach einer Komprimierung (die nur ältere Nachrichten für das Arbeitsgedächtnis der KI zusammenfasst, nicht den angezeigten Verlauf)<br>• Die integrierte Suche filtert weiterhin das bereits Geladene, sodass das Nachladen weiterer Nachrichten auch den Suchbereich erweitert<br>• Wenn du später zur Konversation zurückkehrst, den Tab wechselst oder eine geplante Aktion läuft, wird die neueste Seite frisch geladen — du beginnst dann sauber unten"
           }
         }
       },

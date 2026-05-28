@@ -93,8 +93,25 @@ class ConversationMessagesResponse(BaseModel):
     total_count: int = Field(
         ...,
         description=(
-            "Total count of user messages including all HITL responses "
-            "(APPROVE, REJECT, EDIT, AMBIGUOUS) for complete conversation tracking."
+            "Count of user messages in the returned page (not the whole "
+            "conversation). Kept for backwards compatibility — clients that "
+            "need the global total should aggregate across paginated requests."
+        ),
+    )
+    has_more: bool = Field(
+        False,
+        description=(
+            "True when older messages remain beyond the returned page. "
+            "Clients should set the ``before`` query param to ``next_cursor`` "
+            "to fetch the next page."
+        ),
+    )
+    next_cursor: datetime | None = Field(
+        None,
+        description=(
+            "Keyset cursor (``created_at`` of the oldest message in this page). "
+            "Pass it back as the ``before`` query param to load older messages. "
+            "Null when ``has_more`` is False."
         ),
     )
 

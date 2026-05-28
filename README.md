@@ -186,6 +186,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 - **Multi-Step Planning**: ExecutionPlan DSL with dependencies and conditions
 - **Parallel Execution**: asyncio.gather for independent domains
 - **Intelligent Context Compaction**: LLM-based conversation history summarization when token count exceeds dynamic threshold (ratio of response model context window). Preserves identifiers (UUIDs, URLs, emails). `/resume` command for manual trigger. 4 HITL safety conditions prevent compaction during active approval flows
+- **Scroll-up History Pagination**: `GET /conversations/me/messages` exposes a keyset cursor (`?before=<created_at>`) with `has_more` / `next_cursor`. The chat UI binds an `IntersectionObserver` on a top sentinel — older pages prepend with id-based dedup, scroll position preserved via a shared `wasPrependRef` that skips the auto-scroll-to-bottom for that cycle. Conversations of any length stay fully reachable; the existing `(conversation_id, created_at DESC)` composite index makes each page an index-only seek. Bounds env-tunable (`CONVERSATION_HISTORY_DEFAULT_LIMIT` / `_MAX_LIMIT`)
 
 ### Psyche Engine — Dynamic Emotional Intelligence
 

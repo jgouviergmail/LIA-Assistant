@@ -3,9 +3,12 @@ Conversations API router.
 REST endpoints for conversation management and message history.
 """
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.constants import (
     CONVERSATION_SEARCH_MAX_LENGTH,
     CONVERSATION_SEARCH_MIN_LENGTH,
@@ -84,12 +87,25 @@ async def get_my_conversation(
     description="Get message history for current user's conversation. Messages are returned newest first.",
 )
 async def get_conversation_messages(
-    limit: int = Query(50, ge=1, le=200, description="Maximum number of messages to return"),
+    limit: int = Query(
+        settings.conversation_history_default_limit,
+        ge=1,
+        le=settings.conversation_history_max_limit,
+        description="Maximum number of messages to return",
+    ),
     search: str | None = Query(
         None,
         min_length=CONVERSATION_SEARCH_MIN_LENGTH,
         max_length=CONVERSATION_SEARCH_MAX_LENGTH,
         description="Optional case-insensitive substring to filter message content",
+    ),
+    before: datetime | None = Query(
+        None,
+        description=(
+            "Keyset pagination cursor. When provided, returns messages strictly "
+            "older than this timestamp (scroll-up). Pass the ``next_cursor`` "
+            "from the previous response."
+        ),
     ),
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
@@ -100,15 +116,24 @@ async def get_conversation_messages(
     Messages are paginated and returned in descending order (newest first).
     Useful for displaying chat history without deserializing LangGraph checkpoints.
 
+    Pagination uses keyset (cursor) ordering on ``created_at``:
+        - First page: omit ``before``. The response carries ``next_cursor``
+          when more messages exist.
+        - Older pages: pass the previous ``next_cursor`` as ``before``.
+
     Args:
-        limit: Maximum number of messages (1-200, default 50)
+        limit: Maximum number of messages. Bounds and default come from
+            ``settings.conversation_history_default_limit`` and
+            ``settings.conversation_history_max_limit`` (env-configurable).
         search: Optional substring filter on message content (case-insensitive
                 ILIKE match, accent-sensitive). 2-200 chars.
+        before: Keyset cursor for scroll-up pagination (created_at).
         current_user: Authenticated user from session dependency.
         db: Database session from FastAPI dependency injection.
 
     Returns:
-        List of messages with conversation metadata
+        List of messages with conversation metadata, ``has_more`` flag and
+        ``next_cursor`` for the following page.
 
     Raises:
         HTTPException 404: If user has no active conversation
@@ -121,14 +146,25 @@ async def get_conversation_messages(
     if not conversation:
         raise_no_active_conversation(APIMessages.no_active_conversation_start_chatting())
 
-    # Get messages with token usage (auto-routing with feature flag for N+1 optimization)
-    # Note: ALL messages are now returned including HITL (APPROVE/REJECT/EDIT/AMBIGUOUS)
+    # Fetch limit+1 messages to detect ``has_more`` without an extra COUNT query.
+    # If we get back limit+1 rows, older messages exist beyond the current page.
     messages = await service.get_messages_with_tokens_auto(
-        current_user.id, limit, db, search=search
+        user_id=current_user.id,
+        limit=limit + 1,
+        db=db,
+        search=search,
+        before_created_at=before,
     )
 
-    # Calculate total_count from messages (consistent with returned data)
-    # Count all user messages including HITL responses
+    has_more = len(messages) > limit
+    if has_more:
+        messages = messages[:limit]
+    # next_cursor is the oldest message in the returned page (DESC order → last item).
+    # Clients pass it back as ``before`` on the next request.
+    next_cursor = messages[-1][FIELD_CREATED_AT] if (has_more and messages) else None
+
+    # Count user messages in the returned page (semantics preserved for backwards
+    # compatibility; not a global total — see schema description).
     total_user_messages = sum(1 for msg in messages if msg["role"] == "user")
 
     logger.debug(
@@ -138,6 +174,8 @@ async def get_conversation_messages(
         total_messages=len(messages),
         user_messages=total_user_messages,
         limit=limit,
+        has_more=has_more,
+        before=before.isoformat() if before else None,
     )
 
     return ConversationMessagesResponse(
@@ -164,7 +202,9 @@ async def get_conversation_messages(
             for msg in messages
         ],
         conversation_id=conversation.id,
-        total_count=total_user_messages,  # Consistent with filtered messages
+        total_count=total_user_messages,
+        has_more=has_more,
+        next_cursor=next_cursor,
     )
 
 

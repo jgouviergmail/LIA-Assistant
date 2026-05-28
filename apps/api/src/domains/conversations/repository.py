@@ -294,6 +294,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         conversation_id: UUID,
         limit: int = 50,
         search: str | None = None,
+        before_created_at: datetime | None = None,
     ) -> Sequence[tuple[ConversationMessage, dict]]:
         """
         Get messages with their token summaries in a single optimized query.
@@ -306,9 +307,21 @@ class ConversationRepository(BaseRepository[Conversation]):
             limit: Maximum number of messages
             search: Optional case-insensitive substring to filter message content.
                     Uses PostgreSQL ILIKE (case-insensitive, accent-sensitive).
+            before_created_at: Keyset pagination cursor. When provided, only
+                returns messages older than this timestamp (strict ``<``).
+                Combined with the existing
+                ``ix_conversation_messages_conv_created`` index for
+                index-only scan, regardless of conversation length.
 
         Returns:
-            List of (message, token_summary_dict) tuples
+            List of (message, token_summary_dict) tuples.
+
+            Pagination uses a **keyset (cursor)** strategy, not the
+            offset-based ``tuple[list[T], int]`` convention used elsewhere in
+            the codebase: a global ``COUNT(*)`` would be O(messages) per
+            request (no cheap WHERE filter can short-circuit it) and is
+            useless to the scroll-up UI, which only needs ``has_more``.
+            ``has_more`` is computed by the caller via the ``limit + 1`` trick.
 
         Performance:
             - Old: 1 query for messages + N queries for token summaries
@@ -340,6 +353,17 @@ class ConversationRepository(BaseRepository[Conversation]):
             # pg_trgm / unaccent extensions if accent-insensitive matching is needed.
             if search:
                 stmt = stmt.where(ConversationMessage.content.ilike(f"%{search}%"))
+
+            # Keyset pagination: skip messages newer than (or equal to) the cursor.
+            # Strict ``<`` matches the "older than" semantics used by the scroll-up
+            # caller — the cursor is the ``created_at`` of the oldest message in the
+            # previous page, which the client already holds.
+            #
+            # NOTE: collision on identical microsecond-precision ``created_at`` could
+            # skip a message. Negligible in practice — upgrade to a composite
+            # (created_at, id) cursor if collisions are observed.
+            if before_created_at is not None:
+                stmt = stmt.where(ConversationMessage.created_at < before_created_at)
 
             stmt = stmt.order_by(ConversationMessage.created_at.desc()).limit(limit)
 

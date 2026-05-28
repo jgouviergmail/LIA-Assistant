@@ -226,6 +226,21 @@ class StreamingService:
         # - Turn N: agent_results {prev} → {current} (capture)
         # - Chat mode: agent_results never changes (don't capture → fallback to response_content)
         self._checkpoint_agent_results_ids: frozenset[str] | None = None
+        # Track checkpoint routing_history signature to detect when router_node has
+        # run in the CURRENT turn. Symmetric to _checkpoint_agent_results_ids.
+        #
+        # LangGraph "values" stream emits the checkpoint state at turn start, BEFORE
+        # router_node runs. routing_history[-1] then carries the PREVIOUS turn's
+        # RouterOutput. Emitting a router_decision SSE based on that stale entry
+        # triggered chat_voice_streamer (direct TTS) whenever the previous turn was
+        # intention="conversation" — forcing the voice path to read the displayed
+        # text instead of going through the Voice Comment LLM once the real router
+        # resolved a different intention (e.g. action with tools).
+        #
+        # We capture the initial signature and suppress router_decision emission
+        # until the signature changes (router_node has appended a fresh RouterOutput
+        # in the current turn).
+        self._checkpoint_routing_signature: tuple[Any, ...] | None = None
 
     async def stream_sse_chunks(
         self,
@@ -869,11 +884,18 @@ class StreamingService:
         # 1. Track agent_results changes to detect task_orchestrator completion
         agent_results_changed = self._track_agent_results_change(chunk)
 
+        # 1b. Track routing_history changes to detect router_node completion in the
+        # current turn (suppresses stale router_decision emission from checkpoint —
+        # see _track_routing_history_change for the bug context).
+        routing_history_changed = self._track_routing_history_change(chunk)
+
         # 2. Capture voice context registry (for parallel voice generation)
         self._capture_voice_context_registry(chunk, agent_results_changed)
 
-        # 3. Extract router decision if new
-        router_chunk = self._extract_router_decision(chunk, last_sent_routing)
+        # 3. Extract router decision if new AND fresh (current-turn entry)
+        router_chunk = self._extract_router_decision(
+            chunk, last_sent_routing, routing_history_changed
+        )
         if router_chunk:
             sse_chunks.append(router_chunk)
             # Reset skill tracking at the start of a new turn.
@@ -917,6 +939,60 @@ class StreamingService:
 
         # Detect if agent_results changed (task_orchestrator ran)
         return current_agent_results_ids != self._checkpoint_agent_results_ids
+
+    @staticmethod
+    def _routing_history_signature(routing_history: list[Any]) -> tuple[Any, ...]:
+        """Build a stable signature of routing_history for stale-detection.
+
+        Combines length with identifying attributes of the last RouterOutput.
+        Uses attribute access (not id()) so the signature survives LangGraph
+        checkpoint serialization, which discards Python object identity.
+
+        Args:
+            routing_history: Current routing_history list from state.
+
+        Returns:
+            Tuple suitable for equality comparison.
+        """
+        if not routing_history:
+            return (0, None, None, None, None)
+        last = routing_history[-1]
+        return (
+            len(routing_history),
+            getattr(last, "intention", None),
+            getattr(last, "confidence", None),
+            getattr(last, "next_node", None),
+            getattr(last, "context_label", None),
+        )
+
+    def _track_routing_history_change(self, chunk: dict) -> bool:
+        """Detect whether routing_history was updated in the current turn.
+
+        Symmetric to ``_track_agent_results_change``. Required because LangGraph
+        emits the checkpoint state at turn start — routing_history[-1] then
+        references the previous turn's RouterOutput. Suppressing router_decision
+        emission until the signature changes prevents downstream consumers
+        (notably the chat_voice_streamer started on intention="conversation")
+        from acting on stale routing data.
+
+        Args:
+            chunk: State dict containing routing_history.
+
+        Returns:
+            True if routing_history changed from the captured checkpoint
+            (router_node has run in the current turn).
+        """
+        routing_history = chunk.get("routing_history") or []
+        current_signature = self._routing_history_signature(routing_history)
+
+        if self._checkpoint_routing_signature is None:
+            self._checkpoint_routing_signature = current_signature
+            logger.debug(
+                "voice_checkpoint_routing_signature_stored",
+                signature=current_signature,
+            )
+
+        return current_signature != self._checkpoint_routing_signature
 
     def _capture_voice_context_registry(self, chunk: dict, agent_results_changed: bool) -> None:
         """
@@ -991,18 +1067,30 @@ class StreamingService:
             )
 
     def _extract_router_decision(
-        self, chunk: dict, last_sent_routing: Any
+        self,
+        chunk: dict,
+        last_sent_routing: Any,
+        routing_history_changed: bool,
     ) -> tuple[ChatStreamChunk, str] | None:
         """
-        Extract router decision from routing_history if new.
+        Extract router decision from routing_history if new and fresh.
 
         Args:
             chunk: State dict containing routing_history
             last_sent_routing: Last router decision sent (to avoid duplicates)
+            routing_history_changed: False while routing_history[-1] still matches
+                the checkpoint captured at turn start (stale entry from previous
+                turn). Suppresses emission until router_node has appended a fresh
+                RouterOutput in the current turn.
 
         Returns:
             (ChatStreamChunk, "") tuple if new router decision, None otherwise
         """
+        # Suppress emission while routing_history[-1] still references the
+        # previous turn's RouterOutput surfaced by the checkpoint replay.
+        if not routing_history_changed:
+            return None
+
         routing_history = chunk.get("routing_history", [])
         if not routing_history or routing_history[-1] == last_sent_routing:
             return None

@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.14] - 2026-05-29
+
+### Fixed — Voice mode now routes long-answer turns through the Voice Comment LLM again (not the displayed text)
+
+When voice mode is on, the assistant is supposed to produce a **short, separate voice commentary** via the dedicated `voice_comment` LLM whenever the turn used tools — the displayed answer (which may be long, structured, contain widgets/cards/HTML) is read aloud verbatim *only* in pure chitchat ("conversation" intent). The `chat_voice_streamer` introduced in v1.20.2 for chat-mode sentence streaming was being **started prematurely on a stale router decision**: at turn start, LangGraph "values" mode replays the checkpoint state, so `routing_history[-1]` carries the **previous** turn's `RouterOutput`. If that prior turn was `intention="conversation"`, the first `router_decision` SSE of the new turn surfaced the stale `"conversation"` label at ~300 ms, kicking off direct-TTS-of-displayed-text. By the time the new router actually concluded `intention="action"` and the registry filled with tool results, an existing guard (`chat_voice_drain_task is None`) blocked the Voice Comment LLM from taking over — so the voice kept reading the on-screen text instead of a commentary. Reproduced from prod traces.
+
+### Changed — Symmetric stale-checkpoint guard on `routing_history`
+
+`StreamingService` now captures a stable signature of `routing_history` (`length + last entry's intention/confidence/next_node/context_label`) on the **first** values chunk and suppresses every `router_decision` SSE emission as long as the signature still matches that baseline — i.e. until the current-turn router has appended a fresh `RouterOutput`. This is the exact pattern that already guarded `agent_results` (`_checkpoint_agent_results_ids` → `agent_results_changed` → `_capture_voice_context_registry`); the only asymmetry was that `routing_history` had no equivalent guard, which the fix corrects. No downstream consumer needs to know about the suppression — they see the correct fresh decision instead of the stale one.
+
+Files: `apps/api/src/domains/agents/services/streaming/service.py`. Tests: `apps/api/tests/services/test_streaming_service.py` — adapted the two pre-existing router-decision tests to seed an empty-routing-history baseline first, plus a new regression test (`test_process_values_chunk_suppresses_stale_routing_from_checkpoint`) that reproduces the prod scenario (previous turn `intention=conversation` → current turn `intention=action`, only the fresh decision is emitted). 31/31 passing. No DB migration, no new env var.
+
+### Added — Scroll-up pagination on conversation history (very long conversations stay reachable)
+
+`GET /conversations/me/messages` previously returned the **50 newest messages, period** — no pagination, no scroll-back, no cursor. For conversations at the multi-million-token scale, the **start of the discussion was unreachable from the UI** even though every row was preserved in `conversation_messages` (the v2 compaction is checkpoint-only — never deletes messages). Endpoint now accepts `?before=<ISO datetime>` and replies with `has_more: bool` and `next_cursor: datetime | null`. Internally the service asks the repository for `limit + 1` rows so `has_more` is derived without a `COUNT(*)`. The existing composite index `ix_conversation_messages_conv_created (conversation_id, created_at DESC)` makes it an index-only seek per page regardless of conversation length — no migration needed.
+
+UI: `ChatMessageList` renders a 1-px sentinel above the first message and binds an `IntersectionObserver` on the scroll container (`rootMargin: 200px 0 0 0`). When the sentinel enters view, the parent calls `loadOlderMessages(cursor)`; the older rows are **deduplicated by id** and prepended; a shared `wasPrependRef` flag tells the existing auto-scroll-to-bottom `useEffect` to **skip itself** for that cycle, and a `useLayoutEffect` offsets `scrollTop` by the new content height — so the viewport stays anchored exactly where the user was reading, with zero visible jump. Mutex ref + state guard prevents overlapping requests on fast scroll. The sentinel is suppressed while the client-side search filter is active (otherwise "no match in the loaded page" would conflate with "no match in remote history").
+
+### Changed — Pagination bounds are env-configurable, not hardcoded
+
+`Query(50, ge=1, le=200, …)` replaced by `Query(settings.conversation_history_default_limit, ge=1, le=settings.conversation_history_max_limit, …)`. The two settings live on `AdvancedSettings` (`src/core/config/advanced.py`) and read their defaults from `CONVERSATION_HISTORY_DEFAULT_LIMIT_DEFAULT` / `CONVERSATION_HISTORY_MAX_LIMIT_DEFAULT` in `constants.py`. `.env.example` and `.env.prod.example` document both: a deployer raising the default page size or the cap no longer needs a rebuild.
+
+Files: `apps/api/src/core/{constants,config/advanced}.py`, `apps/api/src/domains/conversations/{repository,service,router,schemas}.py`, `apps/web/src/hooks/useConversation.ts`, `apps/web/src/components/chat/ChatMessageList.tsx`, `apps/web/src/app/[lng]/dashboard/chat/page.tsx`, the 6 locale files (new `chat.loading_older_messages`), `.env.example`, `.env.prod.example`. **Tests** — backend: `tests/unit/domains/conversations/test_messages_pagination.py` (4 router unit + 3 repo integration, includes `before+search` AND-composition); frontend: `tests/__tests__/useConversation.pagination.test.ts` (page order, before-forwarding, mutex, first-page-omits-before). Ruff / Black / MyPy clean; ESLint / `tsc --noEmit` / 82 vitest green; full conversations unit suite 35/35; i18n parity verified across the 6 locales. Docs: `docs/technical/CONVERSATION_HISTORY_PAGINATION.md` (new).
+
 ## [1.20.13] - 2026-05-22
 
 ### Fixed — Responses no longer fail or degrade with Gemini 3.x models

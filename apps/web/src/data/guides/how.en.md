@@ -886,11 +886,12 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 A library of built-in skills demonstrates the contract: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — each illustrating a different combination of the three channels.
 
-### 23.8. Conversation search and rich chat rendering
+### 23.8. Conversation history, search and rich chat rendering
 
-Three cross-cutting capabilities share the same product philosophy: **instant feedback, zero server cost when unnecessary**.
+Four cross-cutting capabilities share the same product philosophy: **instant feedback, zero server cost when unnecessary**.
 
 - **Conversation history search** — `?search=` query param on `GET /conversations/me/messages`. Filtering uses PostgreSQL `ILIKE` (case-insensitive, accent-sensitive — contract locked by test). The frontend uses a `useMemo` over `messages` to filter loaded messages instantly; the backend endpoint remains a latent capability for a future deep-search UI.
+- **Scroll-up pagination** — same endpoint, `?before=<created_at>` keyset cursor returning `has_more` and `next_cursor`. The chat UI binds an `IntersectionObserver` on a 1-px sentinel above the first message; older pages prepend with id-based dedup, and a shared `wasPrependRef` makes the auto-scroll-to-bottom `useEffect` skip itself for that cycle so the viewport stays anchored exactly where the reader was. The existing composite index `(conversation_id, created_at DESC)` makes each page an index-only seek regardless of conversation length. Page bounds (default 50, hard cap 200) are env-tunable via `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT`.
 - **LaTeX rendering** — `remark-math` + `rehype-katex` wired into `MarkdownContent.tsx`. Syntax `$inline$` / `$$block$$`. Plugins ordered `rehypeRaw → rehypeKatex` to avoid double-execution on raw HTML. KaTeX produces its own sanitised HTML (typed spans), no new attack surface beyond what `rehypeRaw` already allows.
 - **Syntax highlighting** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 languages registered on-demand via `SyntaxHighlighter.registerLanguage(...)` to keep the initial bundle small (languages fetched at first code block). Theme auto-switches `one-dark` / `one-light` driven by `next-themes`.
 

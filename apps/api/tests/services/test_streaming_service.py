@@ -42,13 +42,18 @@ async def test_process_values_chunk_extracts_router_decision(streaming_service):
     mock_routing.next_node = "planner"
     mock_routing.reasoning = "User wants to search contacts"
 
-    # Create values chunk with routing_history
+    # First chunk captures the routing_history baseline (turn-start checkpoint
+    # replay — empty here for a fresh conversation). _track_routing_history_change
+    # requires the signature to differ from this baseline before emission.
+    streaming_service._process_values_chunk(
+        {"routing_history": [], "messages": []}, last_sent_routing=None
+    )
+
+    # Second chunk: router_node has appended the new RouterOutput
     chunk = {
         "routing_history": [mock_routing],
         "messages": [],
     }
-
-    # Process chunk
     sse_chunks = streaming_service._process_values_chunk(chunk, last_sent_routing=None)
 
     # Assert router decision emitted (result is list of (ChatStreamChunk, content) tuples)
@@ -71,17 +76,74 @@ async def test_process_values_chunk_avoids_duplicate_router_decisions(streaming_
     mock_routing.next_node = "planner"
     mock_routing.reasoning = "User wants to search contacts"
 
-    # Create values chunk with routing_history
+    # Baseline chunk (empty routing_history captures the signature)
+    streaming_service._process_values_chunk(
+        {"routing_history": [], "messages": []}, last_sent_routing=None
+    )
+
+    # Subsequent chunk with same routing AND last_sent_routing already set:
+    # signature change passes _track_routing_history_change but the
+    # last_sent_routing match suppresses the duplicate.
     chunk = {
         "routing_history": [mock_routing],
         "messages": [],
     }
-
-    # Process chunk with same last_sent_routing
     sse_chunks = streaming_service._process_values_chunk(chunk, last_sent_routing=mock_routing)
 
     # Assert no router decision emitted (duplicate)
     assert len(sse_chunks) == 0
+
+
+@pytest.mark.asyncio
+async def test_process_values_chunk_suppresses_stale_routing_from_checkpoint(
+    streaming_service,
+):
+    """Regression test: router_decision must NOT be emitted from the
+    routing_history entry inherited from the previous turn's checkpoint.
+
+    Scenario reproduced from prod log analysis (2026-05-28):
+    - Previous turn ended with intention="conversation" (chit-chat).
+    - At the start of the new turn, LangGraph "values" mode emits the checkpoint
+      state with routing_history=[prev_turn_routing].
+    - Without this guard, a router_decision SSE with intention="conversation"
+      was emitted at +308ms, triggering chat_voice_streamer (direct TTS reading
+      the displayed text) before the new router_node had classified the query
+      as intention="action" (which would otherwise route voice through the
+      Voice Comment LLM).
+    """
+    prev_turn_routing = MagicMock()
+    prev_turn_routing.intention = "conversation"
+    prev_turn_routing.confidence = 0.99
+    prev_turn_routing.context_label = "chitchat"
+    prev_turn_routing.next_node = "response"
+    prev_turn_routing.reasoning = "Previous turn"
+
+    # First chunk replays the checkpoint with the previous turn's routing
+    sse_chunks_initial = streaming_service._process_values_chunk(
+        {"routing_history": [prev_turn_routing], "messages": []},
+        last_sent_routing=None,
+    )
+    # No router_decision emitted — stale entry from checkpoint baseline
+    assert sse_chunks_initial == []
+
+    # Second chunk: current turn's router_node appended a fresh RouterOutput
+    current_turn_routing = MagicMock()
+    current_turn_routing.intention = "action"
+    current_turn_routing.confidence = 1.0
+    current_turn_routing.context_label = "email"
+    current_turn_routing.next_node = "planner"
+    current_turn_routing.reasoning = "Current turn"
+
+    sse_chunks_fresh = streaming_service._process_values_chunk(
+        {
+            "routing_history": [prev_turn_routing, current_turn_routing],
+            "messages": [],
+        },
+        last_sent_routing=None,
+    )
+    assert len(sse_chunks_fresh) == 1
+    assert sse_chunks_fresh[0][0].type == "router_decision"
+    assert sse_chunks_fresh[0][0].metadata["intention"] == "action"
 
 
 @pytest.mark.asyncio
@@ -417,13 +479,19 @@ class TestLARSRegistryUpdate:
         mock_routing.next_node = "planner"
         mock_routing.reasoning = "Test"
 
+        # Baseline (empty routing_history) — captures signature
+        sent_registry_ids: set[str] = set()
+        streaming_service._process_values_chunk(
+            {"routing_history": [], "messages": []},
+            last_sent_routing=None,
+            sent_registry_ids=sent_registry_ids,
+        )
+
         chunk = {
             "registry": {"contact_abc123": mock_item},
             "routing_history": [mock_routing],
             "messages": [],
         }
-
-        sent_registry_ids: set[str] = set()
         sse_chunks = streaming_service._process_values_chunk(
             chunk, last_sent_routing=None, sent_registry_ids=sent_registry_ids
         )

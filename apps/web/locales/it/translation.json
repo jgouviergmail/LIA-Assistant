@@ -559,6 +559,7 @@
       "title": "Inizia una conversazione",
       "description": "Fai la tua prima domanda per iniziare una conversazione con LIA."
     },
+    "loading_older_messages": "Caricamento dei messaggi precedenti…",
     "tokens": {
       "in": "INGRESSO",
       "out": "USCITA",
@@ -2929,6 +2930,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_14": {
+          "title": "v1.20.14 — 🔊 La modalità vocale pronuncia di nuovo un breve commento (e non il testo a schermo), e 📜 la cronologia completa delle conversazioni lunghe torna raggiungibile",
+          "date": "Maggio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔊 La modalità vocale non legge più ad alta voce il testo visualizzato quando vengono usati strumenti</b> — Quando la modalità vocale è attiva e la tua richiesta utilizza uno strumento (controllo email, agenda, contatti, meteo, ecc.), la voce deve fornire un <b>breve commento parlato</b>, distinto dalla risposta visualizzata (che può essere lunga, strutturata, con carte o widget). Di recente la voce leggeva invece il testo a schermo letteralmente, risultando più rumorosa e meno naturale. La causa era un segnale obsoleto ereditato dal turno precedente della conversazione, che attivava prematuramente la lettura diretta tipica della modalità chat. Corretto — il commento parlato torna nei turni che impiegano strumenti.",
+            "i2": "<b>📜 Conversazioni lunghe: scorri fino all'inizio della discussione</b> — In una conversazione cresciuta a migliaia di messaggi, l'inizio non era raggiungibile dalla chat — solo gli ultimi ~50 messaggi erano caricati e non c'era modo di risalire oltre (i messaggi restavano nel database, semplicemente non visualizzati). Ora puoi <b>scorrere verso l'alto</b> nella chat: i messaggi più vecchi si caricano progressivamente a lotti, deduplicati, e la posizione di lettura viene mantenuta (nessun salto visivo). Un piccolo indicatore «Caricamento dei messaggi precedenti…» appare in alto durante ogni caricamento. Funziona in qualunque conversazione; la ricerca integrata continua a filtrare ciò che è già caricato."
+          }
+        },
         "v1_20_13": {
           "title": "v1.20.13 — 🔧 Le risposte non si interrompono più con i modelli Gemini più recenti (serie Gemini 3)",
           "date": "Maggio 2026",
@@ -3512,7 +3522,7 @@
       "chat": {
         "title": "Conversazioni",
         "description": "Utilizzo della chat e delle conversazioni",
-        "count": "12",
+        "count": "13",
         "questions": {
           "q1": {
             "question": "Posso avere più conversazioni contemporaneamente?",
@@ -3560,7 +3570,11 @@
           },
           "q12": {
             "question": "Posso cercare nella mia cronologia della conversazione?",
-            "answer": "Sì, dalla v1.16.9:<br><br><strong>🔍 Barra di ricerca nella chat</strong><br>• Un campo di ricerca appare ora nell'intestazione della chat (icona 🔍)<br>• Digita una parola o espressione → i messaggi corrispondenti vengono filtrati istantaneamente<br>• La ricerca ignora maiuscole/minuscole («pizza» trova anche «Pizza»)<br><br><strong>💡 Limitazioni attuali</strong><br>• La ricerca riguarda i messaggi già caricati (gli ultimi 50)<br>• È sensibile agli accenti («reunion» non troverà «riunione»)<br>• Clicca ✕ per cancellare la ricerca e rivedere tutti i messaggi<br><br><strong>🎯 Quando usarla?</strong><br>Ritrovare un indirizzo, un nome, una decisione o un dettaglio menzionato in precedenza nella conversazione senza scorrere."
+            "answer": "Sì, dalla v1.16.9:<br><br><strong>🔍 Barra di ricerca nella chat</strong><br>• Un campo di ricerca appare ora nell'intestazione della chat (icona 🔍)<br>• Digita una parola o espressione → i messaggi corrispondenti vengono filtrati istantaneamente<br>• La ricerca ignora maiuscole/minuscole («pizza» trova anche «Pizza»)<br><br><strong>💡 Limitazioni attuali</strong><br>• La ricerca riguarda i messaggi attualmente caricati nella chat — per impostazione predefinita gli ultimi 50, ma puoi <strong>caricarne altri scorrendo verso l'alto</strong> (vedi la domanda successiva)<br>• È sensibile agli accenti («reunion» non troverà «riunione»)<br>• Clicca ✕ per cancellare la ricerca e rivedere tutti i messaggi<br><br><strong>🎯 Quando usarla?</strong><br>Ritrovare un indirizzo, un nome, una decisione o un dettaglio menzionato in precedenza nella conversazione senza scorrere."
+          },
+          "q13": {
+            "question": "Come accedo ai messaggi più vecchi in una conversazione molto lunga?",
+            "answer": "Dalla v1.20.14 puoi <strong>scorrere verso l'alto nella chat</strong> per raggiungere l'inizio di qualunque conversazione, anche se è cresciuta fino a migliaia di messaggi:<br><br><strong>📜 Come funziona</strong><br>• All'apertura di una conversazione vengono caricati istantaneamente i <strong>50 messaggi più recenti</strong><br>• <strong>Scorri verso l'alto</strong> nella chat — non appena raggiungi la cima, i 50 messaggi precedenti si caricano automaticamente<br>• Un piccolo indicatore «<em>Caricamento dei messaggi precedenti…</em>» appare brevemente in alto durante ogni caricamento<br>• Ripeti quante volte necessario — puoi risalire fino al primissimo messaggio<br><br><strong>✨ Cosa rimane fluido</strong><br>• La tua posizione di lettura viene mantenuta — la vista resta esattamente dov'eri, il nuovo contenuto si inserisce sopra senza salti<br>• I duplicati vengono filtrati, quindi nessun messaggio appare due volte<br><br><strong>📌 Buono a sapersi</strong><br>• I messaggi sono <strong>sempre conservati nel database</strong> — nulla va perso, nemmeno dopo una compattazione (che riassume solo i messaggi più vecchi per la memoria di lavoro dell'IA, non la cronologia mostrata)<br>• La ricerca integrata continua a filtrare ciò che è già caricato, quindi caricare più messaggi amplia anche l'ambito di ricerca<br>• Tornare alla conversazione più tardi, cambiare scheda o eseguire un'azione pianificata ricarica la pagina più recente — riparti puliti in basso"
           }
         }
       },

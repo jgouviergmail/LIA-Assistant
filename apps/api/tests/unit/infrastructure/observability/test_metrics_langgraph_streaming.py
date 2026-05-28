@@ -113,12 +113,24 @@ class TestStreamingChunksTracking:
 
     @pytest.mark.asyncio
     async def test_tracks_router_decision_chunks(self):
-        """Verify router_decision chunks are tracked as STREAM_METADATA."""
+        """Verify router_decision chunks are tracked as STREAM_METADATA.
+
+        The mock graph must emit an empty-routing-history values chunk FIRST so
+        ``StreamingService`` captures it as the turn-start signature baseline
+        (introduced in v1.20.14 to suppress stale router_decision SSEs replayed
+        from the previous turn's checkpoint). The subsequent values chunk —
+        with a fresh RouterOutput appended to routing_history — is what
+        actually triggers the router_decision SSE and the STREAM_METADATA
+        metric tick.
+        """
         service = StreamingService()
 
         # Mock graph stream that emits router decision
         async def mock_graph_stream():
-            # Simulate mode="values" with routing_history
+            # Baseline: checkpoint replay with empty routing_history
+            yield ("values", {"routing_history": [], "messages": []})
+
+            # Current turn: router_node appended a fresh RouterOutput
             from src.domains.agents.domain_schemas import RouterOutput
 
             yield (
