@@ -87,12 +87,6 @@ cache_miss_total = Counter(
     ["cache_type"],
 )
 
-cache_operation_duration_seconds = Histogram(
-    "cache_operation_duration_seconds",
-    "Cache operation duration in seconds (Redis get/set operations)",
-    ["operation", "cache_type"],  # operation: get, set, delete, clear
-    buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0],
-)
 
 # NOTE: cache_size_bytes and cache_evictions_total removed (never instrumented)
 # Redis cache size monitoring should be done via Redis INFO command externally
@@ -133,9 +127,6 @@ oauth_lock_contention_total = Counter(
     ["connector_type"],
 )
 
-# ============================================================================
-# TOOL APPROVAL METRICS (Human-in-the-Loop)
-# ============================================================================
 # Note: All legacy button-based tool approval metrics removed - replaced by conversational HITL in metrics_agents.py
 # - tool_approval_pending_total (removed)
 # - tool_approval_response_time_seconds (removed)
@@ -172,9 +163,6 @@ connector_token_refresh_total = Counter(
     ["connector_type", "status"],  # status: success, failure
 )
 
-# ============================================================================
-# REPOSITORY/DATABASE OPERATION METRICS
-# ============================================================================
 # NOTE: Generic repository metrics removed (never instrumented, too high cardinality risk)
 # Use domain-specific metrics instead (e.g., conversation_repository_queries_total in conversations)
 # Database-level monitoring should use external tools (pg_stat_statements, pganalyze)
@@ -245,11 +233,6 @@ conversation_length_messages = Histogram(
 # - db_connection_pool_waiting_total (Gauge)
 # - db_connection_pool_exhausted_total (Counter)
 
-redis_connection_pool_size = Gauge(
-    "redis_connection_pool_size",
-    "Current Redis connection pool size",
-    ["db"],  # db: session, cache
-)
 
 background_job_duration_seconds = Histogram(
     "background_job_duration_seconds",

@@ -915,12 +915,12 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le, model) (rate(embedding_api_latency_seconds_bucket{model=~\"text-embedding-3.*\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le, model) (rate(embedding_api_latency_seconds_bucket[$__rate_interval])))",
           "legendFormat": "P50 {{model}}",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (le, model) (rate(embedding_api_latency_seconds_bucket{model=~\"text-embedding-3.*\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, model) (rate(embedding_api_latency_seconds_bucket[$__rate_interval])))",
           "legendFormat": "P95 {{model}}",
           "refId": "B"
         }
@@ -951,7 +951,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (model) (increase(embedding_cost_total{currency=\"usd\", model=~\"text-embedding-3.*\"}[24h]))",
+          "expr": "sum by (model) (increase(embedding_cost_total{currency=\"USD\"}[24h]))",
           "legendFormat": "{{model}} (24h)",
           "refId": "A"
         }
@@ -983,7 +983,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (status) (rate(embedding_api_calls_total{model=~\"text-embedding-3.*\"}[$__rate_interval]) * 60)",
+          "expr": "sum by (status) (rate(embedding_api_calls_total[$__rate_interval]) * 60)",
           "legendFormat": "{{status}}",
           "refId": "A"
         }

@@ -1284,7 +1284,7 @@
           },
           "targets": [
             {
-              "expr": "sum by (provider, error_type) (rate(llm_api_calls_total{status=\"error\"}[$__rate_interval]))",
+              "expr": "sum by (provider, error_type) (rate(llm_api_errors_total[$__rate_interval]))",
               "legendFormat": "{{provider}} - {{error_type}}",
               "refId": "A"
             }
@@ -1322,7 +1322,7 @@
           },
           "targets": [
             {
-              "expr": "sum by (provider) (rate(llm_api_calls_total{status=\"rate_limited\"}[$__rate_interval]))",
+              "expr": "sum by (provider, limit_type) (rate(llm_rate_limit_hit_total[$__rate_interval]))",
               "legendFormat": "{{provider}}",
               "refId": "A"
             }
@@ -1360,7 +1360,7 @@
           },
           "targets": [
             {
-              "expr": "sum by (model) (rate(llm_api_calls_total{status=\"context_exceeded\"}[$__rate_interval]))",
+              "expr": "sum by (provider, model) (rate(llm_context_length_exceeded_total[$__rate_interval]))",
               "legendFormat": "{{model}}",
               "refId": "A"
             }
@@ -1398,7 +1398,7 @@
           },
           "targets": [
             {
-              "expr": "sum by (provider) (rate(llm_api_calls_total{status=\"content_filtered\"}[$__rate_interval]))",
+              "expr": "sum by (provider) (rate(llm_content_filter_violations_total[$__rate_interval]))",
               "legendFormat": "{{provider}}",
               "refId": "A"
             }

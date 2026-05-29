@@ -12,6 +12,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from prometheus_client import REGISTRY
 
 from src.domains.agents.tools.react_runner import (
     ReactSubAgentResult,
@@ -165,3 +166,106 @@ class TestReactSubAgentRunner:
 
         assert result.iteration_count == 2
         assert result.final_message == "Done"
+
+
+@pytest.mark.unit
+class TestReactSubAgentMetrics:
+    """Tests for the Prometheus instrumentation emitted by ReactSubAgentRunner.
+
+    The ``subagent_active_count`` gauge is global and shared across the process,
+    so every assertion compares a before/after delta rather than an absolute
+    value. The key invariant is that the gauge is always balanced (incremented
+    on spawn, decremented in ``finally``) on every exit path.
+    """
+
+    @staticmethod
+    def _sample(name: str, labels: dict[str, str] | None = None) -> float:
+        """Return a Prometheus sample value (0.0 when the series is absent)."""
+        return REGISTRY.get_sample_value(name, labels) or 0.0
+
+    @pytest.fixture
+    def runner(self) -> ReactSubAgentRunner:
+        return ReactSubAgentRunner("test_agent", "test_prompt")
+
+    @patch("src.domains.agents.tools.react_runner.create_react_agent")
+    @patch("src.domains.agents.tools.react_runner.load_prompt")
+    @patch("src.domains.agents.tools.react_runner.get_llm")
+    async def test_success_emits_spawn_tokens_and_balances_active(
+        self,
+        mock_get_llm: MagicMock,
+        mock_load_prompt: MagicMock,
+        mock_create_react: MagicMock,
+        runner: ReactSubAgentRunner,
+    ) -> None:
+        mock_get_llm.return_value = MagicMock()
+        mock_load_prompt.return_value.format.return_value = "prompt"
+        ai_msg = MagicMock()
+        ai_msg.content = "ok"
+        ai_msg.tool_calls = []
+        ai_msg.usage_metadata = {"input_tokens": 12, "output_tokens": 5}
+        mock_agent = AsyncMock()
+        mock_agent.ainvoke.return_value = {"messages": [ai_msg]}
+        mock_create_react.return_value = mock_agent
+
+        active_before = self._sample("subagent_active_count")
+        spawned_before = self._sample(
+            "subagent_spawned_total", {"agent_name": "test_agent", "mode": "sync"}
+        )
+        tokens_in_before = self._sample("subagent_tokens_in_total", {"agent_name": "test_agent"})
+
+        await runner.run(task="t", tools=[], prompt_vars={})
+
+        assert self._sample("subagent_active_count") == pytest.approx(active_before)
+        assert self._sample(
+            "subagent_spawned_total", {"agent_name": "test_agent", "mode": "sync"}
+        ) == pytest.approx(spawned_before + 1)
+        assert self._sample(
+            "subagent_tokens_in_total", {"agent_name": "test_agent"}
+        ) == pytest.approx(tokens_in_before + 12)
+
+    @patch("src.domains.agents.tools.react_runner.create_react_agent")
+    @patch("src.domains.agents.tools.react_runner.load_prompt")
+    @patch("src.domains.agents.tools.react_runner.get_llm")
+    async def test_ainvoke_error_emits_error_and_balances_active(
+        self,
+        mock_get_llm: MagicMock,
+        mock_load_prompt: MagicMock,
+        mock_create_react: MagicMock,
+        runner: ReactSubAgentRunner,
+    ) -> None:
+        mock_get_llm.return_value = MagicMock()
+        mock_load_prompt.return_value.format.return_value = "prompt"
+        mock_agent = AsyncMock()
+        mock_agent.ainvoke.side_effect = RuntimeError("boom")
+        mock_create_react.return_value = mock_agent
+
+        active_before = self._sample("subagent_active_count")
+        errors_before = self._sample(
+            "subagent_errors_total", {"agent_name": "test_agent", "error_type": "RuntimeError"}
+        )
+
+        result = await runner.run(task="t", tools=[], prompt_vars={})
+
+        assert result.final_message.startswith("Error:")
+        assert self._sample("subagent_active_count") == pytest.approx(active_before)
+        assert self._sample(
+            "subagent_errors_total", {"agent_name": "test_agent", "error_type": "RuntimeError"}
+        ) == pytest.approx(errors_before + 1)
+
+    @patch("src.domains.agents.tools.react_runner.get_llm")
+    async def test_setup_failure_propagates_and_balances_active(
+        self,
+        mock_get_llm: MagicMock,
+        runner: ReactSubAgentRunner,
+    ) -> None:
+        # A setup failure (get_llm raising) must propagate to the caller AND the
+        # active-count gauge must still be decremented by the finally block — the
+        # regression guard for the gauge-leak bug.
+        mock_get_llm.side_effect = RuntimeError("llm unavailable")
+
+        active_before = self._sample("subagent_active_count")
+
+        with pytest.raises(RuntimeError, match="llm unavailable"):
+            await runner.run(task="t", tools=[], prompt_vars={})
+
+        assert self._sample("subagent_active_count") == pytest.approx(active_before)

@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.1** | 2026-04-20 | 20 dashboards, 354+ panels
+> **Version 4.2** | 2026-05-29 | 20 dashboards, 345+ panels
 
 ---
 
@@ -179,7 +179,7 @@ Metriques bas niveau LangGraph : execution de graphe (duree totale, nombre de no
 
 ### 16 - Recording Rules & Alerts Health (10 panels)
 
-Dashboard meta/operationnel. Sante des 70+ recording rules Prometheus (evaluation, erreurs, duree), sante des alertes (firing, pending, erreurs d'evaluation), validation de la configuration et securite de la stack d'observabilite.
+Dashboard meta/operationnel. Sante des 70+ recording rules Prometheus (evaluation, erreurs, duree), validation de la configuration et securite de la stack d'observabilite. (Alerting Prometheus desactive : les anciens panneaux ALERTS firing/pending ont ete repointes sur la sante d'evaluation des recording rules.)
 
 ### 17 - User Analytics & Geo (27 panels)
 

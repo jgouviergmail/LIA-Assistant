@@ -133,11 +133,6 @@ query_engine_duration_seconds = Histogram(
 # CHECKPOINT/STATE METRICS
 # ============================================================================
 
-checkpoints_total = Counter(
-    "checkpoints_total",
-    "Total PostgresSaver checkpoints created",
-    ["thread_id"],
-)
 
 checkpoints_table_size_bytes = Gauge(
     "checkpoints_table_size_bytes",

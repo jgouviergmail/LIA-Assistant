@@ -2928,6 +2928,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_15": {
+          "title": "v1.20.15 — 📊 Fiabilidad de la monitorización: paneles de Grafana reparados y métricas de subagentes activadas",
+          "date": "Mayo 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📊 Los paneles de Grafana vuelven a mostrarse correctamente</b> — Muchos paneles de supervisión que se quedaban en <i>No data</i> (por nombres de métricas, etiquetas o consultas obsoletas) se han reparado, y el panel de supervisión de los subagentes ahora se rellena: las métricas de ejecución de los subagentes (cuántos se ejecutan, su duración, su consumo de tokens y sus errores) por fin se emiten. Esto solo afecta a la pila de monitorización (autoalojamiento / admin) — nada cambia en el asistente con el que hablas.",
+            "i2": "<b>🧹 Limpieza de métricas</b> — Se eliminaron 9 métricas obsoletas o nunca emitidas (reduciendo la cardinalidad y quitando una etiqueta que contenía un identificador de usuario), y se corrigió una pequeña fuga de un contador (el número de subagentes activos)."
+          }
+        },
         "v1_20_14": {
           "title": "v1.20.14 — 🔊 El modo voz vuelve a pronunciar un breve comentario (y no el texto en pantalla), y 📜 el historial completo de las conversaciones largas vuelve a ser accesible",
           "date": "Mayo 2026",

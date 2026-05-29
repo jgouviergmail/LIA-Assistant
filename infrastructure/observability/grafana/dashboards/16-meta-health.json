@@ -206,134 +206,6 @@
       }
     },
     {
-      "id": 6,
-      "type": "row",
-      "title": "Alert Health",
-      "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 17
-      },
-      "panels": [
-        {
-          "id": 7,
-          "type": "stat",
-          "title": "Active Alerts Count",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 0,
-            "y": 18
-          },
-          "targets": [
-            {
-              "expr": "count(ALERTS{alertstate=\"firing\"})",
-              "legendFormat": " ",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 1
-                  },
-                  {
-                    "color": "red",
-                    "value": 5
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "none",
-            "colorMode": "value",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ]
-            }
-          }
-        },
-        {
-          "id": 8,
-          "type": "table",
-          "title": "Firing Alerts",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 8,
-            "y": 18
-          },
-          "targets": [
-            {
-              "expr": "ALERTS{alertstate=\"firing\"}",
-              "refId": "A",
-              "format": "table",
-              "instant": true
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {},
-            "overrides": []
-          },
-          "options": {
-            "showHeader": true
-          }
-        },
-        {
-          "id": 9,
-          "type": "table",
-          "title": "Pending Alerts",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 16,
-            "y": 18
-          },
-          "targets": [
-            {
-              "expr": "ALERTS{alertstate=\"pending\"}",
-              "refId": "A",
-              "format": "table",
-              "instant": true
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {},
-            "overrides": []
-          },
-          "options": {
-            "showHeader": true
-          }
-        }
-      ]
-    },
-    {
       "id": 10,
       "type": "row",
       "title": "Validation & Security",
@@ -361,7 +233,7 @@
           },
           "targets": [
             {
-              "expr": "sum by (field, error_type) (rate(semantic_validation_issues_detected_total[$__rate_interval]))",
+              "expr": "sum by (issue_type) (rate(semantic_validation_issues_detected_total[$__rate_interval]))",
               "legendFormat": "{{field}} - {{error_type}}",
               "refId": "A"
             }

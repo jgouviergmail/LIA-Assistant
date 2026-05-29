@@ -2942,6 +2942,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_15": {
+          "title": "v1.20.15 — 📊 Fiabilité du monitoring : tableaux de bord Grafana réparés et métriques des sous-agents activées",
+          "date": "Mai 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📊 Les tableaux de bord Grafana s'affichent à nouveau correctement</b> — De nombreux panneaux de supervision qui restaient bloqués sur <i>No data</i> (à cause de noms de métriques, de labels ou de requêtes obsolètes) ont été réparés, et le tableau de bord de supervision des sous-agents se remplit désormais : les métriques d'exécution des sous-agents (combien s'exécutent, leur durée, leur consommation de tokens et leurs erreurs) sont enfin émises. Cela ne concerne que la pile de monitoring (auto-hébergement / admin) — rien ne change dans l'assistant avec lequel tu discutes.",
+            "i2": "<b>🧹 Nettoyage des métriques</b> — 9 métriques obsolètes ou jamais émises ont été retirées (réduction de la cardinalité et suppression d'un label contenant un identifiant utilisateur), et une petite fuite de compteur (le nombre de sous-agents actifs) a été corrigée."
+          }
+        },
         "v1_20_14": {
           "title": "v1.20.14 — 🔊 Le mode voix prononce à nouveau un court commentaire (et pas le texte à l'écran), et 📜 l'historique complet des longues conversations redevient accessible",
           "date": "Mai 2026",

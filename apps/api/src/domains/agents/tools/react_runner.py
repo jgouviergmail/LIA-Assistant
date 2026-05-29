@@ -33,6 +33,14 @@ from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
+from src.infrastructure.observability.metrics_subagent import (
+    subagent_active_count,
+    subagent_duration_seconds,
+    subagent_errors_total,
+    subagent_spawned_total,
+    subagent_tokens_in_total,
+    subagent_tokens_out_total,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -122,6 +130,77 @@ class ReactSubAgentRunner:
         self.prompt_version = prompt_version
         self._registry_collector = registry_collector or _default_registry_collector
 
+    @staticmethod
+    def _sum_tokens(messages: list[BaseMessage]) -> tuple[int, int]:
+        """Sum prompt/completion tokens from messages' ``usage_metadata``.
+
+        Best-effort: providers that omit ``usage_metadata`` contribute 0.
+
+        Args:
+            messages: Messages returned by the ReAct loop.
+
+        Returns:
+            Tuple ``(input_tokens, output_tokens)`` summed across messages.
+        """
+        tokens_in = tokens_out = 0
+        for msg in messages:
+            usage = getattr(msg, "usage_metadata", None)
+            if isinstance(usage, dict):
+                tokens_in += int(usage.get("input_tokens") or 0)
+                tokens_out += int(usage.get("output_tokens") or 0)
+        return tokens_in, tokens_out
+
+    def _emit_spawn(self, agent_name: str) -> None:
+        """Emit spawn + active-count metrics. Never raises (hot-path safety).
+
+        Args:
+            agent_name: Sub-agent ``llm_type`` used as the metric label.
+        """
+        try:
+            subagent_spawned_total.labels(agent_name=agent_name, mode="sync").inc()
+            subagent_active_count.inc()
+        except Exception:  # noqa: BLE001 - metrics must never break execution
+            logger.debug("subagent_spawn_metric_failed", exc_info=True)
+
+    def _emit_result(
+        self,
+        agent_name: str,
+        elapsed_s: float,
+        messages: list[BaseMessage],
+        error_type: str | None,
+    ) -> None:
+        """Emit duration, token and error metrics for a finished run.
+
+        Does NOT touch ``subagent_active_count`` — that gauge is balanced in a
+        ``finally`` (see :meth:`_emit_active_dec`) so it stays correct even when
+        setup (``get_llm`` / ``load_prompt`` / ``create_react_agent``) raises.
+
+        Args:
+            agent_name: Sub-agent ``llm_type`` used as the metric label.
+            elapsed_s: Wall-clock execution time in seconds.
+            messages: ReAct messages (for token extraction on success).
+            error_type: Exception class name if the run failed, else ``None``.
+        """
+        try:
+            subagent_duration_seconds.labels(agent_name=agent_name).observe(elapsed_s)
+            if error_type is not None:
+                subagent_errors_total.labels(agent_name=agent_name, error_type=error_type).inc()
+                return
+            tokens_in, tokens_out = self._sum_tokens(messages)
+            if tokens_in:
+                subagent_tokens_in_total.labels(agent_name=agent_name).inc(tokens_in)
+            if tokens_out:
+                subagent_tokens_out_total.labels(agent_name=agent_name).inc(tokens_out)
+        except Exception:  # noqa: BLE001 - metrics must never break execution
+            logger.debug("subagent_result_metric_failed", exc_info=True)
+
+    def _emit_active_dec(self) -> None:
+        """Decrement the active-sub-agents gauge. Never raises (hot-path safety)."""
+        try:
+            subagent_active_count.dec()
+        except Exception:  # noqa: BLE001 - metrics must never break execution
+            logger.debug("subagent_active_dec_metric_failed", exc_info=True)
+
     async def run(
         self,
         task: str,
@@ -150,109 +229,120 @@ class ReactSubAgentRunner:
             registry items, iteration count, and duration.
         """
         start = time.perf_counter()
+        agent_name = self.llm_type
+        self._emit_spawn(agent_name)
 
-        llm = get_llm(self.llm_type)
-        prompt = load_prompt(self.prompt_name, version=self.prompt_version).format(
-            current_datetime=get_prompt_datetime_formatted(),
-            **prompt_vars,
-        )
-
-        parent_store = parent_runtime.store if parent_runtime else None
-        parent_config = parent_runtime.config if parent_runtime else {}
-        parent_configurable = parent_config.get("configurable", {})
-        user_id = parent_configurable.get("user_id", "unknown")
-
-        react_agent = create_react_agent(
-            llm,
-            tools=tools,
-            prompt=prompt,
-            store=parent_store,
-        )
-
-        # Propagate parent metadata and inject node_name_override so
-        # TokenTrackingCallback displays a user-friendly name in the
-        # debug panel instead of the ReAct internal node name ("agent").
-        parent_metadata = parent_config.get("metadata") or {}
-        effective_display_name = display_name or self.llm_type
-        nested_metadata = {
-            **parent_metadata,
-            "node_name_override": effective_display_name,
-        }
-
-        nested_config = RunnableConfig(
-            configurable={
-                "user_id": user_id,
-                "thread_id": f"{thread_prefix}_{user_id}",
-                "__deps": parent_configurable.get("__deps"),
-                "__side_channel_queue": parent_configurable.get("__side_channel_queue"),
-                "__parent_thread_id": parent_configurable.get("thread_id"),
-                "user_timezone": parent_configurable.get("user_timezone", "UTC"),
-                "user_language": parent_configurable.get("user_language", "fr"),
-            },
-            callbacks=parent_config.get("callbacks"),
-            metadata=nested_metadata,
-            recursion_limit=recursion_limit,
-        )
-
-        logger.info(
-            "react_sub_agent_start",
-            llm_type=self.llm_type,
-            tool_count=len(tools),
-            tool_names=[t.name for t in tools],
-            thread_prefix=thread_prefix,
-            recursion_limit=recursion_limit,
-        )
-
+        # try/finally guarantees the active-count gauge is balanced even if the
+        # setup below (get_llm / load_prompt / create_react_agent) raises and the
+        # exception propagates to the caller.
         try:
-            result = await react_agent.ainvoke(
-                {"messages": [HumanMessage(content=task)]},
-                config=nested_config,
+            llm = get_llm(self.llm_type)
+            prompt = load_prompt(self.prompt_name, version=self.prompt_version).format(
+                current_datetime=get_prompt_datetime_formatted(),
+                **prompt_vars,
             )
-        except Exception as exc:
-            elapsed_ms = int((time.perf_counter() - start) * 1000)
-            logger.warning(
-                "react_sub_agent_error",
+
+            parent_store = parent_runtime.store if parent_runtime else None
+            parent_config = parent_runtime.config if parent_runtime else {}
+            parent_configurable = parent_config.get("configurable", {})
+            user_id = parent_configurable.get("user_id", "unknown")
+
+            react_agent = create_react_agent(
+                llm,
+                tools=tools,
+                prompt=prompt,
+                store=parent_store,
+            )
+
+            # Propagate parent metadata and inject node_name_override so
+            # TokenTrackingCallback displays a user-friendly name in the
+            # debug panel instead of the ReAct internal node name ("agent").
+            parent_metadata = parent_config.get("metadata") or {}
+            effective_display_name = display_name or self.llm_type
+            nested_metadata = {
+                **parent_metadata,
+                "node_name_override": effective_display_name,
+            }
+
+            nested_config = RunnableConfig(
+                configurable={
+                    "user_id": user_id,
+                    "thread_id": f"{thread_prefix}_{user_id}",
+                    "__deps": parent_configurable.get("__deps"),
+                    "__side_channel_queue": parent_configurable.get("__side_channel_queue"),
+                    "__parent_thread_id": parent_configurable.get("thread_id"),
+                    "user_timezone": parent_configurable.get("user_timezone", "UTC"),
+                    "user_language": parent_configurable.get("user_language", "fr"),
+                },
+                callbacks=parent_config.get("callbacks"),
+                metadata=nested_metadata,
+                recursion_limit=recursion_limit,
+            )
+
+            logger.info(
+                "react_sub_agent_start",
                 llm_type=self.llm_type,
-                error=str(exc),
-                error_type=type(exc).__name__,
+                tool_count=len(tools),
+                tool_names=[t.name for t in tools],
+                thread_prefix=thread_prefix,
+                recursion_limit=recursion_limit,
+            )
+
+            try:
+                result = await react_agent.ainvoke(
+                    {"messages": [HumanMessage(content=task)]},
+                    config=nested_config,
+                )
+            except Exception as exc:
+                elapsed_ms = int((time.perf_counter() - start) * 1000)
+                logger.warning(
+                    "react_sub_agent_error",
+                    llm_type=self.llm_type,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                    duration_ms=elapsed_ms,
+                )
+                self._emit_result(agent_name, elapsed_ms / 1000.0, [], type(exc).__name__)
+                return ReactSubAgentResult(
+                    final_message=f"Error: {exc}",
+                    messages=[],
+                    duration_ms=elapsed_ms,
+                )
+
+            messages = result.get("messages", [])
+            final_message = ""
+            if messages:
+                last_msg = messages[-1]
+                # Normalize str (most providers) and list[dict] blocks (Gemini 3.x) to text.
+                final_message = (
+                    coerce_content_to_text(last_msg.content)
+                    if hasattr(last_msg, "content")
+                    else str(last_msg)
+                )
+
+            # Collect registry items via extensible hook
+            accumulated_registry = self._registry_collector(tools)
+
+            iteration_count = sum(1 for m in messages if hasattr(m, "tool_calls") and m.tool_calls)
+            elapsed_ms = int((time.perf_counter() - start) * 1000)
+
+            logger.info(
+                "react_sub_agent_complete",
+                llm_type=self.llm_type,
+                iterations=iteration_count,
+                registry_items=len(accumulated_registry),
+                final_message_length=len(final_message),
                 duration_ms=elapsed_ms,
             )
+
+            self._emit_result(agent_name, elapsed_ms / 1000.0, messages, None)
+
             return ReactSubAgentResult(
-                final_message=f"Error: {exc}",
-                messages=[],
+                final_message=final_message,
+                messages=messages,
+                accumulated_registry=accumulated_registry,
+                iteration_count=iteration_count,
                 duration_ms=elapsed_ms,
             )
-
-        messages = result.get("messages", [])
-        final_message = ""
-        if messages:
-            last_msg = messages[-1]
-            # Normalize str (most providers) and list[dict] blocks (Gemini 3.x) to text.
-            final_message = (
-                coerce_content_to_text(last_msg.content)
-                if hasattr(last_msg, "content")
-                else str(last_msg)
-            )
-
-        # Collect registry items via extensible hook
-        accumulated_registry = self._registry_collector(tools)
-
-        iteration_count = sum(1 for m in messages if hasattr(m, "tool_calls") and m.tool_calls)
-        elapsed_ms = int((time.perf_counter() - start) * 1000)
-
-        logger.info(
-            "react_sub_agent_complete",
-            llm_type=self.llm_type,
-            iterations=iteration_count,
-            registry_items=len(accumulated_registry),
-            final_message_length=len(final_message),
-            duration_ms=elapsed_ms,
-        )
-
-        return ReactSubAgentResult(
-            final_message=final_message,
-            messages=messages,
-            accumulated_registry=accumulated_registry,
-            iteration_count=iteration_count,
-            duration_ms=elapsed_ms,
-        )
+        finally:
+            self._emit_active_dec()

@@ -1159,7 +1159,7 @@
         },
         {
           "id": 24,
-          "title": "Resumption Total by Type",
+          "title": "Resumption Total by Strategy",
           "type": "timeseries",
           "datasource": "$datasource",
           "gridPos": {
@@ -1170,7 +1170,7 @@
           },
           "targets": [
             {
-              "expr": "sum by (interrupt_type) (rate(hitl_resumption_total[$__rate_interval]))",
+              "expr": "sum by (strategy) (rate(hitl_resumption_total[$__rate_interval]))",
               "legendFormat": "{{interrupt_type}}",
               "refId": "A"
             }

@@ -1,9 +1,16 @@
 """
 Prometheus metrics for sub-agent observability.
 
-Tracks sub-agent executions, duration, tokens, errors, and guard-rail triggers.
+Tracks sub-agent ReAct executions, duration, tokens and errors. Emitted by the
+generic ``ReactSubAgentRunner`` (the single sub-agent execution path per
+ADR-083), labelled by ``agent_name`` (the runner's ``llm_type``).
 
-Phase: F6 — Persistent Specialized Sub-Agents
+The token-budget / kill / per-user daily-token guard-rail metrics from the
+original F6 design were removed in 2026-05: ADR-083 Phase 2 deleted the bespoke
+``SubAgentExecutor`` pipeline, so those mechanisms (and therefore those metrics)
+no longer exist.
+
+Phase: F6 / ADR-083 — Sub-Agent Delegation as Parameterized ReAct Loop
 Created: 2026-03-16
 """
 
@@ -16,7 +23,7 @@ from prometheus_client import Counter, Gauge, Histogram
 subagent_spawned_total = Counter(
     "subagent_spawned_total",
     "Total sub-agent executions by agent name and mode",
-    ["agent_name", "mode"],  # mode: sync / background
+    ["agent_name", "mode"],  # mode: sync (the runner always awaits the loop)
 )
 
 subagent_duration_seconds = Histogram(
@@ -44,29 +51,12 @@ subagent_active_count = Gauge(
 )
 
 # ============================================================================
-# ERROR & GUARD-RAIL METRICS
+# ERROR METRICS
 # ============================================================================
 
 subagent_errors_total = Counter(
     "subagent_errors_total",
     "Total sub-agent execution errors by type",
-    ["agent_name", "error_type"],  # error_type: timeout / token_budget / failure / cancelled
-)
-
-subagent_token_budget_exceeded_total = Counter(
-    "subagent_token_budget_exceeded_total",
-    "Total sub-agent executions stopped by token budget guard",
-    ["agent_name"],
-)
-
-subagent_killed_total = Counter(
-    "subagent_killed_total",
-    "Total sub-agent executions killed by reason",
-    ["agent_name", "reason"],  # reason: timeout / token_budget / manual / consecutive_failures
-)
-
-subagent_daily_tokens_consumed = Gauge(
-    "subagent_daily_tokens_consumed",
-    "Daily token consumption for sub-agent executions per user",
-    ["user_id"],
+    # error_type: the raised exception class name (e.g. TimeoutError, ValueError).
+    ["agent_name", "error_type"],
 )

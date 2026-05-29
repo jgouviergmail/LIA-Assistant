@@ -67,13 +67,6 @@ conversation_abandonment_at_message_count = Histogram(
 # AGENT EFFECTIVENESS METRICS
 # ============================================================================
 
-agent_routing_accuracy = Gauge(
-    "agent_routing_accuracy",
-    "Percentage of conversations routed to correct agent (0-1)",
-    ["agent_type"],
-    # Tracks routing quality (manual labeling or HITL-based inference)
-    # 1.0 = 100% accurate, 0.5 = 50% accurate
-)
 
 agent_success_rate_total = Counter(
     "agent_success_rate_total",
@@ -171,24 +164,4 @@ token_efficiency_ratio = Histogram(
     # High ratio = agent is verbose (may indicate poor prompts)
     # Low ratio = agent is concise
     buckets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0],
-)
-
-# ============================================================================
-# AGENT QUALITY METRICS
-# ============================================================================
-
-agent_latency_p95_seconds = Gauge(
-    "agent_latency_p95_seconds",
-    "95th percentile agent response latency (updated periodically)",
-    ["agent_type"],
-    # Measures agent speed (critical for user experience)
-    # Updated via recording rules or periodic queries
-)
-
-agent_error_rate = Gauge(
-    "agent_error_rate",
-    "Percentage of conversations with errors (0-1)",
-    ["agent_type", "error_type"],
-    # error_type: llm_error, tool_error, timeout, validation_error
-    # Measures agent reliability
 )

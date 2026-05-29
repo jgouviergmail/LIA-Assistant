@@ -2930,6 +2930,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_15": {
+          "title": "v1.20.15 — 📊 Affidabilità del monitoraggio: dashboard Grafana riparate e metriche dei sotto-agenti attivate",
+          "date": "Maggio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📊 Le dashboard Grafana si visualizzano di nuovo correttamente</b> — Molti pannelli di monitoraggio che restavano su <i>No data</i> (a causa di nomi di metriche, etichette o query obsolete) sono stati riparati, e la dashboard di monitoraggio dei sotto-agenti ora si popola: le metriche di esecuzione dei sotto-agenti (quanti vengono eseguiti, la loro durata, il loro consumo di token e i loro errori) sono finalmente emesse. Questo riguarda solo lo stack di monitoraggio (self-hosting / admin) — nulla cambia nell'assistente con cui parli.",
+            "i2": "<b>🧹 Pulizia delle metriche</b> — Sono state rimosse 9 metriche obsolete o mai emesse (riducendo la cardinalità ed eliminando un'etichetta che conteneva un identificativo utente), ed è stata corretta una piccola perdita di un contatore (il numero di sotto-agenti attivi)."
+          }
+        },
         "v1_20_14": {
           "title": "v1.20.14 — 🔊 La modalità vocale pronuncia di nuovo un breve commento (e non il testo a schermo), e 📜 la cronologia completa delle conversazioni lunghe torna raggiungibile",
           "date": "Maggio 2026",

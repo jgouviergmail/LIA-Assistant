@@ -2928,6 +2928,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_15": {
+          "title": "v1.20.15 — 📊 Zuverlässigeres Monitoring: Grafana-Dashboards repariert und Sub-Agent-Metriken aktiviert",
+          "date": "Mai 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📊 Grafana-Dashboards zeigen wieder korrekt an</b> — Viele Überwachungspanels, die wegen veralteter Metriknamen, Labels oder Abfragen auf <i>No data</i> hängen blieben, wurden repariert, und das Überwachungs-Dashboard der Sub-Agenten füllt sich nun: Die Ausführungsmetriken der Sub-Agenten (wie viele laufen, ihre Dauer, ihr Token-Verbrauch und ihre Fehler) werden endlich ausgegeben. Das betrifft nur den Monitoring-Stack (Self-Hosting / Admin) — am Assistenten, mit dem du sprichst, ändert sich nichts.",
+            "i2": "<b>🧹 Metrik-Bereinigung</b> — 9 veraltete oder nie ausgegebene Metriken wurden entfernt (geringere Kardinalität und Wegfall eines Labels, das eine Benutzerkennung enthielt), und ein kleines Zähler-Leck (die Anzahl aktiver Sub-Agenten) wurde behoben."
+          }
+        },
         "v1_20_14": {
           "title": "v1.20.14 — 🔊 Der Sprachmodus spricht wieder einen kurzen Kommentar (und nicht den angezeigten Text), und 📜 die vollständige Historie langer Gespräche wird wieder erreichbar",
           "date": "Mai 2026",

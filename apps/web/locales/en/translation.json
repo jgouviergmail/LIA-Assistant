@@ -2937,6 +2937,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_15": {
+          "title": "v1.20.15 — 📊 Monitoring reliability: Grafana dashboards repaired and sub-agent metrics activated",
+          "date": "May 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📊 Grafana dashboards now read correctly</b> — Many monitoring panels that stayed stuck on <i>No data</i> (because of outdated metric names, labels or queries) have been repaired, and the sub-agents monitoring dashboard now fills in: the execution metrics of sub-agents (how many run, their duration, their token usage and their errors) are finally emitted. This only concerns the self-hosting / admin monitoring stack — nothing changes in the assistant you talk to.",
+            "i2": "<b>🧹 Metrics cleanup</b> — 9 obsolete or never-emitted metrics were removed (lowering cardinality and dropping a label that contained a user identifier), and a small counter leak (the number of active sub-agents) was fixed."
+          }
+        },
         "v1_20_14": {
           "title": "v1.20.14 — 🔊 Voice mode reads a short commentary again (not the on-screen text), and 📜 the full history of long conversations becomes reachable",
           "date": "May 2026",

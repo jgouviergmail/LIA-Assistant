@@ -750,52 +750,6 @@
               "placement": "bottom"
             }
           }
-        },
-        {
-          "id": 18,
-          "type": "stat",
-          "title": "Total Checkpoints",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 4,
-            "x": 20,
-            "y": 35
-          },
-          "targets": [
-            {
-              "expr": "sum(checkpoints_total)",
-              "legendFormat": " ",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "none",
-            "colorMode": "value",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ]
-            }
-          }
         }
       ]
     },
@@ -1270,7 +1224,7 @@
         {
           "id": 30,
           "type": "timeseries",
-          "title": "Edit Iterations per Draft P95",
+          "title": "Edit Iterations Rate (by draft)",
           "datasource": {
             "type": "prometheus",
             "uid": "$datasource"
@@ -1283,7 +1237,7 @@
           },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum by (draft_type, le) (rate(registry_draft_edit_iterations_total_bucket[$__rate_interval])))",
+              "expr": "sum by (draft_type) (rate(registry_draft_edit_iterations_total[$__rate_interval]))",
               "legendFormat": "P95 {{draft_type}}",
               "refId": "A"
             }

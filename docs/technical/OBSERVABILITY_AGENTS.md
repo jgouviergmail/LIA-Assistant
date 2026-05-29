@@ -1234,14 +1234,6 @@ cache_miss_total = Counter(
     "Total cache misses",
     ["cache_type"],
 )
-
-# Cache operation duration
-cache_operation_duration_seconds = Histogram(
-    "cache_operation_duration_seconds",
-    "Cache operation duration in seconds (Redis get/set operations)",
-    ["operation", "cache_type"],  # operation: get/set/delete/clear
-    buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0],
-)
 ```
 
 **Note** : Les métriques `google_contacts_cache_*` sont séparées et spécifiques au domaine Contacts.

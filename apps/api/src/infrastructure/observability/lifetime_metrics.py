@@ -582,11 +582,11 @@ async def _sync_period_metrics_from_db(db: AsyncSession) -> None:
     except Exception:
         pass
 
-    # NOTE: `agent_routing_accuracy`, `agent_error_rate`, `agent_latency_p95_seconds`
-    # are NOT emitted here — they require feedback loops / ground-truth labels
-    # that do not yet exist. Dashboards that reference them have been rewired to
-    # use the existing recording rules (`agent:latency:p95_5m`, `agent:slo:success_rate:1h`)
-    # and `graph_exceptions_total`, which ARE emitting real data.
+    # NOTE: the placeholder gauges `agent_routing_accuracy`, `agent_error_rate`
+    # and `agent_latency_p95_seconds` were removed (2026-05) — they required
+    # feedback loops / ground-truth labels that do not exist, and dashboards
+    # already rely on the live recording rules (`agent:latency:p95_5m`,
+    # `agent:slo:success_rate:1h`) and `graph_exceptions_total` instead.
 
 
 # ============================================================================

@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.15] - 2026-05-29
+
+### Fixed — Grafana dashboards: dozens of panels stuck on "No data" now resolve against the real production metrics
+
+A panel-by-panel audit of every dashboard query against the **production** Prometheus (not the dev instance the 2026-04 audit used, where empty panels were merely un-exercised) surfaced a set of panels that could never render — independent of traffic — because their PromQL/LogQL referenced metric names, labels, or label values that do not exist in production. Fixes by dashboard:
+
+- **05 — LLM Tokens & Cost**: the *API Errors / Rate Limit / Context Length / Content Filter* panels queried `llm_api_calls_total{status="rate_limited"|"context_exceeded"|"content_filtered"}` (statuses that metric never carries) and grouped `by (provider)`/`error_type` (labels it does not have). Repointed to the dedicated, already-instrumented error metrics `llm_api_errors_total{provider,error_type}`, `llm_rate_limit_hit_total{provider,limit_type}`, `llm_context_length_exceeded_total{provider,model}`, `llm_content_filter_violations_total{provider}`.
+- **06 — Logs & Traces**: the Loki *Router Decisions* panel filtered `event="router_decision"` (no such event) → `event=~"router_(high|medium)_confidence|router_very_low_confidence_fallback"` (the events that actually carry `intention`+`confidence`); *Graph Exceptions* filtered `event=~"graph_exception.*"` → `event="response_node_exception"` (the only site where `graph_exceptions_total` is incremented); *LLM Errors* repointed to `llm_api_errors_total`.
+- **18 — RAG Spaces**: embedding panels filtered `model=~"text-embedding-3.*"` (OpenAI) and `currency="usd"` while production emits `model="gemini-embedding-001"` and `currency="USD"` → removed the stale model filter, corrected the currency case.
+- **09 — Conversations**: *Conversation Turns by Agent* queried the `conversation_turns_total` **Histogram** as a Counter → fixed to the average `rate(_sum)/rate(_count)`.
+- **08 — HITL**: *Resumption Total by Type* grouped `by (interrupt_type)` (not a label of `hitl_resumption_total`) → `by (strategy)`.
+- **14 — Registry & Checkpoints**: *Edit Iterations per Draft P95* applied `histogram_quantile` to `registry_draft_edit_iterations_total_bucket` (a Counter, no buckets) → `rate(registry_draft_edit_iterations_total)`; removed the dead *Total Checkpoints* panel.
+- **16 — Recording Rules & Alerts Health**: the three `ALERTS{…}` panels referenced a series that does not exist while Prometheus alerting is disabled → repointed to live recording-rule health (`prometheus_rule_group_rules`, `prometheus_rule_evaluation_failures_total`, `prometheus_rule_group_last_duration_seconds`), then the now-redundant row was dropped (the dashboard already has a *Recording Rules Health* section); *Semantic Validation Issues* grouped `by (field, error_type)` → `by (issue_type)`.
+
+### Added — Sub-agent execution metrics are now emitted ("Sub-agents & Skills" dashboard comes alive)
+
+`metrics_subagent.py` was **defined but never imported and never incremented** (zero call sites), so the entire *Sub-agents & Skills* dashboard was permanently dark. `ReactSubAgentRunner` — the single sub-agent execution path (ADR-083), shared by sub-agent delegation, browser, MCP and skill runners — now emits, defensively (a metric failure can never break the run): `subagent_spawned_total{agent_name,mode}`, `subagent_active_count`, `subagent_duration_seconds{agent_name}`, `subagent_tokens_in_total`/`subagent_tokens_out_total{agent_name}` (summed from each message's `usage_metadata`), and `subagent_errors_total{agent_name,error_type}`, labelled by the runner's `llm_type`.
+
+### Fixed — Sub-agent active-count gauge no longer leaks
+
+The run body is now wrapped in `try/finally` so `subagent_active_count` is **always** decremented after the spawn increment — including when setup (`get_llm` / `load_prompt` / `create_react_agent`) raises and the exception propagates to the caller. Without the `finally`, a setup failure would have leaked the gauge upward indefinitely. Guarded by a dedicated regression test.
+
+### Removed — Deprecated and dead metric definitions (and their dashboard panels)
+
+Nine never-emitted metric definitions (no call site, flagged for removal by the prior audit) were deleted together with the panels referencing them: `checkpoints_total` (per-`thread_id` cardinality risk), `cache_operation_duration_seconds` (redundant), `redis_connection_pool_size` (superseded by the `_current` gauges), the placeholder gauges `agent_routing_accuracy` / `agent_error_rate` / `agent_latency_p95_seconds` (no periodic calculator ever wired), and the sub-agent guard-rail metrics `subagent_token_budget_exceeded_total` / `subagent_killed_total` / `subagent_daily_tokens_consumed` (their mechanisms were removed in ADR-083 Phase 2; `subagent_daily_tokens_consumed` also carried a per-`user_id` PII/cardinality label).
+
+Files: `apps/api/src/domains/agents/tools/react_runner.py`, `apps/api/src/infrastructure/observability/{metrics_subagent,metrics,metrics_business,metrics_registry,lifetime_metrics}.py`, `infrastructure/observability/grafana/dashboards/{05-llm-tokens-cost,06-logs-traces,08-hitl,09-conversations-users,14-registry-checkpoints,16-meta-health,18-rag-spaces,19-subagents-skills}.json`, `docs/technical/OBSERVABILITY_AGENTS.md`. **Tests**: `apps/api/tests/unit/domains/agents/tools/test_react_runner.py` — sub-agent spawn + active-count balance on success, on ainvoke error, and on setup-failure propagation. Ruff / Black / MyPy clean; 334 observability + runner unit tests green; every changed query validated against the production Prometheus/Loki. The LLM-error-taxonomy metrics (`llm_api_errors_total` et al.) were already instrumented in `callbacks.py::on_llm_error`. No DB migration, no new env var, no endpoint change.
+
 ## [1.20.14] - 2026-05-29
 
 ### Fixed — Voice mode now routes long-answer turns through the Voice Comment LLM again (not the displayed text)

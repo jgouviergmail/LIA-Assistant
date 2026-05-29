@@ -533,7 +533,7 @@
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 26 },
           "targets": [
             {
-              "expr": "sum by (agent_type) (rate(conversation_turns_total[$__rate_interval]))",
+              "expr": "sum by (agent_type) (rate(conversation_turns_total_sum[$__rate_interval])) / sum by (agent_type) (rate(conversation_turns_total_count[$__rate_interval]))",
               "legendFormat": "{{agent_type}}",
               "refId": "A"
             }

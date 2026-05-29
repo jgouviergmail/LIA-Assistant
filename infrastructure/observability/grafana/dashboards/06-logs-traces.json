@@ -478,7 +478,7 @@
                 "type": "prometheus",
                 "uid": "$datasource"
               },
-              "expr": "sum by (provider) (rate(llm_api_calls_total{status=\"error\"}[$__rate_interval]))",
+              "expr": "sum by (provider) (rate(llm_api_errors_total[$__rate_interval]))",
               "legendFormat": "{{provider}}"
             },
             {
@@ -532,7 +532,7 @@
                 "type": "loki",
                 "uid": "$datasource_loki"
               },
-              "expr": "sum(rate({job=\"api\", level=\"error\"} | json | event=~\"graph_exception.*\" [1m]))",
+              "expr": "sum(rate({job=\"api\", level=\"error\"} | json | event=\"response_node_exception\" [1m]))",
               "legendFormat": "Exception Logs"
             }
           ],
@@ -581,7 +581,7 @@
                 "type": "loki",
                 "uid": "$datasource_loki"
               },
-              "expr": "{job=\"api\", event=\"router_decision\"} | json | line_format \"Intention: {{.intention}} | Confidence: {{.confidence}} | TraceID: {{.trace_id}}\""
+              "expr": "{job=\"api\", event=~\"router_(high|medium)_confidence|router_very_low_confidence_fallback\"} | json | line_format \"Intention: {{.intention}} | Confidence: {{.confidence}} | TraceID: {{.trace_id}}\""
             }
           ],
           "options": {

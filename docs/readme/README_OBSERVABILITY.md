@@ -1,12 +1,12 @@
 # Observability Infrastructure - LIA
 
-**As of 2026-04-20**: Metrics and dashboards have been significantly expanded. There are now 514+ metrics, 93 recording rules, and 20 dashboards (354+ panels). Dashboards 19 (Sub-agents & Skills) and 20 (ReAct & Browser) were added to close remaining observability gaps. The Prometheus metrics server runs on a dedicated HTTP-only port (9091) separate from the main HTTPS API (8000).
+**As of 2026-05-29**: Metrics and dashboards have been significantly expanded and hardened. There are now 505+ metrics, 93 recording rules, and 20 dashboards (345+ panels). Dashboards 19 (Sub-agents & Skills) and 20 (ReAct & Browser) were added to close remaining observability gaps; the sub-agent execution metrics are now emitted by the runner (the module was previously defined but never wired), nine never-emitted/deprecated metric definitions were removed, and a panel-by-panel audit against the **production** Prometheus repaired dozens of dashboard queries that were stuck on "No data" (wrong metric names, labels, or label values). The Prometheus metrics server runs on a dedicated HTTP-only port (9091) separate from the main HTTPS API (8000).
 
 **Version**: 4.0 (2025-11-23) - Phase 4 Complete
 **Status**: Production-Ready
 **Architecture**: Prometheus + Grafana + Loki + Tempo + AlertManager
 **Total Metrics**: 500+ across 12 categories
-**Dashboards**: 20 comprehensive dashboards (354+ panels)
+**Dashboards**: 20 comprehensive dashboards (345+ panels)
 **Alert Rules**: 100+ alerts across 15 groups
 **Recording Rules**: 93 optimized rules
 **Runbooks**: 22 incident response runbooks
