@@ -2928,6 +2928,14 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_16": {
+          "title": "v1.20.16 — 🔊 Der Sprachmodus liest in Unterhaltungen keine Formatierung mehr vor",
+          "date": "Mai 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔊 Die Stimme liest in Unterhaltungen keine Formatierungselemente mehr vor</b> — Wenn der Sprachmodus aktiviert ist und du einfach plauderst (ohne ein Werkzeug auszulösen) und dabei die angereicherte (HTML-)Anzeige verwendest, las die Stimme manchmal Formatierungselemente statt der eigentlichen Antwort vor. Die angereicherte Formatierung ist jetzt den Antworten vorbehalten, die Daten aus Werkzeugen darstellen; deine Unterhaltungen bleiben einfacher Text, der natürlich vorgelesen wird – und sehen auf dem Bildschirm in jedem Anzeigemodus gleich aus. Auf deiner Seite ist nichts zu ändern."
+          }
+        },
         "v1_20_15": {
           "title": "v1.20.15 — 📊 Zuverlässigeres Monitoring: Grafana-Dashboards repariert und Sub-Agent-Metriken aktiviert",
           "date": "Mai 2026",

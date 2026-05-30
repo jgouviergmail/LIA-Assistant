@@ -32,6 +32,8 @@ from langchain_core.runnables import RunnableConfig
 from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
+    RESPONSE_DISPLAY_MODE_CARDS,
+    RESPONSE_DISPLAY_MODE_HTML,
     SCHEDULED_ACTIONS_SESSION_PREFIX,
 )
 from src.core.field_names import (
@@ -134,6 +136,33 @@ STATE_KEY_TOOL_RESULTS = "tool_results"
 STATE_KEY_DRAFT_ACTION_RESULT = "draft_action_result"
 
 logger = get_logger(__name__)
+
+
+def _should_inject_html_directive(display_mode: str | None, route_to: str | None) -> bool:
+    """Whether the rich HTML response directive should be injected this turn.
+
+    Rich HTML enrichment is only pertinent for tool/data turns — those the
+    router sends to the planner (``route_to == "planner"``, which is exactly
+    how the router derives intention ``"action"``). For a conversational turn
+    (any other ``route_to``) the reply is streamed verbatim to the TTS engine
+    via the progressive chat path; emitting HTML there would make the voice
+    speak tags and CSS aloud. Suppressing the directive keeps conversational
+    replies in Markdown, rendered identically by the frontend (ReactMarkdown +
+    rehypeRaw) in every display mode. Keying on ``route_to`` mirrors the exact
+    source the voice path uses, so the display gate can never desync from it.
+
+    Args:
+        display_mode: The user's response display mode preference.
+        route_to: The router's routing target for the current turn
+            (``"planner"`` for action turns; anything else — or ``None`` on a
+            fallback / missing query intelligence — is treated as
+            conversational and suppresses the directive).
+
+    Returns:
+        ``True`` only when HTML display mode is active AND the turn routed to
+        the planner.
+    """
+    return display_mode == RESPONSE_DISPLAY_MODE_HTML and route_to == "planner"
 
 
 # ============================================================================
@@ -1900,12 +1929,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             # so any execution_plan we see belongs to the previous action turn
             # and must not re-trigger its skill.
             execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
-            qi_state = state.get("query_intelligence")
-            qi_route_to = (
-                qi_state.get("route_to")
-                if isinstance(qi_state, dict)
-                else getattr(qi_state, "route_to", None)
-            )
+            qi_route_to = get_qi_attr(state, "route_to", None)
             if qi_route_to == "planner" and execution_plan and execution_plan.metadata:
                 plan_skill_name = execution_plan.metadata.get("skill_name")
                 if plan_skill_name and (active is None or plan_skill_name in active):
@@ -2291,18 +2315,23 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             )
 
         # DISPLAY MODE: Read user preference from configurable
-        from src.core.constants import (
-            RESPONSE_DISPLAY_MODE_CARDS,
-            RESPONSE_DISPLAY_MODE_HTML,
-        )
-
         user_display_mode = config.get("configurable", {}).get(
             "user_display_mode", RESPONSE_DISPLAY_MODE_CARDS
         )
 
-        # HTML mode: Inject rich HTML formatting directive into prompt
-        # Placed BEFORE FINAL REMINDER for maximum authority (same pattern as psyche)
-        if user_display_mode == RESPONSE_DISPLAY_MODE_HTML:
+        # Resolve the current turn's routing target via the canonical helper
+        # (handles both the object and serialized-dict forms of query
+        # intelligence). This is the same source the voice path uses to decide
+        # conversation vs action, so the display gate can never desync from it.
+        # Rich HTML is only injected for planner-routed (tool/data) turns —
+        # see _should_inject_html_directive for the rationale.
+        route_to = get_qi_attr(state, "route_to", None)
+
+        # HTML mode: Inject rich HTML formatting directive into prompt.
+        # Placed BEFORE FINAL REMINDER for maximum authority (same pattern as
+        # psyche). Gated to action turns: a conversational reply is read aloud
+        # verbatim by the TTS, so emitting HTML would make it speak tags/CSS.
+        if _should_inject_html_directive(user_display_mode, route_to):
             _html_directive = str(load_prompt("html_response_directive"))
             _final_reminder = "### FINAL REMINDER ###"
             if _final_reminder in base_system_prompt:
@@ -2316,6 +2345,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 "html_response_directive_injected",
                 run_id=run_id,
                 display_mode=user_display_mode,
+                route_to=route_to,
             )
 
         # PSYCHE ENGINE: Inject self-report instruction (before FINAL REMINDER)

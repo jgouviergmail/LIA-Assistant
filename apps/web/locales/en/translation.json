@@ -2937,6 +2937,14 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_16": {
+          "title": "v1.20.16 — 🔊 Voice mode no longer reads formatting aloud during conversation",
+          "date": "May 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔊 The voice no longer speaks formatting markup during conversation</b> — When voice mode is on and you simply chat (without triggering a tool) with the rich (HTML) display mode, the voice sometimes read formatting elements aloud instead of the answer itself. Rich formatting is now reserved for replies that present data from tools; your conversational exchanges stay plain text, read naturally — and look identical on screen in every display mode. Nothing to change on your side."
+          }
+        },
         "v1_20_15": {
           "title": "v1.20.15 — 📊 Monitoring reliability: Grafana dashboards repaired and sub-agent metrics activated",
           "date": "May 2026",

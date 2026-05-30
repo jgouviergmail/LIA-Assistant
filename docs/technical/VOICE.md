@@ -457,6 +457,28 @@ The resulting **Time-To-First-Audio (TTFA)**:
 | Agent mode, voice LLM 2 s, 3 sentences | ~3.5 s | **~1–1.5 s** |
 | Agent mode, registry tardif (5 s) | ~6 s | **~3 s** |
 
+### Plain-text input guarantee
+
+The TTS engine must only ever receive **speakable plain text** — never HTML
+or CSS. Two complementary mechanisms enforce this:
+
+1. **At the source (response node).** The rich HTML response directive is
+   injected only for tool/data turns (router `route_to == "planner"`). A
+   conversational turn — whose reply is streamed verbatim to TTS via the
+   progressive chat path — is kept in Markdown, so no tags reach the sentence
+   streamer. The display mode (`cards` / `html` / `markdown`) is only relevant
+   when the turn carries structured data; a plain chat reply is rendered
+   identically by the frontend (`ReactMarkdown` + `rehypeRaw`) in every mode.
+   See `_should_inject_html_directive`
+   ([response_node.py](../../apps/api/src/domains/agents/nodes/response_node.py)).
+2. **Defense in depth (agents SSE loop).** The synchronous TTS entry points
+   (`stream_direct_tts` and the `stream_voice_comment` fallbacks) pass their
+   text through `_sanitize_text_for_tts`
+   ([api/service.py](../../apps/api/src/domains/agents/api/service.py)), which
+   strips HTML via `html_to_text` **only when markup is actually present** — so
+   reference turns or post-LLM data cards are never spoken as tags, while plain
+   prose containing bare angle brackets (`x < 5 and y > 3`) is left untouched.
+
 Cleanup contract: every SSE generator exit path (HITL `GraphInterrupt`,
 top-level `except`, normal end) MUST call
 `AgentService._cleanup_chat_voice_pipeline(...)` to cancel the drain

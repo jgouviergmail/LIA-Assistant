@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.16] - 2026-05-30
+
+### Fixed — Voice/TTS no longer reads HTML/Markdown formatting aloud in conversation mode
+
+When text-to-speech is enabled and the user's response display mode is **HTML** (rich display), conversational turns were rendered as full HTML — wrapped in `<div class="lia-response">` with an inline `<style>` CSS block (per `html_response_directive`) — and that markup was streamed verbatim to the TTS engine via the progressive chat path, so the voice spoke tags and CSS aloud. The asymmetry the user reported (fine on tool/action turns, broken in pure conversation) is architectural: action turns voice a **separate clean commentary** via the Voice Comment LLM (built from the data registry), whereas conversational turns read the displayed reply directly.
+
+Root cause fixed at the source: the rich-HTML directive is now injected **only for tool/data turns** — gated on the router's `route_to == "planner"`, which is the exact signal `RouterOutput.intention` is derived from (`"action" if route_to == "planner" else "conversation"`), so the display gate can never desync from the voice path's progressive-TTS trigger. Conversational turns (`route_to != "planner"`, incl. `REFERENCE_PURE`) stay plain Markdown, which the frontend renders identically (`ReactMarkdown` + `rehypeRaw`) in every display mode — so there is **no** display regression and **no** voice-pipeline change (the progressive low-latency TTS of ADR-082 is preserved). The `route_to` lookup reuses the canonical `get_qi_attr(state, "route_to", None)` helper (object- and dict-form safe), replacing two inline `isinstance`/`getattr` extractions.
+
+### Added — Defense-in-depth: HTML never reaches the TTS engine on any path
+
+The synchronous TTS entry points (`stream_direct_tts` and the `stream_voice_comment` context fallbacks) now route their text through `_sanitize_text_for_tts`, which strips HTML to speakable text via the existing `html_to_text` helper — but **only when real markup is detected** (recognised HTML element tags). Plain prose containing bare angle brackets (`x < 5 and y > 3`) or Markdown symbols is left untouched, avoiding the trap where `html_to_text`'s tag-stripping regex would otherwise delete `"< 5 and y >"`. This covers reference turns and post-LLM data-card injection, and guards against any future regression.
+
+Files: `apps/api/src/domains/agents/nodes/response_node.py` (`_should_inject_html_directive`, `get_qi_attr`-based `route_to`), `apps/api/src/domains/agents/api/service.py` (`_looks_like_html`, `_sanitize_text_for_tts`, `_sanitize_and_truncate_for_tts`), `docs/technical/VOICE.md` (new *Plain-text input guarantee* section). **Tests**: `tests/unit/domains/agents/nodes/test_response_node_html_gating.py` (directive gating per display-mode × route) and `tests/unit/agents/api/test_tts_text_sanitization.py` (HTML stripped; angle-bracket prose & Markdown preserved) — 20/20 green. Ruff / Black / MyPy clean; full app Docker startup verified healthy. No DB migration, no new env var, no endpoint change.
+
 ## [1.20.15] - 2026-05-29
 
 ### Fixed — Grafana dashboards: dozens of panels stuck on "No data" now resolve against the real production metrics

@@ -2928,6 +2928,14 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_16": {
+          "title": "v1.20.16 — 🔊 El modo de voz ya no lee el formato en voz alta durante la conversación",
+          "date": "Mayo 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔊 La voz ya no pronuncia los elementos de formato durante la conversación</b> — Cuando el modo de voz está activado y simplemente conversas (sin activar ninguna herramienta) con la visualización enriquecida (HTML), la voz a veces leía en voz alta elementos de formato en lugar del texto de la respuesta. El formato enriquecido ahora se reserva para las respuestas que presentan datos de herramientas; tus intercambios conversacionales se mantienen en texto sencillo, leído con naturalidad, y se ven idénticos en pantalla en todos los modos de visualización. No tienes que cambiar nada."
+          }
+        },
         "v1_20_15": {
           "title": "v1.20.15 — 📊 Fiabilidad de la monitorización: paneles de Grafana reparados y métricas de subagentes activadas",
           "date": "Mayo 2026",

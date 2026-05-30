@@ -2942,6 +2942,14 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_16": {
+          "title": "v1.20.16 — 🔊 Le mode vocal ne lit plus la mise en forme à voix haute en conversation",
+          "date": "Mai 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔊 La voix ne prononce plus les éléments de mise en forme en conversation</b> — Lorsque le mode vocal est activé et que vous discutez (sans déclencher d'outil) avec l'affichage enrichi (HTML), la voix lisait parfois à voix haute des éléments de mise en forme au lieu du texte de la réponse. La mise en forme enrichie est désormais réservée aux réponses qui présentent des données issues d'outils ; vos échanges conversationnels restent en texte simple, lus naturellement — et identiques à l'écran dans tous les modes d'affichage. Rien à changer de votre côté."
+          }
+        },
         "v1_20_15": {
           "title": "v1.20.15 — 📊 Fiabilité du monitoring : tableaux de bord Grafana réparés et métriques des sous-agents activées",
           "date": "Mai 2026",

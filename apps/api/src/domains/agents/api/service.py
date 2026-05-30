@@ -8,6 +8,7 @@ HITLOrchestrator, ConversationOrchestrator.
 """
 
 import asyncio
+import re
 import time
 import uuid
 from collections.abc import AsyncGenerator
@@ -34,6 +35,55 @@ logger = get_logger(__name__)
 
 # MAX_HITL_ACTIONS_PER_REQUEST defined in src.core.constants
 # Phase 3.3: Centralized constant management
+
+
+# Recognised HTML element tags emitted by the response/display layer. Used to
+# detect *real* markup before stripping it for TTS, so plain prose with bare
+# angle brackets ("x < 5 and y > 3") or Markdown symbols is left untouched.
+_HTML_TAG_RE = re.compile(
+    r"</?(?:div|p|span|style|script|h[1-6]|ul|ol|li|table|thead|tbody|tr|td|th"
+    r"|br|hr|a|strong|em|b|i|blockquote|code|pre|img)\b",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_html(text: str) -> bool:
+    """Cheaply detect genuine HTML markup (not a bare '<' in prose or code).
+
+    Guards :func:`_sanitize_text_for_tts` so plain text such as
+    ``"x < 5 and y > 3"`` is never run through ``html_to_text`` — whose final
+    ``re.sub(r"<[^>]+>", "", text)`` would otherwise delete ``"< 5 and y >"``.
+    Only recognised HTML element tags trigger stripping; the LLM's
+    ``lia-response`` wrapper is detected via its own ``<div>`` / ``<style>``
+    tags, so no separate (false-positive-prone) substring check is needed.
+    """
+    if not text:
+        return False
+    return bool(_HTML_TAG_RE.search(text))
+
+
+def _sanitize_text_for_tts(text: str) -> str:
+    """Strip HTML to speakable plain text, but only when markup is present.
+
+    Defense-in-depth safety net for every path that may feed the TTS engine
+    the raw assistant response (reference turns, post-LLM data cards, sync
+    voice fallbacks). A no-op on Markdown / plain prose, so it is safe to apply
+    unconditionally at TTS entry points without mangling normal replies.
+    """
+    if not text or not _looks_like_html(text):
+        return text
+    from src.domains.agents.display.components.base import html_to_text
+
+    return html_to_text(text, preserve_links=False)
+
+
+def _sanitize_and_truncate_for_tts(text: str, max_chars: int) -> str:
+    """Strip HTML (when present) then clamp to the voice-context char budget.
+
+    Thin convenience wrapper over :func:`_sanitize_text_for_tts` for the voice
+    fallback paths that feed a length-capped context to the voice LLM.
+    """
+    return _sanitize_text_for_tts(text)[:max_chars]
 
 
 class AgentService(
@@ -1883,7 +1933,7 @@ class AgentService(
 
                                 # Direct TTS: skip voice LLM, synthesize response directly
                                 async for audio_chunk in voice_service.stream_direct_tts(
-                                    text=response_content,
+                                    text=_sanitize_text_for_tts(response_content),
                                     user_language=user_language,
                                     max_sentences=settings.voice_chat_mode_max_sentences,
                                 ):
@@ -1910,14 +1960,14 @@ class AgentService(
                                             run_id=run_id,
                                             error=str(summary_error),
                                         )
-                                        voice_context = response_content[
-                                            : settings.voice_context_max_chars
-                                        ]
+                                        voice_context = _sanitize_and_truncate_for_tts(
+                                            response_content, settings.voice_context_max_chars
+                                        )
                                 else:
                                     # Fallback: use response content (chat mode with direct_tts disabled)
-                                    voice_context = response_content[
-                                        : settings.voice_context_max_chars
-                                    ]
+                                    voice_context = _sanitize_and_truncate_for_tts(
+                                        response_content, settings.voice_context_max_chars
+                                    )
 
                                 logger.info(
                                     "voice_sync_fallback_generating",
@@ -1938,7 +1988,9 @@ class AgentService(
 
                                 async for audio_chunk in voice_service.stream_voice_comment(
                                     context_summary=voice_context
-                                    or response_content[: settings.voice_context_max_chars],
+                                    or _sanitize_and_truncate_for_tts(
+                                        response_content, settings.voice_context_max_chars
+                                    ),
                                     personality_instruction=personality_instruction or "",
                                     user_language=user_language,
                                     current_datetime=current_dt,

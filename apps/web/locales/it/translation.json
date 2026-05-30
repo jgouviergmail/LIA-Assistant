@@ -2930,6 +2930,14 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_16": {
+          "title": "v1.20.16 — 🔊 La modalità vocale non legge più la formattazione ad alta voce durante la conversazione",
+          "date": "Maggio 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔊 La voce non pronuncia più gli elementi di formattazione durante la conversazione</b> — Quando la modalità vocale è attiva e stai semplicemente conversando (senza attivare uno strumento) con la visualizzazione arricchita (HTML), la voce a volte leggeva ad alta voce elementi di formattazione invece del testo della risposta. La formattazione arricchita è ora riservata alle risposte che presentano dati provenienti dagli strumenti; i tuoi scambi conversazionali restano in testo semplice, letto in modo naturale, e appaiono identici sullo schermo in tutte le modalità di visualizzazione. Non devi cambiare nulla."
+          }
+        },
         "v1_20_15": {
           "title": "v1.20.15 — 📊 Affidabilità del monitoraggio: dashboard Grafana riparate e metriche dei sotto-agenti attivate",
           "date": "Maggio 2026",
