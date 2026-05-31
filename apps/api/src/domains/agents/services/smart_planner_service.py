@@ -416,7 +416,7 @@ class SmartPlannerService:
             )
 
             config = enrich_config_with_node_metadata(config, "planner")
-            response = await llm.ainvoke(messages, config=config)
+            response = await self._invoke_planner_streaming_reasoning(llm, messages, config)
             response_text = response.text.strip()
 
             logger.debug(
@@ -564,7 +564,9 @@ class SmartPlannerService:
             )
 
             config = enrich_config_with_node_metadata(config, "planner_multi_domain")
-            response = await llm.ainvoke(messages, config=config)
+            response = await self._invoke_planner_streaming_reasoning(
+                llm, messages, config, node_name="planner_multi_domain"
+            )
             response_text = response.text.strip()
 
             parse_result = extract_json_from_llm_response(
@@ -609,6 +611,54 @@ class SmartPlannerService:
                 success=False,
                 error=f"Generative planning exception: {e}",
             )
+
+    @staticmethod
+    async def _invoke_planner_streaming_reasoning(
+        llm: Any,
+        messages: list[Any],
+        config: RunnableConfig,
+        node_name: str = "planner",
+    ) -> Any:
+        """Invoke the planner LLM, streaming its reasoning live to the progress UI.
+
+        Drop-in replacement for ``await llm.ainvoke(messages, config=config)``:
+        returns the same aggregated message (``.text`` exposes the JSON plan,
+        proven byte-identical to ``ainvoke``), while pushing the model's
+        chain-of-thought through the custom SSE channel. Any failure or empty
+        result falls back to ``ainvoke`` so planning never breaks.
+
+        Args:
+            llm: The planner ``BaseChatModel`` (from ``get_llm("planner")``).
+            messages: The system + human messages for the planner call.
+            config: Enriched ``RunnableConfig`` (callbacks/metadata) to propagate.
+            node_name: Logical node label for the reasoning UI block.
+
+        Returns:
+            The model's aggregated response (same contract as ``ainvoke``).
+        """
+        from src.infrastructure.llm.reasoning_stream import (
+            make_reasoning_emit,
+            stream_reasoning_events,
+        )
+
+        response: Any = None
+        try:
+            response = await stream_reasoning_events(
+                llm,
+                messages,
+                emit=make_reasoning_emit(node_name),
+                config=config,
+            )
+        except Exception as exc:  # defensive: reasoning streaming must never break planning
+            logger.warning(
+                "planner_reasoning_stream_failed",
+                node=node_name,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+        if response is None:
+            response = await llm.ainvoke(messages, config=config)
+        return response
 
     def _build_context_with_clarification(
         self,

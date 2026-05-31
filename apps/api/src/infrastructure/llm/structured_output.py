@@ -47,6 +47,7 @@ Usage:
 """
 
 import json
+from collections.abc import Callable
 from typing import Any, TypeVar
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -325,6 +326,7 @@ async def get_structured_output[T: BaseModel](
     provider: str,
     node_name: str | None = None,
     config: RunnableConfig | None = None,
+    reasoning_emit: Callable[[str], None] | None = None,
     **invoke_kwargs: Any,
 ) -> T:
     """
@@ -472,6 +474,7 @@ async def get_structured_output[T: BaseModel](
                 messages=final_messages,
                 schema=schema,
                 provider=provider,
+                reasoning_emit=reasoning_emit,
                 **invoke_kwargs,  # Now includes enriched config
             )
         else:
@@ -481,6 +484,7 @@ async def get_structured_output[T: BaseModel](
                 messages=final_messages,
                 schema=schema,
                 provider=provider,
+                reasoning_emit=reasoning_emit,
                 **invoke_kwargs,  # Now includes enriched config
             )
 
@@ -501,6 +505,7 @@ async def _get_native_structured_output[T: BaseModel](
     messages: list[BaseMessage],
     schema: type[T],
     provider: str,
+    reasoning_emit: Callable[[str], None] | None = None,
     **invoke_kwargs: Any,
 ) -> T:
     """
@@ -577,8 +582,26 @@ async def _get_native_structured_output[T: BaseModel](
                     reason=strict_reason,
                 )
 
-        # Invoke LLM with messages (use async)
-        result = await structured_llm.ainvoke(messages, **invoke_kwargs)
+        # Invoke LLM with messages (use async).
+        # When a reasoning emitter is provided, consume the structured runnable
+        # via astream_events so the model's chain-of-thought streams live to the
+        # progress UI; the returned (root) output is the same parsed Pydantic
+        # instance as ``ainvoke`` (proven: structured JSON strictly equal). Falls
+        # back to ``ainvoke`` if streaming yields no terminal output.
+        result: Any
+        if reasoning_emit is not None:
+            from src.infrastructure.llm.reasoning_stream import stream_reasoning_events
+
+            result = await stream_reasoning_events(
+                structured_llm,
+                messages,
+                emit=reasoning_emit,
+                config=invoke_kwargs.get("config"),
+            )
+            if result is None:
+                result = await structured_llm.ainvoke(messages, **invoke_kwargs)
+        else:
+            result = await structured_llm.ainvoke(messages, **invoke_kwargs)
 
         # LangChain guarantees result is already a Pydantic instance
         # Type checker hint (result should already be type T)
@@ -622,6 +645,7 @@ async def _get_json_mode_fallback[T: BaseModel](
     messages: list[BaseMessage],
     schema: type[T],
     provider: str,
+    reasoning_emit: Callable[[str], None] | None = None,
     **invoke_kwargs: Any,
 ) -> T:
     """
@@ -678,9 +702,26 @@ async def _get_json_mode_fallback[T: BaseModel](
         # with explicit JSON schema instructions) to enforce JSON output.
         # This approach works universally across all providers.
 
-        # Invoke LLM directly without response_format binding
-        # The augmented prompt is explicit enough to enforce JSON output
-        response = await llm.ainvoke(augmented_messages, **invoke_kwargs)
+        # Invoke LLM directly without response_format binding.
+        # The augmented prompt is explicit enough to enforce JSON output.
+        # When a reasoning emitter is provided, stream the model's live
+        # chain-of-thought via astream_events (this is the proven DeepSeek-V4
+        # thinking path — raw LLM, 336 reasoning deltas + parsable content). The
+        # returned aggregated message exposes the same ``.content`` as ``ainvoke``.
+        # Falls back to ``ainvoke`` if streaming yields no terminal output.
+        if reasoning_emit is not None:
+            from src.infrastructure.llm.reasoning_stream import stream_reasoning_events
+
+            response = await stream_reasoning_events(
+                llm,
+                augmented_messages,
+                emit=reasoning_emit,
+                config=invoke_kwargs.get("config"),
+            )
+            if response is None:
+                response = await llm.ainvoke(augmented_messages, **invoke_kwargs)
+        else:
+            response = await llm.ainvoke(augmented_messages, **invoke_kwargs)
 
         # Extract text content. Gemini 3.x returns content as list[dict] blocks;
         # coerce to text so len()/slicing/json.loads below stay str-safe.

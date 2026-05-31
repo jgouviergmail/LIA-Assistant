@@ -100,6 +100,63 @@ function buildAccumulatedStepsContent(steps: string[], t: SSEHandlerContext['t']
   ].join('\n');
 }
 
+/** Escape HTML so the model's reasoning text can't inject markup (rehype-raw). */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Render the live reasoning (💭) block as a `lia-reasoning` HTML sentinel.
+ *
+ * The raw reasoning is free-form prose split into paragraphs by blank lines
+ * (the actual shape emitted by the models — no markdown headers/lists). We
+ * split on blank lines, flatten internal single newlines to spaces (so
+ * sentences are never cut mid-phrase), HTML-escape each paragraph, and emit a
+ * `<div class="lia-reasoning">` containing one `<p>` per paragraph plus a
+ * header line. MarkdownContent renders this div via the <ReasoningScroll>
+ * component (fixed-height, auto-scrolling container — smooth, no jump).
+ *
+ * Append-only by design: paragraphs are never dropped mid-stream; the container
+ * scrolls instead. Total length is bounded by the backend per-node cap and the
+ * whole block is wiped on the first answer token. Returns '' when empty.
+ */
+function buildReasoningBlock(reasoning: string, t: SSEHandlerContext['t']): string {
+  const text = reasoning.trim();
+  if (!text) return '';
+
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/\s*\n\s*/g, ' ').trim())
+    .filter((p) => p.length > 0);
+
+  const title = escapeHtml(t('execution.reasoning.title', { defaultValue: 'Reasoning' }));
+  const header = `<p class="lia-reasoning__title">💭 ${title}</p>`;
+  const body = paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('');
+  // Blank lines around the div ensure rehype-raw treats it as a block.
+  return `\n\n<div class="lia-reasoning">${header}${body}</div>\n\n`;
+}
+
+/**
+ * Compose the progress message: accumulated steps, then the live reasoning
+ * block underneath (when present). Single source of truth for the progress
+ * bubble content while the assistant is "thinking".
+ */
+function buildProgressContent(
+  steps: string[],
+  reasoning: string,
+  t: SSEHandlerContext['t']
+): string {
+  const stepsContent = buildAccumulatedStepsContent(steps, t);
+  const reasoningBlock = buildReasoningBlock(reasoning, t);
+  if (!reasoningBlock) return stepsContent;
+  if (!stepsContent) return reasoningBlock;
+  return `${stepsContent}\n${reasoningBlock}`;
+}
+
 // ============================================================================
 // Data Event Handlers
 // ============================================================================
@@ -255,7 +312,11 @@ export function handleRouterDecision(chunk: ChatStreamChunk, context: SSEHandler
   const routerStep = getProgressMessage('router_decision', t);
   executionStepsRef.current.push(routerStep);
   context.emittedStepKeysRef.current.add('router_decision');
-  const fullContent = buildAccumulatedStepsContent(executionStepsRef.current, t);
+  const fullContent = buildProgressContent(
+    executionStepsRef.current,
+    context.reasoningBufRef.current,
+    t
+  );
 
   if (!progressMessageId) {
     // First progress event - create message
@@ -303,7 +364,11 @@ export function handlePlannerMetadata(chunk: ChatStreamChunk, context: SSEHandle
   const plannerStep = getProgressMessage('planner_metadata', t);
   executionStepsRef.current.push(plannerStep);
   emittedStepKeysRef.current.add('planner_generation');
-  const fullContent = buildAccumulatedStepsContent(executionStepsRef.current, t);
+  const fullContent = buildProgressContent(
+    executionStepsRef.current,
+    context.reasoningBufRef.current,
+    t
+  );
 
   if (progressMessageId) {
     dispatch({
@@ -419,6 +484,7 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
     assistantMessageId,
     executionStepsRef,
     emittedStepKeysRef,
+    reasoningBufRef,
   } = context;
 
   logger.debug(
@@ -431,20 +497,36 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
 
   const metadata = chunk.metadata as ProgressMessageMetadata | undefined;
 
-  // Deduplication by i18n_key: skip if already emitted by router/planner handlers.
-  // This prevents duplicates between router_decision/planner_metadata handlers and
-  // execution_step events from the backend "updates" stream mode.
-  if (metadata?.i18n_key && emittedStepKeysRef.current.has(metadata.i18n_key)) {
-    return; // Already shown by router/planner handler
+  // --- Live reasoning sub-type (💭): accumulate the model's chain-of-thought ---
+  // These events stream continuously during a thinking node; they are appended
+  // to a dedicated buffer (NOT the step accumulator) and rendered as a muted
+  // block beneath the steps. They are wiped on the first answer token, exactly
+  // like the steps (see handleToken / handleContentReplacement).
+  if (metadata?.step_type === 'reasoning') {
+    if (metadata.delta) {
+      reasoningBufRef.current += metadata.delta;
+    }
+  } else {
+    // Deduplication by i18n_key: skip if already emitted by router/planner handlers.
+    // This prevents duplicates between router_decision/planner_metadata handlers and
+    // execution_step events from the backend "updates" stream mode.
+    if (metadata?.i18n_key && emittedStepKeysRef.current.has(metadata.i18n_key)) {
+      return; // Already shown by router/planner handler
+    }
+
+    // Build and accumulate step message
+    const stepMessage = getProgressMessage('execution_step', t, metadata);
+    executionStepsRef.current.push(stepMessage);
+    if (metadata?.i18n_key) {
+      emittedStepKeysRef.current.add(metadata.i18n_key);
+    }
   }
 
-  // Build and accumulate step message
-  const stepMessage = getProgressMessage('execution_step', t, metadata);
-  executionStepsRef.current.push(stepMessage);
-  if (metadata?.i18n_key) {
-    emittedStepKeysRef.current.add(metadata.i18n_key);
-  }
-  const fullContent = buildAccumulatedStepsContent(executionStepsRef.current, t);
+  const fullContent = buildProgressContent(
+    executionStepsRef.current,
+    reasoningBufRef.current,
+    t
+  );
 
   if (progressMessageId) {
     dispatch({
@@ -483,9 +565,10 @@ export function handleToken(chunk: ChatStreamChunk, context: SSEHandlerContext):
   } = context;
 
   if (progressMessageId && !normalStreamInitialized) {
-    // Clear accumulated execution steps — real content is arriving
+    // Clear accumulated execution steps + live reasoning — real content is arriving
     executionStepsRef.current = [];
     context.emittedStepKeysRef.current = new Set();
+    context.reasoningBufRef.current = '';
     // Progress message exists → replace with first token
     dispatch({
       type: 'STREAM_REPLACE',
@@ -531,9 +614,10 @@ export function handleContentReplacement(chunk: ChatStreamChunk, context: SSEHan
   // whether progress events fired, or currentMessageId was cleared by an
   // intermediate event.
   if (!normalStreamInitialized) {
-    // Clear accumulated execution steps — real content is arriving
+    // Clear accumulated execution steps + live reasoning — real content is arriving
     executionStepsRef.current = [];
     context.emittedStepKeysRef.current = new Set();
+    context.reasoningBufRef.current = '';
     dispatch({ type: 'STREAM_START', payload: { messageId: assistantMessageId } });
     setNormalStreamInitialized(true);
     if (progressMessageId) {

@@ -29,6 +29,8 @@ export interface SSEHandlerContext {
   executionStepsRef: MutableRefObject<string[]>;
   /** Set of i18n_keys already emitted — used for deduplication between handlers */
   emittedStepKeysRef: MutableRefObject<Set<string>>;
+  /** Accumulated live reasoning text (💭 block), cleared on first answer token */
+  reasoningBufRef: MutableRefObject<string>;
   /** Current assistant message ID */
   assistantMessageId: string;
   /** Progress message ID (ephemeral router/planner/HITL messages) */
@@ -60,4 +62,10 @@ export interface ProgressMessageMetadata {
   i18n_key?: string;
   detail?: string;
   tool_name?: string;
+  /** Reasoning sub-type discriminator (live chain-of-thought) */
+  step_type?: string;
+  /** Coalesced reasoning text fragment (when step_type === 'reasoning') */
+  delta?: string;
+  /** Originating node name (e.g. 'query_analyzer') */
+  node?: string;
 }

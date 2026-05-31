@@ -1280,12 +1280,14 @@ class StreamingService:
             return sse_chunks
 
         # --- Node-level execution_step ---
-        # For react_call_model: enrich with reasoning detail from AIMessage
-        additional_data: dict[str, Any] | None = None
-        if node_name == "react_call_model":
-            additional_data = self._extract_react_enrichment(state_delta)
-
-        node_step = self._emit_execution_step(node_name, additional_data=additional_data)
+        # NOTE (reasoning streaming): react_call_model now streams its live
+        # chain-of-thought through the dedicated "reasoning" custom channel
+        # (see infrastructure/llm/reasoning_stream.py + react_nodes.py). The
+        # post-hoc ``_extract_react_enrichment`` detail (read from the final
+        # AIMessage content in "updates" mode) is intentionally NOT attached
+        # here anymore, to avoid showing the reasoning twice (live block +
+        # trailing detail). The node-level step (emoji/label) is still emitted.
+        node_step = self._emit_execution_step(node_name)
         if node_step:
             sse_chunks.append((node_step, ""))
 
@@ -1310,6 +1312,13 @@ class StreamingService:
     def _extract_react_enrichment(self, state_delta: dict[str, Any]) -> dict[str, Any] | None:
         """
         Extract reasoning detail from react_call_model's AIMessage.
+
+        DEPRECATED (reasoning streaming): no longer called from the hot path.
+        react_call_model now streams its live chain-of-thought via the dedicated
+        "reasoning" custom channel (infrastructure/llm/reasoning_stream.py), which
+        supersedes this post-hoc single-detail extraction. Kept for now to allow a
+        quick revert if live reasoning streaming is disabled; remove once the
+        feature is confirmed stable in production.
 
         Args:
             state_delta: State delta from react_call_model containing messages.

@@ -2709,6 +2709,9 @@
       "mcp_tool": "Executing external MCP tool...",
       "previous_steps_one": "previous step",
       "previous_steps_other": "previous steps"
+    },
+    "reasoning": {
+      "title": "Reasoning"
     }
   },
   "faq": {

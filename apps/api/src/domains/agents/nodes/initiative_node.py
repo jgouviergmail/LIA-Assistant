@@ -604,6 +604,8 @@ async def initiative_node(
         max_actions=settings.initiative_max_actions,
     )
 
+    from src.infrastructure.llm.reasoning_stream import make_reasoning_emit
+
     try:
         decision = await asyncio.wait_for(
             get_structured_output(
@@ -613,6 +615,7 @@ async def initiative_node(
                 provider=provider,
                 node_name=NODE_INITIATIVE,
                 config=config,
+                reasoning_emit=make_reasoning_emit(NODE_INITIATIVE),
             ),
             timeout=INITIATIVE_LLM_TIMEOUT_SECONDS,
         )

@@ -3372,6 +3372,30 @@ COMPACTION_RETRY_BACKOFF_BASE_SECONDS_DEFAULT = 1.0
 COMPACTION_INCLUDE_PREVIOUS_SUMMARIES_DEFAULT = True
 COMPACTION_SSE_STEP_TYPE = "compaction"
 
+# === Reasoning streaming (live agent thinking surfaced in the progress UI) ===
+# Sub-type carried in the `execution_step` SSE metadata so the frontend can
+# route reasoning deltas to a dedicated "💭" block, distinct from the generic
+# node/tool step accumulator. See `infrastructure/llm/reasoning_stream.py`.
+REASONING_SSE_STEP_TYPE = "reasoning"
+# Coalescing thresholds: providers emit reasoning at very different granularity
+# (DeepSeek ~336 deltas, qwen ~687 per call) — without coalescing the SSE stream
+# floods the client. A delta batch is flushed when it reaches MIN_CHARS, when the
+# INTERVAL elapses, or on a sentence boundary (whichever comes first).
+REASONING_COALESCE_MIN_CHARS = 48
+REASONING_COALESCE_INTERVAL_MS = 120
+# Safety ceiling on total reasoning characters streamed per node — a defensive
+# anti-flood guard against a pathological/looping thinking budget, NOT a visible
+# truncation: the frontend renders the reasoning in a fixed-height auto-scrolling
+# container (ReasoningScroll), so the full thought is always reachable by scroll.
+# Set high enough that real reasoning is never cut in practice.
+REASONING_MAX_CHARS_PER_NODE = 20000
+# Anthropic thinking budget (tokens) used ONLY when deriving a reasoning-enabled
+# runnable for the live reasoning stream (via .bind(thinking=...)). It does not
+# affect the factory-built LLM nor any other call path. Kept modest: the goal is
+# to surface *some* visible reasoning to the user, not to deepen the model's
+# actual thinking.
+REASONING_ANTHROPIC_BIND_BUDGET_TOKENS = 1024
+
 # UI progress-estimate heuristic used by `compaction_node._estimate_compaction_seconds`.
 # Tokens per chunk that the LLM is expected to digest, derived from
 # `COMPACTION_CHUNK_MAX_TOKENS_DEFAULT` (20000) minus the prompt overhead.

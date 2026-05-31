@@ -177,6 +177,8 @@ export const useChat = ({
   const executionStepsRef = useRef<string[]>([]);
   // Set of i18n_keys already emitted — deduplication between router/planner and execution_step
   const emittedStepKeysRef = useRef<Set<string>>(new Set());
+  // Live reasoning (💭) accumulated text — cleared on first answer token
+  const reasoningBufRef = useRef<string>('');
 
   // API health monitoring - syncs with reducer state via callback
   useAPIHealth({
@@ -294,9 +296,10 @@ export const useChat = ({
       // Track progress message lifecycle (ephemeral messages: router → planner → execution_step → HITL)
       let progressMessageId: string | null = null;
 
-      // Reset accumulated execution steps for this new message
+      // Reset accumulated execution steps + live reasoning for this new message
       executionStepsRef.current = [];
       emittedStepKeysRef.current = new Set();
+      reasoningBufRef.current = '';
 
       // Prepare SSE request
       // Session management: Using user.id as session identifier
@@ -359,6 +362,7 @@ export const useChat = ({
               hitlQuestionBuffer,
               executionStepsRef,
               emittedStepKeysRef,
+              reasoningBufRef,
               assistantMessageId,
               progressMessageId,
               setProgressMessageId: (id: string | null) => {

@@ -2695,6 +2695,9 @@
       "mcp_tool": "正在执行外部MCP工具...",
       "previous_steps_one": "之前的步骤",
       "previous_steps_other": "之前的步骤"
+    },
+    "reasoning": {
+      "title": "推理"
     }
   },
   "faq": {

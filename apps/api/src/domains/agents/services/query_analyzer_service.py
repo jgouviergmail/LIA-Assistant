@@ -742,6 +742,8 @@ async def analyze_query(
 
         from langchain_core.messages import HumanMessage
 
+        from src.infrastructure.llm.reasoning_stream import make_reasoning_emit
+
         result: QueryAnalysisOutput = await asyncio.wait_for(
             get_structured_output(
                 llm=llm,
@@ -750,6 +752,7 @@ async def analyze_query(
                 provider=agent_config.provider,
                 node_name="query_analyzer",
                 config=base_config,
+                reasoning_emit=make_reasoning_emit("query_analyzer"),
             ),
             timeout=settings.query_analyzer_llm_timeout_seconds,
         )

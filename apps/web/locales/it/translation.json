@@ -2702,6 +2702,9 @@
       "mcp_tool": "Esecuzione strumento MCP esterno...",
       "previous_steps_one": "passaggio precedente",
       "previous_steps_other": "passaggi precedenti"
+    },
+    "reasoning": {
+      "title": "Ragionamento"
     }
   },
   "faq": {

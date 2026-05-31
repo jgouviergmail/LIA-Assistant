@@ -2700,6 +2700,9 @@
       "mcp_tool": "Externes MCP-Tool wird ausgeführt...",
       "previous_steps_one": "vorheriger Schritt",
       "previous_steps_other": "vorherige Schritte"
+    },
+    "reasoning": {
+      "title": "Überlegung"
     }
   },
   "faq": {

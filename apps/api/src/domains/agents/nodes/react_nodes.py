@@ -406,7 +406,32 @@ async def react_call_model_node(
     # loop messages from the current turn (the agent needs its own reasoning chain).
     messages = _window_messages_for_react(state["messages"])
 
-    response: AIMessage = await llm_with_tools.ainvoke(messages, config)
+    # Stream the model's reasoning live (thinking models) to the progress UI via
+    # the custom channel, while returning the SAME aggregated AIMessage as
+    # ``ainvoke`` (tool_calls/content identical — proven by prod POC). On any
+    # failure or empty result, fall back to ``ainvoke`` so the loop never breaks.
+    from src.infrastructure.llm.reasoning_stream import (
+        make_reasoning_emit,
+        stream_reasoning_events,
+    )
+
+    response: AIMessage | None = None
+    try:
+        response = await stream_reasoning_events(
+            llm_with_tools,
+            messages,
+            emit=make_reasoning_emit("react_call_model"),
+            config=config,
+        )
+    except Exception as exc:  # defensive: reasoning streaming must never break the loop
+        logger.warning(
+            "react_reasoning_stream_failed",
+            iteration=iteration + 1,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+    if response is None:
+        response = await llm_with_tools.ainvoke(messages, config)
 
     tool_call_count = len(response.tool_calls) if response.tool_calls else 0
     logger.info(
