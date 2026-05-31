@@ -213,10 +213,7 @@ export const useConversation = (): UseConversationReturn => {
         }>('/conversations/me/messages', { params });
 
         // Backend returns DESC (newest first). Reverse to display order.
-        const messages: Message[] = response.messages
-          .slice()
-          .reverse()
-          .map(toUiMessage);
+        const messages: Message[] = response.messages.slice().reverse().map(toUiMessage);
 
         // First-page load is an operational event of interest (perf, user-issue
         // triage) — surface it at ``info``. Subsequent scroll-up pages are

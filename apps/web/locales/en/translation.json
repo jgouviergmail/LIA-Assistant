@@ -1789,7 +1789,8 @@
           "timeoutPlaceholder": "None (provider default)",
           "reasoningEffort": "Reasoning Effort",
           "reasoningNone": "None (disabled)",
-          "reasoningDefault": "Default (model)"
+          "reasoningDefault": "Default (model)",
+          "effort": "Effort"
         },
         "constraints": {
           "reasoningTemp": "Reasoning models use a fixed temperature of 1.0. This parameter will be ignored by the API."
@@ -1801,7 +1802,8 @@
           "presencePenalty": "Encourages topic diversity. Penalizes each token that has appeared, regardless of frequency. Positive = explores more topics. Range: -2 to 2.",
           "maxTokens": "Maximum number of output tokens. Limits the length of the generated response. Optimal value depends on the agent type.",
           "timeout": "Maximum wait time in seconds before aborting the API call. Leave empty to use the provider's default.",
-          "reasoningEffort": "Controls the model's internal thinking intensity. Higher = better accuracy but increased latency and cost. Lower = fast responses for simple tasks."
+          "reasoningEffort": "Controls the model's internal thinking intensity. Higher = better accuracy but increased latency and cost. Lower = fast responses for simple tasks.",
+          "effort": "Global effort control (Anthropic): trades response thoroughness for token efficiency across text, tool calls, and thinking. Lower = cheaper and faster. Default = high."
         },
         "config": {
           "saved": "LLM configuration saved",
@@ -2940,6 +2942,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_17": {
+          "title": "v1.20.17 — 💭 Watch the assistant think, and richer reasoning settings for Claude models",
+          "date": "June 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>💭 See the assistant reason in real time</b> — When a model with “reasoning” enabled is configured for an agent, its train of thought now streams live in the progress area while it works, then disappears as soon as the final answer arrives. It fills the wait with useful context and shows how the assistant approaches your request. It only appears when reasoning is actually active — nothing is shown for agents that don't reason.",
+            "i2": "<b>🧠 Per-model thinking settings for Claude (Admin · Configuration LLM)</b> — Each Claude model now exposes exactly the reasoning controls its API really supports: Opus 4.6 / Sonnet 4.6 use adaptive thinking with an effort level (off · low · medium · high · max); Opus 4.5 / Haiku 4.5 use a manual thinking budget (on/off + tokens). When thinking is on, temperature is locked automatically (the provider requires it), so you can no longer save an inconsistent configuration. Opus 4.5 also gains a separate global “effort” control.",
+            "i3": "<b>🔧 Fix — Claude no longer fails when thinking is enabled</b> — With extended thinking turned on for a Claude model, certain internal steps (such as request analysis) could fail and degrade the whole turn. This is fixed: those steps now use the only mode the provider allows with thinking, so turns complete normally. Nothing to change on your side."
+          }
+        },
         "v1_20_16": {
           "title": "v1.20.16 — 🔊 Voice mode no longer reads formatting aloud during conversation",
           "date": "May 2026",

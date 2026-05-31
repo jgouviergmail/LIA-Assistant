@@ -28,10 +28,18 @@ export const REASONING_DOC_TEXT: Record<string, string> = {
   gemini_2_5_pro: 'Gemini 2.5 Pro: thinking budget in tokens, 128–32768. CANNOT be disabled.',
   gemini_3_x_flash: 'Gemini 3.x Flash: minimal / low / medium / high.',
   gemini_3_x_pro: 'Gemini 3.x Pro: low / medium / high (no minimal). CANNOT be disabled.',
-  anthropic_4_5: 'Claude Opus 4.5: low / medium / high effort enum.',
-  anthropic_4_6: 'Claude Opus 4.6: low / medium / high / max effort enum.',
+  anthropic_haiku_4_5:
+    'Claude Haiku 4.5: extended thinking via a manual token budget. Disabled by ' +
+    'default; toggle on + budget 1024–16384. Temperature is locked while thinking is on.',
+  anthropic_4_5:
+    'Claude Opus 4.5: extended thinking via a manual token budget. Disabled by ' +
+    'default; toggle on + budget 1024–16384. Temperature is locked while thinking is on.',
+  anthropic_4_6:
+    'Claude Opus 4.6: adaptive thinking. off / low / medium / high / max (off = no ' +
+    'thinking). Temperature is locked while thinking is on.',
   anthropic_sonnet_4_6:
-    'Claude Sonnet 4.6: low / medium / high effort enum (max is Opus 4.6 only).',
+    'Claude Sonnet 4.6: adaptive thinking. off / low / medium / high / max (off = no ' +
+    'thinking). Temperature is locked while thinking is on.',
   deepseek_v4:
     'DeepSeek V4: off / high / max. (low / medium are silently mapped to high by the API.)',
   qwen3_max:

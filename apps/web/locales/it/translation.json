@@ -1610,7 +1610,8 @@
           "timeoutPlaceholder": "Nessuno (predefinito del provider)",
           "reasoningEffort": "Sforzo di ragionamento",
           "reasoningNone": "Nessuno (disattivato)",
-          "reasoningDefault": "Predefinito (modello)"
+          "reasoningDefault": "Predefinito (modello)",
+          "effort": "Sforzo"
         },
         "constraints": {
           "reasoningTemp": "I modelli di ragionamento usano una temperatura fissa di 1.0. Questo parametro sarà ignorato dall'API."
@@ -1622,7 +1623,8 @@
           "presencePenalty": "Incoraggia la diversità tematica. Penalizza ogni token già apparso, indipendentemente dalla frequenza. Positivo = esplora più argomenti. Intervallo: da -2 a 2.",
           "maxTokens": "Numero massimo di token in output. Limita la lunghezza della risposta generata. Il valore ottimale dipende dal tipo di agente.",
           "timeout": "Tempo massimo di attesa in secondi prima di annullare la chiamata API. Lasciare vuoto per usare il valore predefinito del provider.",
-          "reasoningEffort": "Controlla l'intensità del pensiero interno del modello. Più alto = migliore precisione ma maggiore latenza e costo. Più basso = risposte rapide per compiti semplici."
+          "reasoningEffort": "Controlla l'intensità del pensiero interno del modello. Più alto = migliore precisione ma maggiore latenza e costo. Più basso = risposte rapide per compiti semplici.",
+          "effort": "Controllo dello sforzo globale (Anthropic): bilancia la completezza della risposta con l'efficienza dei token (testo, chiamate agli strumenti, ragionamento). Più basso = più economico e veloce. Predefinito = high."
         },
         "config": {
           "saved": "Configurazione LLM salvata",
@@ -2933,6 +2935,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_17": {
+          "title": "v1.20.17 — 💭 Guarda l'assistente ragionare, e impostazioni di ragionamento più ricche per i modelli Claude",
+          "date": "Giugno 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>💭 Guarda l'assistente ragionare in tempo reale</b> — Quando per un agente è configurato un modello con il «ragionamento» attivo, il suo filo di pensiero ora viene trasmesso in diretta nell'area di avanzamento mentre lavora, poi scompare non appena arriva la risposta finale. Riempie l'attesa con contesto utile e mostra come l'assistente affronta la tua richiesta. Appare solo quando il ragionamento è effettivamente attivo — non viene mostrato nulla per gli agenti che non ragionano.",
+            "i2": "<b>🧠 Impostazioni di pensiero per modello per Claude (Admin · Configurazione LLM)</b> — Ogni modello Claude espone ora esattamente i controlli di ragionamento che la sua API supporta davvero: Opus 4.6 / Sonnet 4.6 usano il pensiero adattivo con un livello di sforzo (off · low · medium · high · max); Opus 4.5 / Haiku 4.5 usano un budget di pensiero manuale (attivo/disattivo + token). Quando il pensiero è attivo, la temperatura viene bloccata automaticamente (il provider lo richiede), così non è più possibile salvare una configurazione incoerente. Opus 4.5 ottiene anche un controllo «sforzo» globale separato.",
+            "i3": "<b>🔧 Correzione — Claude non fallisce più quando il pensiero è attivato</b> — Con il pensiero esteso attivo su un modello Claude, alcuni passaggi interni (come l'analisi della richiesta) potevano fallire e degradare l'intero turno. È stato corretto: questi passaggi ora usano l'unica modalità che il provider consente con il pensiero, quindi i turni si completano normalmente. Non devi cambiare nulla."
+          }
+        },
         "v1_20_16": {
           "title": "v1.20.16 — 🔊 La modalità vocale non legge più la formattazione ad alta voce durante la conversazione",
           "date": "Maggio 2026",

@@ -10,7 +10,11 @@ import { ContextUsagePill } from '../ContextUsagePill';
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
-      opts ? `${key}|${Object.entries(opts).map(([k, v]) => `${k}=${v}`).join('|')}` : key,
+      opts
+        ? `${key}|${Object.entries(opts)
+            .map(([k, v]) => `${k}=${v}`)
+            .join('|')}`
+        : key,
   }),
 }));
 

@@ -50,7 +50,10 @@ def test_openai_wrong_shape_raises() -> None:
 
 
 # ============================================================================
-# build_anthropic_reasoning (FIX for langchain-anthropic constructor kwarg)
+# build_anthropic_reasoning — two families:
+#   adaptive (opus-4-6/sonnet-4-6, enum incl. 'off') and manual
+#   (opus-4-5/haiku-4-5, toggle_budget). Returning a ``thinking`` key signals
+#   the adapter to omit temperature/top_p (Anthropic API constraint).
 # ============================================================================
 
 
@@ -60,14 +63,43 @@ def test_anthropic_none_returns_empty() -> None:
 
 
 @pytest.mark.unit
-def test_anthropic_enum_returns_constructor_kwarg() -> None:
-    """Critical: must return ``effort=`` (constructor kwarg consumed by
-    ChatAnthropic, mapped to native output_config.effort by langchain-
-    anthropic 1.3.5), NOT additional_kwargs (which is silently dropped)."""
+def test_anthropic_adaptive_enum_enables_thinking() -> None:
+    """opus-4-6 / sonnet-4-6: a non-'off' effort enables adaptive thinking + effort."""
     result = build_anthropic_reasoning(ReasoningEffortEnum(effort="max"), "claude-opus-4-6")
-    assert result == {"effort": "max"}
-    # Negative assertion: ensure we didn't fall back to the broken pattern
-    assert "additional_kwargs" not in result
+    assert result == {"thinking": {"type": "adaptive"}, "effort": "max"}
+
+
+@pytest.mark.unit
+def test_anthropic_adaptive_off_disables_thinking() -> None:
+    """The 'off' sentinel disables thinking entirely (empty kwargs)."""
+    result = build_anthropic_reasoning(ReasoningEffortEnum(effort="off"), "claude-opus-4-6")
+    assert result == {}
+
+
+@pytest.mark.unit
+def test_anthropic_manual_toggle_enabled_uses_budget_tokens() -> None:
+    """opus-4-5 / haiku-4-5: enabled toggle → manual extended thinking with budget."""
+    result = build_anthropic_reasoning(
+        ReasoningEffortToggleBudget(enabled=True, budget=4096), "claude-opus-4-5"
+    )
+    assert result == {"thinking": {"type": "enabled", "budget_tokens": 4096}}
+
+
+@pytest.mark.unit
+def test_anthropic_manual_toggle_enabled_without_budget_uses_min() -> None:
+    """When enabled with no explicit budget, fall back to the documented minimum."""
+    result = build_anthropic_reasoning(
+        ReasoningEffortToggleBudget(enabled=True, budget=None), "claude-haiku-4-5"
+    )
+    assert result == {"thinking": {"type": "enabled", "budget_tokens": 1024}}
+
+
+@pytest.mark.unit
+def test_anthropic_manual_toggle_disabled_returns_empty() -> None:
+    result = build_anthropic_reasoning(
+        ReasoningEffortToggleBudget(enabled=False), "claude-opus-4-5"
+    )
+    assert result == {}
 
 
 @pytest.mark.unit
@@ -128,8 +160,9 @@ def test_gemini_none_returns_empty() -> None:
 
 @pytest.mark.unit
 def test_gemini_budget_returns_thinking_budget() -> None:
+    """include_thoughts=True is set so the configured thoughts surface in the stream."""
     result = build_gemini_reasoning(ReasoningEffortBudget(budget=16384), "gemini-2.5-flash")
-    assert result == {"thinking_budget": 16384}
+    assert result == {"thinking_budget": 16384, "include_thoughts": True}
 
 
 @pytest.mark.unit
@@ -137,20 +170,20 @@ def test_gemini_budget_passes_off_sentinel_through() -> None:
     """The validation step lets the off_sentinel through; the builder must
     forward it as-is to Gemini API (which interprets 0 as off)."""
     result = build_gemini_reasoning(ReasoningEffortBudget(budget=0), "gemini-2.5-flash")
-    assert result == {"thinking_budget": 0}
+    assert result == {"thinking_budget": 0, "include_thoughts": True}
 
 
 @pytest.mark.unit
 def test_gemini_budget_passes_dynamic_sentinel_through() -> None:
     result = build_gemini_reasoning(ReasoningEffortBudget(budget=-1), "gemini-2.5-flash")
-    assert result == {"thinking_budget": -1}
+    assert result == {"thinking_budget": -1, "include_thoughts": True}
 
 
 @pytest.mark.unit
 def test_gemini_enum_returns_thinking_level() -> None:
     """Gemini 3.x uses thinking_level (string enum)."""
     result = build_gemini_reasoning(ReasoningEffortEnum(effort="high"), "gemini-3-pro-preview")
-    assert result == {"thinking_level": "high"}
+    assert result == {"thinking_level": "high", "include_thoughts": True}
 
 
 @pytest.mark.unit
@@ -158,7 +191,7 @@ def test_gemini_no_silent_medium_to_low_mapping() -> None:
     """Regression: medium must NOT be silently rewritten to low (the previous
     adapter behavior was factually wrong per Gemini docs)."""
     result = build_gemini_reasoning(ReasoningEffortEnum(effort="medium"), "gemini-3-pro-preview")
-    assert result == {"thinking_level": "medium"}
+    assert result == {"thinking_level": "medium", "include_thoughts": True}
 
 
 @pytest.mark.unit

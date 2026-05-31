@@ -14,7 +14,11 @@
  * value whose shape no longer fits the new model must not be carried over — it
  * would be persisted as-is and crash the typed reasoning builder at runtime.
  */
-import type { ModelCapabilities, ReasoningEffortValue, ReasoningWidgetType } from '@/types/llm-config';
+import type {
+  ModelCapabilities,
+  ReasoningEffortValue,
+  ReasoningWidgetType,
+} from '@/types/llm-config';
 
 /** Discriminate the *shape* of a reasoning_effort value into the widget type it
  * belongs to. `null` (no override) maps to 'none'. */
@@ -33,7 +37,7 @@ export function reasoningEffortShape(value: ReasoningEffortValue | undefined): R
  * as non-reasoning ('none'), so only `null` is considered valid. */
 export function reasoningEffortMatchesModel(
   value: ReasoningEffortValue | undefined,
-  caps: ModelCapabilities | undefined,
+  caps: ModelCapabilities | undefined
 ): boolean {
   const widget: ReasoningWidgetType = caps?.reasoning_widget ?? 'none';
   if (widget === 'none') return value == null;
@@ -54,7 +58,7 @@ export function reasoningEffortMatchesModel(
  * switch. */
 export function coerceReasoningEffortForModel(
   current: ReasoningEffortValue | undefined,
-  caps: ModelCapabilities | undefined,
+  caps: ModelCapabilities | undefined
 ): ReasoningEffortValue {
   return reasoningEffortMatchesModel(current, caps) ? (current ?? null) : null;
 }

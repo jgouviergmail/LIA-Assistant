@@ -75,7 +75,11 @@ interface ApiMessage {
   tts_cost_eur: null;
 }
 
-const makeApiMessage = (id: string, created_at: string, role: 'user' | 'assistant' = 'user'): ApiMessage => ({
+const makeApiMessage = (
+  id: string,
+  created_at: string,
+  role: 'user' | 'assistant' = 'user'
+): ApiMessage => ({
   id,
   role,
   content: `msg ${id}`,
@@ -155,9 +159,7 @@ describe('useConversation — keyset pagination', () => {
 
   it('loadOlderMessages forwards the cursor as the "before" query param', async () => {
     const olderPageResponse = {
-      messages: [
-        makeApiMessage('m0', '2026-01-01T00:00:00Z'),
-      ],
+      messages: [makeApiMessage('m0', '2026-01-01T00:00:00Z')],
       conversation_id: 'conv-1',
       total_count: 1,
       has_more: false,
@@ -176,9 +178,7 @@ describe('useConversation — keyset pagination', () => {
     });
 
     // Locate the messages call (the metadata call from mount has different URL)
-    const messagesCall = mockGet.mock.calls.find(
-      ([url]) => url === '/conversations/me/messages'
-    );
+    const messagesCall = mockGet.mock.calls.find(([url]) => url === '/conversations/me/messages');
     expect(messagesCall).toBeDefined();
     const config = messagesCall![1] as { params: { limit: number; before?: string } };
     expect(config.params.before).toBe('2026-01-01T00:01:00Z');
@@ -254,9 +254,7 @@ describe('useConversation — keyset pagination', () => {
       await result.current.loadConversationPage();
     });
 
-    const messagesCall = mockGet.mock.calls.find(
-      ([url]) => url === '/conversations/me/messages'
-    );
+    const messagesCall = mockGet.mock.calls.find(([url]) => url === '/conversations/me/messages');
     expect(messagesCall).toBeDefined();
     const config = messagesCall![1] as { params: { limit: number; before?: string } };
     expect(config.params.before).toBeUndefined();

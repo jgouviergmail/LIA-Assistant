@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.constants import ANTHROPIC_MIN_THINKING_BUDGET_TOKENS
 from src.core.reasoning_types import (
     ReasoningEffortBudget,
     ReasoningEffortEnum,
@@ -37,24 +38,42 @@ def build_openai_reasoning(value: ReasoningEffortValue, model: str) -> dict[str,
 
 
 def build_anthropic_reasoning(value: ReasoningEffortValue, model: str) -> dict[str, Any]:
-    """Anthropic Claude 4.5+ effort enum.
+    """Anthropic extended-thinking config, per model family.
 
-    Verified: ``langchain_anthropic.chat_models.ChatAnthropic`` accepts an
-    ``effort`` constructor kwarg and merges it into the native API as
-    ``output_config.effort`` (cf. langchain-anthropic 1.3.5
-    chat_models.py:899-918, 1186-1197). The previous code used
-    ``additional_kwargs["effort"]`` — that is a LangChain *messages* kwarg
-    convention, NOT a constructor-level field, so the value was silently
-    dropped at the API call. This is the bug fix.
+    Verified against Anthropic docs (2026-05) for the managed models:
+
+    - **Adaptive** (opus-4-6, sonnet-4-6): ``reasoning_widget='enum'``. The effort
+      enum carries an ``"off"`` sentinel. ``"off"`` → no thinking (``{}``); any other
+      value → ``thinking={"type":"adaptive"}`` + ``effort=<value>`` (effort guides the
+      adaptive thinking depth, and also overall token spend).
+    - **Manual** (opus-4-5, haiku-4-5): ``reasoning_widget='toggle_budget'``.
+      ``enabled=False`` → no thinking (``{}``); ``enabled=True`` →
+      ``thinking={"type":"enabled","budget_tokens":<budget or min>}``.
+
+    ``langchain_anthropic`` 1.4.0 accepts both ``thinking`` and ``effort`` constructor
+    kwargs (verified). When the returned dict contains a ``thinking`` key, the adapter
+    omits ``temperature``/``top_p`` — Anthropic rejects custom sampling while extended
+    thinking is enabled (API constraint). reasoning_stream does NOT inject thinking:
+    the streamed reasoning comes solely from this config-driven setup.
     """
     if value is None:
         return {}
-    if not isinstance(value, ReasoningEffortEnum):
-        raise RuntimeError(
-            f"Anthropic {model}: reasoning_effort must be ReasoningEffortEnum, "
-            f"got {type(value).__name__}. Validation upstream is broken."
-        )
-    return {"effort": value.effort}
+    if isinstance(value, ReasoningEffortEnum):
+        # Adaptive family (opus-4-6 / sonnet-4-6): 'off' disables thinking.
+        if value.effort == "off":
+            return {}
+        return {"thinking": {"type": "adaptive"}, "effort": value.effort}
+    if isinstance(value, ReasoningEffortToggleBudget):
+        # Manual family (opus-4-5 / haiku-4-5): explicit budget_tokens thinking.
+        if not value.enabled:
+            return {}
+        budget = value.budget if value.budget is not None else ANTHROPIC_MIN_THINKING_BUDGET_TOKENS
+        return {"thinking": {"type": "enabled", "budget_tokens": budget}}
+    raise RuntimeError(
+        f"Anthropic {model}: reasoning_effort must be ReasoningEffortEnum or "
+        f"ReasoningEffortToggleBudget, got {type(value).__name__}. "
+        "Validation upstream is broken."
+    )
 
 
 def build_deepseek_v4_reasoning(value: ReasoningEffortValue, model: str) -> dict[str, Any]:
@@ -87,13 +106,19 @@ def build_gemini_reasoning(value: ReasoningEffortValue, model: str) -> dict[str,
 
     No silent ``medium → low`` mapping — the matrix exposes only what each
     model accepts.
+
+    ``include_thoughts=True`` is set alongside the thinking config so the
+    configured thoughts are actually surfaced in the response stream (Gemini
+    computes thoughts but omits them unless asked). This is config-driven — the
+    live reasoning stream no longer injects it. When reasoning is not configured
+    (``value is None``) we return ``{}`` so no thoughts are requested.
     """
     if value is None:
         return {}
     if isinstance(value, ReasoningEffortBudget):
-        return {"thinking_budget": value.budget}
+        return {"thinking_budget": value.budget, "include_thoughts": True}
     if isinstance(value, ReasoningEffortEnum):
-        return {"thinking_level": value.effort}
+        return {"thinking_level": value.effort, "include_thoughts": True}
     raise RuntimeError(
         f"Gemini {model}: unexpected reasoning_effort shape "
         f"{type(value).__name__}. Validation upstream is broken."

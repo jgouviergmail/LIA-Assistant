@@ -17,7 +17,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from langchain_core.messages import AIMessageChunk, HumanMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 from pydantic import BaseModel, Field
 
 from src.infrastructure.llm.structured_output import get_structured_output
@@ -91,12 +91,61 @@ class _FakeJsonModeLLM:
         return AIMessageChunk(content=_DECISION_JSON)
 
 
+class _FakeBoundToolLLM:
+    """Stands in for ``llm.bind_tools([schema], tool_choice="auto")`` — streams
+    reasoning, then emits the schema as a tool call (OpenAI auto-tool path)."""
+
+    def __init__(self, *, emit_tool_call: bool) -> None:
+        self._emit_tool_call = emit_tool_call
+
+    async def astream_events(self, _messages: Any, **_kw: Any) -> AsyncIterator[dict[str, Any]]:
+        if self._emit_tool_call:
+            output = AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "SimpleDecision",
+                        "args": _DECISION.model_dump(),
+                        "id": "call_1",
+                        "type": "tool_call",
+                    }
+                ],
+            )
+        else:
+            output = AIMessage(content="no tool here")  # model declined the tool
+        for ev in _events(
+            output=output, reasoning=["think ", "more"], terminal="on_chat_model_end"
+        ):
+            yield ev
+
+
+class _FakeOpenAIAutoToolLLM:
+    """OpenAI-like model exposing both ``bind_tools`` (auto-tool streaming path)
+    and ``with_structured_output`` (buffered fallback)."""
+
+    def __init__(self, *, emit_tool_call: bool) -> None:
+        self.bound = _FakeBoundToolLLM(emit_tool_call=emit_tool_call)
+        self.structured = _FakeStructuredLLM()
+        self.bind_calls = 0
+
+    def bind_tools(self, _tools: Any, **_kw: Any) -> _FakeBoundToolLLM:
+        self.bind_calls += 1
+        return self.bound
+
+    def with_structured_output(self, _schema: Any, **_kw: Any) -> _FakeStructuredLLM:
+        return self.structured
+
+
 @pytest.mark.asyncio
-class TestReasoningEmitParity:
-    async def test_native_path_parity_and_emit(self) -> None:
-        """Native path: reasoning_emit yields same result as ainvoke + emits deltas."""
+class TestOpenAIAutoToolPath:
+    async def test_auto_tool_streams_reasoning_and_parses(self) -> None:
+        """OpenAI: schema bound as an auto tool → reasoning streamed + parsed result.
+
+        No forced tool_choice (which would suppress the reasoning summary); the
+        tool-call args are validated into the schema. No buffered fallback.
+        """
         emitted: list[str] = []
-        llm = _FakeNativeLLM()
+        llm = _FakeOpenAIAutoToolLLM(emit_tool_call=True)
         with patch("src.infrastructure.llm.structured_output.settings") as s:
             s.provider_supports_structured_output = {"openai": True}
             result = await get_structured_output(
@@ -104,6 +153,114 @@ class TestReasoningEmitParity:
                 messages=[HumanMessage(content="x")],
                 schema=SimpleDecision,
                 provider="openai",
+                reasoning_emit=emitted.append,
+            )
+        assert result == _DECISION  # parsed from the tool-call args
+        assert "".join(emitted) == "think more"  # reasoning streamed live
+        assert llm.bind_calls == 1  # auto-tool path used
+        assert llm.structured.ainvoke_calls == 0  # no buffered fallback
+
+    async def test_auto_tool_falls_back_to_buffered_when_tool_declined(self) -> None:
+        """OpenAI: if the model emits no tool call, fall back to buffered ainvoke."""
+        emitted: list[str] = []
+        llm = _FakeOpenAIAutoToolLLM(emit_tool_call=False)
+        with patch("src.infrastructure.llm.structured_output.settings") as s:
+            s.provider_supports_structured_output = {"openai": True}
+            result = await get_structured_output(
+                llm=llm,  # type: ignore[arg-type]
+                messages=[HumanMessage(content="x")],
+                schema=SimpleDecision,
+                provider="openai",
+                reasoning_emit=emitted.append,
+            )
+        assert result == _DECISION  # parity preserved via buffered fallback
+        assert llm.bind_calls == 1  # auto-tool attempted first
+        assert llm.structured.ainvoke_calls == 1  # then buffered fallback
+
+
+class _FakeAnthropicThinkingLLM:
+    """Anthropic-like model with extended thinking ON (exposes a ``.thinking`` dict).
+
+    Structured output on a thinking-enabled Claude MUST go through the auto-tool
+    path: a forced ``tool_choice`` is rejected by the API (400). There is no
+    buffered forced-tool fallback (it would 400), so a missing tool call raises.
+    """
+
+    def __init__(self, *, emit_tool_call: bool) -> None:
+        self.thinking = {"type": "adaptive"}
+        self.bound = _FakeBoundToolLLM(emit_tool_call=emit_tool_call)
+        self.structured = _FakeStructuredLLM()
+        self.bind_calls = 0
+
+    def bind_tools(self, _tools: Any, **_kw: Any) -> _FakeBoundToolLLM:
+        self.bind_calls += 1
+        return self.bound
+
+    def with_structured_output(self, _schema: Any, **_kw: Any) -> _FakeStructuredLLM:
+        return self.structured
+
+
+@pytest.mark.asyncio
+class TestAnthropicThinkingAutoToolPath:
+    async def test_thinking_uses_auto_tool_and_parses(self) -> None:
+        """Anthropic thinking ON → auto-tool path, reasoning streamed, parsed result.
+
+        Applies regardless of reasoning_emit, but never falls back to the forced-tool
+        buffered path (which would 400 with thinking enabled).
+        """
+        emitted: list[str] = []
+        llm = _FakeAnthropicThinkingLLM(emit_tool_call=True)
+        with patch("src.infrastructure.llm.structured_output.settings") as s:
+            s.provider_supports_structured_output = {"anthropic": True}
+            result = await get_structured_output(
+                llm=llm,  # type: ignore[arg-type]
+                messages=[HumanMessage(content="x")],
+                schema=SimpleDecision,
+                provider="anthropic",
+                reasoning_emit=emitted.append,
+            )
+        assert result == _DECISION  # parsed from the tool-call args
+        assert "".join(emitted) == "think more"  # reasoning streamed live
+        assert llm.bind_calls == 1  # auto-tool path used
+        assert llm.structured.ainvoke_calls == 0  # NO forced-tool fallback (would 400)
+
+    async def test_thinking_no_tool_call_raises(self) -> None:
+        """Anthropic thinking ON + model declines the tool → raise (no safe fallback)."""
+        from src.infrastructure.llm.structured_output import StructuredOutputError
+
+        emitted: list[str] = []
+        llm = _FakeAnthropicThinkingLLM(emit_tool_call=False)
+        with patch("src.infrastructure.llm.structured_output.settings") as s:
+            s.provider_supports_structured_output = {"anthropic": True}
+            with pytest.raises(StructuredOutputError):
+                await get_structured_output(
+                    llm=llm,  # type: ignore[arg-type]
+                    messages=[HumanMessage(content="x")],
+                    schema=SimpleDecision,
+                    provider="anthropic",
+                    reasoning_emit=emitted.append,
+                )
+        assert llm.structured.ainvoke_calls == 0  # never falls back to the forced tool
+
+
+@pytest.mark.asyncio
+class TestReasoningEmitParity:
+    async def test_native_path_parity_and_emit(self) -> None:
+        """Generic native path (non-OpenAI): reasoning_emit = ainvoke result + deltas.
+
+        Uses ``anthropic`` because OpenAI is diverted to the auto-tool path (see
+        ``TestOpenAIAutoToolPath``); deepseek/anthropic keep the generic
+        ``with_structured_output`` streaming path validated here.
+        """
+        emitted: list[str] = []
+        llm = _FakeNativeLLM()
+        with patch("src.infrastructure.llm.structured_output.settings") as s:
+            s.provider_supports_structured_output = {"anthropic": True}
+            result = await get_structured_output(
+                llm=llm,  # type: ignore[arg-type]
+                messages=[HumanMessage(content="x")],
+                schema=SimpleDecision,
+                provider="anthropic",
                 reasoning_emit=emitted.append,
             )
         assert isinstance(result, SimpleDecision)

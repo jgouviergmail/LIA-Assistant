@@ -351,9 +351,7 @@ export function useInterests() {
 
       setData(prev => {
         if (!prev) return prev;
-        const newInterests = prev.interests.map(i =>
-          i.id === interestId && result ? result : i
-        );
+        const newInterests = prev.interests.map(i => (i.id === interestId && result ? result : i));
         return {
           ...prev,
           interests: newInterests,

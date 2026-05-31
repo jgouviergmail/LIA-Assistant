@@ -25,10 +25,13 @@ function streamDoneAction(metadataOverrides: Record<string, unknown> = {}) {
 
 describe('chatReducer — contextUsage transitions (pill)', () => {
   it('stores contextUsage when STREAM_DONE carries context_tokens and context_threshold', () => {
-    const s = chatReducer(baseState, streamDoneAction({
-      context_tokens: 12_800,
-      context_threshold: 51_200,
-    }));
+    const s = chatReducer(
+      baseState,
+      streamDoneAction({
+        context_tokens: 12_800,
+        context_threshold: 51_200,
+      })
+    );
     expect(s.contextUsage).not.toBeNull();
     expect(s.contextUsage!.tokens).toBe(12_800);
     expect(s.contextUsage!.threshold).toBe(51_200);
@@ -36,36 +39,48 @@ describe('chatReducer — contextUsage transitions (pill)', () => {
   });
 
   it('clamps ratio at 1.5 when tokens overshoot the threshold', () => {
-    const s = chatReducer(baseState, streamDoneAction({
-      context_tokens: 200_000,
-      context_threshold: 50_000,
-    }));
+    const s = chatReducer(
+      baseState,
+      streamDoneAction({
+        context_tokens: 200_000,
+        context_threshold: 50_000,
+      })
+    );
     expect(s.contextUsage!.ratio).toBe(1.5);
   });
 
   it('keeps the previous contextUsage when metadata is missing those fields', () => {
-    const seeded = chatReducer(baseState, streamDoneAction({
-      context_tokens: 5_000,
-      context_threshold: 20_000,
-    }));
+    const seeded = chatReducer(
+      baseState,
+      streamDoneAction({
+        context_tokens: 5_000,
+        context_threshold: 20_000,
+      })
+    );
     expect(seeded.contextUsage).not.toBeNull();
     const next = chatReducer(seeded, streamDoneAction({})); // no context_* fields
     expect(next.contextUsage).toEqual(seeded.contextUsage);
   });
 
   it('ignores zero/negative thresholds defensively (no division blow-up)', () => {
-    const s = chatReducer(baseState, streamDoneAction({
-      context_tokens: 1000,
-      context_threshold: 0,
-    }));
+    const s = chatReducer(
+      baseState,
+      streamDoneAction({
+        context_tokens: 1000,
+        context_threshold: 0,
+      })
+    );
     expect(s.contextUsage).toBeNull();
   });
 
   it('CLEAR_MESSAGES wipes contextUsage', () => {
-    let s = chatReducer(baseState, streamDoneAction({
-      context_tokens: 1_000,
-      context_threshold: 10_000,
-    }));
+    let s = chatReducer(
+      baseState,
+      streamDoneAction({
+        context_tokens: 1_000,
+        context_threshold: 10_000,
+      })
+    );
     expect(s.contextUsage).not.toBeNull();
     s = chatReducer(s, { type: 'CLEAR_MESSAGES' });
     expect(s.contextUsage).toBeNull();

@@ -248,6 +248,7 @@ def get_llm(
         "frequency_penalty": agent_config.frequency_penalty,
         "presence_penalty": agent_config.presence_penalty,
         "reasoning_effort": agent_config.reasoning_effort,  # OpenAI o-series/GPT-5 only
+        "effort": agent_config.effort,  # Anthropic global effort (opus-4-5)
     }
 
     # 3. Determine streaming based on LLM type (default), but allow config_override
@@ -276,6 +277,14 @@ def get_llm(
         presence_penalty=merged_config.get("presence_penalty"),
         reasoning_effort=merged_config.get("reasoning_effort"),  # OpenAI o-series/GPT-5 only
         provider_config=agent_config.provider_config,  # Advanced JSON config
+        # Anthropic global effort (opus-4-5): only forwarded when set + provider is
+        # anthropic, so it never leaks into other providers' constructors. Flows
+        # through additional_kwargs to ChatAnthropic(effort=...).
+        **(
+            {"effort": merged_config["effort"]}
+            if provider == "anthropic" and merged_config.get("effort")
+            else {}
+        ),
     )
 
     # 5. Attach callbacks (metrics + Langfuse)

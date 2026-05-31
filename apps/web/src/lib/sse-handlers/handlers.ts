@@ -130,12 +130,12 @@ function buildReasoningBlock(reasoning: string, t: SSEHandlerContext['t']): stri
 
   const paragraphs = text
     .split(/\n\s*\n/)
-    .map((p) => p.replace(/\s*\n\s*/g, ' ').trim())
-    .filter((p) => p.length > 0);
+    .map(p => p.replace(/\s*\n\s*/g, ' ').trim())
+    .filter(p => p.length > 0);
 
   const title = escapeHtml(t('execution.reasoning.title', { defaultValue: 'Reasoning' }));
   const header = `<p class="lia-reasoning__title">💭 ${title}</p>`;
-  const body = paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('');
+  const body = paragraphs.map(p => `<p>${escapeHtml(p)}</p>`).join('');
   // Blank lines around the div ensure rehype-raw treats it as a block.
   return `\n\n<div class="lia-reasoning">${header}${body}</div>\n\n`;
 }
@@ -405,10 +405,7 @@ export function handlePlannerMetadata(chunk: ChatStreamChunk, context: SSEHandle
  * Returns `true` when the chunk was handled here (no further processing
  * needed by `handleExecutionStep`).
  */
-function handleCompactionStep(
-  chunk: ChatStreamChunk,
-  context: SSEHandlerContext
-): boolean {
+function handleCompactionStep(chunk: ChatStreamChunk, context: SSEHandlerContext): boolean {
   const metadata = chunk.metadata as Record<string, unknown> | undefined;
   if (!metadata || metadata.step_type !== 'compaction') {
     return false;
@@ -426,9 +423,7 @@ function handleCompactionStep(
     context.dispatch({
       type: 'STREAM_COMPACTION_START',
       payload: {
-        estimatedDurationSeconds: metadata.estimated_duration_seconds as
-          | number
-          | undefined,
+        estimatedDurationSeconds: metadata.estimated_duration_seconds as number | undefined,
         strategy: metadata.strategy as string | undefined,
       },
     });
@@ -445,10 +440,10 @@ function handleCompactionStep(
         duration: 6000,
       });
     } else {
-      toast.success(
-        context.t('chat.compaction.completed', { tokens: tokensSaved ?? 0 }),
-        { id: COMPACTION_TOAST_ID, duration: 4000 },
-      );
+      toast.success(context.t('chat.compaction.completed', { tokens: tokensSaved ?? 0 }), {
+        id: COMPACTION_TOAST_ID,
+        duration: 4000,
+      });
     }
     context.dispatch({
       type: 'STREAM_COMPACTION_DONE',
@@ -522,11 +517,7 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
     }
   }
 
-  const fullContent = buildProgressContent(
-    executionStepsRef.current,
-    reasoningBufRef.current,
-    t
-  );
+  const fullContent = buildProgressContent(executionStepsRef.current, reasoningBufRef.current, t);
 
   if (progressMessageId) {
     dispatch({

@@ -410,10 +410,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           ? {
               tokens: metadata.context_tokens,
               threshold: metadata.context_threshold,
-              ratio: Math.min(
-                1.5,
-                metadata.context_tokens / metadata.context_threshold
-              ),
+              ratio: Math.min(1.5, metadata.context_tokens / metadata.context_threshold),
             }
           : state.contextUsage;
 
@@ -615,8 +612,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         // status untouched.
         status: state.status === 'compacting' ? 'streaming' : state.status,
         compaction: {
-          phase:
-            action.payload.strategy === 'truncation' ? 'truncated' : 'done',
+          phase: action.payload.strategy === 'truncation' ? 'truncated' : 'done',
           tokensSaved: action.payload.tokensSaved,
           durationMs: action.payload.durationMs,
           strategy: action.payload.strategy,

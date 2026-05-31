@@ -35,7 +35,6 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from src.core.constants import (
-    REASONING_ANTHROPIC_BIND_BUDGET_TOKENS,
     REASONING_COALESCE_INTERVAL_MS,
     REASONING_COALESCE_MIN_CHARS,
     REASONING_MAX_CHARS_PER_NODE,
@@ -268,65 +267,17 @@ def make_reasoning_emit(node_name: str) -> Callable[[str], None]:
     return emit
 
 
-def _reasoning_bind_kwargs(runnable: Any) -> dict[str, Any]:
-    """Provider-specific kwargs that EXPOSE the model's thoughts in the stream.
-
-    Some providers compute their reasoning but do not emit it unless explicitly
-    asked (Gemini ``include_thoughts``, Anthropic ``thinking``). This returns the
-    minimal kwargs to surface that reasoning, to be applied via ``.bind()`` on a
-    *derived* runnable used ONLY for the reasoning stream — never on the
-    factory-built instance, so admin/per-agent config and all other call paths
-    are untouched.
-
-    Detection walks the runnable graph (a ``with_structured_output`` wrapper is a
-    ``RunnableSequence`` whose first step is the chat model) and matches on class
-    name, defensively: an unknown/unsupported provider yields ``{}`` (no bind,
-    clean degradation — e.g. deepseek already emits reasoning, OpenAI/qwen have
-    no safe bind here).
-
-    Args:
-        runnable: The runnable about to be streamed (chat model or structured).
-
-    Returns:
-        Kwargs for ``runnable.bind(**kwargs)``, or ``{}`` when nothing to add.
-    """
-    # A structured runnable (``with_structured_output``) is a RunnableSequence
-    # (model | parser) that forces tool use via tool_choice. Some reasoning binds
-    # are INCOMPATIBLE with forced tools and raise a hard 400 (Anthropic:
-    # "Thinking may not be enabled when tool_choice forces tool use"). Detect it
-    # explicitly so we skip those binds and degrade cleanly (no reasoning) rather
-    # than break the call.
-    is_structured = isinstance(getattr(runnable, "steps", None), list) and bool(runnable.steps)
-
-    # Resolve the underlying chat model. Structured: steps[0] -> RunnableBinding
-    # -> .bound = ChatModel. Raw bound LLM: .bound = ChatModel. Walk
-    # ``steps[0]``/``bound``/``first`` until stable (depth-capped, cycle-safe).
-    candidate: Any = runnable
-    for _ in range(6):
-        if isinstance(getattr(candidate, "steps", None), list) and candidate.steps:
-            candidate = candidate.steps[0]
-            continue
-        inner = getattr(candidate, "bound", None) or getattr(candidate, "first", None)
-        if inner is None or inner is candidate:
-            break
-        candidate = inner
-
-    cls_name = type(candidate).__name__
-    if "ChatGoogleGenerativeAI" in cls_name:
-        # include_thoughts is compatible with tool_choice → safe everywhere.
-        return {"include_thoughts": True}
-    if "ChatAnthropic" in cls_name:
-        if is_structured:
-            # Anthropic thinking + forced tool_choice is rejected by the API.
-            return {}
-        return {
-            "thinking": {
-                "type": "enabled",
-                "budget_tokens": REASONING_ANTHROPIC_BIND_BUDGET_TOKENS,
-            }
-        }
-    # deepseek (already emits reasoning_content), OpenAI ResponsesLLM, qwen, etc.
-    return {}
+# NOTE: there is intentionally NO reasoning "bind" helper here.
+#
+# Reasoning configuration is owned entirely by the factory (per-model, driven by
+# the admin "Configuration LLM" screen): OpenAI sets ``reasoning.summary`` at
+# construction, deepseek emits ``reasoning_content`` natively, Anthropic sets
+# ``thinking`` and Gemini sets ``include_thoughts`` via their reasoning builders.
+# This module ONLY streams whatever the configured model already emits — it never
+# injects/forces a thinking mode. Forcing it here would (a) override the admin's
+# per-agent config and (b) show a "reasoning" block for agents the user did not
+# enable reasoning on. See `make_reasoning_emit` call sites, which are gated on
+# the effective reasoning config.
 
 
 async def stream_reasoning_events(
@@ -379,24 +330,10 @@ async def stream_reasoning_events(
     if config is not None:
         astream_kwargs["config"] = config
 
-    # Derive a reasoning-enabled runnable ONLY for this stream (see
-    # _reasoning_bind_kwargs). .bind() returns a new runnable; the original
-    # factory instance is untouched. Guarded: if bind fails for any reason, fall
-    # back to the original runnable (reasoning may be absent, but never breaks).
-    streaming_runnable: Any = runnable
-    try:
-        bind_kwargs = _reasoning_bind_kwargs(runnable)
-        if bind_kwargs:
-            streaming_runnable = runnable.bind(**bind_kwargs)
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.debug(
-            "reasoning_bind_failed",
-            error=str(exc),
-            error_type=type(exc).__name__,
-        )
-        streaming_runnable = runnable
-
-    async for event in streaming_runnable.astream_events(payload, **astream_kwargs):
+    # Stream the runnable AS-IS — no reasoning injection. Reasoning is enabled
+    # (or not) by the factory per the admin config; here we only surface what the
+    # model already emits.
+    async for event in runnable.astream_events(payload, **astream_kwargs):
         delta = extract_reasoning_delta(event)
         if delta:
             coalescer.feed(delta)

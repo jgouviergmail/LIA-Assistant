@@ -219,9 +219,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
             IntersectionObserver above fires ``onLoadOlder`` as soon as it
             enters the viewport. ``aria-hidden`` because it's an invisible
             scroll trigger, not content. */}
-        {hasMoreOlder && (
-          <div ref={topSentinelRef} aria-hidden="true" className="h-1" />
-        )}
+        {hasMoreOlder && <div ref={topSentinelRef} aria-hidden="true" className="h-1" />}
         {isLoadingOlder && (
           <div
             role="status"

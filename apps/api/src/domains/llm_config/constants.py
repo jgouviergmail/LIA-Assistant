@@ -1086,7 +1086,10 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     "mcp_app_react_agent": LLMAgentConfig(
         provider="anthropic",
         model="claude-opus-4-6",
-        temperature=0.5,
+        # Reasoning (adaptive thinking) is enabled → Anthropic forbids a custom
+        # temperature; the factory omits it at call time. We keep 1.0 here (the
+        # only value Anthropic accepts with thinking) for a coherent default.
+        temperature=1.0,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,

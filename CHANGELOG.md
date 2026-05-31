@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.17] - 2026-05-31
+
+> Architecture decision: [ADR-087 — Native ChatOpenAI + Config-Driven Per-Provider Reasoning Strategy](docs/architecture/ADR-087-Native-ChatOpenAI-And-Per-Provider-Reasoning.md).
+
+### Added — Live reasoning streaming, made config-driven across providers
+
+Agents' chain-of-thought now streams to the progress UI for the providers and call paths where the API actually supports it: OpenAI (Responses API reasoning summary), DeepSeek (native `reasoning_content`), the ReAct loop, and structured-output nodes via an **auto-tool path** (`tool_choice="auto"` instead of a forced tool — a forced tool suppresses the summary on OpenAI and is rejected outright on Anthropic). Reasoning is now enabled **solely** by the per-model config built in the factory (`reasoning_builders`); `reasoning_stream` no longer injects any `thinking`/`include_thoughts`, so a "reasoning" block appears only for agents the admin actually enabled it on (no forced display).
+
+### Added — Anthropic per-model extended-thinking configuration in "Configuration LLM"
+
+Verified against Anthropic docs (2026-05): `claude-opus-4-6` / `claude-sonnet-4-6` use **adaptive** thinking (`reasoning_widget='enum'` with an `off` sentinel → `thinking={type:adaptive}` + effort); `claude-opus-4-5` / `claude-haiku-4-5` use **manual** thinking (`reasoning_widget='toggle_budget'`, budget 1024–16384 → `thinking={type:enabled,budget_tokens}`). The admin UI locks temperature/top_p when reasoning is enabled (Anthropic forbids custom sampling with thinking); the service forces them to `None` and the factory omits them at call time (defense in depth). `claude-haiku-4-5` becomes a reasoning model. A separate global `effort` control (Anthropic `output_config.effort`) is exposed for `claude-opus-4-5` only — orthogonal to `reasoning_effort` — validated against the model's `effort_values` (422 on an unsupported value). Migrations `anthropic_thinking_config_001` + `anthropic_global_effort_001` align existing databases; the seed carries the same values for fresh installs.
+
+### Changed — OpenAI provider: native `ChatOpenAI` replaces the custom `ResponsesLLM`
+
+Removed the ~1800-line custom `ResponsesLLM` in favor of native `ChatOpenAI(use_responses_api=True, output_version="responses/v1")`. `langchain-openai` ≥ 1.1 natively provides Responses-API caching, multi-turn, tool calls, structured output, reasoning-summary streaming and standard `usage_metadata`. The only remaining custom code is `ChatOpenAICached` (a ~1-method subclass) preserving LIA's static-prefix `prompt_cache_key` routing. Obsolete `ResponsesLLM` unit tests removed; native-adapter tests added.
+
+### Fixed — Anthropic structured-output nodes no longer 400 when extended thinking is enabled
+
+`with_structured_output` forces a `tool_choice`, which Anthropic rejects with *"Thinking may not be enabled when tool_choice forces tool use"* — this broke `query_analyzer` (and any structured node) on a thinking-enabled Claude, degrading the whole turn. Structured output on such models now routes through the auto-tool path (the only API-supported combination); when the model declines the tool there is no forced-tool fallback (it would 400), so a clear `StructuredOutputError` is raised instead.
+
 ## [1.20.16] - 2026-05-30
 
 ### Fixed — Voice/TTS no longer reads HTML/Markdown formatting aloud in conversation mode

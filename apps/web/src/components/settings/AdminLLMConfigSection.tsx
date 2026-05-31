@@ -681,6 +681,7 @@ function LLMConfigDialog({
         max_tokens: config.effective.max_tokens,
         timeout_seconds: config.effective.timeout_seconds,
         reasoning_effort: config.effective.reasoning_effort,
+        effort: config.effective.effort,
       });
       setProviderConfig(parseProviderConfig(config.effective.provider_config));
     }
@@ -713,6 +714,7 @@ function LLMConfigDialog({
       JSON.stringify(form.reasoning_effort ?? null) !== JSON.stringify(d.reasoning_effort ?? null)
     )
       update.reasoning_effort = form.reasoning_effort;
+    if ((form.effort ?? null) !== (d.effort ?? null)) update.effort = form.effort ?? null;
 
     // provider_config: only send when the parsed object differs from the
     // default-parsed object. Compared via stableStringify so a key-order
@@ -804,12 +806,29 @@ function LLMConfigDialog({
     m => m.model_id === form.model
   );
 
+  // Anthropic: extended thinking is incompatible with a custom temperature/top_p
+  // (API constraint — "temperature may only be set to 1 when thinking is
+  // enabled"). When reasoning is enabled on an Anthropic model, those sampling
+  // params are managed automatically; we lock them in the UI (and the backend
+  // forces them to None). 'off' enum value / disabled toggle = reasoning off.
+  const anthropicThinkingActive =
+    form.provider === 'anthropic' &&
+    (() => {
+      const re = form.reasoning_effort;
+      if (!re) return false;
+      if ('effort' in re) return re.effort !== 'off';
+      if ('enabled' in re) return re.enabled === true;
+      return false;
+    })();
+
   // Sampling-param visibility: each input is shown if and only if the
   // selected model accepts that specific parameter (Philosophy A: raw
   // truth from llm_models.supports_* columns). Falls back to permissive
   // (all true) when the model is not in metadata — e.g. dynamic Ollama.
-  const showTemperature = selectedModelCapabilities?.supports_temperature ?? true;
-  const showTopP = selectedModelCapabilities?.supports_top_p ?? true;
+  // Temperature/top_p are additionally hidden when Anthropic thinking is active.
+  const showTemperature =
+    (selectedModelCapabilities?.supports_temperature ?? true) && !anthropicThinkingActive;
+  const showTopP = (selectedModelCapabilities?.supports_top_p ?? true) && !anthropicThinkingActive;
   const showFrequencyPenalty = selectedModelCapabilities?.supports_frequency_penalty ?? true;
   const showPresencePenalty = selectedModelCapabilities?.supports_presence_penalty ?? true;
 
@@ -909,10 +928,17 @@ function LLMConfigDialog({
                   const newCaps =
                     (metadata.providers[form.provider ?? ''] ?? []).find(m => m.model_id === v) ??
                     (ollamaData?.models ?? []).find(m => m.model_id === v);
+                  // Drop a stale 'effort' if the new model has no (matching) effort_values.
+                  const newEffortValues = newCaps?.effort_values ?? null;
+                  const keepEffort =
+                    form.effort != null &&
+                    newEffortValues != null &&
+                    newEffortValues.includes(form.effort);
                   setForm({
                     ...form,
                     model: v,
                     reasoning_effort: coerceReasoningEffortForModel(form.reasoning_effort, newCaps),
+                    effort: keepEffort ? form.effort : null,
                   });
                 }}
               >
@@ -1147,10 +1173,64 @@ function LLMConfigDialog({
                 budgetRange={selectedModelCapabilities.reasoning_budget_range}
                 docI18nKey={selectedModelCapabilities.reasoning_doc_i18n_key}
                 value={form.reasoning_effort ?? null}
-                onChange={next => setForm({ ...form, reasoning_effort: next })}
+                onChange={next => {
+                  // Enabling Anthropic thinking forces temperature/top_p off
+                  // (API constraint) — clear them so the saved config is coherent.
+                  const willThink =
+                    form.provider === 'anthropic' &&
+                    !!next &&
+                    (('effort' in next && next.effort !== 'off') ||
+                      ('enabled' in next && next.enabled === true));
+                  setForm({
+                    ...form,
+                    reasoning_effort: next,
+                    ...(willThink ? { temperature: null, top_p: null } : {}),
+                  });
+                }}
               />
+              {anthropicThinkingActive && (
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.admin.llmConfig.constraints.reasoningTemp')}
+                </p>
+              )}
             </div>
           )}
+
+          {/* Global 'effort' (Anthropic output_config.effort) — a separate
+              token-spend control, distinct from reasoning_effort. Shown only when
+              the model declares effort_values (currently opus-4-5). */}
+          {selectedModelCapabilities?.effort_values &&
+            selectedModelCapabilities.effort_values.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Label>{t('settings.admin.llmConfig.fields.effort')}</Label>
+                  <ParamTooltip text={t('settings.admin.llmConfig.tooltips.effort')} />
+                  {isModified('effort') && (
+                    <Badge variant="default" className="text-[10px] px-1 py-0">
+                      {t('settings.admin.llmConfig.types.overridden')}
+                    </Badge>
+                  )}
+                </div>
+                <Select
+                  value={form.effort ?? '__default__'}
+                  onValueChange={v => setForm({ ...form, effort: v === '__default__' ? null : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">
+                      {t('settings.admin.llmConfig.fields.reasoningDefault')}
+                    </SelectItem>
+                    {selectedModelCapabilities.effort_values.map(ev => (
+                      <SelectItem key={ev} value={ev}>
+                        {ev}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
         </div>
 
         <DialogFooter className="flex justify-between sm:justify-between">

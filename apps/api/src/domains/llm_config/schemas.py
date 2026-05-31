@@ -136,6 +136,9 @@ class LLMTypeConfigUpdate(BaseModel):
     # None = clear override. Strict validation lives at the service layer
     # (see domains/llm_config/reasoning_validation.py once Task 5 lands).
     reasoning_effort: ReasoningEffortValue = None
+    # Global effort (Anthropic output_config.effort), distinct from reasoning_effort.
+    # Allowed values come from the model's effort_values. None = clear override.
+    effort: str | None = None
     provider_config: str | None = None
 
 
@@ -177,6 +180,11 @@ class ModelCapabilities(BaseModel):
     reasoning_enum_values: list[str] | None = None
     reasoning_budget_range: ReasoningBudgetRange | None = None
     reasoning_doc_i18n_key: str | None = None
+
+    # Separate global 'effort' control (Anthropic output_config.effort), distinct
+    # from reasoning_effort. NULL = the model has no separate effort field; a list
+    # = allowed values (drives a dedicated dropdown). Currently opus-4-5 only.
+    effort_values: list[str] | None = None
 
     cost_input: float | None = None
     cost_output: float | None = None

@@ -286,6 +286,60 @@ class LLMConfigService:
                 )
             validate_reasoning_effort(caps, update.reasoning_effort)
 
+            # Coherence rule (Anthropic): extended thinking is incompatible with a
+            # custom temperature/top_p (API: "temperature may only be set to 1 when
+            # thinking is enabled"). When the selected reasoning_effort enables
+            # thinking, force temperature/top_p to None so the stored config stays
+            # coherent. The admin UI mirrors this by locking those fields; the
+            # factory also omits them at call time (defense in depth).
+            if update.provider == "anthropic":
+                from src.infrastructure.llm.providers.reasoning_builders import (
+                    build_anthropic_reasoning,
+                )
+
+                thinking_on = "thinking" in build_anthropic_reasoning(
+                    update.reasoning_effort, update.model
+                )
+                if thinking_on and (update.temperature is not None or update.top_p is not None):
+                    logger.info(
+                        "anthropic_reasoning_temperature_locked",
+                        llm_type=llm_type,
+                        model=update.model,
+                        msg=(
+                            "Reasoning enabled → temperature/top_p forced to None "
+                            "(Anthropic API constraint)"
+                        ),
+                    )
+                    update.temperature = None
+                    update.top_p = None
+
+        # === Validate the separate global 'effort' (Anthropic opus-4-5) ===
+        if update.model is not None and update.effort is not None:
+            from src.infrastructure.llm.model_capabilities_cache import (
+                ModelCapabilitiesCache,
+            )
+
+            caps = ModelCapabilitiesCache.get(update.model)
+            allowed = getattr(caps, "effort_values", None) if caps else None
+            if not allowed or update.effort not in allowed:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "type": "invalid_effort",
+                        "loc": ["body", "effort"],
+                        "msg": (
+                            f"Effort {update.effort!r} is not supported by "
+                            f"{update.model}. Allowed: {', '.join(allowed) if allowed else 'none'}."
+                        ),
+                        "input": update.effort,
+                        "ctx": {
+                            "model": update.model,
+                            "provided": update.effort,
+                            "allowed": list(allowed or []),
+                        },
+                    },
+                )
+
         result = await self.db.execute(
             select(LLMConfigOverride).where(LLMConfigOverride.llm_type == llm_type)
         )
@@ -411,6 +465,7 @@ class LLMConfigService:
                         reasoning_enum_values=profile.reasoning_enum_values,
                         reasoning_budget_range=profile.reasoning_budget_range,
                         reasoning_doc_i18n_key=profile.reasoning_doc_i18n_key,
+                        effort_values=profile.effort_values,
                         cost_input=None,
                         cost_output=None,
                     )

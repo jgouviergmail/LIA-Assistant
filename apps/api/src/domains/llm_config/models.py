@@ -144,6 +144,16 @@ class LLMConfigOverride(BaseModel):
         ),
     )
 
+    effort: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        comment=(
+            "Global effort override (Anthropic output_config.effort), distinct "
+            "from reasoning_effort. Allowed values come from llm_models.effort_values "
+            "(currently opus-4-5 only). NULL = no override (model default = high)."
+        ),
+    )
+
     provider_config: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,

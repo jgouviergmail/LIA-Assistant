@@ -147,5 +147,6 @@ class ModelCapabilitiesCache:
             reasoning_enum_values=row.reasoning_enum_values,
             reasoning_budget_range=row.reasoning_budget_range,
             reasoning_doc_i18n_key=row.reasoning_doc_i18n_key,
+            effort_values=row.effort_values,
             metadata={"pricing_source": "capabilities_cache"},
         )

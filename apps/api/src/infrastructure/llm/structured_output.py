@@ -124,6 +124,25 @@ def _analyze_schema_strict_compatibility(schema: type[BaseModel]) -> tuple[bool,
     return True, "compatible"
 
 
+def _has_type_indicator(schema: dict[str, Any]) -> bool:
+    """Return True if a JSON-schema fragment declares a concrete type.
+
+    An ``Any`` / bare ``dict`` field is emitted by Pydantic as ``{}`` (or
+    metadata-only, e.g. ``{"description": ...}``) — no type-bearing key. OpenAI
+    strict mode rejects such open-ended fields, so the absence of every
+    type-indicating keyword marks the fragment as strict-incompatible.
+
+    Args:
+        schema: A JSON-schema fragment for a single property.
+
+    Returns:
+        True if any type-indicating keyword is present.
+    """
+    return any(
+        key in schema for key in ("type", "$ref", "anyOf", "oneOf", "allOf", "enum", "const")
+    )
+
+
 def _schema_has_additional_properties(
     schema: dict[str, Any], visited: set[str] | None = None
 ) -> bool:
@@ -178,6 +197,13 @@ def _schema_has_additional_properties(
     properties = schema.get("properties", {})
     for prop_schema in properties.values():
         if isinstance(prop_schema, dict):
+            # An untyped property ({} or metadata-only) is how ``Any`` / bare
+            # ``dict`` fields are emitted by Pydantic. It allows arbitrary content
+            # and is incompatible with OpenAI strict mode (every field must be
+            # explicitly typed). Caught here so such schemas route to
+            # function_calling instead of the strict json_schema path.
+            if not _has_type_indicator(prop_schema):
+                return True
             if _schema_has_additional_properties(prop_schema, visited):
                 return True
 
@@ -500,6 +526,105 @@ async def get_structured_output[T: BaseModel](
         raise
 
 
+def _anthropic_thinking_on(llm: BaseChatModel) -> bool:
+    """True when an Anthropic LLM has extended thinking enabled at construction.
+
+    Anthropic rejects a forced ``tool_choice`` while thinking is enabled
+    ("Thinking may not be enabled when tool_choice forces tool use" — HTTP 400),
+    and ``with_structured_output`` forces the tool. So structured output on a
+    thinking-enabled Claude must go through the auto-tool path instead.
+    """
+    thinking = getattr(llm, "thinking", None)
+    return isinstance(thinking, dict) and thinking.get("type") in ("enabled", "adaptive")
+
+
+async def _structured_via_auto_tool[T: BaseModel](
+    llm: BaseChatModel,
+    messages: list[BaseMessage],
+    schema: type[T],
+    reasoning_emit: Callable[[str], None] | None,
+    **invoke_kwargs: Any,
+) -> T | None:
+    """Structured output via ``tool_choice="auto"`` instead of a forced tool.
+
+    Used for two provider constraints that both break the normal
+    ``with_structured_output`` (forced ``tool_choice``) path:
+
+    - **OpenAI** (Responses API): a forced tool suppresses the streamed reasoning
+      summary, and the streaming ``json_schema`` path rejects non-strict schemas
+      (400). With ``auto`` the reasoning model thinks out loud (streamed live when
+      ``reasoning_emit`` is set) and then emits the schema as a tool call.
+    - **Anthropic**: a forced tool is *rejected* (400) whenever extended thinking
+      is enabled. ``auto`` is the only way to get structured output on a
+      thinking-enabled Claude (verified: no 400, valid tool call).
+
+    A short directive is prepended so the model reliably calls the tool under
+    ``auto``. When ``reasoning_emit`` is set the call is streamed (live reasoning);
+    otherwise it is a plain ``ainvoke``. Returns ``None`` (the caller decides how
+    to fall back) when the model declines the tool or the args fail validation.
+    Never raises.
+
+    Args:
+        llm: The chat model (OpenAI ChatOpenAI or Anthropic ChatAnthropic).
+        messages: The structured-output prompt messages.
+        schema: Target Pydantic schema.
+        reasoning_emit: Coalesced-reasoning callback, or ``None`` to skip streaming.
+        **invoke_kwargs: Carries ``config`` for token tracking / tracing.
+
+    Returns:
+        A validated ``schema`` instance, or ``None`` to trigger the fallback.
+    """
+    schema_name = schema.__name__
+    # NOTE (prompt impact): unlike the forced-tool path (``with_structured_output``,
+    # which adds nothing to the prompt), ``tool_choice="auto"`` needs an explicit
+    # nudge so the model reliably calls the tool. This prepends ONE extra
+    # SystemMessage to the effective prompt — a deliberate, minor change to the
+    # input of structured nodes (e.g. query_analyzer, planner). If a classification
+    # drift is ever observed on the auto-tool path, this directive is the first
+    # thing to revisit (wording/placement), not the schema itself.
+    directive = SystemMessage(
+        content=(
+            f"Respond by calling the `{schema_name}` tool with your complete "
+            "structured analysis. Reason about the input first, then call it."
+        )
+    )
+    bound = llm.bind_tools([schema], tool_choice="auto")
+    payload = [directive, *messages]
+    try:
+        if reasoning_emit is not None:
+            from src.infrastructure.llm.reasoning_stream import stream_reasoning_events
+
+            ai_msg = await stream_reasoning_events(
+                bound,
+                payload,
+                emit=reasoning_emit,
+                config=invoke_kwargs.get("config"),
+            )
+        else:
+            ai_msg = await bound.ainvoke(payload, **invoke_kwargs)
+    except Exception as exc:  # defensive: must never break the node
+        logger.warning(
+            "structured_auto_tool_failed",
+            schema=schema_name,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        return None
+
+    tool_calls = getattr(ai_msg, "tool_calls", None) or []
+    if not tool_calls:
+        return None
+    try:
+        return schema(**(tool_calls[0].get("args") or {}))
+    except ValidationError as exc:
+        logger.warning(
+            "structured_auto_tool_parse_failed",
+            schema=schema_name,
+            error=str(exc),
+        )
+        return None
+
+
 async def _get_native_structured_output[T: BaseModel](
     llm: BaseChatModel,
     messages: list[BaseMessage],
@@ -535,6 +660,43 @@ async def _get_native_structured_output[T: BaseModel](
         StructuredOutputError: If LLM call or parsing fails
     """
     schema_name = schema.__name__
+
+    # Auto-tool path (tool_choice="auto" instead of a forced tool):
+    # - OpenAI + reasoning requested: a forced tool suppresses the streamed
+    #   reasoning summary and the streaming json_schema path rejects non-strict
+    #   schemas (400). Auto-tool preserves live reasoning; on miss we fall back to
+    #   the buffered (non-streaming) path below.
+    # - Anthropic with extended thinking ON: a forced tool is REJECTED (400) —
+    #   auto-tool is the ONLY way to do structured output on a thinking-enabled
+    #   Claude, so it applies regardless of reasoning_emit and there is no
+    #   forced-tool fallback (it would 400).
+    anthropic_thinking = provider == "anthropic" and _anthropic_thinking_on(llm)
+    if (provider == "openai" and reasoning_emit is not None) or anthropic_thinking:
+        auto_result = await _structured_via_auto_tool(
+            llm=llm,
+            messages=messages,
+            schema=schema,
+            reasoning_emit=reasoning_emit,
+            **invoke_kwargs,
+        )
+        if auto_result is not None:
+            logger.info("structured_auto_tool_success", provider=provider, schema=schema_name)
+            return auto_result
+        if anthropic_thinking:
+            # The buffered with_structured_output path forces a tool → 400 with
+            # thinking enabled. No safe fallback: fail with a clear error.
+            raise StructuredOutputError(
+                f"Anthropic auto-tool structured output produced no valid tool call "
+                f"for {schema_name} (thinking enabled, forced-tool fallback unavailable)",
+                provider=provider,
+                schema_name=schema_name,
+            )
+        logger.info(
+            "openai_auto_tool_stream_fell_back",
+            schema=schema_name,
+            msg="Model declined the tool or args invalid; using buffered structured output",
+        )
+        reasoning_emit = None  # buffered fallback must not re-enter streaming
 
     # Analyze schema for strict mode compatibility (OpenAI only)
     is_strict_compatible, strict_reason = _analyze_schema_strict_compatibility(schema)

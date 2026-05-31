@@ -62,6 +62,8 @@ export interface LLMAgentConfig {
   max_tokens: number;
   timeout_seconds: number | null;
   reasoning_effort: ReasoningEffortValue;
+  // Global effort (Anthropic output_config.effort), distinct from reasoning_effort.
+  effort: string | null;
 }
 
 // --- LLM Type Config ---
@@ -102,6 +104,7 @@ export interface LLMTypeConfigUpdate {
   max_tokens?: number | null;
   timeout_seconds?: number | null;
   reasoning_effort?: ReasoningEffortValue;
+  effort?: string | null;
   provider_config?: string | null;
 }
 
@@ -123,6 +126,8 @@ export interface ModelCapabilities {
   reasoning_enum_values: string[] | null;
   reasoning_budget_range: ReasoningBudgetRange | null;
   reasoning_doc_i18n_key: string | null;
+  // Separate global 'effort' control (Anthropic). null = no separate effort field.
+  effort_values: string[] | null;
   // Per-model sampling support — drives conditional rendering of
   // temperature / top_p / frequency_penalty / presence_penalty inputs.
   // Mirrors llm_models.supports_* columns. Philosophy A: the UI shows

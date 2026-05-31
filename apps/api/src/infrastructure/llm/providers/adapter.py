@@ -30,7 +30,7 @@ from src.infrastructure.llm.providers.reasoning_builders import (
     build_qwen_reasoning,
 )
 from src.infrastructure.llm.providers.responses_adapter import (
-    ResponsesLLM,
+    create_responses_llm,
     is_responses_api_eligible,
 )
 from src.infrastructure.observability.logging import get_logger
@@ -323,22 +323,19 @@ class ProviderAdapter:
             **kwargs: Additional parameters (top_p, etc.)
 
         Returns:
-            ResponsesLLM: LangChain-compatible LLM using Responses API
+            ChatOpenAICached: native ChatOpenAI (Responses API) with cache routing.
         """
-        # Extract reasoning_effort and translate to ResponsesLLM kwargs.
-        # ResponsesLLM expects a string in `reasoning_effort=`; the new
-        # ReasoningEffortValue carries the validated enum which we unwrap
-        # via the builder.
+        # Translate the validated ReasoningEffortValue into the string effort the
+        # native model expects (via the shared builder).
         reasoning_value = kwargs.pop("reasoning_effort", None)
         reasoning_kwargs = build_openai_reasoning(reasoning_value, model)
         reasoning_effort = reasoning_kwargs.get("reasoning_effort")
 
-        # Extract top_p if provided
         top_p = kwargs.pop("top_p", 1.0)
 
-        # Explicitly pop frequency_penalty and presence_penalty — ResponsesLLM does not
-        # accept these fields, so they would be silently discarded via **kwargs.
-        # Pop them explicitly to make the contract clear and log non-default values.
+        # frequency_penalty / presence_penalty are not used on the Responses API
+        # path (and ignored for reasoning models). Pop + log non-default values so
+        # the contract stays explicit (same behaviour as before).
         freq_penalty = kwargs.pop("frequency_penalty", None)
         pres_penalty = kwargs.pop("presence_penalty", None)
         if freq_penalty and freq_penalty != 0:
@@ -346,35 +343,23 @@ class ProviderAdapter:
                 "responses_llm_frequency_penalty_dropped",
                 model=model,
                 frequency_penalty=freq_penalty,
-                msg=f"frequency_penalty={freq_penalty} not supported by ResponsesLLM, dropped",
+                msg=f"frequency_penalty={freq_penalty} not used on Responses API path, dropped",
             )
         if pres_penalty and pres_penalty != 0:
             logger.debug(
                 "responses_llm_presence_penalty_dropped",
                 model=model,
                 presence_penalty=pres_penalty,
-                msg=f"presence_penalty={pres_penalty} not supported by ResponsesLLM, dropped",
+                msg=f"presence_penalty={pres_penalty} not used on Responses API path, dropped",
             )
 
-        logger.info(
-            "creating_openai_responses_llm",
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            streaming=streaming,
-            reasoning_effort=reasoning_effort,
-            msg="Using OpenAI Responses API for enhanced caching",
-        )
-
-        return ResponsesLLM(
+        return create_responses_llm(
             model=model,
             api_key=_require_api_key("openai"),
-            organization_id=settings.openai_organization_id,
+            organization=settings.openai_organization_id or None,
             temperature=temperature,
             max_tokens=max_tokens,
             top_p=top_p,
-            store=True,  # Enable caching
-            fallback_enabled=True,  # Automatic fallback to Chat Completions
             streaming=streaming,
             reasoning_effort=reasoning_effort,
         )
@@ -809,11 +794,15 @@ class ProviderAdapter:
             reasoning_value = additional_kwargs.pop("reasoning_effort", None)
             anthropic_reasoning = build_anthropic_reasoning(reasoning_value, model)
             additional_kwargs.update(anthropic_reasoning)
+            thinking_enabled = "thinking" in anthropic_reasoning
             if anthropic_reasoning:
                 logger.info(
                     "anthropic_effort_configured",
                     model=model,
                     effort=anthropic_reasoning.get("effort"),
+                    thinking=(
+                        anthropic_reasoning["thinking"].get("type") if thinking_enabled else None
+                    ),
                 )
 
             # Remove parameters not supported by Anthropic
@@ -822,8 +811,15 @@ class ProviderAdapter:
             # Claude 4.5+ rejects temperature + top_p together — drop top_p
             additional_kwargs.pop("top_p", None)
 
-            # Anthropic temperature range is 0.0-1.0 (not 0.0-2.0 like OpenAI)
-            if temperature is not None and temperature > 1.0:
+            if thinking_enabled:
+                # Extended thinking is incompatible with custom temperature on
+                # Anthropic (API: "temperature may only be set to 1 when thinking is
+                # enabled"). Omit temperature entirely so the API uses its default.
+                # The admin UI mirrors this by locking the temperature field when
+                # reasoning is enabled (no hidden override — config-driven).
+                temperature_override = "__OMIT__"
+            elif temperature is not None and temperature > 1.0:
+                # Anthropic temperature range is 0.0-1.0 (not 0.0-2.0 like OpenAI)
                 logger.warning(
                     "anthropic_temperature_capped",
                     requested=temperature,

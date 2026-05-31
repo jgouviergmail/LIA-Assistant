@@ -191,6 +191,16 @@ class LLMModel(Base, UUIDMixin, TimestampMixin):
         comment="Frontend lookup key in REASONING_DOC_TEXT constant table (English-only)",
     )
 
+    effort_values: Mapped[list[str] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "Allowed values for a separate global 'effort' control (Anthropic "
+            "output_config.effort), distinct from reasoning_effort. NULL = the "
+            "model has no separate effort field. Currently only claude-opus-4-5."
+        ),
+    )
+
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

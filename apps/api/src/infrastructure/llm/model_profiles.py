@@ -103,6 +103,9 @@ class ModelProfile:
     reasoning_enum_values: list[str] | None = None
     reasoning_budget_range: dict[str, Any] | None = None
     reasoning_doc_i18n_key: str | None = None
+    # Separate global 'effort' control (Anthropic output_config.effort), distinct
+    # from reasoning_effort. None = no separate effort field (currently opus-4-5 only).
+    effort_values: list[str] | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

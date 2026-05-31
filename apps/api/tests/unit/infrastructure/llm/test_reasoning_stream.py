@@ -18,7 +18,6 @@ import pytest
 from src.core.constants import REASONING_MAX_CHARS_PER_NODE
 from src.infrastructure.llm.reasoning_stream import (
     ReasoningCoalescer,
-    _reasoning_bind_kwargs,
     extract_reasoning_delta,
     stream_reasoning_events,
 )
@@ -316,66 +315,3 @@ class TestStreamReasoningEvents:
         )
         assert result is out
         assert emitted == []
-
-
-# ---------------------------------------------------------------------------
-# _reasoning_bind_kwargs — provider detection + structured-output gating
-# ---------------------------------------------------------------------------
-
-
-class _ChatGoogleGenerativeAI:  # name-matched fake (detection is by class name)
-    pass
-
-
-class _ChatAnthropic:
-    pass
-
-
-class _ChatDeepSeekPatched:
-    pass
-
-
-class _RunnableBinding:
-    """Mimics langchain RunnableBinding: wraps a model under ``.bound``."""
-
-    def __init__(self, bound: Any) -> None:
-        self.bound = bound
-
-
-class _RunnableSequence:
-    """Mimics with_structured_output: model-binding | parser, via ``.steps``."""
-
-    def __init__(self, model: Any) -> None:
-        self.steps = [_RunnableBinding(model), object()]  # [binding, parser]
-
-
-class TestReasoningBindKwargs:
-    def test_gemini_raw_includes_thoughts(self) -> None:
-        assert _reasoning_bind_kwargs(_ChatGoogleGenerativeAI()) == {"include_thoughts": True}
-
-    def test_gemini_structured_includes_thoughts(self) -> None:
-        """include_thoughts is compatible with tool_choice → enabled even structured."""
-        seq = _RunnableSequence(_ChatGoogleGenerativeAI())
-        assert _reasoning_bind_kwargs(seq) == {"include_thoughts": True}
-
-    def test_anthropic_raw_enables_thinking(self) -> None:
-        kw = _reasoning_bind_kwargs(_ChatAnthropic())
-        assert kw.get("thinking", {}).get("type") == "enabled"
-
-    def test_anthropic_structured_skips_thinking(self) -> None:
-        """Anthropic thinking + forced tool_choice = 400 → must skip on structured."""
-        seq = _RunnableSequence(_ChatAnthropic())
-        assert _reasoning_bind_kwargs(seq) == {}
-
-    def test_anthropic_via_runnable_binding_enables_thinking(self) -> None:
-        """A raw bound (non-structured) Anthropic still gets thinking."""
-        bound = _RunnableBinding(_ChatAnthropic())
-        kw = _reasoning_bind_kwargs(bound)
-        assert kw.get("thinking", {}).get("type") == "enabled"
-
-    def test_deepseek_returns_empty(self) -> None:
-        """DeepSeek already emits reasoning_content → no bind needed."""
-        assert _reasoning_bind_kwargs(_ChatDeepSeekPatched()) == {}
-
-    def test_unknown_provider_returns_empty(self) -> None:
-        assert _reasoning_bind_kwargs(object()) == {}

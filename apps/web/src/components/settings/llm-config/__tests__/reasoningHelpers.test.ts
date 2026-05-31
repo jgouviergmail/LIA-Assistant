@@ -52,14 +52,20 @@ describe('reasoningEffortMatchesModel', () => {
   });
 
   it("a 'toggle_budget' widget rejects the enum shape (the production bug)", () => {
-    const c = caps({ reasoning_widget: 'toggle_budget', reasoning_budget_range: { min: 0, max: 32768 } });
+    const c = caps({
+      reasoning_widget: 'toggle_budget',
+      reasoning_budget_range: { min: 0, max: 32768 },
+    });
     expect(reasoningEffortMatchesModel({ enabled: false }, c)).toBe(true);
     expect(reasoningEffortMatchesModel({ enabled: true, budget: 8192 }, c)).toBe(true);
     expect(reasoningEffortMatchesModel({ effort: 'off' }, c)).toBe(false);
   });
 
   it("a 'budget_int' widget needs the bare-budget shape", () => {
-    const c = caps({ reasoning_widget: 'budget_int', reasoning_budget_range: { min: 1, max: 24576 } });
+    const c = caps({
+      reasoning_widget: 'budget_int',
+      reasoning_budget_range: { min: 1, max: 24576 },
+    });
     expect(reasoningEffortMatchesModel({ budget: 8192 }, c)).toBe(true);
     expect(reasoningEffortMatchesModel({ enabled: true, budget: 8192 }, c)).toBe(false); // toggle shape
     expect(reasoningEffortMatchesModel({ effort: 'low' }, c)).toBe(false);
@@ -73,18 +79,26 @@ describe('reasoningEffortMatchesModel', () => {
 
 describe('coerceReasoningEffortForModel', () => {
   it('keeps a value that is compatible with the new model', () => {
-    const c = caps({ reasoning_widget: 'toggle_budget', reasoning_budget_range: { min: 0, max: 32768 } });
+    const c = caps({
+      reasoning_widget: 'toggle_budget',
+      reasoning_budget_range: { min: 0, max: 32768 },
+    });
     const v: ReasoningEffortValue = { enabled: true, budget: 4096 };
     expect(coerceReasoningEffortForModel(v, c)).toEqual(v);
   });
 
   it('drops an incompatible value to null (DeepSeek enum → Qwen toggle)', () => {
-    const c = caps({ reasoning_widget: 'toggle_budget', reasoning_budget_range: { min: 0, max: 32768 } });
+    const c = caps({
+      reasoning_widget: 'toggle_budget',
+      reasoning_budget_range: { min: 0, max: 32768 },
+    });
     expect(coerceReasoningEffortForModel({ effort: 'off' }, c)).toBeNull();
   });
 
   it('drops to null when the new model has no reasoning widget', () => {
-    expect(coerceReasoningEffortForModel({ effort: 'low' }, caps({ reasoning_widget: 'none' }))).toBeNull();
+    expect(
+      coerceReasoningEffortForModel({ effort: 'low' }, caps({ reasoning_widget: 'none' }))
+    ).toBeNull();
   });
 
   it('drops to null when the new model is unknown (no caps)', () => {

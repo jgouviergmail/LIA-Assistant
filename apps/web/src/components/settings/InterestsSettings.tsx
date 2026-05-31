@@ -1,7 +1,17 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Sparkles, Trash2, Plus, Ban, Clock, Pencil, Download, Moon, RotateCcw } from 'lucide-react';
+import {
+  Sparkles,
+  Trash2,
+  Plus,
+  Ban,
+  Clock,
+  Pencil,
+  Download,
+  Moon,
+  RotateCcw,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

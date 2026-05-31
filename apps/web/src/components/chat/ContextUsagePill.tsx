@@ -125,12 +125,7 @@ export function ContextUsagePill({ usage }: Props) {
         onClick={() => setShowTooltip(s => !s)}
         className={`flex items-center gap-1.5 rounded-full ${color.bg} ${color.border} border px-2 py-1 shadow-sm transition-colors`}
       >
-        <svg
-          width={SIZE}
-          height={SIZE}
-          viewBox={`0 0 ${SIZE} ${SIZE}`}
-          aria-hidden
-        >
+        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden>
           <circle
             cx={SIZE / 2}
             cy={SIZE / 2}
@@ -155,9 +150,7 @@ export function ContextUsagePill({ usage }: Props) {
         </svg>
         {/* Percentage label — kept always visible. The header bar fits even on
             small phones (360 px) because the badge total width stays ~52 px. */}
-        <span className={`text-[11px] mobile:text-xs font-semibold ${color.fg}`}>
-          {percent}%
-        </span>
+        <span className={`text-[11px] mobile:text-xs font-semibold ${color.fg}`}>{percent}%</span>
       </button>
 
       {showTooltip && (

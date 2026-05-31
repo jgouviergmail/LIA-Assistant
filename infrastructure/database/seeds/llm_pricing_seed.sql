@@ -93,10 +93,18 @@ INSERT INTO llm_models (
     ('openai', 'gpt-audio-mini', 8192, 4096, true, true, false, true, false, false, true, true, true, true, 'audio', 'none', NULL, NULL, NULL, true),
     ('openai', 'computer-use-preview', 8192, 4096, true, true, false, true, false, false, true, true, true, true, 'chat', 'none', NULL, NULL, NULL, true),
     ('openai', 'chatgpt-image-latest', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'image', 'none', NULL, NULL, NULL, true),
-    ('anthropic', 'claude-haiku-4-5', 8192, 4096, true, true, false, true, false, false, true, false, false, false, 'chat', 'none', NULL, NULL, NULL, true),
-    ('anthropic', 'claude-opus-4-5', 8192, 4096, true, true, false, true, false, true, true, false, false, false, 'chat', 'enum', '["low","medium","high"]'::jsonb, NULL, 'anthropic_4_5', true),
-    ('anthropic', 'claude-opus-4-6', 8192, 4096, true, true, false, true, false, true, true, false, false, false, 'chat', 'enum', '["low","medium","high","max"]'::jsonb, NULL, 'anthropic_4_6', true),
-    ('anthropic', 'claude-sonnet-4-6', 8192, 4096, true, true, false, true, false, true, true, false, false, false, 'chat', 'enum', '["low","medium","high"]'::jsonb, NULL, 'anthropic_sonnet_4_6', true),
+    -- Anthropic reasoning (verified against Anthropic docs, 2026-05):
+    --   * opus-4-6 / sonnet-4-6: ADAPTIVE thinking (thinking={type:adaptive}) + effort
+    --     control → reasoning_widget='enum' with an 'off' sentinel (off = no thinking).
+    --   * opus-4-5 / haiku-4-5: MANUAL thinking only (thinking={type:enabled,budget_tokens})
+    --     → reasoning_widget='toggle_budget' (budget bounded 1024..16384).
+    --   Temperature is incompatible with thinking on Anthropic (API constraint): the
+    --   admin UI locks temperature/top_p when reasoning is enabled, and the factory
+    --   omits them from the payload (see build_anthropic_reasoning + adapter).
+    ('anthropic', 'claude-haiku-4-5', 8192, 4096, true, true, false, true, false, true, true, false, false, false, 'chat', 'toggle_budget', NULL, '{"min":1024,"max":16384}'::jsonb, 'anthropic_haiku_4_5', true),
+    ('anthropic', 'claude-opus-4-5', 8192, 4096, true, true, false, true, false, true, true, false, false, false, 'chat', 'toggle_budget', NULL, '{"min":1024,"max":16384}'::jsonb, 'anthropic_4_5', true),
+    ('anthropic', 'claude-opus-4-6', 8192, 4096, true, true, false, true, false, true, true, false, false, false, 'chat', 'enum', '["off","low","medium","high","max"]'::jsonb, NULL, 'anthropic_4_6', true),
+    ('anthropic', 'claude-sonnet-4-6', 8192, 4096, true, true, false, true, false, true, true, false, false, false, 'chat', 'enum', '["off","low","medium","high","max"]'::jsonb, NULL, 'anthropic_sonnet_4_6', true),
     ('gemini', 'gemini-2.0-flash', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', 'none', NULL, NULL, NULL, true),
     ('gemini', 'gemini-2.0-flash-001', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', 'none', NULL, NULL, NULL, true),
     ('gemini', 'gemini-2.0-flash-exp', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', 'none', NULL, NULL, NULL, true),
@@ -145,6 +153,20 @@ INSERT INTO llm_models (
     ('openai', 'text-embedding-3-small', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'embedding', 'none', NULL, NULL, NULL, true),
     ('openai', 'text-embedding-ada-002', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'embedding', 'none', NULL, NULL, NULL, true)
 ON CONFLICT (model_name) DO NOTHING;
+
+-- Separate global 'effort' control (Anthropic output_config.effort), distinct
+-- from reasoning_effort. Only claude-opus-4-5 exposes it among managed models
+-- (opus-4-6/sonnet-4-6 fold effort into their adaptive reasoning_effort enum).
+-- effort_values is not in the INSERT column list above (defaults NULL); set it here.
+-- KNOWN EDGE-CASE (assumed): the "LLM Pricing" admin CRUD (domains/llm) does NOT
+-- expose effort_values in its create/update form — it is a legacy single-model
+-- concern (opus-4-5 only; 4.6+ fold effort into the reasoning_effort enum).
+-- Re-creating opus-4-5 from scratch via that screen would leave effort_values
+-- NULL (the effort dropdown in Configuration LLM would disappear for it).
+-- Recovery is a one-line UPDATE like this one — deliberately not worth wiring a
+-- CRUD field for a model that already exists and that no future model will use.
+UPDATE llm_models SET effort_values = '["low","medium","high"]'::jsonb
+WHERE model_name = 'claude-opus-4-5';
 
 -- ==========================================================================
 -- 2) llm_model_pricing — pricing rows. FK to llm_models via model_id.

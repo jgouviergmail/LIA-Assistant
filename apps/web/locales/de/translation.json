@@ -1608,7 +1608,8 @@
           "timeoutPlaceholder": "Keiner (Provider-Standard)",
           "reasoningEffort": "Reasoning-Aufwand",
           "reasoningNone": "Keiner (deaktiviert)",
-          "reasoningDefault": "Standard (Modell)"
+          "reasoningDefault": "Standard (Modell)",
+          "effort": "Effort"
         },
         "constraints": {
           "reasoningTemp": "Reasoning-Modelle verwenden eine feste Temperatur von 1.0. Dieser Parameter wird von der API ignoriert."
@@ -1620,7 +1621,8 @@
           "presencePenalty": "Fördert thematische Vielfalt. Bestraft jedes bereits erschienene Token unabhängig von der Häufigkeit. Positiv = mehr Themen erkunden. Bereich: -2 bis 2.",
           "maxTokens": "Maximale Anzahl von Ausgabe-Tokens. Begrenzt die Länge der generierten Antwort. Der optimale Wert hängt vom Agententyp ab.",
           "timeout": "Maximale Wartezeit in Sekunden vor Abbruch des API-Aufrufs. Leer lassen für den Standard des Anbieters.",
-          "reasoningEffort": "Steuert die Intensität des internen Denkprozesses des Modells. Höher = bessere Genauigkeit bei höherer Latenz und Kosten. Niedriger = schnelle Antworten für einfache Aufgaben."
+          "reasoningEffort": "Steuert die Intensität des internen Denkprozesses des Modells. Höher = bessere Genauigkeit bei höherer Latenz und Kosten. Niedriger = schnelle Antworten für einfache Aufgaben.",
+          "effort": "Globale Effort-Steuerung (Anthropic): wägt Antwortgründlichkeit gegen Token-Effizienz ab (Text, Tool-Aufrufe, Denken). Niedriger = günstiger und schneller. Standard = high."
         },
         "config": {
           "saved": "LLM-Konfiguration gespeichert",
@@ -2931,6 +2933,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_17": {
+          "title": "v1.20.17 — 💭 Sehen Sie dem Assistenten beim Denken zu, und umfangreichere Reasoning-Einstellungen für Claude-Modelle",
+          "date": "Juni 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>💭 Sehen Sie den Assistenten in Echtzeit denken</b> — Wenn für einen Agenten ein Modell mit aktiviertem „Reasoning“ konfiguriert ist, wird sein Gedankengang jetzt während der Arbeit live im Fortschrittsbereich angezeigt und verschwindet, sobald die endgültige Antwort eintrifft. Das überbrückt die Wartezeit mit nützlichem Kontext und zeigt, wie der Assistent Ihre Anfrage angeht. Es erscheint nur, wenn Reasoning tatsächlich aktiv ist — für Agenten, die nicht nachdenken, wird nichts angezeigt.",
+            "i2": "<b>🧠 Modellspezifische Denk-Einstellungen für Claude (Admin · LLM-Konfiguration)</b> — Jedes Claude-Modell stellt jetzt genau die Reasoning-Steuerungen bereit, die seine API wirklich unterstützt: Opus 4.6 / Sonnet 4.6 nutzen adaptives Denken mit einer Effort-Stufe (off · low · medium · high · max); Opus 4.5 / Haiku 4.5 nutzen ein manuelles Denk-Budget (an/aus + Tokens). Wenn das Denken aktiv ist, wird die Temperatur automatisch gesperrt (der Anbieter verlangt es), sodass keine inkonsistente Konfiguration mehr gespeichert werden kann. Opus 4.5 erhält zusätzlich eine separate globale „Effort“-Steuerung.",
+            "i3": "<b>🔧 Fehlerbehebung — Claude schlägt nicht mehr fehl, wenn das Denken aktiviert ist</b> — Mit aktiviertem erweitertem Denken bei einem Claude-Modell konnten bestimmte interne Schritte (z. B. die Analyse der Anfrage) fehlschlagen und den gesamten Vorgang beeinträchtigen. Das ist behoben: Diese Schritte nutzen jetzt den einzigen Modus, den der Anbieter mit aktiviertem Denken erlaubt, sodass Vorgänge normal abgeschlossen werden. Sie müssen nichts ändern."
+          }
+        },
         "v1_20_16": {
           "title": "v1.20.16 — 🔊 Der Sprachmodus liest in Unterhaltungen keine Formatierung mehr vor",
           "date": "Mai 2026",

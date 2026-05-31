@@ -3389,12 +3389,10 @@ REASONING_COALESCE_INTERVAL_MS = 120
 # container (ReasoningScroll), so the full thought is always reachable by scroll.
 # Set high enough that real reasoning is never cut in practice.
 REASONING_MAX_CHARS_PER_NODE = 20000
-# Anthropic thinking budget (tokens) used ONLY when deriving a reasoning-enabled
-# runnable for the live reasoning stream (via .bind(thinking=...)). It does not
-# affect the factory-built LLM nor any other call path. Kept modest: the goal is
-# to surface *some* visible reasoning to the user, not to deepen the model's
-# actual thinking.
-REASONING_ANTHROPIC_BIND_BUDGET_TOKENS = 1024
+# Anthropic manual extended-thinking minimum budget (tokens). Used by
+# build_anthropic_reasoning when a manual-thinking model (opus-4-5 / haiku-4-5)
+# is enabled with no explicit budget. Anthropic's documented minimum is 1024.
+ANTHROPIC_MIN_THINKING_BUDGET_TOKENS = 1024
 
 # UI progress-estimate heuristic used by `compaction_node._estimate_compaction_seconds`.
 # Tokens per chunk that the LLM is expected to digest, derived from

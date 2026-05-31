@@ -589,9 +589,7 @@ export const useChat = ({
   // that the existing `disabled={isTyping || isUsageBlocked}` wiring on
   // ChatInput automatically locks the textarea while the server summarizes.
   const isTyping =
-    state.status === 'streaming' ||
-    state.status === 'sending' ||
-    state.status === 'compacting';
+    state.status === 'streaming' || state.status === 'sending' || state.status === 'compacting';
   const isConnected = state.apiAvailable && state.streaming.sseStatus !== 'error';
 
   return {

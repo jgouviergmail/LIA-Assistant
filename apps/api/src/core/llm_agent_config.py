@@ -107,6 +107,15 @@ class LLMAgentConfig(BaseModel):
         ),
     )
 
+    effort: str | None = Field(
+        default=None,
+        description=(
+            "Global effort override (Anthropic output_config.effort), distinct from "
+            "reasoning_effort. Allowed values come from the model's effort_values "
+            "(currently opus-4-5 only). None = model default (high)."
+        ),
+    )
+
     model_config = {
         "json_schema_extra": {
             "examples": [
