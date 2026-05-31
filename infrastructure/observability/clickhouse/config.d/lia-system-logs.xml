@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<!--
+  LIA dev override for the Langfuse-bundled ClickHouse server.
+
+  Problem
+  -------
+  With ClickHouse defaults the server pins ~1 full CPU core even at idle, because its
+  internal observability tables (trace_log, asynchronous_metric_log, ...) grow without
+  bound and are merged continuously in the background. On this dev box trace_log alone
+  had reached ~31 GiB / 1.7 billion rows, with asynchronous_metric_log at ~2.5 billion.
+
+  Fixes
+  -----
+    * Disable trace_log entirely. It is only populated by the query profiler, which we
+      also turn off (see users.d/lia-profiler-off.xml).
+    * Cap every other system *_log table with a short TTL so old parts are dropped.
+    * Sample asynchronous metrics every 60s instead of the 1s default.
+
+  Scope
+  -----
+  These tables are ClickHouse-internal diagnostics only. Langfuse application data lives
+  in its own tables and is NOT affected by this file.
+
+  Notes
+  -----
+    * `remove="1"` on a section that does not exist in the base config is a no-op.
+    * TTL/engine changes only affect tables created after this config is applied. Any
+      pre-existing oversized trace_log data stays on disk under a renamed table until the
+      clickhouse volume is recreated.
+-->
+<clickhouse>
+    <!-- Sample async system metrics far less often (default: 1s). -->
+    <asynchronous_metrics_update_period_s>60</asynchronous_metrics_update_period_s>
+
+    <!-- The main CPU hog: disable the query trace log completely. -->
+    <trace_log remove="1"/>
+
+    <!-- Bound the remaining internal log tables to 3 days. -->
+    <asynchronous_metric_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </asynchronous_metric_log>
+    <metric_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </metric_log>
+    <query_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </query_log>
+    <query_thread_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </query_thread_log>
+    <query_views_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </query_views_log>
+    <part_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </part_log>
+    <text_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </text_log>
+    <processors_profile_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </processors_profile_log>
+    <error_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </error_log>
+    <opentelemetry_span_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </opentelemetry_span_log>
+    <session_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </session_log>
+    <blob_storage_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </blob_storage_log>
+    <backup_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </backup_log>
+    <!-- Verbose niche debug log seen growing to >1 GiB here; not needed for Langfuse. -->
+    <background_schedule_pool_log remove="1"/>
+</clickhouse>

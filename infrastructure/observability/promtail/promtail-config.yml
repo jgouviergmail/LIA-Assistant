@@ -107,7 +107,6 @@ scrape_configs:
       # Stage 5: Ajout de labels statiques
       - static_labels:
           job: api
-          environment: development
 
       # Stage 6: Output final (message formaté)
       - output:
@@ -119,6 +118,19 @@ scrape_configs:
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'
         target_label: 'container'
+
+      # Environment dérivé du suffixe du nom de conteneur (-prod / -dev).
+      # Le label statique `environment` a été retiré du pipeline (stage 5) au profit
+      # de cette dérivation : un seul fichier partagé dev/prod, valeur correcte par conteneur.
+      # Conteneurs sans suffixe -prod/-dev (ex. lia-ssl-init) : pas de label environment.
+      - source_labels: ['__meta_docker_container_name']
+        regex: '.*-prod'
+        target_label: 'environment'
+        replacement: 'production'
+      - source_labels: ['__meta_docker_container_name']
+        regex: '.*-dev'
+        target_label: 'environment'
+        replacement: 'development'
 
       # Extraction du service depuis les labels Docker Compose
       - source_labels: ['__meta_docker_container_label_com_docker_compose_service']

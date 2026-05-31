@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!--
+  Disable the ClickHouse query profiler for every user profile.
+
+  The profiler periodically samples running query stacks into system.trace_log. On this
+  dev setup that table had grown to ~31 GiB and its continuous background merges pinned a
+  CPU core even while the server was otherwise idle. Langfuse does not need the profiler.
+
+  Setting both periods to 0 disables real-time and CPU-time stack sampling.
+-->
+<clickhouse>
+    <profiles>
+        <default>
+            <query_profiler_real_time_period_ns>0</query_profiler_real_time_period_ns>
+            <query_profiler_cpu_time_period_ns>0</query_profiler_cpu_time_period_ns>
+        </default>
+    </profiles>
+</clickhouse>

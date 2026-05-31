@@ -68,6 +68,11 @@ tasks:
     cmds:
       - docker compose -f docker-compose.dev.yml up -d --build
 
+  dev:langfuse:
+    desc: Start dev environment WITH the Langfuse observability stack (opt-in profile)
+    cmds:
+      - docker compose -f docker-compose.dev.yml --profile langfuse up -d --build
+
   dev:api:
     desc: Run API standalone (requires PostgreSQL + Redis running)
     dir: "{{.API_DIR}}"

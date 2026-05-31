@@ -385,6 +385,7 @@ services:
   minio:
     image: minio/minio:latest
     container_name: lia-minio-dev
+    profiles: ["langfuse"]  # Opt-in only: started via `docker compose --profile langfuse up` (see task dev:langfuse)
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -411,6 +412,7 @@ services:
   langfuse-db:
     image: postgres:17
     container_name: lia-langfuse-db-dev
+    profiles: ["langfuse"]  # Opt-in only (see task dev:langfuse)
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -434,6 +436,7 @@ services:
   langfuse-clickhouse:
     image: clickhouse/clickhouse-server
     container_name: lia-langfuse-clickhouse-dev
+    profiles: ["langfuse"]  # Opt-in only (see task dev:langfuse)
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -445,6 +448,10 @@ services:
     volumes:
       - langfuse_clickhouse_data:/var/lib/clickhouse
       - langfuse_clickhouse_logs:/var/log/clickhouse-server
+      # Tame idle CPU: short TTL on internal system log tables + query profiler OFF.
+      # Prevents trace_log/asynchronous_metric_log from growing unbounded and pinning a core.
+      - ./infrastructure/observability/clickhouse/config.d/lia-system-logs.xml:/etc/clickhouse-server/config.d/lia-system-logs.xml:ro
+      - ./infrastructure/observability/clickhouse/users.d/lia-profiler-off.xml:/etc/clickhouse-server/users.d/lia-profiler-off.xml:ro
     networks:
       - lia-network
     healthcheck:
@@ -458,6 +465,7 @@ services:
   langfuse-redis:
     image: redis:7
     container_name: lia-langfuse-redis-dev
+    profiles: ["langfuse"]  # Opt-in only (see task dev:langfuse)
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -474,6 +482,7 @@ services:
   langfuse-web:
     image: langfuse/langfuse:latest  # v3.22.0+ required for OTLP support
     container_name: lia-langfuse-web-dev
+    profiles: ["langfuse"]  # Opt-in only (see task dev:langfuse)
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -589,6 +598,7 @@ services:
   langfuse-worker:
     image: docker.io/langfuse/langfuse-worker:3
     container_name: lia-langfuse-worker-dev
+    profiles: ["langfuse"]  # Opt-in only (see task dev:langfuse)
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
