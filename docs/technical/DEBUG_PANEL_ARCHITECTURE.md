@@ -382,6 +382,8 @@ As of v3.3, the debug panel tracks ALL LLM call types in a unified way:
 - **Embedding calls** (journal context, memory search, RAG retrieval) — via `persist_embedding_tokens()` recording into the conversation's `TrackingContext`
 - **TTS** (voice synthesis) — via direct `tracker.record_node_tokens()` call
 
+> **Each LLM call is counted once.** A given LLM `run_id` is recorded a single time, so a call never shows up as two rows (e.g. an `initiative` row plus a phantom `unknown` row with the same tokens) and never inflates the per-message total. This is enforced by an idempotency guard on `TokenTrackingCallback` and by preserving the `CallbackManager` on the reasoning-streaming path — see [TOKEN_TRACKING_AND_COUNTING.md](TOKEN_TRACKING_AND_COUNTING.md) §*Invariant: one `run_id` LLM = one record*.
+
 ### Architecture: Embedding Token Tracking
 
 Previously, embedding tokens were persisted via a separate `TrackingContext` in `persist_embedding_tokens()`, making them invisible in the debug panel.

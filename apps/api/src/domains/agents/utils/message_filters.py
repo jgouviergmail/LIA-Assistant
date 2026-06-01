@@ -7,13 +7,107 @@ in different contexts (response generation, agent input, tool context, etc.).
 All functions preserve immutability - input lists are never modified.
 """
 
+import re
+
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 
-from src.core.constants import COMPACTION_SUMMARY_MARKER
+from src.core.constants import (
+    COMPACTION_SUMMARY_MARKER,
+    CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER,
+    CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER,
+)
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Markdown style markers to strip when neutralizing prior assistant answers for the
+# response LLM's history (see ``_neutralize_assistant_formatting``). Each pattern is
+# anchored or scoped so it removes only *formatting* tokens, never the surrounding
+# textual content (e.g. ``2*3`` or an in-word underscore is left untouched).
+_MD_FENCED_CODE_RE = re.compile(r"^[ \t]*```[^\n]*$", re.MULTILINE)
+_MD_HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]+", re.MULTILINE)
+_MD_BLOCKQUOTE_RE = re.compile(r"^[ \t]{0,3}>[ \t]?", re.MULTILINE)
+_MD_THEMATIC_BREAK_RE = re.compile(r"^[ \t]{0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$", re.MULTILINE)
+_MD_LIST_BULLET_RE = re.compile(r"^([ \t]*)[-*+][ \t]+", re.MULTILINE)
+_MD_TABLE_DELIM_RE = re.compile(r"^[ \t]{0,3}\|?[ \t:|-]+\|?[ \t]*$", re.MULTILINE)
+_MD_BOLD_RE = re.compile(r"(\*\*|__)(?=\S)(.+?)(?<=\S)\1")
+_MD_ITALIC_RE = re.compile(r"(?<![\w*_])([*_])(?=\S)(.+?)(?<=\S)\1(?![\w*_])")
+_MD_INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)\s]+\)")
+_MULTI_BLANK_LINE_RE = re.compile(r"\n{3,}")
+
+
+def _strip_markdown_syntax(text: str) -> str:
+    """Remove common Markdown *formatting* tokens, preserving textual content.
+
+    Used to neutralize the style of prior assistant answers in the response LLM's
+    conversational history (via ``_neutralize_assistant_formatting``) so they cannot act
+    as a Markdown style precedent that fights the HTML output directive. This is
+    intentionally conservative: it strips only unambiguous formatting markers (headings,
+    emphasis, list bullets, thematic breaks, table delimiter rows, inline code,
+    blockquotes, and link syntax) and leaves all other characters — including
+    ordered-list numbers and in-word ``*``/``_`` — intact.
+
+    Args:
+        text: Raw message text (already coerced to ``str``).
+
+    Returns:
+        The text with Markdown formatting markers removed and runs of blank lines
+        collapsed. Content words, names, dates and numbers are preserved verbatim.
+    """
+    text = _MD_FENCED_CODE_RE.sub("", text)
+    text = _MD_THEMATIC_BREAK_RE.sub("", text)
+    text = _MD_TABLE_DELIM_RE.sub("", text)
+    text = _MD_HEADING_RE.sub("", text)
+    text = _MD_BLOCKQUOTE_RE.sub("", text)
+    text = _MD_LIST_BULLET_RE.sub(r"\1", text)
+    text = _MD_LINK_RE.sub(r"\1", text)
+    text = _MD_BOLD_RE.sub(r"\2", text)
+    text = _MD_ITALIC_RE.sub(r"\2", text)
+    text = _MD_INLINE_CODE_RE.sub(r"\1", text)
+    # Drop residual table cell pipes, then collapse blank-line runs created above.
+    text = text.replace("|", " ")
+    text = _MULTI_BLANK_LINE_RE.sub("\n\n", text)
+    return text.strip()
+
+
+def _neutralize_assistant_formatting(content: str) -> str:
+    """Render a prior assistant answer as style-free text tagged for the response LLM.
+
+    Produces a representation that preserves *what* was answered (for conversational
+    continuity) while removing every *style* signal — both HTML and Markdown — so the
+    response LLM cannot infer an output format from the history and only obeys the
+    active formatting directive. The result is prefixed with
+    ``CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER`` so the model treats it as a stripped
+    excerpt rather than a style precedent.
+
+    HTML answers keep the existing minimization (text before the first tag only),
+    avoiding re-injection of full card payloads into context. The call is idempotent:
+    content already carrying the marker is returned unchanged.
+
+    Args:
+        content: The assistant message content (already coerced to ``str``).
+
+    Returns:
+        Marker-prefixed, style-neutralized text. If no textual content remains
+        (e.g. an HTML-only data card), the bare marker is returned.
+    """
+    if content.startswith(CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER):
+        # Idempotency guard: never double-strip or double-prefix.
+        return content
+
+    # For HTML answers, keep only the leading prose (mirrors the non-neutralized
+    # branch) so we do not pour entire card markup back into the context window.
+    if 'class="lia-' in content or "class='lia-" in content:
+        text = _extract_text_before_html(content)
+    else:
+        text = content
+
+    text = _strip_markdown_syntax(text)
+    if not text:
+        return CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER
+    return f"{CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER} {text}"
 
 
 def _extract_text_before_html(content: str) -> str:
@@ -35,8 +129,6 @@ def _extract_text_before_html(content: str) -> str:
         >>> _extract_text_before_html("<div class='lia-card'>...")
         ""
     """
-    import re
-
     # Find first HTML tag position
     html_match = re.search(r"<[a-zA-Z]", content)
     if html_match:
@@ -269,7 +361,11 @@ def remove_orphan_tool_messages(messages: list[BaseMessage]) -> list[BaseMessage
     return validated
 
 
-def filter_for_llm_context(messages: list[BaseMessage]) -> list[BaseMessage]:
+def filter_for_llm_context(
+    messages: list[BaseMessage],
+    *,
+    neutralize_formatting: bool = False,
+) -> list[BaseMessage]:
     """
     Filter messages to keep user input, JSON tool results, and simple chat AI responses.
 
@@ -294,6 +390,16 @@ def filter_for_llm_context(messages: list[BaseMessage]) -> list[BaseMessage]:
 
     Args:
         messages: Full message history from state.
+        neutralize_formatting: When ``True`` (used only by the response node in the
+            ``html`` display mode), every retained assistant answer is rewritten to
+            style-free text tagged with ``CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER``
+            (see ``_neutralize_assistant_formatting``). This removes the Markdown/HTML
+            style precedent that otherwise accumulates in history and overrides the
+            HTML output directive over multi-turn conversations. Defaults to ``False``,
+            i.e. the historical behaviour (Markdown answers kept verbatim, HTML answers
+            reduced to their leading prose) — so the ``cards`` and ``markdown`` display
+            modes, the planner path, and all existing callers are byte-for-byte
+            unchanged.
 
     Returns:
         Filtered list for LLM context.
@@ -327,6 +433,11 @@ def filter_for_llm_context(messages: list[BaseMessage]) -> list[BaseMessage]:
             # Handle AI messages containing HTML formatting. Gemini 3.x content is
             # list[dict] blocks; coerce to text so the HTML-card check works.
             content = coerce_content_to_text(getattr(msg, "content", ""))
+            if neutralize_formatting:
+                # html display mode: strip every style signal (HTML + Markdown) and
+                # tag the prior answer so it cannot act as a style precedent.
+                filtered.append(AIMessage(content=_neutralize_assistant_formatting(content)))
+                continue
             if 'class="lia-' in content or "class='lia-" in content:
                 # Extract text before HTML, or use placeholder to indicate response was given
                 # This prevents LLM from thinking previous query is unanswered
@@ -335,7 +446,7 @@ def filter_for_llm_context(messages: list[BaseMessage]) -> list[BaseMessage]:
                     filtered.append(AIMessage(content=text_before_html))
                 else:
                     # Placeholder so LLM knows query was handled
-                    filtered.append(AIMessage(content="[Résultats affichés]"))
+                    filtered.append(AIMessage(content=CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER))
                 continue
             # Keep simple chat responses
             filtered.append(msg)

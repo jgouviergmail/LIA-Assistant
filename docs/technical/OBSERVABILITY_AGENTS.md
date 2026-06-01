@@ -331,6 +331,15 @@ class TokenTrackingCallback(AsyncCallbackHandler):
 - `MetricsCallbackHandler` → **Prometheus metrics** (agrégées)
 - `TokenTrackingCallback` → **Database records** (granulaires, par message)
 
+> **Invariant — un `run_id` LLM = un enregistrement.** Les deux handlers portent une
+> garde d'idempotence symétrique (set de `run_id` déjà traités, *check-and-mark*
+> atomique en tête de `on_llm_end`) : un `on_llm_end` dupliqué pour un même `run_id`
+> est ignoré, sans double comptage côté Prometheus **ni** PostgreSQL. Ce double tir
+> pouvait survenir sur le chemin *reasoning streaming* (`astream_events` sur un modèle
+> tool-bound), où l'aplatissement de `config["callbacks"]` re-rootait le run ; il est
+> supprimé à la source par `enrich_config_preserving_callbacks` (préservation du
+> `CallbackManager`). Détails : [TOKEN_TRACKING_AND_COUNTING.md](TOKEN_TRACKING_AND_COUNTING.md) §*Invariant : un `run_id` LLM = un enregistrement*.
+
 ---
 
 ### 2. Token Extraction (Stratégie Multi-Fallback)

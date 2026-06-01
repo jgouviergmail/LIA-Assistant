@@ -142,6 +142,29 @@ OLLAMA_DISCOVERY_TIMEOUT_SECONDS = 5  # HTTP timeout for Ollama /api/tags + /api
 COMPACTION_SUMMARY_MARKER = "[Conversation history compacted"
 
 # ============================================================================
+# RESPONSE LLM CONTEXT — STYLE NEUTRALIZATION (HTML enriched display mode)
+# ============================================================================
+# Prefix prepended to each prior assistant answer when its formatting is stripped
+# out of the response LLM's conversational history. In the "html" display mode the
+# response prompt carries a strong directive to emit rich ``lia-response`` HTML;
+# however the history filter erases prior HTML answers (kept only as text) while
+# retaining Markdown ones verbatim. That asymmetry makes the visible history look
+# uniformly plain, biasing the model — over multi-turn conversations — into
+# inferring that plain/Markdown is the norm and overriding the HTML directive. We
+# therefore neutralize the *style* (not the content) of every prior assistant turn
+# and tag it with this marker so the model knows the formatting was intentionally
+# omitted and must NOT be treated as a style precedent. French, to match the sibling
+# placeholder ``CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER`` used in the same filter.
+CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER = "[réponse précédente, mise en forme omise]"
+
+# Placeholder substituted for a prior HTML-only assistant answer (a data card with no
+# leading prose) in the response LLM's conversational history. It signals that the
+# query was answered and rendered visually, without pouring the card markup back into
+# the context window. Used by ``filter_for_llm_context`` in the non-neutralized
+# (cards/markdown) branch. French, consistent with the sibling marker above.
+CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER = "[Résultats affichés]"
+
+# ============================================================================
 # EXTERNAL CONTENT WRAPPING (prompt injection prevention)
 # ============================================================================
 EXTERNAL_CONTENT_OPEN_TAG = "<external_content"

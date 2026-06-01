@@ -2942,6 +2942,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_18": {
+          "title": "v1.20.18 — 🎨 Rich display stays consistent for the whole conversation, plus exact usage counting",
+          "date": "June 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎨 Rich (HTML) display stays consistent for the whole conversation</b> — In the rich (HTML) display mode, the first replies displayed correctly, but as the conversation grew some drifted back to plain formatting without you changing any setting. This is fixed: every reply now keeps the rich HTML formatting throughout the conversation, in both execution modes. Nothing to change on your side.",
+            "i2": "<b>📊 Exact token & cost counting for proactive messages (Admin · Debug Panel)</b> — A proactive (“initiative”) message could appear twice in the Debug Panel — once correctly labelled and once as “unknown” — with the same tokens counted twice, which also inflated the per-message total, the usage logs and user statistics. Counting is now exact: each model call is recorded once. Nothing to change on your side."
+          }
+        },
         "v1_20_17": {
           "title": "v1.20.17 — 💭 Watch the assistant think, and richer reasoning settings for Claude models",
           "date": "June 2026",

@@ -58,7 +58,10 @@ from pydantic import BaseModel, ValidationError
 
 from src.core.config import settings
 from src.core.field_names import FIELD_METADATA
-from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
+from src.infrastructure.llm.invoke_helpers import (
+    enrich_config_preserving_callbacks,
+    enrich_config_with_node_metadata,
+)
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
@@ -447,9 +450,19 @@ async def get_structured_output[T: BaseModel](
     elif node_name is None:
         node_name = "unknown"
 
-    # Enrich config to ensure callbacks receive node_name
-    # This is CRITICAL for token tracking - without it, all metrics show node_name="unknown"
-    enriched_config = enrich_config_with_node_metadata(config, node_name)
+    # Enrich config to ensure callbacks receive node_name.
+    # This is CRITICAL for token tracking - without it, all metrics show node_name="unknown".
+    #
+    # When live reasoning is requested, the call is consumed via ``astream_events``
+    # (see ``stream_reasoning_events``). The standard enrichment flattens
+    # ``config["callbacks"]`` into a list, which severs the inherited CallbackManager's
+    # parent linkage and makes ``astream_events`` over a tool-bound model double-fire
+    # ``on_llm_end`` (double token/cost accounting). The manager-preserving variant keeps
+    # a single firing while still setting node metadata + the per-node MetricsCallbackHandler.
+    if reasoning_emit is not None:
+        enriched_config = enrich_config_preserving_callbacks(config, node_name)
+    else:
+        enriched_config = enrich_config_with_node_metadata(config, node_name)
 
     # Merge enriched config into invoke_kwargs
     # This ensures the config is passed to ALL downstream LLM calls

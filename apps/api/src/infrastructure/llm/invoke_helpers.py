@@ -109,6 +109,28 @@ def _resolve_user_id_for_limit_check(
 # ============================================================================
 
 
+def _ensure_node_metadata(config: RunnableConfig | None, node_name: str) -> RunnableConfig:
+    """Set ``metadata["langgraph_node"]`` on the config, creating it if absent.
+
+    Shared by both enrichment helpers so the metadata-init step stays DRY. Mutates
+    ``config`` in place (matching the historical behaviour) and returns it for chaining.
+
+    Args:
+        config: Original RunnableConfig from the node (may be None).
+        node_name: Node identifier propagated to callbacks for token attribution.
+
+    Returns:
+        The same config (or a fresh dict when ``None`` was passed) with
+        ``metadata["langgraph_node"]`` set to ``node_name``.
+    """
+    if config is None:
+        config = {}
+    if "metadata" not in config:
+        config["metadata"] = {}  # type: ignore[typeddict-item]
+    config["metadata"]["langgraph_node"] = node_name  # type: ignore[typeddict-item]
+    return config
+
+
 def enrich_config_with_node_metadata(
     config: RunnableConfig | None,
     node_name: str,
@@ -182,21 +204,12 @@ def enrich_config_with_node_metadata(
         >>> assert enriched["metadata"]["other"] == "data"  # Preserved
 
     References:
-        - Root Cause Analysis: docs/agents/TOKEN_TRACKING_ROOT_CAUSE_ANALYSIS.md
+        - Token tracking architecture: docs/technical/TOKEN_TRACKING_AND_COUNTING.md
         - LangChain Callbacks: https://python.langchain.com/docs/concepts/callbacks/
-        - ADR-015: Token Tracking Architecture V2
     """
-    # Initialize config if None
-    if config is None:
-        config = {}
-
-    # Ensure metadata key exists
-    if "metadata" not in config:
-        config["metadata"] = {}  # type: ignore[typeddict-item]
-
-    # Set langgraph_node (override if exists to ensure correctness)
-    # This ensures callbacks receive the correct node_name
-    config["metadata"]["langgraph_node"] = node_name  # type: ignore[typeddict-item]
+    # Ensure metadata["langgraph_node"] is set (override if exists to ensure
+    # correctness) so callbacks receive the correct node_name.
+    config = _ensure_node_metadata(config, node_name)
 
     # **Phase 2.1 - CRITICAL FIX**: Add MetricsCallbackHandler with correct node_name
     # The MetricsCallbackHandler must be created per-invocation, not per-LLM
@@ -268,6 +281,71 @@ def enrich_config_with_node_metadata(
     )
 
     return config
+
+
+def enrich_config_preserving_callbacks(
+    config: RunnableConfig | None,
+    node_name: str,
+) -> RunnableConfig:
+    """Enrich a node config for token tracking while preserving the CallbackManager.
+
+    Identical intent to :func:`enrich_config_with_node_metadata` (set
+    ``metadata["langgraph_node"]`` and refresh the per-node ``MetricsCallbackHandler``),
+    but it does **not** flatten ``config["callbacks"]`` into a plain list when a
+    ``BaseCallbackManager`` is present.
+
+    Why this exists — the ``astream_events`` reasoning path:
+        Flattening the inherited manager into a list severs its ``parent_run_id``
+        linkage. On the ordinary ``ainvoke`` path this is harmless (LangChain
+        de-duplicates handlers by identity). But when the resulting list config is
+        consumed by ``astream_events`` over a ``RunnableBinding`` (e.g.
+        ``bind_tools(...)``) inside a LangGraph node, the LLM run re-roots
+        (``parent_run_id=None``) and the graph-propagated handler attaches via **two
+        lineages** — the explicit list config *and* the Pregel contextvar parent —
+        so ``on_llm_end`` fires twice for the same LLM ``run_id`` (double
+        token/cost accounting). Preserving the manager keeps a single lineage and a
+        single firing. Verified by reproduction against a real LangGraph graph.
+
+    The swap is performed on a **copy** of the manager so the node's shared manager
+    is never mutated (no leakage of the per-call MetricsCallbackHandler to sibling
+    LLM calls). When no manager is present (plain list / ``None``), this falls back
+    to :func:`enrich_config_with_node_metadata` — the list shape carries no parent
+    linkage to sever, so the double-firing condition does not arise.
+
+    Args:
+        config: Original RunnableConfig from the node (may be None).
+        node_name: Node identifier for metrics/attribution (e.g. ``"initiative"``).
+
+    Returns:
+        Enriched RunnableConfig with ``metadata["langgraph_node"]`` set and a
+        node-scoped ``MetricsCallbackHandler``, preserving the CallbackManager when
+        one is present.
+    """
+    from langchain_core.callbacks.base import BaseCallbackManager
+
+    from src.infrastructure.observability.callbacks import MetricsCallbackHandler
+
+    config = _ensure_node_metadata(config, node_name)
+
+    callbacks = config.get("callbacks")
+    if isinstance(callbacks, BaseCallbackManager):
+        # Copy so the node's shared manager is never mutated.
+        manager = callbacks.copy()
+        for handler in [h for h in manager.handlers if isinstance(h, MetricsCallbackHandler)]:
+            manager.remove_handler(handler)
+        manager.add_handler(MetricsCallbackHandler(node_name=node_name, llm=None), inherit=True)
+        config["callbacks"] = manager
+        logger.debug(
+            "config_enriched_preserving_manager",
+            node_name=node_name,
+            handler_count=len(manager.handlers),
+            handler_types=[type(h).__name__ for h in manager.handlers],
+        )
+        return config
+
+    # No manager to preserve (plain list / None): the standard list-based enrichment
+    # is safe here — there is no parent linkage to sever.
+    return enrich_config_with_node_metadata(config, node_name)
 
 
 def create_instrumented_config_from_node(

@@ -2933,6 +2933,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_18": {
+          "title": "v1.20.18 — 🎨 Die Rich-Anzeige bleibt das ganze Gespräch über konsistent, plus genaue Nutzungszählung",
+          "date": "Juni 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎨 Die Rich-Anzeige (HTML) bleibt das ganze Gespräch über konsistent</b> — Im Rich-Anzeigemodus (HTML) wurden die ersten Antworten korrekt dargestellt, doch im Verlauf des Gesprächs fielen manche ohne Ihr Zutun auf einfache Formatierung zurück. Das ist behoben: Jede Antwort behält nun während des gesamten Gesprächs die Rich-HTML-Formatierung – in beiden Ausführungsmodi. Sie müssen nichts ändern.",
+            "i2": "<b>📊 Genaue Token- und Kostenzählung für proaktive Nachrichten (Admin · Debug-Panel)</b> — Eine proaktive („Initiative“-)Nachricht konnte zweimal im Debug-Panel erscheinen – einmal korrekt benannt und einmal als „unknown“ – wobei dieselben Tokens doppelt gezählt wurden, was auch die Gesamtsumme unter der Antwort, die Nutzungsprotokolle und die Benutzerstatistiken aufblähte. Die Zählung ist jetzt exakt: Jeder Modellaufruf wird nur einmal erfasst. Sie müssen nichts ändern."
+          }
+        },
         "v1_20_17": {
           "title": "v1.20.17 — 💭 Sehen Sie dem Assistenten beim Denken zu, und umfangreichere Reasoning-Einstellungen für Claude-Modelle",
           "date": "Juni 2026",

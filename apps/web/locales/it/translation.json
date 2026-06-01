@@ -2935,6 +2935,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_18": {
+          "title": "v1.20.18 — 🎨 La visualizzazione avanzata resta coerente per tutta la conversazione, più un conteggio d'uso accurato",
+          "date": "Giugno 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎨 La visualizzazione avanzata (HTML) resta coerente per tutta la conversazione</b> — Nella modalità di visualizzazione avanzata (HTML), le prime risposte venivano mostrate correttamente, ma con il proseguire della conversazione alcune tornavano a una formattazione semplice senza che tu cambiassi alcuna impostazione. È stato corretto: ogni risposta mantiene ora la formattazione HTML avanzata per tutta la conversazione, in entrambe le modalità di esecuzione. Non devi cambiare nulla.",
+            "i2": "<b>📊 Conteggio accurato di token e costo per i messaggi proattivi (Admin · Pannello di debug)</b> — Un messaggio proattivo («initiative») poteva comparire due volte nel pannello di debug — una volta con il nome corretto e una come «unknown» — con gli stessi token conteggiati due volte, gonfiando anche il totale sotto la risposta, i log di utilizzo e le statistiche utente. Il conteggio è ora esatto: ogni chiamata al modello viene registrata una sola volta. Non devi cambiare nulla."
+          }
+        },
         "v1_20_17": {
           "title": "v1.20.17 — 💭 Guarda l'assistente ragionare, e impostazioni di ragionamento più ricche per i modelli Claude",
           "date": "Giugno 2026",

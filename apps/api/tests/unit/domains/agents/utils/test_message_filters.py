@@ -1048,6 +1048,123 @@ class TestFilterForLlmContext:
 
 
 # ============================================================================
+# Tests for filter_for_llm_context(neutralize_formatting=True)  (html display mode)
+# ============================================================================
+
+
+class TestFilterForLlmContextNeutralizeFormatting:
+    """Tests for the ``neutralize_formatting`` path used in the html display mode.
+
+    The flag must strip every style signal (Markdown + HTML) from prior assistant
+    answers and tag them with the marker, while leaving Human/Tool messages and the
+    default (cards/markdown) behaviour untouched.
+    """
+
+    def test_default_is_byte_for_byte_unchanged(self):
+        """Without the flag, behaviour is identical to the historical filter — this is
+        what guarantees zero regression for the cards and markdown display modes."""
+        messages = [
+            HumanMessage(content="mes 5 derniers emails"),
+            AIMessage(content="Voici tes **5 emails** :\n\n- A\n- B"),
+            AIMessage(content="<div class='lia-card'>Card</div>"),
+        ]
+
+        with patch("src.domains.agents.utils.message_filters.logger"):
+            result = filter_for_llm_context(messages)
+
+        # Markdown kept verbatim, HTML-only reduced to the existing placeholder.
+        assert result[1].content == "Voici tes **5 emails** :\n\n- A\n- B"
+        assert result[2].content == "[Résultats affichés]"
+
+    def test_strips_markdown_and_prefixes_marker(self):
+        """A Markdown assistant answer is neutralized to plain text + marker."""
+        from src.core.constants import CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER
+
+        messages = [
+            AIMessage(content="Voici tes **5 derniers emails** :\n\n- Hadi\n- Anne"),
+        ]
+
+        with patch("src.domains.agents.utils.message_filters.logger"):
+            result = filter_for_llm_context(messages, neutralize_formatting=True)
+
+        content = result[0].content
+        assert content.startswith(CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER)
+        # No Markdown markers remain, but the words survive.
+        assert "**" not in content
+        assert "- Hadi" not in content
+        assert "5 derniers emails" in content
+        assert "Hadi" in content and "Anne" in content
+
+    def test_html_answer_keeps_only_leading_prose_with_marker(self):
+        """HTML answers are reduced to their leading prose (never the full card markup),
+        then tagged — so card payloads are not poured back into the context window."""
+        from src.core.constants import CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER
+
+        messages = [
+            AIMessage(
+                content='Voici le résultat\n\n<div class="lia-response"><style>...</style>'
+                "<h2>Emails</h2></div>"
+            ),
+        ]
+
+        with patch("src.domains.agents.utils.message_filters.logger"):
+            result = filter_for_llm_context(messages, neutralize_formatting=True)
+
+        content = result[0].content
+        assert content.startswith(CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER)
+        assert "Voici le résultat" in content
+        assert "<div" not in content and "lia-response" not in content
+
+    def test_html_only_answer_returns_bare_marker(self):
+        """An HTML-only data card (no leading prose) collapses to just the marker."""
+        from src.core.constants import CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER
+
+        messages = [AIMessage(content="<div class='lia-card'>Card</div>")]
+
+        with patch("src.domains.agents.utils.message_filters.logger"):
+            result = filter_for_llm_context(messages, neutralize_formatting=True)
+
+        assert result[0].content == CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER
+
+    def test_idempotent_on_already_neutralized_content(self):
+        """Re-filtering already-neutralized content must not double-strip or double-prefix."""
+        from src.core.constants import CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER
+
+        messages = [AIMessage(content="Voici tes **emails**")]
+
+        with patch("src.domains.agents.utils.message_filters.logger"):
+            once = filter_for_llm_context(messages, neutralize_formatting=True)
+            twice = filter_for_llm_context(once, neutralize_formatting=True)
+
+        assert once[0].content == twice[0].content
+        # Exactly one marker, not two.
+        assert twice[0].content.count(CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER) == 1
+
+    def test_human_and_tool_messages_untouched(self):
+        """Neutralization targets assistant answers only — user input and tool JSON pass through."""
+        messages = [
+            HumanMessage(content="mes **emails**"),
+            ToolMessage(content='{"items": ["a", "b"]}', tool_call_id="1"),
+        ]
+
+        with patch("src.domains.agents.utils.message_filters.logger"):
+            result = filter_for_llm_context(messages, neutralize_formatting=True)
+
+        assert result[0].content == "mes **emails**"
+        assert result[1].content == '{"items": ["a", "b"]}'
+
+    def test_inword_punctuation_preserved(self):
+        """Conservative stripping must not damage content like ``2*3`` or snake_case."""
+        messages = [AIMessage(content="Le calcul 2*3 et la variable user_id sont OK")]
+
+        with patch("src.domains.agents.utils.message_filters.logger"):
+            result = filter_for_llm_context(messages, neutralize_formatting=True)
+
+        assert "2*3" in result[0].content
+        assert "user_id" in result[0].content
+
+
+# ============================================================================
 # Tests for split_messages_by_turn
 # ============================================================================
 

@@ -58,6 +58,16 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         # Phase 2.1 (RC4 Fix): Store last usage for cache decorator
         # CRITICAL: Cleared on each on_llm_start to prevent memory leaks
         self._last_usage_metadata: dict[str, Any] | None = None
+        # Idempotency guard (symmetric with TokenTrackingCallback): a single LLM
+        # run_id must emit Prometheus metrics exactly once. ``on_llm_end`` can fire
+        # twice for the same run when this handler is double-attached on the
+        # ``astream_events`` reasoning path (see TokenTrackingCallback.__init__).
+        # enrich_config_preserving_callbacks already removes that double-fire at the
+        # source on the reasoning path; this guard is the matching defense-in-depth so
+        # the metrics path (llm_tokens_consumed_total / llm_api_calls_total /
+        # llm_cost_total) cannot double-count if a duplicate ``on_llm_end`` ever
+        # reaches the same instance from another source.
+        self._recorded_llm_run_ids: set[UUID] = set()
 
     def _store_start_time(self, run_id: UUID) -> None:
         """Store start time for latency calculation (DRY helper)."""
@@ -102,6 +112,13 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         **kwargs: Any,
     ) -> None:
         """Called when LLM ends running successfully."""
+        # Idempotency guard (parallel-safe): emit metrics once per LLM run_id. The
+        # check-and-mark is atomic under asyncio (no ``await`` between), so concurrent
+        # duplicate ends cannot both pass. Mirrors TokenTrackingCallback.on_llm_end.
+        if run_id in self._recorded_llm_run_ids:
+            return
+        self._recorded_llm_run_ids.add(run_id)
+
         # Calculate latency
         latency = time.time() - self.start_times.pop(run_id, time.time())
 
@@ -439,6 +456,16 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         # Keyed by LLM call run_id (UUID) to avoid race conditions
         # when multiple LLM calls run concurrently (e.g., parallel_executor)
         self._call_context: dict[str, dict[str, Any]] = {}
+        # Idempotency guard: LLM run_ids already recorded. A single physical LLM
+        # call must be recorded exactly once. On the reasoning-streaming path
+        # (``astream_events``) this handler can be attached twice — once inherited
+        # from the graph-level config and once as a per-node local handler after
+        # ``enrich_config_with_node_metadata`` — and LangChain does not dedupe the
+        # two attachments there, so ``on_llm_end`` fires twice for the same run_id.
+        # Without this guard the second invocation records a phantom
+        # ``node_name="unknown"`` row with identical tokens, double-counting the
+        # call in the debug panel, the persisted summary and user statistics.
+        self._recorded_llm_run_ids: set[str] = set()
 
     def _store_call_context(self, run_id: UUID, metadata: dict[str, Any] | None) -> None:
         """Store per-call context for parallel-safe tracking (DRY helper)."""
@@ -476,6 +503,14 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         **kwargs: Any,
     ) -> None:
         """Called when ChatModel starts (modern chat models like GPT-4)."""
+        logger.debug(
+            "token_tracking_on_chat_model_start_provenance",
+            graph_run_id=self.run_id,
+            llm_run_id=str(run_id),
+            parent_run_id=str(parent_run_id) if parent_run_id else None,
+            tags=tags,
+            langgraph_node=(metadata or {}).get("langgraph_node"),
+        )
         self._store_call_context(run_id, metadata)
 
     async def on_llm_end(
@@ -499,6 +534,31 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         """
         run_id_str = str(run_id)
 
+        # Provenance of this callback invocation (run-tree scope). Used to diagnose
+        # duplicate on_llm_end firings: two fires of the same LLM run_id with
+        # different parent_run_id/tags reveal two distinct callback-manager scopes.
+        parent_run_id_str = str(parent_run_id) if parent_run_id else None
+        meta_node = (kwargs.get(FIELD_METADATA) or {}).get("langgraph_node")
+
+        # Idempotency guard (parallel-safe): a single LLM run_id must be recorded
+        # once. ``on_llm_end`` can fire twice for the same run when this handler is
+        # double-attached on the ``astream_events`` reasoning path (see __init__).
+        # The check-and-mark below is atomic under asyncio (no ``await`` between),
+        # so concurrent duplicate ends cannot both pass. The first end carries the
+        # real node context; the second is a no-op skip.
+        if run_id_str in self._recorded_llm_run_ids:
+            logger.debug(
+                "token_tracking_duplicate_llm_end_skipped",
+                run_id=self.run_id,
+                llm_run_id=run_id_str,
+                parent_run_id=parent_run_id_str,
+                tags=tags,
+                langgraph_node=meta_node,
+                msg="Duplicate on_llm_end for same LLM run_id; skipping to avoid double-count",
+            )
+            return
+        self._recorded_llm_run_ids.add(run_id_str)
+
         # v3.2: Retrieve and cleanup per-call context (parallel-safe)
         call_ctx = self._call_context.pop(run_id_str, {})
         node_name = call_ctx.get("node_name", "unknown")
@@ -510,6 +570,9 @@ class TokenTrackingCallback(AsyncCallbackHandler):
             run_id=run_id_str,
             node_name=node_name,
             graph_run_id=self.run_id,
+            parent_run_id=parent_run_id_str,
+            tags=tags,
+            langgraph_node=meta_node,
         )
 
         try:

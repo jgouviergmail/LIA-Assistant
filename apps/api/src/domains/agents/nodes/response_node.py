@@ -1265,6 +1265,20 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             viewport=user_viewport,
         )
 
+        # DISPLAY MODE: resolve once, up-front — it gates several style decisions below.
+        # In the "html" mode the prompt carries the rich-HTML directive, so the Markdown
+        # style precedent that accumulates in the LLM's conversational history must be
+        # neutralized: prior assistant answers are rewritten to style-free text via
+        # filter_for_llm_context(neutralize_formatting=...) so they cannot bias the model
+        # into Markdown over multi-turn conversations. The current turn's content to render
+        # (e.g. the ReAct agent's final_message) is left intact — it is the input to
+        # reformat, not a style precedent. The "cards" and "markdown" modes keep the
+        # historical behaviour (flag stays False) — no regression.
+        user_display_mode = config.get("configurable", {}).get(
+            "user_display_mode", RESPONSE_DISPLAY_MODE_CARDS
+        )
+        neutralize_history_formatting = user_display_mode == RESPONSE_DISPLAY_MODE_HTML
+
         # === VISION LLM SWITCH (evolution F4 — File Attachments) ===
         # Detect if current turn has image attachments → use vision_analysis LLM
         current_turn_attachments = state.get("metadata", {}).get("current_turn_attachments")
@@ -1370,7 +1384,9 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         windowed_for_history = get_response_windowed_messages(state[STATE_KEY_MESSAGES])
         # Use filter_for_llm_context: keeps HumanMessage + ToolMessage (JSON) + simple AIMessage
         # Excludes AIMessage with HTML (lia-card) to prevent LLM reformulating as Markdown
-        llm_context_for_history = filter_for_llm_context(windowed_for_history)
+        llm_context_for_history = filter_for_llm_context(
+            windowed_for_history, neutralize_formatting=neutralize_history_formatting
+        )
 
         # =====================================================================
         # INTELLIGENT FILTERING: Extract user query for semantic filtering
@@ -2314,10 +2330,8 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 "</ProactiveFindings>"
             )
 
-        # DISPLAY MODE: Read user preference from configurable
-        user_display_mode = config.get("configurable", {}).get(
-            "user_display_mode", RESPONSE_DISPLAY_MODE_CARDS
-        )
+        # DISPLAY MODE: ``user_display_mode`` was resolved once earlier (history
+        # neutralization gate); reused here for the HTML directive / cards logic.
 
         # Resolve the current turn's routing target via the canonical helper
         # (handles both the object and serialized-dict forms of query
@@ -2587,8 +2601,13 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # Filter messages for LLM context
         # Keeps: HumanMessage + ToolMessage (JSON) + AIMessage without HTML
         # Excludes: AIMessage with HTML (lia-card) to prevent LLM reformulating as Markdown
+        # In "html" display mode, also neutralizes the style of prior assistant answers
+        # (see neutralize_history_formatting above) so accumulated Markdown does not
+        # override the HTML directive over multi-turn conversations.
         # Uses centralized filter from utils/message_filters.py
-        conversational_messages = filter_for_llm_context(windowed_messages)
+        conversational_messages = filter_for_llm_context(
+            windowed_messages, neutralize_formatting=neutralize_history_formatting
+        )
 
         # Security 2025-12-19: Anti-hallucination for rejected plans (P0.3)
         # Remove result-containing AI messages when plan is rejected

@@ -2933,6 +2933,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_18": {
+          "title": "v1.20.18 — 🎨 La visualización enriquecida se mantiene coherente durante toda la conversación, y un recuento de uso exacto",
+          "date": "Junio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎨 La visualización enriquecida (HTML) se mantiene coherente durante toda la conversación</b> — En el modo de visualización enriquecida (HTML), las primeras respuestas se mostraban correctamente, pero a medida que avanzaba la conversación algunas volvían a un formato simple sin que cambiaras ningún ajuste. Se ha corregido: cada respuesta conserva ahora el formato HTML enriquecido durante toda la conversación, en ambos modos de ejecución. No tienes que cambiar nada.",
+            "i2": "<b>📊 Recuento exacto de tokens y coste para los mensajes proactivos (Admin · Panel de depuración)</b> — Un mensaje proactivo («initiative») podía aparecer dos veces en el panel de depuración —una vez con el nombre correcto y otra como «unknown»— con los mismos tokens contados dos veces, lo que también inflaba el total bajo la respuesta, los registros de uso y las estadísticas de usuario. El recuento ahora es exacto: cada llamada al modelo se registra una sola vez. No tienes que cambiar nada."
+          }
+        },
         "v1_20_17": {
           "title": "v1.20.17 — 💭 Observa al asistente pensar, y ajustes de razonamiento más ricos para los modelos Claude",
           "date": "Junio 2026",

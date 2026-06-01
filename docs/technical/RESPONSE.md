@@ -66,7 +66,8 @@ graph LR
 | **Anti-Hallucination** | Directives strictes contre invention de données |
 | **Message Windowing** | 20 derniers turns conversationnels (contexte riche) |
 | **Multilingual** | Support 6 langues avec personnalisation temporelle |
-| **Markdown Output** | CommonMark compliant avec emojis contextuels |
+| **Display Modes** | Format de sortie piloté par `user_display_mode` : `cards` (défaut, Markdown + cartes HTML), `markdown` (Markdown pur), `html` (HTML enrichi `lia-response`) |
+| **History Style Neutralization** | En mode `html`, le style des réponses assistant de l'historique est neutralisé pour que la directive HTML reste la seule autorité de mise en forme (voir section Message Windowing) |
 
 ---
 
@@ -403,12 +404,19 @@ When `is_app_help_query=True` (detected by QueryAnalyzer), the Response Node inj
 - IGNORE rejected/modified initial queries
 ```
 
-**Règle #3: Markdown Required**
+**Règle #3: Output Format (display-mode dependent)**
 ```
-- ALL responses in Markdown (NOT HTML)
-- Structure: ## sections, ### subsections, --- separators
-- Emojis: ✅❌⚠️📧📞📇🔍📅💡🎯 (relevant)
+- Format dépend de user_display_mode (cards | markdown | html) :
+  - cards / markdown → réponse en Markdown
+    - Structure: ## sections, ### subsections, --- separators
+    - Emojis: ✅❌⚠️📧📞📇🔍📅💡🎯 (relevant)
+  - html → HTML enrichi <div class="lia-response"> (directive
+    html_response_directive.txt, override des consignes Markdown)
 ```
+
+> Note: la directive Markdown ci-dessus est la consigne de base ; en mode `html`
+> elle est explicitement remplacée par `html_response_directive.txt`
+> (« OVERRIDE ALL PREVIOUS FORMATTING INSTRUCTIONS »).
 
 **Règle #4: Media Fields (Photos)**
 ```
@@ -1025,6 +1033,35 @@ logger.debug(
 | **Tokens LLM input** | 50,000 tokens | 10,000 tokens | **80%** |
 | **Latency LLM call** | 8-12s | 2-4s | **60-70%** |
 | **Cost per call** | $0.025 | $0.005 | **80%** |
+
+### Display Modes & History Style Neutralization
+
+Le format de sortie est piloté par `user_display_mode` (`configurable`) :
+
+| Mode | Sortie | Historique assistant injecté au LLM |
+|------|--------|-------------------------------------|
+| `cards` (défaut) | Markdown + cartes HTML | Markdown conservé verbatim ; cartes HTML réduites au placeholder `[Résultats affichés]` |
+| `markdown` | Markdown pur | Idem `cards` |
+| `html` | HTML enrichi `lia-response` | **Style neutralisé** (Markdown + HTML strippés), contenu préservé, préfixé du marqueur `[réponse précédente, mise en forme omise]` |
+
+**Pourquoi neutraliser en mode `html`** — `filter_for_llm_context` traitait les tours
+assistant de façon asymétrique : réponses HTML précédentes réduites à un placeholder,
+réponses Markdown conservées telles quelles. Sur plusieurs tours, l'historique visible
+finissait uniformément en Markdown, et le LLM en déduisait que « Markdown = la norme »,
+outrepassant la directive HTML (cliquet à sens unique dès qu'un tour Markdown entrait
+dans le contexte).
+
+**Correctif** — `filter_for_llm_context(neutralize_formatting=True)`, activé par le
+response node uniquement quand `user_display_mode == html`. Chaque réponse assistant de
+l'historique est convertie en texte sans style (helpers `_strip_markdown_syntax` /
+`_neutralize_assistant_formatting`), de sorte qu'**aucun précédent de style** ne subsiste
+dans le contexte — la neutralisation est *structurelle* (le Markdown est physiquement
+retiré), le marqueur n'étant qu'un signal explicite complémentaire. Le contenu du tour
+courant à reformater n'est pas touché. Défaut `False` → modes `cards` / `markdown` et
+chemin planner inchangés (zéro régression) ; sans effet au tour 1 (pas d'historique).
+
+Constantes : `CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER`,
+`CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER` (`src/core/constants.py`).
 
 ---
 

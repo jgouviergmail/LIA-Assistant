@@ -2947,6 +2947,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_18": {
+          "title": "v1.20.18 — 🎨 L'affichage enrichi reste cohérent toute la conversation, et un comptage d'usage exact",
+          "date": "Juin 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎨 L'affichage enrichi (HTML) reste cohérent toute la conversation</b> — En mode d'affichage enrichi (HTML), les premières réponses s'affichaient correctement, mais au fil de la conversation certaines repassaient en mise en forme simple, sans que vous changiez de réglage. C'est corrigé : chaque réponse conserve désormais la mise en forme HTML enrichie pendant toute la conversation, dans les deux modes d'exécution. Rien à changer de votre côté.",
+            "i2": "<b>📊 Comptage exact des tokens et du coût pour les messages proactifs (Admin · Panneau de débogage)</b> — Un message proactif (« initiative ») pouvait apparaître deux fois dans le panneau de débogage — une fois correctement nommé, une fois en « unknown » — avec les mêmes tokens comptés deux fois, ce qui gonflait aussi le total sous la réponse, les journaux d'usage et les statistiques utilisateur. Le comptage est désormais exact : chaque appel au modèle est enregistré une seule fois. Rien à changer de votre côté."
+          }
+        },
         "v1_20_17": {
           "title": "v1.20.17 — 💭 Voyez l'assistant réfléchir, et des réglages de raisonnement enrichis pour les modèles Claude",
           "date": "Juin 2026",

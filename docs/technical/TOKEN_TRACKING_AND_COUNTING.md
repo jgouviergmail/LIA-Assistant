@@ -112,6 +112,36 @@ Le tracking utilise **3 destinations complémentaires** :
 | **Prometheus** | Métriques temps réel, alerting SLO | 15 jours | Grafana, PromQL |
 | **PostgreSQL** | Audit trail, facturation, analytics | Permanent | SQL, API |
 
+### Invariant : un `run_id` LLM = un enregistrement
+
+Chaque appel LLM physique (identifié par son `run_id`) doit être compté **exactement
+une fois** dans chaque source. Deux mécanismes complémentaires garantissent cet
+invariant :
+
+- **Suppression à la source (cause)** — Sur le chemin *reasoning streaming*
+  (`get_structured_output(reasoning_emit=…)` → `stream_reasoning_events` →
+  `astream_events`), l'enrichissement standard `enrich_config_with_node_metadata`
+  aplatit `config["callbacks"]` en liste plate, ce qui rompt l'identité du
+  `CallbackManager` parent. Combiné au `RunnableBinding` (`bind_tools`) et à la
+  propagation par contextvar de Pregel, le run LLM est *re-rooté*
+  (`parent_run_id=None`) et le handler s'attache via **deux lignées** → `on_llm_end`
+  se déclenche deux fois pour le même `run_id` (le 2ᵉ tir, n'ayant plus de contexte
+  d'appel, attribuait un fantôme `node_name="unknown"`). Le helper
+  `enrich_config_preserving_callbacks` (câblé uniquement quand `reasoning_emit` est
+  fourni) enrichit **en préservant le `CallbackManager`** (copie → swap du
+  `MetricsCallbackHandler` → conserve `parent_run_id` + handlers hérités) → un seul
+  tir, run non re-rooté.
+
+- **Verrou défense-en-profondeur (invariant)** — `TokenTrackingCallback` (PostgreSQL)
+  **et** `MetricsCallbackHandler` (Prometheus) portent chacun une garde
+  d'idempotence symétrique : un set de `run_id` déjà traités, avec un *check-and-mark*
+  atomique sous asyncio (aucun `await` entre le test et la marque, donc sûr en
+  parallèle) en tête de `on_llm_end`. Tout `on_llm_end` dupliqué pour un `run_id`
+  déjà vu est ignoré, quelle que soit la source du double tir.
+
+> Le chemin `ainvoke` global et `enrich_config_with_node_metadata` restent inchangés —
+> la portée du correctif manager-preserving est limitée au chemin reasoning.
+
 ### Langfuse (Observability)
 
 **Rôle** : Traces détaillées des appels LLM avec contexte conversationnel.
