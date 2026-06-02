@@ -476,6 +476,52 @@ def filter_for_llm_context(
     return filtered
 
 
+def drop_current_turn_responses(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """Drop every message that follows the last ``HumanMessage`` in the list.
+
+    The response synthesizer builds its conversation *history* from
+    ``state["messages"]``. In the ReAct passthrough path the agent's final answer is
+    appended to ``state["messages"]`` during the current turn, so without this pruning
+    the history would end with a fully-formed assistant answer to the very question
+    being answered. The synthesis LLM then sees the turn as already complete and emits
+    a dismissive or minimal reply ("you already got the answer") instead of formatting
+    the data — dropping the initiative enrichment and HTML directive. The answer stays
+    available to it through the AUTHORITATIVE ``agent_results`` block, so nothing is lost.
+
+    Removing everything after the last user message yields history = strictly prior turns
+    plus the current user query, matching the planner path (where the current turn has no
+    assistant message in ``state["messages"]`` yet, making this a no-op there).
+
+    Args:
+        messages: Full message history from state, in chronological order.
+
+    Returns:
+        A new list keeping all messages up to and including the last ``HumanMessage``.
+        If no ``HumanMessage`` is present, the input is returned unchanged (defensive:
+        nothing identifies a "current turn" to prune).
+
+    Example:
+        >>> from langchain_core.messages import HumanMessage, AIMessage
+        >>> msgs = [
+        ...     HumanMessage(content="prev"),
+        ...     AIMessage(content="prev answer"),
+        ...     HumanMessage(content="search my appointments"),
+        ...     AIMessage(content="Here are your 3 appointments..."),  # current-turn ReAct answer
+        ... ]
+        >>> [type(m).__name__ for m in drop_current_turn_responses(msgs)]
+        ['HumanMessage', 'AIMessage', 'HumanMessage']
+    """
+    last_human_idx = -1
+    for idx, msg in enumerate(messages):
+        if isinstance(msg, HumanMessage):
+            last_human_idx = idx
+
+    if last_human_idx == -1:
+        return list(messages)
+
+    return list(messages[: last_human_idx + 1])
+
+
 def split_messages_by_turn(
     messages: list[BaseMessage],
 ) -> list[tuple[HumanMessage, list[BaseMessage]]]:
@@ -532,6 +578,7 @@ def split_messages_by_turn(
 
 
 __all__ = [
+    "drop_current_turn_responses",
     "extract_system_messages",
     "filter_by_message_types",
     "filter_conversational_messages",

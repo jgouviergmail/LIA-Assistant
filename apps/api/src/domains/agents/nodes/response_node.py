@@ -95,6 +95,7 @@ from src.domains.agents.prompts import (
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.memory_extractor import extract_memories_background
 from src.domains.agents.utils.message_filters import (
+    drop_current_turn_responses,
     filter_for_llm_context,
 )
 from src.domains.agents.utils.registry_filtering import (
@@ -1381,7 +1382,14 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         from src.domains.agents.utils.conversation_context import format_conversation_history
         from src.domains.agents.utils.message_windowing import get_response_windowed_messages
 
-        windowed_for_history = get_response_windowed_messages(state[STATE_KEY_MESSAGES])
+        # Drop current-turn assistant output before windowing: in ReAct passthrough the
+        # agent's final answer lives in state["messages"], and leaving it in the history
+        # makes the synthesis LLM treat the query as already answered (see
+        # drop_current_turn_responses). The answer reaches the LLM via the AUTHORITATIVE
+        # agent_results block instead. No-op on the planner path (no current-turn AI yet).
+        windowed_for_history = get_response_windowed_messages(
+            drop_current_turn_responses(state[STATE_KEY_MESSAGES])
+        )
         # Use filter_for_llm_context: keeps HumanMessage + ToolMessage (JSON) + simple AIMessage
         # Excludes AIMessage with HTML (lia-card) to prevent LLM reformulating as Markdown
         llm_context_for_history = filter_for_llm_context(
@@ -2596,7 +2604,12 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # Response needs rich context for creative synthesis (20 turns default)
         from src.domains.agents.utils.message_windowing import get_response_windowed_messages
 
-        windowed_messages = get_response_windowed_messages(state[STATE_KEY_MESSAGES])
+        # Drop current-turn assistant output (ReAct passthrough leaves its final answer in
+        # state["messages"]) so the synthesis LLM's message array ends on the user query,
+        # not on a complete answer to it. See drop_current_turn_responses for the rationale.
+        windowed_messages = get_response_windowed_messages(
+            drop_current_turn_responses(state[STATE_KEY_MESSAGES])
+        )
 
         # Filter messages for LLM context
         # Keeps: HumanMessage + ToolMessage (JSON) + AIMessage without HTML

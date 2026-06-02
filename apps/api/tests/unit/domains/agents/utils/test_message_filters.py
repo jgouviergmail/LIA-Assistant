@@ -17,6 +17,7 @@ from langchain_core.messages import (
 
 from src.domains.agents.utils.message_filters import (
     _extract_text_before_html,
+    drop_current_turn_responses,
     extract_system_messages,
     filter_by_message_types,
     filter_conversational_messages,
@@ -1527,3 +1528,69 @@ class TestIntegrationScenarios:
             assert ai_messages[0].content == "J'ai trouvé Jean Dupont."
             # Second AI response is simple text
             assert ai_messages[1].content == "Email envoyé avec succès!"
+
+
+class TestDropCurrentTurnResponses:
+    """Tests for drop_current_turn_responses (ReAct passthrough history pruning)."""
+
+    def test_drops_react_answer_after_last_human(self):
+        """The ReAct final answer trailing the current user turn is removed."""
+        messages = [
+            HumanMessage(content="prev"),
+            AIMessage(content="prev answer"),
+            HumanMessage(content="recherche mes 3 prochains rdv"),
+            AIMessage(content="", tool_calls=[{"id": "1", "name": "get_events", "args": {}}]),
+            ToolMessage(content='{"events": [...]}', tool_call_id="1"),
+            AIMessage(content="Voici tes 3 prochains rendez-vous : ..."),
+        ]
+
+        result = drop_current_turn_responses(messages)
+
+        # Keeps everything up to and including the last HumanMessage; drops the
+        # current turn's tool-call AI, tool result, and final ReAct answer.
+        assert [type(m).__name__ for m in result] == [
+            "HumanMessage",
+            "AIMessage",
+            "HumanMessage",
+        ]
+        assert result[-1].content == "recherche mes 3 prochains rdv"
+
+    def test_planner_path_is_noop(self):
+        """When the current turn has no assistant message yet, nothing is dropped."""
+        messages = [
+            HumanMessage(content="prev"),
+            AIMessage(content="prev answer"),
+            HumanMessage(content="recherche mes 3 prochains rdv"),
+        ]
+
+        result = drop_current_turn_responses(messages)
+
+        assert result == messages
+        assert len(result) == 3
+
+    def test_no_human_message_returns_unchanged(self):
+        """Defensive: with no HumanMessage there is no 'current turn' to prune."""
+        messages = [
+            SystemMessage(content="scaffolding"),
+            AIMessage(content="proactive nudge"),
+        ]
+
+        result = drop_current_turn_responses(messages)
+
+        assert result == messages
+
+    def test_does_not_mutate_input(self):
+        """Input list is never modified in place (immutability contract)."""
+        messages = [
+            HumanMessage(content="recherche mes 3 prochains rdv"),
+            AIMessage(content="Voici tes 3 prochains rendez-vous : ..."),
+        ]
+        original_len = len(messages)
+
+        drop_current_turn_responses(messages)
+
+        assert len(messages) == original_len
+
+    def test_empty_list(self):
+        """Empty input yields empty output."""
+        assert drop_current_turn_responses([]) == []
