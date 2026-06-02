@@ -55,7 +55,7 @@ edge-tts==7.2.8
 # Speech-to-Text (Sherpa-onnx - Offline, multi-language STT)
 # Uses SenseVoiceSmall model: FR/EN/DE/ES/IT/ZH/JA/KO in a single model
 # Precompiled wheels available for AMD64 (dev) and ARM64 (Raspberry Pi prod)
-sherpa-onnx>=1.10.0
+sherpa-onnx>=1.13.2
 
 # Task Scheduling
 apscheduler==3.11.2
