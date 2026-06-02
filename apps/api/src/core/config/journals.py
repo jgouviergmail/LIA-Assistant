@@ -32,6 +32,7 @@ from src.core.constants import (
     JOURNAL_EXTRACTION_MIN_MESSAGES_DEFAULT,
     JOURNAL_MAX_ENTRY_CHARS_DEFAULT,
     JOURNAL_MAX_TOTAL_CHARS_DEFAULT,
+    JOURNAL_REACT_CONTEXT_MAX_ENTRIES_DEFAULT,
 )
 
 
@@ -142,6 +143,17 @@ class JournalsSettings(BaseSettings):
         ge=1,
         le=30,
         description="Max entries returned by semantic search for context injection.",
+    )
+
+    journal_react_context_max_entries: int = Field(
+        default=JOURNAL_REACT_CONTEXT_MAX_ENTRIES_DEFAULT,
+        ge=0,
+        le=15,
+        description=(
+            "Max L1/L2 behavioural directives injected into the ReAct reasoning loop "
+            "(once, at react_setup). Count cap with no truncation — entries are injected "
+            "in full. Set to 0 to disable directive injection in ReAct (portrait only)."
+        ),
     )
 
     journal_context_recent_entries: int = Field(

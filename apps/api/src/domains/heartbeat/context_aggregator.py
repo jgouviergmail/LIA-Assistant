@@ -1224,6 +1224,9 @@ class ContextAggregator:
             return None
 
         try:
+            from src.domains.journals.constants import (
+                JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS,
+            )
             from src.domains.journals.embedding import get_journal_embeddings
             from src.domains.journals.repository import JournalEntryRepository
 
@@ -1242,6 +1245,9 @@ class ContextAggregator:
                 query_embedding=query_embedding,
                 limit=3,  # Keep small for heartbeat budget
                 min_score=app_settings.journal_context_min_score,
+                # Operational injection carries only L1/L2 directives; L0 (private
+                # feedstock) and L3 (carried by the portrait brief) are excluded (ADR-088).
+                exclude_levels=JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS,
             )
 
             if not scored_entries:

@@ -3,7 +3,7 @@
 ## What are personal journals?
 Personal journals are **thematic notebooks** where the AI assistant records its own behavioral directives, observations, analyses, and learnings. Unlike user memories (which store facts about you), journals contain the **assistant's own perspective** — written in first person as actionable directives (preferred format: WHEN [context] → DO [action] BECAUSE [observation]).
 
-**📓 4 themes** (balanced — the assistant selects the theme that best fits each insight):
+**📓 4 themes** (the assistant selects the theme that best fits each insight — never to balance a distribution):
 • **Learnings** — Concrete lessons from mistakes or successes
 • **User observations** — User preference directives — patterns in communication, expectations, reactions
 • **Self-reflection** — Behavioral adjustments to communication style, tone, or approach
@@ -17,10 +17,12 @@ Personal journals are **thematic notebooks** where the AI assistant records its 
 • 💡 **Inspired** — Energized, creative tone
 
 **🪜 4 abstraction levels** — every entry now carries a `level` showing how distilled it is:
-• **L0** — Raw observation (rare; ambiguous material that isn't yet a directive)
+• **L0** — Raw observation (rare, private — a weak signal kept as feedstock for consolidation; **never injected** into the assistant's working prompts)
 • **L1** — Operational directive (default — the WHEN→DO BECAUSE format)
 • **L2** — Transversal pattern, synthesis of several convergent L1 directives (consolidation only)
 • **L3** — Portrait facet feeding the user model (consolidation only)
+
+Only **L1 and L2** directives are injected to steer the assistant's behaviour; **L0** is private feedstock and **L3** is carried by the compiled portrait (below). This keeps ambiguous raw notes from ever shaping a reply.
 
 **📊 Epistemic status** — each entry exposes a `confidence` (low / medium / high) plus `evidence_count` and `contradiction_count` counters. The assistant can now distinguish hypotheses still being tested from observations confirmed across many turns — and demote entries that the user keeps contradicting.
 
@@ -30,7 +32,7 @@ The assistant writes through **two mechanisms**:
 **💬 Post-conversation extraction:**
 • After each conversation (4+ messages), the assistant may write a reflection
 • Analyzes only the last message + context (lightweight, non-blocking)
-• Most conversations produce nothing — the assistant is selective
+• Most conversations produce nothing — the assistant writes only when a note is clearly **grounded in something you actually said or did** (an explicit preference, a correction you made), never from a one-off guess and never a false limitation about its own abilities
 • **Smart dedup at write-time**: if a new insight overlaps an existing entry, the assistant updates that entry instead of creating a duplicate — information is enriched, never accumulated as noise
 • **Deferred self-evaluation**: the assistant looks at the directives it injected on the previous turn and reads the user's reaction; if the user confirmed, `evidence_count` ticks up; if they pushed back, `contradiction_count` ticks up. The journal therefore measures its own usefulness (no extra LLM call required).
 
@@ -43,9 +45,12 @@ The assistant writes through **two mechanisms**:
 ## How do journals influence responses?
 Journal entries are **injected into prompts** via semantic search:
 
-**🎯 Two distinct injections:**
+**🎯 Where directives are injected:**
 • **Response prompt** — Entries matching the conversation tone (self-reflection, observations) → influences formulation
 • **Planner prompt** — Entries matching the user's goal (learnings, analyses) → influences reasoning
+• **Autonomous (ReAct) mode** — a small, bounded set of directives is now also injected into the autonomous reasoning loop, so behaviour stays consistent across both execution modes
+
+Only `L1`/`L2` directives are injected to steer behaviour (see levels above) — `L0` raw notes and `L3` portrait facets never shape a reply directly.
 
 The assistant receives its most **relevant** notes (with similarity scores) and decides autonomously which to use. Recent entries are also prioritized for **temporal continuity**, ensuring the assistant always has access to its latest reflections. Each entry includes **search hints** (keywords in your vocabulary) that improve matching accuracy.
 

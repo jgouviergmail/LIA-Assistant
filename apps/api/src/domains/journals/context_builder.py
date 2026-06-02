@@ -24,7 +24,10 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.domains.journals.constants import JOURNAL_MOOD_EMOJI
+from src.domains.journals.constants import (
+    JOURNAL_MOOD_EMOJI,
+    JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS,
+)
 from src.domains.journals.models import JournalEntry
 from src.domains.journals.repository import JournalEntryRepository
 from src.infrastructure.observability.logging import get_logger
@@ -69,6 +72,9 @@ async def build_journal_context(
     include_debug: bool = False,
     run_id: str | None = None,
     session_id: str | None = None,
+    exclude_levels: list[str] | None = None,
+    max_results_override: int | None = None,
+    truncate_to_budget: bool = True,
 ) -> tuple[str | None, dict[str, Any] | None, list[str]]:
     """
     Build journal context block for prompt injection.
@@ -80,6 +86,13 @@ async def build_journal_context(
     UserMessageEmbeddingService. Falls back to computing its own
     embedding if not provided, or to recent-only if embedding fails.
 
+    This is the operational injection chokepoint (response / planner /
+    heartbeat / reminder / react). By default it injects ONLY behavioural
+    directives (L1/L2): L0 raw feedstock and L3 portrait facets are excluded
+    (the latter is carried by the compiled portrait). Extraction/consolidation
+    bypass this function and read the repository directly, so they still see
+    every level.
+
     Args:
         user_id: User UUID (str or UUID)
         query: Search query (last user message for response, goal for planner)
@@ -88,6 +101,16 @@ async def build_journal_context(
         include_debug: If True, returns debug details for the debug panel
         run_id: Pipeline run ID for embedding cost attribution to message
         session_id: Session ID for embedding cost logging
+        exclude_levels: Levels to filter OUT. ``None`` (default) falls back to
+            ``JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS`` (``["L0", "L3"]``).
+            Pass ``[]`` explicitly to inject all levels.
+        max_results_override: Hard cap on the number of entries injected,
+            overriding the user's ``journal_context_max_results`` setting.
+            Used by the ReAct loop to inject a small, bounded set of directives.
+        truncate_to_budget: When True (default), the last entry is truncated to
+            respect ``max_chars``. When False, entries are injected in full and
+            only the count cap applies (no mid-directive truncation) — used by
+            the ReAct loop where each entry is already bounded by max_entry_chars.
 
     Returns:
         Tuple of (formatted context string, debug data dict, injected entry IDs).
@@ -127,6 +150,19 @@ async def build_journal_context(
             user, "journal_context_max_results", settings.journal_context_max_results
         )
         recent_count = settings.journal_context_recent_entries
+        if max_results_override is not None:
+            max_results = max_results_override
+            # Count-capped semantic-only path (ReAct): recency must not crowd out
+            # the most relevant directives within the small fixed budget.
+            recent_count = 0
+
+        # Operational injection carries only L1/L2 behavioural directives.
+        # None → default exclusion; an explicit list (incl. []) overrides it.
+        effective_exclude_levels = (
+            JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS
+            if exclude_levels is None
+            else exclude_levels
+        )
 
         repo = JournalEntryRepository(db)
 
@@ -160,6 +196,7 @@ async def build_journal_context(
                     query_embedding=_effective_embedding,
                     limit=max_results,
                     min_score=min_score,
+                    exclude_levels=effective_exclude_levels,
                 )
             else:
                 logger.warning(
@@ -177,7 +214,9 @@ async def build_journal_context(
         # Fetch recent entries for temporal continuity (always, regardless of embedding)
         recent_entries: list[tuple[JournalEntry, float | None]] = []
         if recent_count > 0:
-            raw_recent = await repo.get_recent_for_user(user_id, limit=recent_count)
+            raw_recent = await repo.get_recent_for_user(
+                user_id, limit=recent_count, exclude_levels=effective_exclude_levels
+            )
             # Deduplicate: exclude entries already in semantic results
             semantic_ids = {entry.id for entry, _ in scored_entries}
             for entry in raw_recent:
@@ -247,8 +286,9 @@ async def build_journal_context(
                     }
                 )
 
-            # Check budget
-            if current_chars + len(line) > max_chars:
+            # Check budget (skipped when truncate_to_budget=False — count cap only,
+            # entries injected in full to avoid mid-directive truncation)
+            if truncate_to_budget and current_chars + len(line) > max_chars:
                 # Try with truncated content
                 available = max_chars - current_chars - 100  # Reserve for header
                 if available > 50:

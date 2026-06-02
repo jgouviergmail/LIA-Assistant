@@ -2947,6 +2947,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_19": {
+          "title": "v1.20.19 — 📓 Un carnet personnel de l'assistant plus sobre et plus juste",
+          "date": "Juin 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📓 Le carnet personnel de l'assistant est désormais bien plus prudent</b> — LIA tient un carnet privé de notes de comportement sur la meilleure façon de t'aider. Il lui arrivait d'y écrire des notes inutiles voire contre-productives à partir d'un seul message — par exemple décider de toujours te répondre brièvement simplement parce que l'un de tes messages était court, ou consigner qu'il n'a pas accès à tes données puis refuser ne serait-ce que d'essayer. Il écrit maintenant beaucoup plus rarement, uniquement quand une note s'appuie clairement sur ce que tu as réellement dit ou fait, et il ne consigne plus de fausses limitations sur ses propres capacités. Résultat : un comportement plus stable et mieux jugé dans la durée. Rien à changer de ton côté.",
+            "i2": "<b>🤖 Les directives du carnet guident aussi le mode autonome</b> — Les directives de comportement que LIA distille dans son carnet orientent désormais aussi son mode de raisonnement autonome (ReAct), et plus seulement le mode standard — pour un comportement cohérent quelle que soit la manière dont elle traite ta demande. <i>Admin :</i> un nouveau réglage <code>JOURNAL_REACT_CONTEXT_MAX_ENTRIES</code> contrôle le nombre de directives injectées dans ce mode (3 par défaut)."
+          }
+        },
         "v1_20_18": {
           "title": "v1.20.18 — 🎨 L'affichage enrichi reste cohérent toute la conversation, et un comptage d'usage exact",
           "date": "Juin 2026",

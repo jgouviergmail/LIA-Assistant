@@ -2933,6 +2933,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_19": {
+          "title": "v1.20.19 — 📓 Ein klareres, sorgfältigeres persönliches Journal des Assistenten",
+          "date": "Juni 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📓 Das persönliche Journal des Assistenten ist jetzt deutlich umsichtiger</b> — LIA führt ein privates Journal mit Verhaltensnotizen darüber, wie sie dir am besten hilft. Mitunter schrieb sie aus einer einzigen Nachricht nutzlose oder sogar kontraproduktive Notizen — etwa zu entscheiden, dir immer knapp zu antworten, nur weil eine deiner Nachrichten kurz war, oder festzuhalten, dass sie keinen Zugriff auf deine Daten habe, und es dann gar nicht erst zu versuchen. Jetzt schreibt sie deutlich seltener, nur wenn sich eine Notiz klar auf etwas stützt, das du tatsächlich gesagt oder getan hast, und sie hält keine falschen Einschränkungen ihrer eigenen Fähigkeiten mehr fest. Das Ergebnis ist ein stabileres, besser abgewogenes Verhalten über die Zeit. Für dich ändert sich nichts.",
+            "i2": "<b>🤖 Journal-Direktiven steuern jetzt auch den autonomen Modus</b> — Die Verhaltensdirektiven, die LIA in ihrem Journal destilliert, steuern nun auch ihren autonomen Denkmodus (ReAct), nicht mehr nur den Standardmodus — für ein konsistentes Verhalten, egal wie sie deine Anfrage bearbeitet. <i>Admin:</i> eine neue Einstellung <code>JOURNAL_REACT_CONTEXT_MAX_ENTRIES</code> steuert, wie viele Direktiven in diesen Modus eingespeist werden (Standard 3)."
+          }
+        },
         "v1_20_18": {
           "title": "v1.20.18 — 🎨 Die Rich-Anzeige bleibt das ganze Gespräch über konsistent, plus genaue Nutzungszählung",
           "date": "Juni 2026",

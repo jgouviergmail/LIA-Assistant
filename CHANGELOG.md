@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.19] - 2026-06-02
+
+### Changed — Personal journal write discipline: restraint-first, grounded, no more over-generalisation or capability hallucinations
+
+After the stratified-journal refactor (ADR-079), real usage surfaced a quality regression: the assistant produced journal entries that were frequently useless or actively harmful, with no clear user signal. Two reproducible failure modes — (1) **surface over-generalisation** (a single short user message produced a standing directive like "WHEN the user writes briefly → DO answer briefly without detail", which then stripped detail from every later answer — message length is not a request for less content), and (2) **capability hallucination** (after a tool returned empty, the assistant wrote a directive asserting it lacked access to the user's data, which then made it refuse to even try later). Root cause: a **systemic production bias** in both write prompts (the extraction prompt's "L0 sweep" / "0-`learnings` is a red flag" / distribution targets, and the consolidation prompt's *mandatory* L2 synthesis), with no grounding or validity bar, amplified along a path where one weak inference becomes a forced L2 synthesis that feeds a portrait facet diffused to every channel.
+
+The **extraction prompt** (`journal_introspection_prompt.txt`) is rewritten restraint-first (~311 → ~150 lines): default output is `[]`; an L1 directive now requires BOTH being **grounded in an explicit user signal you could quote** AND being **safe to obey blindly**; generic **hard prohibitions** name the error classes (never assert a limit on your own capabilities/access/tools — the toolset evolves and an empty result means "not found this time"; never generalise from a single surface feature; never project a third party's trait onto the user); **L0 becomes a capped release valve** (≤1/turn, default zero, private). A maintenance carve-out keeps pruning / confidence-demotion / `evidence_outcome` signalling welcome (the "write nothing" default governs creation only). The **consolidation prompt** is de-pressured (STEP 5 makes L2 synthesis conditional on genuine convergence — "zero L2 is the correct outcome when no convergence exists"; dedup gains a guard "never merge directives that prescribe different actions"; L0→L1 promotion requires recurrence). The **analyst persona** drops the thematic-diversity production nudge and hardens the quality gate.
+
+### Added — Level-routed operational injection: only L1/L2 directives steer behaviour
+
+The journal levels now have a distinct operational meaning. The operational injection chokepoint `build_journal_context` (response, planner, heartbeat, ReAct) carries **only L1/L2 behavioural directives** — `L0` (private raw feedstock managed by consolidation) and `L3` (already carried by the compiled portrait) are excluded by default via the new `JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS = ["L0", "L3"]`. `JournalEntryRepository.search_by_relevance` / `get_recent_for_user` gain an optional `exclude_levels` parameter whose **default `None` preserves the all-levels view** — extraction and consolidation call the repository directly and still see every level. The heartbeat's direct journal search (`context_aggregator.py`) now applies the same exclusion. This kills the read-path bug where an ambiguous L0 raw observation could masquerade as a directive, and stops the double-injection of L3 facets.
+
+### Added — ReAct directive coherence + `JOURNAL_REACT_CONTEXT_MAX_ENTRIES`
+
+The ReAct reasoning loop previously received only the L3 portrait brief, never the per-turn L1/L2 directives (which reached only the final response). A procedural directive ("verify Y before acting") therefore guided the pipeline planner but not the ReAct tool-calling reasoning. `react_setup_node` now injects, **once at setup**, a bounded set of L1/L2 directives — capped by **count, not characters** (`JOURNAL_REACT_CONTEXT_MAX_ENTRIES`, default 3; new `.env` setting, 0 disables), injected in full so a directive is never cut mid-sentence. Deferred self-evaluation stays anchored to `response_node`.
+
+### Notes
+
+- **No schema change, no migration** — the `level` column from ADR-079 is reused; the change is purely how levels are written and read. Validated in dev: sober output (3/4 conversations write nothing; the one entry was an L1 grounded in a quoted user statement).
+- **Files**: `apps/api/src/domains/agents/prompts/v1/{journal_introspection_prompt,journal_consolidation_prompt,journal_analyst_persona}.txt`, `apps/api/src/domains/journals/{constants,repository,context_builder}.py`, `apps/api/src/domains/agents/nodes/react_nodes.py`, `apps/api/src/domains/heartbeat/context_aggregator.py`, `apps/api/src/core/{constants,config/journals}.py`, `.env.example`, `.env.prod.example`. **Docs**: [ADR-088](docs/architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md) (amends ADR-079), `docs/technical/JOURNALS.md`. **Tests**: `test_injection_level_routing.py` (default exclusion, explicit override, full-injection no truncation) + adjusted `test_analyst_persona.py`; Ruff / Black / MyPy strict clean, 223 journal+heartbeat unit tests green.
+
 ## [1.20.18] - 2026-06-02
 
 ### Fixed — HTML enriched display mode no longer drifts back to Markdown over multi-turn conversations

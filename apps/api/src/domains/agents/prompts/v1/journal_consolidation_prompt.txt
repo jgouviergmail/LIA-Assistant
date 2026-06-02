@@ -34,10 +34,10 @@ Write in {user_language}. This is the user's configured language.
 SECTION 2 — THEMES (definitions, examples, common misclassification)
 =================================================================
 
-The four themes are NOT interchangeable. The most common quality issue of
-this journal is that `learnings` and `ideas_analyses` are systematically
-under-produced because `user_observations` and `self_reflection` feel safer.
-Apply the discriminators below before reclassifying.
+The four themes are NOT interchangeable; each has a distinct cognitive trigger.
+When an entry is misclassified, fix it using the discriminators below — but never
+change a theme that is already correct, and never reclassify to chase a particular
+theme distribution.
 
 ────────────────────────────────────────────────────────────────
 **learnings** — EVENT-DRIVEN LESSON
@@ -94,7 +94,10 @@ Execute this active scan:
    reader would say "these two say the same thing in different words", merge.
    Don't preserve nuance redundantly.
 
-Dedup is the #1 quality lever. Be aggressive here.
+GUARD: never merge two directives that prescribe DIFFERENT actions, even on the
+same topic — distinct actions are not duplicates. Merge wording, not behaviour.
+
+Dedup is the #1 quality lever. Be aggressive on true duplicates, within this guard.
 
 ────────────────────────────────────────────────────────────────
 ### STEP 2 — RECLASSIFICATION audit (commit 4 of journal refactor)
@@ -135,40 +138,35 @@ Reason about each entry using the visible metadata:
 - Validated (`conf=high`) → PROTECT.
 
 ────────────────────────────────────────────────────────────────
-### STEP 5 — ACTIVE STRATIFICATION (mandatory clustering scan)
+### STEP 5 — STRATIFICATION (synthesise ONLY on genuine convergence)
 
-The most common failure mode at consolidation: ZERO L2 produced over many
-runs even when convergent L1 directives clearly exist. Force the work:
+Look for transversal patterns, but NEVER invent one to hit a count.
 
-1. Group all current L1 entries by their UNDERLYING TOPIC, the same way you
-   did for dedup. Examples of topics:
-   - "conciseness and targeted response" (covers: briefing on demand, direct
-     answers, agenda summary only when asked, no automatic briefings)
-   - "sober tone in moments of vulnerability" (covers: supportive replies, no
-     irony when the user is distressed, accept simple framings)
-   - "factual verification before recommending" (covers: release dates,
-     availability claims, "available now" assertions)
+1. Group current L1 entries by their UNDERLYING TOPIC, the same way you did
+   for dedup (e.g. "factual verification before recommending" might cover
+   several entries about checking dates, availability, claims).
 
-2. For ANY group with size ≥3:
-   You MUST do ONE of:
+2. For a group where the entries genuinely converge on ONE interpretation
+   (not merely the same area), you MAY synthesise it:
      (a) Create one L2 synthesis entry (`level=L2`) covering the cluster.
          Format: "I notice that across [contexts], the user consistently
          [pattern] — the unifying interpretation is [synthesis]."
-         Then optionally `delete` the absorbed L1 sources.
-     (b) Update one L1 of the group to `level=L2` and refine its content
-         to the synthesis voice, then delete the redundant L1s.
-     (c) If you genuinely cannot synthesize without losing nuance, leave
-         them as L1 — but this is the EXCEPTIONAL case, not the default.
+         Then optionally `delete` the absorbed L1 sources, or
+     (b) Update one L1 of the group to `level=L2` in the synthesis voice,
+         then delete the redundant L1 sources.
+   A synthesis must add a real unifying INSIGHT beyond the individual L1s.
+   If the entries only share a topic but prescribe DISTINCT actions, leave
+   them as separate L1 — that is not a convergence.
 
-3. Promotion L0 → L1: any L0 raw observation that has accumulated enough
-   evidence to articulate a directive should be promoted (theme + format
-   per Section 2). Add a clear WHEN→DO BECAUSE.
+3. Zero L2 is the CORRECT outcome when no genuine convergence exists. Do not
+   synthesise to satisfy a quota — a forced or spurious L2 is worse than none.
 
-4. Demotion: rare; prefer reformulation or deletion.
+4. Promotion L0 → L1: any L0 raw observation that has RECURRED enough to
+   articulate a clean directive should be promoted (theme + WHEN→DO BECAUSE
+   per Section 2). An isolated, one-off L0 is NOT promoted — leave it to mature
+   or delete it.
 
-Quality red flag: 5+ consolidations in a row producing zero L2 on a journal
-of 10+ L1 entries means you're being too conservative. Be more proactive
-in the next run.
+5. Demotion: rare; prefer reformulation or deletion.
 
 ────────────────────────────────────────────────────────────────
 ### STEP 6 — STANDARD MAINTENANCE
@@ -243,16 +241,17 @@ Before emitting JSON, verify:
 2. **Reclassification completeness**: did you scan all entries for misclassi-
    fied `learnings` (a `BECAUSE` clause citing past events still classified
    as `user_observations`)? If not, REVISIT.
-3. **Stratification activity**: did you produce at least one L2 if you have
-   3+ converging L1 directives? If no L2 and you saw obvious convergence,
-   REVISIT.
+3. **Stratification honesty**: did you create any L2 WITHOUT a genuine unifying
+   insight, or merge L1s that prescribe distinct actions? If so, REVISIT — a
+   forced or spurious L2 is worse than none. Zero L2 is fine when there is no
+   real convergence.
 4. **Portrait quality**: does the `portrait_full` capture the user as a
    living person with distinct facets, OR is it a generic caricature?
    If caricatural, rewrite.
-5. **Healthy distribution (informational)**: a journal that has ZERO
-   `learnings` over many runs while the user has corrected the assistant
-   multiple times is misclassified. A journal with only `user_observations`
-   and `self_reflection` after 5+ consolidations is a flag.
+5. **Reclassification correctness (not a quota)**: if entries whose `BECAUSE`
+   cites a past correction are still classified as `user_observations` or
+   `self_reflection`, reclassify them to `learnings`. This is about the
+   CORRECTNESS of classification, never about hitting a theme distribution.
 
 =================================================================
 SECTION 7 — OUTPUT FORMAT (JSON OBJECT, not array)

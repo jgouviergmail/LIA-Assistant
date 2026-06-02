@@ -28,6 +28,18 @@ JOURNAL_EXTRACTION_RECENT_LIMIT = 3  # K most recent entries (temporal continuit
 JOURNAL_EXTRACTION_DEDUP_MIN_SCORE = 0.4  # Min similarity for pre-filter
 
 # =========================================================================
+# Operational injection — level routing
+# =========================================================================
+
+# Levels NEVER injected into operational prompts (response/planner/heartbeat/
+# reminder/react). L0 = private raw feedstock managed by consolidation only;
+# L3 = portrait facets already carried by the compiled portrait
+# (build_journal_user_model_block). Only L1/L2 behavioural directives are
+# injected operationally. Extraction/consolidation still see ALL levels
+# (they call the repository directly, without this exclusion).
+JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS: list[str] = ["L0", "L3"]
+
+# =========================================================================
 # Embedding
 # =========================================================================
 

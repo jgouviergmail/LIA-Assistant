@@ -2942,6 +2942,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_19": {
+          "title": "v1.20.19 — 📓 A sharper, more careful personal journal for the assistant",
+          "date": "June 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📓 The assistant's personal journal is now far more careful</b> — LIA keeps a private journal of behavioural notes about how best to help you. It was sometimes writing useless or even counter-productive notes from a single message — for instance deciding to always answer you briefly just because one of your messages happened to be short, or recording that it lacks access to your data and then refusing to even try. It now writes far more sparingly, only when a note is clearly grounded in something you actually said or did, and it never records false limitations about its own abilities. The result is steadier, better-judged behaviour over time. Nothing to change on your side.",
+            "i2": "<b>🤖 Journal directives now also guide the autonomous mode</b> — The behavioural directives LIA distills in its journal now steer its autonomous (ReAct) reasoning mode too, not only the standard mode — so it stays consistent however it tackles your request. <i>Admin:</i> a new <code>JOURNAL_REACT_CONTEXT_MAX_ENTRIES</code> setting controls how many directives are injected into that mode (default 3)."
+          }
+        },
         "v1_20_18": {
           "title": "v1.20.18 — 🎨 Rich display stays consistent for the whole conversation, plus exact usage counting",
           "date": "June 2026",

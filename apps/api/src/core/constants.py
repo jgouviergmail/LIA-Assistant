@@ -3579,6 +3579,9 @@ JOURNAL_MAX_TOTAL_CHARS_DEFAULT = 40000  # ~10k tokens total budget
 JOURNAL_MAX_ENTRY_CHARS_DEFAULT = 300  # per entry (directive format is compact)
 JOURNAL_CONTEXT_MAX_CHARS_DEFAULT = 3000  # injection budget
 JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT = 5  # max semantic search results
+JOURNAL_REACT_CONTEXT_MAX_ENTRIES_DEFAULT = (
+    3  # max L1/L2 directives injected into the ReAct reasoning loop (count cap, no truncation)
+)
 JOURNAL_CONTEXT_MIN_SCORE_DEFAULT = 0.63  # Calibrated for Gemini embedding-001 (2026-04-09 v2)
 JOURNAL_CONTEXT_RECENT_ENTRIES_DEFAULT = 0  # recent entries injected regardless of score
 

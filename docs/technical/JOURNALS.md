@@ -14,8 +14,9 @@ This document describes the journal in its current form, which combines:
 - The analyst persona fix ([ADR-064](../architecture/ADR-064-Journal-Analyst-Persona.md), 2026-03-25): fixed persona decoupled from conversational personality, directive format, mandatory dedup at consolidation.
 - The Gemini embeddings migration ([ADR-069](../architecture/ADR-069-Gemini-Embedding-Migration.md), 2026-04-09): switch to Gemini `gemini-embedding-001`, dual-vector strategy (content + keywords).
 - **The stratified consciousness refactor** ([ADR-079](../architecture/ADR-079-Stratified-Journal-Consciousness.md), 2026-05-06): four abstraction levels, epistemic status, deferred self-evaluation T → T+1, ambient diffusion of the compiled portrait, three-lever user correction.
+- **Write restraint + level-routed injection** ([ADR-088](../architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md), 2026-06-02): restraint-first extraction (default `[]`, explicit-signal grounding bar, generic capability prohibition, capped L0 release valve), de-pressured consolidation (conditional L2, no synthesis quota), operational injection restricted to **L1/L2** (L0/L3 excluded), and ReAct directive coherence.
 
-The sections below reflect the post-ADR-079 state.
+The sections below reflect the post-ADR-088 state.
 
 ## Architecture
 
@@ -165,9 +166,10 @@ Conversation
 - **Dual-vector strategy**: every entry has a `content` embedding (title + content) and a `keyword` embedding (search_hints only). Search picks `LEAST(dist_content, dist_keyword)` per row, bridging the gap between the assistant's introspective phrasing and the user's vocabulary.
 - **Search hints**: LLM-generated keywords in user vocabulary, also embedded as a separate vector
 - **Min score prefilter**: `JOURNAL_CONTEXT_MIN_SCORE` (default 0.63) — entries below this threshold are discarded BEFORE being sent to the LLM
+- **Level routing (ADR-088)**: the operational chokepoint `build_journal_context` injects **only L1/L2 behavioural directives**. L0 (private feedstock) and L3 (carried by the compiled portrait) are excluded by default via `JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS = ["L0", "L3"]`. The repository methods (`search_by_relevance`, `get_recent_for_user`) take an optional `exclude_levels` param whose **default `None` preserves the all-levels view** — extraction and consolidation call the repository directly and still see every level.
 - **Temporal continuity**: `JOURNAL_CONTEXT_RECENT_ENTRIES` most recent entries are always injected regardless of semantic score
 - **Injection tracking**: Each injected entry increments `injection_count` and updates `last_injected_at` (fire-and-forget, non-blocking). These metrics are surfaced back to the LLM at extraction/consolidation as a self-feedback loop (ADR-079).
-- **Dual injection**: Journal context is injected into both the **planner** (via `intelligence.original_query`) and the **response** (via `last_user_message`) prompts
+- **Dual injection**: Journal context is injected into both the **planner** (via `intelligence.original_query`) and the **response** (via `last_user_message`) prompts. Since ADR-088 the **ReAct reasoning loop** also receives L1/L2 directives, injected once at `react_setup` (count-capped by `JOURNAL_REACT_CONTEXT_MAX_ENTRIES`, full entries, no truncation) — closing the cross-mode gap. Deferred self-evaluation stays anchored to `response_node`.
 - **LLM autonomy**: The LLM receives remaining entries WITH their similarity scores and decides which to use based on contextual relevance
 
 ### Configuration
@@ -185,6 +187,7 @@ Conversation
 - `JOURNAL_DEFAULT_CONTEXT_MAX_CHARS` — Default injection budget (default: 1500)
 - `JOURNAL_MAX_ENTRY_CHARS` — Default max per entry (default: 800)
 - `JOURNAL_CONTEXT_MAX_RESULTS` — Default max search results (default: 10)
+- `JOURNAL_REACT_CONTEXT_MAX_ENTRIES` — Max L1/L2 directives injected into the ReAct reasoning loop, count cap with no truncation (default: 3; 0 disables, portrait only) — ADR-088
 - `JOURNAL_CONTEXT_MIN_SCORE` — Min cosine similarity for prefiltering (default: 0.63)
 - `NEXT_PUBLIC_JOURNAL_CONSOLIDATION_TIMEOUT_MS` — Frontend-side client timeout for the manual `/journals/consolidate` button (default: 240000 ms / 4 min, configurable to keep the loader visible long enough on heavy reasoning models)
 
@@ -243,7 +246,7 @@ The introspection prompt uses a discriminator-based decision tree:
 - "Cross-cutting pattern, hypothesis, or recurring contradiction worth analyzing" → `ideas_analyses`
 - "Concrete lesson I can apply to do better next time" → `learnings`
 
-A thematic diversity warning encourages the LLM to look for underrepresented themes when the corpus is imbalanced (e.g. 90 % `user_observations`, 0 % `learnings`). Combined with the L0/L1/L2/L3 axis (see *Stratification* above), classification has two orthogonal dimensions: **what kind of insight** (theme) and **how distilled it is** (level).
+Classification uses **discriminators**, not a theme distribution to balance: since [ADR-088](../architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md) the prompts no longer push the LLM toward "underrepresented" themes (that production pressure manufactured weak entries). The discriminators (e.g. a `BECAUSE` citing a past correction → `learnings`) are kept for correctness. Combined with the L0/L1/L2/L3 axis (see *Stratification* above), classification has two orthogonal dimensions: **what kind of insight** (theme) and **how distilled it is** (level).
 
 ### Anti-Hallucination Guards (v1.8.1, extended in ADR-079)
 
@@ -325,3 +328,4 @@ These metrics underpin the dashboards used to verify that stratification is happ
 - [ADR-064: Journal Analyst Persona](../architecture/ADR-064-Journal-Analyst-Persona.md) — Persona and dedup discipline
 - [ADR-069: Gemini Embedding Migration](../architecture/ADR-069-Gemini-Embedding-Migration.md) — Dual-vector search
 - [ADR-079: Stratified Journal Consciousness](../architecture/ADR-079-Stratified-Journal-Consciousness.md) — Levels, epistemic status, deferred self-evaluation, portrait diffusion
+- [ADR-088: Journal Restraint + Level-Routed Injection](../architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md) — Restraint-first write discipline, L1/L2-only operational injection, ReAct directive coherence

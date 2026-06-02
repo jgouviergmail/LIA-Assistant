@@ -206,6 +206,7 @@ class JournalEntryRepository:
         query_embedding: list[float],
         limit: int = 10,
         min_score: float = 0.0,
+        exclude_levels: list[str] | None = None,
     ) -> list[tuple[JournalEntry, float]]:
         """Search active entries by multi-vector semantic relevance.
 
@@ -219,6 +220,9 @@ class JournalEntryRepository:
             query_embedding: Query embedding vector (1536 dims Gemini).
             limit: Max results to return.
             min_score: Minimum similarity score to include (0.0-1.0).
+            exclude_levels: Abstraction levels to filter OUT (e.g. ``["L0", "L3"]``
+                for operational injection). ``None`` (default) returns all levels
+                — used by extraction/consolidation which must see every level.
 
         Returns:
             List of (entry, score) tuples sorted by score descending,
@@ -235,15 +239,17 @@ class JournalEntryRepository:
             func.coalesce(dist_keyword, dist_content),
         )
 
+        conditions = [
+            JournalEntry.user_id == user_id,
+            JournalEntry.status == JournalEntryStatus.ACTIVE.value,
+            JournalEntry.embedding.isnot(None),
+        ]
+        if exclude_levels:
+            conditions.append(JournalEntry.level.not_in(exclude_levels))
+
         stmt = (
             select(JournalEntry, best_distance.label("distance"))
-            .where(
-                and_(
-                    JournalEntry.user_id == user_id,
-                    JournalEntry.status == JournalEntryStatus.ACTIVE.value,
-                    JournalEntry.embedding.isnot(None),
-                )
-            )
+            .where(and_(*conditions))
             .order_by(best_distance)
             .limit(limit)
         )
@@ -312,6 +318,7 @@ class JournalEntryRepository:
         self,
         user_id: UUID,
         limit: int = 2,
+        exclude_levels: list[str] | None = None,
     ) -> list[JournalEntry]:
         """
         Get most recent active entries for temporal continuity injection.
@@ -323,18 +330,23 @@ class JournalEntryRepository:
         Args:
             user_id: User UUID
             limit: Max entries to return
+            exclude_levels: Abstraction levels to filter OUT (e.g. ``["L0", "L3"]``
+                for operational injection). ``None`` (default) returns all levels
+                — used by extraction which must see every level.
 
         Returns:
             List of entries sorted by created_at descending
         """
+        conditions = [
+            JournalEntry.user_id == user_id,
+            JournalEntry.status == JournalEntryStatus.ACTIVE.value,
+        ]
+        if exclude_levels:
+            conditions.append(JournalEntry.level.not_in(exclude_levels))
+
         result = await self.db.execute(
             select(JournalEntry)
-            .where(
-                and_(
-                    JournalEntry.user_id == user_id,
-                    JournalEntry.status == JournalEntryStatus.ACTIVE.value,
-                )
-            )
+            .where(and_(*conditions))
             .order_by(JournalEntry.created_at.desc())
             .limit(limit)
         )

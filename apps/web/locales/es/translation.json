@@ -2933,6 +2933,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_19": {
+          "title": "v1.20.19 — 📓 Un diario personal del asistente más sobrio y certero",
+          "date": "Junio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📓 El diario personal del asistente ahora es mucho más prudente</b> — LIA mantiene un diario privado de notas de comportamiento sobre cómo ayudarte mejor. A veces escribía notas inútiles o incluso contraproducentes a partir de un solo mensaje — por ejemplo, decidir responderte siempre de forma breve solo porque uno de tus mensajes era corto, o anotar que no tiene acceso a tus datos y luego negarse incluso a intentarlo. Ahora escribe mucho menos, solo cuando una nota se apoya claramente en algo que realmente dijiste o hiciste, y ya no registra falsas limitaciones sobre sus propias capacidades. El resultado es un comportamiento más estable y mejor ponderado con el tiempo. No tienes que cambiar nada.",
+            "i2": "<b>🤖 Las directivas del diario también guían el modo autónomo</b> — Las directivas de comportamiento que LIA destila en su diario ahora también orientan su modo de razonamiento autónomo (ReAct), no solo el modo estándar — para un comportamiento coherente sea cual sea la forma en que aborda tu petición. <i>Admin:</i> un nuevo ajuste <code>JOURNAL_REACT_CONTEXT_MAX_ENTRIES</code> controla cuántas directivas se inyectan en ese modo (3 por defecto)."
+          }
+        },
         "v1_20_18": {
           "title": "v1.20.18 — 🎨 La visualización enriquecida se mantiene coherente durante toda la conversación, y un recuento de uso exacto",
           "date": "Junio 2026",

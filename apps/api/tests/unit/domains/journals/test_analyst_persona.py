@@ -44,15 +44,45 @@ class TestJournalAnalystPersona:
         assert "journal_analyst_persona" in valid_names
 
     def test_extraction_prompt_loads(self) -> None:
-        """Extraction prompt loads with all four themes and quality gate."""
+        """Extraction prompt loads with all four themes and the final-check gate."""
         prompt = load_prompt("journal_introspection_prompt")
         # All four themes must be referenced
         assert "learnings" in prompt
         assert "user_observations" in prompt
         assert "self_reflection" in prompt
         assert "ideas_analyses" in prompt
-        # Quality gate must be present
-        assert "QUALITY GATE" in prompt
+        # The restraint-first gate must be present (renamed from QUALITY GATE)
+        assert "FINAL CHECK" in prompt
+        assert "GROUNDED" in prompt
+
+    def test_extraction_prompt_formats_with_all_placeholders(self) -> None:
+        """Introspection prompt .format() succeeds with every runtime placeholder.
+
+        Guards against stray single braces and missing/renamed placeholders that
+        would raise at runtime in extraction_service._get_introspection_prompt().
+        """
+        prompt = load_prompt("journal_introspection_prompt")
+        # .format() raises KeyError/ValueError on a missing/renamed placeholder or a
+        # stray single brace — so a clean return is the core guarantee here.
+        formatted = prompt.format(
+            conversation="USER: hi",
+            health_context="",
+            inner_state_section="",
+            previous_turn_directives_section="",
+            existing_entries="No existing entries yet.",
+            current_chars=0,
+            max_chars=40000,
+            size_warning="",
+            user_language="fr",
+            max_entry_chars=300,
+        )
+        # Placeholders were substituted (no leftover named template fields)...
+        assert "USER: hi" in formatted
+        assert "fr" in formatted
+        assert "{conversation}" not in formatted
+        assert "{max_entry_chars}" not in formatted
+        # ...and the doubled-brace JSON example survived as literal JSON.
+        assert '"action": "create"' in formatted
 
     def test_consolidation_prompt_loads(self) -> None:
         """Consolidation prompt loads with mandatory dedup step."""

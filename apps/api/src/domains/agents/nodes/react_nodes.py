@@ -19,7 +19,13 @@ import time
 from typing import Any
 
 import structlog
-from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
@@ -322,6 +328,46 @@ async def react_setup_node(
                     messages_to_add.append(SystemMessage(content=user_model_block))
         except Exception as exc:  # pragma: no cover — best-effort
             logger.warning("react_user_model_block_failed", error=str(exc))
+
+    # Operational journal directives (L1/L2) — close the cross-mode gap.
+    # The ReAct reasoning loop was blind to behavioural directives (they only
+    # reached the final response_node). Inject a small, bounded set ONCE here at
+    # setup (count cap, no truncation) so the loop is guided like the pipeline
+    # planner. L0/L3 are excluded by default inside build_journal_context.
+    # Deferred self-evaluation stays anchored to response_node (not duplicated here).
+    if getattr(settings, "journals_enabled", False):
+        try:
+            configurable = config.get("configurable", {})
+            react_user_journals = configurable.get("user_journals_enabled", False)
+            react_journal_user_id = configurable.get("langgraph_user_id", "")
+            max_directives = settings.journal_react_context_max_entries
+            last_user_text = ""
+            for _msg in reversed(state.get("messages", []) or []):
+                if isinstance(_msg, HumanMessage):
+                    last_user_text = coerce_content_to_text(_msg.content) or ""
+                    break
+            if (
+                react_user_journals
+                and react_journal_user_id
+                and max_directives > 0
+                and last_user_text
+            ):
+                from src.domains.journals.context_builder import build_journal_context
+                from src.infrastructure.database.session import get_db_context
+
+                async with get_db_context() as journal_db:
+                    directives_block, _jdebug, _jids = await build_journal_context(
+                        user_id=react_journal_user_id,
+                        query=last_user_text,
+                        db=journal_db,
+                        session_id=configurable.get("thread_id"),
+                        max_results_override=max_directives,
+                        truncate_to_budget=False,
+                    )
+                if directives_block:
+                    messages_to_add.append(SystemMessage(content=directives_block))
+        except Exception as exc:  # pragma: no cover — best-effort
+            logger.warning("react_journal_directives_failed", error=str(exc))
 
     # Inject active skills catalogue (L1) so the ReAct agent can discover
     # and use skills via the existing skill tools (activate_skill_tool,

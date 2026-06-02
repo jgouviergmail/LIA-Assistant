@@ -169,6 +169,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ADR-083-Sub-Agent-Delegation-React.md](./architecture/ADR-083-Sub-Agent-Delegation-React.md) | Sub-Agent Delegation — from ReAct loop (Phase 1, 2026-05-13) to one-shot expert LLM call (Phase 1bis, 2026-05-14). `delegate_to_sub_agent_tool` is a single LLM invocation with persona+expertise written by the principal and all data inlined in instruction; no tools, no graph. Phase 2 cleanup deleted the legacy persistent F6 plumbing | ✅ |
 | [ADR-084-Indexable-vs-Semantic-Criteria.md](./architecture/ADR-084-Indexable-vs-Semantic-Criteria.md) | Universal planning principle (`INDEXABLE vs SEMANTIC CRITERIA`) + 4-layer defense (prompt section, structured `semantic_filter_terms` hint emitted by the query analyzer, universal `PlanValidator._check_semantic_leak` gated by `PLANNER_SEMANTIC_LEAK_MODE` in `off`/`observe`/`autocorrect`, `ToolManifest.text_search_mode` opt-out). Catches semantic qualifiers (medical, urgent, important) leaked into literal-search `query` params on any connector. Phase 1 shipped 2026-05-15 in `observe` mode (zero plan mutation); Phase 2 promotion to `autocorrect` gated on operational telemetry | ✅ |
 | [ADR-085-Draft-Display-Registry.md](./architecture/ADR-085-Draft-Display-Registry.md) | Single declarative registry (`DRAFT_DISPLAY_REGISTRY`) for post-HITL rendering of every `DraftType`: domain emoji, item label fields, optional secondary datetime, detail fields, noun/verb keys for localized header composition. Replaces 4 disjoint legacy tables (`DRAFT_TYPE_EMOJIS`, `_DRAFT_RESULT_FIELD_CONFIG`, hardcoded label-extraction chain) with structural exhaustivity assertion at lifespan startup + CI. Adds 2 grammar i18n tables (`DRAFT_RESULT_NOUNS` with gender/plural per language, `DRAFT_RESULT_VERBS_PAST` with gender/number forms for fr/es/it) and per-language pluralization rule + word-order template — produces correct `3 rappels supprimés` / `1 tâche créée` / `3 reminders deleted` / `已删除 3 个提醒` headers | ✅ |
+| [ADR-088-Journal-Restraint-And-Level-Routed-Injection.md](./architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md) | Journal refinement (amends ADR-079): restraint-first extraction (default `[]`, explicit-signal grounding bar, generic capability prohibition, capped L0 release valve), de-pressured consolidation (conditional L2, no synthesis quota), operational injection restricted to L1/L2 (`JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS`), and ReAct directive coherence (`JOURNAL_REACT_CONTEXT_MAX_ENTRIES`, count cap, no truncation). No schema change | ✅ |
 
 ### Human-in-the-Loop (HITL)
 
@@ -265,6 +266,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-088 | Journal Write Restraint + Level-Routed Injection + ReAct Coherence | 2026-06 |
 | ADR-085 | Draft Display Registry — single source of truth for post-HITL rendering | 2026-05 |
 | ADR-084 | Indexable vs Semantic Criteria — universal planning principle + leak detector | 2026-05 |
 | ADR-083 | Sub-Agent Delegation — from ReAct loop to one-shot expert LLM call | 2026-05 |
