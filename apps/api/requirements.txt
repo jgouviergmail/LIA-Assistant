@@ -98,7 +98,7 @@ firebase-admin==7.4.0  # Firebase Cloud Messaging for push notifications
 pytz==2026.2  # Timezone handling for reminders
 
 # Channels — Multi-Channel Messaging (evolution F3)
-python-telegram-bot>=21.0  # Telegram Bot API (async, v21+)
+python-telegram-bot>=22.7  # Telegram Bot API (async, v21+)
 pydub>=0.25.1  # Audio format conversion for voice messages (OGG→PCM, requires ffmpeg)
 
 # Apple iCloud Connectors — Email (IMAP), Calendar (CalDAV), Contacts (CardDAV)
