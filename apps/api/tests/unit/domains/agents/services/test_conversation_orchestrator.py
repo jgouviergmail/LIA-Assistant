@@ -109,8 +109,20 @@ class TestConversationOrchestrator:
 
     @pytest.fixture
     def orchestrator(self):
-        """Create ConversationOrchestrator instance."""
-        return ConversationOrchestrator()
+        """Create ConversationOrchestrator instance.
+
+        ``_get_previous_tokens_from_db`` runs a real ``ChatRepository`` query; against
+        the ``AsyncMock`` session it raises and leaks an un-awaited coroutine
+        (RuntimeWarning). It is incidental to these orchestration tests, so it is
+        stubbed to return a zero summary.
+        """
+        orch = ConversationOrchestrator()
+        with patch.object(
+            orch,
+            "_get_previous_tokens_from_db",
+            new=AsyncMock(return_value=TokenSummaryDTO.zero()),
+        ):
+            yield orch
 
     @pytest.fixture
     def mock_db(self):

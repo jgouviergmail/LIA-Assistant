@@ -642,7 +642,7 @@ class TestUploadDocument:
         with pytest.raises(BaseAPIException) as exc_info:
             await service.upload_document(space_id, user_id, mock_file)
 
-        assert exc_info.value.status_code == status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+        assert exc_info.value.status_code == status.HTTP_413_CONTENT_TOO_LARGE
 
     @pytest.mark.asyncio
     async def test_upload_document_space_not_found(self, service, space_id) -> None:

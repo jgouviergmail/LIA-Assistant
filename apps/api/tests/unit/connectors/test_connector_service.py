@@ -602,6 +602,7 @@ class TestAPIKeyConnectors:
     async def test_activate_api_key_connector_new(self, mock_encrypt):
         """Test activate_api_key_connector creates new connector (Lines 1099-1201)."""
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()  # Session.add is synchronous (avoid un-awaited coroutine)
         service = ConnectorService(mock_db)
 
         user_id = uuid.uuid4()

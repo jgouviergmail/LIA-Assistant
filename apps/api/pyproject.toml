@@ -217,6 +217,15 @@ addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-rep
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    # asyncio event-loop self-pipe transport occasionally GC'd after pytest-asyncio
+    # tears down the per-test loop (asyncio_default_fixture_loop_scope="function") on
+    # Windows. The tracemalloc allocation traceback contains ONLY pytest/pytest-asyncio
+    # frames (no application or test code), confirming it is loop infrastructure, not a
+    # leak in our code. Non-deterministic (GC attributes it to a random test), so it
+    # cannot be fixed at a source site. Scoped to the transport-leak message + category.
+    "ignore:unclosed transport:ResourceWarning",
+]
 pythonpath = ["."]
 markers = [
     "e2e: End-to-end integration tests (deselect with '-m \"not e2e\"')",

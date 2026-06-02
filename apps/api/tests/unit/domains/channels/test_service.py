@@ -109,7 +109,7 @@ class TestVerifyOTP:
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value=None)  # No brute-force block
 
-        mock_pipe = AsyncMock()
+        mock_pipe = MagicMock()  # pipeline commands are sync; only execute() is awaited
         mock_pipe.execute = AsyncMock(return_value=[otp_data, 1])
         mock_redis.pipeline = MagicMock(return_value=mock_pipe)
 
@@ -134,11 +134,11 @@ class TestVerifyOTP:
         mock_redis.get = AsyncMock(return_value=None)  # No brute-force block
 
         # First pipeline: get+delete for OTP lookup — returns None (not found)
-        mock_pipe1 = AsyncMock()
+        mock_pipe1 = MagicMock()  # pipeline commands are sync; only execute() is awaited
         mock_pipe1.execute = AsyncMock(return_value=[None, 0])
 
         # Second pipeline: incr+expire for attempt tracking
-        mock_pipe2 = AsyncMock()
+        mock_pipe2 = MagicMock()  # pipeline commands are sync; only execute() is awaited
         mock_pipe2.execute = AsyncMock(return_value=[1, True])
 
         mock_redis.pipeline = MagicMock(side_effect=[mock_pipe1, mock_pipe2])
@@ -181,7 +181,7 @@ class TestVerifyOTP:
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value=None)
 
-        mock_pipe = AsyncMock()
+        mock_pipe = MagicMock()  # pipeline commands are sync; only execute() is awaited
         mock_pipe.execute = AsyncMock(return_value=[otp_data, 1])
         mock_redis.pipeline = MagicMock(return_value=mock_pipe)
 

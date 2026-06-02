@@ -107,7 +107,7 @@ def raise_document_limit_exceeded(max_docs: int) -> NoReturn:
 def raise_file_too_large(file_size: int, max_size_mb: int) -> NoReturn:
     """Raise 413 when file exceeds size limit."""
     raise BaseAPIException(
-        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        status_code=status.HTTP_413_CONTENT_TOO_LARGE,
         detail=f"File too large (max {max_size_mb}MB)",
         log_event="rag_file_too_large",
         file_size=file_size,

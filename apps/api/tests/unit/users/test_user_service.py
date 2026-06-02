@@ -518,8 +518,14 @@ class TestUpdateUser:
 
         update_data = UserUpdate(timezone="America/New_York")
 
-        # Act
-        with patch("src.domains.users.service.logger") as mock_logger:
+        # Act — isolate the scheduled-actions recalculation sub-service (it has its
+        # own suite); running its real implementation against the mock session would
+        # raise and leak an un-awaited AsyncMock coroutine (RuntimeWarning).
+        with (
+            patch("src.domains.scheduled_actions.service.ScheduledActionService") as sa_service_cls,
+            patch("src.domains.users.service.logger") as mock_logger,
+        ):
+            sa_service_cls.return_value.recalculate_all_for_user = AsyncMock(return_value=0)
             result = await service.update_user(user_id, update_data)
 
             # Assert

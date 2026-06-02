@@ -1146,7 +1146,7 @@ class TestInvalidateAllUserSessions:
         mock_redis.get = mock_get
 
         # Mock pipeline
-        mock_pipeline = AsyncMock()
+        mock_pipeline = MagicMock()  # pipeline.delete is sync; only execute() is awaited
         mock_pipeline.execute = AsyncMock(return_value=[1, 1])  # 2 successful deletions
         mock_redis.pipeline = Mock(return_value=mock_pipeline)
 
@@ -1206,7 +1206,7 @@ class TestInvalidateAllUserSessions:
         mock_redis.get = mock_get
 
         # Mock pipeline
-        mock_pipeline = AsyncMock()
+        mock_pipeline = MagicMock()  # pipeline.delete is sync; only execute() is awaited
         mock_pipeline.execute = AsyncMock(return_value=[1])  # 1 successful deletion
         mock_redis.pipeline = Mock(return_value=mock_pipeline)
 
@@ -1286,7 +1286,7 @@ class TestInvalidateAllUserSessions:
         mock_redis.get = mock_get
 
         # Mock pipeline
-        mock_pipeline = AsyncMock()
+        mock_pipeline = MagicMock()  # pipeline.delete is sync; only execute() is awaited
         mock_pipeline.execute = AsyncMock(return_value=[1, 1, 1])  # 3 successful deletions
         mock_redis.pipeline = Mock(return_value=mock_pipeline)
 

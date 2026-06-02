@@ -64,6 +64,26 @@ def service(mock_db: AsyncMock, mock_repository: AsyncMock) -> AuthService:
     return service
 
 
+@pytest.fixture(autouse=True)
+def _isolate_post_user_creation_services():
+    """Isolate AuthService from the sub-services it constructs internally.
+
+    ``register()`` and the Google-OAuth path provision skill states
+    (``SkillPreferenceService``) and usage limits (``UsageLimitService``) via real
+    instances built on the ``AsyncMock`` session. Running those real implementations
+    against a mock DB leaks un-awaited ``AsyncMock`` coroutines (RuntimeWarning).
+    Both services have their own dedicated suites, so here they are stubbed to keep
+    the AuthService unit tests isolated and warning-free.
+    """
+    with (
+        patch("src.domains.skills.preference_service.SkillPreferenceService") as skill_cls,
+        patch("src.domains.usage_limits.service.UsageLimitService") as limit_cls,
+    ):
+        skill_cls.return_value.ensure_user_skills = AsyncMock()
+        limit_cls.return_value.create_default_limits = AsyncMock()
+        yield
+
+
 @pytest.fixture
 def sample_user() -> User:
     """Create sample user for testing."""

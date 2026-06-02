@@ -32,7 +32,7 @@ References:
 """
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -234,7 +234,7 @@ class TestLifetimeMetricsMetadata:
 
     def test_last_update_timestamp_tracking(self):
         """Test last update timestamp tracking."""
-        now = datetime.utcnow().timestamp()
+        now = datetime.now(UTC).timestamp()
         lifetime_metrics_last_update_timestamp.set(now)
 
         metric_value = lifetime_metrics_last_update_timestamp._value._value
