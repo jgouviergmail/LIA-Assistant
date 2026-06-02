@@ -228,6 +228,7 @@ from src.core.constants import (
     REACT_AGENT_MAX_ITERATIONS_DEFAULT,
     REACT_AGENT_MAX_TOOLS_DEFAULT,
     REACT_AGENT_TIMEOUT_SECONDS_DEFAULT,
+    REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT,
     REGISTRY_MAX_ITEMS_DEFAULT,
     RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT,
     RESPONSE_MESSAGE_WINDOW_SIZE_DEFAULT,
@@ -452,6 +453,16 @@ class AgentsSettings(BaseSettings):
         ge=1,
         le=30,
         description="Conversation turns from previous turns to include in ReAct context.",
+    )
+    react_mcp_expand_iterative_enabled: bool = Field(
+        default=REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT,
+        description=(
+            "In ReAct mode, expand iterative USER MCP servers into their individual "
+            "tools (so the LLM picks them by description) instead of the opaque "
+            "per-server task tool. MCP App servers always keep the task tool. "
+            "Set False to fall back to the task tool (instant rollback). "
+            "Does not affect the pipeline."
+        ),
     )
 
     # ========================================================================

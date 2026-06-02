@@ -93,6 +93,20 @@ ReAct now reaches Initiative on the nominal path too, reusing `initiative_node` 
 
 Unlike the pipeline, where `response_node` synthesises the whole answer from the registry, the ReAct answer is already written by the loop; Initiative therefore enriches *after* the fact (cards + woven findings + suggestion) rather than as part of the original synthesis. This is an additive, flag-gated change; the ADR-070 decision is unchanged. Related: ADR-062 (Initiative phase).
 
+## Amendment (2026-06-02): Tool-Resolution Parity & Iterative MCP Expansion in ReAct Mode
+
+ReAct built its tool palette from the per-request manifests (correct) but resolved tool *instances* only through the process-global `tool_registry` (`get_tool`). User MCP tools — per-user and dynamic, so deliberately kept out of the global registry and held in the `user_mcp_tools_ctx` ContextVar — were therefore silently dropped at selection (`react_tool_selector_skipped`, reason `manifest_without_registered_tool`), even though the pipeline executor already resolved them via a ContextVar fallback. Compounding this, **iterative** user MCP servers expose a single opaque `mcp_user_{id}_task` manifest (designed for the single-shot planner); the ReAct LLM did not recognise it as relevant and fell back to generic web search, so user-configured MCP servers were effectively unusable in ReAct.
+
+The fix restores ReAct↔pipeline parity and removes the divergence as duplication:
+
+1. **Shared resolver** — a new `src/domains/agents/tools/tool_resolution.py` centralises resolution as the single source of truth: global registry → hallucinated-suffix strip → user MCP ContextVar (exact then fuzzy), in both an instance form (`resolve_tool_instance[_named]`) and a manifest form (`resolve_tool_manifest[_named]`, the `_named` variants returning the canonical name so callers that mutate `step.tool_name` stay in sync). It is consumed by ReAct (`ReactToolSelector`, `_rebuild_wrapped_tools`), the pipeline executor (`_get_tool_manifest_for_step`, `_execute_tool_step`, `_execute_tool` — replacing three near-duplicate inline fallbacks), and display-metadata lookup (removing spurious `ToolManifestNotFound` warnings on user MCP tools).
+2. **HITL parity** — `ReactToolSelector` reads `hitl_required` from the in-hand manifest, not the `agent_registry` (which does not know user MCP tools); without this, user MCP mutation tools would silently lose their approval gate in ReAct.
+3. **Iterative expansion (ReAct only)** — because ReAct *is* already an iterative loop, the per-server task-tool indirection is redundant and only hides the descriptive individual tools. `ReactToolSelector` expands an iterative **user** MCP task manifest into its individual tools (read from the ContextVar) so the model can pick them by description — **except MCP App servers** (`app_resource_uri` present), which keep the task tool so they retain the dedicated MCP-app prompt and the more capable `mcp_app_react_agent` model. The **pipeline** keeps the task-tool → ReAct-sub-agent path unchanged (ADR-062). MCP admin tools, already in the global registry, were unaffected throughout.
+
+A related cross-mode fix accompanies this change: optional MCP parameters left unset are materialised as `None` by the Pydantic args schema and were forwarded verbatim, making strictly-typed (e.g. Go-based) MCP servers reject the call (`parameter X is not of type string, is <nil>`). Both adapters now drop `None`-valued arguments before the server call (`drop_none_values`), per the MCP/JSON-RPC convention that an unset optional is omitted, not sent as null.
+
+This is an additive, behaviour-preserving change for admin/native tools and the pipeline; the ADR-070 decision (parent-graph nodes, shared infrastructure, user toggle) is unchanged. Related: ADR-062 (iterative MCP / ReAct sub-agent), ADR-044 (HITL approval flow).
+
 ## Trade-offs
 
 ### ReAct Mode

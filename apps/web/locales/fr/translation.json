@@ -2947,6 +2947,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_20": {
+          "title": "v1.20.20 — 🔌 Vos serveurs MCP personnels fonctionnent désormais aussi en mode autonome (ReAct)",
+          "date": "Juin 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔌 Vos serveurs MCP personnels fonctionnent désormais en mode autonome (⚡ ReAct)</b> — Jusqu'ici, les serveurs MCP que vous connectez (GitHub, HuggingFace, vos propres services…) n'étaient utilisés par LIA qu'en mode standard ; en mode autonome (⚡ ReAct) ils étaient ignorés et LIA se rabattait sur une recherche web générique. Ils fonctionnent maintenant dans les deux modes : LIA choisit elle-même l'outil le plus pertinent parmi vos serveurs MCP, d'après sa description, sans que vous ayez à en demander un en particulier. Pour un serveur réglé en « Mode itératif », le mode autonome utilise désormais directement ses outils individuels (il raisonne déjà étape par étape), tandis que les serveurs à widgets interactifs (ex. Excalidraw) conservent leur agent dédié. <i>Admin :</i> un nouveau réglage <code>REACT_MCP_EXPAND_ITERATIVE_ENABLED</code> (activé par défaut) permet de revenir instantanément au comportement précédent. Rien à changer de votre côté.",
+            "i2": "<b>🔧 Correctif — les outils MCP à réglages optionnels n'échouent plus sur les serveurs stricts</b> — Certains outils MCP (ex. la recherche de dépôts GitHub, qui a des réglages optionnels « sort »/« order ») pouvaient échouer quand LIA laissait ces réglages vides, car certains serveurs rejettent une valeur vide avec une erreur de type. LIA omet désormais entièrement les réglages optionnels non renseignés, comme le protocole l'attend, pour que ces outils fonctionnent de façon fiable. Rien à changer de votre côté."
+          }
+        },
         "v1_20_19": {
           "title": "v1.20.19 — 📓 Un carnet personnel de l'assistant plus sobre et plus juste",
           "date": "Juin 2026",

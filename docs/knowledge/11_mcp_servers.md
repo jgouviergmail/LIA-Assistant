@@ -170,6 +170,10 @@ Iterative mode changes how LIA interacts with an MCP server:
 • A dedicated ReAct AI agent takes over and interacts with the server step by step
 • The agent reads the server's documentation first (`read_me`), then plans and executes tools iteratively with error recovery
 
+**💬 Behaviour by chat mode:**
+• In the **standard** chat mode, the planner delegates to the dedicated ReAct sub-agent described above.
+• In the **autonomous (⚡ ReAct)** chat mode, LIA already reasons step by step, so it uses the server's individual tools **directly** (no nested agent) and picks the right one by description — your iterative servers work the same as in standard mode. Servers with interactive widgets (like Excalidraw) keep their dedicated agent even here. Admins can force the task tool everywhere with `REACT_MCP_EXPAND_ITERATIVE_ENABLED=false`.
+
 **✅ Enable iterative mode when:**
 • The server has a complex API requiring tools to be called in sequence
 • Tools depend on each other (output of one is input for the next)

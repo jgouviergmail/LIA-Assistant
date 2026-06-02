@@ -34,7 +34,7 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.infrastructure.mcp.tool_adapter import build_args_schema
-from src.infrastructure.mcp.utils import build_mcp_app_output
+from src.infrastructure.mcp.utils import build_mcp_app_output, drop_none_values
 from src.infrastructure.observability.metrics_agents import (
     mcp_connection_errors_total,
     mcp_tool_duration_seconds,
@@ -191,6 +191,10 @@ class UserMCPToolAdapter(BaseTool):
         """
         from src.infrastructure.mcp.user_pool import get_user_mcp_pool
 
+        # Omit unset optional params (materialised as None by the args schema) so
+        # strictly-typed MCP servers don't reject them as null.
+        arguments = drop_none_values(kwargs)
+
         start = time.perf_counter()
         try:
             pool = get_user_mcp_pool()
@@ -201,7 +205,7 @@ class UserMCPToolAdapter(BaseTool):
                 user_id=self.user_id,
                 server_id=self.server_id,
                 tool_name=self.mcp_tool_name,
-                arguments=kwargs,
+                arguments=arguments,
                 timeout_seconds=self.timeout_seconds,
             )
 
@@ -236,7 +240,7 @@ class UserMCPToolAdapter(BaseTool):
                         server_source="user",
                         resource_uri=self.app_resource_uri,
                         source_label=self.server_name_label,
-                        tool_arguments=kwargs,
+                        tool_arguments=arguments,
                         tool_input_schema=input_schema,
                     )
 

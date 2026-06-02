@@ -154,11 +154,13 @@ def get_tool_display_metadata(tool_name: str) -> DisplayMetadata | None:
         🔍 get_contacts
     """
     try:
-        # Get global registry instance
-        from src.domains.agents.registry.agent_registry import get_global_registry
+        # Resolve across the global registry AND the per-request user MCP
+        # ContextVar (shared resolver) so user MCP tools — whose manifests live
+        # only in the ContextVar — get their display metadata instead of raising
+        # ToolManifestNotFound.
+        from src.domains.agents.tools.tool_resolution import resolve_tool_manifest
 
-        registry = get_global_registry()
-        tool_manifest = registry.get_tool_manifest(tool_name)
+        tool_manifest = resolve_tool_manifest(tool_name)
 
         if tool_manifest and tool_manifest.display:
             logger.debug(

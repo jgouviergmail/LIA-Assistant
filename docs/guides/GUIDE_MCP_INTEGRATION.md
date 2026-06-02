@@ -380,6 +380,8 @@ Iterative mode: Planner → mcp_{server}_task → ReactSubAgentRunner → ReAct 
                                               └→ read_me → understand API → call tools → result
 ```
 
+> **Autonomous (⚡ ReAct) chat mode** — the parent loop is *itself* a ReAct loop, so the per-server `_task` indirection is redundant: `ReactToolSelector` expands an iterative **user** MCP server into its individual tools (resolved from the ContextVar via the shared `tool_resolution.py`) so the model picks them by description — **except MCP App servers**, which keep the `_task` tool and the `mcp_app_react_agent` model. Gated by `REACT_MCP_EXPAND_ITERATIVE_ENABLED` (default `true`). The pipeline flow above is unchanged. See ADR-070 (amendment 2026-06-02).
+
 ### Admin vs User MCP
 
 | Aspect | Admin MCP | User MCP |

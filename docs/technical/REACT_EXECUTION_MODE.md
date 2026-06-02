@@ -135,11 +135,21 @@ Collects iteration count and prepares metadata for the response node:
 
 The ReAct agent receives ALL available tools (not domain-filtered like the planner):
 - Filtered by active connectors (`get_request_tool_manifests()`)
-- Capped by `REACT_AGENT_MAX_TOOLS` (default: 25)
+- Capped by `REACT_AGENT_MAX_TOOLS` (default: 100) — measured on the **resolved** tool count, after iterative expansion
 - Wrapped in `ReactToolWrapper` for string conversion + registry collection
-- HITL map built from tool manifests (`permissions.hitl_required`)
+- HITL map built from the in-hand tool manifests (`permissions.hitl_required`)
 
 Tools are NOT stored in state (non-serializable). Tool names and HITL map are stored instead, and tools are rebuilt in each node that needs them.
+
+### Tool resolution (shared with the pipeline)
+
+Both `ReactToolSelector` (binding) and `_rebuild_wrapped_tools` (execution) resolve a tool *name* to its instance through the shared `src/domains/agents/tools/tool_resolution.py` — the single source of truth used by the pipeline executor too. Resolution order: global `tool_registry` (native + admin MCP) → hallucinated-suffix strip → per-request `user_mcp_tools_ctx` (exact then fuzzy). Without this fallback the ReAct loop, which consulted only the global registry, silently dropped **user** MCP tools (whose instances live only in the ContextVar) — see ADR-070 amendment 2026-06-02.
+
+### Iterative user MCP expansion
+
+A user MCP server configured `iterative_mode=true` exposes a single opaque `mcp_user_{id}_task` manifest to the planner (it delegates to a ReAct sub-agent — ADR-062). Since the ReAct loop is *itself* iterative, that indirection only hides the descriptive individual tools, so the LLM falls back to generic web search. `ReactToolSelector._expand_iterative_user_mcp` therefore replaces the task manifest with the server's individual tools (read from the ContextVar), letting the model pick them by description. **Exception:** MCP App servers (a tool with `app_resource_uri`) keep the task tool, because they need the dedicated MCP-app prompt and the more capable `mcp_app_react_agent` model. Gated by `REACT_MCP_EXPAND_ITERATIVE_ENABLED` (default `true`); when `false`, the task tool is kept (instant rollback) and still resolves correctly via the shared resolver. The pipeline keeps the task-tool path unchanged.
+
+> Optional MCP parameters left unset are materialised as `None` by the args schema; both MCP adapters drop `None`-valued arguments (`drop_none_values`) before the server call, so strictly-typed (e.g. Go-based) servers don't reject them as `null`.
 
 ## HITL in ReAct
 
@@ -196,8 +206,9 @@ Skills are available to the ReAct agent through the same mechanism as the pipeli
 REACT_AGENT_ENABLED=true              # Feature flag
 REACT_AGENT_MAX_ITERATIONS=15         # Max ReAct loop iterations
 REACT_AGENT_TIMEOUT_SECONDS=120       # Hard timeout for entire execution
-REACT_AGENT_MAX_TOOLS=25              # Max tools bound to LLM
+REACT_AGENT_MAX_TOOLS=100             # Max tools bound to LLM (resolved count, post-expansion)
 REACT_AGENT_HISTORY_WINDOW_TURNS=5    # Conversation history window
+REACT_MCP_EXPAND_ITERATIVE_ENABLED=true  # Expand iterative USER MCP servers into individual tools (false = keep task tool; MCP App servers always keep it)
 INITIATIVE_REACT_ENABLED=false        # Run the Initiative phase on the ReAct nominal path (ADR-070; pipeline uses INITIATIVE_ENABLED)
 ```
 

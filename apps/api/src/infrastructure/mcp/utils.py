@@ -26,6 +26,27 @@ from src.domains.agents.data_registry.models import (
 from src.domains.agents.tools.output import UnifiedToolOutput
 
 
+def drop_none_values(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Drop top-level keys whose value is ``None`` from MCP tool arguments.
+
+    Optional MCP parameters left unset are materialised as ``None`` by the
+    Pydantic args schema (``Field(default=None)``). Forwarding them verbatim
+    makes strictly-typed MCP servers (e.g. Go-based) reject the call with
+    ``parameter X is not of type string, is <nil>``. Per the MCP/JSON-RPC
+    convention an unset optional must be omitted, not sent as ``null``.
+
+    Only ``None`` is removed — falsy-but-valid values (``False``, ``0``, ``""``,
+    ``[]``) are preserved. Non-recursive by design: nested objects pass as-is.
+
+    Args:
+        arguments: Tool arguments mapping (keyword args from the LLM/schema).
+
+    Returns:
+        A new dict without ``None``-valued keys.
+    """
+    return {key: value for key, value in arguments.items() if value is not None}
+
+
 def extract_app_meta(tool: Any) -> tuple[str | None, list[str] | None]:
     """Extract MCP Apps UI metadata from an MCP SDK Tool object.
 

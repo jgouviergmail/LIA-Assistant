@@ -2933,6 +2933,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_20": {
+          "title": "v1.20.20 — 🔌 Tus servidores MCP personales ya funcionan también en el modo autónomo (ReAct)",
+          "date": "Junio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔌 Tus servidores MCP personales ya funcionan en el modo autónomo (⚡ ReAct)</b> — Hasta ahora, los servidores MCP que conectas (GitHub, HuggingFace, tus propios servicios…) solo los usaba LIA en el modo estándar; en el modo autónomo (⚡ ReAct) se ignoraban y LIA recurría a una búsqueda web genérica. Ahora funcionan en ambos modos: LIA elige por sí misma la herramienta más pertinente entre tus servidores MCP, según su descripción, sin que tengas que pedir una en concreto. Para un servidor configurado en «Modo iterativo», el modo autónomo usa ahora directamente sus herramientas individuales (ya razona paso a paso), mientras que los servidores con widgets interactivos (p. ej. Excalidraw) conservan su agente dedicado. <i>Admin:</i> un nuevo ajuste <code>REACT_MCP_EXPAND_ITERATIVE_ENABLED</code> (activado por defecto) permite volver al comportamiento anterior al instante. No tienes que cambiar nada.",
+            "i2": "<b>🔧 Corrección — las herramientas MCP con ajustes opcionales ya no fallan en servidores estrictos</b> — Algunas herramientas MCP (p. ej. la búsqueda de repositorios de GitHub, con los ajustes opcionales «sort»/«order») podían fallar cuando LIA los dejaba vacíos, porque ciertos servidores rechazan un valor vacío con un error de tipo. LIA ahora omite por completo los ajustes opcionales no establecidos, como espera el protocolo, para que esas herramientas funcionen de forma fiable. No tienes que cambiar nada."
+          }
+        },
         "v1_20_19": {
           "title": "v1.20.19 — 📓 Un diario personal del asistente más sobrio y certero",
           "date": "Junio 2026",

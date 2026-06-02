@@ -3753,6 +3753,10 @@ REACT_AGENT_MAX_ITERATIONS_DEFAULT: int = 15
 REACT_AGENT_TIMEOUT_SECONDS_DEFAULT: int = 120
 REACT_AGENT_MAX_TOOLS_DEFAULT: int = 100
 REACT_AGENT_HISTORY_WINDOW_TURNS_DEFAULT: int = 5
+# Expand iterative user MCP servers into their individual tools in ReAct mode
+# (ADR-070 amendment). Default True = validated behaviour; set False to fall back
+# to the opaque per-server task tool (instant rollback without redeploy).
+REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT: bool = True
 
 # ============================================================================
 # HEALTH METRICS (iPhone Shortcuts ingestion — heart rate, steps, …)

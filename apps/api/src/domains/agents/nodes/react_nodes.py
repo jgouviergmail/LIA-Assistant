@@ -39,7 +39,7 @@ from src.domains.agents.models import MessagesState
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.react_tool_selector import ReactToolSelector
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
-from src.domains.agents.tools.tool_registry import get_tool
+from src.domains.agents.tools.tool_resolution import resolve_tool_instance
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
@@ -136,7 +136,10 @@ def _rebuild_wrapped_tools(
     """
     wrappers: list[ReactToolWrapper] = []
     for name in tool_names:
-        base_tool = get_tool(name)
+        # Resolve across the global registry AND the per-request user MCP
+        # ContextVar (pipeline parity) so user MCP tools selected at setup can
+        # still be bound/executed in later nodes.
+        base_tool = resolve_tool_instance(name)
         if base_tool is None:
             continue
         wrappers.append(

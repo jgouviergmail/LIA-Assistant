@@ -26,7 +26,7 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field, create_model
 
 from src.domains.agents.tools.output import UnifiedToolOutput
-from src.infrastructure.mcp.utils import build_mcp_app_output
+from src.infrastructure.mcp.utils import build_mcp_app_output, drop_none_values
 from src.infrastructure.observability.metrics_agents import (
     mcp_connection_errors_total,
     mcp_tool_duration_seconds,
@@ -184,6 +184,10 @@ class MCPToolAdapter(BaseTool):
         # Lazy import to avoid circular dependencies
         from src.infrastructure.mcp.client_manager import get_mcp_client_manager
 
+        # Omit unset optional params (materialised as None by the args schema) so
+        # strictly-typed MCP servers don't reject them as null.
+        arguments = drop_none_values(kwargs)
+
         start = time.perf_counter()
         try:
             manager = get_mcp_client_manager()
@@ -193,7 +197,7 @@ class MCPToolAdapter(BaseTool):
             result = await manager.call_tool(
                 self.server_name,
                 self.mcp_tool_name,
-                kwargs,
+                arguments,
             )
 
             mcp_tool_invocations_total.labels(
@@ -220,7 +224,7 @@ class MCPToolAdapter(BaseTool):
                         server_source="admin",
                         resource_uri=self.app_resource_uri,
                         source_label=self.server_name,
-                        tool_arguments=kwargs,
+                        tool_arguments=arguments,
                         tool_input_schema=input_schema,
                     )
 

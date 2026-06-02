@@ -2120,38 +2120,25 @@ def _get_tool_manifest_for_step(
         RuntimeError,
         ToolManifestNotFound,
     ) as e:
-        # Fallback: MCP tools with hallucinated suffix (evolution F2.1/F2.5)
-        from src.core.context import (
-            strip_hallucinated_mcp_suffix,
-            user_mcp_tools_ctx,
+        # Fallback across the global registry (incl. hallucinated suffix) and the
+        # per-request user MCP ContextVar — shared resolver, identical patron to
+        # the instance resolution. Adopt the canonical name for display/registry
+        # correlation.
+        from src.domains.agents.tools.tool_resolution import (
+            resolve_tool_manifest_named,
         )
 
-        manifest = None
-
-        # 1. Admin MCP: strip suffix and retry central registry
-        stripped = strip_hallucinated_mcp_suffix(step.tool_name)
-        if stripped:
-            try:
-                manifest = registry.get_tool_manifest(stripped)
-                step.tool_name = stripped
-                return manifest, None
-            except Exception:
-                pass
-
-        # 2. User MCP: ContextVar with fuzzy resolve
-        user_ctx = user_mcp_tools_ctx.get()
-        if user_ctx:
-            manifest = user_ctx.resolve_tool_manifest(step.tool_name)
-            if manifest:
-                if manifest.name != step.tool_name:
-                    logger.info(
-                        "tool_name_corrected",
-                        original=step.tool_name,
-                        corrected=manifest.name,
-                        step_id=step.step_id,
-                    )
-                    step.tool_name = manifest.name
-                return manifest, None
+        manifest, canonical = resolve_tool_manifest_named(step.tool_name)
+        if manifest is not None:
+            if canonical != step.tool_name:
+                logger.info(
+                    "tool_name_corrected",
+                    original=step.tool_name,
+                    corrected=canonical,
+                    step_id=step.step_id,
+                )
+                step.tool_name = canonical
+            return manifest, None
 
         logger.error(
             "tool_manifest_not_found",
@@ -2433,35 +2420,19 @@ async def _execute_tool_step(
         try:
             tool = tool_registry.get_tool(step.tool_name)
         except (KeyError, ValueError):
-            # Fallback: MCP tools with hallucinated suffix (evolution F2.1/F2.5)
-            from src.core.context import (
-                strip_hallucinated_mcp_suffix,
-                user_mcp_tools_ctx,
+            # Fallback across the global registry (incl. hallucinated suffix) and
+            # the per-request user MCP ContextVar — shared resolver, identical to
+            # the ReAct path. Adopt the canonical name so downstream display and
+            # registry correlation stay in sync.
+            from src.domains.agents.tools.tool_resolution import (
+                resolve_tool_instance_named,
             )
 
-            tool = None
-
-            # 1. Admin MCP: strip suffix and retry central registry
-            stripped = strip_hallucinated_mcp_suffix(step.tool_name)
-            if stripped:
-                try:
-                    tool = tool_registry.get_tool(stripped)
-                    step.tool_name = stripped
-                except (KeyError, ValueError):
-                    pass
-
-            # 2. User MCP: ContextVar with fuzzy resolve
-            if tool is None:
-                user_ctx = user_mcp_tools_ctx.get()
-                if user_ctx:
-                    resolved = user_ctx.resolve_tool_name(step.tool_name)
-                    if resolved and resolved in user_ctx.tool_instances:
-                        if resolved != step.tool_name:
-                            step.tool_name = resolved
-                        tool = user_ctx.tool_instances[resolved]
-
+            tool, canonical = resolve_tool_instance_named(step.tool_name)
             if tool is None:
                 raise
+            if canonical != step.tool_name:
+                step.tool_name = canonical
         tool_schema = tool.get_input_schema()
         resolved_args = _coerce_args_to_schema(resolved_args, tool_schema)
     except (ValueError, KeyError, TypeError, AttributeError) as e:
@@ -2629,13 +2600,15 @@ async def _execute_tool(
         tool_registry = ToolRegistry.get_instance()
         tool = tool_registry.get_tool(tool_name)
     except (KeyError, ValueError, AttributeError, RuntimeError) as e:
-        # Fallback: check user MCP tools ContextVar (evolution F2.1)
-        from src.core.context import user_mcp_tools_ctx
+        # Fallback across the global registry (incl. hallucinated suffix) and the
+        # per-request user MCP ContextVar — shared resolver (parity with ReAct and
+        # _execute_tool_step). Adopt the canonical name for downstream meta.
+        from src.domains.agents.tools.tool_resolution import (
+            resolve_tool_instance_named,
+        )
 
-        user_ctx = user_mcp_tools_ctx.get()
-        if user_ctx and tool_name in user_ctx.tool_instances:
-            tool = user_ctx.tool_instances[tool_name]
-        else:
+        tool, canonical = resolve_tool_instance_named(tool_name)
+        if tool is None:
             return ToolExecutionResult(
                 result={
                     "success": False,
@@ -2643,6 +2616,7 @@ async def _execute_tool(
                     FIELD_ERROR_CODE: ToolErrorCode.NOT_FOUND.value,
                 }
             )
+        tool_name = canonical
 
     # Build ToolRuntime and inject if needed (Session 22 - Helper #4)
     args = _build_tool_runtime(tool, args, config, store)

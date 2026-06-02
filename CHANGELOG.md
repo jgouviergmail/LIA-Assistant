@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.20] - 2026-06-02
+
+> Architecture decision: [ADR-070 — ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md), amendment 2026-06-02.
+
+### Fixed — User MCP tools were unusable in ReAct mode (resolution asymmetry with the pipeline)
+
+ReAct built its tool palette from the per-request manifests (`get_request_tool_manifests()`, correct) but resolved tool **instances** only through the process-global `tool_registry` (`get_tool`). **User** MCP tools are per-user and dynamic, so they are deliberately kept out of the global registry and held in the `user_mcp_tools_ctx` ContextVar — the pipeline executor already resolved them via a ContextVar fallback, but ReAct did not. Result: user MCP tools were silently dropped at selection (`react_tool_selector_skipped`, reason `manifest_without_registered_tool`) and the loop fell back to a generic web search, so user-configured MCP servers were effectively unusable in ReAct. Admin MCP tools (in the global registry) were unaffected.
+
+A new shared resolver `src/domains/agents/tools/tool_resolution.py` is now the single source of truth — `resolve_tool_instance[_named]` / `resolve_tool_manifest[_named]`: global registry → LLM-hallucinated-suffix strip → user MCP ContextVar (exact then fuzzy), the `_named` variants returning the canonical name so callers that mutate `step.tool_name` stay in sync. It is consumed by ReAct (`ReactToolSelector`, `_rebuild_wrapped_tools`), the pipeline executor (`_get_tool_manifest_for_step`, `_execute_tool_step`, `_execute_tool` — three near-duplicate inline fallbacks unified) and display-metadata lookup (removing spurious `ToolManifestNotFound` warnings on user MCP tools). **HITL parity**: `ReactToolSelector` reads `hitl_required` from the in-hand manifest (the `agent_registry` does not know user MCP tools), so user MCP mutation tools keep their approval gate in ReAct.
+
+### Added — Iterative user MCP servers expand to their individual tools in ReAct (`REACT_MCP_EXPAND_ITERATIVE_ENABLED`)
+
+An iterative-mode user MCP server exposes a single opaque `mcp_user_{id}_task` manifest (designed for the single-shot planner, which delegates to a ReAct sub-agent — ADR-062). The ReAct loop **is itself iterative**, so that indirection only hid the descriptive individual tools and the LLM did not recognise the task tool, falling back to web search. `ReactToolSelector._expand_iterative_user_mcp` now replaces the task manifest with the server's individual tools (read from the ContextVar) so the model picks them by description — **except MCP App servers** (a tool with `app_resource_uri`, e.g. Excalidraw), which keep the task tool to retain their dedicated MCP-app prompt and the more capable `mcp_app_react_agent` model. Gated by the new `REACT_MCP_EXPAND_ITERATIVE_ENABLED` (default `True` = validated behaviour; `False` falls back to the task tool — instant rollback without redeploy). The pipeline keeps the task-tool → ReAct-sub-agent path unchanged.
+
+### Fixed — MCP tools with unset optional parameters rejected by strictly-typed servers
+
+Optional MCP parameters left unset are materialised as `None` by the Pydantic args schema (`Field(default=None)`) and were forwarded verbatim, making strictly-typed (e.g. Go-based) MCP servers reject the call (`parameter sort is not of type string, is <nil>` — observed on GitHub `search_repositories`). Both adapters (`UserMCPToolAdapter`, `MCPToolAdapter`) now drop `None`-valued arguments (`drop_none_values`) before the server call, per the MCP/JSON-RPC convention that an unset optional is omitted, not sent as null. Falsy-but-valid values (`False`, `0`, `""`) are preserved; non-recursive.
+
+### Notes
+
+- **No schema change, no migration, no new endpoint.** New env var: `REACT_MCP_EXPAND_ITERATIVE_ENABLED` (default `true`).
+- **Files**: `apps/api/src/domains/agents/tools/tool_resolution.py` (new), `apps/api/src/domains/agents/services/react_tool_selector.py`, `apps/api/src/domains/agents/nodes/react_nodes.py`, `apps/api/src/domains/agents/orchestration/parallel_executor.py`, `apps/api/src/domains/agents/utils/execution_metadata.py`, `apps/api/src/infrastructure/mcp/{utils,tool_adapter,user_tool_adapter}.py`, `apps/api/src/core/{constants,config/agents}.py`, `.env.example`, `.env.prod.example`. **Docs**: [ADR-070](docs/architecture/ADR-070-ReAct-Execution-Mode.md) (amendment), `docs/technical/REACT_EXECUTION_MODE.md`, `docs/knowledge/11_mcp_servers.md`. **Tests**: `test_tool_resolution.py`, `test_react_tool_selector.py`, `test_react_nodes_tool_resolution.py`, `test_get_tool_manifest_for_step.py`, `test_mcp_arg_sanitization.py` (TDD, red→green); Ruff / Black / MyPy strict clean, 1186+ unit tests green.
+
 ## [1.20.19] - 2026-06-02
 
 ### Changed — Personal journal write discipline: restraint-first, grounded, no more over-generalisation or capability hallucinations

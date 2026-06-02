@@ -482,9 +482,11 @@ At server registration (test_connection), OpenAI text-embedding-3-small embeddin
 1. **Router Node** (`router_node_v3.py`): Includes user MCP tools in scoring when any `mcp_*` domain detected (`is_mcp_domain()`). Passes `extra_embeddings` from ContextVar.
 2. **Catalogue — Normal Filtering** (`normal_filtering.py`): Injects user MCP manifests from ContextVar. Per-server domains are detected by the LLM (no force-include).
 3. **Catalogue — Panic Filtering** (`panic_filtering.py`): Injects user MCP manifests. Force-includes ALL per-server MCP domains as a safety net.
-4. **Executor — Manifest lookup** (`parallel_executor.py:_get_tool_manifest_for_step`): ContextVar fallback when manifest not in global registry.
-5. **Executor — Type coercion** (`parallel_executor.py:_execute_tool_step`): ContextVar fallback for tool instance resolution.
-6. **Executor — Tool execution** (`parallel_executor.py:_execute_tool`): ContextVar fallback for tool invocation.
+4. **Executor — Manifest lookup** (`parallel_executor.py:_get_tool_manifest_for_step`): ContextVar fallback when manifest not in global registry — via the shared `tool_resolution.py:resolve_tool_manifest_named`.
+5. **Executor — Type coercion** (`parallel_executor.py:_execute_tool_step`): ContextVar fallback for tool instance resolution — via `tool_resolution.py:resolve_tool_instance_named`.
+6. **Executor — Tool execution** (`parallel_executor.py:_execute_tool`): ContextVar fallback for tool invocation — via `resolve_tool_instance_named`.
+7. **ReAct — Tool selection & rebuild** (`react_tool_selector.py`, `react_nodes.py:_rebuild_wrapped_tools`): binds/executes user MCP tools through the **same** shared resolver (`tool_resolution.py`) — without it, the ReAct loop (which consulted only the global registry) silently dropped user MCP tools. HITL is read from the in-hand manifest. Iterative user MCP servers are **expanded to their individual tools** for the ReAct loop (which is itself iterative) instead of the opaque `_task` tool — except MCP App servers (which keep the task tool) — gated by `REACT_MCP_EXPAND_ITERATIVE_ENABLED` (default `true`). See ADR-070 (amendment 2026-06-02).
+8. **Adapters — Argument sanitization** (`tool_adapter.py`, `user_tool_adapter.py`): both adapters drop `None`-valued optional arguments (`utils.py:drop_none_values`) before the server call, so strictly-typed (e.g. Go) servers don't reject unset optionals as `null`.
 
 ### Configuration
 
