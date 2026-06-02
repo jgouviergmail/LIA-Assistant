@@ -2798,7 +2798,7 @@
         },
         "llm": {
           "title": "🤖 Multi-Fournisseurs LLM & Pattern Learning",
-          "description": "Support 8 fournisseurs : OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity et Ollama local. Apprentissage bayésien des patterns de planification (≥90% confiance → bypass LLM). Économie moyenne de 89% des tokens. Profils configurables par tâche avec suivi temps réel des coûts."
+          "description": "Support 8 fournisseurs : OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity et Ollama local. Apprentissage bayésien des patterns de planification (≥90% confiance → bypass LLM). Économie moyenne de 89% des tokens. Profils configurables par tâche avec suivi temps réel des coûts."
         },
         "security": {
           "title": "🔐 Sécurité Multi-Niveaux",

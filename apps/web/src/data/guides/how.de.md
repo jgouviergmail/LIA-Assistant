@@ -6,7 +6,7 @@
 
 **Version**: 2.4
 **Datum**: 2026-05-08
-**Application**: LIA v1.20.3
+**Application**: LIA v1.20.20
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 400+ Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 75 ADRs, ~9 992 von pytest gesammelte Tests in 448 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 81 ADRs, ~10.000 von pytest gesammelte Tests in 484 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -71,10 +71,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~9 992 von pytest gesammelt in 448 Dateien (Unit 8 017 · Agents 1 285 · Integration 236 · E2E 12) + 41 vitest-Tests im Frontend |
+| Tests | ~10.000 von pytest gesammelt (von pytest über 484 Testdateien gesammelt) + 41 vitest-Tests im Frontend |
 | Wiederverwendbare Fixtures | 170+ |
-| Dokumentationsdokumente | 260+ |
-| ADRs (Architecture Decision Records) | 70 |
+| Dokumentationsdokumente | 280+ |
+| ADRs (Architecture Decision Records) | 81 |
 | Prometheus-Metriken | 400+ Definitionen |
 | Grafana-Dashboards | 21 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -117,12 +117,12 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Provider | Modelle | Besonderheiten |
 |----------|---------|-------------|
-| OpenAI | GPT-5.4, GPT-5.4-mini, GPT-5.x, GPT-4.1-x, o1, o3-mini | Natives Prompt Caching, Responses API, reasoning_effort |
-| Anthropic | Claude Opus 4.6/4.5/4, Sonnet 4.6/4.5/4, Haiku 4.5 | Extended Thinking, Prompt Caching |
-| Google | Gemini 3.1/3/2.5 Pro, Flash 3/2.5/2.0 | Multimodal, Dual-Vector-Embeddings |
-| DeepSeek | V3 (Chat), R1 (Reasoner) | Reduzierte Kosten, natives Reasoning |
-| Perplexity | sonar-small/large-128k-online | Search-Augmented Generation |
-| Qwen | qwen3-max, qwen3.5-plus, qwen3.5-flash | Thinking Mode, Tools + Vision (Alibaba Cloud) |
+| OpenAI | GPT-5.4, GPT-5.4-mini, GPT-5.2, GPT-5.1, GPT-5 (+ mini/nano), GPT-4.1, GPT-4o, o3/o4-mini | Natives Prompt Caching, Responses API, reasoning_effort |
+| Anthropic | Claude Opus 4.6/4.5, Claude Sonnet 4.6, Claude Haiku 4.5 | Extended Thinking, Prompt Caching |
+| Google | Gemini 3.1/3 Pro, Gemini 3.1/3 Flash, Gemini 2.5 Pro/Flash | Multimodal, Dual-Vector-Embeddings |
+| DeepSeek | deepseek-v4-flash, deepseek-v4-pro (V4), deepseek-chat (V3), deepseek-reasoner (R1) | Reduzierte Kosten, natives Reasoning |
+| Perplexity | Sonar, Sonar Pro | Search-Augmented Generation |
+| Qwen | qwen3.5-plus, qwen3.5-flash, qwen3-max | Thinking Mode, Tools + Vision (Alibaba Cloud) |
 | Ollama | Jedes lokale Modell (dynamische Erkennung) | Null API-Kosten, Self-Hosted |
 
 **Warum 8 Provider?** Die Auswahl ist kein Selbstzweck. Es ist eine Resilienzstrategie: Jeder Knoten der Pipeline kann einem anderen Provider zugewiesen werden. Wenn OpenAI die Preise erhöht, wechselt der Router auf DeepSeek. Wenn Anthropic einen Ausfall hat, wird die Antwort auf Gemini umgeleitet. Die LLM-Abstraktion (`src/infrastructure/llm/factory.py`) verwendet das Factory Pattern mit `init_chat_model()`, überschrieben durch spezifische Adapter (`ResponsesLLM` für die OpenAI Responses API, Eligibility per Regex `^(gpt-4\.1|gpt-5|o[1-9])`).
@@ -949,7 +949,7 @@ LIA akzeptiert externe Event-Ingestionen (iPhone-Apple-Health-Messwerte, Drittan
 
 ## 24. Architekturentscheidungen (ADR)
 
-75 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+81 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1003,10 +1003,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 75 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~9 992 Tests in 448 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 81 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~10.000 Tests in 484 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (260+ Dokumente), der 75 ADRs und des Changelogs (v1.0 bis v1.20.3). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 81 ADRs und des Changelogs (v1.0 bis v1.20.20). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

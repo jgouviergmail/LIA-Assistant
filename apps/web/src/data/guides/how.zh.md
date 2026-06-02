@@ -6,7 +6,7 @@
 
 **版本**：2.4
 **日期**：2026-05-08
-**应用**：LIA v1.20.3
+**应用**：LIA v1.20.20
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -53,7 +53,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | 数据主权 | 本地 PostgreSQL（非 SaaS 数据库）、Fernet 静态加密、本地 Redis 会话 |
 | 多 LLM 供应商 | Factory 模式搭配 8 个适配器，按节点配置，不与特定供应商强耦合 |
 | 完全透明 | 400+ Prometheus 指标、内嵌调试面板、逐 token 追踪 |
-| 生产可靠性 | 75 篇 ADR、由 pytest 在 448 个文件中收集的 ~9,992 个测试、原生可观测性、6 层 HITL |
+| 生产可靠性 | 81 篇 ADR、由 pytest 在 484 个文件中收集的 ~10,000 个测试、原生可观测性、6 层 HITL |
 | 成本可控 | Smart Services（节省 89% token）、语义嵌入、prompt 缓存、目录过滤 |
 
 ### 1.2. 架构原则
@@ -71,10 +71,10 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 
 | 指标 | 数值 |
 |------|------|
-| 测试 | 由 pytest 在 448 个文件中收集的 ~9,992 个（单元 8,017 · 智能体 1,285 · 集成 236 · e2e 12）+ 前端 41 个 vitest 测试 |
+| 测试 | ~10,000 个（由 pytest 在 484 个测试文件中收集）+ 前端 41 个 vitest 测试 |
 | 可复用 Fixtures | 170+ |
-| 文档 | 260+ |
-| ADR（架构决策记录） | 70 |
+| 文档 | 280+ |
+| ADR（架构决策记录） | 81 |
 | Prometheus 指标 | 400+ 定义 |
 | Grafana 仪表板 | 21 |
 | 支持语言（i18n） | 6（fr、en、de、es、it、zh） |
@@ -117,12 +117,12 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 
 | 提供商 | 模型 | 特性 |
 |--------|------|------|
-| OpenAI | GPT-5.4、GPT-5.4-mini、GPT-5.x、GPT-4.1-x、o1、o3-mini | 原生 prompt 缓存、Responses API、reasoning_effort |
-| Anthropic | Claude Opus 4.6/4.5/4、Sonnet 4.6/4.5/4、Haiku 4.5 | Extended thinking、prompt 缓存 |
-| Google | Gemini 3.1/3/2.5 Pro、Flash 3/2.5/2.0 | 多模态、双向量嵌入 |
-| DeepSeek | V3（对话）、R1（推理） | 低成本、原生推理 |
-| Perplexity | sonar-small/large-128k-online | 搜索增强生成 |
-| Qwen | qwen3-max、qwen3.5-plus、qwen3.5-flash | 思考模式、工具 + 视觉（阿里云） |
+| OpenAI | GPT-5.4、GPT-5.4-mini、GPT-5.2、GPT-5.1、GPT-5（+ mini/nano）、GPT-4.1、GPT-4o、o3/o4-mini | 原生 prompt 缓存、Responses API、reasoning_effort |
+| Anthropic | Claude Opus 4.6/4.5、Claude Sonnet 4.6、Claude Haiku 4.5 | Extended thinking、prompt 缓存 |
+| Google | Gemini 3.1/3 Pro、Gemini 3.1/3 Flash、Gemini 2.5 Pro/Flash | 多模态、双向量嵌入 |
+| DeepSeek | deepseek-v4-flash、deepseek-v4-pro（V4）、deepseek-chat（V3）、deepseek-reasoner（R1） | 低成本、原生推理 |
+| Perplexity | Sonar、Sonar Pro | 搜索增强生成 |
+| Qwen | qwen3.5-plus、qwen3.5-flash、qwen3-max | 思考模式、工具 + 视觉（阿里云） |
 | Ollama | 所有本地模型（动态发现） | 零 API 成本、自托管 |
 
 **为什么要 8 个提供商？** 这并非为了收藏而收藏，而是一种弹性策略：管道中的每个节点可以分配不同的提供商。如果 OpenAI 提价，路由器切换到 DeepSeek。如果 Anthropic 宕机，响应切换到 Gemini。LLM 抽象层（`src/infrastructure/llm/factory.py`）使用 Factory 模式配合 `init_chat_model()`，并通过特定适配器覆盖（`ResponsesLLM` 用于 OpenAI 的 Responses API，通过正则表达式 `^(gpt-4\.1|gpt-5|o[1-9])` 判断适用性）。
@@ -949,7 +949,7 @@ LIA 通过统一模式接受外部事件摄入（iPhone Apple Health 样本、�
 
 ## 24. 架构决策记录（ADR）
 
-71 篇 MADR 格式的 ADR 记录了主要的架构决策。以下是一些代表性示例：
+81 篇 MADR 格式的 ADR 记录了主要的架构决策。以下是一些代表性示例：
 
 | ADR | 决策 | 解决的问题 | 实测影响 |
 |-----|------|-----------|---------|
@@ -1003,10 +1003,10 @@ LIA 通过统一模式接受外部事件摄入（iPhone Apple Health 样本、�
 
 LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个生产级的多智能体 AI 助手，透明、安全、可扩展，并且能在 Raspberry Pi 上运行。
 
-75 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。448 个文件里的 ~9,992 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
+81 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。484 个文件里的 ~10,000 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
 
 子系统之间的交织 — 心理记忆、贝叶斯学习、语义路由、系统化 HITL、LLM 驱动的主动性、内省日志 — 创造了一个各组件相互增强的系统。HITL 为模式学习提供数据，模式学习降低成本，降低的成本支撑更多功能，更多功能为记忆产生更多数据，记忆改善响应质量。这是一个设计中的良性循环，而非偶然。
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（260+ 份文档）、75 篇 ADR 及变更日志（v1.0 至 v1.20.3）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、81 篇 ADR 及变更日志（v1.0 至 v1.20.20）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

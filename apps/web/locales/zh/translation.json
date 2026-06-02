@@ -2779,7 +2779,7 @@
         },
         "llm": {
           "title": "🤖 多供应商 LLM 与模式学习",
-          "description": "支持 OpenAI（GPT-4、o1）、Anthropic（Claude）、Google Gemini、DeepSeek、Qwen、Perplexity 和本地 Ollama（8 个供应商）。贝叶斯规划模式学习（≥90% 置信度 → 绕过 LLM）。平均节省 89% token。按任务配置配置文件，实时成本跟踪。"
+          "description": "支持 OpenAI（GPT-5.4、o3）、Anthropic（Claude）、Google Gemini、DeepSeek、Qwen、Perplexity 和本地 Ollama（8 个供应商）。贝叶斯规划模式学习（≥90% 置信度 → 绕过 LLM）。平均节省 89% token。按任务配置配置文件，实时成本跟踪。"
         },
         "security": {
           "title": "🔐 多层安全",

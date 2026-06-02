@@ -784,7 +784,7 @@ apps/api/src/
 | Provider | Models | Use Case |
 |----------|--------|----------|
 | OpenAI | GPT-5.4, GPT-5.4-mini, GPT-5.2, GPT-5.1, GPT-5, GPT-5-mini/nano, GPT-4.1, GPT-4.1-mini/nano, GPT-4o, o1, o3-mini | Primary (prompt caching, reasoning) |
-| Anthropic | Claude Opus 4.6/4.5/4, Claude Sonnet 4.6/4.5/4, Claude Haiku 4.5 | Alternative (extended thinking) |
+| Anthropic | Claude Opus 4.6/4.5, Claude Sonnet 4.6, Claude Haiku 4.5 | Alternative (extended thinking) |
 | Google | Gemini 3.1/3/2.5 Pro, Gemini 3/2.5/2.0 Flash | Multimodal |
 | DeepSeek | **deepseek-v4-flash, deepseek-v4-pro** (V4 family — thinking-mode toggle, v1.19.1+), deepseek-chat (V3, legacy), deepseek-reasoner (R1, legacy) | Cost-effective reasoning. V4 supports tools + structured output via JSON-mode fallback when thinking is on. |
 | Perplexity | sonar-small/large-128k-online | Web-augmented responses. Base URL configurable via `PERPLEXITY_BASE_URL` env var (v1.19.1+). |
@@ -844,12 +844,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md) | Complete development workflow |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md) | How to create a new tool |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (~10,000 tests across 448 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (~10,000 tests across 484 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md) | LangGraph and log debugging |
 
 ### Architecture Decision Records (ADR)
 
-75 ADRs documenting major architectural decisions:
+81 ADRs documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
@@ -883,7 +883,7 @@ pytest --cov=src --cov-report=html -v
 
 | Metric | Value |
 |--------|-------|
-| Total tests | ~9,992 (pytest collected, 448 test files) |
+| Total tests | ~10,000 (pytest collected, 484 test files) |
 | Backend breakdown | unit 8,017 · agents 1,285 · integration 236 · e2e 12 |
 | Frontend tests (vitest) | 41 |
 | Coverage target | 43% |

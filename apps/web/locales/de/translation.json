@@ -2784,7 +2784,7 @@
         },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
-          "description": "Unterstützung für OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity und lokales Ollama. Bayessches Lernen von Planungsmustern (≥90% Konfidenz → LLM-Bypass). Durchschnittliche Token-Einsparung von 89%. Konfigurierbare Profile pro Aufgabe mit Echtzeit-Kostenverfolgung."
+          "description": "Unterstützung für OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity und lokales Ollama. Bayessches Lernen von Planungsmustern (≥90% Konfidenz → LLM-Bypass). Durchschnittliche Token-Einsparung von 89%. Konfigurierbare Profile pro Aufgabe mit Echtzeit-Kostenverfolgung."
         },
         "security": {
           "title": "🔐 Mehrstufige Sicherheit",

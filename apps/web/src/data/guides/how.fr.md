@@ -6,7 +6,7 @@
 
 **Version** : 2.5
 **Date** : 2026-05-08
-**Application** : LIA v1.20.3
+**Application** : LIA v1.20.20
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 400+ métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 75 ADRs, ~9 992 tests collectés par pytest sur 448 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 81 ADRs, ~10 000 tests collectés par pytest sur 484 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -71,10 +71,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~9 992 collectés par pytest sur 448 fichiers (unit 8 017 · agents 1 285 · integration 236 · e2e 12) + 41 tests vitest côté frontend |
+| Tests | ~10 000 (collectés par pytest sur 484 fichiers de test) + 41 tests vitest côté frontend |
 | Fixtures réutilisables | 170+ |
-| Documents de documentation | 260+ |
-| ADRs (Architecture Decision Records) | 70 |
+| Documents de documentation | 280+ |
+| ADRs (Architecture Decision Records) | 81 |
 | Métriques Prometheus | 400+ définitions |
 | Dashboards Grafana | 21 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -117,12 +117,12 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Provider | Modèles | Spécificités |
 |----------|---------|-------------|
-| OpenAI | GPT-5.4, GPT-5.4-mini, GPT-5.x, GPT-4.1-x, o1, o3-mini | Prompt caching natif, Responses API, reasoning_effort |
-| Anthropic | Claude Opus 4.6/4.5/4, Sonnet 4.6/4.5/4, Haiku 4.5 | Extended thinking, prompt caching |
-| Google | Gemini 3.1/3/2.5 Pro, Flash 3/2.5/2.0 | Multimodal, embeddings duaux |
-| DeepSeek | V3 (chat), R1 (reasoner) | Coût réduit, reasoning natif |
-| Perplexity | sonar-small/large-128k-online | Search-augmented generation |
-| Qwen | qwen3-max, qwen3.5-plus, qwen3.5-flash | Thinking mode, tools + vision (Alibaba Cloud) |
+| OpenAI | GPT-5.4, GPT-5.4-mini, GPT-5.2, GPT-5.1, GPT-5 (+ mini/nano), GPT-4.1, GPT-4o, o3/o4-mini | Prompt caching natif, Responses API, reasoning_effort |
+| Anthropic | Claude Opus 4.6/4.5, Claude Sonnet 4.6, Claude Haiku 4.5 | Extended thinking, prompt caching |
+| Google | Gemini 3.1/3 Pro, Gemini 3.1/3 Flash, Gemini 2.5 Pro/Flash | Multimodal, embeddings duaux |
+| DeepSeek | deepseek-v4-flash, deepseek-v4-pro (V4), deepseek-chat (V3), deepseek-reasoner (R1) | Coût réduit, reasoning natif |
+| Perplexity | Sonar, Sonar Pro | Search-augmented generation |
+| Qwen | qwen3.5-plus, qwen3.5-flash, qwen3-max | Thinking mode, tools + vision (Alibaba Cloud) |
 | Ollama | Tout modèle local (découverte dynamique) | Zéro coût API, auto-hébergé |
 
 **Pourquoi 8 providers ?** Le choix n'est pas la collection pour elle-même. C'est une stratégie de résilience : chaque nœud du pipeline peut être assigné à un provider différent. Si OpenAI augmente ses tarifs, le routeur passe sur DeepSeek. Si Anthropic a une panne, la réponse bascule sur Gemini. L'abstraction LLM (`src/infrastructure/llm/factory.py`) utilise le pattern Factory avec `init_chat_model()`, surchargé par des adaptateurs spécifiques (`ResponsesLLM` pour l'API Responses d'OpenAI, éligibilité par regex `^(gpt-4\.1|gpt-5|o[1-9])`).
@@ -953,7 +953,7 @@ LIA accepte les ingestions d'événements externes (mesures iPhone Apple Health,
 
 ## 24. Architecture des décisions (ADR)
 
-75 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+81 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1043,10 +1043,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 75 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~9 992 tests sur 448 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 81 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~10 000 tests sur 484 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (260+ documents), des 75 ADRs, et du changelog (v1.0 à v1.20.3). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 81 ADRs, et du changelog (v1.0 à v1.20.20). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
