@@ -5,7 +5,7 @@
 # Note: Voice mode WASM files are served from apps/web/public/models/sherpa-wasm/
 # which is mounted via docker-compose volume. Run scripts/setup-dev.sh to download them.
 
-FROM node:22-alpine
+FROM node:26-alpine
 
 # Install pnpm and su-exec for user switching
 RUN corepack enable && corepack prepare pnpm@10.18.3 --activate && \
