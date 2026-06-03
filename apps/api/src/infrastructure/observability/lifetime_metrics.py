@@ -53,7 +53,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 
 import structlog
-from prometheus_client import Gauge
+from prometheus_client import Counter, Gauge
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -75,6 +75,7 @@ llm_tokens_consumed_lifetime = Gauge(
     "llm_tokens_consumed_lifetime",
     "Lifetime LLM token consumption from database (restart-safe)",
     ["model", FIELD_NODE_NAME, "token_type"],
+    multiprocess_mode="mostrecent",
 )
 
 # Cost gauges (lifetime totals from database)
@@ -82,6 +83,7 @@ llm_cost_lifetime = Gauge(
     "llm_cost_lifetime",
     "Lifetime LLM cost from database (restart-safe)",
     ["model", FIELD_NODE_NAME, "currency"],
+    multiprocess_mode="mostrecent",
 )
 
 # ============================================================================
@@ -93,12 +95,14 @@ llm_tokens_consumed_last_24h = Gauge(
     "llm_tokens_consumed_last_24h",
     "LLM token consumption in last 24 hours from database",
     ["token_type"],
+    multiprocess_mode="mostrecent",
 )
 
 # Cost gauges (last 24h from database)
 llm_cost_last_24h = Gauge(
     "llm_cost_last_24h",
     "LLM cost in last 24 hours from database",
+    multiprocess_mode="mostrecent",
 )
 
 # Token consumption gauges (last 7d from database)
@@ -106,12 +110,14 @@ llm_tokens_consumed_last_7d = Gauge(
     "llm_tokens_consumed_last_7d",
     "LLM token consumption in last 7 days from database",
     ["token_type"],
+    multiprocess_mode="mostrecent",
 )
 
 # Cost gauges (last 7d from database)
 llm_cost_last_7d = Gauge(
     "llm_cost_last_7d",
     "LLM cost in last 7 days from database",
+    multiprocess_mode="mostrecent",
 )
 
 # Cost by model (last 24h) for piecharts
@@ -119,6 +125,7 @@ llm_cost_by_model_last_24h = Gauge(
     "llm_cost_by_model_last_24h",
     "LLM cost by model in last 24 hours from database",
     ["model"],
+    multiprocess_mode="mostrecent",
 )
 
 # Cost by node (last 24h) for piecharts
@@ -126,6 +133,7 @@ llm_cost_by_node_last_24h = Gauge(
     "llm_cost_by_node_last_24h",
     "LLM cost by node in last 24 hours from database",
     [FIELD_NODE_NAME],
+    multiprocess_mode="mostrecent",
 )
 
 # ============================================================================
@@ -136,32 +144,37 @@ llm_cost_by_node_last_24h = Gauge(
 conversations_created_last_24h = Gauge(
     "conversations_created_last_24h",
     "Conversations created in last 24 hours from database",
+    multiprocess_mode="mostrecent",
 )
 
 # Messages archived in last 24h
 messages_archived_last_24h = Gauge(
     "messages_archived_last_24h",
     "Messages archived in last 24 hours from database",
+    multiprocess_mode="mostrecent",
 )
 
 # User registrations in last 24h
 users_registered_last_24h = Gauge(
     "users_registered_last_24h",
     "User registrations in last 24 hours from database",
+    multiprocess_mode="mostrecent",
 )
 
 # Metrics about the updater itself (observability)
 lifetime_metrics_update_duration_seconds = Gauge(
     "lifetime_metrics_update_duration_seconds",
     "Duration of lifetime metrics update operation",
+    multiprocess_mode="livemax",
 )
 
 lifetime_metrics_last_update_timestamp = Gauge(
     "lifetime_metrics_last_update_timestamp",
     "Unix timestamp of last successful lifetime metrics update",
+    multiprocess_mode="livemax",
 )
 
-lifetime_metrics_error_total = Gauge(
+lifetime_metrics_error_total = Counter(
     "lifetime_metrics_error_total",
     "Total number of lifetime metrics update errors since start",
 )
@@ -178,6 +191,34 @@ _error_count: int = 0
 # ============================================================================
 # Main Update Function
 # ============================================================================
+
+
+async def _sync_channel_bindings_from_db(db: AsyncSession) -> None:
+    """Refresh channel_active_bindings from the database.
+
+    Runs in every worker's updater loop, so all workers set identical, DB-derived
+    values — exactly what the gauge's 'mostrecent' multiprocess mode expects. Every
+    known ``ChannelType`` is set (0 when none are active) so a drop to zero is
+    reflected instead of leaving a stale value.
+
+    Args:
+        db: Async database session.
+    """
+    from src.domains.channels.models import ChannelType, UserChannelBinding
+    from src.infrastructure.observability.metrics_channels import (
+        channel_active_bindings,
+    )
+
+    rows = await db.execute(
+        select(UserChannelBinding.channel_type, func.count())
+        .where(UserChannelBinding.is_active.is_(True))
+        .group_by(UserChannelBinding.channel_type)
+    )
+    counts = {str(channel_type): count for channel_type, count in rows.all()}
+    for channel_type in ChannelType:
+        channel_active_bindings.labels(channel_type=channel_type.value).set(
+            counts.get(channel_type.value, 0)
+        )
 
 
 async def update_lifetime_metrics() -> None:
@@ -233,6 +274,14 @@ async def update_lifetime_metrics() -> None:
                 # Sync period-based metrics (24h, 7d) from DB
                 await _sync_period_metrics_from_db(db)
 
+                # Refresh channel binding counts (replaces the per-worker startup
+                # priming in main.py); isolated so a failure here never breaks the
+                # core metric sync below.
+                try:
+                    await _sync_channel_bindings_from_db(db)
+                except Exception as exc:
+                    logger.warning("channel_bindings_sync_failed", error=str(exc))
+
                 # Update metadata gauges
                 duration = (datetime.now(UTC) - start_time).total_seconds()
                 lifetime_metrics_update_duration_seconds.set(duration)
@@ -259,7 +308,7 @@ async def update_lifetime_metrics() -> None:
 
         except Exception as e:
             _error_count += 1
-            lifetime_metrics_error_total.set(_error_count)
+            lifetime_metrics_error_total.inc()
 
             logger.error(
                 "lifetime_metrics_update_failed",

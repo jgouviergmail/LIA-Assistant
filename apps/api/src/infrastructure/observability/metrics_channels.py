@@ -64,6 +64,7 @@ channel_active_bindings = Gauge(
     "channel_active_bindings",
     "Number of active channel bindings",
     ["channel_type"],
+    multiprocess_mode="mostrecent",
 )
 
 # ============================================================================

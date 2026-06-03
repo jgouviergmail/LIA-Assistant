@@ -134,6 +134,7 @@ connector_activation_rate = Gauge(
     ["connector_type"],
     # connector_type: google_contacts, gmail, google_drive, etc.
     # Measures feature adoption
+    multiprocess_mode="mostrecent",
 )
 
 hitl_feature_usage_total = Counter(

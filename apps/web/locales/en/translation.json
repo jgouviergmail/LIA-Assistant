@@ -2942,6 +2942,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_21": {
+          "title": "v1.20.21 — 🔒 Security hardening and accurate multi-worker metrics",
+          "date": "June 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔒 Security hardening — dependencies updated</b> — 43 known vulnerabilities in third-party dependencies (frontend and backend, including the framework and AI-library stack) were resolved by updating them to patched versions. There is no user-visible change and nothing to do on your side; it keeps the platform's security posture fully up to date.",
+            "i2": "<b>📊 Admin · Accurate metrics across all workers</b> — In production LIA runs on several worker processes, but the monitoring (Prometheus / Grafana) only saw one of them, so the real-time rate and latency dashboards under-counted by roughly 4× and a few harmless warnings appeared on each deployment. Metrics are now correctly aggregated across all workers, so the admin Grafana dashboards are accurate. Nothing to change on your side."
+          }
+        },
         "v1_20_20": {
           "title": "v1.20.20 — 🔌 Your custom MCP servers now work in the autonomous (ReAct) mode too",
           "date": "June 2026",

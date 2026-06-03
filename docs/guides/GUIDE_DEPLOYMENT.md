@@ -653,6 +653,13 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
 ```
 
+> **Prometheus multi-worker** : avec `--workers`, `docker-entrypoint.sh` active automatiquement le
+> mode multiprocess de `prometheus_client` (`PROMETHEUS_MULTIPROC_DIR`, RAM `/dev/shm`, non-fatal)
+> pour que les métriques des 4 workers soient agrégées sur le port 9091. Aucune action requise en
+> dev (mono-worker `--reload`). Pour une très forte cardinalité, augmenter le `shm_size` du
+> conteneur API ou surcharger `PROMETHEUS_MULTIPROC_DIR`. Détails :
+> [ADR-089](../architecture/ADR-089-Prometheus-Multiprocess-Metrics.md).
+
 ### Frontend Dockerfile (Next.js 16)
 
 ```dockerfile

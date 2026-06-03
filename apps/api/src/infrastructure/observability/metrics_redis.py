@@ -47,18 +47,21 @@ redis_sliding_window_requests_current = Gauge(
     ["key_prefix"],
     # Sampled during rate limit checks
     # Useful for understanding current usage vs limits
+    multiprocess_mode="mostrecent",
 )
 
 redis_connection_pool_size_current = Gauge(
     "redis_connection_pool_size_current",
     "Current Redis connection pool size",
     # No labels - single global pool
+    multiprocess_mode="mostrecent",
 )
 
 redis_connection_pool_available_current = Gauge(
     "redis_connection_pool_available_current",
     "Available connections in Redis pool",
     # No labels - single global pool
+    multiprocess_mode="livesum",
 )
 
 redis_rate_limit_errors_total = Counter(

@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.21] - 2026-06-03
+
+> Architecture decision: [ADR-089 — Multi-Worker Prometheus Metrics (multiprocess aggregation)](docs/architecture/ADR-089-Prometheus-Multiprocess-Metrics.md). Security & maintenance release on top of v1.20.20.
+
+### Security — 43 Dependabot vulnerabilities resolved (open alerts 43 → 0)
+
+Frontend (`apps/web`, direct deps + root `pnpm.overrides`, lockfile regenerated): **next** 16.2.3 → 16.2.7 (26 advisories incl. the App-Router middleware/proxy bypass CVE-2026-45109 and the SSRF / DoS / CSP-nonce-XSS set), **eslint-config-next** bumped in lockstep, **mermaid** `^11.14` → `^11.15` (4), **postcss** `^8.5.9` → `^8.5.10` plus a `postcss` override forcing Next's transitive copy to 8.5.15 (CVE-2026-41305), **protobufjs** override `^7.5.5` → `^7.5.8` (8 advisories + `@protobufjs/utf8` 1.1.1), and a new **uuid** override `^11.1.1` (CVE-2026-41907). The pre-existing `protobufjs: ^7.5.5` override was itself pinning into the vulnerable range and is the reason these had no Dependabot PR.
+
+Backend (`apps/api/requirements.txt`): **langchain-core** 1.2.31 → 1.4.0 (CVE-2026-44843, unsafe `load()` deserialization — not reachable in this codebase, defence-in-depth), **python-multipart** 0.0.26 → 0.0.30 (CVE-2026-42561, multipart-header DoS — auth-gated upload endpoints), shipped as the coherent LangChain / LangGraph / OpenAI / Anthropic / FastAPI ecosystem upgrade (PR #145: langchain 1.3.2, langgraph 1.2.2 + langgraph-checkpoint 4.1.1 / -postgres 3.1.0, openai 2.40, anthropic 0.105.2, fastapi 0.136.3, …). Real exposure of all 43 was assessed LOW/NEGLIGIBLE (SCA hygiene + hardening). Validated: 8431 backend unit tests green; the LangGraph checkpoint format is backward-compatible (no migration); a real prod smoke (OpenAI / DeepSeek / Gemini turns + checkpoint resume) ran clean.
+
+### Fixed — Vitest suite green again (pre-existing breakage on `main`)
+
+`compaction-handler.test.ts` crashed (`Cannot read properties of undefined (reading 'current')`) because its `buildContext()` mock omitted the `reasoningBufRef` field that the live-reasoning feature (v1.20.17) made required on the generic `execution_step` path. Test-only fix (production always supplies it via `useChat.ts`); the frontend suite (82 tests) is green again.
+
+### Fixed — Prometheus metrics under multiple workers ([ADR-089](docs/architecture/ADR-089-Prometheus-Multiprocess-Metrics.md))
+
+Prod runs `uvicorn --workers 4`. The metrics HTTP server (port 9091) was started in every worker, so only one bound it (the other three logged `Address already in use`) and the served endpoint exposed a **single worker's** registry — real-time counters/histograms were undercounted ~4× and three warnings appeared on every deploy. Metrics are now aggregated across workers via `prometheus_client` **multiprocess mode**: `PROMETHEUS_MULTIPROC_DIR` is set by `docker-entrypoint.sh` **only when `--workers` is used** (single-worker dev with `--reload` is unchanged), RAM-backed (`/dev/shm`), and **non-fatal** (falls back to single-process if the dir can't be created); the binding worker serves a `MultiProcessCollector` aggregate; `mark_process_dead` runs on lifespan shutdown (verified on `--limit-max-requests` recycle). The **45 Gauges** each received an explicit `multiprocess_mode` (26 `mostrecent`, 14 `livesum`, 4 `livemax`, 1 `livemin`) — without which the default `'all'` would expose one series per PID and break dashboards (×N).
+
+Five pre-existing instrumentation issues were fixed alongside, all preserving the Grafana query contracts: `mcp_server_health` `livemax` → `livemin` (surfaces partial outages instead of hiding them), `lifetime_metrics_error_total` `Gauge` → real `Counter`, `channel_active_bindings` now refreshed from the DB by the lifetime-metrics updater (removing per-worker startup priming + `inc`/`dec`), `registry_size` → `mostrecent`, `circuit_breaker_*` → `livemax`.
+
+### Notes
+
+- **No schema change, no migration.** New env var: `PROMETHEUS_MULTIPROC_DIR` (auto-set by the entrypoint with `--workers`; RAM `/dev/shm`, overridable).
+- **Docs**: [ADR-089](docs/architecture/ADR-089-Prometheus-Multiprocess-Metrics.md), `docs/technical/METRICS_REFERENCE.md`, `docs/readme/README_OBSERVABILITY.md`, `docs/guides/GUIDE_DEPLOYMENT.md`.
+- **Tests / quality**: Ruff / Black / MyPy strict clean; multiprocess mechanism + end-to-end 2-worker app validated (0 `pid`-labelled series across 1874; `/dev/shm` footprint ~824 KB).
+
 ## [1.20.20] - 2026-06-02
 
 > Architecture decision: [ADR-070 — ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md), amendment 2026-06-02.

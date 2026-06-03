@@ -36,6 +36,26 @@ if [ -d "$SEEDS_DIR" ]; then
     fi
 fi
 
+# Prometheus multiprocess mode — enabled ONLY when launched with multiple uvicorn
+# workers (prod uses --workers 4). Single-worker dev (--reload) is left untouched.
+# Each worker writes its metric files here; the worker that binds the metrics port
+# serves the AGGREGATE via MultiProcessCollector. RAM-backed (/dev/shm) to spare the
+# SD card on the Raspberry Pi prod host. Override with PROMETHEUS_MULTIPROC_DIR.
+case "$*" in
+    *--workers*)
+        # Non-fatal under `set -e`: if the dir cannot be (re)created, fall back to
+        # single-process metrics rather than aborting startup. Dir creation runs
+        # inside the `if` condition so a failure never propagates to `set -e`.
+        _mp_dir="${PROMETHEUS_MULTIPROC_DIR:-/dev/shm/prometheus_multiproc}"
+        if rm -rf "$_mp_dir" 2>/dev/null && mkdir -p "$_mp_dir" 2>/dev/null; then
+            export PROMETHEUS_MULTIPROC_DIR="$_mp_dir"
+            echo "Prometheus multiprocess mode enabled (PROMETHEUS_MULTIPROC_DIR=$_mp_dir)"
+        else
+            echo "WARN: could not prepare '$_mp_dir' — Prometheus multiprocess DISABLED (single-process metrics, app still starts)"
+        fi
+        ;;
+esac
+
 # Start application
 echo "Starting application..."
 exec "$@"

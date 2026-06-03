@@ -57,6 +57,7 @@ circuit_breaker_state = Gauge(
     "circuit_breaker_state",
     "Current circuit breaker state (0=closed, 1=open, 2=half_open)",
     ["service"],
+    multiprocess_mode="livemax",
 )
 
 circuit_breaker_state_changes_total = Counter(
@@ -75,6 +76,7 @@ circuit_breaker_open_duration_seconds = Gauge(
     "circuit_breaker_open_duration_seconds",
     "Time in seconds since circuit opened (0 if closed)",
     ["service"],
+    multiprocess_mode="livemax",
 )
 
 

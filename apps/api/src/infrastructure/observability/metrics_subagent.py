@@ -48,6 +48,7 @@ subagent_tokens_out_total = Counter(
 subagent_active_count = Gauge(
     "subagent_active_count",
     "Number of sub-agents currently executing",
+    multiprocess_mode="livesum",
 )
 
 # ============================================================================

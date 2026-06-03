@@ -103,9 +103,14 @@ class TestLifetimeMetricsGauges:
         )
 
     def test_lifetime_metrics_error_total_exists(self):
-        """Test lifetime_metrics_error_total gauge exists."""
+        """Test lifetime_metrics_error_total is a Counter (exposed as ..._total)."""
+        from prometheus_client import Counter
+
         assert lifetime_metrics_error_total is not None
-        assert lifetime_metrics_error_total._name == "lifetime_metrics_error_total"
+        assert isinstance(lifetime_metrics_error_total, Counter)
+        # prometheus_client stores the base name without the `_total` suffix; the
+        # exposed series is still `lifetime_metrics_error_total`.
+        assert lifetime_metrics_error_total._name == "lifetime_metrics_error"
 
 
 class TestLifetimeMetricsTokenTracking:
@@ -242,17 +247,17 @@ class TestLifetimeMetricsMetadata:
         assert metric_value <= now + 1
 
     def test_error_count_tracking(self):
-        """Test error count tracking."""
-        # Start at 0
-        lifetime_metrics_error_total.set(0)
+        """Test error count tracking (Counter increments monotonically)."""
+        # Counter is process-global and monotonic — assert the delta, not the absolute.
+        before = lifetime_metrics_error_total._value.get()
 
         # Simulate 3 errors
-        lifetime_metrics_error_total.set(1)
-        lifetime_metrics_error_total.set(2)
-        lifetime_metrics_error_total.set(3)
+        lifetime_metrics_error_total.inc()
+        lifetime_metrics_error_total.inc()
+        lifetime_metrics_error_total.inc()
 
-        metric_value = lifetime_metrics_error_total._value._value
-        assert metric_value == 3
+        after = lifetime_metrics_error_total._value.get()
+        assert after - before == 3
 
 
 class TestLifetimeMetricsRefreshNow:

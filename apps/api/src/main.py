@@ -167,13 +167,38 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Separate from the main HTTPS uvicorn server so Prometheus can scrape
     # without TLS handshake issues between Docker containers
     metrics_port = settings.prometheus_metrics_port
+    prometheus_multiproc_dir = os.environ.get("PROMETHEUS_MULTIPROC_DIR")
     try:
-        from prometheus_client import start_http_server
+        from prometheus_client import CollectorRegistry, start_http_server
 
-        start_http_server(metrics_port)  # Daemon thread, auto-stops on process exit
-        logger.info("prometheus_metrics_server_started", port=metrics_port)
+        if prometheus_multiproc_dir:
+            # Multi-worker (prod): expose the AGGREGATE of every worker's metrics.
+            # All workers write to PROMETHEUS_MULTIPROC_DIR; the first worker to bind
+            # the port serves a MultiProcessCollector registry that reads them all.
+            from prometheus_client import multiprocess
+
+            registry = CollectorRegistry()
+            multiprocess.MultiProcessCollector(registry)
+            start_http_server(metrics_port, registry=registry)
+        else:
+            start_http_server(metrics_port)  # Daemon thread, auto-stops on process exit
+        logger.info(
+            "prometheus_metrics_server_started",
+            port=metrics_port,
+            multiprocess=bool(prometheus_multiproc_dir),
+        )
     except OSError as exc:
-        logger.warning("prometheus_metrics_server_failed", port=metrics_port, error=str(exc))
+        # In multiprocess mode only one worker binds the port; the others legitimately
+        # fail (they still export metrics via the shared dir), so it is expected and
+        # logged at debug instead of warning to avoid noise on every redeploy.
+        if prometheus_multiproc_dir:
+            logger.debug(
+                "prometheus_metrics_server_not_bound_multiproc",
+                port=metrics_port,
+                error=str(exc),
+            )
+        else:
+            logger.warning("prometheus_metrics_server_failed", port=metrics_port, error=str(exc))
 
     # Validate LLM configuration (fail-fast if config is incomplete)
     try:
@@ -615,34 +640,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as exc:
             logger.error("telegram_bot_initialization_failed", error=str(exc), exc_info=True)
 
-        # Initialize channel_active_bindings gauge from DB (survives API restarts)
-        try:
-            from sqlalchemy import func, select
-
-            from src.domains.channels.models import UserChannelBinding
-            from src.infrastructure.database.session import get_db_context
-            from src.infrastructure.observability.metrics_channels import (
-                channel_active_bindings,
-            )
-
-            async with get_db_context() as db:
-                rows = await db.execute(
-                    select(
-                        UserChannelBinding.channel_type,
-                        func.count(),
-                    )
-                    .where(UserChannelBinding.is_active.is_(True))
-                    .group_by(UserChannelBinding.channel_type)
-                )
-                for channel_type, count in rows.all():
-                    channel_active_bindings.labels(channel_type=channel_type).set(count)
-            logger.info("channel_active_bindings_gauge_initialized")
-        except Exception as exc:
-            # Non-critical — gauge starts at 0 and self-corrects on create/delete
-            logger.warning(
-                "channel_active_bindings_gauge_failed",
-                error=str(exc),
-            )
+        # channel_active_bindings is refreshed from the DB by the lifetime-metrics
+        # updater loop (runs in every worker -> identical values for the gauge's
+        # 'mostrecent' multiprocess mode); no per-worker startup priming needed here.
 
     # Initialize v3.1 Semantic Services (Architecture v3.1 - LLM-Based Intelligence)
     # Note: SemanticIntentDetector and SemanticDomainSelector removed in v3.1
@@ -1075,6 +1075,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Shutdown
     logger.info("application_shutdown")
+
+    # Prometheus multiprocess: drop this worker's per-process metric files so its
+    # contribution leaves the 'live*' gauges on exit. Counters/histograms persist
+    # (correct — totals must survive a worker restart). No-op outside multiprocess.
+    prometheus_multiproc_dir = os.environ.get("PROMETHEUS_MULTIPROC_DIR")
+    if prometheus_multiproc_dir:
+        try:
+            from prometheus_client import multiprocess
+
+            multiprocess.mark_process_dead(os.getpid())
+            logger.info("prometheus_multiproc_marked_dead", pid=os.getpid())
+        except Exception as exc:  # pragma: no cover - best-effort cleanup
+            logger.warning("prometheus_multiproc_cleanup_failed", error=str(exc))
 
     # Stop lifetime metrics updater
     if lifetime_metrics_task:
