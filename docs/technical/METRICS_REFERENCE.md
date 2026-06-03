@@ -2,8 +2,8 @@
 
 > **Catalogue complet des métriques Prometheus pour observabilité multi-couches**
 >
-> Version: 1.4
-> Date: 2026-04-20
+> Version: 1.5
+> Date: 2026-06-03
 > Architecture: Prometheus + Grafana (20 dashboards, 354+ panels)
 > Total métriques: 545+ métriques (149 instrumentées + 390 recording rules)
 > Compliance: OpenTelemetry conventions, Google SRE best practices
@@ -263,6 +263,39 @@ avg_over_time(agent_context_tokens_gauge[5m])
 # Max value in 1h
 max_over_time(agent_context_tokens_gauge[1h])
 ```
+
+---
+
+## Multi-Worker (Multiprocess) — Agrégation des métriques
+
+> Voir [ADR-089](../architecture/ADR-089-Prometheus-Multiprocess-Metrics.md).
+
+En prod, l'API tourne en `uvicorn --workers 4` (4 process isolés). Le mode **multiprocess de
+`prometheus_client`** est activé (`PROMETHEUS_MULTIPROC_DIR`, posé par `docker-entrypoint.sh`
+**uniquement si `--workers`** — le dev mono-worker `--reload` est inchangé). Chaque worker écrit
+ses fichiers de métriques dans ce répertoire ; le worker qui bind le port 9091 sert l'**agrégat
+des 4 workers** via `MultiProcessCollector`. `mark_process_dead(pid)` est appelé au shutdown
+(y compris au recyclage `--limit-max-requests`) pour retirer un worker arrêté des gauges `live*`.
+
+- **Counters / Histograms** : agrégés automatiquement (somme inter-workers). Rien à configurer.
+- **Gauges** : chaque gauge déclare un `multiprocess_mode` explicite (sinon défaut `'all'` →
+  une série par PID → dashboards faussés ×N). Classification :
+
+| `multiprocess_mode` | Sémantique | Quand l'utiliser | Exemples |
+|---|---|---|---|
+| `mostrecent` | Valeur la plus récente, **série unique** (pas de label `pid`) | Valeur **globale** dérivée d'un backend partagé (DB/Redis/config) : tous les workers posent la même | `llm_*_lifetime/last_24h/last_7d`, `*_by_model/node`, `user_active_daily/weekly_gauge`, `db_connection_pool_size`, `channel_active_bindings`, `checkpoints_table_size_bytes`, `registry_size` |
+| `livesum` | Somme sur les workers **vivants** | Ressource **locale par-worker** dont le total flotte = somme | `db_connection_pool_checkedout/overflow/waiting`, `http_requests_in_progress`, `rag_*`, `*_active_count`, `websocket_connections_active`, `browser_*` |
+| `livemax` | Max sur les workers vivants | Pire-cas / fraîcheur | `circuit_breaker_state`, `circuit_breaker_open_duration_seconds`, `lifetime_metrics_update_duration_seconds`, `lifetime_metrics_last_update_timestamp` |
+| `livemin` | Min sur les workers vivants | « Sain seulement si **tous** les workers le sont » | `mcp_server_health` |
+
+**Changement de type** : `lifetime_metrics_error_total` est désormais un **`Counter`** (était un
+`Gauge` utilisé comme compteur) — le nom exposé est inchangé, mais utiliser `increase()`/`rate()`
+en PromQL plutôt que la valeur brute.
+
+**Limitations** (cf. ADR-089) : les collectors par défaut `process_*` / `python_gc_*` ne sont
+**pas** exposés sur l'endpoint agrégé en multiprocess (aucun dashboard ne les utilise ; le
+système est couvert par cAdvisor + node-exporter). Empreinte `PROMETHEUS_MULTIPROC_DIR` mesurée
+~824 Ko (`/dev/shm` 64 Mo → marge large).
 
 ---
 

@@ -217,6 +217,7 @@ websocket_connections_active = Gauge(
     "voice_websocket_connections_active",
     "Current active WebSocket audio connections",
     # Tracks concurrent load on transcription service
+    multiprocess_mode="livesum",
 )
 
 websocket_connections_total = Counter(

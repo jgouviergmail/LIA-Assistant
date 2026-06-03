@@ -266,6 +266,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-089 | Multi-Worker Prometheus Metrics — multiprocess aggregation + per-gauge modes | 2026-06 |
 | ADR-088 | Journal Write Restraint + Level-Routed Injection + ReAct Coherence | 2026-06 |
 | ADR-085 | Draft Display Registry — single source of truth for post-HITL rendering | 2026-05 |
 | ADR-084 | Indexable vs Semantic Criteria — universal planning principle + leak detector | 2026-05 |

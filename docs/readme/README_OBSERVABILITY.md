@@ -1342,6 +1342,17 @@ Default route → default-email
 
 For exhaustive metrics inventory with descriptions, see: [METRICS_INVENTORY_ANALYSIS.md](../docs/optim_monitoring/METRICS_INVENTORY_ANALYSIS.md)
 
+#### Multi-worker aggregation (multiprocess)
+
+Prod runs `uvicorn --workers 4`. Metrics are aggregated **across workers** via `prometheus_client`
+multiprocess mode — `PROMETHEUS_MULTIPROC_DIR` is set by `docker-entrypoint.sh` **only when
+`--workers` is used** (single-worker dev with `--reload` is unaffected); the worker that binds the
+metrics port (9091) serves the aggregate of all workers via `MultiProcessCollector`. Counters and
+Histograms sum automatically; **every Gauge declares an explicit `multiprocess_mode`** (`mostrecent`
+for shared/DB-derived values, `livesum` for per-worker resources, `livemax`/`livemin` otherwise) to
+avoid per-PID series duplication. See [ADR-089](../architecture/ADR-089-Prometheus-Multiprocess-Metrics.md)
+and [METRICS_REFERENCE.md](../technical/METRICS_REFERENCE.md).
+
 #### 1. LLM Agents (35+ metrics)
 
 **File**: `apps/api/src/infrastructure/observability/metrics_agents.py`

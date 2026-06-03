@@ -151,6 +151,7 @@ agent_context_tokens_gauge = Gauge(
     "agent_context_tokens_gauge",
     "Current context size in tokens",
     [FIELD_NODE_NAME],
+    multiprocess_mode="mostrecent",
 )
 
 agent_messages_history_count = Histogram(
@@ -637,6 +638,9 @@ mcp_server_health = Gauge(
     "mcp_server_health",
     "MCP server connection status (1=healthy, 0=down)",
     ["server_name"],
+    # livemin: across workers, a server is "healthy" only if EVERY live worker can
+    # reach it — any worker that fails drives it to 0, surfacing partial outages.
+    multiprocess_mode="livemin",
 )
 
 mcp_connection_errors_total = Counter(
@@ -958,6 +962,7 @@ planner_retry_exhausted_total = Counter(
 planner_domain_filtering_active = Gauge(
     "planner_domain_filtering_active",
     "Domain filtering status flag (1=enabled, 0=disabled)",
+    multiprocess_mode="mostrecent",
 )
 
 planner_catalogue_size_tools = Histogram(

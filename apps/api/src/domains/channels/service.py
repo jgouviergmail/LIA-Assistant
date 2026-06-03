@@ -27,7 +27,6 @@ from src.domains.channels.models import ChannelType, UserChannelBinding
 from src.domains.channels.repository import UserChannelBindingRepository
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_channels import (
-    channel_active_bindings,
     channel_otp_generated_total,
     channel_otp_verified_total,
 )
@@ -255,8 +254,6 @@ class ChannelService:
             }
         )
 
-        channel_active_bindings.labels(channel_type=channel_type).inc()
-
         logger.info(
             "channel_binding_created",
             user_id=str(user_id),
@@ -322,8 +319,6 @@ class ChannelService:
         """
         binding = await self.get_binding_with_ownership_check(binding_id, user_id)
         await self.repository.delete(binding)
-
-        channel_active_bindings.labels(channel_type=binding.channel_type).dec()
 
         logger.info(
             "channel_binding_deleted",

@@ -43,21 +43,25 @@ db_query_errors_total = Counter(
 db_connection_pool_size = Gauge(
     "db_connection_pool_size",
     "Total size of database connection pool",
+    multiprocess_mode="mostrecent",
 )
 
 db_connection_pool_checkedout = Gauge(
     "db_connection_pool_checkedout",
     "Number of connections currently checked out from pool",
+    multiprocess_mode="livesum",
 )
 
 db_connection_pool_overflow = Gauge(
     "db_connection_pool_overflow",
     "Number of overflow connections beyond pool size",
+    multiprocess_mode="livesum",
 )
 
 db_connection_pool_waiting_total = Gauge(
     "db_connection_pool_waiting_total",
     "Number of requests waiting for a connection (saturation indicator)",
+    multiprocess_mode="livesum",
 )
 
 db_connection_pool_exhausted_total = Counter(

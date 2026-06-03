@@ -89,17 +89,20 @@ rag_embedding_tokens_total = Counter(
 rag_spaces_active_count = Gauge(
     "rag_spaces_active_count",
     "Current number of active RAG spaces (across all users)",
+    multiprocess_mode="livesum",
 )
 
 rag_spaces_total_count = Gauge(
     "rag_spaces_total_count",
     "Total number of RAG spaces (across all users)",
+    multiprocess_mode="livesum",
 )
 
 rag_documents_total_count = Gauge(
     "rag_documents_total_count",
     "Total number of RAG documents (across all users)",
     ["status"],  # status: processing|ready|error|reindexing
+    multiprocess_mode="livesum",
 )
 
 # ============================================================================
@@ -143,6 +146,7 @@ rag_drive_sync_files_total = Counter(
 rag_drive_sources_total_count = Gauge(
     "rag_drive_sources_total_count",
     "Total number of linked Drive folder sources",
+    multiprocess_mode="livesum",
 )
 
 # ============================================================================

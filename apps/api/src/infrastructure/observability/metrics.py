@@ -31,6 +31,7 @@ http_requests_in_progress = Gauge(
     "http_requests_in_progress",
     "Number of HTTP requests in progress",
     ["method", "endpoint"],
+    multiprocess_mode="livesum",
 )
 
 # Authentication metrics
@@ -201,11 +202,13 @@ user_logins_total = Counter(
 user_active_daily_gauge = Gauge(
     "user_active_daily_gauge",
     "Number of daily active users (DAU) - users with activity in last 24h",
+    multiprocess_mode="mostrecent",
 )
 
 user_active_weekly_gauge = Gauge(
     "user_active_weekly_gauge",
     "Number of weekly active users (WAU) - users with activity in last 7 days",
+    multiprocess_mode="mostrecent",
 )
 
 # GeoIP metrics (low cardinality — country only, ~200 unique values max)
@@ -276,6 +279,7 @@ bm25_cache_misses_total = Counter(
 bm25_cache_size = Gauge(
     "memory_bm25_cache_size",
     "Current BM25 cache size (users)",
+    multiprocess_mode="livesum",
 )
 
 

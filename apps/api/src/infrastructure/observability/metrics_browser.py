@@ -13,6 +13,7 @@ from prometheus_client import Counter, Gauge, Histogram
 browser_sessions_active = Gauge(
     "browser_sessions_active",
     "Number of currently active browser sessions",
+    multiprocess_mode="livesum",
 )
 
 # Browser actions counter (by type and outcome)
@@ -47,4 +48,5 @@ browser_errors_total = Counter(
 browser_memory_bytes = Gauge(
     "browser_memory_bytes",
     "Browser process memory usage in bytes",
+    multiprocess_mode="livesum",
 )

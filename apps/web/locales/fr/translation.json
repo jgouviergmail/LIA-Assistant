@@ -2947,6 +2947,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_21": {
+          "title": "v1.20.21 — 🔒 Renforcement de la sécurité et métriques exactes sur tous les workers",
+          "date": "Juin 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔒 Renforcement de la sécurité — dépendances mises à jour</b> — 43 vulnérabilités connues dans des dépendances tierces (front-end et back-end, y compris le framework et la pile de bibliothèques IA) ont été corrigées en les mettant à jour vers des versions patchées. Aucun changement visible côté utilisateur et rien à faire de votre côté ; cela maintient la posture de sécurité de la plateforme parfaitement à jour.",
+            "i2": "<b>📊 Admin · Métriques exactes sur tous les workers</b> — En production, LIA tourne sur plusieurs processus (workers), mais la supervision (Prometheus / Grafana) n'en voyait qu'un seul : les tableaux de bord temps réel (débit, latence) sous-comptaient d'environ 4× et quelques avertissements inoffensifs apparaissaient à chaque déploiement. Les métriques sont désormais correctement agrégées sur tous les workers, donc les tableaux de bord Grafana de l'administrateur sont exacts. Rien à changer de votre côté."
+          }
+        },
         "v1_20_20": {
           "title": "v1.20.20 — 🔌 Vos serveurs MCP personnels fonctionnent désormais aussi en mode autonome (ReAct)",
           "date": "Juin 2026",

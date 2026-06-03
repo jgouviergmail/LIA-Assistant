@@ -53,6 +53,12 @@ registry_size = Gauge(
     "registry_size",
     "Current number of items in data registry per thread",
     ["thread_id"],
+    # mostrecent: all workers write the single fixed label "aggregated"; livesum would
+    # add unrelated per-worker last-reduce sizes. mostrecent preserves the existing
+    # single-process behaviour (the size of the most recent reduce). NOTE: this gauge
+    # is a per-reduce snapshot, not a true live registry count — a faithful "items
+    # currently in registry" metric would need an add/remove (inc/dec) lifecycle.
+    multiprocess_mode="mostrecent",
 )
 
 registry_expired_total = Counter(
@@ -137,6 +143,7 @@ query_engine_duration_seconds = Histogram(
 checkpoints_table_size_bytes = Gauge(
     "checkpoints_table_size_bytes",
     "Size of checkpoints table in bytes",
+    multiprocess_mode="mostrecent",
 )
 
 # ============================================================================

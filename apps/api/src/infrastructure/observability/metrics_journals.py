@@ -48,6 +48,7 @@ journal_zero_injection_age_days = Gauge(
     "Average age (in days) of active entries that have never been injected. "
     "High values signal ill-formulated directives accumulating without value. "
     "Sampled periodically — typically by the consolidation scheduler.",
+    multiprocess_mode="mostrecent",
 )
 
 # =============================================================================
@@ -77,6 +78,7 @@ journal_level_distribution = Gauge(
     "Number of active entries per abstraction level. Sampled periodically.",
     ["level"],
     # level: L0 | L1 | L2 | L3
+    multiprocess_mode="mostrecent",
 )
 
 journal_dedup_actions_total = Counter(
@@ -107,6 +109,7 @@ journal_portrait_age_hours = Gauge(
     "journal_portrait_age_hours",
     "Age (in hours) of the latest compiled portrait per user. "
     "Sampled periodically — high values signal users whose consolidation has stalled.",
+    multiprocess_mode="mostrecent",
 )
 
 journal_portrait_feedback_total = Counter(

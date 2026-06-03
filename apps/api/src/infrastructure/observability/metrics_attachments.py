@@ -64,4 +64,5 @@ attachments_cleanup_deleted_total = Counter(
 attachments_active_count = Gauge(
     "attachments_active_count",
     "Current number of active (non-expired) attachments",
+    multiprocess_mode="mostrecent",
 )
