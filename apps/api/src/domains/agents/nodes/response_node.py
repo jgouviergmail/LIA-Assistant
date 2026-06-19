@@ -34,14 +34,13 @@ from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
     RESPONSE_DISPLAY_MODE_CARDS,
     RESPONSE_DISPLAY_MODE_HTML,
-    SCHEDULED_ACTIONS_SESSION_PREFIX,
 )
 from src.core.field_names import (
+    FIELD_IS_AUTOMATED_SOURCE,
     FIELD_METADATA,
     FIELD_PLAN_ID,
     FIELD_REACT_SYNTHESIS,
     FIELD_RUN_ID,
-    FIELD_SESSION_ID,
 )
 from src.core.i18n import _
 from src.core.i18n_api_messages import (
@@ -3374,13 +3373,15 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # Non-blocking: extraction runs after response is returned to user.
         # Check user memory preference before scheduling extraction
         #
-        # GUARD: Skip extraction for automated sources (scheduled actions).
-        # Only direct user-typed messages should feed long-term memory.
-        # Proactive notifications (heartbeat, interests) are AIMessage and
-        # naturally excluded by the extractor's HumanMessage filter.
-        _session_id = config.get(FIELD_METADATA, {}).get(FIELD_SESSION_ID, "")
-        _is_automated_source = isinstance(_session_id, str) and _session_id.startswith(
-            SCHEDULED_ACTIONS_SESSION_PREFIX
+        # GUARD: Skip extraction for automated sources (e.g. scheduled actions).
+        # Only direct user-typed messages should feed long-term memory / interests /
+        # journal / psyche. The signal is an explicit configurable flag set by the
+        # caller (scheduled_action_executor passes is_automated_source=True). It is
+        # read from `configurable` — NOT metadata — because configurable survives the
+        # Langfuse config enrichment (which rebuilds metadata and would drop the key).
+        # Proactive notifications (heartbeat, interests) never reach response_node.
+        _is_automated_source = bool(
+            config.get("configurable", {}).get(FIELD_IS_AUTOMATED_SOURCE, False)
         )
 
         try:
@@ -3389,7 +3390,6 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 logger.info(
                     "memory_extraction_skipped_automated_source",
                     run_id=run_id,
-                    session_id=_session_id,
                 )
             elif not user_memory_enabled:
                 logger.info(
@@ -3456,7 +3456,6 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 logger.info(
                     "interest_extraction_skipped_automated_source",
                     run_id=run_id,
-                    session_id=_session_id,
                 )
             elif user_msg_is_trivial:
                 logger.info(
@@ -3515,7 +3514,6 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 logger.info(
                     "journal_extraction_skipped_automated_source",
                     run_id=run_id,
-                    session_id=_session_id,
                 )
             elif not user_journals_enabled:
                 logger.debug(
@@ -3583,7 +3581,6 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 logger.info(
                     "psyche_update_skipped_automated_source",
                     run_id=run_id,
-                    session_id=_session_id,
                 )
             elif not user_psyche_enabled or not settings.psyche_enabled:
                 pass  # Silently skip — no log needed for disabled feature

@@ -134,6 +134,10 @@ L'executeur injecte `auto_approve_plan=True` dans `stream_chat_response()`, ce q
 
 **Guard HITL** : avant d'executer, on verifie via `graph.aget_state()` qu'il n'y a pas d'interrupt HITL en attente sur la conversation de l'utilisateur. Sinon, l'action est skippee sans erreur et reprogrammee au prochain cycle.
 
+### Pas d'apprentissage depuis les actions planifiées
+
+L'exécuteur positionne également `is_automated_source=True` dans `stream_chat_response()`. Ce drapeau est propagé via `configurable` — et non via la metadata, qui est reconstruite par l'instrumentation Langfuse — puis lu une seule fois par `response_node`, où il désactive les **quatre** extractions post-réponse : mémoire long terme, centres d'intérêt, journal et psyché. Seules les entrées directes de l'utilisateur (chat web, Telegram, voix) alimentent ces sous-systèmes ; le prompt d'une action planifiée, injecté comme `HumanMessage`, ne crée donc plus de souvenirs ni de centres d'intérêt indésirables. Les notifications proactives (heartbeat, intérêts) ne passent pas par `response_node` et n'ont jamais été concernées.
+
 ### Retry sur erreurs transitoires
 
 En cas d'erreur transitoire (`TimeoutError`, `ConnectionError`, `OSError`), l'executeur retente automatiquement jusqu'a `SCHEDULED_ACTIONS_MAX_RETRIES` fois (defaut: 1 retry, soit 2 tentatives max) avec un delai de `SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS` (defaut: 30s) entre les tentatives. Les erreurs non-transitoires (HITL interrupt, erreur logique) ne sont pas retentees.

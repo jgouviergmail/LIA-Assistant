@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.22] - 2026-06-19
+
+> Maintenance release on top of v1.20.21. Scheduled actions no longer feed long-term memory / interests / journal / psyche (only direct user inputs do); dev-only GeoIP build fix. No schema change, no migration.
+
+### Fixed — Scheduled actions polluted long-term memory & interests (only direct user inputs should feed them)
+
+When a scheduled action fired, its `action_prompt` (injected as a `HumanMessage`) was extracted into long-term memory **and** interests, as if the user had typed it. `response_node` already guarded its four post-response extractions (memory, interest, journal, psyche) behind an "automated source" check — but that check read `config["metadata"]["session_id"]` and tested the `scheduled_action_` prefix, and `enrich_config_with_callbacks()` (Langfuse instrumentation) **rebuilds** `config["metadata"]` from scratch, dropping the caller's `session_id` (re-exposed only as `langfuse_session_id`). The guard therefore always read `""` and never fired: the prefix detection was effectively dead code.
+
+The source signal is now an explicit boolean `is_automated_source` threaded through `configurable`, which survives enrichment by construction (only `metadata`/`callbacks`/`tags` are overwritten — `configurable` is preserved). `scheduled_action_executor` passes `is_automated_source=True`; every other entry point (web chat, Telegram channel, voice — all direct user inputs) defaults to `False` and is unchanged. `response_node` computes the flag once and reuses it to gate all four extractions. Decoupled from both the Langfuse metadata internals and the fragile session-id-prefix convention. Proactive notifications (heartbeat, interests) were never affected — they do not run through `response_node`.
+
+### Fixed — Dev build: stale GeoIP database date
+
+`apps/api/Dockerfile.dev` still hard-coded `ARG DBIP_DATE=2026-03` for the DB-IP City Lite GeoIP download (the production Dockerfile was fixed in an earlier release, but the dev one was not); db-ip.com keeps only the last ~2 months online, so the URL returned an error page that `curl -L` saved and `gunzip` then rejected ("not in gzip format"), breaking `task dev` / `task dev:detach` (both use `--build`). The dev `geoip-downloader` stage now mirrors the production logic — resolve the latest available month at build time (current, then previous) with `curl -fsSL` — still overridable via `--build-arg DBIP_DATE=YYYY-MM`. Build-only change, no runtime impact.
+
+### Tests
+
+- `tests/unit/infrastructure/llm/test_instrumentation.py` — `configurable` (and the `is_automated_source` flag) survives `create_instrumented_config` / `enrich_config_with_callbacks` enrichment (the contract the guard relies on).
+- `tests/agents/test_response_node.py` — all four post-response extractions (memory, interest, journal, psyche) skipped when `is_automated_source=True`; memory + interest scheduled when the flag is absent (direct user). Also corrects a stale pre-existing assertion (the error fallback is an `AIMessage`, not a `HumanMessage`).
+- `tests/unit/infrastructure/scheduler/test_scheduled_action_executor.py` — the executor calls `stream_chat_response(is_automated_source=True)`.
+
+### Notes
+
+- **No schema change, no migration, no new env var.** New centralized constant `FIELD_IS_AUTOMATED_SOURCE`; no `.env` change (the flag is a per-request context attribute, not a tunable threshold).
+- **Files**: `apps/api/src/core/field_names.py`, `apps/api/src/domains/agents/api/service.py`, `apps/api/src/domains/agents/services/orchestration/service.py`, `apps/api/src/domains/agents/nodes/response_node.py`, `apps/api/src/infrastructure/scheduler/scheduled_action_executor.py`, `apps/api/Dockerfile.dev`. **Docs**: `docs/technical/LONG_TERM_MEMORY.md`, `docs/technical/INTERESTS.md`, `docs/technical/SCHEDULED_ACTIONS.md`.
+- **Quality**: Ruff / Black / MyPy strict clean; 34 unit tests green across the three affected files; dev API boots clean; GeoIP dev stage build verified.
+- **Dev tooling**: `.github/hooks/pre-commit` OS detection now also recognises Cygwin (in addition to MSYS2 / win32), so the backend checks resolve the Windows `.venv/Scripts` venv regardless of which Windows-hosted unix shell runs the hook.
+
 ## [1.20.21] - 2026-06-03
 
 > Architecture decision: [ADR-089 — Multi-Worker Prometheus Metrics (multiprocess aggregation)](docs/architecture/ADR-089-Prometheus-Multiprocess-Metrics.md). Security & maintenance release on top of v1.20.20.

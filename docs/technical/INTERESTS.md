@@ -120,6 +120,8 @@ safe_fire_and_forget(                                    safe_fire_and_forget(
        └── Persist tokens via TrackingContext
 ```
 
+> **Mécanisme du guard (étape 2).** Le « skip si source automatisée » est appliqué dans `response_node` via le drapeau `is_automated_source`, propagé par `configurable` (et non par la metadata, reconstruite par l'instrumentation Langfuse) et positionné à `True` par l'exécuteur d'actions planifiées. Seules les entrées directes de l'utilisateur déclenchent l'extraction des centres d'intérêt.
+
 ### 2.3 Structure des Fichiers
 
 ```

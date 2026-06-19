@@ -34,10 +34,12 @@ print_info() {
     echo -e "${YELLOW}ℹ️  $1${NC}"
 }
 
-# Check if we're on Windows (Git Bash)
+# Check if we're on Windows (Git Bash / MSYS2 / Cygwin)
 # Note: Paths are relative to apps/api directory (we cd there before using these)
-# On Windows, use python -m to avoid permission issues with .exe files in Git Bash
-if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+# On Windows the venv lives in .venv/Scripts/; use python -m to avoid permission
+# issues with .exe files. Detect every Windows-hosted unix shell (msys, win32,
+# cygwin) so the hook finds the tools regardless of which shell runs it.
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
     PYTHON_BIN=".venv/Scripts/python.exe"
     PIP_BIN="$PYTHON_BIN -m pip"
     RUFF_BIN="$PYTHON_BIN -m ruff"

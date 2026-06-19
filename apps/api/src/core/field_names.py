@@ -36,6 +36,10 @@ FIELD_AGENT_NAME = "agent_name"
 FIELD_AGENT_TYPE = "agent_type"
 FIELD_NODE_NAME = "node_name"
 FIELD_TOOL_NAME = "tool_name"
+# RunnableConfig.configurable flag: True for automated runs (e.g. scheduled
+# actions) so response_node skips long-term memory / interest / journal / psyche
+# extraction. Only direct user inputs (web chat, channels, voice) feed those.
+FIELD_IS_AUTOMATED_SOURCE = "is_automated_source"
 
 # LLM & Tokens
 FIELD_TOKENS_IN = "tokens_in"

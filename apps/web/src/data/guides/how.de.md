@@ -6,7 +6,7 @@
 
 **Version**: 2.4
 **Datum**: 2026-05-08
-**Application**: LIA v1.20.21
+**Application**: LIA v1.20.22
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -1009,4 +1009,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 81 ADRs und des Changelogs (v1.0 bis v1.20.21). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 81 ADRs und des Changelogs (v1.0 bis v1.20.22). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

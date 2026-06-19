@@ -2947,6 +2947,14 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_22": {
+          "title": "v1.20.22 — 🛡️ Les actions planifiées n'alimentent plus votre mémoire ni vos centres d'intérêt",
+          "date": "Juin 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🛡️ Les actions planifiées n'ajoutent plus de souvenirs ni de centres d'intérêt indésirables</b> — Lorsque LIA exécute une de vos actions planifiées (par exemple un briefing quotidien), l'instruction exécutée est désormais traitée comme une tâche automatisée, et non comme un message que vous auriez saisi. Elle n'alimente donc plus la mémoire à long terme de LIA ni votre profil de centres d'intérêt (ni le journal privé de l'assistant, ni son humeur) — seuls les messages que vous envoyez réellement le font. Votre mémoire et vos centres d'intérêt restent ainsi fidèles à ce que vous avez vraiment dit à LIA. Rien à changer de votre côté."
+          }
+        },
         "v1_20_21": {
           "title": "v1.20.21 — 🔒 Renforcement de la sécurité et métriques exactes sur tous les workers",
           "date": "Juin 2026",

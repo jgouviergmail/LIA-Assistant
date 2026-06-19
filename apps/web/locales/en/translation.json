@@ -2942,6 +2942,14 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_22": {
+          "title": "v1.20.22 — 🛡️ Scheduled actions no longer add to your memory or interests",
+          "date": "June 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🛡️ Scheduled actions no longer add unwanted memories or interests</b> — When LIA runs one of your scheduled actions (for example a daily briefing), the instruction it runs is now treated as an automated task, not as something you typed. As a result it no longer feeds LIA's long-term memory or your interest profile (nor the assistant's private journal or its mood) — only the messages you actually send do. Your memory and interests therefore stay faithful to what you really told LIA. Nothing to change on your side."
+          }
+        },
         "v1_20_21": {
           "title": "v1.20.21 — 🔒 Security hardening and accurate multi-worker metrics",
           "date": "June 2026",

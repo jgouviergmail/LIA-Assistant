@@ -27,11 +27,28 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /data/geoip
 
-# DB-IP Lite City database — free, no account needed, updated monthly
-ARG DBIP_DATE=2026-03
-RUN curl -L -o dbip-city-lite.mmdb.gz \
-        "https://download.db-ip.com/free/dbip-city-lite-${DBIP_DATE}.mmdb.gz" && \
-    gunzip dbip-city-lite.mmdb.gz
+# DB-IP Lite City database — free, no account needed, updated monthly.
+# db-ip.com keeps only the last ~2 months online, so resolve the latest
+# available month at build time (current month, then the previous one) instead
+# of hard-coding a date that 404s a couple of months later. Override a specific
+# month with `--build-arg DBIP_DATE=YYYY-MM`.
+ARG DBIP_DATE=""
+RUN set -eu; \
+    if [ -n "${DBIP_DATE}" ]; then \
+        CANDIDATES="${DBIP_DATE}"; \
+    else \
+        CANDIDATES="$(date -u +%Y-%m) $(date -u -d "$(date -u +%Y-%m-15) -1 month" +%Y-%m)"; \
+    fi; \
+    DONE=0; \
+    for M in ${CANDIDATES}; do \
+        URL="https://download.db-ip.com/free/dbip-city-lite-${M}.mmdb.gz"; \
+        echo "Fetching ${URL}"; \
+        if curl -fsSL "${URL}" -o dbip-city-lite.mmdb.gz && gunzip dbip-city-lite.mmdb.gz; then \
+            DONE=1; echo "DB-IP City Lite ${M} ready"; break; \
+        fi; \
+        rm -f dbip-city-lite.mmdb.gz dbip-city-lite.mmdb; \
+    done; \
+    [ "${DONE}" -eq 1 ] || { echo "ERROR: no DB-IP City Lite database found for: ${CANDIDATES}" >&2; exit 1; }
 
 # =============================================================================
 # Development stage

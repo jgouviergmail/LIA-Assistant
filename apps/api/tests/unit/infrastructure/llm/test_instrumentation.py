@@ -361,6 +361,64 @@ def test_create_instrumented_config_base_config_merge(
 
 
 @patch("src.infrastructure.llm.instrumentation.get_callback_factory")
+def test_create_instrumented_config_preserves_configurable_flag(
+    mock_get_factory, mock_callback_factory_disabled
+):
+    """Regression (is_automated_source): the configurable namespace survives enrichment.
+
+    The automated-source guard in response_node reads
+    ``config["configurable"][FIELD_IS_AUTOMATED_SOURCE]``. Unlike metadata — which
+    ``create_instrumented_config`` rebuilds from scratch (dropping caller keys) — the
+    configurable dict is the reliable channel: enrichment only overwrites
+    metadata/callbacks/tags. This test locks that contract so a future change cannot
+    silently break the scheduled-action extraction guard (the bug this redesign fixed).
+    """
+    from src.core.field_names import FIELD_IS_AUTOMATED_SOURCE
+
+    mock_get_factory.return_value = mock_callback_factory_disabled
+
+    base_config = {
+        "configurable": {"thread_id": "t-1", FIELD_IS_AUTOMATED_SOURCE: True},
+        "metadata": {"session_id": "scheduled_action_abc"},
+    }
+
+    config = create_instrumented_config(
+        llm_type="agent_graph",
+        session_id="scheduled_action_abc",
+        base_config=base_config,
+    )
+
+    # configurable preserved verbatim across enrichment (the reliable channel).
+    assert config["configurable"]["thread_id"] == "t-1"
+    assert config["configurable"][FIELD_IS_AUTOMATED_SOURCE] is True
+
+
+@patch("src.infrastructure.llm.instrumentation.get_callback_factory")
+def test_enrich_config_with_callbacks_preserves_configurable_flag(
+    mock_get_factory, mock_callback_factory_disabled
+):
+    """The production wrapper (used by the orchestration service) preserves the flag.
+
+    ``execute_graph_stream`` builds ``configurable[FIELD_IS_AUTOMATED_SOURCE]`` then calls
+    ``enrich_config_with_callbacks``; this guards that exact path end-to-end.
+    """
+    from src.core.field_names import FIELD_IS_AUTOMATED_SOURCE
+    from src.infrastructure.llm.instrumentation import enrich_config_with_callbacks
+
+    mock_get_factory.return_value = mock_callback_factory_disabled
+
+    base_config = {"configurable": {"thread_id": "t-1", FIELD_IS_AUTOMATED_SOURCE: True}}
+
+    enriched = enrich_config_with_callbacks(
+        base_config,
+        llm_type="agent_graph",
+        session_id="scheduled_action_abc",
+    )
+
+    assert enriched["configurable"][FIELD_IS_AUTOMATED_SOURCE] is True
+
+
+@patch("src.infrastructure.llm.instrumentation.get_callback_factory")
 def test_create_instrumented_config_no_base_config(
     mock_get_factory, mock_callback_factory_disabled
 ):

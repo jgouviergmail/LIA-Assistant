@@ -309,6 +309,162 @@ async def test_response_node_error_handling():
 
                 assert result["messages"] is not None
                 assert len(result["messages"]) == 1
-                assert isinstance(result["messages"][0], HumanMessage)
+                # Error fallback is an AIMessage (the assistant's reply), not a
+                # HumanMessage — see the "BUG FIX" note in response_node's except handler.
+                assert isinstance(result["messages"][0], AIMessage)
                 assert "Désolé, une erreur s'est produite" in result["messages"][0].content
                 assert "ValueError" in result["messages"][0].content
+
+
+# ============================================================================
+# AUTOMATED-SOURCE EXTRACTION GUARD (is_automated_source redesign)
+# ============================================================================
+# response_node computes a single `_is_automated_source` flag from
+# config["configurable"][FIELD_IS_AUTOMATED_SOURCE] and reuses it to gate ALL
+# four post-response extractions (memory, interest, journal, psyche). These
+# tests assert the user-facing contract on the two the user explicitly named —
+# long-term memory and interests — for both an automated run and a direct one.
+# (Journal/psyche share the exact same single computation, so they are gated
+# identically by construction.)
+
+
+def _setup_response_node_patches(stack):
+    """Patch response_node's heavy collaborators so the node runs end-to-end to
+    its post-response extraction blocks without any LLM / DB / embedding calls.
+
+    Returns the memory + interest extraction-entry-point mocks so tests can
+    assert whether each was scheduled.
+    """
+    # LLM synthesis chain -> deterministic AIMessage (mirrors the tests above).
+    mock_get_prompt = stack.enter_context(
+        patch("src.domains.agents.nodes.response_node.get_response_prompt")
+    )
+    mock_get_llm = stack.enter_context(patch("src.domains.agents.nodes.response_node.get_llm"))
+    mock_cpt = stack.enter_context(
+        patch("src.domains.agents.nodes.response_node.ChatPromptTemplate")
+    )
+    mock_chain = AsyncMock()
+    mock_chain.ainvoke = AsyncMock(return_value=AIMessage(content="ok"))
+    mock_prompt_obj = Mock()
+    mock_prompt_obj.__or__ = Mock(return_value=mock_chain)
+    mock_cpt.from_messages.return_value = mock_prompt_obj
+    mock_get_prompt.return_value = "system"
+    mock_get_llm.return_value = Mock()
+
+    # Background scheduling -> no-op (prevents real asyncio task creation).
+    stack.enter_context(patch("src.domains.agents.nodes.response_node.safe_fire_and_forget"))
+    # Memory injection -> avoid semantic-memory store / DB access.
+    stack.enter_context(
+        patch(
+            "src.domains.agents.nodes.response_node.build_psychological_profile",
+            AsyncMock(return_value=("", Mock(value="neutral"), [])),
+        )
+    )
+    # Embedding + triviality -> deterministic, no embedding model call.
+    stack.enter_context(
+        patch(
+            "src.infrastructure.llm.user_message_embedding.get_or_compute_embedding",
+            AsyncMock(return_value=None),
+        )
+    )
+    stack.enter_context(
+        patch(
+            "src.infrastructure.llm.user_message_embedding.is_trivial_message",
+            Mock(return_value=False),
+        )
+    )
+
+    # new_callable=Mock forces SYNC mocks: the extractors are `async def`, so the
+    # default AsyncMock would create a coroutine on each call that the (mocked,
+    # no-op) safe_fire_and_forget never awaits — a spurious "never awaited"
+    # warning. We only need to know whether each was *called*, not awaited.
+    return {
+        "memory": stack.enter_context(
+            patch(
+                "src.domains.agents.nodes.response_node.extract_memories_background",
+                new_callable=Mock,
+            )
+        ),
+        "interest": stack.enter_context(
+            patch(
+                "src.domains.agents.nodes.response_node.extract_interests_background",
+                new_callable=Mock,
+            )
+        ),
+        # journal + psyche are lazily imported inside response_node — patch at source.
+        "journal": stack.enter_context(
+            patch(
+                "src.domains.journals.extraction_service.extract_journal_entry_background",
+                new_callable=Mock,
+            )
+        ),
+        "psyche": stack.enter_context(
+            patch(
+                "src.domains.psyche.service.psyche_post_response_background",
+                new_callable=Mock,
+            )
+        ),
+    }
+
+
+@pytest.mark.asyncio
+async def test_response_node_skips_extraction_for_automated_source():
+    """Automated runs (is_automated_source=True) must NOT feed long-term memory or
+    interests — even when the user has memory enabled (the scheduled-action case)."""
+    import uuid
+    from contextlib import ExitStack
+
+    from src.core.field_names import FIELD_IS_AUTOMATED_SOURCE
+
+    state = MessagesState(
+        messages=[HumanMessage(content="Je m'appelle Jean et j'adore le jazz et la cuisine.")],
+        agent_results={},
+        metadata={"user_id": "test-user"},
+    )
+    config = {
+        "metadata": {"run_id": "test-run"},
+        "configurable": {
+            "langgraph_user_id": str(uuid.uuid4()),
+            "user_memory_enabled": True,
+            FIELD_IS_AUTOMATED_SOURCE: True,
+        },
+    }
+
+    with ExitStack() as stack:
+        mocks = _setup_response_node_patches(stack)
+        await response_node(state, config)
+
+    # All FOUR post-response extractions are gated by the single _is_automated_source
+    # flag (checked first in each block, before the per-subsystem enable check).
+    mocks["memory"].assert_not_called()
+    mocks["interest"].assert_not_called()
+    mocks["journal"].assert_not_called()
+    mocks["psyche"].assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_response_node_schedules_extraction_for_direct_user():
+    """Direct user inputs (flag absent -> default False) DO feed memory and interests."""
+    import uuid
+    from contextlib import ExitStack
+
+    state = MessagesState(
+        messages=[HumanMessage(content="Je m'appelle Jean et j'adore le jazz et la cuisine.")],
+        agent_results={},
+        metadata={"user_id": "test-user"},
+    )
+    config = {
+        "metadata": {"run_id": "test-run"},
+        "configurable": {
+            "langgraph_user_id": str(uuid.uuid4()),
+            "user_memory_enabled": True,
+            # FIELD_IS_AUTOMATED_SOURCE intentionally absent -> default False (direct user).
+        },
+    }
+
+    with ExitStack() as stack:
+        mocks = _setup_response_node_patches(stack)
+        await response_node(state, config)
+
+    mocks["memory"].assert_called_once()
+    mocks["interest"].assert_called_once()

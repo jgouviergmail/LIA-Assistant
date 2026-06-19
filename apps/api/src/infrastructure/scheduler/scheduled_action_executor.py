@@ -202,6 +202,7 @@ async def execute_single_action(
                         session_id=_sid,
                         user_timezone=user_timezone,
                         user_language=user_language,
+                        is_automated_source=True,  # skip memory/interest/journal/psyche extraction
                         auto_approve_plan=True,
                     ):
                         if (

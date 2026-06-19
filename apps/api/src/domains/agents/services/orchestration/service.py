@@ -28,6 +28,7 @@ from src.core.field_names import (
     FIELD_DECISION,
     FIELD_DRAFT_ID,
     FIELD_INTERRUPT_DATA,
+    FIELD_IS_AUTOMATED_SOURCE,
     FIELD_RUN_ID,
     FIELD_SESSION_ID,
     FIELD_TYPE,
@@ -1202,6 +1203,7 @@ class OrchestrationService:
         user_psyche_enabled: bool = False,  # User preference for psyche engine
         user_display_mode: str = "cards",  # User display mode (cards/html/markdown)
         user_execution_mode: str = "pipeline",  # Execution mode (pipeline/react) — ADR-070
+        is_automated_source: bool = False,  # True for automated runs (scheduled actions)
         side_channel_queue: asyncio.Queue | None = None,  # SSE side-channel for tools
     ) -> AsyncGenerator[tuple[str, Any], None]:
         """
@@ -1232,6 +1234,8 @@ class OrchestrationService:
             user_message: Original user message for location phrase detection (e.g., "chez moi")
             user_memory_enabled: User preference for long-term memory (extraction + injection)
             user_journals_enabled: User preference for personal journals (extraction + injection)
+            is_automated_source: True for automated runs (scheduled actions); placed in
+                configurable so response_node skips memory/interest/journal/psyche extraction
 
         Yields:
             (mode, chunk): Raw graph stream outputs
@@ -1282,6 +1286,9 @@ class OrchestrationService:
                 "user_psyche_enabled": user_psyche_enabled,  # User preference for psyche engine
                 "user_display_mode": user_display_mode,  # User display mode (cards/html/markdown)
                 "user_execution_mode": user_execution_mode,  # Execution mode (pipeline/react) — ADR-070
+                # Automated-source flag survives Langfuse enrichment (only metadata is
+                # overwritten, configurable is preserved) — read by response_node guard.
+                FIELD_IS_AUTOMATED_SOURCE: is_automated_source,
                 "__deps": tool_deps,
                 "__browser_context": browser_context,  # For location-aware tools (weather, places)
                 "__user_message": user_message,  # Original message for location phrase detection

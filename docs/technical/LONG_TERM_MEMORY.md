@@ -116,6 +116,8 @@ Le système de Long-Term Memory de LIA permet à l'assistant de **se souvenir de
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
+> **Sources automatisées exclues.** Le skip illustré ci-dessus est appliqué en amont, dans `response_node`, via le drapeau `is_automated_source` (propagé par `configurable`, positionné à `True` par l'exécuteur d'actions planifiées et `False` par défaut pour toute entrée directe). Le même drapeau garde aussi l'extraction des centres d'intérêt, du journal et de la psyché.
+
 ---
 
 ## Schéma de Mémoire

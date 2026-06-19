@@ -493,6 +493,7 @@ class AgentService(
         user_psyche_enabled: bool = False,
         user_display_mode: str = "cards",
         user_execution_mode: str = "pipeline",
+        is_automated_source: bool = False,
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
         stt_provider: str | None = None,
@@ -516,6 +517,9 @@ class AgentService(
             user_journals_enabled: User's preference for personal journals (default: False).
             user_psyche_enabled: User's preference for psyche engine (default: False).
             user_display_mode: Response display mode — 'cards', 'html', or 'markdown'.
+            is_automated_source: If True, the run is automated (e.g. scheduled action) —
+                response_node then skips memory/interest/journal/psyche extraction so
+                only direct user inputs feed those subsystems (default: False).
             auto_approve_plan: If True, bypass HITL plan approval gate (for scheduled actions).
             attachment_ids: Optional list of attachment UUIDs for the current message.
 
@@ -590,6 +594,7 @@ class AgentService(
             user_psyche_enabled,
             user_display_mode,
             user_execution_mode,
+            is_automated_source,
             auto_approve_plan,
             attachment_ids,
             stt_provider=stt_provider,
@@ -613,6 +618,7 @@ class AgentService(
         user_psyche_enabled: bool = False,
         user_display_mode: str = "cards",
         user_execution_mode: str = "pipeline",
+        is_automated_source: bool = False,
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
         *,
@@ -645,6 +651,9 @@ class AgentService(
             user_journals_enabled: User's preference for personal journals (extraction + injection).
             user_psyche_enabled: User's preference for psyche engine (default: False).
             user_display_mode: Response display mode — 'cards', 'html', or 'markdown'.
+            is_automated_source: If True, the run is automated (e.g. scheduled action) —
+                propagated to RunnableConfig.configurable so response_node skips
+                memory/interest/journal/psyche extraction (default: False).
             auto_approve_plan: If True, inject plan_approved=True into state to bypass HITL gate.
             attachment_ids: Optional list of attachment UUIDs for the current message.
         """
@@ -980,6 +989,7 @@ class AgentService(
                                 user_psyche_enabled=user_psyche_enabled,  # User psyche preference
                                 user_display_mode=user_display_mode,  # User display mode (cards/html/markdown)
                                 user_execution_mode=user_execution_mode,  # Execution mode (pipeline/react)
+                                is_automated_source=is_automated_source,  # True for scheduled actions (skips extraction)
                                 side_channel_queue=side_channel_queue,  # SSE side-channel
                             ),
                             conversation_id=conversation_id,

@@ -2933,6 +2933,14 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_20_22": {
+          "title": "v1.20.22 — 🛡️ Las acciones programadas ya no alimentan tu memoria ni tus intereses",
+          "date": "Junio 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🛡️ Las acciones programadas ya no añaden recuerdos ni intereses no deseados</b> — Cuando LIA ejecuta una de tus acciones programadas (por ejemplo un resumen diario), la instrucción que ejecuta ahora se trata como una tarea automatizada, no como algo que hayas escrito tú. Por eso ya no alimenta la memoria a largo plazo de LIA ni tu perfil de intereses (ni el diario privado del asistente ni su estado de ánimo): solo lo hacen los mensajes que envías realmente. Así, tu memoria y tus intereses se mantienen fieles a lo que de verdad le has dicho a LIA. No tienes que cambiar nada por tu parte."
+          }
+        },
         "v1_20_21": {
           "title": "v1.20.21 — 🔒 Refuerzo de seguridad y métricas precisas en todos los workers",
           "date": "Junio 2026",

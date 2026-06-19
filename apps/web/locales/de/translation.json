@@ -2933,6 +2933,14 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_22": {
+          "title": "v1.20.22 — 🛡️ Geplante Aktionen ergänzen Ihr Gedächtnis und Ihre Interessen nicht mehr",
+          "date": "Juni 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🛡️ Geplante Aktionen fügen keine unerwünschten Erinnerungen oder Interessen mehr hinzu</b> — Wenn LIA eine Ihrer geplanten Aktionen ausführt (zum Beispiel ein tägliches Briefing), wird die ausgeführte Anweisung jetzt als automatisierte Aufgabe behandelt und nicht als etwas, das Sie selbst eingegeben haben. Dadurch fließt sie nicht mehr in das Langzeitgedächtnis von LIA oder Ihr Interessenprofil ein (auch nicht in das private Tagebuch des Assistenten oder seine Stimmung) — nur die Nachrichten, die Sie tatsächlich senden, tun das. Ihr Gedächtnis und Ihre Interessen bleiben so dem treu, was Sie LIA wirklich mitgeteilt haben. Auf Ihrer Seite ist nichts zu ändern."
+          }
+        },
         "v1_20_21": {
           "title": "v1.20.21 — 🔒 Sicherheitshärtung und korrekte Metriken über alle Worker hinweg",
           "date": "Juni 2026",
