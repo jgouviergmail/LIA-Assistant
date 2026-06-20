@@ -83,7 +83,7 @@ tenacity==9.1.4  # Retry with exponential backoff (used by compaction service)
 
 # LLM Provider Integrations
 langchain-deepseek==1.0.1  # DeepSeek V3 (chat/reasoner) + V4 (flash/pro). Patched locally via _deepseek_patched.py for V4 reasoning_content round-trip in tool flows; track issue #37178 for upstream fix.
-langchain-anthropic==1.4.4  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix)
+langchain-anthropic==1.4.6  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix)
 langchain-google-genai==4.2.4  # Gemini models
 anthropic==0.105.2  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
 
