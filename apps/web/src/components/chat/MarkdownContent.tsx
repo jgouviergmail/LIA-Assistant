@@ -4,7 +4,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import rehypeKatex from 'rehype-katex';
+import { markdownSanitizeSchema } from '@/lib/markdown-sanitize-schema';
 import { useTranslation } from 'react-i18next';
 import { cn, GOOGLE_IMAGE_DOMAINS, proxyGoogleImageUrl } from '@/lib/utils';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
@@ -467,7 +469,12 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
           // Display math `$$…$$` still works for the rare intentional case.
           remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: false }]]}
           remarkRehypeOptions={{ allowDangerousHtml: true }}
-          rehypePlugins={[rehypeRaw, rehypeKatex]}
+          // Order matters: rehypeRaw parses embedded HTML, rehypeSanitize is
+          // the XSS boundary (schema audited against all legitimate card /
+          // rich-HTML markup), rehypeKatex runs LAST so its generated markup
+          // is not stripped while the math nodes it consumes survive
+          // sanitization (className is allowed globally).
+          rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownSanitizeSchema], rehypeKatex]}
           // Custom URL transform to allow tel: and mailto: protocols
           // Default only allows: http, https, irc, ircs, mailto, xmpp
           urlTransform={(url: string) => {
