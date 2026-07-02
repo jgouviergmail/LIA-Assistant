@@ -47,14 +47,13 @@ from src.domains.health_metrics.parser import (
 )
 from src.domains.health_metrics.schemas import HealthIngestResponse
 from src.domains.health_metrics.service import HealthMetricsService
-from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_health_metrics import (
     health_metrics_auth_failures_total,
     health_metrics_ingest_duration_seconds,
     health_metrics_rate_limit_hits_total,
 )
-from src.infrastructure.rate_limiting.redis_limiter import RedisRateLimiter
+from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
 
 logger = get_logger(__name__)
 
@@ -164,8 +163,7 @@ async def _rate_limit_by_token(
     key = f"{HEALTH_METRICS_RATE_LIMIT_KEY_PREFIX}:{token.id}"
 
     try:
-        redis = await get_redis_cache()
-        limiter = RedisRateLimiter(redis)
+        limiter = await get_rate_limiter()
         allowed = await limiter.acquire(key=key, max_calls=max_calls, window_seconds=window_seconds)
     except Exception as exc:  # noqa: BLE001 - fail-open by design
         logger.error(

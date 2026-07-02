@@ -83,7 +83,6 @@ from src.domains.agents.formatters.resolved_context import (
 from src.domains.agents.formatters.text_summary import (
     generate_data_for_filtering,
 )
-from src.domains.agents.middleware.memory_injection import build_psychological_profile
 from src.domains.agents.models import MessagesState
 from src.domains.agents.orchestration.correlation_detector import detect_correlations
 from src.domains.agents.prompts import (
@@ -250,47 +249,6 @@ ALLOWED_PHOTO_PATH_PREFIXES: tuple[str, ...] = (
     "/api/v1/connectors/google-drive/thumbnail/",
     "/api/v1/connectors/",
     "/api/v1/attachments/",  # Generated images (AI Image Generation)
-)
-
-# ============================================================================
-# EMAIL LABELS MAPPING (Gmail → Human readable)
-# ============================================================================
-
-
-# Gmail system labels → Display names (translated via i18n)
-def _get_gmail_label_mapping() -> dict[str, str]:
-    """Get Gmail label mapping with translated names."""
-    return {
-        # Core folders
-        "INBOX": _("Inbox"),
-        "SENT": _("Sent"),
-        "DRAFT": _("Drafts"),
-        "TRASH": _("Trash"),
-        "SPAM": _("Spam"),
-        # Status labels
-        "UNREAD": _("Unread"),
-        "STARRED": _("Starred"),
-        "IMPORTANT": _("Important"),
-        # Category labels
-        "CATEGORY_PERSONAL": _("Personal"),
-        "CATEGORY_SOCIAL": _("Social"),
-        "CATEGORY_PROMOTIONS": _("Promotions"),
-        "CATEGORY_UPDATES": _("Updates"),
-        "CATEGORY_FORUMS": _("Forums"),
-        # Chat label
-        "CHAT": _("Chat"),
-    }
-
-
-# Keep static reference for backwards compatibility (default language)
-GMAIL_LABEL_MAPPING: dict[str, str] = _get_gmail_label_mapping()
-
-# Labels to exclude from display (internal/redundant)
-GMAIL_LABELS_HIDDEN: frozenset[str] = frozenset(
-    {
-        "UNREAD",  # Already shown via is_unread flag
-        "CATEGORY_PERSONAL",  # Default category, not useful to display
-    }
 )
 
 
@@ -603,7 +561,7 @@ def _format_draft_execution_result(result: dict[str, Any] | None) -> str:
     if status == "success":
         draft = data.get("_draft_content", {}) if isinstance(data, dict) else {}
         user_lang = draft.get("user_language") or "fr"
-        user_tz = draft.get("user_timezone") or "Europe/Paris"
+        user_tz = draft.get("user_timezone") or DEFAULT_USER_DISPLAY_TIMEZONE
         labels = get_draft_preview_labels(user_lang)
 
         details: list[str] = []
@@ -691,7 +649,7 @@ def _format_batch_result(
 
     # Resolve user locale/timezone from any item that carries them.
     user_lang = "fr"
-    user_tz = "Europe/Paris"
+    user_tz = DEFAULT_USER_DISPLAY_TIMEZONE
     for br in batch_results:
         br_data = br.get("data", {}) if isinstance(br.get("data"), dict) else {}
         br_draft = br_data.get("_draft_content", {}) or {}
@@ -1303,7 +1261,13 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             # _filter_registry_by_current_turn() can find the current turn's
             # registry items and generate_data_for_filtering() produces data
             # for HTML cards / display mode.
-            current_registry = state.get("current_turn_registry") or state.get("registry") or {}
+            # current_turn_registry ONLY — never fall back to the cross-turn
+            # `registry`: injecting it here would tag EVERY historical item as
+            # a registry_update of the current turn, bypassing the turn filter
+            # and re-displaying previous turns' data. react_execute_tools and
+            # the initiative node always write current_turn_registry alongside
+            # registry, so a tool-less ReAct turn legitimately yields {}.
+            current_registry = state.get("current_turn_registry") or {}
             # Merge (not gate): the Initiative node may have written {turn}:initiative
             # before us on the ReAct nominal path. A plain "if not agent_results" guard
             # would drop the ReAct answer; merging preserves both (ADR-070).
@@ -1523,196 +1487,42 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 data_for_filtering = "(erreur de génération des données)"
 
         # =====================================================================
-        # CENTRALIZED USER MESSAGE EMBEDDING (shared across injection + extraction)
+        # CONTEXT INJECTIONS (embedding + memory, RAG, journal, portrait, psyche)
         # =====================================================================
-        # Compute embedding ONCE, reuse for memory injection, journal injection,
-        # memory extraction dedup, and journal extraction pre-filter.
-        # Skip entirely on trivial messages (saves embedding API call + extraction LLM calls).
-        from src.infrastructure.llm.user_message_embedding import (
-            get_or_compute_embedding,
-            is_trivial_message,
+        # Latency overlap: when the turn traversed the initiative node, the
+        # bundle below was prefetched concurrently with the initiative LLM
+        # call (services/response_context.py). Otherwise fetch inline — the
+        # exact same code path as the historical in-node version.
+        from src.domains.agents.services.response_context import (
+            fetch_response_context,
+            pop_response_context,
         )
 
-        _user_id_for_embed = config.get("configurable", {}).get("langgraph_user_id")
-        _thread_id_for_embed = config.get("configurable", {}).get("thread_id")
-        user_msg_is_trivial = is_trivial_message(last_user_message) if last_user_message else True
-        user_message_embedding: list[float] | None = None
-
-        if not user_msg_is_trivial and last_user_message and _user_id_for_embed:
-            from src.infrastructure.llm.embedding_context import (
-                clear_embedding_context as _clear_embed_ctx,  # noqa: I001
-            )
-            from src.infrastructure.llm.embedding_context import (
-                set_embedding_context as _set_embed_ctx,
-            )
-
-            _set_embed_ctx(
-                user_id=_user_id_for_embed,
-                session_id=_thread_id_for_embed or "unknown",
-                run_id=run_id,
-            )
-            try:
-                user_message_embedding = await get_or_compute_embedding(
-                    message=last_user_message,
-                    user_id=_user_id_for_embed,
-                    session_id=_thread_id_for_embed,
-                )
-            except Exception as _embed_err:
-                logger.warning(
-                    "user_message_embedding_failed",
-                    run_id=run_id,
-                    error=str(_embed_err),
-                )
-            finally:
-                _clear_embed_ctx()
-
-        # Long-term memory injection: Build psychological profile from semantic memory
-        # Uses pre-computed embedding for search (or fallback to recent memories)
-        psychological_profile: str | None = None
-        memory_injection_debug: dict[str, Any] | None = None
         user_memory_enabled = config.get("configurable", {}).get("user_memory_enabled", True)
-        if user_memory_enabled:
-            user_id = config.get("configurable", {}).get("langgraph_user_id")
+        user_journals_enabled = config.get("configurable", {}).get("user_journals_enabled", False)
+        user_psyche_enabled = config.get("configurable", {}).get("user_psyche_enabled", False)
 
-            if user_id and last_user_message:
-                try:
-                    thread_id_for_memory = config.get("configurable", {}).get("thread_id")
-                    (
-                        profile_result,
-                        emotional_state,
-                        memory_debug_details,
-                    ) = await build_psychological_profile(
-                        user_id=user_id,
-                        query=last_user_message,
-                        query_embedding=user_message_embedding,
-                        limit=settings.memory_max_results,
-                        min_score=settings.memory_min_search_score,
-                        session_id=thread_id_for_memory,
-                        conversation_id=thread_id_for_memory,
-                        include_debug=True,
-                    )
-                    psychological_profile = profile_result
-                    memory_injection_debug = {
-                        "memory_count": len(memory_debug_details) if memory_debug_details else 0,
-                        "emotional_state": emotional_state.value,
-                        "settings": {
-                            "max_results": settings.memory_max_results,
-                            "min_score": settings.memory_min_search_score,
-                            "hybrid_enabled": getattr(settings, "memory_hybrid_enabled", False),
-                        },
-                        "memories": memory_debug_details or [],
-                    }
-                    logger.info(
-                        "memory_injection_completed",
-                        run_id=run_id,
-                        user_id=user_id,
-                        has_profile=profile_result is not None,
-                        emotional_state=emotional_state.value if profile_result else None,
-                        used_embedding=user_message_embedding is not None,
-                    )
-                except (ValueError, KeyError, RuntimeError, AttributeError, OSError) as e:
-                    logger.warning(
-                        "memory_injection_failed",
-                        run_id=run_id,
-                        user_id=user_id,
-                        error=str(e),
-                        error_type=type(e).__name__,
-                    )
+        context_bundle = await pop_response_context(run_id)
+        if context_bundle is None:
+            context_bundle = await fetch_response_context(state, config, run_id)
 
-        # =====================================================================
-        # RAG SPACES CONTEXT INJECTION
-        # =====================================================================
-        rag_context: str | None = None
-        rag_injection_debug: dict[str, Any] | None = None
-        if getattr(settings, "rag_spaces_enabled", False):
-            try:
-                from uuid import UUID as _UUID
-
-                from src.domains.rag_spaces.retrieval import retrieve_rag_context
-                from src.infrastructure.database.session import get_db_context
-
-                user_id_for_rag = config.get("configurable", {}).get("langgraph_user_id")
-                thread_id_for_rag = config.get("configurable", {}).get("thread_id")
-                if user_id_for_rag and last_user_message:
-                    async with get_db_context() as rag_db:
-                        rag_result = await retrieve_rag_context(
-                            user_id=_UUID(user_id_for_rag),
-                            query=last_user_message,
-                            db=rag_db,
-                            session_id=thread_id_for_rag,
-                            conversation_id=thread_id_for_rag,
-                            run_id=run_id,
-                        )
-                    if rag_result and rag_result.chunks:
-                        rag_context = rag_result.to_prompt_context()
-                        rag_injection_debug = {
-                            "spaces_searched": rag_result.spaces_searched,
-                            "chunks_found": rag_result.total_results,
-                            "chunks_injected": len(rag_result.chunks),
-                            "chunks": [
-                                {
-                                    "space": c.space_name,
-                                    "file": c.original_filename,
-                                    "score": c.score,
-                                }
-                                for c in rag_result.chunks
-                            ],
-                        }
-                        logger.info(
-                            "rag_injection_completed",
-                            run_id=run_id,
-                            user_id=user_id_for_rag,
-                            chunks_injected=len(rag_result.chunks),
-                            spaces_searched=rag_result.spaces_searched,
-                        )
-            except Exception as e:
-                logger.warning(
-                    "rag_injection_failed",
-                    run_id=run_id,
-                    error=str(e),
-                )
-
-        # =====================================================================
-        # SYSTEM RAG CONTEXT (App FAQ) — Lazy loading based on is_app_help_query
-        # =====================================================================
-        # When is_app_help_query=True, we ALWAYS inject the app identity prompt
-        # (describing LIA's capabilities). System RAG chunks are added on top if available.
-        app_knowledge_context = ""
-        is_app_help = get_qi_attr(state, "is_app_help_query", default=False)
-        if is_app_help:
-            # Mark as app help so get_response_prompt() loads app_identity_prompt
-            app_knowledge_context = "APP_HELP_QUERY"
-
-            # Optionally enrich with system RAG chunks (FAQ search results)
-            if getattr(settings, "rag_spaces_system_enabled", False) and last_user_message:
-                try:
-                    from src.domains.rag_spaces.retrieval import (
-                        retrieve_rag_context as _sys_retrieve,
-                    )
-                    from src.infrastructure.database.session import (
-                        get_db_context as _sys_get_db,
-                    )
-
-                    async with _sys_get_db() as sys_db:
-                        sys_result = await _sys_retrieve(
-                            user_id=None,
-                            query=last_user_message,
-                            db=sys_db,
-                            system_only=True,
-                        )
-                    if sys_result and sys_result.chunks:
-                        app_knowledge_context = sys_result.to_prompt_context()
-                        logger.info(
-                            "system_rag_injection_completed",
-                            run_id=run_id,
-                            chunks_injected=len(sys_result.chunks),
-                        )
-                except Exception as e:
-                    logger.warning(
-                        "system_rag_injection_failed",
-                        run_id=run_id,
-                        error=str(e),
-                    )
+        psychological_profile = context_bundle.psychological_profile
+        memory_injection_debug = context_bundle.memory_injection_debug
+        rag_context = context_bundle.rag_context
+        rag_injection_debug = context_bundle.rag_injection_debug
+        app_knowledge_context = context_bundle.app_knowledge_context
+        journal_context = context_bundle.journal_context
+        journal_injection_debug = context_bundle.journal_injection_debug
+        current_journal_injected_ids = context_bundle.journal_injected_ids
+        user_model_block = context_bundle.user_model_block
+        psyche_context = context_bundle.psyche_context
+        user_msg_is_trivial = context_bundle.user_msg_is_trivial
+        user_message_embedding = context_bundle.user_message_embedding
+        logger.info(
+            "response_context_ready",
+            run_id=run_id,
+            prefetched=context_bundle.prefetched,
+        )
 
         # =====================================================================
         # AWAIT KNOWLEDGE ENRICHMENT (if task was launched)
@@ -2164,108 +1974,12 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             if skill_sections:
                 skills_context = "\n\n".join(skill_sections)
 
-        # ===================================================================
-        # JOURNAL CONTEXT INJECTION (semantic relevance search)
-        # ===================================================================
+        # Journal, portrait and psyche contexts were computed concurrently in
+        # the parallel context injections block above (TTFT optimization).
         # Read previous-turn injected IDs (= IDs from turn T-1) BEFORE we
         # overwrite them at end of node — used for deferred self-evaluation
         # by the next extraction (ADR-079).
         previous_journal_injected_ids: list[str] = list(state.get("injected_journal_ids") or [])
-
-        journal_context = ""
-        journal_injection_debug: dict | None = None
-        current_journal_injected_ids: list[str] = []
-        user_journals_enabled = config.get("configurable", {}).get("user_journals_enabled", False)
-        if settings.journals_enabled and user_journals_enabled:
-            try:
-                user_id_for_journal = config.get("configurable", {}).get("langgraph_user_id")
-                if user_id_for_journal and last_user_message:
-                    from src.domains.journals.context_builder import (
-                        build_journal_context,
-                    )
-                    from src.infrastructure.database.session import get_db_context
-
-                    thread_id_for_journal = config.get("configurable", {}).get("thread_id")
-                    async with get_db_context() as journal_db:
-                        (
-                            journal_context_result,
-                            journal_debug,
-                            injected_ids,
-                        ) = await build_journal_context(
-                            user_id=user_id_for_journal,
-                            query=last_user_message,
-                            db=journal_db,
-                            query_embedding=user_message_embedding,
-                            include_debug=True,
-                            run_id=run_id,
-                            session_id=thread_id_for_journal,
-                        )
-                        journal_context = journal_context_result or ""
-                        journal_injection_debug = journal_debug
-                        current_journal_injected_ids = injected_ids
-            except Exception as e:
-                logger.warning(
-                    "journal_context_injection_failed",
-                    run_id=run_id,
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
-
-        # User-model portrait — ambient diffusion of the compiled portrait
-        # (ADR-079, commit 3). Always injected when journals are enabled.
-        # Format depends on the turn: trivial → brief (~60 tokens),
-        # otherwise → full (~200 tokens).
-        user_model_block = ""
-        if settings.journals_enabled and user_journals_enabled:
-            try:
-                _uid_for_portrait = config.get("configurable", {}).get("langgraph_user_id")
-                if _uid_for_portrait:
-                    from src.domains.journals.portrait_builder import (
-                        build_journal_user_model_block,
-                    )
-
-                    portrait_format = "brief" if user_msg_is_trivial else "full"
-                    user_model_block = await build_journal_user_model_block(
-                        user_id=_uid_for_portrait,
-                        format=portrait_format,
-                        flow="response",
-                    )
-            except Exception as e:
-                logger.warning(
-                    "journal_user_model_block_failed_response",
-                    run_id=run_id,
-                    error=str(e),
-                )
-
-        # ===================================================================
-        # PSYCHE ENGINE: Pre-response expression profile (Iteration 1)
-        # ===================================================================
-        # Loads psyche state, applies temporal decay + circadian modulation,
-        # compiles ExpressionProfile, and returns compact XML for prompt injection.
-        # Non-blocking: ~2ms (DB read + math). Fails silently on error.
-        psyche_context = ""
-        user_psyche_enabled = config.get("configurable", {}).get("user_psyche_enabled", False)
-        if settings.psyche_enabled and user_psyche_enabled and not user_msg_is_trivial:
-            try:
-                from src.domains.psyche.service import PsycheService
-                from src.infrastructure.database.session import get_db_context
-
-                _user_id_for_psyche = config.get("configurable", {}).get("langgraph_user_id")
-                if _user_id_for_psyche:
-                    async with get_db_context() as _psyche_db:
-                        _psyche_svc = PsycheService(_psyche_db)
-                        psyche_context, _psyche_summary = await _psyche_svc.process_pre_response(
-                            user_id=UUID(_user_id_for_psyche),
-                            user_timezone=user_timezone,
-                        )
-                        await _psyche_db.commit()
-            except Exception as e:
-                logger.warning(
-                    "psyche_pre_response_failed",
-                    run_id=run_id,
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
 
         # Get timezone-aware prompt with personality, history, and memory injection
         # V3 Architecture: LLM generates conversational response only
@@ -3636,7 +3350,12 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
 
         # Fallback: return error message
         # BUG FIX: Use AIMessage (not HumanMessage) for error responses from assistant
-        error_message = AIMessage(content=get_error_fallback_message(type(e).__name__))
+        # Re-read the language from state: user_language is assigned inside the
+        # try block, so it may be unbound if the exception occurred before it.
+        fallback_language = state.get("user_language", settings.default_language)
+        error_message = AIMessage(
+            content=get_error_fallback_message(type(e).__name__, language=fallback_language)
+        )
 
         error_state = {STATE_KEY_MESSAGES: [error_message]}
         track_state_updates(state, error_state, "response", run_id)

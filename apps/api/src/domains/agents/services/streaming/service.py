@@ -908,6 +908,12 @@ class StreamingService:
         # 4. Cache debug panel data (query_intelligence, tool_scores, filtered_catalogue)
         self._cache_debug_data(chunk)
 
+        # 5. Capture activated skill name for the done-chunk metadata.
+        # NOT debug-gated: the skill badge on the assistant message is a
+        # user-facing feature (api/service.py puts it in done metadata for
+        # every user), so it must not depend on the debug panel flag.
+        self._capture_activated_skill(chunk)
+
         return sse_chunks
 
     def _track_agent_results_change(self, chunk: dict) -> bool:
@@ -1166,7 +1172,9 @@ class StreamingService:
                     tools_count=len(tool_selection_result.get("all_scores", {})),
                 )
 
-            # Cache filtered_catalogue and skill_name from planning_result
+            # Cache filtered_catalogue from planning_result
+            # (skill_name capture moved to _capture_activated_skill — it is a
+            # user-facing feature and must not be gated by the debug panel)
             planning_result = chunk.get("planning_result")
             if planning_result and hasattr(planning_result, "filtered_catalogue"):
                 if planning_result.filtered_catalogue:
@@ -1175,35 +1183,6 @@ class StreamingService:
                         "debug_cache_filtered_catalogue",
                         tools_count=len(planning_result.filtered_catalogue.tools),
                     )
-                # Capture skill_name for done metadata (frontend badge).
-                # Guard against stale planning_result from the previous turn: the
-                # plan persists in LangGraph state when the current turn skips the
-                # planner (route=response). Only trust plan.metadata.skill_name
-                # when this turn actually routed through the planner.
-                current_route_to = (
-                    self._cached_query_intelligence.route_to
-                    if self._cached_query_intelligence
-                    else None
-                )
-                if current_route_to == "planner":
-                    plan = getattr(planning_result, "plan", None)
-                    if plan and hasattr(plan, "metadata"):
-                        skill_name = plan.metadata.get("skill_name")
-                        if skill_name:
-                            self.activated_skill_name = skill_name
-                else:
-                    plan = getattr(planning_result, "plan", None)
-                    stale_skill = (
-                        plan.metadata.get("skill_name")
-                        if plan and hasattr(plan, "metadata")
-                        else None
-                    )
-                    if stale_skill:
-                        logger.debug(
-                            "debug_cache_stale_planning_result_skill_ignored",
-                            stale_skill_name=stale_skill,
-                            route_to=current_route_to,
-                        )
 
         except (ImportError, ValueError, KeyError, TypeError, AttributeError, RuntimeError) as e:
             # Fail silently - debug metrics should not break streaming
@@ -1212,6 +1191,104 @@ class StreamingService:
                 error=str(e),
                 error_type=type(e).__name__,
             )
+
+    def _capture_activated_skill(self, chunk: dict) -> None:
+        """Capture the activated skill name from planning_result (all users).
+
+        Feeds the ``skill_name`` field of the SSE done metadata (frontend
+        badge). Runs on every values chunk, unconditionally — unlike
+        ``_cache_debug_data`` this is NOT gated by the debug panel flag.
+
+        Guard against stale planning_result from the previous turn: the plan
+        persists in LangGraph state when the current turn skips the planner
+        (route=response). Only trust plan.metadata.skill_name when this turn
+        actually routed through the planner (state.query_intelligence.route_to).
+        Stale captures from the checkpoint chunk are cleared by the
+        activated_skill_name reset on fresh router decisions.
+
+        Args:
+            chunk: State dict from the "values" stream mode.
+        """
+        try:
+            # ReAct mode never runs the planner: planning_result in state is a
+            # leftover from a previous pipeline turn (route_to only knows
+            # "planner"/"response", so it cannot discriminate) — never trust it
+            # here. The legitimate ReAct badge comes from the Route 3 fallback
+            # (activate_skill_tool calls detected in the turn's messages).
+            if chunk.get("execution_mode") == "react":
+                return
+
+            planning_result = chunk.get("planning_result")
+            plan = getattr(planning_result, "plan", None) if planning_result else None
+            if not (plan and hasattr(plan, "metadata")):
+                return
+            skill_name = plan.metadata.get("skill_name")
+
+            query_intelligence = chunk.get("query_intelligence")
+            route_to = (
+                query_intelligence.get("route_to")
+                if isinstance(query_intelligence, dict)
+                else getattr(query_intelligence, "route_to", None)
+            )
+            if route_to == "planner":
+                # Always mirror the CURRENT plan (including None): a fresh plan
+                # without skill_name must clear a value captured earlier in the
+                # turn from the stale checkpoint plan — otherwise the previous
+                # turn's skill badge would survive on a skill-less planner turn.
+                self.activated_skill_name = skill_name
+            elif skill_name:
+                logger.debug(
+                    "stale_planning_result_skill_ignored",
+                    stale_skill_name=skill_name,
+                    route_to=route_to,
+                )
+        except (KeyError, TypeError, AttributeError) as e:
+            # Best-effort capture — never break streaming for a badge
+            logger.debug(
+                "activated_skill_capture_failed",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+
+    def resolve_activated_skill_name(self, state: dict | None = None) -> str | None:
+        """Resolve the activated skill name, with Route 3 tool-call fallback.
+
+        Route 3 (conversation fallback): when the response LLM called
+        ``activate_skill_tool`` directly (no planner), the tool call is in the
+        state messages. Scope: current turn only — the scan stops at the last
+        HumanMessage so activate_skill_tool calls from previous turns don't
+        surface a stale skill badge.
+
+        Args:
+            state: Optional state dict to read messages from. Falls back to
+                the latest "values" snapshot (``latest_state_messages``).
+
+        Returns:
+            The activated skill name, or None if no skill was activated.
+        """
+        if self.activated_skill_name:
+            return self.activated_skill_name
+
+        messages = state.get("messages") if state else None
+        if messages is None:
+            messages = self.latest_state_messages
+        if not messages:
+            return None
+
+        from langchain_core.messages import HumanMessage
+
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                break
+            tool_calls = getattr(msg, "tool_calls", None) or []
+            for tc in tool_calls:
+                if isinstance(tc, dict) and tc.get("name") == "activate_skill_tool":
+                    skill_from_tool = tc.get("args", {}).get("name")
+                    if skill_from_tool:
+                        self.activated_skill_name = skill_from_tool
+                        return self.activated_skill_name
+
+        return self.activated_skill_name
 
     # ============================================================================
     # "updates" mode processing — Pipeline + ReAct step detection
@@ -2850,29 +2927,9 @@ class StreamingService:
         # Skills: Skill activation details for debug panel
         # =================================================================
         try:
-            # Route 3 (conversation fallback): detect activate_skill_tool calls from messages.
-            # When the response LLM called activate_skill_tool, the tool call is in state messages.
-            # Scope: current turn only — stop at the last HumanMessage so we don't
-            # pick up activate_skill_tool calls from previous turns (which would
-            # surface a stale skill badge on a turn that did not actually activate one).
-            if not self.activated_skill_name and state:
-                from langchain_core.messages import HumanMessage
-
-                messages = state.get("messages", [])
-                for msg in reversed(messages):
-                    if isinstance(msg, HumanMessage):
-                        break
-                    tool_calls = getattr(msg, "tool_calls", None) or []
-                    for tc in tool_calls:
-                        if isinstance(tc, dict) and tc.get("name") == "activate_skill_tool":
-                            skill_from_tool = tc.get("args", {}).get("name")
-                            if skill_from_tool:
-                                self.activated_skill_name = skill_from_tool
-                                break
-                    if self.activated_skill_name:
-                        break
-
-            effective_skill_name = self.activated_skill_name
+            # Route 3 (conversation fallback): detect activate_skill_tool calls
+            # from messages (shared helper — also used for the done metadata).
+            effective_skill_name = self.resolve_activated_skill_name(state)
 
             if effective_skill_name:
                 from src.domains.skills.cache import SkillsCache

@@ -15,7 +15,11 @@ from fastapi.responses import StreamingResponse
 from starlette.requests import ClientDisconnect
 
 from src.core.config import settings
-from src.core.constants import HITL_RATE_LIMIT_REQUESTS, HITL_RATE_LIMIT_WINDOW_SECONDS
+from src.core.constants import (
+    DEFAULT_USER_DISPLAY_TIMEZONE,
+    HITL_RATE_LIMIT_REQUESTS,
+    HITL_RATE_LIMIT_WINDOW_SECONDS,
+)
 from src.core.exceptions import raise_user_id_mismatch
 from src.core.field_names import (
     FIELD_ACTION_REQUESTS,
@@ -500,7 +504,7 @@ async def stream_chat(
                     # === PHASE 3.3 DAY 7: Service architecture (migration complete) ===
                     # Uses stream_chat_response() with original_run_id for unified HITL flow
                     # Get user preferences - prioritize stored user.language over Accept-Language header
-                    user_timezone = getattr(current_user, "timezone", "Europe/Paris")
+                    user_timezone = getattr(current_user, "timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
                     user_language = get_user_language(
                         user_language=getattr(current_user, "language", None),
                         accept_language_header=accept_language,
@@ -557,7 +561,7 @@ async def stream_chat(
             else:
                 # Normal flow - no pending HITL
                 # Get user timezone from current_user (with fallback to Europe/Paris)
-                user_timezone = getattr(current_user, "timezone", "Europe/Paris")
+                user_timezone = getattr(current_user, "timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
                 # Get user language - prioritize stored user.language over Accept-Language header
                 user_language = get_user_language(
                     user_language=getattr(current_user, "language", None),

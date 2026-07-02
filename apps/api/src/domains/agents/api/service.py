@@ -19,7 +19,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import USAGE_LIMIT_EXCEEDED_ERROR_CODE
+from src.core.constants import (
+    DEFAULT_USER_DISPLAY_TIMEZONE,
+    USAGE_LIMIT_EXCEEDED_ERROR_CODE,
+)
 from src.core.field_names import FIELD_ERROR_TYPE, FIELD_RUN_ID
 from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk
@@ -479,12 +482,32 @@ class AgentService(
                 error_type=type(e).__name__,
             )
 
+    async def _warmup_contacts_cache_background(self, user_id: uuid.UUID) -> None:
+        """Run the contacts cache warmup with its own DB session (background-safe).
+
+        The warmup used to block the request path (300-800ms People API call on
+        every cache expiry) before the graph could start. It is now fired in the
+        background: the contacts clients fall back to the real API on cache miss
+        (google_people_client cache-miss path), so an unfinished warmup can never
+        produce empty results — worst case the first contacts tool call pays its
+        own API latency, exactly like a cold cache did before.
+
+        A dedicated session is required: the request's ToolDependencies session
+        must not be used concurrently with the running graph (AsyncSession is
+        not safe for concurrent use).
+        """
+        from src.infrastructure.database import get_db_context
+
+        async with get_db_context() as warmup_db:
+            warmup_deps = ToolDependencies(db_session=warmup_db)
+            await self._warmup_contacts_cache_if_active(user_id, warmup_deps)
+
     async def stream_chat_response(
         self,
         user_message: str,
         user_id: uuid.UUID,
         session_id: str,
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         user_language: str = "fr",
         original_run_id: str | None = None,
         browser_context: BrowserContext | None = None,
@@ -732,20 +755,15 @@ class AgentService(
             # Create dependencies container for tools (shared DB session, services, clients)
             tool_deps = ToolDependencies(db_session=db)
 
-            # Warmup: ALWAYS preload contacts cache if Google Contacts is active
-            # CRITICAL: The warmup MUST complete BEFORE the graph starts executing
-            # Otherwise, first search will hit empty cache and return 0 results
-            # This is a BLOCKING operation - we wait for it to complete
-            logger.info(
-                "warmup_starting",
-                user_id=str(user_id),
-                conversation_id=str(conversation_id),
-            )
-            await self._warmup_contacts_cache_if_active(user_id, tool_deps)
-            logger.info(
-                "warmup_completed",
-                user_id=str(user_id),
-                conversation_id=str(conversation_id),
+            # Warmup: preload contacts cache if a contacts provider is active.
+            # Non-blocking (TTFT optimization): the contacts clients fall back to
+            # the real API on cache miss, so the graph does not need to wait for
+            # the warmup — see _warmup_contacts_cache_background docstring.
+            from src.infrastructure.async_utils import safe_fire_and_forget
+
+            safe_fire_and_forget(
+                self._warmup_contacts_cache_background(user_id),
+                name="contacts_cache_warmup",
             )
 
             logger.info(
@@ -2132,8 +2150,11 @@ class AgentService(
                         "total_tokens": final_total_tokens,
                         **final_summary_dto.to_metadata(),  # tokens_in/out/cache, cost_eur (includes TTS)
                     }
-                    if streaming_service.activated_skill_name:
-                        done_metadata["skill_name"] = streaming_service.activated_skill_name
+                    # Resolve includes the Route 3 fallback (activate_skill_tool
+                    # called directly by the response LLM, no planner involved)
+                    resolved_skill_name = streaming_service.resolve_activated_skill_name()
+                    if resolved_skill_name:
+                        done_metadata["skill_name"] = resolved_skill_name
 
                     # Context-usage pill (2026-05): expose the current token
                     # footprint of the conversation plus the dynamic compaction

@@ -46,6 +46,7 @@ from enum import Enum
 from src.core.config import settings
 from src.core.config.agents import V3DisplayConfig as V3DisplayConfigModel
 from src.core.config.agents import get_v3_display_config
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 
 
 class Viewport(str, Enum):
@@ -121,7 +122,7 @@ class DisplayConfig:
     show_secondary_metadata: bool = True
     enable_folding: bool = False  # For mobile mainly
     language: str = "fr"
-    timezone: str = "Europe/Paris"  # User timezone for datetime formatting
+    timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE  # User timezone for datetime formatting
 
     # Result display options
     show_relevance_explanation: bool = False

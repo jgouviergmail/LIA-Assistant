@@ -13,6 +13,7 @@ from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from src.core.config import settings
+from src.core.constants import REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE
 from src.core.field_names import (
     FIELD_METADATA,
     FIELD_RUN_ID,
@@ -25,6 +26,49 @@ from src.domains.agents.utils.message_filters import remove_orphan_tool_messages
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Per-message token-count memoization for the truncation reducer.
+# The reducer runs on EVERY update of the messages channel and used to
+# re-encode the ENTIRE history through tiktoken each time — synchronous CPU
+# on the event loop, repeated several times per turn (noticeable on long
+# histories with large ToolMessages). Message content is immutable once in
+# history (HITL replacement goes through RemoveMessage + a NEW message id),
+# so counts are cached by message id, guarded by content length.
+# dict[message_id] -> (content_length, token_count)
+_token_count_cache: dict[str, tuple[int, int]] = {}
+
+
+def _count_message_tokens(message: BaseMessage, encoding: "tiktoken.Encoding") -> int:
+    """Count tokens for one message with per-message-id memoization.
+
+    Args:
+        message: Message whose string content is counted (non-str content
+            counts as 0, matching the previous behavior).
+        encoding: tiktoken encoding to use on cache miss.
+
+    Returns:
+        Token count for the message content.
+    """
+    content = message.content
+    if not isinstance(content, str):
+        return 0
+
+    msg_id = message.id
+    if msg_id is not None:
+        cached = _token_count_cache.get(msg_id)
+        if cached is not None and cached[0] == len(content):
+            return cached[1]
+
+    token_count = len(encoding.encode(content))
+
+    if msg_id is not None:
+        # Bounded FIFO eviction (insertion order)
+        while len(_token_count_cache) >= REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE:
+            oldest_key = next(iter(_token_count_cache))
+            del _token_count_cache[oldest_key]
+        _token_count_cache[msg_id] = (len(content), token_count)
+
+    return token_count
 
 
 def add_messages_with_truncate(
@@ -76,13 +120,8 @@ def add_messages_with_truncate(
         encoding = tiktoken.get_encoding(settings.token_encoding_name)
 
         def token_counter(messages: list[BaseMessage]) -> int:
-            """Count tokens in messages using tiktoken."""
-            total = 0
-            for m in messages:
-                content = m.content
-                if isinstance(content, str):
-                    total += len(encoding.encode(content))
-            return total
+            """Count tokens in messages using tiktoken (memoized per message)."""
+            return sum(_count_message_tokens(m, encoding) for m in messages)
 
         trimmed_result = trim_messages(
             all_messages,

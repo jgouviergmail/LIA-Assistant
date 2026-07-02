@@ -102,7 +102,7 @@ unified_web_search_catalogue_manifest = ToolManifest(
             type="string",
             nullable=True,
             description="Perplexity AI synthesized answer",
-            semantic_type="text",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="results",
@@ -126,7 +126,7 @@ unified_web_search_catalogue_manifest = ToolManifest(
             path="wikipedia.summary",
             type="string",
             description="Article summary",
-            semantic_type="text",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="wikipedia.url", type="string", description="Wikipedia URL", semantic_type="URL"

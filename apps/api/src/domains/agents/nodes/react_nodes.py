@@ -30,6 +30,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
 from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
@@ -161,8 +162,21 @@ def _build_system_prompt(state: MessagesState) -> str:
         Formatted system prompt string.
     """
     personality = state.get("personality_instruction") or "a helpful, friendly assistant"
-    user_tz = state.get("user_timezone", "Europe/Paris")
+    user_tz = state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
     user_lang = state.get("user_language", "fr")
+
+    # Cross-domain type links (same section the pipeline planner receives,
+    # ontology ∪ live manifests). Without it, the ReAct LLM has no signal
+    # that e.g. a route destination should come from a contact's exact
+    # address rather than an approximate memory value.
+    from src.domains.agents.semantic.expansion_service import (
+        generate_semantic_dependencies_for_prompt,
+    )
+
+    domains = get_qi_attr(state, "domains", default=[]) or []
+    semantic_deps = generate_semantic_dependencies_for_prompt(
+        domains, include_jinja2_patterns=False
+    )
 
     template = load_prompt("react_agent_prompt")
     return template.format(
@@ -170,6 +184,7 @@ def _build_system_prompt(state: MessagesState) -> str:
         current_datetime=get_prompt_datetime_formatted(),
         user_timezone=user_tz,
         user_language=user_lang,
+        semantic_dependencies=semantic_deps,
     )
 
 
@@ -407,6 +422,16 @@ async def react_setup_node(
         "react_iteration": 0,
         "react_start_time": time.time(),
         "messages": messages_to_add,
+        # New turn starts with an EMPTY per-turn registry. Without this purge,
+        # the value restored from the previous turn's checkpoint leaks into
+        # react_execute_tools' intra-turn accumulation and the response node
+        # then re-displays last turn's data (e.g. previous events on a route
+        # question). Mirrors the pipeline behaviour where task_orchestrator
+        # overwrites current_turn_registry with the current run only. The
+        # cross-turn `registry` (merge reducer) is intentionally untouched —
+        # context resolution still sees the full history. HITL draft resumes
+        # re-enter after this node, so mid-turn items are never dropped.
+        "current_turn_registry": {},
     }
 
 
@@ -480,6 +505,16 @@ async def react_call_model_node(
             error_type=type(exc).__name__,
         )
     if response is None:
+        # Silent-double-call guard: the stream completed without a terminal
+        # output, so this ainvoke is a SECOND full LLM call. This path is
+        # healthy today (raw tool-bound LLM, proven capture) — if this warning
+        # ever fires, a provider/model/langchain change broke the capture.
+        logger.warning(
+            "react_reasoning_stream_no_output_double_call",
+            iteration=iteration + 1,
+            msg="Reasoning stream yielded no terminal output — falling back to "
+            "a second full LLM call (double cost/latency for this iteration)",
+        )
         response = await llm_with_tools.ainvoke(messages, config)
 
     tool_call_count = len(response.tool_calls) if response.tool_calls else 0

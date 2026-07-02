@@ -64,7 +64,7 @@ CONTACT = SemanticType(
         "address": "physical_address",
     },
     source_domains=["contact"],
-    used_in_tools=["get_contact_tool", "create_contact_tool", "update_contact_tool"],
+    used_in_tools=["get_contacts_tool", "create_contact_tool", "update_contact_tool"],
 )
 
 # =============================================================================
@@ -91,10 +91,10 @@ EMAIL_ADDRESS = SemanticType(
     related_types=["contact_id", "person_name", "message_id"],
     source_domains=["contact", "email", "event"],
     used_in_tools=[
-        "get_contact_tool",
+        "get_contacts_tool",
         "send_email_tool",
         "create_event_tool",
-        "search_email_tool",
+        "get_emails_tool",
     ],
 )
 
@@ -107,7 +107,7 @@ PHONE_NUMBER = SemanticType(
     examples=["+33612345678", "06 12 34 56 78"],
     related_types=["contact_id", "person_name"],
     source_domains=["contact", "place"],
-    used_in_tools=["get_contact_tool", "search_place_tool"],
+    used_in_tools=["get_contacts_tool", "get_places_tool"],
 )
 
 PERSON_NAME = SemanticType(
@@ -119,7 +119,7 @@ PERSON_NAME = SemanticType(
     examples=["Jean Dupont", "Marie", "Dupont"],
     related_types=["contact_id", "email_address", "phone_number"],
     source_domains=["contact"],
-    used_in_tools=["get_contact_tool", "create_contact_tool"],
+    used_in_tools=["get_contacts_tool", "create_contact_tool"],
 )
 
 # =============================================================================
@@ -163,8 +163,8 @@ PHYSICAL_ADDRESS = SemanticType(
     source_domains=["contact", "place", "event", "route"],
     used_in_tools=[
         "get_route_tool",
-        "search_place_tool",
-        "get_contact_tool",
+        "get_places_tool",
+        "get_contacts_tool",
         "create_event_tool",
         "get_weather_forecast_tool",  # Weather needs location from events
     ],
@@ -200,7 +200,7 @@ COORDINATE = SemanticType(
     properties={"latitude": "float", "longitude": "float"},
     related_types=["physical_address", "place_id"],
     source_domains=["place", "route"],
-    used_in_tools=["search_place_tool", "get_route_tool"],
+    used_in_tools=["get_places_tool", "get_route_tool"],
 )
 
 # Location components
@@ -274,7 +274,7 @@ CALENDAR_EVENT = SemanticType(
     category=TypeCategory.TEMPORAL,
     description="Event in a calendar (meeting, appointment, etc.)",
     source_domains=["event"],
-    used_in_tools=["create_event_tool", "update_event_tool", "search_event_tool"],
+    used_in_tools=["create_event_tool", "update_event_tool", "get_events_tool"],
 )
 
 # =============================================================================
@@ -307,7 +307,7 @@ EVENT_ID = SemanticType(
     category=TypeCategory.RESOURCE_ID,
     description="Unique identifier for calendar event",
     source_domains=["event"],
-    used_in_tools=["get_event_details_tool", "update_event_tool", "delete_event_tool"],
+    used_in_tools=["get_events_tool", "update_event_tool", "delete_event_tool"],
 )
 
 CALENDAR_ID = SemanticType(
@@ -316,7 +316,7 @@ CALENDAR_ID = SemanticType(
     category=TypeCategory.RESOURCE_ID,
     description="Unique identifier for calendar",
     source_domains=["event"],
-    used_in_tools=["list_calendars_tool", "search_event_tool"],
+    used_in_tools=["list_calendars_tool", "get_events_tool"],
 )
 
 CONTACT_ID = SemanticType(
@@ -326,7 +326,7 @@ CONTACT_ID = SemanticType(
     description="Unique identifier for contact",
     related_types=["person_name", "email_address", "phone_number"],
     source_domains=["contact"],
-    used_in_tools=["get_contact_details_tool", "update_contact_tool"],
+    used_in_tools=["get_contacts_tool", "update_contact_tool"],
 )
 
 FILE_ID = SemanticType(
@@ -335,7 +335,7 @@ FILE_ID = SemanticType(
     category=TypeCategory.RESOURCE_ID,
     description="Unique identifier for file (Google Drive)",
     source_domains=["file"],
-    used_in_tools=["get_file_details_tool", "download_file_tool"],
+    used_in_tools=["get_files_tool"],
 )
 
 FOLDER_ID = SemanticType(
@@ -353,7 +353,7 @@ MESSAGE_ID = SemanticType(
     description="Unique identifier for email message",
     related_types=["thread_id", "email_address"],
     source_domains=["email"],
-    used_in_tools=["get_email_details_tool", "send_reply_tool"],
+    used_in_tools=["get_emails_tool", "reply_email_tool"],
 )
 
 THREAD_ID = SemanticType(
@@ -371,7 +371,7 @@ TASK_ID = SemanticType(
     category=TypeCategory.RESOURCE_ID,
     description="Unique identifier for task",
     source_domains=["task"],
-    used_in_tools=["get_task_details_tool", "update_task_tool"],
+    used_in_tools=["get_tasks_tool", "update_task_tool"],
 )
 
 TASK_LIST_ID = SemanticType(
@@ -389,7 +389,7 @@ PLACE_ID = SemanticType(
     description="Unique identifier for place (Google Places)",
     related_types=["physical_address", "coordinate"],
     source_domains=["place", "route"],
-    used_in_tools=["get_place_details_tool", "search_place_tool"],
+    used_in_tools=["get_places_tool"],
 )
 
 REMINDER_ID = SemanticType(

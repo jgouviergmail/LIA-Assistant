@@ -503,3 +503,86 @@ def test_get_llm_typed_dict_partial_override_backward_compat(mock_adapter, mock_
     assert call_kwargs["model"] == defaults.model  # From LLM_DEFAULTS
     assert call_kwargs["max_tokens"] == defaults.max_tokens  # From LLM_DEFAULTS
     assert call_kwargs["provider"] == defaults.provider  # From LLM_DEFAULTS
+
+
+# ============================================================================
+# LLM Instance Cache (TTFT optimization)
+# ============================================================================
+
+
+@patch("src.infrastructure.llm.factory.ProviderAdapter")
+def test_get_llm_instance_cache_hit_on_identical_config(mock_adapter, mock_llm):
+    """Two get_llm() calls with the same resolved config reuse ONE instance."""
+    mock_adapter.create_llm.return_value = mock_llm
+
+    first = get_llm("router")
+    second = get_llm("router")
+
+    assert first is second
+    assert mock_adapter.create_llm.call_count == 1
+
+
+@patch("src.infrastructure.llm.factory.ProviderAdapter")
+def test_get_llm_instance_cache_miss_on_different_config(mock_adapter):
+    """A config override changes the cache key → a fresh instance is created."""
+    mock_adapter.create_llm.side_effect = [
+        MagicMock(spec=BaseChatModel),
+        MagicMock(spec=BaseChatModel),
+    ]
+
+    default_llm = get_llm("router")
+    override_llm = get_llm("router", config_override={"temperature": 0.95})
+
+    assert default_llm is not override_llm
+    assert mock_adapter.create_llm.call_count == 2
+
+
+@patch("src.infrastructure.llm.factory.ProviderAdapter")
+def test_get_llm_instance_cache_miss_on_streaming_override(mock_adapter):
+    """The resolved streaming flag is part of the cache key."""
+    mock_adapter.create_llm.side_effect = [
+        MagicMock(spec=BaseChatModel),
+        MagicMock(spec=BaseChatModel),
+    ]
+
+    non_streaming = get_llm("router")  # router default: streaming=False
+    streaming = get_llm("router", config_override={"streaming": True})
+
+    assert non_streaming is not streaming
+    assert mock_adapter.create_llm.call_count == 2
+
+
+@patch("src.infrastructure.llm.factory.ProviderAdapter")
+def test_clear_llm_instance_cache_forces_recreation(mock_adapter):
+    """clear_llm_instance_cache() (API-key change path) drops cached instances."""
+    from src.infrastructure.llm.factory import clear_llm_instance_cache
+
+    mock_adapter.create_llm.side_effect = [
+        MagicMock(spec=BaseChatModel),
+        MagicMock(spec=BaseChatModel),
+    ]
+
+    before_clear = get_llm("router")
+    clear_llm_instance_cache()
+    after_clear = get_llm("router")
+
+    assert before_clear is not after_clear
+    assert mock_adapter.create_llm.call_count == 2
+
+
+@patch("src.infrastructure.llm.factory.ProviderAdapter")
+def test_llm_instance_cache_kill_switch(mock_adapter, monkeypatch):
+    """LLM_INSTANCE_CACHE_ENABLED=false restores one-instance-per-call."""
+    from src.core.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "llm_instance_cache_enabled", False)
+    mock_adapter.create_llm.side_effect = [
+        MagicMock(spec=BaseChatModel),
+        MagicMock(spec=BaseChatModel),
+    ]
+
+    first = get_llm("router")
+    second = get_llm("router")
+
+    assert first is not second
+    assert mock_adapter.create_llm.call_count == 2

@@ -46,6 +46,10 @@
 | **Horizontal scaling** | ✅ | Redis O(log N) operations |
 | **Multi-provider** | ✅ | Google, OpenAI, Anthropic, etc. |
 
+### Instance partagée (v1.21.0)
+
+Tous les call-sites (auth, connecteurs, channels, voice, health metrics) obtiennent le limiteur via **`get_rate_limiter()`** — un singleton module-level branché sur le Redis cache. Historiquement chaque call-site instanciait son propre `RedisRateLimiter` (un `SCRIPT LOAD` Lua par requête, et le SHA caché sur l'instance devenait invalide après un restart Redis → `NOSCRIPT` → **fail-open permanent** jusqu'au restart du process). Le singleton gère désormais le **retry `NOSCRIPT`** (re-`SCRIPT LOAD` + un retry) ; ne jamais appeler `close()` sur l'instance partagée (voir la docstring).
+
 ---
 
 ## 🏗️ Architecture

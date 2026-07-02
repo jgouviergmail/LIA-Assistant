@@ -47,7 +47,7 @@ from src.domains.voice.stt import (
 )
 from src.domains.voice.ticket_store import WebSocketTicketStore
 from src.infrastructure.cache.pricing_cache import get_cached_cost_audio_usd_eur
-from src.infrastructure.cache.redis import get_redis_cache, get_redis_session
+from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_voice import (
     websocket_audio_bytes_received,
@@ -55,7 +55,7 @@ from src.infrastructure.observability.metrics_voice import (
     websocket_connections_active,
     websocket_connections_total,
 )
-from src.infrastructure.rate_limiting.redis_limiter import RedisRateLimiter
+from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
 
 # WebSocket audio is always 16 kHz mono Int16 LE (frontend AudioWorklet
 # guarantees this). Hard-coded here so the handler is independent of the
@@ -223,8 +223,7 @@ async def websocket_audio(
 
         # 2. Rate limit check
         try:
-            redis_cache = await get_redis_cache()
-            limiter = RedisRateLimiter(redis_cache)
+            limiter = await get_rate_limiter()
             rate_limit_key = f"ws:audio:{user_id}"
 
             allowed = await limiter.acquire(

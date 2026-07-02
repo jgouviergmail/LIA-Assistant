@@ -79,7 +79,7 @@ class ChannelMessageRouter:
         from src.domains.users.service import UserService
         from src.infrastructure.cache.conversation_cache import get_conversation_id_cached
         from src.infrastructure.database.session import get_db_context
-        from src.infrastructure.rate_limiting.redis_limiter import RedisRateLimiter
+        from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
 
         channel_user_id = message.channel_user_id
         channel_type = message.channel_type.value
@@ -121,7 +121,11 @@ class ChannelMessageRouter:
         rate_limit_key = f"{CHANNEL_RATE_LIMIT_REDIS_PREFIX}{channel_type}:{user_id}"
         rate_limit = settings.channel_rate_limit_per_user_per_minute
 
-        limiter = RedisRateLimiter(self.redis)
+        # Shared limiter (cache Redis) — the previous per-instance limiter on
+        # self.redis (session DB) was accidental: all other rate limiters live
+        # in the cache DB, and per-instance creation paid a SCRIPT LOAD per
+        # inbound message. Counters are ephemeral (60s window).
+        limiter = await get_rate_limiter()
         allowed = await limiter.acquire(
             key=rate_limit_key,
             max_calls=rate_limit,

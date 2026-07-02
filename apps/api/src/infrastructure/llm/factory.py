@@ -14,12 +14,14 @@ Migration notes:
 - Return type changed from ChatOpenAI to BaseChatModel (more generic)
 """
 
+import json
 from typing import TYPE_CHECKING, Any, Literal
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from src.core.config import settings
+from src.core.constants import LLM_INSTANCE_CACHE_MAX_SIZE
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.infrastructure.llm.providers.adapter import ProviderAdapter
@@ -29,6 +31,59 @@ if TYPE_CHECKING:
     from src.domains.agents.graphs.base_agent_builder import LLMConfig
 
 logger = get_logger(__name__)
+
+
+# ============================================================================
+# LLM Instance Cache (TTFT optimization)
+# ============================================================================
+# Creating a fresh ChatOpenAI/ChatAnthropic per get_llm() call meant a fresh
+# httpx client (and connection pool) per call — no TCP/TLS keep-alive between
+# LLM calls, i.e. a full handshake to the provider on every node invocation.
+#
+# Instances are safe to share across calls in this codebase:
+#   - No static callbacks are attached (added dynamically per-invoke via
+#     enrich_config_with_node_metadata / create_instrumented_config).
+#   - The Anthropic prompt-caching patch is applied once per instance and is
+#     stateless across calls.
+#   - .with_structured_output() / .bind_tools() return wrappers (no mutation).
+#
+# Invalidation:
+#   - Config changes (model/provider/params via Admin UI) produce a DIFFERENT
+#     cache key (the key is the fully resolved config) → natural miss.
+#   - API-key changes (resolved inside ProviderAdapter at creation time) do
+#     NOT change the key → LLMConfigOverrideCache.load_from_db() calls
+#     clear_llm_instance_cache() on every reload (local + cross-worker).
+#
+# Kill switch: LLM_INSTANCE_CACHE_ENABLED=false restores the previous
+# one-instance-per-call behavior without a code change.
+
+_llm_instance_cache: dict[str, BaseChatModel] = {}
+
+
+def _build_llm_cache_key(llm_type: str, agent_config: LLMAgentConfig, streaming: bool) -> str:
+    """Build the instance-cache key from the FULLY RESOLVED configuration."""
+    return json.dumps(
+        {
+            "llm_type": llm_type,
+            "streaming": streaming,
+            "config": agent_config.model_dump(mode="json"),
+        },
+        sort_keys=True,
+        default=str,
+    )
+
+
+def clear_llm_instance_cache() -> None:
+    """Drop all cached LLM instances.
+
+    Called by LLMConfigOverrideCache.load_from_db() so that API-key changes
+    (which are resolved at instance-creation time and thus invisible to the
+    config-based cache key) take effect on the next get_llm() call.
+    """
+    count = len(_llm_instance_cache)
+    _llm_instance_cache.clear()
+    if count:
+        logger.info("llm_instance_cache_cleared", evicted=count)
 
 
 # ============================================================================
@@ -263,6 +318,18 @@ def get_llm(
         streaming = bool(config_override.get("streaming"))  # type: ignore[union-attr]
         logger.debug("streaming_override_applied", llm_type=llm_type, streaming=streaming)
 
+    # 3b. Instance cache lookup — reuse the client (and its connection pool)
+    # when the fully resolved configuration is identical. See the module-level
+    # cache documentation for sharing-safety and invalidation guarantees.
+    cache_enabled = getattr(settings, "llm_instance_cache_enabled", True)
+    cache_key: str | None = None
+    if cache_enabled:
+        cache_key = _build_llm_cache_key(llm_type, agent_config, streaming)
+        cached_llm = _llm_instance_cache.get(cache_key)
+        if cached_llm is not None:
+            logger.debug("llm_instance_cache_hit", llm_type=llm_type)
+            return cached_llm
+
     # 4. Create LLM via ProviderAdapter
     llm = ProviderAdapter.create_llm(
         provider=provider,
@@ -405,5 +472,12 @@ def get_llm(
         factory_callbacks_count=len(callbacks),
         note="langfuse_callbacks_added_via_config_enrichment",
     )
+
+    # 7. Store in the instance cache (bounded FIFO eviction)
+    if cache_key is not None:
+        while len(_llm_instance_cache) >= LLM_INSTANCE_CACHE_MAX_SIZE:
+            oldest_key = next(iter(_llm_instance_cache))
+            del _llm_instance_cache[oldest_key]
+        _llm_instance_cache[cache_key] = llm
 
     return llm

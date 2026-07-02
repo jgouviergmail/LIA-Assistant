@@ -46,10 +46,15 @@ def mock_tiktoken():
 
 @pytest.fixture
 def mock_anthropic():
-    """Create a mock Anthropic module for dynamic import tests."""
+    """Create a mock Anthropic module for dynamic import tests.
+
+    Mirrors the CURRENT SDK call used by AnthropicTokenCounter:
+    ``client.messages.count_tokens(model=..., messages=[...]).input_tokens``
+    (the legacy ``client.count_tokens()`` method is no longer used).
+    """
     mock_module = MagicMock()
     mock_client = MagicMock()
-    mock_client.count_tokens.return_value = 42
+    mock_client.messages.count_tokens.return_value.input_tokens = 42
     mock_module.Anthropic.return_value = mock_client
     return mock_module, mock_client
 
@@ -154,7 +159,7 @@ class TestAnthropicTokenCounter:
     def test_count_tokens_claude_sonnet(self, mock_anthropic):
         """Test token counting for Claude Sonnet using official SDK."""
         mock_module, mock_client = mock_anthropic
-        mock_client.count_tokens.return_value = 42
+        mock_client.messages.count_tokens.return_value.input_tokens = 42
 
         with (
             patch.dict(sys.modules, {"anthropic": mock_module}),
@@ -173,7 +178,7 @@ class TestAnthropicTokenCounter:
     def test_count_tokens_non_claude_model_fallback(self, mock_anthropic):
         """Test fallback to claude-sonnet-4-5 for non-Claude models."""
         mock_module, mock_client = mock_anthropic
-        mock_client.count_tokens.return_value = 10
+        mock_client.messages.count_tokens.return_value.input_tokens = 10
 
         with (
             patch.dict(sys.modules, {"anthropic": mock_module}),
@@ -187,6 +192,9 @@ class TestAnthropicTokenCounter:
             count = counter.count("Test", model="some-other-model")
 
             assert count == 10
+            # Non-Claude model must be normalized to the Claude fallback
+            call_kwargs = mock_client.messages.count_tokens.call_args.kwargs
+            assert call_kwargs["model"] == "claude-sonnet-4-5"
 
     def test_count_tokens_sdk_not_installed(self):
         """Test fallback to estimation when Anthropic SDK is not installed."""
@@ -210,7 +218,7 @@ class TestAnthropicTokenCounter:
     def test_count_tokens_api_error(self, mock_anthropic):
         """Test error handling when Anthropic API fails."""
         mock_module, mock_client = mock_anthropic
-        mock_client.count_tokens.side_effect = Exception("API Error")
+        mock_client.messages.count_tokens.side_effect = Exception("API Error")
 
         with (
             patch.dict(sys.modules, {"anthropic": mock_module}),

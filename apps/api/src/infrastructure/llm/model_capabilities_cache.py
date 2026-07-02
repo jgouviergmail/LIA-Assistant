@@ -59,6 +59,18 @@ class ModelCapabilitiesCache:
         cls._provider_by_model = new_provider_by_model
         cls._loaded = True
 
+        # Drop cached LLM client instances: capabilities (is_reasoning_model)
+        # are consulted at instance-creation time to filter constructor params,
+        # so a capabilities change is invisible to the config-based cache key.
+        # Local import to avoid a module-import cycle (factory → adapter →
+        # model_capabilities_cache).
+        try:
+            from src.infrastructure.llm.factory import clear_llm_instance_cache
+
+            clear_llm_instance_cache()
+        except Exception:
+            logger.warning("llm_instance_cache_clear_failed", exc_info=True)
+
         logger.info(
             "model_capabilities_cache_loaded",
             count=len(new_cache),

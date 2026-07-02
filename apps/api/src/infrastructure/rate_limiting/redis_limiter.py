@@ -19,7 +19,7 @@ import time
 
 import structlog
 from redis.asyncio import Redis
-from redis.exceptions import RedisError
+from redis.exceptions import NoScriptError, RedisError
 
 from src.infrastructure.observability.metrics_redis import (
     extract_key_prefix,
@@ -195,9 +195,7 @@ class RedisRateLimiter:
             current_time = time.time()
             request_id = f"{current_time:.6f}"
 
-            # Execute Lua script atomically
-            raw_result = await self.redis.evalsha(
-                script_sha,
+            script_args = (
                 1,  # Number of keys
                 key,  # KEYS[1]
                 str(max_calls),  # ARGV[1]
@@ -205,6 +203,21 @@ class RedisRateLimiter:
                 str(current_time),  # ARGV[3]
                 request_id,  # ARGV[4]
             )
+
+            # Execute Lua script atomically
+            try:
+                raw_result = await self.redis.evalsha(script_sha, *script_args)
+            except NoScriptError:
+                # Redis script cache was flushed (e.g., Redis restart): the cached
+                # SHA is stale. Reload the script once and retry — without this,
+                # every subsequent call would fail NOSCRIPT and fail open forever.
+                logger.warning(
+                    "rate_limit_script_cache_flushed_reloading",
+                    key_prefix=key_prefix,
+                )
+                self.script_sha = None
+                script_sha = await self._ensure_script_loaded()
+                raw_result = await self.redis.evalsha(script_sha, *script_args)
             result: int = int(raw_result)
 
             allowed = bool(result)
@@ -346,8 +359,45 @@ class RedisRateLimiter:
         """
         Close Redis connection.
 
-        Should be called on application shutdown.
+        Should be called on application shutdown ONLY, and NEVER on the shared
+        instance returned by get_rate_limiter(): that instance wraps the
+        process-wide cache Redis client (get_redis_cache), so closing it would
+        break every cache consumer in the process. As of 2026-07 no code path
+        calls this method (verified) — shutdown closes Redis via close_redis().
         """
         if self.redis:
             await self.redis.aclose()
             logger.debug("rate_limiter_closed")
+
+
+# =============================================================================
+# Module-level shared limiter
+# =============================================================================
+# Creating a RedisRateLimiter per request resets its cached Lua script SHA,
+# forcing a SCRIPT LOAD (full script transfer) + EVALSHA on every call — two
+# Redis round-trips instead of one on hot paths (auth login, voice, channels,
+# health ingest, connector clients). The shared instance keeps the SHA cached;
+# the NOSCRIPT reload-and-retry in acquire() keeps it correct across Redis
+# restarts and SCRIPT FLUSH.
+
+_shared_limiter: RedisRateLimiter | None = None
+
+
+async def get_rate_limiter() -> RedisRateLimiter:
+    """Get the shared RedisRateLimiter singleton (backed by the cache Redis).
+
+    Returns:
+        The process-wide RedisRateLimiter instance.
+    """
+    global _shared_limiter
+
+    if _shared_limiter is None:
+        from src.infrastructure.cache.redis import get_redis_cache
+
+        redis = await get_redis_cache()
+        # Re-check after the await: two concurrent first callers could both
+        # reach this point — keep the first assignment (benign either way).
+        if _shared_limiter is None:
+            _shared_limiter = RedisRateLimiter(redis)
+
+    return _shared_limiter

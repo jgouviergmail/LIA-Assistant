@@ -2758,7 +2758,7 @@
         },
         "semanticTypes": {
           "title": "📦 Système de Types Sémantiques",
-          "description": "26 types sémantiques organisés en hiérarchie DAG (inspiré schema.org/RDF/SKOS). Catégories : Identity, Location, Temporal, ResourceID, Content, Measurement, Status. TypeRegistry central avec lookups O(1), calcul de distance Wu & Palmer, validation de subsomption. Provenance tracking (source_domains, used_in_tools) pour expansion intelligente cross-domaines."
+          "description": "99 types sémantiques organisés en hiérarchie DAG (inspiré schema.org/RDF/SKOS). Catégories : Identity, Location, Temporal, ResourceID, Content, Measurement, Status. TypeRegistry central avec lookups O(1), calcul de distance Wu & Palmer, validation de subsomption. Les liens types↔outils sont l'union de l'ontologie éditoriale et des annotations semantic_type portées par les manifests d'outils (source vivante, insensible aux renommages, couvrant aussi les outils MCP), et 5 verrous d'intégrité testés empêchent toute dérive (noms d'outils réels, vocabulaire de domaines, cohérence taxonomie↔types). Ces liens alimentent le planner, l'initiative proactive et le mode ReAct (ADR-090)."
         },
         "semanticValidation": {
           "title": "✅ Validation Sémantique des Plans",
@@ -2930,11 +2930,11 @@
         },
         "reactMode": {
           "title": "⚡ Mode d'Exécution ReAct",
-          "description": "Mode alternatif au pipeline où l'assistant raisonne étape par étape : il appelle un outil, analyse le résultat, puis décide de manière autonome quoi faire ensuite. Boucle de 4 nodes custom dans le graph LangGraph parent avec support HITL natif via interrupt(). Le mode Pipeline (par défaut) consomme 4 à 8× moins de tokens grâce à la planification intelligente et l'exécution parallèle. L'utilisateur bascule entre les deux via un toggle dans l'en-tête du chat."
+          "description": "Mode alternatif au pipeline où l'assistant raisonne étape par étape : il appelle un outil, analyse le résultat, puis décide de manière autonome quoi faire ensuite. Boucle de 4 nodes custom dans le graph LangGraph parent avec support HITL natif via interrupt(). Le mode Pipeline (par défaut) consomme 4 à 8× moins de tokens grâce à la planification intelligente et l'exécution parallèle. L'utilisateur bascule entre les deux via un toggle dans l'en-tête du chat. Chaque tour de conversation repart d'un registre de données propre (isolation stricte entre les tours), et l'agent reçoit la carte des types sémantiques cross-domaines avec une règle de précision : récupérer la valeur exacte (l'adresse d'un contact) via l'outil de lookup plutôt qu'une approximation issue de la mémoire."
         },
         "proactiveInitiative": {
           "title": "🎯 Initiative Proactive",
-          "description": "Après l'exécution de la demande principale, l'assistant évalue si les résultats révèlent des connexions cross-domaines pertinentes pour l'utilisateur. Exemple : météo annonce pluie samedi → vérifie le calendrier pour signaler des activités en extérieur. En mode Pipeline, un node dédié exécute l'évaluation LLM après la réponse. En mode ReAct, l'agent vérifie aussi pendant son propre raisonnement (le step CROSS-CHECK) et — lorsque c'est activé — le même node d'initiative s'exécute désormais après la boucle : les deux modes bénéficient ainsi de l'enrichissement proactif."
+          "description": "Après l'exécution de la demande principale, l'assistant évalue si les résultats révèlent des connexions cross-domaines pertinentes pour l'utilisateur. Exemple : météo annonce pluie samedi → vérifie le calendrier pour signaler des activités en extérieur. En mode Pipeline, un node dédié exécute l'évaluation LLM après la réponse. En mode ReAct, l'agent vérifie aussi pendant son propre raisonnement (le step CROSS-CHECK) et — lorsque c'est activé — le même node d'initiative s'exécute désormais après la boucle : les deux modes bénéficient ainsi de l'enrichissement proactif. L'évaluation reçoit des candidats de connexion pré-calculés depuis le registre de types sémantiques (quelles données du tour peuvent alimenter quels outils adjacents — ADR-090), et prépare en parallèle le contexte de la réponse finale (mémoire, RAG, journal, psyché) pour réduire la latence (ADR-091)."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -2947,6 +2947,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_0": {
+          "title": "v1.21.0 — ⚡ Réponses plus rapides et suggestions proactives plus pertinentes",
+          "date": "Juillet 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>⚡ Des réponses nettement plus rapides</b> — Grande campagne d'optimisation de la latence : les réponses enrichies (mode HTML) démarrent 3 à 4 secondes plus tôt, le contexte de la réponse (mémoire, documents, journal) est préparé en parallèle des suggestions proactives au lieu d'attendre son tour, l'affichage du texte est plus fluide sur les longues réponses, et les connexions aux modèles d'IA sont réutilisées entre les appels. Aucun réglage nécessaire : tout est automatique.",
+            "i2": "<b>💡 Suggestions proactives plus pertinentes</b> — LIA sait désormais explicitement quelles données de votre demande peuvent alimenter quels outils (l'adresse d'un contact peut nourrir un itinéraire, une recherche de lieux ou la météo). Ses initiatives après une réponse deviennent plus précises et mieux ciblées, quel que soit le modèle d'IA configuré.",
+            "i3": "<b>🛠️ Fini les données du tour précédent qui réapparaissent</b> — En mode autonome (ReAct), demander par exemple un itinéraire juste après vos prochains rendez-vous pouvait réafficher ces rendez-vous dans la nouvelle réponse. Chaque tour de conversation repart désormais d'une ardoise propre.",
+            "i4": "<b>🎯 Itinéraires vers l'adresse exacte de vos contacts</b> — En mode autonome, LIA va maintenant chercher l'adresse précise du contact dans votre carnet avant de calculer un itinéraire, au lieu de se contenter d'une approximation (comme la ville) issue de sa mémoire.",
+            "i5": "<b>🏷️ Badge de compétence visible pour tous</b> — Le badge indiquant quelle compétence (skill) a généré une réponse s'affiche désormais pour tous les utilisateurs ; il était auparavant limité aux comptes administrateurs disposant du panneau de debug."
+          }
+        },
         "v1_20_22": {
           "title": "v1.20.22 — 🛡️ Les actions planifiées n'alimentent plus votre mémoire ni vos centres d'intérêt",
           "date": "Juin 2026",

@@ -195,7 +195,10 @@ class ParameterSchema:
                       cannot receive a person name - the planner must first
                       call contacts to obtain the physical address.
                       Common types: "physical_address", "person_name", "email_address",
-                      "phone_number", "resource_id", "datetime", "coordinates".
+                      "phone_number", "event_id", "datetime", "coordinate".
+                      Must reference a type registered in the semantic TypeRegistry
+                      (enforced by tests/unit/domains/agents/semantic/
+                      test_semantic_registry_integrity.py).
 
     Examples:
         >>> ParameterSchema(

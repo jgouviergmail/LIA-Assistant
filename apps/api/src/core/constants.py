@@ -2066,6 +2066,11 @@ MCP_DESCRIPTION_LLM_PRESENCE_PENALTY_DEFAULT = 0.0
 MCP_DESCRIPTION_LLM_MAX_TOKENS_DEFAULT = 500
 
 
+# --- LLM instance cache (TTFT optimization) ---
+# Bounded FIFO cache of LLM client instances keyed by fully resolved config.
+# Config space is small in practice (few llm_types × occasional admin edits).
+LLM_INSTANCE_CACHE_MAX_SIZE: int = 64
+
 # --- LLM config defaults ---
 # Updated: 2026-04-08 — Aligned with LLM_DEFAULTS in llm_config/constants.py
 ROUTER_LLM_PROVIDER_CONFIG_DEFAULT = "{}"
@@ -2315,6 +2320,14 @@ INITIATIVE_LLM_TIMEOUT_SECONDS = 30  # Structured output needs parsing time
 INITIATIVE_MEMORY_LIMIT = 3  # Max memory facts injected
 INITIATIVE_MEMORY_MIN_SCORE = 0.45  # Calibrated for Gemini embeddings (may need re-tuning)
 INITIATIVE_INTERESTS_LIMIT = 5  # Top N active interests
+
+# Response-context prefetch: the initiative node prefetches the response node's
+# user-context injections (memory, RAG, journal, portrait, psyche) concurrently
+# with its own LLM evaluation, so the response node finds them ready instead of
+# paying their latency serially. Reference: services/response_context.py
+RESPONSE_CONTEXT_PREFETCH_ENABLED_DEFAULT = True
+RESPONSE_CONTEXT_PREFETCH_MAX_ENTRIES = 64  # In-flight task registry bound (leak guard)
+RESPONSE_CONTEXT_PREFETCH_AWAIT_TIMEOUT_SECONDS = 20  # Beyond this, fall back to inline fetch
 
 # ============================================================================
 # TODAY BRIEFING — per-widget content limits
@@ -2641,6 +2654,14 @@ SEMANTIC_DEPS_NO_DEPENDENCIES = "(no semantic dependencies)"
 SEMANTIC_DEPS_NO_DOMAINS = "(no domains specified)"
 SEMANTIC_DEPS_NO_TYPES_FOUND = "(no semantic types found for these domains)"
 SEMANTIC_DEPS_NO_CROSS_DOMAIN = "(no cross-domain semantic dependencies)"
+
+# Fallback injected into the initiative prompt when no pre-computed type
+# bridge exists between this turn's results and the adjacent read-only tools.
+SEMANTIC_CANDIDATES_NONE = "(no pre-computed connection candidates for this turn)"
+# Prompt-size guards for the candidates section (mirrors the 3-tool truncation
+# used by generate_semantic_dependencies_for_prompt).
+SEMANTIC_CANDIDATES_MAX_TOOLS_PER_TYPE = 3
+SEMANTIC_CANDIDATES_MAX_LINES = 20
 
 # ============================================================================
 # TEXT COMPACTION (Token Optimization for Evaluated Parameters)
@@ -3600,6 +3621,16 @@ USER_MESSAGE_EMBEDDING_TTL_SECONDS: int = 300  # 5 min cache TTL
 USER_MESSAGE_EMBEDDING_MAX_CACHE_SIZE: int = 100  # Max cached embeddings
 USER_MESSAGE_EMBEDDING_TRUNCATION_LENGTH: int = 500  # Max chars to embed
 USER_MESSAGE_TRIVIAL_MAX_LENGTH: int = 15  # Max chars for triviality check
+
+# RAG query embedding cache (Gemini) — same pattern as the user-message cache
+# above. Deduplicates the user-RAG + system-RAG query embeds within a turn
+# (single-flight) and avoids re-embedding on retries/repeated queries.
+RAG_QUERY_EMBEDDING_CACHE_TTL_SECONDS: int = 300  # 5 min cache TTL
+RAG_QUERY_EMBEDDING_CACHE_MAX_SIZE: int = 100  # Max cached embeddings
+
+# Per-message token-count memoization for the LangGraph truncation reducer.
+# ~40 bytes/entry; 4096 entries cover many concurrent long conversations.
+REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE: int = 4096
 
 # ============================================================================
 # PSYCHE ENGINE (Dynamic Mood, Emotions, Relationship Tracking)

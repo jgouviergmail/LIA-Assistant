@@ -19,8 +19,7 @@ from src.core.constants import (
     RATE_LIMIT_AUTH_LOGIN_PER_MINUTE,
     RATE_LIMIT_AUTH_REGISTER_PER_MINUTE,
 )
-from src.infrastructure.cache.redis import get_redis_cache
-from src.infrastructure.rate_limiting.redis_limiter import RedisRateLimiter
+from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
 
 logger = structlog.get_logger(__name__)
 
@@ -78,8 +77,7 @@ def create_auth_rate_limiter(
             HTTPException: 429 Too Many Requests if rate limit exceeded
         """
         try:
-            redis = await get_redis_cache()
-            limiter = RedisRateLimiter(redis)
+            limiter = await get_rate_limiter()
             client_ip = _get_client_ip(request)
             key = f"auth:{action}:{client_ip}"
 

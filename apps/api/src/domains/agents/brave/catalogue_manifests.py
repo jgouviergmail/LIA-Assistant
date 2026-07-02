@@ -70,7 +70,7 @@ brave_search_catalogue_manifest = ToolManifest(
             path="braves[].description",
             type="string",
             description="Result snippet",
-            semantic_type="text",
+            semantic_type="Text",
         ),
         OutputFieldSchema(path="total", type="integer", description="Total count"),
     ],

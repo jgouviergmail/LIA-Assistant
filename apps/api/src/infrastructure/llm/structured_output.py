@@ -64,11 +64,69 @@ from src.infrastructure.llm.invoke_helpers import (
 )
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_langgraph import (
+    llm_reasoning_stream_double_call_total,
+)
 
 logger = get_logger(__name__)
 
 # Generic type variable for Pydantic schema
 T = TypeVar("T", bound=BaseModel)
+
+
+# =============================================================================
+# REASONING-STREAM NEGATIVE CACHE (double-call protection)
+# =============================================================================
+# On the BUFFERED structured-output paths (native with_structured_output and
+# JSON-mode), a reasoning stream that yields no terminal output forces a
+# SECOND full LLM call — the first call is paid and thrown away. Whether the
+# stream capture works depends on the (provider, model, wrapper) combination
+# and on the langchain-core version, so instead of a hardcoded capability
+# matrix (which would rot), broken combinations are learned at runtime:
+# after the first observed failure the stream attempt is skipped for that
+# combination (at most ONE double call per combination per worker process).
+#
+# Fail-safe direction: a spurious entry only disables live reasoning for the
+# combination until restart (degraded UX) — it can never add cost.
+#
+# NOTE: auto-tool misses (model declines the tool) are per-request variability,
+# NOT structural — they must never enter this cache.
+
+_reasoning_stream_broken_combos: set[tuple[str, str, str]] = set()
+
+
+def _llm_model_id(llm: BaseChatModel) -> str:
+    """Best-effort model identifier for cache keys and metrics labels."""
+    model = getattr(llm, "model_name", None) or getattr(llm, "model", None)
+    return str(model) if model else "unknown"
+
+
+def _reasoning_stream_disabled(provider: str, model: str, path: str) -> bool:
+    """True when the (provider, model, path) combination is known-broken."""
+    return (provider, model, path) in _reasoning_stream_broken_combos
+
+
+def _mark_reasoning_stream_broken(provider: str, model: str, path: str, schema_name: str) -> None:
+    """Record a broken combination: warn, count, and negative-cache it."""
+    _reasoning_stream_broken_combos.add((provider, model, path))
+    llm_reasoning_stream_double_call_total.labels(provider=provider, model=model, path=path).inc()
+    logger.warning(
+        "structured_reasoning_stream_double_call",
+        provider=provider,
+        model=model,
+        path=path,
+        schema=schema_name,
+        msg=(
+            "Reasoning stream yielded no terminal output — a second full LLM "
+            "call was made (double cost/latency). Live reasoning is now "
+            "disabled for this (provider, model, path) combination."
+        ),
+    )
+
+
+def reset_reasoning_stream_negative_cache() -> None:
+    """Clear the negative cache (test isolation)."""
+    _reasoning_stream_broken_combos.clear()
 
 
 # =============================================================================
@@ -761,8 +819,16 @@ async def _get_native_structured_output[T: BaseModel](
         # When a reasoning emitter is provided, consume the structured runnable
         # via astream_events so the model's chain-of-thought streams live to the
         # progress UI; the returned (root) output is the same parsed Pydantic
-        # instance as ``ainvoke`` (proven: structured JSON strictly equal). Falls
-        # back to ``ainvoke`` if streaming yields no terminal output.
+        # instance as ``ainvoke``. If streaming yields no terminal output the
+        # call falls back to ``ainvoke`` — a SECOND full LLM call — so the
+        # combination is negative-cached and the stream attempt is skipped on
+        # subsequent calls (see _reasoning_stream_broken_combos).
+        model_id = _llm_model_id(llm)
+        if reasoning_emit is not None and _reasoning_stream_disabled(
+            provider, model_id, "native_structured"
+        ):
+            reasoning_emit = None
+
         result: Any
         if reasoning_emit is not None:
             from src.infrastructure.llm.reasoning_stream import stream_reasoning_events
@@ -774,6 +840,7 @@ async def _get_native_structured_output[T: BaseModel](
                 config=invoke_kwargs.get("config"),
             )
             if result is None:
+                _mark_reasoning_stream_broken(provider, model_id, "native_structured", schema_name)
                 result = await structured_llm.ainvoke(messages, **invoke_kwargs)
         else:
             result = await structured_llm.ainvoke(messages, **invoke_kwargs)
@@ -883,7 +950,15 @@ async def _get_json_mode_fallback[T: BaseModel](
         # chain-of-thought via astream_events (this is the proven DeepSeek-V4
         # thinking path — raw LLM, 336 reasoning deltas + parsable content). The
         # returned aggregated message exposes the same ``.content`` as ``ainvoke``.
-        # Falls back to ``ainvoke`` if streaming yields no terminal output.
+        # If streaming yields no terminal output the call falls back to
+        # ``ainvoke`` — a SECOND full LLM call — so the combination is
+        # negative-cached and the stream attempt is skipped on subsequent calls.
+        model_id = _llm_model_id(llm)
+        if reasoning_emit is not None and _reasoning_stream_disabled(
+            provider, model_id, "json_mode"
+        ):
+            reasoning_emit = None
+
         if reasoning_emit is not None:
             from src.infrastructure.llm.reasoning_stream import stream_reasoning_events
 
@@ -894,6 +969,7 @@ async def _get_json_mode_fallback[T: BaseModel](
                 config=invoke_kwargs.get("config"),
             )
             if response is None:
+                _mark_reasoning_stream_broken(provider, model_id, "json_mode", schema_name)
                 response = await llm.ainvoke(augmented_messages, **invoke_kwargs)
         else:
             response = await llm.ainvoke(augmented_messages, **invoke_kwargs)

@@ -155,11 +155,12 @@ def test_create_llm_anthropic_basic(
 def test_create_llm_anthropic_with_thinking_mode(
     mock_settings_module, mock_init_chat_model, mock_settings_class
 ):
-    """Test Anthropic LLM with extended thinking mode via provider_config."""
-    # Configure thinking mode in provider_config
-    mock_settings_class.response_llm_provider_config = json.dumps(
-        {"thinking": {"type": "enabled", "budget_tokens": 5000}}
-    )
+    """Test Anthropic LLM with extended thinking mode via provider_config.
+
+    provider_config now flows through the ``provider_config`` kwarg (resolved
+    from LLMAgentConfig by the factory) — the adapter no longer reads
+    ``{llm_type}_llm_provider_config`` from settings.
+    """
     # Configure the patched settings object with attributes from mock_settings_class
     for attr in dir(mock_settings_class):
         if not attr.startswith("_"):
@@ -174,6 +175,7 @@ def test_create_llm_anthropic_with_thinking_mode(
         max_tokens=10000,
         streaming=False,
         llm_type="response",
+        provider_config=json.dumps({"thinking": {"type": "enabled", "budget_tokens": 5000}}),
     )
 
     call_args = mock_init_chat_model.call_args
@@ -189,7 +191,7 @@ def test_create_llm_anthropic_with_thinking_mode(
 
 
 @skip_if_no_deepseek
-@patch("langchain_deepseek.ChatDeepSeek")
+@patch("src.infrastructure.llm.providers._deepseek_patched.ChatDeepSeekPatched")
 @patch("src.infrastructure.llm.providers.adapter.settings")
 def test_create_llm_deepseek_chat(mock_settings_module, mock_chat_deepseek, mock_settings_class):
     """Test DeepSeek chat model creation (supports tools)."""
@@ -222,7 +224,7 @@ def test_create_llm_deepseek_chat(mock_settings_module, mock_chat_deepseek, mock
 
 
 @skip_if_no_deepseek
-@patch("langchain_deepseek.ChatDeepSeek")
+@patch("src.infrastructure.llm.providers._deepseek_patched.ChatDeepSeekPatched")
 @patch("src.infrastructure.llm.providers.adapter.settings")
 def test_create_llm_deepseek_reasoner_validation(
     mock_settings_module, mock_chat_deepseek, mock_settings_class
@@ -245,7 +247,7 @@ def test_create_llm_deepseek_reasoner_validation(
 
 
 @skip_if_no_deepseek
-@patch("langchain_deepseek.ChatDeepSeek")
+@patch("src.infrastructure.llm.providers._deepseek_patched.ChatDeepSeekPatched")
 @patch("src.infrastructure.llm.providers.adapter.settings")
 def test_create_llm_deepseek_reasoner_allowed_for_planner(
     mock_settings_module, mock_chat_deepseek, mock_settings_class
@@ -343,8 +345,11 @@ def test_create_llm_ollama_local(mock_settings_module, mock_init_chat_model, moc
 def test_create_llm_ollama_custom_base_url(
     mock_settings_module, mock_init_chat_model, mock_settings_class
 ):
-    """Test Ollama with custom base URL (remote deployment)."""
-    mock_settings_class.ollama_base_url = "http://ollama-server:11434/v1"
+    """Test Ollama with custom base URL (remote deployment).
+
+    The Ollama base URL is resolved like an API key: DB cache
+    (LLMConfigOverrideCache) first — override the cache lookup locally.
+    """
     # Configure the patched settings object with attributes from mock_settings_class
     for attr in dir(mock_settings_class):
         if not attr.startswith("_"):
@@ -352,14 +357,22 @@ def test_create_llm_ollama_custom_base_url(
     mock_llm = MagicMock(spec=BaseChatModel)
     mock_init_chat_model.return_value = mock_llm
 
-    ProviderAdapter.create_llm(
-        provider="ollama",
-        model="mistral",
-        temperature=0.5,
-        max_tokens=4000,
-        streaming=False,
-        llm_type="hitl_classifier",
-    )
+    from src.domains.llm_config.cache import LLMConfigOverrideCache
+
+    custom_keys = {"ollama": "http://ollama-server:11434/v1"}
+    with patch.object(
+        LLMConfigOverrideCache,
+        "get_api_key",
+        side_effect=lambda provider: custom_keys.get(provider),
+    ):
+        ProviderAdapter.create_llm(
+            provider="ollama",
+            model="mistral",
+            temperature=0.5,
+            max_tokens=4000,
+            streaming=False,
+            llm_type="hitl_classifier",
+        )
 
     call_args = mock_init_chat_model.call_args
     assert call_args.kwargs["base_url"] == "http://ollama-server:11434/v1"
@@ -373,15 +386,11 @@ def test_create_llm_ollama_custom_base_url(
 @patch("src.infrastructure.llm.providers.adapter.init_chat_model")
 @patch("src.infrastructure.llm.providers.adapter.settings")
 def test_load_provider_config_json(mock_settings_module, mock_init_chat_model, mock_settings_class):
-    """Test loading advanced provider config from JSON string."""
-    # Configure advanced Ollama parameters
-    mock_settings_class.planner_llm_provider_config = json.dumps(
-        {
-            "num_predict": 2048,
-            "top_k": 40,
-            "repeat_penalty": 1.1,
-        }
-    )
+    """Test loading advanced provider config from JSON string.
+
+    provider_config flows through the ``provider_config`` kwarg (from
+    LLMAgentConfig) — the adapter no longer reads it from settings.
+    """
     # Configure the patched settings object with attributes from mock_settings_class
     for attr in dir(mock_settings_class):
         if not attr.startswith("_"):
@@ -396,6 +405,13 @@ def test_load_provider_config_json(mock_settings_module, mock_init_chat_model, m
         max_tokens=8000,
         streaming=False,
         llm_type="planner",
+        provider_config=json.dumps(
+            {
+                "num_predict": 2048,
+                "top_k": 40,
+                "repeat_penalty": 1.1,
+            }
+        ),
     )
 
     call_args = mock_init_chat_model.call_args
@@ -412,7 +428,6 @@ def test_load_provider_config_invalid_json(
     mock_logger, mock_settings_module, mock_init_chat_model, mock_settings_class
 ):
     """Test handling of invalid JSON in provider_config (logs warning, continues with empty config)."""
-    mock_settings_class.router_llm_provider_config = "{invalid json"
     # Configure the patched settings object with attributes from mock_settings_class
     for attr in dir(mock_settings_class):
         if not attr.startswith("_"):
@@ -428,6 +443,7 @@ def test_load_provider_config_invalid_json(
         max_tokens=500,
         streaming=False,
         llm_type="router",
+        provider_config="{invalid json",
     )
 
     # Verify warning was logged
@@ -737,6 +753,8 @@ def test_reasoning_effort_passed_for_reasoning_models(
     mock_llm = MagicMock(spec=BaseChatModel)
     mock_init_chat_model.return_value = mock_llm
 
+    from src.core.reasoning_types import ReasoningEffortEnum
+
     ProviderAdapter.create_llm(
         provider="openai",
         model="gpt-5-nano",  # Reasoning model
@@ -744,12 +762,14 @@ def test_reasoning_effort_passed_for_reasoning_models(
         max_tokens=2048,
         streaming=False,
         llm_type="router",
-        reasoning_effort="minimal",  # Should be preserved
+        # Typed reasoning value (upstream validation guarantees the type;
+        # the OpenAI builder rejects raw strings by design)
+        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
     )
 
     call_args = mock_init_chat_model.call_args
 
-    # Verify reasoning_effort was passed through
+    # Verify reasoning_effort was passed through (builder unwraps the enum)
     assert call_args.kwargs.get("reasoning_effort") == "minimal"
 
 
@@ -839,7 +859,7 @@ def test_anthropic_provider_filters_unsupported_params(
         max_tokens=8192,
         streaming=False,
         llm_type="response",
-        top_p=0.9,  # Anthropic supports top_p
+        top_p=0.9,  # Claude 4.5+ rejects temperature + top_p together - FILTERED
         frequency_penalty=0.5,  # NOT supported by Anthropic - should be FILTERED
         presence_penalty=0.3,  # NOT supported by Anthropic - should be FILTERED
     )
@@ -848,8 +868,10 @@ def test_anthropic_provider_filters_unsupported_params(
 
     # Verify supported parameters are preserved
     assert call_args.kwargs["temperature"] == 0.7
-    assert call_args.kwargs["top_p"] == 0.9
 
-    # Verify unsupported parameters are FILTERED (Anthropic doesn't support these)
+    # Verify unsupported parameters are FILTERED:
+    # - frequency/presence penalties: never supported by Anthropic
+    # - top_p: Claude 4.5+ rejects temperature + top_p together (adapter drops it)
+    assert "top_p" not in call_args.kwargs
     assert "frequency_penalty" not in call_args.kwargs
     assert "presence_penalty" not in call_args.kwargs

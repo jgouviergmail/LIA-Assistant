@@ -742,8 +742,12 @@ async def analyze_query(
 
         from langchain_core.messages import HumanMessage
 
-        from src.infrastructure.llm.reasoning_stream import make_reasoning_emit
-
+        # NO reasoning_emit here — deliberate (reasoning-streaming POC decision:
+        # query_analyzer EXCLUDED). This is a fast head-of-graph classification
+        # with no UX value for a live "💭" block, and streaming the buffered
+        # with_structured_output path caused a silent SECOND full LLM call per
+        # turn (+1.3-2.5s TTFT, double cost) before the negative-cache guard
+        # existed. Keeping it off guarantees one call on every provider.
         result: QueryAnalysisOutput = await asyncio.wait_for(
             get_structured_output(
                 llm=llm,
@@ -752,7 +756,6 @@ async def analyze_query(
                 provider=agent_config.provider,
                 node_name="query_analyzer",
                 config=base_config,
-                reasoning_emit=make_reasoning_emit("query_analyzer"),
             ),
             timeout=settings.query_analyzer_llm_timeout_seconds,
         )

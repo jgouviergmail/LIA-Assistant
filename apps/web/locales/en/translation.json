@@ -2753,7 +2753,7 @@
         },
         "semanticTypes": {
           "title": "📦 Semantic Type System",
-          "description": "26 semantic types organized in DAG hierarchy (inspired by schema.org/RDF/SKOS). Categories: Identity, Location, Temporal, ResourceID, Content, Measurement, Status. Central TypeRegistry with O(1) lookups, Wu & Palmer distance calculation, subsumption validation. Provenance tracking (source_domains, used_in_tools) for intelligent cross-domain expansion."
+          "description": "99 semantic types organized in DAG hierarchy (inspired by schema.org/RDF/SKOS). Categories: Identity, Location, Temporal, ResourceID, Content, Measurement, Status. Central TypeRegistry with O(1) lookups, Wu & Palmer distance calculation, subsumption validation. Type↔tool links are the union of the editorial ontology and the semantic_type annotations carried by tool manifests (live, rename-proof source that also covers MCP tools), with 5 test-enforced integrity locks preventing any drift (real tool names, domain vocabulary, taxonomy↔types coherence). These links feed the planner, the proactive initiative and ReAct mode (ADR-090)."
         },
         "semanticValidation": {
           "title": "✅ Semantic Plan Validation",
@@ -2925,11 +2925,11 @@
         },
         "reactMode": {
           "title": "⚡ ReAct Execution Mode",
-          "description": "Alternative mode to the pipeline where the assistant reasons step by step: it calls a tool, analyzes the result, then autonomously decides what to do next. 4 custom nodes in the parent LangGraph graph with native HITL support via interrupt(). Pipeline mode (default) consumes 4 to 8× fewer tokens thanks to smart planning and parallel execution. Users switch between the two via a toggle in the chat header."
+          "description": "Alternative mode to the pipeline where the assistant reasons step by step: it calls a tool, analyzes the result, then autonomously decides what to do next. 4 custom nodes in the parent LangGraph graph with native HITL support via interrupt(). Pipeline mode (default) consumes 4 to 8× fewer tokens thanks to smart planning and parallel execution. Users switch between the two via a toggle in the chat header. Every conversation turn starts from a clean data registry (strict turn isolation), and the agent receives the cross-domain semantic type map with a precision rule: fetch the exact value (a contact's address) via the lookup tool rather than an approximation recalled from memory."
         },
         "proactiveInitiative": {
           "title": "🎯 Proactive Initiative",
-          "description": "After completing the main request, the assistant evaluates whether results reveal cross-domain connections relevant to the user. Example: weather shows rain Saturday → checks calendar for outdoor activities. In Pipeline mode, a dedicated node runs the LLM evaluation after the answer. In ReAct mode the agent also cross-checks during its own reasoning (the CROSS-CHECK step) and — when enabled — the same dedicated initiative node now runs after the loop, so both modes get the proactive enrichment."
+          "description": "After completing the main request, the assistant evaluates whether results reveal cross-domain connections relevant to the user. Example: weather shows rain Saturday → checks calendar for outdoor activities. In Pipeline mode, a dedicated node runs the LLM evaluation after the answer. In ReAct mode the agent also cross-checks during its own reasoning (the CROSS-CHECK step) and — when enabled — the same dedicated initiative node now runs after the loop, so both modes get the proactive enrichment. The evaluation receives pre-computed connection candidates from the semantic type registry (which data from this turn can feed which adjacent tools — ADR-090), and prepares the final answer's context (memory, RAG, journal, psyche) in parallel to cut latency (ADR-091)."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -2942,6 +2942,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_0": {
+          "title": "v1.21.0 — ⚡ Faster answers and sharper proactive suggestions",
+          "date": "July 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>⚡ Noticeably faster answers</b> — Major latency campaign: rich (HTML-mode) answers start 3–4 seconds earlier, the answer's context (memory, documents, journal) is now prepared in parallel with the proactive suggestions instead of waiting its turn, long answers render more smoothly, and connections to the AI models are reused between calls. Nothing to configure: it is all automatic.",
+            "i2": "<b>💡 Sharper proactive suggestions</b> — LIA now knows explicitly which data from your request can feed which tools (a contact's address can feed a route, a places search or the weather). Its follow-up initiatives after an answer become more precise and better targeted, whatever AI model is configured.",
+            "i3": "<b>🛠️ No more data from the previous turn reappearing</b> — In autonomous (ReAct) mode, asking for example for directions right after your upcoming events could re-display those events inside the new answer. Every conversation turn now starts from a clean slate.",
+            "i4": "<b>🎯 Routes to your contacts' exact address</b> — In autonomous mode, LIA now looks up the contact's precise address in your address book before computing a route, instead of settling for an approximation (such as the city) recalled from memory.",
+            "i5": "<b>🏷️ Skill badge visible for everyone</b> — The badge showing which skill generated an answer is now displayed for all users; it was previously limited to administrator accounts with the debug panel."
+          }
+        },
         "v1_20_22": {
           "title": "v1.20.22 — 🛡️ Scheduled actions no longer add to your memory or interests",
           "date": "June 2026",

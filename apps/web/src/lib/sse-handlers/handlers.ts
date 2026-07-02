@@ -771,6 +771,9 @@ export function handleHitlInterruptComplete(
 
   // Get buffered question or fallback to metadata/template
   let finalQuestion = hitlQuestionBuffer.current.get(completeMessageId) || '';
+  // Capture BEFORE the buffer is deleted below — reading it after delete
+  // made fallback_used always true in the completion log.
+  const fallbackUsed = !finalQuestion;
 
   // Fallback 1: Use generated_question from metadata if buffer empty
   if (!finalQuestion && completeChunk.generated_question) {
@@ -811,7 +814,7 @@ export function handleHitlInterruptComplete(
       component: 'useChat',
       message_id: completeMessageId,
       question_length: finalQuestion.length,
-      fallback_used: !hitlQuestionBuffer.current.has(completeMessageId),
+      fallback_used: fallbackUsed,
     })
   );
 }

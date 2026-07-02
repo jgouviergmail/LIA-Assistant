@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-07-02
+
+> Architecture decisions: [ADR-090 — Semantic Layer Governance](docs/architecture/ADR-090-Semantic-Layer-Governance.md) and [ADR-091 — Response-Context Prefetch](docs/architecture/ADR-091-Response-Context-Prefetch.md). Feature release: latency campaign (perceived + real), semantic-layer overhaul feeding smarter proactive suggestions, ReAct turn-isolation fixes. No schema change, no migration.
+
+### Added — Semantic layer governance: ontology ∪ manifests + test-enforced integrity (ADR-090)
+
+Semantic type consumers are now the **union** of the ontology's editorial `used_in_tools` links and the `semantic_type` annotations on ToolManifest **parameters** (the live, rename-proof source — request-scoped, so MCP/user tools are covered), via the shared `collect_manifest_param_consumers()` helper used by both the planner and the initiative. An audit had found **12 phantom tool names (~50% of `used_in_tools`)** left over from the v3.2 tool renaming — silently killing initiative bridges (e.g. contact → get_places_tool) and injecting hallucination-prone names into the planner prompt. All fixed, and **5 test-enforced integrity locks** (`test_semantic_registry_integrity.py`) make that class of drift impossible: used_in_tools ∈ real manifests (difflib hint on failure), source_domains ∈ DOMAIN_REGISTRY (singular vocabulary locked), manifest semantic_types registered, internal ontology references resolve, and every taxonomy `related_domains` link justified by ≥1 type bridge (conscious allowlist: `(file,contact)`, `(reminder,contact)`). Enrichment rule going forward: annotate manifests, not `core_types.py`.
+
+### Added — Initiative `<SemanticBridges>`: pre-computed connection candidates
+
+The initiative node (ADR-062) now injects the cross-domain type map plus **pre-computed connection candidates** (types PRODUCED by the executed domains × adjacent read-only tools CONSUMING them, e.g. `physical_address (from contact results) → get_places_tool, get_route_tool`) into its prompt — the LLM judges concrete user value instead of having to rediscover every bridge alone (which only frontier reasoning models did reliably). Prompt-size guards (3 tools/type, 20 lines, explicit `(+N more)`), gated by `SEMANTIC_LINKING_ENABLED`, graceful fallbacks.
+
+### Added — Latency campaign (ADR-091): response-context prefetch + 6 sibling optimizations
+
+- **Response-context prefetch**: the response node's user-context injections (user-message embedding, long-term memory profile, user/system RAG, journal, portrait, psyche) are extracted into `services/response_context.py` and **prefetched from the initiative node**, overlapping the ~12s initiative LLM call in BOTH pipeline and ReAct modes (bounded process-local registry keyed by run_id; identical inline fallback on any miss — conversation turns byte-identical). ~0.5–2s off every initiative-enriched turn. `RESPONSE_CONTEXT_PREFETCH_ENABLED/MAX_ENTRIES/AWAIT_TIMEOUT_SECONDS`.
+- **LLM instance cache** (`LLM_INSTANCE_CACHE_ENABLED`): `get_llm()` reuses client instances keyed by the fully resolved config — httpx pools stay alive, no TCP/TLS handshake per LLM call; cleared on API-key/capabilities reloads.
+- **Reasoning-stream negative cache**: buffered structured-output paths that silently paid a **second full LLM call** when the reasoning stream yielded no terminal output (observed on query_analyzer: 2 LLM calls per turn, +1.3–2.5s TTFT) are learned at runtime per (provider, model, path) — at most one double call per combination per worker; `llm_reasoning_stream_double_call_total` counter; query_analyzer permanently excluded from reasoning streaming.
+- **Non-blocking contacts warmup**: the 300–800ms People API warmup no longer blocks the request path (fire-and-forget, dedicated DB session; cache-miss fallback keeps results always correct).
+- **RAG query-embedding cache + single-flight**: user-RAG and system-RAG retrievals of the same turn share one Gemini embedding call.
+- **Reducer token-count memoization**: the messages-truncation reducer no longer re-encodes the full history through tiktoken on every state update (per-message-id cache, content-length guarded, bounded FIFO).
+- **Frontend SSE token batching**: tokens coalesced per animation frame instead of one React render + full remark/rehype re-parse per token (O(N²) → O(N)); strict ordering preserved (any non-token chunk flushes first), reset/flush wired on stream start/error.
+- **Rich-HTML CSS externalized**: the LLM no longer generates a ~550-token inline `<style>` block on every rich-HTML reply (~3–4s of streaming); the `.lia-response` rules now ship once in `lia-components.css` (byte-identical rules — old messages carrying the inline block render the same).
+
+### Fixed — ReAct: previous turn's data re-displayed (cross-turn `current_turn_registry` leak)
+
+Asking "how do I get to my brother's?" right after "my next 4 events" re-displayed the 4 events inside the route reply — through both the synthesis text and the SSE data cards. Nothing purged the per-turn registry at the start of a ReAct turn: the checkpoint-restored value from the previous turn seeded `react_execute_tools`' intra-turn accumulation, and the response node's ReAct passthrough re-tagged every item as current-turn data (bypassing the turn filter). Fixes: `react_setup_node` now returns `current_turn_registry: {}` (mirroring the pipeline's task_orchestrator overwrite that had never been ported to ReAct), and the passthrough no longer falls back to the cross-turn `registry`. HITL draft resumes and REFERENCE turns unaffected (dedicated paths preserved).
+
+### Fixed — ReAct: approximate memory values used instead of exact lookups
+
+Same scenario: the route was computed to "Mulhouse, France" (city centre, from a memory fact) without ever calling `get_contacts_tool` for the brother's exact address — even though semantic expansion had made the contact domain available precisely for that. The ReAct system prompt now carries a generic PRECISION rule ("memory tells you WHO, tools give exact values — retrieve the exact value with the lookup tool BEFORE the consumer tool") and a `<CrossDomainDataTypes>` section fed by the same semantic dependencies the pipeline planner receives.
+
+### Fixed — Skill badge visible for everyone (was debug-panel-only)
+
+The activated-skill capture lived exclusively inside the debug-panel cache path, so the skill badge on assistant messages (a user-facing feature) only ever appeared for admins with the debug panel enabled. Capture extracted to an ungated `_capture_activated_skill()` (with stale-plan guard and ReAct exclusion) plus a Route-3 fallback that detects direct `activate_skill_tool` calls in the current turn's messages.
+
+### Fixed — Reliability & hygiene batch
+
+- **Redis rate limiter**: module-level shared singleton (was one instance per request/client — a Lua `SCRIPT LOAD` each time) + `NOSCRIPT` retry, ending the permanent fail-open after a Redis restart flushed the script cache; connector limiters move from the session DB to the cache DB (ephemeral 60s counters).
+- **Fire-and-forget GC safety**: 5 bare `asyncio.create_task` call-sites (pattern learner ×2, Telegram webhook, scheduled-action test run, channels) migrated to `safe_fire_and_forget` (strong reference + exception logging).
+- **Response language fallback**: the response prompt re-reads the user language from state (a hardcoded French fallback could leak into non-French replies).
+- **Timezone centralization**: 9 scattered `"Europe/Paris"` literals replaced by `DEFAULT_USER_DISPLAY_TIMEZONE`, and the dangerous local homonym `prompts.DEFAULT_TIMEZONE` (diverging from `core/constants.DEFAULT_TIMEZONE` = UTC) removed.
+- **`.env` parsing crash**: inline comment with quotes in `COMPACTION_INCLUDE_PREVIOUS_SUMMARIES` broke python-dotenv at boot (fixed in `.env*` examples too).
+- **FOR_EACH HITL**: `decision` variable could be unbound when `api_max_items_per_request=0`.
+- **Frontend HITL log**: `fallback_used` was always true in the completion log (read after buffer deletion).
+- **Pre-existing test debt**: 15 provider tests repaired (API-key fixtures via LLMConfigOverrideCache, Anthropic token-counting API, ChatDeepSeekPatched symbol, `top_p` filtering), 5 env-polluted "flaky" tests hermetized (Taskfile `dotenv:` exports), 2 schema tests now read `CURRENT_SCHEMA_VERSION`.
+
+### Notes
+
+- **No schema change, no migration.** New env vars (all optional, safe defaults): `LLM_INSTANCE_CACHE_ENABLED`, `RESPONSE_CONTEXT_PREFETCH_ENABLED`, `RESPONSE_CONTEXT_PREFETCH_MAX_ENTRIES`, `RESPONSE_CONTEXT_PREFETCH_AWAIT_TIMEOUT_SECONDS` — documented in both `.env.example` files.
+- **Docs**: ADR-090, ADR-091 (+ index entries), ADR-062 amended, `REACT_EXECUTION_MODE.md` (turn isolation & precision guidance section, TOC completed).
+- **Quality**: Ruff / Black / MyPy strict clean; full backend suite **8469 unit tests green** (+~60 new); Vitest token-batching suite; dev API boot verified healthy after every batch; semantic bridges and ReAct prompt verified live in the running container.
+
 ## [1.20.22] - 2026-06-19
 
 > Maintenance release on top of v1.20.21. Scheduled actions no longer feed long-term memory / interests / journal / psyche (only direct user inputs do); dev-only GeoIP build fix. No schema change, no migration.

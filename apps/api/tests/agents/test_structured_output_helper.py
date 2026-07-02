@@ -178,10 +178,21 @@ async def test_native_structured_output_anthropic(mock_native_llm: Mock):
 
 @pytest.mark.asyncio
 async def test_native_structured_output_deepseek(mock_native_llm: Mock):
-    """Test native structured output with DeepSeek provider."""
+    """Test native structured output with DeepSeek provider (thinking OFF).
+
+    ``_is_v4_thinking_enabled`` is pinned to False: on a bare Mock every
+    attribute is truthy, which would wrongly divert to the JSON-mode path
+    (thinking ON downgrades native structured output).
+    """
     messages = [SystemMessage(content="You are a router"), HumanMessage(content="Route this")]
 
-    with patch("src.infrastructure.llm.structured_output.settings") as mock_settings:
+    with (
+        patch("src.infrastructure.llm.structured_output.settings") as mock_settings,
+        patch(
+            "src.infrastructure.llm.structured_output._is_v4_thinking_enabled",
+            return_value=False,
+        ),
+    ):
         mock_settings.provider_supports_structured_output = {"deepseek": True}
 
         result = await get_structured_output(

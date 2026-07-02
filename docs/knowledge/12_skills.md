@@ -40,6 +40,8 @@ Skill activation uses a **hybrid model** with 3 strategies:
 
 **Planner skill guard:** The planner normally detects missing parameters early and asks for clarification (e.g., "send an email" without a subject). When the QueryAnalyzer has identified a skill, this early clarification is skipped so the skill's template or instructions can shape the plan rather than being interrupted by a clarification prompt.
 
+**Skill badge:** when a skill drives an answer, a badge on the assistant message shows which one — visible to every user (it also works when the skill was activated directly during the conversation, without going through the planner).
+
 ## Can I download or share a skill?
 Yes. Hover over any skill in settings and click the **download** icon (⬇️). You will get a .zip file containing SKILL.md and all associated files (references/, scripts/, assets/). Share this zip with other users or publish it on agentskills.io-compatible marketplaces.
 

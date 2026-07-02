@@ -65,6 +65,8 @@ graph LR
 | **Post-Processing** | Injection photos HTML et liens profile |
 | **Anti-Hallucination** | Directives strictes contre invention de données |
 | **Message Windowing** | 20 derniers turns conversationnels (contexte riche) |
+| **Context Prefetch (ADR-091)** | Les injections de contexte utilisateur (embedding du message, profil mémoire, RAG user/system, journal, portrait, psyché) vivent dans `services/response_context.py` et sont **préchargées depuis l'initiative node** en parallèle de son évaluation LLM (pipeline ET ReAct). Le response node fait un `pop_response_context(run_id)` ; sur tout miss (tour conversation, initiative désactivée/skippée, timeout), il exécute le **même** `fetch_response_context()` inline — zéro delta de comportement. Kill-switch `RESPONSE_CONTEXT_PREFETCH_ENABLED`. |
+| **Mode HTML sans `<style>`** | En mode d'affichage HTML enrichi, le LLM n'émet plus de bloc `<style>` inline (~550 tokens/réponse) : les règles `.lia-response` sont dans `lia-components.css` et la directive `html_response_directive.txt` interdit tout style inline. |
 | **Multilingual** | Support 6 langues avec personnalisation temporelle |
 | **Display Modes** | Format de sortie piloté par `user_display_mode` : `cards` (défaut, Markdown + cartes HTML), `markdown` (Markdown pur), `html` (HTML enrichi `lia-response`) |
 | **History Style Neutralization** | En mode `html`, le style des réponses assistant de l'historique est neutralisé pour que la directive HTML reste la seule autorité de mise en forme (voir section Message Windowing) |

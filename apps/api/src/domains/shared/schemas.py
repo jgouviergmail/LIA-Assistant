@@ -28,7 +28,11 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from src.core.config import settings
-from src.core.constants import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
+from src.core.constants import (
+    DEFAULT_USER_DISPLAY_TIMEZONE,
+    PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH,
+)
 from src.core.security import validate_password_strict
 from src.core.validators import validate_timezone
 
@@ -265,7 +269,7 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     id: UUID = Field(..., description="User ID")
     email: EmailStr = Field(..., description="User email address")
     full_name: str | None = Field(None, description="User full name")
-    timezone: str = Field(default="Europe/Paris", description="User's IANA timezone")
+    timezone: str = Field(default=DEFAULT_USER_DISPLAY_TIMEZONE, description="User's IANA timezone")
     is_active: bool = Field(..., description="User account is active")
     is_verified: bool = Field(..., description="User email is verified")
     is_superuser: bool = Field(..., description="User has superuser privileges")

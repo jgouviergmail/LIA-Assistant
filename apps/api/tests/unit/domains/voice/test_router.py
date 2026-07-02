@@ -92,9 +92,12 @@ async def test_websocket_breaks_cleanly_on_disconnect_message(
 
     with (
         patch("src.domains.voice.router.get_redis_session", AsyncMock()),
-        patch("src.domains.voice.router.get_redis_cache", AsyncMock()),
         patch("src.domains.voice.router.WebSocketTicketStore", return_value=_ticket_store),
-        patch("src.domains.voice.router.RedisRateLimiter", return_value=_rate_limiter_allow),
+        # Router now resolves the shared limiter via the async factory
+        patch(
+            "src.domains.voice.router.get_rate_limiter",
+            AsyncMock(return_value=_rate_limiter_allow),
+        ),
         patch("src.domains.voice.router.get_stt_service_for_mode", return_value=MagicMock()),
         patch("src.domains.voice.router.websocket_connections_active") as gauge,
         patch("src.domains.voice.router.websocket_connection_duration_seconds"),
@@ -131,9 +134,12 @@ async def test_websocket_accept_failure_does_not_phantom_decrement(
 
     with (
         patch("src.domains.voice.router.get_redis_session", AsyncMock()),
-        patch("src.domains.voice.router.get_redis_cache", AsyncMock()),
         patch("src.domains.voice.router.WebSocketTicketStore", return_value=_ticket_store),
-        patch("src.domains.voice.router.RedisRateLimiter", return_value=_rate_limiter_allow),
+        # Router now resolves the shared limiter via the async factory
+        patch(
+            "src.domains.voice.router.get_rate_limiter",
+            AsyncMock(return_value=_rate_limiter_allow),
+        ),
         patch("src.domains.voice.router.get_stt_service_for_mode", return_value=MagicMock()),
         patch("src.domains.voice.router.websocket_connections_active") as gauge,
         patch("src.domains.voice.router.websocket_connection_duration_seconds"),

@@ -316,6 +316,45 @@ async def test_response_node_error_handling():
                 assert "ValueError" in result["messages"][0].content
 
 
+@pytest.mark.asyncio
+async def test_response_node_error_fallback_uses_user_language():
+    """The error fallback message is localized with the user's language.
+
+    Regression test: the except handler used to call
+    get_error_fallback_message without language= — non-French users got the
+    French fallback. The language is re-read from state inside the handler
+    (user_language is assigned inside the try, so it may be unbound there).
+    """
+    state = MessagesState(
+        messages=[HumanMessage(content="Test")],
+        agent_results={},
+        metadata={"user_id": "test-user"},
+        user_language="en",
+    )
+
+    config = {"metadata": {"run_id": "test-run"}}
+
+    with patch("src.domains.agents.nodes.response_node.get_response_prompt") as mock_get_prompt:
+        with patch("src.domains.agents.nodes.response_node.get_llm") as mock_get_llm:
+            with patch("src.domains.agents.nodes.response_node.ChatPromptTemplate") as mock_cpt:
+                mock_chain = AsyncMock()
+                mock_chain.ainvoke.side_effect = ValueError("LLM error")
+
+                mock_prompt_obj = Mock()
+                mock_prompt_obj.__or__ = Mock(return_value=mock_chain)
+                mock_cpt.from_messages.return_value = mock_prompt_obj
+                mock_get_prompt.return_value = "mock system prompt"
+                mock_get_llm.return_value = Mock()
+
+                result = await response_node(state, config)
+
+                assert isinstance(result["messages"][0], AIMessage)
+                content = result["messages"][0].content
+                assert "Sorry, an error occurred" in content
+                assert "ValueError" in content
+                assert "Désolé" not in content
+
+
 # ============================================================================
 # AUTOMATED-SOURCE EXTRACTION GUARD (is_automated_source redesign)
 # ============================================================================
@@ -354,9 +393,10 @@ def _setup_response_node_patches(stack):
     # Background scheduling -> no-op (prevents real asyncio task creation).
     stack.enter_context(patch("src.domains.agents.nodes.response_node.safe_fire_and_forget"))
     # Memory injection -> avoid semantic-memory store / DB access.
+    # (moved to services/response_context.py — patch its module-level import)
     stack.enter_context(
         patch(
-            "src.domains.agents.nodes.response_node.build_psychological_profile",
+            "src.domains.agents.services.response_context.build_psychological_profile",
             AsyncMock(return_value=("", Mock(value="neutral"), [])),
         )
     )

@@ -45,6 +45,7 @@ from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel
 
 from src.core.config import get_settings, settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_api_messages import APIMessages
 from src.core.time_utils import normalize_to_rfc3339, now_utc
 from src.domains.agents.constants import (
@@ -1749,7 +1750,7 @@ async def execute_event_draft(
         summary=draft_content["summary"],
         start_datetime=draft_content["start_datetime"],
         end_datetime=draft_content["end_datetime"],
-        timezone=draft_content.get("timezone", "Europe/Paris"),
+        timezone=draft_content.get("timezone", DEFAULT_USER_DISPLAY_TIMEZONE),
         description=draft_content.get("description"),
         location=draft_content.get("location"),
         attendees=draft_content.get("attendees"),
@@ -1807,7 +1808,7 @@ async def execute_event_update_draft(
         summary=draft_content.get("summary"),
         start_datetime=draft_content.get("start_datetime"),
         end_datetime=draft_content.get("end_datetime"),
-        timezone=draft_content.get("timezone", "Europe/Paris"),
+        timezone=draft_content.get("timezone", DEFAULT_USER_DISPLAY_TIMEZONE),
         description=draft_content.get("description"),
         location=draft_content.get("location"),
         attendees=draft_content.get("attendees"),

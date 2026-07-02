@@ -15,6 +15,8 @@ Phase 1 (ISO-FUNCTIONAL): Exact reproduction via registry
 Phase 2 (SMART): Intelligent expansion with reasoning (Step 2)
 """
 
+from typing import Any
+
 from src.domains.agents.semantic.core_types import load_core_types
 from src.domains.agents.semantic.type_registry import TypeRegistry, get_registry
 from src.infrastructure.observability.logging import get_logger
@@ -493,7 +495,7 @@ def _get_output_paths_by_semantic_type(
         Path uses array notation [0] instead of [].
 
     Example:
-        >>> _get_output_paths_by_semantic_type("email_address", ["contacts"])
+        >>> _get_output_paths_by_semantic_type("email_address", ["contact"])
         [("get_contacts_tool", "contacts[0].emailAddresses[0].value")]
     """
     from src.core.context import get_request_tool_manifests
@@ -531,6 +533,30 @@ def _get_output_paths_by_semantic_type(
     return paths
 
 
+def collect_manifest_param_consumers(manifests: list[Any]) -> dict[str, set[str]]:
+    """Index tools by the semantic types their PARAMETERS declare.
+
+    The manifests' ``semantic_type`` annotations are the live source of truth
+    for what a tool consumes: they are maintained together with the tools
+    (rename-proof) and cover request-scoped tools (MCP, user tools). Callers
+    union this with the ontology's editorial ``used_in_tools`` links, which
+    express usage relations that no single typed parameter can capture.
+
+    Args:
+        manifests: Tool manifests (typically ``get_request_tool_manifests()``).
+
+    Returns:
+        Mapping of semantic type name → set of tool names consuming it.
+    """
+    consumers: dict[str, set[str]] = {}
+    for manifest in manifests:
+        for param in getattr(manifest, "parameters", None) or []:
+            semantic_type = getattr(param, "semantic_type", None)
+            if semantic_type:
+                consumers.setdefault(semantic_type, set()).add(manifest.name)
+    return consumers
+
+
 def generate_semantic_dependencies_for_prompt(
     domains: list[str],
     include_jinja2_patterns: bool = True,
@@ -546,13 +572,13 @@ def generate_semantic_dependencies_for_prompt(
     patterns that the planner can use directly for cross-domain linking.
 
     Args:
-        domains: List of domain names (e.g., ["emails", "contacts"])
+        domains: List of domain names (e.g., ["email", "contact"])
         include_jinja2_patterns: Whether to include Jinja2 reference examples
 
     Returns:
         Formatted string for prompt injection describing semantic dependencies.
 
-    Example output for ["emails", "contacts"]:
+    Example output for ["email", "contact"]:
         - email_address: provided by [contacts], used by [send_email_tool]
           → Example: $steps.get_contacts.contacts[0].emailAddresses[0].value
         - physical_address: provided by [contacts], used by [get_route_tool]
@@ -599,6 +625,14 @@ def generate_semantic_dependencies_for_prompt(
             )
             return SEMANTIC_DEPS_NO_TYPES_FOUND
 
+        # Consumers declared by the live tool manifests (parameter-level
+        # semantic_type), unioned below with the ontology's editorial
+        # used_in_tools links. Empty outside a request lifecycle — the
+        # section then degrades to the ontology-only behaviour.
+        from src.core.context import get_request_tool_manifests
+
+        manifest_consumers = collect_manifest_param_consumers(get_request_tool_manifests())
+
         # Build dependency descriptions
         lines: list[str] = []
 
@@ -612,14 +646,17 @@ def generate_semantic_dependencies_for_prompt(
             # 1. Provided by at least one of the selected domains
             # 2. Used by tools (have consumers)
             providers = [d for d in type_def.source_domains if d in domains]
-            if not providers or not type_def.used_in_tools:
+            consumers = sorted(
+                set(type_def.used_in_tools) | manifest_consumers.get(type_name, set())
+            )
+            if not providers or not consumers:
                 continue
 
             # Format: type_name: provided by [domains], used by [tools]
             providers_str = ", ".join(providers)
-            tools_str = ", ".join(type_def.used_in_tools[:3])  # Limit to 3 tools
-            if len(type_def.used_in_tools) > 3:
-                tools_str += f" (+{len(type_def.used_in_tools) - 3} more)"
+            tools_str = ", ".join(consumers[:3])  # Limit to 3 tools
+            if len(consumers) > 3:
+                tools_str += f" (+{len(consumers) - 3} more)"
 
             line = f"   - {type_name}: provided by [{providers_str}], used by [{tools_str}]"
 
@@ -672,7 +709,7 @@ def get_semantic_provider_tool_names(domains: list[str]) -> set[str]:
     """
     Get tool names that provide cross-domain semantic types for the given domains.
 
-    For multi-domain queries (e.g., ["emails", "contacts"]), identifies tools
+    For multi-domain queries (e.g., ["email", "contact"]), identifies tools
     that PROVIDE data needed by tools in other domains.
 
     This is used by catalogue filtering to protect provider tools from being
@@ -688,7 +725,7 @@ def get_semantic_provider_tool_names(domains: list[str]) -> set[str]:
         Empty set if fewer than 2 domains or on any error.
 
     Example:
-        >>> get_semantic_provider_tool_names(["emails", "contacts"])
+        >>> get_semantic_provider_tool_names(["email", "contact"])
         {"get_contacts_tool"}  # Provides email_address type used by send_email_tool
     """
     if len(domains) < 2:

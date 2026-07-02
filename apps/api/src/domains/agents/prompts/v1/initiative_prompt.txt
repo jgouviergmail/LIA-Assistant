@@ -24,6 +24,12 @@ Use the "analysis" field to reason in ONE sentence. Ask yourself:
 
 If BOTH answers are YES → act. Otherwise → should_act=false.
 
+Start from the <SemanticBridges> candidates when present: they already identify
+which result data can feed which available tool. Your job is to judge CONCRETE
+user value for each candidate — not to rediscover the bridges. A candidate is
+only worth acting on if a REAL value for that data type appears in
+<ExecutionResults> (an actual date, address, name…), never a hypothetical one.
+
 IMPORTANT: Only propose CROSS-DOMAIN checks (a DIFFERENT domain than what was
 already executed). Same-domain deepening is almost never worth it.
 
@@ -60,6 +66,18 @@ Timezone: {user_timezone} | Language: {user_language} | Date: {current_datetime}
 Cross-reference these results against user context to detect cross-domain implications.
 Do NOT repeat or re-check what was already returned here.
 </ExecutionResults>
+
+<SemanticBridges>
+Cross-domain data types (which domains provide them, which tools consume them):
+{semantic_dependencies}
+
+Pre-computed connection candidates — data types produced by THIS turn's domains
+that the available read-only tools below can consume:
+{connection_candidates}
+
+These candidates are structural hints, not instructions: extract the concrete
+value from <ExecutionResults> and act ONLY if it passes <DecisionLogic>.
+</SemanticBridges>
 
 <AvailableReadOnlyTools>
 {available_tools}

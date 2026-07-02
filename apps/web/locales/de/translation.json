@@ -2744,7 +2744,7 @@
         },
         "semanticTypes": {
           "title": "📦 Semantisches Typsystem",
-          "description": "26 semantische Typen in DAG-Hierarchie organisiert (inspiriert von schema.org/RDF/SKOS). Kategorien: Identity, Location, Temporal, ResourceID, Content, Measurement, Status. Zentrales TypeRegistry mit O(1)-Lookups, Wu & Palmer-Distanzberechnung, Subsumtionsvalidierung. Herkunftsverfolgung (source_domains, used_in_tools) für intelligente domainübergreifende Erweiterung."
+          "description": "99 semantische Typen in DAG-Hierarchie organisiert (inspiriert von schema.org/RDF/SKOS). Kategorien: Identity, Location, Temporal, ResourceID, Content, Measurement, Status. Zentrales TypeRegistry mit O(1)-Lookups, Wu & Palmer-Distanzberechnung, Subsumtionsvalidierung. Die Typ↔Tool-Verknüpfungen sind die Vereinigung der redaktionellen Ontologie und der semantic_type-Annotationen der Tool-Manifeste (lebendige, umbenennungssichere Quelle, die auch MCP-Tools abdeckt), mit 5 testgesicherten Integritätssperren gegen jede Abweichung (reale Tool-Namen, Domain-Vokabular, Taxonomie↔Typen-Kohärenz). Diese Verknüpfungen speisen den Planner, die proaktive Initiative und den ReAct-Modus (ADR-090)."
         },
         "semanticValidation": {
           "title": "✅ Semantische Planvalidierung",
@@ -2916,11 +2916,11 @@
         },
         "reactMode": {
           "title": "⚡ ReAct-Ausführungsmodus",
-          "description": "Alternativer Modus zum Pipeline, bei dem der Assistent Schritt für Schritt denkt: Er ruft ein Tool auf, analysiert das Ergebnis und entscheidet dann autonom, was als Nächstes zu tun ist. 4 Custom-Nodes im übergeordneten LangGraph-Graph mit nativer HITL-Unterstützung. Der Pipeline-Modus (Standard) verbraucht 4- bis 8-mal weniger Tokens dank intelligenter Planung und paralleler Ausführung."
+          "description": "Alternativer Modus zum Pipeline, bei dem der Assistent Schritt für Schritt denkt: Er ruft ein Tool auf, analysiert das Ergebnis und entscheidet dann autonom, was als Nächstes zu tun ist. 4 Custom-Nodes im übergeordneten LangGraph-Graph mit nativer HITL-Unterstützung. Der Pipeline-Modus (Standard) verbraucht 4- bis 8-mal weniger Tokens dank intelligenter Planung und paralleler Ausführung. Jede Konversationsrunde startet mit einem sauberen Datenregister (strikte Rundenisolation), und der Agent erhält die domainübergreifende semantische Typkarte mit einer Präzisionsregel: den exakten Wert (die Adresse eines Kontakts) über das Lookup-Tool abrufen statt einer aus dem Gedächtnis erinnerten Näherung."
         },
         "proactiveInitiative": {
           "title": "🎯 Proaktive Initiative",
-          "description": "Nach Abschluss der Hauptanfrage prüft der Assistent, ob die Ergebnisse domainübergreifende Verbindungen offenbaren. Beispiel: Wetter zeigt Regen am Samstag → prüft Kalender auf Outdoor-Aktivitäten. Im Pipeline-Modus führt ein dedizierter Node die LLM-Bewertung nach der Antwort aus. Im ReAct-Modus prüft der Agent auch während seiner eigenen Überlegung (der CROSS-CHECK-Schritt) und — sofern aktiviert — läuft nun derselbe dedizierte Initiative-Node nach der Schleife, sodass beide Modi die proaktive Anreicherung erhalten."
+          "description": "Nach Abschluss der Hauptanfrage prüft der Assistent, ob die Ergebnisse domainübergreifende Verbindungen offenbaren. Beispiel: Wetter zeigt Regen am Samstag → prüft Kalender auf Outdoor-Aktivitäten. Im Pipeline-Modus führt ein dedizierter Node die LLM-Bewertung nach der Antwort aus. Im ReAct-Modus prüft der Agent auch während seiner eigenen Überlegung (der CROSS-CHECK-Schritt) und — sofern aktiviert — läuft nun derselbe dedizierte Initiative-Node nach der Schleife, sodass beide Modi die proaktive Anreicherung erhalten. Die Bewertung erhält vorberechnete Verbindungskandidaten aus dem semantischen Typregister (welche Daten dieser Runde welche angrenzenden Tools speisen können — ADR-090) und bereitet parallel den Kontext der finalen Antwort vor (Gedächtnis, RAG, Journal, Psyche), um die Latenz zu senken (ADR-091)."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -2933,6 +2933,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_0": {
+          "title": "v1.21.0 — ⚡ Schnellere Antworten und treffsichere proaktive Vorschläge",
+          "date": "Juli 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>⚡ Spürbar schnellere Antworten</b> — Große Latenz-Kampagne: reichhaltige Antworten (HTML-Modus) starten 3–4 Sekunden früher, der Kontext der Antwort (Gedächtnis, Dokumente, Journal) wird nun parallel zu den proaktiven Vorschlägen vorbereitet statt zu warten, lange Antworten werden flüssiger dargestellt, und die Verbindungen zu den KI-Modellen werden zwischen den Aufrufen wiederverwendet. Nichts zu konfigurieren: alles läuft automatisch.",
+            "i2": "<b>💡 Treffsichere proaktive Vorschläge</b> — LIA weiß jetzt explizit, welche Daten Ihrer Anfrage welche Tools speisen können (die Adresse eines Kontakts kann eine Route, eine Ortssuche oder das Wetter speisen). Die Initiativen nach einer Antwort werden präziser und besser gezielt — unabhängig vom konfigurierten KI-Modell.",
+            "i3": "<b>🛠️ Keine Daten der vorherigen Runde mehr in der neuen Antwort</b> — Im autonomen Modus (ReAct) konnte z. B. eine Routenanfrage direkt nach Ihren nächsten Terminen diese Termine in der neuen Antwort erneut anzeigen. Jede Konversationsrunde startet jetzt mit einer sauberen Ausgangslage.",
+            "i4": "<b>🎯 Routen zur exakten Adresse Ihrer Kontakte</b> — Im autonomen Modus schlägt LIA jetzt die präzise Adresse des Kontakts in Ihrem Adressbuch nach, bevor eine Route berechnet wird, statt sich mit einer Näherung (etwa der Stadt) aus dem Gedächtnis zu begnügen.",
+            "i5": "<b>🏷️ Skill-Badge für alle sichtbar</b> — Das Badge, das anzeigt, welcher Skill eine Antwort erzeugt hat, wird jetzt allen Nutzern angezeigt; zuvor war es auf Administratorkonten mit Debug-Panel beschränkt."
+          }
+        },
         "v1_20_22": {
           "title": "v1.20.22 — 🛡️ Geplante Aktionen ergänzen Ihr Gedächtnis und Ihre Interessen nicht mehr",
           "date": "Juni 2026",

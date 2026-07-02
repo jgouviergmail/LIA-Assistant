@@ -37,8 +37,7 @@ from src.core.config import settings
 from src.core.constants import DEFAULT_RATE_LIMIT_PER_SECOND
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
-from src.infrastructure.cache.redis import get_redis_session
-from src.infrastructure.rate_limiting import RedisRateLimiter
+from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
 from src.infrastructure.resilience import CircuitBreaker, CircuitBreakerError, get_circuit_breaker
 
 logger = structlog.get_logger(__name__)
@@ -173,14 +172,9 @@ class BaseAPIKeyClient(ABC):
     # =========================================================================
 
     async def _get_redis_rate_limiter(self) -> RedisRateLimiter:
-        """
-        Get or create Redis rate limiter instance.
-
-        Lazy initialization to avoid creating Redis connection if rate limiting is disabled.
-        """
+        """Get the shared Redis rate limiter (module-level singleton, cache DB)."""
         if self._redis_rate_limiter is None:
-            redis = await get_redis_session()
-            self._redis_rate_limiter = RedisRateLimiter(redis)
+            self._redis_rate_limiter = await get_rate_limiter()
         return self._redis_rate_limiter
 
     def _get_rate_limit_key(self) -> str:

@@ -24,7 +24,7 @@ import tiktoken
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.domains.rag_spaces.embedding import get_rag_embeddings
+from src.domains.rag_spaces.embedding import embed_rag_query_cached
 from src.domains.rag_spaces.repository import RAGChunkRepository, RAGSpaceRepository
 from src.infrastructure.llm.embedding_context import (
     clear_embedding_context,
@@ -224,9 +224,9 @@ async def retrieve_rag_context(
     chunk_user_id = None if system_only else user_id
 
     try:
-        # 4. Embed the query
-        embeddings = get_rag_embeddings()
-        query_embedding = await embeddings.aembed_query(query)
+        # 4. Embed the query (TTL cache + single-flight: the user-RAG and
+        # system-RAG retrievals of the same turn share one Gemini call)
+        query_embedding = await embed_rag_query_cached(query)
 
         # 5. Semantic search via pgvector
         semantic_results = await chunk_repo.search_by_similarity(

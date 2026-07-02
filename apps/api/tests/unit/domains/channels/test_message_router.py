@@ -14,7 +14,9 @@ from src.domains.channels.models import ChannelType
 # Patch targets — source modules (lazy imports inside functions)
 _PATCH_DB_CTX = "src.infrastructure.database.session.get_db_context"
 _PATCH_REPO = "src.domains.channels.repository.UserChannelBindingRepository"
-_PATCH_RATE_LIMITER = "src.infrastructure.rate_limiting.redis_limiter.RedisRateLimiter"
+# get_rate_limiter is an async factory: @patch swaps it for an AsyncMock, so
+# `await get_rate_limiter()` yields mock.return_value (the limiter mock).
+_PATCH_RATE_LIMITER = "src.infrastructure.rate_limiting.redis_limiter.get_rate_limiter"
 _PATCH_USER_SERVICE = "src.domains.users.service.UserService"
 _PATCH_CONV_CACHE = "src.infrastructure.cache.conversation_cache.get_conversation_id_cached"
 _PATCH_INBOUND_HANDLER = "src.domains.channels.inbound_handler.InboundMessageHandler"

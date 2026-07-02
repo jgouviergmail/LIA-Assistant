@@ -32,7 +32,12 @@ import { useTranslation } from 'react-i18next';
 import { generateUUID } from '@/lib/utils';
 import { messageRequiresGeolocation } from '@/lib/location-detection';
 import { toast } from 'sonner';
-import { processSSEChunk, SSEHandlerContext } from '@/lib/sse-handlers';
+import {
+  flushTokenBatching,
+  processSSEChunk,
+  resetTokenBatching,
+  SSEHandlerContext,
+} from '@/lib/sse-handlers';
 import { DEBUG_PANEL_TOTAL_WIDTH_PX } from '@/lib/constants';
 
 /**
@@ -132,6 +137,15 @@ export const useChat = ({
     persistDebugMetricsHistory(state.debugMetricsHistory);
   }, [state.debugMetricsHistory]);
 
+  // Latest-state ref for the dev-only dispatch validation below.
+  // The wrapper used to depend on [state] (recreated on every token) while
+  // downstream callbacks exclude `dispatch` from their deps ("stable from
+  // useReducer") — so their captured wrapper validated against a STALE state.
+  // A render-time ref gives a genuinely stable dispatch AND current-state
+  // validation (dispatches come from SSE/browser events, never mid-render).
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   /**
    * Validated dispatch wrapper - logs errors before passing to pure reducer.
    * This maintains reducer purity while enabling error detection.
@@ -140,7 +154,7 @@ export const useChat = ({
     (action: ChatAction) => {
       // Validate action against current state (development only)
       if (process.env.NODE_ENV === 'development') {
-        const errors = validateReducerAction(state, action);
+        const errors = validateReducerAction(stateRef.current, action);
         errors.forEach(validationError => {
           const logContext = {
             errorType: validationError.type,
@@ -167,7 +181,7 @@ export const useChat = ({
       // Pass to pure reducer
       baseDispatch(action);
     },
-    [state]
+    []
   );
 
   // HITL streaming buffer (stores partial questions during progressive rendering)
@@ -349,6 +363,10 @@ export const useChat = ({
       };
 
       try {
+        // Drop any tokens still buffered by a previous (cancelled) stream —
+        // a late animation-frame flush must never leak into this message.
+        resetTokenBatching();
+
         await chatSSEClient.streamChat(
           request,
           // onChunk: Handle each SSE chunk via extracted handlers
@@ -386,6 +404,10 @@ export const useChat = ({
                 component: 'useChat',
               })
             );
+
+            // Show tokens received before the error (pre-batching behavior)
+            // and prevent a late animation-frame flush after SSE_ERROR.
+            flushTokenBatching();
 
             // Transition to error state
             dispatch({

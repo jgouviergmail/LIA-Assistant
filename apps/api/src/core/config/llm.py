@@ -329,6 +329,19 @@ class LLMSettings(BaseSettings):
     )
 
     # ========================================================================
+    # LLM INSTANCE CACHE (TTFT optimization)
+    # ========================================================================
+    llm_instance_cache_enabled: bool = Field(
+        default=True,
+        description=(
+            "Reuse LLM client instances across calls (keyed by fully resolved config). "
+            "Keeps httpx connection pools alive between calls (TCP/TLS keep-alive), "
+            "saving a handshake per LLM call. Disable to fall back to "
+            "one-instance-per-call behavior."
+        ),
+    )
+
+    # ========================================================================
     # LLM PROVIDER CAPABILITIES (LangChain v1.0 Best Practice 2025)
     # ========================================================================
     # Explicitly declare provider capabilities to avoid runtime detection complexity.

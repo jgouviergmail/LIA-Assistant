@@ -259,10 +259,11 @@ class TestBuildForEachDirective:
             cardinality_magnitude=7,
         )
         assert "~7" in result
-        assert 'for_each_max": 7' in result
+        # Directive format is prose-style (for_each_max=N), not JSON-style
+        assert "for_each_max=7" in result
 
     def test_contains_example_structure(self):
-        """Test that directive contains example JSON structure."""
+        """Test that directive contains the mandatory 2-step structure."""
         from src.domains.agents.prompts import _build_for_each_directive
 
         result = _build_for_each_directive(
@@ -270,7 +271,9 @@ class TestBuildForEachDirective:
             for_each_collection_key="places",
             cardinality_magnitude=5,
         )
-        assert '"steps"' in result
+        # Current directive: prose 2-step structure + $steps reference syntax
+        assert "Step 1 = RETRIEVE" in result
+        assert "Step 2 = ACTION" in result
         assert '"for_each"' in result
         assert "$steps.step_1.places" in result
 
@@ -282,9 +285,9 @@ class TestBuildForEachDirective:
         result = _build_for_each_directive(
             for_each_detected=True,
             for_each_collection_key="items",
-            cardinality_magnitude=150,  # Exceeds hard limit of 100
+            cardinality_magnitude=150,  # Exceeds hard limit
         )
         # Should show the original cardinality in hint
         assert "~150" in result
         # But cap for_each_max at hard limit for valid schema
-        assert f'for_each_max": {FOR_EACH_MAX_HARD_LIMIT}' in result
+        assert f"for_each_max={FOR_EACH_MAX_HARD_LIMIT}" in result

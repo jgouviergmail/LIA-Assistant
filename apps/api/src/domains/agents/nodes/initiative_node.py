@@ -189,6 +189,21 @@ def _extract_original_query(state: MessagesState) -> str:
     return ""
 
 
+def _manifest_domain(manifest: Any) -> str:
+    """Extract the owning domain name from a tool manifest.
+
+    Args:
+        manifest: Tool manifest with an ``agent`` attribute (e.g. "places_agent").
+
+    Returns:
+        Domain name (agent name without the "_agent" suffix), or "unknown".
+    """
+    agent = getattr(manifest, "agent", None)
+    if agent:
+        return str(agent).removesuffix("_agent")
+    return "unknown"
+
+
 def _get_adjacent_read_only_manifests(
     executed_domains: list[str],
 ) -> list[Any]:
@@ -228,14 +243,115 @@ def _get_adjacent_read_only_manifests(
 
     manifests = get_request_tool_manifests()
 
-    def _extract_domain(m: Any) -> str:
-        if hasattr(m, "agent") and m.agent:
-            return m.agent.removesuffix("_agent")
-        return "unknown"
-
     return [
-        m for m in manifests if is_initiative_eligible(m) and _extract_domain(m) in target_domains
+        m for m in manifests if is_initiative_eligible(m) and _manifest_domain(m) in target_domains
     ]
+
+
+def _build_semantic_context(
+    executed_domains: list[str],
+    adjacent_manifests: list[Any],
+) -> tuple[str, str]:
+    """Build semantic type context for the initiative prompt.
+
+    Reuses the SemanticExpansionService TypeRegistry (the same ontology the
+    planner relies on for cross-domain linking) to give the initiative LLM
+    explicit bridges instead of forcing it to infer every connection alone.
+
+    Args:
+        executed_domains: Domains used in the execution plan this turn.
+        adjacent_manifests: Read-only tool manifests from adjacent domains.
+
+    Returns:
+        Tuple ``(semantic_dependencies, connection_candidates)``:
+
+        - ``semantic_dependencies``: generic cross-domain type map covering
+          executed + adjacent domains (same section the planner receives,
+          without Jinja2 patterns — initiative actions use literal values).
+        - ``connection_candidates``: directional bridges pre-computed from
+          the registry — types PROVIDED by the executed domains that are
+          CONSUMED by adjacent read-only tools actually available this turn.
+          This removes the hardest inference step (spotting the bridge) from
+          the LLM, which only has to judge concrete user value.
+
+        Both degrade gracefully to neutral fallback strings when semantic
+        linking is disabled or the registry fails — never an exception.
+    """
+    from src.core.constants import (
+        SEMANTIC_CANDIDATES_MAX_LINES,
+        SEMANTIC_CANDIDATES_MAX_TOOLS_PER_TYPE,
+        SEMANTIC_CANDIDATES_NONE,
+        SEMANTIC_DEPS_NO_CROSS_DOMAIN,
+    )
+
+    if not settings.semantic_linking_enabled:
+        return SEMANTIC_DEPS_NO_CROSS_DOMAIN, SEMANTIC_CANDIDATES_NONE
+
+    dependencies = SEMANTIC_DEPS_NO_CROSS_DOMAIN
+    candidates = SEMANTIC_CANDIDATES_NONE
+    try:
+        from src.domains.agents.semantic.expansion_service import (
+            collect_manifest_param_consumers,
+            generate_semantic_dependencies_for_prompt,
+            get_expansion_service,
+        )
+
+        adjacent_domains = sorted({_manifest_domain(m) for m in adjacent_manifests} - {"unknown"})
+        dependencies = generate_semantic_dependencies_for_prompt(
+            [*executed_domains, *adjacent_domains],
+            include_jinja2_patterns=False,
+        )
+
+        registry = get_expansion_service().registry
+        adjacent_tool_names = {m.name for m in adjacent_manifests}
+        executed_set = set(executed_domains)
+
+        # Manifest-declared consumers (live source of truth), unioned below
+        # with the ontology's editorial used_in_tools links.
+        manifest_consumers = collect_manifest_param_consumers(adjacent_manifests)
+
+        produced_types: set[str] = set()
+        for domain in executed_domains:
+            produced_types |= registry.get_by_domain(domain)
+
+        lines: list[str] = []
+        for type_name in sorted(produced_types):
+            type_def = registry.get(type_name)
+            if not type_def:
+                continue
+            consumers = sorted(
+                (set(type_def.used_in_tools) | manifest_consumers.get(type_name, set()))
+                & adjacent_tool_names
+            )
+            if not consumers:
+                continue
+            providers = [d for d in type_def.source_domains if d in executed_set]
+            providers_str = ", ".join(providers) if providers else "execution"
+            # Prompt-size guard: same 3-tool truncation as the planner's
+            # semantic dependencies section.
+            tools_str = ", ".join(consumers[:SEMANTIC_CANDIDATES_MAX_TOOLS_PER_TYPE])
+            if len(consumers) > SEMANTIC_CANDIDATES_MAX_TOOLS_PER_TYPE:
+                tools_str += f" (+{len(consumers) - SEMANTIC_CANDIDATES_MAX_TOOLS_PER_TYPE} more)"
+            lines.append(
+                f"- {type_name} (from {providers_str} results) → consumable by: {tools_str}"
+            )
+        if len(lines) > SEMANTIC_CANDIDATES_MAX_LINES:
+            dropped = len(lines) - SEMANTIC_CANDIDATES_MAX_LINES
+            lines = lines[:SEMANTIC_CANDIDATES_MAX_LINES]
+            lines.append(f"(+{dropped} more candidate types omitted)")
+        if lines:
+            candidates = "\n".join(lines)
+
+        logger.debug(
+            "initiative_semantic_context_built",
+            executed_domains=executed_domains,
+            adjacent_domains=adjacent_domains,
+            candidate_count=len(lines),
+        )
+    except Exception as exc:
+        logger.warning("initiative_semantic_context_failed", error=str(exc))
+
+    return dependencies, candidates
 
 
 def _validate_read_only(
@@ -502,6 +618,16 @@ async def initiative_node(
     _initiative_start = _time.perf_counter()
     execution_mode = state.get("execution_mode", "pipeline")
 
+    # Latency overlap: prefetch the response node's user-context injections
+    # (memory, RAG, journal, portrait, psyche) concurrently with this node's
+    # LLM evaluation — they depend only on the user message, never on tool
+    # or initiative results. The response node pops the bundle; on any miss
+    # it falls back to the identical inline fetch. Idempotent per run_id
+    # (safe across pipeline initiative loop iterations).
+    from src.domains.agents.services.response_context import start_response_context_prefetch
+
+    start_response_context_prefetch(state, config, run_id)
+
     # ── 1b. Skip after HITL resolution (accept/refuse) ──────────────
     # When the user just approved or refused a draft, disambiguation, or tool
     # confirmation, running initiative is pointless — the user already made an
@@ -587,6 +713,9 @@ async def initiative_node(
     tools_description = _format_tools_for_prompt(adjacent_manifests)
     memory_text = _format_memory_facts(memory_facts)
     interests_text = _format_interests(interest_profile)
+    semantic_dependencies, connection_candidates = _build_semantic_context(
+        executed_domains, adjacent_manifests
+    )
 
     llm = get_llm(NODE_INITIATIVE)
     agent_config = get_llm_config_for_agent(settings, NODE_INITIATIVE)
@@ -597,6 +726,8 @@ async def initiative_node(
         available_tools=tools_description,
         memory_facts=memory_text,
         user_interests=interests_text,
+        semantic_dependencies=semantic_dependencies,
+        connection_candidates=connection_candidates,
         user_language=user_language,
         user_timezone=user_timezone,
         original_query=original_query,

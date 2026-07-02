@@ -15,7 +15,7 @@ import time
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from redis.exceptions import RedisError
+from redis.exceptions import NoScriptError, RedisError
 
 from src.infrastructure.rate_limiting import RedisRateLimiter
 
@@ -141,6 +141,50 @@ class TestRedisRateLimiter:
 
         # Fail open - allow request despite error
         assert result is True
+
+    @pytest.mark.asyncio
+    async def test_acquire_noscript_reloads_and_retries(self, limiter, mock_redis):
+        """
+        Test recovery when Redis script cache was flushed (NOSCRIPT).
+
+        After a Redis restart the cached SHA is stale: evalsha raises
+        NoScriptError. The limiter must reload the script and retry once,
+        instead of failing open forever with the stale SHA.
+        """
+        mock_redis.evalsha.side_effect = [NoScriptError("NOSCRIPT"), 1]
+
+        result = await limiter.acquire(
+            key="user:123:test",
+            max_calls=20,
+            window_seconds=60,
+        )
+
+        # Retry succeeded → request allowed via the real script result
+        assert result is True
+        # Initial load + reload after NOSCRIPT
+        assert mock_redis.script_load.call_count == 2
+        # First evalsha (NOSCRIPT) + retried evalsha
+        assert mock_redis.evalsha.call_count == 2
+        # SHA cache repopulated for subsequent calls
+        assert limiter.script_sha == "mock_script_sha"
+
+    @pytest.mark.asyncio
+    async def test_acquire_noscript_persistent_fails_open(self, limiter, mock_redis):
+        """
+        Test that a persistent NOSCRIPT (retry also fails) falls back to
+        the standard fail-open behavior (NoScriptError is a RedisError).
+        """
+        mock_redis.evalsha.side_effect = NoScriptError("NOSCRIPT")
+
+        result = await limiter.acquire(
+            key="user:123:test",
+            max_calls=20,
+            window_seconds=60,
+        )
+
+        # Fail open, but only after one reload + retry attempt
+        assert result is True
+        assert mock_redis.evalsha.call_count == 2
 
     @pytest.mark.asyncio
     async def test_get_current_usage(self, limiter, mock_redis):
@@ -337,3 +381,32 @@ class TestRedisRateLimiterEdgeCases:
         assert call1_key == "user:123:contacts"
         assert call2_key == "user:456:contacts"
         assert call3_key == "user:123:gmail"
+
+
+class TestSharedRateLimiterSingleton:
+    """Tests for the module-level get_rate_limiter() singleton."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_singleton(self):
+        """Isolate each test from the module-level singleton."""
+        from src.infrastructure.rate_limiting import redis_limiter as module
+
+        module._shared_limiter = None
+        yield
+        module._shared_limiter = None
+
+    @pytest.mark.asyncio
+    async def test_get_rate_limiter_returns_same_instance(self):
+        """Two calls share ONE limiter (and thus one cached script SHA)."""
+        mock_redis = AsyncMock()
+        with patch(
+            "src.infrastructure.cache.redis.get_redis_cache",
+            new=AsyncMock(return_value=mock_redis),
+        ):
+            from src.infrastructure.rate_limiting import get_rate_limiter
+
+            first = await get_rate_limiter()
+            second = await get_rate_limiter()
+
+        assert first is second
+        assert first.redis is mock_redis

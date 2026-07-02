@@ -130,8 +130,18 @@ class TestAccessibilityTreeExtractor:
         assert "required" in result
         assert "disabled" in result
 
-    def test_format_truncation(self):
-        """Output is truncated when exceeding token budget."""
+    def test_format_truncation(self, monkeypatch):
+        """Output is truncated when exceeding token budget.
+
+        The budget is pinned via monkeypatch (environment-hermetic): the
+        Taskfile exports the developer's root .env, so a locally raised
+        BROWSER_AX_TREE_MAX_TOKENS (e.g. 30000) would otherwise make 500
+        nodes fit the budget and the truncation marker never appear.
+        """
+        from src.core.config import settings
+
+        monkeypatch.setattr(settings, "browser_ax_tree_max_tokens", 5000)
+
         # Create many nodes to exceed budget
         nodes = [
             AXNode(node_id=str(i), role="button", name=f"Button {i}" * 20, ref=f"E{i}")

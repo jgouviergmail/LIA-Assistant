@@ -657,6 +657,16 @@ class SmartPlannerService:
                 error_type=type(exc).__name__,
             )
         if response is None:
+            # Silent-double-call guard: the stream completed without a terminal
+            # output, so this ainvoke is a SECOND full LLM call. This path is
+            # healthy today (raw LLM, proven capture) — if this warning ever
+            # fires, a provider/model/langchain change broke the capture.
+            logger.warning(
+                "planner_reasoning_stream_no_output_double_call",
+                node=node_name,
+                msg="Reasoning stream yielded no terminal output — falling back "
+                "to a second full LLM call (double cost/latency)",
+            )
             response = await llm.ainvoke(messages, config=config)
         return response
 

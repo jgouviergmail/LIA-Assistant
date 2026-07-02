@@ -305,3 +305,180 @@ class TestReasoningEmitParity:
             )
         assert result == _DECISION
         assert llm.structured.ainvoke_calls == 1  # plain ainvoke path, unchanged
+
+
+# =============================================================================
+# Negative cache: broken (provider, model, path) combinations
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def _clean_reasoning_negative_cache():
+    """Isolate every test in this module from the learned broken combinations."""
+    from src.infrastructure.llm.structured_output import (
+        reset_reasoning_stream_negative_cache,
+    )
+
+    reset_reasoning_stream_negative_cache()
+    yield
+    reset_reasoning_stream_negative_cache()
+
+
+class _FakeBrokenStreamStructuredLLM:
+    """Structured runnable whose ``astream_events`` yields NO terminal event.
+
+    Reproduces the buffering behavior observed in prod on the deepseek
+    ``with_structured_output`` path (reasoning chunks only, no root
+    ``on_chain_end`` / ``on_chat_model_end``) — the trigger of the silent
+    second full LLM call.
+    """
+
+    def __init__(self) -> None:
+        self.astream_calls = 0
+        self.ainvoke_calls = 0
+
+    async def astream_events(self, _messages: Any, **_kw: Any) -> AsyncIterator[dict[str, Any]]:
+        self.astream_calls += 1
+        yield {
+            "event": "on_chat_model_stream",
+            "data": {
+                "chunk": AIMessageChunk(content="", additional_kwargs={"reasoning_content": "x"})
+            },
+            "parent_ids": ["root"],
+        }
+
+    async def ainvoke(self, _messages: Any, **_kw: Any) -> SimpleDecision:
+        self.ainvoke_calls += 1
+        return _DECISION
+
+
+class _FakeBrokenNativeLLM:
+    def __init__(self, model_name: str = "fake-broken-model") -> None:
+        self.model_name = model_name
+        self.structured = _FakeBrokenStreamStructuredLLM()
+
+    def with_structured_output(self, _schema: Any, **_kw: Any) -> _FakeBrokenStreamStructuredLLM:
+        return self.structured
+
+
+class _FakeBrokenJsonModeLLM:
+    """Raw LLM (JSON-mode path) whose stream yields no terminal event."""
+
+    def __init__(self, model_name: str = "fake-broken-json-model") -> None:
+        self.model_name = model_name
+        self.astream_calls = 0
+        self.ainvoke_calls = 0
+
+    async def astream_events(self, _messages: Any, **_kw: Any) -> AsyncIterator[dict[str, Any]]:
+        self.astream_calls += 1
+        yield {
+            "event": "on_chat_model_stream",
+            "data": {
+                "chunk": AIMessageChunk(content="", additional_kwargs={"reasoning_content": "x"})
+            },
+            "parent_ids": ["root"],
+        }
+
+    async def ainvoke(self, _messages: Any, **_kw: Any) -> AIMessageChunk:
+        self.ainvoke_calls += 1
+        return AIMessageChunk(content=_DECISION_JSON)
+
+
+async def _run_native(llm: Any) -> SimpleDecision:
+    with patch("src.infrastructure.llm.structured_output.settings") as s:
+        s.provider_supports_structured_output = {"anthropic": True}
+        return await get_structured_output(
+            llm=llm,
+            messages=[HumanMessage(content="x")],
+            schema=SimpleDecision,
+            provider="anthropic",
+            reasoning_emit=lambda _t: None,
+        )
+
+
+@pytest.mark.asyncio
+class TestReasoningStreamNegativeCache:
+    async def test_broken_native_stream_double_calls_once_then_caches(self) -> None:
+        """First call pays the double call (stream + ainvoke) and marks the
+        combination; subsequent calls SKIP the stream (single call)."""
+        llm = _FakeBrokenNativeLLM()
+
+        first = await _run_native(llm)
+        assert first == _DECISION  # result still correct via fallback
+        assert llm.structured.astream_calls == 1  # stream attempted once
+        assert llm.structured.ainvoke_calls == 1  # + fallback = double call
+
+        second = await _run_native(llm)
+        assert second == _DECISION
+        assert llm.structured.astream_calls == 1  # stream NOT re-attempted
+        assert llm.structured.ainvoke_calls == 2  # single buffered call
+
+    async def test_negative_cache_is_model_scoped(self) -> None:
+        """A different model of the same provider re-probes the stream."""
+        broken_a = _FakeBrokenNativeLLM(model_name="model-a")
+        await _run_native(broken_a)
+        assert broken_a.structured.astream_calls == 1
+
+        broken_b = _FakeBrokenNativeLLM(model_name="model-b")
+        await _run_native(broken_b)
+        # model-b is a different cache key → the stream IS attempted
+        assert broken_b.structured.astream_calls == 1
+        assert broken_b.structured.ainvoke_calls == 1
+
+    async def test_healthy_native_stream_is_never_cached(self) -> None:
+        """A working stream (terminal output present) never enters the cache."""
+        llm = _FakeNativeLLM()
+        with patch("src.infrastructure.llm.structured_output.settings") as s:
+            s.provider_supports_structured_output = {"anthropic": True}
+            for _ in range(2):
+                result = await get_structured_output(
+                    llm=llm,  # type: ignore[arg-type]
+                    messages=[HumanMessage(content="x")],
+                    schema=SimpleDecision,
+                    provider="anthropic",
+                    reasoning_emit=lambda _t: None,
+                )
+                assert result == _DECISION
+        assert llm.structured.ainvoke_calls == 0  # streaming used both times
+
+    async def test_broken_json_mode_stream_caches_too(self) -> None:
+        """The JSON-mode buffered path gets the same protection."""
+        llm = _FakeBrokenJsonModeLLM()
+        with (
+            patch("src.infrastructure.llm.structured_output.settings") as s,
+            patch(
+                "src.infrastructure.llm.structured_output._is_v4_thinking_enabled",
+                return_value=True,
+            ),
+        ):
+            s.provider_supports_structured_output = {"deepseek": True}
+            for _ in range(2):
+                result = await get_structured_output(
+                    llm=llm,  # type: ignore[arg-type]
+                    messages=[HumanMessage(content="x")],
+                    schema=SimpleDecision,
+                    provider="deepseek",
+                    reasoning_emit=lambda _t: None,
+                )
+                assert result == _DECISION
+
+        assert llm.astream_calls == 1  # attempted once, then skipped
+        assert llm.ainvoke_calls == 2  # fallback (1st) + direct buffered (2nd)
+
+    async def test_auto_tool_miss_is_not_negative_cached(self) -> None:
+        """A declined auto-tool call is per-request variability, NOT structural:
+        the auto-tool path must be re-attempted on the next call."""
+        llm = _FakeOpenAIAutoToolLLM(emit_tool_call=False)
+        with patch("src.infrastructure.llm.structured_output.settings") as s:
+            s.provider_supports_structured_output = {"openai": True}
+            for _ in range(2):
+                result = await get_structured_output(
+                    llm=llm,  # type: ignore[arg-type]
+                    messages=[HumanMessage(content="x")],
+                    schema=SimpleDecision,
+                    provider="openai",
+                    reasoning_emit=lambda _t: None,
+                )
+                assert result == _DECISION
+
+        assert llm.bind_calls == 2  # auto-tool re-attempted on the 2nd call

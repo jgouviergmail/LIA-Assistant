@@ -66,7 +66,7 @@ perplexity_search_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(
-            path="answer", type="string", description="Synthesized answer", semantic_type="text"
+            path="answer", type="string", description="Synthesized answer", semantic_type="Text"
         ),
         OutputFieldSchema(path="citations", type="array", description="Sources"),
         OutputFieldSchema(
@@ -134,7 +134,7 @@ perplexity_ask_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(
-            path="answer", type="string", description="Detailed answer", semantic_type="text"
+            path="answer", type="string", description="Detailed answer", semantic_type="Text"
         ),
         OutputFieldSchema(path="citations", type="array", description="Sources"),
         OutputFieldSchema(

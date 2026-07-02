@@ -6,7 +6,7 @@
 
 **Version**: 2.4
 **Date**: 2026-05-08
-**Application**: LIA v1.20.22
+**Application**: LIA v1.21.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 400+ Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 81 ADRs, ~10,000 pytest-collected tests across 484 files, native observability, 6-level HITL |
+| Production reliability | 91 ADRs, ~10,000 pytest-collected tests across 484 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -949,7 +949,7 @@ LIA accepts external event ingestions (iPhone Apple Health samples, third-party 
 
 ## 24. Architecture Decision Records (ADR)
 
-81 ADRs in MADR format document the major architectural decisions. Some representative examples:
+91 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1032,10 +1032,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 81 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~10,000 tests across 484 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 91 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~10,000 tests across 484 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 81 ADRs, and the changelog (v1.0 to v1.20.22). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 91 ADRs, and the changelog (v1.0 to v1.21.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

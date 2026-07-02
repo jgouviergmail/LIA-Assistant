@@ -40,7 +40,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import structlog
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from src.core.field_names import FIELD_ERROR_CODE, FIELD_TIMESTAMP
 
@@ -133,15 +133,6 @@ class ToolResponse(BaseModel):
     error_code: ToolErrorCode | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-    @field_validator("error", FIELD_ERROR_CODE)
-    @classmethod
-    def validate_error_consistency(cls, v: Any, info: Any) -> Any:
-        """Validate that error and error_code are consistent with success"""
-        if info.data.get("success") is False and v is None:
-            # If success=False, error or error_code should be provided
-            pass  # We allow None, the validator will call to_error() if needed
-        return v
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         """Override to ensure LangChain-compatible dict format"""
@@ -494,16 +485,28 @@ def parse_list_field(
         return []
 
     items: list[M] = []
+    skipped = 0
     for item in data:
         if not isinstance(item, dict):
+            skipped += 1
             continue
         if required_key is not None and required_key not in item:
+            skipped += 1
             continue
         try:
             items.append(model_class(**item))
         except Exception:
-            # Skip invalid items silently (matches existing behavior)
+            # Skip invalid items (matches existing behavior), but keep a trace
+            skipped += 1
             continue
+
+    if skipped:
+        logger.debug(
+            "parse_list_field_items_skipped",
+            model=model_class.__name__,
+            skipped_count=skipped,
+            parsed_count=len(items),
+        )
 
     return items
 

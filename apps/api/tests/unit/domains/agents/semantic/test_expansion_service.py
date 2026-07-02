@@ -430,6 +430,89 @@ class TestGenerateSemanticDependenciesForPrompt:
 
         assert isinstance(result, str)
 
+    def test_manifest_param_consumers_union_into_output(self, monkeypatch):
+        """Consumers declared by request manifests (parameter semantic_type)
+        are unioned with the ontology's used_in_tools in the rendered lines."""
+        from unittest.mock import MagicMock
+
+        import src.core.context as ctx_mod
+        from src.core.config import settings as real_settings
+        from src.domains.agents.semantic.expansion_service import (
+            generate_semantic_dependencies_for_prompt,
+        )
+
+        monkeypatch.setattr(real_settings, "semantic_linking_enabled", True, raising=False)
+
+        param = MagicMock()
+        param.semantic_type = "physical_address"
+        manifest = MagicMock()
+        manifest.name = "get_current_weather_tool"  # NOT in ontology used_in_tools
+        manifest.parameters = [param]
+        monkeypatch.setattr(ctx_mod, "get_request_tool_manifests", lambda: [manifest])
+
+        result = generate_semantic_dependencies_for_prompt(
+            ["contact"], include_jinja2_patterns=False
+        )
+
+        assert "physical_address" in result
+        assert "get_current_weather_tool" in result
+
+    def test_degrades_to_ontology_only_outside_request(self, monkeypatch):
+        """Outside a request lifecycle (no manifests), the ontology links
+        still render — historical behaviour preserved."""
+        import src.core.context as ctx_mod
+        from src.core.config import settings as real_settings
+        from src.domains.agents.semantic.expansion_service import (
+            generate_semantic_dependencies_for_prompt,
+        )
+
+        monkeypatch.setattr(real_settings, "semantic_linking_enabled", True, raising=False)
+        monkeypatch.setattr(ctx_mod, "get_request_tool_manifests", lambda: [])
+
+        result = generate_semantic_dependencies_for_prompt(
+            ["contact"], include_jinja2_patterns=False
+        )
+
+        assert "physical_address" in result  # ontology used_in_tools still rendered
+
+
+class TestCollectManifestParamConsumers:
+    """Tests for collect_manifest_param_consumers helper."""
+
+    def test_indexes_tools_by_param_semantic_type(self):
+        from unittest.mock import MagicMock
+
+        from src.domains.agents.semantic.expansion_service import (
+            collect_manifest_param_consumers,
+        )
+
+        p1 = MagicMock()
+        p1.semantic_type = "physical_address"
+        p2 = MagicMock()
+        p2.semantic_type = None  # untyped param ignored
+        m1 = MagicMock()
+        m1.name = "get_route_tool"
+        m1.parameters = [p1, p2]
+        m2 = MagicMock()
+        m2.name = "get_places_tool"
+        m2.parameters = [p1]
+
+        result = collect_manifest_param_consumers([m1, m2])
+
+        assert result == {"physical_address": {"get_route_tool", "get_places_tool"}}
+
+    def test_handles_manifests_without_parameters(self):
+        from unittest.mock import MagicMock
+
+        from src.domains.agents.semantic.expansion_service import (
+            collect_manifest_param_consumers,
+        )
+
+        m = MagicMock()
+        m.parameters = None
+        assert collect_manifest_param_consumers([m]) == {}
+        assert collect_manifest_param_consumers([]) == {}
+
 
 class TestGenerateJinja2Suggestions:
     """Tests for generate_jinja2_suggestions helper."""

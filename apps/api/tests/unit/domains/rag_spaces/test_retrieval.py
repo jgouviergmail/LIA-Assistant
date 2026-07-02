@@ -330,8 +330,8 @@ class TestRetrieveRagContext:
                 return_value=mock_chunk_repo,
             ),
             patch(
-                "src.domains.rag_spaces.retrieval.get_rag_embeddings",
-                return_value=mock_embeddings,
+                "src.domains.rag_spaces.retrieval.embed_rag_query_cached",
+                mock_embeddings.aembed_query,
             ),
             patch(
                 "src.infrastructure.cache.redis.get_redis_cache",
@@ -430,8 +430,8 @@ class TestRetrieveRagContext:
                 return_value=mock_chunk_repo,
             ),
             patch(
-                "src.domains.rag_spaces.retrieval.get_rag_embeddings",
-                return_value=mock_embeddings,
+                "src.domains.rag_spaces.retrieval.embed_rag_query_cached",
+                mock_embeddings.aembed_query,
             ),
             patch(
                 "src.infrastructure.cache.redis.get_redis_cache",
@@ -499,8 +499,8 @@ class TestRetrieveRagContext:
             ),
             patch("src.domains.rag_spaces.retrieval.RAGChunkRepository"),
             patch(
-                "src.domains.rag_spaces.retrieval.get_rag_embeddings",
-                return_value=mock_embeddings,
+                "src.domains.rag_spaces.retrieval.embed_rag_query_cached",
+                mock_embeddings.aembed_query,
             ),
             patch(
                 "src.infrastructure.cache.redis.get_redis_cache",
@@ -570,8 +570,8 @@ class TestRetrieveRagContext:
                 return_value=mock_chunk_repo,
             ),
             patch(
-                "src.domains.rag_spaces.retrieval.get_rag_embeddings",
-                return_value=mock_embeddings,
+                "src.domains.rag_spaces.retrieval.embed_rag_query_cached",
+                mock_embeddings.aembed_query,
             ),
             patch(
                 "src.infrastructure.cache.redis.get_redis_cache",
@@ -644,8 +644,8 @@ class TestRetrieveRagContext:
                 return_value=mock_chunk_repo,
             ),
             patch(
-                "src.domains.rag_spaces.retrieval.get_rag_embeddings",
-                return_value=mock_embeddings,
+                "src.domains.rag_spaces.retrieval.embed_rag_query_cached",
+                mock_embeddings.aembed_query,
             ),
             patch(
                 "src.infrastructure.cache.redis.get_redis_cache",
@@ -709,8 +709,8 @@ class TestRetrieveRagContext:
                 return_value=mock_chunk_repo,
             ),
             patch(
-                "src.domains.rag_spaces.retrieval.get_rag_embeddings",
-                return_value=mock_embeddings,
+                "src.domains.rag_spaces.retrieval.embed_rag_query_cached",
+                mock_embeddings.aembed_query,
             ),
             patch(
                 "src.infrastructure.cache.redis.get_redis_cache",

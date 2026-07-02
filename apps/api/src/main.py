@@ -1314,10 +1314,10 @@ async def root() -> dict[str, str | None]:
     """Root endpoint with API information."""
     return {
         "name": "LIA API",
-        "version": "0.1.0",
+        "version": API_VERSION,
         FIELD_STATUS: "operational",
         "environment": settings.environment,
-        "docs": f"{settings.api_prefix}/docs" if not settings.is_production else None,
+        "docs": "/docs" if not settings.is_production else None,
     }
 
 

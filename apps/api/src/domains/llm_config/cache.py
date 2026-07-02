@@ -84,6 +84,18 @@ class LLMConfigOverrideCache:
         cls._provider_keys = provider_keys
         cls._loaded = True
 
+        # Drop cached LLM client instances: API keys are resolved at instance
+        # creation time, so a key change is invisible to the config-based
+        # cache key — a full clear guarantees the next get_llm() picks the
+        # fresh key. Local import to avoid a module-import cycle
+        # (factory → providers.adapter → llm_config.cache).
+        try:
+            from src.infrastructure.llm.factory import clear_llm_instance_cache
+
+            clear_llm_instance_cache()
+        except Exception:
+            logger.warning("llm_instance_cache_clear_failed", exc_info=True)
+
         logger.info(
             "llm_config_cache_loaded",
             overrides_count=len(overrides),

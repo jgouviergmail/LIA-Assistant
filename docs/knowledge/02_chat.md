@@ -194,6 +194,8 @@ The assistant **reasons step by step**: it calls a tool, analyzes the result, th
 
 **Your skills and MCP tools** work in both modes. The toggle preference is saved automatically.
 
+**🎯 Precise values, clean turns** — in ReAct mode, each conversation turn starts from a clean slate (data from a previous request never reappears in the next answer), and the assistant fetches exact values from your data before acting: asking for directions to a contact looks up their precise address in your address book rather than settling for an approximation remembered from earlier conversations.
+
 **🛡️ Sensitive actions are confirmed in both modes** — creating, modifying, replying/forwarding or deleting (events, emails, contacts, tasks, files, labels) always shows a confirmation card and is only carried out **after you approve it** (you can also edit or cancel). This is the same protection in Pipeline and ReAct mode — ReAct never performs a mutation silently. Reminders are created instantly, without a confirmation step, in both modes.
 
 ## How do I copy a message or code, and are math formulas rendered correctly?

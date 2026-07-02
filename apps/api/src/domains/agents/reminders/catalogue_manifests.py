@@ -222,7 +222,7 @@ list_reminders_catalogue_manifest = ToolManifest(
             path="reminders[].content",
             type="string",
             description="Reminder content",
-            semantic_type="text",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="reminders[].trigger_at_formatted",
@@ -319,7 +319,7 @@ cancel_reminder_catalogue_manifest = ToolManifest(
             path="content",
             type="string",
             description="Content of cancelled reminder",
-            semantic_type="text",
+            semantic_type="Text",
         ),
         OutputFieldSchema(
             path="message",

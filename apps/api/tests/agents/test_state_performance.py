@@ -21,6 +21,8 @@ from langchain_core.messages import (
     ToolMessage,
 )
 
+import src.domains.agents.models as models_module
+from src.core.config import settings
 from src.domains.agents.models import (
     add_messages_with_truncate,
     create_initial_state,
@@ -246,7 +248,8 @@ class TestStateSchema:
         assert state["current_turn_id"] == 0
         assert state["user_timezone"] == "America/New_York"
         assert state["user_language"] == "en"
-        assert state["_schema_version"] == "1.0"
+        # Read the version from the code (never hardcode — it drifts on bumps)
+        assert state["_schema_version"] == models_module.CURRENT_SCHEMA_VERSION
 
     def test_schema_version_tracking(self):
         """Test schema version is properly tracked."""
@@ -254,7 +257,7 @@ class TestStateSchema:
             user_id="test-user", session_id="test-session", run_id="test-run"
         )
 
-        assert state["_schema_version"] == "1.0"
+        assert state["_schema_version"] == models_module.CURRENT_SCHEMA_VERSION
 
 
 class TestTruncationEdgeCases:
@@ -356,3 +359,86 @@ class TestStateManagementIntegration:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])
+
+
+class TestTokenCountMemoization:
+    """Tests for the per-message token-count cache used by the reducer."""
+
+    @pytest.fixture(autouse=True)
+    def _clean_cache(self):
+        """Isolate each test from cached token counts."""
+        models_module._token_count_cache.clear()
+        yield
+        models_module._token_count_cache.clear()
+
+    def test_memoized_count_matches_fresh_count(self):
+        """The cached count is identical to a fresh tiktoken encode."""
+        import tiktoken
+
+        encoding = tiktoken.get_encoding(settings.token_encoding_name)
+        message = HumanMessage(content="Bonjour, peux-tu lister mes contacts ?", id="msg-1")
+
+        fresh = len(encoding.encode(message.content))
+        first = models_module._count_message_tokens(message, encoding)
+        second = models_module._count_message_tokens(message, encoding)
+
+        assert first == fresh
+        assert second == fresh
+        assert models_module._token_count_cache["msg-1"] == (len(message.content), fresh)
+
+    def test_reducer_result_identical_across_repeated_invocations(self):
+        """Running the reducer twice on the same history yields the same result
+        (second run served from the memoization cache)."""
+        messages = [
+            HumanMessage(content=f"Question numéro {i} avec un peu de contenu", id=f"h-{i}")
+            for i in range(20)
+        ]
+
+        first_run = add_messages_with_truncate(messages, [])
+        second_run = add_messages_with_truncate(messages, [])
+
+        assert [m.content for m in first_run] == [m.content for m in second_run]
+        # Cache was populated by the first run
+        assert len(models_module._token_count_cache) > 0
+
+    def test_content_length_guard_invalidates_stale_entry(self):
+        """A message with the same id but different content length is recounted."""
+        import tiktoken
+
+        encoding = tiktoken.get_encoding(settings.token_encoding_name)
+
+        short = HumanMessage(content="court", id="same-id")
+        long = HumanMessage(content="un contenu nettement plus long que le premier", id="same-id")
+
+        short_count = models_module._count_message_tokens(short, encoding)
+        long_count = models_module._count_message_tokens(long, encoding)
+
+        assert long_count == len(encoding.encode(long.content))
+        assert long_count != short_count
+
+    def test_message_without_id_is_not_cached(self):
+        """Messages lacking an id are counted directly, never cached."""
+        import tiktoken
+
+        encoding = tiktoken.get_encoding(settings.token_encoding_name)
+        message = HumanMessage(content="sans identifiant")
+        message.id = None
+
+        count = models_module._count_message_tokens(message, encoding)
+
+        assert count == len(encoding.encode(message.content))
+        assert models_module._token_count_cache == {}
+
+    def test_cache_is_bounded(self):
+        """The cache never exceeds REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE."""
+        import tiktoken
+
+        from src.core.constants import REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE
+
+        encoding = tiktoken.get_encoding(settings.token_encoding_name)
+        for i in range(REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE + 50):
+            models_module._count_message_tokens(
+                HumanMessage(content=f"message {i}", id=f"bulk-{i}"), encoding
+            )
+
+        assert len(models_module._token_count_cache) <= REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE

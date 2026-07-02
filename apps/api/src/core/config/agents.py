@@ -230,6 +230,9 @@ from src.core.constants import (
     REACT_AGENT_TIMEOUT_SECONDS_DEFAULT,
     REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT,
     REGISTRY_MAX_ITEMS_DEFAULT,
+    RESPONSE_CONTEXT_PREFETCH_AWAIT_TIMEOUT_SECONDS,
+    RESPONSE_CONTEXT_PREFETCH_ENABLED_DEFAULT,
+    RESPONSE_CONTEXT_PREFETCH_MAX_ENTRIES,
     RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT,
     RESPONSE_MESSAGE_WINDOW_SIZE_DEFAULT,
     RESPONSE_PROMPT_VERSION_DEFAULT,
@@ -3028,6 +3031,31 @@ class AgentsSettings(BaseSettings):
             "Enable the Initiative phase on the ReAct nominal path "
             "(react_finalize -> initiative -> response). Independent of the pipeline "
             "Initiative; the ReAct draft path is never gated by this flag."
+        ),
+    )
+    response_context_prefetch_enabled: bool = Field(
+        default=RESPONSE_CONTEXT_PREFETCH_ENABLED_DEFAULT,
+        description=(
+            "Prefetch the response node's user-context injections (memory, RAG, "
+            "journal, portrait, psyche) from the initiative node, concurrently with "
+            "its LLM evaluation. Disable to restore the fully serial behaviour."
+        ),
+    )
+    response_context_prefetch_max_entries: int = Field(
+        default=RESPONSE_CONTEXT_PREFETCH_MAX_ENTRIES,
+        ge=1,
+        description=(
+            "Bound of the in-flight response-context prefetch registry; oldest "
+            "tasks are cancelled beyond it (leak guard for runs that never reach "
+            "the response node)."
+        ),
+    )
+    response_context_prefetch_await_timeout_seconds: float = Field(
+        default=RESPONSE_CONTEXT_PREFETCH_AWAIT_TIMEOUT_SECONDS,
+        gt=0,
+        description=(
+            "Max seconds the response node waits for a prefetched context bundle "
+            "before falling back to the inline fetch."
         ),
     )
 

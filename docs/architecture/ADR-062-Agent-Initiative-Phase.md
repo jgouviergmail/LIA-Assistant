@@ -4,6 +4,12 @@
 
 Implemented — 2026-03-24 (Phase 1 + Phase 2)
 
+Amended — 2026-07-02: the initiative prompt now receives pre-computed semantic
+bridges (`<SemanticBridges>`, see [ADR-090](ADR-090-Semantic-Layer-Governance.md))
+and the initiative node prefetches the response node's user-context injections
+concurrently with its LLM evaluation
+([ADR-091](ADR-091-Response-Context-Prefetch.md)).
+
 ## Context
 
 LIA uses a static planner that pre-generates all execution steps and parameters

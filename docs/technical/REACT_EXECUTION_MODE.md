@@ -13,11 +13,14 @@
 5. [Nodes](#nodes)
 6. [Tool System](#tool-system)
 7. [HITL in ReAct](#hitl-in-react)
-8. [Token Tracking](#token-tracking)
-9. [Skills Integration](#skills-integration)
-10. [Configuration](#configuration)
-11. [Streaming Step Visibility](#streaming-step-visibility-v1162)
-12. [Key Files](#key-files)
+8. [Response Synthesis](#response-synthesis)
+9. [Initiative enrichment on the nominal path](#initiative-enrichment-on-the-nominal-path-adr-070--adr-062)
+10. [Turn isolation & data-precision guidance](#turn-isolation--data-precision-guidance-2026-07)
+11. [Token Tracking](#token-tracking)
+12. [Skills Integration](#skills-integration)
+13. [Configuration](#configuration)
+14. [Streaming Step Visibility](#streaming-step-visibility-v1162)
+15. [Key Files](#key-files)
 
 ---
 
@@ -181,6 +184,16 @@ The existing pipeline `initiative_node` is reused almost as-is — its pre-filte
 - `response_node` **merges** the ReAct answer (`{turn}:react_agent`) with any Initiative entry (`{turn}:initiative`) via `_merge_react_synthesis_result` (idempotent on the react key) instead of the previous `if not agent_results` gate, which would otherwise have dropped the answer once Initiative wrote its results first. A ReAct-only `<ProactiveFindings>` prompt directive invites the response LLM to weave the proactive findings (already present via `data_for_filtering`) into the reply; the suggestion uses the existing `<InitiativeSuggestion>` injection.
 
 One node-level fix made this work in ReAct: `_format_execution_summary` now normalizes registry items in both `dict` form (pipeline, after a checkpoint round-trip) and live Pydantic `RegistryItem` form (ReAct, built in-memory by `react_execute_tools`). It previously skipped the latter, so the summary collapsed to `"No execution results."` and the Initiative LLM declined to act.
+
+## Turn isolation & data-precision guidance (2026-07)
+
+Two field bugs fixed on the ReAct path (see [ADR-090](../architecture/ADR-090-Semantic-Layer-Governance.md) §4 for the second):
+
+1. **Cross-turn `current_turn_registry` leak** — nothing purged the per-turn registry at the start of a ReAct turn, so the value restored from the previous turn's checkpoint seeded `react_execute_tools`' intra-turn accumulation, and the response node re-displayed last turn's data (e.g. the previous "4 upcoming events" answer inside a route reply — through BOTH the synthesis text and the SSE data cards). Fixes:
+   - `react_setup_node` returns `current_turn_registry: {}` — per-turn purge, mirroring the pipeline where `task_orchestrator` overwrites it ("no merge for display", 2025-12-31 bugfix that had never been ported to ReAct). HITL draft resumes re-enter AFTER setup, so mid-turn items are never dropped; the cross-turn `registry` (merge reducer) is untouched for context resolution.
+   - The response node's ReAct passthrough no longer falls back to the cross-turn `registry` when `current_turn_registry` is empty — that fallback tagged EVERY historical item as a registry_update of the current turn, bypassing `_filter_registry_by_current_turn`. A tool-less ReAct turn now legitimately yields no data cards (REFERENCE turns keep their dedicated `resolved_context` path).
+
+2. **Approximate values instead of exact lookups** — the ReAct system prompt now carries a generic PRECISION rule ("memory context tells you WHO, tools give exact values — retrieve the exact value with the lookup tool BEFORE calling the consumer tool") and a `<CrossDomainDataTypes>` section fed by `generate_semantic_dependencies_for_prompt()` (the same ontology ∪ manifests links the pipeline planner receives), so e.g. a route destination is fetched from the contact's exact address rather than a city name recalled from memory.
 
 ## Token Tracking
 

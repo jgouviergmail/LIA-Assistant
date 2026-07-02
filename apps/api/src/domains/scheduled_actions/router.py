@@ -4,7 +4,6 @@ Scheduled Actions router with FastAPI endpoints.
 Provides CRUD operations, toggle enable/disable, and immediate test execution.
 """
 
-import asyncio
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -27,6 +26,7 @@ from src.domains.scheduled_actions.schemas import (
     ScheduledActionUpdate,
 )
 from src.domains.scheduled_actions.service import ScheduledActionService
+from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -243,7 +243,7 @@ async def execute_scheduled_action(
         execute_single_action,
     )
 
-    asyncio.create_task(
+    safe_fire_and_forget(
         execute_single_action(action_id=action.id, user_id=user.id),
         name=f"scheduled_action_execute_{action.id}",
     )

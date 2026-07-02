@@ -2746,7 +2746,7 @@
         },
         "semanticTypes": {
           "title": "📦 Sistema di Tipi Semantici",
-          "description": "26 tipi semantici organizzati in gerarchia DAG (ispirato a schema.org/RDF/SKOS). Categorie: Identity, Location, Temporal, ResourceID, Content, Measurement, Status. TypeRegistry centrale con lookup O(1), calcolo distanza Wu & Palmer, validazione sussunzione. Tracciamento provenienza (source_domains, used_in_tools) per espansione intelligente cross-dominio."
+          "description": "99 tipi semantici organizzati in gerarchia DAG (ispirato a schema.org/RDF/SKOS). Categorie: Identity, Location, Temporal, ResourceID, Content, Measurement, Status. TypeRegistry centrale con lookup O(1), calcolo distanza Wu & Palmer, validazione sussunzione. I collegamenti tipo↔strumento sono l'unione dell'ontologia editoriale e delle annotazioni semantic_type dei manifest degli strumenti (fonte viva, resistente alle rinomine, che copre anche gli strumenti MCP), con 5 blocchi di integrità verificati dai test che impediscono ogni deriva (nomi di strumenti reali, vocabolario dei domini, coerenza tassonomia↔tipi). Questi collegamenti alimentano il planner, l'iniziativa proattiva e la modalità ReAct (ADR-090)."
         },
         "semanticValidation": {
           "title": "✅ Validazione Semantica dei Piani",
@@ -2918,11 +2918,11 @@
         },
         "reactMode": {
           "title": "⚡ Modalità di Esecuzione ReAct",
-          "description": "Modalità alternativa alla pipeline in cui l'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide autonomamente cosa fare. 4 nodi custom nel grafo LangGraph principale con supporto HITL nativo. La modalità Pipeline (predefinita) consuma 4-8 volte meno token grazie alla pianificazione intelligente e all'esecuzione parallela."
+          "description": "Modalità alternativa alla pipeline in cui l'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide autonomamente cosa fare. 4 nodi custom nel grafo LangGraph principale con supporto HITL nativo. La modalità Pipeline (predefinita) consuma 4-8 volte meno token grazie alla pianificazione intelligente e all'esecuzione parallela. Ogni turno di conversazione riparte da un registro dati pulito (isolamento rigoroso tra i turni), e l'agente riceve la mappa dei tipi semantici cross-dominio con una regola di precisione: recuperare il valore esatto (l'indirizzo di un contatto) tramite lo strumento di ricerca invece di un'approssimazione ricordata dalla memoria."
         },
         "proactiveInitiative": {
           "title": "🎯 Iniziativa Proattiva",
-          "description": "Dopo il completamento della richiesta principale, l'assistente valuta se i risultati rivelano connessioni cross-dominio rilevanti. Esempio: il meteo annuncia pioggia sabato → controlla il calendario per attività all'aperto. In modalità Pipeline, un nodo dedicato esegue la valutazione LLM dopo la risposta. In modalità ReAct, l'agente verifica anche durante il proprio ragionamento (il passaggio CROSS-CHECK) e — quando abilitato — lo stesso nodo di iniziativa viene ora eseguito dopo il ciclo, così entrambe le modalità ottengono l'arricchimento proattivo."
+          "description": "Dopo il completamento della richiesta principale, l'assistente valuta se i risultati rivelano connessioni cross-dominio rilevanti. Esempio: il meteo annuncia pioggia sabato → controlla il calendario per attività all'aperto. In modalità Pipeline, un nodo dedicato esegue la valutazione LLM dopo la risposta. In modalità ReAct, l'agente verifica anche durante il proprio ragionamento (il passaggio CROSS-CHECK) e — quando abilitato — lo stesso nodo di iniziativa viene ora eseguito dopo il ciclo, così entrambe le modalità ottengono l'arricchimento proattivo. La valutazione riceve candidati di connessione precalcolati dal registro dei tipi semantici (quali dati di questo turno possono alimentare quali strumenti adiacenti — ADR-090), e prepara in parallelo il contesto della risposta finale (memoria, RAG, diario, psiche) per ridurre la latenza (ADR-091)."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -2935,6 +2935,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_0": {
+          "title": "v1.21.0 — ⚡ Risposte più rapide e suggerimenti proattivi più mirati",
+          "date": "Luglio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>⚡ Risposte nettamente più rapide</b> — Grande campagna di ottimizzazione della latenza: le risposte arricchite (modalità HTML) iniziano 3–4 secondi prima, il contesto della risposta (memoria, documenti, diario) viene ora preparato in parallelo ai suggerimenti proattivi invece di attendere il proprio turno, il testo delle risposte lunghe viene mostrato con più fluidità e le connessioni ai modelli IA vengono riutilizzate tra le chiamate. Niente da configurare: è tutto automatico.",
+            "i2": "<b>💡 Suggerimenti proattivi più mirati</b> — LIA ora sa esplicitamente quali dati della tua richiesta possono alimentare quali strumenti (l'indirizzo di un contatto può alimentare un itinerario, una ricerca di luoghi o il meteo). Le sue iniziative dopo una risposta diventano più precise e meglio mirate, qualunque sia il modello IA configurato.",
+            "i3": "<b>🛠️ Basta dati del turno precedente che riappaiono</b> — In modalità autonoma (ReAct), chiedere ad esempio un itinerario subito dopo i tuoi prossimi appuntamenti poteva mostrare di nuovo quegli appuntamenti nella nuova risposta. Ogni turno di conversazione riparte ora da zero.",
+            "i4": "<b>🎯 Itinerari verso l'indirizzo esatto dei tuoi contatti</b> — In modalità autonoma, LIA ora cerca l'indirizzo preciso del contatto nella tua rubrica prima di calcolare un itinerario, invece di accontentarsi di un'approssimazione (come la città) ricordata dalla memoria.",
+            "i5": "<b>🏷️ Badge delle skill visibile a tutti</b> — Il badge che indica quale skill ha generato una risposta viene ora mostrato a tutti gli utenti; prima era limitato agli account amministratore con pannello di debug."
+          }
+        },
         "v1_20_22": {
           "title": "v1.20.22 — 🛡️ Le azioni pianificate non alimentano più la tua memoria né i tuoi interessi",
           "date": "Giugno 2026",

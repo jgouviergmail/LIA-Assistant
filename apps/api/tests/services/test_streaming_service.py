@@ -8,7 +8,7 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage, AIMessageChunk
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 
 from src.domains.agents.services.streaming.service import StreamingService
 
@@ -792,3 +792,137 @@ async def test_process_messages_chunk_handles_gemini3_list_content(streaming_ser
     assert len(sse_chunks) == 1
     assert sse_chunks[0][0].type == "token"
     assert sse_chunks[0][0].content == "Voici tes rdv"
+
+
+# =============================================================================
+# Activated skill capture (user-facing badge — must NOT be debug-gated)
+# =============================================================================
+
+
+def _make_planning_result(skill_name: str) -> MagicMock:
+    """Build a planning_result mock whose plan carries a skill_name."""
+    planning_result = MagicMock()
+    planning_result.plan.metadata = {"skill_name": skill_name}
+    return planning_result
+
+
+def test_capture_activated_skill_without_debug_panel(streaming_service):
+    """Skill name is captured even when the debug panel is disabled.
+
+    Regression test: the capture used to live inside _cache_debug_data,
+    which early-returns when debug_panel_enabled=False — the skill badge
+    never appeared for non-admin users.
+    """
+    assert streaming_service._debug_panel_enabled is False
+
+    chunk = {
+        "routing_history": [],
+        "messages": [],
+        "planning_result": _make_planning_result("meteo"),
+        "query_intelligence": {"route_to": "planner"},
+    }
+    streaming_service._process_values_chunk(chunk, last_sent_routing=None)
+
+    assert streaming_service.activated_skill_name == "meteo"
+
+
+def test_capture_activated_skill_ignores_stale_planning_result(streaming_service):
+    """A stale planning_result (current turn did not route through the
+    planner) must not surface a stale skill badge."""
+    chunk = {
+        "routing_history": [],
+        "messages": [],
+        "planning_result": _make_planning_result("meteo"),
+        "query_intelligence": {"route_to": "response"},
+    }
+    streaming_service._process_values_chunk(chunk, last_sent_routing=None)
+
+    assert streaming_service.activated_skill_name is None
+
+
+def test_resolve_activated_skill_name_route3_fallback(streaming_service):
+    """Route 3 fallback: activate_skill_tool called directly by the response
+    LLM (no planner) is detected from the current turn's messages."""
+    messages = [
+        HumanMessage(content="active la skill recette"),
+        AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "activate_skill_tool", "args": {"name": "recette"}, "id": "call_1"}
+            ],
+        ),
+    ]
+
+    resolved = streaming_service.resolve_activated_skill_name({"messages": messages})
+
+    assert resolved == "recette"
+    assert streaming_service.activated_skill_name == "recette"
+
+
+def test_resolve_activated_skill_name_scoped_to_current_turn(streaming_service):
+    """Tool calls from PREVIOUS turns (before the last HumanMessage) must not
+    surface a stale skill badge on the current turn."""
+    messages = [
+        AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "activate_skill_tool", "args": {"name": "old_skill"}, "id": "call_0"}
+            ],
+        ),
+        HumanMessage(content="nouvelle question sans skill"),
+        AIMessage(content="réponse simple sans tool call"),
+    ]
+
+    resolved = streaming_service.resolve_activated_skill_name({"messages": messages})
+
+    assert resolved is None
+    assert streaming_service.activated_skill_name is None
+
+
+def test_capture_activated_skill_cleared_by_fresh_plan_without_skill(streaming_service):
+    """A skill captured early in the turn from the STALE checkpoint plan must
+    be cleared once the planner produces the fresh plan without skill_name.
+
+    Sequence: turn N-1 activated skill X; turn N routes through the planner
+    but activates no skill. Early values chunks still carry the previous
+    turn's planning_result (checkpoint) with route_to already "planner".
+    """
+    # Early chunk: stale plan from previous turn (skill X), route already planner
+    stale_chunk = {
+        "routing_history": [],
+        "messages": [],
+        "planning_result": _make_planning_result("old_skill"),
+        "query_intelligence": {"route_to": "planner"},
+    }
+    streaming_service._process_values_chunk(stale_chunk, last_sent_routing=None)
+    assert streaming_service.activated_skill_name == "old_skill"
+
+    # Planner completed: fresh plan WITHOUT skill_name replaces the stale one
+    fresh_planning_result = MagicMock()
+    fresh_planning_result.plan.metadata = {}
+    fresh_chunk = {
+        "routing_history": [],
+        "messages": [],
+        "planning_result": fresh_planning_result,
+        "query_intelligence": {"route_to": "planner"},
+    }
+    streaming_service._process_values_chunk(fresh_chunk, last_sent_routing=None)
+
+    assert streaming_service.activated_skill_name is None
+
+
+def test_capture_activated_skill_ignored_in_react_mode(streaming_service):
+    """ReAct mode never runs the planner: a leftover planning_result from a
+    previous pipeline turn must not surface a skill badge (route_to cannot
+    discriminate — it only knows planner/response). The legitimate ReAct
+    badge comes from the Route 3 activate_skill_tool fallback."""
+    chunk = {
+        "routing_history": [],
+        "messages": [],
+        "execution_mode": "react",
+        "planning_result": _make_planning_result("old_pipeline_skill"),
+        "query_intelligence": {"route_to": "planner"},
+    }
+    streaming_service._process_values_chunk(chunk, last_sent_routing=None)
+
+    assert streaming_service.activated_skill_name is None

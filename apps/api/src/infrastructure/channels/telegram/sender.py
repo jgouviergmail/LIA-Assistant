@@ -20,6 +20,7 @@ from telegram.error import BadRequest, Forbidden, NetworkError, RetryAfter, Tele
 
 from src.core.constants import CHANNEL_TYPE_TELEGRAM, TELEGRAM_TYPING_ACTION
 from src.domains.channels.abstractions import BaseChannelSender, ChannelOutboundMessage
+from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.channels.telegram.bot import get_bot
 from src.infrastructure.channels.telegram.formatter import (
     format_notification,
@@ -116,7 +117,10 @@ class TelegramSender(BaseChannelSender):
                     channel_type=CHANNEL_TYPE_TELEGRAM,
                     error_type="forbidden",
                 ).inc()
-                asyncio.create_task(_auto_disable_binding(channel_user_id))
+                safe_fire_and_forget(
+                    _auto_disable_binding(channel_user_id),
+                    name="telegram_auto_disable_binding",
+                )
                 return None
             except RetryAfter as e:
                 logger.warning(

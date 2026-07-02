@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from src.domains.agents.analysis.query_intelligence import QueryIntelligence
     from src.domains.agents.orchestration.plan_schemas import ExecutionPlan
 
+from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -341,7 +342,7 @@ class PlanPatternLearner:
         """
         if not config.training_enabled:
             return
-        asyncio.create_task(
+        safe_fire_and_forget(
             self._record(plan, query_intelligence, success=True),
             name="pattern_record_success",
         )
@@ -360,7 +361,7 @@ class PlanPatternLearner:
         """
         if not config.training_enabled:
             return
-        asyncio.create_task(
+        safe_fire_and_forget(
             self._record(plan, query_intelligence, success=False),
             name="pattern_record_failure",
         )

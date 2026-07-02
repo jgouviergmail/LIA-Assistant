@@ -71,7 +71,7 @@ search_wikipedia_catalogue_manifest = ToolManifest(
         OutputFieldSchema(path="wikipedias", type="array", description="Found articles"),
         OutputFieldSchema(path="wikipedias[].title", type="string", description="Title"),
         OutputFieldSchema(
-            path="wikipedias[].snippet", type="string", description="Snippet", semantic_type="text"
+            path="wikipedias[].snippet", type="string", description="Snippet", semantic_type="Text"
         ),
         OutputFieldSchema(
             path="wikipedias[].page_id",
@@ -123,7 +123,7 @@ get_wikipedia_summary_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="title", type="string", description="Title"),
-        OutputFieldSchema(path="summary", type="string", description="Text", semantic_type="text"),
+        OutputFieldSchema(path="summary", type="string", description="Text", semantic_type="Text"),
         OutputFieldSchema(path="url", type="string", description="URL", semantic_type="URL"),
         OutputFieldSchema(path="thumbnail", type="string", nullable=True, description="Image"),
     ],
@@ -183,7 +183,7 @@ get_wikipedia_article_catalogue_manifest = ToolManifest(
     outputs=[
         OutputFieldSchema(path="title", type="string", description="Title"),
         OutputFieldSchema(
-            path="content", type="string", description="Full text", semantic_type="text"
+            path="content", type="string", description="Full text", semantic_type="Text"
         ),
         OutputFieldSchema(path="sections", type="array", description="Headers"),
         OutputFieldSchema(path="url", type="string", description="URL", semantic_type="URL"),

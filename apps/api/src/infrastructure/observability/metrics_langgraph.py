@@ -142,6 +142,18 @@ langgraph_streaming_events_total = Counter(
     # Useful for debugging streaming pipeline
 )
 
+llm_reasoning_stream_double_call_total = Counter(
+    "llm_reasoning_stream_double_call_total",
+    "Buffered structured-output reasoning streams that yielded no terminal "
+    "output and forced a SECOND full LLM call (silent double cost). The "
+    "(provider, model, path) combination is negative-cached after the first "
+    "occurrence, so this should fire at most once per combination per worker.",
+    ["provider", "model", "path"],
+    # path: native_structured / json_mode
+    # Alert if >0: a provider/model/path combination buffers astream_events —
+    # live reasoning should be disabled for it (the cache does so automatically)
+)
+
 # ============================================================================
 # GRAPH RECURSION & INTERRUPTS
 # ============================================================================

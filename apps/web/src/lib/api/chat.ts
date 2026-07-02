@@ -4,6 +4,7 @@
  */
 
 import { ChatStreamChunk, ChatRequest, OrchestrationMetadata } from '@/types/chat';
+import { logger } from '@/lib/logger';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const SSE_ENDPOINT = `${API_BASE_URL}/api/v1/agents/chat/stream`;
@@ -56,7 +57,11 @@ export class ChatSSEClient {
       // Alternative: use fetch with ReadableStream
       await this.streamChatWithFetch(request, onChunk, onError, onDone);
     } catch (error) {
-      console.error('[ChatSSEClient] Stream error:', error);
+      logger.error(
+        'chat_sse_stream_error',
+        error instanceof Error ? error : undefined,
+        { component: 'ChatSSEClient' }
+      );
       onError(error instanceof Error ? error : new Error('Unknown error'));
     }
   }
@@ -151,7 +156,7 @@ export class ChatSSEClient {
         const { done, value } = await reader.read();
 
         if (done) {
-          console.log('[ChatSSEClient] Stream completed');
+          logger.debug('chat_sse_stream_completed', { component: 'ChatSSEClient' });
           this.isConnected = false;
           onDone();
           break;
@@ -173,94 +178,86 @@ export class ChatSSEClient {
 
               // ============================================================================
               // PHASE 5 - Enhanced Logging for Orchestration Workflow
+              // Structured logger: debug-level entries are dropped in production,
+              // and message content is never logged (PII protection).
               // ============================================================================
-
-              // Log chunk type and key info for debugging orchestration
               if (chunk.type === 'node') {
-                console.log(`[ChatSSE] 🟢 Node: ${chunk.node_name}`, {
-                  type: chunk.type,
+                logger.debug('chat_sse_node', {
+                  component: 'ChatSSEClient',
                   node: chunk.node_name,
-                  timestamp: new Date().toISOString(),
                 });
               } else if (chunk.type === 'content') {
-                // Content chunks - show first 50 chars
-                const preview = chunk.content?.substring(0, 50) || '';
-                console.log(
-                  `[ChatSSE] 📝 Content:`,
-                  preview + (chunk.content && chunk.content.length > 50 ? '...' : '')
-                );
+                // Content chunks - log length only, never the content itself
+                logger.debug('chat_sse_content', {
+                  component: 'ChatSSEClient',
+                  content_length: chunk.content?.length ?? 0,
+                });
               } else if (chunk.type === 'tool_call') {
-                console.log(`[ChatSSE] 🔧 Tool Call: ${chunk.tool_name}`, {
+                logger.debug('chat_sse_tool_call', {
+                  component: 'ChatSSEClient',
                   tool: chunk.tool_name,
-                  args: chunk.args,
-                  timestamp: new Date().toISOString(),
                 });
               } else if (chunk.type === 'tool_result') {
-                console.log(`[ChatSSE] ✅ Tool Result: ${chunk.tool_name}`, {
+                logger.debug('chat_sse_tool_result', {
+                  component: 'ChatSSEClient',
                   tool: chunk.tool_name,
                   success: chunk.success,
-                  timestamp: new Date().toISOString(),
                 });
               } else if (chunk.type === 'metadata') {
                 // Phase 5: Orchestration metadata
                 const metadata = (chunk.metadata || {}) as OrchestrationMetadata;
                 if (metadata.step === 'plan_validation') {
-                  console.log(`[ChatSSE] ✓ Plan Validator:`, {
-                    step: 'validation',
+                  logger.debug('chat_sse_plan_validation', {
+                    component: 'ChatSSEClient',
                     valid: metadata.is_valid,
                     cost: metadata.total_cost_usd,
                     steps: metadata.step_count,
-                    timestamp: new Date().toISOString(),
                   });
                 } else if (metadata.step === 'plan_execution') {
-                  console.log(`[ChatSSE] ⚡ Plan Executor:`, {
-                    step: 'execution',
+                  logger.debug('chat_sse_plan_execution', {
+                    component: 'ChatSSEClient',
                     current_step: metadata.current_step,
                     total_steps: metadata.total_steps,
-                    progress: `${metadata.current_step}/${metadata.total_steps}`,
-                    timestamp: new Date().toISOString(),
                   });
                 } else if (metadata.step === 'orchestrator') {
-                  console.log(`[ChatSSE] 🎯 Orchestrator:`, {
-                    step: 'orchestration',
+                  logger.debug('chat_sse_orchestrator', {
+                    component: 'ChatSSEClient',
                     agent: metadata.agent_name,
                     plan_generated: metadata.plan_generated,
-                    timestamp: new Date().toISOString(),
                   });
                 } else if (metadata.router_decision) {
-                  console.log(`[ChatSSE] 🧭 Router Decision:`, {
+                  logger.debug('chat_sse_router_decision', {
+                    component: 'ChatSSEClient',
                     intention: metadata.router_decision.intention,
                     confidence: metadata.router_decision.confidence,
                     agent: metadata.router_decision.selected_agent,
-                    timestamp: new Date().toISOString(),
                   });
                 } else {
-                  console.log(`[ChatSSE] ℹ️ Metadata:`, metadata);
+                  logger.debug('chat_sse_metadata', {
+                    component: 'ChatSSEClient',
+                    metadata_keys: Object.keys(metadata),
+                  });
                 }
               } else if (chunk.type === 'error') {
-                console.error(`[ChatSSE] ❌ Error:`, {
+                logger.error('chat_sse_error_chunk', undefined, {
+                  component: 'ChatSSEClient',
                   error: chunk.error,
                   code: chunk.error_code,
-                  timestamp: new Date().toISOString(),
                 });
               } else if (chunk.type === 'done') {
-                console.log(`[ChatSSE] ✅ Stream Complete`, {
-                  type: 'done',
-                  timestamp: new Date().toISOString(),
+                logger.debug('chat_sse_stream_complete', {
+                  component: 'ChatSSEClient',
                 });
               } else if (chunk.type === 'execution_step') {
                 // Phase 6: Execution step tracking
                 const stepMetadata = chunk.metadata as Record<string, unknown> | undefined;
-                console.log(
-                  `[ChatSSE] ${(stepMetadata?.emoji as string) || '⚙️'} Execution Step:`,
-                  {
-                    step_type: stepMetadata?.step_type,
-                    step_name: stepMetadata?.step_name,
-                    i18n_key: stepMetadata?.i18n_key,
-                    category: stepMetadata?.category,
-                    timestamp: new Date().toISOString(),
-                  }
-                );
+                logger.debug('chat_sse_execution_step', {
+                  component: 'ChatSSEClient',
+                  step_type: stepMetadata?.step_type,
+                  step_name: stepMetadata?.step_name,
+                  i18n_key: stepMetadata?.i18n_key,
+                  category: stepMetadata?.category,
+                });
               } else if (chunk.type === 'token') {
                 // Token chunks are frequent - no logging needed
               } else if (
@@ -272,21 +269,32 @@ export class ChatSSEClient {
                 // HITL streaming tokens and content replacements - no logging needed
                 // These are frequent and would flood the console
               } else {
-                // Unknown chunk type - log for debugging
-                console.log(`[ChatSSE] ⚪ ${chunk.type}:`, chunk);
+                // Unknown chunk type - log type only for debugging
+                logger.debug('chat_sse_unknown_chunk_type', {
+                  component: 'ChatSSEClient',
+                  chunk_type: chunk.type,
+                });
               }
 
               // CRITICAL: Skip chunk if stream was cancelled
               // This prevents race condition where buffered chunks from previous
               // request are processed after a new request has started
               if (this.isCancelled) {
-                console.log(`[ChatSSE] ⏭️ Skipping chunk (stream cancelled):`, chunk.type);
+                logger.debug('chat_sse_chunk_skipped_cancelled', {
+                  component: 'ChatSSEClient',
+                  chunk_type: chunk.type,
+                });
                 continue;
               }
 
               onChunk(chunk);
             } catch (parseError) {
-              console.warn('[ChatSSEClient] Failed to parse chunk:', data, parseError);
+              // Log the parse failure without the raw payload (may contain PII)
+              logger.warn('chat_sse_chunk_parse_failed', {
+                component: 'ChatSSEClient',
+                data_length: data.length,
+                error: String(parseError),
+              });
             }
           } else if (line.startsWith(': heartbeat')) {
             // Heartbeat - keep connection alive, no logging needed
@@ -296,13 +304,17 @@ export class ChatSSEClient {
         }
       }
     } catch (error) {
-      console.error('[ChatSSEClient] Fetch stream error:', error);
+      logger.error(
+        'chat_sse_fetch_stream_error',
+        error instanceof Error ? error : undefined,
+        { component: 'ChatSSEClient' }
+      );
       this.isConnected = false;
 
       // Handle network errors with i18n-ready error codes
       if (error instanceof DOMException && error.name === 'AbortError') {
         // Stream was cancelled by user - this is expected, don't call onError
-        console.log('[ChatSSEClient] Stream cancelled by user');
+        logger.debug('chat_sse_stream_cancelled_by_user', { component: 'ChatSSEClient' });
         return; // Silent cancellation, no error callback
       } else if (error instanceof TypeError && error.message.includes('fetch')) {
         onError(
@@ -346,7 +358,7 @@ export class ChatSSEClient {
    */
   cancel(): void {
     if (this.abortController) {
-      console.log('[ChatSSEClient] Cancelling stream...');
+      logger.debug('chat_sse_cancelling_stream', { component: 'ChatSSEClient' });
       this.isCancelled = true; // CRITICAL: Set BEFORE abort to prevent race condition
       this.abortController.abort();
       this.abortController = null;

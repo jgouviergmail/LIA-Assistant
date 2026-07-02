@@ -59,6 +59,38 @@ from src.infrastructure.database.session import Base
 from src.main import app
 
 
+@pytest.fixture(autouse=True)
+def _clean_llm_instance_cache():
+    """Isolate tests from the LLM instance cache (factory-level).
+
+    get_llm() reuses instances keyed by resolved config; without this clear,
+    a test that patches ProviderAdapter.create_llm could leak its MOCK
+    instance into subsequent tests requesting the same config.
+    """
+    from src.infrastructure.llm.factory import clear_llm_instance_cache
+
+    clear_llm_instance_cache()
+    yield
+    clear_llm_instance_cache()
+
+
+@pytest.fixture(autouse=True)
+def _clean_response_context_prefetch():
+    """Isolate tests from the response-context prefetch registry.
+
+    A test driving initiative_node with a real run_id would register a
+    background fetch task; without this reset it could leak into a later
+    test popping the same run_id.
+    """
+    from src.domains.agents.services.response_context import (
+        reset_response_context_prefetch,
+    )
+
+    reset_response_context_prefetch()
+    yield
+    reset_response_context_prefetch()
+
+
 @pytest.fixture
 def clean_context_registry():
     """

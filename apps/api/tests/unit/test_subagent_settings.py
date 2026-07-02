@@ -1,38 +1,45 @@
-"""Sanity tests for sub-agent settings introduced by the ReAct delegation redesign (ADR-083)."""
+"""Sanity tests for sub-agent settings introduced by the ReAct delegation redesign (ADR-083).
+
+NOTE: Default-value tests read ``AgentsSettings.model_fields[...].default``
+(the code-level default) instead of instantiating settings. Instantiation
+(``get_settings()`` / ``AgentsSettings()``) resolves environment variables —
+and the Taskfile exports the developer's root ``.env`` via ``dotenv:``, so any
+locally overridden SUBAGENT_* value would make a hardcoded-default assertion
+fail under ``task test:backend:*`` while passing under bare pytest.
+"""
 
 import pytest
 from pydantic import ValidationError
 
-from src.core.config import get_settings
 from src.core.config.agents import AgentsSettings
 
 
 @pytest.mark.unit
 def test_instruction_cap_default_is_3000():
     """SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED defaults to 3000 tokens."""
-    settings = get_settings()
-    assert settings.subagent_instruction_max_tokens_resolved == 3000
+    field = AgentsSettings.model_fields["subagent_instruction_max_tokens_resolved"]
+    assert field.default == 3000
 
 
 @pytest.mark.unit
 def test_subagent_tool_timeout_default_is_180():
     """SUBAGENT_TOOL_TIMEOUT_SECONDS defaults to 180 seconds (3 minutes)."""
-    settings = get_settings()
-    assert settings.subagent_tool_timeout_seconds == 180.0
+    field = AgentsSettings.model_fields["subagent_tool_timeout_seconds"]
+    assert field.default == 180.0
 
 
 @pytest.mark.unit
 def test_subagent_tool_max_timeout_default_is_300():
     """SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS defaults to 300 seconds (5 minutes)."""
-    settings = get_settings()
-    assert settings.subagent_tool_max_timeout_seconds == 300.0
+    field = AgentsSettings.model_fields["subagent_tool_max_timeout_seconds"]
+    assert field.default == 300.0
 
 
 @pytest.mark.unit
 def test_subagent_default_max_iterations_default_is_10():
     """SUBAGENT_DEFAULT_MAX_ITERATIONS defaults to 10 (post-bump from 5)."""
-    settings = get_settings()
-    assert settings.subagent_default_max_iterations == 10
+    field = AgentsSettings.model_fields["subagent_default_max_iterations"]
+    assert field.default == 10
 
 
 @pytest.mark.unit
@@ -84,9 +91,15 @@ class TestSubagentResearchToolsWhitelistParsed:
     """Tests for the `subagent_research_tools_whitelist_parsed` derived list."""
 
     def test_default_parses_to_brave_and_fetch(self):
-        """Default whitelist parses to the two production tools."""
-        settings = get_settings()
-        assert settings.subagent_research_tools_whitelist_parsed == [
+        """Default whitelist parses to the two production tools.
+
+        Pins the CODE default explicitly (environment-hermetic): passing the
+        field default as a constructor kwarg overrides any SUBAGENT_* env var
+        exported by the Taskfile's dotenv from the developer's local .env.
+        """
+        default_whitelist = AgentsSettings.model_fields["subagent_research_tools_whitelist"].default
+        s = AgentsSettings(subagent_research_tools_whitelist=default_whitelist)
+        assert s.subagent_research_tools_whitelist_parsed == [
             "brave_search_tool",
             "fetch_web_page_tool",
         ]

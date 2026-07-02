@@ -31,6 +31,7 @@ from src.domains.channels.schemas import (
     OTPGenerateResponse,
 )
 from src.domains.channels.service import ChannelService
+from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -196,7 +197,8 @@ async def telegram_webhook(request: Request) -> dict:
         return {"ok": False}
 
     # Fire-and-forget: process in background, return 200 immediately
-    asyncio.create_task(process_telegram_update(payload))
+    # safe_fire_and_forget keeps a strong reference (GC safety) and logs exceptions
+    safe_fire_and_forget(process_telegram_update(payload), name="telegram_webhook_update")
 
     return {"ok": True}
 
