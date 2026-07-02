@@ -1,465 +1,366 @@
 """
-Unit tests for core/middleware.py.
+Unit tests for core/middleware.py (pure-ASGI versions — F28).
 
-Tests request ID tracking, security headers, logging, and error handling middleware.
+The middleware stack was converted from BaseHTTPMiddleware to pure ASGI;
+these tests exercise the REAL ASGI stack through TestClient (no dispatch()
+mocks) and pin the exact guarantees the historical versions provided:
+request-ID generation/propagation, security headers, request/response
+logging with path exclusion, structured 500s, and middleware ordering.
 """
 
-import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-from starlette.requests import Request
-from starlette.responses import Response
 
 from src.core.middleware import (
     ErrorHandlerMiddleware,
     LoggingMiddleware,
     RequestIDMiddleware,
     SecurityHeadersMiddleware,
+    _is_excluded,
     setup_middleware,
 )
 
-# =============================================================================
-# Test Fixtures
-# =============================================================================
 
-
-@pytest.fixture
-def mock_request():
-    """Create a mock request object."""
-    request = MagicMock(spec=Request)
-    request.url.path = "/api/test"
-    request.method = "GET"
-    request.headers = {}
-    request.client = MagicMock()
-    request.client.host = "127.0.0.1"
-    request.state = MagicMock()
-    return request
-
-
-@pytest.fixture
-def mock_response():
-    """Create a mock response object."""
-    response = MagicMock(spec=Response)
-    response.headers = {}
-    response.status_code = 200
-    return response
-
-
-@pytest.fixture
-def simple_app():
-    """Create a simple FastAPI app for testing."""
+def _make_app(*middleware_classes: type) -> FastAPI:
+    """FastAPI app with test routes and the given middleware (only)."""
     app = FastAPI()
 
     @app.get("/test")
-    async def test_endpoint():
-        return {"message": "ok"}
+    async def test_endpoint(request: Request) -> dict:
+        return {
+            "message": "ok",
+            "request_id": getattr(request.state, "request_id", None),
+        }
 
     @app.get("/error")
-    async def error_endpoint():
+    async def error_endpoint() -> dict:
         raise ValueError("Test error")
 
+    for cls in middleware_classes:
+        app.add_middleware(cls)
     return app
 
 
 # =============================================================================
-# RequestIDMiddleware - Unit Tests
+# RequestIDMiddleware
 # =============================================================================
 
 
 @pytest.mark.unit
 class TestRequestIDMiddleware:
-    """Tests for RequestIDMiddleware."""
+    """Request-ID generation, reuse, propagation to routes and response."""
 
-    @pytest.mark.asyncio
-    async def test_generates_request_id_when_not_provided(self, mock_request, mock_response):
-        """Test that a request ID is generated when not in headers."""
-        mock_request.headers = {}
+    def test_generates_request_id_when_not_provided(self):
+        client = TestClient(_make_app(RequestIDMiddleware))
+        response = client.get("/test")
 
-        async def call_next(request):
-            return mock_response
-
-        middleware = RequestIDMiddleware(app=MagicMock())
-        response = await middleware.dispatch(mock_request, call_next)
-
-        # Should have a request ID in response headers
-        assert "X-Request-ID" in response.headers
-        # Should be a valid UUID
+        assert response.status_code == 200
+        assert response.headers["X-Request-ID"]
+        # UUID4 format
         assert len(response.headers["X-Request-ID"]) == 36
 
-    @pytest.mark.asyncio
-    async def test_uses_provided_request_id(self, mock_request, mock_response):
-        """Test that provided X-Request-ID is used."""
-        provided_id = "custom-request-id-12345"
-        mock_headers = MagicMock()
-        mock_headers.get = MagicMock(return_value=provided_id)
-        mock_request.headers = mock_headers
+    def test_reuses_incoming_request_id(self):
+        client = TestClient(_make_app(RequestIDMiddleware))
+        response = client.get("/test", headers={"X-Request-ID": "client-supplied-id"})
 
-        async def call_next(request):
-            return mock_response
+        assert response.headers["X-Request-ID"] == "client-supplied-id"
 
-        middleware = RequestIDMiddleware(app=MagicMock())
-        response = await middleware.dispatch(mock_request, call_next)
+    def test_request_state_exposes_request_id_to_routes(self):
+        client = TestClient(_make_app(RequestIDMiddleware))
+        response = client.get("/test", headers={"X-Request-ID": "abc-123"})
 
-        assert response.headers["X-Request-ID"] == provided_id
+        assert response.json()["request_id"] == "abc-123"
 
-    @pytest.mark.asyncio
-    async def test_sets_request_id_on_state(self, mock_request, mock_response):
-        """Test that request ID is set on request state."""
-        mock_headers = MagicMock()
-        mock_headers.get = MagicMock(return_value=None)
-        mock_request.headers = mock_headers
+    def test_binds_structlog_contextvars(self):
+        client = TestClient(_make_app(RequestIDMiddleware))
+        with patch("src.core.middleware.structlog.contextvars.bind_contextvars") as mock_bind:
+            client.get("/test", headers={"X-Request-ID": "ctx-1"})
 
-        async def call_next(request):
-            # Verify request_id is set on state
-            assert hasattr(request.state, "request_id")
-            return mock_response
-
-        middleware = RequestIDMiddleware(app=MagicMock())
-        await middleware.dispatch(mock_request, call_next)
+        kwargs = mock_bind.call_args.kwargs
+        assert kwargs["request_id"] == "ctx-1"
+        assert kwargs["path"] == "/test"
+        assert kwargs["method"] == "GET"
 
 
 # =============================================================================
-# SecurityHeadersMiddleware - Unit Tests
+# SecurityHeadersMiddleware
 # =============================================================================
 
 
 @pytest.mark.unit
 class TestSecurityHeadersMiddleware:
-    """Tests for SecurityHeadersMiddleware."""
+    """Security headers on every response; HSTS gated to production."""
 
-    @pytest.mark.asyncio
-    async def test_adds_x_frame_options(self, mock_request, mock_response):
-        """Test that X-Frame-Options header is added."""
-        mock_response.headers = {}
-
-        async def call_next(request):
-            return mock_response
-
-        middleware = SecurityHeadersMiddleware(app=MagicMock())
-        response = await middleware.dispatch(mock_request, call_next)
+    def test_adds_security_headers(self):
+        client = TestClient(_make_app(SecurityHeadersMiddleware))
+        response = client.get("/test")
 
         assert response.headers["X-Frame-Options"] == "DENY"
-
-    @pytest.mark.asyncio
-    async def test_adds_x_content_type_options(self, mock_request, mock_response):
-        """Test that X-Content-Type-Options header is added."""
-        mock_response.headers = {}
-
-        async def call_next(request):
-            return mock_response
-
-        middleware = SecurityHeadersMiddleware(app=MagicMock())
-        response = await middleware.dispatch(mock_request, call_next)
-
         assert response.headers["X-Content-Type-Options"] == "nosniff"
-
-    @pytest.mark.asyncio
-    async def test_adds_xss_protection(self, mock_request, mock_response):
-        """Test that X-XSS-Protection header is added."""
-        mock_response.headers = {}
-
-        async def call_next(request):
-            return mock_response
-
-        middleware = SecurityHeadersMiddleware(app=MagicMock())
-        response = await middleware.dispatch(mock_request, call_next)
-
         assert response.headers["X-XSS-Protection"] == "1; mode=block"
-
-    @pytest.mark.asyncio
-    async def test_adds_coep_header(self, mock_request, mock_response):
-        """Test that Cross-Origin-Embedder-Policy header is added."""
-        mock_response.headers = {}
-
-        async def call_next(request):
-            return mock_response
-
-        middleware = SecurityHeadersMiddleware(app=MagicMock())
-        response = await middleware.dispatch(mock_request, call_next)
-
         assert response.headers["Cross-Origin-Embedder-Policy"] == "require-corp"
-
-    @pytest.mark.asyncio
-    async def test_adds_coop_header(self, mock_request, mock_response):
-        """Test that Cross-Origin-Opener-Policy header is added."""
-        mock_response.headers = {}
-
-        async def call_next(request):
-            return mock_response
-
-        middleware = SecurityHeadersMiddleware(app=MagicMock())
-        response = await middleware.dispatch(mock_request, call_next)
-
         assert response.headers["Cross-Origin-Opener-Policy"] == "same-origin"
 
+    def test_csp_restricts_scripts_to_self(self):
+        client = TestClient(_make_app(SecurityHeadersMiddleware))
+        response = client.get("/test")
+
+        csp = response.headers["Content-Security-Policy"]
+        assert "script-src 'self'" in csp
+        assert "object-src 'none'" in csp
+        assert "frame-ancestors 'none'" in csp
+
+    def test_hsts_only_in_production(self):
+        with patch("src.core.middleware.settings") as mock_settings:
+            mock_settings.is_production = False
+            client = TestClient(_make_app(SecurityHeadersMiddleware))
+            response = client.get("/test")
+        assert "Strict-Transport-Security" not in response.headers
+
+        with patch("src.core.middleware.settings") as mock_settings:
+            mock_settings.is_production = True
+            client = TestClient(_make_app(SecurityHeadersMiddleware))
+            response = client.get("/test")
+        assert "max-age=31536000" in response.headers["Strict-Transport-Security"]
+
 
 # =============================================================================
-# LoggingMiddleware - Unit Tests
+# LoggingMiddleware
 # =============================================================================
+
+
+def _logging_settings() -> MagicMock:
+    """Hermetic settings for LoggingMiddleware tests.
+
+    The Taskfile exports the developer's root ``.env`` as real environment
+    variables (see the F35 post-mortem): asserting on the AMBIENT
+    ``http_log_level`` / ``http_log_exclude_paths`` makes tests fail on any
+    machine with local overrides (e.g. HTTP_LOG_LEVEL=INFO). Pin them.
+    """
+    mock_settings = MagicMock()
+    mock_settings.http_log_level = "DEBUG"
+    mock_settings.http_log_exclude_paths = ["/metrics", "/health"]
+    return mock_settings
 
 
 @pytest.mark.unit
 class TestLoggingMiddleware:
-    """Tests for LoggingMiddleware."""
+    """Request/response logging, GeoIP metric, exclusions, error logging."""
 
-    @pytest.mark.asyncio
-    async def test_logs_request_completion(self, mock_request, mock_response):
-        """Test that request completion is logged."""
-        mock_response.headers = {}
+    def test_logs_request_started_and_completed(self):
+        client = TestClient(_make_app(LoggingMiddleware))
+        with (
+            patch("src.core.middleware.settings", _logging_settings()),
+            patch("src.core.middleware.logger") as mock_logger,
+        ):
+            response = client.get("/test")
 
-        async def call_next(request):
-            return mock_response
+        assert response.status_code == 200
+        events = [c.args[0] for c in mock_logger.debug.call_args_list]
+        assert "request_started" in events
+        assert "request_completed" in events
 
+    def test_completed_log_carries_status_and_duration(self):
+        client = TestClient(_make_app(LoggingMiddleware))
+        with (
+            patch("src.core.middleware.settings", _logging_settings()),
+            patch("src.core.middleware.logger") as mock_logger,
+        ):
+            client.get("/test")
+
+        completed = next(
+            c for c in mock_logger.debug.call_args_list if c.args[0] == "request_completed"
+        )
+        assert completed.kwargs["status_code"] == 200
+        assert completed.kwargs["duration_ms"] >= 0
+
+    def test_increments_geoip_country_metric(self):
+        client = TestClient(_make_app(LoggingMiddleware))
+        with (
+            patch("src.core.middleware.settings", _logging_settings()),
+            patch("src.core.middleware.http_requests_by_country_total") as mock_metric,
+        ):
+            client.get("/test")
+
+        mock_metric.labels.assert_called_once()
+        mock_metric.labels.return_value.inc.assert_called_once()
+
+    def test_excluded_path_skips_logs_and_metric(self):
+        app = _make_app(LoggingMiddleware)
+
+        @app.get("/health")
+        async def health() -> dict:  # pragma: no cover - route body trivial
+            return {"ok": True}
+
+        client = TestClient(app)
+        with (
+            patch("src.core.middleware.settings", _logging_settings()),
+            patch("src.core.middleware.logger") as mock_logger,
+            patch("src.core.middleware.http_requests_by_country_total") as mock_metric,
+        ):
+            client.get("/health")
+
+        events = [c.args[0] for c in mock_logger.debug.call_args_list]
+        assert "request_started" not in events
+        assert "request_completed" not in events
+        mock_metric.labels.assert_not_called()
+
+    def test_exception_logged_at_error_level_and_reraised(self):
+        client = TestClient(_make_app(LoggingMiddleware), raise_server_exceptions=True)
+        with (
+            patch("src.core.middleware.settings", _logging_settings()),
+            patch("src.core.middleware.logger") as mock_logger,
+        ):
+            with pytest.raises(ValueError, match="Test error"):
+                client.get("/error")
+
+        error_events = [c.args[0] for c in mock_logger.error.call_args_list]
+        assert "request_failed" in error_events
+
+
+@pytest.mark.unit
+class TestPathExclusion:
+    """_is_excluded — exact match, trailing slash, subpaths."""
+
+    @pytest.mark.parametrize(
+        ("path", "excluded"),
+        [
+            ("/metrics", True),
+            ("/metrics/", True),
+            ("/metrics/prometheus", True),
+            ("/health", True),
+            ("/healthz", False),
+            ("/api/v1/agents", False),
+            ("/", False),
+        ],
+    )
+    def test_exclusion_variants(self, path: str, excluded: bool):
         with patch("src.core.middleware.settings") as mock_settings:
-            mock_settings.http_log_level = "DEBUG"
-            mock_settings.http_log_exclude_paths = []
-
-            with patch("src.core.middleware.logger") as mock_logger:
-                middleware = LoggingMiddleware(app=MagicMock())
-                await middleware.dispatch(mock_request, call_next)
-
-                # Should log request started and completed
-                assert mock_logger.debug.call_count >= 1
-
-    @pytest.mark.asyncio
-    async def test_excludes_health_check_paths(self, mock_request, mock_response):
-        """Test that excluded paths are not logged."""
-        mock_request.url.path = "/health"
-        mock_response.headers = {}
-
-        async def call_next(request):
-            return mock_response
-
-        with patch("src.core.middleware.settings") as mock_settings:
-            mock_settings.http_log_level = "DEBUG"
-            mock_settings.http_log_exclude_paths = ["/health", "/metrics"]
-
-            with patch("src.core.middleware.logger") as mock_logger:
-                middleware = LoggingMiddleware(app=MagicMock())
-                await middleware.dispatch(mock_request, call_next)
-
-                # Should not log for excluded paths (except errors)
-                mock_logger.debug.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_excludes_paths_with_trailing_slash(self, mock_request, mock_response):
-        """Test that paths with trailing slash are excluded."""
-        mock_request.url.path = "/health/"
-        mock_response.headers = {}
-
-        async def call_next(request):
-            return mock_response
-
-        with patch("src.core.middleware.settings") as mock_settings:
-            mock_settings.http_log_level = "DEBUG"
-            mock_settings.http_log_exclude_paths = ["/health"]
-
-            with patch("src.core.middleware.logger") as mock_logger:
-                middleware = LoggingMiddleware(app=MagicMock())
-                await middleware.dispatch(mock_request, call_next)
-
-                mock_logger.debug.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_logs_errors_at_error_level(self, mock_request):
-        """Test that errors are logged at ERROR level."""
-
-        async def call_next(request):
-            raise ValueError("Test error")
-
-        with patch("src.core.middleware.settings") as mock_settings:
-            mock_settings.http_log_level = "DEBUG"
-            mock_settings.http_log_exclude_paths = []
-
-            with patch("src.core.middleware.logger") as mock_logger:
-                middleware = LoggingMiddleware(app=MagicMock())
-
-                with pytest.raises(ValueError):
-                    await middleware.dispatch(mock_request, call_next)
-
-                # Error should be logged
-                mock_logger.error.assert_called()
+            mock_settings.http_log_exclude_paths = ["/metrics", "/health"]
+            assert _is_excluded(path) is excluded
 
 
 # =============================================================================
-# ErrorHandlerMiddleware - Unit Tests
+# ErrorHandlerMiddleware
 # =============================================================================
 
 
 @pytest.mark.unit
 class TestErrorHandlerMiddleware:
-    """Tests for ErrorHandlerMiddleware."""
+    """Structured 500s; detail gated by debug; mid-stream re-raise semantics."""
 
-    @pytest.mark.asyncio
-    async def test_passes_through_successful_response(self, mock_request, mock_response):
-        """Test that successful responses pass through unchanged."""
-
-        async def call_next(request):
-            return mock_response
-
-        middleware = ErrorHandlerMiddleware(app=MagicMock())
-        response = await middleware.dispatch(mock_request, call_next)
-
-        assert response == mock_response
-
-    @pytest.mark.asyncio
-    async def test_catches_unhandled_exception(self, mock_request):
-        """Test that unhandled exceptions are caught and return 500."""
-        # Set a proper string value for request_id to avoid JSON serialization issues
-        mock_request.state.request_id = "test-request-id"
-
-        async def call_next(request):
-            raise ValueError("Unhandled error")
-
+    def test_returns_structured_500(self):
+        client = TestClient(
+            _make_app(ErrorHandlerMiddleware, RequestIDMiddleware),
+            raise_server_exceptions=False,
+        )
         with patch("src.core.middleware.settings") as mock_settings:
             mock_settings.debug = False
+            response = client.get("/error")
 
-            with patch("src.core.middleware.logger"):
-                middleware = ErrorHandlerMiddleware(app=MagicMock())
-                response = await middleware.dispatch(mock_request, call_next)
+        assert response.status_code == 500
+        body = response.json()
+        assert body["error"] == "Internal server error"
+        assert body["detail"] == "An unexpected error occurred"
+        assert body["request_id"]  # propagated from RequestIDMiddleware
 
-                assert response.status_code == 500
-
-    @pytest.mark.asyncio
-    async def test_includes_error_detail_in_debug_mode(self, mock_request):
-        """Test that error details are included in debug mode."""
-        # Set a proper string value for request_id to avoid JSON serialization issues
-        mock_request.state.request_id = "test-request-id"
-
-        async def call_next(request):
-            raise ValueError("Debug error message")
-
+    def test_debug_mode_exposes_exception_detail(self):
+        client = TestClient(_make_app(ErrorHandlerMiddleware), raise_server_exceptions=False)
         with patch("src.core.middleware.settings") as mock_settings:
             mock_settings.debug = True
+            response = client.get("/error")
 
-            with patch("src.core.middleware.logger"):
-                middleware = ErrorHandlerMiddleware(app=MagicMock())
-                response = await middleware.dispatch(mock_request, call_next)
+        assert response.json()["detail"] == "Test error"
 
-                # In debug mode, detail should include the actual error
-                assert response.status_code == 500
+    def test_logs_unhandled_exception(self):
+        client = TestClient(_make_app(ErrorHandlerMiddleware), raise_server_exceptions=False)
+        with patch("src.core.middleware.logger") as mock_logger:
+            client.get("/error")
 
-    @pytest.mark.asyncio
-    async def test_hides_error_detail_in_production(self, mock_request):
-        """Test that error details are hidden in production."""
-        # Set a proper string value for request_id to avoid JSON serialization issues
-        mock_request.state.request_id = "test-request-id"
+        mock_logger.exception.assert_called_once()
+        assert mock_logger.exception.call_args.args[0] == "unhandled_exception"
 
-        async def call_next(request):
-            raise ValueError("Sensitive error info")
+    def test_midstream_failure_reraises(self):
+        """Once the response has started (streaming), a JSON 500 can no longer
+        be sent — the exception must propagate (historical behaviour)."""
+        from starlette.responses import StreamingResponse
 
-        with patch("src.core.middleware.settings") as mock_settings:
-            mock_settings.debug = False
+        app = FastAPI()
 
-            with patch("src.core.middleware.logger"):
-                middleware = ErrorHandlerMiddleware(app=MagicMock())
-                response = await middleware.dispatch(mock_request, call_next)
+        @app.get("/stream")
+        async def stream_endpoint() -> StreamingResponse:
+            async def broken_stream():
+                yield b"first chunk"
+                raise RuntimeError("mid-stream failure")
 
-                assert response.status_code == 500
+            return StreamingResponse(broken_stream())
+
+        app.add_middleware(ErrorHandlerMiddleware)
+        client = TestClient(app, raise_server_exceptions=True)
+
+        with pytest.raises(RuntimeError, match="mid-stream failure"):
+            client.get("/stream")
 
 
 # =============================================================================
-# setup_middleware - Unit Tests
+# Full stack (setup_middleware)
 # =============================================================================
 
 
 @pytest.mark.unit
 class TestSetupMiddleware:
-    """Tests for setup_middleware function."""
+    """The full configured stack works end to end."""
 
-    def test_setup_adds_cors_middleware(self, simple_app):
-        """Test that CORS middleware is added."""
-        with patch("src.core.middleware.settings") as mock_settings:
-            mock_settings.cors_origins = ["http://localhost:3000"]
-
-            with patch("src.core.middleware.logger"):
-                setup_middleware(simple_app)
-
-        # Verify middleware was added by checking the app's middleware stack
-        middleware_classes = [m.cls.__name__ for m in simple_app.user_middleware]
-        assert "CORSMiddleware" in middleware_classes
-
-    def test_setup_adds_custom_middleware(self, simple_app):
-        """Test that custom middleware are added."""
-        with patch("src.core.middleware.settings") as mock_settings:
-            mock_settings.cors_origins = ["http://localhost:3000"]
-
-            with patch("src.core.middleware.logger"):
-                setup_middleware(simple_app)
-
-        middleware_classes = [m.cls.__name__ for m in simple_app.user_middleware]
-
-        # Check that our custom middleware are added
-        assert "ErrorHandlerMiddleware" in middleware_classes
-        assert "LoggingMiddleware" in middleware_classes
-        assert "SecurityHeadersMiddleware" in middleware_classes
-        assert "RequestIDMiddleware" in middleware_classes
-
-
-# =============================================================================
-# Integration Tests with TestClient
-# =============================================================================
-
-
-@pytest.mark.unit
-class TestMiddlewareIntegration:
-    """Integration tests for middleware stack."""
-
-    def test_security_headers_in_response(self):
-        """Test that security headers appear in actual response."""
+    def test_full_stack_smoke(self):
         app = FastAPI()
 
         @app.get("/test")
-        async def test_route():
-            return {"status": "ok"}
+        async def test_endpoint(request: Request) -> dict:
+            return {"request_id": getattr(request.state, "request_id", None)}
 
-        app.add_middleware(SecurityHeadersMiddleware)
-
+        setup_middleware(app)
         client = TestClient(app)
-        response = client.get("/test")
+        response = client.get("/test", headers={"X-Request-ID": "stack-1"})
 
-        assert response.headers.get("X-Frame-Options") == "DENY"
-        assert response.headers.get("X-Content-Type-Options") == "nosniff"
-        assert response.headers.get("X-XSS-Protection") == "1; mode=block"
+        assert response.status_code == 200
+        # RequestID ran (and reached the route through the whole stack)
+        assert response.headers["X-Request-ID"] == "stack-1"
+        assert response.json()["request_id"] == "stack-1"
+        # SecurityHeaders ran
+        assert response.headers["X-Frame-Options"] == "DENY"
 
-    def test_request_id_in_response(self):
-        """Test that request ID appears in actual response."""
+    def test_full_stack_error_path(self):
         app = FastAPI()
 
-        @app.get("/test")
-        async def test_route():
-            return {"status": "ok"}
+        @app.get("/error")
+        async def error_endpoint() -> dict:
+            raise ValueError("boom")
 
-        app.add_middleware(RequestIDMiddleware)
+        setup_middleware(app)
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get("/error")
 
-        client = TestClient(app)
-        response = client.get("/test")
+        assert response.status_code == 500
+        assert response.json()["error"] == "Internal server error"
+        # Security headers apply to error responses too
+        assert response.headers["X-Frame-Options"] == "DENY"
 
-        assert "X-Request-ID" in response.headers
-        # Should be a valid UUID format
-        request_id = response.headers["X-Request-ID"]
-        try:
-            uuid.UUID(request_id)
-            is_valid_uuid = True
-        except ValueError:
-            is_valid_uuid = False
-        assert is_valid_uuid
+    def test_websocket_scope_passthrough(self):
+        """Non-http scopes traverse the stack untouched."""
+        from fastapi import WebSocket
 
-    def test_provided_request_id_preserved(self):
-        """Test that provided request ID is preserved."""
         app = FastAPI()
 
-        @app.get("/test")
-        async def test_route():
-            return {"status": "ok"}
+        @app.websocket("/ws")
+        async def ws_endpoint(websocket: WebSocket) -> None:
+            await websocket.accept()
+            await websocket.send_json({"ok": True})
+            await websocket.close()
 
-        app.add_middleware(RequestIDMiddleware)
-
+        setup_middleware(app)
         client = TestClient(app)
-        custom_id = "my-custom-request-id"
-        response = client.get("/test", headers={"X-Request-ID": custom_id})
-
-        assert response.headers.get("X-Request-ID") == custom_id
+        with client.websocket_connect("/ws") as ws:
+            assert ws.receive_json() == {"ok": True}
