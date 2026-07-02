@@ -1291,9 +1291,25 @@ result = await graph.ainvoke(
 
 ### Schema Versioning
 
-**Current Version**: `"1.0"`
+**Current Version**: `"1.3"` (see `CURRENT_SCHEMA_VERSION` in `models.py` — the constant is the source of truth)
 
 **Field**: `state["_schema_version"]`
+
+**Version history**:
+
+| Version | Change |
+|---------|--------|
+| `1.0` | `_schema_version` field introduced |
+| `1.1` | Compaction fields (`compaction_summary`, `compaction_count`) |
+| `1.2` | ReAct execution-mode fields (ADR-070) |
+| `1.3` | Replay-safe HITL keys (ADR-092: `for_each_hitl_ctx`, `for_each_cancelled`, `cancellation_reason`, `draft_edit_iteration`, `draft_clarification_question`) + `user_display_name` |
+
+> **Wired since F7 (2026-07)**: `OrchestrationService.load_or_create_state` runs
+> `needs_migration()` / `migrate_state_to_current()` on every checkpoint load —
+> the migration chain is live code, no longer a documented-only pattern.
+> Migrations MUST stay idempotent and purely additive (defaults for missing
+> keys). **Discipline**: any new `MessagesState` key ships with a migration
+> step and a `CURRENT_SCHEMA_VERSION` bump.
 
 ### Migration Functions
 
@@ -1310,7 +1326,7 @@ def get_state_schema_version(state: MessagesState) -> str:
 #### **needs_migration**
 
 ```python
-CURRENT_SCHEMA_VERSION = "1.0"
+CURRENT_SCHEMA_VERSION = "1.3"  # ADR-092: replay-safe HITL keys + sender identity
 
 def needs_migration(state: MessagesState) -> bool:
     """Check if state needs migration."""
@@ -1338,13 +1354,10 @@ def migrate_state_to_current(state: MessagesState) -> MessagesState:
         state["_schema_version"] = "1.0"
         current_version = "1.0"
 
-    # Future migrations:
-    # if current_version == "1.0":
-    #     logger.info("migrating_state_1.0_to_1.1")
-    #     # Add new fields with defaults
-    #     state["new_field"] = default_value
-    #     state["_schema_version"] = "1.1"
-    #     current_version = "1.1"
+    # ... 1.0 → 1.1 (compaction), 1.1 → 1.2 (ReAct, ADR-070),
+    # 1.2 → 1.3 (replay-safe HITL keys, ADR-092 + user_display_name):
+    # each step sets missing keys to their defaults, then bumps the version —
+    # see models.py for the full, authoritative chain.
 
     # Verify final version
     if current_version != CURRENT_SCHEMA_VERSION:
@@ -1357,22 +1370,25 @@ def migrate_state_to_current(state: MessagesState) -> MessagesState:
     return state
 ```
 
-### Usage Pattern
+### Where it runs (live code)
+
+`OrchestrationService.load_or_create_state` (checkpoint-restore branch):
 
 ```python
-# After loading checkpoint
-checkpoint = await checkpointer.aget(config=config)
-state = checkpoint["channel_values"]
-
-# Check & migrate
+# === SCHEMA MIGRATION (F7) ===
 if needs_migration(state):
-    logger.info("migrating_state",
-               from_version=get_state_schema_version(state))
+    logger.info(
+        "state_schema_migration",
+        run_id=run_id,
+        conversation_id=str(conversation_id),
+        from_version=state.get("_schema_version", "0.0"),
+    )
     state = migrate_state_to_current(state)
-
-# Continue execution with migrated state
-result = await graph.ainvoke(new_input, config=config)
 ```
+
+Every conversation resumed from an older checkpoint is upgraded before the
+graph runs; fresh conversations are created directly at
+`CURRENT_SCHEMA_VERSION` by `create_initial_state`.
 
 ---
 

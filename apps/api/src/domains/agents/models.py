@@ -754,7 +754,7 @@ def validate_state_consistency(state: MessagesState) -> list[str]:
 # SCHEMA MIGRATION FUNCTIONS (LangGraph v1.0 Best Practice)
 # ============================================================================
 
-CURRENT_SCHEMA_VERSION = "1.2"  # ADR-070: ReAct execution mode fields
+CURRENT_SCHEMA_VERSION = "1.3"  # ADR-092: replay-safe HITL keys + sender identity
 
 
 def get_state_schema_version(state: MessagesState) -> str:
@@ -852,6 +852,24 @@ def migrate_state_to_current(state: MessagesState) -> MessagesState:
             state["react_start_time"] = None
         state["_schema_version"] = "1.2"
         current_version = "1.2"
+
+    # Migration: 1.2 → 1.3 (replay-safe HITL keys — ADR-092 — + sender identity)
+    if current_version == "1.2":
+        logger.info("migrating_state_1.2_to_1.3")
+        if "for_each_hitl_ctx" not in state:
+            state["for_each_hitl_ctx"] = None
+        if "for_each_cancelled" not in state:
+            state["for_each_cancelled"] = False
+        if "cancellation_reason" not in state:
+            state["cancellation_reason"] = None
+        if "draft_edit_iteration" not in state:
+            state["draft_edit_iteration"] = 0
+        if "draft_clarification_question" not in state:
+            state["draft_clarification_question"] = None
+        if "user_display_name" not in state:
+            state["user_display_name"] = None
+        state["_schema_version"] = "1.3"
+        current_version = "1.3"
 
     # Verify final version
     if current_version != CURRENT_SCHEMA_VERSION:
