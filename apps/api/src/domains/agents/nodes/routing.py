@@ -668,6 +668,43 @@ def route_from_hitl_dispatch(state: MessagesState) -> Literal["hitl_dispatch", "
     return "initiative"
 
 
+def route_from_for_each_confirm(
+    state: MessagesState,
+) -> Literal["for_each_confirm", "task_orchestrator", "initiative"]:
+    """Route after the FOR_EACH bulk-confirmation node.
+
+    Three outcomes, all read from the state written by the node:
+
+    - ctx approved  → back to task_orchestrator, which resumes execution from
+      the persisted pre-executed context (no provider re-fetch);
+    - ctx still pending (EDIT decision filtered the items) → self-loop, the
+      node presents the filtered list in a NEW interrupt (replay-safety: the
+      LLM filter result was checkpointed before this routing decision);
+    - ctx cleared (reject / all-excluded / max-iterations cancel) → initiative,
+      the same terminal destination the historical in-orchestrator cancel had.
+
+    Args:
+        state: Current graph state.
+
+    Returns:
+        Next node name.
+    """
+    from src.core.constants import NODE_INITIATIVE
+    from src.domains.agents.constants import NODE_FOR_EACH_CONFIRM, NODE_TASK_ORCHESTRATOR
+
+    ctx = state.get("for_each_hitl_ctx")
+    if isinstance(ctx, dict):
+        decision = NODE_TASK_ORCHESTRATOR if ctx.get("approved") else NODE_FOR_EACH_CONFIRM
+    else:
+        decision = NODE_INITIATIVE
+
+    langgraph_conditional_edges_total.labels(
+        edge_name="route_from_for_each_confirm",
+        decision=decision,
+    ).inc()
+    return decision
+
+
 def route_from_initiative(state: MessagesState) -> Literal["initiative", "response"]:
     """Route from initiative node.
 

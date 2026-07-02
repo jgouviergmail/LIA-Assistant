@@ -42,6 +42,7 @@ from src.domains.agents.constants import (
     NODE_CLARIFICATION,
     NODE_COMPACTION,
     NODE_DRAFT_CRITIQUE,
+    NODE_FOR_EACH_CONFIRM,
     NODE_PLANNER,
     NODE_REACT_CALL_MODEL,
     NODE_REACT_EXECUTE_TOOLS,
@@ -71,10 +72,12 @@ from src.domains.agents.nodes import (
     semantic_validator_node,
     task_orchestrator_node,
 )
+from src.domains.agents.nodes.for_each_confirm_node import for_each_confirm_node
 from src.domains.agents.nodes.hitl_dispatch_node import hitl_dispatch_node
 from src.domains.agents.nodes.initiative_node import initiative_node
 from src.domains.agents.nodes.routing import (
     route_from_approval_gate,
+    route_from_for_each_confirm,
     route_from_hitl_dispatch,
     route_from_initiative,
     route_from_planner,
@@ -256,6 +259,22 @@ def route_from_orchestrator(state: MessagesState) -> str:
     Returns:
         Next node name (agent name, "draft_critique", or "response").
     """
+    # Replay-safe FOR_EACH HITL (2026-07): the orchestrator persisted the
+    # pre-executed context and expects the dedicated confirmation node to run
+    # (one interrupt per node execution). An approved ctx never routes here —
+    # the confirm node routes straight back to the orchestrator.
+    for_each_ctx = state.get("for_each_hitl_ctx")
+    if isinstance(for_each_ctx, dict) and not for_each_ctx.get("approved"):
+        langgraph_conditional_edges_total.labels(
+            edge_name="route_from_orchestrator",
+            decision=NODE_FOR_EACH_CONFIRM,
+        ).inc()
+        langgraph_node_transitions_total.labels(
+            from_node=NODE_TASK_ORCHESTRATOR,
+            to_node=NODE_FOR_EACH_CONFIRM,
+        ).inc()
+        return NODE_FOR_EACH_CONFIRM
+
     # LOT 6+ HITL Dispatch: Check for ANY pending HITL request
     # Routes to hitl_dispatch_node which handles:
     # - pending_draft_critique (email/event/contact drafts)
@@ -678,6 +697,7 @@ async def build_graph(
         route_from_orchestrator,
         {
             NODE_DRAFT_CRITIQUE: NODE_DRAFT_CRITIQUE,  # LOT 6: Draft HITL
+            NODE_FOR_EACH_CONFIRM: NODE_FOR_EACH_CONFIRM,  # 2026-07: replay-safe bulk HITL
             # OAuth agents (Google) - v3.2 naming: singular domain names
             AGENT_CONTACT: AGENT_CONTACT,
             AGENT_EMAIL: AGENT_EMAIL,
@@ -711,6 +731,22 @@ async def build_graph(
         {
             NODE_DRAFT_CRITIQUE: NODE_DRAFT_CRITIQUE,  # Self-loop: draft still pending
             NODE_INITIATIVE: NODE_INITIATIVE,  # Done: proceed to initiative
+        },
+    )
+
+    # 2026-07: Replay-safe FOR_EACH bulk-confirmation node. The orchestrator
+    # persists the pre-executed context and routes here; one interrupt per
+    # node execution (approve → back to orchestrator; edit → self-loop with
+    # the filtered list checkpointed; cancel → initiative, the historical
+    # terminal destination of the in-orchestrator cancel).
+    graph.add_node(NODE_FOR_EACH_CONFIRM, for_each_confirm_node)
+    graph.add_conditional_edges(
+        NODE_FOR_EACH_CONFIRM,
+        route_from_for_each_confirm,
+        {
+            NODE_FOR_EACH_CONFIRM: NODE_FOR_EACH_CONFIRM,  # Self-loop after EDIT
+            NODE_TASK_ORCHESTRATOR: NODE_TASK_ORCHESTRATOR,  # Approved: resume execution
+            NODE_INITIATIVE: NODE_INITIATIVE,  # Cancelled
         },
     )
 

@@ -50,17 +50,12 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.errors import GraphInterrupt
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import FIELD_METADATA, FIELD_RUN_ID
 from src.domains.agents.constants import (
-    HITL_DECISION_APPROVE,
-    HITL_DECISION_EDIT,
-    HITL_DECISION_REJECT,
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_CURRENT_TURN_ID,
     STATE_KEY_EXECUTION_PLAN,
-    STATE_KEY_FOR_EACH_CANCELLATION_REASON,
-    STATE_KEY_FOR_EACH_CANCELLED,
+    STATE_KEY_FOR_EACH_HITL_CTX,
     STATE_KEY_LAST_ACTION_TURN_ID,
     STATE_KEY_LAST_LIST_DOMAIN,
     STATE_KEY_LAST_LIST_TURN_ID,
@@ -76,7 +71,6 @@ from src.domains.agents.orchestration import (
     map_execution_result_to_agent_result,
 )
 from src.domains.agents.orchestration.for_each_utils import parse_for_each_reference
-from src.domains.agents.services.hitl.item_filter import get_item_filter_service
 from src.domains.agents.tools.runtime_helpers import extract_value_by_path
 from src.domains.agents.utils.state_cleanup import (
     cleanup_dict_by_turn_id,
@@ -87,8 +81,6 @@ from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_node_duration_seconds,
     agent_node_executions_total,
-    hitl_for_each_approval_latency,
-    hitl_for_each_decisions,
     hitl_for_each_items_counted,
     hitl_for_each_pre_execution_duration,
     hitl_for_each_pre_execution_total,
@@ -847,10 +839,8 @@ async def _handle_execution_plan(
         This function BLOCKS until all waves complete.
         No iterative dispatch needed - asyncio handles concurrency.
     """
-    from langgraph.types import interrupt
 
     from src.domains.agents.orchestration.parallel_executor import execute_plan_parallel
-    from src.domains.agents.services.hitl.protocols import HitlInteractionType
     from src.domains.agents.services.hitl.scope_detector import detect_for_each_scope
 
     try:
@@ -927,288 +917,121 @@ async def _handle_execution_plan(
                         }
                     )
 
+        # Filtered indices from the confirm-node EDIT loop (None = no filtering)
+        filtered_indices: list[int] | None = None
+
         if for_each_steps_requiring_hitl:
-            user_language = state.get("user_language", "fr")
-            user_timezone = state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
-
             # ================================================================
-            # PRE-EXECUTE provider steps to get REAL item count
+            # Replay-safe FOR_EACH HITL (2026-07)
             # ================================================================
-            # BugFix 2026-01-24: Also capture pre_exec_registry to preserve parent items
-            # (e.g., events) when child steps (e.g., routes) fail
-            pre_executed_steps, item_counts, pre_exec_registry = (
-                await _pre_execute_for_each_providers(
-                    execution_plan=execution_plan,
-                    for_each_steps=for_each_steps_requiring_hitl,
-                    config=config,
-                    run_id=run_id,
-                    initial_registry=initial_registry,
-                    turn_id=current_turn_id,
-                )
+            # The interrupt loop moved to the dedicated for_each_confirm node.
+            # This node pre-executes the providers ONCE, persists everything in
+            # for_each_hitl_ctx via a state-update RETURN (checkpointed BEFORE
+            # any interrupt), and routes to the confirm node. On approval the
+            # confirm node routes back here and execution resumes from the
+            # persisted context — a resume never re-fetches providers nor
+            # re-runs past LLM item filters.
+            # ================================================================
+            ctx = state.get(STATE_KEY_FOR_EACH_HITL_CTX)
+            ctx_matches = (
+                isinstance(ctx, dict)
+                and ctx.get("plan_id") == execution_plan.plan_id
+                and ctx.get("turn_id") == current_turn_id
             )
 
-            # Note: pre_exec_registry is passed to execute_plan_parallel separately
-            # (not merged into initial_registry) so items are added to current_turn_touched_ids
-
-            # Calculate total_affected from real counts
-            if item_counts:
-                # Sum of real counts from pre-execution
-                total_affected = sum(item_counts.values())
-            else:
-                # Fallback to for_each_max if pre-execution failed
-                total_affected = sum(s["for_each_max"] for s in for_each_steps_requiring_hitl)
-
-            # FIX 2026-01-30: Extract item previews for "Informed HITL"
-            # Shows users exactly what items will be affected before confirmation
-            item_previews = _extract_item_previews_for_hitl(
-                pre_exec_registry=pre_exec_registry,
-                for_each_steps=for_each_steps_requiring_hitl,
-                completed_steps=pre_executed_steps,
-            )
-
-            logger.info(
-                "for_each_hitl_required",
-                run_id=run_id,
-                plan_id=execution_plan.plan_id,
-                steps_requiring_hitl=len(for_each_steps_requiring_hitl),
-                steps=for_each_steps_requiring_hitl,
-                total_affected=total_affected,
-                item_counts=item_counts,
-                pre_executed_step_ids=list(pre_executed_steps.keys()),
-                item_previews_count=len(item_previews),
-            )
-
-            # ================================================================
-            # FOR_EACH HITL EDIT Loop (2026-01-30)
-            # ================================================================
-            # Pattern: Similar to draft_critique EDIT loop in hitl_dispatch_node
-            # Allows user to exclude items from the list before confirmation
-            # Example: "remove emails from Guy Savoy" filters out matching items
-            # ================================================================
-            # Safety limit: max iterations = max items possible in a request
-            # (user can't filter more times than there are items)
-            max_edit_iterations = settings.api_max_items_per_request
-            iteration = 0
-            # Initialize decision so the post-loop check (iteration >= max) can
-            # never hit an unbound variable if the loop body doesn't run.
-            decision: str = ""
-            current_item_previews = item_previews  # Start with full list
-            current_total_affected = total_affected
-            # Track filtered indices mapping (for applying to real data)
-            filtered_indices: list[int] | None = None
-
-            # Helper to build cancellation result (DRY)
-            # Sets draft_action_result with action="cancel" so response_node
-            # handles it identically to a HITL draft cancel ("OK, annulé.").
-            def _build_cancel_result(reason: str) -> dict[str, Any]:
-                return {
-                    STATE_KEY_EXECUTION_PLAN: execution_plan,
-                    STATE_KEY_AGENT_RESULTS: {},
-                    STATE_KEY_FOR_EACH_CANCELLED: True,
-                    STATE_KEY_FOR_EACH_CANCELLATION_REASON: reason,
-                    "draft_action_result": {
-                        "action": "cancel",
-                        "draft_id": "",
-                        "draft_type": "for_each_bulk",
-                        "reason": reason,
-                    },
-                }
-
-            # Skip HITL entirely when pre-execution yielded 0 items
-            # (e.g. provider step failed with ClosedResourceError, or returned empty)
-            if total_affected == 0:
+            if ctx_matches and ctx.get("approved"):
+                # ── Approved: resume from the persisted context (no re-fetch) ──
+                pre_executed_steps = ctx.get("pre_executed_steps") or {}
+                pre_exec_registry = ctx.get("pre_exec_registry") or {}
+                filtered_indices = ctx.get("filtered_indices")
                 logger.info(
-                    "for_each_hitl_skipped_no_items",
+                    "for_each_hitl_resumed_from_ctx",
                     run_id=run_id,
                     plan_id=execution_plan.plan_id,
-                    reason="total_affected is 0 after pre-execution",
+                    pre_executed_step_ids=list(pre_executed_steps.keys()),
+                    filtered_indices=filtered_indices,
+                    final_item_count=ctx.get("total_affected"),
+                )
+            else:
+                # ── First pass: pre-execute providers ONCE ──
+                # BugFix 2026-01-24: Also capture pre_exec_registry to preserve
+                # parent items (e.g., events) when child steps (e.g., routes) fail
+                pre_executed_steps, item_counts, pre_exec_registry = (
+                    await _pre_execute_for_each_providers(
+                        execution_plan=execution_plan,
+                        for_each_steps=for_each_steps_requiring_hitl,
+                        config=config,
+                        run_id=run_id,
+                        initial_registry=initial_registry,
+                        turn_id=current_turn_id,
+                    )
                 )
 
-            while total_affected > 0 and iteration < max_edit_iterations:
-                iteration += 1
+                # Note: pre_exec_registry is passed to execute_plan_parallel separately
+                # (not merged into initial_registry) so items are added to
+                # current_turn_touched_ids
 
-                # Build interrupt payload with current (possibly filtered) items
-                interrupt_payload = {
-                    "action_requests": [
-                        {
-                            "type": HitlInteractionType.FOR_EACH_CONFIRMATION.value,
-                            "plan_id": execution_plan.plan_id,
-                            "steps": for_each_steps_requiring_hitl,
-                            "total_affected": current_total_affected,
-                            "item_previews": current_item_previews,
-                            "iteration": iteration,
-                        }
-                    ],
-                    "generate_question_streaming": True,
-                    "user_language": user_language,
-                    "user_timezone": user_timezone,
-                }
-
-                # Track start time for latency metric
-                hitl_start_time = time.time()
-
-                # Interrupt and wait for user decision
-                decision_data = interrupt(interrupt_payload)
-
-                # Record latency metric
-                hitl_latency = time.time() - hitl_start_time
-                hitl_for_each_approval_latency.observe(hitl_latency)
-
-                # No decision - treat as cancellation
-                if not decision_data:
-                    hitl_for_each_decisions.labels(decision="cancel").inc()
-                    logger.warning(
-                        "for_each_hitl_no_decision",
-                        run_id=run_id,
-                        plan_id=execution_plan.plan_id,
-                        iteration=iteration,
-                        latency_seconds=round(hitl_latency, 2),
-                    )
-                    result = _build_cancel_result("No user decision received")
-                    track_state_updates(state, result, "task_orchestrator", run_id)
-                    return result
-
-                decision = decision_data.get("decision", HITL_DECISION_REJECT)
-
-                # ---- APPROVE: User confirmed, exit loop ----
-                if decision == HITL_DECISION_APPROVE:
-                    hitl_for_each_decisions.labels(decision="confirm").inc()
-                    logger.info(
-                        "for_each_hitl_confirmed",
-                        run_id=run_id,
-                        plan_id=execution_plan.plan_id,
-                        iteration=iteration,
-                        final_item_count=current_total_affected,
-                        latency_seconds=round(hitl_latency, 2),
-                    )
-                    break  # Exit loop, continue to execution
-
-                # ---- REJECT: User cancelled ----
-                elif decision == HITL_DECISION_REJECT:
-                    hitl_for_each_decisions.labels(decision="cancel").inc()
-                    logger.info(
-                        "for_each_hitl_cancelled",
-                        run_id=run_id,
-                        plan_id=execution_plan.plan_id,
-                        decision=decision,
-                        iteration=iteration,
-                        latency_seconds=round(hitl_latency, 2),
-                    )
-                    reason = decision_data.get("rejection_reason", "User cancelled bulk operation")
-                    result = _build_cancel_result(reason)
-                    track_state_updates(state, result, "task_orchestrator", run_id)
-                    return result
-
-                # ---- EDIT: User wants to exclude items ----
-                elif decision == HITL_DECISION_EDIT:
-                    hitl_for_each_decisions.labels(decision="edit").inc()
-
-                    exclude_criteria = decision_data.get("exclude_criteria", "")
-                    if not exclude_criteria:
-                        # No criteria provided - re-interrupt with same items
-                        logger.warning(
-                            "for_each_edit_no_criteria",
-                            run_id=run_id,
-                            plan_id=execution_plan.plan_id,
-                            iteration=iteration,
-                        )
-                        continue
-
-                    logger.info(
-                        "for_each_edit_filtering_items",
-                        run_id=run_id,
-                        plan_id=execution_plan.plan_id,
-                        iteration=iteration,
-                        exclude_criteria=exclude_criteria[:100],
-                        current_item_count=len(current_item_previews),
-                    )
-
-                    # Filter items using LLM-based ItemFilterService (imported at module level)
-                    filter_service = get_item_filter_service()
-
-                    try:
-                        indices_to_keep = await filter_service.filter(
-                            item_previews=current_item_previews,
-                            exclude_criteria=exclude_criteria,
-                            user_language=user_language,
-                            run_id=run_id,
-                        )
-                    except Exception as filter_error:
-                        logger.error(
-                            "for_each_edit_filter_error",
-                            run_id=run_id,
-                            error=str(filter_error),
-                            error_type=type(filter_error).__name__,
-                        )
-                        # On filter error, re-interrupt with same items
-                        continue
-
-                    # Apply filter to get new item preview list
-                    filtered_previews = [current_item_previews[i] for i in indices_to_keep]
-
-                    # Check if all items were excluded
-                    if not filtered_previews:
-                        hitl_for_each_decisions.labels(decision="cancel").inc()
-                        logger.info(
-                            "for_each_edit_all_excluded",
-                            run_id=run_id,
-                            plan_id=execution_plan.plan_id,
-                            exclude_criteria=exclude_criteria[:100],
-                            original_count=len(current_item_previews),
-                        )
-                        result = _build_cancel_result("All items excluded by user filter")
-                        track_state_updates(state, result, "task_orchestrator", run_id)
-                        return result
-
-                    # Update tracking for filtered indices (cumulative mapping)
-                    if filtered_indices is None:
-                        # First filter - use original indices
-                        filtered_indices = indices_to_keep
-                    else:
-                        # Subsequent filter - map through previous indices
-                        filtered_indices = [filtered_indices[i] for i in indices_to_keep]
-
-                    logger.info(
-                        "for_each_edit_items_filtered",
-                        run_id=run_id,
-                        plan_id=execution_plan.plan_id,
-                        iteration=iteration,
-                        original_count=len(current_item_previews),
-                        filtered_count=len(filtered_previews),
-                        excluded_count=len(current_item_previews) - len(filtered_previews),
-                        exclude_criteria=exclude_criteria[:100],
-                    )
-
-                    # Update for next iteration
-                    current_item_previews = filtered_previews
-                    current_total_affected = len(filtered_previews)
-                    # Loop continues to re-interrupt with filtered items
-
+                # Calculate total_affected from real counts
+                if item_counts:
+                    total_affected = sum(item_counts.values())
                 else:
-                    # Unknown decision - treat as cancellation for safety
-                    hitl_for_each_decisions.labels(decision="cancel").inc()
-                    logger.warning(
-                        "for_each_hitl_unknown_decision",
+                    # Fallback to for_each_max if pre-execution failed
+                    total_affected = sum(s["for_each_max"] for s in for_each_steps_requiring_hitl)
+
+                # FIX 2026-01-30: Extract item previews for "Informed HITL"
+                item_previews = _extract_item_previews_for_hitl(
+                    pre_exec_registry=pre_exec_registry,
+                    for_each_steps=for_each_steps_requiring_hitl,
+                    completed_steps=pre_executed_steps,
+                )
+
+                logger.info(
+                    "for_each_hitl_required",
+                    run_id=run_id,
+                    plan_id=execution_plan.plan_id,
+                    steps_requiring_hitl=len(for_each_steps_requiring_hitl),
+                    steps=for_each_steps_requiring_hitl,
+                    total_affected=total_affected,
+                    item_counts=item_counts,
+                    pre_executed_step_ids=list(pre_executed_steps.keys()),
+                    item_previews_count=len(item_previews),
+                )
+
+                if total_affected == 0:
+                    # Skip HITL entirely when pre-execution yielded 0 items
+                    # (e.g. provider failed or returned empty) — historical
+                    # behaviour: continue execution with the pre-executed steps.
+                    logger.info(
+                        "for_each_hitl_skipped_no_items",
                         run_id=run_id,
                         plan_id=execution_plan.plan_id,
-                        decision=decision,
-                        iteration=iteration,
+                        reason="total_affected is 0 after pre-execution",
                     )
-                    result = _build_cancel_result(f"Unknown decision: {decision}")
+                else:
+                    # ── Persist the context and hand off to the confirm node ──
+                    # (also reset the bulk-cancel flags from any previous turn)
+                    result: dict[str, Any] = {
+                        STATE_KEY_EXECUTION_PLAN: execution_plan,
+                        "for_each_cancelled": False,
+                        "cancellation_reason": None,
+                        STATE_KEY_FOR_EACH_HITL_CTX: {
+                            "run_id": run_id,
+                            "plan_id": execution_plan.plan_id,
+                            "turn_id": current_turn_id,
+                            "steps": for_each_steps_requiring_hitl,
+                            "pre_executed_steps": pre_executed_steps,
+                            "pre_exec_registry": pre_exec_registry,
+                            "item_previews": item_previews,
+                            "total_affected": total_affected,
+                            "filtered_indices": None,
+                            "iteration": 0,
+                            "approved": False,
+                        },
+                    }
                     track_state_updates(state, result, "task_orchestrator", run_id)
                     return result
 
-            # Check if we exited due to max iterations (without APPROVE)
-            if iteration >= max_edit_iterations and decision != HITL_DECISION_APPROVE:
-                logger.warning(
-                    "for_each_hitl_max_iterations",
-                    run_id=run_id,
-                    plan_id=execution_plan.plan_id,
-                    max_iterations=max_edit_iterations,
-                )
-                result = _build_cancel_result("Max HITL iterations reached")
-                track_state_updates(state, result, "task_orchestrator", run_id)
-                return result
+            # (Interrupt loop moved to for_each_confirm_node — replay-safe.)
 
             # ================================================================
             # CRITICAL: Apply filtering to REAL data in pre_executed_steps
@@ -1653,6 +1476,12 @@ async def _handle_execution_plan(
                     draft_type=draft_critiques[0].get("draft_type"),
                     draft_ids=[d.get("draft_id") for d in draft_critiques],
                 )
+
+        # Purge the consumed FOR_EACH HITL context: once execution completed it
+        # is functionally inert (plan/turn guards make it unmatchable), but
+        # keeping it would bloat every subsequent checkpoint of the thread.
+        if state.get(STATE_KEY_FOR_EACH_HITL_CTX):
+            result[STATE_KEY_FOR_EACH_HITL_CTX] = None
 
         track_state_updates(state, result, "task_orchestrator", run_id)
         return result

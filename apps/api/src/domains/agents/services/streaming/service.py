@@ -1964,7 +1964,18 @@ class StreamingService:
         # Extract action metadata
         first_action = action_requests[0]
         action_type = first_action.get("type", "unknown")
-        message_id = f"hitl_{conversation_id}_{run_id}"
+        # One SSE message per interrupt: replay-safe HITL loops (ADR-092) emit a
+        # NEW interrupt per user decision within the SAME run, so the message_id
+        # must be unique per interrupt — the frontend keys the assistant bubble
+        # on it (STREAM_START is idempotent: a reused id would overwrite the
+        # previous bubble instead of creating a new one). The LangGraph
+        # Interrupt.id is unique per interrupt and stable across re-emissions
+        # of the same pending interrupt (e.g. SSE reconnection).
+        interrupt_id = getattr(interrupt_obj, "id", None)
+        if interrupt_id and interrupt_id != "placeholder-id":
+            message_id = f"hitl_{conversation_id}_{interrupt_id}"
+        else:
+            message_id = f"hitl_{conversation_id}_{run_id}"
         is_plan_approval = action_type == "plan_approval"
 
         # Phase 1 HITL Streaming: Check if streaming generation is requested

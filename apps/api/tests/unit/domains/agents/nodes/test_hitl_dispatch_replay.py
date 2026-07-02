@@ -46,6 +46,7 @@ class _SpyModifier:
         user_language: str,
         run_id: str,
         contact_context: Any = None,
+        sender_name: str | None = None,
     ) -> dict[str, Any]:
         self.calls.append(instructions)
         return {**original_draft, "summary": f"modified-v{len(self.calls)}"}

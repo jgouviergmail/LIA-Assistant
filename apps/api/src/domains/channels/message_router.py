@@ -21,6 +21,7 @@ from src.core.constants import (
     CHANNEL_RATE_LIMIT_REDIS_PREFIX,
     DEFAULT_USER_DISPLAY_TIMEZONE,
 )
+from src.core.user_display import resolve_user_display_name
 from src.domains.channels.abstractions import (
     ChannelInboundMessage,
     ChannelOutboundMessage,
@@ -206,6 +207,9 @@ class ChannelMessageRouter:
             user_language = getattr(user, "language", None) or settings.default_language
             user_timezone = getattr(user, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
             user_memory_enabled = getattr(user, "memory_enabled", True)
+            user_display_name = resolve_user_display_name(
+                getattr(user, "full_name", None), getattr(user, "email", None)
+            )
 
             # === 5. Check pending HITL ===
             conversation_id = await get_conversation_id_cached(user_id)
@@ -230,6 +234,7 @@ class ChannelMessageRouter:
                 user_memory_enabled=user_memory_enabled,
                 conversation_id=conversation_id,
                 pending_hitl=pending_hitl,
+                user_display_name=user_display_name,
             )
 
             # Track successful processing duration

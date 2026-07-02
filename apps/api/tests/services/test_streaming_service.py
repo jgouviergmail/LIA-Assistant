@@ -926,3 +926,82 @@ def test_capture_activated_skill_ignored_in_react_mode(streaming_service):
     streaming_service._process_values_chunk(chunk, last_sent_routing=None)
 
     assert streaming_service.activated_skill_name is None
+
+
+# ============================================================================
+# HITL interrupt message_id — one SSE message per interrupt (ADR-092 UX fix)
+# ============================================================================
+
+
+def _make_interrupt_chunk(interrupt_id: str | None) -> dict:
+    """Build a graph chunk carrying a single HITL interrupt."""
+    from types import SimpleNamespace
+
+    interrupt_kwargs = {
+        "value": {
+            "action_requests": [{"type": "draft_critique", "draft_id": "draft_x"}],
+        }
+    }
+    if interrupt_id is not None:
+        interrupt_kwargs["id"] = interrupt_id
+    return {"__interrupt__": [SimpleNamespace(**interrupt_kwargs)], "messages": []}
+
+
+async def _collect_hitl_metadata_message_id(service, chunk, conversation_id, run_id) -> str:
+    """Run _handle_hitl_interrupt and return the emitted metadata message_id."""
+    chunks = []
+    async for sse_chunk in service._handle_hitl_interrupt(chunk, conversation_id, run_id):
+        chunks.append(sse_chunk)
+    metadata_chunks = [c for c in chunks if c.type == "hitl_interrupt_metadata"]
+    assert metadata_chunks, "expected a hitl_interrupt_metadata chunk"
+    return metadata_chunks[0].metadata["message_id"]
+
+
+@pytest.mark.asyncio
+async def test_hitl_message_id_unique_per_interrupt(streaming_service, conversation_id, run_id):
+    """Two interrupts of the SAME run must yield distinct message_ids.
+
+    Replay-safe HITL loops (ADR-092) emit a NEW interrupt per user decision
+    within the same run — the frontend keys the assistant bubble on
+    message_id, so a reused id would overwrite the previous bubble instead
+    of creating a new one.
+    """
+    first = await _collect_hitl_metadata_message_id(
+        streaming_service, _make_interrupt_chunk("interrupt-aaa"), conversation_id, run_id
+    )
+    second = await _collect_hitl_metadata_message_id(
+        streaming_service, _make_interrupt_chunk("interrupt-bbb"), conversation_id, run_id
+    )
+
+    assert first != second
+    assert first == f"hitl_{conversation_id}_interrupt-aaa"
+    assert second == f"hitl_{conversation_id}_interrupt-bbb"
+
+
+@pytest.mark.asyncio
+async def test_hitl_message_id_stable_for_same_interrupt(
+    streaming_service, conversation_id, run_id
+):
+    """Re-emitting the SAME pending interrupt (e.g. SSE reconnection) must
+    reuse the same message_id — no duplicate bubble."""
+    first = await _collect_hitl_metadata_message_id(
+        streaming_service, _make_interrupt_chunk("interrupt-aaa"), conversation_id, run_id
+    )
+    again = await _collect_hitl_metadata_message_id(
+        streaming_service, _make_interrupt_chunk("interrupt-aaa"), conversation_id, run_id
+    )
+
+    assert first == again
+
+
+@pytest.mark.asyncio
+async def test_hitl_message_id_fallback_without_interrupt_id(
+    streaming_service, conversation_id, run_id
+):
+    """Interrupts without a real id (legacy 'placeholder-id' default) fall
+    back to the historical run-scoped format."""
+    message_id = await _collect_hitl_metadata_message_id(
+        streaming_service, _make_interrupt_chunk("placeholder-id"), conversation_id, run_id
+    )
+
+    assert message_id == f"hitl_{conversation_id}_{run_id}"

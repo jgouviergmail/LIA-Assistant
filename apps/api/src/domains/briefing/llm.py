@@ -20,6 +20,7 @@ from langchain_core.messages import HumanMessage
 
 from src.core.config import settings as app_settings
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.user_display import resolve_user_display_name
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.auth.models import User
 from src.domains.briefing.constants import (
@@ -271,14 +272,7 @@ async def _invoke_and_track(
 
 def _resolve_display_name(user: User) -> str:
     """First name fallback chain: full_name → email local part → 'there'."""
-    if user.full_name:
-        # If full_name has multiple words, take the first as the friendly first name.
-        first = user.full_name.strip().split()[0] if user.full_name.strip() else None
-        if first:
-            return first
-    if user.email:
-        return user.email.split("@", 1)[0]
-    return "there"
+    return resolve_user_display_name(user.full_name, user.email, fallback="there")
 
 
 def _compute_time_of_day(user_tz: ZoneInfo) -> str:

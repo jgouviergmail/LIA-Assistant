@@ -844,6 +844,7 @@ async def _handle_draft_critique(
                 user_language=user_language,
                 run_id=pending_draft.draft_id,
                 contact_context=contact_context,
+                sender_name=state.get("user_display_name"),
             )
 
             # Detect DELETE → UPDATE: modifier produced content changes

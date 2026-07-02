@@ -289,6 +289,12 @@ STATE_KEY_FOR_EACH_CANCELLED = (
 STATE_KEY_FOR_EACH_CANCELLATION_REASON = (
     "cancellation_reason"  # For-each HITL: Reason for cancellation (for response_node context)
 )
+# Replay-safe FOR_EACH HITL (2026-07): the confirmation loop moved out of
+# task_orchestrator into a dedicated single-pass node — the pre-executed
+# provider data and the edit-loop state travel through this context so a
+# resume never re-fetches providers nor re-runs past LLM item filters.
+STATE_KEY_FOR_EACH_HITL_CTX = "for_each_hitl_ctx"
+NODE_FOR_EACH_CONFIRM = "for_each_confirm"
 
 # Context resolution state keys
 STATE_KEY_LAST_ACTION_TURN_ID = "last_action_turn_id"  # Last turn with agent execution

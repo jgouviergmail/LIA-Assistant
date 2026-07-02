@@ -34,6 +34,7 @@ from src.core.constants import (
     SCHEDULED_ACTIONS_SESSION_PREFIX,
     SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
 )
+from src.core.user_display import resolve_user_display_name
 
 # CRITICAL: Import model at module level to register with SQLAlchemy metadata
 from src.domains.scheduled_actions.models import ScheduledAction  # noqa: F401
@@ -134,6 +135,7 @@ async def execute_single_action(
 
         user_language = user.language or settings.default_language
         user_timezone = user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE
+        user_display_name = resolve_user_display_name(user.full_name, user.email)
         session_id = f"{SCHEDULED_ACTIONS_SESSION_PREFIX}{action.id}"
 
         # === Guard: Check for pending HITL interrupt on user's conversation ===
@@ -202,6 +204,7 @@ async def execute_single_action(
                         session_id=_sid,
                         user_timezone=user_timezone,
                         user_language=user_language,
+                        user_display_name=user_display_name,
                         is_automated_source=True,  # skip memory/interest/journal/psyche extraction
                         auto_approve_plan=True,
                     ):
