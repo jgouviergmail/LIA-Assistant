@@ -46,6 +46,10 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Default id of langgraph.types.Interrupt when no real interrupt id was
+# assigned — treated as "no id" for the per-interrupt SSE message_id.
+_LANGGRAPH_INTERRUPT_PLACEHOLDER_ID = "placeholder-id"
+
 # Phase 1 HITL Streaming imports - lazy loaded to avoid circular imports
 _hitl_registry = None
 _hitl_question_generator = None
@@ -1972,7 +1976,7 @@ class StreamingService:
         # Interrupt.id is unique per interrupt and stable across re-emissions
         # of the same pending interrupt (e.g. SSE reconnection).
         interrupt_id = getattr(interrupt_obj, "id", None)
-        if interrupt_id and interrupt_id != "placeholder-id":
+        if interrupt_id and interrupt_id != _LANGGRAPH_INTERRUPT_PLACEHOLDER_ID:
             message_id = f"hitl_{conversation_id}_{interrupt_id}"
         else:
             message_id = f"hitl_{conversation_id}_{run_id}"

@@ -924,9 +924,11 @@ async def _handle_draft_critique(
 
     # === CLARIFY: Ask user to clarify their request ===
     elif action == "clarify":
+        from src.domains.agents.prompts import get_hitl_clarification_generic_message
+
         clarification_question = decision_data.get(
-            "clarification_question", "Peux-tu préciser ce que tu veux modifier ?"
-        )
+            "clarification_question"
+        ) or get_hitl_clarification_generic_message(user_language)
         logger.info(
             "hitl_dispatch_draft_clarification_needed",
             draft_id=pending_draft.draft_id,

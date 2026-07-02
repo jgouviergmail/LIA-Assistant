@@ -158,6 +158,10 @@ class DraftCritiqueInteraction:
         draft_summary = context.get("draft_summary")  # Pre-generated summary if available
         batch_total = context.get("batch_total", 1)  # >1 if part of FOR_EACH batch
         batch_drafts = context.get("batch_drafts", [])  # All draft contents for batch
+        # Clarify follow-up (replay-safe EDIT loop): a previous "clarify"
+        # decision persisted its question — surface IT instead of the generic
+        # critique question, so the user knows what to specify.
+        clarification_question = context.get("clarification_question")
 
         # Track metric
         registry_draft_critique_questions_total.labels(draft_type=draft_type).inc()
@@ -169,7 +173,25 @@ class DraftCritiqueInteraction:
             content_keys=list(draft_content.keys()),
             user_language=user_language,
             batch_total=batch_total,
+            has_clarification_question=bool(clarification_question),
         )
+
+        # Clarify path: stream the persisted clarification question verbatim
+        # (static — no LLM call; the draft card itself is re-rendered via
+        # registry_ids alongside this question).
+        if clarification_question:
+            start_time = time.time()
+            for i, word in enumerate(str(clarification_question).split()):
+                if i == 0:
+                    ttft = time.time() - start_time
+                    hitl_question_ttft_seconds.labels(type="draft_critique").observe(ttft)
+                yield word + " "
+            logger.info(
+                "draft_critique_clarification_question_streamed",
+                draft_id=draft_id,
+                question_length=len(clarification_question),
+            )
+            return
 
         # Batch path: generate static confirmation listing ALL items (no LLM needed)
         if batch_total > 1 and batch_drafts:
