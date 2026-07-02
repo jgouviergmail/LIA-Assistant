@@ -75,6 +75,7 @@ from src.domains.agents.nodes.hitl_dispatch_node import hitl_dispatch_node
 from src.domains.agents.nodes.initiative_node import initiative_node
 from src.domains.agents.nodes.routing import (
     route_from_approval_gate,
+    route_from_hitl_dispatch,
     route_from_initiative,
     route_from_planner,
     route_from_semantic_validator,
@@ -698,8 +699,20 @@ async def build_graph(
         },
     )
 
-    # LOT 6: Draft critique goes to initiative for post-execution evaluation (ADR-062)
-    graph.add_edge(NODE_DRAFT_CRITIQUE, NODE_INITIATIVE)
+    # LOT 6: Draft critique goes to initiative for post-execution evaluation (ADR-062).
+    # 2026-07 (replay-safe EDIT loop): the edge is conditional — while a draft
+    # critique is still pending (edit/replan/clarify decisions), the node
+    # self-loops so each interrupt runs in its OWN node execution and the
+    # modified draft is checkpointed before the next one. Terminal decisions
+    # route to initiative exactly like the historical fixed edge.
+    graph.add_conditional_edges(
+        NODE_DRAFT_CRITIQUE,
+        route_from_hitl_dispatch,
+        {
+            NODE_DRAFT_CRITIQUE: NODE_DRAFT_CRITIQUE,  # Self-loop: draft still pending
+            NODE_INITIATIVE: NODE_INITIATIVE,  # Done: proceed to initiative
+        },
+    )
 
     # All agents go to initiative for post-execution evaluation (ADR-062)
     # OAuth agents (Google) - v3.2 naming: singular domain names

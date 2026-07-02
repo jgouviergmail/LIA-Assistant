@@ -298,6 +298,13 @@ class MessagesState(TypedDict):
     pending_draft_critique: dict[str, Any] | None  # PendingDraftInfo from parallel_executor
     pending_drafts_queue: list[dict[str, Any]]  # Queue for batch draft confirmation (FOR_EACH)
     draft_action_result: dict[str, Any] | None  # User decision: confirm/edit/cancel with details
+    # Draft EDIT loop state (replay-safe self-loop): one interrupt per node
+    # execution — the modified draft is returned as a state update and
+    # checkpointed BEFORE the next interrupt, so a resume never re-runs past
+    # LLM modifications (previously the in-node while-loop replayed every
+    # modifier.modify() call on each resume).
+    draft_edit_iteration: int  # Edit/replan/clarify passes for the pending draft
+    draft_clarification_question: str | None  # Surfaced on the next critique payload
 
     # ==========================================================================
     # HITL Dispatch: Generic Human-in-the-Loop Support
@@ -544,6 +551,8 @@ def create_initial_state(
         pending_draft_critique=None,  # PendingDraftInfo from parallel_executor
         pending_drafts_queue=[],  # Queue for batch draft confirmation (FOR_EACH)
         draft_action_result=None,  # User decision: confirm/edit/cancel with details
+        draft_edit_iteration=0,  # Replay-safe EDIT loop pass counter
+        draft_clarification_question=None,  # Clarify question for the next payload
         # HITL Dispatch: Entity Disambiguation
         pending_entity_disambiguation=None,  # DisambiguationContext from entity resolution
         entity_disambiguation_result=None,  # User choice from disambiguation

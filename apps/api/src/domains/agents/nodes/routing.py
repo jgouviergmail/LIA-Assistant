@@ -628,6 +628,46 @@ def route_from_semantic_validator(
     return "approval_gate"
 
 
+def route_from_hitl_dispatch(state: MessagesState) -> Literal["hitl_dispatch", "initiative"]:
+    """Route after the HITL dispatch node (NODE_DRAFT_CRITIQUE = "hitl_dispatch").
+
+    Self-loop while a draft critique is still pending: non-terminal decisions
+    (edit / replan / clarify) persist the updated draft in state and return
+    WITHOUT a draft_action_result — the node must run again to present the
+    next interrupt. This is the replay-safety backbone: one interrupt per
+    node execution, the modified draft checkpointed before the next one
+    (previously an in-node while-loop re-ran every past modifier.modify()
+    LLM call on each resume).
+
+    Terminal decisions (confirm / cancel / max-iterations) clear
+    pending_draft_critique — identical to the historical fixed edge to
+    initiative. Entity disambiguation and tool confirmation are one-shot
+    handlers that never set pending_draft_critique, so they always route to
+    initiative exactly as before.
+
+    Args:
+        state: Current graph state.
+
+    Returns:
+        "draft_critique" (self-loop) while a draft is pending, else
+        "initiative".
+    """
+    from src.domains.agents.constants import NODE_DRAFT_CRITIQUE
+
+    if state.get("pending_draft_critique"):
+        langgraph_conditional_edges_total.labels(
+            edge_name="route_from_hitl_dispatch",
+            decision=NODE_DRAFT_CRITIQUE,
+        ).inc()
+        return NODE_DRAFT_CRITIQUE
+
+    langgraph_conditional_edges_total.labels(
+        edge_name="route_from_hitl_dispatch",
+        decision="initiative",
+    ).inc()
+    return "initiative"
+
+
 def route_from_initiative(state: MessagesState) -> Literal["initiative", "response"]:
     """Route from initiative node.
 
