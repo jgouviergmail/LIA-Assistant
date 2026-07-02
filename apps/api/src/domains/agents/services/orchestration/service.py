@@ -827,6 +827,7 @@ class OrchestrationService:
         oauth_scopes: list[str],
         personality_instruction: str | None = None,
         is_hitl_resumption: bool = False,
+        user_display_name: str | None = None,
     ) -> MessagesState:
         """
         Load existing state from checkpoints or create initial state.
@@ -854,6 +855,8 @@ class OrchestrationService:
             personality_instruction: LLM personality prompt instruction (optional)
             is_hitl_resumption: True if resuming from HITL interrupt (detected via Redis).
                                Used as fallback when checkpoint-based detection fails.
+            user_display_name: User's friendly first name for sender/signature context
+                               (optional).
 
         Returns:
             MessagesState: Loaded or newly created state with user message added
@@ -1009,6 +1012,7 @@ class OrchestrationService:
                 # Update user preferences (may have changed since last session)
                 state["user_timezone"] = user_timezone
                 state["user_language"] = user_language
+                state["user_display_name"] = user_display_name  # Refresh sender identity
                 state["oauth_scopes"] = oauth_scopes  # Update OAuth scopes from active connectors
                 state["personality_instruction"] = (
                     personality_instruction  # Update personality instruction
@@ -1035,6 +1039,7 @@ class OrchestrationService:
                     user_language=user_language,
                     oauth_scopes=oauth_scopes,
                     personality_instruction=personality_instruction,
+                    user_display_name=user_display_name,
                 )
                 logger.info(
                     "new_state_created",
@@ -1067,6 +1072,7 @@ class OrchestrationService:
                 user_language=user_language,
                 oauth_scopes=oauth_scopes,
                 personality_instruction=personality_instruction,
+                user_display_name=user_display_name,
             )
 
         # === PROACTIVE MESSAGE INJECTION ===
@@ -1296,6 +1302,8 @@ class OrchestrationService:
                 # User preferences for planner temporal context (datetime injection)
                 "user_timezone": user_timezone,
                 "user_language": user_language,
+                # Sender identity for content-generating tools (email signatures)
+                "user_display_name": state.get("user_display_name"),
             },
             metadata={
                 FIELD_RUN_ID: run_id,

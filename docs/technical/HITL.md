@@ -2,8 +2,8 @@
 
 > Système d'approbation plan-level avant exécution avec génération de questions LLM multilingues
 >
-> Version: 8.4 (April 2026 - Approval Gate passthrough, FOR_EACH cancel fix, action-specific destructive titles)
-> Date: 2026-04-07
+> Version: 8.5 (July 2026 - Replay-safe HITL loops: single-pass draft critique + dedicated `for_each_confirm` node)
+> Date: 2026-07-02
 
 ## 📋 Table des Matières
 
@@ -299,19 +299,37 @@ Interaction HITL pour les opérations bulk itératives via le pattern FOR_EACH.
 | `FOR_EACH_APPROVAL_THRESHOLD` | 5 | Non-mutations ≥N → advisory |
 | `FOR_EACH_WARNING_THRESHOLD` | 10 | Non-mutations ≥N → HITL approval |
 
-**Architecture** :
+**Architecture (replay-safe, 2026-07)** :
 ```
 Planner génère ExecutionStep avec for_each
-    → Parallel Executor détecte FOR_EACH pattern
-    → count_items_at_path() compte les items
-    → Évalue thresholds (mutation vs non-mutation)
-    → Si threshold dépassé → FOR_EACH_CONFIRMATION HITL
-    → Utilisateur voit preview des items affectés
-    → Approve/Reject → Continue ou abort
-    → If Reject → _build_cancel_result() → draft_action_result with action="cancel"
+    → task_orchestrator détecte FOR_EACH pattern + évalue thresholds
+    → Pré-exécute les providers UNE FOIS (_pre_execute_for_each_providers)
+    → Persiste for_each_hitl_ctx dans le state (return → checkpoint)
+    → route_from_orchestrator → for_each_confirm (nœud dédié)
+    → for_each_confirm : UN interrupt() par exécution de nœud
+        ├── APPROVE → ctx.approved=True → retour task_orchestrator
+        │             (reprend depuis le ctx persisté, AUCUN re-fetch)
+        ├── EDIT    → ItemFilterService (LLM) UNE fois → indices cumulés
+        │             persistés dans le ctx → self-loop → nouvel interrupt
+        │             présente la liste filtrée
+        └── REJECT / tous exclus / max itérations / décision inconnue
+                    → cancel → draft_action_result action="cancel" → initiative
 ```
 
-> **v1.14.5 Change — Cancel Produces "OK, annule"**: When a user refuses a FOR_EACH HITL confirmation, `_build_cancel_result()` now sets `draft_action_result` with `action: "cancel"` in the state. This triggers the response_node fast path (the same path used for draft cancellations), which produces a clean localized cancellation message (e.g., "OK, annule"). Previously, the cancel fell through to the initiative_node and response_node without proper context, producing broken or misleading error messages.
+> **v1.21.x Change — Replay-safe FOR_EACH (nœud `for_each_confirm`)** : historiquement la
+> confirmation vivait dans une boucle `while` + `interrupt()` à l'intérieur de
+> `task_orchestrator`. Sémantique LangGraph : au resume, le **nœud entier se ré-exécute** —
+> chaque décision utilisateur rejouait donc la pré-exécution des providers (appels API réels)
+> et **tous** les filtres LLM passés (non déterministes) : la liste affichée pouvait diverger
+> de la liste exécutée. La boucle vit désormais dans le nœud dédié
+> `for_each_confirm_node.py` : un interrupt par exécution, tout état de boucle transite par le
+> state (`for_each_hitl_ctx`, checkpointé AVANT l'interrupt suivant). Invariant garanti : **la
+> liste que l'utilisateur a vue en dernier est exactement celle exécutée.** Le mapping
+> `filtered_indices` est cumulatif et pointe toujours vers les items pré-exécutés d'origine ;
+> le ctx est gardé par `plan_id` + `turn_id` (un ctx d'un turn abandonné ne matche jamais) et
+> purgé au résultat final de l'orchestrateur.
+
+> **v1.14.5 Change — Cancel Produces "OK, annule"**: When a user refuses a FOR_EACH HITL confirmation, the cancel result (now built by `for_each_confirm_node._cancel_result`, historically `_build_cancel_result()`) sets `draft_action_result` with `action: "cancel"` in the state. This triggers the response_node fast path (the same path used for draft cancellations), which produces a clean localized cancellation message (e.g., "OK, annule"). Previously, the cancel fell through to the initiative_node and response_node without proper context, producing broken or misleading error messages.
 
 **Utilitaires FOR_EACH** :
 
@@ -1116,6 +1134,28 @@ async def hitl_dispatch_node(state: MessagesState) -> dict:
 | **draft_critique** | 1 (highest) | Review content before send | "Voici l'email, tu veux que je l'envoie?" |
 | **entity_disambiguation** | 2 | Multiple matches found | "J'ai trouvé 3 Jean, lequel?" |
 | **tool_confirmation** | 3 | Sensitive operation | "Supprimer ce contact?" |
+
+### Boucle draft critique replay-safe (v1.21.x)
+
+Historiquement `_handle_draft_critique` bouclait en interne autour de `interrupt()` : au resume,
+LangGraph ré-exécute le **nœud entier**, donc chaque décision utilisateur rejouait toutes les
+modifications LLM passées (`DraftModificationService.modify`, non déterministe) — le contenu
+envoyé pouvait diverger de la dernière version affichée. La boucle est désormais **single-pass** :
+
+- **UN `interrupt()` par exécution de nœud** ; toute continuation passe par le state
+  (`pending_draft_critique`, `draft_edit_iteration`, `draft_clarification_question`) qui est
+  **checkpointé avant l'interrupt suivant** ;
+- `edit` → `modify()` s'exécute UNE fois, le draft modifié est persisté, puis **self-loop** via
+  `route_from_hitl_dispatch` (le nœud se ré-exécute et présente le draft modifié dans un nouvel
+  interrupt) ; idem `replan` (retypage du draft) et `clarify` (la question est persistée et
+  affichée avec le draft au payload suivant) ;
+- `confirm` / `cancel` → résultat terminal, les clés de boucle sont réinitialisées
+  (`_loop_reset`) et le routage sort vers `initiative` ;
+- garde de sécurité : `draft_edit_iteration >= settings.api_max_items_per_request` → cancel.
+
+**Invariant garanti : le contenu exécuté est exactement le dernier contenu affiché à
+l'utilisateur.** Le nœud `for_each_confirm` applique le même design pour les confirmations bulk
+(voir la section FOR_EACH Confirmation).
 
 ### Fichiers HITL Interactions
 

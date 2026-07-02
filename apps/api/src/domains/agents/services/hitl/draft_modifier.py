@@ -132,6 +132,7 @@ class DraftModificationService:
         user_language: str = "fr",
         run_id: str | None = None,
         contact_context: list[dict[str, Any]] | None = None,
+        sender_name: str | None = None,
     ) -> dict[str, Any]:
         """
         Modify draft content based on user instructions.
@@ -146,6 +147,9 @@ class DraftModificationService:
                 FIX 2026-01-11: Enables resolution of references like "@carven"
                 to alternative email addresses of the contact.
                 Format: [{"name": "jean dupond", "emails": ["jean@gmail.com", "jean@carven.com"]}]
+            sender_name: The user's (signatory's) first name, so instructions
+                like "sign with my name" resolve to the real name instead of a
+                placeholder or a hallucinated name (None = unknown).
 
         Returns:
             Modified draft content dict with regenerated content fields
@@ -173,6 +177,7 @@ class DraftModificationService:
             content_fields=content_fields,
             user_language=user_language,
             contact_context=contact_context,
+            sender_name=sender_name,
         )
 
         # Log the system prompt for debugging
@@ -257,6 +262,7 @@ class DraftModificationService:
         content_fields: list[str],
         user_language: str,
         contact_context: list[dict[str, Any]] | None = None,
+        sender_name: str | None = None,
     ) -> list[dict[str, str]]:
         """
         Build the LLM prompt for draft modification.
@@ -268,6 +274,7 @@ class DraftModificationService:
             content_fields: Fields that can be modified
             user_language: Target language
             contact_context: Optional related contacts with their emails
+            sender_name: The user's (signatory's) first name (None = unknown)
 
         Returns:
             List of message dicts for LLM
@@ -285,6 +292,9 @@ class DraftModificationService:
         # FIX 2026-01-11: Build contact context for email address resolution
         contact_info = self._build_contact_context_info(contact_context)
 
+        # Sender identity for signature instructions ("sign with my name")
+        sender_info = f"SENDER (the user writing this): {sender_name}" if sender_name else ""
+
         # Load externalized prompt and replace placeholders
         from src.domains.agents.prompts import load_prompt
 
@@ -294,6 +304,7 @@ class DraftModificationService:
             .replace("{draft_type}", draft_type)
             .replace("{context_info}", context_info)
             .replace("{contact_info}", contact_info)
+            .replace("{sender_info}", sender_info)
             .replace("{current_content}", json.dumps(current_content, ensure_ascii=False, indent=2))
             .replace("{instructions}", instructions)
             .replace("{expected_fields}", self._format_expected_fields(content_fields))

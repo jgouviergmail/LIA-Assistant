@@ -25,7 +25,7 @@ Migration Note (2025-12-30):
 
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -230,7 +230,13 @@ def normalize_gmail_query(
     # Add default date range if no date filter specified
     has_date_filter = any(op in query_lower for op in GMAIL_DATE_OPERATORS)
     if not has_date_filter and default_days_back > 0:
-        default_date = (datetime.now() - timedelta(days=default_days_back)).strftime("%Y/%m/%d")
+        from src.core.time_utils import now_in_timezone
+
+        # User display timezone, not naive server time (F16): around midnight
+        # the naive date shifted the "after:" boundary by one day.
+        default_date = (now_in_timezone(None) - timedelta(days=default_days_back)).strftime(
+            "%Y/%m/%d"
+        )
         query = f"{query} after:{default_date}".strip()
         if log_context is not None:
             logger.info(
@@ -1858,6 +1864,7 @@ async def _generate_email_content(
     existing_body: str | None = None,
     config: Any = None,
     user_id: str | None = None,
+    sender_name: str | None = None,
 ) -> dict[str, str]:
     """
     Generate email subject and/or body from a creative instruction using LLM.
@@ -1872,6 +1879,8 @@ async def _generate_email_content(
         existing_body: If provided, only generate subject (body already exists)
         config: Optional RunnableConfig with TokenTrackingCallback for billing tracking
         user_id: User UUID string for psyche context injection
+        sender_name: The user's (sender's) first name so explicitly requested
+            signatures use the real name instead of a placeholder (None = unknown)
 
     Returns:
         Dict with 'subject' key (always) and 'body' key (only if generated)
@@ -1904,6 +1913,7 @@ async def _generate_email_content(
         prompt = load_prompt("email_content_generation_prompt").format(
             instruction=instruction,
             recipient=recipient,
+            sender_name=sender_name or "unknown",
             user_language=language_name,
         )
         required_fields = ["subject", "body"]
@@ -2070,6 +2080,11 @@ async def send_email_tool(
                 if runtime and runtime.config
                 else ""
             ) or None
+            _sender_name = (
+                runtime.config.get("configurable", {}).get("user_display_name")
+                if runtime and runtime.config
+                else None
+            )
             generated = await _generate_email_content(
                 instruction=effective_content_instruction,
                 recipient=to,
@@ -2077,6 +2092,7 @@ async def send_email_tool(
                 existing_body=body if body and not subject else None,
                 config=runtime.config if runtime else None,  # Pass config for token tracking
                 user_id=_email_user_id,
+                sender_name=_sender_name,
             )
             # Only use generated values for fields that are missing
             # This preserves planner-provided values (e.g., body) while generating missing ones (e.g., subject)

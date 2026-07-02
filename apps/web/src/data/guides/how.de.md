@@ -6,7 +6,7 @@
 
 **Version**: 2.4
 **Datum**: 2026-05-08
-**Application**: LIA v1.21.0
+**Application**: LIA v1.21.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -464,7 +464,11 @@ Für Entwürfe generiert ein dedizierter Prompt eine strukturierte Kritik mit Ma
 
 Wenn der Benutzer auf einen Genehmigungsprompt antwortet, kategorisiert ein Full-LLM-Klassifikator (kein Regex) die Antwort in 5 Entscheidungen: **APPROVE**, **REJECT**, **EDIT** (gleiche Aktion, andere Parameter), **REPLAN** (völlig andere Aktion) oder **AMBIGUOUS**. Eine Degradierungslogik verhindert False Positives: ein EDIT mit fehlenden Parametern wird zu AMBIGUOUS herabgestuft, was eine Klärungsnachfrage auslöst.
 
-### 9.5. Compaction Safety
+### 9.5. Replay-sichere Überarbeitungsschleifen (ADR-092)
+
+Die Resume-Semantik von LangGraph führt den unterbrochenen Node **vollständig** neu aus: Vergangene `interrupt()`-Aufrufe liefern ihre gespeicherten Werte, alles andere läuft erneut live. Jede Schleife um `interrupt()` innerhalb eines Nodes wiederholt daher ihre Seiteneffekte (LLM- und API-Aufrufe) bei jeder Benutzerentscheidung. Beide Überarbeitungsschleifen — iterative Entwurfsbearbeitung und Bulk-Bestätigung (dedizierter `for_each_confirm`-Node) — folgen einem normativen Muster: **ein `interrupt()` pro Node-Ausführung**, der Schleifenzustand fließt durch den checkpointed Graph-State, die Iteration erfolgt über eine bedingte Self-Loop-Kante. Durch kompilierte Replay-Harnische bewiesene Garantie: Jede LLM-Änderung läuft genau einmal und der bestätigte Inhalt ist exakt der zuletzt angezeigte.
+
+### 9.6. Compaction Safety
 
 4 Bedingungen verhindern die LLM-Komprimierung (Zusammenfassung alter Nachrichten) während aktiver Genehmigungsflüsse. Ohne diesen Schutz könnte eine Zusammenfassung den kritischen Kontext einer laufenden Unterbrechung löschen.
 
@@ -1009,4 +1013,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 91 ADRs und des Changelogs (v1.0 bis v1.21.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 91 ADRs und des Changelogs (v1.0 bis v1.21.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

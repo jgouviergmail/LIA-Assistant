@@ -6,7 +6,7 @@
 
 **Versione**: 2.4
 **Data**: 2026-05-08
-**Applicazione**: LIA v1.21.0
+**Applicazione**: LIA v1.21.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -464,7 +464,11 @@ Per le bozze, un prompt dedicato genera una critica strutturata con template mar
 
 Quando l'utente risponde a un prompt di approvazione, un classificatore full-LLM (non regex) categorizza la risposta in 5 decisioni: **APPROVE**, **REJECT**, **EDIT** (stessa azione, parametri diversi), **REPLAN** (azione completamente diversa) o **AMBIGUOUS**. Una logica di degradazione previene i falsi positivi: un EDIT con parametri mancanti viene degradato ad AMBIGUOUS, attivando una richiesta di chiarimento.
 
-### 9.5. Compaction Safety
+### 9.5. Cicli di revisione replay-safe (ADR-092)
+
+La semantica di ripresa di LangGraph ri-esegue il nodo interrotto **per intero**: gli `interrupt()` passati restituiscono i valori memorizzati, ma tutto il resto viene rieseguito dal vivo. Qualsiasi ciclo scritto attorno a `interrupt()` dentro un nodo ripete quindi i suoi effetti collaterali (chiamate LLM, API) a ogni decisione dell'utente. I due cicli di revisione — modifica iterativa delle bozze e conferma delle operazioni massive (nodo dedicato `for_each_confirm`) — seguono un pattern normativo: **un solo `interrupt()` per esecuzione di nodo**, lo stato del ciclo passa dallo state checkpointed e l'iterazione avviene tramite un self-loop condizionale. Garanzia dimostrata con harness di replay compilati: ogni modifica LLM viene eseguita esattamente una volta e il contenuto confermato è esattamente l'ultimo mostrato.
+
+### 9.6. Compaction Safety
 
 4 condizioni impediscono la compaction LLM (riassunto dei messaggi precedenti) durante i flussi di approvazione attivi. Senza questa protezione, un riassunto potrebbe eliminare il contesto critico di un'interruzione in corso.
 
@@ -1009,4 +1013,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 91 ADR e del changelog (da v1.0 a v1.21.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 91 ADR e del changelog (da v1.0 a v1.21.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

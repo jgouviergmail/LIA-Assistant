@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.1] - 2026-07-02
+
+> Architecture decision: [ADR-092 — Replay-Safe HITL Interrupts](docs/architecture/ADR-092-Replay-Safe-HITL-Interrupts.md). Fix release: LangGraph resume semantics re-execute the entire interrupted node, and the two HITL flows that looped around `interrupt()` in-node replayed their LLM/API side effects on every user decision. Both now follow the normative one-interrupt-per-node-execution pattern; the draft-editing UX gets three fixes discovered during in-app validation. No schema change, no migration.
+
+### Fixed — Draft EDIT loop replayed past LLM modifications (replay-safe single-pass, ADR-092)
+
+`hitl_dispatch_node._handle_draft_critique` looped around `interrupt()` in-node: on every resume, LangGraph re-executed the whole node, and every **past** `DraftModificationService.modify()` LLM call re-ran live (temp>0, non-deterministic) — after two edits and a confirm, the email actually sent could differ from the last version the user saw and approved, at O(n²) LLM cost. The handler is now **single-pass**: one `interrupt()` per node execution; `edit`/`replan`/`clarify` run their single LLM mutation, persist the updated draft plus loop keys (`pending_draft_critique`, `draft_edit_iteration`, `draft_clarification_question` — checkpointed BEFORE the next interrupt) and self-loop via `route_from_hitl_dispatch`. Terminal decisions reset the loop state. Invariant proven by a compiled replay harness (real node + real router + `InMemorySaver` + `Command(resume=...)` sequences): **the content executed is exactly the last content shown.**
+
+### Fixed — FOR_EACH bulk confirmation re-fetched providers and re-ran item filters (dedicated `for_each_confirm` node)
+
+The bulk-confirmation loop lived inside `task_orchestrator_node`: each user decision re-ran the provider pre-execution (real API calls — latency, quota, preview drift) and **every past LLM item-filter call**. The orchestrator now pre-executes providers ONCE, persists the full context in `for_each_hitl_ctx` (guarded by `plan_id` + `turn_id` so a ctx from an abandoned turn never matches; purged in the final result) and routes to the new **`for_each_confirm`** node — one interrupt per execution. APPROVE resumes from the persisted context with no re-fetch; EDIT runs the item filter once and persists cumulative `filtered_indices` (always mapping back to the original pre-executed items); REJECT / all-excluded / max-iterations produce the historical cancel result. Also declares two historically dropped state keys (`for_each_cancelled`, `cancellation_reason` — LangGraph silently drops updates to undeclared keys). Same replay-harness proof.
+
+### Fixed — Draft editing UX (found during in-app validation of the above)
+
+- **One chat bubble per re-presented draft**: the HITL SSE `message_id` was run-scoped (`hitl_{conversation}_{run}`), so every re-presented draft re-targeted and **overwrote the previous assistant bubble** (the frontend's `STREAM_START` is idempotent by id). The id now derives from the LangGraph `Interrupt.id` — unique per interrupt, stable across re-emission of the same pending interrupt (SSE reconnect), legacy fallback preserved. Live rendering now matches the archived history.
+- **"Sign with my name" works**: neither the initial email generation nor the draft modifier knew the sender's identity — the LLM left `[Votre prénom]` placeholders (silent no-op edits) or invented a name. New shared `resolve_user_display_name()` (`src/core/user_display.py`: full_name → email local part; the briefing greeting now reuses it) flows from every entry point (web router, scheduled actions, Telegram channels) through the state (`user_display_name`, refreshed each turn like timezone/language) and `configurable` into the draft-modifier and email-content-generation prompts, with explicit no-placeholder/no-invention rules. Signature policy unchanged: none unless explicitly requested.
+- **Clarify question finally displayed**: a `clarify` decision generated a question that was logged then dropped (and the payload field added mid-branch was consumed by nobody — branch-review finding). The question is now persisted in state, carried on the next interrupt payload, and `DraftCritiqueInteraction` streams it verbatim instead of the generic critique question; hardcoded French fallback replaced by the existing 6-language `get_hitl_clarification_generic_message()`.
+
+### Fixed — Reliability & observability batch
+
+- **Cancellation propagates**: `CancelledError` is re-raised at both parallel-executor stages (tool level and post-`gather` wave level — it is a `BaseException` in Python 3.12 and escaped the `isinstance(x, Exception)` filter), so closing the stream actually cancels in-flight FOR_EACH work.
+- **`on_item_error="stop"` can stop**: parallel gather cannot halt mid-batch (post-failure mutations already ran) — "stop" plans now force the sequential path (`FOR_EACH_STOP_FORCES_SEQUENTIAL`, default true).
+- **HTTP metric cardinality bounded**: request labels use the matched route template (`/api/v1/journals/{entry_id}`); unrouted requests collapse into `unmatched`; the pre-routing in-progress gauge gets an id-collapsing fallback (`{id}`); duration observed on exceptions too; `update_db_pool_metrics` moved off the per-request path into the 30s background updater. ⚠️ Grafana queries filtering on raw endpoint paths must switch to templates.
+- **Token-tracking run-records bounded** (`RUN_RECORDS_MAX_RUNS`, oldest-run eviction — abandoned HITL runs used to accumulate forever).
+- **User-timezone displays**: place-card "today"/next-opening, contact birthday age, Gmail `after:` default date and the two voice-status timestamps now use the user's timezone; `RenderContext` defaults centralized on `DEFAULT_USER_DISPLAY_TIMEZONE`.
+- **Quiet prod boot**: Telegram `set_webhook` retries on `RetryAfter` and tolerates a peer worker having already set the identical URL (multi-worker flood at every deploy); embedding token persistence skips the pseudo-user "system" (invalid-UUID traceback).
+
+### Notes
+
+- **No schema change, no migration.** One new env var (optional, safe default): `FOR_EACH_STOP_FORCES_SEQUENTIAL` — documented in both `.env.example` files.
+- **Docs**: ADR-092 (+ index entries), `HITL.md` v8.5 (replay-safe flows), `ARCHITECTURE_LANGRAPH.md` §2.6/§2.8.
+- **Quality**: Ruff / Black / MyPy strict clean (863 files); full backend suite **8501 unit tests green** (+32 new, incl. two compiled replay harnesses and 17 rewritten metrics tests); dev API boot verified healthy (graph compiled with the new node); every commit passed the full pre-commit hook.
+
 ## [1.21.0] - 2026-07-02
 
 > Architecture decisions: [ADR-090 — Semantic Layer Governance](docs/architecture/ADR-090-Semantic-Layer-Governance.md) and [ADR-091 — Response-Context Prefetch](docs/architecture/ADR-091-Response-Context-Prefetch.md). Feature release: latency campaign (perceived + real), semantic-layer overhaul feeding smarter proactive suggestions, ReAct turn-isolation fixes. No schema change, no migration.

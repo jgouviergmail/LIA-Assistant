@@ -24,6 +24,7 @@ from src.core.constants import (
     USAGE_LIMIT_EXCEEDED_ERROR_CODE,
 )
 from src.core.field_names import FIELD_ERROR_TYPE, FIELD_RUN_ID
+from src.core.time_utils import now_in_timezone
 from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk
 from src.domains.agents.dependencies import ToolDependencies
@@ -509,6 +510,7 @@ class AgentService(
         session_id: str,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         user_language: str = "fr",
+        user_display_name: str | None = None,
         original_run_id: str | None = None,
         browser_context: BrowserContext | None = None,
         user_memory_enabled: bool = True,
@@ -534,6 +536,8 @@ class AgentService(
             session_id: Session identifier.
             user_timezone: User's IANA timezone for temporal context (default: "Europe/Paris").
             user_language: User's language code for localized responses (default: "fr").
+            user_display_name: User's friendly first name for sender/signature context
+                (default: None = unknown).
             original_run_id: Optional run_id from HITL resumption (for token aggregation).
             browser_context: Browser context (geolocation, etc.) sent automatically by frontend.
             user_memory_enabled: User's preference for long-term memory (default: True).
@@ -610,6 +614,7 @@ class AgentService(
             session_id,
             user_timezone,
             user_language,
+            user_display_name,
             original_run_id,
             browser_context,
             user_memory_enabled,
@@ -634,6 +639,7 @@ class AgentService(
         session_id: str,
         user_timezone: str,
         user_language: str,
+        user_display_name: str | None = None,
         original_run_id: str | None = None,
         browser_context: BrowserContext | None = None,
         user_memory_enabled: bool = True,
@@ -831,6 +837,7 @@ class AgentService(
                         oauth_scopes=oauth_scopes,
                         personality_instruction=personality_instruction,
                         is_hitl_resumption=is_hitl_resumption,
+                        user_display_name=user_display_name,
                     )
 
                     # === ATTACHMENT INJECTION (evolution F4) ===
@@ -1133,7 +1140,6 @@ class AgentService(
                                 and user_obj.voice_enabled
                             ):
                                 # Import voice dependencies (lazy)
-                                from datetime import datetime as dt_voice_parallel
 
                                 from src.domains.agents.formatters.text_summary import (
                                     generate_text_summary_for_llm,
@@ -1167,7 +1173,9 @@ class AgentService(
                                             context_summary=voice_context,
                                             personality_instruction=personality_instruction or "",
                                             user_language=user_language,
-                                            current_datetime=dt_voice_parallel.now().isoformat(),
+                                            current_datetime=now_in_timezone(
+                                                user_timezone
+                                            ).isoformat(),
                                             user_query=user_message,
                                             chunk_queue=voice_chunk_queue,
                                         )
@@ -1818,7 +1826,6 @@ class AgentService(
 
                 if voice_needs_finalization:
                     try:
-                        from datetime import datetime as dt_voice
 
                         from src.domains.agents.formatters.text_summary import (
                             generate_text_summary_for_llm,
@@ -2012,7 +2019,7 @@ class AgentService(
                                     lia_gender=voice_lia_gender,
                                     user_id=str(user_id),
                                 )
-                                current_dt = dt_voice.now().isoformat()
+                                current_dt = now_in_timezone(user_timezone).isoformat()
 
                                 async for audio_chunk in voice_service.stream_voice_comment(
                                     context_summary=voice_context

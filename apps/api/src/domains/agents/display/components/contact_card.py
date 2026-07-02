@@ -282,7 +282,7 @@ class ContactCard(BaseComponent):
         if not birthdays:
             return ""
         bday_str, age = self._format_birthday(
-            birthdays[0], include_year=True, language=ctx.language
+            birthdays[0], include_year=True, language=ctx.language, timezone=ctx.timezone
         )
         if not bday_str:
             return ""
@@ -586,8 +586,9 @@ class ContactCard(BaseComponent):
         bday: dict | Any,
         include_year: bool = False,
         language: str = "fr",
+        timezone: str | None = None,
     ) -> tuple[str, int | None]:
-        """Format birthday with optional age calculation."""
+        """Format birthday with optional age calculation (user's timezone)."""
         if not isinstance(bday, dict):
             return "", None
 
@@ -638,8 +639,12 @@ class ContactCard(BaseComponent):
             age = None
             if year:
                 try:
+                    from src.core.time_utils import now_in_timezone
+
                     year_int = int(year) if not isinstance(year, int) else year
-                    today = datetime.now()
+                    # "Today" in the USER's timezone (F16: naive server time
+                    # could be off by one day around midnight → wrong age)
+                    today = now_in_timezone(timezone)
                     birth_date = datetime(year_int, month_int, day_int)
                     age = today.year - birth_date.year
                     if (today.month, today.day) < (month_int, day_int):

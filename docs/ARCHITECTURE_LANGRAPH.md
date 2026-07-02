@@ -363,11 +363,32 @@ See [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) for full docu
 │   • agent_results: "turn_id:agent_name" → result                │
 ├─────────────────────────────────────────────────────────────────┤
 │ ROUTING                                                         │
+│   • for_each_hitl_ctx (non approuvé) → for_each_confirm         │
 │   • pending_hitl_interaction → hitl_dispatch_node               │
 │   • Plus d'agents à exécuter → agent node suivant               │
 │   • Terminé → initiative_node                                    │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**Replay-safe FOR_EACH HITL (v1.21.x)** : la confirmation des opérations bulk (`for_each` avec
+seuil HITL dépassé) ne vit plus dans une boucle `while` + `interrupt()` à l'intérieur de ce nœud
+(au resume, LangGraph ré-exécute le nœud entier — la pré-exécution des providers et les filtres
+LLM passés étaient rejoués à chaque décision). Le nœud pré-exécute désormais les providers **une
+seule fois**, persiste le contexte complet dans le state (`for_each_hitl_ctx`, checkpointé via
+le `return`) et route vers le nœud dédié **`for_each_confirm`** :
+
+```
+task_orchestrator ──(ctx non approuvé)──► for_each_confirm
+      ▲                                        │  UN interrupt() par exécution
+      │◄──(APPROVE : ctx.approved=True)────────┤
+      │   reprend depuis le ctx persisté       ├──(EDIT : filtre LLM 1×,
+      │   (AUCUN re-fetch provider)            │   indices cumulés persistés)──► self-loop
+      │                                        └──(REJECT / tous exclus / max iter)──► initiative
+```
+
+Invariant : **la liste d'items que l'utilisateur a vue en dernier est exactement celle
+exécutée.** Le ctx est gardé par `plan_id` + `turn_id` et purgé au résultat final. Voir
+`docs/technical/HITL.md` §FOR_EACH Confirmation.
 
 ### 2.7 initiative_node (ADR-062)
 
@@ -430,22 +451,34 @@ See [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) for full docu
 │     - interaction_type, severity, context                       │
 │   • user_language                                               │
 ├─────────────────────────────────────────────────────────────────┤
-│ TRAITEMENT                                                      │
+│ TRAITEMENT (single-pass, replay-safe v1.21.x)                   │
 │   1. Dispatcher vers l'interaction appropriée                   │
 │   2. DRAFT_CRITIQUE, DESTRUCTIVE_CONFIRM, etc.                  │
-│   3. interrupt() → Présenter interaction à l'utilisateur        │
+│   3. UN SEUL interrupt() par exécution de nœud                  │
 │   4. Attendre Command(resume={action: ...})                     │
-│   5. Exécuter l'action via interaction handler                  │
+│   5. Traiter UNE décision :                                     │
+│      - confirm/cancel → résultat terminal (+ reset boucle)      │
+│      - edit/replan/clarify → draft modifié UNE fois, persisté   │
+│        dans le state (checkpoint) → self-loop → nouvel interrupt│
 ├─────────────────────────────────────────────────────────────────┤
 │ OUTPUT                                                          │
-│   • hitl_result: {action, result}                               │
-│     - action: "confirm" | "edit" | "cancel"                     │
-│     - result: Résultat exécution si confirm                     │
+│   • draft_action_result / hitl_result: {action, result}         │
+│   • pending_draft_critique (si self-loop edit/replan/clarify)   │
+│   • draft_edit_iteration, draft_clarification_question          │
 ├─────────────────────────────────────────────────────────────────┤
-│ ROUTING                                                         │
-│   Toujours → response_node                                      │
+│ ROUTING (route_from_hitl_dispatch)                              │
+│   • pending_draft_critique truthy → hitl_dispatch (self-loop)   │
+│   • sinon → initiative → response_node                          │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**Boucle draft critique replay-safe (v1.21.x)** : historiquement le nœud bouclait en interne
+autour de `interrupt()` — au resume, LangGraph ré-exécutant le nœud entier, chaque décision
+rejouait toutes les modifications LLM passées et le contenu envoyé pouvait diverger de la
+dernière version affichée. Désormais chaque exécution du nœud traite exactement une décision ;
+l'état de boucle transite par le state, checkpointé **avant** l'interrupt suivant. Invariant :
+le contenu exécuté est exactement le dernier contenu affiché. Détails : `docs/technical/HITL.md`
+§HITL Dispatch Node.
 
 ### 2.9 response_node (INTELLIA v10)
 

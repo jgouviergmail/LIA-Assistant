@@ -282,6 +282,16 @@ async def update_lifetime_metrics() -> None:
                 except Exception as exc:
                     logger.warning("channel_bindings_sync_failed", error=str(exc))
 
+                # Refresh DB connection-pool gauges (F27, 2026-07): this used
+                # to run on EVERY HTTP request in PrometheusMiddleware — a
+                # periodic sync is what its own comment always claimed.
+                try:
+                    from src.infrastructure.database.session import update_db_pool_metrics
+
+                    update_db_pool_metrics()
+                except Exception as exc:
+                    logger.debug("db_pool_metrics_sync_failed", error=str(exc))
+
                 # Update metadata gauges
                 duration = (datetime.now(UTC) - start_time).total_seconds()
                 lifetime_metrics_update_duration_seconds.set(duration)

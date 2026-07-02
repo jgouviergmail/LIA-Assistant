@@ -12,6 +12,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import RUN_RECORDS_MAX_RUNS
 from src.core.context import current_tracker
 from src.core.field_names import (
     FIELD_COST_EUR,
@@ -1177,6 +1178,20 @@ class TrackingContext:
         # TTS records are kept in the run-level collector so a delayed
         # archive_message (e.g. parallel voice path) still sees the data.
         _run_tts_records.setdefault(self.run_id, []).extend(self._tts_records)
+
+        # Leak guard (F23, 2026-07): runs that never reach
+        # cleanup_run_records (errors, abandoned HITL interrupts) used to
+        # accumulate forever on a long-running server. Evict the OLDEST
+        # run_ids (insertion order) beyond the cap — cleanup_run_records
+        # pops the run from all four collector dicts at once.
+        while len(_run_records) > RUN_RECORDS_MAX_RUNS:
+            oldest_run_id = next(iter(_run_records))
+            TrackingContext.cleanup_run_records(oldest_run_id)
+            logger.warning(
+                "run_records_evicted",
+                evicted_run_id=oldest_run_id,
+                max_runs=RUN_RECORDS_MAX_RUNS,
+            )
 
         # Legacy: keep local copy for backward compatibility
         self._committed_records_copy.extend(self._node_records)

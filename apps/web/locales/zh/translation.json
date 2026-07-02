@@ -2767,7 +2767,7 @@
         },
         "hitl": {
           "title": "👤 高级人机协同",
-          "description": "8 种智能交互类型：澄清、实体消歧（ENTITY_DISAMBIGUATION）、计划审批、工具确认、草稿批评、编辑确认（EDIT_CONFIRMATION）、批量操作确认（FOR_EACH）和破坏性验证（批量删除 ≥3 项）。可配置阈值，执行前预览受影响项目。"
+          "description": "8 种智能交互类型：澄清、实体消歧（ENTITY_DISAMBIGUATION）、计划审批、工具确认、草稿批评、编辑确认（EDIT_CONFIRMATION）、批量操作确认（FOR_EACH）和破坏性验证（批量删除 ≥3 项）。可配置阈值，执行前预览受影响项目。审阅循环具备 replay-safe 特性（ADR-092）：每次节点执行仅一个 interrupt，循环状态通过 checkpointed 图状态传递——每次 LLM 修改只执行一次，确认的内容保证与最后显示的内容完全一致。"
         },
         "connectors": {
           "title": "🔌 连接器与注册表",
@@ -2928,6 +2928,19 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_21_1": {
+          "title": "v1.21.1 — ✅ 草稿编辑更可靠：您确认的内容就是实际发送的内容",
+          "date": "2026 年 7 月",
+          "count": "6",
+          "items": {
+            "i1": "<b>✅ 您确认的内容就是实际发送的内容</b> — 在发送前审阅草稿（邮件、日程等）时，您的多次修改可能在确认时被内部重新生成：实际发送的内容可能与最后显示的版本不一致。该机制已重构：每次修改只应用一次，确认的内容保证与您最后看到的完全一致。批量操作享有同样的保证：您确认的条目列表就是实际处理的列表，用筛选条件细化（\"只保留本周的\"）也不再每一步都重新加载您的数据。",
+            "i2": "<b>💬 每个草稿版本都有独立的对话气泡</b> — 以前当您请求修改时，新版本会覆盖对话中之前的气泡，让人误以为助手没有回应。现在每个重新呈现的版本都会出现在新的气泡中，重新加载的历史记录也与您实时看到的一致。",
+            "i3": "<b>✍️ \"用我的名字署名\"真正生效</b> — 助手在撰写邮件时不知道您的名字：它会留下占位符（\"[您的名字]\"）或凭空编造一个名字。现在它会使用您个人资料中的名字，无论是初次撰写还是后续修改。其他行为不变：除非您要求，否则不会添加任何签名。",
+            "i4": "<b>❓ 澄清问题终于会显示了</b> — 当您的修改指令含糊不清时，助手会生成一个澄清问题……但从未显示出来。现在它会与重新呈现的草稿一起显示，让您知道需要说明什么。",
+            "i5": "<b>🕐 时间和日期按您的时区显示</b> — 地点卡片上的\"今日\"营业时间、联系人生日显示的年龄以及邮件搜索的默认时间范围，现在都按您的时区计算，而不再是服务器时区——包括午夜刚过的时候。",
+            "i6": "<b>🛡️ 可靠性与监控（管理员）</b> — 在批量操作进行中关闭对话现在会真正取消正在进行的工作；\"遇到第一个错误即停止\"模式会真正停止批次；Grafana 的 HTTP 指标使用有界标签（路由模板取代原始标识符——如果您的查询按精确路径过滤，请相应调整）；生产环境启动不再记录无害的错误（Telegram webhook、系统 embeddings）。"
+          }
+        },
         "v1_21_0": {
           "title": "v1.21.0 — ⚡ 更快的回答与更精准的主动建议",
           "date": "2026 年 7 月",
@@ -5810,7 +5823,7 @@
       "human-in-the-loop": {
         "title": "人在回路中：6级审批保持您的控制",
         "excerpt": "LIA从不在未经您同意的情况下执行关键操作。其6级HITL系统保护您免受错误和幻觉的影响。",
-        "body": "<h2>为什么人工验证至关重要</h2><p>语言模型可能产生幻觉或误解意图。LIA通过将<strong>人类置于每个关键决策的中心</strong>来解决这一问题。未经您的明确验证，不会发送任何邮件、创建任何日程或修改任何数据。</p><h2>6个审批级别</h2><p>LIA的HITL系统根据6个级别对每个操作进行分类：</p><ul><li><strong>计划审批</strong> — 在执行多步骤计划之前，LIA生成包含计划摘要和可修改参数的<code>PlanApprovalRequest</code>，然后等待您的批准。</li><li><strong>澄清</strong> — 如果意图不明确，LIA会请求更多信息，而不是猜测。</li><li><strong>草稿审查</strong> — 对于邮件或消息，LIA在发送前提交草稿供您审核。</li><li><strong>破坏性确认</strong> — 任何不可逆的删除或修改都需要明确确认。</li><li><strong>FOR_EACH确认</strong> — 对于批量操作，每个元素都可以单独验证。</li><li><strong>修改审查</strong> — 参数变更需提交验证。</li></ul><h2>5种决策与置信度</h2><p>HITL分类器生成包含5种可能决策的<strong>ClassificationResult</strong>，每种决策附带0.0到1.0之间的置信度分数：</p><ul><li><strong>APPROVE</strong> — 操作已验证，传递给<code>task_orchestrator</code></li><li><strong>REJECT</strong> — 操作被拒绝，流程重定向到<code>response</code>节点</li><li><strong>EDIT</strong> — 用户通过<code>edited_params</code>修改参数，<code>PlanEditor</code>应用修改</li><li><strong>REPLAN</strong> — 用户通过<code>reformulated_intent</code>重新表述意图，流程返回<code>planner</code></li><li><strong>AMBIGUOUS</strong> — 系统提出<code>clarification_question</code>以消除歧义</li></ul><h2>LangGraph原生中断</h2><p>从技术上讲，<code>approval_gate</code>节点使用LangGraph的<code>interrupt()</code>函数<strong>暂停图的执行</strong>并等待用户响应。状态持久化在PostgreSQL中，即使断开连接后也支持异步恢复。</p><h2>您始终拥有最终决定权</h2><p>在每个验证点，分类策略都是可组合的：基于工具清单、估计成本、数据敏感性和用户角色。LIA永远不会绕过这一步骤。</p>"
+        "body": "<h2>为什么人工验证至关重要</h2><p>语言模型可能产生幻觉或误解意图。LIA通过将<strong>人类置于每个关键决策的中心</strong>来解决这一问题。未经您的明确验证，不会发送任何邮件、创建任何日程或修改任何数据。</p><h2>6个审批级别</h2><p>LIA的HITL系统根据6个级别对每个操作进行分类：</p><ul><li><strong>计划审批</strong> — 在执行多步骤计划之前，LIA生成包含计划摘要和可修改参数的<code>PlanApprovalRequest</code>，然后等待您的批准。</li><li><strong>澄清</strong> — 如果意图不明确，LIA会请求更多信息，而不是猜测。</li><li><strong>草稿审查</strong> — 对于邮件或消息，LIA在发送前提交草稿供您审核。</li><li><strong>破坏性确认</strong> — 任何不可逆的删除或修改都需要明确确认。</li><li><strong>FOR_EACH确认</strong> — 对于批量操作，每个元素都可以单独验证。</li><li><strong>修改审查</strong> — 参数变更需提交验证。</li></ul><h2>5种决策与置信度</h2><p>HITL分类器生成包含5种可能决策的<strong>ClassificationResult</strong>，每种决策附带0.0到1.0之间的置信度分数：</p><ul><li><strong>APPROVE</strong> — 操作已验证，传递给<code>task_orchestrator</code></li><li><strong>REJECT</strong> — 操作被拒绝，流程重定向到<code>response</code>节点</li><li><strong>EDIT</strong> — 用户通过<code>edited_params</code>修改参数，<code>PlanEditor</code>应用修改</li><li><strong>REPLAN</strong> — 用户通过<code>reformulated_intent</code>重新表述意图，流程返回<code>planner</code></li><li><strong>AMBIGUOUS</strong> — 系统提出<code>clarification_question</code>以消除歧义</li></ul><h2>LangGraph原生中断</h2><p>从技术上讲，<code>approval_gate</code>节点使用LangGraph的<code>interrupt()</code>函数<strong>暂停图的执行</strong>并等待用户响应。状态持久化在PostgreSQL中，即使断开连接后也支持异步恢复。</p><h2>您始终拥有最终决定权</h2><p>在每个验证点，分类策略都是可组合的：基于工具清单、估计成本、数据敏感性和用户角色。LIA永远不会绕过这一步骤。</p><p>而且这个最终决定权得到严格尊重：审阅循环遵循 replay-safe 模式（每次节点执行仅一个 <code>interrupt()</code>，循环状态通过 checkpoint 保存——ADR-092），因此恢复执行绝不会重放过去的 LLM 或 API 调用。无论经过多少次修改，您确认的内容正是实际执行的内容。</p>"
       },
       "llm-providers": {
         "title": "多供应商AI：为每个任务选择合适的模型",

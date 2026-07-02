@@ -21,6 +21,7 @@ from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
+from src.core.user_display import resolve_user_display_name
 from src.domains.auth.models import User
 from src.domains.channels.abstractions import ChannelInboundMessage
 from src.domains.channels.models import ChannelType
@@ -321,6 +322,7 @@ async def _handle_hitl_callback(message: ChannelInboundMessage) -> None:
     user_language = "fr"
     user_timezone = "Europe/Paris"
     user_memory_enabled = True
+    user_display_name: str | None = None
 
     try:
         async with get_db_context() as db:
@@ -332,6 +334,9 @@ async def _handle_hitl_callback(message: ChannelInboundMessage) -> None:
                 user_language = getattr(user, "language", None) or settings.default_language
                 user_timezone = getattr(user, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
                 user_memory_enabled = getattr(user, "memory_enabled", True)
+                user_display_name = resolve_user_display_name(
+                    getattr(user, "full_name", None), getattr(user, "email", None)
+                )
     except Exception:
         logger.debug("channel_hitl_user_fetch_failed", exc_info=True)
 
@@ -369,6 +374,7 @@ async def _handle_hitl_callback(message: ChannelInboundMessage) -> None:
         user_memory_enabled=user_memory_enabled,
         conversation_id=conversation_id,
         pending_hitl=pending,
+        user_display_name=user_display_name,
     )
 
     logger.info(

@@ -10,6 +10,8 @@ Created: 2026-03-03
 
 from __future__ import annotations
 
+import asyncio
+
 from telegram import Bot
 from telegram.ext import Application
 
@@ -72,12 +74,38 @@ async def initialize_telegram_bot() -> Bot | None:
     _bot = _application.bot
 
     if webhook_url:
-        # Production: set webhook with secret token
-        await _bot.set_webhook(
-            url=webhook_url,
-            secret_token=webhook_secret,
-            allowed_updates=["message", "callback_query"],
-        )
+        # Production: set webhook with secret token.
+        # Multi-worker boot (uvicorn --workers N): all workers call
+        # set_webhook with the SAME url simultaneously — Telegram flood-limits
+        # the duplicates (RetryAfter, observed at every prod deploy). The
+        # webhook is bot-global so one successful call is enough; retry once
+        # after the announced delay, and treat a residual flood-limit as
+        # success when another worker already set the identical URL.
+        from telegram.error import RetryAfter
+
+        try:
+            await _bot.set_webhook(
+                url=webhook_url,
+                secret_token=webhook_secret,
+                allowed_updates=["message", "callback_query"],
+            )
+        except RetryAfter as exc:
+            await asyncio.sleep(exc.retry_after + 0.5)
+            try:
+                await _bot.set_webhook(
+                    url=webhook_url,
+                    secret_token=webhook_secret,
+                    allowed_updates=["message", "callback_query"],
+                )
+            except RetryAfter:
+                webhook_info = await _bot.get_webhook_info()
+                if webhook_info.url == webhook_url:
+                    logger.info(
+                        "telegram_webhook_already_set_by_peer_worker",
+                        webhook_url=webhook_url,
+                    )
+                else:
+                    raise
         logger.info(
             "telegram_bot_initialized_webhook",
             webhook_url=webhook_url,

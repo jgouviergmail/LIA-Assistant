@@ -240,6 +240,23 @@ async def persist_embedding_tokens(
         )
         return
 
+    # System-level embeddings (system RAG indexing at boot, admin operations)
+    # carry a non-UUID pseudo user id — per-user cost persistence does not
+    # apply. Skip quietly instead of raising ValueError('badly formed
+    # hexadecimal UUID string') with a full traceback on every worker boot
+    # (Prometheus metrics still capture the volume).
+    try:
+        UUID(context.user_id)
+    except (ValueError, TypeError, AttributeError):
+        logger.debug(
+            "embedding_tokens_system_user_skipped",
+            user_id=str(context.user_id),
+            model_name=model_name,
+            token_count=token_count,
+            operation=operation,
+        )
+        return
+
     try:
         # Import here to avoid circular dependencies
         from src.domains.chat.service import TrackingContext

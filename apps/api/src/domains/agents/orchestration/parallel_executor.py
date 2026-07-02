@@ -2952,6 +2952,11 @@ async def _execute_tool(
         # Legacy tool: Parse tool result (Session 22 - Helper #5)
         return ToolExecutionResult(result=_parse_tool_result(result))
 
+    except asyncio.CancelledError:
+        # Cancellation (SSE disconnect, task cancel) must PROPAGATE — turning
+        # it into a failed ToolExecutionResult kept the remaining steps
+        # running after the client was gone (asyncio anti-pattern).
+        raise
     except (
         TimeoutError,
         RuntimeError,
@@ -2959,7 +2964,6 @@ async def _execute_tool(
         KeyError,
         TypeError,
         AttributeError,
-        asyncio.CancelledError,
         OSError,
     ) as e:
         logger.error(
@@ -3704,8 +3708,26 @@ async def _execute_for_each_wave(
         wave_id=wave_id,
     )
 
-    # If no delay, execute all in parallel (standard behavior)
-    if delay_ms == 0:
+    # If no delay, execute all in parallel (standard behavior).
+    # F17 fix (2026-07): "stop" error mode is meaningless in parallel — by the
+    # time gather() returns, every item already ran, so the historical `break`
+    # only truncated error collection while all post-failure mutations had
+    # executed anyway. When the planner asks for on_item_error="stop", force
+    # the sequential path (no throttling sleep) so "stop" actually stops.
+    force_sequential_for_stop = (
+        error_mode == "stop"
+        and getattr(settings, "for_each_stop_forces_sequential", True)
+        and len(expanded_steps) > 1
+    )
+    if force_sequential_for_stop and delay_ms == 0:
+        logger.info(
+            "for_each_stop_mode_sequential",
+            run_id=run_id,
+            original_step_id=original_step.step_id,
+            expanded_count=len(expanded_steps),
+        )
+
+    if delay_ms == 0 and not force_sequential_for_stop:
         tasks = [
             _execute_single_step_async(
                 step=step,
@@ -3721,6 +3743,15 @@ async def _execute_for_each_wave(
         ]
         # FIX 2026-02-06: Use return_exceptions=True for FOR_EACH parallel execution
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # F18 fix (2026-07): CancelledError is a BaseException in Python 3.12 —
+        # gather(return_exceptions=True) hands it back as a "result" that the
+        # isinstance(Exception) conversion below would NOT catch (it would then
+        # crash on `.success`). A cancelled item means the whole wave is being
+        # cancelled: propagate.
+        for result in raw_results:
+            if isinstance(result, asyncio.CancelledError):
+                raise result
 
         # Convert exceptions to failed StepResults
         results = []

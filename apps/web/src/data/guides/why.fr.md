@@ -4,7 +4,7 @@
 
 **Version** : 3.4
 **Date** : 2026-05-08
-**Application** : LIA v1.21.0
+**Application** : LIA v1.21.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -326,7 +326,7 @@ Le système de réponse dispose d'un mécanisme anti-hallucination en trois couc
 
 ### 8.4. Human-in-the-Loop à 6 niveaux
 
-LIA ne refuse pas les actions sensibles — elle vous les **soumet** avec le niveau de détail adapté : approbation de plan, clarification, critique de brouillon, confirmation destructive, confirmation d'opérations en masse, review de modifications. Chaque approbation alimente l'apprentissage — le système s'accélère avec le temps.
+LIA ne refuse pas les actions sensibles — elle vous les **soumet** avec le niveau de détail adapté : approbation de plan, clarification, critique de brouillon, confirmation destructive, confirmation d'opérations en masse, review de modifications. Chaque approbation alimente l'apprentissage — le système s'accélère avec le temps. Et la promesse est tenue au mot près : ce que vous validez — après une, deux ou dix retouches — est **exactement** ce qui est exécuté, jamais une version re-générée en coulisses.
 
 ---
 

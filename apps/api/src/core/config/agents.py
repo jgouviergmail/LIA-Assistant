@@ -69,6 +69,7 @@ from src.core.constants import (
     FOR_EACH_MAX_DEFAULT,
     FOR_EACH_MAX_HARD_LIMIT,
     FOR_EACH_MUTATION_THRESHOLD_DEFAULT,
+    FOR_EACH_STOP_FORCES_SEQUENTIAL_DEFAULT,
     FOR_EACH_WARNING_THRESHOLD,
     HEARTBEAT_ACTIVITY_COOLDOWN_MINUTES_DEFAULT,
     HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT,
@@ -3031,6 +3032,15 @@ class AgentsSettings(BaseSettings):
             "Enable the Initiative phase on the ReAct nominal path "
             "(react_finalize -> initiative -> response). Independent of the pipeline "
             "Initiative; the ReAct draft path is never gated by this flag."
+        ),
+    )
+    for_each_stop_forces_sequential: bool = Field(
+        default=FOR_EACH_STOP_FORCES_SEQUENTIAL_DEFAULT,
+        description=(
+            "Force sequential execution of FOR_EACH items when the plan asks "
+            "for on_item_error='stop' (parallel gather cannot stop mid-batch: "
+            "post-failure mutations would already have executed). Disable to "
+            "restore the historical parallel behaviour."
         ),
     )
     response_context_prefetch_enabled: bool = Field(

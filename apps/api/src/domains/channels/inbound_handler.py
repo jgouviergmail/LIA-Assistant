@@ -60,6 +60,7 @@ class InboundMessageHandler:
         user_memory_enabled: bool,
         conversation_id: str | None,
         pending_hitl: dict[str, Any] | None,
+        user_display_name: str | None = None,
     ) -> None:
         """
         Process an inbound message through the agent pipeline.
@@ -72,6 +73,8 @@ class InboundMessageHandler:
             user_memory_enabled: Whether long-term memory is enabled.
             conversation_id: Active conversation ID (None if no conversation).
             pending_hitl: Pending HITL interrupt data (None if no pending HITL).
+            user_display_name: User's friendly first name for sender/signature
+                context (None = unknown).
         """
         from src.domains.channels.abstractions import ChannelOutboundMessage
         from src.infrastructure.channels.telegram.formatter import (
@@ -132,6 +135,7 @@ class InboundMessageHandler:
                 original_run_id=original_run_id,
                 channel_user_id=channel_user_id,
                 conversation_id=conversation_id,
+                user_display_name=user_display_name,
             )
 
             if response_text:
@@ -181,6 +185,7 @@ class InboundMessageHandler:
         original_run_id: str | None,
         channel_user_id: str,
         conversation_id: str | None = None,
+        user_display_name: str | None = None,
     ) -> str:
         """
         Stream agent response and collect tokens into a single string.
@@ -219,6 +224,7 @@ class InboundMessageHandler:
             session_id=session_id,
             user_timezone=user_timezone,
             user_language=user_language,
+            user_display_name=user_display_name,
             original_run_id=original_run_id,
             user_memory_enabled=user_memory_enabled,
         ):

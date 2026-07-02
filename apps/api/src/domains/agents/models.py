@@ -219,6 +219,9 @@ class MessagesState(TypedDict):
     )
     user_timezone: str  # User's IANA timezone (e.g., "Europe/Paris", "America/New_York")
     user_language: str  # User's language code (e.g., "fr", "en", "es", "de", "it")
+    user_display_name: (
+        str | None
+    )  # User's friendly first name (full_name → email local part) for sender/signature context
     personality_instruction: (
         str | None
     )  # LLM personality prompt instruction (from Personality.prompt_instruction)
@@ -298,6 +301,26 @@ class MessagesState(TypedDict):
     pending_draft_critique: dict[str, Any] | None  # PendingDraftInfo from parallel_executor
     pending_drafts_queue: list[dict[str, Any]]  # Queue for batch draft confirmation (FOR_EACH)
     draft_action_result: dict[str, Any] | None  # User decision: confirm/edit/cancel with details
+    # Draft EDIT loop state (replay-safe self-loop): one interrupt per node
+    # execution — the modified draft is returned as a state update and
+    # checkpointed BEFORE the next interrupt, so a resume never re-runs past
+    # LLM modifications (previously the in-node while-loop replayed every
+    # modifier.modify() call on each resume).
+    draft_edit_iteration: int  # Edit/replan/clarify passes for the pending draft
+    draft_clarification_question: str | None  # Surfaced on the next critique payload
+    # FOR_EACH bulk-cancel flags. NOTE: these keys were written by the
+    # historical in-orchestrator cancel path but were NEVER declared here —
+    # LangGraph silently dropped them (latent bug; only draft_action_result
+    # carried the cancellation). Declared as part of the 2026-07 replay-safe
+    # FOR_EACH work so the response node can actually read them.
+    for_each_cancelled: bool
+    cancellation_reason: str | None
+    # FOR_EACH HITL context (replay-safe, 2026-07): pre-executed provider data
+    # + edit-loop state, written by task_orchestrator BEFORE any interrupt and
+    # consumed by the dedicated for_each_confirm node. Keys: plan_id, turn_id,
+    # steps, pre_executed_steps, pre_exec_registry, item_previews,
+    # total_affected, filtered_indices, iteration, approved.
+    for_each_hitl_ctx: dict[str, Any] | None
 
     # ==========================================================================
     # HITL Dispatch: Generic Human-in-the-Loop Support
@@ -473,6 +496,7 @@ def create_initial_state(
     user_language: str = "fr",
     oauth_scopes: list[str] | None = None,
     personality_instruction: str | None = None,
+    user_display_name: str | None = None,
 ) -> MessagesState:
     """
     Create initial empty state for a new conversation with user preferences.
@@ -485,6 +509,8 @@ def create_initial_state(
         user_language: User's language code (default: "fr").
         oauth_scopes: OAuth scopes from active connectors (default: empty list).
         personality_instruction: LLM personality prompt instruction (default: None = use default).
+        user_display_name: User's friendly first name for sender/signature context
+            (default: None = unknown).
 
     Returns:
         Initial MessagesState with metadata, user preferences, and schema version.
@@ -516,6 +542,7 @@ def create_initial_state(
         session_id=session_id,  # Session identifier for context isolation (Phase 5)
         user_timezone=user_timezone,  # User's IANA timezone for temporal context
         user_language=user_language,  # User's language code for localized responses
+        user_display_name=user_display_name,  # Friendly first name for sender/signature context
         personality_instruction=personality_instruction,  # LLM personality prompt instruction
         oauth_scopes=oauth_scopes or [],  # OAuth scopes from active connectors
         _schema_version=CURRENT_SCHEMA_VERSION,  # Use constant for consistency
@@ -544,6 +571,11 @@ def create_initial_state(
         pending_draft_critique=None,  # PendingDraftInfo from parallel_executor
         pending_drafts_queue=[],  # Queue for batch draft confirmation (FOR_EACH)
         draft_action_result=None,  # User decision: confirm/edit/cancel with details
+        draft_edit_iteration=0,  # Replay-safe EDIT loop pass counter
+        draft_clarification_question=None,  # Clarify question for the next payload
+        for_each_hitl_ctx=None,  # Replay-safe FOR_EACH HITL context
+        for_each_cancelled=False,  # FOR_EACH bulk-cancel flag
+        cancellation_reason=None,  # FOR_EACH cancellation reason
         # HITL Dispatch: Entity Disambiguation
         pending_entity_disambiguation=None,  # DisambiguationContext from entity resolution
         entity_disambiguation_result=None,  # User choice from disambiguation

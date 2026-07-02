@@ -71,6 +71,10 @@ logger = structlog.get_logger(__name__)
 STATE_KEY_PENDING_DRAFT_CRITIQUE = "pending_draft_critique"
 STATE_KEY_PENDING_DRAFTS_QUEUE = "pending_drafts_queue"
 STATE_KEY_DRAFT_ACTION_RESULT = "draft_action_result"
+# Replay-safe EDIT loop (2026-07): the loop state lives in the graph state,
+# one interrupt per node execution (see _handle_draft_critique docstring).
+STATE_KEY_DRAFT_EDIT_ITERATION = "draft_edit_iteration"
+STATE_KEY_DRAFT_CLARIFICATION_QUESTION = "draft_clarification_question"
 
 # Entity Disambiguation (new)
 STATE_KEY_PENDING_ENTITY_DISAMBIGUATION = "pending_entity_disambiguation"
@@ -229,6 +233,7 @@ def _build_draft_critique_payload(
     user_language: str = "fr",
     batch_total: int = 1,
     batch_drafts: list[dict[str, Any]] | None = None,
+    clarification_question: str | None = None,
 ) -> dict[str, Any]:
     """
     Build interrupt payload for draft critique HITL.
@@ -245,6 +250,9 @@ def _build_draft_critique_payload(
         user_language: User's language for question generation
         batch_total: Total number of items in batch (1 = single draft, >1 = batch)
         batch_drafts: All draft contents for batch display (when batch_total > 1)
+        clarification_question: Question produced by a previous "clarify"
+            decision, surfaced with the re-presented draft so the user knows
+            what to specify (previously logged but never shown).
 
     Returns:
         Interrupt payload for HITL processing
@@ -263,6 +271,11 @@ def _build_draft_critique_payload(
     if batch_total > 1:
         action_request["batch_total"] = batch_total
         action_request["batch_drafts"] = batch_drafts or []
+
+    # Clarify follow-up: unknown fields are ignored by older frontends, so
+    # this is additive-only for the interrupt consumers.
+    if clarification_question:
+        action_request["clarification_question"] = clarification_question
 
     return {
         "action_requests": [action_request],
@@ -578,13 +591,24 @@ async def _handle_draft_critique(
 ) -> dict[str, Any]:
     """Handle draft critique HITL flow with iterative modification support.
 
-    This function implements the iterative draft modification loop:
-    1. Present draft for validation
-    2. User can: confirm, cancel, or request modification
-    3. If modification requested:
-       - Regenerate content using DraftModificationService
-       - Re-present the modified draft for validation
-       - Loop until user confirms or cancels
+    Replay-safe single-pass design (2026-07): LangGraph re-executes the whole
+    node on every resume — past ``interrupt()`` calls return their cached
+    decisions but everything else re-runs live. The previous in-node while
+    loop therefore RE-RAN every past ``modifier.modify()`` LLM call (temp>0)
+    on each resume: the confirmed draft could differ from the one the user
+    saw, at O(n²) LLM cost.
+
+    Now each node execution performs exactly ONE interrupt:
+
+    1. Present the pending draft (from state) for validation.
+    2. Terminal decisions (confirm / cancel / unknown / max-iterations) return
+       a ``draft_action_result`` and clear the loop state — unchanged
+       behaviour.
+    3. Non-terminal decisions (edit / replan / clarify) run their side effect
+       ONCE, then return a state update carrying the new pending draft and the
+       incremented ``draft_edit_iteration``; ``route_from_hitl_dispatch``
+       self-loops back here. The modified draft is checkpointed BEFORE the
+       next interrupt, so a resume replays nothing but the current interrupt.
     """
     if isinstance(pending_draft_data, dict):
         pending_draft = PendingDraftInfo(**pending_draft_data)
@@ -597,306 +621,352 @@ async def _handle_draft_critique(
         draft_type=pending_draft.draft_type,
     )
 
-    # Iterative modification loop
-    # User can request multiple modifications before confirming
-    # Safety limit: max iterations = max items possible in a request
+    # Loop state lives in the graph state (replay-safe self-loop).
+    # Safety limit: max iterations = max items possible in a request.
     max_iterations = settings.api_max_items_per_request
-    iteration = 0
+    edit_iteration = state.get(STATE_KEY_DRAFT_EDIT_ITERATION) or 0
+    iteration = edit_iteration + 1  # 1-based, for logs (parity with the old loop)
 
-    while iteration < max_iterations:
-        iteration += 1
-
-        # Build and send interrupt (include batch context for UX)
-        drafts_queue = state.get(STATE_KEY_PENDING_DRAFTS_QUEUE, [])
-        batch_total = 1 + len(drafts_queue)
-        # For batch: collect all draft contents (current + queued) for display
-        batch_drafts = [pending_draft.model_dump()] + drafts_queue if batch_total > 1 else None
-        interrupt_payload = _build_draft_critique_payload(
-            pending_draft,
-            user_language,
-            batch_total=batch_total,
-            batch_drafts=batch_drafts,
-        )
-        decision_data = interrupt(interrupt_payload)
-
-        elapsed_time = time.time() - start_time
-        logger.info(
-            "hitl_dispatch_draft_decision_received",
-            draft_id=pending_draft.draft_id,
-            action=decision_data.get("action") if decision_data else None,
-            iteration=iteration,
-            latency_seconds=elapsed_time,
-        )
-
-        # Handle no decision
-        if not decision_data:
-            result: dict[str, Any] = {
-                STATE_KEY_DRAFT_ACTION_RESULT: {
-                    "action": "cancel",
-                    "draft_id": pending_draft.draft_id,
-                    "reason": "No decision received",
-                },
-                STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-            }
-            track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
-            return result
-
-        action = decision_data.get("action", "cancel")
-
-        # === CONFIRM: Execute the draft (+ queued batch if any) ===
-        if action == "confirm":
-            # Build batch result: current draft + all queued drafts
-            # When a FOR_EACH HITL was already approved, the user confirmed
-            # the batch operation. The per-item draft critique shows the first
-            # item; on confirm, ALL queued items are auto-confirmed too.
-            drafts_queue = state.get(STATE_KEY_PENDING_DRAFTS_QUEUE, [])
-
-            batch_results = [
-                {
-                    "action": "confirm",
-                    "draft_id": pending_draft.draft_id,
-                    "draft_type": pending_draft.draft_type,
-                    "draft_content": pending_draft.draft_content,
-                },
-            ]
-
-            # Auto-confirm queued drafts from the same FOR_EACH batch
-            for queued_draft_data in drafts_queue:
-                batch_results.append(
-                    {
-                        "action": "confirm",
-                        "draft_id": queued_draft_data.get("draft_id", ""),
-                        "draft_type": queued_draft_data.get("draft_type", ""),
-                        "draft_content": queued_draft_data.get("draft_content", {}),
-                    }
-                )
-
-            if len(batch_results) > 1:
-                logger.info(
-                    "hitl_dispatch_batch_draft_confirmed",
-                    primary_draft_id=pending_draft.draft_id,
-                    batch_size=len(batch_results),
-                    draft_ids=[r["draft_id"] for r in batch_results],
-                )
-
-            result = {
-                STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-                STATE_KEY_PENDING_DRAFTS_QUEUE: [],
-                STATE_KEY_DRAFT_ACTION_RESULT: (
-                    batch_results[0]
-                    if len(batch_results) == 1
-                    else {
-                        "action": DraftAction.CONFIRM_BATCH.value,
-                        "batch": batch_results,
-                    }
-                ),
-            }
-            track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
-            return result
-
-        # === CANCEL: Abort the draft (+ cancel all queued) ===
-        elif action == "cancel":
-            reason = decision_data.get("reason", "User cancelled")
-            result = {
-                STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-                STATE_KEY_PENDING_DRAFTS_QUEUE: [],
-                STATE_KEY_DRAFT_ACTION_RESULT: {
-                    "action": "cancel",
-                    "draft_id": pending_draft.draft_id,
-                    "draft_type": pending_draft.draft_type,
-                    "reason": reason,
-                },
-            }
-            track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
-            return result
-
-        # === REPLAN: User wants a different action type (LLM classifier detected) ===
-        elif action == "replan":
-            new_type = _TYPE_TO_DELETE.get(pending_draft.draft_type)
-            if new_type:
-                logger.info(
-                    "hitl_draft_type_changed_via_replan",
-                    draft_id=pending_draft.draft_id,
-                    from_type=pending_draft.draft_type,
-                    to_type=new_type,
-                    instructions=decision_data.get("modification_instructions", "")[:80],
-                )
-                pending_draft = PendingDraftInfo(
-                    draft_id=pending_draft.draft_id,
-                    draft_type=new_type,
-                    draft_content=pending_draft.draft_content,
-                    draft_summary="",
-                    registry_ids=pending_draft.registry_ids,
-                    tool_name=_DRAFT_TYPE_TO_TOOL.get(new_type, pending_draft.tool_name),
-                    step_id=pending_draft.step_id,
-                )
-                continue
-            else:
-                logger.warning(
-                    "hitl_replan_no_target_type",
-                    draft_id=pending_draft.draft_id,
-                    draft_type=pending_draft.draft_type,
-                )
-                continue
-
-        # === EDIT: Modify the draft and re-present for validation ===
-        elif action == "edit":
-            modification_instructions = decision_data.get("modification_instructions", "")
-
-            if not modification_instructions:
-                logger.warning(
-                    "hitl_dispatch_draft_edit_no_instructions",
-                    draft_id=pending_draft.draft_id,
-                    iteration=iteration,
-                )
-                continue
-
-            logger.info(
-                "hitl_dispatch_draft_modification_requested",
-                draft_id=pending_draft.draft_id,
-                draft_type=pending_draft.draft_type,
-                instructions=modification_instructions[:100],
-                iteration=iteration,
-            )
-
-            new_draft_type = pending_draft.draft_type
-
-            try:
-                from src.domains.agents.services.hitl.draft_modifier import (
-                    get_draft_modification_service,
-                )
-
-                contact_context = await _build_contact_context(state, pending_draft.registry_ids)
-
-                modifier = get_draft_modification_service()
-                modified_content = await modifier.modify(
-                    original_draft=pending_draft.draft_content,
-                    instructions=modification_instructions,
-                    draft_type=pending_draft.draft_type,
-                    user_language=user_language,
-                    run_id=pending_draft.draft_id,
-                    contact_context=contact_context,
-                )
-
-                # Detect DELETE → UPDATE: modifier produced content changes
-                # on a delete draft → user wants to update, not delete
-                if pending_draft.draft_type in _UPDATABLE_DELETE_TYPES:
-                    content_changes = [
-                        k
-                        for k in modified_content
-                        if k not in _PRESERVED_FIELDS_FOR_DIFF
-                        and (
-                            k not in pending_draft.draft_content
-                            or modified_content[k] != pending_draft.draft_content.get(k)
-                        )
-                    ]
-                    if content_changes:
-                        new_draft_type = _UPDATABLE_DELETE_TYPES[pending_draft.draft_type]
-                        logger.info(
-                            "hitl_draft_type_changed_to_update",
-                            draft_id=pending_draft.draft_id,
-                            from_type=pending_draft.draft_type,
-                            to_type=new_draft_type,
-                            content_changes=content_changes,
-                        )
-
-                logger.info(
-                    "hitl_dispatch_draft_modified",
-                    draft_id=pending_draft.draft_id,
-                    draft_type=new_draft_type,
-                    original_type=pending_draft.draft_type,
-                    type_changed=new_draft_type != pending_draft.draft_type,
-                    modified_fields=list(modified_content.keys()),
-                    iteration=iteration,
-                )
-
-                pending_draft = PendingDraftInfo(
-                    draft_id=pending_draft.draft_id,
-                    draft_type=new_draft_type,
-                    draft_content=modified_content,
-                    draft_summary="",
-                    registry_ids=pending_draft.registry_ids,
-                    tool_name=_DRAFT_TYPE_TO_TOOL.get(new_draft_type, pending_draft.tool_name),
-                    step_id=pending_draft.step_id,
-                )
-
-                # Continue loop to re-present for validation
-
-            except Exception as e:
-                logger.error(
-                    "hitl_dispatch_draft_modification_failed",
-                    draft_id=pending_draft.draft_id,
-                    error=str(e),
-                    iteration=iteration,
-                )
-                # On error, treat as cancel (clear queue too)
-                result = {
-                    STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-                    STATE_KEY_PENDING_DRAFTS_QUEUE: [],
-                    STATE_KEY_DRAFT_ACTION_RESULT: {
-                        "action": "cancel",
-                        "draft_id": pending_draft.draft_id,
-                        "draft_type": pending_draft.draft_type,
-                        "reason": f"Modification error: {e!s}",
-                    },
-                }
-                track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
-                return result
-
-        # === CLARIFY: Ask user to clarify their request ===
-        elif action == "clarify":
-            clarification_question = decision_data.get(
-                "clarification_question", "Peux-tu préciser ce que tu veux modifier ?"
-            )
-            logger.info(
-                "hitl_dispatch_draft_clarification_needed",
-                draft_id=pending_draft.draft_id,
-                clarification_question=clarification_question[:100],
-                iteration=iteration,
-            )
-            # For now, continue the loop to re-ask
-            # In the future, we could send the clarification question to the user
-            continue
-
-        else:
-            # Unknown action - treat as cancel (clear queue too)
-            logger.warning(
-                "hitl_dispatch_draft_unknown_action",
-                draft_id=pending_draft.draft_id,
-                action=action,
-                iteration=iteration,
-            )
-            result = {
-                STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-                STATE_KEY_PENDING_DRAFTS_QUEUE: [],
-                STATE_KEY_DRAFT_ACTION_RESULT: {
-                    "action": "cancel",
-                    "draft_id": pending_draft.draft_id,
-                    "draft_type": pending_draft.draft_type,
-                    "reason": f"Unknown action: {action}",
-                },
-            }
-            track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
-            return result
+    # Every terminal result clears the loop state so the next draft of the
+    # thread starts fresh.
+    _loop_reset: dict[str, Any] = {
+        STATE_KEY_DRAFT_EDIT_ITERATION: 0,
+        STATE_KEY_DRAFT_CLARIFICATION_QUESTION: None,
+    }
 
     # Max iterations reached - safety cancel (clear queue too)
-    logger.warning(
-        "hitl_dispatch_draft_max_iterations",
-        draft_id=pending_draft.draft_id,
-        max_iterations=max_iterations,
+    if edit_iteration >= max_iterations:
+        logger.warning(
+            "hitl_dispatch_draft_max_iterations",
+            draft_id=pending_draft.draft_id,
+            max_iterations=max_iterations,
+        )
+        result: dict[str, Any] = {
+            STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
+            STATE_KEY_PENDING_DRAFTS_QUEUE: [],
+            STATE_KEY_DRAFT_ACTION_RESULT: {
+                "action": "cancel",
+                "draft_id": pending_draft.draft_id,
+                "draft_type": pending_draft.draft_type,
+                "reason": "Maximum modification iterations reached",
+            },
+            **_loop_reset,
+        }
+        track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
+        return result
+
+    # Build and send interrupt (include batch context for UX) — exactly ONE
+    # interrupt per node execution.
+    drafts_queue = state.get(STATE_KEY_PENDING_DRAFTS_QUEUE, [])
+    batch_total = 1 + len(drafts_queue)
+    # For batch: collect all draft contents (current + queued) for display
+    batch_drafts = [pending_draft.model_dump()] + drafts_queue if batch_total > 1 else None
+    interrupt_payload = _build_draft_critique_payload(
+        pending_draft,
+        user_language,
+        batch_total=batch_total,
+        batch_drafts=batch_drafts,
+        clarification_question=state.get(STATE_KEY_DRAFT_CLARIFICATION_QUESTION),
     )
-    result = {
-        STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-        STATE_KEY_PENDING_DRAFTS_QUEUE: [],
-        STATE_KEY_DRAFT_ACTION_RESULT: {
-            "action": "cancel",
-            "draft_id": pending_draft.draft_id,
-            "draft_type": pending_draft.draft_type,
-            "reason": "Maximum modification iterations reached",
-        },
-    }
-    track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
-    return result
+    decision_data = interrupt(interrupt_payload)
+
+    elapsed_time = time.time() - start_time
+    logger.info(
+        "hitl_dispatch_draft_decision_received",
+        draft_id=pending_draft.draft_id,
+        action=decision_data.get("action") if decision_data else None,
+        iteration=iteration,
+        latency_seconds=elapsed_time,
+    )
+
+    # Handle no decision
+    if not decision_data:
+        result = {
+            STATE_KEY_DRAFT_ACTION_RESULT: {
+                "action": "cancel",
+                "draft_id": pending_draft.draft_id,
+                "reason": "No decision received",
+            },
+            STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
+            **_loop_reset,
+        }
+        track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
+        return result
+
+    action = decision_data.get("action", "cancel")
+
+    # === CONFIRM: Execute the draft (+ queued batch if any) ===
+    if action == "confirm":
+        # Build batch result: current draft + all queued drafts
+        # When a FOR_EACH HITL was already approved, the user confirmed
+        # the batch operation. The per-item draft critique shows the first
+        # item; on confirm, ALL queued items are auto-confirmed too.
+        drafts_queue = state.get(STATE_KEY_PENDING_DRAFTS_QUEUE, [])
+
+        batch_results = [
+            {
+                "action": "confirm",
+                "draft_id": pending_draft.draft_id,
+                "draft_type": pending_draft.draft_type,
+                "draft_content": pending_draft.draft_content,
+            },
+        ]
+
+        # Auto-confirm queued drafts from the same FOR_EACH batch
+        for queued_draft_data in drafts_queue:
+            batch_results.append(
+                {
+                    "action": "confirm",
+                    "draft_id": queued_draft_data.get("draft_id", ""),
+                    "draft_type": queued_draft_data.get("draft_type", ""),
+                    "draft_content": queued_draft_data.get("draft_content", {}),
+                }
+            )
+
+        if len(batch_results) > 1:
+            logger.info(
+                "hitl_dispatch_batch_draft_confirmed",
+                primary_draft_id=pending_draft.draft_id,
+                batch_size=len(batch_results),
+                draft_ids=[r["draft_id"] for r in batch_results],
+            )
+
+        result = {
+            STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
+            STATE_KEY_PENDING_DRAFTS_QUEUE: [],
+            STATE_KEY_DRAFT_ACTION_RESULT: (
+                batch_results[0]
+                if len(batch_results) == 1
+                else {
+                    "action": DraftAction.CONFIRM_BATCH.value,
+                    "batch": batch_results,
+                }
+            ),
+            **_loop_reset,
+        }
+        track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
+        return result
+
+    # === CANCEL: Abort the draft (+ cancel all queued) ===
+    elif action == "cancel":
+        reason = decision_data.get("reason", "User cancelled")
+        result = {
+            STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
+            STATE_KEY_PENDING_DRAFTS_QUEUE: [],
+            STATE_KEY_DRAFT_ACTION_RESULT: {
+                "action": "cancel",
+                "draft_id": pending_draft.draft_id,
+                "draft_type": pending_draft.draft_type,
+                "reason": reason,
+            },
+            **_loop_reset,
+        }
+        track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
+        return result
+
+    # === REPLAN: User wants a different action type (LLM classifier detected) ===
+    elif action == "replan":
+        new_type = _TYPE_TO_DELETE.get(pending_draft.draft_type)
+        if new_type:
+            logger.info(
+                "hitl_draft_type_changed_via_replan",
+                draft_id=pending_draft.draft_id,
+                from_type=pending_draft.draft_type,
+                to_type=new_type,
+                instructions=decision_data.get("modification_instructions", "")[:80],
+            )
+            pending_draft = PendingDraftInfo(
+                draft_id=pending_draft.draft_id,
+                draft_type=new_type,
+                draft_content=pending_draft.draft_content,
+                draft_summary="",
+                registry_ids=pending_draft.registry_ids,
+                tool_name=_DRAFT_TYPE_TO_TOOL.get(new_type, pending_draft.tool_name),
+                step_id=pending_draft.step_id,
+            )
+        else:
+            logger.warning(
+                "hitl_replan_no_target_type",
+                draft_id=pending_draft.draft_id,
+                draft_type=pending_draft.draft_type,
+            )
+        # Self-loop: persist the (possibly retyped) draft and re-present it on
+        # the next node execution — checkpointed before the next interrupt.
+        result = {
+            STATE_KEY_PENDING_DRAFT_CRITIQUE: pending_draft.model_dump(),
+            STATE_KEY_DRAFT_EDIT_ITERATION: iteration,
+            STATE_KEY_DRAFT_CLARIFICATION_QUESTION: None,
+        }
+        track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
+        return result
+
+    # === EDIT: Modify the draft and re-present for validation ===
+    elif action == "edit":
+        modification_instructions = decision_data.get("modification_instructions", "")
+
+        if not modification_instructions:
+            logger.warning(
+                "hitl_dispatch_draft_edit_no_instructions",
+                draft_id=pending_draft.draft_id,
+                iteration=iteration,
+            )
+            # Self-loop: re-present the same draft
+            result = {
+                STATE_KEY_PENDING_DRAFT_CRITIQUE: pending_draft.model_dump(),
+                STATE_KEY_DRAFT_EDIT_ITERATION: iteration,
+                STATE_KEY_DRAFT_CLARIFICATION_QUESTION: None,
+            }
+            track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
+            return result
+
+        logger.info(
+            "hitl_dispatch_draft_modification_requested",
+            draft_id=pending_draft.draft_id,
+            draft_type=pending_draft.draft_type,
+            instructions=modification_instructions[:100],
+            iteration=iteration,
+        )
+
+        new_draft_type = pending_draft.draft_type
+
+        try:
+            from src.domains.agents.services.hitl.draft_modifier import (
+                get_draft_modification_service,
+            )
+
+            contact_context = await _build_contact_context(state, pending_draft.registry_ids)
+
+            modifier = get_draft_modification_service()
+            modified_content = await modifier.modify(
+                original_draft=pending_draft.draft_content,
+                instructions=modification_instructions,
+                draft_type=pending_draft.draft_type,
+                user_language=user_language,
+                run_id=pending_draft.draft_id,
+                contact_context=contact_context,
+                sender_name=state.get("user_display_name"),
+            )
+
+            # Detect DELETE → UPDATE: modifier produced content changes
+            # on a delete draft → user wants to update, not delete
+            if pending_draft.draft_type in _UPDATABLE_DELETE_TYPES:
+                content_changes = [
+                    k
+                    for k in modified_content
+                    if k not in _PRESERVED_FIELDS_FOR_DIFF
+                    and (
+                        k not in pending_draft.draft_content
+                        or modified_content[k] != pending_draft.draft_content.get(k)
+                    )
+                ]
+                if content_changes:
+                    new_draft_type = _UPDATABLE_DELETE_TYPES[pending_draft.draft_type]
+                    logger.info(
+                        "hitl_draft_type_changed_to_update",
+                        draft_id=pending_draft.draft_id,
+                        from_type=pending_draft.draft_type,
+                        to_type=new_draft_type,
+                        content_changes=content_changes,
+                    )
+
+            logger.info(
+                "hitl_dispatch_draft_modified",
+                draft_id=pending_draft.draft_id,
+                draft_type=new_draft_type,
+                original_type=pending_draft.draft_type,
+                type_changed=new_draft_type != pending_draft.draft_type,
+                modified_fields=list(modified_content.keys()),
+                iteration=iteration,
+            )
+
+            pending_draft = PendingDraftInfo(
+                draft_id=pending_draft.draft_id,
+                draft_type=new_draft_type,
+                draft_content=modified_content,
+                draft_summary="",
+                registry_ids=pending_draft.registry_ids,
+                tool_name=_DRAFT_TYPE_TO_TOOL.get(new_draft_type, pending_draft.tool_name),
+                step_id=pending_draft.step_id,
+            )
+
+            # Self-loop: the modified draft is persisted (and checkpointed)
+            # BEFORE the next interrupt — the modification will never be
+            # re-run on a later resume.
+            result = {
+                STATE_KEY_PENDING_DRAFT_CRITIQUE: pending_draft.model_dump(),
+                STATE_KEY_DRAFT_EDIT_ITERATION: iteration,
+                STATE_KEY_DRAFT_CLARIFICATION_QUESTION: None,
+            }
+            track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
+            return result
+
+        except Exception as e:
+            logger.error(
+                "hitl_dispatch_draft_modification_failed",
+                draft_id=pending_draft.draft_id,
+                error=str(e),
+                iteration=iteration,
+            )
+            # On error, treat as cancel (clear queue too)
+            result = {
+                STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
+                STATE_KEY_PENDING_DRAFTS_QUEUE: [],
+                STATE_KEY_DRAFT_ACTION_RESULT: {
+                    "action": "cancel",
+                    "draft_id": pending_draft.draft_id,
+                    "draft_type": pending_draft.draft_type,
+                    "reason": f"Modification error: {e!s}",
+                },
+                **_loop_reset,
+            }
+            track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
+            return result
+
+    # === CLARIFY: Ask user to clarify their request ===
+    elif action == "clarify":
+        from src.domains.agents.prompts import get_hitl_clarification_generic_message
+
+        clarification_question = decision_data.get(
+            "clarification_question"
+        ) or get_hitl_clarification_generic_message(user_language)
+        logger.info(
+            "hitl_dispatch_draft_clarification_needed",
+            draft_id=pending_draft.draft_id,
+            clarification_question=clarification_question[:100],
+            iteration=iteration,
+        )
+        # Self-loop: the question is persisted and surfaced with the
+        # re-presented draft on the next interrupt payload (it used to be
+        # logged and silently dropped).
+        result = {
+            STATE_KEY_PENDING_DRAFT_CRITIQUE: pending_draft.model_dump(),
+            STATE_KEY_DRAFT_EDIT_ITERATION: iteration,
+            STATE_KEY_DRAFT_CLARIFICATION_QUESTION: clarification_question,
+        }
+        track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
+        return result
+
+    else:
+        # Unknown action - treat as cancel (clear queue too)
+        logger.warning(
+            "hitl_dispatch_draft_unknown_action",
+            draft_id=pending_draft.draft_id,
+            action=action,
+            iteration=iteration,
+        )
+        result = {
+            STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
+            STATE_KEY_PENDING_DRAFTS_QUEUE: [],
+            STATE_KEY_DRAFT_ACTION_RESULT: {
+                "action": "cancel",
+                "draft_id": pending_draft.draft_id,
+                "draft_type": pending_draft.draft_type,
+                "reason": f"Unknown action: {action}",
+            },
+            **_loop_reset,
+        }
+        track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
+        return result
 
 
 async def _handle_entity_disambiguation(

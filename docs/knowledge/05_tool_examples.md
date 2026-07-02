@@ -134,6 +134,7 @@ To protect your data, any modification action goes through a **draft system**:
 • Ability to correct errors
 • Full control over your data
 • No irreversible action without your agreement
+• **What you approve is exactly what gets executed** — each edit is applied once, every revised version appears in its own chat bubble, and the confirmed content is guaranteed identical to the last version displayed (bulk operations included: the item list you confirm is exactly the list that gets processed)
 
 ## How do I use contextual references?
 LIA understands **references to previous items** in the conversation:

@@ -32,6 +32,7 @@ from src.core.field_names import (
 from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_hitl import get_user_language
 from src.core.session_dependencies import get_current_active_session
+from src.core.user_display import resolve_user_display_name
 from src.domains.agents.api.error_messages import SSEErrorMessages
 from src.domains.agents.api.schemas import ChatRequest
 from src.domains.agents.api.service import AgentService
@@ -509,6 +510,10 @@ async def stream_chat(
                         user_language=getattr(current_user, "language", None),
                         accept_language_header=accept_language,
                     )
+                    user_display_name = resolve_user_display_name(
+                        getattr(current_user, "full_name", None),
+                        getattr(current_user, "email", None),
+                    )
 
                     # CRITICAL: Pass original_run_id for token aggregation across HITL invocations
                     # Wrap the chat stream with a concurrent keepalive so SSE comments
@@ -521,6 +526,7 @@ async def stream_chat(
                         session_id=request.session_id,
                         user_timezone=user_timezone,
                         user_language=user_language,
+                        user_display_name=user_display_name,
                         original_run_id=original_run_id,  # Reuse for token aggregation
                         browser_context=request.context,  # Pass browser context (geolocation, etc.)
                         user_memory_enabled=getattr(current_user, "memory_enabled", True),
@@ -567,6 +573,10 @@ async def stream_chat(
                     user_language=getattr(current_user, "language", None),
                     accept_language_header=accept_language,
                 )
+                user_display_name = resolve_user_display_name(
+                    getattr(current_user, "full_name", None),
+                    getattr(current_user, "email", None),
+                )
 
                 logger.debug(
                     "user_preferences_resolved",
@@ -585,6 +595,7 @@ async def stream_chat(
                     session_id=request.session_id,
                     user_timezone=user_timezone,
                     user_language=user_language,
+                    user_display_name=user_display_name,
                     browser_context=request.context,  # Pass browser context (geolocation, etc.)
                     user_memory_enabled=getattr(current_user, "memory_enabled", True),
                     user_journals_enabled=getattr(current_user, "journals_enabled", False),
