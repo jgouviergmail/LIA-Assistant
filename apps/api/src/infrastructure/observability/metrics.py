@@ -2,6 +2,8 @@
 Prometheus metrics configuration for FastAPI.
 """
 
+import re
+import time
 from collections.abc import Awaitable, Callable
 
 import structlog
@@ -283,6 +285,28 @@ bm25_cache_size = Gauge(
 )
 
 
+# Cardinality guard (F27, 2026-07): path params (UUIDs, ids) and bot scans
+# used to flow RAW into the endpoint label of 3 metric families (one series
+# per UUID, never freed from the registry — amplified by the ADR-089
+# multiprocess mmap files). Segments that look like identifiers collapse to
+# "{id}"; the exact route template (available only AFTER routing) is
+# preferred for the counter/histogram, with "unmatched" for 404s/scans.
+_ID_SEGMENT_RE = re.compile(
+    r"^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+    r"|[0-9a-fA-F]{24,}"
+    r"|\d+)$"
+)
+
+
+def _normalize_path_fallback(path: str) -> str:
+    """Collapse identifier-looking path segments to bound label cardinality.
+
+    Used where the route template is not yet known (in-progress gauge is
+    incremented BEFORE routing). E.g. /api/v1/journals/9b2e…f1 → /api/v1/journals/{id}.
+    """
+    return "/".join("{id}" if _ID_SEGMENT_RE.match(seg) else seg for seg in path.split("/"))
+
+
 class PrometheusMiddleware(BaseHTTPMiddleware):
     """Middleware to collect Prometheus metrics for HTTP requests."""
 
@@ -294,18 +318,21 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         method = request.method
-        endpoint = request.url.path
+        # Route template unknown before routing: normalized-path fallback.
+        # inc/dec MUST use the same label value (hence one variable).
+        in_progress_endpoint = _normalize_path_fallback(request.url.path)
 
         # Track request in progress
-        http_requests_in_progress.labels(method=method, endpoint=endpoint).inc()
+        http_requests_in_progress.labels(method=method, endpoint=in_progress_endpoint).inc()
 
+        start_time = time.perf_counter()
         try:
-            # Measure request duration
-            with http_request_duration_seconds.labels(
-                method=method,
-                endpoint=endpoint,
-            ).time():
-                response = await call_next(request)
+            response = await call_next(request)
+
+            # AFTER routing the matched route template is available — the
+            # exact, cardinality-bounded label. Unmatched paths (404s, bot
+            # scans) collapse into a single series.
+            endpoint = getattr(request.scope.get("route"), "path", None) or "unmatched"
 
             # Record request
             http_requests_total.labels(
@@ -314,21 +341,26 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
                 status=response.status_code,
             ).inc()
 
-            # Update DB pool metrics periodically (lightweight operation)
-            # This provides real-time visibility into connection pool health
-            try:
-                from src.infrastructure.database.session import update_db_pool_metrics
-
-                update_db_pool_metrics()
-            except Exception as e:
-                # Don't fail request if metrics update fails
-                logger.debug("failed_to_update_db_metrics", error=str(e))
+            # NOTE: update_db_pool_metrics() used to run here on EVERY request
+            # (despite its "periodically" comment) — it now runs in the
+            # lifetime-metrics background updater (30s interval).
 
             return response
 
         finally:
+            # Duration observed on success AND exception paths (parity with
+            # the historical `with histogram.time():` context manager). The
+            # route is read here: it is set once routing happened, even when
+            # the endpoint later raised.
+            duration = time.perf_counter() - start_time
+            final_endpoint = getattr(request.scope.get("route"), "path", None) or "unmatched"
+            http_request_duration_seconds.labels(
+                method=method,
+                endpoint=final_endpoint,
+            ).observe(duration)
+
             # Decrement in-progress counter
-            http_requests_in_progress.labels(method=method, endpoint=endpoint).dec()
+            http_requests_in_progress.labels(method=method, endpoint=in_progress_endpoint).dec()
 
 
 def metrics_endpoint() -> Response:

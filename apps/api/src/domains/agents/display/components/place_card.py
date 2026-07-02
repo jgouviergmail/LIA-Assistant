@@ -240,7 +240,7 @@ class PlaceCard(BaseComponent):
             open_label = V3Messages.get_open(ctx.language)
             chips_status.append(render_chip(open_label, "green", "check_circle"))
             # Show closing time if available
-            close_time = self._get_closing_time(data)
+            close_time = self._get_closing_time(data, ctx)
             if close_time:
                 closes_at_label = V3Messages.get_closes_at(ctx.language)
                 chips_status.append(
@@ -491,11 +491,13 @@ class PlaceCard(BaseComponent):
 
         if weekday_text and isinstance(weekday_text, list) and len(weekday_text) > 0:
             # Return the first opening time from today or tomorrow
-            from datetime import datetime
+            from src.core.time_utils import now_in_timezone
 
             try:
-                # Get current day name in the user's language
-                today_idx = datetime.now().weekday()
+                # "Today" in the USER's timezone (F16: the server runs in UTC,
+                # so between local and UTC midnight the naive weekday() pointed
+                # at the wrong day's opening hours)
+                today_idx = now_in_timezone(ctx.timezone).weekday()
                 if today_idx < len(weekday_text):
                     today_hours = weekday_text[today_idx]
                     # Extract opening time (format: "Lundi: 09:00 – 18:00" or similar)
@@ -510,8 +512,8 @@ class PlaceCard(BaseComponent):
                 logger.debug("place_card_opening_hours_parse_error")
         return ""
 
-    def _get_closing_time(self, data: dict[str, Any]) -> str:
-        """Get closing time for today if place is open."""
+    def _get_closing_time(self, data: dict[str, Any], ctx: RenderContext) -> str:
+        """Get closing time for today (user's timezone) if place is open."""
         weekday_text = None
         opening_hours = data.get("currentOpeningHours", {}) or data.get("openingHours", {})
         if opening_hours and isinstance(opening_hours, dict):
@@ -522,10 +524,10 @@ class PlaceCard(BaseComponent):
             weekday_text = data.get("opening_hours", [])
 
         if weekday_text and isinstance(weekday_text, list) and len(weekday_text) > 0:
-            from datetime import datetime
+            from src.core.time_utils import now_in_timezone
 
             try:
-                today_idx = datetime.now().weekday()
+                today_idx = now_in_timezone(ctx.timezone).weekday()
                 if today_idx < len(weekday_text):
                     today_hours = str(weekday_text[today_idx])
                     if ":" in today_hours and "–" in today_hours:

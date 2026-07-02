@@ -15,6 +15,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import quote
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+
 if TYPE_CHECKING:
     pass
 
@@ -76,7 +78,7 @@ class RenderContext:
 
     viewport: Viewport = Viewport.DESKTOP
     language: str = "fr"
-    timezone: str = "Europe/Paris"  # User timezone for datetime formatting
+    timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE  # User timezone for datetime formatting
     show_secondary: bool = True
     max_items: int = 5
     nested_level: int = 0  # For hierarchical rendering
@@ -260,7 +262,7 @@ def format_phone(phone: str | None) -> str:
 def format_date(
     dt: datetime | str | int | None,
     language: str = "fr",
-    timezone: str = "Europe/Paris",
+    timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     format_type: DateFormatType = "full",
     include_time: bool = False,
 ) -> str:
@@ -387,7 +389,7 @@ def format_date(
 def format_relative_date(
     dt: datetime | str | int | None,
     language: str = "fr",
-    timezone: str = "Europe/Paris",
+    timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     include_time: bool = False,
 ) -> str:
     """
@@ -410,7 +412,7 @@ def format_relative_date(
 def format_full_date(
     dt: datetime | str | int | None,
     language: str = "fr",
-    timezone: str = "Europe/Paris",
+    timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     include_time: bool = False,
 ) -> str:
     """
@@ -440,7 +442,7 @@ def format_full_date(
 def format_time(
     dt: datetime | str | None,
     language: str = "fr",
-    timezone: str = "Europe/Paris",
+    timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
 ) -> str:
     """
     Format time with locale-aware conventions.

@@ -2321,6 +2321,18 @@ INITIATIVE_MEMORY_LIMIT = 3  # Max memory facts injected
 INITIATIVE_MEMORY_MIN_SCORE = 0.45  # Calibrated for Gemini embeddings (may need re-tuning)
 INITIATIVE_INTERESTS_LIMIT = 5  # Top N active interests
 
+# Token-tracking run-record dicts (chat/service.py): bound the number of
+# run_ids kept in memory. Runs that never reach cleanup_run_records (errors,
+# abandoned HITL interrupts) used to accumulate forever on a long-running
+# server; oldest runs are evicted beyond this cap.
+RUN_RECORDS_MAX_RUNS = 256
+
+# FOR_EACH "stop" error mode: in parallel execution the historical `break`
+# fired only AFTER gather() had already run every item — post-failure
+# mutations executed anyway. When True (default), on_item_error="stop" forces
+# the sequential path (no throttling sleep) so "stop" actually stops.
+FOR_EACH_STOP_FORCES_SEQUENTIAL_DEFAULT = True
+
 # Response-context prefetch: the initiative node prefetches the response node's
 # user-context injections (memory, RAG, journal, portrait, psyche) concurrently
 # with its own LLM evaluation, so the response node finds them ready instead of
