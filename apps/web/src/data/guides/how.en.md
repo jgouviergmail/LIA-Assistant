@@ -6,7 +6,7 @@
 
 **Version**: 2.4
 **Date**: 2026-05-08
-**Application**: LIA v1.21.0
+**Application**: LIA v1.21.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -464,7 +464,11 @@ For drafts, a dedicated prompt generates a structured critique with per-domain m
 
 When the user responds to an approval prompt, a full-LLM classifier (not regex) categorizes the answer into 5 decisions: **APPROVE**, **REJECT**, **EDIT** (same action, different parameters), **REPLAN** (different action entirely), or **AMBIGUOUS**. Demotion logic prevents false positives: an EDIT with missing parameters is demoted to AMBIGUOUS, triggering a clarification follow-up.
 
-### 9.5. Compaction Safety
+### 9.5. Replay-safe review loops (ADR-092)
+
+LangGraph's resume semantics re-execute the interrupted node **in full**: past `interrupt()` calls return their cached values, but everything else runs live again. Any loop written around `interrupt()` inside a node therefore replays its side effects (LLM calls, API calls) on every user decision. Both review loops — iterative draft editing and bulk-operation confirmation (dedicated `for_each_confirm` node) — follow a normative pattern: **one `interrupt()` per node execution**, loop state flows through the checkpointed graph state, and iteration happens through a conditional self-loop edge. Guarantee proven by compiled replay harnesses: each LLM modification runs exactly once and the confirmed content is exactly the last content displayed.
+
+### 9.6. Compaction Safety
 
 4 conditions prevent LLM compaction (summarization of old messages) during active approval flows. Without this protection, a summary could delete the critical context of an ongoing interruption.
 
@@ -1038,4 +1042,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 91 ADRs, and the changelog (v1.0 to v1.21.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 91 ADRs, and the changelog (v1.0 to v1.21.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

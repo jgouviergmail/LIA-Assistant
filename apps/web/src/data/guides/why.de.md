@@ -4,7 +4,7 @@
 
 **Version** : 3.3
 **Datum** : 2026-05-08
-**Anwendung** : LIA v1.21.0
+**Anwendung** : LIA v1.21.1
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -326,7 +326,7 @@ Das Antwortsystem verfügt über einen dreischichtigen Anti-Halluzinations-Mecha
 
 ### 8.4. Human-in-the-Loop auf 6 Ebenen
 
-LIA lehnt sensible Aktionen nicht ab — sie **legt sie Ihnen vor** mit dem jeweils passenden Detailgrad: Plangenehmigung, Klärung, Entwurfskritik, destruktive Bestätigung, Bestätigung von Massenoperationen, Überprüfung von Änderungen. Jede Genehmigung fließt in das Lernen ein — das System beschleunigt sich mit der Zeit.
+LIA lehnt sensible Aktionen nicht ab — sie **legt sie Ihnen vor** mit dem jeweils passenden Detailgrad: Plangenehmigung, Klärung, Entwurfskritik, destruktive Bestätigung, Bestätigung von Massenoperationen, Überprüfung von Änderungen. Jede Genehmigung fließt in das Lernen ein — das System beschleunigt sich mit der Zeit. Und das Versprechen wird wortwörtlich gehalten: Was Sie bestätigen — nach einer, zwei oder zehn Überarbeitungen — wird **exakt** so ausgeführt, niemals eine im Hintergrund neu generierte Version.
 
 ---
 

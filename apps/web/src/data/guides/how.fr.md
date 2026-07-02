@@ -6,7 +6,7 @@
 
 **Version** : 2.5
 **Date** : 2026-05-08
-**Application** : LIA v1.21.0
+**Application** : LIA v1.21.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -463,7 +463,11 @@ Pour les brouillons, un prompt dédié génère une critique structurée avec te
 
 Lorsque l'utilisateur répond à un prompt d'approbation, un classifieur full-LLM (pas de regex) catégorise la réponse en 5 décisions : **APPROVE**, **REJECT**, **EDIT** (même action, paramètres différents), **REPLAN** (action entièrement différente) ou **AMBIGUOUS**. Une logique de démotion prévient les faux positifs : un EDIT avec paramètres manquants est rétrogradé en AMBIGUOUS, déclenchant une clarification.
 
-### 9.5. Compaction Safety
+### 9.5. Boucles de révision replay-safe (ADR-092)
+
+La sémantique de reprise de LangGraph ré-exécute le nœud interrompu **en entier** : les `interrupt()` passés rendent leurs valeurs mémorisées, mais tout le reste re-tourne en live. Une boucle écrite autour de `interrupt()` à l'intérieur d'un nœud rejoue donc ses effets de bord (appels LLM, API) à chaque décision utilisateur. Les deux boucles de révision — édition itérative de brouillon et confirmation d'opérations bulk (nœud dédié `for_each_confirm`) — suivent un pattern normatif : **un seul `interrupt()` par exécution de nœud**, l'état de boucle transite par le state checkpointé, et l'itération passe par un self-loop conditionnel. Garantie prouvée par harnais de replay compilés : chaque modification LLM ne s'exécute qu'une fois et le contenu confirmé est exactement le dernier contenu affiché.
+
+### 9.6. Compaction Safety
 
 4 conditions empêchent la compaction LLM (résumé des anciens messages) pendant les flux d'approbation actifs. Sans cette protection, un résumé pourrait supprimer le contexte critique d'une interruption en cours.
 
@@ -1049,4 +1053,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 91 ADRs, et du changelog (v1.0 à v1.21.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 91 ADRs, et du changelog (v1.0 à v1.21.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

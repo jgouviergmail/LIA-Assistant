@@ -129,6 +129,8 @@ Metriques systeme orientees Raspberry Pi (ARM64) : charge CPU hote, memoire, esp
 
 Trafic HTTP detaille : requetes/s par endpoint, distribution latence (p50/p95/p99), taux d'erreur par code HTTP, metriques de rate limiting. Complement du dashboard 01 pour le diagnostic precis des problemes de performance API.
 
+> **Labels `endpoint` bornes (v1.21.1)** : les labels des metriques HTTP (`http_requests_total`, `http_request_duration_seconds`) utilisent desormais le **template de route** matche (`/api/v1/journals/{entry_id}`) et non plus le chemin brut avec UUID ; les requetes non routees (404, scans de bots) sont regroupees sous `unmatched`, et la gauge `http_requests_in_progress` (pre-routing) applique un repli qui remplace les segments UUID/hex/numeriques par `{id}`. Cardinalite bornee par construction. **Toute requete Grafana qui filtrait sur des chemins exacts contenant des identifiants doit etre adaptee aux templates.**
+
 ### 05 - LLM Tokens & Cost (33 panels)
 
 Dashboard le plus riche en panels. Headlines de couts (jour, mois, projection), ventilation par modele et par node, consommation tokens (prompt, completion, cached), metriques d'efficacite (cout par requete, tokens par seconde). Section Loki pour le suivi par utilisateur. Performance des appels API LLM (latence, erreurs par provider). Metriques de cout cumulees sur la duree de vie.
