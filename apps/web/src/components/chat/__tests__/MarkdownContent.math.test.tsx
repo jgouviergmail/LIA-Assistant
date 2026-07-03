@@ -27,8 +27,49 @@ describe('MarkdownContent — math delimiters', () => {
     expect(container.querySelector('.katex')).toBeNull();
   });
 
+  it('does not treat "$5 and $6" (currency) as math', () => {
+    const { container } = render(<MarkdownContent content="Ça coûte $5 and $6 au total." />);
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(container.textContent).toContain('$5 and $6');
+  });
+
   it('still renders display math ($$…$$) via KaTeX', () => {
     const { container } = render(<MarkdownContent content={'$$a + b$$'} />);
+    expect(container.querySelector('.katex')).not.toBeNull();
+  });
+
+  it('renders inline math ($…$) via KaTeX (MathJax delimiter rules)', () => {
+    const { container } = render(
+      <MarkdownContent content={'La formule $A = \\pi r^2$ est simple.'} />
+    );
+    // Inline math now renders...
+    expect(container.querySelector('.katex')).not.toBeNull();
+    // ...and the surrounding prose is intact.
+    expect(container.textContent).toContain('La formule');
+    expect(container.textContent).toContain('est simple.');
+  });
+
+  it('renders short inline symbols ($A$, $\\pi$)', () => {
+    const { container } = render(
+      <MarkdownContent content={'Où $A$ est l’aire et $\\pi$ la constante.'} />
+    );
+    expect(container.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('handles inline math and currency on the same line', () => {
+    const { container } = render(
+      <MarkdownContent content={'La valeur $x^2$ coûte 9$ en sortie.'} />
+    );
+    // The math renders...
+    expect(container.querySelector('.katex')).not.toBeNull();
+    // ...and the currency stays literal (not swallowed).
+    expect(container.textContent).toContain('9$ en sortie');
+  });
+
+  it('renders inline math ending in a digit ($r^2$)', () => {
+    // Regression: a naive "digit before $" currency heuristic would break
+    // the closing delimiter of math that ends in a number.
+    const { container } = render(<MarkdownContent content={'Le terme $r^2$ ici.'} />);
     expect(container.querySelector('.katex')).not.toBeNull();
   });
 });

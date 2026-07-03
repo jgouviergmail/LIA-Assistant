@@ -447,6 +447,94 @@ function sanitizeMalformedTags(text: string): string {
   );
 }
 
+/**
+ * Disambiguate `$` between inline math and currency, so single-dollar inline
+ * math (`$A = \pi r^2$`) renders WITHOUT breaking currency amounts
+ * (`1,50$ … 9$`, `$5 and $6`).
+ *
+ * remark-math's `singleDollarTextMath` is all-or-nothing: enabled it swallows
+ * currency, disabled it drops legitimate inline math. This applies MathJax's
+ * standard delimiter rules to keep only the `$…$` pairs that are really math,
+ * and backslash-escapes every other `$` (currency) so remark-math renders it
+ * literally:
+ *   - the char right AFTER an opening `$` must not be whitespace;
+ *   - the char right BEFORE a closing `$` must not be whitespace;
+ *   - the char right AFTER a closing `$` must not be a digit.
+ * `$$…$$` display math is left untouched (segments between `$$` toggles are
+ * skipped), and already-escaped `\$` are preserved.
+ */
+function protectInlineMathDollars(text: string): string {
+  if (!text.includes('$')) return text;
+
+  // Split on `$$` so display-math segments are preserved verbatim.
+  const parts = text.split(/(\$\$)/);
+  let insideDisplay = false;
+
+  return parts
+    .map(part => {
+      if (part === '$$') {
+        insideDisplay = !insideDisplay;
+        return part;
+      }
+      if (insideDisplay) return part;
+      return escapeCurrencyDollars(part);
+    })
+    .join('');
+}
+
+function escapeCurrencyDollars(seg: string): string {
+  // Collect unescaped single-`$` positions.
+  const positions: number[] = [];
+  for (let i = 0; i < seg.length; i++) {
+    if (seg[i] === '$' && seg[i - 1] !== '\\') positions.push(i);
+  }
+  if (positions.length < 2) {
+    // A lone `$` never forms math — escape it so it renders literally.
+    return positions.length === 1 ? spliceEscape(seg, positions) : seg;
+  }
+
+  const keep = new Set<number>();
+  let k = 0;
+  while (k < positions.length - 1) {
+    const open = positions[k];
+    const afterOpen = seg[open + 1];
+    // Opening rule: next char exists and is not whitespace.
+    if (afterOpen !== undefined && !/\s/.test(afterOpen)) {
+      let closedAt = -1;
+      for (let m = k + 1; m < positions.length; m++) {
+        const cand = positions[m];
+        const beforeClose = seg[cand - 1];
+        const afterClose = seg[cand + 1];
+        // Closing rule: prev not whitespace, next not a digit.
+        if (!/\s/.test(beforeClose) && !(afterClose !== undefined && /\d/.test(afterClose))) {
+          closedAt = m;
+          break;
+        }
+      }
+      if (closedAt !== -1) {
+        keep.add(open);
+        keep.add(positions[closedAt]);
+        k = closedAt + 1;
+        continue;
+      }
+    }
+    k++;
+  }
+
+  const toEscape = positions.filter(p => !keep.has(p));
+  return toEscape.length ? spliceEscape(seg, toEscape) : seg;
+}
+
+function spliceEscape(seg: string, indices: number[]): string {
+  const set = new Set(indices);
+  let out = '';
+  for (let i = 0; i < seg.length; i++) {
+    if (set.has(i)) out += '\\$';
+    else out += seg[i];
+  }
+  return out;
+}
+
 export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
   ({ content, isUser = false, className }) => {
     const { t } = useTranslation();
@@ -454,20 +542,27 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
     // Sanitize malformed HTML tags (e.g., <li📧> -> <li>📧)
     const sanitizedContent = useMemo(() => sanitizeMalformedTags(content), [content]);
 
+    // Protect currency `$` from inline-math parsing (MathJax delimiter rules),
+    // so single-dollar inline math renders without swallowing dollar amounts.
+    const mathSafeContent = useMemo(
+      () => protectInlineMathDollars(sanitizedContent),
+      [sanitizedContent]
+    );
+
     // Format phone numbers in content (French: 06.12.34.56.78, others: national format)
     const formattedContent = useMemo(
-      () => formatPhonesInText(sanitizedContent),
-      [sanitizedContent]
+      () => formatPhonesInText(mathSafeContent),
+      [mathSafeContent]
     );
 
     return (
       <div className={cn('markdown-content text-[13px] mobile:text-sm leading-relaxed', className)}>
         <ReactMarkdown
-          // singleDollarTextMath: false — a single `$` is NOT a math delimiter,
-          // so currency amounts ("1,50$", "9$") render as literal text instead of
-          // being swallowed into a KaTeX formula (spaces dropped, `*`→`∗`, `é`→`eˊ`).
-          // Display math `$$…$$` still works for the rare intentional case.
-          remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: false }]]}
+          // singleDollarTextMath: true — inline math `$…$` renders. Currency is
+          // NOT swallowed because protectInlineMathDollars() has already
+          // backslash-escaped every `$` that isn't a real math delimiter
+          // (MathJax rules), upstream in the content pipeline.
+          remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: true }]]}
           remarkRehypeOptions={{ allowDangerousHtml: true }}
           // Order matters: rehypeRaw parses embedded HTML, rehypeSanitize is
           // the XSS boundary (schema audited against all legitimate card /
