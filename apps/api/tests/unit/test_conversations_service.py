@@ -456,6 +456,49 @@ class TestUpdateLastUserMessage:
         assert updated.message_metadata["intention"] == "search"
         assert updated.message_metadata["hitl_edit"] is True
 
+    async def test_new_metadata_keys_persist_to_db_with_preexisting_metadata(
+        self, service, sample_conversation, async_session
+    ):
+        """Regression (2026-07 audit): merged metadata must survive a DB re-read.
+
+        The service used to mutate and reassign the SAME dict object, so
+        SQLAlchemy change detection saw `current is original` and silently
+        skipped the metadata UPDATE whenever the message already had metadata.
+        """
+        from sqlalchemy import select
+
+        created = await service.archive_message(
+            conversation_id=sample_conversation.id,
+            role="user",
+            content="original",
+            metadata={"run_id": "abc123"},
+            db=async_session,
+        )
+        await async_session.commit()
+
+        updated = await service.update_last_user_message(
+            conversation_id=sample_conversation.id,
+            new_content="reformulated",
+            metadata_updates={"hitl_edit": True},
+            db=async_session,
+        )
+        await async_session.commit()
+
+        # The new dict object is what makes SQLAlchemy emit the UPDATE
+        assert updated is not None
+
+        # Re-read from the database, bypassing in-memory state
+        async_session.expire_all()
+        result = await async_session.execute(
+            select(ConversationMessage).where(ConversationMessage.id == created.id)
+        )
+        fresh = result.scalar_one()
+
+        assert fresh.message_metadata["hitl_edit"] is True
+        assert fresh.message_metadata["hitl_original_content"] == "original"
+        assert fresh.message_metadata["run_id"] == "abc123"
+        assert fresh.content == "reformulated"
+
     async def test_returns_none_when_no_user_message(
         self, service, sample_conversation, async_session
     ):

@@ -27,6 +27,7 @@ from langchain_core.tools import InjectedToolArg
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.tools.base import ConnectorTool
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.exceptions import (
     ConnectorNotEnabledError,
@@ -42,6 +43,25 @@ from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.models import ConnectorType
 
 logger = structlog.get_logger(__name__)
+
+
+def _disambiguation_output(result: dict[str, Any]) -> UnifiedToolOutput:
+    """Build the non-success output for an ambiguous label resolution.
+
+    The disambiguation dict produced by ``execute_api_call`` carries the
+    localized question in ``message`` and the candidate labels; it must never
+    be reported as an action success (nor reach draft creation, which expects
+    a resolved ``label_id``).
+    """
+    return UnifiedToolOutput.failure(
+        message=result.get("message", ""),
+        error_code=ToolErrorCode.DISAMBIGUATION_REQUIRED,
+        metadata={
+            "requires_disambiguation": True,
+            "candidates": result.get("candidates", []),
+            "label_name": result.get("label_name"),
+        },
+    )
 
 
 # ============================================================================
@@ -503,6 +523,9 @@ class DeleteLabelDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
         Returns UnifiedToolOutput with HITL metadata (requires_confirmation=True).
         """
+        if result.get("requires_disambiguation"):
+            return _disambiguation_output(result)
+
         from src.domains.agents.drafts import create_label_delete_draft
 
         return create_label_delete_draft(
@@ -720,6 +743,9 @@ class ApplyLabelsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
         """Format as UnifiedToolOutput."""
+        if result.get("requires_disambiguation"):
+            return _disambiguation_output(result)
+
         return UnifiedToolOutput.action_success(
             message=result.get("message", "Labels applied"),
             structured_data=result,
@@ -857,6 +883,9 @@ class RemoveLabelsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
         """Format as UnifiedToolOutput."""
+        if result.get("requires_disambiguation"):
+            return _disambiguation_output(result)
+
         return UnifiedToolOutput.action_success(
             message=result.get("message", "Labels removed"),
             structured_data=result,

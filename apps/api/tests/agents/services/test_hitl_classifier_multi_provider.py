@@ -288,14 +288,19 @@ def test_classifier_works_with_deepseek_provider(
 
 
 @patch("src.domains.agents.services.hitl_classifier.get_llm")
-@patch("src.core.config.get_settings")
 @patch("src.domains.agents.services.hitl_classifier.logger")
-def test_classifier_logs_initialization(
-    mock_logger, mock_get_settings, mock_get_llm, mock_settings, mock_llm
-):
-    """Test that classifier logs initialization with provider and model."""
-    mock_get_settings.return_value = mock_settings
+def test_classifier_logs_initialization(mock_logger, mock_get_llm, mock_llm):
+    """Test that classifier logs initialization with provider and model.
+
+    Expected values are resolved through the SAME config helper the
+    classifier uses (LLM_DEFAULTS + overrides) — never hardcoded model
+    names, which silently drift when defaults change.
+    """
+    from src.core.config import settings
+    from src.core.llm_config_helper import get_llm_config_for_agent
+
     mock_get_llm.return_value = mock_llm
+    expected_config = get_llm_config_for_agent(settings, "hitl_classifier")
 
     HitlResponseClassifier()
 
@@ -303,12 +308,10 @@ def test_classifier_logs_initialization(
     mock_logger.info.assert_called_once()
     log_call = mock_logger.info.call_args
 
-    # Check log contains relevant information
+    # Check log contains the effective resolved configuration
     assert log_call[0][0] == "hitl_classifier_initialized"
-    assert "provider" in log_call[1]
-    assert "model" in log_call[1]
-    assert log_call[1]["provider"] == "openai"
-    assert log_call[1]["model"] == "gpt-5-nano"
+    assert log_call[1]["provider"] == expected_config.provider
+    assert log_call[1]["model"] == expected_config.model
 
 
 @patch("src.domains.agents.services.hitl_classifier.get_llm")

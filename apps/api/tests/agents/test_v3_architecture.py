@@ -82,40 +82,55 @@ class TestQueryIntelligence:
 
         tool_filter = ToolFilter.from_intelligence(intelligence)
 
+        # ARCHITECTURE v3.1: domain-only filtering — categories stays empty
+        # (the LLM sees the complete domain toolset and reasons about deps)
         assert tool_filter.domains == ["contacts"]
-        assert "search" in tool_filter.categories
+        assert tool_filter.categories == []
+        assert tool_filter.include_sub_agent_tools is True
 
     def test_semantic_fallback_threshold(self):
-        """Test SemanticFallback threshold logic."""
-        assert SemanticFallback.should_fallback(0.3)  # Below threshold
-        assert not SemanticFallback.should_fallback(0.5)  # Above threshold
-        assert not SemanticFallback.should_fallback(0.9)  # Well above
+        """SemanticFallback compares against the settings-driven threshold."""
+        threshold = SemanticFallback.get_threshold()
+
+        assert SemanticFallback.should_fallback(threshold - 0.01)  # Below threshold
+        assert not SemanticFallback.should_fallback(threshold)  # At threshold
+        assert not SemanticFallback.should_fallback(1.0)  # Well above
 
 
 class TestSmartCatalogueService:
-    """Test SmartCatalogueService with Panic Mode."""
+    """Test SmartCatalogueService with Panic Mode.
+
+    Tool availability now flows through the per-request ContextVar
+    ``request_tool_manifests_ctx`` (single source of truth), not through a
+    registry accessor — the fixture populates it with real manifests.
+    """
+
+    @pytest.fixture(autouse=True)
+    def request_manifests(self):
+        """Populate the per-request manifests ContextVar with real manifests."""
+        from src.core.context import panic_mode_used, request_tool_manifests_ctx
+        from src.domains.agents.registry.manifest_builder import ToolManifestBuilder
+
+        manifests = [
+            ToolManifestBuilder("search_contacts", "contacts_agent")
+            .with_description("Search contacts")
+            .add_parameter("query", "string", required=True, description="Search query")
+            .build(),
+            ToolManifestBuilder("get_contact_detail", "contacts_agent")
+            .with_description("Get contact details")
+            .add_parameter("contact_id", "string", required=True, description="Contact ID")
+            .build(),
+        ]
+        manifests_token = request_tool_manifests_ctx.set(manifests)
+        panic_token = panic_mode_used.set(False)
+        yield
+        request_tool_manifests_ctx.reset(manifests_token)
+        panic_mode_used.reset(panic_token)
 
     @pytest.fixture
     def mock_registry(self):
-        """Create mock registry."""
-        registry = MagicMock()
-
-        # Mock tool manifests
-        manifest1 = MagicMock()
-        manifest1.name = "search_contacts"
-        manifest1.description = "Search contacts"
-        manifest1.agent = "contacts_agent"
-        manifest1.parameters = []
-
-        manifest2 = MagicMock()
-        manifest2.name = "get_contact_detail"
-        manifest2.description = "Get contact details"
-        manifest2.agent = "contacts_agent"
-        manifest2.parameters = []
-
-        registry.list_tool_manifests.return_value = [manifest1, manifest2]
-
-        return registry
+        """Registry double (kept for the service constructor signature)."""
+        return MagicMock()
 
     def test_filter_by_domain_and_intent(self, mock_registry):
         """Test filtering by domain and intent."""
@@ -202,14 +217,17 @@ class TestSmartCatalogueService:
             reasoning_trace=[],
         )
 
+        from src.core.context import panic_mode_used
+
         # First panic mode call
         service.filter_for_intelligence(intelligence, panic_mode=True)
 
         # Second panic mode call should return normal filter
         service.filter_for_intelligence(intelligence, panic_mode=True)
 
-        # Second call should be same as normal (panic mode blocked)
-        assert service._panic_mode_used
+        # Panic usage is tracked per-request via ContextVar (not on the
+        # service instance — singletons must not hold per-request state)
+        assert panic_mode_used.get() is True
 
 
 class TestRelevanceEngine:
@@ -264,27 +282,36 @@ class TestRelevanceEngine:
         assert len(filtered.all_results()) > 0
 
     def test_smart_limit_by_intent(self, engine):
-        """Test smart limiting based on intent."""
-        # Detail intent should return 1
-        detail_intel = QueryIntelligence(
-            original_query="detail",
-            english_query="detail",
-            immediate_intent="detail",
-            immediate_confidence=0.9,
-            user_goal=UserGoal.FIND_INFORMATION,
-            goal_reasoning="",
-            domains=["contacts"],
-            primary_domain="contacts",
-            domain_scores={},
-            turn_type="ACTION",
-            route_to="planner",
-            bypass_llm=True,
-            confidence=0.9,
-            reasoning_trace=[],
-        )
+        """Smart limiting adapts to confidence and user goal.
 
-        limit = engine._determine_limit(detail_intel)
-        assert limit == 1
+        Current contract (2026-01: "detail" intent removed): high-confidence
+        searches return few results, exploration returns many.
+        """
+
+        def _intel(intent: str, confidence: float, goal: UserGoal) -> QueryIntelligence:
+            return QueryIntelligence(
+                original_query="q",
+                english_query="q",
+                immediate_intent=intent,
+                immediate_confidence=confidence,
+                user_goal=goal,
+                goal_reasoning="",
+                domains=["contacts"],
+                primary_domain="contacts",
+                domain_scores={},
+                turn_type="ACTION",
+                route_to="planner",
+                bypass_llm=True,
+                confidence=confidence,
+                reasoning_trace=[],
+            )
+
+        # High-confidence search -> precise, few results
+        assert engine._determine_limit(_intel("search", 0.95, UserGoal.FIND_INFORMATION)) == 3
+        # Exploration -> broad, many results
+        assert engine._determine_limit(_intel("chat", 0.5, UserGoal.EXPLORE)) == 10
+        # Understanding -> intermediate
+        assert engine._determine_limit(_intel("chat", 0.5, UserGoal.UNDERSTAND)) == 7
 
 
 class TestAutonomousExecutor:
@@ -435,71 +462,3 @@ class TestFeedbackLoopService:
 
         # Should suggest broaden_search based on learned pattern
         assert "broaden_search" in suggestions
-
-
-class TestResponseFormatter:
-    """Test ResponseFormatter warm formatting."""
-
-    @pytest.fixture
-    def formatter(self):
-        """Create ResponseFormatter instance."""
-        from src.domains.agents.display.formatter import ResponseFormatter
-
-        return ResponseFormatter()
-
-    def test_format_contacts(self, formatter):
-        """Test formatting contacts."""
-        from src.domains.agents.display.config import DisplayConfig
-
-        contacts = [
-            {
-                "name": "Jean jean",
-                "url": "https://contacts.google.com/person/123",
-                "emailAddresses": [{"value": "jean@example.com"}],
-                "phoneNumbers": [{"value": "+33 6 12 34 56 78"}],
-            }
-        ]
-
-        config = DisplayConfig()
-        result = formatter.format(contacts, "contacts", config)
-
-        assert "Jean jean" in result
-        assert "jean@example.com" in result
-
-    def test_format_calendar_grouped(self, formatter):
-        """Test formatting calendar events grouped by date."""
-        from src.domains.agents.display.config import DisplayConfig
-
-        events = [
-            {
-                "summary": "Meeting",
-                "start": {"dateTime": "2025-01-15T10:00:00+01:00"},
-                "end": {"dateTime": "2025-01-15T11:00:00+01:00"},
-                "location": "Room A",
-            }
-        ]
-
-        config = DisplayConfig(group_by_date=True)
-        result = formatter.format(events, "calendar", config)
-
-        assert "Meeting" in result
-
-    def test_mobile_viewport_compact(self, formatter):
-        """Test mobile viewport produces compact output."""
-        from src.domains.agents.display.config import DisplayConfig, Viewport
-
-        contacts = [
-            {
-                "name": "Jean jean",
-                "emailAddresses": [{"value": "jean@example.com"}],
-            }
-        ]
-
-        desktop_config = DisplayConfig(viewport=Viewport.DESKTOP)
-        mobile_config = DisplayConfig(viewport=Viewport.MOBILE)
-
-        desktop_result = formatter.format(contacts, "contacts", desktop_config)
-        mobile_result = formatter.format(contacts, "contacts", mobile_config)
-
-        # Mobile should have different format (more lines for same info)
-        assert len(mobile_result.split("\n")) >= len(desktop_result.split("\n")) - 2

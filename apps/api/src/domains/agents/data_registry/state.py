@@ -29,29 +29,42 @@ Usage:
 Created: 2025-11-27
 """
 
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from src.domains.agents.data_registry.models import RegistryItem
 
 # Epoch used as sort fallback when timestamp is missing or unreadable
-_EPOCH_TIMESTAMP = "1970-01-01T00:00:00Z"
+_EPOCH_DATETIME = datetime(1970, 1, 1, tzinfo=UTC)
 
 
-def _get_item_timestamp(item: RegistryItem | dict) -> Any:
+def _get_item_timestamp(item: RegistryItem | dict) -> datetime:
     """Extract timestamp from a RegistryItem or its serialized dict form.
 
     Items in the registry may be Pydantic ``RegistryItem`` objects (when stored
     directly by a node) **or** plain dicts (after ``model_dump(mode="json")`` in
-    ``_execute_tool``).  The LRU eviction sort needs to handle both.
+    ``_execute_tool``).  The LRU eviction sort needs to handle both, so the
+    return value is normalized to an aware UTC ``datetime`` in every case
+    (mixing ``datetime`` and ISO strings makes ``sorted()`` raise TypeError).
     """
+    raw: Any = None
     if hasattr(item, "meta"):
         # Pydantic RegistryItem → .meta.timestamp (datetime)
-        return item.meta.timestamp
-    if isinstance(item, dict):
+        raw = item.meta.timestamp
+    elif isinstance(item, dict):
         meta = item.get("meta")
         if isinstance(meta, dict):
-            return meta.get("timestamp", _EPOCH_TIMESTAMP)
-    return _EPOCH_TIMESTAMP
+            raw = meta.get("timestamp")
+
+    if isinstance(raw, datetime):
+        return raw if raw.tzinfo is not None else raw.replace(tzinfo=UTC)
+    if isinstance(raw, str):
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            return _EPOCH_DATETIME
+        return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+    return _EPOCH_DATETIME
 
 
 def merge_registry(

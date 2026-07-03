@@ -125,7 +125,11 @@ services:
       # Note: STT model is baked into Docker image (Dockerfile.dev multi-stage build)
     # HTTPS required for Google OAuth callbacks
     # Next.js proxy uses NODE_TLS_REJECT_UNAUTHORIZED=0 for self-signed certs
-    command: python -m debugpy --listen 0.0.0.0:5678 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile=/certs/key.pem --ssl-certfile=/certs/cert.pem
+    # --reload-dir src: watch ONLY the app source. The whole ./apps/api tree is
+    # bind-mounted (tests/, htmlcov/, .pytest_cache/), so without this a test run
+    # or coverage write triggers a reload storm — and the reloader can wedge in
+    # restart()->join() waiting on a slow worker shutdown (2026-07 incident).
+    command: python -m debugpy --listen 0.0.0.0:5678 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src --ssl-keyfile=/certs/key.pem --ssl-certfile=/certs/cert.pem
     depends_on:
       postgres:
         condition: service_healthy

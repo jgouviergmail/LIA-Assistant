@@ -58,6 +58,9 @@ from uuid import UUID
 import structlog
 from langchain.tools import ToolRuntime
 
+from src.core.config import settings
+from src.core.i18n_api_messages import APIMessages
+from src.core.i18n_types import SupportedLanguage
 from src.domains.agents.dependencies import ToolDependencies, get_dependencies
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
@@ -65,10 +68,29 @@ from src.domains.agents.tools.runtime_helpers import (
     parse_user_id,
     validate_runtime_config,
 )
+from src.domains.agents.utils.i18n_location import _normalize_language
 from src.domains.connectors.models import CATEGORY_DISPLAY_NAMES, ConnectorType
 
 if TYPE_CHECKING:
     from src.domains.agents.tools.output import StandardToolOutput
+
+
+def _extract_runtime_language(runtime: Any) -> SupportedLanguage:
+    """Read the user's language from the runtime config (sync, no DB call).
+
+    The graph puts ``user_language`` in ``config["configurable"]`` (see
+    AgentService); tools read it there — never from ``self`` (singleton tool
+    instances must not hold per-request state; see CLAUDE.md concurrency rule).
+    Normalizes to a supported i18n code ("zh" -> "zh-CN"), defaulting to the
+    configured default language when absent or on any malformed runtime.
+    """
+    try:
+        configurable = runtime.config.get("configurable") or {}
+        raw = configurable.get("user_language") or settings.default_language
+    except (AttributeError, TypeError):
+        raw = settings.default_language
+    return _normalize_language(raw)
+
 
 # Note: ToolResponse is deprecated in favor of UnifiedToolOutput (2025-12-29)
 
@@ -213,7 +235,9 @@ class ConnectorTool[ClientType](ABC):
                         user_uuid, self.functional_category, connector_service
                     )
                     if resolved_type is None:
-                        return self._format_category_not_activated_error(self.functional_category)
+                        return self._format_category_not_activated_error(
+                            self.functional_category, _extract_runtime_language(runtime)
+                        )
                     effective_connector_type = resolved_type
                     resolved_class = ClientRegistry.get_client_class(resolved_type)
                     if resolved_class is not None:
@@ -224,7 +248,9 @@ class ConnectorTool[ClientType](ABC):
                     if not await connector_service.is_connector_active(
                         user_uuid, effective_connector_type
                     ):
-                        return self._format_connector_not_activated_error()
+                        return self._format_connector_not_activated_error(
+                            _extract_runtime_language(runtime)
+                        )
 
                     # Step 4 (API Key mode): Create client without credentials
                     client_factory = self.create_api_key_client_factory(user_uuid)
@@ -242,7 +268,9 @@ class ConnectorTool[ClientType](ABC):
                         )
 
                     if credentials is None:
-                        return self._format_connector_not_activated_error()
+                        return self._format_connector_not_activated_error(
+                            _extract_runtime_language(runtime)
+                        )
 
                     # Step 4: Get or create cached API client
                     _effective_class = effective_client_class
@@ -468,25 +496,22 @@ class ConnectorTool[ClientType](ABC):
         """
         return parse_user_id(user_id)
 
-    def _format_connector_not_activated_error(self) -> UnifiedToolOutput:
-        """Format standard error for connector not activated."""
+    def _format_connector_not_activated_error(
+        self, language: SupportedLanguage = "fr"
+    ) -> UnifiedToolOutput:
+        """Format standard error for connector not activated (localized)."""
         return UnifiedToolOutput.failure(
-            message=(
-                f"Le service {self.connector_type.value} n'est pas activé. "
-                "Rendez-vous dans Paramètres > Connecteurs pour l'activer."
-            ),
+            message=APIMessages.connector_not_activated(self.connector_type.value, language),
             error_code="connector_not_activated",
         )
 
-    def _format_category_not_activated_error(self, category: str) -> UnifiedToolOutput:
+    def _format_category_not_activated_error(
+        self, category: str, language: SupportedLanguage = "fr"
+    ) -> UnifiedToolOutput:
         """Format standard error when no provider is active for a functional category."""
         label = CATEGORY_DISPLAY_NAMES.get(category, category)
         return UnifiedToolOutput.failure(
-            message=(
-                f"Aucun service {label} n'est configuré. "
-                "Rendez-vous dans Paramètres > Connecteurs pour activer "
-                "un service Google, Apple ou Microsoft."
-            ),
+            message=APIMessages.category_not_activated(label, language),
             error_code="category_not_activated",
         )
 
@@ -689,7 +714,9 @@ class APIKeyConnectorTool[ClientType](ABC):
                 )
 
                 if credentials is None:
-                    return self._format_connector_not_activated_error()
+                    return self._format_connector_not_activated_error(
+                        _extract_runtime_language(runtime)
+                    )
 
                 # Step 4: Create API client with user's key
                 client = self.create_client(credentials, user_uuid)
@@ -788,21 +815,27 @@ class APIKeyConnectorTool[ClientType](ABC):
         """Parse user_id to UUID."""
         return parse_user_id(user_id)
 
-    def _format_connector_not_activated_error(self) -> UnifiedToolOutput:
-        """Format standard error for connector not activated."""
-        # Map connector types to user-friendly names
+    def _format_connector_not_activated_error(
+        self, language: SupportedLanguage = "fr"
+    ) -> UnifiedToolOutput:
+        """Format standard error for connector not activated (localized).
+
+        Brand names are language-agnostic; the localized template carries the
+        "not enabled / provide your API key" instruction. The parenthetical
+        French descriptors ("météo", "recherche web") were dropped — the brand
+        name is self-explanatory and localizing per-connector descriptors would
+        re-introduce inline strings.
+        """
+        # Map connector types to user-friendly brand names (no localized suffix)
         connector_names = {
-            ConnectorType.OPENWEATHERMAP: "OpenWeatherMap (météo)",
-            ConnectorType.PERPLEXITY: "Perplexity AI (recherche web)",
+            ConnectorType.OPENWEATHERMAP: "OpenWeatherMap",
+            ConnectorType.PERPLEXITY: "Perplexity AI",
             ConnectorType.WIKIPEDIA: "Wikipedia",
         }
         name = connector_names.get(self.connector_type, self.connector_type.value)
 
         return UnifiedToolOutput.failure(
-            message=(
-                f"Le service {name} n'est pas activé. "
-                "Rendez-vous dans Paramètres > Connecteurs pour l'activer avec votre clé API."
-            ),
+            message=APIMessages.connector_not_activated(name, language, needs_api_key=True),
             error_code="connector_not_activated",
         )
 

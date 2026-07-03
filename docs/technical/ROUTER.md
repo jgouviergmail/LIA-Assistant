@@ -182,8 +182,10 @@ async def router_node(state: MessagesState, config: RunnableConfig) -> dict[str,
         )
 
     try:
-        # Phase: Performance Optimization - Message Windowing
-        # Router only needs recent context for routing decision
+        # NOTE (v1.21.3, ADR-094): get_router_windowed_messages was REMOVED (dead
+        # code — never wired). The router reads state[STATE_KEY_MESSAGES] directly;
+        # token growth is bounded by the state-level add_messages_with_truncate
+        # reducer. The snippet below is historical.
         from src.domains.agents.utils.message_windowing import get_router_windowed_messages
 
         windowed_messages = get_router_windowed_messages(state[STATE_KEY_MESSAGES])
@@ -1063,6 +1065,8 @@ class Settings(BaseSettings):
 **Performance optimization**: Router needs minimal context (5 turns default) au lieu de full conversation history (50+ turns).
 
 ### get_router_windowed_messages
+
+> **🗑️ Supprimé en v1.21.3 ([ADR-094](../architecture/ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md))** — helper mort (aucun call site). Le router lit le state complet, borné par le reducer `add_messages_with_truncate`. Section conservée à titre historique. Pour du windowing, voir `get_windowed_messages` (ReAct) / `get_response_windowed_messages`.
 
 ```python
 # apps/api/src/domains/agents/utils/message_windowing.py

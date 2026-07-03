@@ -94,48 +94,41 @@ def test_get_context_state_has_rate_limit_decorator():
 # ============================================================================
 
 
+# Current rate-limit vocabulary: category-based defaults (read/write/expensive)
+# consumed by RATE_LIMIT_CATEGORIES in tools/decorators.py. The historical
+# per-tool settings (rate_limit_contacts_*) were removed with that migration.
+RATE_LIMIT_SETTING_NAMES = [
+    "rate_limit_default_read_calls",
+    "rate_limit_default_read_window",
+    "rate_limit_default_write_calls",
+    "rate_limit_default_write_window",
+    "rate_limit_default_expensive_calls",
+    "rate_limit_default_expensive_window",
+]
+
+
 def test_rate_limit_settings_exist():
-    """Test that all rate limit settings are defined in Settings."""
-    settings = Settings()
-
-    # Google Contacts rate limits
-    assert hasattr(settings, "rate_limit_contacts_search_calls")
-    assert hasattr(settings, "rate_limit_contacts_search_window")
-    assert hasattr(settings, "rate_limit_contacts_list_calls")
-    assert hasattr(settings, "rate_limit_contacts_list_window")
-    assert hasattr(settings, "rate_limit_contacts_details_calls")
-    assert hasattr(settings, "rate_limit_contacts_details_window")
-
-    # Default rate limits (for context tools)
-    assert hasattr(settings, "rate_limit_default_read_calls")
-    assert hasattr(settings, "rate_limit_default_read_window")
-    assert hasattr(settings, "rate_limit_default_write_calls")
-    assert hasattr(settings, "rate_limit_default_write_window")
+    """Test that all category rate limit settings are defined in Settings."""
+    for name in RATE_LIMIT_SETTING_NAMES:
+        assert name in Settings.model_fields, f"Missing setting: {name}"
 
 
 def test_rate_limit_settings_have_sensible_defaults():
-    """Test that rate limit settings have sensible default values."""
-    settings = Settings()
+    """Field DEFAULTS keep the read >= write >= expensive ordering.
 
-    # Search operations should have lower limits (more expensive)
-    assert settings.rate_limit_contacts_search_calls <= 20, "Search should be conservative"
-    assert settings.rate_limit_contacts_search_window > 0
+    Asserted on Settings.model_fields (not an instance) so the test does not
+    depend on the ambient environment (.env.test overrides values on purpose).
+    """
+    defaults = {name: Settings.model_fields[name].default for name in RATE_LIMIT_SETTING_NAMES}
 
-    # List operations should have reasonable limits
-    assert settings.rate_limit_contacts_list_calls <= 30
-    assert settings.rate_limit_contacts_list_window > 0
+    for name, value in defaults.items():
+        assert value > 0, f"{name} default must be positive (got {value})"
 
-    # Details operations should have moderate limits
-    assert settings.rate_limit_contacts_details_calls <= 50
-    assert settings.rate_limit_contacts_details_window > 0
-
-    # Default read operations should be generous
-    assert settings.rate_limit_default_read_calls >= 20
-    assert settings.rate_limit_default_read_window > 0
-
-    # Default write operations should be more restrictive
-    assert settings.rate_limit_default_write_calls <= settings.rate_limit_default_read_calls
-    assert settings.rate_limit_default_write_window > 0
+    # Write operations are more restrictive than reads; expensive even more so
+    assert defaults["rate_limit_default_write_calls"] <= defaults["rate_limit_default_read_calls"]
+    assert (
+        defaults["rate_limit_default_expensive_calls"] <= defaults["rate_limit_default_write_calls"]
+    )
 
 
 # ============================================================================
@@ -144,51 +137,34 @@ def test_rate_limit_settings_have_sensible_defaults():
 
 
 def test_rate_limit_decorator_configuration():
+    """RATE_LIMIT_CATEGORIES wires every category to live settings lambdas.
+
+    The lambdas read from get_settings() at call time, allowing runtime
+    configuration changes without redeploying decorated tools.
     """
-    Test that rate limit decorator is properly configured with settings.
+    from src.domains.agents.tools.decorators import RATE_LIMIT_CATEGORIES
 
-    Validates that the decorator uses lambda functions to read from settings
-    dynamically, allowing runtime configuration changes.
+    assert set(RATE_LIMIT_CATEGORIES) == {"read", "write", "expensive"}
 
-    Note: Full rate limit enforcement testing requires Redis integration.
-    This test validates the decorator configuration pattern.
-    """
-    # Verify that rate limit settings can be read
-    settings = Settings()
-
-    # All rate limit settings should be accessible
-    assert settings.rate_limit_contacts_search_calls > 0
-    assert settings.rate_limit_contacts_search_window > 0
-    assert settings.rate_limit_contacts_list_calls > 0
-    assert settings.rate_limit_contacts_list_window > 0
-    assert settings.rate_limit_contacts_details_calls > 0
-    assert settings.rate_limit_contacts_details_window > 0
-    assert settings.rate_limit_default_read_calls > 0
-    assert settings.rate_limit_default_read_window > 0
-    assert settings.rate_limit_default_write_calls > 0
-    assert settings.rate_limit_default_write_window > 0
+    for category, config in RATE_LIMIT_CATEGORIES.items():
+        max_calls = config["max_calls"]()
+        window_seconds = config["window_seconds"]()
+        assert max_calls > 0, f"{category}: max_calls must be positive"
+        assert window_seconds > 0, f"{category}: window_seconds must be positive"
 
 
 def test_rate_limit_scope_is_user_level():
+    """connector_tool applies user-level scope by default.
+
+    User-level scope ensures each user has independent rate limits,
+    preventing one user from exhausting the limit for everyone.
     """
-    Test that rate limiting is configured with user-level scope.
+    import inspect
 
-    User-level scope ensures that each user has independent rate limits,
-    preventing one user from exhausting the rate limit for all users.
+    from src.domains.agents.tools.decorators import connector_tool
 
-    This test validates the scope configuration pattern (not actual enforcement).
-    """
-    # The @rate_limit decorator should use scope="user" for all tools
-    # This is validated by the decorator presence tests above
-    # Full scope isolation testing requires Redis integration
-
-    # Verify settings support user-level isolation
-    settings = Settings()
-    assert hasattr(settings, "rate_limit_contacts_search_calls")
-    assert hasattr(settings, "rate_limit_default_read_calls")
-
-    # Note: Actual user isolation is enforced by the rate_limit decorator
-    # with Redis keys scoped by user_id
+    signature = inspect.signature(connector_tool)
+    assert signature.parameters["rate_limit_scope"].default == "user"
 
 
 # ============================================================================
@@ -219,59 +195,26 @@ def test_all_tools_have_rate_limiting():
 
 
 def test_rate_limit_configuration_complete():
-    """Integration test: Verify all rate limit configurations are complete."""
+    """Integration test: every category setting exists with a positive value."""
     settings = Settings()
 
-    # Map tools to their expected rate limit settings
-    rate_limit_configs = [
-        # Google Contacts tools
-        (
-            "contacts_search",
-            "rate_limit_contacts_search_calls",
-            "rate_limit_contacts_search_window",
-        ),
-        ("contacts_list", "rate_limit_contacts_list_calls", "rate_limit_contacts_list_window"),
-        (
-            "contacts_details",
-            "rate_limit_contacts_details_calls",
-            "rate_limit_contacts_details_window",
-        ),
-        # Default (context tools)
-        ("default_read", "rate_limit_default_read_calls", "rate_limit_default_read_window"),
-        ("default_write", "rate_limit_default_write_calls", "rate_limit_default_write_window"),
-    ]
-
-    for _config_name, calls_attr, window_attr in rate_limit_configs:
-        # Verify settings exist
-        assert hasattr(settings, calls_attr), f"Missing setting: {calls_attr}"
-        assert hasattr(settings, window_attr), f"Missing setting: {window_attr}"
-
-        # Verify values are positive
-        calls = getattr(settings, calls_attr)
-        window = getattr(settings, window_attr)
-
-        assert calls > 0, f"{calls_attr} must be positive (got {calls})"
-        assert window > 0, f"{window_attr} must be positive (got {window})"
+    for name in RATE_LIMIT_SETTING_NAMES:
+        value = getattr(settings, name)
+        assert value > 0, f"{name} must be positive (got {value})"
 
 
 def test_rate_limit_uses_settings_dynamically():
-    """Test that rate limit reads from settings (not hardcoded)."""
-    # This test verifies that the lambda functions in @rate_limit decorators
-    # read from settings dynamically, allowing runtime configuration changes
-
-    # Mock settings with custom rate limits
+    """Test that rate limit values can be overridden (not hardcoded)."""
     custom_settings = Settings(
-        rate_limit_contacts_search_calls=5,  # Lower limit for testing
-        rate_limit_contacts_search_window=60,
+        rate_limit_default_read_calls=5,  # Lower limit for testing
+        rate_limit_default_read_window=60,
     )
 
-    # Verify the settings can be overridden
-    assert custom_settings.rate_limit_contacts_search_calls == 5
-    assert custom_settings.rate_limit_contacts_search_window == 60
+    assert custom_settings.rate_limit_default_read_calls == 5
+    assert custom_settings.rate_limit_default_read_window == 60
 
-    # Note: The lambda pattern in decorators ensures settings are read dynamically:
-    # @rate_limit(max_calls=lambda: get_settings().rate_limit_contacts_search_calls, ...)
-    # This allows the rate limit to change at runtime when settings are updated
+    # The lambda pattern in RATE_LIMIT_CATEGORIES ensures settings are read
+    # dynamically at call time (covered by test_rate_limit_decorator_configuration)
 
 
 # ============================================================================
@@ -370,12 +313,15 @@ async def test_rate_limit_clears_tracker_when_disabled():
 
 
 def test_rate_limit_enabled_setting_exists():
-    """Test that rate_limit_enabled setting exists and has correct default."""
-    settings = Settings()
+    """Test that rate_limit_enabled setting exists and has correct default.
 
-    assert hasattr(settings, "rate_limit_enabled"), "Settings should have rate_limit_enabled field"
+    Checked on the FIELD default (not an instance): .env.test deliberately
+    sets RATE_LIMIT_ENABLED=false for the test environment, and an instance
+    would absorb it.
+    """
+    assert "rate_limit_enabled" in Settings.model_fields
     # Default should be True for security
-    assert settings.rate_limit_enabled is True, "rate_limit_enabled should default to True"
+    assert Settings.model_fields["rate_limit_enabled"].default is True
 
 
 @pytest.mark.asyncio

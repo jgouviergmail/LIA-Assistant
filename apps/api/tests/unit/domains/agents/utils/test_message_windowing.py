@@ -17,10 +17,7 @@ from langchain_core.messages import (
 
 from src.domains.agents.utils.message_windowing import (
     extract_last_user_message,
-    get_orchestrator_windowed_messages,
-    get_planner_windowed_messages,
     get_response_windowed_messages,
-    get_router_windowed_messages,
     get_windowed_messages,
 )
 
@@ -74,10 +71,7 @@ def mock_settings():
     """Mock settings with default values."""
     mock = MagicMock()
     mock.default_message_window_size = 5
-    mock.router_message_window_size = 5
-    mock.planner_message_window_size = 10
     mock.response_message_window_size = 20
-    mock.orchestrator_message_window_size = 4
     return mock
 
 
@@ -441,68 +435,7 @@ class TestGetWindowedMessagesLogging:
         assert "reduction_percent" in call_kwargs
 
 
-# ============================================================================
-# Tests for get_router_windowed_messages
-# ============================================================================
-
-
-class TestGetRouterWindowedMessages:
-    """Tests for get_router_windowed_messages()."""
-
-    @patch("src.domains.agents.utils.message_windowing.settings")
-    def test_uses_router_window_size_setting(self, mock_settings):
-        """Test that router uses settings.router_message_window_size."""
-        mock_settings.router_message_window_size = 5
-        messages = [HumanMessage(content="Test")]
-
-        with patch("src.domains.agents.utils.message_windowing.get_windowed_messages") as mock_get:
-            with patch("src.domains.agents.utils.message_windowing.logger"):
-                mock_get.return_value = []
-                get_router_windowed_messages(messages)
-                mock_get.assert_called_once_with(messages, window_size=5)
-
-    @patch("src.domains.agents.utils.message_windowing.settings")
-    def test_router_window_size_integration(self, mock_settings, long_conversation):
-        """Test router windowing with actual messages."""
-        mock_settings.router_message_window_size = 3
-
-        with patch("src.domains.agents.utils.message_windowing.logger"):
-            result = get_router_windowed_messages(long_conversation)
-
-        # Should have system + 6 messages (3 turns)
-        assert len(result) == 7
-
-
-# ============================================================================
-# Tests for get_planner_windowed_messages
-# ============================================================================
-
-
-class TestGetPlannerWindowedMessages:
-    """Tests for get_planner_windowed_messages()."""
-
-    @patch("src.domains.agents.utils.message_windowing.settings")
-    def test_uses_planner_window_size_setting(self, mock_settings):
-        """Test that planner uses settings.planner_message_window_size."""
-        mock_settings.planner_message_window_size = 10
-        messages = [HumanMessage(content="Test")]
-
-        with patch("src.domains.agents.utils.message_windowing.get_windowed_messages") as mock_get:
-            with patch("src.domains.agents.utils.message_windowing.logger"):
-                mock_get.return_value = []
-                get_planner_windowed_messages(messages)
-                mock_get.assert_called_once_with(messages, window_size=10)
-
-    @patch("src.domains.agents.utils.message_windowing.settings")
-    def test_planner_window_size_integration(self, mock_settings, long_conversation):
-        """Test planner windowing with actual messages."""
-        mock_settings.planner_message_window_size = 5
-
-        with patch("src.domains.agents.utils.message_windowing.logger"):
-            result = get_planner_windowed_messages(long_conversation)
-
-        # Should have system + 10 messages (5 turns)
-        assert len(result) == 11
+# ADR-094: router/planner window-helper tests removed (dead helpers deleted).
 
 
 # ============================================================================
@@ -537,36 +470,7 @@ class TestGetResponseWindowedMessages:
         assert len(result) == 21
 
 
-# ============================================================================
-# Tests for get_orchestrator_windowed_messages
-# ============================================================================
-
-
-class TestGetOrchestratorWindowedMessages:
-    """Tests for get_orchestrator_windowed_messages()."""
-
-    @patch("src.domains.agents.utils.message_windowing.settings")
-    def test_uses_orchestrator_window_size_setting(self, mock_settings):
-        """Test that orchestrator uses settings.orchestrator_message_window_size."""
-        mock_settings.orchestrator_message_window_size = 4
-        messages = [HumanMessage(content="Test")]
-
-        with patch("src.domains.agents.utils.message_windowing.get_windowed_messages") as mock_get:
-            with patch("src.domains.agents.utils.message_windowing.logger"):
-                mock_get.return_value = []
-                get_orchestrator_windowed_messages(messages)
-                mock_get.assert_called_once_with(messages, window_size=4)
-
-    @patch("src.domains.agents.utils.message_windowing.settings")
-    def test_orchestrator_window_size_integration(self, mock_settings, long_conversation):
-        """Test orchestrator windowing with actual messages."""
-        mock_settings.orchestrator_message_window_size = 2
-
-        with patch("src.domains.agents.utils.message_windowing.logger"):
-            result = get_orchestrator_windowed_messages(long_conversation)
-
-        # Should have system + 4 messages (2 turns)
-        assert len(result) == 5
+# ADR-094: orchestrator window-helper tests removed (dead helper deleted).
 
 
 # ============================================================================
@@ -747,25 +651,21 @@ class TestIntegrationScenarios:
             assert isinstance(result[0], SystemMessage)
 
     @patch("src.domains.agents.utils.message_windowing.settings")
-    def test_all_specialized_functions_use_correct_settings(self, mock_settings, long_conversation):
-        """Test that all specialized windowing functions use correct settings."""
-        mock_settings.router_message_window_size = 2
-        mock_settings.planner_message_window_size = 4
+    def test_response_specialized_function_uses_correct_settings(
+        self, mock_settings, long_conversation
+    ):
+        """The response windowing helper reads its window size from settings.
+
+        ADR-094: router/planner/orchestrator helpers were removed as dead code;
+        only the response specialization remains alongside the core function.
+        """
         mock_settings.response_message_window_size = 6
-        mock_settings.orchestrator_message_window_size = 1
 
         with patch("src.domains.agents.utils.message_windowing.logger"):
-            router_result = get_router_windowed_messages(long_conversation)
-            planner_result = get_planner_windowed_messages(long_conversation)
             response_result = get_response_windowed_messages(long_conversation)
-            orchestrator_result = get_orchestrator_windowed_messages(long_conversation)
 
-        # Each should produce different lengths based on window size
-        # (1 system + 2*window_size messages)
-        assert len(router_result) == 5  # 1 + 4
-        assert len(planner_result) == 9  # 1 + 8
+        # 1 system + 2*window_size messages
         assert len(response_result) == 13  # 1 + 12
-        assert len(orchestrator_result) == 3  # 1 + 2
 
     def test_realistic_multi_tool_conversation(self):
         """Test windowing a realistic conversation with multiple tool invocations."""

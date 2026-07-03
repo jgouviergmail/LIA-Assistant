@@ -247,11 +247,16 @@ class AppleCalendarClient(BaseAppleClient):
         return None
 
     @staticmethod
-    def _apply_timezone(dt: datetime, timezone: str) -> datetime:
-        """Apply timezone to a naive datetime. Timezone-aware datetimes are unchanged."""
+    def _apply_timezone(dt: datetime, timezone: str | None) -> datetime:
+        """Make a naive datetime timezone-aware.
+
+        The requested timezone wins; naive datetimes without a requested
+        timezone fall back to UTC. Timezone-aware datetimes are unchanged
+        (an explicit offset in the input takes precedence).
+        """
         if dt.tzinfo is not None:
             return dt
-        return dt.replace(tzinfo=ZoneInfo(timezone))
+        return dt.replace(tzinfo=ZoneInfo(timezone) if timezone else UTC)
 
     # =========================================================================
     # IMPLEMENTATION
@@ -366,13 +371,12 @@ class AppleCalendarClient(BaseAppleClient):
         """Create a new event via CalDAV."""
         calendar = await self._get_calendar(calendar_id)
 
-        dtstart = _parse_iso_datetime(start_datetime)
-        dtend = _parse_iso_datetime(end_datetime)
-
-        # Apply timezone to naive datetimes if specified
-        if timezone:
-            dtstart = self._apply_timezone(dtstart, timezone)
-            dtend = self._apply_timezone(dtend, timezone)
+        # Parse WITHOUT stamping UTC so the requested timezone can apply to
+        # naive inputs; _apply_timezone falls back to UTC when timezone is None.
+        dtstart = self._apply_timezone(
+            _parse_iso_datetime(start_datetime, assume_utc=False), timezone
+        )
+        dtend = self._apply_timezone(_parse_iso_datetime(end_datetime, assume_utc=False), timezone)
 
         kwargs: dict[str, Any] = {
             "dtstart": dtstart,
@@ -426,16 +430,12 @@ class AppleCalendarClient(BaseAppleClient):
             vevent.summary.value = summary
 
         if start_datetime is not None:
-            dt = _parse_iso_datetime(start_datetime)
-            if timezone:
-                dt = self._apply_timezone(dt, timezone)
-            vevent.dtstart.value = dt
+            dt = _parse_iso_datetime(start_datetime, assume_utc=False)
+            vevent.dtstart.value = self._apply_timezone(dt, timezone)
 
         if end_datetime is not None:
-            dt = _parse_iso_datetime(end_datetime)
-            if timezone:
-                dt = self._apply_timezone(dt, timezone)
-            vevent.dtend.value = dt
+            dt = _parse_iso_datetime(end_datetime, assume_utc=False)
+            vevent.dtend.value = self._apply_timezone(dt, timezone)
 
         if description is not None:
             if hasattr(vevent, "description"):
@@ -496,10 +496,23 @@ class AppleCalendarClient(BaseAppleClient):
             self._principal = None
 
 
-def _parse_iso_datetime(dt_str: str) -> datetime:
-    """Parse ISO 8601 datetime string to timezone-aware datetime object."""
+def _parse_iso_datetime(dt_str: str, *, assume_utc: bool = True) -> datetime:
+    """Parse an ISO 8601 datetime string.
+
+    Args:
+        dt_str: ISO 8601 datetime string (with or without offset/Z).
+        assume_utc: When True (default), naive results are stamped UTC —
+            correct for search bounds. Pass False when the caller applies a
+            user-requested timezone afterwards (event create/update): stamping
+            UTC first would make that timezone a silent no-op.
+
+    Returns:
+        Parsed datetime; timezone-aware unless ``assume_utc=False`` and the
+        input carries no offset.
+    """
     # Normalize trailing Z to +00:00 so strptime %z handles it as UTC
     normalized = dt_str.replace("Z", "+00:00") if dt_str.endswith("Z") else dt_str
+    dt: datetime | None = None
     for fmt in (
         "%Y-%m-%dT%H:%M:%S%z",
         "%Y-%m-%dT%H:%M:%S",
@@ -507,13 +520,15 @@ def _parse_iso_datetime(dt_str: str) -> datetime:
     ):
         try:
             dt = datetime.strptime(normalized, fmt)
-            # Ensure UTC for naive datetimes (no timezone in input)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=UTC)
-            return dt
+            break
         except ValueError:
             continue
-    # Fallback: use dateutil
-    from dateutil.parser import parse
+    if dt is None:
+        # Fallback: use dateutil (may also return a naive datetime)
+        from dateutil.parser import parse
 
-    return parse(dt_str)
+        dt = parse(dt_str)
+
+    if dt.tzinfo is None and assume_utc:
+        dt = dt.replace(tzinfo=UTC)
+    return dt

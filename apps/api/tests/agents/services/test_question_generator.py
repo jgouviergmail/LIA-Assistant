@@ -7,6 +7,7 @@ The actual LLM is mocked to test generation logic without API calls.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.messages import AIMessage
 
 from src.domains.agents.services.hitl.question_generator import HitlQuestionGenerator
 
@@ -47,12 +48,10 @@ async def test_generate_question_search_contacts(question_generator, mock_llm):
     tool_args = {"query": "jean", "max_results": 10}
     user_language = "fr"
 
-    # Mock LLM response
-    mock_response = MagicMock()
-    mock_response.content = (
-        "Je vais rechercher les contacts correspondant à 'jean'. Dois-je continuer ?"
+    # Mock LLM response — real AIMessage so `.text` (LangChain 1.2+) works
+    mock_llm.ainvoke.return_value = AIMessage(
+        content="Je vais rechercher les contacts correspondant à 'jean'. Dois-je continuer ?"
     )
-    mock_llm.ainvoke.return_value = mock_response
 
     # Act
     question = await question_generator.generate_confirmation_question(
@@ -83,12 +82,12 @@ async def test_generate_question_delete_tool(question_generator, mock_llm):
     tool_args = {"contact_id": "12345"}
     user_language = "fr"
 
-    # Mock LLM response with warning emoji
-    mock_response = MagicMock()
-    mock_response.content = (
-        "🔴 Je m'apprête à supprimer le contact. Cette action est irréversible. Confirmes-tu ?"
+    # Mock LLM response with warning emoji — real AIMessage so `.text` works
+    mock_llm.ainvoke.return_value = AIMessage(
+        content=(
+            "🔴 Je m'apprête à supprimer le contact. Cette action est irréversible. Confirmes-tu ?"
+        )
     )
-    mock_llm.ainvoke.return_value = mock_response
 
     # Act
     question = await question_generator.generate_confirmation_question(
@@ -110,10 +109,10 @@ async def test_generate_question_english(question_generator, mock_llm):
     tool_args = {"query": "John"}
     user_language = "en"
 
-    # Mock LLM response in English
-    mock_response = MagicMock()
-    mock_response.content = "I'm about to search for contacts matching 'John'. Should I proceed?"
-    mock_llm.ainvoke.return_value = mock_response
+    # Mock LLM response in English — real AIMessage so `.text` works
+    mock_llm.ainvoke.return_value = AIMessage(
+        content="I'm about to search for contacts matching 'John'. Should I proceed?"
+    )
 
     # Act
     question = await question_generator.generate_confirmation_question(

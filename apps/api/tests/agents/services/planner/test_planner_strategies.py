@@ -11,6 +11,9 @@ from src.domains.agents.services.planner.strategies import (
     ReferenceBypassStrategy,
     SingleDomainStrategy,
 )
+from src.domains.agents.services.planner.strategies.skill_bypass import (
+    SkillBypassStrategy,
+)
 
 
 class TestPlannerStrategiesInstantiation:
@@ -48,11 +51,15 @@ class TestSmartPlannerServiceIntegration:
 
         service = get_smart_planner_service()
         assert hasattr(service, "strategies")
-        assert len(service.strategies) == 4
-        assert isinstance(service.strategies[0], ReferenceBypassStrategy)
-        assert isinstance(service.strategies[1], CrossDomainBypassStrategy)
-        assert isinstance(service.strategies[2], SingleDomainStrategy)
-        assert isinstance(service.strategies[3], MultiDomainStrategy)
+        # Canonical strategy order: bypass strategies first (cheapest), then
+        # the LLM-backed single/multi domain planners as fallbacks.
+        assert [type(s) for s in service.strategies] == [
+            SkillBypassStrategy,
+            ReferenceBypassStrategy,
+            CrossDomainBypassStrategy,
+            SingleDomainStrategy,
+            MultiDomainStrategy,
+        ]
 
     def test_strategies_have_service_reference(self):
         """Test that LLM strategies have service reference for delegation."""
@@ -61,9 +68,13 @@ class TestSmartPlannerServiceIntegration:
         )
 
         service = get_smart_planner_service()
-        # SingleDomain and MultiDomain strategies should have service reference
-        single_domain = service.strategies[2]
-        multi_domain = service.strategies[3]
+        # The LLM-backed strategies delegate back to the service
+        llm_strategies = [
+            s
+            for s in service.strategies
+            if isinstance(s, SingleDomainStrategy | MultiDomainStrategy)
+        ]
 
-        assert single_domain.service is service
-        assert multi_domain.service is service
+        assert len(llm_strategies) == 2
+        for strategy in llm_strategies:
+            assert strategy.service is service

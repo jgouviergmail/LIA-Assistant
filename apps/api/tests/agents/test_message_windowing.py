@@ -9,9 +9,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from src.domains.agents.utils.message_windowing import (
     extract_last_user_message,
-    get_planner_windowed_messages,
     get_response_windowed_messages,
-    get_router_windowed_messages,
     get_windowed_messages,
 )
 
@@ -215,55 +213,37 @@ class TestGetWindowedMessages:
 
 
 class TestPrebuiltWindowFunctions:
-    """Test the prebuilt window functions for specific nodes."""
+    """Test the prebuilt window functions for specific nodes.
 
-    def test_router_windowed_messages(self):
-        """Test get_router_windowed_messages uses correct window size."""
+    Window sizes are settings-driven — expected counts are COMPUTED from the
+    live settings, never hardcoded (CLAUDE.md: configs change, hardcoded
+    thresholds silently drift the assertion).
+    """
+
+    @staticmethod
+    def _build_conversation(turns: int) -> list:
         messages = [SystemMessage(content="System")]
-
-        # Add 20 turns
-        for i in range(1, 21):
+        for i in range(1, turns + 1):
             messages.append(HumanMessage(content=f"Turn {i} user"))
             messages.append(AIMessage(content=f"Turn {i} assistant"))
+        return messages
 
-        result = get_router_windowed_messages(messages)
-
-        # Router default: 5 turns (settings.router_message_window_size)
-        # Should have 1 SystemMessage + 10 messages (5 turns)
-        assert len(result) == 11
-        assert "Turn 16 user" in result[1].content  # Last 5 turns start at turn 16
-
-    def test_planner_windowed_messages(self):
-        """Test get_planner_windowed_messages uses correct window size."""
-        messages = [SystemMessage(content="System")]
-
-        # Add 20 turns
-        for i in range(1, 21):
-            messages.append(HumanMessage(content=f"Turn {i} user"))
-            messages.append(AIMessage(content=f"Turn {i} assistant"))
-
-        result = get_planner_windowed_messages(messages)
-
-        # Planner default: 10 turns (settings.planner_message_window_size)
-        # Should have 1 SystemMessage + 20 messages (10 turns)
-        assert len(result) == 21
-        assert "Turn 11 user" in result[1].content  # Last 10 turns start at turn 11
+    # ADR-094: router/planner/orchestrator windowed helpers were removed as dead
+    # scaffolding (never wired). Only the response helper + the core function remain.
 
     def test_response_windowed_messages(self):
-        """Test get_response_windowed_messages uses correct window size."""
-        messages = [SystemMessage(content="System")]
+        """get_response_windowed_messages keeps the configured number of turns."""
+        from src.core.config import get_settings
 
-        # Add 30 turns
-        for i in range(1, 31):
-            messages.append(HumanMessage(content=f"Turn {i} user"))
-            messages.append(AIMessage(content=f"Turn {i} assistant"))
+        window = get_settings().response_message_window_size
+        total_turns = window + 15
+        messages = self._build_conversation(total_turns)
 
         result = get_response_windowed_messages(messages)
 
-        # Response default: 20 turns (settings.response_message_window_size)
-        # Should have 1 SystemMessage + 40 messages (20 turns)
-        assert len(result) == 41
-        assert "Turn 11 user" in result[1].content  # Last 20 turns start at turn 11
+        assert len(result) == 1 + window * 2
+        first_kept_turn = total_turns - window + 1
+        assert f"Turn {first_kept_turn} user" in result[1].content
 
 
 class TestExtractLastUserMessage:

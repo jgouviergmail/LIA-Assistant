@@ -168,14 +168,16 @@ async def router_node(state: MessagesState, config: RunnableConfig) -> dict[str,
         current_turn_id=state.get(STATE_KEY_CURRENT_TURN_ID),
     )
 
-    # Log windowed messages
-    windowed_messages = get_windowed_messages(
-        state,
-        window_size=settings.router_message_window_size,
-    )
+    # Log windowed messages (illustration of the debug pattern).
+    # NOTE (v1.21.3, ADR-094): the router no longer windows per-node — it reads
+    # the full state (bounded by the state-level add_messages_with_truncate
+    # reducer). Windowing lives on the response node and the ReAct history; use
+    # settings.default_message_window_size here only to illustrate the logging.
+    window_size = settings.default_message_window_size
+    windowed_messages = get_windowed_messages(state, window_size=window_size)
     logger.debug(
-        "router_windowed_messages",
-        window_size=settings.router_message_window_size,
+        "windowed_messages_debug",
+        window_size=window_size,
         windowed_count=len(windowed_messages),
         original_count=len(state[STATE_KEY_MESSAGES]),
     )

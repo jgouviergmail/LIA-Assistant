@@ -138,14 +138,16 @@ async def delete_user(
     "/search/by-email",
     response_model=list[UserProfile],
     summary="Search users by email",
-    description="Search users by email pattern. Requires authentication.",
+    description="Search users by email pattern. Only superusers can search users.",
 )
 async def search_users_by_email(
     pattern: str = Query(..., description="Email pattern to search for"),
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> list[UserProfile]:
-    """Search users by email pattern."""
+    """Search users by email pattern (superuser only - prevents account enumeration)."""
+    require_superuser(current_user, "search users by email")
+
     service = UserService(db)
     return await service.search_users_by_email(f"%{pattern}%")
 

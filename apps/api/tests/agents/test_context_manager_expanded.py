@@ -54,8 +54,14 @@ def manager():
 
 @pytest.fixture(autouse=True)
 def setup_test_registry():
-    """Setup test context types in registry before each test."""
-    # Clear registry
+    """Setup test context types in registry before each test.
+
+    Saves and RESTORES the pre-existing registry state: clearing without
+    restore leaked an empty ContextTypeRegistry to every test running after
+    this module (catalogue context-key validation then failed suite-wide).
+    """
+    # Save current registry state, then clear
+    original_registry = ContextTypeRegistry._registry.copy()
     ContextTypeRegistry.clear()
 
     # Register test domains
@@ -94,8 +100,9 @@ def setup_test_registry():
 
     yield
 
-    # Cleanup
+    # Cleanup: restore the pre-test registry state (never leave it empty)
     ContextTypeRegistry.clear()
+    ContextTypeRegistry._registry.update(original_registry)
 
 
 @pytest.fixture

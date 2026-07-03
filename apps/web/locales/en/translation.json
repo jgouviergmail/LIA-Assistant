@@ -2942,6 +2942,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_3": {
+          "title": "v1.21.3 — 🛠️ Reliability: audit fixes (calendars, tasks, labels, security)",
+          "date": "July 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🗓️ Connected services made reliable</b> — Several fixes to your connected services: events created or edited in <b>Apple Calendar</b> now honor the requested timezone (a \"10:00 in Paris\" event is no longer saved at 10:00 UTC); <b>Microsoft Calendar</b> event search works with an apostrophe (\"l'anniversaire\" no longer breaks the query); and the <b>Google Tasks</b> \"list my task lists\" command, which failed on every call, works again.",
+            "i2": "<b>🗺️ Correct route maps</b> — An encoding bug distorted the geometry of multi-segment routes: route maps now render correctly.",
+            "i3": "<b>🏷️ Ambiguous Gmail labels: it asks you</b> — When a label you wanted to delete or apply matched several candidates, the assistant showed a generic error instead of asking which one. It now asks the disambiguation question.",
+            "i4": "<b>⏹️ Stop really stops</b> — Closing the conversation during an in-progress autonomous exploration (ReAct mode) now actually interrupts the work — previously the stop was swallowed and the loop kept going.",
+            "i5": "<b>🌍 Connector messages in your language</b> — \"Service not activated\" / \"no service configured\" connector messages now appear in your language (6 languages) instead of always in French.",
+            "i6": "<b>🛡️ Admin · security and settings</b> — Searching users by email is now restricted to administrators (it was reachable by any signed-in account — an account-enumeration risk); the planner budget and step count set in configuration are finally honored (one code path always served fixed values); and two internal settings (metrics sync interval, iterative MCP step timeout) become configurable."
+          }
+        },
         "v1_21_2": {
           "title": "v1.21.2 — 🔒 Hardened security: sanitized rendering and real IP addresses",
           "date": "July 2026",

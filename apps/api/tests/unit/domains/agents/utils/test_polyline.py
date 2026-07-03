@@ -171,6 +171,40 @@ class TestEncodePolyline:
             assert len(coord) == 2
 
 
+class TestEncodeCorrectness:
+    """Regression tests for encoder output values (2026-07 audit, wave 1).
+
+    ``_encode_signed`` used ``(value & 0x1F) | 0x20 + 63`` where ``+`` binds
+    tighter than ``|``, corrupting every continuation chunk (any coordinate
+    delta >= 0.00016 degrees). The structural tests above never compare
+    encoded VALUES, which is why the bug went undetected.
+    """
+
+    def test_encode_matches_google_reference(self):
+        """Encoding Google's documented example must produce Google's output."""
+        assert encode_polyline(SIMPLE_COORDINATES) == SIMPLE_ENCODED
+
+    def test_encode_signed_matches_google_reference(self):
+        """Google's documented single-value example: -179.9832104 -> '`~oia@'."""
+        assert _encode_signed(-17998321) == "`~oia@"
+
+    def test_roundtrip_preserves_values_multi_segment(self):
+        """decode(encode(x)) must return the original coordinates (multi-chunk)."""
+        original = [
+            (48.8566, 2.3522),  # Paris
+            (45.7640, 4.8357),  # Lyon
+            (43.2965, 5.3698),  # Marseille
+            (-33.8688, 151.2093),  # Sydney (negative lat, large jump)
+        ]
+
+        decoded = decode_polyline(encode_polyline(original))
+
+        assert len(decoded) == len(original)
+        for (exp_lat, exp_lng), (got_lat, got_lng) in zip(original, decoded, strict=True):
+            assert got_lat == pytest.approx(exp_lat, abs=1e-5)
+            assert got_lng == pytest.approx(exp_lng, abs=1e-5)
+
+
 class TestEncodeSignedHelper:
     """Tests for _encode_signed helper function."""
 

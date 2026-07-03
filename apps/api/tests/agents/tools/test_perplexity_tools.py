@@ -6,7 +6,8 @@ LOT 10: Tests for Perplexity web search integration.
 Updated for APIKeyConnectorTool architecture that retrieves user-specific
 API keys from the database via ToolDependencies.
 
-Updated for StandardToolOutput format with Data Registry support.
+Updated for UnifiedToolOutput format with Data Registry support
+(registry_enabled=True on both tools).
 """
 
 import json
@@ -16,8 +17,22 @@ from uuid import uuid4
 import pytest
 from langgraph.prebuilt.tool_node import ToolRuntime
 
-from src.domains.agents.tools.output import StandardToolOutput
+from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.schemas import APIKeyCredentials
+
+
+def create_mock_perplexity_client() -> AsyncMock:
+    """Create a PerplexityClient mock with the instance attrs the tools read.
+
+    ``user_timezone``/``user_language`` are set in ``__init__`` on the real
+    client (not class attributes), so ``spec=`` alone would reject them.
+    """
+    from src.domains.connectors.clients.perplexity_client import PerplexityClient
+
+    client = AsyncMock(spec=PerplexityClient)
+    client.user_timezone = "UTC"
+    client.user_language = "en"
+    return client
 
 
 def create_mock_api_key_dependencies(
@@ -82,10 +97,9 @@ class TestPerplexitySearchTool:
     async def test_search_success(self, mock_credentials, user_id):
         """Test successful web search with user's API key."""
         from src.domains.agents.tools.perplexity_tools import _perplexity_search_tool_impl
-        from src.domains.connectors.clients.perplexity_client import PerplexityClient
 
         # Create mock client
-        mock_client = AsyncMock(spec=PerplexityClient)
+        mock_client = create_mock_perplexity_client()
         mock_client.search = AsyncMock(
             return_value={
                 "answer": "AI developments include LLMs and multimodal models.",
@@ -119,8 +133,9 @@ class TestPerplexitySearchTool:
                     query="Latest AI developments",
                 )
 
-                # Verify StandardToolOutput format
-                assert isinstance(result, StandardToolOutput)
+                # Verify UnifiedToolOutput format (Data Registry mode)
+                assert isinstance(result, UnifiedToolOutput)
+                assert result.success is True
                 assert (
                     "AI developments include LLMs and multimodal models." in result.summary_for_llm
                 )
@@ -140,9 +155,8 @@ class TestPerplexitySearchTool:
     async def test_search_with_recency_filter(self, mock_credentials, user_id):
         """Test search with recency filter."""
         from src.domains.agents.tools.perplexity_tools import _perplexity_search_tool_impl
-        from src.domains.connectors.clients.perplexity_client import PerplexityClient
 
-        mock_client = AsyncMock(spec=PerplexityClient)
+        mock_client = create_mock_perplexity_client()
         mock_client.search = AsyncMock(
             return_value={
                 "answer": "Stock news from today",
@@ -170,8 +184,9 @@ class TestPerplexitySearchTool:
                     recency="day",
                 )
 
-                # Verify StandardToolOutput format
-                assert isinstance(result, StandardToolOutput)
+                # Verify UnifiedToolOutput format (Data Registry mode)
+                assert isinstance(result, UnifiedToolOutput)
+                assert result.success is True
                 assert "Stock news from today" in result.summary_for_llm
                 # Verify recency filter was passed
                 mock_client.search.assert_called_once()
@@ -198,17 +213,17 @@ class TestPerplexitySearchTool:
                 query="Test query",
             )
 
-            data = json.loads(result)
-            assert data["error"] == "connector_not_activated"
-            assert "Perplexity" in data["message"]
+            assert isinstance(result, UnifiedToolOutput)
+            assert result.success is False
+            assert result.error_code == "connector_not_activated"
+            assert "Perplexity" in result.message
 
     @pytest.mark.asyncio
     async def test_search_api_error(self, mock_credentials, user_id):
         """Test handling of API errors."""
         from src.domains.agents.tools.perplexity_tools import _perplexity_search_tool_impl
-        from src.domains.connectors.clients.perplexity_client import PerplexityClient
 
-        mock_client = AsyncMock(spec=PerplexityClient)
+        mock_client = create_mock_perplexity_client()
         mock_client.search = AsyncMock(side_effect=Exception("API Error"))
 
         mock_deps = create_mock_api_key_dependencies(api_key_credentials=mock_credentials)
@@ -227,9 +242,11 @@ class TestPerplexitySearchTool:
                     query="Test query",
                 )
 
+                # Exceptions come back as a serialized UnifiedToolOutput with
+                # the ToolErrorCode taxonomy (never a raw traceback)
                 data = json.loads(result)
                 assert data["success"] is False
-                assert "error" in data
+                assert data["error_code"] == "INTERNAL_ERROR"
             finally:
                 _perplexity_search_tool_impl.create_client = original_create_client
 
@@ -254,9 +271,8 @@ class TestPerplexityAskTool:
     async def test_ask_success(self, mock_credentials, user_id):
         """Test successful question answering with user's API key."""
         from src.domains.agents.tools.perplexity_tools import _perplexity_ask_tool_impl
-        from src.domains.connectors.clients.perplexity_client import PerplexityClient
 
-        mock_client = AsyncMock(spec=PerplexityClient)
+        mock_client = create_mock_perplexity_client()
         mock_client.ask = AsyncMock(
             return_value={
                 "answer": "REST API design involves resources, HTTP methods, and status codes.",
@@ -282,8 +298,9 @@ class TestPerplexityAskTool:
                     question="Best practices for REST API design",
                 )
 
-                # Verify StandardToolOutput format
-                assert isinstance(result, StandardToolOutput)
+                # Verify UnifiedToolOutput format (Data Registry mode)
+                assert isinstance(result, UnifiedToolOutput)
+                assert result.success is True
                 assert "REST API design involves resources" in result.summary_for_llm
                 assert len(result.registry_updates) == 1
                 # Verify registry item
@@ -300,9 +317,8 @@ class TestPerplexityAskTool:
     async def test_ask_with_context(self, mock_credentials, user_id):
         """Test question with custom context."""
         from src.domains.agents.tools.perplexity_tools import _perplexity_ask_tool_impl
-        from src.domains.connectors.clients.perplexity_client import PerplexityClient
 
-        mock_client = AsyncMock(spec=PerplexityClient)
+        mock_client = create_mock_perplexity_client()
         mock_client.ask = AsyncMock(
             return_value={
                 "answer": "Medical treatment options include...",
@@ -329,8 +345,9 @@ class TestPerplexityAskTool:
                     context="medical",
                 )
 
-                # Verify StandardToolOutput format
-                assert isinstance(result, StandardToolOutput)
+                # Verify UnifiedToolOutput format (Data Registry mode)
+                assert isinstance(result, UnifiedToolOutput)
+                assert result.success is True
                 assert "Medical treatment options include" in result.summary_for_llm
                 assert "medical" in result.summary_for_llm  # Context in summary
                 # Verify registry item has context
@@ -360,6 +377,7 @@ class TestPerplexityAskTool:
                 question="Test question",
             )
 
-            data = json.loads(result)
-            assert data["error"] == "connector_not_activated"
-            assert "Perplexity" in data["message"]
+            assert isinstance(result, UnifiedToolOutput)
+            assert result.success is False
+            assert result.error_code == "connector_not_activated"
+            assert "Perplexity" in result.message

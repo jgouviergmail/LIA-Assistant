@@ -2933,6 +2933,19 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_3": {
+          "title": "v1.21.3 — 🛠️ Zuverlässigkeit: Audit-Korrekturen (Kalender, Aufgaben, Labels, Sicherheit)",
+          "date": "Juli 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🗓️ Verbundene Dienste zuverlässiger</b> — Mehrere Korrekturen an Ihren verbundenen Diensten: In <b>Apple Calendar</b> erstellte oder geänderte Termine berücksichtigen jetzt die angeforderte Zeitzone (ein Termin „10:00 in Paris\" wird nicht mehr um 10:00 UTC gespeichert); die Ereignissuche in <b>Microsoft Calendar</b> funktioniert mit einem Apostroph („l'anniversaire\" bricht die Abfrage nicht mehr); und der <b>Google Tasks</b>-Befehl „meine Aufgabenlisten auflisten\", der bei jedem Aufruf fehlschlug, funktioniert wieder.",
+            "i2": "<b>🗺️ Korrekte Routenkarten</b> — Ein Kodierungsfehler verzerrte die Geometrie von mehrsegmentigen Routen: Routenkarten werden jetzt korrekt dargestellt.",
+            "i3": "<b>🏷️ Mehrdeutige Gmail-Labels: es fragt nach</b> — Wenn ein Label, das Sie löschen oder anwenden wollten, auf mehrere Kandidaten passte, zeigte der Assistent einen generischen Fehler an, statt zu fragen, welches. Jetzt stellt er die Rückfrage zur Eindeutigkeit.",
+            "i4": "<b>⏹️ Stoppen stoppt wirklich</b> — Das Schließen der Konversation während einer laufenden autonomen Erkundung (ReAct-Modus) unterbricht die Arbeit jetzt wirklich — zuvor wurde der Stopp verschluckt und die Schleife lief weiter.",
+            "i5": "<b>🌍 Konnektormeldungen in Ihrer Sprache</b> — Die Konnektormeldungen „Dienst nicht aktiviert\" / „kein Dienst konfiguriert\" erscheinen jetzt in Ihrer Sprache (6 Sprachen) statt immer auf Französisch.",
+            "i6": "<b>🛡️ Admin · Sicherheit und Einstellungen</b> — Die Suche nach Benutzern per E-Mail ist jetzt auf Administratoren beschränkt (sie war für jedes angemeldete Konto zugänglich — ein Risiko der Kontenaufzählung); das in der Konfiguration festgelegte Budget und die Schrittzahl des Planers werden endlich berücksichtigt (ein Codepfad lieferte stets feste Werte); und zwei interne Einstellungen (Metrik-Synchronisierungsintervall, Timeout iterativer MCP-Schritte) werden konfigurierbar."
+          }
+        },
         "v1_21_2": {
           "title": "v1.21.2 — 🔒 Verstärkte Sicherheit: bereinigtes Rendering und echte IP-Adressen",
           "date": "Juli 2026",

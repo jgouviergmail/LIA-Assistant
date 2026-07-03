@@ -919,23 +919,25 @@ class TestCatalogueLoader:
         assert params["max_results"].required is False
         assert params["max_results"].type == "integer"
 
-    def test_get_contacts_manifest_pattern_constraint(self):
-        """Test contrainte pattern de get_contacts_tool
+    def test_get_contacts_manifest_id_mode_parameters(self):
+        """Test dual-mode parameters of get_contacts_tool.
 
-        Note: resource_name is NOT required because it's optional.
-        Query mode or ID mode can be used.
+        The tool supports query mode (query), single-ID mode (resource_name)
+        and batch-ID mode (resource_names) — all optional. The historical
+        `^people/` regex constraint was removed: the ID format is conveyed
+        through the parameter description instead (semantic layer refonte).
         """
         params = {p.name: p for p in GET_CONTACTS_MANIFEST.parameters}
 
         resource_name = params["resource_name"]
-        # resource_name is NOT required (optional - ID mode)
         assert resource_name.required is False
+        assert resource_name.type == "string"
+        # The description must carry the ID provenance ($steps / CONTEXT)
+        assert "CONTEXT" in resource_name.description
 
-        # Find pattern constraint
-        pattern_constraints = [c for c in resource_name.constraints if c.kind == "pattern"]
-        assert len(pattern_constraints) == 1
-        # Pattern validates the people/ prefix format
-        assert pattern_constraints[0].value == r"^people/"
+        resource_names = params["resource_names"]
+        assert resource_names.required is False
+        assert resource_names.type == "array"
 
 
 # ============================================================================

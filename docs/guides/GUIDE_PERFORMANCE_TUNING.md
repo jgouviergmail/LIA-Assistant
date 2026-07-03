@@ -182,52 +182,39 @@ def get_windowed_messages(
     return system_messages + windowed_conversational
 ```
 
-### Configuration par Node
+### Configuration du windowing
+
+> **v1.21.3 ([ADR-094](../architecture/ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md))** : les settings par nœud `router_/planner_/orchestrator_message_window_size` ont été **supprimés** (helpers jamais câblés ; le bornage des tokens est déjà assuré par le reducer state-level `add_messages_with_truncate`). Restent le windowing du nœud **response** et l'historique **ReAct**.
 
 ```python
-# apps/api/src/core/config.py
-class Settings(BaseSettings):
-    """Performance-tuned window sizes per node."""
+# apps/api/src/core/config/agents.py
+class AgentsSettings(BaseSettings):
+    """Windowing sizes for the live consumers (turns; 1 turn ≈ 2 messages)."""
 
-    # Router: fast decision, minimal context
-    router_message_window_size: int = Field(default=5)  # 5 turns = 10 messages
+    # Response node: rich context for natural synthesis
+    response_message_window_size: int = Field(default=10)
 
-    # Planner: moderate context for planning
-    planner_message_window_size: int = Field(default=10)  # 10 turns = 20 messages
+    # Default fallback for get_windowed_messages(window_size=None)
+    default_message_window_size: int = Field(default=4)
 
-    # Response: rich context for natural responses
-    response_message_window_size: int = Field(default=20)  # 20 turns = 40 messages
-
-    # Default fallback
-    default_message_window_size: int = Field(default=20)
+    # ReAct history window (used by react_nodes.py)
+    react_agent_history_window_turns: int = Field(default=...)
 ```
 
-### Utilisation dans Nodes
+### Utilisation dans les nodes
 
 ```python
-# apps/api/src/domains/agents/nodes/router_node_v3.py
-async def router_node(state: MessagesState, config: RunnableConfig) -> dict:
-    """Router with message windowing."""
+# response_node.py — windowing du nœud response
+from src.domains.agents.utils.message_windowing import get_response_windowed_messages
 
-    # Get windowed messages (5 turns)
-    windowed_messages = get_windowed_messages(
-        state,
-        window_size=settings.router_message_window_size,  # 5
-    )
+windowed = get_response_windowed_messages(state[STATE_KEY_MESSAGES])
 
-    logger.debug(
-        "router_windowing",
-        original_count=len(state[STATE_KEY_MESSAGES]),
-        windowed_count=len(windowed_messages),
-        reduction_percent=round(
-            (1 - len(windowed_messages) / len(state[STATE_KEY_MESSAGES])) * 100
-        ),
-    )
+# react_nodes.py — historique ReAct via le cœur générique
+from src.domains.agents.utils.message_windowing import get_windowed_messages
 
-    # Call LLM with windowed context
-    router_output = await _call_router_llm(windowed_messages)
-
-    return {STATE_KEY_ROUTING_HISTORY: [router_output.intent]}
+windowed_history = get_windowed_messages(
+    history, window_size=settings.react_agent_history_window_turns
+)
 ```
 
 ### Performance Benchmarks

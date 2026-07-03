@@ -1,9 +1,13 @@
 # MESSAGE_WINDOWING_STRATEGY.md
 
 **Documentation Technique - LIA**
-**Version**: 1.0
-**Dernière mise à jour**: 2025-11-14
+**Version**: 1.1
+**Dernière mise à jour**: 2026-07-03
 **Statut**: ✅ Production-Ready
+
+> **⚠️ Mise à jour v1.21.3 ([ADR-094](../architecture/ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md)) — lire avant les sections « Stratégies par node ».**
+> Les helpers de windowing **par nœud** `get_router_windowed_messages`, `get_planner_windowed_messages` et `get_orchestrator_windowed_messages` (et leurs settings `router_/planner_/orchestrator_message_window_size`) ont été **supprimés** : ils n'avaient **aucun call site** en production (le router lit `state[STATE_KEY_MESSAGES]` directement ; le planner passe par `SmartPlannerService`). Le bornage des tokens est **déjà assuré** au niveau du state par le reducer `add_messages_with_truncate`.
+> **Ce qui reste vivant** : `get_windowed_messages(messages, window_size=…)` (le cœur, utilisé par le nœud **ReAct** avec `react_agent_history_window_turns`) et `get_response_windowed_messages` (nœud **response**, `response_message_window_size`). Les sections 3 et « Stratégies par node » ci-dessous décrivant Router/Planner/Orchestrator sont **historiques** — le windowing per-nœud délibéré (router/planner) est reporté au chantier latence, à réintroduire avec benchmarks de qualité de routage/planification.
 
 ---
 

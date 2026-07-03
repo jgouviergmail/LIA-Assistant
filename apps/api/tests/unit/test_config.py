@@ -271,3 +271,61 @@ class TestSettings:
 
             assert settings.otel_exporter_otlp_endpoint == "http://jaeger:4317"
             assert settings.otel_service_name == "lia-api-test"
+
+    def test_lifetime_metrics_update_interval_setting(self):
+        """Regression (2026-07 audit): field must exist on Settings and honor env override.
+
+        The consuming code used getattr(settings, "lifetime_metrics_update_interval", 30)
+        while the field did not exist, so the hardcoded 30 was always served and the
+        value could never be configured via .env.
+        """
+        from src.core.constants import LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT
+
+        assert "lifetime_metrics_update_interval" in Settings.model_fields
+        assert (
+            Settings.model_fields["lifetime_metrics_update_interval"].default
+            == LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT
+        )
+
+        with patch.dict(
+            os.environ,
+            {
+                "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
+                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
+                "REDIS_URL": "redis://localhost:6379",
+                "LIFETIME_METRICS_UPDATE_INTERVAL": "45",
+            },
+        ):
+            settings = Settings()
+
+            assert settings.lifetime_metrics_update_interval == 45
+
+    def test_mcp_react_step_timeout_seconds_setting(self):
+        """Regression (2026-07 audit): field must exist on Settings and honor env override.
+
+        The consuming code used getattr(settings, "mcp_react_step_timeout_seconds", 120)
+        while the field did not exist, so the hardcoded 120 was always served and the
+        value could never be configured via .env.
+        """
+        from src.core.constants import MCP_REACT_STEP_TIMEOUT_SECONDS_DEFAULT
+
+        assert "mcp_react_step_timeout_seconds" in Settings.model_fields
+        assert (
+            Settings.model_fields["mcp_react_step_timeout_seconds"].default
+            == MCP_REACT_STEP_TIMEOUT_SECONDS_DEFAULT
+        )
+
+        with patch.dict(
+            os.environ,
+            {
+                "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
+                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
+                "REDIS_URL": "redis://localhost:6379",
+                "MCP_REACT_STEP_TIMEOUT_SECONDS": "240",
+            },
+        ):
+            settings = Settings()
+
+            assert settings.mcp_react_step_timeout_seconds == 240

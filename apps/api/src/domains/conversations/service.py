@@ -966,9 +966,11 @@ class ConversationService:
         last_user_message = await repo.get_last_user_message(conversation_id)
 
         if last_user_message:
-            # Store original content in metadata before update
+            # Store original content in metadata before update.
+            # Build a NEW dict: mutating and reassigning the same object makes
+            # SQLAlchemy change detection skip the JSONB UPDATE silently.
             original_content = last_user_message.content
-            updated_metadata = last_user_message.message_metadata or {}
+            updated_metadata = dict(last_user_message.message_metadata or {})
 
             # Merge new metadata
             if metadata_updates:

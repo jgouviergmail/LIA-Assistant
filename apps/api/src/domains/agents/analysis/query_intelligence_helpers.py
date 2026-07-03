@@ -218,6 +218,8 @@ def reconstruct_query_intelligence(data: dict[str, Any]) -> QueryIntelligence:
         is_app_help_query=data.get("is_app_help_query", False),
         # Skill activation - CRITICAL for SkillBypassStrategy and response_node
         detected_skill_name=data.get("detected_skill_name"),
+        # Indexable vs Semantic hint - CRITICAL for semantic_validator leak detection
+        semantic_filter_terms=tuple(data.get("semantic_filter_terms", ())),
     )
 
 

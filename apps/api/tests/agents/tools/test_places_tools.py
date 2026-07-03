@@ -6,34 +6,38 @@ LOT 10: Tests for Google Places location search integration.
 Updated for ConnectorTool architecture that retrieves user-specific
 OAuth credentials from the database via ToolDependencies.
 
-Updated for StandardToolOutput format with Data Registry support.
+Updated for UnifiedToolOutput format with Data Registry support.
+Places tools use uses_global_api_key=True: the connector check goes through
+is_connector_active (no OAuth credentials fetched).
 """
 
 import json
-from unittest.mock import AsyncMock, MagicMock, create_autospec, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 from langgraph.prebuilt.tool_node import ToolRuntime
 
-from src.domains.agents.tools.output import StandardToolOutput
+from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.schemas import ConnectorCredentials
 
 
 def create_mock_oauth_dependencies(
     credentials: ConnectorCredentials | None = None,
 ) -> MagicMock:
-    """Create a mock ToolDependencies for OAuth connectors.
+    """Create a mock ToolDependencies for connector tools.
 
     Args:
-        credentials: Credentials to return from get_connector_credentials.
-            If None, simulates disabled connector.
+        credentials: When None, simulates a disabled connector
+            (is_connector_active -> False for global-API-key tools,
+            get_connector_credentials -> None for OAuth tools).
     """
     mock_deps = MagicMock()
 
-    # Mock connector service with get_connector_credentials
     mock_connector_service = MagicMock()
     mock_connector_service.get_connector_credentials = AsyncMock(return_value=credentials)
+    # Global-API-key tools (Places) check activation instead of credentials
+    mock_connector_service.is_connector_active = AsyncMock(return_value=credentials is not None)
     mock_deps.get_connector_service = AsyncMock(return_value=mock_connector_service)
 
     # Mock get_or_create_client to return a mock client
@@ -46,24 +50,60 @@ def create_mock_oauth_dependencies(
     return mock_deps
 
 
-def create_mock_runtime(user_id: str) -> ToolRuntime:
-    """Create a mock ToolRuntime with configurable user_id."""
-    runtime = create_autospec(ToolRuntime, instance=True)
-    configurable = {
-        "user_id": user_id,
-        "thread_id": f"test_thread_{user_id[:8]}",
-    }
+@pytest.fixture(autouse=True)
+def stub_user_context_helpers():
+    """Stub the runtime helpers that hit the database or the store.
 
-    runtime.config = {"configurable": configurable}
+    get_user_language_safe / get_user_home_location open real DB sessions;
+    without this stub each test spends seconds in asyncpg connection retries.
+    """
+    with (
+        patch(
+            "src.domains.agents.tools.runtime_helpers.get_user_language_safe",
+            new=AsyncMock(return_value="en"),
+        ),
+        patch(
+            "src.domains.agents.tools.runtime_helpers.get_user_home_location",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "src.domains.agents.tools.runtime_helpers.get_browser_geolocation",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "src.domains.agents.tools.runtime_helpers.get_original_user_message",
+            new=MagicMock(return_value=""),  # sync helper (reads state)
+        ),
+    ):
+        yield
+
+
+def create_mock_runtime(user_id: str) -> ToolRuntime:
+    """Create a REAL ToolRuntime with mocked store/writer.
+
+    ToolRuntime is a dataclass whose ``tools`` field only exists on instances
+    (default factory), so a ``create_autospec`` mock rejects it when LangChain
+    serializes the runtime during args validation.
+    """
     mock_store = MagicMock()
     mock_store.get = MagicMock(return_value=None)
     mock_store.put = MagicMock()
-    runtime.store = mock_store
-    runtime.state = {}
-    runtime.context = {}
-    runtime.stream_writer = MagicMock()
-    runtime.tool_call_id = "test_call_id"
-    return runtime
+    mock_store.aget = AsyncMock(return_value=None)
+    mock_store.aput = AsyncMock()
+
+    return ToolRuntime(
+        state={},
+        context={},
+        config={
+            "configurable": {
+                "user_id": user_id,
+                "thread_id": f"test_thread_{user_id[:8]}",
+            }
+        },
+        stream_writer=MagicMock(),
+        tool_call_id="test_call_id",
+        store=mock_store,
+    )
 
 
 class TestSearchPlacesTool:
@@ -127,9 +167,12 @@ class TestSearchPlacesTool:
                 query="restaurants Tour Eiffel",
             )
 
-            # Verify StandardToolOutput format
-            assert isinstance(result, StandardToolOutput)
-            assert "Le Jules Verne" in result.summary_for_llm
+            # Verify UnifiedToolOutput format (Data Registry mode).
+            # The LLM summary is a compact registry reference; the place data
+            # itself travels through registry_updates.
+            assert isinstance(result, UnifiedToolOutput)
+            assert result.success is True
+            assert "1 place(s)" in result.summary_for_llm
             assert len(result.registry_updates) == 1
             # Verify registry item
             registry_item = list(result.registry_updates.values())[0]
@@ -155,8 +198,8 @@ class TestSearchPlacesTool:
                 place_type="restaurant",
             )
 
-            # Verify StandardToolOutput format
-            assert isinstance(result, StandardToolOutput)
+            # Verify UnifiedToolOutput format (Data Registry mode)
+            assert isinstance(result, UnifiedToolOutput)
             mock_client.search_text.assert_called_once()
             call_args = mock_client.search_text.call_args
             assert call_args.kwargs["include_type"] == "restaurant"
@@ -180,8 +223,8 @@ class TestSearchPlacesTool:
                 open_now=True,
             )
 
-            # Verify StandardToolOutput format
-            assert isinstance(result, StandardToolOutput)
+            # Verify UnifiedToolOutput format (Data Registry mode)
+            assert isinstance(result, UnifiedToolOutput)
             call_args = mock_client.search_text.call_args
             assert call_args.kwargs["open_now"] is True
 
@@ -206,9 +249,11 @@ class TestSearchPlacesTool:
                 query="test",
             )
 
+            # Exceptions come back as a serialized UnifiedToolOutput with
+            # the ToolErrorCode taxonomy (never a raw traceback)
             data = json.loads(result)
             assert data["success"] is False
-            assert "error" in data
+            assert data["error_code"] == "INTERNAL_ERROR"
 
     @pytest.mark.asyncio
     async def test_search_connector_not_activated(self, user_id):
@@ -228,9 +273,10 @@ class TestSearchPlacesTool:
                 query="Test query",
             )
 
-            data = json.loads(result)
-            assert data["error"] == "connector_not_activated"
-            assert "google_places" in data["message"].lower() or "places" in data["message"].lower()
+            assert isinstance(result, UnifiedToolOutput)
+            assert result.success is False
+            assert result.error_code == "connector_not_activated"
+            assert "places" in result.message.lower()
 
 
 class TestGetPlaceDetailsTool:
@@ -303,10 +349,10 @@ class TestGetPlaceDetailsTool:
                 place_id="ChIJLU7jZClu5kcR4PcOy",
             )
 
-            # Verify StandardToolOutput format
-            assert isinstance(result, StandardToolOutput)
-            assert "Le Jules Verne" in result.summary_for_llm
-            assert "01 45 55 61 44" in result.summary_for_llm
+            # Verify UnifiedToolOutput format (Data Registry mode)
+            assert isinstance(result, UnifiedToolOutput)
+            assert result.success is True
+            assert "1 place(s)" in result.summary_for_llm
             assert len(result.registry_updates) == 1
             # Verify registry item
             registry_item = list(result.registry_updates.values())[0]
@@ -334,110 +380,7 @@ class TestGetPlaceDetailsTool:
                 place_id="ChIJLU7jZClu5kcR4PcOy",
             )
 
-            data = json.loads(result)
-            assert data["error"] == "connector_not_activated"
-            assert "google_places" in data["message"].lower() or "places" in data["message"].lower()
-
-
-class TestApplyDistanceRangeFilter:
-    """Tests for _apply_distance_range_filter helper function."""
-
-    def test_no_filter_when_min_radius_none(self):
-        """Test that places are returned unchanged when min_radius is None."""
-        from src.domains.agents.tools.places_tools import _apply_distance_range_filter
-
-        places = [
-            {"name": "Place A", "distance_km": 1.0},
-            {"name": "Place B", "distance_km": 5.0},
-            {"name": "Place C", "distance_km": 10.0},
-        ]
-
-        result = _apply_distance_range_filter(places, None, 50000, 10)
-
-        assert result == places
-        assert len(result) == 3
-
-    def test_filter_within_range(self):
-        """Test filtering places within distance range."""
-        from src.domains.agents.tools.places_tools import _apply_distance_range_filter
-
-        places = [
-            {"name": "Too Close", "distance_km": 5.0},
-            {"name": "In Range 1", "distance_km": 45.0},
-            {"name": "In Range 2", "distance_km": 50.0},
-            {"name": "In Range 3", "distance_km": 55.0},
-            {"name": "Too Far", "distance_km": 70.0},
-        ]
-
-        # Filter: 40km <= distance <= 60km
-        result = _apply_distance_range_filter(places, 40000, 60000, 10)
-
-        assert len(result) == 3
-        assert all(p["name"].startswith("In Range") for p in result)
-
-    def test_filter_respects_max_results(self):
-        """Test that max_results limit is applied after filtering."""
-        from src.domains.agents.tools.places_tools import _apply_distance_range_filter
-
-        places = [{"name": f"Place {i}", "distance_km": float(45 + i)} for i in range(10)]
-
-        # Filter: 40km <= distance <= 100km, max 3 results
-        result = _apply_distance_range_filter(places, 40000, 100000, 3)
-
-        assert len(result) == 3
-
-    def test_filter_sorts_by_distance(self):
-        """Test that results are sorted by distance (closest first)."""
-        from src.domains.agents.tools.places_tools import _apply_distance_range_filter
-
-        places = [
-            {"name": "Far", "distance_km": 55.0},
-            {"name": "Close", "distance_km": 45.0},
-            {"name": "Medium", "distance_km": 50.0},
-        ]
-
-        # Filter: 40km <= distance <= 60km
-        result = _apply_distance_range_filter(places, 40000, 60000, 10)
-
-        assert len(result) == 3
-        assert result[0]["name"] == "Close"
-        assert result[1]["name"] == "Medium"
-        assert result[2]["name"] == "Far"
-
-    def test_filter_handles_missing_distance(self):
-        """Test that places without distance_km are excluded."""
-        from src.domains.agents.tools.places_tools import _apply_distance_range_filter
-
-        places = [
-            {"name": "Has Distance", "distance_km": 50.0},
-            {"name": "No Distance"},
-            {"name": "Null Distance", "distance_km": None},
-        ]
-
-        # Filter: 40km <= distance <= 60km
-        result = _apply_distance_range_filter(places, 40000, 60000, 10)
-
-        assert len(result) == 1
-        assert result[0]["name"] == "Has Distance"
-
-    def test_filter_empty_input(self):
-        """Test filtering empty list returns empty list."""
-        from src.domains.agents.tools.places_tools import _apply_distance_range_filter
-
-        result = _apply_distance_range_filter([], 40000, 60000, 10)
-
-        assert result == []
-
-    def test_filter_no_matches(self):
-        """Test filtering when no places match the range."""
-        from src.domains.agents.tools.places_tools import _apply_distance_range_filter
-
-        places = [
-            {"name": "Too Close", "distance_km": 10.0},
-            {"name": "Too Far", "distance_km": 100.0},
-        ]
-
-        # Filter: 40km <= distance <= 60km
-        result = _apply_distance_range_filter(places, 40000, 60000, 10)
-
-        assert result == []
+            assert isinstance(result, UnifiedToolOutput)
+            assert result.success is False
+            assert result.error_code == "connector_not_activated"
+            assert "places" in result.message.lower()

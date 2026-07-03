@@ -515,6 +515,49 @@ class TestCreateServerDomainDescription:
         assert call_args["domain_description"] is None
 
 
+class TestCreateServerIterativeMode:
+    """Regression tests for iterative_mode in create_server (2026-07 audit, wave 1).
+
+    create_server used to omit iterative_mode from the repository dict, so the
+    column always kept its False default regardless of the request payload.
+    """
+
+    @pytest.mark.asyncio
+    @patch("src.domains.user_mcp.service.validate_http_endpoint", new_callable=AsyncMock)
+    async def test_create_passes_iterative_mode_true(self, mock_validate, service) -> None:
+        """Should pass iterative_mode=True to repository.create."""
+        mock_validate.return_value = (True, None)
+        service.repository.count_for_user = AsyncMock(return_value=0)
+        service.repository.create = AsyncMock(return_value=MagicMock())
+
+        data = UserMCPServerCreate(
+            name="ReAct Server",
+            url="https://mcp.example.com/sse",
+            iterative_mode=True,
+        )
+        await service.create_server(uuid4(), data)
+
+        call_args = service.repository.create.call_args[0][0]
+        assert call_args["iterative_mode"] is True
+
+    @pytest.mark.asyncio
+    @patch("src.domains.user_mcp.service.validate_http_endpoint", new_callable=AsyncMock)
+    async def test_create_defaults_iterative_mode_false(self, mock_validate, service) -> None:
+        """Should pass iterative_mode=False when not provided."""
+        mock_validate.return_value = (True, None)
+        service.repository.count_for_user = AsyncMock(return_value=0)
+        service.repository.create = AsyncMock(return_value=MagicMock())
+
+        data = UserMCPServerCreate(
+            name="Plain Server",
+            url="https://mcp.example.com/sse",
+        )
+        await service.create_server(uuid4(), data)
+
+        call_args = service.repository.create.call_args[0][0]
+        assert call_args["iterative_mode"] is False
+
+
 class TestDisconnectOAuth:
     """Tests for disconnect_oauth method."""
 

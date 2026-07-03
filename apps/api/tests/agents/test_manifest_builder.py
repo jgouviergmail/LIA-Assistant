@@ -355,26 +355,6 @@ def test_with_api_integration_preset():
     assert metadata["rate_limit"]["requests"] == 10
 
 
-def test_with_database_integration_preset():
-    """Test generic database integration preset."""
-    manifest = (
-        ToolManifestBuilder("test_tool", "test_agent")
-        .with_description("Test DB tool")
-        .add_parameter("query", "string", required=True, description="SQL query")
-        .with_database_integration(db_type="postgresql", read_only=True, max_rows=500)
-        .build()
-    )
-
-    # Check permissions for read-only
-    assert manifest.permissions is not None
-    assert "data_reader" in manifest.permissions.allowed_roles
-    assert manifest.permissions.hitl_required is False
-
-    # Check cost profile (cheaper than API)
-    assert manifest.cost is not None
-    assert manifest.cost.est_latency_ms == 100
-
-
 def test_with_rest_api_integration_preset():
     """Test generic REST API integration preset."""
     rate_limit = RateLimit(requests=100, period_seconds=60)
@@ -543,7 +523,6 @@ def test_create_tool_manifest_from_config():
     "preset_method,preset_kwargs",
     [
         ("with_api_integration", {"provider": "google", "scopes": ["read"]}),
-        ("with_database_integration", {"db_type": "postgresql", "read_only": True}),
         ("with_rest_api_integration", {"base_url": "https://api.test.com"}),
     ],
 )

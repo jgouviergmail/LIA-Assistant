@@ -9,6 +9,7 @@ Created: 2026-03-08
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -42,19 +43,26 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+# Capability vocabulary understood by the checker. LLM_TYPES_REGISTRY entries
+# must only use these strings — an unknown capability passes silently (True),
+# which is how the 'tool_calling' vs 'tools' drift shipped unverified.
+# Locked by tests/unit/domains/llm_config/test_capability_checks.py.
+_CAPABILITY_CHECKS: dict[str, Callable[[ModelCapabilities], bool]] = {
+    "vision": lambda caps: caps.supports_vision,
+    "tools": lambda caps: caps.supports_tools,
+    "structured_output": lambda caps: caps.supports_structured_output,
+}
+KNOWN_MODEL_CAPABILITIES = frozenset(_CAPABILITY_CHECKS)
+
+
 def _model_has_capability(caps: ModelCapabilities, capability: str) -> bool:
     """Check whether a ``ModelCapabilities`` declares the given capability.
 
-    Currently only ``"vision"`` is meaningful (filters to ``supports_vision``).
-    Extended in the future when more capability filters are needed.
+    Knows ``"vision"``, ``"tools"`` and ``"structured_output"``; any other
+    string is not filtered (returns True).
     """
-    if capability == "vision":
-        return caps.supports_vision
-    if capability == "tools":
-        return caps.supports_tools
-    if capability == "structured_output":
-        return caps.supports_structured_output
-    return True
+    check = _CAPABILITY_CHECKS.get(capability)
+    return check(caps) if check else True
 
 
 def _mask_key(key: str) -> str:

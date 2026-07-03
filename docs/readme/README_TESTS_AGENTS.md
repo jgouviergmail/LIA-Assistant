@@ -975,7 +975,24 @@ def test_system_message_always_included():
 
 **File:** `test_nodes_windowing_integration.py`
 
-#### Testing Router Windowing
+> **v1.21.3 ([ADR-094](../architecture/ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md))** : `get_router_windowed_messages` / `get_planner_windowed_messages` (et leur tests) ont été **supprimés** (helpers morts). Seuls le windowing du nœud **response** et l'historique **ReAct** (`get_windowed_messages`) restent testés. Les exemples ci-dessous sont **historiques**.
+
+#### Testing Response Windowing (live)
+
+```python
+def test_response_windowed_messages():
+    """The response helper keeps the settings-driven number of turns."""
+    from src.core.config import get_settings
+
+    window = get_settings().response_message_window_size
+    messages = create_long_conversation(turns=window + 15)
+
+    windowed = get_response_windowed_messages(messages)
+
+    assert len(windowed) == 1 + window * 2  # SystemMessage + window turns
+```
+
+#### (Historical) Router / Planner windowing — removed in v1.21.3
 
 ```python
 def test_router_windowed_messages():
@@ -990,8 +1007,6 @@ def test_router_windowed_messages():
     # Router should get last 3 turns for context
     assert len(windowed) <= 7  # System + 3 turns = 7 messages max
 ```
-
-#### Testing Planner Windowing
 
 ```python
 def test_planner_windowed_messages():

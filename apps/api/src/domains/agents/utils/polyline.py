@@ -100,7 +100,7 @@ def _encode_signed(value: int) -> str:
 
     encoded = []
     while value >= 0x20:
-        encoded.append(chr((value & 0x1F) | 0x20 + 63))
+        encoded.append(chr(((value & 0x1F) | 0x20) + 63))
         value >>= 5
     encoded.append(chr(value + 63))
 
