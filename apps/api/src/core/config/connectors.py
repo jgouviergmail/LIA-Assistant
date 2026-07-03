@@ -60,6 +60,7 @@ from src.core.constants import (
     EMAILS_CACHE_DETAILS_TTL_SECONDS,
     EMAILS_CACHE_LIST_TTL_SECONDS,
     EMAILS_CACHE_SEARCH_TTL_SECONDS,
+    EMAILS_SEARCH_FETCH_CONCURRENCY_DEFAULT,
     EMAILS_TOOL_DEFAULT_LIMIT_DEFAULT,
     EMAILS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
     EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT,
@@ -612,6 +613,16 @@ class ConnectorsSettings(BaseSettings):
         default=EMAILS_TOOL_DEFAULT_LIMIT_DEFAULT,
         gt=0,
         description="Default limit for email list operations",
+    )
+    emails_search_fetch_concurrency: int = Field(
+        default=EMAILS_SEARCH_FETCH_CONCURRENCY_DEFAULT,
+        ge=1,
+        le=20,
+        description=(
+            "Concurrent per-message metadata fetches during Gmail search "
+            "(Gmail list returns IDs only). Each fetch still passes through "
+            "the Redis rate limiter."
+        ),
     )
 
     # ========================================================================

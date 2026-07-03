@@ -359,6 +359,14 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=[],
         power_tier=POWER_TIER_MEDIUM,
     ),
+    "personality_translation": LLMTypeMetadata(
+        llm_type="personality_translation",
+        display_name="Personality Translator",
+        category=CATEGORY_BACKGROUND,
+        description_key="settings.admin.llmConfig.types.personality_translation",
+        required_capabilities=[],
+        power_tier=POWER_TIER_LOW,
+    ),
     # --- Briefing (Today dashboard) ---
     "briefing": LLMTypeMetadata(
         llm_type="briefing",
@@ -937,6 +945,19 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         max_tokens=5000,
         timeout_seconds=30.0,
         reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+    ),
+    # Personality title/description translation — preserves the previous
+    # hardcoded behavior (gpt-4.1-nano, temp 0.3, 500 tokens) as code default;
+    # now overridable from the admin LLM Configuration UI (N-219.1).
+    "personality_translation": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-nano",
+        temperature=0.3,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=500,
+        timeout_seconds=20.0,
     ),
     "heartbeat_decision": LLMAgentConfig(
         provider="qwen",

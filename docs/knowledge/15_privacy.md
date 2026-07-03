@@ -29,6 +29,7 @@ Multiple security levels protect your data:
 • Encryption in transit (HTTPS/TLS)
 • HTTP-only cookies (XSS protection)
 • Built-in CSRF protection
+• Strict Content-Security-Policy (CSP) blocking script injection — dynamic content (including AI-generated text) is auto-escaped, so injected markup stays inert
 
 **🛡️ Personal Information Protection (PII):**
 • Your sensitive data (emails, contacts) remain confidential

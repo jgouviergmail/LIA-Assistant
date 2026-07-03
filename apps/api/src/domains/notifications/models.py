@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.infrastructure.database.models import BaseModel
@@ -115,6 +115,16 @@ class AdminBroadcast(BaseModel):
         DateTime(timezone=True),
         nullable=True,
         comment="When the broadcast expires (null = never)",
+    )
+
+    message_translations: Mapped[dict[str, str] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "Cached translations {language: text}. Filled at send time, "
+            "lazily backfilled on read for historical broadcasts — reading "
+            "an already-translated broadcast costs 0 LLM calls (N-213.2)"
+        ),
     )
 
     # Delivery stats

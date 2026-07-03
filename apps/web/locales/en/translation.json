@@ -1723,6 +1723,7 @@
           "heartbeat_decision": "Decides if a proactive notification is relevant",
           "heartbeat_message": "Generates the proactive notification message",
           "broadcast_translator": "Translates broadcast messages",
+          "personality_translation": "Translates personality titles and descriptions",
           "voice_comment": "Generates voice comments for TTS",
           "mcp_description": "Generates MCP server descriptions",
           "mcp_app_react_agent": "ReAct agent for MCP servers with interactive widgets (MCP Apps)",
@@ -2942,6 +2943,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_5": {
+          "title": "v1.21.5 — ⚡ Performance & hardening (audit wave 3)",
+          "date": "July 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>⚡ A smoother, more responsive app</b> — Heavy background operations (push notifications, image generation) no longer briefly freeze the interface, and email search returns results faster. Under the hood, blocking work was moved off the main thread and several sequential lookups now run in parallel.",
+            "i2": "<b>🗓️ Correct date formats in every language</b> — A regional-format bug caused dates to use an invalid locale for some languages (notably English and Chinese). Dates now display in the proper format for your language.",
+            "i3": "<b>🛡️ Reinforced security</b> — The personalized greeting on your dashboard can no longer run injected content coming from external data (for example a booby-trapped event title), and a strict browser security policy (Content-Security-Policy) was added as an extra layer against script injection.",
+            "i4": "<b>🔒 Admin · internal services isolated from the network</b> — In production, internal services (database, monitoring dashboards, metrics) are no longer reachable from the local network: only the web application is exposed, behind the secure tunnel. The firewall's interaction with Docker is now documented.",
+            "i5": "<b>🌍 Admin · instant broadcasts & configurable translator</b> — Translated broadcast announcements are now stored, so re-reading one costs nothing (previously re-translated on every view). The personality translator also appears in the admin LLM Configuration and honors your model overrides."
+          }
+        },
         "v1_21_4": {
           "title": "v1.21.4 — 🛡️ Reliability & privacy: systemic hardening (audit wave 2)",
           "date": "July 2026",
@@ -5588,7 +5601,7 @@
       },
       "bff": {
         "title": "Secure architecture",
-        "description": "BFF pattern with HTTP-only cookies, Redis sessions, tokens never exposed to the frontend. OWASP Top 10 protection."
+        "description": "BFF pattern with HTTP-only cookies, Redis sessions, tokens never exposed to the frontend. Strict Content-Security-Policy and OWASP Top 10 protection."
       },
       "encryption": {
         "title": "Encryption",

@@ -5,6 +5,7 @@ Provides high-level operations for sending push notifications
 and managing FCM tokens.
 """
 
+import asyncio
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -375,8 +376,9 @@ class FCMNotificationService:
                 ),
             )
 
-            # Send message
-            response = messaging.send(message)
+            # Send message (messaging.send is a blocking HTTP call — keep it
+            # off the event loop)
+            response = await asyncio.to_thread(messaging.send, message)
 
             logger.debug(
                 "fcm_message_sent",
@@ -449,8 +451,10 @@ class FCMNotificationService:
         """
         Send FCM notifications to multiple tokens in batch.
 
-        Firebase limit: 500 tokens per multicast call.
-        Uses asyncio.to_thread since send_multicast is synchronous.
+        Sends one message per token (send_multicast/send_each_for_multicast
+        misbehave with some Firebase configs). Each messaging.send is a
+        synchronous HTTP call, so it runs via asyncio.to_thread to keep the
+        event loop responsive during broadcasts.
 
         Args:
             tokens: List of FCM token strings
@@ -487,7 +491,7 @@ class FCMNotificationService:
                     token=token,
                 )
 
-                messaging.send(message)
+                await asyncio.to_thread(messaging.send, message)
                 total_sent += 1
 
             except Exception as e:

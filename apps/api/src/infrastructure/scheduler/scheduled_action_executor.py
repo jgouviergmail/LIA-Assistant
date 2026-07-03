@@ -136,6 +136,7 @@ async def execute_single_action(
         user_language = user.language or settings.default_language
         user_timezone = user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE
         user_display_name = resolve_user_display_name(user.full_name, user.email)
+        user_display_mode = getattr(user, "response_display_mode", None) or "cards"
         session_id = f"{SCHEDULED_ACTIONS_SESSION_PREFIX}{action.id}"
 
         # === Guard: Check for pending HITL interrupt on user's conversation ===
@@ -205,6 +206,7 @@ async def execute_single_action(
                         user_timezone=user_timezone,
                         user_language=user_language,
                         user_display_name=user_display_name,
+                        user_display_mode=user_display_mode,  # honor user's cards/html/markdown preference
                         is_automated_source=True,  # skip memory/interest/journal/psyche extraction
                         auto_approve_plan=True,
                     ):

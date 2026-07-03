@@ -4,7 +4,7 @@ Internationalization (i18n) utilities using gettext.
 Provides translation functions for API error messages, validation errors,
 and user-facing text. LLM prompts are NOT translated (LLMs understand all languages).
 
-Supported languages: fr, en, es, de, it
+Supported languages: fr, en, es, de, it, zh-CN
 """
 
 import gettext
@@ -14,6 +14,7 @@ from pathlib import Path
 import structlog
 
 from src.core.config import settings
+from src.core.constants import LANGUAGE_TO_LOCALE
 from src.core.i18n_types import Language
 
 logger = structlog.get_logger(__name__)
@@ -58,6 +59,27 @@ def normalize_language(language: str) -> Language:
 
     # Unsupported: fall back to the configured default language
     return DEFAULT_LANGUAGE
+
+
+def get_locale_for_language(language: str | None) -> str:
+    """Map a raw language code to a valid BCP 47 display locale.
+
+    Replaces the buggy ``f"{lang}-{lang.upper()}"`` derivation, which
+    produced nonexistent locales such as "en-EN" or "zh-ZH" (audit wave 3,
+    N-129). Normalizes first, so any incoming spelling ("zh", "en_US",
+    "fr-FR") resolves to its canonical display locale.
+
+    Args:
+        language: Raw language/locale code, or None for the default language.
+
+    Returns:
+        BCP 47 locale (e.g., "en-US", "zh-CN", "fr-FR").
+    """
+    # Direct indexing on purpose: normalize_language returns a canonical
+    # supported code and the boot-time assert in constants guarantees the
+    # mapping is complete — a KeyError here means broken config, not a
+    # situation to paper over with a silent fallback.
+    return LANGUAGE_TO_LOCALE[normalize_language(language or DEFAULT_LANGUAGE)]
 
 
 @lru_cache(maxsize=10)

@@ -16,6 +16,7 @@ Phase: evolution — AI Image Generation
 Created: 2026-03-25
 """
 
+import asyncio
 import base64
 import time
 import uuid
@@ -424,7 +425,7 @@ async def edit_image(
                     message="Source image file not found on disk.",
                     error_code="NOT_FOUND",
                 )
-            source_bytes = source_path.read_bytes()
+            source_bytes = await asyncio.to_thread(source_path.read_bytes)
             source_b64 = base64.b64encode(source_bytes).decode("ascii")
     except Exception as e:
         logger.error(
@@ -438,10 +439,10 @@ async def edit_image(
         )
 
     # --- 5. Resize source image to reduce cost ---
-    from src.domains.image_generation.resize import resize_image_b64
+    from src.domains.image_generation.resize import resize_image_b64_async
 
-    # Auto-detect size from source image proportions
-    resized_b64, effective_size = resize_image_b64(source_b64)
+    # Auto-detect size from source image proportions (off-loop: CPU-heavy)
+    resized_b64, effective_size = await resize_image_b64_async(source_b64)
 
     # --- 6. Validate inputs ---
     if effective_quality not in IMAGE_GENERATION_VALID_QUALITIES:

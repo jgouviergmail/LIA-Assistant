@@ -382,7 +382,7 @@ class InterestContentGenerator:
 
             # Generate embedding for deduplication check
             if result and not result.embedding:
-                result.embedding = self._generate_content_embedding(result.content)
+                result.embedding = await self._generate_content_embedding(result.content)
 
             return result
 
@@ -396,21 +396,22 @@ class InterestContentGenerator:
             )
             return None
 
-    def _generate_content_embedding(self, content: str) -> list[float] | None:
+    async def _generate_content_embedding(self, content: str) -> list[float] | None:
         """
-        Generate embedding for content using E5-small.
+        Generate embedding for content deduplication.
 
-        Delegates to shared helper for consistency across interest domain.
+        Delegates to the shared interest embedding helper (Gemini model and
+        dimensions come from settings) for consistency across the domain.
 
         Args:
             content: Text content to embed
 
         Returns:
-            384-dimensional embedding vector, or None if generation fails
+            Embedding vector, or None if generation fails
         """
         from src.domains.interests.helpers import generate_interest_embedding
 
-        return generate_interest_embedding(content)
+        return await generate_interest_embedding(content)
 
     def _is_duplicate(
         self,

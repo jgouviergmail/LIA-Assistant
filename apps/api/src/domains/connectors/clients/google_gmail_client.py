@@ -6,6 +6,7 @@ Inherits from BaseGoogleClient for common functionality.
 Reference: https://developers.google.com/gmail/api/reference/rest
 """
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -638,15 +639,27 @@ class GoogleGmailClient(BaseGoogleClient):
         # Get list of message IDs
         message_ids = [msg["id"] for msg in response.get("messages", [])]
 
-        # Fetch message metadata (batch would be better, but simpler for MVP)
-        messages = []
-        for msg_id in message_ids[:effective_max_results]:
-            try:
-                msg_data = await self.get_message(msg_id, format=GMAIL_FORMAT_METADATA)
-                messages.append(msg_data)
-            except Exception as e:
-                logger.warning("gmail_search_message_fetch_failed", message_id=msg_id, error=str(e))
-                continue
+        # Fetch message metadata concurrently (audit wave 3, N-194.8): the
+        # list endpoint returns IDs only, so each result costs one more
+        # round-trip. Concurrency is bounded by a semaphore and every fetch
+        # still passes through the Redis rate limiter in _make_request.
+        # Order of results follows message_ids; failed fetches are skipped.
+        semaphore = asyncio.Semaphore(settings.emails_search_fetch_concurrency)
+
+        async def _fetch_metadata(msg_id: str) -> dict[str, Any] | None:
+            async with semaphore:
+                try:
+                    return await self.get_message(msg_id, format=GMAIL_FORMAT_METADATA)
+                except Exception as e:
+                    logger.warning(
+                        "gmail_search_message_fetch_failed", message_id=msg_id, error=str(e)
+                    )
+                    return None
+
+        fetched = await asyncio.gather(
+            *(_fetch_metadata(msg_id) for msg_id in message_ids[:effective_max_results])
+        )
+        messages = [msg for msg in fetched if msg is not None]
 
         result = {
             "messages": messages,
@@ -881,11 +894,25 @@ class GoogleGmailClient(BaseGoogleClient):
             to = original_from
             cc = None
 
+        # Build the full body (reply + quoted original) BEFORE constructing
+        # the MIME part — same pattern as apple_email and forward_email.
+        # Never set_payload() on an already-encoded MIMEText: it relies on
+        # undocumented re-encoding behavior of the email package (audit
+        # wave 3, N-194.10).
+        original_date = header_dict.get("date", "")
+        original_body = self._extract_body_recursive(original.get("payload", {}))
+
+        full_body = body
+        if original_body and not is_html:
+            quoted_lines = "\n".join(f"> {line}" for line in original_body.strip().splitlines())
+            quoted_block = f"\n\nOn {original_date}, {original_from} wrote:\n{quoted_lines}"
+            full_body = body + quoted_block
+
         # Build MIME message
         if is_html:
-            message = MIMEText(body, "html", "utf-8")
+            message = MIMEText(full_body, "html", "utf-8")
         else:
-            message = MIMEText(body, "plain", "utf-8")
+            message = MIMEText(full_body, "plain", "utf-8")
 
         # Encode headers with RFC 2047 for non-ASCII characters
         message["To"] = self._encode_email_header(to)
@@ -895,16 +922,6 @@ class GoogleGmailClient(BaseGoogleClient):
 
         if cc:
             message["Cc"] = self._encode_email_header(cc)
-
-        # Extract original body and append as quoted text
-        original_date = header_dict.get("date", "")
-        original_body = self._extract_body_recursive(original.get("payload", {}))
-
-        if original_body and not is_html:
-            quoted_lines = "\n".join(f"> {line}" for line in original_body.strip().splitlines())
-            quoted_block = f"\n\nOn {original_date}, {original_from} wrote:\n{quoted_lines}"
-            # Replace body part with body + quoted original
-            message.set_payload((body + quoted_block).encode("utf-8"))
 
         # Encode to base64url
         raw_message = self._encode_base64url(message.as_string())

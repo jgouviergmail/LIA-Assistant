@@ -46,6 +46,7 @@ from src.core.constants import (
     TOKEN_ENCODING_NAME_DEFAULT,
     TOOL_CONTEXT_CONFIDENCE_THRESHOLD,
     TOOL_CONTEXT_MAX_ITEMS,
+    USER_PREFERENCES_CACHE_TTL_SECONDS_DEFAULT,
     WEB_FETCH_CACHE_PREFIX,
     WEB_FETCH_CACHE_TTL_DEFAULT,
     WEB_SEARCH_CACHE_ENABLED_DEFAULT,
@@ -125,6 +126,15 @@ class AdvancedSettings(BaseSettings):
     supported_languages: str | list[str] = Field(
         default=SUPPORTED_LANGUAGES,
         description="List of supported languages for UI (comma-separated or list)",
+    )
+    user_preferences_cache_ttl_seconds: int = Field(
+        default=USER_PREFERENCES_CACHE_TTL_SECONDS_DEFAULT,
+        ge=0,
+        description=(
+            "TTL of the per-worker cache for user timezone/language used by tools "
+            "(0 disables caching). The updating worker is invalidated immediately; "
+            "other uvicorn workers converge within this window."
+        ),
     )
 
     # ========================================================================

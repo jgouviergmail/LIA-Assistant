@@ -653,7 +653,7 @@ async def _find_similar_interest(
     # Generate embedding for the new topic
     from src.domains.interests.helpers import generate_interest_embedding
 
-    topic_embedding = generate_interest_embedding(topic)
+    topic_embedding = await generate_interest_embedding(topic)
 
     best_match: UserInterest | None = None
     best_similarity: float = 0.0
@@ -1058,7 +1058,9 @@ async def extract_interests_background(
                                     generate_interest_embedding,
                                 )
 
-                                interest.embedding = generate_interest_embedding(extracted.topic)
+                                interest.embedding = await generate_interest_embedding(
+                                    extracted.topic
+                                )
                             if extracted.category:
                                 interest.category = extracted.category.value
                             await repo.consolidate_on_mention(interest)
@@ -1095,7 +1097,7 @@ async def extract_interests_background(
                         # Compute embedding for the topic (for deduplication)
                         from src.domains.interests.helpers import generate_interest_embedding
 
-                        topic_embedding = generate_interest_embedding(extracted.topic)
+                        topic_embedding = await generate_interest_embedding(extracted.topic)
 
                         # Create new interest
                         new_interest = await repo.create(

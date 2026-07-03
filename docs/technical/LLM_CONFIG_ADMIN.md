@@ -216,7 +216,9 @@ Cross-worker cache invalidation is handled via Redis Pub/Sub (ADR-063). When `in
 
 ---
 
-## 35 Types LLM
+## Types LLM
+
+> La liste exhaustive et à jour est `LLM_TYPES_REGISTRY` (`src/domains/llm_config/constants.py`) — 54 types au 2026-07. Le tableau ci-dessous donne les catégories principales.
 
 ### Catégories
 
@@ -227,7 +229,7 @@ Cross-worker cache invalidation is handled via Redis Pub/Sub (ADR-063). When `in
 | **Query & Response** | `query_agent`, `response` |
 | **HITL** | `hitl_classifier`, `hitl_question_generator`, `hitl_plan_approval_question_generator` |
 | **Memory** | `memory_extraction`, `memory_reference_extraction`, `memory_reference_resolution` |
-| **Background** | `interest_extraction`, `interest_content`, `heartbeat_decision`, `heartbeat_message`, `broadcast_translator` |
+| **Background** | `interest_extraction`, `interest_content`, `heartbeat_decision`, `heartbeat_message`, `broadcast_translator`, `personality_translation` |
 | **Initiative** | `initiative` — Post-execution cross-domain enrichment |
 | **MCP ReAct** | `mcp_react_agent` — Iterative sub-agent for regular MCP servers with `iterative_mode` |
 | **MCP App (ReAct)** | `mcp_app_react_agent` — Iterative sub-agent for MCP App servers (with interactive widgets like Excalidraw). Auto-selected when `app_resource_uri` present. Defaults to Qwen 3.6-plus. |

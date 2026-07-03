@@ -51,7 +51,12 @@ async def test_execute_single_action_marks_run_as_automated_source():
     action.action_prompt = "Summarize my unread emails"
     action.title = "Morning briefing"
 
-    user = MagicMock(is_active=True, language="fr", timezone="Europe/Paris")
+    user = MagicMock(
+        is_active=True,
+        language="fr",
+        timezone="Europe/Paris",
+        response_display_mode="markdown",
+    )
 
     db = MagicMock()
     db.commit = AsyncMock()
@@ -136,3 +141,6 @@ async def test_execute_single_action_marks_run_as_automated_source():
     assert kwargs["is_automated_source"] is True
     # Sanity: scheduled actions also auto-approve the HITL plan gate.
     assert kwargs["auto_approve_plan"] is True
+    # Regression: the user's display-mode preference must reach the agent run
+    # instead of silently defaulting to "cards".
+    assert kwargs["user_display_mode"] == "markdown"

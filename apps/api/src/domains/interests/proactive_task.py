@@ -574,7 +574,7 @@ class InterestProactiveTask:
                     # Generate embedding for deduplication of future content
                     from src.domains.interests.helpers import generate_interest_embedding
 
-                    content_embedding = generate_interest_embedding(result.content)
+                    content_embedding = await generate_interest_embedding(result.content)
 
                     if content_embedding:
                         logger.debug(

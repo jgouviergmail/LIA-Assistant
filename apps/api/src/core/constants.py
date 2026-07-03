@@ -662,6 +662,25 @@ RATE_LIMIT_SSE_MAX_PER_MINUTE = 120  # Cap for SSE multiplier (2x default, max 1
 SUPPORTED_LANGUAGES = ["fr", "en", "es", "de", "it", "zh-CN"]
 DEFAULT_LANGUAGE = "fr"
 
+# Display locale (BCP 47) per supported language, used for date/number
+# formatting in tool payloads. Never derive a locale as f"{lang}-{lang.upper()}"
+# — that produces nonexistent locales ("en-EN", "zh-ZH"). Extend this mapping
+# instead (audit wave 3, N-129).
+LANGUAGE_TO_LOCALE = {
+    "fr": "fr-FR",
+    "en": "en-US",
+    "es": "es-ES",
+    "de": "de-DE",
+    "it": "it-IT",
+    "zh-CN": "zh-CN",
+}
+
+# Boot-time completeness guard (ADR-085): refuse to boot if a supported
+# language has no display locale.
+assert set(LANGUAGE_TO_LOCALE) == set(
+    SUPPORTED_LANGUAGES
+), "LANGUAGE_TO_LOCALE must cover exactly SUPPORTED_LANGUAGES"
+
 # ============================================================================
 # CURRENCY & PRICING
 # ============================================================================
@@ -1973,6 +1992,10 @@ PLACES_TOOL_DEFAULT_RADIUS_METERS_DEFAULT = 500
 DRIVE_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
 EMAILS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
 EMAILS_TOOL_DEFAULT_LIMIT_DEFAULT = 10
+# Concurrent per-message metadata fetches during Gmail search (the list
+# endpoint returns IDs only — N+1 pattern). 8 concurrent fetches resolve
+# 20 results in ~3 sequential-equivalent round-trips (audit wave 3, N-194.8).
+EMAILS_SEARCH_FETCH_CONCURRENCY_DEFAULT = 8
 API_MAX_ITEMS_PER_REQUEST_DEFAULT = 10  # Aligned from .env.prod
 CIRCUIT_BREAKER_FAILURE_THRESHOLD_DEFAULT = 3  # Aligned from .env.prod (was 5)
 CIRCUIT_BREAKER_SUCCESS_THRESHOLD_DEFAULT = 3
@@ -2378,8 +2401,16 @@ DEFAULT_USER_DISPLAY_TIMEZONE = "Europe/Paris"
 # Default locale for formatting (used when user_language is not set in state)
 DEFAULT_LOCALE = "en-US"
 
-# Note: DEFAULT_LANGUAGE is defined in the I18N section above (line ~554)
-# Note: LANGUAGE_TO_LOCALE_MAP removed (dead code - never imported)
+# Note: DEFAULT_LANGUAGE and LANGUAGE_TO_LOCALE are defined in the I18N
+# section above.
+
+# Per-worker TTL cache for user display preferences (timezone/language) used
+# by tools — avoids one User query per tool call (audit wave 3, N-129).
+# Default TTL: profile changes propagate to other uvicorn workers within
+# this window (same worker is invalidated immediately).
+USER_PREFERENCES_CACHE_TTL_SECONDS_DEFAULT = 300
+# Entry-count safety valve; the cache resets if it ever exceeds this.
+USER_PREFERENCES_CACHE_MAX_ENTRIES = 10_000
 
 # ============================================================================
 # ARCHITECTURE V3 - Intelligence, Autonomy, Relevance (NOW DEFAULT)

@@ -1542,6 +1542,7 @@
           "heartbeat_decision": "Decide si una notificación proactiva es relevante",
           "heartbeat_message": "Genera el mensaje de notificación proactiva",
           "broadcast_translator": "Traduce los mensajes de difusión",
+          "personality_translation": "Traduce los títulos y descripciones de las personalidades",
           "voice_comment": "Genera los comentarios de voz para TTS",
           "mcp_description": "Genera las descripciones de los servidores MCP",
           "mcp_app_react_agent": "Agente ReAct para servidores MCP con widgets interactivos (MCP Apps)",
@@ -2933,6 +2934,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_5": {
+          "title": "v1.21.5 — ⚡ Rendimiento y refuerzo (auditoría oleada 3)",
+          "date": "Julio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>⚡ Una aplicación más fluida y reactiva</b> — Las operaciones pesadas en segundo plano (notificaciones push, generación de imágenes) ya no congelan brevemente la interfaz, y la búsqueda de correos devuelve resultados más rápido. Internamente, el trabajo bloqueante se trasladó fuera del hilo principal y varias búsquedas secuenciales ahora se ejecutan en paralelo.",
+            "i2": "<b>🗓️ Formatos de fecha correctos en cada idioma</b> — Un error de formato regional usaba una configuración regional no válida para algunos idiomas (en particular inglés y chino). Las fechas ahora se muestran en el formato propio de tu idioma.",
+            "i3": "<b>🛡️ Seguridad reforzada</b> — El saludo personalizado de tu panel ya no puede ejecutar contenido inyectado procedente de datos externos (por ejemplo, el título manipulado de un evento), y se añadió una política de seguridad estricta del navegador (Content-Security-Policy) como capa adicional contra la inyección de scripts.",
+            "i4": "<b>🔒 Admin · servicios internos aislados de la red</b> — En producción, los servicios internos (base de datos, paneles de supervisión, métricas) ya no son accesibles desde la red local: solo la aplicación web queda expuesta, tras el túnel seguro. La interacción del cortafuegos con Docker ahora está documentada.",
+            "i5": "<b>🌍 Admin · difusiones instantáneas y traductor configurable</b> — Los anuncios de difusión traducidos ahora se almacenan, por lo que releerlos no cuesta nada (antes se retraducían en cada visualización). El traductor de personalidades también aparece en la Configuración LLM de administración y respeta tus anulaciones de modelo."
+          }
+        },
         "v1_21_4": {
           "title": "v1.21.4 — 🛡️ Fiabilidad y privacidad: refuerzo sistémico (auditoría ola 2)",
           "date": "Julio 2026",
@@ -5508,7 +5521,7 @@
       },
       "bff": {
         "title": "Arquitectura segura",
-        "description": "Patrón BFF con cookies HTTP-only, sesiones Redis, tokens nunca expuestos al frontend. Protección OWASP Top 10."
+        "description": "Patrón BFF con cookies HTTP-only, sesiones Redis, tokens nunca expuestos al frontend. Content-Security-Policy estricta y protección OWASP Top 10."
       },
       "encryption": {
         "title": "Cifrado",

@@ -106,6 +106,10 @@ PromptName = Literal[
     "heartbeat_message_prompt",
     # MCP domain description generation
     "mcp_description_prompt",
+    # Admin broadcast translation
+    "broadcast_translation_prompt",
+    # Personality title/description translation (admin UI)
+    "personality_translation_prompt",
     # Skills system
     "skill_description_translation_prompt",
     "skill_react_agent_prompt",

@@ -899,3 +899,150 @@ class TestNormalizeMessageFields:
 
         # text/plain preferred over text/html
         assert msg["body"] == "Plain text body"
+
+
+@pytest.mark.asyncio
+async def test_search_emails_fetches_metadata_concurrently(gmail_client):
+    """Per-message metadata fetches must overlap (audit wave 3, N-194.8).
+
+    Gmail's list endpoint returns IDs only; fetching each message's metadata
+    one-by-one costs N sequential round-trips. With a 20 ms fake network
+    latency and 20 results, a sequential implementation needs >= 400 ms while
+    the bounded-concurrency one stays well under half of that.
+    """
+    from src.core.config import settings
+
+    # Never hardcode a settings-driven threshold: search results are capped
+    # by api_max_items_per_request, so size the workload from settings.
+    num_messages = settings.api_max_items_per_request
+    delay = 0.03
+    search_response = {
+        "messages": [{"id": f"msg{i}"} for i in range(num_messages)],
+        "resultSizeEstimate": num_messages,
+    }
+
+    async def fake_request(method, endpoint, params=None, **kwargs):
+        if endpoint == "/users/me/messages":
+            return search_response
+        await asyncio.sleep(delay)  # simulated network round-trip
+        msg_id = endpoint.rsplit("/", 1)[-1]
+        return {"id": msg_id, "threadId": f"thread-{msg_id}", "snippet": f"snippet {msg_id}"}
+
+    with patch.object(gmail_client, "_make_request", side_effect=fake_request):
+        with patch(
+            "src.domains.connectors.clients.google_gmail_client.get_redis_cache"
+        ) as mock_cache:
+            mock_redis = AsyncMock()
+            mock_redis.get = AsyncMock(return_value=None)
+            mock_redis.setex = AsyncMock()
+            mock_cache.return_value = mock_redis
+
+            loop = asyncio.get_running_loop()
+            start = loop.time()
+            result = await gmail_client.search_emails(query="test", max_results=num_messages)
+            duration = loop.time() - start
+
+    # Same payloads, same order as the ID list
+    assert [m["id"] for m in result["messages"]] == [f"msg{i}" for i in range(num_messages)]
+    assert all(m["threadId"] == f"thread-{m['id']}" for m in result["messages"])
+    assert result["from_cache"] is False
+
+    sequential_floor = num_messages * delay
+    assert duration < sequential_floor / 2, (
+        f"search_emails took {duration * 1000:.0f} ms for {num_messages} fetches "
+        f"(sequential floor {sequential_floor * 1000:.0f} ms) — metadata fetches are not concurrent"
+    )
+
+
+@pytest.mark.asyncio
+async def test_search_emails_skips_failed_fetches(gmail_client):
+    """A failing per-message fetch is skipped, others are returned."""
+
+    async def fake_request(method, endpoint, params=None, **kwargs):
+        if endpoint == "/users/me/messages":
+            return {"messages": [{"id": "ok1"}, {"id": "boom"}, {"id": "ok2"}]}
+        msg_id = endpoint.rsplit("/", 1)[-1]
+        if msg_id == "boom":
+            raise RuntimeError("fetch failed")
+        return {"id": msg_id, "threadId": f"thread-{msg_id}"}
+
+    with patch.object(gmail_client, "_make_request", side_effect=fake_request):
+        with patch(
+            "src.domains.connectors.clients.google_gmail_client.get_redis_cache"
+        ) as mock_cache:
+            mock_redis = AsyncMock()
+            mock_redis.get = AsyncMock(return_value=None)
+            mock_redis.setex = AsyncMock()
+            mock_cache.return_value = mock_redis
+
+            result = await gmail_client.search_emails(query="test", max_results=10)
+
+    assert [m["id"] for m in result["messages"]] == ["ok1", "ok2"]
+
+
+@pytest.mark.asyncio
+async def test_reply_email_quoted_body_survives_mime_encoding(gmail_client):
+    """Reply body + quoted original must decode correctly (audit wave 3, N-194.10).
+
+    The old code called set_payload(raw utf-8 bytes) on a MIMEText that was
+    already base64-encoded: the stale Content-Transfer-Encoding header made
+    recipients decode garbage (broken accents, scrambled body). The payload
+    of the raw message actually sent to the Gmail API must decode back to the
+    exact reply text with the quoted original.
+    """
+    import email as email_lib
+
+    original_message = {
+        "id": "orig-1",
+        "threadId": "thread-1",
+        "payload": {
+            "headers": [
+                {"name": "Subject", "value": "Réunion budget"},
+                {"name": "From", "value": "Jérôme Gouvier <jerome@example.com>"},
+                {"name": "Date", "value": "Thu, 2 Jul 2026 10:00:00 +0200"},
+                {"name": "Message-ID", "value": "<orig-1@mail.example.com>"},
+            ],
+            "mimeType": "text/plain",
+            "body": {
+                "data": base64.urlsafe_b64encode(
+                    "Voici l'échéance prévue : début août.".encode()
+                ).decode("ascii")
+            },
+        },
+    }
+
+    captured: dict = {}
+
+    async def fake_request(method, endpoint, params=None, json_data=None, **kwargs):
+        if endpoint == "/users/me/messages/send":
+            captured.update(json_data)
+            return {"id": "sent-1", "threadId": "thread-1"}
+        raise AssertionError(f"unexpected request {endpoint}")
+
+    with patch.object(gmail_client, "get_message", AsyncMock(return_value=original_message)):
+        with patch.object(gmail_client, "_make_request", side_effect=fake_request):
+            await gmail_client.reply_email(
+                message_id="orig-1",
+                body="Merci, c'est noté — à très bientôt !",
+            )
+
+    # Decode the exact bytes Gmail would deliver
+    raw = captured["raw"]
+    padding = len(raw) % 4
+    if padding:
+        raw += "=" * (4 - padding)
+    parsed = email_lib.message_from_bytes(base64.urlsafe_b64decode(raw))
+    decoded_body = parsed.get_payload(decode=True).decode("utf-8")
+
+    assert "Merci, c'est noté — à très bientôt !" in decoded_body
+    assert "> Voici l'échéance prévue : début août." in decoded_body
+    assert "Jérôme Gouvier" in decoded_body  # quoted attribution line
+    assert captured["threadId"] == "thread-1"
+    # Subject is RFC 2047-encoded (non-ASCII) — decode before asserting
+    from email.header import decode_header
+
+    subject_decoded = "".join(
+        part.decode(enc or "ascii") if isinstance(part, bytes) else part
+        for part, enc in decode_header(parsed["Subject"])
+    )
+    assert subject_decoded == "Re: Réunion budget"

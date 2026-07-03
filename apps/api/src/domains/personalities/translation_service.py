@@ -1,7 +1,9 @@
 """
-Automatic translation service using GPT-4.1-nano.
+Automatic translation service for personality titles and descriptions.
 
-Provides cost-effective translation for personality titles and descriptions.
+Uses the ``personality_translation`` LLM slot (LLM_TYPES_REGISTRY): defaults
+come from LLM_DEFAULTS and can be overridden from the admin LLM
+Configuration UI (audit wave 3, N-219.1).
 """
 
 import json
@@ -11,6 +13,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import settings
 from src.core.i18n_types import LANGUAGE_NAMES
+from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 
 logger = structlog.get_logger(__name__)
@@ -22,17 +26,16 @@ _translation_cache: dict[str, dict[str, str]] = {}
 
 class PersonalityTranslationService:
     """
-    Cost-effective translation service using GPT-4.1-nano.
+    Cost-effective translation service for personality titles/descriptions.
+
+    Model, temperature and token budget come from the registered
+    ``personality_translation`` LLM slot (code defaults + admin DB override).
 
     Features:
     - In-memory caching to avoid redundant API calls
     - Batch translation to all supported languages
     - JSON-based structured output
     """
-
-    MODEL = "gpt-4.1-nano"
-    TEMPERATURE = 0.3
-    MAX_TOKENS = 500
 
     @staticmethod
     async def translate_personality(
@@ -78,28 +81,18 @@ class PersonalityTranslationService:
         source_name = LANGUAGE_NAMES.get(source_language, source_language)
         target_name = LANGUAGE_NAMES.get(target_language, target_language)
 
-        # Build prompts
-        system_prompt = f"""You are a professional UI translator.
-Translate the following text from {source_name} to {target_name}.
-Return ONLY valid JSON in this exact format: {{"title": "...", "description": "..."}}
-Keep the tone and style appropriate for a UI label.
-Do not add any explanation or markdown."""
+        # Build prompts (system prompt is versioned in prompts/v1/)
+        system_prompt = load_prompt("personality_translation_prompt", version="v1").format(
+            source_language=source_name,
+            target_language=target_name,
+        )
 
         user_prompt = f"""Title: {source_title}
 Description: {source_description}"""
 
         try:
-            # Import LLM provider
-            from src.infrastructure.llm.providers.adapter import ProviderAdapter
-
-            llm = ProviderAdapter.create_llm(
-                provider="openai",
-                model=PersonalityTranslationService.MODEL,
-                temperature=PersonalityTranslationService.TEMPERATURE,
-                max_tokens=PersonalityTranslationService.MAX_TOKENS,
-                streaming=False,
-                llm_type="personality_translation",
-            )
+            # Registered LLM slot: code defaults + admin DB override
+            llm = get_llm("personality_translation")
 
             from src.infrastructure.llm.invoke_helpers import (
                 enrich_config_with_node_metadata,
