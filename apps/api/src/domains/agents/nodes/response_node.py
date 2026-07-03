@@ -2432,8 +2432,17 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         safe_rejection_override = escape_braces(rejection_override)
         safe_agent_results = escape_braces(agent_results_summary)
         safe_skills_context = escape_braces(skills_context) if skills_context else ""
+        # base_system_prompt embeds the conversation history (get_response_prompt
+        # conversation_history=...), which can contain literal curly braces from
+        # the user or assistant (LaTeX like \frac{d}{2}, MCP/HTML payloads).
+        # ChatPromptTemplate re-processes each system string as an f-string, so
+        # a stray "{2}" raised ValueError ("Invalid variable name '2'") and
+        # crashed every follow-up turn. Escape it like the other injected blocks
+        # (the prompt is already fully rendered — no template vars remain; the
+        # actual messages flow through MessagesPlaceholder, not this string).
+        safe_base_system_prompt = escape_braces(base_system_prompt)
 
-        prompt_messages: list[Any] = [("system", base_system_prompt)]
+        prompt_messages: list[Any] = [("system", safe_base_system_prompt)]
         # Skill instructions are injected as a DEDICATED high-priority system
         # message placed right after the base prompt. Rationale: when a skill
         # is active, its ``references/*.md`` content (format rules, business
