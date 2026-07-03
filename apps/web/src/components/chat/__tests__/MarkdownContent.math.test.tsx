@@ -72,4 +72,30 @@ describe('MarkdownContent — math delimiters', () => {
     const { container } = render(<MarkdownContent content={'Le terme $r^2$ ici.'} />);
     expect(container.querySelector('.katex')).not.toBeNull();
   });
+
+  it('leaves $ inside inline code untouched (no visible backslash)', () => {
+    // The currency-protection preprocessor runs on the raw string; it must
+    // skip code spans, else it would inject a literal "\$".
+    const { container } = render(<MarkdownContent content={'Lance `echo $PATH` maintenant.'} />);
+    const code = container.querySelector('code');
+    expect(code?.textContent).toBe('echo $PATH');
+    expect(container.textContent).not.toContain('\\$');
+  });
+
+  it('leaves $ inside fenced code blocks untouched', () => {
+    const { container } = render(
+      <MarkdownContent content={'```sh\nexport A=$B\ncost 9$\n```'} />
+    );
+    expect(container.textContent).toContain('$B');
+    expect(container.textContent).toContain('9$');
+    expect(container.textContent).not.toContain('\\$');
+  });
+
+  it('renders a dollar price inside an HTML card without a visible backslash', () => {
+    const { container } = render(
+      <MarkdownContent content={'<span class="lia-card__meta">9$</span>'} />
+    );
+    expect(container.querySelector('.lia-card__meta')?.textContent).toBe('9$');
+    expect(container.textContent).not.toContain('\\$');
+  });
 });

@@ -463,22 +463,21 @@ function sanitizeMalformedTags(text: string): string {
  * `$$…$$` display math is left untouched (segments between `$$` toggles are
  * skipped), and already-escaped `\$` are preserved.
  */
+// Regions where `$` must be left untouched: fenced code blocks, inline code
+// (single/double backtick), and `$$…$$` display math. Escaping `$` inside a
+// code span would surface a literal backslash (markdown does not unescape
+// inside code), and display math is already handled by remark-math.
+const PROTECTED_SPAN_RE =
+  /(```[\s\S]*?```|~~~[\s\S]*?~~~|``[\s\S]*?``|`[^`\n]*`|\$\$[\s\S]*?\$\$)/g;
+
 function protectInlineMathDollars(text: string): string {
   if (!text.includes('$')) return text;
 
-  // Split on `$$` so display-math segments are preserved verbatim.
-  const parts = text.split(/(\$\$)/);
-  let insideDisplay = false;
-
-  return parts
-    .map(part => {
-      if (part === '$$') {
-        insideDisplay = !insideDisplay;
-        return part;
-      }
-      if (insideDisplay) return part;
-      return escapeCurrencyDollars(part);
-    })
+  // String.split with a capturing group yields protected spans at odd indices
+  // and the processable gaps between them at even indices.
+  return text
+    .split(PROTECTED_SPAN_RE)
+    .map((part, i) => (i % 2 === 0 ? escapeCurrencyDollars(part) : part))
     .join('');
 }
 
