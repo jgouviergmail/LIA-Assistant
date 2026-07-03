@@ -743,35 +743,41 @@ class ToolContextManager:
             ]
 
         Note:
-            V1 implementation uses Registry iteration (acceptable for InMemoryStore).
-            V2 with PostgresStore will use store.alist_namespaces() for better performance.
+            Domains are scanned concurrently (audit wave 3, N-175): this sits
+            on the hot path of resolve_reference and a sequential scan costs
+            ~2 store reads per registered domain. Today's Store serializes
+            reads on a single connection, so the full gain lands with the V5
+            connection pool — the call pattern is already concurrent-ready.
 
         Example:
             >>> active = await manager.list_active_domains("user123", "sess456", store)
             >>> # [{"domain": "contacts", "items_count": 10, ...}]
         """
-        active_domains = []
 
-        # Iterate over all registered domains
-        for domain in ContextTypeRegistry.list_all():
+        async def _summarize_domain(domain: str) -> dict[str, Any] | None:
+            """Build the summary for one domain, or None if inactive."""
             context_list = await self.get_list(user_id, session_id, domain, store)
 
-            if context_list and context_list.items:
-                current_item = await self.get_current_item(user_id, session_id, domain, store)
+            if not (context_list and context_list.items):
+                return None
 
-                active_domains.append(
-                    {
-                        "domain": domain,
-                        "items_count": len(context_list.items),
-                        "current_item": current_item,
-                        "last_query": context_list.metadata.query,
-                        FIELD_TURN_ID: context_list.metadata.turn_id,
-                        FIELD_TIMESTAMP: context_list.metadata.timestamp,
-                    }
-                )
+            current_item = await self.get_current_item(user_id, session_id, domain, store)
 
-        # Debug log removed - hot path, return value is self-documenting
-        return active_domains
+            return {
+                "domain": domain,
+                "items_count": len(context_list.items),
+                "current_item": current_item,
+                "last_query": context_list.metadata.query,
+                FIELD_TURN_ID: context_list.metadata.turn_id,
+                FIELD_TIMESTAMP: context_list.metadata.timestamp,
+            }
+
+        # gather preserves registry order, matching the previous sequential scan
+        summaries = await asyncio.gather(
+            *(_summarize_domain(domain) for domain in ContextTypeRegistry.list_all())
+        )
+
+        return [summary for summary in summaries if summary is not None]
 
     # ==========================================
     # AUTO-SAVE DISPATCH

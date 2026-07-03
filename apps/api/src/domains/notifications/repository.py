@@ -7,7 +7,8 @@ Provides data access layer for user FCM tokens and broadcast messages.
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import delete, literal, or_, select, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -372,6 +373,38 @@ class BroadcastRepository(BaseRepository[AdminBroadcast]):
                 total_recipients=total_recipients,
                 fcm_sent=fcm_sent,
                 fcm_failed=fcm_failed,
+            )
+        )
+        await self.db.execute(stmt)
+
+    async def merge_translations(
+        self,
+        broadcast_id: UUID,
+        translations: dict[str, str],
+    ) -> None:
+        """
+        Merge translations into the JSONB cache column (server-side atomic).
+
+        Uses ``coalesce(translations, '{}') || :new`` so concurrent lazy
+        backfills from different workers (e.g., two devices reading the same
+        historical broadcast) never lose each other's languages — a plain
+        read-modify-write reassignment would be last-write-wins.
+
+        Args:
+            broadcast_id: Broadcast UUID
+            translations: New entries {language: translated text} to merge
+        """
+        if not translations:
+            return
+
+        stmt = (
+            update(AdminBroadcast)
+            .where(AdminBroadcast.id == broadcast_id)
+            .values(
+                message_translations=func.coalesce(
+                    AdminBroadcast.message_translations,
+                    literal({}, type_=JSONB),
+                ).op("||")(literal(translations, type_=JSONB))
             )
         )
         await self.db.execute(stmt)

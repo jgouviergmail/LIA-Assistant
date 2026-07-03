@@ -21,6 +21,55 @@ const allowedDevOrigins = [
   ]),
 ];
 
+// --- Content-Security-Policy (audit wave 3, A4) ---
+// Defense-in-depth against XSS: an injected <script src> or eval() is blocked
+// even if a rendering bug ever reintroduces raw HTML. Constraints honored:
+// - Next.js App Router ships inline bootstrap scripts → 'unsafe-inline' is
+//   required in script-src (no per-request nonce with static headers). The
+//   header still blocks every EXTERNAL script origin and eval().
+// - Sherpa-onnx voice mode compiles WASM → 'wasm-unsafe-eval' + blob: workers.
+// - MCP/Skill widget iframes use srcDoc (inherit this CSP) and are
+//   self-contained by design — inline allowance keeps them working.
+// - Google Fonts stylesheet + font files (see app/[lng]/layout.tsx).
+// - In production the API is a separate origin (NEXT_PUBLIC_API_URL) reached
+//   via fetch/SSE/WebSocket → connect-src includes it (+ ws(s) variant).
+// - Dev: turbopack HMR needs eval() and websockets.
+const isDev = process.env.NODE_ENV === 'development';
+
+function buildConnectSrc(): string {
+  const sources = ["'self'"];
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (apiUrl) {
+    try {
+      const origin = new URL(apiUrl).origin;
+      sources.push(origin, origin.replace(/^http/, 'ws'));
+    } catch {
+      // Malformed URL — fall back to same-origin only
+    }
+  }
+  if (isDev) {
+    sources.push('ws:', 'wss:', 'http://localhost:8000', 'http://127.0.0.1:8000');
+  }
+  return sources.join(' ');
+}
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ''}`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  // https: for user-facing remote images (chat markdown, connector data);
+  // images are not a script vector and COEP already gates embedding
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' data: blob:",
+  "worker-src 'self' blob:",
+  `connect-src ${buildConnectSrc()}`,
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+].join('; ');
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -91,6 +140,12 @@ const nextConfig: NextConfig = {
           {
             key: 'Cross-Origin-Opener-Policy',
             value: 'same-origin'
+          },
+          // Strict CSP (audit A4) — see contentSecurityPolicy above for the
+          // rationale of each directive
+          {
+            key: 'Content-Security-Policy',
+            value: contentSecurityPolicy
           }
         ]
       }

@@ -1910,6 +1910,7 @@
           "heartbeat_decision": "Décide si une notification proactive est pertinente",
           "heartbeat_message": "Génère le message de notification proactive",
           "broadcast_translator": "Traduit les messages de diffusion",
+          "personality_translation": "Traduit les titres et descriptions des personnalités",
           "voice_comment": "Génère les commentaires vocaux pour le TTS",
           "mcp_description": "Génère les descriptions des serveurs MCP",
           "mcp_app_react_agent": "Agent ReAct pour les serveurs MCP avec widgets interactifs (MCP Apps)",
@@ -2947,6 +2948,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_5": {
+          "title": "v1.21.5 — ⚡ Performances et durcissement (audit vague 3)",
+          "date": "Juillet 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>⚡ Une application plus fluide et réactive</b> — Les opérations lourdes en arrière-plan (notifications push, génération d'images) ne figent plus brièvement l'interface, et la recherche d'e-mails renvoie ses résultats plus vite. En coulisses, le travail bloquant a été déporté hors du fil principal et plusieurs recherches séquentielles s'exécutent désormais en parallèle.",
+            "i2": "<b>🗓️ Formats de date corrects dans chaque langue</b> — Un bug de format régional faisait utiliser une locale invalide pour certaines langues (notamment l'anglais et le chinois). Les dates s'affichent désormais dans le format propre à votre langue.",
+            "i3": "<b>🛡️ Sécurité renforcée</b> — Le message d'accueil personnalisé de votre tableau de bord ne peut plus exécuter de contenu injecté provenant de données externes (par exemple un titre d'événement piégé), et une politique de sécurité stricte du navigateur (Content-Security-Policy) a été ajoutée comme couche supplémentaire contre l'injection de scripts.",
+            "i4": "<b>🔒 Admin · services internes isolés du réseau</b> — En production, les services internes (base de données, tableaux de bord de supervision, métriques) ne sont plus accessibles depuis le réseau local : seule l'application web est exposée, derrière le tunnel sécurisé. L'interaction du pare-feu avec Docker est désormais documentée.",
+            "i5": "<b>🌍 Admin · diffusions instantanées et traducteur configurable</b> — Les annonces de diffusion traduites sont désormais mémorisées : les relire ne coûte plus rien (elles étaient auparavant retraduites à chaque affichage). Le traducteur de personnalités apparaît aussi dans la Configuration LLM d'administration et respecte vos surcharges de modèle."
+          }
+        },
         "v1_21_4": {
           "title": "v1.21.4 — 🛡️ Fiabilité & confidentialité : durcissement systémique (audit vague 2)",
           "date": "Juillet 2026",
@@ -5514,7 +5527,7 @@
       },
       "bff": {
         "title": "Architecture sécurisée",
-        "description": "Pattern BFF avec cookies HTTP-only, sessions Redis, tokens jamais exposés au frontend. Protection OWASP Top 10."
+        "description": "Pattern BFF avec cookies HTTP-only, sessions Redis, tokens jamais exposés au frontend. Content-Security-Policy stricte et protection OWASP Top 10."
       },
       "encryption": {
         "title": "Chiffrement",

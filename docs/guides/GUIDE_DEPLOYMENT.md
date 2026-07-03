@@ -125,6 +125,16 @@ graph TB
 | **Load Balancer** | NGINX / AWS ALB | N/A | ✅ Managed service |
 | **Monitoring** | Prometheus + Grafana | N/A | ✅ Persistent storage |
 
+### Exposition réseau (production)
+
+En production, `cloudflared` est le seul point d'entrée public : tous les
+services internes (Postgres, Grafana, Prometheus, Loki, Tempo, Portainer,
+cAdvisor, exporters) sont liés à `127.0.0.1` dans `docker-compose.prod.yml`.
+**Attention : Docker contourne ufw** (chaîne iptables `DOCKER` évaluée avant
+le firewall) — un port publié en `0.0.0.0` est joignable depuis le LAN même
+si ufw le refuse. Détails, tunnels SSH et règle `DOCKER-USER` :
+[infrastructure/README.md](../../infrastructure/README.md).
+
 ### Environnements
 
 1. **Development** : local laptop, Docker Compose

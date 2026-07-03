@@ -219,7 +219,7 @@ async def create_interest(
         repo = InterestRepository(db)
 
         # Generate embedding for semantic deduplication (same as auto-extraction)
-        topic_embedding = generate_interest_embedding(data.topic)
+        topic_embedding = await generate_interest_embedding(data.topic)
 
         if topic_embedding:
             logger.debug(
@@ -588,7 +588,7 @@ async def update_interest(
         # Regenerate embedding if topic changes
         new_embedding = None
         if topic_changed:
-            new_embedding = generate_interest_embedding(new_topic)
+            new_embedding = await generate_interest_embedding(new_topic)
             logger.info(
                 "interest_embedding_regenerated",
                 interest_id=str(interest_id),

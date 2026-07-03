@@ -158,6 +158,7 @@ LLMType = Literal[
     "memory_reference_resolution",  # Pre-planner entity resolution from memory facts
     "voice_comment",  # Voice comment generation for TTS
     "broadcast_translator",  # Broadcast message translation to user's language
+    "personality_translation",  # Personality title/description translation (admin UI)
     # Previously special types (now unified via LLM_DEFAULTS)
     "heartbeat_decision",  # Heartbeat: decide whether to send proactive notification
     "heartbeat_message",  # Heartbeat: generate proactive message

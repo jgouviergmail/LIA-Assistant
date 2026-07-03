@@ -1544,6 +1544,7 @@
           "heartbeat_decision": "Decide se una notifica proattiva è rilevante",
           "heartbeat_message": "Genera il messaggio di notifica proattiva",
           "broadcast_translator": "Traduce i messaggi di diffusione",
+          "personality_translation": "Traduce i titoli e le descrizioni delle personalità",
           "voice_comment": "Genera i commenti vocali per TTS",
           "mcp_description": "Genera le descrizioni dei server MCP",
           "mcp_app_react_agent": "Agente ReAct per server MCP con widget interattivi (MCP Apps)",
@@ -2935,6 +2936,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_5": {
+          "title": "v1.21.5 — ⚡ Prestazioni e rafforzamento (audit ondata 3)",
+          "date": "Luglio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>⚡ Un'app più fluida e reattiva</b> — Le operazioni pesanti in background (notifiche push, generazione di immagini) non bloccano più brevemente l'interfaccia, e la ricerca delle e-mail restituisce i risultati più rapidamente. Dietro le quinte, il lavoro bloccante è stato spostato fuori dal thread principale e diverse ricerche sequenziali ora vengono eseguite in parallelo.",
+            "i2": "<b>🗓️ Formati di data corretti in ogni lingua</b> — Un errore di formato regionale utilizzava una locale non valida per alcune lingue (in particolare inglese e cinese). Le date ora vengono visualizzate nel formato proprio della tua lingua.",
+            "i3": "<b>🛡️ Sicurezza rafforzata</b> — Il saluto personalizzato della tua dashboard non può più eseguire contenuti iniettati provenienti da dati esterni (ad esempio il titolo manomesso di un evento), ed è stata aggiunta una rigorosa policy di sicurezza del browser (Content-Security-Policy) come ulteriore livello contro l'iniezione di script.",
+            "i4": "<b>🔒 Admin · servizi interni isolati dalla rete</b> — In produzione, i servizi interni (database, dashboard di monitoraggio, metriche) non sono più raggiungibili dalla rete locale: solo l'applicazione web è esposta, dietro il tunnel sicuro. L'interazione del firewall con Docker è ora documentata.",
+            "i5": "<b>🌍 Admin · trasmissioni istantanee e traduttore configurabile</b> — Gli annunci di trasmissione tradotti vengono ora memorizzati, quindi rileggerli non costa nulla (in precedenza venivano ritradotti a ogni visualizzazione). Il traduttore delle personalità appare anche nella Configurazione LLM di amministrazione e rispetta le tue sostituzioni di modello."
+          }
+        },
         "v1_21_4": {
           "title": "v1.21.4 — 🛡️ Affidabilità e privacy: rafforzamento sistemico (audit ondata 2)",
           "date": "Luglio 2026",
@@ -5510,7 +5523,7 @@
       },
       "bff": {
         "title": "Architettura sicura",
-        "description": "Pattern BFF con cookie HTTP-only, sessioni Redis, token mai esposti al frontend. Protezione OWASP Top 10."
+        "description": "Pattern BFF con cookie HTTP-only, sessioni Redis, token mai esposti al frontend. Content-Security-Policy rigorosa e protezione OWASP Top 10."
       },
       "encryption": {
         "title": "Crittografia",

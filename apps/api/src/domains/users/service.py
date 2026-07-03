@@ -218,6 +218,13 @@ class UserService:
         user = await self.repository.update(user, update_data)
         await self.db.commit()
 
+        # Drop the per-worker tool preferences cache so tools pick up the new
+        # timezone/language immediately (other workers converge via TTL)
+        if timezone_changed or language_changed:
+            from src.domains.users.preferences_cache import UserPreferencesCache
+
+            UserPreferencesCache.invalidate(str(user_id))
+
         # Sync psyche Big Five traits when personality changes
         if "personality_id" in update_data and update_data["personality_id"] is not None:
             try:

@@ -37,8 +37,9 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 53 LLM types: 51 (v1.18.0) + voice_transcription (ADR-080) + voice_tts (ADR-081)."""
-        assert len(LLM_DEFAULTS) == 53
+        """Should have 54 LLM types: 51 (v1.18.0) + voice_transcription (ADR-080)
+        + voice_tts (ADR-081) + personality_translation (audit wave 3, N-219.1)."""
+        assert len(LLM_DEFAULTS) == 54
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",

@@ -529,47 +529,58 @@ def extract_cache_metadata(result: dict[str, Any]) -> tuple[bool, Any]:
 
 async def get_user_preferences(runtime: ToolRuntime) -> tuple[str, str, str]:
     """
-    Get user timezone, language and locale from database with defaults.
+    Get user timezone, language and locale with per-user TTL caching.
 
     Centralizes the user preferences lookup pattern that appears in tools
-    that need to format dates/times according to user settings.
+    that need to format dates/times according to user settings. Results are
+    cached per user (``UserPreferencesCache``, settings-driven TTL), so a
+    conversation turn issues at most one User query per worker instead of
+    one per tool call. ``UserService.update_user`` invalidates the cache on
+    profile changes.
 
     Args:
         runtime: ToolRuntime containing user_id in config
 
     Returns:
-        Tuple of (timezone: str, language: str, locale: str)
-        Defaults: ("UTC", "fr", "fr-FR")
+        Tuple of (timezone: str, language: str, locale: str).
+        Defaults: ("UTC", settings.default_language, matching BCP 47 locale).
 
     Example:
         >>> timezone, language, locale = await get_user_preferences(runtime)
         >>> formatted_date = format_date(email_date, timezone, locale)
     """
+    from src.core.i18n import get_locale_for_language
+    from src.domains.users.preferences_cache import UserPreferencesCache
+
     user_timezone = "UTC"
-    user_language = "fr"
-    locale = "fr-FR"
+    user_language = settings.default_language
 
     try:
         user_id_raw = runtime.config.get("configurable", {}).get("user_id")
         if user_id_raw:
             user_id = parse_user_id(user_id_raw)
-            from src.domains.users.service import UserService
-            from src.infrastructure.database.session import get_db_context
+            cached = UserPreferencesCache.get(str(user_id))
+            if cached is not None:
+                user_timezone, user_language = cached
+            else:
+                from src.domains.users.service import UserService
+                from src.infrastructure.database.session import get_db_context
 
-            async with get_db_context() as db:
-                user_service = UserService(db)
-                user = await user_service.get_user_by_id(user_id)
-                if user:
-                    user_timezone = user.timezone if user.timezone else "UTC"
-                    user_language = user.language if user.language else "fr"
-                    locale = f"{user_language}-{user_language.upper()}"
-                    logger.debug(
-                        "get_user_preferences_success",
-                        user_id=str(user_id),
-                        timezone=user_timezone,
-                        language=user_language,
-                        locale=locale,
-                    )
+                async with get_db_context() as db:
+                    user_service = UserService(db)
+                    user = await user_service.get_user_by_id(user_id)
+                    if user:
+                        user_timezone = user.timezone if user.timezone else "UTC"
+                        user_language = (
+                            user.language if user.language else settings.default_language
+                        )
+                        UserPreferencesCache.set(str(user_id), user_timezone, user_language)
+                        logger.debug(
+                            "get_user_preferences_success",
+                            user_id=str(user_id),
+                            timezone=user_timezone,
+                            language=user_language,
+                        )
     except Exception as e:
         logger.warning(
             "get_user_preferences_error",
@@ -577,7 +588,7 @@ async def get_user_preferences(runtime: ToolRuntime) -> tuple[str, str, str]:
             error_type=type(e).__name__,
         )
 
-    return user_timezone, user_language, locale
+    return user_timezone, user_language, get_locale_for_language(user_language)
 
 
 async def get_user_language_safe(

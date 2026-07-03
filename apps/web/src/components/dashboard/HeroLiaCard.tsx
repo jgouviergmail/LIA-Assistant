@@ -58,12 +58,16 @@ export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: Hero
         <div className="text-center flex flex-col items-center gap-2 max-w-md">
           {usingGreeting ? (
             <>
+              {/* LLM output rendered as React children (auto-escaped) — the
+                  greeting prompt outputs plain text, and any markup echoed
+                  from event titles must stay inert (XSS boundary, audit A4). */}
               <p
                 key={headlineText}
                 className="text-xl sm:text-2xl font-semibold text-foreground/90 leading-relaxed drop-shadow-sm motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
                 style={{ textWrap: 'balance' } as React.CSSProperties}
-                dangerouslySetInnerHTML={{ __html: headlineText }}
-              />
+              >
+                {headlineText}
+              </p>
               {greeting?.usage && (
                 <LLMUsageBadge
                   usage={greeting.usage}

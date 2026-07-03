@@ -147,6 +147,15 @@ class BroadcastService:
             source_language=source_language,
             target_languages=[lang for lang in users_by_language if lang != source_language],
         )
+
+        # Persist successful translations so later reads cost 0 LLM calls
+        # (N-213.2). Entries equal to the source message are the fallback of
+        # a failed translation — never freeze those in the cache.
+        persistable = {lang: text for lang, text in translations.items() if text != message}
+        if persistable:
+            await self.broadcast_repo.merge_translations(broadcast.id, persistable)
+            await self.db.commit()
+
         translations[source_language] = message  # Add original message
 
         # Send SSE + FCM to each language group
@@ -415,6 +424,11 @@ class BroadcastService:
         """
         Convert AdminBroadcast model to BroadcastInfo schema with translation.
 
+        Uses the persisted translations cache first (0 LLM calls for an
+        already-translated broadcast, N-213.2). On a miss (historical
+        broadcast, or language group absent at send time), translates lazily
+        and backfills the cache for subsequent reads.
+
         Args:
             broadcast: AdminBroadcast model
             user_language: User's preferred language for translation
@@ -429,20 +443,33 @@ class BroadcastService:
         # Translate message if user's language differs from source
         message = broadcast.message
         if user_language != DEFAULT_SOURCE_LANGUAGE:
-            try:
-                translations = await self._translate_to_languages(
-                    message=message,
-                    source_language=DEFAULT_SOURCE_LANGUAGE,
-                    target_languages=[user_language],
-                )
-                message = translations.get(user_language, message)
-            except Exception as e:
-                logger.warning(
-                    "broadcast_info_translation_failed",
-                    broadcast_id=str(broadcast.id),
-                    user_language=user_language,
-                    error=str(e),
-                )
+            cached = (broadcast.message_translations or {}).get(user_language)
+            if cached:
+                message = cached
+            else:
+                try:
+                    translations = await self._translate_to_languages(
+                        message=message,
+                        source_language=DEFAULT_SOURCE_LANGUAGE,
+                        target_languages=[user_language],
+                    )
+                    translated = translations.get(user_language)
+                    # A value equal to the source message is the fallback of a
+                    # failed translation — use it for display but never persist
+                    # it, so the next read retries the LLM.
+                    if translated and translated != message:
+                        await self.broadcast_repo.merge_translations(
+                            broadcast.id, {user_language: translated}
+                        )
+                        await self.db.commit()
+                        message = translated
+                except Exception as e:
+                    logger.warning(
+                        "broadcast_info_translation_failed",
+                        broadcast_id=str(broadcast.id),
+                        user_language=user_language,
+                        error=str(e),
+                    )
 
         return BroadcastInfo(
             id=broadcast.id,

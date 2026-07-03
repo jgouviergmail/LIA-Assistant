@@ -104,7 +104,7 @@ def normalize_language_code(language: str) -> str:
     return language.lower().replace("_", "-").split("-")[0]
 
 
-def generate_interest_embedding(text: str) -> list[float] | None:
+async def generate_interest_embedding(text: str) -> list[float] | None:
     """Generate embedding for interest topic or content.
 
     Used for semantic deduplication of interests and content notifications.
@@ -113,6 +113,9 @@ def generate_interest_embedding(text: str) -> list[float] | None:
     - Automatic interest extraction (extraction_service.py)
     - Content notification deduplication (content_generator.py)
 
+    All callers run on async paths, so this uses the native async embedding
+    API (a blocking HTTP call here would freeze the event loop).
+
     Args:
         text: Topic or content text to embed.
 
@@ -120,7 +123,7 @@ def generate_interest_embedding(text: str) -> list[float] | None:
         Embedding vector, or None if generation fails.
 
     Example:
-        >>> embedding = generate_interest_embedding("machine learning")
+        >>> embedding = await generate_interest_embedding("machine learning")
         >>> if embedding:
         ...     print(f"Generated {len(embedding)}-dim embedding")
     """
@@ -128,8 +131,8 @@ def generate_interest_embedding(text: str) -> list[float] | None:
         from src.domains.interests.embedding import get_interest_embeddings
 
         embeddings = get_interest_embeddings()
-        # Use embed_documents for storage (task_type=RETRIEVAL_DOCUMENT with Gemini)
-        results = embeddings.embed_documents([text])
+        # Use aembed_documents for storage (task_type=RETRIEVAL_DOCUMENT with Gemini)
+        results = await embeddings.aembed_documents([text])
         return results[0] if results else None
     except Exception as e:
         logger.warning(

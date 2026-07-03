@@ -868,3 +868,56 @@ class TestFormatUtcDatetime:
         result = _format_utc_datetime(dt, user_tz)
         assert isinstance(result, str)
         assert len(result) > 0
+
+
+@pytest.mark.unit
+class TestFetchJournals:
+    """Journal fetch must use the native async embedding API (audit A6)."""
+
+    async def test_uses_native_async_embed_query(self):
+        """embed_query is sync/blocking; the async path must await aembed_query."""
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+
+        user = MagicMock()
+        user.journals_enabled = True
+
+        entry = SimpleNamespace(
+            title="Entry",
+            content="Some journal content",
+            theme="focus",
+            mood="calm",
+            created_at=datetime(2026, 7, 1, tzinfo=UTC),
+        )
+
+        embeddings = MagicMock()
+        embeddings.aembed_query = AsyncMock(return_value=[0.1, 0.2, 0.3])
+
+        repo = MagicMock()
+        repo.search_by_relevance = AsyncMock(return_value=[(entry, 0.91)])
+
+        with (
+            patch(
+                "src.domains.journals.embedding.get_journal_embeddings",
+                return_value=embeddings,
+            ),
+            patch(
+                "src.domains.journals.repository.JournalEntryRepository",
+                return_value=repo,
+            ),
+        ):
+            result = await aggregator._fetch_journals(uuid4(), user, query="focus patterns")
+
+        embeddings.aembed_query.assert_awaited_once_with("focus patterns")
+        assert result == [
+            {
+                "title": "Entry",
+                "content_preview": "Some journal content",
+                "theme": "focus",
+                "mood": "calm",
+                "date": "2026-07-01",
+                "score": "0.91",
+            }
+        ]

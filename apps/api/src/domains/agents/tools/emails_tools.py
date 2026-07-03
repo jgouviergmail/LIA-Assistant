@@ -69,7 +69,6 @@ from src.domains.agents.tools.runtime_helpers import (
 from src.domains.agents.tools.validation_helpers import validate_positive_int_or_default
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.models import ConnectorType
-from src.infrastructure.database import get_db_context
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 
@@ -742,25 +741,8 @@ async def get_emails_tool(
     Returns:
         UnifiedToolOutput with registry items containing full email data
     """
-    # Get user timezone/locale for formatting
-    user_timezone = "UTC"
-    locale = "fr-FR"
-
-    try:
-        user_id_raw = runtime.config.get("configurable", {}).get("user_id")
-        if user_id_raw:
-            user_id = parse_user_id(user_id_raw)
-            async with get_db_context() as db:
-                from src.domains.users.service import UserService
-
-                user_service = UserService(db)
-                user = await user_service.get_user_by_id(user_id)
-                if user:
-                    user_timezone = user.timezone if user.timezone else "UTC"
-                    user_language = user.language if user.language else "fr"
-                    locale = f"{user_language}-{user_language.upper()}"
-    except Exception as e:
-        logger.debug("user_preferences_fallback", error=str(e))
+    # Get user timezone/locale for formatting (cached per user, valid BCP 47)
+    user_timezone, _, locale = await get_user_preferences(runtime)
 
     # Delegate to unified tool instance
     result = await _get_emails_tool_instance.execute(
@@ -1514,25 +1496,8 @@ async def get_email_details_tool(
     **Data Registry Mode (LOT 5.3):** Returns UnifiedToolOutput with registry items.
     parallel_executor handles extraction and SSE streaming to frontend.
     """
-    # Get user timezone/locale for formatting
-    user_timezone = "UTC"
-    locale = "fr-FR"
-
-    try:
-        user_id_raw = runtime.config.get("configurable", {}).get("user_id")
-        if user_id_raw:
-            user_id = parse_user_id(user_id_raw)
-            async with get_db_context() as db:
-                from src.domains.users.service import UserService
-
-                user_service = UserService(db)
-                user = await user_service.get_user_by_id(user_id)
-                if user:
-                    user_timezone = user.timezone if user.timezone else "UTC"
-                    user_language = user.language if user.language else "fr"
-                    locale = f"{user_language}-{user_language.upper()}"
-    except Exception:
-        pass  # Use defaults if user lookup fails
+    # Get user timezone/locale for formatting (cached per user, valid BCP 47)
+    user_timezone, _, locale = await get_user_preferences(runtime)
 
     # Delegate to tool instance (new architecture)
     # Pass both message_id and message_ids - execute_api_call will validate

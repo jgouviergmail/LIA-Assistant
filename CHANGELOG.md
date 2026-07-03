@@ -5,7 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.5] - 2026-07-03
+
+> Performance & hardening release: **wave 3 of the full-codebase audit** — three boundaries the earlier waves did not touch (the async/event-loop boundary, the network-exposure boundary, the XSS trust boundary) plus four localized performance/correctness fixes. Every item was **measured before/after** (latency or call count — no unquantified "should be faster") and driven red-first. Architecture decision: [ADR-096 — Performance, Network & Trust Boundaries from the Wave-3 Audit](docs/architecture/ADR-096-Performance-Boundary-Hardening-Wave3-Audit.md). Unlike waves 1–2 this one **does** carry a DB schema change (one JSONB column + migration) and two new `.env` keys — both performance caches, opt-outable.
+
+### Performance — event loop no longer frozen by synchronous work
+
+- **Synchronous work moved off the async event loop.** Three call sites ran blocking work inline on the loop, freezing *every* concurrent coroutine (SSE streaming included) for its full duration: `firebase_admin.messaging.send` (FCM push + broadcast — measured **261 ms** single / **496 ms** for a 2-token broadcast), Pillow decode + LANCZOS + encode on image edit (**251 ms**), and two embedding calls (`embed_documents` in interests, `embed_query` in heartbeat). Firebase sends and the Pillow pipeline now run via `asyncio.to_thread` (new `resize_image_b64_async` wrapper); the embeddings use the native async API (`aembed_documents` / `aembed_query`). After: the loop stalls **11–12 ms** instead of 251–496 ms during the same operations. **Guard:** an event-loop stall test helper (`tests/helpers/event_loop.py`) measures the max scheduling gap while the workload runs — a regression that reintroduces blocking fails CI. Also corrected a docstring that claimed `asyncio.to_thread` on a path that did not use it.
+- **Two hot-path scans parallelized.** `context/manager.list_active_domains` (on `resolve_reference`'s hot path) issued ~2 sequential store reads per registered domain → `asyncio.gather` per domain, registry order preserved (**631 → 63 ms** on a 10-domain bench). Gmail `search_emails` fetched each message's metadata one-by-one after the list call (the endpoint returns IDs only) → bounded `asyncio.gather` (concurrency from the new `EMAILS_SEARCH_FETCH_CONCURRENCY`, default 8; each fetch still passes the rate limiter), **331 → 62 ms** for 10 results, same payloads and order.
+
+### Added — caching that removes repeated work
+
+- **User display preferences are cached per worker.** `get_user_preferences` (used by 25+ tools, several times per plan) opened a DB session and queried `User` on **every** call. It now reads a per-worker TTL cache (`UserPreferencesCache`, default 5 min via the new `USER_PREFERENCES_CACHE_TTL_SECONDS`, `0` disables), invalidated immediately on profile update — **one User query per TTL window per user** instead of one per call. Same pattern as `LLMConfigOverrideCache`.
+- **Admin broadcast translations are persisted.** A broadcast shown to a user whose language differs from the source was re-translated by an LLM on **every** read (login, tab focus). Translations are now stored in a new JSONB column `admin_broadcasts.message_translations`: filled for all recipient languages at send time, lazily backfilled on read for historical broadcasts (server-side atomic `coalesce(...) || :new` merge so concurrent backfills never lose a language). Reading an already-translated broadcast now costs **0 LLM calls**. A failed translation (fallback = source text) is never frozen into the cache.
+
+### Security — trust & network boundaries
+
+- **The dashboard greeting can no longer execute injected content.** The LLM-generated hero greeting was rendered via `dangerouslySetInnerHTML`; the greeting can echo third-party text (e.g. a calendar event titled `<img src=x onerror=alert(1)>`). It now renders as auto-escaped React children (like `BriefingSynthesis`) — hostile markup is inert. **Guard:** a component test asserts an `onerror` event title produces no element and no script execution.
+- **Strict Content-Security-Policy added.** `next.config.ts` now sets a CSP header as defense-in-depth behind the React-escaping boundary: an injected `<script src>` or `eval()` is blocked even if a future rendering bug reintroduces raw HTML. It preserves the app's real needs — Sherpa-onnx WASM voice mode (`wasm-unsafe-eval`, `worker-src blob:`), Google Fonts, the separate API origin (`connect-src` derived from `NEXT_PUBLIC_API_URL` + its ws variant), and MCP/Skill `srcDoc` widgets. Verified in-browser: **0 violations** across login, dashboard (with a real LLM greeting), chat, landing and FAQ. (`'unsafe-inline'` remains in `script-src` — Next.js App Router ships inline bootstrap scripts and static headers cannot carry a per-request nonce; the header still blocks every external script origin and `eval`.)
+- **Internal services no longer reachable from the LAN (production).** `docker-compose.prod.yml` published 13 ports on `0.0.0.0` (Postgres, Grafana, Prometheus, Loki, Tempo/OTLP, Portainer, cAdvisor, exporters). Docker inserts its iptables chain **before** ufw, so a `ufw deny` did not protect them. All internal services now bind to `127.0.0.1`; `cloudflared` remains the single public entry point (**13 → 1** published port — only `web`). Container-to-container traffic is unaffected (service names on the compose network). Documented in the new [infrastructure/README.md](infrastructure/README.md): the ufw-bypass mechanism, the `DOCKER-USER` chain as the supported hook, and SSH-tunnel access for admin tools.
+
+### Fixed — locale & internationalization
+
+- **Valid display locales for every language.** `get_user_preferences` derived the locale as `f"{lang}-{lang.upper()}"`, producing nonexistent locales `en-EN` and `zh-ZH` — the latter broke Chinese date formatting. Replaced by a `LANGUAGE_TO_LOCALE` mapping (`en → en-US`, `zh-CN → zh-CN`, …) with a boot-time completeness assert. The bug was duplicated inline in `emails_tools.py` (2 sites); all three now call one helper.
+
+### Changed — admin LLM configuration
+
+- **The personality translator is now a configurable LLM slot.** `PersonalityTranslationService` hardcoded provider/model/temperature/max_tokens and invoked the provider adapter with a `personality_translation` `llm_type` that **did not exist** in `LLM_TYPES_REGISTRY` — invisible in the admin *LLM Configuration* UI and immune to DB overrides. It is now a registered slot (`LLM_TYPES_REGISTRY` + `LLM_DEFAULTS`, same gpt-4.1-nano defaults) routed through `get_llm()`, with its prompt moved to `prompts/v1/`. The slot appears in the admin UI (54 LLM types) and honors a DB override.
+
+### Fixed — email reply robustness
+
+- **Gmail reply body built before MIME construction.** `reply_email` called `set_payload(bytes)` on a `MIMEText` whose `Content-Transfer-Encoding` was already `base64`, relying on undocumented re-encoding behavior of the `email` package. The quoted body is now assembled **before** the `MIMEText` (parity with `apple_email` and `forward_email`). Note: the double-encoding defect did **not** reproduce on the runtimes in use (Python 3.12 container, 3.13 host) — recorded as hardening, not a user-visible bug fix; validated by a real dev send with accented text.
+
+### Notes
+
+- **DB schema change + migration:** `admin_broadcasts.message_translations` (JSONB), migration `admin_broadcast_translations_001` (single head). **Two new `.env` keys:** `USER_PREFERENCES_CACHE_TTL_SECONDS` (default 300, `0` disables) and `EMAILS_SEARCH_FETCH_CONCURRENCY` (default 8) — both performance caches, documented in `.env.example` and `.env.prod.example`.
+- **Docs:** [ADR-096] (+ ADR index, docs INDEX), `infrastructure/README.md` (new — network exposure model + ufw/DOCKER-USER), `GUIDE_DEPLOYMENT.md` (network exposure section), `LLM_CONFIG_ADMIN.md` (registry now 54 types + `personality_translation`), FAQ application changelog (user/admin-facing subset, 6 languages).
+- **Quality:** Ruff / Black / MyPy strict clean; backend **8687 unit tests green** (+~25 new, red-first) + agents suite green; frontend **123 tests green** (+3 XSS) + ESLint + `tsc` clean; i18n key parity across all 6 locales; Docker startup verified healthy (API + web) with the migration applied and CSP active.
+
+[ADR-096]: docs/architecture/ADR-096-Performance-Boundary-Hardening-Wave3-Audit.md
+
 ## [1.21.4] - 2026-07-03
+
+> Reliability & privacy release: **wave 2 of the full-codebase audit**
 
 > Reliability & privacy release: **wave 2 of the full-codebase audit** — closes seven *systemic* classes of near-zero-risk defect (not just their occurrences). Every class gets a permanent guard — a CI test, a Prometheus metric, or a written convention — so it cannot silently recur. Each fix was re-confirmed against the code, driven red-first, and validated diff-by-diff. Architecture decision: [ADR-095 — Systemic Guards from the Wave-2 Audit](docs/architecture/ADR-095-Systemic-Guards-Wave2-Audit.md). No DB schema change, no migration, no new `.env` key.
 

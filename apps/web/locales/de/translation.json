@@ -1542,6 +1542,7 @@
           "heartbeat_decision": "Entscheidet, ob eine proaktive Benachrichtigung relevant ist",
           "heartbeat_message": "Generiert die proaktive Benachrichtigung",
           "broadcast_translator": "Übersetzt Broadcast-Nachrichten",
+          "personality_translation": "Übersetzt Titel und Beschreibungen der Persönlichkeiten",
           "voice_comment": "Generiert Sprachkommentare für TTS",
           "mcp_description": "Generiert MCP-Serverbeschreibungen",
           "mcp_app_react_agent": "ReAct-Agent für MCP-Server mit interaktiven Widgets (MCP Apps)",
@@ -2933,6 +2934,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_5": {
+          "title": "v1.21.5 — ⚡ Leistung & Härtung (Audit-Welle 3)",
+          "date": "Juli 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>⚡ Eine flüssigere, reaktionsschnellere App</b> — Aufwändige Hintergrundvorgänge (Push-Benachrichtigungen, Bildgenerierung) frieren die Oberfläche nicht mehr kurz ein, und die E-Mail-Suche liefert schneller Ergebnisse. Im Hintergrund wurde blockierende Arbeit aus dem Hauptthread ausgelagert, und mehrere sequenzielle Abfragen laufen nun parallel.",
+            "i2": "<b>🗓️ Korrekte Datumsformate in jeder Sprache</b> — Ein Fehler beim Regionalformat führte für einige Sprachen (insbesondere Englisch und Chinesisch) zu einer ungültigen Locale. Datumsangaben werden jetzt im passenden Format für Ihre Sprache angezeigt.",
+            "i3": "<b>🛡️ Verstärkte Sicherheit</b> — Die personalisierte Begrüßung auf Ihrem Dashboard kann keinen eingeschleusten Inhalt aus externen Daten mehr ausführen (etwa einen manipulierten Termintitel), und eine strenge Browser-Sicherheitsrichtlinie (Content-Security-Policy) wurde als zusätzliche Schutzschicht gegen Skript-Injektion hinzugefügt.",
+            "i4": "<b>🔒 Admin · interne Dienste vom Netzwerk isoliert</b> — In der Produktion sind interne Dienste (Datenbank, Überwachungs-Dashboards, Metriken) nicht mehr aus dem lokalen Netzwerk erreichbar: Nur die Web-Anwendung ist exponiert, hinter dem sicheren Tunnel. Das Zusammenspiel der Firewall mit Docker ist jetzt dokumentiert.",
+            "i5": "<b>🌍 Admin · sofortige Broadcasts & konfigurierbarer Übersetzer</b> — Übersetzte Broadcast-Ankündigungen werden nun gespeichert, sodass erneutes Lesen nichts mehr kostet (zuvor bei jeder Ansicht neu übersetzt). Der Persönlichkeits-Übersetzer erscheint außerdem in der Admin-LLM-Konfiguration und berücksichtigt Ihre Modell-Überschreibungen."
+          }
+        },
         "v1_21_4": {
           "title": "v1.21.4 — 🛡️ Zuverlässigkeit & Datenschutz: systemische Härtung (Audit Welle 2)",
           "date": "Juli 2026",
@@ -5508,7 +5521,7 @@
       },
       "bff": {
         "title": "Sichere Architektur",
-        "description": "BFF-Pattern mit HTTP-only Cookies, Redis-Sessions, Tokens niemals dem Frontend ausgesetzt. OWASP Top 10 Schutz."
+        "description": "BFF-Pattern mit HTTP-only Cookies, Redis-Sessions, Tokens niemals dem Frontend ausgesetzt. Strikte Content-Security-Policy und OWASP Top 10 Schutz."
       },
       "encryption": {
         "title": "Verschlüsselung",

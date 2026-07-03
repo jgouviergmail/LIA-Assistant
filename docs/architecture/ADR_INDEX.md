@@ -2855,6 +2855,15 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-096: Performance, Network & Trust Boundaries from the Wave-3 Audit
+
+**Status**: ✅ IMPLEMENTED (2026-07-03)
+**Fichier**: `docs/architecture/ADR-096-Performance-Boundary-Hardening-Wave3-Audit.md`
+
+**Décision**: La vague 3 de l'audit cible **trois frontières** que les vagues 1-2 n'avaient pas traitées, plus 4 correctifs perf/exactitude localisés — chaque item **mesuré avant/après** (latence ou nombre d'appels) et couvert par un test rouge-d'abord. **(A6) Blocage de l'event loop** : `messaging.send` Firebase, resize Pillow et embeddings sync gelaient toute coroutine concurrente (SSE inclus) → `asyncio.to_thread` + embeddings async natifs (`aembed_documents`/`aembed_query`) ; garde = **tests de stall de l'event loop** (`tests/helpers/event_loop.py`) : 261→11 ms, 496→12 ms, 251→11 ms. **(N-129) Requête User par appel + locale invalide** : `get_user_preferences` (25+ outils) interrogeait `User` à chaque appel et dérivait la locale en `f"{lang}-{lang.upper()}"` (→ `en-EN`, `zh-ZH` inexistants, cassant aussi les dates zh) → cache TTL par worker (`UserPreferencesCache`, invalidé sur update profil) + mapping `LANGUAGE_TO_LOCALE` (assert de complétude au boot) ; nouvelle clé `USER_PREFERENCES_CACHE_TTL_SECONDS`. **(N-175) Scan séquentiel sur chemin chaud** : `list_active_domains` → `asyncio.gather` par domaine (631→63 ms/10 domaines ; gain plein avec le pool V5). **(N-194.8) N+1 Gmail** : `search_emails` fetchait chaque message en séquentiel → `gather` borné (`EMAILS_SEARCH_FETCH_CONCURRENCY`, défaut 8) : 331→62 ms/10 résultats. **(N-213.2) Traductions broadcast recalculées à chaque lecture** : nouvelle colonne JSONB `admin_broadcasts.message_translations` remplie à l'envoi + backfill lazy, merge atomique côté serveur → 0 appel LLM en relecture ; **migration** `admin_broadcast_translations_001`. **(N-219.1) LLM non registré** : `PersonalityTranslationService` avec modèle/temp en dur et `llm_type` fantôme → slot `personality_translation` dans `LLM_TYPES_REGISTRY`/`LLM_DEFAULTS` + `get_llm()` + prompt versionné (visible dans l'UI admin, override DB honoré). **(A3) Exposition LAN** : 13 ports internes publiés en `0.0.0.0` (Docker court-circuite ufw) → bind `127.0.0.1`, `cloudflared` seul point d'entrée public (13→1 port) ; documenté dans `infrastructure/README.md` (contournement ufw, chaîne `DOCKER-USER`). **(A4) XSS greeting + CSP** : greeting LLM rendu via `dangerouslySetInnerHTML` → enfant React auto-échappé + CSP stricte dans `next.config.ts` (0 violation vérifiée sur 5 pages). **(N-194.10) Reply Gmail double-encodé** : corps construit avant `MIMEText` (parité `apple_email`) — défaut latent uniquement (non reproduit sur les runtimes réels), consigné comme durcissement. Une migration DB + 2 clés `.env` (caches perf, désactivables). Complète [ADR-093](#adr-093) (durcissement XSS/proxy) et les vagues 1-2 ([ADR-094](#adr-094-remove-dead-per-node-message-windowing-helpers), [ADR-095](#adr-095-systemic-guards-from-the-wave-2-audit)).
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

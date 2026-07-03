@@ -25,7 +25,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"  # Exposed for external DB management (DBeaver, pgAdmin, etc.)
+      # Loopback-only (audit A3): Docker published ports bypass ufw, so a
+      # 0.0.0.0 bind is LAN-reachable regardless of firewall rules. For
+      # external DB management (DBeaver, pgAdmin), use an SSH tunnel:
+      #   ssh -p 2222 -L 5432:127.0.0.1:5432 <user>@<host>
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -194,9 +198,11 @@ services:
       - no-new-privileges:true
     command: [ "-config.file=/etc/tempo/tempo.yml" ]
     ports:
-      - "${TEMPO_HOST_PORT:-3200}:3200"   # Tempo HTTP API
-      - "${OTLP_GRPC_HOST_PORT:-4317}:4317"   # OTLP gRPC (receives traces from API)
-      - "${OTLP_HTTP_HOST_PORT:-4318}:4318"   # OTLP HTTP
+      # Loopback-only (audit A3): OTLP ingestion happens on the compose
+      # network (service name tempo:4317); host ports are for local debug.
+      - "127.0.0.1:${TEMPO_HOST_PORT:-3200}:3200"   # Tempo HTTP API
+      - "127.0.0.1:${OTLP_GRPC_HOST_PORT:-4317}:4317"   # OTLP gRPC (receives traces from API)
+      - "127.0.0.1:${OTLP_HTTP_HOST_PORT:-4318}:4318"   # OTLP HTTP
     volumes:
       - ./infrastructure/observability/tempo/tempo.yml:/etc/tempo/tempo.yml
       - tempo_data:/var/tempo
@@ -227,7 +233,7 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-remote-write-receiver'  # Enable Tempo metrics-generator remote write
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"  # Loopback-only (audit A3)
     volumes:
       - ./infrastructure/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./infrastructure/observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml
@@ -256,7 +262,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL:-http://localhost:3001}
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"  # Loopback-only (audit A3): reach via SSH tunnel or cloudflared ingress
     volumes:
       - ./infrastructure/observability/grafana/provisioning:/etc/grafana/provisioning
       - ./infrastructure/observability/grafana/dashboards:/var/lib/grafana/dashboards
@@ -286,7 +292,7 @@ services:
       - no-new-privileges:true
     command: -config.file=/etc/loki/local-config.yaml
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"  # Loopback-only (audit A3)
     volumes:
       - ./infrastructure/observability/loki/loki-config.yml:/etc/loki/local-config.yaml
       - loki_data:/loki
@@ -338,7 +344,7 @@ services:
       - '--path.rootfs=/host'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
     ports:
-      - "9100:9100"
+      - "127.0.0.1:9100:9100"  # Loopback-only (audit A3)
     volumes:
       - /:/host:ro
     networks:
@@ -360,7 +366,7 @@ services:
     restart: unless-stopped
     privileged: true
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"  # Loopback-only (audit A3)
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -391,7 +397,7 @@ services:
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
     ports:
-      - "9187:9187"
+      - "127.0.0.1:9187:9187"  # Loopback-only (audit A3)
     depends_on:
       postgres:
         condition: service_healthy
@@ -418,7 +424,7 @@ services:
       REDIS_ADDR: "redis:6379"
       REDIS_PASSWORD: "${REDIS_PASSWORD}"
     ports:
-      - "9121:9121"
+      - "127.0.0.1:9121:9121"  # Loopback-only (audit A3)
     depends_on:
       redis:
         condition: service_healthy
@@ -441,7 +447,7 @@ services:
     security_opt:
       - no-new-privileges:true
     ports:
-      - "9000:9000"
+      - "127.0.0.1:9000:9000"  # Loopback-only (audit A3)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data

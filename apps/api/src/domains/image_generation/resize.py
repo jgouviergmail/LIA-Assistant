@@ -12,6 +12,7 @@ Created: 2026-03-25
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 
@@ -121,3 +122,28 @@ def resize_image_b64(
     )
 
     return resized_b64, size_str
+
+
+async def resize_image_b64_async(
+    image_b64: str,
+    *,
+    max_size: str | None = None,
+) -> tuple[str, str]:
+    """Async wrapper for :func:`resize_image_b64`.
+
+    Pillow decode + LANCZOS resample + PNG encode are CPU-heavy (hundreds
+    of ms on multi-megapixel images) and would freeze the event loop if run
+    inline. Always use this wrapper on async paths.
+
+    Args:
+        image_b64: Base64-encoded source image (any PIL-supported format).
+        max_size: If provided, force this size (e.g., "1024x1536").
+            Otherwise auto-detect from aspect ratio.
+
+    Returns:
+        Tuple of (resized_b64, selected_size_str).
+
+    Raises:
+        ValueError: If the image cannot be decoded.
+    """
+    return await asyncio.to_thread(resize_image_b64, image_b64, max_size=max_size)

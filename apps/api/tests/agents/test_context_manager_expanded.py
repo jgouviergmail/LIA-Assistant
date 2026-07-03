@@ -1271,3 +1271,60 @@ class TestEdgeCasesAndErrors:
         assert isinstance(result, list)
         if len(result) > 0:
             assert result[0]["domain"] == "emails"
+
+
+class TestListActiveDomainsConcurrency:
+    """Domain scans must run concurrently, not ~40 sequential agets (audit N-175)."""
+
+    @pytest.mark.asyncio
+    async def test_domains_scanned_concurrently(self, manager):
+        """With a slow store, total latency must be ~max(domain), not sum(domains)."""
+        import asyncio
+
+        num_domains = 10
+        delay = 0.02  # per store.aget call
+        domains = [f"domain{i}" for i in range(num_domains)]
+
+        def _list_payload(domain: str) -> dict:
+            return {
+                "domain": domain,
+                "items": [{"index": 1, "name": "Item"}],
+                "metadata": {
+                    "turn_id": 1,
+                    "total_count": 1,
+                    "query": f"query {domain}",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
+            }
+
+        async def slow_aget(namespace, key):
+            await asyncio.sleep(delay)
+            if key == "list":
+                item = MagicMock()
+                item.value = _list_payload(namespace[3])
+                return item
+            return None  # no current item
+
+        store = AsyncMock()
+        store.aget = AsyncMock(side_effect=slow_aget)
+
+        with patch.object(ContextTypeRegistry, "list_all", return_value=domains):
+            loop = asyncio.get_running_loop()
+            start = loop.time()
+            result = await manager.list_active_domains(
+                user_id="user123", session_id="sess456", store=store
+            )
+            duration = loop.time() - start
+
+        # Behavior unchanged: every active domain reported, registry order kept
+        assert [d["domain"] for d in result] == domains
+        assert all(d["items_count"] == 1 for d in result)
+
+        # Sequential execution would take >= num_domains * 2 * delay (0.4 s
+        # here: list + current per domain). Concurrent execution stays near
+        # 2 * delay; the threshold splits the two regimes with wide margin.
+        sequential_floor = num_domains * 2 * delay
+        assert duration < sequential_floor / 2, (
+            f"list_active_domains took {duration * 1000:.0f} ms for {num_domains} domains "
+            f"(sequential floor {sequential_floor * 1000:.0f} ms) — domain scans are not concurrent"
+        )
