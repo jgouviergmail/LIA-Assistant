@@ -29,6 +29,18 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      # Free ~25 GB of preinstalled toolchains the runner does not need. The
+      # multi-arch (amd64 + arm64) build of both the api and web prod images
+      # otherwise exhausts the runner's ~14 GB free disk ("No space left on
+      # device"), which failed the v1.21.4 / v1.21.5 releases.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost \
+            "$AGENT_TOOLSDIRECTORY" || true
+          sudo docker image prune --all --force || true
+          df -h /
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4
 
