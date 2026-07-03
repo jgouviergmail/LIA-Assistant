@@ -447,22 +447,6 @@ function sanitizeMalformedTags(text: string): string {
   );
 }
 
-/**
- * Disambiguate `$` between inline math and currency, so single-dollar inline
- * math (`$A = \pi r^2$`) renders WITHOUT breaking currency amounts
- * (`1,50$ … 9$`, `$5 and $6`).
- *
- * remark-math's `singleDollarTextMath` is all-or-nothing: enabled it swallows
- * currency, disabled it drops legitimate inline math. This applies MathJax's
- * standard delimiter rules to keep only the `$…$` pairs that are really math,
- * and backslash-escapes every other `$` (currency) so remark-math renders it
- * literally:
- *   - the char right AFTER an opening `$` must not be whitespace;
- *   - the char right BEFORE a closing `$` must not be whitespace;
- *   - the char right AFTER a closing `$` must not be a digit.
- * `$$…$$` display math is left untouched (segments between `$$` toggles are
- * skipped), and already-escaped `\$` are preserved.
- */
 // Regions where `$` must be left untouched: fenced code blocks, inline code
 // (single/double backtick), and `$$…$$` display math. Escaping `$` inside a
 // code span would surface a literal backslash (markdown does not unescape
@@ -505,6 +489,19 @@ function normalizeMathDelimiters(text: string): string {
   return out;
 }
 
+/**
+ * Disambiguate `$` between inline math and currency, so single-dollar inline
+ * math (`$A = \pi r^2$`) renders WITHOUT breaking currency amounts
+ * (`1,50$ … 9$`, `$5 and $6`).
+ *
+ * remark-math's `singleDollarTextMath` is all-or-nothing: enabled it swallows
+ * currency, disabled it drops legitimate inline math. This applies MathJax's
+ * standard delimiter rules (see escapeCurrencyDollars) to keep only the `$…$`
+ * pairs that are really math, and backslash-escapes every other `$`
+ * (currency) so remark-math renders it literally. Code spans/blocks and
+ * `$$…$$` display math are skipped (PROTECTED_SPAN_RE); already-escaped `\$`
+ * are preserved.
+ */
 function protectInlineMathDollars(text: string): string {
   if (!text.includes('$')) return text;
 
@@ -516,6 +513,12 @@ function protectInlineMathDollars(text: string): string {
     .join('');
 }
 
+/**
+ * Apply MathJax's delimiter rules to a text segment (no code/display-math
+ * inside): keep `$…$` pairs where the char after the opening `$` is not
+ * whitespace, the char before the closing `$` is not whitespace, and the char
+ * after the closing `$` is not a digit; escape every other `$` as currency.
+ */
 function escapeCurrencyDollars(seg: string): string {
   // Collect unescaped single-`$` positions.
   const positions: number[] = [];
@@ -559,6 +562,7 @@ function escapeCurrencyDollars(seg: string): string {
   return toEscape.length ? spliceEscape(seg, toEscape) : seg;
 }
 
+/** Backslash-escape the `$` characters at the given indices. */
 function spliceEscape(seg: string, indices: number[]): string {
   const set = new Set(indices);
   let out = '';

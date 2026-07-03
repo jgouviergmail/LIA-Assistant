@@ -50,6 +50,10 @@
 
 Tous les call-sites (auth, connecteurs, channels, voice, health metrics) obtiennent le limiteur via **`get_rate_limiter()`** — un singleton module-level branché sur le Redis cache. Historiquement chaque call-site instanciait son propre `RedisRateLimiter` (un `SCRIPT LOAD` Lua par requête, et le SHA caché sur l'instance devenait invalide après un restart Redis → `NOSCRIPT` → **fail-open permanent** jusqu'au restart du process). Le singleton gère désormais le **retry `NOSCRIPT`** (re-`SCRIPT LOAD` + un retry) ; ne jamais appeler `close()` sur l'instance partagée (voir la docstring).
 
+### Clés « par IP » réellement par visiteur (ADR-093)
+
+Les limiteurs keyés par IP (slowapi global, rate limit auth) lisent `request.client.host`. Avant l'ADR-093, uvicorn tournait sans `--proxy-headers` : derrière cloudflared, cette valeur était **l'IP de la gateway Docker pour tous les clients** — le rate limit « par IP » était en réalité un bucket global partagé (un client agressif 429 tout le monde), et le chemin auth lisait un `X-Forwarded-For` brut spoofable. Depuis : uvicorn valide les proxy headers (`--proxy-headers --forwarded-allow-ips="*"`, sûr car les ports publiés sont bindés loopback), `request.client.host` porte la vraie IP du visiteur, et aucun code applicatif ne lit le header XFF brut.
+
 ---
 
 ## 🏗️ Architecture
