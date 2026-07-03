@@ -2948,6 +2948,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_6": {
+          "title": "v1.21.6 — 🔒 Confidentialité, fiabilité et durcissement du bac à sable (audit vague 4)",
+          "date": "Juillet 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔒 Effacement complet à la suppression de votre compte</b> — Supprimer votre compte efface désormais aussi définitivement vos données de santé (fréquence cardiaque, pas) et votre dernière position connue, et tout appareil qui envoyait des données de santé à LIA ne peut plus le faire ensuite. Pleine conformité avec votre droit à l'effacement (RGPD).",
+            "i2": "<b>🤖 Des agents assistants plus fiables</b> — Correction d'un problème qui pouvait faire échouer de façon répétée les agents spécialisés (agenda, e-mail, contacts…) sur une demande. Ils utilisent aussi toujours la date et l'heure courantes exactes, même après un long fonctionnement de l'application.",
+            "i3": "<b>🔔 Des suggestions proactives plus complètes</b> — En forte charge, les notifications proactives pouvaient omettre silencieusement une partie de votre contexte (agenda, météo, tâches, centres d'intérêt…). Chaque source est désormais collectée de façon fiable, pour que les messages proactifs raisonnent sur l'ensemble.",
+            "i4": "<b>🛡️ Isolation renforcée entre utilisateurs simultanés</b> — Fermeture d'une situation rare où, avec de nombreuses personnes utilisant LIA en même temps, le contexte privé de l'une (par exemple un extrait de journal personnel) pouvait momentanément influencer la demande d'une autre. Vos données restent strictement les vôtres.",
+            "i5": "<b>🧩 Admin · bac à sable des skills renforcé</b> — Les scripts fournis avec les skills s'exécutent désormais avec des privilèges réduits et des limites de ressources strictes (CPU, mémoire, processus, taille de fichier), et ne peuvent plus atteindre le socket Docker du serveur. Un script emballé ou malveillant est contenu ; l'assistant DevOps administrateur n'est pas affecté."
+          }
+        },
         "v1_21_5": {
           "title": "v1.21.5 — ⚡ Performances et durcissement (audit vague 3)",
           "date": "Juillet 2026",
@@ -4363,7 +4375,7 @@
           },
           "q4": {
             "question": "Puis-je supprimer mon compte et mes données ?",
-            "answer": "Oui, vous avez un <strong>droit à l'effacement complet</strong> :<br><br><strong>🗑️ Ce qui sera supprimé :</strong><br>• Votre compte utilisateur<br>• Tout l'historique de vos conversations<br>• Tous vos connecteurs OAuth<br>• Vos préférences et paramètres<br>• Vos statistiques d'utilisation<br><br><strong>⚠️ Action irréversible :</strong><br>La suppression est <strong>définitive</strong> et ne peut pas être annulée.<br><br><strong>📧 Comment procéder :</strong><br>Contactez votre administrateur pour demander la suppression de votre compte.<br><br><strong>💡 Alternatives :</strong><br>• Réinitialiser la conversation (supprime l'historique)<br>• Déconnecter les connecteurs (révoque les accès)<br>• Ces actions sont réversibles contrairement à la suppression du compte"
+            "answer": "Oui, vous avez un <strong>droit à l'effacement complet</strong> :<br><br><strong>🗑️ Ce qui sera supprimé :</strong><br>• Votre compte utilisateur<br>• Tout l'historique de vos conversations<br>• Tous vos connecteurs OAuth<br>• Vos préférences et paramètres<br>• Vos statistiques d'utilisation<br>• Vos données de santé (fréquence cardiaque, pas) et jetons d'ingestion santé<br>• Votre dernière position connue<br><br><strong>⚠️ Action irréversible :</strong><br>La suppression est <strong>définitive</strong> et ne peut pas être annulée.<br><br><strong>📧 Comment procéder :</strong><br>Contactez votre administrateur pour demander la suppression de votre compte.<br><br><strong>💡 Alternatives :</strong><br>• Réinitialiser la conversation (supprime l'historique)<br>• Déconnecter les connecteurs (révoque les accès)<br>• Ces actions sont réversibles contrairement à la suppression du compte"
           },
           "q5": {
             "question": "LIA a-t-il accès à tous mes emails/fichiers ?",

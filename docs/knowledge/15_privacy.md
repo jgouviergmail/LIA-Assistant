@@ -74,6 +74,10 @@ Yes, you have a **right to complete erasure**:
 • All your OAuth connectors
 • Your preferences and settings
 • Your usage statistics
+• Your health data (heart rate, steps) and health-ingestion tokens
+• Your last known location
+
+After deletion, a device that was sending health data to LIA can no longer do so.
 
 **⚠️ Irreversible action:**
 Deletion is **permanent** and cannot be undone.

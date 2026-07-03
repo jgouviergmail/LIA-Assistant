@@ -6,7 +6,7 @@
 
 **版本**：2.4
 **日期**：2026-05-08
-**应用**：LIA v1.21.5
+**应用**：LIA v1.21.6
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -943,7 +943,7 @@ LIA 通过统一模式接受外部事件摄入（iPhone Apple Health 样本、�
 
 **按样本混合校验**：每个样本单独被接受或拒绝，带其 0-based 索引和受约束的理由（`out_of_range | malformed | missing_field | invalid_date`）。同一批次中有效的邻居样本会被持久化 — 传感器的临时毛刺不会导致整天丢失。原始值绝不记录日志（符合 GDPR），仅按理由计数。
 
-**安全**：按 token 的 Redis 滑动窗口限流（默认 60 req/h，可配置），401 上带 `WWW-Authenticate: Bearer` 头（RFC 7235），429 上带 `Retry-After`，每请求样本数上限，超过则返回 `HTTP 413`。`users` 外键的 SQL `ON DELETE CASCADE` 覆盖账户擦除。
+**安全**：按 token 的 Redis 滑动窗口限流（默认 60 req/h，可配置），401 上带 `WWW-Authenticate: Bearer` 头（RFC 7235），429 上带 `Retry-After`，每请求样本数上限，超过则返回 `HTTP 413`。账户擦除由账户删除服务负责，该服务会显式清除每个健康数据表（软删除的账户模型会保留 `users` 行，因此外键级联永远不会触发）；已删除账户的设备无法再进行数据采集。
 
 **可视化**：多态 Python 聚合器在一个窗口内按 `date_start` 升序遍历样本，每个 bucket（小时/日/周/月/年）输出一个点，对 `heart_rate` 样本计算 `AVG/MIN/MAX`，对 `steps` 样本计算 `SUM`。无数据的 bucket 以 `has_data=False` 发射，以便前端（`recharts`、`connectNulls={false}`）展示真实空档而非插值。Settings 组件复用 `SettingsSection` + Accordion 模式（4 个子区段：API + tokens、图表、统计、数据管理），并显示**实际的聚合窗口**，以消除「我切换周期时统计不动」的困惑（当所有数据都在最小窗口内时，心率是不变的）。
 
@@ -1013,4 +1013,4 @@ LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个�
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、92 篇 ADR 及变更日志（v1.0 至 v1.21.5）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、92 篇 ADR 及变更日志（v1.0 至 v1.21.6）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

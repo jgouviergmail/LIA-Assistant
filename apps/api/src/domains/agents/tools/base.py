@@ -52,6 +52,7 @@ Benefits:
 
 import json
 from abc import ABC, abstractmethod
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, TypeVar, Union
 from uuid import UUID
 
@@ -101,6 +102,15 @@ ClientType = TypeVar("ClientType")
 
 # Type alias for tool output (Data Registry mode or legacy mode)
 ToolOutputType = Union[str, "StandardToolOutput", UnifiedToolOutput]
+
+# Task-local runtime for the CURRENT tool execution. ConnectorTool instances
+# are module-level singletons shared across concurrent requests: storing the
+# runtime on `self` leaked one user's timezone/language into another user's
+# call (audit N-126/N-135). Each asyncio task gets its own copy of this
+# ContextVar, so `tool.runtime` reads are isolated per execution.
+_current_runtime: ContextVar[ToolRuntime | None] = ContextVar(
+    "connector_tool_runtime", default=None
+)
 
 
 class ConnectorTool[ClientType](ABC):
@@ -164,8 +174,26 @@ class ConnectorTool[ClientType](ABC):
         self.tool_name = tool_name
         self.operation = operation
         self.logger = logger.bind(tool=tool_name, operation=operation)
-        # Runtime will be set in execute() - needed for user preferences lookup
-        self.runtime: ToolRuntime | None = None
+
+    @property
+    def runtime(self) -> ToolRuntime | None:
+        """Runtime of the CURRENT execution (task-local, never shared).
+
+        Tool instances are singletons: the runtime lives in a ContextVar so
+        concurrent executions on the same instance cannot observe each
+        other's runtime (user preferences isolation).
+        """
+        return _current_runtime.get()
+
+    @runtime.setter
+    def runtime(self, value: ToolRuntime | None) -> None:
+        """Bind a runtime to the current task (tests / manual invocation).
+
+        ``execute()`` manages the production lifecycle itself (token +
+        reset); this setter exists so tests and out-of-graph callers can
+        inject a runtime without going through ``execute()``.
+        """
+        _current_runtime.set(value)
 
     async def execute(
         self,
@@ -193,9 +221,11 @@ class ConnectorTool[ClientType](ABC):
             - If registry_enabled=False: JSON string (legacy mode)
         """
         user_id_str = None
-        # Store runtime on instance for use by execute_api_call() methods
-        # that need to access user preferences (timezone, language, etc.)
-        self.runtime = runtime
+        # Bind the runtime to the CURRENT task only (ContextVar token) so
+        # execute_api_call()/format helpers can resolve user preferences
+        # without sharing state across concurrent executions of this
+        # singleton instance. Reset in finally: no stale runtime survives.
+        runtime_token = _current_runtime.set(runtime)
 
         try:
             # Step 1: Validate runtime config
@@ -307,6 +337,8 @@ class ConnectorTool[ClientType](ABC):
         except Exception as e:
             # Step 7: Handle errors
             return self.handle_error(e, user_id_str, kwargs)
+        finally:
+            _current_runtime.reset(runtime_token)
 
     @abstractmethod
     async def execute_api_call(

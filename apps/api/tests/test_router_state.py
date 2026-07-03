@@ -94,6 +94,11 @@ class TestRouterStateManagement:
         assert hasattr(last_routing, "next_node")
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        not os.getenv("OPENAI_API_KEY"),
+        reason="Requires OPENAI_API_KEY: asserts per-turn RouterOutput entries "
+        "that the LLM-failure fallback path does not produce",
+    )
     async def test_router_output_only_in_routing_history(self, mock_store, agent_registry):
         """
         Test that router decision exists ONLY in routing_history.
@@ -200,6 +205,11 @@ class TestRouterWithStructuredOutput:
     """Test with_structured_output() integration."""
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        not os.getenv("OPENAI_API_KEY"),
+        reason="Requires OPENAI_API_KEY: asserts a structured RouterOutput "
+        "that only a real router LLM call produces",
+    )
     async def test_router_returns_pydantic_object(self, mock_store, agent_registry):
         """Test that router node correctly returns RouterOutput Pydantic object."""
 

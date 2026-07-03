@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
     from src.domains.agents.registry.agent_registry import AgentRegistry
     from src.domains.agents.registry.catalogue import ToolManifest
+    from src.domains.agents.services.smart_catalogue_service import CatalogueMetrics
     from src.domains.chat.service import TrackingContext
 
 # Context variable to access current tracker from anywhere in async call stack.
@@ -43,6 +44,15 @@ current_tracker: ContextVar["TrackingContext | None"] = ContextVar("current_trac
 # so instance attributes are shared across concurrent requests.
 panic_mode_used: ContextVar[bool] = ContextVar("panic_mode_used", default=False)
 panic_mode_attempted: ContextVar[bool] = ContextVar("panic_mode_attempted", default=False)
+
+# Per-request catalogue filtering metrics (audit B6/N-101): same singleton
+# rationale as panic_mode_used above — strategies write these during filtering
+# and the planner reads them after its LLM awaits, so instance storage leaked
+# one request's metrics into another. None means "not filtered yet"; the
+# service's accessor lazily creates a fresh CatalogueMetrics per task.
+catalogue_metrics: ContextVar["CatalogueMetrics | None"] = ContextVar(
+    "catalogue_metrics", default=None
+)
 
 # F6: Exclude sub-agent delegation from planner prompt during replan after user rejection.
 # When True, _build_sub_agents_section() returns empty string so the LLM prompt

@@ -26,7 +26,7 @@ from src.core.constants import (
     V3_CATALOGUE_DOMAIN_FULL_TOKENS,
     V3_CATALOGUE_TOKEN_ESTIMATES,
 )
-from src.core.context import panic_mode_used
+from src.core.context import catalogue_metrics, panic_mode_used
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence
 from src.infrastructure.observability.logging import get_logger
 
@@ -100,7 +100,6 @@ class SmartCatalogueService:
 
     def __init__(self, registry: "AgentRegistry"):
         self.registry = registry
-        self._metrics = CatalogueMetrics()
 
         # Strategy Pattern: Filtering strategies
         from src.domains.agents.services.catalogue.strategies import (
@@ -113,6 +112,25 @@ class SmartCatalogueService:
             service=self,
             normal_strategy=self.normal_strategy,
         )
+
+    @property
+    def _metrics(self) -> CatalogueMetrics:
+        """Metrics of the CURRENT request (task-local ContextVar).
+
+        This service is a singleton: an instance attribute here leaked one
+        request's filtering metrics into another (the planner reads
+        ``get_metrics()`` after LLM awaits). Same isolation approach as
+        ``panic_mode_used``; lazily creates a fresh object per task.
+        """
+        metrics = catalogue_metrics.get()
+        if metrics is None:
+            metrics = CatalogueMetrics()
+            catalogue_metrics.set(metrics)
+        return metrics
+
+    @_metrics.setter
+    def _metrics(self, value: CatalogueMetrics) -> None:
+        catalogue_metrics.set(value)
 
     def filter_for_intelligence(
         self,

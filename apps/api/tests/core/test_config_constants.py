@@ -150,9 +150,10 @@ def test_agent_max_iterations_uses_constants():
 def test_max_tokens_history_constant_exists():
     """Test that MAX_TOKENS_HISTORY_DEFAULT constant exists and is positive."""
     # Note: Actual Settings value may be overridden by .env
+    # Structural assertions only — the concrete value is owned by constants.py
+    # (hardcoding it here caused silent drift; see systemic rule on thresholds).
+    assert isinstance(MAX_TOKENS_HISTORY_DEFAULT, int)
     assert MAX_TOKENS_HISTORY_DEFAULT > 0
-    # Verify the constant has a reasonable value (10M tokens, aligned with .env.example)
-    assert MAX_TOKENS_HISTORY_DEFAULT == 10000000
 
 
 # ============================================================================
@@ -207,7 +208,10 @@ def test_get_connector_cache_ttl_fallback():
 def test_session_cookie_secure_development():
     """Test that session_cookie_secure defaults to False in development."""
     with patch.dict(os.environ, {"ENVIRONMENT": "development"}, clear=False):
-        settings = Settings()
+        # Hermetic: the validator default must win, so neither the developer's
+        # .env file nor an exported SESSION_COOKIE_SECURE may leak into Settings.
+        os.environ.pop("SESSION_COOKIE_SECURE", None)
+        settings = Settings(_env_file=None)
         assert settings.session_cookie_secure is False
 
 

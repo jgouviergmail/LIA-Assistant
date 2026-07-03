@@ -103,6 +103,7 @@ class UserService:
             language=user.language,
             personality_id=user.personality_id,
             home_address=home_address,
+            response_display_mode=user.response_display_mode,
             is_active=user.is_active,
             is_verified=user.is_verified,
             is_superuser=user.is_superuser,

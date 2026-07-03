@@ -1819,7 +1819,13 @@ TOOL_RETRY_MAX_ATTEMPTS_DEFAULT = 3
 TOOL_RETRY_BACKOFF_FACTOR_DEFAULT = 1.5
 MODEL_CALL_THREAD_LIMIT_DEFAULT = 100
 MODEL_CALL_RUN_LIMIT_DEFAULT = 20
-CONTEXT_EDIT_MAX_TOOL_RESULT_TOKENS_DEFAULT = 5000  # Aligned from .env.prod (was 2000)
+# ContextEditingMiddleware (langchain v1 ClearToolUsesEdit semantics):
+# when the model context exceeds the trigger, older tool results are replaced
+# by a placeholder, keeping only the most recent ones. The former per-result
+# truncation setting mapped to an API (TruncateToolResult) that no longer
+# exists in langchain v1.
+CONTEXT_EDIT_CLEAR_TRIGGER_TOKENS_DEFAULT = 100000  # langchain ClearToolUsesEdit default
+CONTEXT_EDIT_CLEAR_KEEP_TOOL_RESULTS_DEFAULT = 3  # langchain ClearToolUsesEdit default
 TOOL_APPROVAL_CLEANUP_DAYS_DEFAULT = 1  # Aligned from .env.prod (was 7)
 SEMANTIC_VALIDATION_TIMEOUT_SECONDS_DEFAULT = 20.0  # Aligned from .env.prod
 SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD_DEFAULT = 0.70  # Aligned from .env.prod (was 0.7)
@@ -3401,6 +3407,25 @@ SKILLS_SCRIPT_TIMEOUT_SECONDS = 30
 SKILLS_SCRIPT_MAX_OUTPUT_KB = 50
 SKILLS_SCRIPT_MAX_INPUT_KB = 100
 SKILLS_SCRIPT_ALLOWED_EXTENSIONS = frozenset({".py"})
+
+# Resource limits (rlimit) applied to skill subprocesses via preexec_fn (POSIX,
+# audit A2). These bound the blast radius of a malicious/buggy script even when
+# OS-level namespace isolation is unavailable (the container lacks
+# CAP_SYS_ADMIN, so unshare falls back to direct execution).
+SKILLS_SCRIPT_MAX_MEMORY_MB = 512  # RLIMIT_AS — address space ceiling
+SKILLS_SCRIPT_MAX_PROCESSES = 64  # RLIMIT_NPROC — kills fork bombs
+SKILLS_SCRIPT_MAX_FILE_SIZE_MB = 10  # RLIMIT_FSIZE — caps disk writes
+SKILLS_SCRIPT_MAX_CPU_SECONDS = 30  # RLIMIT_CPU — CPU-time ceiling (complements wall timeout)
+
+# Privilege drop (audit A1): when the API process runs as root, skill scripts
+# are dropped to an unprivileged uid/gid (supplementary groups cleared) before
+# exec. This denies the root-owned Docker socket to skill scripts — the vector
+# a mount-namespace mask cannot close without CAP_SYS_ADMIN — and makes
+# RLIMIT_NPROC effective (it is bypassed for uid 0). "nobody" (65534) is the
+# conventional unprivileged id present in Debian-based images.
+SKILLS_SCRIPT_DROP_PRIVILEGES = True
+SKILLS_SCRIPT_UNPRIVILEGED_UID = 65534  # nobody
+SKILLS_SCRIPT_UNPRIVILEGED_GID = 65534  # nogroup
 
 # Rich outputs — Skills can emit frame (HTML iframe) or image artifacts via stdout JSON
 # Max size of inline HTML content in frame.html (bytes). Applies to skill user+system.

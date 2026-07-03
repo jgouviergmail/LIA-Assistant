@@ -343,17 +343,30 @@ class HealthMetricTokenRepository(BaseRepository[HealthMetricToken]):
         return list(result.scalars().all())
 
     async def get_active_token_by_hash(self, token_hash: str) -> HealthMetricToken | None:
-        """Return a non-revoked token matching the hash, or None.
+        """Return a non-revoked token of an ACTIVE owner matching the hash.
+
+        Defense in depth (audit N-207.2): a token is only usable while its
+        owner's account is active and not deleted — otherwise a deactivated
+        or deleted user's device could keep ingesting samples even if some
+        lifecycle flow forgot to revoke or purge the token row.
 
         Args:
             token_hash: SHA-256 hex digest of the raw token value.
 
         Returns:
-            Active HealthMetricToken or None.
+            Active HealthMetricToken of an active, non-deleted owner, or None.
         """
-        stmt = select(HealthMetricToken).where(
-            HealthMetricToken.token_hash == token_hash,
-            HealthMetricToken.revoked_at.is_(None),
+        from src.domains.auth.models import User
+
+        stmt = (
+            select(HealthMetricToken)
+            .join(User, HealthMetricToken.user_id == User.id)
+            .where(
+                HealthMetricToken.token_hash == token_hash,
+                HealthMetricToken.revoked_at.is_(None),
+                User.is_active.is_(True),
+                User.deleted_at.is_(None),
+            )
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()

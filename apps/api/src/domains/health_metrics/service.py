@@ -21,7 +21,6 @@ Revised: 2026-04-21 — polymorphic samples + batch upsert pipeline.
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import secrets
 import unicodedata
@@ -599,7 +598,9 @@ class HealthMetricsService:
             raw_token: Raw token supplied via Authorization header.
 
         Returns:
-            HealthMetricToken if the hash matches a non-revoked record, else None.
+            HealthMetricToken if the hash matches a non-revoked record whose
+            owner account is active and not deleted (defense in depth against
+            post-deletion ingestion), else None.
         """
         if not raw_token:
             return None
@@ -818,14 +819,17 @@ class HealthMetricsService:
             A dict keyed by kind, each value being the ``compute_kind_summary``
             result for that kind.
         """
-        specs = list(HEALTH_KINDS.values())
-        summaries = await asyncio.gather(
-            *(
-                self.compute_kind_summary(user_id, spec.kind, time_min=time_min, time_max=time_max)
-                for spec in specs
+        # Sequential on purpose: this service holds ONE AsyncSession, and
+        # SQLAlchemy forbids concurrent operations on a shared session (a
+        # gather here raced connection provisioning — audit N-206). Two
+        # indexed queries gain nothing from parallelism anyway; same
+        # convention as detect_all_variations below.
+        summaries: dict[str, dict[str, Any]] = {}
+        for spec in HEALTH_KINDS.values():
+            summaries[spec.kind] = await self.compute_kind_summary(
+                user_id, spec.kind, time_min=time_min, time_max=time_max
             )
-        )
-        return {spec.kind: summary for spec, summary in zip(specs, summaries, strict=True)}
+        return summaries
 
     async def detect_all_variations(
         self,

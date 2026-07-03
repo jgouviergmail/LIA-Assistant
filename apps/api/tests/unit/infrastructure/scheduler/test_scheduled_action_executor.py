@@ -51,11 +51,24 @@ async def test_execute_single_action_marks_run_as_automated_source():
     action.action_prompt = "Summarize my unread emails"
     action.title = "Morning briefing"
 
-    user = MagicMock(
-        is_active=True,
-        language="fr",
+    # Real UserProfile (not a MagicMock): a MagicMock would trivially carry any
+    # attribute, masking the very bug this asserts — the profile schema silently
+    # defaulting response_display_mode to "cards". Use the production schema so the
+    # read path (getattr on a real UserProfile) is exercised for real.
+    from src.domains.users.schemas import UserProfile
+
+    user = UserProfile(
+        id=user_id,
+        email="user@example.com",
+        full_name="Test User",
         timezone="Europe/Paris",
+        language="fr",
+        is_active=True,
+        is_verified=True,
+        is_superuser=False,
         response_display_mode="markdown",
+        created_at=datetime(2026, 7, 1, tzinfo=UTC),
+        updated_at=datetime(2026, 7, 1, tzinfo=UTC),
     )
 
     db = MagicMock()

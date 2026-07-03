@@ -67,7 +67,6 @@ class ToolOutputMixin:
     Attributes:
         tool_name: Should be set by the parent class
         operation: Should be set by the parent class
-        runtime: Should be set by the parent ConnectorTool class
 
     Example:
         class SearchContactsTool(ToolOutputMixin, ConnectorTool):
@@ -78,18 +77,21 @@ class ToolOutputMixin:
                 )
     """
 
-    # These should be set by the parent ConnectorTool class
+    # These should be set by the parent ConnectorTool class.
+    # NOTE: no `runtime` class attribute here — it would shadow (MRO) the
+    # task-local `ConnectorTool.runtime` property that isolates the runtime
+    # between concurrent executions of singleton tool instances.
     tool_name: str = "unknown_tool"
     operation: str = "unknown"
-    runtime: Any = None  # Set by ConnectorTool.execute() before calling format_registry_response
 
     def get_user_language(self, default: str | None = None) -> str:
         """
         Extract user_language from runtime config.
 
         Used by draft creation tools to localize HITL content in user's language.
-        The runtime is stored on the instance by ConnectorTool.execute() before
-        calling execute_api_call() and format_registry_response().
+        The runtime is resolved through ``ConnectorTool.runtime`` (task-local
+        ContextVar bound by ``execute()``); ``getattr`` keeps the mixin safe
+        when composed with classes that expose no runtime at all.
 
         Args:
             default: Default language if not found in config (uses settings.default_language if None)
@@ -98,8 +100,9 @@ class ToolOutputMixin:
             User's language code (fr, en, es, de, it, zh-CN)
         """
         fallback = default if default is not None else settings.default_language
-        if self.runtime and self.runtime.config:
-            return self.runtime.config.get("configurable", {}).get("user_language", fallback)
+        runtime = getattr(self, "runtime", None)
+        if runtime and runtime.config:
+            return runtime.config.get("configurable", {}).get("user_language", fallback)
         return fallback
 
     def create_registry_item(

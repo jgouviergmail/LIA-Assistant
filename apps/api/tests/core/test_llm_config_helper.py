@@ -10,6 +10,7 @@ import pytest
 
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.llm_config_helper import get_all_llm_configs, get_llm_config_for_agent
+from src.core.reasoning_types import ReasoningEffortEnum
 from src.domains.llm_config.constants import LLM_DEFAULTS
 
 
@@ -24,67 +25,30 @@ def _no_cache_overrides():
 
 
 class TestGetLLMConfigForAgent:
-    """Tests for get_llm_config_for_agent function (reads from LLM_DEFAULTS)."""
+    """Tests for get_llm_config_for_agent function (reads from LLM_DEFAULTS).
 
-    def test_router_returns_defaults(self):
-        """Test router config comes from LLM_DEFAULTS."""
-        config = get_llm_config_for_agent(None, "router")
+    Assertions are relative to LLM_DEFAULTS (the single source of truth): the
+    tests verify the resolution mechanism, not frozen business values —
+    hardcoded models/temperatures silently drift when defaults evolve.
+    """
+
+    @pytest.mark.parametrize(
+        "agent_type",
+        [
+            "router",
+            "response",
+            "planner",
+            "contacts_agent",
+            "hitl_classifier",
+            "hitl_question_generator",
+        ],
+    )
+    def test_returns_defaults(self, agent_type):
+        """Test config without override is exactly the LLM_DEFAULTS entry."""
+        config = get_llm_config_for_agent(None, agent_type)
 
         assert isinstance(config, LLMAgentConfig)
-        assert config.provider == "openai"
-        assert config.model == "gpt-5-mini"
-        assert config.temperature == 0.0
-        assert config.max_tokens == 1000
-        assert config.reasoning_effort == "minimal"
-
-    def test_response_returns_defaults(self):
-        """Test response config comes from LLM_DEFAULTS."""
-        config = get_llm_config_for_agent(None, "response")
-
-        assert config.provider == "openai"
-        assert config.model == "gpt-4.1-mini"
-        assert config.temperature == 0.5
-        assert config.max_tokens == 5000
-        assert config.frequency_penalty == 0.1
-
-    def test_planner_returns_defaults(self):
-        """Test planner config comes from LLM_DEFAULTS."""
-        config = get_llm_config_for_agent(None, "planner")
-
-        assert config.provider == "openai"
-        assert config.model == "gpt-5.1"
-        assert config.temperature == 0.0
-        assert config.timeout_seconds == 30
-        assert config.max_tokens == 20000
-        assert config.reasoning_effort == "low"
-
-    def test_contacts_agent_returns_defaults(self):
-        """Test contacts_agent config comes from LLM_DEFAULTS."""
-        config = get_llm_config_for_agent(None, "contacts_agent")
-
-        assert config.provider == "openai"
-        assert config.model == "gpt-5-nano"
-        assert config.temperature == 0.0
-        assert config.reasoning_effort == "minimal"
-
-    def test_hitl_classifier_returns_defaults(self):
-        """Test hitl_classifier config comes from LLM_DEFAULTS."""
-        config = get_llm_config_for_agent(None, "hitl_classifier")
-
-        assert config.provider == "openai"
-        assert config.model == "gpt-5-nano"
-        assert config.temperature == 0.0
-        assert config.reasoning_effort == "minimal"
-
-    def test_hitl_question_generator_returns_defaults(self):
-        """Test hitl_question_generator config comes from LLM_DEFAULTS."""
-        config = get_llm_config_for_agent(None, "hitl_question_generator")
-
-        assert config.provider == "openai"
-        assert config.model == "gpt-5-mini"
-        assert config.temperature == 0.5
-        assert config.frequency_penalty == 0.7
-        assert config.presence_penalty == 0.3
+        assert config == LLM_DEFAULTS[agent_type]
 
     def test_all_registered_types_supported(self):
         """Test all LLM_DEFAULTS types return valid configs."""
@@ -128,8 +92,8 @@ class TestCacheOverrideMerge:
             config = get_llm_config_for_agent(None, "router")
 
         assert config.model == "gpt-4.1-mini"  # Overridden
-        assert config.provider == "openai"  # From defaults
-        assert config.temperature == 0.0  # From defaults
+        assert config.provider == LLM_DEFAULTS["router"].provider  # From defaults
+        assert config.temperature == LLM_DEFAULTS["router"].temperature  # From defaults
 
     def test_override_multiple_fields(self):
         """Test multiple field overrides merge correctly."""
@@ -190,25 +154,33 @@ class TestGetAllLLMConfigs:
 
 
 class TestReasoningEffortSupport:
-    """Tests for reasoning_effort parameter support in LLMAgentConfig."""
+    """Tests for reasoning_effort parameter support in LLMAgentConfig.
+
+    reasoning_effort is a discriminated union of pydantic models (enum /
+    budget / toggle_budget shapes) stored as JSONB dicts in overrides —
+    never a bare string.
+    """
 
     def test_reasoning_effort_has_production_value(self):
         """Test reasoning_effort is set in LLM_DEFAULTS for reasoning-capable types."""
         config = get_llm_config_for_agent(None, "router")
-        assert config.reasoning_effort == "minimal"
+        assert config.reasoning_effort is not None
+        assert config.reasoning_effort == LLM_DEFAULTS["router"].reasoning_effort
 
     def test_reasoning_effort_none_for_non_reasoning_types(self):
-        """Test reasoning_effort is None for types without reasoning (heartbeat, etc.)."""
-        config = get_llm_config_for_agent(None, "heartbeat_decision")
+        """Test reasoning_effort resolves to None for types without a reasoning default."""
+        none_types = [k for k, v in LLM_DEFAULTS.items() if v.reasoning_effort is None]
+        assert none_types, "expected at least one agent type without reasoning default"
+        config = get_llm_config_for_agent(None, none_types[0])
         assert config.reasoning_effort is None
 
     def test_reasoning_effort_via_override(self):
-        """Test reasoning_effort can be set via DB override."""
+        """Test reasoning_effort can be set via DB override (JSONB dict shape)."""
         with patch(
             "src.domains.llm_config.cache.LLMConfigOverrideCache.get_override",
-            return_value={"reasoning_effort": "medium", "model": "o3-mini"},
+            return_value={"reasoning_effort": {"effort": "medium"}, "model": "o3-mini"},
         ):
             config = get_llm_config_for_agent(None, "planner")
 
-        assert config.reasoning_effort == "medium"
+        assert config.reasoning_effort == ReasoningEffortEnum(effort="medium")
         assert config.model == "o3-mini"

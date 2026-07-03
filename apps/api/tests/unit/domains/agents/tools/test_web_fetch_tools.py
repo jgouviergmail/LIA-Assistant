@@ -567,7 +567,14 @@ class TestFetchWebPageTool:
             "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
             return_value=mock_client_cm,
         ):
-            result = await fetch_web_page_tool.ainvoke({"url": "https://example.com/article"})
+            # force_refresh bypasses the shared Redis fetch cache so this test
+            # deterministically exercises the FRESH-FETCH path (which builds the
+            # registry item). Without it, a cache hit left by an earlier test —
+            # or a prior run's stale DB-15 entry — returns success WITHOUT
+            # registry_updates, making the assertion flaky.
+            result = await fetch_web_page_tool.ainvoke(
+                {"url": "https://example.com/article", "force_refresh": True}
+            )
 
         assert result.success is True
         assert result.registry_updates is not None

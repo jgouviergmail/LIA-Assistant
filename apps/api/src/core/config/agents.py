@@ -56,7 +56,8 @@ from src.core.constants import (
     CONTEXT_ACTIVE_WINDOW_TURNS_DEFAULT,
     CONTEXT_CURRENT_ITEM_CONFIDENCE_DEFAULT,
     CONTEXT_DEMONSTRATIVE_CONFIDENCE_DEFAULT,
-    CONTEXT_EDIT_MAX_TOOL_RESULT_TOKENS_DEFAULT,
+    CONTEXT_EDIT_CLEAR_KEEP_TOOL_RESULTS_DEFAULT,
+    CONTEXT_EDIT_CLEAR_TRIGGER_TOKENS_DEFAULT,
     CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD_DEFAULT,
     CONTEXT_RESOLUTION_TIMEOUT_MS_DEFAULT,
     DEFAULT_ITEM_CONFIDENCE,
@@ -632,13 +633,21 @@ class AgentsSettings(BaseSettings):
 
     # NOTE: ContextEditingMiddleware is always enabled (tool result pruning)
 
-    context_edit_max_tool_result_tokens: int = Field(
-        default=CONTEXT_EDIT_MAX_TOOL_RESULT_TOKENS_DEFAULT,
-        ge=500,
-        le=10000,
+    context_edit_clear_trigger_tokens: int = Field(
+        default=CONTEXT_EDIT_CLEAR_TRIGGER_TOKENS_DEFAULT,
+        ge=1000,
         description=(
-            "Maximum tokens per tool result before truncation (default: 2000). "
-            "Tool outputs exceeding this limit are summarized or truncated."
+            "Context token count that triggers ClearToolUsesEdit: older tool "
+            "results are replaced by a placeholder once the conversation "
+            "exceeds this size (langchain v1 context editing)."
+        ),
+    )
+    context_edit_clear_keep_tool_results: int = Field(
+        default=CONTEXT_EDIT_CLEAR_KEEP_TOOL_RESULTS_DEFAULT,
+        ge=0,
+        description=(
+            "Number of most recent tool results preserved when "
+            "ClearToolUsesEdit clears older ones."
         ),
     )
 

@@ -104,11 +104,12 @@ async def _authenticate(
 
     Returns:
         The persisted, non-revoked :class:`HealthMetricToken` matching the
-        SHA-256 hash of the supplied raw token.
+        SHA-256 hash of the supplied raw token, owned by an active account.
 
     Raises:
         HTTPException: 401 with a ``WWW-Authenticate: Bearer`` challenge if the
-            header is absent, malformed, or if the token is unknown / revoked.
+            header is absent, malformed, or if the token is unknown, revoked,
+            or belongs to a deactivated / deleted account (defense in depth).
     """
     raw = _extract_token_from_header(authorization)
     if raw is None:

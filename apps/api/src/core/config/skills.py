@@ -18,9 +18,16 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     SKILLS_MAX_PER_USER_DEFAULT,
+    SKILLS_SCRIPT_DROP_PRIVILEGES,
+    SKILLS_SCRIPT_MAX_CPU_SECONDS,
+    SKILLS_SCRIPT_MAX_FILE_SIZE_MB,
     SKILLS_SCRIPT_MAX_INPUT_KB,
+    SKILLS_SCRIPT_MAX_MEMORY_MB,
     SKILLS_SCRIPT_MAX_OUTPUT_KB,
+    SKILLS_SCRIPT_MAX_PROCESSES,
     SKILLS_SCRIPT_TIMEOUT_SECONDS,
+    SKILLS_SCRIPT_UNPRIVILEGED_GID,
+    SKILLS_SCRIPT_UNPRIVILEGED_UID,
     SKILLS_SYSTEM_PATH_DEFAULT,
     SKILLS_USERS_PATH_DEFAULT,
 )
@@ -97,4 +104,59 @@ class SkillsSettings(BaseSettings):
         ge=1,
         le=500,
         description="Maximum stdin input to skill scripts (KB).",
+    )
+
+    # ========================================================================
+    # Subprocess resource limits (rlimit via preexec_fn — audit A2)
+    # ========================================================================
+    # Bound the blast radius of a malicious/buggy skill script. Applied on
+    # POSIX only; a no-op on platforms without the `resource` module.
+
+    skills_script_max_memory_mb: int = Field(
+        default=SKILLS_SCRIPT_MAX_MEMORY_MB,
+        ge=64,
+        le=4096,
+        description="Address-space ceiling per skill subprocess (RLIMIT_AS, MB).",
+    )
+
+    skills_script_max_processes: int = Field(
+        default=SKILLS_SCRIPT_MAX_PROCESSES,
+        ge=1,
+        le=1024,
+        description="Max processes/threads per skill subprocess (RLIMIT_NPROC — kills fork bombs).",
+    )
+
+    skills_script_max_file_size_mb: int = Field(
+        default=SKILLS_SCRIPT_MAX_FILE_SIZE_MB,
+        ge=1,
+        le=1024,
+        description="Max size of any file a skill script may write (RLIMIT_FSIZE, MB).",
+    )
+
+    skills_script_max_cpu_seconds: int = Field(
+        default=SKILLS_SCRIPT_MAX_CPU_SECONDS,
+        ge=1,
+        le=300,
+        description="CPU-time ceiling per skill subprocess (RLIMIT_CPU — complements wall timeout).",
+    )
+
+    skills_script_drop_privileges: bool = Field(
+        default=SKILLS_SCRIPT_DROP_PRIVILEGES,
+        description=(
+            "When the API runs as root, drop skill subprocesses to an "
+            "unprivileged uid/gid (supplementary groups cleared) before exec. "
+            "Denies the root-owned Docker socket to skill scripts (audit A1)."
+        ),
+    )
+
+    skills_script_unprivileged_uid: int = Field(
+        default=SKILLS_SCRIPT_UNPRIVILEGED_UID,
+        ge=1,
+        description="Target uid for dropped skill subprocesses (default: nobody).",
+    )
+
+    skills_script_unprivileged_gid: int = Field(
+        default=SKILLS_SCRIPT_UNPRIVILEGED_GID,
+        ge=1,
+        description="Target gid for dropped skill subprocesses (default: nogroup).",
     )

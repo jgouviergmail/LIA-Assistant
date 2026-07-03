@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "1.21.5"
+version = "1.21.6"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
@@ -100,6 +100,11 @@ ignore = [
 [tool.mypy]
 plugins = ["pydantic.mypy"]
 python_version = "3.12"
+# Type-check against the DEPLOYMENT target (Linux containers), not the
+# developer host. Aligns the host pre-commit hook with the Linux CI runner so
+# POSIX-only APIs (resource, os.setuid/setgroups, os.fork) resolve identically
+# on both — closes the recurring host/Docker mypy divergence.
+platform = "linux"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

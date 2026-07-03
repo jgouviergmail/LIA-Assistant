@@ -118,8 +118,12 @@ class SecuritySettings(BaseSettings):
         description="Session cookie max age in seconds (remember me enabled)",
     )
     session_cookie_secure: bool = Field(
-        default=True,
-        description="Require HTTPS for session cookie",
+        # None = "not explicitly set": the auto_secure_in_production validator
+        # (validate_default=True) resolves it to True in production and False in
+        # dev/staging. A hard default of True here would bypass that env-based intent.
+        default=None,
+        validate_default=True,
+        description="Require HTTPS for session cookie (auto: True in production)",
     )
     session_cookie_httponly: bool = Field(
         default=True,
