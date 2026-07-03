@@ -239,6 +239,16 @@ agent_tool_rate_limit_hits = Counter(
     [FIELD_TOOL_NAME, "user_id_hash", "scope"],  # scope: user/global
 )
 
+# Instrumented in: domains/agents/tools/tool_registry.py and tools/__init__.py.
+# A failed tool-module import silently removes an entire tool family from the
+# registry (audit wave 2, C9) — this counter makes the failure observable in
+# production; in dev/test the import failure raises instead.
+tool_module_import_failures = Counter(
+    "tool_module_import_failures_total",
+    "Total tool module import failures (each removes a whole tool family)",
+    ["module"],
+)
+
 # ============================================================================
 # TASK ORCHESTRATOR ADVANCED METRICS
 # ============================================================================

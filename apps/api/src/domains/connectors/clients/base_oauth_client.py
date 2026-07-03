@@ -918,10 +918,12 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                         "error_at": datetime.now(UTC).isoformat(),
                         "error_type": "oauth_authentication_failed",
                     }
-                    if connector.connector_metadata:
-                        connector.connector_metadata.update(error_info)
-                    else:
-                        connector.connector_metadata = error_info
+                    # New-dict reassignment — in-place JSONB mutation is
+                    # silently dropped by SQLAlchemy
+                    connector.connector_metadata = {
+                        **(connector.connector_metadata or {}),
+                        **error_info,
+                    }
 
                     await db.flush()
                     await db.commit()

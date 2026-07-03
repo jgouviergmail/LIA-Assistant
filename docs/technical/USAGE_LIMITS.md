@@ -54,9 +54,13 @@ User Message → Layer 0 (Router: HTTP 429)
 - Invalidated after: token persistence, admin limit updates, billing cycle rollover
 - Fail-open: if Redis/DB is down, users are allowed through
 
+### Cycle Reset (single source of truth)
+
+`UserStatistics.cycle_*` fields are reset by **one** method — `UserStatistics.reset_cycle(cycle_start)` — which zeroes **every** `cycle_*` column by introspecting the model (tokens, cost, messages, Google API, image generation, STT, TTS). The three code paths that can cross a billing-cycle boundary all delegate to it: a chat message (`UserStatisticsRepository.create_or_update`), an STT call (`add_stt_usage`), and a dashboard read (`StatisticsService.reset_cycle_if_needed`). This closes a class of bug where each path hand-reset a *different subset* of counters and the others leaked across the boundary (audit wave 2, ADR-095). A new `cycle_*` column is reset automatically; a coverage-sentinel unit test fails if one is added without multi-silo test coverage.
+
 ### Cycle Stale Detection
 
-`UserStatistics.cycle_*` fields are only reset when a user sends a message (`StatisticsService.reset_cycle_if_needed()`). If a user hasn't sent a message since the cycle rollover, the cached cycle data is stale. The `_is_cycle_stale()` method detects this by comparing `stats.current_cycle_start` with the theoretical current cycle start.
+The reset is only *applied* when an event actually crosses the boundary. If a user hasn't sent a message (or triggered any of the three paths) since the cycle rollover, the cached cycle data is stale. The `_is_cycle_stale()` method detects this by comparing `stats.current_cycle_start` with the theoretical current cycle start.
 
 ## API Endpoints
 

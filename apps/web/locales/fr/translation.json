@@ -2947,6 +2947,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_4": {
+          "title": "v1.21.4 — 🛡️ Fiabilité & confidentialité : durcissement systémique (audit vague 2)",
+          "date": "Juillet 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📊 Statistiques d'usage exactes à la bascule de cycle</b> — À chaque nouveau cycle de facturation, certains compteurs de votre tableau de bord (voix, images, requêtes) pouvaient conserver une partie des valeurs du cycle précédent selon l'événement qui franchissait la frontière (un message, une dictée vocale ou une simple consultation). Tous les compteurs sont désormais remis à zéro ensemble : les chiffres d'usage et de coût affichés sont fiables dès le premier jour du cycle.",
+            "i2": "<b>🔒 Confidentialité renforcée — aucune donnée personnelle dans les journaux techniques</b> — Les journaux d'exploitation pouvaient contenir des informations personnelles (adresse du domicile et coordonnées GPS, noms et emails de contacts, destinataires et objets d'emails, extraits de mémoires). Ces contenus en sont désormais retirés (seuls des compteurs et identifiants techniques subsistent), avec un filet de sécurité qui les masque automatiquement même en cas d'oubli futur. Conforme à la minimisation des données (RGPD).",
+            "i3": "<b>🇨🇳 Libellés en chinois pour les utilisateurs en chinois</b> — Deux zones de l'application (types de coordonnées de contacts, résumés de données) affichaient du français au lieu du chinois pour les comptes configurés en chinois simplifié. Elles s'affichent désormais correctement en chinois.",
+            "i4": "<b>🌍 Message de repli dans votre langue</b> — Lorsque l'assistant ne parvient exceptionnellement pas à formuler de réponse, le court message de repli affiché était toujours en français (sans accents). Il est désormais présenté dans votre langue (6 langues).",
+            "i5": "<b>🛡️ Admin · robustesse des outils et des connecteurs</b> — Un module d'outils défaillant ne peut plus disparaître silencieusement du catalogue : l'anomalie est désormais détectée (échec visible en intégration continue, compteur dédié en production) plutôt qu'avalée. Par ailleurs, l'horodatage « dernière utilisation » des clés API et le diagnostic d'erreur des connecteurs OAuth sont désormais correctement enregistrés en base."
+          }
+        },
         "v1_21_3": {
           "title": "v1.21.3 — 🛠️ Fiabilité : correctifs d'audit (calendriers, tâches, labels, sécurité)",
           "date": "Juillet 2026",

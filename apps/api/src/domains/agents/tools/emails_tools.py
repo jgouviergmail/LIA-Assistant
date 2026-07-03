@@ -192,11 +192,15 @@ def normalize_gmail_query(
     if query_stripped in _LLM_ERROR_NORMALIZATIONS:
         normalized = _LLM_ERROR_NORMALIZATIONS[query_stripped]
         if log_context is not None:
+            # No PII at INFO: query text may contain names/emails (DEBUG only)
             logger.info(
                 "gmail_query_llm_error_normalized",
+                reason="LLM generated a search term instead of an operator",
+            )
+            logger.debug(
+                "gmail_query_llm_error_normalized_details",
                 original_query=query,
                 normalized_query=normalized,
-                reason=f"LLM generated '{query_stripped}' as search term instead of operator",
             )
         query = normalized
 
@@ -246,14 +250,18 @@ def normalize_gmail_query(
             )
 
     # Log the query scope transformation for observability
+    # (query contents at DEBUG only — they may contain names/emails)
     if log_context is not None:
         logger.info(
             "search_emails_query_scope",
-            original_query=original_query,
-            final_query=query,
             user_requested_inbox_only=user_requested_inbox_only,
             scope_applied=scope_applied,
             trash_excluded=trash_excluded,
+        )
+        logger.debug(
+            "search_emails_query_scope_details",
+            original_query=original_query,
+            final_query=query,
         )
 
     return query
@@ -483,7 +491,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             logger.info(
                 "get_emails_no_results",
                 user_id=str(user_id),
-                query=query[:50] if query else "(empty)",
+                query_length=len(query) if query else 0,
             )
             return {
                 "emails": [],
@@ -505,7 +513,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         logger.info(
             "get_emails_query_success",
             user_id=str(user_id),
-            query=query[:50] if query else "(empty)",
+            query_length=len(query) if query else 0,
             total_results=len(emails_with_details),
             from_cache=search_result.get("from_cache", False),
         )
@@ -767,7 +775,7 @@ async def get_emails_tool(
     )
 
     # Save to context (for $context.emails references)
-    if runtime.store:
+    if runtime and runtime.store:
         try:
             user_id_raw = runtime.config.get("configurable", {}).get("user_id")
             thread_id = runtime.config.get("configurable", {}).get("thread_id")
@@ -881,7 +889,7 @@ class SearchEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         original_query = kwargs["query"]
         query = normalize_gmail_query(query, log_context={"original_query": original_query})
 
-        logger.info(
+        logger.debug(
             "search_emails_query_normalized",
             original_query=original_query,
             final_query=query,
@@ -891,7 +899,7 @@ class SearchEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         # This transforms "label:COPRO" to "label:Label_12345678"
         resolved_query = await client.resolve_label_names_in_query(query, use_cache=True)
         if resolved_query != query:
-            logger.info(
+            logger.debug(
                 "search_emails_labels_resolved",
                 original_query=query,
                 resolved_query=resolved_query,
@@ -1064,7 +1072,7 @@ async def search_emails_tool(
     # Save to context (for $context.emails references)
     # BUGFIX (Issue #38): Store with proper user-scoped namespace for automatic cleanup
     # Format: (user_id, thread_id, "context", "emails") enables cleanup on conversation reset
-    if runtime.store:
+    if runtime and runtime.store:
         try:
             # Extract user_id and thread_id from runtime.config
             user_id_raw = runtime.config.get("configurable", {}).get("user_id")
@@ -1541,7 +1549,7 @@ async def get_email_details_tool(
     # Save to context
     # BUGFIX (Issue #38): Store with proper user-scoped namespace for automatic cleanup
     # MULTI-ORDINAL FIX (2026-01-01): Support batch mode context saving
-    if runtime.store:
+    if runtime and runtime.store:
         try:
             # Extract user_id and thread_id from runtime.config
             user_id_raw = runtime.config.get("configurable", {}).get("user_id")
@@ -1729,11 +1737,10 @@ class SendEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         # Centralized validation (DRY)
         _validate_send_email_inputs(to, subject, body, cc, bcc)
 
+        # No PII at INFO: recipients/subjects are contents
         logger.info(
             "send_email_draft_prepared",
             user_id=str(user_id),
-            to=to,
-            subject=subject[:50] if len(subject) > 50 else subject,
         )
 
         # Return draft data for Data Registry formatting
@@ -1834,8 +1841,6 @@ class SendEmailDirectTool(ConnectorTool[GoogleGmailClient]):
             "gmail_email_sent_via_tool",
             user_id=str(user_id),
             message_id=result.get("id"),
-            to=to,
-            subject=subject[:50] if len(subject) > 50 else subject,
         )
 
         return {
@@ -2185,8 +2190,6 @@ async def execute_email_draft(
         "email_draft_executed",
         user_id=str(user_id),
         message_id=result.get("id"),
-        to=draft_content["to"],
-        subject=draft_content["subject"][:50],
     )
 
     return {
@@ -2450,7 +2453,6 @@ class ForwardEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "forward_email_draft_prepared",
             user_id=str(user_id),
             message_id=message_id,
-            to=to,
             attachments_count=len(attachments_info),
         )
 
@@ -2622,7 +2624,6 @@ class DeleteEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "delete_email_draft_prepared",
             user_id=str(user_id),
             message_id=message_id,
-            subject=subject[:50] if len(subject) > 50 else subject,
         )
 
         return {
@@ -2794,7 +2795,6 @@ async def execute_email_forward_draft(
         user_id=str(user_id),
         message_id=result.get("id"),
         original_message_id=draft_content["message_id"],
-        to=draft_content["to"],
     )
 
     return {
@@ -2829,7 +2829,6 @@ async def execute_email_delete_draft(
         "email_delete_draft_executed",
         user_id=str(user_id),
         message_id=draft_content["message_id"],
-        subject=subject[:50] if len(subject) > 50 else subject,
     )
 
     return {

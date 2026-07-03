@@ -2933,6 +2933,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_4": {
+          "title": "v1.21.4 — 🛡️ Zuverlässigkeit & Datenschutz: systemische Härtung (Audit Welle 2)",
+          "date": "Juli 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📊 Genaue Nutzungsstatistiken beim Zykluswechsel</b> — Bei jedem neuen Abrechnungszyklus konnten einige Zähler Ihres Dashboards (Sprache, Bilder, Anfragen) je nach dem Ereignis, das die Grenze überschritt (eine Nachricht, ein Sprachdiktat oder einfach das Öffnen des Dashboards), einen Teil der Werte des vorherigen Zyklus behalten. Alle Zähler werden jetzt gemeinsam zurückgesetzt: die angezeigten Nutzungs- und Kostenzahlen sind ab dem ersten Tag des Zyklus zuverlässig.",
+            "i2": "<b>🔒 Verstärkter Datenschutz — keine personenbezogenen Daten in technischen Protokollen</b> — Betriebsprotokolle konnten personenbezogene Informationen enthalten (Wohnadresse und GPS-Koordinaten, Namen und E-Mails von Kontakten, Empfänger und Betreffzeilen von E-Mails, Auszüge aus Erinnerungen). Diese Inhalte werden nun entfernt (nur technische Zähler und Kennungen bleiben erhalten), mit einem Sicherheitsnetz, das sie automatisch maskiert, selbst bei einem künftigen Versehen. Konform mit der Datenminimierung (DSGVO).",
+            "i3": "<b>🇨🇳 Chinesische Bezeichnungen für chinesischsprachige Nutzer</b> — Zwei Bereiche der Anwendung (Kontaktfeldtypen, Datenzusammenfassungen) zeigten Französisch statt Chinesisch für auf vereinfachtes Chinesisch eingestellte Konten. Sie werden jetzt korrekt auf Chinesisch angezeigt.",
+            "i4": "<b>🌍 Ausweichnachricht in Ihrer Sprache</b> — Wenn der Assistent ausnahmsweise keine Antwort formulieren kann, wurde die kurze Ausweichnachricht immer auf Französisch (ohne Akzente) angezeigt. Sie erscheint jetzt in Ihrer Sprache (6 Sprachen).",
+            "i5": "<b>🛡️ Admin · Robustheit von Werkzeugen und Konnektoren</b> — Ein fehlerhaftes Werkzeugmodul kann nicht mehr stillschweigend aus dem Katalog verschwinden: die Anomalie wird jetzt erkannt (sichtbarer Fehler in der kontinuierlichen Integration, dedizierter Zähler in der Produktion), statt verschluckt zu werden. Außerdem werden der Zeitstempel „zuletzt verwendet“ der API-Schlüssel und die Fehlerdiagnose der OAuth-Konnektoren jetzt korrekt in der Datenbank gespeichert."
+          }
+        },
         "v1_21_3": {
           "title": "v1.21.3 — 🛠️ Zuverlässigkeit: Audit-Korrekturen (Kalender, Aufgaben, Labels, Sicherheit)",
           "date": "Juli 2026",

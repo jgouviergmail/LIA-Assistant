@@ -177,7 +177,7 @@ DOMAIN_LABELS = {
         "skill_apps": "Skill interattivo/i",
         "other": "Elemento/i",
     },
-    "zh": {
+    "zh-CN": {
         "contacts": "联系人",
         "emails": "邮件",
         "calendar": "日程",
@@ -209,6 +209,17 @@ DOMAIN_LABELS = {
         "other": "项目",
     },
 }
+
+
+def _labels_for(user_language: str) -> dict[str, str]:
+    """Resolve the DOMAIN_LABELS table for a raw locale.
+
+    Normalizes through the single chokepoint so both Chinese spellings
+    ("zh" frontend, "zh-CN" backend) reach the zh-CN table (audit wave 2, zh).
+    """
+    from src.domains.agents.utils.i18n_location import normalize_language
+
+    return DOMAIN_LABELS.get(normalize_language(user_language), DOMAIN_LABELS["en"])
 
 
 def generate_text_summary_for_items(
@@ -246,10 +257,10 @@ def generate_text_summary_for_items(
                 summaries.append(text_summary)
 
     if not summaries:
-        labels = DOMAIN_LABELS.get(user_language, DOMAIN_LABELS["en"])
+        labels = _labels_for(user_language)
         return f"{len(items)} {labels['other']}"
 
-    labels = DOMAIN_LABELS.get(user_language, DOMAIN_LABELS["en"])
+    labels = _labels_for(user_language)
     label = labels.get(domain, labels["other"])
     count = len(summaries)
 
@@ -321,7 +332,7 @@ def generate_text_summary_for_llm(
     if not domain_items:
         return ""
 
-    labels = DOMAIN_LABELS.get(user_language, DOMAIN_LABELS["en"])
+    labels = _labels_for(user_language)
     parts = []
 
     for domain, summaries in domain_items.items():

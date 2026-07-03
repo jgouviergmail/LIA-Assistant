@@ -228,10 +228,15 @@ class MemoryReferenceResolutionService:
                 mappings={},
             )
 
+        # No PII at INFO: query text may contain names (DEBUG only)
         logger.info(
             "memory_resolution_started",
-            query_preview=query[:80],
+            query_length=len(query),
             memory_facts_length=len(memory_facts),
+        )
+        logger.debug(
+            "memory_resolution_started_details",
+            query_preview=query[:80],
         )
 
         try:
@@ -244,11 +249,15 @@ class MemoryReferenceResolutionService:
             )
 
             if result and result.mappings:
+                # No PII at INFO: mappings are resolved person names (DEBUG only)
                 logger.info(
                     "memory_resolution_complete",
+                    mappings_count=len(result.mappings),
+                )
+                logger.debug(
+                    "memory_resolution_complete_details",
                     original_query=query[:80],
                     enriched_query=result.enriched_query[:80],
-                    mappings_count=len(result.mappings),
                     mappings=result.mappings,
                 )
             else:
@@ -265,7 +274,7 @@ class MemoryReferenceResolutionService:
             _cfg = get_llm_config_for_agent(self._settings, "memory_reference_resolution")
             logger.warning(
                 "memory_resolution_timeout",
-                query_preview=query[:50],
+                query_length=len(query),
                 timeout_seconds=_cfg.timeout_seconds,
             )
             return ResolvedReferences(
@@ -277,7 +286,7 @@ class MemoryReferenceResolutionService:
         except Exception as e:
             logger.error(
                 "memory_resolution_error",
-                query_preview=query[:50],
+                query_length=len(query),
                 error=str(e),
             )
             return ResolvedReferences(
@@ -377,6 +386,10 @@ class MemoryReferenceResolutionService:
             if len(response) < 2 or any(c in response for c in ["[", "]", "{", "}"]):
                 logger.warning(
                     "memory_resolution_invalid_response",
+                    response_length=len(response),
+                )
+                logger.debug(
+                    "memory_resolution_invalid_response_details",
                     reference=reference,
                     response=response[:50],
                 )
@@ -546,10 +559,13 @@ class MemoryReferenceResolutionService:
         except json.JSONDecodeError as e:
             logger.warning(
                 "memory_resolution_json_parse_error",
-                query_preview=query[:50],
-                response_preview=response[:200] if response else "",
                 full_response_length=len(response) if response else 0,
                 error=str(e),
+            )
+            logger.debug(
+                "memory_resolution_json_parse_error_details",
+                query_preview=query[:50],
+                response_preview=response[:200] if response else "",
             )
 
             # Fallback: try regex extraction when JSON is malformed
@@ -559,6 +575,9 @@ class MemoryReferenceResolutionService:
                 logger.info(
                     "memory_resolution_regex_fallback_success",
                     mappings_count=len(fallback_result.mappings),
+                )
+                logger.debug(
+                    "memory_resolution_regex_fallback_details",
                     mappings=fallback_result.mappings,
                 )
                 return fallback_result

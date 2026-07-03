@@ -807,6 +807,7 @@ class StreamingService:
                     format_chunk_fn=self.format_token_chunk,
                     config=fallback_config,
                     user_id=str(self.user_id) if self.user_id else None,
+                    language=state.get("user_language") if state else None,
                 ):
                     response_content += content_fragment
                     token_count += 1

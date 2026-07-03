@@ -287,18 +287,18 @@ RELATION_TYPE_TRANSLATIONS: dict[str, dict[Language, str]] = {
 
 
 def _extract_language(locale: str | None) -> Language:
-    """Extract language code from locale string."""
+    """Extract the canonical language code from a locale string.
+
+    Delegates to the single normalization chokepoint so both Chinese
+    spellings ("zh" frontend, "zh-CN" backend) reach the zh-CN tables
+    (audit wave 2, zh).
+    """
     if not locale:
         return settings.default_language
 
-    if locale.lower() == "zh-cn":
-        return "zh-CN"
+    from src.domains.agents.utils.i18n_location import normalize_language
 
-    lang = locale.split("-")[0].lower() if "-" in locale else locale.lower()
-    if lang in ("fr", "en", "es", "de", "it", "zh-CN"):
-        return lang  # type: ignore[return-value]
-
-    return settings.default_language
+    return normalize_language(locale)
 
 
 def get_emoji(field_type: str) -> str:

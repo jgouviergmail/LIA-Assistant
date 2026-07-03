@@ -2942,6 +2942,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_4": {
+          "title": "v1.21.4 — 🛡️ Reliability & privacy: systemic hardening (audit wave 2)",
+          "date": "July 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📊 Accurate usage statistics at the cycle rollover</b> — At each new billing cycle, some of your dashboard counters (voice, images, requests) could keep part of the previous cycle's values depending on which event crossed the boundary (a message, a voice dictation, or simply opening the dashboard). All counters are now reset together: the usage and cost figures shown are reliable from the first day of the cycle.",
+            "i2": "<b>🔒 Stronger privacy — no personal data in technical logs</b> — Operational logs could contain personal information (home address and GPS coordinates, contact names and emails, email recipients and subjects, memory excerpts). This content is now removed (only technical counters and identifiers remain), with a safety net that automatically masks it even if a future oversight occurs. Compliant with data minimization (GDPR).",
+            "i3": "<b>🇨🇳 Chinese labels for Chinese-speaking users</b> — Two areas of the app (contact field types, data summaries) showed French instead of Chinese for accounts set to Simplified Chinese. They now display correctly in Chinese.",
+            "i4": "<b>🌍 Fallback message in your language</b> — When the assistant exceptionally cannot produce a reply, the short fallback message shown was always in French (without accents). It now appears in your language (6 languages).",
+            "i5": "<b>🛡️ Admin · tool and connector robustness</b> — A failing tool module can no longer vanish silently from the catalogue: the anomaly is now detected (a visible failure in continuous integration, a dedicated counter in production) rather than swallowed. In addition, the API-key \"last used\" timestamp and the error diagnostics of OAuth connectors are now correctly persisted to the database."
+          }
+        },
         "v1_21_3": {
           "title": "v1.21.3 — 🛠️ Reliability: audit fixes (calendars, tasks, labels, security)",
           "date": "July 2026",

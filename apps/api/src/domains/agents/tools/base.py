@@ -449,11 +449,17 @@ class ConnectorTool[ClientType](ABC):
         Returns:
             JSON string with error details
         """
+        # No PII at ERROR: raw params may contain recipients/bodies (DEBUG only)
         self.logger.error(
             "tool_execution_error",
             user_id=user_id_str,
             error=str(error),
             error_type=type(error).__name__,
+            param_keys=sorted(params),
+        )
+        self.logger.debug(
+            "tool_execution_error_params",
+            user_id=user_id_str,
             params=params,
         )
 
@@ -794,11 +800,17 @@ class APIKeyConnectorTool[ClientType](ABC):
         params: dict[str, Any],
     ) -> str:
         """Handle tool execution errors."""
+        # No PII at ERROR: raw params may contain user content (DEBUG only)
         self.logger.error(
             "api_key_tool_execution_error",
             user_id=user_id_str,
             error=str(error),
             error_type=type(error).__name__,
+            param_keys=sorted(params),
+        )
+        self.logger.debug(
+            "api_key_tool_execution_error_params",
+            user_id=user_id_str,
             params=params,
         )
         return handle_tool_exception(error, self.tool_name, params).model_dump_json()

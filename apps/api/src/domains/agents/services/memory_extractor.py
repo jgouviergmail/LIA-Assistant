@@ -366,6 +366,10 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedMemory]:
         logger.warning(
             "extraction_json_parse_failed",
             error=str(e),
+            result_length=len(cleaned) if cleaned else 0,
+        )
+        logger.debug(
+            "extraction_json_parse_failed_details",
             result_preview=cleaned[:500] if cleaned else "empty",
         )
 
@@ -722,6 +726,7 @@ async def extract_memories_background(
                                 context_biometric=action.context_biometric,
                             )
                             applied_count += 1
+                            # No PII at INFO: memory content/topic are contents (DEBUG only)
                             logger.info(
                                 "memory_action_applied",
                                 user_id=user_id,
@@ -729,6 +734,10 @@ async def extract_memories_background(
                                 category=action.category,
                                 importance=round(action.importance or 0.7, 2),
                                 emotional_weight=action.emotional_weight or 0,
+                            )
+                            logger.debug(
+                                "memory_action_applied_details",
+                                action="create",
                                 trigger_topic=action.trigger_topic or "",
                                 content_preview=(action.content or "")[:80],
                             )
@@ -785,6 +794,11 @@ async def extract_memories_background(
                                         if action.emotional_weight is not None
                                         else memory.emotional_weight
                                     ),
+                                )
+                                logger.debug(
+                                    "memory_action_applied_details",
+                                    action="update",
+                                    memory_id=action.memory_id,
                                     content_preview=(action.content or memory.content or "")[:80],
                                 )
                                 stored_memories_debug.append(
@@ -835,6 +849,11 @@ async def extract_memories_background(
                                     category=memory.category,
                                     importance=round(memory.importance, 2),
                                     emotional_weight=memory.emotional_weight,
+                                )
+                                logger.debug(
+                                    "memory_action_applied_details",
+                                    action="delete",
+                                    memory_id=action.memory_id,
                                     content_preview=(memory.content or "")[:80],
                                 )
                                 stored_memories_debug.append(

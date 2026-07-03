@@ -531,7 +531,7 @@ async def search_events_tool(
     )
 
     # Save to context for reference resolution
-    if runtime.store:
+    if runtime and runtime.store:
         try:
             user_id_raw = runtime.config.get("configurable", {}).get("user_id")
             thread_id = runtime.config.get("configurable", {}).get("thread_id")
@@ -921,7 +921,7 @@ async def get_event_details_tool(
 
     # Save to context
     # MULTI-ORDINAL FIX (2026-01-01): Support batch mode context saving
-    if runtime.store:
+    if runtime and runtime.store:
         try:
             user_id_raw = runtime.config.get("configurable", {}).get("user_id")
             thread_id = runtime.config.get("configurable", {}).get("thread_id")

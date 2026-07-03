@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 50+ |
 | Guides pratiques | 15+ |
 | Runbooks | 34+ |
-| ADRs | 84 |
+| ADRs | 88 |
 | Skills Claude | 10 |
 
 ---
@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (84) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (88) |
 
 ### Pour les Product Managers
 
@@ -174,6 +174,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ADR-091-Response-Context-Prefetch.md](./architecture/ADR-091-Response-Context-Prefetch.md) | Response-node user-context injections (embedding, memory, user/system RAG, journal, portrait, psyche) extracted into `services/response_context.py` and prefetched from the initiative node — overlapping the ~12s initiative LLM call in BOTH modes with zero graph topology change (graph fan-out evaluated and rejected). Bounded process-local task registry keyed by run_id, consume-once pop with timeout, identical inline fallback on any miss. Also indexes the 2026-07 latency campaign: LLM instance cache, reasoning-stream negative cache, non-blocking contacts warmup, RAG query-embedding single-flight, reducer tiktoken memoization, frontend SSE token batching, externalized `.lia-response` CSS | ✅ |
 | [ADR-092-Replay-Safe-HITL-Interrupts.md](./architecture/ADR-092-Replay-Safe-HITL-Interrupts.md) | Normative HITL pattern: ONE `interrupt()` per node execution, loop state through checkpointed state returns + conditional self-loop edges (LangGraph resume re-executes the whole node). Applied to draft critique (single-pass `_handle_draft_critique`, edit/replan/clarify persist then self-loop — past LLM `modify()` calls never replay, clarify finally displays its question) and FOR_EACH bulk confirmation (dedicated `for_each_confirm` node; orchestrator pre-executes providers ONCE into `for_each_hitl_ctx` guarded by plan_id+turn_id; approve resumes with no re-fetch, edit runs the item filter once with cumulative indices). Invariant: what the user last saw is exactly what executes. Proven by compiled replay harnesses | ✅ |
 | [ADR-093-Security-Hardening-Proxy-XSS.md](./architecture/ADR-093-Security-Hardening-Proxy-XSS.md) | Two coupled posture hardenings. Trusted proxy chain: prod ports 8000/9091 loopback-bound (cloudflared = single public entry; compose-internal SSR/scrape traffic unaffected) + uvicorn `--proxy-headers --forwarded-allow-ips="*"` (safe ONLY due to the loopback binding) + no application code reads raw X-Forwarded-For — `request.client.host` is the single client-IP source (per-IP rate limiting effective, GeoIP/logs real). XSS boundary: `rehype-sanitize` in the chat markdown pipeline (`rehypeRaw → rehypeSanitize → rehypeKatex`) with a schema audited against all legitimate card/rich-HTML markup (className freed on the 7 defaultSchema-constrained tags); script/iframe/form/handlers dropped, legacy `<style>` stripped; MCP/Skill Apps stay outside markdown (sentinel → sandboxed widget) | ✅ |
+| [ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md](./architecture/ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md) | Wave-1 audit dead-code removal: the never-wired per-node message-windowing helpers (`get_router/planner/orchestrator_windowed_messages`) + their settings/constants/`.env`/tests deleted (token growth already bounded by the state-level `add_messages_with_truncate` reducer); live `get_windowed_messages` / `get_response_windowed_messages` kept. Deliberate per-node windowing deferred to the latency effort with benchmarks | ✅ |
+| [ADR-095-Systemic-Guards-Wave2-Audit.md](./architecture/ADR-095-Systemic-Guards-Wave2-Audit.md) | Wave-2 audit: closes 7 systemic defect classes, each with a permanent guard. JSONB in-place mutation (silent write loss) → AST CI test; PII at INFO → level-sensitive redaction net in `pii_filter.py` (content fields redacted at INFO+, allowed at DEBUG); silent tool-import loss → raise-outside-prod + `tool_module_import_failures_total` + 3-layer registry smoke test; billing-cycle counter leak → single `reset_cycle()` by column introspection + multi-silo test; zh/zh-CN divergence → one canonical `normalize_language`; non-localized fallback → 6-language `get_simple_fallback_message`; 5 lying docstrings corrected. Most structural change = the platform-wide PII logging boundary. No schema/migration/`.env` change; 1 new Prometheus metric | ✅ |
 
 ### Human-in-the-Loop (HITL)
 
@@ -264,7 +266,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 82 ADRs | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 88 ADRs | ✅ |
 
 ### ADRs Récents (2026)
 

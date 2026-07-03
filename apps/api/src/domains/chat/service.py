@@ -1303,7 +1303,8 @@ class StatisticsService:
         Reset billing cycle counters if cycle has changed.
 
         Checks if current_cycle_start is newer than stats.current_cycle_start
-        and resets all cycle-specific counters (tokens, cost, messages).
+        and resets ALL cycle_* counters (tokens, cost, messages, Google API,
+        image generation, STT, TTS) via UserStatistics.reset_cycle().
 
         Args:
             stats: UserStatistics object to potentially reset
@@ -1314,15 +1315,10 @@ class StatisticsService:
             bool: True if cycle was reset, False otherwise
         """
         if stats.current_cycle_start < current_cycle_start:
-            stats.current_cycle_start = current_cycle_start
-            stats.cycle_prompt_tokens = 0
-            stats.cycle_completion_tokens = 0
-            stats.cycle_cached_tokens = 0
-            stats.cycle_cost_eur = Decimal("0.00")
-            stats.cycle_messages = 0
-            # Google API cycle counters
-            stats.cycle_google_api_requests = 0
-            stats.cycle_google_api_cost_eur = Decimal("0.00")
+            # Zero EVERY cycle_* silo via the single source of truth —
+            # hand-resetting a subset leaks image/STT/TTS counters into the
+            # new cycle (audit wave 2, C2)
+            stats.reset_cycle(current_cycle_start)
 
             logger.info(
                 "billing_cycle_reset",

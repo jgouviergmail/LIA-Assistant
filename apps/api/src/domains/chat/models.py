@@ -211,3 +211,28 @@ class UserStatistics(BaseModel):
         onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
+
+    def reset_cycle(self, cycle_start: datetime) -> None:
+        """Start a new billing cycle: zero EVERY ``cycle_*`` counter.
+
+        Single source of truth for cycle boundaries (audit wave 2, C2).
+        The three call paths that can cross a boundary (message tracking,
+        STT usage, dashboard read) must all call this method — hand-resetting
+        a subset of counters leaks the other silos into the new cycle.
+
+        Columns are discovered by introspection, so a future ``cycle_*``
+        column is reset automatically without touching this method.
+
+        Args:
+            cycle_start: Start of the new billing cycle (timezone-aware UTC).
+        """
+        for column in self.__table__.columns:
+            if not column.name.startswith("cycle_"):
+                continue
+            default = column.default.arg if column.default is not None else 0
+            if callable(default):
+                raise TypeError(
+                    f"cycle_* columns must have scalar defaults, got callable " f"for {column.name}"
+                )
+            setattr(self, column.name, default)
+        self.current_cycle_start = cycle_start

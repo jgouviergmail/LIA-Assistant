@@ -346,6 +346,16 @@ def validate_runtime_config(
     """
     from src.domains.agents.tools.output import UnifiedToolOutput
 
+    # Defensive: runtime is injected by LangGraph. A missing runtime (tool
+    # invoked outside the agent graph, or injection failure) must yield a
+    # structured configuration error, not an AttributeError.
+    if runtime is None or getattr(runtime, "config", None) is None:
+        logger.error("missing_runtime", tool_name=tool_name)
+        return UnifiedToolOutput.failure(
+            message="runtime missing (tool must be invoked via the agent graph)",
+            error_code="configuration_error",
+        )
+
     # Extract user_id
     user_id = (runtime.config.get("configurable") or {}).get(FIELD_USER_ID)
     if not user_id:
@@ -1094,8 +1104,14 @@ async def get_user_home_location(runtime: ToolRuntime) -> ResolvedLocation | Non
                 )
                 return None
 
+            # No PII at INFO: home address/coordinates are contents (DEBUG only)
             logger.info(
                 "get_user_home_location_found",
+                user_id=str(user_id),
+                has_address=bool(home_location.address),
+            )
+            logger.debug(
+                "get_user_home_location_details",
                 user_id=str(user_id),
                 address_preview=home_location.address[:30] if home_location.address else None,
                 lat=home_location.lat,
@@ -1178,7 +1194,6 @@ async def resolve_location(
                 logger.info(
                     "resolve_location_using_home",
                     has_home=True,
-                    address_preview=home_location.address[:30] if home_location.address else None,
                 )
                 return (home_location, None)
 
@@ -1201,11 +1216,7 @@ async def resolve_location(
             # User explicitly references current position ("nearby", "around me")
             # Priority: browser only > fallback
             if browser_geoloc:
-                logger.info(
-                    "resolve_location_using_browser",
-                    lat=browser_geoloc.lat,
-                    lon=browser_geoloc.lon,
-                )
+                logger.info("resolve_location_using_browser")
                 return (browser_geoloc, None)
 
             # No browser geolocation for CURRENT reference
@@ -1335,8 +1346,10 @@ async def resolve_contact_to_email(
                         if person.get("names")
                         else None
                     )
-                    logger.info(
-                        "resolve_contact_to_email_success",
+                    # No PII at INFO: resolved names/emails are contents (DEBUG only)
+                    logger.info("resolve_contact_to_email_success")
+                    logger.debug(
+                        "resolve_contact_to_email_details",
                         name=name,
                         contact_name=display_name,
                         email=email,
@@ -1353,7 +1366,6 @@ async def resolve_contact_to_email(
     except Exception as e:
         logger.warning(
             "resolve_contact_to_email_error",
-            name=name,
             error=str(e),
             error_type=type(e).__name__,
         )
@@ -1372,9 +1384,9 @@ async def resolve_recipients_to_emails(
     For each recipient that is not already a valid email, attempts to resolve it
     via Google People API.
 
-    Feature Toggle:
-        Controlled by settings.recipient_resolution_enabled (default: True).
-        When disabled, returns recipients unchanged (requires explicit emails).
+    Note:
+        Always enabled — the former settings.recipient_resolution_enabled
+        toggle was removed (resolution is unconditional).
 
     Args:
         runtime: ToolRuntime with config containing user_id and dependencies
@@ -1428,15 +1440,16 @@ async def resolve_recipients_to_emails(
                 logger.info(
                     "recipient_resolved_to_email",
                     field=field_name,
-                    original=name,
-                    resolved=resolved_email,
-                    formatted=formatted,
                 )
                 resolved_parts.append(formatted)
             else:
                 # Couldn't resolve - keep original (will fail at validation)
                 logger.warning(
                     "recipient_resolution_failed",
+                    field=field_name,
+                )
+                logger.debug(
+                    "recipient_resolution_failed_details",
                     field=field_name,
                     recipient=name,
                 )
@@ -1464,14 +1477,16 @@ async def resolve_recipients_to_emails(
                 logger.info(
                     "recipient_resolved_to_email",
                     field=field_name,
-                    original=recipient,
-                    resolved=resolved_email,
                 )
                 resolved_list.append(resolved_email)
             else:
                 # Keep original - will fail at API level with clear error
                 logger.warning(
                     "recipient_resolution_failed",
+                    field=field_name,
+                )
+                logger.debug(
+                    "recipient_resolution_failed_details",
                     field=field_name,
                     recipient=recipient,
                 )

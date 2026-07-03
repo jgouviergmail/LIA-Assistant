@@ -384,6 +384,10 @@ class Connector(BaseModel):
     credentials_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Additional connector-specific metadata (attribute name is connector_metadata, DB column is 'metadata')
+    # CONVENTION: never mutate JSONB columns in place (update()/[]=) — SQLAlchemy
+    # silently skips the UPDATE. Reassign a NEW dict: obj.connector_metadata =
+    # {**(obj.connector_metadata or {}), **updates}. Enforced by
+    # tests/unit/test_jsonb_mutation_guard.py.
     connector_metadata: Mapped[dict[str, Any] | None] = mapped_column(
         "metadata", JSONB, nullable=True, default=dict
     )

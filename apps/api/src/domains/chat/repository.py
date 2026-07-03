@@ -642,52 +642,33 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                 stats.total_tts_cost_eur += tts_cost_delta
 
                 if is_new_cycle:
-                    # Reset cycle counters
-                    stats.current_cycle_start = current_cycle_start
-                    stats.cycle_prompt_tokens = summary_data[FIELD_TOKENS_IN]
-                    stats.cycle_completion_tokens = summary_data[FIELD_TOKENS_OUT]
-                    stats.cycle_cached_tokens = summary_data[FIELD_TOKENS_CACHE]
-                    stats.cycle_cost_eur = grand_cost_delta
-                    stats.cycle_messages = summary_data[FIELD_MESSAGE_COUNT]
-                    # Google API cycle (reset)
-                    stats.cycle_google_api_requests = summary_data.get(FIELD_GOOGLE_API_REQUESTS, 0)
-                    stats.cycle_google_api_cost_eur = Decimal(
-                        str(summary_data.get(FIELD_GOOGLE_API_COST_EUR, 0))
-                    )
-                    # Image Generation cycle (reset)
-                    stats.cycle_image_generation_requests = summary_data.get(
-                        FIELD_IMAGE_GENERATION_REQUESTS, 0
-                    )
-                    stats.cycle_image_generation_cost_eur = Decimal(
-                        str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
-                    )
-                    # TTS cycle (reset)
-                    stats.cycle_tts_characters = Decimal(tts_chars_delta)
-                    stats.cycle_tts_cost_eur = tts_cost_delta
-                else:
-                    # Increment cycle counters
-                    stats.cycle_prompt_tokens += summary_data[FIELD_TOKENS_IN]
-                    stats.cycle_completion_tokens += summary_data[FIELD_TOKENS_OUT]
-                    stats.cycle_cached_tokens += summary_data[FIELD_TOKENS_CACHE]
-                    stats.cycle_cost_eur += grand_cost_delta
-                    stats.cycle_messages += summary_data[FIELD_MESSAGE_COUNT]
-                    # Google API cycle (increment)
-                    stats.cycle_google_api_requests += summary_data.get(
-                        FIELD_GOOGLE_API_REQUESTS, 0
-                    )
-                    stats.cycle_google_api_cost_eur += Decimal(
-                        str(summary_data.get(FIELD_GOOGLE_API_COST_EUR, 0))
-                    )
-                    # Image Generation cycle (increment)
-                    stats.cycle_image_generation_requests += summary_data.get(
-                        FIELD_IMAGE_GENERATION_REQUESTS, 0
-                    )
-                    stats.cycle_image_generation_cost_eur += Decimal(
-                        str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
-                    )
-                    # TTS cycle (increment)
-                    stats.cycle_tts_characters += Decimal(tts_chars_delta)
-                    stats.cycle_tts_cost_eur += tts_cost_delta
+                    # New cycle: zero EVERY cycle_* silo (tokens, cost,
+                    # messages, Google, image, STT, TTS) before applying this
+                    # message's contribution — hand-resetting a subset leaks
+                    # the other silos into the new cycle (audit wave 2, C2)
+                    stats.reset_cycle(current_cycle_start)
+
+                # Increment cycle counters (from zero on a new cycle)
+                stats.cycle_prompt_tokens += summary_data[FIELD_TOKENS_IN]
+                stats.cycle_completion_tokens += summary_data[FIELD_TOKENS_OUT]
+                stats.cycle_cached_tokens += summary_data[FIELD_TOKENS_CACHE]
+                stats.cycle_cost_eur += grand_cost_delta
+                stats.cycle_messages += summary_data[FIELD_MESSAGE_COUNT]
+                # Google API cycle (increment)
+                stats.cycle_google_api_requests += summary_data.get(FIELD_GOOGLE_API_REQUESTS, 0)
+                stats.cycle_google_api_cost_eur += Decimal(
+                    str(summary_data.get(FIELD_GOOGLE_API_COST_EUR, 0))
+                )
+                # Image Generation cycle (increment)
+                stats.cycle_image_generation_requests += summary_data.get(
+                    FIELD_IMAGE_GENERATION_REQUESTS, 0
+                )
+                stats.cycle_image_generation_cost_eur += Decimal(
+                    str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
+                )
+                # TTS cycle (increment)
+                stats.cycle_tts_characters += Decimal(tts_chars_delta)
+                stats.cycle_tts_cost_eur += tts_cost_delta
 
                 await self.db.flush()
                 await self.db.refresh(stats)
@@ -805,16 +786,14 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                 stats.total_cost_eur += cost_dec
 
                 if is_new_cycle:
-                    stats.current_cycle_start = current_cycle_start
-                    stats.cycle_stt_audio_seconds = duration_dec
-                    stats.cycle_stt_cost_eur = cost_dec
-                    # Reset the global cycle cost too: a brand new cycle
-                    # starts fresh, the first contribution this month is STT.
-                    stats.cycle_cost_eur = cost_dec
-                else:
-                    stats.cycle_stt_audio_seconds += duration_dec
-                    stats.cycle_stt_cost_eur += cost_dec
-                    stats.cycle_cost_eur += cost_dec
+                    # New cycle: zero EVERY cycle_* silo, not just STT —
+                    # hand-resetting a subset leaks tokens/messages/Google/
+                    # image/TTS into the new cycle (audit wave 2, C2)
+                    stats.reset_cycle(current_cycle_start)
+
+                stats.cycle_stt_audio_seconds += duration_dec
+                stats.cycle_stt_cost_eur += cost_dec
+                stats.cycle_cost_eur += cost_dec
 
                 await self.db.flush()
                 await self.db.refresh(stats)

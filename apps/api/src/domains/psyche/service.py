@@ -496,6 +496,11 @@ class PsycheService:
             _best_label = PsycheEngine.classify_mood(
                 state.mood_pleasure, state.mood_arousal, state.mood_dominance
             )
+            # v2: computed emotional resonance
+            resonance = PsycheEngine.compute_resonance(
+                user_valence=appraisal.valence,
+                emotions=appraisal.emotions,
+            )
             state.last_appraisal = {
                 "valence": appraisal.valence,
                 "arousal": appraisal.arousal,
@@ -508,14 +513,8 @@ class PsycheService:
                 "mood_arousal": state.mood_arousal,
                 "mood_dominance": state.mood_dominance,
                 "timestamp": now_iso,
+                "resonance": round(resonance, 3),
             }
-
-            # v2: computed emotional resonance
-            resonance = PsycheEngine.compute_resonance(
-                user_valence=appraisal.valence,
-                emotions=appraisal.emotions,
-            )
-            state.last_appraisal["resonance"] = round(resonance, 3)
             if abs(resonance) > 0.1:
                 logger.debug(
                     "psyche_resonance_computed",
@@ -545,11 +544,10 @@ class PsycheService:
                 now_iso=now_iso,
             )
 
-            # Add reunion emotions
+            # Add reunion emotions (new-list reassignment — in-place JSONB
+            # mutation is silently dropped by SQLAlchemy)
             if reunion_emotions:
-                if state.active_emotions is None:
-                    state.active_emotions = []
-                state.active_emotions.extend(reunion_emotions)
+                state.active_emotions = [*(state.active_emotions or []), *reunion_emotions]
 
             # Rupture-repair detection
             curr_dominant = appraisal.dominant_emotion

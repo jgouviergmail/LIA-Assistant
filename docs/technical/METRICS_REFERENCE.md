@@ -1360,6 +1360,34 @@ topk(10, sum by (user_id_hash) (increase(agent_tool_rate_limit_hits_total[1h])))
 
 ---
 
+### tool_module_import_failures_total
+
+**Type**: Counter
+**Description**: Tool-module import failures — each one removes a whole tool family from the registry (audit wave 2, ADR-095)
+**Labels**: `module`
+
+A failed tool-module import silently removes an entire tool family from the catalogue. Outside production, `_import_tool_modules` **raises** so CI fails loudly; in production it increments this counter and continues (resilience over crash). A non-zero value means a tool family failed to load — investigate immediately.
+
+**Instrumentation:**
+
+```python
+# apps/api/src/domains/agents/tools/tool_registry.py
+except Exception as e:
+    tool_module_import_failures.labels(module=module_name).inc()
+    logger.exception("tool_module_import_failed", module=module_name, ...)
+    if not settings.is_production:
+        raise RuntimeError(...) from e
+```
+
+**Query PromQL:**
+
+```promql
+# Any tool family failed to load (should always be 0)
+sum by (module) (increase(tool_module_import_failures_total[1h]))
+```
+
+---
+
 ## Task Orchestrator
 
 ### task_orchestrator_plans_created_total

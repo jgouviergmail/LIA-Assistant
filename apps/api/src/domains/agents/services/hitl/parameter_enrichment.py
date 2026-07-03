@@ -131,13 +131,14 @@ async def enrich_tool_parameters(
             # Add enriched label to tool_args (non-intrusive: original args preserved)
             enriched_args = tool_args.copy()
             enriched_args["_display_label"] = display_label
+            # No PII at INFO: display_label is content (contact name, email
+            # subject, ...) — details available at DEBUG in _resolve_id_to_label
             logger.info(
                 "enrichment_single_success",
                 tool_name=tool_name,
                 domain=domain,
                 id_field=primary_id_field,
                 id_value=str(id_value)[:50],  # Truncate for logging
-                display_label=display_label,
             )
             return enriched_args
 

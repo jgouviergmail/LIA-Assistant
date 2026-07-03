@@ -7,7 +7,7 @@ Used by DraftExecutionResult to display localized messages.
 Supported languages: fr, en, es, de, it, zh-CN
 """
 
-from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
 from src.core.i18n_types import Language
 
 # ============================================================================
@@ -604,19 +604,9 @@ def _normalize_language(language: str | None) -> Language:
     if not language:
         return DEFAULT_LANGUAGE
 
-    # Handle Chinese variants
-    lang_lower = language.lower()
-    if lang_lower in ("zh", "zh-cn", "zh_cn"):
-        return "zh-CN"
-
-    # Extract base language (e.g., "fr-FR" -> "fr")
-    base_lang = lang_lower.split("-")[0].split("_")[0]
-
-    # Check if supported
-    if base_lang in DRAFT_SUCCESS_MESSAGES:
-        return base_lang
-
-    return DEFAULT_LANGUAGE
+    # Single normalization chokepoint (audit wave 2, zh) — DRAFT_* tables are
+    # keyed on its output (all 6 canonical languages, zh-CN included)
+    return normalize_language(language)
 
 
 def get_draft_success_message(

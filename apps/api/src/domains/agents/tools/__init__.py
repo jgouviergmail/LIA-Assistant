@@ -11,6 +11,8 @@ LOT 10: Added Weather and Wikipedia tools.
 LOT 11: Added Perplexity and Places tools.
 """
 
+import structlog
+
 from src.domains.agents.tools.base import APIKeyConnectorTool, ConnectorTool
 from src.domains.agents.tools.brave_tools import (
     brave_news_tool,
@@ -106,6 +108,29 @@ from src.domains.agents.tools.wikipedia_tools import (
     search_wikipedia_tool,
 )
 
+_logger = structlog.get_logger(__name__)
+
+
+def _log_conditional_import_failure(family: str, error: Exception) -> None:
+    """Log + count a failed conditional tool import (never silent — C9).
+
+    A swallowed import error silently removes an entire tool family.
+    The Prometheus counter makes it observable; tool_registry raises in
+    dev/test for these same modules when their feature flag is on.
+    """
+    from src.infrastructure.observability.metrics_agents import (
+        tool_module_import_failures,
+    )
+
+    tool_module_import_failures.labels(module=family).inc()
+    _logger.exception(
+        "conditional_tool_import_failed",
+        tool_family=family,
+        error=str(error),
+        error_type=type(error).__name__,
+    )
+
+
 # Sub-Agent Delegation Tool (F6 — feature-flagged)
 # Conditional import: only load when SUB_AGENTS_ENABLED=true
 try:
@@ -119,8 +144,9 @@ try:
         _SUB_AGENT_TOOLS_AVAILABLE = True
     else:
         _SUB_AGENT_TOOLS_AVAILABLE = False
-except Exception:
+except Exception as _sub_agent_import_error:
     _SUB_AGENT_TOOLS_AVAILABLE = False
+    _log_conditional_import_failure("sub_agent_tools", _sub_agent_import_error)
 
 # Browser Tools (F7 — auto-detected)
 # Always try to import. No feature flag needed — activation is via admin connector panel.
@@ -136,8 +162,9 @@ try:
     )
 
     _BROWSER_TOOLS_AVAILABLE = True
-except Exception:
+except Exception as _browser_import_error:
     _BROWSER_TOOLS_AVAILABLE = False
+    _log_conditional_import_failure("browser_tools", _browser_import_error)
 
 __all__ = [
     # Google Contacts Tools
@@ -242,8 +269,9 @@ try:
         from src.domains.agents.tools.devops_tools import claude_server_task_tool
 
         _DEVOPS_TOOLS_AVAILABLE = True
-except Exception:
+except Exception as _devops_import_error:
     _DEVOPS_TOOLS_AVAILABLE = False
+    _log_conditional_import_failure("devops_tools", _devops_import_error)
 
 # Conditionally extend __all__ with browser tools
 if _BROWSER_TOOLS_AVAILABLE:
