@@ -163,6 +163,17 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=43
 
+      # Agents suite — wired into CI 2026-07 after the audit found it had
+      # silently rotted (83 failures) because no gate ever ran it.
+      - name: Run agents tests
+        run: |
+          source .venv/bin/activate
+          pytest tests/agents/ \
+            -v \
+            --tb=short \
+            -m "not slow and not e2e and not benchmark and not multiprocess" \
+            --no-cov
+
       - name: Upload coverage
         if: always()
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0

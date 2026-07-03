@@ -390,7 +390,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         display_name="MCP App (ReAct)",
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.mcp_app_react_agent",
-        required_capabilities=["tool_calling"],
+        required_capabilities=["tools"],
         power_tier=POWER_TIER_CRITICAL,
     ),
     "vision_analysis": LLMTypeMetadata(
@@ -467,7 +467,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         display_name="MCP Iterative (ReAct)",
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.mcp_react_agent",
-        required_capabilities=["tool_calling"],
+        required_capabilities=["tools"],
         power_tier=POWER_TIER_HIGH,
     ),
     # ADR-070: ReAct Execution Mode
@@ -476,7 +476,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         display_name="ReAct Agent",
         category=CATEGORY_PIPELINE,
         description_key="settings.admin.llmConfig.types.react_agent",
-        required_capabilities=["tool_calling"],
+        required_capabilities=["tools"],
         power_tier=POWER_TIER_HIGH,
     ),
     # Psyche Engine (evolution)

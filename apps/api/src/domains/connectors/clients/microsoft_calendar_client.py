@@ -138,7 +138,10 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         }
 
         if query:
-            params["$filter"] = f"contains(subject, '{query}')"
+            # OData string literals escape single quotes by doubling them;
+            # unescaped apostrophes make the Graph API reject the filter (400).
+            escaped_query = query.replace("'", "''")
+            params["$filter"] = f"contains(subject, '{escaped_query}')"
 
         # Use calendarView for time range queries (expands recurrences)
         if time_min and time_max:

@@ -6,10 +6,14 @@ conversation turns while preserving important system messages. This reduces toke
 count sent to LLMs, improving response time without losing contextual accuracy.
 
 Key principle: Balance latency vs. context
-- Router needs minimal context (routing decision) → small window (5 turns)
-- Planner needs moderate context (planning) → medium window (10 turns)
-- Response needs rich context (creative responses) → large window (20 turns)
+- Response node needs rich context (creative synthesis) → large window
+- ReAct history is windowed via get_windowed_messages() directly
 - Store persists ALL contexts → no loss of business context (contacts, entities, etc.)
+
+Note (ADR-094): per-node windowing helpers for router/planner/orchestrator were
+removed as dead scaffolding — they were never wired. State-level truncation
+(add_messages_with_truncate) already bounds tokens; deliberate per-node windowing
+is deferred to the latency-optimization effort (with routing-quality benchmarks).
 
 All functions preserve immutability - input lists are never modified.
 """
@@ -145,63 +149,6 @@ def get_windowed_messages(
     return result
 
 
-def get_router_windowed_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
-    """
-    Get windowed messages optimized for router node (fast routing decision).
-
-    Router only needs recent context to determine routing strategy:
-    - Conversation vs. action
-    - Simple vs. complex query
-    - Confidence score
-
-    Uses settings.router_message_window_size (default: 5 turns).
-
-    Args:
-        messages: Full conversation history.
-
-    Returns:
-        SystemMessages + last 5 turns (~10 messages).
-
-    Performance:
-        Reduces router latency at 50 turns from ~2500ms to ~800ms (68% improvement).
-
-    Example:
-        >>> # In router_node.py
-        >>> windowed = get_router_windowed_messages(state[STATE_KEY_MESSAGES])
-        >>> router_output = await _call_router_llm(windowed)
-    """
-    return get_windowed_messages(messages, window_size=settings.router_message_window_size)
-
-
-def get_planner_windowed_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
-    """
-    Get windowed messages optimized for planner node (context-aware planning).
-
-    Planner needs more context than router to generate accurate multi-step plans:
-    - Understand user intention across multiple turns
-    - Access recent search results (via Store)
-    - Generate coherent execution plans
-
-    Uses settings.planner_message_window_size (default: 10 turns).
-
-    Args:
-        messages: Full conversation history.
-
-    Returns:
-        SystemMessages + last 10 turns (~20 messages).
-
-    Performance:
-        Reduces planner latency at 50 turns from ~6000ms to ~3500ms (42% improvement).
-
-    Example:
-        >>> # In planner_node.py
-        >>> windowed = get_planner_windowed_messages(state[STATE_KEY_MESSAGES])
-        >>> # Extract user message from windowed history
-        >>> user_message = extract_last_user_message(windowed)
-    """
-    return get_windowed_messages(messages, window_size=settings.planner_message_window_size)
-
-
 def get_response_windowed_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
     """
     Get windowed messages optimized for response node (creative synthesis).
@@ -231,34 +178,6 @@ def get_response_windowed_messages(messages: list[BaseMessage]) -> list[BaseMess
     return get_windowed_messages(messages, window_size=settings.response_message_window_size)
 
 
-def get_orchestrator_windowed_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
-    """
-    Get windowed messages optimized for task orchestrator (plan execution).
-
-    Task orchestrator executes pre-planned steps and needs minimal context:
-    - Current execution plan is already defined
-    - Recent context for step continuity
-    - Minimal history reduces tokens during execution
-
-    Uses settings.orchestrator_message_window_size (default: 4 turns).
-
-    Args:
-        messages: Full conversation history.
-
-    Returns:
-        SystemMessages + last 4 turns (~8 messages).
-
-    Performance:
-        Reduces orchestrator tokens by ~60% compared to full history.
-
-    Example:
-        >>> # In task_orchestrator_node.py
-        >>> windowed = get_orchestrator_windowed_messages(state[STATE_KEY_MESSAGES])
-        >>> # Execute plan steps with minimal context
-    """
-    return get_windowed_messages(messages, window_size=settings.orchestrator_message_window_size)
-
-
 def extract_last_user_message(messages: list[BaseMessage]) -> str | None:
     """
     Extract content from the most recent HumanMessage.
@@ -272,7 +191,7 @@ def extract_last_user_message(messages: list[BaseMessage]) -> str | None:
         Content of last HumanMessage, or None if no user messages found.
 
     Example:
-        >>> windowed = get_router_windowed_messages(state["messages"])
+        >>> windowed = get_response_windowed_messages(state["messages"])
         >>> user_query = extract_last_user_message(windowed)
         >>> # user_query: "Show the details of the first contact"
     """
@@ -284,9 +203,6 @@ def extract_last_user_message(messages: list[BaseMessage]) -> str | None:
 
 __all__ = [
     "extract_last_user_message",
-    "get_orchestrator_windowed_messages",
-    "get_planner_windowed_messages",
     "get_response_windowed_messages",
-    "get_router_windowed_messages",
     "get_windowed_messages",
 ]

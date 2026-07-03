@@ -2935,6 +2935,19 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_3": {
+          "title": "v1.21.3 — 🛠️ Affidabilità: correzioni dell'audit (calendari, attività, etichette, sicurezza)",
+          "date": "Luglio 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🗓️ Servizi connessi resi affidabili</b> — Diverse correzioni ai tuoi servizi connessi: gli eventi creati o modificati in <b>Apple Calendar</b> ora rispettano il fuso orario richiesto (un evento «10:00 a Parigi» non viene più salvato alle 10:00 UTC); la ricerca di eventi in <b>Microsoft Calendar</b> funziona con un apostrofo («l'anniversaire» non rompe più la query); e il comando «elenca le mie liste di attività» di <b>Google Tasks</b>, che falliva a ogni chiamata, funziona di nuovo.",
+            "i2": "<b>🗺️ Mappe di percorso corrette</b> — Un bug di codifica distorceva la geometria dei percorsi a più segmenti: le mappe dei percorsi ora vengono visualizzate correttamente.",
+            "i3": "<b>🏷️ Etichette Gmail ambigue: te lo chiede</b> — Quando un'etichetta che volevi eliminare o applicare corrispondeva a più candidati, l'assistente mostrava un errore generico invece di chiederti quale. Ora pone la domanda di disambiguazione.",
+            "i4": "<b>⏹️ Fermare ferma davvero</b> — Chiudere la conversazione durante un'esplorazione autonoma in corso (modalità ReAct) ora interrompe realmente il lavoro — prima l'arresto veniva ignorato e il ciclo continuava.",
+            "i5": "<b>🌍 Messaggi dei connettori nella tua lingua</b> — I messaggi «servizio non attivato» / «nessun servizio configurato» dei connettori ora appaiono nella tua lingua (6 lingue) invece di essere sempre in francese.",
+            "i6": "<b>🛡️ Admin · sicurezza e impostazioni</b> — La ricerca degli utenti per email è ora riservata agli amministratori (era accessibile a qualsiasi account connesso — un rischio di enumerazione degli account); il budget e il numero di passaggi del pianificatore definiti nella configurazione sono finalmente rispettati (un percorso di codice serviva sempre valori fissi); e due impostazioni interne (intervallo di sincronizzazione delle metriche, timeout dei passaggi MCP iterativi) diventano configurabili."
+          }
+        },
         "v1_21_2": {
           "title": "v1.21.2 — 🔒 Sicurezza rafforzata: rendering sanificato e indirizzi IP reali",
           "date": "Luglio 2026",

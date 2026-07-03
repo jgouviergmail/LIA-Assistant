@@ -551,17 +551,12 @@ REGISTRY_MAX_ITEMS_DEFAULT = 75  # Maximum items in data registry per conversati
 # Agents have access to data registry and tool context, 30 messages is sufficient
 AGENT_HISTORY_KEEP_LAST_DEFAULT = 30  # Messages to keep in agent LLM input (includes ToolMessages)
 
-# Orchestration Node Windowing (for router_node, planner_node, response_node)
+# Message Windowing (response node + ReAct history)
 # Window size = number of conversation TURNS (1 turn = user + assistant = ~2 messages)
-DEFAULT_MESSAGE_WINDOW_SIZE = 4  # Default for generic windowing
-ROUTER_MESSAGE_WINDOW_SIZE_DEFAULT = 4  # Router: fast routing decision (minimal context)
-# OPTIMIZED 2025-12-19: Reduced from 10 → 4 turns (-60% tokens on planner)
-# Planner has access to resolved_context and active_contexts from Store
-# No need for large message history - 4 turns (8 messages) is sufficient
-PLANNER_MESSAGE_WINDOW_SIZE_DEFAULT = 4  # Planner: context-aware planning (optimized)
+# Note (ADR-094): router/planner/orchestrator per-node window constants were
+# removed with their never-wired helpers; state-level truncation bounds tokens.
+DEFAULT_MESSAGE_WINDOW_SIZE = 4  # Default fallback for get_windowed_messages(window_size=None)
 RESPONSE_MESSAGE_WINDOW_SIZE_DEFAULT = 10  # Response: creative synthesis (rich context)
-# ADDED 2025-12-24: Task Orchestrator minimal context (plan execution)
-ORCHESTRATOR_MESSAGE_WINDOW_SIZE_DEFAULT = 4  # TaskOrchestrator: minimal context for plan execution
 
 # SSE (Server-Sent Events) configuration
 SSE_HEARTBEAT_INTERVAL_DEFAULT = 15  # seconds
@@ -2029,6 +2024,7 @@ EVALUATOR_LATENCY_EXCELLENT_THRESHOLD_MS_DEFAULT = 500.0
 EVALUATOR_LATENCY_GOOD_THRESHOLD_MS_DEFAULT = 1000.0
 EVALUATOR_LATENCY_ACCEPTABLE_THRESHOLD_MS_DEFAULT = 2000.0
 EVALUATOR_LATENCY_SLOW_THRESHOLD_MS_DEFAULT = 5000.0
+LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT = 30  # DB->Prometheus gauge sync period
 
 # --- Voice config defaults ---
 # TTS provider/model/voice/tuning live on llm_config_overrides.voice_tts (ADR-081);
@@ -2298,6 +2294,7 @@ MCP_DESCRIPTION_MAX_TOTAL_LENGTH = 400  # Max chars for algorithmic fallback des
 # Reference: tools/mcp_react_tools.py, tools/react_runner.py
 MCP_REACT_ENABLED_DEFAULT = True
 MCP_REACT_MAX_ITERATIONS_DEFAULT = 10  # create_react_agent recursion_limit
+MCP_REACT_STEP_TIMEOUT_SECONDS_DEFAULT = 120  # Wall-clock floor for *_task plan steps
 
 # ============================================================================
 # INITIATIVE PHASE (ADR-062)

@@ -15,6 +15,7 @@ executable draft content from the registry payload (the wrapper does not collect
 drafts — see ADR-070 amendment 2026-05-20).
 """
 
+import asyncio
 from typing import Any
 
 import structlog
@@ -87,6 +88,10 @@ class ReactToolWrapper(BaseTool):
             # For proper ToolRuntime injection, use _original_tool.ainvoke(args, config=config)
             # directly from the node (see react_execute_tools_node).
             result = await self._original_tool.ainvoke(kwargs)
+        except asyncio.CancelledError:
+            # A user stop must cancel the whole ReAct loop, never become a
+            # tool-error string the agent reasons about.
+            raise
         except BaseException as exc:
             error_msg = str(exc)
             if hasattr(exc, "exceptions"):

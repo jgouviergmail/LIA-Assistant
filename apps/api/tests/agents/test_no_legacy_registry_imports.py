@@ -102,19 +102,19 @@ class TestAllProductionToolsHaveCatalogueManifests:
 
     def test_all_expected_tools_registered(self, agent_registry):
         """
-        Vérifie que TOUS les 7 outils de production sont enregistrés.
+        Vérifie que les outils de production sentinelles sont enregistrés.
 
         Expected tools:
-        - Google Contacts: list_contacts, search_contacts, get_contact_details
-        - Context Management: get_context, set_context, delete_context, list_contexts
+        - Google Contacts: get_contacts_tool (unified dual-mode tool)
+        - Context Management: resolve_reference, set_current_item,
+          get_context_state, list_active_domains
 
         Regression protection: Ensures no tools are lost during refactoring.
         """
         expected_tools = {
-            # Google Contacts tools (3)
-            "list_contacts_tool",
-            "search_contacts_tool",
-            "get_contact_details_tool",
+            # Google Contacts unified tool (search/list/details merged into a
+            # single dual-mode get_contacts_tool — 2026-01 simplification)
+            "get_contacts_tool",
             # Context Management tools (4)
             "resolve_reference",
             "set_current_item",

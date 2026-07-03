@@ -2947,6 +2947,19 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_3": {
+          "title": "v1.21.3 — 🛠️ Fiabilité : correctifs d'audit (calendriers, tâches, labels, sécurité)",
+          "date": "Juillet 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🗓️ Services connectés fiabilisés</b> — Plusieurs correctifs sur vos services connectés : les événements créés ou modifiés dans <b>Apple Calendar</b> respectent enfin le fuseau horaire demandé (un rendez-vous « 10 h à Paris » n'est plus enregistré à 10 h UTC) ; la recherche d'événements <b>Microsoft Calendar</b> fonctionne avec une apostrophe (« l'anniversaire » ne casse plus la requête) ; et la commande « liste mes listes de tâches » de <b>Google Tasks</b>, qui échouait systématiquement, refonctionne.",
+            "i2": "<b>🗺️ Cartes d'itinéraire correctes</b> — Un bug d'encodage des tracés déformait la géométrie des itinéraires à plusieurs segments : les cartes d'itinéraire s'affichent désormais correctement.",
+            "i3": "<b>🏷️ Labels Gmail ambigus : on vous demande</b> — Quand un label que vous vouliez supprimer ou appliquer correspondait à plusieurs candidats, l'assistant affichait une erreur générique au lieu de vous demander lequel. Il pose désormais la question de désambiguïsation.",
+            "i4": "<b>⏹️ L'arrêt arrête vraiment</b> — Fermer la conversation pendant une exploration autonome en cours (mode ReAct) interrompt désormais réellement le travail — auparavant l'arrêt était avalé et la boucle continuait.",
+            "i5": "<b>🌍 Messages de connecteurs dans votre langue</b> — Les messages « service non activé » ou « aucun service configuré » liés aux connecteurs s'affichent désormais dans votre langue (6 langues) au lieu d'être toujours en français.",
+            "i6": "<b>🛡️ Admin · sécurité et réglages</b> — La recherche d'utilisateurs par email est désormais réservée aux administrateurs (elle était accessible à tout compte connecté — risque d'énumération de comptes) ; le budget et le nombre d'étapes du planificateur définis dans la configuration sont enfin respectés (un chemin de code servait toujours des valeurs figées) ; et deux réglages internes (intervalle de synchronisation des métriques, délai des étapes MCP itératives) deviennent configurables."
+          }
+        },
         "v1_21_2": {
           "title": "v1.21.2 — 🔒 Sécurité renforcée : rendu assaini et vraies adresses IP",
           "date": "Juillet 2026",

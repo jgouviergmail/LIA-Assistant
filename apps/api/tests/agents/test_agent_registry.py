@@ -488,5 +488,43 @@ class TestIntegration:
         assert stats["built"] == 3
 
 
+class TestExportPlannerLimits:
+    """Regression tests for planner limits in catalogue exports (2026-07 audit, wave 1).
+
+    Both export paths must reflect the live settings values (.env -> Settings
+    field -> constants chain), never hardcoded fallbacks. The filtered export
+    used to call getattr() on the settings VALUE (a float), silently serving
+    50.0/50 regardless of configuration.
+    """
+
+    def test_export_for_prompt_filtered_reflects_settings(self, monkeypatch):
+        """Filtered export must serve the configured planner limits."""
+        from src.core.config import get_settings
+
+        settings = get_settings()
+        monkeypatch.setattr(settings, "planner_max_cost_usd", 7.5)
+        monkeypatch.setattr(settings, "planner_max_steps", 33)
+
+        registry = AgentRegistry()
+        result = registry.export_for_prompt_filtered(domains=["email"])
+
+        assert result["max_plan_cost_usd"] == 7.5
+        assert result["max_plan_steps"] == 33
+
+    def test_export_for_prompt_reflects_settings(self, monkeypatch):
+        """Full export must serve the configured planner limits."""
+        from src.core.config import get_settings
+
+        settings = get_settings()
+        monkeypatch.setattr(settings, "planner_max_cost_usd", 7.5)
+        monkeypatch.setattr(settings, "planner_max_steps", 33)
+
+        registry = AgentRegistry()
+        result = registry.export_for_prompt()
+
+        assert result["max_plan_cost_usd"] == 7.5
+        assert result["max_plan_steps"] == 33
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

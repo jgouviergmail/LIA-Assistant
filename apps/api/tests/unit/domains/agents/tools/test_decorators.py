@@ -1,15 +1,22 @@
+"""Unit tests for tools/decorators.py (connector_tool presets).
+
+Rewritten for the 2026-07 audit (value-blind remediation): every test in this
+file previously asserted only ``tool_func is not None`` — always true for a
+decorator, verifying nothing (the file's own docstring said "Focus on COVERAGE
+of missing lines, not behavior testing"). A decorator could apply the wrong
+description branch, drop the async wrapping, or fail to produce a LangChain
+tool and every test would still pass.
+
+The decorators compose sub-decorators (@track_tool_metrics, @rate_limit,
+@auto_save_context, @tool); the one piece of branching logic they own is
+description resolution (explicit description vs docstring). These tests assert
+the introspectable contract of the produced tool: it is a LangChain BaseTool,
+carries the wrapped function's name, resolves its description correctly, and
+preserves the async coroutine. Rate-limit ENFORCEMENT is covered separately in
+test_rate_limiting.py.
 """
-Unit tests for tools/decorators.py.
 
-Phase: Session 18 - Tools Modules (tools/decorators)
-Created: 2025-11-20
-
-Focus: Decorator presets for tools (connector_tool, read_tool, write_tool, expensive_tool)
-Target Coverage: 82% → 100% (6 missing lines: 189-190, 211, 249, 283, 322)
-
-Strategy: Focus on COVERAGE of missing lines, not behavior testing.
-The decorators wrap functions - we just need to ensure all code paths execute.
-"""
+from langchain_core.tools import BaseTool
 
 from src.domains.agents.tools.decorators import (
     connector_tool,
@@ -19,176 +26,123 @@ from src.domains.agents.tools.decorators import (
 )
 
 
-class TestConnectorToolCoverage:
-    """Tests to achieve 100% coverage of connector_tool."""
+class TestConnectorToolContract:
+    """connector_tool produces a well-formed LangChain tool."""
 
-    def test_connector_tool_with_custom_rate_limits_executes_lines_189_190(self):
-        """Test custom rate limits path (Lines 189-190)."""
+    def test_explicit_description_wins_over_docstring(self):
+        """description= overrides the docstring (the branch at decorators.py:213)."""
 
-        # This path is taken when BOTH rate_limit_max_calls AND rate_limit_window_seconds are provided
-        @connector_tool(
-            name="custom_limits",
-            agent_name="test",
-            rate_limit_max_calls=10,  # Triggers line 189
-            rate_limit_window_seconds=30,  # Triggers line 190
-        )
-        async def tool_func() -> str:
-            """Test."""
-            return "ok"
-
-        # Lines 189-190 executed: max_calls = rate_limit_max_calls, window_seconds = rate_limit_window_seconds
-        # Decorator applied successfully
-        assert tool_func is not None
-
-    def test_connector_tool_with_description_executes_line_211(self):
-        """Test explicit description path (Line 211)."""
-
-        # This path is taken when description is NOT None
-        @connector_tool(
-            name="with_desc",
-            agent_name="test",
-            description="Custom description",  # Triggers line 211
-        )
+        @connector_tool(name="with_desc", agent_name="test", description="Custom description")
         async def tool_func() -> str:
             """Ignored docstring."""
             return "ok"
 
-        # Line 211 executed: decorated = tool(description=description)(decorated)
-        assert tool_func is not None
+        assert isinstance(tool_func, BaseTool)
+        assert tool_func.description == "Custom description"
 
-    def test_connector_tool_without_description_uses_default_path(self):
-        """Test docstring path (default - line 214)."""
+    def test_docstring_is_used_when_no_description(self):
+        """Without description=, the docstring becomes the tool description (else branch)."""
 
-        # This path is taken when description is None (default)
-        @connector_tool(
-            name="no_desc",
-            agent_name="test",
-            # description=None by default
-        )
+        @connector_tool(name="no_desc", agent_name="test")
         async def tool_func() -> str:
             """Docstring description."""
             return "ok"
 
-        # Default path (line 214): decorated = tool(decorated)
-        assert tool_func is not None
+        assert isinstance(tool_func, BaseTool)
+        assert tool_func.description == "Docstring description."
 
-    def test_connector_tool_category_defaults(self):
-        """Test that category defaults work (covers else branch on line 193)."""
+    def test_tool_name_is_the_wrapped_function_name(self):
+        """@tool derives the tool name from the wrapped function."""
+
+        @connector_tool(name="metrics_name", agent_name="test")
+        async def my_search_tool() -> str:
+            """Search."""
+            return "ok"
+
+        assert my_search_tool.name == "my_search_tool"
+
+    def test_async_coroutine_is_preserved(self):
+        """The async implementation survives the decorator stack."""
+
+        @connector_tool(name="async_t", agent_name="test")
+        async def tool_func() -> str:
+            """Async tool."""
+            return "ok"
+
+        assert tool_func.coroutine is not None
+
+    def test_custom_rate_limits_still_produce_a_tool(self):
+        """Custom rate-limit overrides (decorators.py:191-194) build a valid tool."""
 
         @connector_tool(
-            name="default_category",
+            name="custom_limits",
             agent_name="test",
-            category="read",  # Uses RATE_LIMIT_CATEGORIES["read"]
+            rate_limit_max_calls=10,
+            rate_limit_window_seconds=30,
         )
         async def tool_func() -> str:
-            """Test."""
+            """Custom limits."""
             return "ok"
 
-        assert tool_func is not None
+        assert isinstance(tool_func, BaseTool)
+        assert tool_func.description == "Custom limits."
 
-    def test_connector_tool_with_context_domain(self):
-        """Test context saving path (line 205)."""
+    def test_context_domain_still_produces_a_tool(self):
+        """The auto-save-context branch (decorators.py:208) builds a valid tool."""
 
-        @connector_tool(
-            name="with_context",
-            agent_name="test",
-            context_domain="test_domain",  # Triggers context saving
-        )
+        @connector_tool(name="with_context", agent_name="test", context_domain="test_domain")
         async def tool_func() -> str:
-            """Test."""
+            """With context."""
             return "ok"
 
-        assert tool_func is not None
+        assert isinstance(tool_func, BaseTool)
+        assert tool_func.description == "With context."
 
-    def test_connector_tool_without_context_domain(self):
-        """Test skipping context saving (line 204 condition is False)."""
+    def test_no_context_domain_still_produces_a_tool(self):
+        """Skipping context saving (context_domain=None) builds a valid tool."""
 
-        @connector_tool(
-            name="no_context",
-            agent_name="test",
-            context_domain=None,  # Skips context saving
-        )
+        @connector_tool(name="no_context", agent_name="test", context_domain=None)
         async def tool_func() -> str:
-            """Test."""
+            """No context."""
             return "ok"
 
-        assert tool_func is not None
+        assert isinstance(tool_func, BaseTool)
 
 
-class TestReadToolCoverage:
-    """Tests to achieve 100% coverage of read_tool."""
+class TestPresets:
+    """read_tool / write_tool / expensive_tool delegate to connector_tool."""
 
-    def test_read_tool_executes_line_249(self):
-        """Test read_tool preset (Line 249)."""
-
-        # read_tool calls connector_tool (line 249 return statement)
-        @read_tool(
-            name="read_test",
-            agent_name="test",
-            context_domain="test",
-        )
-        async def tool_func() -> str:
-            """Read tool."""
+    def test_read_tool_produces_named_tool_with_docstring(self):
+        @read_tool(name="read_test", agent_name="test", context_domain="test")
+        async def read_func() -> str:
+            """Read tool docstring."""
             return "ok"
 
-        # Line 249 executed: return connector_tool(...)
-        assert tool_func is not None
+        assert isinstance(read_func, BaseTool)
+        assert read_func.name == "read_func"
+        assert read_func.description == "Read tool docstring."
 
-    def test_read_tool_without_context(self):
-        """Test read_tool with context_domain=None."""
-
-        @read_tool(
-            name="read_no_context",
-            agent_name="test",
-            context_domain=None,
-        )
-        async def tool_func() -> str:
-            """Read tool without context."""
+    def test_write_tool_produces_named_tool_with_docstring(self):
+        @write_tool(name="write_test", agent_name="test")
+        async def write_func() -> str:
+            """Write tool docstring."""
             return "ok"
 
-        assert tool_func is not None
+        assert isinstance(write_func, BaseTool)
+        assert write_func.name == "write_func"
+        assert write_func.description == "Write tool docstring."
 
-
-class TestWriteToolCoverage:
-    """Tests to achieve 100% coverage of write_tool."""
-
-    def test_write_tool_executes_line_283(self):
-        """Test write_tool preset (Line 283)."""
-
-        # write_tool calls connector_tool (line 283 return statement)
-        @write_tool(
-            name="write_test",
-            agent_name="test",
-        )
-        async def tool_func() -> str:
-            """Write tool."""
+    def test_expensive_tool_produces_named_tool_with_docstring(self):
+        @expensive_tool(name="expensive_test", agent_name="test")
+        async def expensive_func() -> str:
+            """Expensive tool docstring."""
             return "ok"
 
-        # Line 283 executed: return connector_tool(...)
-        assert tool_func is not None
-
-
-class TestExpensiveToolCoverage:
-    """Tests to achieve 100% coverage of expensive_tool."""
-
-    def test_expensive_tool_executes_line_322(self):
-        """Test expensive_tool preset (Line 322)."""
-
-        # expensive_tool calls connector_tool (line 322 return statement)
-        @expensive_tool(
-            name="expensive_test",
-            agent_name="test",
-        )
-        async def tool_func() -> str:
-            """Expensive tool."""
-            return "ok"
-
-        # Line 322 executed: return connector_tool(...)
-        assert tool_func is not None
+        assert isinstance(expensive_func, BaseTool)
+        assert expensive_func.name == "expensive_func"
+        assert expensive_func.description == "Expensive tool docstring."
 
     def test_expensive_tool_with_custom_limits(self):
-        """Test expensive_tool with custom max_calls and window_seconds."""
-
         @expensive_tool(
             name="expensive_custom",
             agent_name="test",
@@ -199,14 +153,11 @@ class TestExpensiveToolCoverage:
             """Expensive with custom limits."""
             return "ok"
 
-        assert tool_func is not None
+        assert isinstance(tool_func, BaseTool)
+        assert tool_func.description == "Expensive with custom limits."
 
-
-class TestAllPathsCovered:
-    """Integration test to verify all decorator paths work."""
-
-    def test_all_presets_work(self):
-        """Test that all preset decorators can be applied."""
+    def test_presets_produce_distinct_tools(self):
+        """Each preset yields its own independent tool instance."""
 
         @read_tool(name="r", agent_name="a")
         async def read_func() -> str:
@@ -223,13 +174,12 @@ class TestAllPathsCovered:
             """E."""
             return "e"
 
-        # All should be created successfully
-        assert read_func is not None
-        assert write_func is not None
-        assert expensive_func is not None
+        tools = [read_func, write_func, expensive_func]
+        assert all(isinstance(t, BaseTool) for t in tools)
+        assert {t.name for t in tools} == {"read_func", "write_func", "expensive_func"}
 
-    def test_connector_tool_all_categories(self):
-        """Test connector_tool with all three categories."""
+    def test_connector_tool_all_categories_build(self):
+        """All three rate-limit categories produce valid, distinctly-named tools."""
 
         @connector_tool(name="r", agent_name="a", category="read")
         async def read_cat() -> str:
@@ -246,12 +196,14 @@ class TestAllPathsCovered:
             """E."""
             return "e"
 
-        assert read_cat is not None
-        assert write_cat is not None
-        assert exp_cat is not None
+        assert {read_cat.name, write_cat.name, exp_cat.name} == {
+            "read_cat",
+            "write_cat",
+            "exp_cat",
+        }
 
-    def test_connector_tool_rate_limit_scopes(self):
-        """Test connector_tool with different rate limit scopes."""
+    def test_connector_tool_rate_limit_scopes_build(self):
+        """Both rate-limit scopes produce valid tools."""
 
         @connector_tool(name="user", agent_name="a", rate_limit_scope="user")
         async def user_scope() -> str:
@@ -263,5 +215,5 @@ class TestAllPathsCovered:
             """Global."""
             return "global"
 
-        assert user_scope is not None
-        assert global_scope is not None
+        assert isinstance(user_scope, BaseTool)
+        assert isinstance(global_scope, BaseTool)

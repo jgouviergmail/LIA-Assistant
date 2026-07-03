@@ -207,8 +207,13 @@ class TestFilterRegistryByCurrentTurnTurnType:
         # Should return empty dict for REFERENCE with no match
         assert result == {}
 
-    def test_action_turn_returns_full_registry_on_no_match(self):
-        """2.2: ACTION turn returns full registry if no match (backward compatible)."""
+    def test_action_turn_returns_empty_registry_on_no_match(self):
+        """2.2: ACTION turn with no current-turn updates returns empty registry.
+
+        FIX 2025-12-26: returning the full registry caused cross-turn
+        contamination (e.g., a failed weather query leaked old Places items,
+        injecting an unrelated photo into the reply).
+        """
         agent_results = {"1:planner": {"status": "success"}}
         registry = {"item_1": {"payload": {"id": "abc"}}}
 
@@ -219,8 +224,8 @@ class TestFilterRegistryByCurrentTurnTurnType:
             resolved_context=None,
             turn_type=TURN_TYPE_ACTION,  # Use constant (lowercase "action")
         )
-        # Should return full registry for ACTION (backward compatible)
-        assert result == registry
+        # Empty registry prevents old items from contaminating the current turn
+        assert result == {}
 
     def test_filters_by_registry_updates(self):
         """2.2: Filter by registry_updates when available."""

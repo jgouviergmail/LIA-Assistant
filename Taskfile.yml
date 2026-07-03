@@ -1030,10 +1030,14 @@ tasks:
   # ============================================================================
 
   ci:
-    desc: Run CI pipeline locally (lint + fast tests + security)
+    desc: Run CI pipeline locally (lint + fast tests + agents tests + security)
     cmds:
       - task: lint
       - task: test:backend:unit:fast
+      # Agents suite (tests/agents) — wired into CI 2026-07 after the audit
+      # found it had silently rotted for months (83 failures) because no gate
+      # ever ran it. Not in pre-commit (~1min) to keep commits fast.
+      - task: test:backend:agents
       - task: test:frontend
       - task: security:scan
 

@@ -496,7 +496,9 @@ async def router_node(state: MessagesState) -> dict:
         6. Record metrics
         7. Return routing decision
     """
-    # 1. Message windowing (5 turns = ~10 messages = ~1500 tokens)
+    # 1. NOTE (v1.21.3, ADR-094): get_router_windowed_messages removed (dead code).
+    #    The router now reads state["messages"] directly (bounded by the
+    #    add_messages_with_truncate state reducer). Line below is historical.
     windowed = get_router_windowed_messages(state["messages"])
 
     # 2. Contexte temporal
@@ -601,7 +603,8 @@ async def planner_node(state: MessagesState) -> dict:
         - Parameters : Dict avec type coercion
         - Conditions : Python expressions eval-safe
     """
-    # 1. Message windowing (10 turns = ~20 messages = ~3000 tokens)
+    # 1. NOTE (v1.21.3, ADR-094): get_planner_windowed_messages removed (dead code;
+    #    the planner runs through SmartPlannerService). Line below is historical.
     windowed = get_planner_windowed_messages(state["messages"])
 
     # 2. Domain filtering (use router domains if available)

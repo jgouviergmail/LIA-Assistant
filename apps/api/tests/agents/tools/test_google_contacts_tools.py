@@ -13,7 +13,7 @@ Tests mock:
 """
 
 import json
-from unittest.mock import AsyncMock, MagicMock, create_autospec, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -24,7 +24,7 @@ from src.domains.agents.tools import (
     list_contacts_tool,
     search_contacts_tool,
 )
-from src.domains.agents.tools.output import StandardToolOutput
+from src.domains.agents.tools.output import UnifiedToolOutput
 
 # Test user ID (valid UUID format)
 TEST_USER_ID = str(uuid4())
@@ -41,11 +41,25 @@ def create_mock_tool_dependencies(
             If None, simulates disabled connector.
         client_mock: Mock client to return from get_or_create_client.
     """
+    from src.domains.connectors.models import ConnectorStatus, ConnectorType
+
     mock_deps = MagicMock()
 
     # Mock connector service
     mock_connector_service = MagicMock()
     mock_connector_service.get_connector_credentials = AsyncMock(return_value=connector_credentials)
+
+    # Provider resolution (functional_category="contacts"): an ACTIVE Google
+    # Contacts connector when credentials are provided, none otherwise.
+    if connector_credentials is not None:
+        connector = MagicMock()
+        connector.connector_type = ConnectorType.GOOGLE_CONTACTS
+        connector.status = ConnectorStatus.ACTIVE
+        connectors_response = MagicMock(connectors=[connector])
+    else:
+        connectors_response = MagicMock(connectors=[])
+    mock_connector_service.get_user_connectors = AsyncMock(return_value=connectors_response)
+
     mock_deps.get_connector_service = AsyncMock(return_value=mock_connector_service)
 
     # Mock client cache
@@ -64,19 +78,18 @@ def create_mock_runtime(
     user_id: str,
     tool_deps: MagicMock | None = None,
 ) -> ToolRuntime:
-    """Create a mock ToolRuntime with configurable user_id and dependencies.
+    """Create a REAL ToolRuntime with mocked store/writer.
 
-    Uses create_autospec to satisfy Pydantic validation while
-    allowing us to configure the runtime.config attribute.
+    ToolRuntime is a dataclass whose ``tools`` field only exists on instances
+    (default factory), so a ``create_autospec`` mock rejects it when LangChain
+    serializes the runtime during args validation. A real instance is both
+    simpler and faithful.
 
     Args:
         user_id: User ID string
         tool_deps: Optional mock ToolDependencies. If provided, will be injected
             into config["configurable"]["__deps"].
     """
-    # Create a spec-compliant mock
-    runtime = create_autospec(ToolRuntime, instance=True)
-    # Configure the config attribute with user_id and thread_id
     configurable = {
         "user_id": user_id,
         "thread_id": f"test_thread_{user_id[:8]}",
@@ -86,19 +99,21 @@ def create_mock_runtime(
     if tool_deps is not None:
         configurable["__deps"] = tool_deps
 
-    runtime.config = {"configurable": configurable}
     # Mock store with async methods for context manager
     mock_store = MagicMock()
     mock_store.get = MagicMock(return_value=None)
     mock_store.put = MagicMock()
     mock_store.aget = AsyncMock(return_value=None)
     mock_store.aput = AsyncMock()
-    runtime.store = mock_store
-    runtime.state = {}
-    runtime.context = {}
-    runtime.stream_writer = MagicMock()
-    runtime.tool_call_id = "test_call_id"
-    return runtime
+
+    return ToolRuntime(
+        state={},
+        context={},
+        config={"configurable": configurable},
+        stream_writer=MagicMock(),
+        tool_call_id="test_call_id",
+        store=mock_store,
+    )
 
 
 # =============================================================================
@@ -257,14 +272,26 @@ def mock_contacts_client():
 
 
 def _parse_result(result):
-    """Parse tool result - either StandardToolOutput or JSON string."""
-    if isinstance(result, StandardToolOutput):
-        return {"success": True, "summary": result.summary_for_llm, "data": result.structured_data}
-    # Error cases return JSON string
+    """Parse tool result - UnifiedToolOutput object or serialized JSON string.
+
+    Early returns (connector/category not activated) are UnifiedToolOutput
+    failures; exceptions are serialized to a JSON string by handle_error.
+    """
+    if isinstance(result, UnifiedToolOutput):
+        if result.success:
+            return {
+                "success": True,
+                "summary": result.summary_for_llm,
+                "data": result.structured_data,
+            }
+        return {"success": False, "error": result.error_code, "message": result.message}
     try:
-        return json.loads(result) if isinstance(result, str) else result
+        data = json.loads(result) if isinstance(result, str) else result
     except (json.JSONDecodeError, TypeError):
         return {"error": "parse_error", "raw": str(result)}
+    if isinstance(data, dict) and data.get("success") is False and "error" not in data:
+        data["error"] = data.get("error_code")
+    return data
 
 
 @pytest.mark.asyncio
@@ -285,8 +312,9 @@ async def test_search_contacts_tool_success(mock_registry, mock_contacts_client)
             },
         )
 
-        # Success returns StandardToolOutput
-        assert isinstance(result, StandardToolOutput)
+        # Success returns UnifiedToolOutput (Data Registry mode)
+        assert isinstance(result, UnifiedToolOutput)
+        assert result.success is True
         assert "contact" in result.summary_for_llm.lower()
 
 
@@ -330,8 +358,9 @@ async def test_list_contacts_tool_success(mock_registry, mock_contacts_client):
             },
         )
 
-        # Success returns StandardToolOutput
-        assert isinstance(result, StandardToolOutput)
+        # Success returns UnifiedToolOutput (Data Registry mode)
+        assert isinstance(result, UnifiedToolOutput)
+        assert result.success is True
 
 
 @pytest.mark.asyncio
@@ -373,8 +402,9 @@ async def test_get_contact_details_tool_success(mock_registry, mock_contacts_cli
             },
         )
 
-        # Success returns StandardToolOutput
-        assert isinstance(result, StandardToolOutput)
+        # Success returns UnifiedToolOutput (Data Registry mode)
+        assert isinstance(result, UnifiedToolOutput)
+        assert result.success is True
 
 
 @pytest.mark.asyncio
@@ -479,8 +509,9 @@ async def test_get_contact_details_tool_resource_names_string_coercion(
             },
         )
 
-        # Should succeed with StandardToolOutput
-        assert isinstance(result, StandardToolOutput)
+        # Should succeed with UnifiedToolOutput
+        assert isinstance(result, UnifiedToolOutput)
+        assert result.success is True
 
 
 @pytest.mark.asyncio
@@ -504,8 +535,9 @@ async def test_get_contact_details_tool_resource_names_list_still_works(
             },
         )
 
-        # Should succeed with StandardToolOutput
-        assert isinstance(result, StandardToolOutput)
+        # Should succeed with UnifiedToolOutput
+        assert isinstance(result, UnifiedToolOutput)
+        assert result.success is True
 
 
 # =============================================================================

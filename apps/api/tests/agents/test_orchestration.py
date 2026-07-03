@@ -4,7 +4,11 @@ Tests for TaskOrchestrator and orchestration logic.
 
 import pytest
 
-from src.domains.agents.constants import make_agent_result_key
+from src.domains.agents.constants import (
+    AGENT_CONTACT,
+    INTENTION_CONTACT_SEARCH,
+    make_agent_result_key,
+)
 from src.domains.agents.domain_schemas import RouterOutput
 from src.domains.agents.models import MessagesState
 from src.domains.agents.orchestration import (
@@ -18,9 +22,9 @@ from src.domains.agents.orchestration.schemas import AgentResult, OrchestratorPl
 @pytest.mark.asyncio
 async def test_create_orchestration_plan_contacts_search():
     """Test orchestration plan creation for contacts search."""
-    # Arrange
+    # Arrange — v3.2 vocabulary is SINGULAR; use the constants, never literals
     router_output = RouterOutput(
-        intention="contacts_search",
+        intention=INTENTION_CONTACT_SEARCH,
         confidence=0.9,
         context_label="contact",
         next_node="task_orchestrator",
@@ -40,10 +44,10 @@ async def test_create_orchestration_plan_contacts_search():
 
     # Assert
     assert isinstance(plan, OrchestratorPlan)
-    assert plan.agents_to_call == ["contacts_agent"]
+    assert plan.agents_to_call == [AGENT_CONTACT]
     assert plan.execution_mode == "sequential"
     assert plan.metadata["version"] == "v1_sequential"
-    assert plan.metadata["intention"] == "contacts_search"
+    assert plan.metadata["intention"] == INTENTION_CONTACT_SEARCH
     assert plan.metadata["confidence"] == 0.9
 
 

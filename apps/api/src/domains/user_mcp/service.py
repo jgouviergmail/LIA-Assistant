@@ -120,6 +120,7 @@ class UserMCPServerService:
                 "domain_description": data.domain_description,
                 "timeout_seconds": data.timeout_seconds,
                 "hitl_required": data.hitl_required,
+                "iterative_mode": data.iterative_mode,
             }
         )
 

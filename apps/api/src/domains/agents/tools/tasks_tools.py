@@ -984,7 +984,7 @@ class ListTaskListsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute list task lists API call."""
-        max_results: int = kwargs.get("max_results", get_settings.tasks_tool_default_max_results)
+        max_results: int = kwargs.get("max_results", get_settings().tasks_tool_default_max_results)
 
         result = await client.list_task_lists(max_results=max_results)
 

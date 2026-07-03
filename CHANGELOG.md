@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.3] - 2026-07-03
+
+> Reliability release: **wave 1 of a full-codebase audit** — 14 confirmed, surgical, single-function fixes, each with a regression test written red-first — plus a hardening pass (dead-code removal [ADR-094], i18n, test-suite rehabilitation). No new user feature, no DB schema change, no migration.
+
+### Fixed — Connected services
+
+- **Apple Calendar events honor the requested timezone.** `_parse_iso_datetime` stamped naive datetimes as UTC *before* `_apply_timezone` ran, and `_apply_timezone` ignored aware datetimes — so the `timezone` parameter never applied: a "10:00 Europe/Paris" event was created at 10:00 UTC (12:00 Paris in summer). Now: parse without stamping (`assume_utc=False`), apply the requested timezone, fall back to UTC only when none is requested. Covers create and update.
+- **Microsoft Calendar search tolerates apostrophes.** A free-text `query` was interpolated into the OData `$filter` unescaped, so `contains(subject, 'l'anniversaire')` produced a malformed filter → Graph API 400. Single quotes are now doubled per the OData literal rule.
+- **Google Tasks "list task lists" works again.** `get_settings.tasks_tool_default_max_results` (missing `()`) accessed the attribute on the `lru_cache` wrapper, raising `AttributeError` on **every** call — swallowed as a generic `INTERNAL_ERROR`. Fixed to `get_settings()`.
+- **Static route maps render correctly.** The polyline encoder used `chr((value & 0x1F) | 0x20 + 63)` where `+` binds before `|` — corrupting every continuation chunk, so multi-segment routes encoded to invalid geometry. Corrected precedence; known-answer + round-trip-by-value tests added (the previous tests only checked structure/count, never encoded values).
+
+### Fixed — Assistant behavior
+
+- **Ambiguous Gmail labels ask instead of erroring.** The disambiguation dict returned by `execute_api_call` had no `label_id`, but `DeleteLabelDraftTool.format_registry_response` accessed `result["label_id"]` unconditionally → `KeyError` → generic error instead of the disambiguation question. The disambiguation path now short-circuits before draft creation across delete/apply/remove, reported as a non-success (`DISAMBIGUATION_REQUIRED`), not a false action success.
+- **Stopping a ReAct exploration actually stops it.** Both ReAct tool wrappers caught `BaseException` and turned it into an `"ERROR: …"` string for the LLM — which also swallowed `asyncio.CancelledError`, so a user stop kept the loop iterating on a fake tool error. `except asyncio.CancelledError: raise` added before the catch-all in both wrappers.
+- **Connector "not activated" messages are localized (6 languages).** `_format_connector_not_activated_error` / `_format_category_not_activated_error` (`tools/base.py`) hardcoded French — a CLAUDE.md violation (no inline language in LLM-facing scaffolding). Now routed through the central `APIMessages` mechanism in all 6 languages; the user language is read synchronously from the runtime config and passed as a parameter (never stored on the singleton tool's `self` — concurrency-safe).
+
+### Fixed — User-configured MCP & HITL
+
+- **User MCP servers respect "iterative mode" at creation.** `create_server` omitted `iterative_mode` from the repository payload, so a server created with iterative mode enabled was persisted as disabled.
+- **HITL edit metadata persists.** `update_last_user_message` mutated and re-assigned the **same** dict object, so SQLAlchemy saw `current is original` and silently skipped the JSONB UPDATE when the message already had metadata — HITL EDIT metadata was lost. Now builds a new dict (`dict(...)`).
+
+### Security & configuration
+
+- **Account enumeration surface closed.** `GET /users/search/by-email` was reachable by any authenticated user; it is now superuser-only (`require_superuser`), consistent with the other admin user operations. No frontend consumer impacted.
+- **Planner budget/steps `.env` overrides honored.** In `export_for_prompt_filtered`, `getattr(settings.planner_max_cost_usd, "planner_max_cost_usd", 50.0)` applied `getattr` to the *value* (a float) — always serving the hardcoded 50.0/50, ignoring configuration. Both catalogue exporters now read `settings.planner_max_cost_usd` / `settings.planner_max_steps` directly; the misleading in-code defaults are gone (the real defaults, 2.0$ / 20 steps, live in `constants.py` via the `.env → settings → constants` chain).
+- **Two hardcoded values become configurable.** `lifetime_metrics_update_interval` (DB→Prometheus gauge sync period) and `mcp_react_step_timeout_seconds` (wall-clock floor for `*_task` ReAct plan steps) were read via `getattr(settings, …, <literal>)` against **non-existent** fields — the literal was always served. Both are now real `Settings` fields with constants and `.env.example` entries.
+
+### Changed — Reliability & dead-code removal
+
+- **Registry LRU eviction no longer crashes on mixed forms.** `_get_item_timestamp` (`data_registry/state.py`) returned a `datetime` for `RegistryItem` objects but an ISO **string** for serialized dicts, so `sorted()` raised `TypeError` once the registry exceeded `registry_max_items` with both forms present (long conversations). The sort key is normalized to an aware UTC `datetime` in every case.
+- **`QueryIntelligence` round-trips completely.** `reconstruct_query_intelligence` omitted `semantic_filter_terms` (serialized by `to_serializable_dict`), so the field silently reset to `()` after every HITL checkpoint resume. Restored (as a tuple), with a generic round-trip equality test over **all** serialized fields to catch future omissions.
+- **LLM capability check unified.** Three ReAct LLM types declared `required_capabilities=["tool_calling"]` while the checker only knows `"tools"` (and silently returns True for unknown capabilities) — the capability was never verified. Unified on `"tools"`, plus a `KNOWN_MODEL_CAPABILITIES` completeness test so an unknown capability string fails loudly.
+- **Web client stops leaking abort timers.** `createAbortSignal` used a bare `setTimeout(() => controller.abort(), timeout)` that was never cleared — a pending timer survived every completed request. Replaced with `AbortSignal.timeout()`.
+- **Dead per-node windowing subsystem removed ([ADR-094]).** `get_router/planner/orchestrator_windowed_messages` had no call site (the router reads full state; token growth is already bounded by the `add_messages_with_truncate` reducer); their three settings/constants/`.env` entries and tests were transitively dead. Removed. `get_windowed_messages` (ReAct) and `get_response_windowed_messages` remain. Deliberate per-node windowing is deferred to the latency effort, with benchmarks.
+
+### Tests & tooling
+
+- **`tests/agents` rehabilitated and CI-gated.** The suite had silently rotted (83 stale failures + 7 errors — never run by any gate) because tool renames, an output-type migration, a merged contacts tool, an OData-vocabulary refonte and a fixture that cleared `ContextTypeRegistry` without restoring it all drifted the tests. Rewritten against current contracts (or deleted where the tested surface no longer exists, with rationale); a cross-test pollution bug and a Windows IPv6/Redis + cross-loop-singleton issue in the HITL e2e tests fixed. Now **1069 green** and wired into `task ci` + the GitHub workflow so it cannot rot unnoticed again.
+- **Value-blind-test scanner.** `scripts/analyze_value_blind_tests.py` inventories tests whose assertions can't catch a value regression (the polyline class: structure-only tests hiding a broken computation) and, more actionably, flags files where **no** test makes a strong assertion. The one genuine gap it surfaced (`test_decorators.py` — 14 tests asserting only `tool_func is not None`) was rewritten with real behavioral assertions; result: **zero fully value-blind files**.
+- **Dev**: uvicorn runs `--reload-dir src` in the dev container (the whole `apps/api` tree is bind-mounted, so test/coverage writes no longer trigger reload storms that could wedge the reloader).
+
+### Notes
+
+- **No DB schema change, no Alembic migration.** New `.env` keys (with sane defaults, no action required): `LIFETIME_METRICS_UPDATE_INTERVAL`, `MCP_REACT_STEP_TIMEOUT_SECONDS`; removed no-op keys: `ROUTER_/PLANNER_/ORCHESTRATOR_MESSAGE_WINDOW_SIZE`.
+- **Docs**: ADR-094 (+ index), `MESSAGE_WINDOWING_STRATEGY.md`, `GUIDE_PERFORMANCE_TUNING.md`, `GUIDE_DEBUGGING.md` resynced to the removed helpers.
+- **Quality**: Ruff / Black / MyPy strict clean; backend **8572 unit tests green** + **1069 agents tests green**, frontend **120 green**; Docker startup verified; every commit passed the full pre-commit hook.
+
+[ADR-094]: docs/architecture/ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md
+
 ## [1.21.2] - 2026-07-03
 
 > Architecture decision: [ADR-093 — Security Hardening: Trusted Proxy Chain & XSS Sanitization Boundary](docs/architecture/ADR-093-Security-Hardening-Proxy-XSS.md). Security & robustness release from a systemic audit of the remaining high-severity backlog, plus the math-rendering loop closed end to end. No DB schema change, no migration.

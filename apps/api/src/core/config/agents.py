@@ -153,6 +153,7 @@ from src.core.constants import (
     MAX_TOOL_TIMEOUT_SECONDS,
     MCP_REACT_ENABLED_DEFAULT,
     MCP_REACT_MAX_ITERATIONS_DEFAULT,
+    MCP_REACT_STEP_TIMEOUT_SECONDS_DEFAULT,
     MEMORY_BM25_CACHE_MAX_USERS_DEFAULT,
     MEMORY_CLEANUP_HOUR_DEFAULT,
     MEMORY_CLEANUP_MINUTE_DEFAULT,
@@ -196,7 +197,6 @@ from src.core.constants import (
     MEMORY_USAGE_PENALTY_FACTOR_DEFAULT,
     MODEL_CALL_RUN_LIMIT_DEFAULT,
     MODEL_CALL_THREAD_LIMIT_DEFAULT,
-    ORCHESTRATOR_MESSAGE_WINDOW_SIZE_DEFAULT,
     PLAN_PATTERN_LOCAL_CACHE_TTL_S_DEFAULT,
     PLAN_PATTERN_MAX_SUGGESTIONS_DEFAULT,
     PLAN_PATTERN_MIN_CONF_BYPASS_DEFAULT,
@@ -219,7 +219,6 @@ from src.core.constants import (
     PLANNER_MAX_REPLANS_DEFAULT,
     PLANNER_MAX_STEPS_DEFAULT,
     PLANNER_MAX_STEPS_HARD_LIMIT,
-    PLANNER_MESSAGE_WINDOW_SIZE_DEFAULT,
     PLANNER_PROMPT_VERSION_DEFAULT,
     PLANNER_SEMANTIC_BROAD_BATCH_DEFAULT,
     PLANNER_TIMEOUT_SECONDS,
@@ -247,7 +246,6 @@ from src.core.constants import (
     ROUTER_CONFIDENCE_MEDIUM_DEFAULT,
     ROUTER_DEBUG_LOG_PATH_DEFAULT,
     ROUTER_LLM_TIMEOUT_SECONDS_DEFAULT,
-    ROUTER_MESSAGE_WINDOW_SIZE_DEFAULT,
     ROUTER_PROMPT_VERSION_DEFAULT,
     SEMANTIC_DOMAIN_HARD_THRESHOLD_DEFAULT,
     SEMANTIC_DOMAIN_MAX_DOMAINS_DEFAULT,
@@ -392,29 +390,11 @@ class AgentsSettings(BaseSettings):
         le=100,
         description="Default window size (turns) for message windowing (1 turn = user + assistant)",
     )
-    router_message_window_size: int = Field(
-        default=ROUTER_MESSAGE_WINDOW_SIZE_DEFAULT,
-        ge=1,
-        le=50,
-        description="Router window size: minimal context for fast routing decisions (default: 4 turns)",
-    )
-    planner_message_window_size: int = Field(
-        default=PLANNER_MESSAGE_WINDOW_SIZE_DEFAULT,
-        ge=1,
-        le=50,
-        description="Planner window size: moderate context for plan generation (default: 4 turns)",
-    )
     response_message_window_size: int = Field(
         default=RESPONSE_MESSAGE_WINDOW_SIZE_DEFAULT,
         ge=1,
         le=100,
         description="Response window size: rich context for creative synthesis (default: 10 turns)",
-    )
-    orchestrator_message_window_size: int = Field(
-        default=ORCHESTRATOR_MESSAGE_WINDOW_SIZE_DEFAULT,
-        ge=1,
-        le=50,
-        description="Orchestrator window size: minimal context for plan execution (default: 4 turns)",
     )
 
     # ========================================================================
@@ -3085,6 +3065,14 @@ class AgentsSettings(BaseSettings):
         ge=3,
         le=20,
         description="Max ReAct iterations for MCP sub-agent (recursion_limit).",
+    )
+    mcp_react_step_timeout_seconds: int = Field(
+        default=MCP_REACT_STEP_TIMEOUT_SECONDS_DEFAULT,
+        gt=0,
+        description=(
+            "Wall-clock floor in seconds applied to *_task plan steps that run "
+            "the MCP ReAct sub-agent loop (raises the planner step timeout)."
+        ),
     )
 
     # ========================================================================

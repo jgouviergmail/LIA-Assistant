@@ -254,7 +254,7 @@ async def update_lifetime_metrics() -> None:
     """
     global _lifetime_cache, _error_count
 
-    update_interval = getattr(settings, "lifetime_metrics_update_interval", 30)  # seconds
+    update_interval = settings.lifetime_metrics_update_interval  # seconds
 
     logger.info(
         "lifetime_metrics_updater_started",

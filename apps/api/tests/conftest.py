@@ -17,14 +17,28 @@ if env_test_file.exists():
 os.environ["OTEL_SDK_DISABLED"] = "true"  # Disable OTEL to avoid Tempo connection errors
 
 # Detect if running inside Docker container
-# Redis requires password - get it from environment or use default
-_redis_password = os.environ.get("REDIS_PASSWORD", "change_me_redis_password")
+# Redis requires password - get it from environment, then from the repo root
+# .env (host runs against the dev compose Redis), then fall back to default.
+# NOTE: an EXPLICIT empty REDIS_PASSWORD (CI service without auth) is kept
+# as-is — only an UNSET variable triggers the fallbacks.
+_redis_password = os.environ.get("REDIS_PASSWORD")
+if _redis_password is None and not os.path.exists("/.dockerenv"):
+    _root_env = Path(__file__).resolve().parents[3] / ".env"
+    if _root_env.exists():
+        for _line in _root_env.read_text(encoding="utf-8").splitlines():
+            if _line.startswith("REDIS_PASSWORD="):
+                _redis_password = _line.split("=", 1)[1].split("#", 1)[0].strip()
+                break
+if _redis_password is None:
+    _redis_password = "change_me_redis_password"
 if os.path.exists("/.dockerenv"):
     # Inside Docker: use service name with password
     os.environ["REDIS_URL"] = f"redis://:{_redis_password}@redis:6379/15"  # Test DB 15
 else:
-    # Local: use localhost with password
-    os.environ["REDIS_URL"] = f"redis://:{_redis_password}@localhost:6379/15"  # Test DB 15
+    # Local: use 127.0.0.1 (NOT localhost) with password. On Windows,
+    # localhost resolves to ::1 first and the Docker IPv6 proxy times out
+    # with redis-py asyncio (the sync client silently falls back to IPv4).
+    os.environ["REDIS_URL"] = f"redis://:{_redis_password}@127.0.0.1:6379/15"  # Test DB 15
 
 # ruff: noqa: E402 - Module level imports must come after environment setup
 
@@ -174,6 +188,29 @@ def postgres_container() -> Generator[PostgresContainer | None, None, None]:
             pytest.skip(f"Testcontainers not available: {e}")
 
 
+def _skip_if_db_unreachable(url: str) -> None:
+    """Skip (instead of ERROR at fixture setup) when the test DB is unreachable.
+
+    The dev container has no test database on localhost:5432 (.env.test assumes
+    the CI service container); without this check every DB-backed test errors
+    with a raw connection traceback instead of a readable skip.
+    """
+    import socket
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url.replace("postgresql+asyncpg://", "postgresql://"))
+    host, port = parsed.hostname or "localhost", parsed.port or 5432
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        reachable = sock.connect_ex((host, port)) == 0
+        sock.close()
+    except OSError:
+        reachable = False
+    if not reachable:
+        pytest.skip(f"Test database unreachable at {host}:{port}")
+
+
 @pytest.fixture(scope="session")
 def test_database_url(postgres_container: PostgresContainer | None) -> str:
     """
@@ -187,6 +224,7 @@ def test_database_url(postgres_container: PostgresContainer | None) -> str:
         # Use existing postgres from docker-compose
         # Ensure asyncpg driver for async operations
         url = external_db.replace("postgresql://", "postgresql+asyncpg://")
+        _skip_if_db_unreachable(url)
         return url
     elif postgres_container:
         # Use testcontainer with explicit asyncpg driver for async operations

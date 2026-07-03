@@ -176,8 +176,10 @@ async def planner_node(state: MessagesState, config: RunnableConfig) -> dict[str
         # ====================================================================
         # 0. Apply message windowing for performance optimization
         # ====================================================================
-        # Planner needs moderate context for plan generation (10 turns default)
-        # Store provides additional business context (active contexts, entities)
+        # NOTE (v1.21.3, ADR-094): get_planner_windowed_messages was REMOVED (dead
+        # code — never wired; the planner runs through SmartPlannerService). Token
+        # growth is bounded by the state-level add_messages_with_truncate reducer.
+        # The snippet below is historical.
         from src.domains.agents.utils.message_windowing import get_planner_windowed_messages
 
         windowed_messages = get_planner_windowed_messages(state[STATE_KEY_MESSAGES])
@@ -1999,6 +2001,8 @@ class AgentsSettings:
 **Performance optimization**: Planner needs moderate context (10 turns default) au lieu de full conversation history (50+ turns).
 
 ### get_planner_windowed_messages
+
+> **🗑️ Supprimé en v1.21.3 ([ADR-094](../architecture/ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md))** — helper mort (aucun call site). Le planner passe par `SmartPlannerService` ; le bornage des tokens est assuré par le reducer `add_messages_with_truncate`. Section conservée à titre historique.
 
 ```python
 # apps/api/src/domains/agents/utils/message_windowing.py

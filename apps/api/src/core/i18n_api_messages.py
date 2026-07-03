@@ -2652,6 +2652,103 @@ class APIMessages:
         }
         return messages.get(language, messages["en"])
 
+    # =========================================================================
+    # CONNECTOR TOOL MESSAGES
+    # =========================================================================
+
+    @staticmethod
+    def connector_not_activated(
+        name: str,
+        language: SupportedLanguage = "fr",
+        needs_api_key: bool = False,
+    ) -> str:
+        """Connector not activated error message (LLM-facing).
+
+        Args:
+            name: Human-facing connector name (e.g. "Perplexity AI").
+            language: Target language code.
+            needs_api_key: True for API-key connectors (Perplexity, Brave, …),
+                which the user activates by providing their own key.
+        """
+        if needs_api_key:
+            messages = {
+                "fr": (
+                    f"Le service {name} n'est pas activé. "
+                    "Rendez-vous dans Paramètres > Connecteurs pour l'activer avec votre clé API."
+                ),
+                "en": (
+                    f"The {name} service is not enabled. "
+                    "Go to Settings > Connectors to enable it with your API key."
+                ),
+                "es": (
+                    f"El servicio {name} no está activado. "
+                    "Vaya a Configuración > Conectores para activarlo con su clave API."
+                ),
+                "de": (
+                    f"Der Dienst {name} ist nicht aktiviert. "
+                    "Gehen Sie zu Einstellungen > Konnektoren, um ihn mit Ihrem API-Schlüssel zu aktivieren."
+                ),
+                "it": (
+                    f"Il servizio {name} non è attivato. "
+                    "Vai su Impostazioni > Connettori per attivarlo con la tua chiave API."
+                ),
+                "zh-CN": f"{name} 服务未启用。请前往 设置 > 连接器 使用您的 API 密钥启用它。",
+            }
+        else:
+            messages = {
+                "fr": (
+                    f"Le service {name} n'est pas activé. "
+                    "Rendez-vous dans Paramètres > Connecteurs pour l'activer."
+                ),
+                "en": (
+                    f"The {name} service is not enabled. "
+                    "Go to Settings > Connectors to enable it."
+                ),
+                "es": (
+                    f"El servicio {name} no está activado. "
+                    "Vaya a Configuración > Conectores para activarlo."
+                ),
+                "de": (
+                    f"Der Dienst {name} ist nicht aktiviert. "
+                    "Gehen Sie zu Einstellungen > Konnektoren, um ihn zu aktivieren."
+                ),
+                "it": (
+                    f"Il servizio {name} non è attivato. "
+                    "Vai su Impostazioni > Connettori per attivarlo."
+                ),
+                "zh-CN": f"{name} 服务未启用。请前往 设置 > 连接器 启用它。",
+            }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def category_not_activated(label: str, language: SupportedLanguage = "fr") -> str:
+        """No provider active for a functional category (email, calendar, …)."""
+        messages = {
+            "fr": (
+                f"Aucun service {label} n'est configuré. "
+                "Rendez-vous dans Paramètres > Connecteurs pour activer "
+                "un service Google, Apple ou Microsoft."
+            ),
+            "en": (
+                f"No {label} service is configured. "
+                "Go to Settings > Connectors to enable a Google, Apple or Microsoft service."
+            ),
+            "es": (
+                f"No hay ningún servicio de {label} configurado. "
+                "Vaya a Configuración > Conectores para activar un servicio de Google, Apple o Microsoft."
+            ),
+            "de": (
+                f"Es ist kein {label}-Dienst konfiguriert. "
+                "Gehen Sie zu Einstellungen > Konnektoren, um einen Google-, Apple- oder Microsoft-Dienst zu aktivieren."
+            ),
+            "it": (
+                f"Nessun servizio {label} è configurato. "
+                "Vai su Impostazioni > Connettori per attivare un servizio Google, Apple o Microsoft."
+            ),
+            "zh-CN": f"未配置 {label} 服务。请前往 设置 > 连接器 启用 Google、Apple 或 Microsoft 服务。",
+        }
+        return messages.get(language, messages["en"])
+
 
 # =============================================================================
 # CACHED MESSAGE SETS FOR PERFORMANCE

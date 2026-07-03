@@ -1485,7 +1485,7 @@ class SmartPlannerService:
             from src.core.constants import MCP_ITERATIVE_TASK_SUFFIX
 
             if normalized_tool_name.endswith(MCP_ITERATIVE_TASK_SUFFIX):
-                react_timeout = getattr(settings, "mcp_react_step_timeout_seconds", 120)
+                react_timeout = settings.mcp_react_step_timeout_seconds
                 step_timeout = max(step_timeout or 0, react_timeout)
                 logger.info(
                     "mcp_react_step_timeout_override",

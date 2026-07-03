@@ -2933,6 +2933,19 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_3": {
+          "title": "v1.21.3 — 🛠️ Fiabilidad: correcciones de auditoría (calendarios, tareas, etiquetas, seguridad)",
+          "date": "Julio 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🗓️ Servicios conectados más fiables</b> — Varias correcciones en tus servicios conectados: los eventos creados o modificados en <b>Apple Calendar</b> ahora respetan la zona horaria solicitada (un evento «10:00 en París» ya no se guarda a las 10:00 UTC); la búsqueda de eventos de <b>Microsoft Calendar</b> funciona con un apóstrofo («l'anniversaire» ya no rompe la consulta); y el comando «lista mis listas de tareas» de <b>Google Tasks</b>, que fallaba en cada llamada, vuelve a funcionar.",
+            "i2": "<b>🗺️ Mapas de ruta correctos</b> — Un error de codificación distorsionaba la geometría de las rutas de varios segmentos: los mapas de ruta ahora se muestran correctamente.",
+            "i3": "<b>🏷️ Etiquetas de Gmail ambiguas: te pregunta</b> — Cuando una etiqueta que querías eliminar o aplicar coincidía con varios candidatos, el asistente mostraba un error genérico en lugar de preguntar cuál. Ahora hace la pregunta de desambiguación.",
+            "i4": "<b>⏹️ Detener detiene de verdad</b> — Cerrar la conversación durante una exploración autónoma en curso (modo ReAct) ahora interrumpe realmente el trabajo; antes la detención se ignoraba y el bucle continuaba.",
+            "i5": "<b>🌍 Mensajes de conectores en tu idioma</b> — Los mensajes «servicio no activado» / «ningún servicio configurado» de los conectores ahora aparecen en tu idioma (6 idiomas) en lugar de estar siempre en francés.",
+            "i6": "<b>🛡️ Admin · seguridad y ajustes</b> — La búsqueda de usuarios por correo ahora está restringida a los administradores (era accesible para cualquier cuenta con sesión iniciada, un riesgo de enumeración de cuentas); el presupuesto y el número de pasos del planificador definidos en la configuración por fin se respetan (una ruta de código servía siempre valores fijos); y dos ajustes internos (intervalo de sincronización de métricas, tiempo de espera de los pasos MCP iterativos) se vuelven configurables."
+          }
+        },
         "v1_21_2": {
           "title": "v1.21.2 — 🔒 Seguridad reforzada: renderizado saneado y direcciones IP reales",
           "date": "Julio 2026",

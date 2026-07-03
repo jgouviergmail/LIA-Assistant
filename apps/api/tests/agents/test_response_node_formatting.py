@@ -1,373 +1,198 @@
-"""
-Tests for response_node.format_agent_results_for_prompt().
+"""Tests for format_agent_results_for_prompt (response prompt injection).
 
-PHASE 3.2.1 - Critical missing tests (T-CRIT-002)
-Tests the fragile hasattr() checks in response_node.py:89-119
+Rewritten for the current contract (2026-07 audit, wave 2): the function only
+injects STATUS messages (errors, disabled connectors, HITL rejections, action
+confirmations, ReAct synthesis). Data-query successes flow to the LLM through
+``{data_for_filtering}`` and therefore produce an EMPTY string here.
 """
 
-from src.domains.agents.nodes.response_node import format_agent_results_for_prompt
+from src.domains.agents.formatters.agent_results import format_agent_results_for_prompt
 
 
 class TestFormatAgentResultsForPrompt:
-    """Test format_agent_results_for_prompt() preserves data structure"""
+    """Contract tests for the status-only formatter."""
 
-    def test_empty_agent_results(self):
-        """Test formatting empty agent results"""
-        # Given: Empty results
-        agent_results = {}
+    # ------------------------------------------------------------------
+    # Empty / data-success paths produce no prompt injection
+    # ------------------------------------------------------------------
 
-        # When: Format for prompt
-        formatted = format_agent_results_for_prompt(agent_results)
+    def test_empty_agent_results_returns_empty_string(self):
+        """No agent results -> nothing to inject."""
+        assert format_agent_results_for_prompt({}) == ""
 
-        # Then: Default message returned
-        assert formatted == "Aucun agent externe n'a été appelé."
-
-    def test_successful_contacts_result_with_hasattr_fields(self):
-        """Test ContactsResultData with total_count and contacts attributes"""
-        from src.domains.agents.orchestration.schemas import ContactsResultData
-
-        # Given: Real ContactsResultData with proper schema
+    def test_data_success_returns_empty_string(self):
+        """Data-query successes are injected via {data_for_filtering}, not here."""
         agent_results = {
-            "3:contacts_agent": {
+            "1:contacts_agent": {
                 "status": "success",
-                "data": ContactsResultData(
-                    contacts=[
-                        {
-                            "names": "John Doe",
-                            "emailAddresses": ["john@example.com"],
-                            "phoneNumbers": ["+33612345678"],
-                        },
-                        {
-                            "names": "Jane Smith",
-                            "emailAddresses": ["jane@example.com", "jane.smith@company.com"],
-                            "phoneNumbers": [],
-                        },
-                    ],
-                    total_count=2,
-                    has_more=False,
-                ),
-                "error": None,
+                "data": {"registry_updates": {"contact_abc": {"id": "abc"}}},
             }
         }
 
-        # When: Format for prompt (filtering by current turn)
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
+        assert format_agent_results_for_prompt(agent_results, current_turn_id=1) == ""
 
-        # Then: Formatted output includes contact details
-        # Template-driven mode uses format_for_response which embeds HTML
-        assert "✅" in formatted
-        assert "2 contacts" in formatted
-        assert "John Doe" in formatted
-        assert "john@example.com" in formatted
-        # Phone may be formatted with spaces (e.g., "+33 6 12 34 56 78")
-        assert "+33" in formatted and "12 34 56 78" in formatted
-        assert "Jane Smith" in formatted
-        assert "jane@example.com" in formatted
-        assert "jane.smith@company.com" in formatted
+    # ------------------------------------------------------------------
+    # Status messages (errors, disabled, unknown)
+    # ------------------------------------------------------------------
 
-    def test_turn_id_filtering(self):
-        """Test that only results from current turn are included"""
-        from src.domains.agents.orchestration.schemas import ContactsResultData
-
-        # Given: Results from multiple turns
+    def test_error_status_is_reported(self):
+        """Errors must reach the LLM so the reply does not pretend success."""
         agent_results = {
-            "3:contacts_agent": {
-                "status": "success",
-                "data": ContactsResultData(
-                    contacts=[{"names": "John Doe", "emailAddresses": [], "phoneNumbers": []}],
-                    total_count=1,
-                    has_more=False,
-                ),
-                "error": None,
-            },
-            "4:contacts_agent": {
-                "status": "success",
-                "data": ContactsResultData(
-                    contacts=[{"names": "Jane Smith", "emailAddresses": [], "phoneNumbers": []}],
-                    total_count=1,
-                    has_more=False,
-                ),
-                "error": None,
-            },
+            "1:calendar_agent": {"status": "error", "error": "Calendar API unavailable"}
         }
 
-        # When: Format with current_turn_id=3
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=1)
 
-        # Then: Only turn 3 results included
-        assert "John Doe" in formatted
-        assert "Jane Smith" not in formatted
+        assert "❌" in formatted
+        assert "calendar_agent" in formatted
+        assert "Calendar API unavailable" in formatted
 
-    def test_contacts_result_without_hasattr_fields(self):
-        """Test ContactsResultData missing expected attributes (hasattr fails)"""
-
-        # Given: Object missing total_count or contacts attributes
-        class IncompleteData:
-            def __init__(self):
-                self.some_field = "value"
-
+    def test_connector_disabled_status_is_reported(self):
+        """Disabled connectors surface as warnings."""
         agent_results = {
-            "3:contacts_agent": {
-                "status": "success",
-                "data": IncompleteData(),
-                "error": None,
-            }
+            "1:emails_agent": {"status": "connector_disabled", "error": "Gmail non activé"}
         }
 
-        # When: Format for prompt
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=1)
 
-        # Then: Fallback to generic formatting (domain detection fails)
-        # MultiDomainComposer returns empty when normalization fails
-        assert "✅ contacts_agent: Données récupérées avec succès" in formatted or formatted == ""
+        assert "⚠️" in formatted
+        assert "Gmail non activé" in formatted
 
-    def test_contacts_result_with_cache_metadata(self):
-        """Test ContactsResultData with cache freshness metadata"""
-        from src.domains.agents.orchestration.schemas import ContactsResultData
+    def test_unknown_status_is_flagged(self):
+        """Unknown statuses are flagged rather than silently dropped."""
+        agent_results = {"1:mystery_agent": {"status": "half-done"}}
 
-        # Given: ContactsResultData with proper schema
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=1)
+
+        assert "❓" in formatted
+        assert "half-done" in formatted
+
+    # ------------------------------------------------------------------
+    # Turn filtering
+    # ------------------------------------------------------------------
+
+    def test_turn_id_filtering_excludes_other_turns(self):
+        """Only the current turn's statuses are injected."""
         agent_results = {
-            "3:contacts_agent": {
-                "status": "success",
-                "data": ContactsResultData(
-                    contacts=[{"names": "John Doe", "emailAddresses": [], "phoneNumbers": []}],
-                    total_count=1,
-                    has_more=False,
-                ),
-                "error": None,
-            }
+            "1:old_agent": {"status": "error", "error": "old failure"},
+            "2:new_agent": {"status": "error", "error": "new failure"},
         }
 
-        # When: Format for prompt
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=2)
 
-        # Then: Contact data included via ContactsLLMFormatter
-        assert "✅" in formatted
-        assert "1 contact" in formatted
-        assert "John Doe" in formatted
+        assert "new failure" in formatted
+        assert "old failure" not in formatted
 
-    def test_error_status_result(self):
-        """Test agent result with error status"""
-        # Given: Error result
+    def test_no_turn_filter_includes_all_results(self):
+        """Without current_turn_id every status is included."""
         agent_results = {
-            "3:contacts_agent": {
-                "status": "error",
-                "data": None,
-                "error": "API connection failed",
-            }
+            "1:old_agent": {"status": "error", "error": "old failure"},
+            "2:new_agent": {"status": "error", "error": "new failure"},
         }
 
-        # When: Format for prompt
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
-
-        # Then: Error message formatted
-        assert "❌ contacts_agent: API connection failed" in formatted
-
-    def test_connector_disabled_status(self):
-        """Test agent result with connector_disabled status"""
-        # Given: Connector disabled result
-        agent_results = {
-            "3:contacts_agent": {
-                "status": "connector_disabled",
-                "data": None,
-                "error": "Service Google Contacts non activé",
-            }
-        }
-
-        # When: Format for prompt
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
-
-        # Then: Warning message formatted
-        assert "⚠️ contacts_agent: Service Google Contacts non activé" in formatted
-
-    def test_unknown_status(self):
-        """Test agent result with unknown status"""
-        # Given: Unknown status
-        agent_results = {
-            "3:contacts_agent": {
-                "status": "pending",
-                "data": None,
-                "error": None,
-            }
-        }
-
-        # When: Format for prompt
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
-
-        # Then: Unknown status message
-        assert "❓ contacts_agent: Statut inconnu (pending)" in formatted
-
-    def test_backward_compatibility_without_turn_id(self):
-        """Test old-style agent_results keys without turn_id prefix"""
-        from src.domains.agents.orchestration.schemas import ContactsResultData
-
-        # Given: Old-style key format (no "turn_id:" prefix)
-        agent_results = {
-            "contacts_agent": {  # No turn_id prefix (backward compatibility)
-                "status": "success",
-                "data": ContactsResultData(
-                    contacts=[{"names": "John Doe", "emailAddresses": [], "phoneNumbers": []}],
-                    total_count=1,
-                    has_more=False,
-                ),
-                "error": None,
-            }
-        }
-
-        # When: Format for prompt (with current_turn_id)
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
-
-        # Then: Result included (backward compatibility)
-        # MultiDomainComposer uses ContactsLLMFormatter with format_for_response
-        assert "✅" in formatted
-        assert "1 contact" in formatted
-        assert "John Doe" in formatted
-
-    def test_generic_data_fallback(self):
-        """Test generic data formatting when not ContactsResultData"""
-        # Given: Generic data object (not ContactsResultData)
-        agent_results = {
-            "3:some_agent": {
-                "status": "success",
-                "data": {"result": "some data", "count": 42},
-                "error": None,
-            }
-        }
-
-        # When: Format for prompt
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
-
-        # Then: Generic formatting used
-        assert "✅ some_agent: Données récupérées avec succès" in formatted
-        assert "result" in formatted or "some data" in formatted
-
-    def test_success_without_data(self):
-        """Test success status with None data"""
-        # Given: Success without data
-        agent_results = {
-            "3:some_agent": {
-                "status": "success",
-                "data": None,
-                "error": None,
-            }
-        }
-
-        # When: Format for prompt
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
-
-        # Then: Simple success message
-        assert "✅ some_agent: Succès" in formatted
-
-    def test_contact_without_name_field(self):
-        """Test contact dict missing 'name' field"""
-
-        from src.domains.agents.orchestration.schemas import ContactsResultData
-
-        # Given: Contact without name field
-        agent_results = {
-            "3:contacts_agent": {
-                "status": "success",
-                "data": ContactsResultData(
-                    contacts=[
-                        {
-                            # Missing "names" field (uses default)
-                            "emailAddresses": ["john@example.com"],
-                            "phoneNumbers": [],
-                        }
-                    ],
-                    total_count=1,
-                    has_more=False,
-                ),
-                "error": None,
-            }
-        }
-
-        # When: Format for prompt
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
-
-        # Then: Contact with email is included
-        assert "john@example.com" in formatted
-
-    def test_multiple_agents_in_same_turn(self):
-        """Test multiple agents executed in same turn"""
-        from src.domains.agents.orchestration.schemas import ContactsResultData
-
-        # Given: Multiple agents with same turn_id
-        agent_results = {
-            "3:contacts_agent": {
-                "status": "success",
-                "data": ContactsResultData(
-                    contacts=[{"names": "John Doe", "emailAddresses": [], "phoneNumbers": []}],
-                    total_count=1,
-                    has_more=False,
-                ),
-                "error": None,
-            },
-            "3:calendar_agent": {
-                "status": "error",
-                "data": None,
-                "error": "Calendar API unavailable",
-            },
-        }
-
-        # When: Format for prompt
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
-
-        # Then: Contacts are included (handled by MultiDomainComposer)
-        assert "✅" in formatted
-        assert "John Doe" in formatted
-
-    def test_invalid_turn_id_in_key(self):
-        """Test handling of malformed turn_id in composite key"""
-        # Given: Malformed turn_id (not an integer)
-        agent_results = {
-            "invalid:contacts_agent": {
-                "status": "success",
-                "data": {"result": "data"},
-                "error": None,
-            }
-        }
-
-        # When: Format for prompt
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
-
-        # Then: Result skipped (or included without filtering)
-        # Depends on implementation - should log warning
-        # For now, just ensure no crash
-        assert isinstance(formatted, str)
-
-    def test_no_turn_id_filter_includes_all_results(self):
-        """Test that None current_turn_id processes available results"""
-        from src.domains.agents.orchestration.schemas import ContactsResultData
-
-        # Given: Results from multiple turns
-        agent_results = {
-            "3:contacts_agent": {
-                "status": "success",
-                "data": ContactsResultData(
-                    contacts=[{"names": "John Doe", "emailAddresses": [], "phoneNumbers": []}],
-                    total_count=1,
-                    has_more=False,
-                ),
-                "error": None,
-            },
-            "4:contacts_agent": {
-                "status": "success",
-                "data": ContactsResultData(
-                    contacts=[{"names": "Jane Smith", "emailAddresses": [], "phoneNumbers": []}],
-                    total_count=1,
-                    has_more=False,
-                ),
-                "error": None,
-            },
-        }
-
-        # When: Format without turn_id filter
         formatted = format_agent_results_for_prompt(agent_results, current_turn_id=None)
 
-        # Then: At least one result is included
-        # Note: MultiDomainComposer processes results by domain and may not
-        # include all turn results when turn_id is None (depends on iteration order)
-        assert "✅" in formatted
-        # At least one contact should be present
-        assert "John Doe" in formatted or "Jane Smith" in formatted
+        assert "old failure" in formatted
+        assert "new failure" in formatted
+
+    def test_key_without_turn_id_is_included(self):
+        """Legacy keys without 'turn:' prefix are kept (backward compatibility)."""
+        agent_results = {"legacy_agent": {"status": "error", "error": "legacy failure"}}
+
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
+
+        assert "legacy failure" in formatted
+
+    def test_invalid_turn_id_in_key_is_kept_defensively(self):
+        """A malformed turn prefix logs a warning but does not drop the status."""
+        agent_results = {"not_a_number:agent_x": {"status": "error", "error": "still visible"}}
+
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=7)
+
+        assert "still visible" in formatted
+
+    # ------------------------------------------------------------------
+    # HITL rejection / action confirmations / ReAct synthesis
+    # ------------------------------------------------------------------
+
+    def test_user_rejected_action_is_reported(self):
+        """HITL rejections must be surfaced so the LLM acknowledges them."""
+        agent_results = {
+            "1:emails_agent": {
+                "status": "success",
+                "data": {"user_rejected": True, "message": "Envoi annulé par l'utilisateur"},
+            }
+        }
+
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=1)
+
+        assert "🚫" in formatted
+        assert "Envoi annulé par l'utilisateur" in formatted
+
+    def test_action_success_message_is_extracted_from_step_results(self):
+        """Action confirmations (no registry data) reach the LLM."""
+        agent_results = {
+            "1:reminders_agent": {
+                "status": "success",
+                "data": {
+                    "step_results": [{"result": "🔔 Rappel créé pour demain à 10h"}],
+                },
+            }
+        }
+
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=1)
+
+        assert "🔔 Rappel créé pour demain à 10h" in formatted
+
+    def test_for_each_action_messages_list_is_flattened(self):
+        """FOR_EACH aggregations return list[str] results — all are injected."""
+        agent_results = {
+            "1:emails_agent": {
+                "status": "success",
+                "data": {
+                    "step_results": [{"result": ["Email 1 envoyé", "Email 2 envoyé"]}],
+                },
+            }
+        }
+
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=1)
+
+        assert "Email 1 envoyé" in formatted
+        assert "Email 2 envoyé" in formatted
+
+    def test_react_synthesis_is_passed_through_verbatim(self):
+        """ADR-070: the ReAct final answer is the authoritative response text."""
+        agent_results = {
+            "1:react": {
+                "data": {"react_synthesis": "Voici la synthèse finale du raisonnement."},
+            }
+        }
+
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=1)
+
+        assert formatted == "Voici la synthèse finale du raisonnement."
+
+    def test_sub_agent_analysis_is_wrapped_in_delivery_tag(self):
+        """Sub-agent analyses are wrapped for verbatim restitution."""
+        agent_results = {
+            "1:sub_agent": {
+                "status": "success",
+                "data": {
+                    "step_results": [
+                        {
+                            "type": "sub_agent_analysis",
+                            "analysis": "Analyse complète de l'expert.",
+                            "expertise": "cardiologue",
+                            "result": "Analyse complète de...",  # truncated summary
+                        }
+                    ],
+                },
+            }
+        }
+
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=1)
+
+        assert '<SubAgentAnalysis expertise="cardiologue">' in formatted
+        assert "Analyse complète de l'expert." in formatted
+        # The truncated summary must not be duplicated alongside the full text
+        assert formatted.count("Analyse complète de") == 1

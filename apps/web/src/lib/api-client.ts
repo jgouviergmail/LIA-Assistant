@@ -209,12 +209,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 /**
- * Create AbortController with timeout.
+ * Create an abort signal that fires after `timeout` ms.
+ *
+ * AbortSignal.timeout() owns its timer lifecycle: no timer leaks on completed
+ * requests, and timeouts reject with `TimeoutError` (vs `AbortError` for
+ * caller-initiated cancellation).
  */
 function createAbortSignal(timeout: number): AbortSignal {
-  const controller = new AbortController();
-  setTimeout(() => controller.abort(), timeout);
-  return controller.signal;
+  return AbortSignal.timeout(timeout);
 }
 
 /**

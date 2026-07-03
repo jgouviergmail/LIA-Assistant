@@ -219,9 +219,10 @@ decision = interrupt(ClarificationInteraction(
 
 ```python
 # Message windowing
-router_message_window_size = 5
-planner_message_window_size = 10
-response_message_window_size = 20
+# NOTE (v1.21.3, ADR-094): router_/planner_/orchestrator_message_window_size
+# were removed (dead helpers, never wired). Only the response window remains;
+# token growth is bounded by the state-level add_messages_with_truncate reducer.
+response_message_window_size = 10
 
 # Execution limits
 agent_max_iterations = 10

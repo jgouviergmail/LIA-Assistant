@@ -814,7 +814,6 @@ class AgentRegistry:
                             if ref_examples and isinstance(ref_examples, list):
                                 reference_guide[tool_name] = [str(ex) for ex in ref_examples]
 
-            # TODO: Move these to settings
             from src.core.config import get_settings
 
             settings = get_settings()
@@ -824,8 +823,8 @@ class AgentRegistry:
                 # This is the PRIMARY source for valid $steps.STEP_ID.PATH references
                 "reference_guide": reference_guide,
                 "agents": agents_data,
-                "max_plan_cost_usd": getattr(settings, "planner_max_cost_usd", 10.0),
-                "max_plan_steps": getattr(settings, "planner_max_steps", 50),
+                "max_plan_cost_usd": settings.planner_max_cost_usd,
+                "max_plan_steps": settings.planner_max_steps,
             }
 
             # Update cache (Performance optimization - Phase 2)
@@ -1225,10 +1224,8 @@ class AgentRegistry:
                 "total_tools": total_tools,  # NEW: Metadata for monitoring
                 "filtering_applied": True,  # NEW: Flag for observability
                 "tool_strategy": tool_strategy,  # Phase C: Token optimization strategy
-                "max_plan_cost_usd": getattr(
-                    settings.planner_max_cost_usd, "planner_max_cost_usd", 50.0
-                ),
-                "max_plan_steps": getattr(settings.planner_max_steps, "planner_max_steps", 50),
+                "max_plan_cost_usd": settings.planner_max_cost_usd,
+                "max_plan_steps": settings.planner_max_steps,
             }
 
             # Cache result with timestamp

@@ -23,6 +23,7 @@ from src.core.constants import (
     GEOIP_DB_PATH_DEFAULT,
     LANGFUSE_FLUSH_INTERVAL_DEFAULT,
     LANGFUSE_SAMPLE_RATE_DEFAULT,
+    LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT,
     OTEL_SERVICE_NAME_DEFAULT,
     PROMETHEUS_METRICS_PORT_DEFAULT,
 )
@@ -128,6 +129,15 @@ class ObservabilitySettings(BaseSettings):
     evaluator_hallucination_require_ground_truth: bool = Field(
         default=False,
         description="Require ground truth for hallucination detection",
+    )
+
+    # =========================================================================
+    # Lifetime Metrics — DB-backed Prometheus gauges
+    # =========================================================================
+    lifetime_metrics_update_interval: int = Field(
+        default=LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT,
+        ge=5,
+        description="Sync period in seconds for DB-backed lifetime gauges (tokens, cost)",
     )
 
     # =========================================================================

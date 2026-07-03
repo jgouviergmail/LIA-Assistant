@@ -35,6 +35,27 @@ from src.domains.agents.api.service import AgentService
 # ============================================================================
 
 
+@pytest.fixture(autouse=True)
+async def reset_redis_singletons():
+    """Give each test its own Redis client bound to ITS event loop.
+
+    The module-level singletons in infrastructure.cache.redis are created in
+    the first test's event loop; reusing them from another test's loop raises
+    "Event loop is closed" / cross-loop RuntimeError.
+    """
+    import src.infrastructure.cache.redis as redis_module
+
+    redis_module._redis_cache = None
+    redis_module._redis_session = None
+    yield
+    if redis_module._redis_cache is not None:
+        await redis_module._redis_cache.aclose()
+    if redis_module._redis_session is not None:
+        await redis_module._redis_session.aclose()
+    redis_module._redis_cache = None
+    redis_module._redis_session = None
+
+
 @pytest.fixture
 def mock_authenticated_user():
     """Mock authenticated user for tests."""

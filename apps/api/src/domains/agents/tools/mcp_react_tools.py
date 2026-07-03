@@ -22,6 +22,7 @@ Created: 2026-03-24
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated, Any
 
 import structlog
@@ -100,6 +101,10 @@ class _MCPReActWrapper(BaseTool):
         """
         try:
             result = await self._inner._arun(**kwargs)
+        except asyncio.CancelledError:
+            # A user stop must cancel the whole ReAct loop, never become a
+            # tool-error string the agent reasons about.
+            raise
         except BaseException as exc:
             # Return error as string so the ReAct agent can reason and retry
             # instead of crashing the entire sub-agent loop.
