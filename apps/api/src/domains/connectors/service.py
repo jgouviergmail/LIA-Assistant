@@ -2537,9 +2537,13 @@ class ConnectorService:
             decrypted_json = decrypt_data(connector.credentials_encrypted)
             credentials = APIKeyCredentials.model_validate_json(decrypted_json)
 
-            # Update last used timestamp in metadata
+            # Update last used timestamp in metadata (new-dict reassignment —
+            # in-place JSONB mutation is silently dropped by SQLAlchemy)
             if connector.connector_metadata:
-                connector.connector_metadata["last_used_at"] = datetime.now(UTC).isoformat()
+                connector.connector_metadata = {
+                    **connector.connector_metadata,
+                    "last_used_at": datetime.now(UTC).isoformat(),
+                }
                 await self.db.flush()
 
             return credentials

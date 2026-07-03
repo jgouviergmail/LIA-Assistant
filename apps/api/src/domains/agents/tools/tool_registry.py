@@ -383,6 +383,11 @@ def _import_tool_modules() -> None:
     # is registered under per-server names (e.g., mcp_excalidraw_task) via model_copy.
     # Loading it here would create a ghost "mcp_server_task_tool" entry used by no manifest.
 
+    # Fail LOUDLY outside production (audit wave 2, C9): a swallowed import
+    # error silently removes an entire tool family from the registry. In
+    # production the failure is logged + counted (resilience over crash).
+    fail_loudly = not get_settings().is_production
+
     for module_path, module_name in tool_modules:
         try:
             # Dynamic import
@@ -394,18 +399,24 @@ def _import_tool_modules() -> None:
             # This finds tools decorated with @tool (not @registered_tool)
             _collect_tools_from_module(module, module_name)
 
-        except ImportError as e:
-            logger.warning(
+        except Exception as e:
+            from src.infrastructure.observability.metrics_agents import (
+                tool_module_import_failures,
+            )
+
+            tool_module_import_failures.labels(module=module_name).inc()
+            logger.exception(
                 "tool_module_import_failed",
                 module=module_name,
                 error=str(e),
+                error_type=type(e).__name__,
             )
-        except Exception as e:
-            logger.error(
-                "tool_module_load_error",
-                module=module_name,
-                error=str(e),
-            )
+            if fail_loudly:
+                raise RuntimeError(
+                    f"Tool module '{module_path}' failed to import — an entire "
+                    f"tool family would silently disappear from the registry. "
+                    f"Fix the module (original error: {e})."
+                ) from e
 
 
 def _collect_tools_from_module(module: Any, module_name: str) -> None:

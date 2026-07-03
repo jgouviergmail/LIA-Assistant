@@ -72,6 +72,7 @@ async def test_search_emails_no_scope_adds_received_filter(
     assert "after:" in final_query  # Default 90-day date filter
 
     # And: Log event emitted with correct scope
+    # (C7: query contents live in the DEBUG twin, not at INFO)
     assert mock_logger.info.call_count >= 1
     log_calls = [
         call for call in mock_logger.info.call_args_list if "search_emails_query_scope" in call[0]
@@ -81,13 +82,24 @@ async def test_search_emails_no_scope_adds_received_filter(
     log_event = log_calls[0][0][0]
     log_kwargs = log_calls[0][1]
     assert log_event == "search_emails_query_scope"
-    assert log_kwargs["original_query"] == "from:jean"
-    assert "-in:sent" in log_kwargs["final_query"]
-    assert "-in:draft" in log_kwargs["final_query"]
-    assert "-in:trash" in log_kwargs["final_query"]
     assert log_kwargs["user_requested_inbox_only"] is False
     assert log_kwargs["scope_applied"] == "received"
     assert log_kwargs["trash_excluded"] is True
+    # No query contents at INFO (PII: names/emails may appear in queries)
+    assert "original_query" not in log_kwargs
+    assert "final_query" not in log_kwargs
+
+    debug_calls = [
+        call
+        for call in mock_logger.debug.call_args_list
+        if "search_emails_query_scope_details" in call[0]
+    ]
+    assert len(debug_calls) == 1
+    debug_kwargs = debug_calls[0][1]
+    assert debug_kwargs["original_query"] == "from:jean"
+    assert "-in:sent" in debug_kwargs["final_query"]
+    assert "-in:draft" in debug_kwargs["final_query"]
+    assert "-in:trash" in debug_kwargs["final_query"]
 
 
 # ============================================================================
@@ -244,6 +256,7 @@ async def test_search_emails_logs_scope_applied(search_emails_tool, user_id, moc
         await search_emails_tool.execute_api_call(mock_gmail_client, user_id, **kwargs)
 
     # Then: Log event contains all required fields
+    # (C7: query contents live in the DEBUG twin, not at INFO)
     log_calls = [
         call for call in mock_logger.info.call_args_list if "search_emails_query_scope" in call[0]
     ]
@@ -255,21 +268,29 @@ async def test_search_emails_logs_scope_applied(search_emails_tool, user_id, moc
     # Validate event name
     assert log_event == "search_emails_query_scope"
 
-    # Validate required fields
-    assert "original_query" in log_kwargs
-    assert "final_query" in log_kwargs
+    # Validate required fields (no query contents at INFO)
+    assert "original_query" not in log_kwargs
+    assert "final_query" not in log_kwargs
     assert "user_requested_inbox_only" in log_kwargs
     assert "scope_applied" in log_kwargs
 
     # Validate field types
-    assert isinstance(log_kwargs["original_query"], str)
-    assert isinstance(log_kwargs["final_query"], str)
     assert isinstance(log_kwargs["user_requested_inbox_only"], bool)
     assert log_kwargs["scope_applied"] in [
         "inbox",
         "received",
         "preserved",
     ]  # New: "received" for default, "preserved" for existing scope
+
+    # Query contents available at DEBUG for troubleshooting
+    debug_calls = [
+        call
+        for call in mock_logger.debug.call_args_list
+        if "search_emails_query_scope_details" in call[0]
+    ]
+    assert len(debug_calls) == 1
+    assert isinstance(debug_calls[0][1]["original_query"], str)
+    assert isinstance(debug_calls[0][1]["final_query"], str)
 
 
 # ============================================================================

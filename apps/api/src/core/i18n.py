@@ -28,6 +28,38 @@ DEFAULT_LANGUAGE: Language = settings.default_language  # type: ignore[assignmen
 LOCALE_DIR = Path(__file__).parent.parent.parent / "locales"
 
 
+def normalize_language(language: str) -> Language:
+    """Normalize a language code to the canonical backend format.
+
+    Single chokepoint for language-code normalization (audit wave 2, zh):
+    the frontend spells Chinese ``zh`` (URLs, locale files) while the backend
+    canonical code is ``zh-CN`` (``User.language``, ``SUPPORTED_LANGUAGES``,
+    i18n table keys). Every consumer keying a table by language must call
+    this function first — never key a table on a raw incoming locale.
+
+    Args:
+        language: Raw locale (e.g., "zh", "zh-CN", "zh_CN", "fr-FR", "en_US").
+
+    Returns:
+        Canonical Language code; falls back to the configured default
+        language (settings-driven).
+    """
+    lang_lower = language.lower().replace("_", "-")
+
+    # Handle Chinese variants (zh, zh-CN, zh-TW, ... → canonical zh-CN)
+    if lang_lower.startswith("zh"):
+        return "zh-CN"
+
+    # Extract base language code
+    base_lang = lang_lower.split("-")[0]
+
+    if base_lang in ("fr", "en", "es", "de", "it"):
+        return base_lang  # type: ignore[return-value]
+
+    # Unsupported: fall back to the configured default language
+    return DEFAULT_LANGUAGE
+
+
 @lru_cache(maxsize=10)
 def get_translator(language: Language) -> gettext.NullTranslations:
     """

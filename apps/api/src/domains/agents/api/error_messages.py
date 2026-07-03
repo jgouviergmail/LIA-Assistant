@@ -586,3 +586,33 @@ class SSEErrorMessages:
         }
 
         return messages.get(language, messages["en"])
+
+    @staticmethod
+    def simple_fallback(language: SupportedLanguage = "fr") -> str:
+        """
+        Last-resort fallback when the pipeline AND the fallback LLM both fail.
+
+        Args:
+            language: Target language (fr/en/es/de/it/zh-CN)
+
+        Returns:
+            User-friendly message asking the user to rephrase
+        """
+        messages = {
+            "fr": (
+                "Je n'ai pas trouvé les informations demandées. "
+                "Pouvez-vous reformuler votre question ?"
+            ),
+            "en": (
+                "I could not find the requested information. " "Could you rephrase your question?"
+            ),
+            "es": ("No encontré la información solicitada. " "¿Puede reformular su pregunta?"),
+            "de": (
+                "Ich konnte die angeforderten Informationen nicht finden. "
+                "Können Sie Ihre Frage umformulieren?"
+            ),
+            "it": ("Non ho trovato le informazioni richieste. " "Puoi riformulare la tua domanda?"),
+            "zh-CN": "我没有找到所需的信息。您能重新表述您的问题吗？",
+        }
+
+        return messages.get(language, messages["en"])

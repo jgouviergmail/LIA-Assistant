@@ -34,6 +34,7 @@ Multiple security levels protect your data:
 • Your sensitive data (emails, contacts) remain confidential
 • Never shared with unauthorized third-party services
 • Minimal access to external APIs
+• No personal data in operational logs — home address, GPS coordinates, contact names/emails, email recipients/subjects and memory content are kept out of the technical logs (only counters and technical identifiers remain), with an automatic safety net enforcing it (GDPR data-minimization)
 
 **📋 Best practices:**
 • Automatic logout after inactivity

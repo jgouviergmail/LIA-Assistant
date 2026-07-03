@@ -1162,6 +1162,50 @@ class TestAPIKeyMetadata:
         # Line 1281: Uses flush(), not commit()
         mock_db.flush.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_get_api_key_credentials_reassigns_metadata_new_dict(self):
+        """last_used_at update must REASSIGN a new dict, not mutate in place.
+
+        SQLAlchemy silently skips the UPDATE when a JSONB column is mutated
+        in place, so last_used_at would never be persisted (audit wave 2, B5).
+        The new-object identity is the observable proxy for "will be flushed".
+        """
+        mock_db = AsyncMock()
+        service = ConnectorService(mock_db)
+
+        user_id = uuid.uuid4()
+        connector_type = ConnectorType.GOOGLE_GMAIL
+
+        credentials_data = {
+            "api_key": "test_key_123",
+            "api_secret": "secret_456",
+            "key_name": "Test Key",
+            "expires_at": None,
+        }
+        encrypted_creds = create_encrypted_credentials(credentials_data)
+
+        original_metadata = {"key_name": "Test Key"}
+        mock_connector = create_mock_connector(
+            user_id=user_id,
+            connector_type=connector_type,
+            status=ConnectorStatus.ACTIVE,
+            scopes=[],
+            connector_metadata=original_metadata,
+            credentials_encrypted=encrypted_creds,
+        )
+        service.repository.get_by_user_and_type = AsyncMock(return_value=mock_connector)
+
+        result = await service.get_api_key_credentials(user_id, connector_type)
+
+        assert result is not None
+        # New dict object (in-place mutation would keep the same identity)
+        assert mock_connector.connector_metadata is not original_metadata
+        # Existing keys preserved, last_used_at added
+        assert mock_connector.connector_metadata["key_name"] == "Test Key"
+        assert "last_used_at" in mock_connector.connector_metadata
+        # Original dict untouched (no side effect on the old object)
+        assert "last_used_at" not in original_metadata
+
 
 # ========================================================================
 # SESSION 35a - PHASE 2: OAUTH CREDENTIALS (P1) - 9 tests

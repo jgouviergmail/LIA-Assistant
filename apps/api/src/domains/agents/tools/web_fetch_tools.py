@@ -14,7 +14,9 @@ Security (CRITICAL — multi-tenant):
     - SSRF prevention via url_validator.py (private IP/hostname blacklists)
     - DNS resolution before fetch (prevents DNS rebinding)
     - Post-redirect SSRF check (re-validates response.url)
-    - Content size limit (500KB HTTP response, streaming check)
+    - Content size limit (500KB): headers (Content-Type/Content-Length) are
+      checked before download, but the body is then read IN FULL into memory
+      and size-checked after the fact — there is no incremental streaming cap
     - Request timeout (15s)
     - Rate limiting (10 fetches/min per user)
     - HTTPS enforcement (HTTP → HTTPS upgrade)
@@ -23,7 +25,7 @@ Security (CRITICAL — multi-tenant):
 Architecture:
     fetch_web_page_tool (@tool)
         ├── validate_url()              → SSRF prevention (async DNS)
-        ├── httpx.AsyncClient.stream()  → HTTP fetch (streaming for size control)
+        ├── httpx.AsyncClient.stream()  → HTTP fetch (header checks pre-download; body read in full)
         ├── validate_resolved_url()     → Post-redirect SSRF check
         ├── readability.Document()      → Content extraction (article mode)
         ├── markdownify.markdownify()   → HTML → Markdown
@@ -370,7 +372,8 @@ async def fetch_web_page_tool(
         )
     safe_url = validation.url
 
-    # 6. Fetch page with streaming (check headers before downloading body)
+    # 6. Fetch page: stream() lets us check headers BEFORE downloading the
+    # body, but the body itself is then read in full (no incremental cap)
     try:
         async with httpx.AsyncClient(
             timeout=settings.web_fetch_timeout_seconds,
@@ -421,7 +424,8 @@ async def fetch_web_page_tool(
                     except ValueError:
                         pass  # Invalid Content-Length header, proceed with download
 
-                # 6d. Read body (streaming already validated headers)
+                # 6d. Read the WHOLE body into memory (headers were validated
+                # pre-download; actual size is enforced after the read)
                 await response.aread()
                 body_bytes = response.content
 

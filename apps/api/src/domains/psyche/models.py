@@ -42,7 +42,9 @@ class PsycheState(BaseModel):
     relationship metrics, self-efficacy, and drives.
 
     Updated on every non-trivial interaction via PsycheService.
-    Cached in Redis for fast pre-response loading.
+    Always read from the database; a Redis marker key exists (v1) but does
+    not serve reads — full-object Redis caching is deferred to v2 (see
+    PsycheService._load_from_cache).
     """
 
     __tablename__ = "psyche_states"
@@ -81,6 +83,9 @@ class PsycheState(BaseModel):
     # =========================================================================
     # Active emotions (JSONB list)
     # Each entry: {"name": str, "intensity": float, "triggered_at": ISO8601}
+    # CONVENTION (all JSONB columns): never mutate in place (extend()/[]=) —
+    # SQLAlchemy silently skips the UPDATE. Reassign a NEW list/dict.
+    # Enforced by tests/unit/test_jsonb_mutation_guard.py.
     # =========================================================================
     active_emotions: Mapped[list[dict[str, Any]] | None] = mapped_column(
         JSONB,

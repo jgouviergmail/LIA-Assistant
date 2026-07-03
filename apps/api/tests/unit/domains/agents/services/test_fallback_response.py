@@ -9,26 +9,35 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.domains.agents.services.fallback_response import (
-    SIMPLE_FALLBACK_MESSAGE,
     generate_fallback_response,
     generate_fallback_response_sync,
+    get_simple_fallback_message,
 )
 
 
 class TestSimpleFallbackMessage:
-    """Tests for SIMPLE_FALLBACK_MESSAGE constant."""
+    """Tests for the localized last-resort message (audit wave 2, N-99)."""
 
-    def test_fallback_message_is_french(self):
-        """Test that fallback message is in French."""
-        assert "Je n'ai pas" in SIMPLE_FALLBACK_MESSAGE
+    def test_fallback_message_is_french_with_accents(self):
+        """French message carries proper diacritics (was accent-less)."""
+        message = get_simple_fallback_message("fr")
+        assert "Je n'ai pas trouvé les informations demandées" in message
+        assert "reformuler" in message
 
-    def test_fallback_message_asks_to_reformulate(self):
-        """Test that fallback message asks user to reformulate."""
-        assert "reformuler" in SIMPLE_FALLBACK_MESSAGE
+    def test_fallback_message_localized_for_english_user(self):
+        """An EN user gets English, not French (N-99 criterion)."""
+        message = get_simple_fallback_message("en")
+        assert "could not find" in message.lower()
+        assert "Je n'ai pas" not in message
 
-    def test_fallback_message_not_empty(self):
-        """Test that fallback message is not empty."""
-        assert len(SIMPLE_FALLBACK_MESSAGE) > 0
+    @pytest.mark.parametrize("language", ["fr", "en", "es", "de", "it", "zh", "zh-CN"])
+    def test_fallback_message_never_empty(self, language):
+        """Every supported locale (including zh spelling) yields a message."""
+        assert len(get_simple_fallback_message(language)) > 0
+
+    def test_fallback_message_chinese_reachable_via_zh(self):
+        """Frontend spelling 'zh' reaches the zh-CN message."""
+        assert get_simple_fallback_message("zh") == get_simple_fallback_message("zh-CN")
 
 
 class TestGenerateFallbackResponse:
@@ -57,8 +66,8 @@ class TestGenerateFallbackResponse:
             results.append((chunk, content))
 
         assert len(results) == 1
-        assert results[0][1] == SIMPLE_FALLBACK_MESSAGE
-        format_fn.assert_called_with(SIMPLE_FALLBACK_MESSAGE)
+        assert results[0][1] == get_simple_fallback_message()
+        format_fn.assert_called_with(get_simple_fallback_message())
 
     @pytest.mark.asyncio
     @patch("src.domains.agents.prompts.load_prompt")
@@ -82,7 +91,7 @@ class TestGenerateFallbackResponse:
             results.append((chunk, content))
 
         assert len(results) == 1
-        assert results[0][1] == SIMPLE_FALLBACK_MESSAGE
+        assert results[0][1] == get_simple_fallback_message()
 
     @pytest.mark.asyncio
     @patch("src.domains.agents.prompts.load_prompt")
@@ -106,7 +115,7 @@ class TestGenerateFallbackResponse:
             results.append((chunk, content))
 
         assert len(results) == 1
-        assert results[0][1] == SIMPLE_FALLBACK_MESSAGE
+        assert results[0][1] == get_simple_fallback_message()
 
 
 class TestGenerateFallbackResponseSync:
@@ -152,7 +161,7 @@ class TestGenerateFallbackResponseSync:
             run_id="run_sync_error",
         )
 
-        assert result == SIMPLE_FALLBACK_MESSAGE
+        assert result == get_simple_fallback_message()
 
     @pytest.mark.asyncio
     @patch("src.domains.agents.prompts.load_prompt")
@@ -231,4 +240,4 @@ class TestGenerateFallbackResponseSync:
             run_id="run_sync_timeout",
         )
 
-        assert result == SIMPLE_FALLBACK_MESSAGE
+        assert result == get_simple_fallback_message()

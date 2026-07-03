@@ -263,6 +263,27 @@ PHONE_FIELD_NAMES = {
 }
 ```
 
+### 2bis. Content Fields — rédaction sensible au niveau (audit 2026-07, C7)
+
+Depuis la vague 2 de l'audit, un quatrième jeu de champs existe : `CONTENT_FIELD_NAMES`
+(destinataires `to`/`cc`/`bcc`, `subject`, `body`, adresses, coordonnées `lat`/`lon`,
+noms résolus `contact_name`/`display_label`, `mappings`, previews `content_preview`/
+`result_preview`, `params` bruts, texte de requêtes `original_query`/`final_query`/…).
+
+Politique : **compteurs/IDs à INFO ; contenus à DEBUG ou rédigés.**
+
+- À `INFO` et au-dessus (`warning`, `error`, `critical`) : ces champs sont
+  **rédigés** (`[REDACTED]`) par `add_pii_filter` — le processeur reçoit le
+  `method_name` structlog et active `sanitize_dict(..., redact_content=True)`.
+- À `DEBUG` : ils passent tels quels (moins la pseudonymisation pattern-based
+  des emails), pour le troubleshooting.
+
+C'est un **filet systémique** : les sites d'appel restent la première ligne de
+défense (ne pas logger de contenu à INFO), mais un futur `subject=` ou `lat=`
+à INFO ne peut plus fuir de PII. Tests : `tests/unit/infrastructure/observability/
+test_pii_filter.py::TestContentFieldRedactionAtInfo`.
+
+
 ### 3. Regex Patterns (Industry Standards)
 
 ```python

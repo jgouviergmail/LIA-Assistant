@@ -16,9 +16,8 @@ This separation of concerns improves maintainability and i18n compliance.
 """
 
 from enum import Enum
-from typing import cast
 
-from src.core.i18n import Language
+from src.core.i18n import Language, normalize_language
 
 
 class LocationType(str, Enum):
@@ -472,22 +471,10 @@ def contains_query_reference(text: str, language: str = "fr") -> bool:
     return detect_location_type(text, language) == LocationType.QUERY
 
 
-def _normalize_language(language: str) -> Language:
-    """Normalize language code to supported format."""
-    lang_lower = language.lower().replace("_", "-")
-
-    # Handle Chinese variants
-    if lang_lower.startswith("zh"):
-        return "zh-CN"
-
-    # Extract base language code
-    base_lang = lang_lower.split("-")[0]
-
-    # Return if supported, otherwise default to French
-    if base_lang in ("fr", "en", "es", "de", "it"):
-        return cast(Language, base_lang)
-
-    return "fr"
+# Canonical implementation lives in src.core.i18n (audit wave 2, zh) so that
+# core-layer i18n modules can use it without importing from domains.
+# Re-exported here because this module is the historical import point.
+_normalize_language = normalize_language
 
 
 # =============================================================================

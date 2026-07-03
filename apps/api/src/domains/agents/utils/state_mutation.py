@@ -1,7 +1,10 @@
 """
 State mutation utilities for LangGraph nodes.
 
-Provides atomic state mutations with automatic rollback on errors.
+Provides state mutations with MANUAL rollback support: on error the context
+logs the failure and exposes ``ctx.backup`` (deep copies taken on enter) —
+the CALLER decides whether to return the backup values. There is no
+automatic restoration.
 Uses selective deep copy to avoid copying reducer-managed fields.
 
 Usage:
@@ -11,7 +14,8 @@ Usage:
         with StateMutationContext(state, "my_node") as ctx:
             ctx.update("execution_plan", new_plan)
             ctx.update("agent_results", new_results)
-            # If exception occurs here, automatic rollback
+            # On exception: error is logged, ctx.backup holds the copies —
+            # roll back by returning ctx.backup yourself if needed
         return ctx.result
 
 Note:
@@ -51,7 +55,7 @@ MUTABLE_FIELDS_TO_BACKUP: set[str] = {
 
 class StateMutationContext:
     """
-    Context manager for safe state mutations with automatic rollback.
+    Context manager for safe state mutations with manual rollback support.
 
     Only backs up fields that:
     1. Are mutable (dicts, lists)
@@ -132,7 +136,10 @@ class StateMutationContext:
         exc_tb: Any,
     ) -> None:
         """
-        Exit the context. On exception, log rollback info.
+        Exit the context. On exception, log the backed-up keys.
+
+        No automatic rollback is performed — the caller can return
+        ``self.backup`` instead of ``self.result`` to restore prior values.
 
         Returns:
             False to re-raise any exception (we don't suppress exceptions)

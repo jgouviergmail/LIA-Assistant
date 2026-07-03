@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.4] - 2026-07-03
+
+> Reliability & privacy release: **wave 2 of the full-codebase audit** — closes seven *systemic* classes of near-zero-risk defect (not just their occurrences). Every class gets a permanent guard — a CI test, a Prometheus metric, or a written convention — so it cannot silently recur. Each fix was re-confirmed against the code, driven red-first, and validated diff-by-diff. Architecture decision: [ADR-095 — Systemic Guards from the Wave-2 Audit](docs/architecture/ADR-095-Systemic-Guards-Wave2-Audit.md). No DB schema change, no migration, no new `.env` key.
+
+### Fixed — Data persistence (silent write loss)
+
+- **In-place JSONB mutations are now persisted.** SQLAlchemy does not detect in-place mutation of a JSONB column (`obj.meta["k"] = v`, `obj.meta.update(...)`, `obj.list.extend(...)`) — it silently skips the UPDATE and the write is lost. Four real sites fixed by building a **new** container and reassigning: `connector.connector_metadata["last_used_at"]` (API-key connectors — the "last used" timestamp was never written), `connector_metadata.update(error_info)` on OAuth auth-failure invalidation (error diagnostics lost), and two psyche-state sites (`last_appraisal`, `active_emotions`). **Guard:** `tests/unit/test_jsonb_mutation_guard.py` parses every model's JSONB columns from their ASTs and fails CI on any in-place mutation of a same-named attribute anywhere in `src/` — the whole class is closed, not just the four sites.
+
+### Fixed — Billing-cycle statistics (counter leak across silos)
+
+- **No counter leaks across a billing-cycle boundary, whatever event crosses it.** Three code paths could roll the cycle over (a chat message, an STT call, a dashboard read) and each hand-reset a *different subset* of counters — so the STT path leaked tokens/messages/Google/image/TTS from the previous cycle, the message path leaked STT, and the dashboard leaked image/STT/TTS. All three now delegate to a single `UserStatistics.reset_cycle()` that zeroes **every** `cycle_*` column by introspecting the model, so a future silo is reset automatically. **Guard:** a multi-silo test asserts that no old-cycle counter survives any of the three crossing events, plus a sentinel test that fails if a new `cycle_*` column is added without coverage. Also: the two remaining naive `datetime.utcnow()` (plan-approval schemas) → `datetime.now(UTC)`.
+
+### Changed — Privacy: no PII at INFO and above (GDPR data-minimization)
+
+- **Personal data removed from operational logs.** Home address + GPS coordinates, resolved contact names/emails, email recipients/subjects, memory-content previews, HITL display labels, Jinja result previews and raw tool params were logged at `INFO`/`WARNING`/`ERROR`. Per policy (counters/IDs at INFO; contents at DEBUG or redacted), the call sites in the seven cited modules were corrected (contents demoted to DEBUG twins where useful for support). **Guard:** a systemic net in `pii_filter.py` — a `CONTENT_FIELD_NAMES` set (recipients, subject, body, coordinates, resolved names, mappings, params, query text, …) is **redacted at INFO and above** and passes through only at DEBUG, driven by the structlog `method_name`. A future `subject=`/`lat=` accidentally logged at INFO can no longer leak. The sweep confirmed the net catches real leaks the per-module pass alone would have missed (Gmail **and** Outlook recipient/subject at INFO, planner/response resolved-name mappings, users-service home address). Documented in [PII_LOGGING_SECURITY.md](docs/technical/PII_LOGGING_SECURITY.md).
+
+### Changed — Tool registry robustness (silent capability loss)
+
+- **A broken tool module can no longer disappear silently.** Three `except Exception: _X_AVAILABLE = False` blocks in `tools/__init__.py` and the `_import_tool_modules` loop swallowed import errors — a renamed symbol or missing dependency silently removed an entire tool family from the registry (the class of bug that shipped as N-140). Now: `_import_tool_modules` **raises outside production** and increments a new `tool_module_import_failures_total{module}` Prometheus counter in production (resilience over crash); the conditional imports log + count instead of failing silently. **Guard:** a three-layer registry smoke test (`test_tool_registry_smoke.py`) that (1) imports every canonical module directly, (2) checks each family's sentinel tool is registered, and (3) **invokes all ~95 registered tools** with synthesized minimal args (network blocked, sleeps neutralized — 0.6 s) and rejects any programming error escaping the tool or classified inside its error payload. This immediately surfaced two latent bugs, now fixed: an unguarded `runtime.config` access when `runtime` is `None` (→ structured configuration error) and five bare `runtime.store` accesses in the email/calendar tools (→ `runtime and runtime.store`).
+
+### Fixed — Internationalization
+
+- **Chinese users get Chinese, not French.** The system carries two legitimate spellings for Chinese — `zh` (frontend locales/URLs) and `zh-CN` (backend `User.language`, i18n table keys). Two modules keyed their tables so that `language="zh"` never reached the `zh-CN` entries: `tools/labels.py` (contact field-type / relation labels) and `formatters/text_summary.py` (domain labels, which additionally used the inverse `zh` key). Both now normalize through a single chokepoint. The chokepoint itself is unified: the canonical `normalize_language` lives in `core/i18n.py`, and the former divergent copies (`agents/utils/i18n_location.py`, `core/i18n_drafts.py`) delegate to it — one implementation for the whole backend.
+- **The last-resort fallback message is localized (6 languages).** When the pipeline *and* the fallback LLM both fail, the emitted message was a hardcoded accent-less French string (`"Je n'ai pas trouve les informations demandees"`) shown to every user regardless of language. Replaced by `get_simple_fallback_message(language)` routed through the central `SSEErrorMessages` i18n mechanism (proper French diacritics + en/es/de/it/zh-CN); the streaming caller passes the user's language.
+
+### Changed — Docstring honesty
+
+- **Five docstrings that described behavior the code does not have, corrected** (code left intact per the wave's scope): `web_fetch_tools` ("streaming check" — the body is actually read in full, only headers are checked pre-download), `psyche/models` ("Cached in Redis" — the v1 marker key does not serve reads), `state_mutation` ("automatic rollback" — rollback is manual via `ctx.backup`), `parallel_executor` header ("~500 lines" on a 3875-line file), and `runtime_helpers` (a `recipient_resolution_enabled` feature toggle that no longer exists).
+
+### Notes
+
+- **No DB schema change, no Alembic migration, no new `.env` key.** New Prometheus metric only: `tool_module_import_failures_total`.
+- **Docs**: [ADR-095] (+ ADR index), `PII_LOGGING_SECURITY.md` (content-field redaction section), `CLAUDE.md` (systemic-rule enforcement pointers), FAQ application changelog (user/admin-facing subset).
+- **Quality**: Ruff / Black / MyPy strict clean; backend **8641 unit tests green** (+66 new) + **1069 agents tests green**; i18n key parity enforced across all 6 locales; Docker startup verified healthy with the full change set. Frontend untouched (backend-only release).
+
+[ADR-095]: docs/architecture/ADR-095-Systemic-Guards-Wave2-Audit.md
+
 ## [1.21.3] - 2026-07-03
 
 > Reliability release: **wave 1 of a full-codebase audit** — 14 confirmed, surgical, single-function fixes, each with a regression test written red-first — plus a hardening pass (dead-code removal [ADR-094], i18n, test-suite rehabilitation). No new user feature, no DB schema change, no migration.

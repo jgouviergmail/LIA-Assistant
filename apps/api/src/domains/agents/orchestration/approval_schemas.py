@@ -5,7 +5,7 @@ This module defines data structures used to present plans to the user
 for approval and to process approval decisions.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -41,7 +41,7 @@ class PlanSummary(BaseModel):
     hitl_steps_count: int = Field(..., description="Number of steps requiring HITL")
     steps: list[StepSummary] = Field(..., description="Step details")
     generated_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Plan generation date"
+        default_factory=lambda: datetime.now(UTC), description="Plan generation date"
     )
 
 
@@ -103,7 +103,9 @@ class PlanApprovalDecision(BaseModel):
     replan_instructions: str | None = Field(
         None, description="Instructions to regenerate the plan (REPLAN)"
     )
-    decided_at: datetime = Field(default_factory=datetime.utcnow, description="Decision date")
+    decided_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), description="Decision date"
+    )
 
 
 class ApprovalEvaluation(BaseModel):

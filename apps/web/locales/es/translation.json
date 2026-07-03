@@ -2933,6 +2933,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_4": {
+          "title": "v1.21.4 — 🛡️ Fiabilidad y privacidad: refuerzo sistémico (auditoría ola 2)",
+          "date": "Julio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📊 Estadísticas de uso exactas al cambiar de ciclo</b> — En cada nuevo ciclo de facturación, algunos contadores de tu panel (voz, imágenes, solicitudes) podían conservar parte de los valores del ciclo anterior según el evento que cruzaba el límite (un mensaje, un dictado de voz o simplemente abrir el panel). Ahora todos los contadores se ponen a cero juntos: las cifras de uso y coste mostradas son fiables desde el primer día del ciclo.",
+            "i2": "<b>🔒 Privacidad reforzada — sin datos personales en los registros técnicos</b> — Los registros de explotación podían contener información personal (dirección del domicilio y coordenadas GPS, nombres y correos de contactos, destinatarios y asuntos de correos, extractos de memorias). Este contenido se ha eliminado (solo quedan contadores e identificadores técnicos), con una red de seguridad que lo enmascara automáticamente incluso ante un olvido futuro. Conforme con la minimización de datos (RGPD).",
+            "i3": "<b>🇨🇳 Etiquetas en chino para los usuarios en chino</b> — Dos zonas de la aplicación (tipos de campos de contacto, resúmenes de datos) mostraban francés en lugar de chino para las cuentas configuradas en chino simplificado. Ahora se muestran correctamente en chino.",
+            "i4": "<b>🌍 Mensaje de reserva en tu idioma</b> — Cuando el asistente excepcionalmente no consigue formular una respuesta, el breve mensaje de reserva mostrado estaba siempre en francés (sin acentos). Ahora se presenta en tu idioma (6 idiomas).",
+            "i5": "<b>🛡️ Admin · robustez de herramientas y conectores</b> — Un módulo de herramientas defectuoso ya no puede desaparecer silenciosamente del catálogo: la anomalía se detecta ahora (fallo visible en integración continua, contador dedicado en producción) en lugar de ser absorbida. Además, la marca de tiempo de «último uso» de las claves API y el diagnóstico de errores de los conectores OAuth se registran ahora correctamente en la base de datos."
+          }
+        },
         "v1_21_3": {
           "title": "v1.21.3 — 🛠️ Fiabilidad: correcciones de auditoría (calendarios, tareas, etiquetas, seguridad)",
           "date": "Julio 2026",

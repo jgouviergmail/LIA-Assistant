@@ -24,10 +24,24 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-# Simple fallback message when LLM also fails
-SIMPLE_FALLBACK_MESSAGE = (
-    "Je n'ai pas trouve les informations demandees. " "Pouvez-vous reformuler votre question ?"
-)
+def get_simple_fallback_message(language: str | None = None) -> str:
+    """Localized last-resort message when the fallback LLM also fails.
+
+    Delegates to the central SSE error-message i18n mechanism (6 languages)
+    — never an inline hardcoded string (audit wave 2, N-99).
+
+    Args:
+        language: Raw user locale; defaults to the configured default language.
+
+    Returns:
+        Localized fallback message.
+    """
+    from src.core.config import settings
+    from src.domains.agents.api.error_messages import SSEErrorMessages
+    from src.domains.agents.utils.i18n_location import normalize_language
+
+    lang = normalize_language(language or settings.default_language)
+    return SSEErrorMessages.simple_fallback(lang)
 
 
 async def generate_fallback_response(
@@ -36,6 +50,7 @@ async def generate_fallback_response(
     format_chunk_fn: Callable[..., Any],
     config: Any = None,
     user_id: str | None = None,
+    language: str | None = None,
 ) -> AsyncGenerator[tuple["ChatStreamChunk", str], None]:
     """
     Generate an elegant fallback response via LLM.
@@ -52,6 +67,7 @@ async def generate_fallback_response(
         format_chunk_fn: Function to format content into ChatStreamChunk (e.g., service.format_token_chunk)
         config: Optional RunnableConfig with TokenTrackingCallback for billing tracking
         user_id: User UUID string for psyche context.
+        language: User's language for the localized last-resort message.
 
     Yields:
         tuple[ChatStreamChunk, str]: (formatted chunk, content fragment)
@@ -135,8 +151,9 @@ async def generate_fallback_response(
             error=str(e),
             error_type=type(e).__name__,
         )
-        formatted_chunk = format_chunk_fn(SIMPLE_FALLBACK_MESSAGE)
-        yield (formatted_chunk, SIMPLE_FALLBACK_MESSAGE)
+        simple_message = get_simple_fallback_message(language)
+        formatted_chunk = format_chunk_fn(simple_message)
+        yield (formatted_chunk, simple_message)
 
 
 async def generate_fallback_response_sync(
@@ -144,6 +161,7 @@ async def generate_fallback_response_sync(
     run_id: str,
     config: Any = None,
     user_id: str | None = None,
+    language: str | None = None,
 ) -> str:
     """
     Generate a fallback response synchronously (non-streaming).
@@ -155,6 +173,7 @@ async def generate_fallback_response_sync(
         run_id: For logging/tracing context
         config: Optional RunnableConfig with TokenTrackingCallback for billing tracking
         user_id: User UUID string for psyche context.
+        language: User's language for the localized last-resort message.
 
     Returns:
         str: The complete fallback response
@@ -223,11 +242,11 @@ async def generate_fallback_response_sync(
             error=str(e),
             error_type=type(e).__name__,
         )
-        return SIMPLE_FALLBACK_MESSAGE
+        return get_simple_fallback_message(language)
 
 
 __all__ = [
     "generate_fallback_response",
     "generate_fallback_response_sync",
-    "SIMPLE_FALLBACK_MESSAGE",
+    "get_simple_fallback_message",
 ]

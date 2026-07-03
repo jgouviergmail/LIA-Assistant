@@ -35,7 +35,6 @@ Key Design Decisions:
 
 Advantages over LangGraph Map-Reduce:
 - Works reliably (no framework bugs)
-- Simpler code (~500 lines vs ~1500 lines)
 - Less framework coupling
 - Better performance (no graph overhead)
 - Easier debugging

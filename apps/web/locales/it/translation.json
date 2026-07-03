@@ -2935,6 +2935,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_4": {
+          "title": "v1.21.4 — 🛡️ Affidabilità e privacy: rafforzamento sistemico (audit ondata 2)",
+          "date": "Luglio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📊 Statistiche di utilizzo esatte al cambio di ciclo</b> — A ogni nuovo ciclo di fatturazione, alcuni contatori della tua dashboard (voce, immagini, richieste) potevano conservare parte dei valori del ciclo precedente a seconda dell'evento che superava il confine (un messaggio, una dettatura vocale o la semplice apertura della dashboard). Ora tutti i contatori vengono azzerati insieme: le cifre di utilizzo e di costo mostrate sono affidabili fin dal primo giorno del ciclo.",
+            "i2": "<b>🔒 Privacy rafforzata — nessun dato personale nei registri tecnici</b> — I registri operativi potevano contenere informazioni personali (indirizzo di casa e coordinate GPS, nomi ed email dei contatti, destinatari e oggetti delle email, estratti di memorie). Questi contenuti sono ora rimossi (restano solo contatori e identificatori tecnici), con una rete di sicurezza che li maschera automaticamente anche in caso di una futura dimenticanza. Conforme alla minimizzazione dei dati (GDPR).",
+            "i3": "<b>🇨🇳 Etichette in cinese per gli utenti in cinese</b> — Due aree dell'applicazione (tipi di campo dei contatti, riepiloghi dei dati) mostravano il francese invece del cinese per gli account impostati su cinese semplificato. Ora si visualizzano correttamente in cinese.",
+            "i4": "<b>🌍 Messaggio di riserva nella tua lingua</b> — Quando l'assistente eccezionalmente non riesce a formulare una risposta, il breve messaggio di riserva mostrato era sempre in francese (senza accenti). Ora viene presentato nella tua lingua (6 lingue).",
+            "i5": "<b>🛡️ Admin · robustezza di strumenti e connettori</b> — Un modulo di strumenti difettoso non può più scomparire silenziosamente dal catalogo: l'anomalia viene ora rilevata (errore visibile nell'integrazione continua, contatore dedicato in produzione) anziché essere assorbita. Inoltre, la marca temporale «ultimo utilizzo» delle chiavi API e la diagnostica degli errori dei connettori OAuth vengono ora registrate correttamente nel database."
+          }
+        },
         "v1_21_3": {
           "title": "v1.21.3 — 🛠️ Affidabilità: correzioni dell'audit (calendari, attività, etichette, sicurezza)",
           "date": "Luglio 2026",

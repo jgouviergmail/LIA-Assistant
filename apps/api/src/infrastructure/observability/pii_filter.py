@@ -85,6 +85,50 @@ PHONE_FIELD_NAMES = {
     "tel",
 }
 
+# Content-bearing field names: user contents (recipients, subjects, addresses,
+# coordinates, resolved names, memory previews, raw tool params, query text).
+# Policy (audit wave 2, C7): counters/IDs at INFO; contents at DEBUG or redacted.
+# These fields are REDACTED at INFO and above, passed through at DEBUG — a
+# systemic net so a future `subject=`/`lat=` at INFO cannot leak PII again.
+CONTENT_FIELD_NAMES = {
+    # Email / messaging contents
+    "to",
+    "cc",
+    "bcc",
+    "subject",
+    "body",
+    "recipient",
+    "recipients",
+    # Location contents
+    "address",
+    "address_preview",
+    "lat",
+    "lon",
+    "latitude",
+    "longitude",
+    "origin",
+    "destination",
+    "location",
+    # Resolved people / labels
+    "contact_name",
+    "display_label",
+    "display_labels",
+    "mappings",
+    # Content previews (memories, tool results)
+    "content_preview",
+    "result_preview",
+    # Raw tool parameters
+    "params",
+    # Query text (may embed names/emails)
+    "query_preview",
+    "original_query",
+    "final_query",
+    "normalized_query",
+    "resolved_query",
+    "combined_query",
+    "enriched_query",
+}
+
 # Structlog metadata fields — never sanitize these. They are the developer-controlled
 # log envelope (event name, logger module, level, timestamp, source position) and
 # never contain user data. Treating them like payload values causes false-positive
@@ -261,7 +305,7 @@ def sanitize_string(text: str) -> str:
     return text
 
 
-def sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:
+def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict[str, Any]:
     """
     Recursively sanitize a dictionary using field-based detection.
 
@@ -277,6 +321,9 @@ def sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:
 
     Args:
         data: Dictionary to sanitize
+        redact_content: When True, also redact content-bearing field names
+            (CONTENT_FIELD_NAMES). Enabled for INFO-and-above log records —
+            contents are only allowed at DEBUG (audit wave 2, C7).
 
     Returns:
         Sanitized dictionary with PII redacted
@@ -298,6 +345,12 @@ def sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:
             sanitized[key] = redact_value(value)
             continue
 
+        # Content-bearing fields are redacted at INFO and above (C7 policy:
+        # counters/IDs at INFO, contents at DEBUG or redacted)
+        if redact_content and key_lower in CONTENT_FIELD_NAMES:
+            sanitized[key] = redact_value(value)
+            continue
+
         # Check if field is a known PII field (email)
         if key_lower in PII_FIELD_NAMES and isinstance(value, str):
             sanitized[key] = pseudonymize_email(value)
@@ -310,11 +363,11 @@ def sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:
 
         # Recursively sanitize nested structures
         if isinstance(value, dict):
-            sanitized[key] = sanitize_dict(value)
+            sanitized[key] = sanitize_dict(value, redact_content=redact_content)
         elif isinstance(value, list):
             sanitized_list: list[Any] = [
                 (
-                    sanitize_dict(item)
+                    sanitize_dict(item, redact_content=redact_content)
                     if isinstance(item, dict)
                     else sanitize_string(item) if isinstance(item, str) else item
                 )
@@ -364,12 +417,15 @@ def add_pii_filter(logger: Any, method_name: str, event_dict: dict[str, Any]) ->
                 "phone": "***-***-4567"
             }
     """
-    # Sanitize the entire event dictionary
-    return sanitize_dict(event_dict)
+    # Sanitize the entire event dictionary. Content-bearing fields are only
+    # allowed through at DEBUG (C7 policy: counters/IDs at INFO, contents at
+    # DEBUG or redacted).
+    return sanitize_dict(event_dict, redact_content=method_name != "debug")
 
 
 # Export public API
 __all__ = [
+    "CONTENT_FIELD_NAMES",
     "add_pii_filter",
     "mask_credit_card",
     "mask_phone",

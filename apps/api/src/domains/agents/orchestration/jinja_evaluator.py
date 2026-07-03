@@ -369,12 +369,18 @@ class JinjaTemplateEvaluator:
 
             # Log successful non-empty evaluation
             if not is_empty:
+                # No PII at INFO: evaluated results carry step data (DEBUG only)
                 logger.info(
                     "jinja_template_evaluated",
                     step_id=step_id,
                     parameter_name=parameter_name,
                     template_length=len(template_str),
                     result_length=len(result) if result else 0,
+                )
+                logger.debug(
+                    "jinja_template_evaluated_details",
+                    step_id=step_id,
+                    parameter_name=parameter_name,
                     result_preview=result[:100] if result and len(result) > 100 else result,
                 )
 

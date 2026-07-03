@@ -390,7 +390,31 @@ class TestAddPiiFilter:
         assert result["user_id"] == 42
 
     def test_add_pii_filter_handles_nested_structures(self):
-        """Test structlog processor with nested data."""
+        """Test structlog processor with nested data (DEBUG level).
+
+        At DEBUG the content-field net is off, so nested values are still
+        pattern-sanitized individually. At INFO the whole `body` field is a
+        content field and gets redacted (see test below).
+        """
+        event_dict = {
+            "event": "api_request",
+            "request": {
+                "headers": {"authorization": "Bearer token123", "user-agent": "Mozilla/5.0"},
+                "body": {"email": "user@example.com", "message": "Contact admin@company.com"},
+            },
+        }
+
+        result = add_pii_filter(None, "debug", event_dict)
+
+        # Verify nested sanitization
+        assert result["request"]["headers"]["authorization"] == "[REDACTED]"
+        assert result["request"]["headers"]["user-agent"] == "Mozilla/5.0"
+        assert result["request"]["body"]["email"].startswith("email_hash_")
+        assert "admin@company.com" not in result["request"]["body"]["message"]
+        assert "email_hash_" in result["request"]["body"]["message"]
+
+    def test_add_pii_filter_redacts_nested_body_at_info(self):
+        """At INFO, `body` is a content field: fully redacted (audit wave 2, C7)."""
         event_dict = {
             "event": "api_request",
             "request": {
@@ -401,12 +425,8 @@ class TestAddPiiFilter:
 
         result = add_pii_filter(None, "info", event_dict)
 
-        # Verify nested sanitization
         assert result["request"]["headers"]["authorization"] == "[REDACTED]"
-        assert result["request"]["headers"]["user-agent"] == "Mozilla/5.0"
-        assert result["request"]["body"]["email"].startswith("email_hash_")
-        assert "admin@company.com" not in result["request"]["body"]["message"]
-        assert "email_hash_" in result["request"]["body"]["message"]
+        assert result["request"]["body"] == "[REDACTED]"
 
     def test_add_pii_filter_preserves_empty_dict(self):
         """Test structlog processor with empty event dict."""
@@ -530,3 +550,93 @@ class TestAddPiiFilter:
             assert (
                 "[REDACTED_TOKEN]" in result["raw"]
             ), f"Expected real token in {value!r} to be redacted"
+
+
+class TestContentFieldRedactionAtInfo:
+    """Systemic net (audit wave 2, C7): content-bearing fields are redacted at
+    INFO and above, but pass through at DEBUG.
+
+    Criterion: a full scenario (contact resolution + memory + home route) must
+    leave no name, email, or coordinate in INFO logs — even if a future call
+    site logs `subject=` / `lat=` / `mappings=` at INFO again.
+    """
+
+    def test_content_fields_redacted_at_info(self):
+        """Names, emails, coordinates, subjects are redacted at INFO."""
+        event_dict = {
+            "event": "scenario",
+            # contact resolution
+            "contact_name": "Jean Dupond",
+            "to": "jean.dupond@example.com",
+            "subject": "Rendez-vous demain",
+            # memory resolution
+            "mappings": {"mon frère": "Paul Dupond"},
+            "content_preview": "User is anxious about...",
+            # home route
+            "lat": 48.8566,
+            "lon": 2.3522,
+            "address": "12 rue de la Paix, Paris",
+            "destination": "Gare de Lyon",
+        }
+
+        result = add_pii_filter(None, "info", event_dict)
+
+        rendered = str(result)
+        assert "Jean Dupond" not in rendered
+        assert "jean.dupond" not in rendered
+        assert "Rendez-vous" not in rendered
+        assert "Paul Dupond" not in rendered
+        assert "anxious" not in rendered
+        assert "48.8566" not in rendered
+        assert "2.3522" not in rendered
+        assert "rue de la Paix" not in rendered
+        assert "Gare de Lyon" not in rendered
+        # Event name untouched (structlog metadata)
+        assert result["event"] == "scenario"
+
+    def test_content_fields_redacted_at_warning_and_error(self):
+        """The net applies to every level above DEBUG, not just INFO."""
+        for level in ("warning", "error", "critical"):
+            result = add_pii_filter(None, level, {"event": "e", "params": {"to": "a@b.com"}})
+            assert result["params"] == "[REDACTED]", f"params must be redacted at {level}"
+
+    def test_content_fields_pass_through_at_debug(self):
+        """DEBUG keeps contents (minus pattern-based email pseudonymization)."""
+        event_dict = {
+            "event": "details",
+            "contact_name": "Jean Dupond",
+            "lat": 48.8566,
+            "subject": "Rendez-vous demain",
+        }
+
+        result = add_pii_filter(None, "debug", event_dict)
+
+        assert result["contact_name"] == "Jean Dupond"
+        assert result["lat"] == 48.8566
+        assert result["subject"] == "Rendez-vous demain"
+
+    def test_content_fields_redacted_in_nested_dicts(self):
+        """Redaction recurses into nested payloads (e.g. params dicts)."""
+        event_dict = {
+            "event": "tool_error",
+            "context": {"tool_args": {"subject": "Secret subject", "count": 3}},
+        }
+
+        result = add_pii_filter(None, "error", event_dict)
+
+        assert result["context"]["tool_args"]["subject"] == "[REDACTED]"
+        assert result["context"]["tool_args"]["count"] == 3
+
+    def test_non_content_fields_untouched_at_info(self):
+        """Counters, IDs and flags stay readable at INFO."""
+        event_dict = {
+            "event": "ok",
+            "user_id": "1234",
+            "mappings_count": 2,
+            "has_address": True,
+            "query_length": 42,
+        }
+
+        result = add_pii_filter(None, "info", event_dict)
+
+        assert result == event_dict
