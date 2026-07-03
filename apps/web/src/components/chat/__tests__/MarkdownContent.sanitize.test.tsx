@@ -79,6 +79,17 @@ describe('MarkdownContent — legitimate markup survives', () => {
     expect(container.querySelector('.lia-callout')).not.toBeNull();
   });
 
+  it('keeps card title link classes (defaultSchema constrains a.className)', () => {
+    // Regression: defaultSchema allows a.className ONLY as data-footnote-backref,
+    // which stripped .lia-card__title and rendered the title as a blue link.
+    const { container } = render(
+      <MarkdownContent content={'<a href="/x" class="lia-card__title lia-title-underline">Titre</a>'} />
+    );
+    const link = container.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link?.className).toContain('lia-card__title');
+  });
+
   it('keeps card action buttons with data-action', () => {
     const { container } = render(
       <MarkdownContent
