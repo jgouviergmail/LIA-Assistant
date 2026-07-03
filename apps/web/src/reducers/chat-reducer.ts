@@ -343,13 +343,14 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
             const lastAssistantIndex = state.messages.length - 1 - reversedIndex;
             const lastMsg = state.messages[lastAssistantIndex];
 
-            // ✅ SAFETY: Don't attach tokens to plan messages (ephemeral HITL state)
-            // Plan messages are temporary UI state during approval flow
-            // Tokens should only attach to final response messages, not plans
-            const isPlanMessage =
-              lastMsg.content.startsWith("Je vais d'abord") ||
-              lastMsg.content.includes('Tu confirmes que je procède') ||
-              lastMsg.content.includes('Je valide les accès');
+            // ✅ SAFETY: Don't attach tokens to HITL prompt messages (ephemeral
+            // approval-flow state) — tokens should only attach to final
+            // response messages. Structural detection: every HITL bubble id is
+            // prefixed "hitl_" (backend per-interrupt message_id and frontend
+            // fallbacks alike) — language-agnostic, unlike the previous
+            // French-content matching that silently failed in the 5 other UI
+            // languages.
+            const isPlanMessage = lastMsg.id.startsWith('hitl_');
 
             if (!isPlanMessage) {
               updatedMessages = state.messages.map((m, index) =>

@@ -172,9 +172,10 @@ def route_from_router(state: MessagesState) -> str:
             threshold_low=settings.router_confidence_low,
             threshold_medium=settings.router_confidence_medium,
         )
-        # Mark state for potential review or additional validation
-        # Type ignore: low_confidence_routing is a dynamic flag, not in MessagesState schema
-        state["low_confidence_routing"] = True
+        # NOTE: a former `state["low_confidence_routing"] = True` mutation was
+        # removed here — routing functions cannot write state updates in
+        # LangGraph (only node returns are applied), the key was never
+        # declared in MessagesState nor read anywhere: dead AND inoperative.
     else:
         # Very low confidence: fallback to response node regardless of intention
         tier = "very_low"

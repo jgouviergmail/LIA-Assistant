@@ -177,4 +177,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
 # Run application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--limit-max-requests", "10000", "--limit-max-requests-jitter", "1000"]
+# --proxy-headers: trust X-Forwarded-For/-Proto so request.client.host is the
+# real visitor IP (per-IP rate limiting, GeoIP, logs). forwarded-allow-ips="*"
+# is safe ONLY because the published port is loopback-bound in
+# docker-compose.prod.yml: every peer that can reach uvicorn (cloudflared via
+# docker-proxy, the in-container healthcheck, compose-internal services) is trusted.
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--limit-max-requests", "10000", "--limit-max-requests-jitter", "1000", "--proxy-headers", "--forwarded-allow-ips", "*"]

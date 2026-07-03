@@ -2811,131 +2811,59 @@ def setup_middleware(app: FastAPI) -> None:
     """
     Configure middleware stack for FastAPI application.
 
-    Order matters (applied in REVERSE):
-    1. RequestIDMiddleware (first - generates request_id)
-    2. LoggingMiddleware (second - logs with request_id)
-    3. ErrorHandlerMiddleware (last - catches all exceptions)
-    4. CORSMiddleware (built-in FastAPI)
+    Execution order (add_middleware applies in REVERSE):
+    1. RequestIDMiddleware (first - generates/propagates request_id)
+    2. SecurityHeadersMiddleware (security headers on every response)
+    3. LoggingMiddleware (logs + GeoIP with request_id bound)
+    4. ErrorHandlerMiddleware (catches unhandled exceptions)
+    5. CORSMiddleware (built-in Starlette)
+    (PrometheusMiddleware is added separately in main.py, outermost.)
     """
     app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, ...)
     app.add_middleware(ErrorHandlerMiddleware)
     app.add_middleware(LoggingMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIDMiddleware)
 ```
 
+> **Pure ASGI depuis 2026-07 (F28)** : les quatre middlewares custom ne sont
+> plus des `BaseHTTPMiddleware` (qui créaient une task anyio + des memory
+> streams par requête et re-wrappaient chaque chunk SSE) mais des classes
+> ASGI pures (`__call__(scope, receive, send)` + `send`-wrappers). Mêmes
+> contrats, même ordre d'exécution ; les contextvars structlog se propagent
+> naturellement (même task) et le streaming est traversé sans surcoût.
+> Source de vérité : `apps/api/src/core/middleware.py` (docstrings complètes).
+
 #### RequestIDMiddleware
 
-```python
-class RequestIDMiddleware(BaseHTTPMiddleware):
-    """
-    Add unique request ID to each request.
+Génère un UUID (ou réutilise le header `X-Request-ID` entrant), le binde dans
+les contextvars structlog (tous les logs de la requête le portent), l'expose
+aux routes via `scope["state"]["request_id"]` (→ `request.state.request_id`)
+et l'ajoute aux headers de réponse pour la corrélation côté client.
 
-    Features:
-    - Generate UUID or extract from X-Request-ID header
-    - Bind to structlog context (all logs include request_id)
-    - Add to request.state for route access
-    - Add to response headers (client correlation)
-    """
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Generate or extract request ID
-        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+#### SecurityHeadersMiddleware
 
-        # Bind to structlog context (all subsequent logs include request_id)
-        structlog.contextvars.clear_contextvars()
-        structlog.contextvars.bind_contextvars(
-            request_id=request_id,
-            path=request.url.path,
-            method=request.method
-        )
-
-        # Add to request state (routes can access via request.state.request_id)
-        request.state.request_id = request_id
-
-        # Process request
-        response = await call_next(request)
-
-        # Add to response headers (client can correlate)
-        response.headers["X-Request-ID"] = request_id
-
-        return response
-```
+Ajoute les headers de sécurité sur chaque réponse (X-Frame-Options,
+X-Content-Type-Options, CSP `script-src 'self'`, COOP/COEP pour le WASM KWS,
+HSTS en production uniquement) via un `send`-wrapper sur
+`http.response.start`.
 
 #### LoggingMiddleware
 
-```python
-class LoggingMiddleware(BaseHTTPMiddleware):
-    """
-    Log HTTP requests/responses with configurable level.
-
-    Configuration:
-    - HTTP_LOG_LEVEL: DEBUG/INFO/WARNING (default: DEBUG)
-    - http_log_exclude_paths: ["/health", "/metrics", ...] (exclude from logging)
-
-    Features:
-    - Timing (duration_ms for each request)
-    - Conditional logging (skip excluded paths)
-    - Error logging (always ERROR level, even if path excluded)
-    """
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        start_time = time.time()
-        path = request.url.path
-
-        # Check exclusion list
-        should_log = path not in settings.http_log_exclude_paths
-        log_level = settings.http_log_level.upper()  # "DEBUG" | "INFO" | "WARNING"
-
-        # Log request (if not excluded)
-        if should_log:
-            log_method = getattr(logger, log_level.lower(), logger.debug)
-            log_method("request_started", path=path, method=request.method, ...)
-
-        try:
-            response = await call_next(request)
-            duration_ms = (time.time() - start_time) * 1000
-
-            # Log response (if not excluded)
-            if should_log:
-                log_method("request_completed", status_code=response.status_code, duration_ms=duration_ms)
-
-            return response
-
-        except Exception as exc:
-            duration_ms = (time.time() - start_time) * 1000
-
-            # Always log errors at ERROR level (regardless of exclusion)
-            logger.error("request_failed", path=path, duration_ms=duration_ms, error=str(exc), exc_info=True)
-            raise
-```
+Logue `request_started`/`request_completed` (niveau configurable
+`HTTP_LOG_LEVEL`, exclusions `http_log_exclude_paths` — `/health`, `/metrics`)
+avec `duration_ms` mesurée au `http.response.start` (≈ TTFB pour les réponses
+streaming, sémantique historique documentée). Enrichit les contextvars GeoIP
+et incrémente `http_requests_by_country_total` (chemins exclus non comptés).
+Les erreurs sont toujours loguées à ERROR (`request_failed`), exclusion ou pas.
 
 #### ErrorHandlerMiddleware
 
-```python
-class ErrorHandlerMiddleware(BaseHTTPMiddleware):
-    """
-    Global error handler for unhandled exceptions.
-
-    Features:
-    - Structured error responses (JSON format)
-    - Debug mode toggle (stack traces only in DEBUG)
-    - Exception logging (exc_info=True for Sentry integration)
-    - Request ID propagation
-    """
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        try:
-            response = await call_next(request)
-            return response
-        except Exception as exc:
-            logger.exception("unhandled_exception", error=str(exc), path=request.url.path, method=request.method)
-
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "error": "Internal server error",
-                    "detail": str(exc) if settings.debug else "An unexpected error occurred",  # Stack trace only in DEBUG
-                    "request_id": getattr(request.state, "request_id", None)
-                }
-            )
-```
+Capture les exceptions non gérées : `logger.exception("unhandled_exception")`
+puis JSON 500 structuré (`error`, `detail` — masqué hors debug —,
+`request_id`). Si la réponse a déjà commencé (échec mid-stream SSE), les
+headers sont partis : l'exception est re-levée (même limitation que la
+version historique, désormais explicite via un flag `response_started`).
 
 ### Background Jobs & Scheduler (APScheduler)
 

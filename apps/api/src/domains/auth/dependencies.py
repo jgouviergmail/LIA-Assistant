@@ -26,10 +26,13 @@ logger = structlog.get_logger(__name__)
 
 def _get_client_ip(request: Request) -> str:
     """
-    Extract client IP from request, handling proxies.
+    Extract client IP from request.
 
-    Checks X-Forwarded-For header first (for reverse proxy setups),
-    falls back to direct client IP.
+    Proxy handling is delegated to uvicorn (``--proxy-headers`` in
+    production): ``request.client.host`` already carries the validated
+    X-Forwarded-For value when the peer is trusted. Reading the raw
+    X-Forwarded-For header here would reopen IP spoofing (any direct
+    client could forge it to bypass per-IP auth rate limits).
 
     Args:
         request: FastAPI request object
@@ -37,10 +40,6 @@ def _get_client_ip(request: Request) -> str:
     Returns:
         Client IP address string
     """
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        # X-Forwarded-For can contain multiple IPs, take the first (original client)
-        return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
 

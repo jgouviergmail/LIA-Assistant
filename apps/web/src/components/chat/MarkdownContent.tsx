@@ -4,7 +4,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import rehypeKatex from 'rehype-katex';
+import { markdownSanitizeSchema } from '@/lib/markdown-sanitize-schema';
 import { useTranslation } from 'react-i18next';
 import { cn, GOOGLE_IMAGE_DOMAINS, proxyGoogleImageUrl } from '@/lib/utils';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
@@ -445,6 +447,132 @@ function sanitizeMalformedTags(text: string): string {
   );
 }
 
+// Regions where `$` must be left untouched: fenced code blocks, inline code
+// (single/double backtick), and `$$…$$` display math. Escaping `$` inside a
+// code span would surface a literal backslash (markdown does not unescape
+// inside code), and display math is already handled by remark-math.
+const PROTECTED_SPAN_RE =
+  /(```[\s\S]*?```|~~~[\s\S]*?~~~|``[\s\S]*?``|`[^`\n]*`|\$\$[\s\S]*?\$\$)/g;
+
+/**
+ * Normalize every math notation an LLM emits into remark-math delimiters, so
+ * a formula renders regardless of the style the model picked:
+ *   - ```` ```math ```` / ```` ```latex ```` fenced block → `$$…$$` (display)
+ *   - `\[ … \]` → `$$…$$` (display)
+ *   - `\( … \)` → `$…$`  (inline)
+ * Without this, a formula the model wrapped in a ```` ```latex ```` block
+ * rendered as a literal code block instead of math. `\[`/`\(` conversion
+ * skips code spans/blocks (so a regex `\(` in a code sample is preserved);
+ * the fenced-block conversion only targets the `math`/`latex` languages, so
+ * ```` ```python ```` etc. stay code.
+ */
+function normalizeMathDelimiters(text: string): string {
+  // 1) Fenced ```math / ```latex → $$…$$ (run first: otherwise these blocks
+  //    would be treated as protected code spans below).
+  let out = text.replace(
+    /```(?:math|latex)\b[^\n]*\n([\s\S]*?)```[ \t]*(?=\n|$)/gi,
+    (_match, body: string) => `\n$$\n${body.trim()}\n$$\n`
+  );
+
+  if (!out.includes('\\[') && !out.includes('\\(')) return out;
+
+  // 2) \[…\] and \(…\) outside code / display-math regions.
+  out = out
+    .split(PROTECTED_SPAN_RE)
+    .map((part, i) => {
+      if (i % 2 === 1) return part; // protected span (code or $$…$$)
+      return part
+        .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_m, b: string) => `$$${b}$$`)
+        .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_m, b: string) => `$${b}$`);
+    })
+    .join('');
+  return out;
+}
+
+/**
+ * Disambiguate `$` between inline math and currency, so single-dollar inline
+ * math (`$A = \pi r^2$`) renders WITHOUT breaking currency amounts
+ * (`1,50$ … 9$`, `$5 and $6`).
+ *
+ * remark-math's `singleDollarTextMath` is all-or-nothing: enabled it swallows
+ * currency, disabled it drops legitimate inline math. This applies MathJax's
+ * standard delimiter rules (see escapeCurrencyDollars) to keep only the `$…$`
+ * pairs that are really math, and backslash-escapes every other `$`
+ * (currency) so remark-math renders it literally. Code spans/blocks and
+ * `$$…$$` display math are skipped (PROTECTED_SPAN_RE); already-escaped `\$`
+ * are preserved.
+ */
+function protectInlineMathDollars(text: string): string {
+  if (!text.includes('$')) return text;
+
+  // String.split with a capturing group yields protected spans at odd indices
+  // and the processable gaps between them at even indices.
+  return text
+    .split(PROTECTED_SPAN_RE)
+    .map((part, i) => (i % 2 === 0 ? escapeCurrencyDollars(part) : part))
+    .join('');
+}
+
+/**
+ * Apply MathJax's delimiter rules to a text segment (no code/display-math
+ * inside): keep `$…$` pairs where the char after the opening `$` is not
+ * whitespace, the char before the closing `$` is not whitespace, and the char
+ * after the closing `$` is not a digit; escape every other `$` as currency.
+ */
+function escapeCurrencyDollars(seg: string): string {
+  // Collect unescaped single-`$` positions.
+  const positions: number[] = [];
+  for (let i = 0; i < seg.length; i++) {
+    if (seg[i] === '$' && seg[i - 1] !== '\\') positions.push(i);
+  }
+  if (positions.length < 2) {
+    // A lone `$` never forms math — escape it so it renders literally.
+    return positions.length === 1 ? spliceEscape(seg, positions) : seg;
+  }
+
+  const keep = new Set<number>();
+  let k = 0;
+  while (k < positions.length - 1) {
+    const open = positions[k];
+    const afterOpen = seg[open + 1];
+    // Opening rule: next char exists and is not whitespace.
+    if (afterOpen !== undefined && !/\s/.test(afterOpen)) {
+      let closedAt = -1;
+      for (let m = k + 1; m < positions.length; m++) {
+        const cand = positions[m];
+        const beforeClose = seg[cand - 1];
+        const afterClose = seg[cand + 1];
+        // Closing rule: prev not whitespace, next not a digit.
+        if (!/\s/.test(beforeClose) && !(afterClose !== undefined && /\d/.test(afterClose))) {
+          closedAt = m;
+          break;
+        }
+      }
+      if (closedAt !== -1) {
+        keep.add(open);
+        keep.add(positions[closedAt]);
+        k = closedAt + 1;
+        continue;
+      }
+    }
+    k++;
+  }
+
+  const toEscape = positions.filter(p => !keep.has(p));
+  return toEscape.length ? spliceEscape(seg, toEscape) : seg;
+}
+
+/** Backslash-escape the `$` characters at the given indices. */
+function spliceEscape(seg: string, indices: number[]): string {
+  const set = new Set(indices);
+  let out = '';
+  for (let i = 0; i < seg.length; i++) {
+    if (set.has(i)) out += '\\$';
+    else out += seg[i];
+  }
+  return out;
+}
+
 export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
   ({ content, isUser = false, className }) => {
     const { t } = useTranslation();
@@ -452,22 +580,41 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
     // Sanitize malformed HTML tags (e.g., <li📧> -> <li>📧)
     const sanitizedContent = useMemo(() => sanitizeMalformedTags(content), [content]);
 
+    // Normalize every math notation the LLM may emit (```math/```latex fences,
+    // \[…\], \(…\)) into remark-math delimiters so formulas always render.
+    const mathNormalizedContent = useMemo(
+      () => normalizeMathDelimiters(sanitizedContent),
+      [sanitizedContent]
+    );
+
+    // Protect currency `$` from inline-math parsing (MathJax delimiter rules),
+    // so single-dollar inline math renders without swallowing dollar amounts.
+    const mathSafeContent = useMemo(
+      () => protectInlineMathDollars(mathNormalizedContent),
+      [mathNormalizedContent]
+    );
+
     // Format phone numbers in content (French: 06.12.34.56.78, others: national format)
     const formattedContent = useMemo(
-      () => formatPhonesInText(sanitizedContent),
-      [sanitizedContent]
+      () => formatPhonesInText(mathSafeContent),
+      [mathSafeContent]
     );
 
     return (
       <div className={cn('markdown-content text-[13px] mobile:text-sm leading-relaxed', className)}>
         <ReactMarkdown
-          // singleDollarTextMath: false — a single `$` is NOT a math delimiter,
-          // so currency amounts ("1,50$", "9$") render as literal text instead of
-          // being swallowed into a KaTeX formula (spaces dropped, `*`→`∗`, `é`→`eˊ`).
-          // Display math `$$…$$` still works for the rare intentional case.
-          remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: false }]]}
+          // singleDollarTextMath: true — inline math `$…$` renders. Currency is
+          // NOT swallowed because protectInlineMathDollars() has already
+          // backslash-escaped every `$` that isn't a real math delimiter
+          // (MathJax rules), upstream in the content pipeline.
+          remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: true }]]}
           remarkRehypeOptions={{ allowDangerousHtml: true }}
-          rehypePlugins={[rehypeRaw, rehypeKatex]}
+          // Order matters: rehypeRaw parses embedded HTML, rehypeSanitize is
+          // the XSS boundary (schema audited against all legitimate card /
+          // rich-HTML markup), rehypeKatex runs LAST so its generated markup
+          // is not stripped while the math nodes it consumes survive
+          // sanitization (className is allowed globally).
+          rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownSanitizeSchema], rehypeKatex]}
           // Custom URL transform to allow tel: and mailto: protocols
           // Default only allows: http, https, irc, ircs, mailto, xmpp
           urlTransform={(url: string) => {

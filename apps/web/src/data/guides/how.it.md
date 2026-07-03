@@ -6,7 +6,7 @@
 
 **Versione**: 2.4
 **Data**: 2026-05-08
-**Applicazione**: LIA v1.21.1
+**Applicazione**: LIA v1.21.2
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -721,12 +721,12 @@ Design **fail-open**: i fallimenti dell'infrastruttura non bloccano gli utenti.
 
 | Vettore | Protezione |
 |---------|------------|
-| XSS | Cookie HTTP-only, CSP |
+| XSS (rendering LLM) | Confine `rehype-sanitize` sul pipeline markdown della chat (`rehypeRaw → rehypeSanitize → rehypeKatex`, schema verificato — `script`/`iframe`/`form`/handler rimossi), cookie HTTP-only, CSP backend; le MCP/Skill App non passano mai per il markdown (sentinella → widget iframe in sandbox) |
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (query parametrizzate) |
 | SSRF | Risoluzione DNS + IP blocklist (Web Fetch, MCP, Browser) |
 | Prompt Injection | Marker di sicurezza `<external_content>` |
-| Rate Limiting | Redis sliding window distribuito (Lua atomico) |
+| Rate Limiting / spoofing IP | Redis sliding window distribuito (Lua atomico); catena proxy affidabile — porte API vincolate a loopback (cloudflared = unico ingresso), uvicorn `--proxy-headers`, `request.client.host` validato come unica fonte di IP (niente più bucket globale condiviso, XFF grezzo mai letto) |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot settimanale |
 
 ---
@@ -1013,4 +1013,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 91 ADR e del changelog (da v1.0 a v1.21.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 91 ADR e del changelog (da v1.0 a v1.21.2). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

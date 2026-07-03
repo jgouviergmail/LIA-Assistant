@@ -1,19 +1,25 @@
 """
 Custom middleware for FastAPI application.
 Includes request ID tracking, CORS, logging, and observability.
+
+All custom middleware is implemented as pure ASGI (F28): the historical
+``BaseHTTPMiddleware`` versions each spawned an anyio task-group plus memory
+streams per request and re-wrapped every SSE chunk, a systematic overhead on
+all requests. Pure ASGI runs in the caller's task (contextvars behave
+naturally) and is transparent for streaming responses. Execution order is
+unchanged: RequestID → SecurityHeaders → Logging → ErrorHandler → routes.
 """
 
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from typing import Any
 
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
+from starlette.datastructures import Headers, MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from src.core.config import settings
 from src.core.constants import GEOIP_COUNTRY_LOCAL
@@ -23,43 +29,46 @@ from src.infrastructure.observability.metrics import http_requests_by_country_to
 logger = structlog.get_logger(__name__)
 
 
-class RequestIDMiddleware(BaseHTTPMiddleware):
+class RequestIDMiddleware:
     """
-    Middleware to add unique request ID to each request.
+    Pure-ASGI middleware adding a unique request ID to each request.
     The request ID is propagated through logs and traces for correlation.
     """
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable,
-    ) -> Response:
-        # Generate or extract request ID
-        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = Headers(scope=scope)
+        request_id = headers.get("X-Request-ID") or str(uuid.uuid4())
 
         # Bind request ID to structlog context
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(
             request_id=request_id,
-            path=request.url.path,
-            method=request.method,
+            path=scope.get("path", ""),
+            method=scope.get("method", ""),
         )
 
-        # Add request ID to request state for access in routes
-        request.state.request_id = request_id
+        # Expose to routes via request.state.request_id (Starlette reads
+        # request.state from scope["state"])
+        scope.setdefault("state", {})["request_id"] = request_id
 
-        # Process request
-        response: Response = await call_next(request)
+        async def send_with_request_id(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                MutableHeaders(scope=message)["X-Request-ID"] = request_id
+            await send(message)
 
-        # Add request ID to response headers
-        response.headers["X-Request-ID"] = request_id
-
-        return response
+        await self.app(scope, receive, send_with_request_id)
 
 
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+class SecurityHeadersMiddleware:
     """
-    Middleware to add security headers to all responses.
+    Pure-ASGI middleware adding security headers to all responses.
 
     Headers added:
     - X-Frame-Options: DENY - Prevents clickjacking attacks
@@ -74,23 +83,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     OAuth uses redirect flow (not popups), so COOP won't break authentication.
     """
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
-        response: Response = await call_next(request)
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-
-        # HSTS — force HTTPS for 1 year, include subdomains (production only)
-        if settings.is_production:
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains; preload"
-            )
-
-        # CSP — restrict resource loading to known origins
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        # CSP — restrict resource loading to known origins.
         # 'unsafe-inline' for styles is required by many UI frameworks;
         # script-src is strict (self only) to prevent XSS.
         csp_directives = [
@@ -106,58 +101,88 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "form-action 'self'",
             "frame-ancestors 'none'",
         ]
-        response.headers["Content-Security-Policy"] = "; ".join(csp_directives)
+        self._csp = "; ".join(csp_directives)
 
-        # COOP/COEP for WASM SharedArrayBuffer (Sherpa-onnx KWS multi-threading)
-        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
-        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-        return response
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_security_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers["X-Frame-Options"] = "DENY"
+                headers["X-Content-Type-Options"] = "nosniff"
+                headers["X-XSS-Protection"] = "1; mode=block"
+                # HSTS — force HTTPS for 1 year, include subdomains (production only)
+                if settings.is_production:
+                    headers["Strict-Transport-Security"] = (
+                        "max-age=31536000; includeSubDomains; preload"
+                    )
+                headers["Content-Security-Policy"] = self._csp
+                # COOP/COEP for WASM SharedArrayBuffer (Sherpa-onnx KWS multi-threading)
+                headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+                headers["Cross-Origin-Opener-Policy"] = "same-origin"
+            await send(message)
+
+        await self.app(scope, receive, send_with_security_headers)
 
 
-class LoggingMiddleware(BaseHTTPMiddleware):
+def _is_excluded(req_path: str) -> bool:
     """
-    Middleware to log HTTP requests and responses with timing.
+    Check if request path matches any excluded path (exact, trailing slash, or subpath).
+
+    Handles common variants like "/health", "/health/", "/healthz" (if explicitly listed),
+    and subroutes such as "/metrics/prometheus".
+    """
+    normalized = req_path.rstrip("/") or "/"
+    for excluded in settings.http_log_exclude_paths:
+        excluded_norm = excluded.rstrip("/") or "/"
+        if normalized == excluded_norm:
+            return True
+        if normalized.startswith(excluded_norm + "/"):
+            return True
+    return False
+
+
+class LoggingMiddleware:
+    """
+    Pure-ASGI middleware logging HTTP requests and responses with timing.
 
     Configurable via settings:
     - http_log_level: Log level for successful requests (default: DEBUG)
     - http_log_exclude_paths: Paths to exclude from logging (e.g., /metrics, /health)
 
     Error responses are always logged at ERROR level for debugging.
+
+    Note: ``duration_ms`` is measured up to ``http.response.start`` — for
+    streaming (SSE) responses this is time-to-first-byte, matching the
+    historical BaseHTTPMiddleware behaviour (call_next returned at response
+    start).
     """
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
         start_time = time.time()
-        path = request.url.path
+        path = scope.get("path", "")
+        method = scope.get("method", "")
+        client = scope.get("client")
+        client_host: str | None = client[0] if client else None
 
-        def _is_excluded(req_path: str) -> bool:
-            """
-            Check if request path matches any excluded path (exact, trailing slash, or subpath).
-
-            Handles common variants like "/health", "/health/", "/healthz" (if explicitly listed),
-            and subroutes such as "/metrics/prometheus".
-            """
-            # Normalize trailing slash for comparison
-            normalized = req_path.rstrip("/") or "/"
-            for excluded in settings.http_log_exclude_paths:
-                excluded_norm = excluded.rstrip("/") or "/"
-                if normalized == excluded_norm:
-                    return True
-                if normalized.startswith(excluded_norm + "/"):
-                    return True
-            return False
-
-        # Check if path should be excluded from logging
         should_log = not _is_excluded(path)
 
-        # GeoIP enrichment — resolve client IP to geographic data
-        # Skipped for excluded paths (/metrics, /health) to avoid overhead
-        client_ip = request.client.host if request.client else None
+        # GeoIP enrichment — resolve client IP to geographic data.
+        # Skipped for excluded paths (/metrics, /health) to avoid overhead;
+        # excluded paths are also NOT counted in the GeoIP metric (avoids
+        # pollution from Prometheus scrapes and health probes).
         if should_log:
-            geo = geoip_resolver.resolve(client_ip) if client_ip else None
+            geo = geoip_resolver.resolve(client_host) if client_host else None
 
             if geo:
                 structlog.contextvars.bind_contextvars(
@@ -166,54 +191,45 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     geo_lat=geo.latitude,
                     geo_lon=geo.longitude,
                 )
-            elif client_ip:
+            elif client_host:
                 structlog.contextvars.bind_contextvars(geo_country=GEOIP_COUNTRY_LOCAL)
 
             country = geo.country if geo else GEOIP_COUNTRY_LOCAL
             http_requests_by_country_total.labels(country=country).inc()
-        # Excluded paths (/metrics, /health) are NOT counted in GeoIP metric
-        # to avoid pollution from Prometheus scrapes and health probes
 
-        # Determine log level from settings
         log_level = settings.http_log_level.upper()
 
-        # Log request (if not excluded)
         if should_log:
             log_method = getattr(logger, log_level.lower(), logger.debug)
             log_method(
                 "request_started",
                 path=path,
-                method=request.method,
-                client_host=request.client.host if request.client else None,
+                method=method,
+                client_host=client_host,
             )
 
-        try:
-            response: Response = await call_next(request)
-
-            # Calculate duration
-            duration_ms = (time.time() - start_time) * 1000
-
-            # Log response (if not excluded)
-            if should_log:
+        async def send_with_completion_log(message: Message) -> None:
+            if message["type"] == "http.response.start" and should_log:
+                duration_ms = (time.time() - start_time) * 1000
                 log_method = getattr(logger, log_level.lower(), logger.debug)
                 log_method(
                     "request_completed",
                     path=path,
-                    method=request.method,
-                    status_code=response.status_code,
+                    method=method,
+                    status_code=message["status"],
                     duration_ms=round(duration_ms, 2),
                 )
+            await send(message)
 
-            return response
-
+        try:
+            await self.app(scope, receive, send_with_completion_log)
         except Exception as exc:
             duration_ms = (time.time() - start_time) * 1000
-
             # Always log errors at ERROR level, regardless of exclusion
             logger.error(
                 "request_failed",
                 path=path,
-                method=request.method,
+                method=method,
                 duration_ms=round(duration_ms, 2),
                 error=str(exc),
                 exc_info=True,
@@ -221,37 +237,55 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             raise
 
 
-class ErrorHandlerMiddleware(BaseHTTPMiddleware):
+class ErrorHandlerMiddleware:
     """
-    Global error handler middleware.
+    Pure-ASGI global error handler middleware.
     Catches unhandled exceptions and returns structured error responses.
+
+    If the response has already started (e.g. mid-stream SSE failure), the
+    exception is re-raised: headers are on the wire, a JSON 500 body cannot
+    be sent anymore (same limitation the BaseHTTPMiddleware version had).
     """
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        response_started = False
+
+        async def send_tracking_start(message: Message) -> None:
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
         try:
-            response: Response = await call_next(request)
-            return response
+            await self.app(scope, receive, send_tracking_start)
         except Exception as exc:
             logger.exception(
                 "unhandled_exception",
                 error=str(exc),
-                path=request.url.path,
-                method=request.method,
+                path=scope.get("path", ""),
+                method=scope.get("method", ""),
             )
 
-            # Return structured error response
-            return JSONResponse(
+            if response_started:
+                raise
+
+            state: dict[str, Any] = scope.get("state") or {}
+            response = JSONResponse(
                 status_code=500,
                 content={
                     "error": "Internal server error",
                     "detail": str(exc) if settings.debug else "An unexpected error occurred",
-                    "request_id": getattr(request.state, "request_id", None),
+                    "request_id": state.get("request_id"),
                 },
             )
+            await response(scope, receive, send)
 
 
 def setup_middleware(app: FastAPI) -> None:

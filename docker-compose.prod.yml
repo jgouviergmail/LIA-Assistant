@@ -110,8 +110,14 @@ services:
       - ~/.claude:/home/appuser/.claude
       - ./infrastructure/claude-cli/CLAUDE.server.md:/opt/claude-workspace/CLAUDE.md:ro
     ports:
-      - "8000:8000"
-      - "9091:9091"  # Prometheus metrics (HTTP-only, no TLS)
+      # Loopback-only: cloudflared (host systemd) is the single public entry
+      # point. LAN clients must not bypass Cloudflare, and localhost-only
+      # exposure is what makes uvicorn's forwarded-allow-ips="*" safe
+      # (every peer that can reach the port is trusted: cloudflared + healthcheck).
+      # Container-to-container traffic (web SSR -> http://api:8000) uses the
+      # compose network and is unaffected by published-port bindings.
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:9091:9091"  # Prometheus metrics (scraped internally via api:9091)
     depends_on:
       postgres:
         condition: service_healthy

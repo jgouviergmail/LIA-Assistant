@@ -40,7 +40,12 @@ from src.domains.agents.constants import (
     INTENTION_UNKNOWN,
 )
 from src.domains.agents.context.store import get_tool_context_store
-from src.domains.agents.models import MessagesState, create_initial_state
+from src.domains.agents.models import (
+    MessagesState,
+    create_initial_state,
+    migrate_state_to_current,
+    needs_migration,
+)
 from src.infrastructure.llm.instrumentation import enrich_config_with_callbacks
 from src.infrastructure.observability.callbacks import TokenTrackingCallback
 from src.infrastructure.observability.metrics_agents import agent_messages_history_count
@@ -907,6 +912,21 @@ class OrchestrationService:
                 # State exists in checkpoints - restore it
                 state = current_state.values
                 checkpoint_created_at = current_state.created_at
+
+                # === SCHEMA MIGRATION (F7) ===
+                # Bring checkpoints written by older code up to the current
+                # state schema. Migrations are idempotent and purely additive
+                # (defaults for missing keys) — see migrate_state_to_current.
+                # This formalizes what the ad-hoc guards below (current_turn_id,
+                # legacy agent_results) were doing case by case.
+                if needs_migration(state):
+                    logger.info(
+                        "state_schema_migration",
+                        run_id=run_id,
+                        conversation_id=str(conversation_id),
+                        from_version=state.get("_schema_version", "0.0"),
+                    )
+                    state = migrate_state_to_current(state)
 
                 # === CRITICAL FIX: Restore Pydantic/dataclass models from checkpoint dicts ===
                 # PostgresCheckpointer serializes state as JSON, converting models to dicts.

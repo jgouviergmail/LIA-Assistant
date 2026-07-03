@@ -1253,6 +1253,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # This preserves ALL post-processing: voice, registry SSE, memory extraction,
         # psyche, journal, interest extraction — unlike a direct bypass.
         # =====================================================================
+        _react_passthrough_merged = False  # F5: gate for the explicit state return
         react_result = state.get("react_agent_result")
         if react_result and react_result.get("final_message"):
             react_message = react_result["final_message"]
@@ -1271,12 +1272,17 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             # Merge (not gate): the Initiative node may have written {turn}:initiative
             # before us on the ReAct nominal path. A plain "if not agent_results" guard
             # would drop the ReAct answer; merging preserves both (ADR-070).
+            # NOTE (F5): the in-place assignment feeds the 6 downstream readers
+            # of this node; cross-turn persistence additionally goes through the
+            # returned state_update (see the state_update block) so it holds by
+            # contract, not by shared-reference side effect.
             state[STATE_KEY_AGENT_RESULTS] = _merge_react_synthesis_result(
                 state.get(STATE_KEY_AGENT_RESULTS),
                 react_message,
                 current_turn,
                 current_registry,
             )
+            _react_passthrough_merged = True
             logger.info(
                 "response_node_react_passthrough",
                 run_id=run_id,
@@ -1315,6 +1321,10 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         full_registry = state.get("registry", {})
         current_turn_id = state.get(STATE_KEY_CURRENT_TURN_ID)
         resolved_context = state.get(STATE_KEY_RESOLVED_CONTEXT)
+        # Registry items produced by the skill ReAct sub-agent (if any) —
+        # persisted through the returned state_update via the merge_registry
+        # reducer instead of an in-place state mutation (F5).
+        skill_registry_updates: dict[str, Any] | None = None
 
         # BugFix 2025-12-19: Filter registry by current turn BEFORE domain detection
         # Root cause: _detect_domain_operations was iterating ALL registry items from ALL turns
@@ -1942,17 +1952,18 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                             duration_ms=react_result.duration_ms,
                         )
 
-                        # Propagate registry items accumulated by the wrappers
-                        # into the node state so generate_html_for_registry()
-                        # renders sentinels and the streaming service emits
-                        # registry_update SSE chunks for the frontend.
+                        # Propagate registry items accumulated by the wrappers:
+                        # current_turn_registry (local) feeds the rendering and
+                        # SSE below; the cross-turn persistence goes through the
+                        # returned state_update ("registry" has the merge_registry
+                        # reducer — returning only the NEW items is equivalent to
+                        # the historical in-place update, but persisted by
+                        # contract instead of by shared-reference side effect).
                         if react_result.accumulated_registry:
                             if current_turn_registry is None:
                                 current_turn_registry = {}
                             current_turn_registry.update(react_result.accumulated_registry)
-                            full_registry = state.get("registry") or {}
-                            full_registry.update(react_result.accumulated_registry)
-                            state["registry"] = full_registry
+                            skill_registry_updates = react_result.accumulated_registry
                             logger.info(
                                 "skill_react_registry_propagated",
                                 run_id=run_id,
@@ -2421,8 +2432,17 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         safe_rejection_override = escape_braces(rejection_override)
         safe_agent_results = escape_braces(agent_results_summary)
         safe_skills_context = escape_braces(skills_context) if skills_context else ""
+        # base_system_prompt embeds the conversation history (get_response_prompt
+        # conversation_history=...), which can contain literal curly braces from
+        # the user or assistant (LaTeX like \frac{d}{2}, MCP/HTML payloads).
+        # ChatPromptTemplate re-processes each system string as an f-string, so
+        # a stray "{2}" raised ValueError ("Invalid variable name '2'") and
+        # crashed every follow-up turn. Escape it like the other injected blocks
+        # (the prompt is already fully rendered — no template vars remain; the
+        # actual messages flow through MessagesPlaceholder, not this string).
+        safe_base_system_prompt = escape_braces(base_system_prompt)
 
-        prompt_messages: list[Any] = [("system", base_system_prompt)]
+        prompt_messages: list[Any] = [("system", safe_base_system_prompt)]
         # Skill instructions are injected as a DEDICATED high-priority system
         # message placed right after the base prompt. Rationale: when a skill
         # is active, its ``references/*.md`` content (format rules, business
@@ -2938,6 +2958,16 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # (T → T+1, ADR-079). Reset on conversation reset is gracefully handled:
         # absent ids → extraction skips the deferred-eval section silently.
         state_update["injected_journal_ids"] = current_journal_injected_ids
+        # F5 — persistence by contract (not by shared-reference side effect):
+        # the ReAct passthrough merge and the skill sub-agent registry items
+        # are returned explicitly. agent_results has no reducer (overwrite:
+        # same value the in-place path produced); "registry" goes through the
+        # merge_registry reducer (last-write-wins), equivalent to the
+        # historical full_registry.update().
+        if _react_passthrough_merged:
+            state_update[STATE_KEY_AGENT_RESULTS] = state.get(STATE_KEY_AGENT_RESULTS, {})
+        if skill_registry_updates:
+            state_update["registry"] = skill_registry_updates
 
         # ===================================================================
         # PHASE 3.2 - BUSINESS METRICS INSTRUMENTATION

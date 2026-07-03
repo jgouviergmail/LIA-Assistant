@@ -181,12 +181,19 @@ E - Elevation of Privilege (Élévation de privilèges)
 | Menace | Probabilité | Impact | Risque | Mitigation | Statut |
 |--------|-------------|--------|--------|------------|--------|
 | Credential Stuffing | Haute | Élevé | 🔴 Critique | Rate limiting login + MFA | ✅ |
-| XSS | Moyenne | Élevé | 🟡 Moyen | CSP headers + input sanitization | ✅ |
+| XSS (rendu LLM) | Moyenne | Élevé | 🟡 Moyen | Frontière `rehype-sanitize` sur le pipeline markdown du chat (ADR-093) + CSP backend + `urlTransform` + `escape_html` serveur | ✅ |
 | CSRF | Moyenne | Élevé | 🟡 Moyen | SameSite cookies + state parameter | ✅ |
 | SQL Injection | Faible | Élevé | 🟡 Moyen | SQLAlchemy ORM (parameterized queries) | ✅ |
-| API Abuse | Haute | Moyen | 🟡 Moyen | Rate limiting multi-niveaux | ✅ |
+| API Abuse | Haute | Moyen | 🟡 Moyen | Rate limiting multi-niveaux (par-IP réel via la chaîne proxy de confiance — ADR-093) | ✅ |
+| IP Spoofing (rate-limit bypass) | Moyenne | Moyen | 🟡 Moyen | uvicorn `--proxy-headers` + ports loopback (XFF brut jamais lu par l'application) | ✅ |
 | Prompt Injection (via web) | Moyenne | Élevé | 🟡 Moyen | External content wrapping (`<external_content>` markers) | ✅ |
 | Data Breach | Faible | Critique | 🟡 Moyen | Encryption + PII filtering + GDPR | ✅ |
+
+#### Chaîne proxy de confiance & frontière XSS (ADR-093, 2026-07)
+
+- **Réseau** : en production, les ports API publiés (`8000`, `9091`) sont bindés sur `127.0.0.1` — cloudflared (systemd sur l'hôte) est l'unique point d'entrée public ; le trafic inter-conteneurs (SSR web → `http://api:8000`, scrape Prometheus → `api:9091`) passe par le réseau compose et n'est pas affecté. uvicorn tourne avec `--proxy-headers --forwarded-allow-ips="*"` : le `"*"` n'est sûr **que** grâce au binding loopback (tout pair pouvant atteindre le port est de confiance) — invariant couplé, ne modifier ni l'un ni l'autre isolément.
+- **IP client** : `request.client.host` (validé par uvicorn) est l'unique source — slowapi, GeoIP, logs et rate limit auth. Aucun code applicatif ne lit le header `X-Forwarded-For` brut (spoofable).
+- **Rendu LLM** : le pipeline markdown du chat applique `rehypeRaw → rehypeSanitize → rehypeKatex` avec un schéma audité (`apps/web/src/lib/markdown-sanitize-schema.ts`) — `script`/`iframe`/`form`/handlers supprimés, HTML légitime des cartes préservé ; les MCP/Skill Apps ne passent jamais par le markdown (sentinelle → widget iframe sandboxé). Toute nouvelle feature produisant du HTML doit étendre le schéma explicitement.
 
 ### 2. Layers de sécurité
 

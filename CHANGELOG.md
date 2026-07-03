@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.2] - 2026-07-03
+
+> Architecture decision: [ADR-093 — Security Hardening: Trusted Proxy Chain & XSS Sanitization Boundary](docs/architecture/ADR-093-Security-Hardening-Proxy-XSS.md). Security & robustness release from a systemic audit of the remaining high-severity backlog, plus the math-rendering loop closed end to end. No DB schema change, no migration.
+
+### Security — Trusted proxy chain (F1, ADR-093)
+
+The prod API port was published on every host interface (`"8000:8000"`) — LAN clients could bypass Cloudflare entirely — and uvicorn ran without `--proxy-headers`: `request.client.host` was the Docker gateway for **every** request, so the per-IP rate limit was one shared global bucket (one aggressive client could 429 everyone; login brute-force was a global DoS vector), GeoIP always resolved "local" and logs carried no real IP. The auth path additionally read the raw spoofable `X-Forwarded-For`. Now, as one coupled invariant: ports `8000`/`9091` are loopback-bound (cloudflared = single public entry; compose-internal SSR/scrape traffic unaffected; Postgres 5432 left LAN-exposed by explicit user decision), uvicorn runs `--proxy-headers --forwarded-allow-ips="*"` (safe ONLY because of the loopback binding — documented at both sites), and `request.client.host` is the single client-IP source everywhere (raw XFF read removed).
+
+### Security — XSS sanitization boundary on assistant markdown (FF-XSS, ADR-093)
+
+The chat markdown pipeline ran `rehype-raw` with **no sanitizer** — the documented react-markdown XSS anti-pattern: the LLM can relay verbatim third-party HTML (email bodies, fetched pages, MCP output) that executed with the user's session. `rehype-sanitize` is now the boundary (`rehypeRaw → rehypeSanitize → rehypeKatex`), with a schema audited against every legitimate HTML producer: cards, callouts, action buttons (`data-*`), MCP sentinels, `tel:` links, inline styles — including freeing `className` on the 7 tags `defaultSchema` constrains (a live regression caught during visual validation: card titles lost their class and rendered as blue links). `script`/`iframe`/`form`/event handlers are dropped; legacy `<style>` blocks are stripped (pre-v1.21.0 messages); MCP/Skill Apps never go through markdown (sentinel → sandboxed widget). Frontend nonce-based CSP deferred as follow-up defense-in-depth.
+
+### Fixed — Conversations stuck after LaTeX / MCP App turns (pre-existing)
+
+`response_node` builds its prompt via `ChatPromptTemplate.from_messages`, which re-processes system strings as f-string templates — and the base system prompt embeds the conversation history **unescaped**. Any literal brace from history (LaTeX `\frac{d}{2}`, MCP App HTML/JSON) was parsed as a template variable: `{2}` raised `ValueError` and **every follow-up turn crashed** (observed: MCP App request hanging on "Generating response...", then no reply possible). `escape_braces()` applied, consistent with the three other injected blocks; regression tests reproduce the exact failure.
+
+### Fixed — Math rendering, end to end
+
+- **Inline `$…$` renders without breaking currency**: MathJax's standard delimiter rules applied as a deterministic preprocessor (opening `$` not followed by whitespace; closing `$` not preceded by whitespace nor followed by a digit) — `$A = \pi r^2$`, `$r^2$` render; `1,50$ … 9$`, `$5 and $6` stay literal, both correct on the same line. Code spans/fenced blocks are skipped (no visible backslash on `echo $PATH`).
+- **Every notation the model picks renders**: ```` ```latex ````/```` ```math ```` fences and `\[…\]`/`\(…\)` are normalized to remark-math delimiters (```` ```python ```` stays code; inline-code syntax examples stay literal).
+- **Emission specified**: the response prompt's math guideline itself showed delimiters wrapped in backticks — the model imitated it, emitting formulas as inline code. Rewritten with a correct in-text example and an explicit prohibition.
+
+### Changed — Robustness & performance riders
+
+- **State schema migrations wired (F7)**: the migration infrastructure (written since schema 1.0, zero callers) now runs on every checkpoint load; new 1.2→1.3 step formalizes the ADR-092 replay-safe HITL keys + `user_display_name`; `STATE_AND_CHECKPOINT.md` resynced with the restored discipline (any new state key ships with a migration step and a version bump).
+- **State persistence by contract (F5)**: response-node ReAct passthrough (`agent_results`) and skill sub-agent registry items are returned in the state update (reducer-equivalent, audited) instead of relying on shared-reference mutation; a dead+inoperative routing-function mutation removed.
+- **Pure-ASGI middleware stack (F28)**: RequestID, SecurityHeaders, Logging and ErrorHandler no longer spawn an anyio task-group + memory streams per request nor re-wrap every SSE chunk; identical contracts and ordering (duration = TTFB for streaming, documented); PrometheusMiddleware deliberately untouched (fresh v1.21.1 label contract). Middleware tests rewritten against the real ASGI stack (36 tests), hermetic to local `HTTP_LOG_LEVEL` overrides.
+- **HITL token guard language-agnostic (FF2)**: the STREAM_DONE fallback matched three hardcoded French sentences (silently inoperative in the 5 other UI languages) — now structural (`hitl_` message-id prefix).
+
+### Notes
+
+- **No DB schema change, no Alembic migration.** No new env vars: the loopback binding + `forwarded-allow-ips="*"` pair is a deliberately non-configurable coupled invariant (documented in compose, Dockerfile and ADR-093). New frontend dependency: `rehype-sanitize@6`.
+- **Docs**: ADR-093 (+ index entries), `SECURITY.md` (threat matrix + proxy-chain/XSS section), `RATE_LIMITING.md` (per-IP keys effective), `ARCHITECTURE.md` (middleware section resynced to pure-ASGI), `STATE_AND_CHECKPOINT.md` (v1.3 chain, wired).
+- **Quality**: Ruff / Black / MyPy strict clean; backend **8518 unit tests green** (+17 new), frontend **118 green** (+18 new); middleware stack verified live in the container (headers, request-id, SSE); every commit passed the full pre-commit hook.
+- **Post-deploy validation (prod)**: app reachable via the tunnel; `curl 192.168.0.14:8000` from the LAN refused; real public IPs in logs and GeoIP dashboards.
+
 ## [1.21.1] - 2026-07-02
 
 > Architecture decision: [ADR-092 — Replay-Safe HITL Interrupts](docs/architecture/ADR-092-Replay-Safe-HITL-Interrupts.md). Fix release: LangGraph resume semantics re-execute the entire interrupted node, and the two HITL flows that looped around `interrupt()` in-node replayed their LLM/API side effects on every user decision. Both now follow the normative one-interrupt-per-node-execution pattern; the draft-editing UX gets three fixes discovered during in-app validation. No schema change, no migration.
