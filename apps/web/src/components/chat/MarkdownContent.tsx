@@ -470,6 +470,41 @@ function sanitizeMalformedTags(text: string): string {
 const PROTECTED_SPAN_RE =
   /(```[\s\S]*?```|~~~[\s\S]*?~~~|``[\s\S]*?``|`[^`\n]*`|\$\$[\s\S]*?\$\$)/g;
 
+/**
+ * Normalize every math notation an LLM emits into remark-math delimiters, so
+ * a formula renders regardless of the style the model picked:
+ *   - ```` ```math ```` / ```` ```latex ```` fenced block → `$$…$$` (display)
+ *   - `\[ … \]` → `$$…$$` (display)
+ *   - `\( … \)` → `$…$`  (inline)
+ * Without this, a formula the model wrapped in a ```` ```latex ```` block
+ * rendered as a literal code block instead of math. `\[`/`\(` conversion
+ * skips code spans/blocks (so a regex `\(` in a code sample is preserved);
+ * the fenced-block conversion only targets the `math`/`latex` languages, so
+ * ```` ```python ```` etc. stay code.
+ */
+function normalizeMathDelimiters(text: string): string {
+  // 1) Fenced ```math / ```latex → $$…$$ (run first: otherwise these blocks
+  //    would be treated as protected code spans below).
+  let out = text.replace(
+    /```(?:math|latex)\b[^\n]*\n([\s\S]*?)```[ \t]*(?=\n|$)/gi,
+    (_match, body: string) => `\n$$\n${body.trim()}\n$$\n`
+  );
+
+  if (!out.includes('\\[') && !out.includes('\\(')) return out;
+
+  // 2) \[…\] and \(…\) outside code / display-math regions.
+  out = out
+    .split(PROTECTED_SPAN_RE)
+    .map((part, i) => {
+      if (i % 2 === 1) return part; // protected span (code or $$…$$)
+      return part
+        .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_m, b: string) => `$$${b}$$`)
+        .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_m, b: string) => `$${b}$`);
+    })
+    .join('');
+  return out;
+}
+
 function protectInlineMathDollars(text: string): string {
   if (!text.includes('$')) return text;
 
@@ -541,11 +576,18 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
     // Sanitize malformed HTML tags (e.g., <li📧> -> <li>📧)
     const sanitizedContent = useMemo(() => sanitizeMalformedTags(content), [content]);
 
+    // Normalize every math notation the LLM may emit (```math/```latex fences,
+    // \[…\], \(…\)) into remark-math delimiters so formulas always render.
+    const mathNormalizedContent = useMemo(
+      () => normalizeMathDelimiters(sanitizedContent),
+      [sanitizedContent]
+    );
+
     // Protect currency `$` from inline-math parsing (MathJax delimiter rules),
     // so single-dollar inline math renders without swallowing dollar amounts.
     const mathSafeContent = useMemo(
-      () => protectInlineMathDollars(sanitizedContent),
-      [sanitizedContent]
+      () => protectInlineMathDollars(mathNormalizedContent),
+      [mathNormalizedContent]
     );
 
     // Format phone numbers in content (French: 06.12.34.56.78, others: national format)

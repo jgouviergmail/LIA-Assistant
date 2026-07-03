@@ -99,3 +99,46 @@ describe('MarkdownContent — math delimiters', () => {
     expect(container.textContent).not.toContain('\\$');
   });
 });
+
+describe('MarkdownContent — math notation normalization', () => {
+  it('renders a ```latex fenced block as math, not a code block', () => {
+    const { container } = render(
+      <MarkdownContent content={'```latex\nA = \\pi r^2\n```'} />
+    );
+    expect(container.querySelector('.katex')).not.toBeNull();
+    // Not rendered as a <code>/<pre> block.
+    expect(container.querySelector('pre code')).toBeNull();
+  });
+
+  it('renders a ```math fenced block as math', () => {
+    const { container } = render(<MarkdownContent content={'```math\nx^{2} + 1\n```'} />);
+    expect(container.querySelector('.katex')).not.toBeNull();
+  });
+
+  it('renders \\[ … \\] as display math', () => {
+    const { container } = render(<MarkdownContent content={'Voici : \\[ A = \\pi r^2 \\]'} />);
+    expect(container.querySelector('.katex')).not.toBeNull();
+  });
+
+  it('renders \\( … \\) as inline math', () => {
+    const { container } = render(<MarkdownContent content={'La valeur \\(x^2\\) ici.'} />);
+    expect(container.querySelector('.katex')).not.toBeNull();
+    expect(container.textContent).toContain('La valeur');
+  });
+
+  it('leaves a regular ```python code block as code (not math)', () => {
+    const { container } = render(<MarkdownContent content={'```python\nx = 1\n```'} />);
+    expect(container.querySelector('code')).not.toBeNull();
+    expect(container.querySelector('.katex')).toBeNull();
+  });
+
+  it('keeps syntax examples in inline code literal', () => {
+    // The assistant often teaches syntax: `$...$`, `\[...\]` shown as code.
+    const { container } = render(
+      <MarkdownContent content={'Utilise `$...$` inline ou `\\[...\\]` en display.'} />
+    );
+    // No math rendered from the inline-code examples.
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(container.textContent).toContain('$...$');
+  });
+});
