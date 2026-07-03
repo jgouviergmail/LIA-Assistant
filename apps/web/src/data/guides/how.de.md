@@ -6,7 +6,7 @@
 
 **Version**: 2.4
 **Datum**: 2026-05-08
-**Application**: LIA v1.21.1
+**Application**: LIA v1.21.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -721,12 +721,12 @@ Autonomer ReAct-Agent (Playwright Chromium Headless). Redis-gesicherter Session 
 
 | Vektor | Schutz |
 |---------|------------|
-| XSS | HTTP-only Cookies, CSP |
+| XSS (LLM-Rendering) | `rehype-sanitize`-Grenze in der Chat-Markdown-Pipeline (`rehypeRaw → rehypeSanitize → rehypeKatex`, auditiertes Schema — `script`/`iframe`/`form`/Handler entfernt), HTTP-only Cookies, Backend-CSP; MCP/Skill Apps laufen nie durch Markdown (Sentinel → sandboxed iframe-Widget) |
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (parametrisierte Abfragen) |
 | SSRF | DNS-Auflösung + IP-Blocklist (Web Fetch, MCP, Browser) |
 | Prompt Injection | `<external_content>` Safety Markers |
-| Rate Limiting | Verteiltes Redis Sliding Window (atomisches Lua) |
+| Rate Limiting / IP-Spoofing | Verteiltes Redis Sliding Window (atomisches Lua); vertrauenswürdige Proxy-Kette — API-Ports loopback-gebunden (cloudflared = einziger Eingang), uvicorn `--proxy-headers`, `request.client.host` validiert als einzige IP-Quelle (kein geteilter globaler Bucket mehr, rohes XFF nie gelesen) |
 | Supply Chain | SHA-gepinnte GitHub Actions, Dependabot wöchentlich |
 
 ---
@@ -1013,4 +1013,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 91 ADRs und des Changelogs (v1.0 bis v1.21.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 91 ADRs und des Changelogs (v1.0 bis v1.21.2). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

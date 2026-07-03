@@ -214,9 +214,8 @@ Since v1.16.9, the chat has several useful finishing touches:
 - Light or dark theme based on your display preferences
 
 **🧮 Math formulas (LaTeX)**
-- Formulas are rendered with proper mathematical notation
-- Inline: `$E = mc^2$`
-- Centered block: `$$a^2 + b^2 = c^2$$`
+- Formulas are rendered with proper mathematical notation, whatever notation the assistant uses: inline `$E = mc^2$`, centered block `$$a^2 + b^2 = c^2$$`, LaTeX/math code fences, and `\[…\]` / `\(…\)` all render as formulas.
+- Dollar amounts (`9$`, `1.50$`) are never mistaken for math and stay literal, even on a line that also contains a real formula.
 
 **📅 Relative dates**
 - Today's messages: time only (14:30)

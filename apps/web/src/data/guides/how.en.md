@@ -6,7 +6,7 @@
 
 **Version**: 2.4
 **Date**: 2026-05-08
-**Application**: LIA v1.21.1
+**Application**: LIA v1.21.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -721,12 +721,12 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 
 | Vector | Protection |
 |--------|------------|
-| XSS | HTTP-only cookies, CSP |
+| XSS (LLM rendering) | `rehype-sanitize` boundary on the chat markdown pipeline (`rehypeRaw → rehypeSanitize → rehypeKatex`, audited schema — `script`/`iframe`/`form`/handlers dropped), HTTP-only cookies, backend CSP; MCP/Skill Apps never go through markdown (sentinel → sandboxed iframe widget) |
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (parameterized queries) |
 | SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser) |
 | Prompt Injection | `<external_content>` safety markers |
-| Rate Limiting | Distributed Redis sliding window (atomic Lua) |
+| Rate Limiting / IP spoofing | Distributed Redis sliding window (atomic Lua); trusted proxy chain — API ports loopback-bound (cloudflared = single entry), uvicorn `--proxy-headers`, `request.client.host` validated as the single IP source (no more shared global bucket, raw XFF never read) |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot weekly |
 
 ---
@@ -1042,4 +1042,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 91 ADRs, and the changelog (v1.0 to v1.21.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 91 ADRs, and the changelog (v1.0 to v1.21.2). All metrics, versions, and patterns cited are verifiable in the codebase.*

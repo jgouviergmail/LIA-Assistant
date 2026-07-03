@@ -6,7 +6,7 @@
 
 **版本**：2.4
 **日期**：2026-05-08
-**应用**：LIA v1.21.1
+**应用**：LIA v1.21.2
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -721,12 +721,12 @@ URL → SSRF 验证（DNS + IP 黑名单 + 重定向后重检） → 可读性�
 
 | 攻击向量 | 防护措施 |
 |---------|---------|
-| XSS | HTTP-only cookies、CSP |
+| XSS（LLM 渲染） | 聊天 markdown 管线上的 `rehype-sanitize` 边界（`rehypeRaw → rehypeSanitize → rehypeKatex`，经审计的 schema——移除 `script`/`iframe`/`form`/事件处理器）、HTTP-only cookies、后端 CSP；MCP/Skill 应用从不经过 markdown（哨兵 → 沙箱化 iframe 小组件） |
 | CSRF | SameSite=Lax |
 | SQL 注入 | SQLAlchemy ORM（参数化查询） |
 | SSRF | DNS 解析 + IP 黑名单（Web Fetch、MCP、Browser） |
 | Prompt 注入 | `<external_content>` 安全标记 |
-| 限流 | Redis 分布式滑动窗口（Lua 原子操作） |
+| 限流 / IP 伪造 | Redis 分布式滑动窗口（Lua 原子操作）；可信代理链——API 端口绑定 loopback（cloudflared = 唯一入口）、uvicorn `--proxy-headers`、`request.client.host` 作为唯一 IP 来源经过校验（不再有共享的全局桶，从不读取原始 XFF） |
 | 供应链 | SHA 固定的 GitHub Actions、每周 Dependabot |
 
 ---
@@ -1013,4 +1013,4 @@ LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个�
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、91 篇 ADR 及变更日志（v1.0 至 v1.21.1）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、91 篇 ADR 及变更日志（v1.0 至 v1.21.2）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
