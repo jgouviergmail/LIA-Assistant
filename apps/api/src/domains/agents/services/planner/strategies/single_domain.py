@@ -84,6 +84,7 @@ class SingleDomainStrategy:
         clarification_response: str | None = None,
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
+        journal_context: str = "",
     ) -> PlanningResult:
         """
         Plan for single domain query using LLM.
@@ -98,6 +99,8 @@ class SingleDomainStrategy:
             clarification_response: User's clarification response
             clarification_field: Field that was clarified
             existing_plan: Previous plan (for replanning)
+            journal_context: Per-request journal snippet (explicit parameter —
+                the service is a singleton, instance state leaks across users)
 
         Returns:
             PlanningResult with LLM-generated plan
@@ -131,6 +134,7 @@ class SingleDomainStrategy:
             clarification_response,
             clarification_field,
             existing_plan,
+            journal_context=journal_context,
         )
 
         llm = get_llm("planner")

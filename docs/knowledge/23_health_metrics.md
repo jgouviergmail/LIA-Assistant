@@ -104,7 +104,7 @@ The end-to-end procedure is documented in [`docs/guides/GUIDE_IPHONE_SHORTCUTS_H
 
 - Health data is GDPR special-category (article 9). LIA stores only what the iPhone sends and never logs raw values.
 - Encryption at rest is handled by PostgreSQL standard volume encryption.
-- Right to erasure: per-kind delete + full delete from the UI. Account deletion cascades to all rows automatically.
+- Right to erasure: per-kind delete + full delete from the UI. Deleting your account also erases all your health data and health-ingestion tokens (the account deletion service purges them explicitly), and a device that was sending health data can no longer ingest afterward.
 - No data is shared with third parties — everything stays in the LIA database.
 - **Opt-in gated downstream**: the **Assistant** toggle defaults to *off*. Until enabled, the assistant's agents, Heartbeat, memory extractor, and journal consolidation never touch your health samples.
 - **No raw values in downstream artifacts**: when assistant integrations are on, memories, journals, and Heartbeat signals carry **deltas / trends / events only** — never raw bpm / step counts. Raw integers remain in `health_samples` where GDPR erasure applies.

@@ -118,7 +118,7 @@ class TestProfilingBaseline:
         from src.domains.agents.nodes.response_node import format_agent_results_for_prompt
 
         agent_results = {
-            "1:contacts_agent": {
+            "1:contact_agent": {
                 FIELD_STATUS: "success",
                 "data": {
                     "total_count": 2,
@@ -136,6 +136,10 @@ class TestProfilingBaseline:
                     ],
                 },
             },
+            "1:weather_agent": {
+                FIELD_STATUS: "error",
+                "error": "Forecast beyond supported range",
+            },
         }
 
         current_turn_id = 1
@@ -144,10 +148,12 @@ class TestProfilingBaseline:
         for _ in range(10):
             formatted = format_agent_results_for_prompt(agent_results, current_turn_id)
 
-            # Validate output (success emoji + agent name)
+            # Contract: data-query successes are injected via {data_for_filtering},
+            # NOT here — only status messages (errors, rejections) are emitted.
             assert isinstance(formatted, str)
             assert len(formatted) > 0
-            assert "✅" in formatted or "contacts_agent" in formatted
+            assert "contact_agent" not in formatted  # success-with-data emits nothing
+            assert "weather_agent" in formatted  # error path emits a status line
 
 
 @pytest.mark.asyncio
@@ -206,10 +212,12 @@ class TestProfilingStressTest:
         from src.core.field_names import FIELD_STATUS
         from src.domains.agents.nodes.response_node import format_agent_results_for_prompt
 
-        # Larger dataset - 10 agents with 5 contacts each
+        # Larger dataset - 10 agents with 5 contacts each, plus error entries
+        # (data-query successes emit nothing by contract; errors exercise the
+        # status-message path so the profiled function produces output).
         agent_results = {}
         for i in range(10):
-            agent_results[f"1:contacts_agent_{i}"] = {
+            agent_results[f"1:contact_agent_{i}"] = {
                 FIELD_STATUS: "success",
                 "data": {
                     "total_count": 5,
@@ -223,14 +231,18 @@ class TestProfilingStressTest:
                     ],
                 },
             }
+            agent_results[f"1:weather_agent_{i}"] = {
+                FIELD_STATUS: "error",
+                "error": f"Simulated failure {i}",
+            }
 
         current_turn_id = 1
 
         # Format results
         formatted = format_agent_results_for_prompt(agent_results, current_turn_id)
 
-        # Validate
+        # Validate: only the 10 error entries produce status lines
         assert isinstance(formatted, str)
         assert len(formatted) > 0
-        # Should contain success indicators
-        assert "✅" in formatted or "contact" in formatted.lower()
+        assert "contact_agent" not in formatted
+        assert formatted.count("weather_agent") == 10

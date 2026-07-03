@@ -28,8 +28,13 @@ const allowedDevOrigins = [
 //   required in script-src (no per-request nonce with static headers). The
 //   header still blocks every EXTERNAL script origin and eval().
 // - Sherpa-onnx voice mode compiles WASM → 'wasm-unsafe-eval' + blob: workers.
+// - Push-to-talk STT loads an AudioWorklet from a blob: URL → needs blob: in
+//   script-src (a worklet's fetch destination is "audioworklet", governed by
+//   script-src, NOT worker-src).
 // - MCP/Skill widget iframes use srcDoc (inherit this CSP) and are
-//   self-contained by design — inline allowance keeps them working.
+//   self-contained by design — inline allowance keeps them working. The one
+//   exception is the interactive-map skill, which embeds an external Google
+//   Maps iframe → frame-src must allowlist https://www.google.com.
 // - Google Fonts stylesheet + font files (see app/[lng]/layout.tsx).
 // - In production the API is a separate origin (NEXT_PUBLIC_API_URL) reached
 //   via fetch/SSE/WebSocket → connect-src includes it (+ ws(s) variant).
@@ -55,7 +60,11 @@ function buildConnectSrc(): string {
 
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ''}`,
+  // blob: is required for the push-to-talk STT AudioWorklet: its module is
+  // loaded from a blob: URL and — per CSP L3 — a worklet's fetch destination is
+  // "audioworklet", governed by script-src (NOT worker-src, despite that being
+  // where the Sherpa WASM workers get their blob: allowance below).
+  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   // https: for user-facing remote images (chat markdown, connector data);
@@ -63,6 +72,13 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob: https:",
   "media-src 'self' data: blob:",
   "worker-src 'self' blob:",
+  // frame-src governs which nested browsing contexts the app may embed. Without
+  // it, frame-src falls back to default-src 'self' and blocks the ONLY external
+  // embed we ship: the interactive-map system skill's Google Maps iframe
+  // (frame.url = https://www.google.com/maps/embed — see
+  // data/skills/system/interactive-map). All other skill/MCP widgets are
+  // self-contained srcDoc frames (same-origin/opaque), already covered by 'self'.
+  "frame-src 'self' https://www.google.com",
   `connect-src ${buildConnectSrc()}`,
   "object-src 'none'",
   "base-uri 'self'",

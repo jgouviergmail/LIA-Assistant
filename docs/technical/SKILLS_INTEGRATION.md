@@ -272,12 +272,14 @@ Scripts run in a sandboxed subprocess:
 
 1. **Process isolation**: `subprocess.run()` (no `shell=True`)
 2. **Environment filtering**: Only PATH, HOME, LANG, LC_ALL, TZ
-3. **Network isolation** (Linux): `unshare -rn`
-4. **Temporary working directory**: No write access to skill/app dirs
-5. **Path traversal protection**: `resolve()` + `relative_to()` check
-6. **Timeout + output limits**: Configurable via env vars
+3. **Privilege drop** (POSIX, when the API runs as root): the subprocess is dropped to an unprivileged uid/gid (`setgroups([])` → `setgid` → `setuid` in `preexec_fn`, supplementary groups cleared first). This denies the root-owned Docker socket to skill scripts — the mount-namespace mask the audit proposed is impossible without `CAP_SYS_ADMIN` — and makes `RLIMIT_NPROC` effective. Configurable via `SKILLS_SCRIPT_DROP_PRIVILEGES` / `SKILLS_SCRIPT_UNPRIVILEGED_UID`/`GID`.
+4. **Resource limits** (POSIX `rlimit` in the same `preexec_fn`): `RLIMIT_AS` (memory), `RLIMIT_NPROC` (fork bombs), `RLIMIT_FSIZE` (disk), `RLIMIT_CPU` (CPU spin) — a runaway/malicious script is killed by the kernel. Configurable via `SKILLS_SCRIPT_MAX_MEMORY_MB` / `_MAX_PROCESSES` / `_MAX_FILE_SIZE_MB` / `_MAX_CPU_SECONDS`.
+5. **Network isolation** (Linux, when `CAP_SYS_ADMIN` is available): `unshare -rn`
+6. **Temporary working directory**: No write access to skill/app dirs
+7. **Path traversal protection**: `resolve()` + `relative_to()` check
+8. **Timeout + output limits**: Configurable via env vars
 
-Scripts receive input via stdin JSON and return output via stdout.
+See [ADR-097](../architecture/ADR-097-Concurrency-GDPR-Sandbox-Wave4-Audit.md) for the privilege-drop and resource-limit hardening (audit A1/A2). Scripts receive input via stdin JSON and return output via stdout.
 
 ## Override Semantics
 

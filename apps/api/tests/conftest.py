@@ -89,6 +89,47 @@ def _clean_llm_instance_cache():
 
 
 @pytest.fixture(autouse=True)
+def _reset_redis_singletons():
+    """Detach loop-bound Redis singletons between tests.
+
+    The module-global Redis clients bind their connections to the event loop
+    of the FIRST test that used them; pytest-asyncio gives each test its own
+    loop, so any later test touching Redis crashed with "Event loop is
+    closed" / "Future attached to a different loop". Dropping the singletons
+    forces every test to lazily reconnect on ITS OWN loop.
+    """
+    from src.infrastructure.cache import redis as redis_module
+
+    redis_module._redis_cache = None
+    redis_module._redis_session = None
+    yield
+    redis_module._redis_cache = None
+    redis_module._redis_session = None
+
+
+@pytest.fixture(autouse=True)
+def _reset_request_scoped_contextvars():
+    """Reset per-request ContextVars between tests (isolation).
+
+    `ConnectorTool.runtime` and `SmartCatalogueService._metrics` are backed by
+    process-global ContextVars (audit B6 — singletons must not hold per-request
+    state on `self`). In production every request runs in its own asyncio task
+    with an isolated context and `execute()` binds/resets the runtime in a
+    `finally`; but a test that sets `tool.runtime = ...` directly writes the
+    ContextVar without a reset, leaking into the next test. Resetting here keeps
+    the ContextVar semantics identical to a fresh request per test.
+    """
+    from src.core.context import catalogue_metrics
+    from src.domains.agents.tools import base as tool_base
+
+    tool_base._current_runtime.set(None)
+    catalogue_metrics.set(None)
+    yield
+    tool_base._current_runtime.set(None)
+    catalogue_metrics.set(None)
+
+
+@pytest.fixture(autouse=True)
 def _clean_response_context_prefetch():
     """Isolate tests from the response-context prefetch registry.
 
@@ -720,8 +761,10 @@ def agent_registry():
         build_contacts_agent,
         build_drive_agent,
         build_emails_agent,
+        build_hue_agent,
         build_perplexity_agent,
         build_places_agent,
+        build_routes_agent,
         build_tasks_agent,
         build_weather_agent,
         build_wikipedia_agent,
@@ -742,16 +785,20 @@ def agent_registry():
     # Initialize catalogue (registers agent manifests for planner)
     initialize_catalogue(registry)
 
-    # Register agent builders (all agents needed for build_graph)
-    registry.register_agent("contacts_agent", build_contacts_agent)
-    registry.register_agent("emails_agent", build_emails_agent)
-    registry.register_agent("calendar_agent", build_calendar_agent)
-    registry.register_agent("drive_agent", build_drive_agent)
-    registry.register_agent("tasks_agent", build_tasks_agent)
+    # Register agent builders under the SAME names as production (main.py):
+    # singular domain + "_agent". build_graph() looks these names up — a stale
+    # plural here fails every test that builds the real graph.
+    registry.register_agent("contact_agent", build_contacts_agent)
+    registry.register_agent("email_agent", build_emails_agent)
+    registry.register_agent("event_agent", build_calendar_agent)
+    registry.register_agent("file_agent", build_drive_agent)
+    registry.register_agent("task_agent", build_tasks_agent)
     registry.register_agent("weather_agent", build_weather_agent)
     registry.register_agent("wikipedia_agent", build_wikipedia_agent)
     registry.register_agent("perplexity_agent", build_perplexity_agent)
-    registry.register_agent("places_agent", build_places_agent)
+    registry.register_agent("place_agent", build_places_agent)
+    registry.register_agent("route_agent", build_routes_agent)
+    registry.register_agent("hue_agent", build_hue_agent)
 
     # Set as global singleton
     set_global_registry(registry)
@@ -781,8 +828,10 @@ async def agent_registry_with_store(async_session: AsyncSession):
         build_contacts_agent,
         build_drive_agent,
         build_emails_agent,
+        build_hue_agent,
         build_perplexity_agent,
         build_places_agent,
+        build_routes_agent,
         build_tasks_agent,
         build_weather_agent,
         build_wikipedia_agent,
@@ -808,16 +857,19 @@ async def agent_registry_with_store(async_session: AsyncSession):
     # Initialize catalogue
     initialize_catalogue(registry)
 
-    # Register agent builders (all agents needed for build_graph)
-    registry.register_agent("contacts_agent", build_contacts_agent)
-    registry.register_agent("emails_agent", build_emails_agent)
-    registry.register_agent("calendar_agent", build_calendar_agent)
-    registry.register_agent("drive_agent", build_drive_agent)
-    registry.register_agent("tasks_agent", build_tasks_agent)
+    # Register agent builders under the SAME names as production (main.py):
+    # singular domain + "_agent" (see agent_registry fixture above).
+    registry.register_agent("contact_agent", build_contacts_agent)
+    registry.register_agent("email_agent", build_emails_agent)
+    registry.register_agent("event_agent", build_calendar_agent)
+    registry.register_agent("file_agent", build_drive_agent)
+    registry.register_agent("task_agent", build_tasks_agent)
     registry.register_agent("weather_agent", build_weather_agent)
     registry.register_agent("wikipedia_agent", build_wikipedia_agent)
     registry.register_agent("perplexity_agent", build_perplexity_agent)
-    registry.register_agent("places_agent", build_places_agent)
+    registry.register_agent("place_agent", build_places_agent)
+    registry.register_agent("route_agent", build_routes_agent)
+    registry.register_agent("hue_agent", build_hue_agent)
 
     # Set as global singleton
     set_global_registry(registry)

@@ -361,6 +361,65 @@ def remove_orphan_tool_messages(messages: list[BaseMessage]) -> list[BaseMessage
     return validated
 
 
+def enforce_tool_message_pairing(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """Enforce the provider tool-pairing contract in BOTH directions.
+
+    OpenAI and Anthropic reject a history when:
+
+    1. a ToolMessage has no preceding AIMessage carrying its ``tool_call_id``
+       (orphan tool result), or
+    2. an AIMessage declares ``tool_calls`` whose results are missing
+       (unanswered tool call).
+
+    :func:`remove_orphan_tool_messages` only covers direction 1; this helper
+    first drops AIMessages with unanswered tool_calls (direction 2 — their
+    already-answered ToolMessages become orphans by construction), then
+    removes every orphan ToolMessage. Dropping only orphan ToolMessages can
+    never un-answer a remaining carrier, so one pass of each is stable.
+
+    Args:
+        messages: Message list potentially violating the pairing contract
+            (typically after any truncation/filtering step).
+
+    Returns:
+        A provider-valid message list (order preserved).
+    """
+    if not messages:
+        return []
+
+    answered_ids = {
+        msg.tool_call_id
+        for msg in messages
+        if isinstance(msg, ToolMessage) and getattr(msg, "tool_call_id", None)
+    }
+
+    without_unanswered_carriers: list[BaseMessage] = []
+    dropped_carriers = 0
+    for msg in messages:
+        if isinstance(msg, AIMessage) and msg.tool_calls:
+            call_ids = {tc["id"] for tc in msg.tool_calls if isinstance(tc, dict) and "id" in tc}
+            if not call_ids.issubset(answered_ids):
+                dropped_carriers += 1
+                logger.warning(
+                    "unanswered_tool_calls_carrier_removed",
+                    missing_tool_call_ids=sorted(call_ids - answered_ids),
+                )
+                continue
+        without_unanswered_carriers.append(msg)
+
+    validated = remove_orphan_tool_messages(without_unanswered_carriers)
+
+    if dropped_carriers > 0:
+        logger.info(
+            "tool_pairing_enforced",
+            original_count=len(messages),
+            validated_count=len(validated),
+            carriers_removed=dropped_carriers,
+        )
+
+    return validated
+
+
 def filter_for_llm_context(
     messages: list[BaseMessage],
     *,

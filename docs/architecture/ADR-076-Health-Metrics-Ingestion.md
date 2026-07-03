@@ -91,7 +91,7 @@ The aggregator emits **one point per bucket slot** in the requested window, with
 
 - `DELETE /health-metrics?kind=heart_rate|steps` — DELETE every row of the given kind.
 - `DELETE /health-metrics/all` — DELETE every row. Tokens are left active (the user keeps the ability to continue ingesting).
-- `ON DELETE CASCADE` on the FK to `users` covers full-account erasure automatically.
+- Full-account erasure: **`AccountDeletionService` explicitly purges `health_samples` and `health_metric_tokens`** (see [ADR-097](ADR-097-Concurrency-GDPR-Sandbox-Wave4-Audit.md)). The `ON DELETE CASCADE` FK to `users` does **not** fire on account deletion because the account is soft-deleted (`deleted_at` set, the user row is kept for billing) — CASCADE would only trigger on a hard row delete. The wave-4 audit (A5b) found the health tables surviving deletion for exactly this reason; they are now in the explicit purge list. As defense in depth, `get_active_token_by_hash` also requires the owner to be `is_active AND NOT deleted`, so a deleted user's device can no longer ingest.
 
 Note the departure from the original design: deletion is now row-scoped by `kind`, not column-scoped by `field` (there are no longer multiple value columns to NULL-out).
 
@@ -123,7 +123,7 @@ Health data is a "special category" under GDPR article 9. Mitigations baked into
 - **Tokens hashed**: the raw token never hits the DB; the display prefix only is non-secret.
 - **Log hygiene**: structured logs carry `user_id`, `kind`, `source`, counts, but never raw per-sample values — logs are not a duplicate storage tier.
 - **Rate limit**: 60 req/h/token blocks scraping and spam while accommodating legitimate burst re-sends.
-- **User-controlled deletion**: per-kind or total, via the Settings UI, with `ON DELETE CASCADE` tying it to account erasure.
+- **User-controlled deletion**: per-kind or total, via the Settings UI. Full-account erasure is handled by `AccountDeletionService`'s explicit purge of the health tables (the soft-delete account model means the FK `ON DELETE CASCADE` never fires — see [ADR-097](ADR-097-Concurrency-GDPR-Sandbox-Wave4-Audit.md)).
 
 ## Related
 

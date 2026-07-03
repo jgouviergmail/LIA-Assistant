@@ -50,9 +50,9 @@ Tables WITHOUT FK to users (preserved after deletion):
 Tables with FK changed to SET NULL:
 - `google_api_usage_logs`, `admin_broadcasts.sent_by`
 
-### Account Deletion Purges (22 Tables)
+### Account Deletion Purges (24 Tables)
 
-The `AccountDeletionService` explicitly deletes data from 22 tables in FK-safe order, plus LangGraph Store, checkpoints, Redis caches, and physical files (attachments, RAG documents).
+The `AccountDeletionService` explicitly deletes data from 24 tables in FK-safe order, plus LangGraph Store, checkpoints, Redis caches, and physical files (attachments, RAG documents). Explicit purge is required because the account is **soft-deleted** (the user row is kept for billing), so FK `ON DELETE CASCADE` never fires. The wave-4 audit (A5b) added `health_samples` and `health_metric_tokens` to the list and scrubs `last_known_location_encrypted` / `_updated_at` in `_mark_user_deleted` alongside `home_location` — see [ADR-097](ADR-097-Concurrency-GDPR-Sandbox-Wave4-Audit.md).
 
 ## Consequences
 

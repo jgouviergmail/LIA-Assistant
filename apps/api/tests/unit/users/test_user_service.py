@@ -50,6 +50,7 @@ def create_mock_user(
     voice_enabled: bool = False,
     theme: str = "system",
     color_theme: str = "default",
+    response_display_mode: str = "cards",
     created_at: datetime | None = None,
     updated_at: datetime | None = None,
 ) -> User:
@@ -74,6 +75,7 @@ def create_mock_user(
         voice_enabled=voice_enabled,
         theme=theme,
         color_theme=color_theme,
+        response_display_mode=response_display_mode,
         created_at=created_at or now,
         updated_at=updated_at or now,
         # Image generation defaults (required by UserProfile schema)
@@ -125,6 +127,7 @@ class TestGetUserById:
             user_id=user_id,
             email="user@example.com",
             full_name="John Doe",
+            response_display_mode="markdown",
         )
 
         # Mock repository.get_by_id to return mock user
@@ -137,6 +140,10 @@ class TestGetUserById:
         assert result.id == user_id
         assert result.email == "user@example.com"
         assert result.full_name == "John Doe"
+        # Regression guard: the profile must carry the user's display-mode
+        # preference from the ORM model. It was silently dropped by
+        # _build_user_profile, which forced scheduled actions to "cards".
+        assert result.response_display_mode == "markdown"
         service.repository.get_by_id.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio

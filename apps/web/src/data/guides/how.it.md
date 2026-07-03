@@ -6,7 +6,7 @@
 
 **Versione**: 2.4
 **Data**: 2026-05-08
-**Applicazione**: LIA v1.21.5
+**Applicazione**: LIA v1.21.6
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -943,7 +943,7 @@ LIA accetta ingestioni di eventi esterni (misurazioni iPhone Apple Health, paylo
 
 **Validazione mista per campione**: ogni campione viene accettato o respinto individualmente con il suo indice 0-based e una motivazione limitata (`out_of_range | malformed | missing_field | invalid_date`). I vicini validi dello stesso batch vengono persistiti — un glitch puntuale del sensore non fa perdere la giornata. I valori grezzi non vengono mai loggati (GDPR-friendly), solo contatori per motivazione.
 
-**Sicurezza**: rate limit Redis sliding window per token (60 req/h di default, configurabile), header `WWW-Authenticate: Bearer` (RFC 7235) sui 401, `Retry-After` sui 429, tetto di campioni per richiesta con `HTTP 413` oltre. La cascade SQL `ON DELETE CASCADE` sulla FK `users` copre l'erasure dell'account.
+**Sicurezza**: rate limit Redis sliding window per token (60 req/h di default, configurabile), header `WWW-Authenticate: Bearer` (RFC 7235) sui 401, `Retry-After` sui 429, tetto di campioni per richiesta con `HTTP 413` oltre. La cancellazione dell'account è gestita dal servizio di eliminazione account, che purga esplicitamente ogni tabella sulla salute (il modello di account con soft-delete mantiene la riga `users`, quindi la cascata della FK non si attiva mai); il dispositivo di un account eliminato non può più effettuare l'ingestione.
 
 **Visualizzazione**: un aggregator polimorfico Python percorre i campioni ordinati per `date_start` in una finestra e emette un punto per bucket (ora/giorno/settimana/mese/anno), con `AVG/MIN/MAX` sui campioni `heart_rate` e `SUM` sui campioni `steps`. I bucket vuoti sono emessi con `has_data=False` affinché il frontend (`recharts`, `connectNulls={false}`) mostri lacune oneste invece di interpolazione. Il componente Settings riutilizza il pattern `SettingsSection` + Accordion (4 sotto-sezioni: API + token, Grafici, Statistiche, Gestione dati) e mostra la **finestra di aggregazione effettiva** per disinnescare la confusione «le stat non si muovono quando cambio periodo» (la FC è invariante quando tutti i dati entrano nella finestra più piccola).
 
@@ -1013,4 +1013,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 92 ADR e del changelog (da v1.0 a v1.21.5). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 92 ADR e del changelog (da v1.0 a v1.21.6). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

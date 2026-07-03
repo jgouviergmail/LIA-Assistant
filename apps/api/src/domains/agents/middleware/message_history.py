@@ -32,10 +32,11 @@ Benefits:
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware
-from langchain_core.messages import SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 
 from src.core.config import settings
 from src.core.field_names import FIELD_RUN_ID
+from src.domains.agents.utils.message_filters import enforce_tool_message_pairing
 from src.domains.agents.utils.token_utils import count_messages_tokens
 from src.infrastructure.observability.logging import get_logger
 
@@ -87,15 +88,53 @@ class MessageHistoryMiddleware(AgentMiddleware):
             encoding=self.encoding_name,
         )
 
+    @staticmethod
+    def _build_atomic_units(messages: list[Any]) -> list[list[Any]]:
+        """Group messages into units that must survive or drop TOGETHER.
+
+        An AIMessage carrying ``tool_calls`` and the ToolMessages answering
+        them form one atomic unit: selecting or trimming them individually
+        detaches tool results from their carrier, which OpenAI/Anthropic
+        reject with a 400 (audit N-179b). Every other message is a
+        single-element unit. SystemMessages are handled by the caller.
+
+        Args:
+            messages: Non-system messages, in original order.
+
+        Returns:
+            Ordered list of units (each a list of messages).
+        """
+        units: list[list[Any]] = []
+        unit_by_call_id: dict[str, list[Any]] = {}
+
+        for msg in messages:
+            if isinstance(msg, AIMessage) and msg.tool_calls:
+                unit: list[Any] = [msg]
+                units.append(unit)
+                for tool_call in msg.tool_calls:
+                    call_id = tool_call.get("id") if isinstance(tool_call, dict) else None
+                    if call_id:
+                        unit_by_call_id[call_id] = unit
+            elif isinstance(msg, ToolMessage) and msg.tool_call_id in unit_by_call_id:
+                unit_by_call_id[msg.tool_call_id].append(msg)
+            else:
+                # Plain message — or an orphan ToolMessage from an already
+                # corrupted history; the final pairing net drops the latter.
+                units.append([msg])
+
+        return units
+
     def before_model(self, state: dict, runtime: Any) -> dict[str, Any] | None:
         """
         Filter messages for LLM input before model call.
 
-        Intelligent filtering strategy:
+        Filtering strategy (pair-safe, audit N-179b):
         1. Always include SystemMessage
-        2. PRIORITIZE ToolMessages (critical for context resolution)
-        3. Include recent HumanMessage/AIMessage
-        4. Trim by tokens if needed
+        2. Group non-system messages into ATOMIC units — an AIMessage with
+           tool_calls plus its ToolMessages travel together
+        3. Keep the most recent units within the keep_last_n message budget
+        4. Trim whole OLDEST units while over max_tokens
+        5. Safety net: enforce the tool-pairing contract on the result
 
         Args:
             state: Current agent state containing messages
@@ -112,68 +151,39 @@ class MessageHistoryMiddleware(AgentMiddleware):
 
         # 1. Extract SystemMessage (always include)
         system_messages = [msg for msg in messages if isinstance(msg, SystemMessage)]
+        non_system = [msg for msg in messages if not isinstance(msg, SystemMessage)]
 
-        # 2. INTELLIGENT FILTERING: Prioritize ToolMessages
-        # Separate messages by type
-        tool_messages = []
-        other_messages = []
+        # 2. Group into atomic tool-call units
+        units = self._build_atomic_units(non_system)
 
-        for msg in messages:
-            if isinstance(msg, SystemMessage):
-                continue  # Already handled
-            elif isinstance(msg, ToolMessage):
-                tool_messages.append(msg)
-            else:
-                other_messages.append(msg)
+        # 3. Keep the most recent units within the message budget.
+        # The newest unit is always kept, even when larger than the budget:
+        # dropping the current tool round entirely would blind the agent.
+        selected: list[list[Any]] = []
+        selected_count = 0
+        for unit in reversed(units):
+            if selected and selected_count + len(unit) > self.keep_last_n:
+                break
+            selected.append(unit)
+            selected_count += len(unit)
+        selected.reverse()
 
-        # 3. Build filtered list intelligently
-        # Strategy: Keep ALL recent ToolMessages + fill remaining slots with other messages
-        # This ensures context (search results, etc.) is ALWAYS visible to agent
+        # 4. Trim by tokens: drop whole OLDEST units first, never split one.
+        def _flatten(units_list: list[list[Any]]) -> list[Any]:
+            return system_messages + [msg for unit in units_list for msg in unit]
 
-        # Get indices of messages in original list to preserve order
-        message_indices = {id(msg): idx for idx, msg in enumerate(messages)}
-
-        # Take recent ToolMessages (last 5 ToolMessages = ~2-3 tool calls)
-        recent_tool_messages = tool_messages[-5:] if len(tool_messages) > 5 else tool_messages
-
-        # Calculate remaining slots
-        remaining_slots = self.keep_last_n - len(recent_tool_messages)
-
-        # Fill remaining with most recent other messages
-        if remaining_slots > 0:
-            recent_other = other_messages[-remaining_slots:]
-        else:
-            recent_other = []
-
-        # Combine and sort by original order
-        combined = recent_tool_messages + recent_other
-        combined.sort(key=lambda msg: message_indices.get(id(msg), 0))
-
-        # Final filtered list: SystemMessage + sorted messages
-        filtered = system_messages + combined
-
-        # 4. Optional: Trim by tokens if exceeds max_tokens
+        filtered = _flatten(selected)
         total_tokens = count_messages_tokens(filtered, self.encoding_name)
-        if total_tokens > self.max_tokens:
-            # Trim strategy: Remove oldest non-critical messages first
-            # Priority: SystemMessage > ToolMessages > Recent HumanMessage > Old AIMessages
-            while total_tokens > self.max_tokens and len(filtered) > len(system_messages) + 1:
-                # Find oldest non-system, non-tool message to remove
-                removed = False
-                for i, msg in enumerate(filtered):
-                    if not isinstance(msg, SystemMessage) and not isinstance(msg, ToolMessage):
-                        filtered.pop(i)
-                        removed = True
-                        break
+        while total_tokens > self.max_tokens and len(selected) > 1:
+            selected.pop(0)
+            filtered = _flatten(selected)
+            total_tokens = count_messages_tokens(filtered, self.encoding_name)
 
-                # If only ToolMessages + SystemMessage left, remove oldest ToolMessage
-                if not removed and len(filtered) > len(system_messages) + 1:
-                    for i, msg in enumerate(filtered):
-                        if isinstance(msg, ToolMessage):
-                            filtered.pop(i)
-                            break
-
-                total_tokens = count_messages_tokens(filtered, self.encoding_name)
+        # 5. Safety net — guarantees the provider contract even for histories
+        # that were already inconsistent before filtering.
+        filtered = system_messages + enforce_tool_message_pairing(
+            [msg for msg in filtered if not isinstance(msg, SystemMessage)]
+        )
 
         # Log filtering statistics
         tool_count = sum(1 for m in filtered if isinstance(m, ToolMessage))

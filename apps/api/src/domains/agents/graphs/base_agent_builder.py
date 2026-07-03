@@ -300,32 +300,30 @@ def build_generic_agent(config: AgentConfig) -> Any:
         max_history_tokens=max_history_tokens,
     )
 
-    # Apply dynamic datetime injection if generator provided
-    # This ensures timestamps are fresh on each invocation, not frozen at build time
+    # Per-invocation datetime rendering (audit N-183a): agents are built once
+    # and cached for the process lifetime, so a build-time replace() froze the
+    # datetime — after uptime every agent reasoned with a stale "now". The
+    # placeholder stays in the prompt and DynamicDatetimeMiddleware rewrites
+    # the system message on EVERY model call.
+    system_prompt = system_prompt_template
     datetime_generator = config.get("datetime_generator")
     if datetime_generator and "{current_datetime}" in system_prompt_template:
-        # Inject fresh datetime at build time using safe replacement
-        # IMPORTANT: Use replace() instead of format() to avoid KeyError
-        # on literal braces in prompt (e.g., JSON examples like {{"success": true}})
-        # NOTE: For truly per-invocation timestamps, we would need custom middleware
-        # This POC injects at agent build time (better than app startup, good enough for MVP)
-        system_prompt = system_prompt_template.replace("{current_datetime}", datetime_generator())
-        logger.info(
-            "dynamic_datetime_injected",
+        from src.domains.agents.middleware import DynamicDatetimeMiddleware
+
+        middleware.append(DynamicDatetimeMiddleware(datetime_generator))
+        logger.debug(
+            "dynamic_datetime_middleware_configured",
             agent_name=agent_name,
             generator_name=(
                 datetime_generator.__name__ if hasattr(datetime_generator, "__name__") else "lambda"
             ),
-            datetime_value=datetime_generator(),
         )
-    else:
-        system_prompt = system_prompt_template
-        if datetime_generator:
-            logger.warning(
-                "datetime_generator_provided_but_no_placeholder",
-                agent_name=agent_name,
-                prompt_preview=system_prompt_template[:100],
-            )
+    elif datetime_generator:
+        logger.warning(
+            "datetime_generator_provided_but_no_placeholder",
+            agent_name=agent_name,
+            prompt_preview=system_prompt_template[:100],
+        )
 
     # Create LangChain v1.0 agent with create_agent
     # This is the official v1.0 API for building ReAct agents
@@ -460,6 +458,13 @@ def create_agent_wrapper_node(
         # PHASE 2.5 - P4: Track subgraph invocation start time
         start_time = time.perf_counter()
 
+        # Audit N-183b: the agent receives (and returns) the FULL conversation
+        # state. Metrics and token accounting below must only consider messages
+        # produced by THIS invocation — re-scanning the whole returned history
+        # re-recorded every previous turn on each call (quadratic token cost,
+        # inflated per-tool counters).
+        input_message_count = len(state.get(STATE_KEY_MESSAGES, []) or [])
+
         # Extract parent callbacks and metadata
         parent_callbacks = config.get("callbacks", []) if config else []
         parent_metadata = config.get(FIELD_METADATA, {}) if config else {}
@@ -516,11 +521,15 @@ def create_agent_wrapper_node(
             ).observe(duration)
 
             # PHASE 2.5 - P4: Track tool calls from result messages
-            # Count ToolMessage occurrences in the result (indicates ReAct tool invocations)
+            # Count ToolMessage occurrences produced by THIS invocation only
+            # (state["messages"] is append-only inside the agent subgraph, so
+            # slicing at the entry length isolates the new messages).
             from langchain_core.messages import ToolMessage
 
+            new_messages = (result.get(STATE_KEY_MESSAGES) or [])[input_message_count:]
+
             tool_calls = 0
-            for msg in result.get(STATE_KEY_MESSAGES, []):
+            for msg in new_messages:
                 if isinstance(msg, ToolMessage):
                     tool_calls += 1
                     # Extract tool name from ToolMessage.name if available
@@ -549,7 +558,7 @@ def create_agent_wrapper_node(
             tracker = current_tracker.get()
             if tracker:
                 duration_ms = duration * 1000
-                for msg in result.get(STATE_KEY_MESSAGES, []):
+                for msg in new_messages:
                     if isinstance(msg, AIMessage) and getattr(msg, "usage_metadata", None):
                         usage = msg.usage_metadata
                         input_tokens = usage.get("input_tokens", 0)

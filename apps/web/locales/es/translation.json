@@ -2934,6 +2934,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_6": {
+          "title": "v1.21.6 — 🔒 Privacidad, fiabilidad y refuerzo del entorno aislado (auditoría oleada 4)",
+          "date": "Julio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔒 Borrado completo al eliminar tu cuenta</b> — Eliminar tu cuenta ahora también borra de forma permanente tus datos de salud (frecuencia cardíaca, pasos) y tu última ubicación conocida, y cualquier dispositivo que enviara datos de salud a LIA ya no puede hacerlo después. Plena conformidad con tu derecho de supresión (RGPD).",
+            "i2": "<b>🤖 Agentes asistentes más fiables</b> — Se corrigió un problema que podía hacer que los agentes especializados (agenda, correo, contactos…) fallaran repetidamente en una solicitud. Además, siempre usan la fecha y la hora actuales correctas, incluso tras un largo funcionamiento de la aplicación.",
+            "i3": "<b>🔔 Sugerencias proactivas más completas</b> — Con mucha carga, las notificaciones proactivas podían omitir en silencio parte de tu contexto (agenda, clima, tareas, intereses…). Ahora cada fuente se recopila de forma fiable, para que los mensajes proactivos razonen sobre el conjunto completo.",
+            "i4": "<b>🛡️ Aislamiento reforzado entre usuarios simultáneos</b> — Se cerró una situación temporal poco frecuente en la que, con muchas personas usando LIA a la vez, el contexto privado de una (por ejemplo un extracto de diario personal) podía influir momentáneamente en la solicitud de otra. Tus datos siguen siendo estrictamente tuyos.",
+            "i5": "<b>🧩 Admin · entorno aislado de skills reforzado</b> — Los scripts incluidos con las skills ahora se ejecutan con privilegios reducidos y límites estrictos de recursos (CPU, memoria, procesos, tamaño de archivo), y ya no pueden acceder al socket de Docker del servidor. Un script descontrolado o malicioso queda contenido; el asistente DevOps de administración no se ve afectado."
+          }
+        },
         "v1_21_5": {
           "title": "v1.21.5 — ⚡ Rendimiento y refuerzo (auditoría oleada 3)",
           "date": "Julio 2026",
@@ -4349,7 +4361,7 @@
           },
           "q4": {
             "question": "¿Puedo eliminar mi cuenta y mis datos?",
-            "answer": "Sí, tiene un <strong>derecho al borrado completo</strong>:<br><br><strong>🗑️ Lo que se eliminará:</strong><br>• Su cuenta de usuario<br>• Todo el historial de sus conversaciones<br>• Todos sus conectores OAuth<br>• Sus preferencias y configuración<br>• Sus estadísticas de uso<br><br><strong>⚠️ Acción irreversible:</strong><br>La eliminación es <strong>definitiva</strong> y no se puede deshacer.<br><br><strong>📧 Cómo proceder:</strong><br>Contacte a su administrador para solicitar la eliminación de su cuenta.<br><br><strong>💡 Alternativas:</strong><br>• Reiniciar la conversación (elimina el historial)<br>• Desconectar los conectores (revoca los accesos)<br>• Estas acciones son reversibles a diferencia de la eliminación de la cuenta"
+            "answer": "Sí, tiene un <strong>derecho al borrado completo</strong>:<br><br><strong>🗑️ Lo que se eliminará:</strong><br>• Su cuenta de usuario<br>• Todo el historial de sus conversaciones<br>• Todos sus conectores OAuth<br>• Sus preferencias y configuración<br>• Sus estadísticas de uso<br>• Sus datos de salud (frecuencia cardíaca, pasos) y tokens de ingesta de salud<br>• Su última ubicación conocida<br><br><strong>⚠️ Acción irreversible:</strong><br>La eliminación es <strong>definitiva</strong> y no se puede deshacer.<br><br><strong>📧 Cómo proceder:</strong><br>Contacte a su administrador para solicitar la eliminación de su cuenta.<br><br><strong>💡 Alternativas:</strong><br>• Reiniciar la conversación (elimina el historial)<br>• Desconectar los conectores (revoca los accesos)<br>• Estas acciones son reversibles a diferencia de la eliminación de la cuenta"
           },
           "q5": {
             "question": "¿LIA tiene acceso a todos mis emails/archivos?",

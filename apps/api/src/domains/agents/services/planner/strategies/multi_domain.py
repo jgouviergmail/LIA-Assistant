@@ -88,6 +88,7 @@ class MultiDomainStrategy:
         clarification_response: str | None = None,
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
+        journal_context: str = "",
     ) -> PlanningResult:
         """
         Plan for multi-domain query using generative LLM planning.
@@ -142,6 +143,7 @@ class MultiDomainStrategy:
             clarification_response,
             clarification_field,
             existing_plan,
+            journal_context=journal_context,
         )
 
         llm = get_llm("planner")

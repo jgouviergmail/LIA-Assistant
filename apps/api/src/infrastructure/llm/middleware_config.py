@@ -238,7 +238,7 @@ def create_agent_middleware_stack(
                 "middleware_added",
                 agent_name=agent_name,
                 middleware="ContextEditingMiddleware",
-                max_tokens=settings.context_edit_max_tool_result_tokens,
+                trigger_tokens=settings.context_edit_clear_trigger_tokens,
             )
     elif use_context_editing and not _CONTEXT_EDITING_MIDDLEWARE_AVAILABLE:
         logger.debug(
@@ -631,14 +631,13 @@ def _create_context_editing_middleware() -> Any | None:
     """
     Create ContextEditingMiddleware for tool result pruning.
 
-    LangChain ContextEditingMiddleware API (v1.1+):
-    - edits: list[ContextEdit] - editing rules to apply
-    - token_count_method: "approximate" | "exact" (default: "approximate")
+    LangChain ContextEditingMiddleware API (v1):
+    - edits: Iterable[ContextEdit] - editing rules to apply
+    - token_count_method: "approximate" | "model" (default: "approximate")
 
-    ContextEdit types:
-    - TruncateToolResult: Limit tool output tokens
-    - RemoveOldMessages: Remove messages beyond threshold
-    - SummarizeToolResult: Summarize verbose outputs
+    ContextEdit implementation shipped by langchain v1:
+    - ClearToolUsesEdit: once the context exceeds `trigger` tokens, replace
+      older tool results with a placeholder, keeping the `keep` most recent.
 
     Useful for:
     - Large contact lists from Google Contacts
@@ -654,28 +653,26 @@ def _create_context_editing_middleware() -> Any | None:
         return None
 
     try:
-        from langchain.agents.middleware import ContextEditingMiddleware
+        # ClearToolUsesEdit is the ContextEdit implementation shipped by
+        # langchain v1: once the context exceeds `trigger` tokens, older tool
+        # results are replaced by a placeholder (the `keep` most recent ones
+        # survive). The previously used TruncateToolResult class does not
+        # exist in langchain v1 — the old dict fallback produced edits without
+        # an .apply() method, crashing EVERY model call of the built agents.
+        from langchain.agents.middleware import ClearToolUsesEdit, ContextEditingMiddleware
 
-        # Configure editing rules - truncate tool results that exceed limit
-        max_tokens = settings.context_edit_max_tool_result_tokens
-
-        # Try to use TruncateToolResult if available
-        try:
-            from langchain.agents.middleware import TruncateToolResult
-
-            edits = [TruncateToolResult(max_tokens=max_tokens)]
-        except ImportError:
-            # Fall back to dict-based config
-            edits = [{"type": "truncate_tool_result", "max_tokens": max_tokens}]
+        trigger_tokens = settings.context_edit_clear_trigger_tokens
+        keep_results = settings.context_edit_clear_keep_tool_results
 
         middleware = ContextEditingMiddleware(
-            edits=edits,
+            edits=[ClearToolUsesEdit(trigger=trigger_tokens, keep=keep_results)],
             token_count_method="approximate",  # Faster than exact
         )
 
         logger.info(
             "context_editing_middleware_created",
-            max_tool_result_tokens=max_tokens,
+            trigger_tokens=trigger_tokens,
+            keep_tool_results=keep_results,
         )
 
         return middleware

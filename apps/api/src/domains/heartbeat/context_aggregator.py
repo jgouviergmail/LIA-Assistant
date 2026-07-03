@@ -21,6 +21,7 @@ Sources:
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from uuid import UUID
@@ -41,6 +42,7 @@ from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
 from src.domains.interests.models import InterestNotification, UserInterest
+from src.infrastructure.database.session import get_db_context
 
 logger = structlog.get_logger(__name__)
 
@@ -154,10 +156,35 @@ class ContextAggregator:
 
     Each source fetch is independent and failable. Sources are fetched
     in parallel via asyncio.gather(return_exceptions=True).
+
+    CRITICAL — DB SESSIONS: SQLAlchemy AsyncSession does NOT allow concurrent
+    operations on a single session. Every fetcher gathered in ``aggregate()``
+    therefore runs with its OWN session (``_with_fresh_session`` /
+    ``get_db_context()``, same pattern as ``briefing/fetchers.py``); sharing
+    ``self._db`` across the gather lost sources non-deterministically
+    (audit N-209). ``self._db`` remains ONLY for the sequential second pass
+    (``_fetch_journals``) that runs after the gather completes.
     """
 
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
+
+    async def _with_fresh_session(
+        self,
+        fetch: Callable[..., Awaitable[Any]],
+        *args: Any,
+    ) -> Any:
+        """Run one gathered fetcher with a dedicated DB session.
+
+        Args:
+            fetch: Fetcher coroutine function taking the session first.
+            *args: Remaining fetcher arguments.
+
+        Returns:
+            Whatever the fetcher returns.
+        """
+        async with get_db_context() as db:
+            return await fetch(db, *args)
 
     async def aggregate(
         self,
@@ -179,17 +206,19 @@ class ContextAggregator:
         # Always compute time context (no I/O, cannot fail)
         self._compute_time_context(context, user)
 
-        # Parallel fetch of all I/O-bound sources
+        # Parallel fetch of all I/O-bound sources — one DB session PER fetcher
+        # (see class docstring); _fetch_memories and _fetch_health_signals
+        # manage their own scoped sessions internally.
         results = await asyncio.gather(
-            self._fetch_calendar(user_id, user, settings),
-            self._fetch_tasks(user_id, user, settings),
-            self._fetch_emails(user_id, user, settings),
-            self._fetch_weather_with_changes(user_id, user, settings),
-            self._fetch_interests(user_id),
+            self._with_fresh_session(self._fetch_calendar, user_id, user, settings),
+            self._with_fresh_session(self._fetch_tasks, user_id, user, settings),
+            self._with_fresh_session(self._fetch_emails, user_id, user, settings),
+            self._with_fresh_session(self._fetch_weather_with_changes, user_id, user, settings),
+            self._with_fresh_session(self._fetch_interests, user_id),
             self._fetch_memories(user_id, settings),
-            self._fetch_activity(user_id),
-            self._fetch_recent_heartbeats(user_id, user),
-            self._fetch_recent_interest_notifications(user_id, user),
+            self._with_fresh_session(self._fetch_activity, user_id),
+            self._with_fresh_session(self._fetch_recent_heartbeats, user_id, user),
+            self._with_fresh_session(self._fetch_recent_interest_notifications, user_id, user),
             self._fetch_health_signals(user_id, user, settings),
             return_exceptions=True,
         )
@@ -327,6 +356,7 @@ class ContextAggregator:
 
     async def _fetch_calendar(
         self,
+        db: AsyncSession,
         user_id: UUID,
         user: Any,
         settings: Any,
@@ -346,7 +376,7 @@ class ContextAggregator:
         from src.domains.connectors.provider_resolver import resolve_active_connector
         from src.domains.connectors.repository import ConnectorRepository
 
-        connector_service = ConnectorService(self._db)
+        connector_service = ConnectorService(db)
 
         # Dynamically resolve the active calendar provider (Google, Apple, or Microsoft)
         resolved_type = await resolve_active_connector(user_id, "calendar", connector_service)
@@ -371,7 +401,7 @@ class ContextAggregator:
         # Resolve default calendar from user preferences
         calendar_id = "primary"
         try:
-            repo = ConnectorRepository(self._db)
+            repo = ConnectorRepository(db)
             connector = await repo.get_by_user_and_type(user_id, resolved_type)
             if connector and connector.preferences_encrypted:
                 default_name = ConnectorPreferencesService.get_preference_value(
@@ -432,6 +462,7 @@ class ContextAggregator:
 
     async def _fetch_tasks(
         self,
+        db: AsyncSession,
         user_id: UUID,
         user: Any,
         settings: Any,
@@ -451,7 +482,7 @@ class ContextAggregator:
         from src.domains.connectors.provider_resolver import resolve_active_connector
         from src.domains.connectors.repository import ConnectorRepository
 
-        connector_service = ConnectorService(self._db)
+        connector_service = ConnectorService(db)
 
         # Dynamically resolve the active tasks provider (Google or Microsoft)
         resolved_type = await resolve_active_connector(user_id, "tasks", connector_service)
@@ -472,7 +503,7 @@ class ContextAggregator:
         # Resolve default task list from user preferences
         task_list_id = "@default"
         try:
-            repo = ConnectorRepository(self._db)
+            repo = ConnectorRepository(db)
             connector = await repo.get_by_user_and_type(user_id, resolved_type)
             if connector and connector.preferences_encrypted:
                 default_name = ConnectorPreferencesService.get_preference_value(
@@ -554,6 +585,7 @@ class ContextAggregator:
 
     async def _fetch_weather_with_changes(
         self,
+        db: AsyncSession,
         user_id: UUID,
         user: Any,
         settings: Any,
@@ -570,7 +602,7 @@ class ContextAggregator:
             or ``None`` if unavailable.
         """
         # Check OpenWeatherMap connector
-        connector_service = ConnectorService(self._db)
+        connector_service = ConnectorService(db)
         credentials = await connector_service.get_api_key_credentials(
             user_id, ConnectorType.OPENWEATHERMAP
         )
@@ -587,9 +619,7 @@ class ContextAggregator:
         )
 
         try:
-            effective = await UserLocationService(self._db).get_effective_location_for_proactive(
-                user
-            )
+            effective = await UserLocationService(db).get_effective_location_for_proactive(user)
         except NoLocationAvailableError:
             return None
 
@@ -781,6 +811,7 @@ class ContextAggregator:
 
     async def _fetch_emails(
         self,
+        db: AsyncSession,
         user_id: UUID,
         user: Any,
         settings: Any,
@@ -803,7 +834,7 @@ class ContextAggregator:
         from src.domains.connectors.clients.registry import ClientRegistry
         from src.domains.connectors.provider_resolver import resolve_active_connector
 
-        connector_service = ConnectorService(self._db)
+        connector_service = ConnectorService(db)
 
         # Dynamically resolve the active email provider
         resolved_type = await resolve_active_connector(user_id, "email", connector_service)
@@ -917,6 +948,7 @@ class ContextAggregator:
 
     async def _fetch_interests(
         self,
+        db: AsyncSession,
         user_id: UUID,
     ) -> list[dict[str, str]] | None:
         """Fetch trending user interest topics.
@@ -926,7 +958,7 @@ class ContextAggregator:
         """
         from src.domains.interests.repository import InterestRepository
 
-        repo = InterestRepository(self._db)
+        repo = InterestRepository(db)
         interests = await repo.get_top_weighted_interests(
             user_id=user_id,
             top_percent=0.3,
@@ -952,8 +984,6 @@ class ContextAggregator:
         Returns:
             List of memory content strings or None if unavailable.
         """
-        from src.infrastructure.database.session import get_db_context
-
         limit = settings.heartbeat_context_memory_limit
 
         # Use centralized embedding cache (text-hash keyed → computed once, then cached)
@@ -1020,7 +1050,6 @@ class ContextAggregator:
             return None
 
         from src.domains.health_metrics.service import HealthMetricsService
-        from src.infrastructure.database.session import get_db_context
 
         try:
             async with asyncio.timeout(settings.health_metrics_heartbeat_fetch_timeout_seconds):
@@ -1047,6 +1076,7 @@ class ContextAggregator:
 
     async def _fetch_activity(
         self,
+        db: AsyncSession,
         user_id: UUID,
     ) -> tuple[datetime, float] | None:
         """Get last user interaction time.
@@ -1055,7 +1085,7 @@ class ContextAggregator:
             Tuple of (last_interaction_at, hours_since) or None.
         """
         # Query last user message via Conversation JOIN
-        result = await self._db.execute(
+        result = await db.execute(
             select(ConversationMessage.created_at)
             .join(Conversation, ConversationMessage.conversation_id == Conversation.id)
             .where(
@@ -1080,6 +1110,7 @@ class ContextAggregator:
 
     async def _fetch_recent_heartbeats(
         self,
+        db: AsyncSession,
         user_id: UUID,
         user: Any,
     ) -> list[dict[str, str]] | None:
@@ -1089,7 +1120,7 @@ class ContextAggregator:
             List of {sources_used, decision_reason, created_at} dicts
             with created_at converted to the user's local timezone.
         """
-        repo = HeartbeatNotificationRepository(self._db)
+        repo = HeartbeatNotificationRepository(db)
         notifications = await repo.get_recent_by_user(user_id, limit=5)
 
         if not notifications:
@@ -1111,6 +1142,7 @@ class ContextAggregator:
 
     async def _fetch_recent_interest_notifications(
         self,
+        db: AsyncSession,
         user_id: UUID,
         user: Any,
     ) -> list[dict[str, str]] | None:
@@ -1123,7 +1155,7 @@ class ContextAggregator:
             List of {topic, created_at} dicts with created_at converted
             to the user's local timezone.
         """
-        result = await self._db.execute(
+        result = await db.execute(
             select(
                 InterestNotification.created_at,
                 UserInterest.topic,

@@ -58,6 +58,7 @@ class PlanningStrategy(Protocol):
         clarification_response: str | None = None,
         clarification_field: str | None = None,
         existing_plan: "Any | None" = None,
+        journal_context: str = "",
     ) -> "PlanningResult":
         """
         Execute planning strategy.
@@ -70,6 +71,9 @@ class PlanningStrategy(Protocol):
             clarification_response: User's response to clarification
             clarification_field: Specific field clarified
             existing_plan: Previous plan to preserve parameters from
+            journal_context: Per-request journal snippet for the prompt.
+                MUST be threaded as a parameter — never stored on the
+                (singleton) service instance, which leaks it across users.
 
         Returns:
             PlanningResult with plan and metadata

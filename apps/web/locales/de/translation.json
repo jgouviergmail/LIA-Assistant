@@ -2934,6 +2934,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_6": {
+          "title": "v1.21.6 — 🔒 Datenschutz, Zuverlässigkeit & Sandbox-Härtung (Audit-Welle 4)",
+          "date": "Juli 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔒 Vollständige Löschung beim Löschen Ihres Kontos</b> — Beim Löschen Ihres Kontos werden nun auch Ihre Gesundheitsdaten (Herzfrequenz, Schritte) und Ihr letzter bekannter Standort dauerhaft gelöscht, und ein Gerät, das Gesundheitsdaten an LIA gesendet hat, kann dies danach nicht mehr tun. Vollständig im Einklang mit Ihrem Recht auf Löschung (DSGVO).",
+            "i2": "<b>🤖 Zuverlässigere Assistenz-Agenten</b> — Ein Problem wurde behoben, das die spezialisierten Agenten (Kalender, E-Mail, Kontakte…) bei einer Anfrage wiederholt scheitern lassen konnte. Sie verwenden außerdem stets das korrekte aktuelle Datum und die aktuelle Uhrzeit, auch nach langer Laufzeit der App.",
+            "i3": "<b>🔔 Vollständigere proaktive Vorschläge</b> — Unter hoher Last konnten proaktive Benachrichtigungen stillschweigend einen Teil Ihres Kontexts (Kalender, Wetter, Aufgaben, Interessen…) auslassen. Jede Quelle wird nun zuverlässig erfasst, damit proaktive Nachrichten das Gesamtbild berücksichtigen.",
+            "i4": "<b>🛡️ Stärkere Isolation zwischen gleichzeitigen Nutzern</b> — Eine seltene Timing-Situation wurde geschlossen, in der bei vielen gleichzeitigen Nutzern der private Kontext einer Person (etwa ein Auszug aus dem persönlichen Journal) kurzzeitig die Anfrage einer anderen beeinflussen konnte. Ihre Daten bleiben streng Ihre eigenen.",
+            "i5": "<b>🧩 Admin · gehärtete Skill-Sandbox</b> — Mit Skills gebündelte Skripte laufen nun mit reduzierten Rechten und strikten Ressourcenlimits (CPU, Speicher, Prozesse, Dateigröße) und können den Docker-Socket des Servers nicht mehr erreichen. Ein außer Kontrolle geratenes oder bösartiges Skript wird eingedämmt; der administrative DevOps-Assistent ist nicht betroffen."
+          }
+        },
         "v1_21_5": {
           "title": "v1.21.5 — ⚡ Leistung & Härtung (Audit-Welle 3)",
           "date": "Juli 2026",
@@ -4349,7 +4361,7 @@
           },
           "q4": {
             "question": "Kann ich mein Konto und meine Daten löschen?",
-            "answer": "Ja, Sie haben ein <strong>Recht auf vollständige Löschung</strong>:<br><br><strong>🗑️ Was gelöscht wird:</strong><br>• Ihr Benutzerkonto<br>• Der gesamte Verlauf Ihrer Unterhaltungen<br>• Alle Ihre OAuth-Konnektoren<br>• Ihre Präferenzen und Einstellungen<br>• Ihre Nutzungsstatistiken<br><br><strong>⚠️ Unwiderrufliche Aktion:</strong><br>Die Löschung ist <strong>endgültig</strong> und kann nicht rückgängig gemacht werden.<br><br><strong>📧 So gehen Sie vor:</strong><br>Kontaktieren Sie Ihren Administrator, um die Löschung Ihres Kontos zu beantragen.<br><br><strong>💡 Alternativen:</strong><br>• Unterhaltung zurücksetzen (löscht den Verlauf)<br>• Konnektoren trennen (widerruft Zugriffsrechte)<br>• Diese Aktionen sind reversibel im Gegensatz zur Kontolöschung"
+            "answer": "Ja, Sie haben ein <strong>Recht auf vollständige Löschung</strong>:<br><br><strong>🗑️ Was gelöscht wird:</strong><br>• Ihr Benutzerkonto<br>• Der gesamte Verlauf Ihrer Unterhaltungen<br>• Alle Ihre OAuth-Konnektoren<br>• Ihre Präferenzen und Einstellungen<br>• Ihre Nutzungsstatistiken<br>• Ihre Gesundheitsdaten (Herzfrequenz, Schritte) und Health-Ingestion-Tokens<br>• Ihr letzter bekannter Standort<br><br><strong>⚠️ Unwiderrufliche Aktion:</strong><br>Die Löschung ist <strong>endgültig</strong> und kann nicht rückgängig gemacht werden.<br><br><strong>📧 So gehen Sie vor:</strong><br>Kontaktieren Sie Ihren Administrator, um die Löschung Ihres Kontos zu beantragen.<br><br><strong>💡 Alternativen:</strong><br>• Unterhaltung zurücksetzen (löscht den Verlauf)<br>• Konnektoren trennen (widerruft Zugriffsrechte)<br>• Diese Aktionen sind reversibel im Gegensatz zur Kontolöschung"
           },
           "q5": {
             "question": "Hat LIA Zugriff auf alle meine E-Mails/Dateien?",

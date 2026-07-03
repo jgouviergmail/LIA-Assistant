@@ -42,6 +42,7 @@ from src.domains.conversations.models import (
     ConversationAuditLog,
     ConversationMessage,
 )
+from src.domains.health_metrics.models import HealthMetricToken, HealthSample
 from src.domains.heartbeat.models import HeartbeatNotification
 from src.domains.interests.models import InterestNotification, UserInterest
 from src.domains.journals.models import JournalEntry
@@ -621,6 +622,15 @@ class AccountDeletionService:
             ("channels", delete(UserChannelBinding).where(UserChannelBinding.user_id == user_id)),
             ("attachments", delete(Attachment).where(Attachment.user_id == user_id)),
             ("user_usage_limits", delete(UserUsageLimit).where(UserUsageLimit.user_id == user_id)),
+            # GDPR (audit N-207.1): physiological data + ingestion tokens.
+            # The user row is soft-deleted, so FK CASCADEs never fire — these
+            # rows MUST be purged explicitly. Deleting the tokens also cuts
+            # off any device still pushing samples (its next write is a 401).
+            ("health_samples", delete(HealthSample).where(HealthSample.user_id == user_id)),
+            (
+                "health_metric_tokens",
+                delete(HealthMetricToken).where(HealthMetricToken.user_id == user_id),
+            ),
             ("connectors", delete(Connector).where(Connector.user_id == user_id)),
         ]
 
@@ -644,6 +654,9 @@ class AccountDeletionService:
         user.oauth_provider_id = None
         user.picture_url = None
         user.home_location_encrypted = None
+        # GDPR (audit N-207.2): GPS trail — scrubbed like home_location.
+        user.last_known_location_encrypted = None
+        user.last_known_location_updated_at = None
         # ADR-079 commit 3 — Personal Journals portrait (synthesis of user
         # description, PII by content). Source entries in `journal_entries`
         # are already purged by `_purge_user_data_tables` via FK CASCADE.

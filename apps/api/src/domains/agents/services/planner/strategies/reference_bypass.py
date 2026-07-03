@@ -149,6 +149,7 @@ class ReferenceBypassStrategy:
         clarification_response: str | None = None,
         clarification_field: str | None = None,
         existing_plan: "Any | None" = None,
+        journal_context: str = "",
     ) -> PlanningResult:
         """
         Create execution plan directly from resolved reference.

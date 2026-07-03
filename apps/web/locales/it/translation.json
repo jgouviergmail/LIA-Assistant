@@ -2936,6 +2936,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_6": {
+          "title": "v1.21.6 — 🔒 Privacy, affidabilità e rafforzamento della sandbox (audit ondata 4)",
+          "date": "Luglio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔒 Cancellazione completa all'eliminazione del tuo account</b> — Eliminare il tuo account ora cancella definitivamente anche i tuoi dati sulla salute (frequenza cardiaca, passi) e la tua ultima posizione nota, e qualsiasi dispositivo che inviava dati sulla salute a LIA non può più farlo in seguito. Piena conformità con il tuo diritto alla cancellazione (GDPR).",
+            "i2": "<b>🤖 Agenti assistenti più affidabili</b> — Risolto un problema che poteva far fallire ripetutamente gli agenti specializzati (agenda, e-mail, contatti…) su una richiesta. Inoltre usano sempre la data e l'ora correnti esatte, anche dopo un lungo funzionamento dell'app.",
+            "i3": "<b>🔔 Suggerimenti proattivi più completi</b> — Sotto carico elevato, le notifiche proattive potevano tralasciare silenziosamente una parte del tuo contesto (agenda, meteo, attività, interessi…). Ora ogni fonte viene raccolta in modo affidabile, così i messaggi proattivi ragionano sull'insieme completo.",
+            "i4": "<b>🛡️ Isolamento rafforzato tra utenti simultanei</b> — Chiusa una rara situazione temporale in cui, con molte persone che usavano LIA contemporaneamente, il contesto privato di una (ad esempio un estratto di diario personale) poteva influenzare momentaneamente la richiesta di un'altra. I tuoi dati restano rigorosamente tuoi.",
+            "i5": "<b>🧩 Admin · sandbox delle skill rafforzata</b> — Gli script forniti con le skill ora vengono eseguiti con privilegi ridotti e limiti rigorosi delle risorse (CPU, memoria, processi, dimensione dei file) e non possono più raggiungere il socket Docker del server. Uno script fuori controllo o malevolo viene contenuto; l'assistente DevOps di amministrazione non è interessato."
+          }
+        },
         "v1_21_5": {
           "title": "v1.21.5 — ⚡ Prestazioni e rafforzamento (audit ondata 3)",
           "date": "Luglio 2026",
@@ -4351,7 +4363,7 @@
           },
           "q4": {
             "question": "Posso eliminare il mio account e i miei dati?",
-            "answer": "Sì, hai un <strong>diritto alla cancellazione completa</strong>:<br><br><strong>🗑️ Cosa verrà eliminato:</strong><br>• Il tuo account utente<br>• Tutta la cronologia delle tue conversazioni<br>• Tutti i tuoi connettori OAuth<br>• Le tue preferenze e impostazioni<br>• Le tue statistiche di utilizzo<br><br><strong>⚠️ Azione irreversibile:</strong><br>La cancellazione è <strong>definitiva</strong> e non può essere annullata.<br><br><strong>📧 Come procedere:</strong><br>Contatta il tuo amministratore per richiedere la cancellazione del tuo account.<br><br><strong>💡 Alternative:</strong><br>• Reimpostare la conversazione (elimina la cronologia)<br>• Disconnettere i connettori (revoca gli accessi)<br>• Queste azioni sono reversibili a differenza della cancellazione dell'account"
+            "answer": "Sì, hai un <strong>diritto alla cancellazione completa</strong>:<br><br><strong>🗑️ Cosa verrà eliminato:</strong><br>• Il tuo account utente<br>• Tutta la cronologia delle tue conversazioni<br>• Tutti i tuoi connettori OAuth<br>• Le tue preferenze e impostazioni<br>• Le tue statistiche di utilizzo<br>• I tuoi dati sulla salute (frequenza cardiaca, passi) e token di ingestione salute<br>• La tua ultima posizione nota<br><br><strong>⚠️ Azione irreversibile:</strong><br>La cancellazione è <strong>definitiva</strong> e non può essere annullata.<br><br><strong>📧 Come procedere:</strong><br>Contatta il tuo amministratore per richiedere la cancellazione del tuo account.<br><br><strong>💡 Alternative:</strong><br>• Reimpostare la conversazione (elimina la cronologia)<br>• Disconnettere i connettori (revoca gli accessi)<br>• Queste azioni sono reversibili a differenza della cancellazione dell'account"
           },
           "q5": {
             "question": "LIA ha accesso a tutte le mie email/file?",

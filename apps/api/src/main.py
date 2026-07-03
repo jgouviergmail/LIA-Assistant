@@ -1334,12 +1334,17 @@ async def health_check() -> JSONResponse:
         "checks": {},
     }
 
+    # Probe failures must degrade the payload, never crash to a 500: raw driver
+    # exceptions bypass typed wraps (asyncpg auth errors are re-raised unwrapped
+    # by SQLAlchemy's greenlet bridge; redis-py ConnectionError is NOT the
+    # builtin ConnectionError), so only a broad except is actually exhaustive.
+
     # Check Redis
     try:
         redis = await get_redis_cache()
         await redis.ping()  # type: ignore[misc]
         health_status["checks"]["redis"] = "healthy"  # type: ignore[index]
-    except (ConnectionError, TimeoutError, OSError) as exc:
+    except Exception as exc:
         logger.error("health_check_redis_failed", error=str(exc))
         health_status["checks"]["redis"] = "unhealthy"  # type: ignore[index]
         health_status[FIELD_STATUS] = "degraded"
@@ -1347,15 +1352,13 @@ async def health_check() -> JSONResponse:
     # Check database
     try:
         from sqlalchemy import text
-        from sqlalchemy.exc import OperationalError
-        from sqlalchemy.exc import TimeoutError as SATimeoutError
 
         from src.infrastructure.database.session import engine
 
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         health_status["checks"]["database"] = "healthy"  # type: ignore[index]
-    except (OperationalError, SATimeoutError, ConnectionError, OSError) as exc:
+    except Exception as exc:
         logger.error("health_check_database_failed", error=str(exc))
         health_status["checks"]["database"] = "unhealthy"  # type: ignore[index]
         health_status[FIELD_STATUS] = "degraded"

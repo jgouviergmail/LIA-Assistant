@@ -2943,6 +2943,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_6": {
+          "title": "v1.21.6 — 🔒 Privacy, reliability & sandbox hardening (audit wave 4)",
+          "date": "July 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔒 Complete erasure when you delete your account</b> — Deleting your account now also permanently erases your health data (heart rate, steps) and your last known location, and any device that was sending health data to LIA can no longer do so afterward. Full alignment with your right to erasure (GDPR).",
+            "i2": "<b>🤖 More reliable assistant agents</b> — Fixed a problem that could make the specialized agents (calendar, email, contacts…) fail repeatedly on a request. They also always use the correct current date and time, even after the app has been running for a long time.",
+            "i3": "<b>🔔 More complete proactive suggestions</b> — Under heavy load, proactive notifications could silently miss part of your context (agenda, weather, tasks, interests…). Every source is now gathered reliably, so proactive messages reason on the full picture.",
+            "i4": "<b>🛡️ Stronger isolation between simultaneous users</b> — Closed a rare timing situation where, with many people using LIA at once, one person's private context (such as a personal journal excerpt) could momentarily influence another person's request. Your data stays strictly your own.",
+            "i5": "<b>🧩 Admin · hardened skill sandbox</b> — Scripts bundled with skills now run with reduced privileges and strict resource limits (CPU, memory, processes, file size), and can no longer reach the server's Docker socket. A runaway or malicious script is contained; the admin DevOps assistant is unaffected."
+          }
+        },
         "v1_21_5": {
           "title": "v1.21.5 — ⚡ Performance & hardening (audit wave 3)",
           "date": "July 2026",
@@ -4358,7 +4370,7 @@
           },
           "q4": {
             "question": "Can I delete my account and data?",
-            "answer": "Yes, you have a <strong>right to complete erasure</strong>:<br><br><strong>🗑️ What will be deleted:</strong><br>• Your user account<br>• All your conversation history<br>• All your OAuth connectors<br>• Your preferences and settings<br>• Your usage statistics<br><br><strong>⚠️ Irreversible action:</strong><br>Deletion is <strong>permanent</strong> and cannot be undone.<br><br><strong>📧 How to proceed:</strong><br>Contact your administrator to request account deletion.<br><br><strong>💡 Alternatives:</strong><br>• Reset conversation (deletes history)<br>• Disconnect connectors (revokes access)<br>• These actions are reversible unlike account deletion"
+            "answer": "Yes, you have a <strong>right to complete erasure</strong>:<br><br><strong>🗑️ What will be deleted:</strong><br>• Your user account<br>• All your conversation history<br>• All your OAuth connectors<br>• Your preferences and settings<br>• Your usage statistics<br>• Your health data (heart rate, steps) and health-ingestion tokens<br>• Your last known location<br><br><strong>⚠️ Irreversible action:</strong><br>Deletion is <strong>permanent</strong> and cannot be undone.<br><br><strong>📧 How to proceed:</strong><br>Contact your administrator to request account deletion.<br><br><strong>💡 Alternatives:</strong><br>• Reset conversation (deletes history)<br>• Disconnect connectors (revokes access)<br>• These actions are reversible unlike account deletion"
           },
           "q5": {
             "question": "Does LIA have access to all my emails/files?",

@@ -218,11 +218,9 @@ class SmartPlannerService:
             token_estimate=filtered.token_estimate,
         )
 
-        # Store journal context for strategy access via self._current_journal_context
-        # (strategies call self.service._build_prompt() which reads this)
-        self._current_journal_context = journal_context
-
-        # Try SingleDomain or MultiDomain strategy based on domain count
+        # Try SingleDomain or MultiDomain strategy based on domain count.
+        # journal_context is threaded as an explicit parameter: this service is
+        # a singleton, so per-request state on self leaks across users (N-47).
         for strategy in self.strategies[bypass_count:]:
             if await strategy.can_handle(intelligence, catalogue=filtered):
                 result = await strategy.plan(
@@ -233,6 +231,7 @@ class SmartPlannerService:
                     clarification_response=clarification_response,
                     clarification_field=clarification_field,
                     existing_plan=existing_plan,
+                    journal_context=journal_context,
                 )
                 break  # Only one LLM strategy should match
 
@@ -1224,10 +1223,12 @@ class SmartPlannerService:
         *,
         is_multi_domain: bool = False,
     ) -> str:
-        """Build LLM prompt with filtered catalogue (unified single + multi-domain)."""
-        # Fallback: read from instance if not passed directly (strategy pattern)
-        if not journal_context:
-            journal_context = getattr(self, "_current_journal_context", "")
+        """Build LLM prompt with filtered catalogue (unified single + multi-domain).
+
+        journal_context is an explicit parameter end-to-end (strategies included):
+        reading it from instance state on this singleton leaked one user's
+        journal into another user's prompt under concurrency (N-47).
+        """
         from src.core.config import get_settings
         from src.core.constants import DEFAULT_TIMEZONE
         from src.domains.agents.services.plan_pattern_learner import (

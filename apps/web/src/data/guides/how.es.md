@@ -6,7 +6,7 @@
 
 **Versión**: 2.4
 **Fecha**: 2026-05-08
-**Aplicación**: LIA v1.21.5
+**Aplicación**: LIA v1.21.6
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -943,7 +943,7 @@ LIA acepta ingestas de eventos externos (mediciones iPhone Apple Health, payload
 
 **Validación mixta por muestra**: cada muestra se acepta o rechaza individualmente con su índice 0-based y una razón acotada (`out_of_range | malformed | missing_field | invalid_date`). Los vecinos válidos del mismo lote se persisten — un fallo puntual de sensor no hace perder el día. Los valores brutos nunca se loguean (compatible con RGPD), solo contadores por razón.
 
-**Seguridad**: rate limit Redis sliding-window por token (60 req/h por defecto, configurable), header `WWW-Authenticate: Bearer` (RFC 7235) en los 401, `Retry-After` en los 429, tope de muestras por solicitud con `HTTP 413` por encima. El `ON DELETE CASCADE` SQL sobre la FK `users` cubre la erasure de cuenta.
+**Seguridad**: rate limit Redis sliding-window por token (60 req/h por defecto, configurable), header `WWW-Authenticate: Bearer` (RFC 7235) en los 401, `Retry-After` en los 429, tope de muestras por solicitud con `HTTP 413` por encima. El borrado de cuenta lo gestiona el servicio de eliminación de cuentas, que purga explícitamente cada tabla de salud (el modelo de cuenta con soft-delete conserva la fila `users`, por lo que la cascada de la FK nunca se activa); el dispositivo de una cuenta eliminada ya no puede ingerir.
 
 **Visualización**: un aggregator polimórfico Python recorre las muestras ordenadas por `date_start` en una ventana y emite un punto por bucket (hora/día/semana/mes/año), con `AVG/MIN/MAX` sobre las muestras `heart_rate` y `SUM` sobre las muestras `steps`. Los buckets sin datos se emiten con `has_data=False` para que el frontend (`recharts`, `connectNulls={false}`) muestre huecos honestos en lugar de interpolación. El componente Settings reutiliza el patrón `SettingsSection` + Accordion (4 sub-secciones: API + tokens, Gráficos, Estadísticas, Gestión de datos) y muestra la **ventana de agregación real** para deshacer la confusión «las estadísticas no se mueven cuando cambio de período» (la FC es invariante cuando todos los datos caben en la ventana más pequeña).
 
@@ -1013,4 +1013,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 92 ADRs y del changelog (v1.0 a v1.21.5). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 92 ADRs y del changelog (v1.0 a v1.21.6). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

@@ -6,7 +6,7 @@
 
 **Version** : 2.5
 **Date** : 2026-05-08
-**Application** : LIA v1.21.5
+**Application** : LIA v1.21.6
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -943,7 +943,7 @@ LIA accepte les ingestions d'événements externes (mesures iPhone Apple Health,
 
 **Validation mixte par sample** : chaque échantillon est accepté ou rejeté individuellement avec son index 0-based et une raison bornée (`out_of_range | malformed | missing_field | invalid_date`). Les voisins valides du même lot sont persistés — une glitch ponctuelle de capteur ne fait pas perdre la journée. Les valeurs brutes ne sont jamais loggées (RGPD compatible), seulement des compteurs par raison.
 
-**Sécurité** : rate limit Redis sliding window scopé par token (60 req/h par défaut, paramétrable), header `WWW-Authenticate: Bearer` (RFC 7235) sur les 401, `Retry-After` sur les 429, plafond de samples par requête avec `HTTP 413` au-delà. La cascade SQL `ON DELETE CASCADE` sur la FK `users` couvre l'erasure de compte.
+**Sécurité** : rate limit Redis sliding window scopé par token (60 req/h par défaut, paramétrable), header `WWW-Authenticate: Bearer` (RFC 7235) sur les 401, `Retry-After` sur les 429, plafond de samples par requête avec `HTTP 413` au-delà. L'effacement de compte est assuré par le service de suppression de compte, qui purge explicitement chaque table de santé (le modèle de compte en soft-delete conserve la ligne `users`, donc la cascade FK ne se déclenche jamais) ; l'appareil d'un compte supprimé ne peut plus ingérer.
 
 **Visualisation** : un aggregator polymorphe Python parcourt les samples ordonnés par `date_start` dans une fenêtre et émet un point par bucket (heure/jour/semaine/mois/année), `AVG/MIN/MAX` sur les samples `heart_rate` et `SUM` sur les samples `steps`. Les buckets sans donnée sont émis avec `has_data=False` pour que le frontend (`recharts`, `connectNulls={false}`) affiche des trous honnêtes plutôt qu'une interpolation. Le composant Settings réutilise le pattern `SettingsSection` + Accordion (5 sous-sections : API + tokens, Assistant, Graphiques, Statistiques, Gestion) et affiche la **fenêtre temporelle réellement agrégée** pour lever l'ambiguïté « les stats bougent pas quand je change de période » (HR invariant si toutes les données tiennent dans la plus petite fenêtre).
 
@@ -1053,4 +1053,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 92 ADRs, et du changelog (v1.0 à v1.21.5). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 92 ADRs, et du changelog (v1.0 à v1.21.6). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

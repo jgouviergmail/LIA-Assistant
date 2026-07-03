@@ -18,6 +18,7 @@ from langchain_core.messages import (
 from src.domains.agents.utils.message_filters import (
     _extract_text_before_html,
     drop_current_turn_responses,
+    enforce_tool_message_pairing,
     extract_system_messages,
     filter_by_message_types,
     filter_conversational_messages,
@@ -1594,3 +1595,66 @@ class TestDropCurrentTurnResponses:
     def test_empty_list(self):
         """Empty input yields empty output."""
         assert drop_current_turn_responses([]) == []
+
+
+class TestEnforceToolMessagePairing:
+    """Both directions of the provider tool-pairing contract (audit N-179b)."""
+
+    def test_orphan_tool_message_removed(self):
+        """Direction 1: a ToolMessage without its carrier AIMessage is dropped."""
+        messages = [
+            HumanMessage(content="hi"),
+            ToolMessage(content="result", tool_call_id="lost_1"),
+            AIMessage(content="done"),
+        ]
+
+        result = enforce_tool_message_pairing(messages)
+
+        assert [type(m) for m in result] == [HumanMessage, AIMessage]
+
+    def test_unanswered_carrier_removed(self):
+        """Direction 2: an AIMessage with unanswered tool_calls is dropped."""
+        messages = [
+            HumanMessage(content="hi"),
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {"id": "c1", "name": "t", "args": {}, "type": "tool_call"},
+                    {"id": "c2", "name": "t", "args": {}, "type": "tool_call"},
+                ],
+            ),
+            ToolMessage(content="only c1", tool_call_id="c1"),
+        ]
+
+        result = enforce_tool_message_pairing(messages)
+
+        # Dropping the carrier orphans its answered ToolMessage, which the
+        # second pass removes too.
+        assert [type(m) for m in result] == [HumanMessage]
+
+    def test_complete_pairs_are_untouched(self):
+        """A fully paired history passes through identically."""
+        messages = [
+            HumanMessage(content="hi"),
+            AIMessage(
+                content="",
+                tool_calls=[{"id": "c1", "name": "t", "args": {}, "type": "tool_call"}],
+            ),
+            ToolMessage(content="result", tool_call_id="c1"),
+            AIMessage(content="done"),
+        ]
+
+        result = enforce_tool_message_pairing(messages)
+
+        assert result == messages
+
+    def test_empty_list(self):
+        assert enforce_tool_message_pairing([]) == []
+
+    def test_plain_conversation_untouched(self):
+        messages = [
+            SystemMessage(content="sys"),
+            HumanMessage(content="hi"),
+            AIMessage(content="hello"),
+        ]
+        assert enforce_tool_message_pairing(messages) == messages

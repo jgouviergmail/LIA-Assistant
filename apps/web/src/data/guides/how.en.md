@@ -6,7 +6,7 @@
 
 **Version**: 2.4
 **Date**: 2026-05-08
-**Application**: LIA v1.21.5
+**Application**: LIA v1.21.6
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -943,7 +943,7 @@ LIA accepts external event ingestions (iPhone Apple Health samples, third-party 
 
 **Mixed per-sample validation**: each sample is individually accepted or rejected with its 0-based index and a bounded reason (`out_of_range | malformed | missing_field | invalid_date`). Valid siblings in the same batch persist — a transient sensor glitch does not kill the day. Raw values are never logged (GDPR-compliant), only counters per reason.
 
-**Security**: per-token Redis sliding-window rate limit (60 req/h default, configurable), `WWW-Authenticate: Bearer` header (RFC 7235) on 401, `Retry-After` on 429, per-request sample cap with `HTTP 413` beyond. SQL `ON DELETE CASCADE` on the `users` FK covers account erasure.
+**Security**: per-token Redis sliding-window rate limit (60 req/h default, configurable), `WWW-Authenticate: Bearer` header (RFC 7235) on 401, `Retry-After` on 429, per-request sample cap with `HTTP 413` beyond. Account erasure is handled by the account-deletion service, which explicitly purges every health table (the soft-deleted account model keeps the `users` row, so the FK cascade never fires); a deleted owner's device can no longer ingest.
 
 **Visualization**: a polymorphic Python aggregator walks samples ordered by `date_start` in a window and emits one point per bucket (hour/day/week/month/year), with `AVG/MIN/MAX` over `heart_rate` samples and `SUM` over `steps` samples. Empty buckets are emitted with `has_data=False` so the frontend (`recharts`, `connectNulls={false}`) shows honest gaps rather than interpolation. The Settings component reuses the `SettingsSection` + Accordion pattern (4 sub-sections: API + tokens, Charts, Statistics, Data management) and displays the **actual aggregation window** to defuse the "stats don't move when I change period" confusion (HR is invariant when all data fits in the smallest window).
 
@@ -1042,4 +1042,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 92 ADRs, and the changelog (v1.0 to v1.21.5). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 92 ADRs, and the changelog (v1.0 to v1.21.6). All metrics, versions, and patterns cited are verifiable in the codebase.*
