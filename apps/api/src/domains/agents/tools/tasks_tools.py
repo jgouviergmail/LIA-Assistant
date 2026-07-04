@@ -240,7 +240,7 @@ class ListTasksTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         raw_max_results = kwargs.get("max_results")
         default_max_results = settings.tasks_tool_default_max_results
         max_results = validate_positive_int_or_default(raw_max_results, default=default_max_results)
-        # Cap at domain-specific limit (TASKS_TOOL_DEFAULT_MAX_RESULTS)
+        # Cap at the domain setting (settings.tasks_tool_default_max_results)
         security_cap = settings.tasks_tool_default_max_results
         if max_results > security_cap:
             logger.warning(

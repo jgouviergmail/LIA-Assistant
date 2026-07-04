@@ -455,6 +455,19 @@ class QueryAnalysisOutput(BaseModel):
             "filtering by the Response LLM."
         ),
     )
+    has_temporal_reference: bool = PydanticField(
+        default=False,
+        description=(
+            "True when the query contains ANY concrete time bound that says WHEN "
+            "to look: an explicit date ('on Aug 15'), a relative day/period "
+            "('tomorrow', 'the day after tomorrow', 'the next 2 days', 'next "
+            "week', 'this weekend', 'in August', 'today'). False for open/vague "
+            "horizons with NO specific bound ('my next appointments', "
+            "'upcoming events', 'my next 3 meetings') and for queries with no "
+            "time reference at all. Used to keep user-intended date bounds while "
+            "discarding bounds the planner may hallucinate for open queries."
+        ),
+    )
 
 
 # =============================================================================
@@ -522,6 +535,10 @@ class QueryAnalysisResult:
     skill_name: str | None = None
     # Indexable vs Semantic — probabilistic hint for the planner
     semantic_filter_terms: list[str] = field(default_factory=list)
+    # True when the query carries a concrete time bound (explicit date / relative
+    # day / named period). False for open horizons ("upcoming", "my next 3") and
+    # no-time queries — used to discard planner-hallucinated date bounds.
+    has_temporal_reference: bool = False
     # Context reference (LLM-first, 2026-04)
     context_reference: ContextReferenceOutput = field(default_factory=ContextReferenceOutput)
     raw_output: dict[str, Any] = field(default_factory=dict)
@@ -820,6 +837,7 @@ async def analyze_query(
             semantic_filter_terms=[
                 t.strip().lower() for t in (result.semantic_filter_terms or []) if t.strip()
             ],
+            has_temporal_reference=result.has_temporal_reference,
             # Context reference (LLM-first, 2026-04)
             context_reference=result.context_reference,
             raw_output=result.model_dump(),
@@ -1369,6 +1387,7 @@ class QueryAnalyzerService:
                 detected_skill_name=analysis_result.skill_name,
                 # Indexable vs Semantic — probabilistic hint (frozen tuple)
                 semantic_filter_terms=tuple(analysis_result.semantic_filter_terms),
+                has_temporal_reference=analysis_result.has_temporal_reference,
             )
 
         except Exception as e:

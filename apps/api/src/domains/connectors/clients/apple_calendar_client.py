@@ -21,6 +21,7 @@ import structlog
 
 from src.core.config import settings
 from src.domains.connectors.clients.base_apple_client import BaseAppleClient
+from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.normalizers.calendar_normalizer import (
     normalize_calendar,
     normalize_vevent,
@@ -286,6 +287,9 @@ class AppleCalendarClient(BaseAppleClient):
         fields: list[str] | None,
     ) -> dict[str, Any]:
         """List events via CalDAV REPORT."""
+        # Enforce the global per-request volumetry ceiling (centralized cap).
+        max_results = apply_max_items_limit(max_results)
+
         calendar = await self._get_calendar(calendar_id)
 
         # Parse date range

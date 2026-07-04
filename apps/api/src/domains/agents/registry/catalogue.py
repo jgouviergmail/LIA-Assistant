@@ -224,6 +224,15 @@ class ParameterSchema:
     constraints: list[ParameterConstraint] = field(default_factory=list)
     schema: dict[str, Any] | None = None  # Full JSON Schema if needed
     semantic_type: str | None = None  # Semantic type for cross-domain LLM reasoning
+    # Optional search-reset role, read by the plan validator to neutralize params
+    # the planner over-constrains on a search. Declared per tool (opt-in) instead
+    # of guessing from param names. Currently supported value:
+    #   "range_end" — an end-of-window date bound (e.g. time_max) that is emptied
+    #     for open/relative queries carrying no user temporal reference, so the
+    #     tool's own default window applies instead of a hallucinated narrow one.
+    # Typed as a Literal so a typo in a manifest annotation fails MyPy rather than
+    # silently disabling the reset.
+    search_role: Literal["range_end"] | None = None
 
 
 # ============================================================================

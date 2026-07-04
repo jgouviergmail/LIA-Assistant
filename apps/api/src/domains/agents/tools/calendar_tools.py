@@ -34,6 +34,7 @@ Migration (2025-12-30):
     - Draft functions delegated to drafts module (to be migrated separately)
 """
 
+import re
 import time
 from datetime import timedelta
 from typing import Annotated, Any
@@ -48,6 +49,7 @@ from src.core.config import get_settings, settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_api_messages import APIMessages
 from src.core.time_utils import normalize_to_rfc3339, now_utc
+from src.core.validators import validate_email
 from src.domains.agents.constants import (
     AGENT_EVENT,
     CONTEXT_DOMAIN_CALENDARS,
@@ -78,30 +80,54 @@ from src.domains.connectors.preferences.resolver import resolve_calendar_name
 
 logger = structlog.get_logger(__name__)
 
+
 # ============================================================================
-# GENERIC QUERY TERMS - DEFENSIVE FILTER
+# QUERY RESOLUTION (attendee email vs free-text)
 # ============================================================================
-# These terms are CATEGORY words, not search filters.
-# When the LLM generates query="appointment", it means "find my next events",
-# NOT "filter events where title contains 'appointment'".
-# This defensive filter catches cases where the LLM misinterprets generic queries.
-GENERIC_CALENDAR_QUERY_TERMS = frozenset(
-    {
-        # English generic terms
-        "appointment",
-        "appointments",
-        "meeting",
-        "meetings",
-        "event",
-        "events",
-        "calendar",
-        "calendars",
-        "schedule",
-        "schedules",
-        "upcoming",
-        "next",
-    }
-)
+
+
+async def _resolve_calendar_query_param(
+    runtime: ToolRuntime | None, query: str | None
+) -> str | None:
+    """Resolve the calendar ``query`` param to a reliable filter, or drop it.
+
+    Google Calendar ``q`` is a weak full-text "contains" match: it fails on
+    semantic categories ("médical" never matches an event titled "Dentiste")
+    and on accents / paraphrase ("hotel" vs "hôtel"). The only reliable,
+    structured use is an attendee EMAIL, so a PERSON name is resolved to their
+    email; everything else (title, concept, unresolved name) is dropped and the
+    tool lists by the time window instead — the Response LLM filters the concept
+    downstream (the same list-and-filter model Tasks uses and ReAct succeeds by).
+
+    Args:
+        runtime: ToolRuntime used to resolve a contact name to an email.
+        query: The raw planner-provided query, if any.
+
+    Returns:
+        An attendee email to pass as ``q``, or ``None`` to list-and-filter.
+    """
+    if not query or not query.strip():
+        return None
+
+    resolved_query = query.strip()
+    # A person name (not already an email) → resolve to their attendee email.
+    if "@" not in resolved_query and not validate_email(resolved_query):
+        resolved = await resolve_recipients_to_emails(runtime, resolved_query, "calendar_search")
+        if resolved and resolved != resolved_query:
+            # Extract the email from an RFC 5322 "Name <email>" form if present.
+            match = re.search(r"<([^>]+)>", resolved)
+            resolved_query = match.group(1) if match else resolved
+            # No PII (name / email) at INFO — event only (rule #18).
+            logger.info("calendar_search_person_resolved_to_email")
+
+    # Keep only a reliable attendee email; drop any remaining free-text.
+    if "@" not in resolved_query:
+        logger.info(
+            "calendar_search_freetext_delegated_to_response",
+            reason="weak_fulltext_match_use_list_and_filter",
+        )
+        return None
+    return resolved_query
 
 
 # ============================================================================
@@ -237,51 +263,9 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         from src.domains.connectors.preferences.service import ConnectorPreferencesService
         from src.domains.connectors.repository import ConnectorRepository
 
-        query: str | None = kwargs.get("query")
-
-        # =========================================================================
-        # DEFENSIVE FILTER: Ignore generic category terms
-        # =========================================================================
-        # If LLM generates query="appointment" or "rdv", it means "find my next events"
-        # NOT "filter events where title contains 'appointment'"
-        # This catches cases where smart_planner misinterprets generic queries
-        if query and query.strip().lower() in GENERIC_CALENDAR_QUERY_TERMS:
-            logger.info(
-                "calendar_search_generic_query_ignored",
-                original_query=query,
-                reason="generic_category_term_not_filter",
-            )
-            query = None
-
-        # =========================================================================
-        # PERSON NAME RESOLUTION: Resolve person names to email for attendee search
-        # =========================================================================
-        # If query looks like a person name (not an email), resolve to email via contacts.
-        # Google Calendar API searches attendees by email, so "John Smith" won't match
-        # unless we convert it to "matheo@example.com" first.
-        if query and "@" not in query:
-            from src.core.validators import validate_email
-
-            # Check if it's NOT already an email
-            # validate_email returns bool, doesn't raise exception
-            is_email = validate_email(query.strip())
-
-            if not is_email:
-                resolved = await resolve_recipients_to_emails(
-                    self.runtime, query, "calendar_search"
-                )
-                if resolved and resolved != query:
-                    # Extract email from RFC 5322 format "Name <email>" if present
-                    import re
-
-                    email_match = re.search(r"<([^>]+)>", resolved)
-                    resolved_email = email_match.group(1) if email_match else resolved
-                    logger.info(
-                        "calendar_search_person_resolved_to_email",
-                        original_query=query,
-                        resolved_email=resolved_email,
-                    )
-                    query = resolved_email
+        # Resolve the query to a reliable attendee email or drop it (free-text
+        # title/concept is list-and-filtered downstream — see helper).
+        query: str | None = await _resolve_calendar_query_param(self.runtime, kwargs.get("query"))
 
         time_min: str | None = kwargs.get("time_min")
         time_max: str | None = kwargs.get("time_max")
@@ -290,7 +274,7 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         raw_max_results = kwargs.get("max_results")
         default_max_results = settings.calendar_tool_default_max_results
         max_results = validate_positive_int_or_default(raw_max_results, default=default_max_results)
-        # Cap at domain-specific limit (CALENDAR_TOOL_DEFAULT_MAX_RESULTS)
+        # Cap at the domain setting (settings.calendar_tool_default_max_results)
         security_cap = settings.calendar_tool_default_max_results
         if max_results > security_cap:
             logger.warning(
@@ -385,14 +369,20 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
 
         events = result.get("items", [])
 
+        # Truncation signal: when the result fills the (capped) window, more
+        # events may exist beyond it. Surfaced downstream so the Response can
+        # state the searched period and invite the user to narrow it — the
+        # transparent alternative to silently dropping matches past the cap.
+        truncated = len(events) >= max_results
+
         logger.info(
             "search_events_success",
             user_id=str(user_id),
-            query=query,
             time_min=time_min,
             time_max=time_max,
             calendar_id=calendar_id,
             total_results=len(events),
+            truncated=truncated,
         )
 
         # Get user preferences for timezone conversion
@@ -407,6 +397,7 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             "from_cache": False,
             "user_timezone": user_timezone,
             "locale": locale,
+            "truncated": truncated,
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -429,6 +420,7 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         user_timezone = result.get("user_timezone", "UTC")
         locale = result.get("locale", settings.default_language)
         calendar_id = result.get("calendar_id")  # Pass calendar_id for update/delete
+        truncated = bool(result.get("truncated", False))
 
         return self.build_events_output(
             events=events,
@@ -439,6 +431,7 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             user_timezone=user_timezone,
             locale=locale,
             calendar_id=calendar_id,
+            truncated=truncated,
         )
 
 

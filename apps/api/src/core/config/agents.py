@@ -1470,6 +1470,18 @@ class AgentsSettings(BaseSettings):
             "enough items to filter and rank. Only used in 'autocorrect' mode."
         ),
     )
+    planner_open_query_date_reset: bool = Field(
+        default=True,
+        description=(
+            "When True, the validator empties an end-of-window date bound "
+            "(param search_role='range_end', e.g. calendar time_max) that the "
+            "planner set for an OPEN/relative query carrying no user temporal "
+            "reference ('my next medical appts'), so the tool's default window "
+            "applies instead of a hallucinated narrow one. Deterministic "
+            "(gated on the reliable analyzer has_temporal_reference flag); set "
+            "False to disable in prod without a redeploy."
+        ),
+    )
     for_each_mutation_threshold: int = Field(
         default=FOR_EACH_MUTATION_THRESHOLD_DEFAULT,
         ge=1,

@@ -18,6 +18,7 @@ from uuid import UUID
 import structlog
 
 from src.core.i18n_api_messages import APIMessages
+from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
 from src.domains.connectors.clients.normalizers.microsoft_calendar_normalizer import (
     normalize_graph_calendar,
@@ -131,6 +132,9 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         Returns:
             Dict with 'items' list of events in Google Calendar format.
         """
+        # Enforce the global per-request volumetry ceiling (centralized cap).
+        max_results = apply_max_items_limit(max_results)
+
         params: dict[str, Any] = {
             "$top": max_results,
             "$select": _EVENT_SELECT_FIELDS,

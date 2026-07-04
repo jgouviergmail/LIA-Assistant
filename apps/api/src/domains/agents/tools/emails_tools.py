@@ -466,7 +466,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         if max_results is None or not isinstance(max_results, int) or max_results <= 0:
             max_results = default_max_results
 
-        # Cap at domain-specific limit (EMAILS_TOOL_DEFAULT_MAX_RESULTS)
+        # Cap at the domain setting (settings.emails_tool_default_max_results)
         security_cap = settings.emails_tool_default_max_results
         if max_results > security_cap:
             logger.warning(
@@ -852,7 +852,7 @@ class SearchEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         raw_max_results = kwargs.get("max_results")
         default_max_results = settings.emails_tool_default_max_results
         max_results = validate_positive_int_or_default(raw_max_results, default=default_max_results)
-        # Cap at domain-specific limit (EMAILS_TOOL_DEFAULT_MAX_RESULTS)
+        # Cap at the domain setting (settings.emails_tool_default_max_results)
         security_cap = settings.emails_tool_default_max_results
         if max_results > security_cap:
             logger.warning(

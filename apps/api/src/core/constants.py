@@ -51,25 +51,18 @@ SESSION_COOKIE_SAMESITE = "lax"  # CSRF protection
 # These are used in catalogue_manifests.py for parameter constraints
 # Connectors config can override these at runtime via environment variables
 
-# Global security limit (hard max for any API call)
-# Aligned with .env default (was 50, now 10 per .env.example)
-API_MAX_ITEMS_PER_REQUEST = 10
-
-# Per-domain defaults
+# Per-domain default LIMIT constants (used in tool manifest descriptions).
+# NOTE: the effective per-request caps are the Settings fields
+# (`api_max_items_per_request`, `calendar_tool_default_max_results`, ...) sourced
+# from the `*_DEFAULT` constants further below. The former bare
+# `API_MAX_ITEMS_PER_REQUEST` and `*_TOOL_DEFAULT_MAX_RESULTS = 50` module
+# constants were unused (comment-only references) and were removed to avoid the
+# misleading impression they drove behavior.
 CONTACTS_TOOL_DEFAULT_LIMIT = 10
-CONTACTS_TOOL_DEFAULT_MAX_RESULTS = 50
-
 CALENDAR_TOOL_DEFAULT_LIMIT = 10
-CALENDAR_TOOL_DEFAULT_MAX_RESULTS = 50
-
 TASKS_TOOL_DEFAULT_LIMIT = 10
-TASKS_TOOL_DEFAULT_MAX_RESULTS = 50
-
 EMAILS_TOOL_DEFAULT_LIMIT = 10
-EMAILS_TOOL_DEFAULT_MAX_RESULTS = 50
-
 DRIVE_TOOL_DEFAULT_LIMIT = 10
-DRIVE_TOOL_DEFAULT_MAX_RESULTS = 50
 
 # External APIs with specific limits
 PLACES_TOOL_DEFAULT_LIMIT = 10
@@ -1994,7 +1987,7 @@ RATE_LIMIT_DEFAULT_EXPENSIVE_CALLS_DEFAULT = 20  # Aligned from .env.prod (was 2
 RATE_LIMIT_DEFAULT_EXPENSIVE_WINDOW_DEFAULT = 300
 CONTACTS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
 CONTACTS_TOOL_DEFAULT_LIMIT_DEFAULT = 10
-CALENDAR_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
+CALENDAR_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 25
 TASKS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
 PLACES_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
 PLACES_TOOL_DEFAULT_RADIUS_METERS_DEFAULT = 500
@@ -2005,7 +1998,7 @@ EMAILS_TOOL_DEFAULT_LIMIT_DEFAULT = 10
 # endpoint returns IDs only — N+1 pattern). 8 concurrent fetches resolve
 # 20 results in ~3 sequential-equivalent round-trips (audit wave 3, N-194.8).
 EMAILS_SEARCH_FETCH_CONCURRENCY_DEFAULT = 8
-API_MAX_ITEMS_PER_REQUEST_DEFAULT = 10  # Aligned from .env.prod
+API_MAX_ITEMS_PER_REQUEST_DEFAULT = 25  # Global per-request volumetry ceiling (.env)
 CIRCUIT_BREAKER_FAILURE_THRESHOLD_DEFAULT = 3  # Aligned from .env.prod (was 5)
 CIRCUIT_BREAKER_SUCCESS_THRESHOLD_DEFAULT = 3
 CIRCUIT_BREAKER_TIMEOUT_SECONDS_DEFAULT = 10  # Aligned from .env.prod (was 60)

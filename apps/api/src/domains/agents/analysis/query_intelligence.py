@@ -157,6 +157,11 @@ class QueryIntelligence:
     # Probabilistic hint; empty when no semantic qualifiers were detected
     # OR when the user explicitly cited the term as a literal value.
     semantic_filter_terms: tuple[str, ...] = ()
+    # True when the query carries a concrete time bound (explicit date / relative
+    # day / named period). False for open horizons ("upcoming", "my next 3") and
+    # no-time queries. Used by the validator to discard planner-hallucinated
+    # end-of-range date bounds while preserving user-intended ones.
+    has_temporal_reference: bool = False
 
     # === INTELLIGENT METHODS ===
 
@@ -471,6 +476,7 @@ class QueryIntelligence:
             "detected_skill_name": self.detected_skill_name,
             # Indexable vs Semantic — probabilistic planner hint
             "semantic_filter_terms": list(self.semantic_filter_terms),
+            "has_temporal_reference": self.has_temporal_reference,
         }
 
 

@@ -47,23 +47,21 @@ _get_events_desc = (
     "- Fetch by ID (from $steps or CONTEXT only): use `event_id` or `event_ids`\n"
     "- List by range: use `time_min`/`time_max` without query\n"
     "\n"
-    "**SEARCHABLE FIELDS** (query parameter):\n"
-    "- title (summary), description ONLY\n"
-    "- Other fields (location, attendees): Response LLM filters results\n"
-    "- Example: 'meeting in Paris' → query='meeting' or NO query with time range\n"
-    "\n"
-    "**CRITICAL - WHEN TO USE 'query' PARAMETER**:\n"
-    "- OMIT query for GENERIC listing (next N events/appointments/meetings):\n"
-    "  → get_events_tool(max_results=2) returns next 2 events (ANY events)\n"
-    "- USE query ONLY for SPECIFIC text search (meeting with John, doctor appointment):\n"
-    "  → get_events_tool(query='doctor', max_results=5) filters by title/description\n"
+    "**QUERY PARAMETER — attendee (person) search ONLY**:\n"
+    "- Use `query` ONLY to find events with a specific PERSON, by name:\n"
+    "  → get_events_tool(query='Jean Dupont') — resolved to their email (attendee).\n"
+    "- For ANY title / topic / category / quality ('medical', 'dentist', a\n"
+    "  project name, 'important'): OMIT query. Calendar free-text search is\n"
+    "  unreliable; the assistant lists events in the time window and filters the\n"
+    "  concept when answering.\n"
+    "- Generic listing (next N events): OMIT query, set max_results.\n"
     "\n"
     "**COMMON USE CASES**:\n"
     "- 'my next 2 appointments/events' → NO query, just max_results=2\n"
     "- 'what is on my calendar today' → NO query, time_min=today_start, time_max=today_end\n"
     "- 'my upcoming events' → NO query, default time range applies\n"
-    "- 'meeting with John' → query='John' (specific search)\n"
-    "- 'doctor appointment' → query='doctor' (specific search in user's language)\n"
+    "- 'meeting with John' → query='John' (person → attendee search)\n"
+    "- 'doctor / medical appointment' → NO query (list + filter the concept)\n"
     "- 'show this event details' → event_id=ID from $steps or CONTEXT\n"
     "\n"
     "**Time Format**: ISO 8601 (e.g., '2025-01-15T00:00:00+01:00').\n"
@@ -122,6 +120,10 @@ get_events_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="End of search window (ISO format)",
+            # Emptied by the validator for open/relative queries with no user
+            # temporal reference, so the tool's default window applies instead of
+            # a planner-hallucinated narrow bound (e.g. "my next medical appts").
+            search_role="range_end",
         ),
         # ID mode parameters
         ParameterSchema(

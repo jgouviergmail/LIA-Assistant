@@ -220,6 +220,7 @@ def reconstruct_query_intelligence(data: dict[str, Any]) -> QueryIntelligence:
         detected_skill_name=data.get("detected_skill_name"),
         # Indexable vs Semantic hint - CRITICAL for semantic_validator leak detection
         semantic_filter_terms=tuple(data.get("semantic_filter_terms", ())),
+        has_temporal_reference=bool(data.get("has_temporal_reference", False)),
     )
 
 
