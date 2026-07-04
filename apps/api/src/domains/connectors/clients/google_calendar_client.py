@@ -15,7 +15,10 @@ import structlog
 
 from src.core.i18n_api_messages import APIMessages
 from src.core.time_utils import normalize_to_rfc3339
-from src.domains.connectors.clients.base_google_client import BaseGoogleClient
+from src.domains.connectors.clients.base_google_client import (
+    BaseGoogleClient,
+    apply_max_items_limit,
+)
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 
@@ -183,6 +186,10 @@ class GoogleCalendarClient(BaseGoogleClient):
             >>> for cal in result.get("items", []):
             ...     print(f"{cal['summary']} ({cal['id']})")
         """
+        # Metadata enumeration (calendar name -> ID resolution), NOT item
+        # volumetry: intentionally exempt from the global per-request cap so a
+        # user with many (shared) calendars can still resolve any of them. Bounded
+        # by the Google API hard limit (250). See the volumetry guard allow-list.
         max_results = min(max_results, 250)
 
         params: dict[str, Any] = {
@@ -239,6 +246,12 @@ class GoogleCalendarClient(BaseGoogleClient):
             ... )
             >>> print(len(result["items"]))
         """
+        # Enforce the global per-request volumetry ceiling (ADR: centralized cap).
+        # list_events does NOT go through BaseGoogleClient._paginate (single direct
+        # request), so the cap must be applied explicitly here — the domain-level
+        # cap is applied upstream in the tool, this is the hard safety ceiling.
+        max_results = apply_max_items_limit(max_results)
+
         params: dict[str, Any] = {
             "maxResults": max_results,
             "singleEvents": True,

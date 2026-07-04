@@ -2934,6 +2934,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_8": {
+          "title": "v1.21.8 — 🗓️ Zuverlässigere Kalendersuche",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🗓️ Termine nach Thema suchen funktioniert zuverlässig</b> — Die Frage nach „meinen Arztterminen“ oder nach einem Ereignis mit ungenauem oder akzentuiertem Namen („hôtel particulier“) konnte nichts zurückliefern. Der Assistent listet nun Ihre Ereignisse im Zeitraum auf und filtert das Thema beim Antworten, statt sich auf eine unzuverlässige Kalender-Textsuche zu verlassen. Die Suche nach Person (Teilnehmer) bleibt direkt.",
+            "i2": "<b>🗓️ „Meine nächsten Termine“ übersieht keine Ereignisse mehr</b> — Bei einer offenen Anfrage ohne genaues Datum („meine nächsten Arzttermine“, „meine nächsten 3 Termine“) konnte der Assistent die Suche fälschlich auf ein zu kurzes Fenster begrenzen. Er verwendet nun den richtigen Zeitraum und berücksichtigt weiterhin Ihre expliziten Daten („am 15. August“, „nächste Woche“).",
+            "i3": "<b>🛡️ Admin · Ergebnisvolumen überall begrenzt</b> — Die globale Obergrenze für die Anzahl der von externen APIs (Kalender, Mail, Kontakte …) zurückgegebenen Elemente wird jetzt von allen Konnektoren (Google, Apple, Microsoft) einheitlich angewendet und schließt eine Umgehung. Konfigurierbar."
+          }
+        },
         "v1_21_7": {
           "title": "v1.21.7 — 🎨 Regressionskorrekturen: Sprache, interaktive Widgets & Diagramme",
           "date": "Juli 2026",

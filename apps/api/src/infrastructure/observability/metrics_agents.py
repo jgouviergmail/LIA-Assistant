@@ -1138,6 +1138,13 @@ planner_semantic_leak_autocorrected = Counter(
     ["tool_name", "param_name"],
 )
 
+planner_open_query_date_reset_total = Counter(
+    "lia_planner_open_query_date_reset_total",
+    "Validator emptied a planner-hallucinated end-of-window date bound on an "
+    "open/relative query (no user temporal reference)",
+    ["tool_name", "param_name"],
+)
+
 # ============================================================================
 # PARALLEL EXECUTOR — GLOBAL TIMEOUT (Vague 5)
 # ============================================================================

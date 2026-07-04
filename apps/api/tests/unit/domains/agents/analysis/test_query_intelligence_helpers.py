@@ -64,6 +64,7 @@ def _make_full_query_intelligence() -> QueryIntelligence:
         is_app_help_query=True,
         detected_skill_name="email_triage",
         semantic_filter_terms=("medical", "urgent"),
+        has_temporal_reference=True,
     )
 
 
@@ -98,3 +99,24 @@ def test_reconstruct_defaults_semantic_filter_terms_to_empty_tuple():
     reconstructed = reconstruct_query_intelligence(serialized)
 
     assert reconstructed.semantic_filter_terms == ()
+
+
+@pytest.mark.unit
+def test_round_trip_preserves_has_temporal_reference():
+    """has_temporal_reference survives serialize -> reconstruct."""
+    original = _make_full_query_intelligence()
+
+    reconstructed = reconstruct_query_intelligence(original.to_serializable_dict())
+
+    assert reconstructed.has_temporal_reference is True
+
+
+@pytest.mark.unit
+def test_reconstruct_defaults_has_temporal_reference_to_false():
+    """Legacy checkpoints without the key reconstruct to the dataclass default."""
+    serialized = _make_full_query_intelligence().to_serializable_dict()
+    serialized.pop("has_temporal_reference")
+
+    reconstructed = reconstruct_query_intelligence(serialized)
+
+    assert reconstructed.has_temporal_reference is False

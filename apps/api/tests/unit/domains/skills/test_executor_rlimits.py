@@ -22,6 +22,7 @@ import subprocess
 import sys
 import textwrap
 import time
+from pathlib import Path
 
 import pytest
 
@@ -40,15 +41,24 @@ _TEST_LIMITS = {
 
 
 def _run(
-    script: str, *, with_limits: bool, timeout: float = 20.0
+    script: str,
+    *,
+    with_limits: bool,
+    timeout: float = 20.0,
+    cwd: str | os.PathLike[str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run a hostile script with/without the rlimit preexec_fn."""
+    """Run a hostile script with/without the rlimit preexec_fn.
+
+    ``cwd`` scopes any file the script writes to a caller-provided directory
+    (e.g. pytest ``tmp_path``) so file-writing tests never litter the repo.
+    """
     preexec = _build_rlimit_preexec(**_TEST_LIMITS) if with_limits else None
     return subprocess.run(
         [sys.executable, "-c", textwrap.dedent(script)],
         capture_output=True,
         text=True,
         timeout=timeout,
+        cwd=cwd,
         preexec_fn=preexec,  # noqa: PLW1509 — that is exactly what we test
     )
 
@@ -114,7 +124,7 @@ def test_memory_hog_runs_unbounded_without_limits() -> None:
     )
 
 
-def test_oversized_file_write_is_contained_by_rlimit_fsize() -> None:
+def test_oversized_file_write_is_contained_by_rlimit_fsize(tmp_path: Path) -> None:
     """Writing past RLIMIT_FSIZE must be refused, not fill the disk."""
     file_writer = """
         import os
@@ -130,7 +140,7 @@ def test_oversized_file_write_is_contained_by_rlimit_fsize() -> None:
         except OSError:
             print("FSIZE_CAPPED")
     """
-    result = _run(file_writer, with_limits=True)
+    result = _run(file_writer, with_limits=True, cwd=tmp_path)
 
     assert "WROTE_ALL_" not in result.stdout, "file-size ceiling was not enforced"
     # RLIMIT_FSIZE delivers SIGXFSZ (kill) or EFBIG (caught) depending on libc.
@@ -164,7 +174,7 @@ def test_fork_storm_contained_by_nproc_when_unprivileged() -> None:
     assert forked <= _TEST_LIMITS["max_processes"] + 10, f"fork storm not contained: {forked}"
 
 
-def test_normal_script_runs_unaffected_by_limits() -> None:
+def test_normal_script_runs_unaffected_by_limits(tmp_path: Path) -> None:
     """A well-behaved script completes normally under the sandbox (no regression)."""
     benign = """
         data = [i * i for i in range(1000)]
@@ -172,7 +182,7 @@ def test_normal_script_runs_unaffected_by_limits() -> None:
             fh.write("ok")
         print(f"SUM={sum(data)}")
     """
-    result = _run(benign, with_limits=True)
+    result = _run(benign, with_limits=True, cwd=tmp_path)
 
     assert result.returncode == 0, result.stderr[:400]
     assert result.stdout.strip() == "SUM=332833500"

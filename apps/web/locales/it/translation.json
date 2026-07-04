@@ -2936,6 +2936,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_8": {
+          "title": "v1.21.8 — 🗓️ Ricerca dell'agenda più affidabile",
+          "date": "Luglio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🗓️ Cercare i tuoi appuntamenti per tema funziona in modo affidabile</b> — Chiedere «i miei appuntamenti medici» o un evento con un nome approssimativo o accentato («hôtel particulier») poteva non restituire nulla. L'assistente ora elenca i tuoi eventi nel periodo e filtra il tema al momento della risposta, invece di affidarsi a una ricerca testuale dell'agenda poco affidabile. La ricerca per persona (invitato) resta diretta.",
+            "i2": "<b>🗓️ «I miei prossimi appuntamenti» non manca più eventi</b> — Per una richiesta aperta senza data precisa («i miei prossimi appuntamenti medici», «i miei prossimi 3 appuntamenti»), l'assistente poteva limitare per errore la ricerca a una finestra troppo breve. Ora usa il periodo giusto, rispettando le tue date esplicite («il 15 agosto», «la prossima settimana»).",
+            "i3": "<b>🛡️ Admin · volume dei risultati controllato ovunque</b> — Il limite globale sul numero di elementi restituiti dalle API esterne (agenda, posta, contatti…) è ora applicato in modo uniforme da tutti i connettori (Google, Apple, Microsoft), chiudendo un aggiramento. Configurabile."
+          }
+        },
         "v1_21_7": {
           "title": "v1.21.7 — 🎨 Correzioni di regressioni: voce, widget interattivi e diagrammi",
           "date": "Luglio 2026",

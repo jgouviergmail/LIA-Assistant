@@ -530,6 +530,9 @@ async def planner_node_v3(
             # Indexable vs Semantic — probabilistic hint forwarded to the
             # semantic-leak detector (no-op when empty).
             semantic_filter_terms=tuple(intelligence.semantic_filter_terms or ()),
+            # Whether the query carries a user temporal reference; drives the
+            # open-query end-of-window date reset (defaults True = no reset).
+            has_temporal_reference=bool(getattr(intelligence, "has_temporal_reference", True)),
         )
         validation_result = validator.validate_execution_plan(
             planning_result.plan, validation_context

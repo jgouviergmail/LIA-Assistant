@@ -32,6 +32,7 @@ from src.domains.connectors.clients.base_apple_client import (
     AppleAuthenticationError,
     BaseAppleClient,
 )
+from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.normalizers.email_normalizer import (
     _GMAIL_FOLDER_TO_IMAP,
     convert_imap_query,
@@ -225,6 +226,9 @@ class AppleEmailClient(BaseAppleClient):
     ) -> dict[str, Any]:
         """Search emails via IMAP and cache results in Redis."""
         import time as _time
+
+        # Enforce the global per-request volumetry ceiling (centralized cap).
+        max_results = apply_max_items_limit(max_results)
 
         _email_start = _time.perf_counter()
         _email_status = "success"

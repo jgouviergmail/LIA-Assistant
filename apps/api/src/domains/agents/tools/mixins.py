@@ -597,6 +597,7 @@ class ToolOutputMixin:
         user_timezone: str = "UTC",
         locale: str = settings.default_language,
         calendar_id: str | None = None,
+        truncated: bool = False,
     ) -> UnifiedToolOutput:
         """
         Build UnifiedToolOutput for calendar event search results.
@@ -752,6 +753,10 @@ class ToolOutputMixin:
                 "time_max": time_max,
                 "total_count": len(events),
                 "user_timezone": user_timezone,
+                # Truncation signal (searched window is already in time_min/time_max
+                # above): lets the frontend / a future response fewshot state the
+                # period covered and, when truncated, invite the user to narrow it.
+                "truncated": truncated,
             },
         )
 

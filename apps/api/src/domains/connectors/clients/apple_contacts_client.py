@@ -26,6 +26,7 @@ from lxml import etree
 
 from src.core.config import settings
 from src.domains.connectors.clients.base_apple_client import BaseAppleClient
+from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.normalizers.contacts_normalizer import (
     build_vcard,
     merge_vcard_fields,
@@ -431,6 +432,9 @@ class AppleContactsClient(BaseAppleClient):
         fields: list[str] | None,
     ) -> dict[str, Any]:
         """Search contacts with local filtering."""
+        # Enforce the global per-request volumetry ceiling (centralized cap).
+        max_results = apply_max_items_limit(max_results)
+
         all_contacts, from_cache = await self._get_all_contacts_cached(use_cache)
 
         # Local case-insensitive filtering

@@ -103,6 +103,11 @@ class ValidationContext:
     # these terms as a text-search parameter to a literal-search tool.
     # Empty tuple = no hint, semantic-leak check is a no-op (default).
     semantic_filter_terms: tuple[str, ...] = field(default_factory=tuple)
+    # True when the user query carries a concrete time bound (explicit date /
+    # relative day / named period). Defaults True (conservative: no date reset
+    # unless the analyzer explicitly reports no temporal reference). Used to
+    # empty planner-hallucinated end-of-window bounds on open/relative queries.
+    has_temporal_reference: bool = True
 
 
 # ============================================================================
@@ -769,6 +774,12 @@ class PlanValidator:
         if context.semantic_filter_terms:
             self._check_semantic_leak(plan, context, result)
 
+        # Open/relative query date reset: empty a planner-hallucinated end-of-
+        # window date bound when the query carries no user temporal reference, so
+        # the tool's default window applies (calendar search hardening).
+        if not context.has_temporal_reference:
+            self._apply_open_query_date_reset(plan, context, result)
+
         # Validate dependencies (no cycles)
         self._validate_dependencies(plan.steps, result)
 
@@ -943,6 +954,99 @@ class PlanValidator:
                 step_index=step_index,
                 context={"step_type": step.step_type.value},
             )
+
+    # ============================================================================
+    # Open/relative query date reset (calendar search hardening)
+    # ============================================================================
+
+    def _apply_open_query_date_reset(
+        self,
+        plan: ExecutionPlan,
+        context: ValidationContext,
+        result: ValidationResult,
+    ) -> None:
+        """Empty planner-hallucinated end-of-window date bounds on open queries.
+
+        When the analyzer reports the query carries NO temporal reference
+        (``has_temporal_reference`` False — e.g. "my next medical appointments",
+        "my next 3 events"), an end-of-range date param (declared
+        ``search_role='range_end'`` in the manifest, e.g. calendar ``time_max``)
+        that the planner set is a narrowing hallucination: it hides the very
+        items the user asked for. Emptying it lets the tool apply its own default
+        window; the Response LLM still filters any relative time downstream.
+
+        Queries WITH a temporal reference ("tomorrow", "next week", "on Aug 15")
+        report the flag True and keep their bounds untouched. The decision is
+        deterministic — a single reliable analyzer boolean, no term/string
+        matching — and is gated by ``settings.planner_open_query_date_reset``
+        (prod kill switch).
+
+        Args:
+            plan: The ExecutionPlan (mutated in place when a bound is emptied).
+            context: ValidationContext carrying ``has_temporal_reference``.
+            result: ValidationResult (a warning is appended per reset).
+
+        Returns:
+            None. Side effects: end-of-range params set to ``None`` in place,
+            warnings appended to ``result``.
+        """
+        # Defensive self-guard: the caller gates on this, but a direct call must
+        # not empty bounds for a query that DOES carry a temporal reference.
+        if context.has_temporal_reference:
+            return
+
+        from src.core.config import get_settings
+        from src.infrastructure.observability.metrics_agents import (
+            planner_open_query_date_reset_total,
+        )
+
+        if not getattr(get_settings(), "planner_open_query_date_reset", True):
+            return
+
+        for step_index, step in enumerate(plan.steps):
+            if step.step_type != StepType.TOOL or not step.tool_name:
+                continue
+            try:
+                manifest = self.registry.get_tool_manifest(step.tool_name)
+            except ToolManifestNotFound:
+                continue
+
+            # Params the tool declares as end-of-window date bounds. Required
+            # params are skipped: NULLing one would produce a plan that fails at
+            # execution with an opaque missing-parameter error.
+            range_end_params = [
+                p.name
+                for p in manifest.parameters
+                if getattr(p, "search_role", None) == "range_end" and not p.required
+            ]
+            for param_name in range_end_params:
+                param_value = step.parameters.get(param_name)
+                if not isinstance(param_value, str) or not param_value.strip():
+                    continue
+                step.parameters[param_name] = None
+                planner_open_query_date_reset_total.labels(
+                    tool_name=step.tool_name,
+                    param_name=param_name,
+                ).inc()
+                logger.info(
+                    "open_query_date_bound_reset",
+                    plan_id=plan.plan_id,
+                    step_id=step.step_id,
+                    step_index=step_index,
+                    tool_name=step.tool_name,
+                    param_name=param_name,
+                )
+                result.add_warning(
+                    code=ToolErrorCode.CONSTRAINT_VIOLATION,
+                    message=(
+                        f"Step {step.step_id}: open/relative query — end-of-window "
+                        f"bound '{param_name}' of {step.tool_name} emptied so the "
+                        f"tool's default window applies (list-and-filter downstream)"
+                    ),
+                    step_index=step_index,
+                    tool_name=step.tool_name,
+                    context={"param": param_name, "layer": "open_query_date_reset"},
+                )
 
     # ============================================================================
     # Indexable vs Semantic — Semantic Leak Detection (Universal)
