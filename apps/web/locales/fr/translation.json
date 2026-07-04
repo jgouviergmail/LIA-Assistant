@@ -2948,6 +2948,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_8": {
+          "title": "v1.21.8 — 🗓️ Recherche d'agenda plus fiable",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🗓️ Rechercher vos rendez-vous par thème fonctionne de façon fiable</b> — Demander « mes rendez-vous médicaux » ou un événement par un nom approximatif ou accentué (« hôtel particulier ») pouvait ne rien renvoyer. L'assistant liste désormais vos événements sur la période et filtre le thème au moment de répondre, au lieu de s'appuyer sur une recherche textuelle d'agenda peu fiable. La recherche par personne (invité) reste directe.",
+            "i2": "<b>🗓️ « Mes prochains rendez-vous » ne manque plus d'événements</b> — Pour une demande ouverte sans date précise (« mes prochains rendez-vous médicaux », « mes 3 prochains rendez-vous »), l'assistant pouvait limiter par erreur la recherche à une fenêtre trop courte. Il utilise désormais la bonne période, tout en respectant vos dates explicites (« le 15 août », « la semaine prochaine »).",
+            "i3": "<b>🛡️ Admin · volumétrie des résultats maîtrisée partout</b> — Le plafond global du nombre d'éléments renvoyés par les API externes (agenda, mail, contacts…) est désormais appliqué uniformément par tous les connecteurs (Google, Apple, Microsoft), fermant un contournement. Réglable via la configuration."
+          }
+        },
         "v1_21_7": {
           "title": "v1.21.7 — 🎨 Corrections de régressions : voix, widgets interactifs & schémas",
           "date": "Juillet 2026",

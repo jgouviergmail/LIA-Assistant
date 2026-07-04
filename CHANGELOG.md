@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.8] - 2026-07-04
+
+> Calendar-search hardening release: pipeline-mode calendar searches that worked in ReAct but failed randomly in Pipeline ("my next medical appointments", "the hotel particulier meeting") now succeed, and a cross-cutting API volumetry-cap bypass is closed. Architecture decision: [ADR-101 — Calendar Search Hardening](docs/architecture/ADR-101-Calendar-Search-Hardening.md). No DB schema change, no migration; new `.env` keys are a behaviour toggle and two cap knobs.
+
+### Fixed
+
+- **Calendar searches by topic or category now work in Pipeline mode.** Asking for "my medical appointments" or an event by a fuzzy/accented name ("hôtel particulier") could return nothing: Google Calendar's free-text `q` is a weak "contains" match — it never matches a medical appointment titled "Dentiste", and trips on accents/paraphrase. The calendar tool no longer sends free-text to that weak search — it keeps only a person resolved to an attendee email (a reliable, structured filter) and otherwise lists your events over the time window and filters the topic when answering (the same list-and-filter model the tasks tool already uses, and the behaviour that already made ReAct mode succeed). Gmail, Tasks, Contacts and Drive are untouched — their search is reliable and analysed per-API.
+- **Upcoming/relative calendar queries no longer miss later events.** For an open query with no explicit date ("my next medical appointments", "my next 3 events") the planner sometimes invented a narrow end date (e.g. now + 2 days) that hid the very events you asked for. A new, reliable temporal signal from the query analyzer (validated 14/14 across the 6 languages) lets the validator drop such a hallucinated bound so the tool's own default window applies. Explicit dates and periods ("on August 15", "the next two days", "next week") are detected and preserved untouched.
+- **External-API result volumetry is enforced everywhere (security).** The global per-request ceiling (`api_max_items_per_request`) was silently bypassed by five clients (Google Calendar, the three Apple clients, Microsoft Calendar), which built their page size directly — so the calendar could return an unbounded number of events regardless of the configured cap. All item search/list calls now route through the single `apply_max_items_limit` helper, and a new AST guard fails CI if any client ever forgets it again. Metadata enumerations (calendars, labels, task-lists) and the bulk contact sync are explicitly exempt.
+
+### Added
+
+- **`has_temporal_reference`** analyzer signal (threaded analyzer → QueryIntelligence → validator, with round-trip coverage) and a per-parameter **`search_role`** manifest role (`ParameterSchema`, typed `Literal`) driving the deterministic end-of-window date reset.
+- **`test_max_items_cap_guard.py`** — AST guard enforcing the volumetry ceiling on every connector item search/list method.
+- **`PLANNER_OPEN_QUERY_DATE_RESET`** setting (default on; prod kill switch) and the Prometheus counter `lia_planner_open_query_date_reset_total`.
+
+### Changed
+
+- **Result ceilings raised:** `API_MAX_ITEMS_PER_REQUEST` 10 → 25 and `CALENDAR_TOOL_DEFAULT_MAX_RESULTS` 10 → 25 (`.env` + `.env.prod`). Other domains keep their own key at 10 (they pass it explicitly, so `min(10, 25) = 10`), so their behaviour is unchanged.
+
+### Removed
+
+- **`GENERIC_CALENDAR_QUERY_TERMS`** hardcoded allow-list (superseded by the person-vs-free-text resolution) and dead `*_TOOL_DEFAULT_MAX_RESULTS = 50` / bare `API_MAX_ITEMS_PER_REQUEST` module constants (comment-only references; the effective caps are the Settings fields).
+
 ## [1.21.7] - 2026-07-04
 
 > Regression-recovery & robustness release: fixes the collateral damage of the wave-3 strict CSP (voice input, the interactive-map skill and every third-party MCP App widget had stopped working), and closes a five-defect incident where a diagram request hung two minutes then rendered an unrelated map. Two architecture decisions: [ADR-098 — CSP Widget Airlock](docs/architecture/ADR-098-CSP-Widget-Airlock.md) (per-document policies so third-party widgets get their own permissive sandbox while the app policy stays strict) and [ADR-100 — Native Structured Output vs "Output JSON" Prompt Conflict](docs/architecture/ADR-100-Structured-Output-Prompt-Conflict-Guard.md) (a runtime rescue net + a prompt convention). Also removes a dead, misleading nginx config ([ADR-099](docs/architecture/ADR-099-Remove-Dead-Nginx-Config.md)). No DB schema change, no migration; new `.env` keys are timeout-tuning knobs.

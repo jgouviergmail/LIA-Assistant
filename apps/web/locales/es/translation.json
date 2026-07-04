@@ -2934,6 +2934,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_8": {
+          "title": "v1.21.8 — 🗓️ Búsqueda de agenda más fiable",
+          "date": "Julio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🗓️ Buscar tus citas por tema funciona de forma fiable</b> — Pedir «mis citas médicas» o un evento por un nombre aproximado o acentuado («hôtel particulier») podía no devolver nada. El asistente ahora lista tus eventos del periodo y filtra el tema al responder, en lugar de depender de una búsqueda de texto de agenda poco fiable. La búsqueda por persona (invitado) sigue siendo directa.",
+            "i2": "<b>🗓️ «Mis próximas citas» ya no omite eventos</b> — Para una petición abierta sin fecha precisa («mis próximas citas médicas», «mis 3 próximas citas»), el asistente podía limitar por error la búsqueda a una ventana demasiado corta. Ahora usa el periodo correcto, respetando tus fechas explícitas («el 15 de agosto», «la próxima semana»).",
+            "i3": "<b>🛡️ Admin · volumen de resultados controlado en todas partes</b> — El límite global de elementos devueltos por las API externas (agenda, correo, contactos…) ahora se aplica de forma uniforme en todos los conectores (Google, Apple, Microsoft), cerrando una omisión. Configurable."
+          }
+        },
         "v1_21_7": {
           "title": "v1.21.7 — 🎨 Correcciones de regresiones: voz, widgets interactivos y diagramas",
           "date": "Julio de 2026",

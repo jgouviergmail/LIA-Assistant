@@ -2943,6 +2943,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_8": {
+          "title": "v1.21.8 — 🗓️ More reliable calendar search",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🗓️ Searching your appointments by topic works reliably</b> — Asking for “my medical appointments”, or for an event by a fuzzy or accented name (“hôtel particulier”), could return nothing. The assistant now lists your events over the period and filters the topic when answering, instead of relying on an unreliable calendar text search. Searching by person (attendee) stays direct.",
+            "i2": "<b>🗓️ “My next appointments” no longer misses events</b> — For an open request with no explicit date (“my next medical appointments”, “my next 3 appointments”), the assistant could wrongly narrow the search to too short a window. It now uses the right period, while still honouring your explicit dates (“on August 15”, “next week”).",
+            "i3": "<b>🛡️ Admin · result volumetry enforced everywhere</b> — The global ceiling on the number of items returned by external APIs (calendar, mail, contacts…) is now applied uniformly by every connector (Google, Apple, Microsoft), closing a bypass. Configurable."
+          }
+        },
         "v1_21_7": {
           "title": "v1.21.7 — 🎨 Regression fixes: voice, interactive widgets & diagrams",
           "date": "July 2026",
