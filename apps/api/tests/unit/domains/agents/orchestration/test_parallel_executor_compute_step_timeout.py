@@ -119,6 +119,50 @@ class TestComputeStepTimeoutDevops:
 
 
 @pytest.mark.unit
+class TestComputeStepTimeoutMcpReactTask:
+    """MCP iterative task tools (`{server}_task`) use their own Settings pair (audit D1)."""
+
+    def test_defaults_to_mcp_react_floor(self):
+        floor = float(get_settings().mcp_react_step_timeout_seconds)
+        assert _compute_step_timeout("excalidraw_task", None) == floor
+
+    def test_planner_request_below_floor_is_raised(self):
+        """Planner asked 60s but the MCP react floor (300s default) wins."""
+        floor = float(get_settings().mcp_react_step_timeout_seconds)
+        assert _compute_step_timeout("excalidraw_task", 60.0) == floor
+
+    def test_planner_request_above_ceiling_is_capped_to_mcp_react_max(self):
+        """MCP react ceiling (600s default) is higher than the generic 120s."""
+        ceiling = float(get_settings().mcp_react_step_max_timeout_seconds)
+        assert _compute_step_timeout("excalidraw_task", 9999.0) == ceiling
+
+    def test_generic_max_does_not_clamp_mcp_react_task(self):
+        """The 120s generic ceiling must NOT apply — this is the exact D1 bug.
+
+        Pick a planner request strictly between the MCP-react floor and ceiling
+        (read from settings, never hard-coded) so it is neither raised to the
+        floor nor capped to the ceiling: it must pass through unchanged and, in
+        particular, exceed the generic ``MAX_TOOL_TIMEOUT_SECONDS`` (120 s).
+        """
+        cfg = get_settings()
+        floor = float(cfg.mcp_react_step_timeout_seconds)
+        ceiling = float(cfg.mcp_react_step_max_timeout_seconds)
+        request = (floor + ceiling) / 2  # strictly inside (floor, ceiling)
+        result = _compute_step_timeout("notion_task", request)
+        assert result == request
+        assert result > MAX_TOOL_TIMEOUT_SECONDS
+
+    def test_browser_task_tool_is_not_treated_as_mcp_react(self):
+        """`browser_task_tool` ends in `_tool`, not the bare `_task` suffix → browser family."""
+        assert _compute_step_timeout("browser_task_tool", None) == BROWSER_TOOL_TIMEOUT_SECONDS
+
+    def test_subagent_tool_is_not_treated_as_mcp_react(self):
+        """`delegate_to_sub_agent_tool` ends in `_tool` → sub-agent family, not MCP react."""
+        sub_floor = float(get_settings().subagent_tool_timeout_seconds)
+        assert _compute_step_timeout("delegate_to_sub_agent_tool", None) == sub_floor
+
+
+@pytest.mark.unit
 class TestComputeStepTimeoutGeneric:
     """Regular tools: DEFAULT floor, MAX_TOOL_TIMEOUT ceiling. No floor enforcement."""
 

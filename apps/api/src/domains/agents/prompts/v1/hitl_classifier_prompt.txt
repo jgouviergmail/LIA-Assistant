@@ -35,7 +35,7 @@ Analyze the user response against the action description using this hierarchy:
 </ContextualExamples>
 
 <ThinkingProcess>
-MANDATORY. Analyze before JSON:
+MANDATORY. Analyze before deciding:
 1. **Sentiment**: Is it +/-/Neutral?
 2. **Delta Analysis**:
    - Is the User modifying the *Goal* (Replan) or just a *Detail* (Edit)?
@@ -44,20 +44,16 @@ MANDATORY. Analyze before JSON:
 3. **Safety**: If "Delete" action and user says "Wait", default to REPLAN/REJECT, never APPROVE.
 </ThinkingProcess>
 
-<OutputSchema>
-```json
-{{
-  "decision": "APPROVE|REJECT|EDIT|REPLAN|AMBIGUOUS",
-  "confidence": 0.00,
-  "edited_params": {{
-    "param_name": "new_value (ONLY for EDIT)",
-    "reformulated_intent": "user_instruction (ONLY for REPLAN)"
-  }},
-  "reasoning": "Concise justification",
-  "clarification_question": "string (only if AMBIGUOUS)"
-}}
-```
-</OutputSchema>
+<OutputContract>
+Report your classification exclusively through the structured classification
+tool provided by the API — never answer in free text or raw JSON. Set:
+- decision: one of APPROVE, REJECT, EDIT, REPLAN, AMBIGUOUS
+- confidence: 0.00-1.00
+- edited_params: the changed key-value pairs ONLY for EDIT; for REPLAN set
+  reformulated_intent to the full user instruction; otherwise leave empty
+- reasoning: concise justification
+- clarification_question: only when AMBIGUOUS
+</OutputContract>
 
 --- DYNAMIC CONTEXT (all variable data below) ---
 

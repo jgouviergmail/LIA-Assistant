@@ -2934,6 +2934,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_7": {
+          "title": "v1.21.7 — 🎨 Regressionskorrekturen: Sprache, interaktive Widgets & Diagramme",
+          "date": "Juli 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎤 Spracheingabe (Push-to-Talk) funktioniert wieder</b> — Eine Sicherheitsverschärfung in v1.21.5 blockierte versehentlich die Sprachaufnahme, sodass beim Gedrückthalten der Senden-Schaltfläche „bei der Spracheingabe ist ein Fehler aufgetreten“ erschien. Push-to-Talk ist vollständig wiederhergestellt.",
+            "i2": "<b>🗺️ Interaktive Karten & 🎨 Diagramm-Widgets werden wieder angezeigt</b> — Dieselbe Verschärfung verhinderte, dass die Skill für interaktive Karten und Drittanbieter-Widgets (etwa Excalidraw-Diagramme) angezeigt wurden. Sie funktionieren wieder und laufen nun in einer dedizierten Sandbox, die den Rest der App streng geschützt hält.",
+            "i3": "<b>🎨 Komplexe Diagramme laufen nicht mehr in eine Zeitüberschreitung</b> — LIA um ein detailliertes Diagramm zu bitten, konnte nach zwei Minuten abgebrochen werden, kurz vor der Fertigstellung. Die Diagrammerstellung erhält nun die nötige Zeit.",
+            "i4": "<b>🤖 Keine themenfremden Antworten mehr bei Fehlern</b> — Wenn eine angeforderte Aktion fehlschlug, konnte LIA mit einem unpassenden Ergebnis antworten (zum Beispiel eine Karte für eine Diagrammanfrage). Sie teilt Ihnen nun ehrlich mit, dass die Aktion nicht erfolgreich war, anstatt es zu verbergen.",
+            "i5": "<b>✅ Der Assistent prüft seinen Plan wieder</b> — Ein interner Schutzmechanismus, der überprüft, ob der Plan des Assistenten wirklich Ihrer Anfrage entspricht, hatte stillschweigend aufgehört zu arbeiten. Er ist behoben und im gesamten Assistenten robuster gemacht."
+          }
+        },
         "v1_21_6": {
           "title": "v1.21.6 — 🔒 Datenschutz, Zuverlässigkeit & Sandbox-Härtung (Audit-Welle 4)",
           "date": "Juli 2026",

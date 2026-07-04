@@ -1179,9 +1179,36 @@ async def _handle_execution_plan(
                 attempt=replan_attempt,
             )
 
-            # Handle re-planning decisions
-            # Note: For initial implementation, we log decisions and add user message if needed.
-            # Full re-planning loop (regenerating plan) will be added in future iteration.
+            # Handle re-planning decisions.
+            #
+            # TODO(D4 — adaptive recovery is advisory only, not wired):
+            #   The AdaptiveRePlanner computes a recovery decision (RETRY_SAME /
+            #   REPLAN_MODIFIED / ESCALATE_USER / ABORT / PROCEED) on every
+            #   plan failure, but the orchestrator currently only LOGS it — no
+            #   decision changes control flow. Wiring true automatic recovery
+            #   requires graph restructuring in the LangGraph builder:
+            #     - RETRY_SAME     → a conditional edge from task_orchestrator
+            #                        back to parallel_executor, re-running only
+            #                        the failed step(s), bounded by
+            #                        settings.planner_max_replans, with the
+            #                        retry_attempt counter persisted in state
+            #                        (a new MessagesState key — undeclared keys
+            #                        are dropped by the checkpoint reducer).
+            #     - REPLAN_MODIFIED→ a conditional edge back to planner_node_v3
+            #                        with replan_result.modified_parameters +
+            #                        recovery_strategy (e.g. SKIP_OPTIONAL) fed
+            #                        into the prompt, then re-validate + re-exec.
+            #     - ESCALATE_USER / ABORT → surface replan_result.user_message
+            #                        (already i18n via _get_abort_message) by
+            #                        writing it to a state key that response_node
+            #                        renders, instead of only logging it.
+            #   Until then, keep this block HONEST: every branch below must not
+            #   claim an action it does not perform, and must not fabricate a
+            #   user message that nothing renders (the failed-step results flow
+            #   to response_node, which surfaces the failure). See ADR-100 (D4).
+            #   Scope note: this is a genuine feature (a recovery loop), not a
+            #   bug — deliberately deferred; do not "fix" it by silently adding
+            #   inline messages or fake retries.
             if replan_result.decision == RePlanDecision.ESCALATE_USER:
                 # Add user message to state for response_node to display
                 if replan_result.user_message:
@@ -1201,54 +1228,32 @@ async def _handle_execution_plan(
                     )
 
             elif replan_result.decision == RePlanDecision.RETRY_SAME:
-                # RETRY: Re-execute the failed step with same parameters
-                # NOTE: Full implementation requires graph restructuring (edge back to executor)
-                # For now, escalate to user if max retries exceeded
-                retry_count = replan_result.retry_attempt or 0
-                max_retries = settings.planner_max_replans
-
+                # Automatic retry is NOT wired: it would require a conditional
+                # edge back to the parallel executor (graph restructuring). The
+                # replanner still emits this decision as an observability signal,
+                # but no re-execution happens — log honestly (audit D4). The
+                # failed step results already flow to response_node below, which
+                # surfaces the failure. No inline user message is fabricated
+                # here: nothing reads replan_result.user_message (it is neither
+                # written to state nor rendered).
                 logger.info(
-                    "replan_retry_same",
+                    "replan_retry_not_wired",
                     step_id=replan_result.failed_step_id,
-                    attempt=retry_count + 1,
-                    max_retries=max_retries,
+                    decision="retry_same",
+                    msg="Replanner suggested retry_same; automatic recovery is not "
+                    "implemented — surfacing the step failure instead of retrying",
                 )
-
-                if retry_count >= max_retries:
-                    # Max retries reached - escalate to user
-                    replan_result.decision = RePlanDecision.ESCALATE_USER
-                    replan_result.user_message = (
-                        f"L'étape '{replan_result.failed_step_id}' a échoué après "
-                        f"{retry_count} tentatives. Veuillez réessayer ou reformuler votre demande."
-                    )
-                    logger.warning(
-                        "replan_retry_max_reached",
-                        step_id=replan_result.failed_step_id,
-                        max_retries=max_retries,
-                    )
-                # TODO: Implement actual retry via conditional edge to parallel_executor
 
             elif replan_result.decision == RePlanDecision.REPLAN_MODIFIED:
-                # REPLAN: Generate a new plan with modifications
-                # NOTE: Full implementation requires graph restructuring (edge back to planner)
-                # For now, escalate to user with suggested modifications
+                # Automatic replanning is NOT wired either (would need an edge
+                # back to planner_node). Log the suggestion honestly; the
+                # failure surfaces via agent_results (audit D4).
                 logger.info(
-                    "replan_modified",
+                    "replan_modified_not_wired",
                     original_plan_steps=len(execution_plan.steps),
                     modified_parameters=replan_result.modified_parameters,
-                )
-
-                # Escalate to user with modification suggestions
-                # TODO: Implement actual replanning via conditional edge to planner_node
-                replan_result.decision = RePlanDecision.ESCALATE_USER
-                modifications_summary = (
-                    str(replan_result.modified_parameters)
-                    if replan_result.modified_parameters
-                    else "modifications suggérées"
-                )
-                replan_result.user_message = (
-                    f"Le plan initial a rencontré des problèmes. "
-                    f"Modifications suggérées: {modifications_summary[:200]}"
+                    msg="Replanner suggested a modified plan; automatic recovery "
+                    "is not implemented — surfacing the failure instead",
                 )
 
         # Convert completed_steps to agent_results format

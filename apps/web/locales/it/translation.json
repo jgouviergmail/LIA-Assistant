@@ -2936,6 +2936,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_7": {
+          "title": "v1.21.7 — 🎨 Correzioni di regressioni: voce, widget interattivi e diagrammi",
+          "date": "Luglio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎤 L'inserimento vocale (tieni premuto) funziona di nuovo</b> — Un rafforzamento della sicurezza nella v1.21.5 bloccava per errore l'acquisizione vocale, così tenendo premuto il pulsante di invio compariva «si è verificato un errore durante l'inserimento vocale». Il push-to-talk è completamente ripristinato.",
+            "i2": "<b>🗺️ Le mappe interattive e 🎨 i widget dei diagrammi vengono di nuovo visualizzati</b> — Lo stesso rafforzamento impediva alla skill mappa interattiva e ai widget di terze parti (come i diagrammi Excalidraw) di essere visualizzati. Funzionano di nuovo, ora eseguiti in un ambiente isolato dedicato che mantiene il resto dell'app rigorosamente protetto.",
+            "i3": "<b>🎨 I diagrammi complessi non vanno più in timeout</b> — Chiedere a LIA di disegnare un diagramma dettagliato poteva essere interrotto dopo due minuti, poco prima di finire. La generazione dei diagrammi dispone ora del tempo necessario.",
+            "i4": "<b>🤖 Niente più risposte fuori tema in caso di errore</b> — Quando un'azione richiesta falliva, LIA poteva rispondere con un risultato non pertinente (ad esempio una mappa per una richiesta di diagramma). Ora ti indica onestamente che l'azione non è riuscita invece di nasconderlo.",
+            "i5": "<b>✅ L'assistente verifica di nuovo il suo piano</b> — Una protezione interna che verifica che il piano dell'assistente corrisponda davvero alla tua richiesta aveva smesso di funzionare silenziosamente. È corretta e resa più robusta in tutto l'assistente."
+          }
+        },
         "v1_21_6": {
           "title": "v1.21.6 — 🔒 Privacy, affidabilità e rafforzamento della sandbox (audit ondata 4)",
           "date": "Luglio 2026",

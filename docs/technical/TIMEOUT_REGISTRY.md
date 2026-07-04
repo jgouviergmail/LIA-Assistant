@@ -99,6 +99,8 @@ inversions are tracked in section *Known conflicts* below.
 | `BROWSER_DEFAULT_TIMEOUT_MS` | `browser_default_timeout_ms` | 120000 ms | 30000–600000 | `catalogue_loader.py:417` | Catalogue default for browser steps |
 | `IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS` | `image_generation_tool_timeout_seconds` | 90.0 s | 10.0–600.0 | `parallel_executor.py:1609` | Was inline magic number `90.0` |
 | `DEVOPS_CLAUDE_TOOL_TIMEOUT_SECONDS` | `devops_claude_tool_timeout_seconds` | 120.0 s | 30.0–900.0 | `parallel_executor.py:1610` | Was inline magic number `120.0` (`claude_server_task_tool`) |
+| `MCP_REACT_STEP_TIMEOUT_SECONDS` | `mcp_react_step_timeout_seconds` | 300 s | 30–900 | `parallel_executor.py` + `smart_planner_service.py` | Floor for MCP iterative `*_task` steps (ReAct sub-agent loop). Raised 120→300 (ADR-100/D1): one diagram-generation LLM call alone ≈ 105 s. |
+| `MCP_REACT_STEP_MAX_TIMEOUT_SECONDS` | `mcp_react_step_max_timeout_seconds` | 600 s | 60–900 | `parallel_executor.py` | Hard ceiling for MCP iterative `*_task` steps — dedicated family so the generic 120 s ceiling no longer kills legitimate multi-iteration work (ADR-100/D1). |
 
 ## 5. Sub-agent / browser / MCP delegated runs
 
@@ -117,7 +119,7 @@ They are NOT listed here. See section 12.
 
 | Env var | Field | Default | Range | Used in | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS` | `task_orchestrator_execution_timeout_seconds` | 120.0 s | 30.0–600.0 | `parallel_executor.py` (wave executor) | Wired in Vague 5. Caps total wall-clock of a single wave. |
+| `TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS` | `task_orchestrator_execution_timeout_seconds` | 600.0 s | 30.0–1800.0 | `parallel_executor.py` (wave executor) | Wired in Vague 5. Soft plan-wide budget. Raised 120→600 (ADR-100/D1) so it dominates the longest per-step family ceilings (MCP react / browser / sub-agent up to 600 s). |
 | `HITL_MAX_WAIT_SECONDS` | `hitl_max_wait_seconds` | 900 s | 60–3600 | (orphan — see Vague 5 decision section) | Max HITL response wait |
 | `CONTEXT_RESOLUTION_TIMEOUT_MS` | `context_resolution_timeout_ms` | 500 ms | 50–10000 | `analysis/memory_resolver.py` | |
 | `MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS` | `memory_reference_resolution_timeout_ms` | 5000 ms | 100–30000 | `memory_reference_resolution_service.py` | |

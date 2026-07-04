@@ -2873,6 +2873,32 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-098: CSP Widget Airlock — Per-Document Policies for Third-Party Widgets
+
+**Status**: ✅ IMPLEMENTED (2026-07-04)
+**Fichier**: `docs/architecture/ADR-098-CSP-Widget-Airlock.md`
+
+**Décision**: La CSP stricte introduite par la vague 3 (A4, ADR-096) a cassé **trois familles de fonctionnalités** à l'exécution, faute d'inventaire des consommateurs et de tests : (1) **toute la voix** — 5 chemins chargent du JS depuis des URL `blob:` (worklet PTT, worklets KWS/recording du mode vocal, loader glue Sherpa) et la destination fetch d'un worklet relève de **`script-src`**, pas de `worker-src` → ajout de `blob:` à `script-src` ; (2) **la skill interactive-map** — embed Google Maps bloqué par le repli `frame-src → default-src 'self'` → directive `frame-src 'self' https://www.google.com` explicite ; (3) **les widgets MCP Apps** (Excalidraw) — rendus en `srcDoc`, qui **hérite de la CSP parente sans échappatoire**, alors qu'ils chargent leur runtime depuis des CDN (esm.sh). Pour (3), plutôt qu'allowlister chaque CDN (whack-a-mole qui affaiblit toute l'app et forclot un futur `script-src` par nonces), le **sas** : une CSP étant liée à la *réponse HTTP*, `McpAppWidget` pointe son iframe sandboxée vers un shell statique same-origin (`public/widget-frame.html`) servi avec **sa propre CSP permissive** (entrée `headers()` dédiée, rule global en lookahead négatif — deux headers CSP = intersection), et lui livre le HTML par `postMessage` ; le shell fait `document.write()` (même Window → bridge JSON-RPC intact, origine opaque `"null"` inchangée). L'isolation des widgets n'a jamais été la CSP mais le `sandbox` sans `allow-same-origin` — la seule directive de sécurité réelle du sas est `frame-ancestors 'self'`, doublée de 5 verrous dans le shell (inerte hors sandbox/top-level, source=parent, origin=app, single-shot). Alternative « origine dédiée » (modèle web-sandbox ChatGPT) jugée disproportionnée (DNS/cert/proxy/tunnel RPi5) ; à revisiter si un widget exige `allow-same-origin`. Les skills user `frame.html` restent volontairement en `srcDoc` (auto-contenues + meta-CSP backend plus stricte). **Consolidation** : les deux politiques extraites dans `src/lib/csp.ts` (module pur importé par `next.config.ts` ET les tests) — chaque directive porteuse de fonctionnalité est épinglée par un test de non-régression (22 tests, `csp.test.ts` + `McpAppWidget.test.tsx`). Validation E2E dev : module esm.sh + importmap à travers le sas, worklet `blob:`, embed Maps, spoof frère rejeté, second payload ignoré, 0 violation console. Aucune migration, aucune clé `.env`.
+
+---
+
+### ADR-099: Remove Dead nginx Reverse-Proxy Config
+
+**Status**: ✅ IMPLEMENTED (2026-07-04)
+**Fichier**: `docs/architecture/ADR-099-Remove-Dead-Nginx-Config.md`
+
+**Décision**: Suppression de `infrastructure/nginx/` (Dockerfile + nginx.conf, 8,9 Ko) — livré avec la v1.0.0 initiale et **jamais câblé** : aucun compose de tout l'historique ne l'a référencé (`git log -S` vide), aucun script de déploiement (l'ingress prod est le tunnel `cloudflared` hôte, ADR-096). Config morte **activement trompeuse** : sa CSP globale permissive (`default-src 'self' http: https: … 'unsafe-inline'`) contredit la politique réelle (`src/lib/csp.ts`, ADR-098) et a dû être écartée comme seconde source CSP potentielle pendant l'investigation du sas (deux headers CSP = intersection) ; ses autres headers divergent de `next.config.ts`. Application de la règle systémique dead-code (« wire it or remove it »). `infrastructure/ssl/` **conservé** (generate-certs.sh vivant, monté par `docker-compose.dev.yml` pour les certs HTTPS dev) ; `infrastructure/README.md` mis à jour. Un futur reverse proxy se réécrira contre les headers alors courants — ne pas ressusciter ce fichier.
+
+---
+
+### ADR-100: Native Structured Output vs "Output JSON" Prompt Conflict
+
+**Status**: ✅ IMPLEMENTED (2026-07-04)
+**Fichier**: `docs/architecture/ADR-100-Structured-Output-Prompt-Conflict-Guard.md`
+
+**Décision**: Incident « dessine-moi le cycle de l'eau » (blocage 2 min puis carte Google au lieu d'un diagramme Excalidraw) → 5 défauts, dont une **classe systémique** (D5) : le validateur sémantique appelait `get_structured_output` (tool call forcé) sur un prompt disant « Output JSON only » — sur `deepseek-v4-flash` le modèle répondait en JSON texte 2 fois sur 3 → `None` → `StructuredOutputError` → validateur **fail-open** silencieusement mort (100 % d'échec). **Filet runtime** : `_get_native_structured_output` passe par un wrapper `include_raw=True` et `_rescue_structured_from_text` récupère le JSON du message brut (fences ```json```, JSON dans la prose, list-content Gemini 3.x) — protège TOUS les consommateurs natifs. **Convention de prompt** : les prompts en structured output natif ne doivent JAMAIS demander une sortie JSON-texte ; balayage complet → 4 prompts nettoyés (`semantic_validator`, `memory_reference_extraction` — corrige aussi un exemple en tableau nu contredisant le schéma, `heartbeat_decision`, `hitl_classifier`), 5 prompts laissés intacts car ils parsent le JSON **manuellement** (`extract_json`/`json.loads`, légitime : planner, emails, skill-translation). Distinction : parse manuel → « output JSON » requis ; natif → « output JSON » = bug. Corrige aussi D1 (timeout famille MCP `*_task` 120→300 s floor / 600 s ceiling + budget plan 120→600 s ; le create_view Excalidraw était tué à ~10 s du but), D2 (verrou `_resolve_plan_skill_name` : drop d'un `skill_name` incohérent avec la détection QueryAnalyzer), D3 (`_plan_execution_failed` : pas d'activation skill quand le plan a totalement échoué), D4 (logs replanner honnêtes — retry/replan non câblés — + suppression de messages FR inline morts). Repro modèle réel : validateur 3/3, memory 3/3, HITL 3/3. Nouveau setting `mcp_react_step_max_timeout_seconds` (+ .env). Aucune migration.
+
+---
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

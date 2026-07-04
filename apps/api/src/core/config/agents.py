@@ -154,6 +154,7 @@ from src.core.constants import (
     MAX_TOOL_TIMEOUT_SECONDS,
     MCP_REACT_ENABLED_DEFAULT,
     MCP_REACT_MAX_ITERATIONS_DEFAULT,
+    MCP_REACT_STEP_MAX_TIMEOUT_SECONDS_DEFAULT,
     MCP_REACT_STEP_TIMEOUT_SECONDS_DEFAULT,
     MEMORY_BM25_CACHE_MAX_USERS_DEFAULT,
     MEMORY_CLEANUP_HOUR_DEFAULT,
@@ -469,14 +470,15 @@ class AgentsSettings(BaseSettings):
     task_orchestrator_execution_timeout_seconds: float = Field(
         default=TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS_DEFAULT,
         ge=30.0,
-        le=600.0,
+        le=1800.0,
         description=(
             "Soft wall-clock budget (seconds) for the whole multi-wave plan "
             "execution in `parallel_executor.execute_plan_parallel`. Wired in "
             "v1.21 (Vague 5) — a wave that finishes after this deadline stops "
             "scheduling subsequent waves; the in-flight wave always completes "
-            "(no mid-wave cancellation). The previously orphan setting now "
-            "behaves as a soft cap on plan duration. See TIMEOUT_REGISTRY § 6."
+            "(no mid-wave cancellation). Default raised 120 -> 600 (audit D1) "
+            "to dominate the longest per-step family ceilings (MCP react / "
+            "browser / sub-agent: up to 600 s). See TIMEOUT_REGISTRY § 6."
         ),
     )
     hitl_max_wait_seconds: int = Field(
@@ -3077,10 +3079,22 @@ class AgentsSettings(BaseSettings):
     )
     mcp_react_step_timeout_seconds: int = Field(
         default=MCP_REACT_STEP_TIMEOUT_SECONDS_DEFAULT,
-        gt=0,
+        ge=30,
+        le=900,
         description=(
             "Wall-clock floor in seconds applied to *_task plan steps that run "
-            "the MCP ReAct sub-agent loop (raises the planner step timeout)."
+            "the MCP ReAct sub-agent loop (raises the planner step timeout AND "
+            "the executor family floor — see _compute_step_timeout)."
+        ),
+    )
+    mcp_react_step_max_timeout_seconds: int = Field(
+        default=MCP_REACT_STEP_MAX_TIMEOUT_SECONDS_DEFAULT,
+        ge=60,
+        le=900,
+        description=(
+            "Hard ceiling in seconds for *_task plan steps (MCP ReAct sub-agent "
+            "loop) in the parallel executor. Caps whatever the planner requests. "
+            "Should be >= mcp_react_step_timeout_seconds."
         ),
     )
 

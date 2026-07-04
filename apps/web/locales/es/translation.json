@@ -2934,6 +2934,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_7": {
+          "title": "v1.21.7 — 🎨 Correcciones de regresiones: voz, widgets interactivos y diagramas",
+          "date": "Julio de 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎤 La entrada de voz (pulsar y mantener) vuelve a funcionar</b> — Un refuerzo de seguridad en la v1.21.5 bloqueaba por error la captura de voz, por lo que mantener pulsado el botón de enviar mostraba «se ha producido un error durante la entrada de voz». El push-to-talk está totalmente restablecido.",
+            "i2": "<b>🗺️ Los mapas interactivos y 🎨 los widgets de diagramas se muestran de nuevo</b> — El mismo refuerzo impedía que la skill de mapa interactivo y los widgets de terceros (como los diagramas de Excalidraw) se mostraran. Vuelven a funcionar, ahora ejecutándose en un entorno aislado dedicado que mantiene el resto de la aplicación estrictamente protegido.",
+            "i3": "<b>🎨 Los diagramas complejos ya no caducan</b> — Pedir a LIA que dibujara un diagrama detallado podía interrumpirse a los dos minutos, justo antes de terminar. La generación de diagramas dispone ahora del tiempo necesario.",
+            "i4": "<b>🤖 No más respuestas fuera de tema cuando algo falla</b> — Cuando una acción solicitada fallaba, LIA podía responder con un resultado sin relación (por ejemplo, un mapa para una solicitud de diagrama). Ahora te indica honestamente que la acción no se completó en lugar de ocultarlo.",
+            "i5": "<b>✅ El asistente vuelve a verificar su plan</b> — Una salvaguarda interna que comprueba que el plan del asistente coincide realmente con tu solicitud había dejado de funcionar en silencio. Está corregida y reforzada en todo el asistente."
+          }
+        },
         "v1_21_6": {
           "title": "v1.21.6 — 🔒 Privacidad, fiabilidad y refuerzo del entorno aislado (auditoría oleada 4)",
           "date": "Julio 2026",
