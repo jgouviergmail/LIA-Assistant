@@ -1641,6 +1641,10 @@ def _compute_step_timeout(
       `MAX_TOOL_TIMEOUT_SECONDS` ceiling.
     - ``claude_server_task_tool``: 120 s floor, `MAX_TOOL_TIMEOUT_SECONDS`
       ceiling.
+    - MCP iterative task tools (``{server}_task``, ADR-062): dedicated
+      floor / ceiling pair (`mcp_react_step_timeout_seconds` /
+      `mcp_react_step_max_timeout_seconds`) — the nested ReAct loop
+      legitimately runs several long LLM calls (audit D1).
     - Everything else: `DEFAULT_TOOL_TIMEOUT_SECONDS` (30 s) floor,
       `MAX_TOOL_TIMEOUT_SECONDS` (120 s) ceiling.
 
@@ -1663,6 +1667,21 @@ def _compute_step_timeout(
     sub_agent_floor: float = cfg.subagent_tool_timeout_seconds
     sub_agent_ceiling: float = cfg.subagent_tool_max_timeout_seconds
 
+    # MCP iterative (ReAct) task steps (`{server}_task`, ADR-062): dedicated
+    # high-latency family (audit D1). The generic 120 s ceiling used to clamp
+    # the planner's request and killed legitimate multi-iteration work — one
+    # diagram-generation LLM call alone takes ~105 s on a large model. The
+    # explicit tool names above never end with the bare suffix
+    # (`browser_task_tool`, `delegate_to_sub_agent_tool` end in `_tool`), so
+    # there is no family overlap.
+    from src.core.constants import MCP_ITERATIVE_TASK_SUFFIX
+
+    is_mcp_react_task = bool(
+        step_tool_name
+        and step_tool_name.endswith(MCP_ITERATIVE_TASK_SUFFIX)
+        and step_tool_name not in _HIGH_LATENCY_TOOL_NAMES
+    )
+
     # Floor (effective default if planner left it unset, AND minimum for
     # high-latency tools — see docstring).
     if step_tool_name == _SUB_AGENT_TOOL_NAME:
@@ -1673,6 +1692,8 @@ def _compute_step_timeout(
         effective_default = cfg.devops_claude_tool_timeout_seconds
     elif step_tool_name == _BROWSER_TOOL_NAME:
         effective_default = cfg.browser_tool_timeout_seconds
+    elif is_mcp_react_task:
+        effective_default = float(cfg.mcp_react_step_timeout_seconds)
     else:
         effective_default = cfg.default_tool_timeout_seconds
 
@@ -1681,11 +1702,13 @@ def _compute_step_timeout(
         max_timeout: float = cfg.max_browser_tool_timeout_seconds
     elif step_tool_name == _SUB_AGENT_TOOL_NAME:
         max_timeout = sub_agent_ceiling
+    elif is_mcp_react_task:
+        max_timeout = float(cfg.mcp_react_step_max_timeout_seconds)
     else:
         max_timeout = cfg.max_tool_timeout_seconds
 
     # High-latency tools: enforce family floor even if planner asked for less.
-    if step_tool_name in _HIGH_LATENCY_TOOL_NAMES:
+    if step_tool_name in _HIGH_LATENCY_TOOL_NAMES or is_mcp_react_task:
         return min(
             max(step_requested_timeout or effective_default, effective_default),
             max_timeout,

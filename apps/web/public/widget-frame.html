@@ -1,0 +1,87 @@
+<!doctype html>
+<!--
+  LIA widget airlock shell (ADR-098).
+
+  Third-party MCP App widgets (Excalidraw, ...) load their runtime from
+  arbitrary CDNs, which the strict app CSP forbids. A srcDoc iframe inherits
+  the parent CSP with no way to relax it, so McpAppWidget instead points a
+  sandboxed iframe at THIS document — a real same-origin response carrying
+  its own permissive CSP (see next.config.ts / src/lib/csp.ts) — and delivers
+  the widget HTML via postMessage. The script below writes that HTML into the
+  document; from then on the widget behaves exactly as the old srcDoc did
+  (same window, same postMessage bridge, opaque origin from the sandbox).
+
+  Security model — the sandbox isolates the widget, this shell only has to
+  make sure it can never run UNSANDBOXED (which would execute delivered HTML
+  under the real LIA origin, with cookies). Four locks:
+    1. refuse to run when not sandboxed (window.origin !== "null")
+    2. refuse to run when top-level (not embedded at all)
+    3. only accept the payload from the direct parent window
+    4. only accept the payload from the LIA origin (rejects sibling widgets
+       and escaped popups, whose origin is "null" or foreign)
+  Plus frame-ancestors 'self' / X-Frame-Options on the response, so no
+  external site can even embed this shell.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>LIA widget frame</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      (function () {
+        'use strict';
+
+        // Lock 1+2: the legitimate embedder (McpAppWidget) always applies a
+        // sandbox without allow-same-origin, making window.origin the string
+        // "null". Direct navigation or an unsandboxed hostile embed runs with
+        // a real origin → do nothing.
+        if (window.origin !== 'null' || window === window.top) {
+          return;
+        }
+
+        var received = false;
+
+        window.addEventListener('message', function (event) {
+          // Single-shot: first valid payload wins.
+          if (received) {
+            return;
+          }
+          // Lock 3: only the direct parent may deliver the payload.
+          if (event.source !== window.parent) {
+            return;
+          }
+          // Lock 4: the parent must be the LIA app itself. location.origin
+          // reflects this document's URL origin even inside the sandbox
+          // (window.origin is the opaque "null", location.origin is not).
+          if (event.origin !== window.location.origin) {
+            return;
+          }
+
+          var data = event.data;
+          if (!data || data.type !== 'lia:widget-html' || typeof data.html !== 'string') {
+            return;
+          }
+
+          received = true;
+
+          // Replace this document with the widget HTML. document.open()
+          // keeps the same Window (bridge listeners and contentWindow
+          // identity survive) and the document keeps this response's CSP.
+          document.open();
+          document.write(data.html);
+          document.close();
+        });
+      })();
+    </script>
+  </body>
+</html>

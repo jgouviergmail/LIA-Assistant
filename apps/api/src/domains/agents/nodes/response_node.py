@@ -63,6 +63,7 @@ from src.domains.agents.constants import (
     STATE_KEY_SEMANTIC_VALIDATION,
     STATE_KEY_TURN_TYPE,
     TURN_TYPE_ACTION,
+    make_agent_result_key,
 )
 
 # V3 Display Architecture imports
@@ -135,6 +136,37 @@ STATE_KEY_TOOL_RESULTS = "tool_results"
 STATE_KEY_DRAFT_ACTION_RESULT = "draft_action_result"
 
 logger = get_logger(__name__)
+
+
+def _plan_execution_failed(state: dict[str, Any]) -> bool:
+    """Return True when the current turn's execution plan totally failed.
+
+    Audit D3: the planner-route skill activation must not fire on the back of
+    a failed plan. In the incident, a plan whose only step (an MCP task) timed
+    out still activated the plan's ``skill_name`` and synthesized a confident
+    "success" answer from an unrelated skill. When the plan executor reports
+    failure the response should reflect it (or fall back to the authoritative
+    QueryAnalyzer detection) instead of masking it.
+
+    Only the ``plan_executor`` aggregate is inspected: its ``status`` is
+    "failed" only when EVERY step failed (see
+    ``map_execution_result_to_agent_result``). A partially successful plan is
+    not treated as a failure here.
+
+    Args:
+        state: The LangGraph message state.
+
+    Returns:
+        True only when a ``plan_executor`` result exists for the current turn
+        and its status is "failed".
+    """
+    agent_results = state.get(STATE_KEY_AGENT_RESULTS) or {}
+    turn_id = state.get(STATE_KEY_CURRENT_TURN_ID, 0)
+    key = make_agent_result_key(turn_id, "plan_executor")
+    entry = agent_results.get(key)
+    if not isinstance(entry, dict):
+        return False
+    return entry.get("status") == "failed"
 
 
 def _should_inject_html_directive(display_mode: str | None, route_to: str | None) -> bool:
@@ -1776,7 +1808,18 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             if qi_route_to == "planner" and execution_plan and execution_plan.metadata:
                 plan_skill_name = execution_plan.metadata.get("skill_name")
                 if plan_skill_name and (active is None or plan_skill_name in active):
-                    _target_skill_name = plan_skill_name
+                    # D3: do not activate the plan's skill when the plan itself
+                    # totally failed — otherwise a timed-out action masquerades
+                    # as a successful skill answer.
+                    if _plan_execution_failed(state):
+                        logger.info(
+                            "skill_planner_activation_skipped_plan_failed",
+                            run_id=run_id,
+                            skill_name=plan_skill_name,
+                            reason="execution plan failed — not activating its skill",
+                        )
+                    else:
+                        _target_skill_name = plan_skill_name
             elif (
                 execution_plan
                 and execution_plan.metadata

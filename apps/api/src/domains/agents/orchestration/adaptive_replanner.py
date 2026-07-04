@@ -649,19 +649,25 @@ class AdaptiveRePlanner:
         failed_names = [s.tool_name for s in failed_steps if s.tool_name]
 
         if context.replan_attempt == 0:
-            # First attempt: retry (may be transient)
+            # First attempt: the failure looks transient. NOTE: this decision is
+            # advisory — the orchestrator does not currently re-execute on
+            # RETRY_SAME (see task_orchestrator_node, audit D4). Phrased as an
+            # assessment, not a promise of a retry that will not happen.
             return (
                 RePlanDecision.RETRY_SAME,
                 RecoveryStrategy.NONE,
-                f"Steps {failed_names} failed. Retrying (may be transient).",
+                f"Steps {failed_names} failed; failure looks transient "
+                f"(would warrant a retry).",
                 None,
             )
         elif context.replan_attempt == 1:
-            # Second attempt: try skipping failed steps
+            # Second attempt: failed steps look skippable. Advisory only — the
+            # orchestrator does not currently regenerate the plan (audit D4).
             return (
                 RePlanDecision.REPLAN_MODIFIED,
                 RecoveryStrategy.SKIP_OPTIONAL,
-                f"Steps {failed_names} still failing. Trying without optional steps.",
+                f"Steps {failed_names} still failing; they look optional "
+                f"(would warrant a modified plan).",
                 None,
             )
         else:

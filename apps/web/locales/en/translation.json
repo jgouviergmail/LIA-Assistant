@@ -2943,6 +2943,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_7": {
+          "title": "v1.21.7 — 🎨 Regression fixes: voice, interactive widgets & diagrams",
+          "date": "July 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎤 Voice input (push-to-talk) works again</b> — A security tightening in v1.21.5 accidentally blocked voice capture, so holding the send button showed 'an error occurred during voice input'. Push-to-talk is fully restored.",
+            "i2": "<b>🗺️ Interactive maps & 🎨 diagram widgets display again</b> — The same tightening had stopped the interactive-map skill and third-party widgets (such as Excalidraw diagrams) from rendering. They work again, now running inside a dedicated secure sandbox that keeps the rest of the app strictly protected.",
+            "i3": "<b>🎨 Complex diagrams no longer time out</b> — Asking LIA to draw a detailed diagram could be cut off after two minutes, right before it finished. Diagram generation is now given the time it needs.",
+            "i4": "<b>🤖 No more off-topic answers when something fails</b> — When a requested action failed, LIA could reply with an unrelated result (for example a map for a diagram request). It now tells you honestly that the action did not succeed instead of masking it.",
+            "i5": "<b>✅ The assistant checks its plan again</b> — An internal safeguard that verifies the assistant's plan really matches your request had silently stopped working. It is fixed and made more robust across the whole assistant."
+          }
+        },
         "v1_21_6": {
           "title": "v1.21.6 — 🔒 Privacy, reliability & sandbox hardening (audit wave 4)",
           "date": "July 2026",

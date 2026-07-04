@@ -1,5 +1,12 @@
 import type { NextConfig } from 'next';
 
+import {
+  APP_HEADERS_SOURCE,
+  WIDGET_FRAME_PATH,
+  buildAppCsp,
+  buildWidgetFrameCsp,
+} from './src/lib/csp';
+
 // Allow self-signed certificates for internal Docker HTTPS communication
 // Required because API uses HTTPS for Google OAuth callbacks (redirect URI)
 // This must be set before any HTTPS requests are made by Next.js rewrites
@@ -21,70 +28,12 @@ const allowedDevOrigins = [
   ]),
 ];
 
-// --- Content-Security-Policy (audit wave 3, A4) ---
-// Defense-in-depth against XSS: an injected <script src> or eval() is blocked
-// even if a rendering bug ever reintroduces raw HTML. Constraints honored:
-// - Next.js App Router ships inline bootstrap scripts → 'unsafe-inline' is
-//   required in script-src (no per-request nonce with static headers). The
-//   header still blocks every EXTERNAL script origin and eval().
-// - Sherpa-onnx voice mode compiles WASM → 'wasm-unsafe-eval' + blob: workers.
-// - Push-to-talk STT loads an AudioWorklet from a blob: URL → needs blob: in
-//   script-src (a worklet's fetch destination is "audioworklet", governed by
-//   script-src, NOT worker-src).
-// - MCP/Skill widget iframes use srcDoc (inherit this CSP) and are
-//   self-contained by design — inline allowance keeps them working. The one
-//   exception is the interactive-map skill, which embeds an external Google
-//   Maps iframe → frame-src must allowlist https://www.google.com.
-// - Google Fonts stylesheet + font files (see app/[lng]/layout.tsx).
-// - In production the API is a separate origin (NEXT_PUBLIC_API_URL) reached
-//   via fetch/SSE/WebSocket → connect-src includes it (+ ws(s) variant).
-// - Dev: turbopack HMR needs eval() and websockets.
+// --- Content-Security-Policy (audit wave 3, A4 + widget airlock) ---
+// Both policies (strict app CSP + permissive widget-frame CSP) live in
+// src/lib/csp.ts — a pure module shared with unit tests so every directive
+// change is covered by non-regression tests (two CSP regressions shipped
+// blind before this: voice worklets and the interactive-map embed).
 const isDev = process.env.NODE_ENV === 'development';
-
-function buildConnectSrc(): string {
-  const sources = ["'self'"];
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (apiUrl) {
-    try {
-      const origin = new URL(apiUrl).origin;
-      sources.push(origin, origin.replace(/^http/, 'ws'));
-    } catch {
-      // Malformed URL — fall back to same-origin only
-    }
-  }
-  if (isDev) {
-    sources.push('ws:', 'wss:', 'http://localhost:8000', 'http://127.0.0.1:8000');
-  }
-  return sources.join(' ');
-}
-
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  // blob: is required for the push-to-talk STT AudioWorklet: its module is
-  // loaded from a blob: URL and — per CSP L3 — a worklet's fetch destination is
-  // "audioworklet", governed by script-src (NOT worker-src, despite that being
-  // where the Sherpa WASM workers get their blob: allowance below).
-  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:${isDev ? " 'unsafe-eval'" : ''}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
-  // https: for user-facing remote images (chat markdown, connector data);
-  // images are not a script vector and COEP already gates embedding
-  "img-src 'self' data: blob: https:",
-  "media-src 'self' data: blob:",
-  "worker-src 'self' blob:",
-  // frame-src governs which nested browsing contexts the app may embed. Without
-  // it, frame-src falls back to default-src 'self' and blocks the ONLY external
-  // embed we ship: the interactive-map system skill's Google Maps iframe
-  // (frame.url = https://www.google.com/maps/embed — see
-  // data/skills/system/interactive-map). All other skill/MCP widgets are
-  // self-contained srcDoc frames (same-origin/opaque), already covered by 'self'.
-  "frame-src 'self' https://www.google.com",
-  `connect-src ${buildConnectSrc()}`,
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'self'",
-].join('; ');
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -124,7 +73,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: '/:path*',
+        // Every route EXCEPT the widget airlock (negative lookahead): the
+        // airlock carries its own permissive CSP below, and two CSP headers
+        // on one response would enforce their intersection.
+        source: APP_HEADERS_SOURCE,
         headers: [
           {
             key: 'X-DNS-Prefetch-Control',
@@ -148,7 +100,8 @@ const nextConfig: NextConfig = {
           // Cross-origin resources (Google Fonts, Google profile images) are handled via:
           // - Google Fonts: crossOrigin="anonymous" attribute (CORS-enabled by Google)
           // - Google profile images: proxied via /api/v1/auth/profile-image-proxy
-          // - MCP App iframes: use srcDoc (inline), no cross-origin fetch needed
+          // - MCP App iframes: same-origin airlock shell (sends its own COEP
+          //   below); its CDN subresources proved COEP-compatible pre-CSP
           {
             key: 'Cross-Origin-Embedder-Policy',
             value: 'require-corp'
@@ -157,11 +110,44 @@ const nextConfig: NextConfig = {
             key: 'Cross-Origin-Opener-Policy',
             value: 'same-origin'
           },
-          // Strict CSP (audit A4) — see contentSecurityPolicy above for the
-          // rationale of each directive
+          // Strict CSP (audit A4) — see src/lib/csp.ts for the rationale of
+          // each directive
           {
             key: 'Content-Security-Policy',
-            value: contentSecurityPolicy
+            value: buildAppCsp(isDev, process.env.NEXT_PUBLIC_API_URL)
+          }
+        ]
+      },
+      {
+        // Widget airlock (see src/lib/csp.ts + ADR-098): third-party MCP App
+        // widgets are bootstrapped into this same-origin shell so they get a
+        // dedicated permissive CSP while the app policy above stays strict.
+        // Isolation comes from the iframe sandbox (opaque origin), not CSP.
+        source: WIDGET_FRAME_PATH,
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: buildWidgetFrameCsp()
+          },
+          // Parent responses carry COEP: require-corp; a nested document must
+          // itself enable COEP or the browser refuses to load it in the frame.
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'require-corp'
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff'
+          },
+          // Legacy twin of frame-ancestors 'self' (belt and braces)
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN'
+          },
+          // The shell never needs to leak the app's URLs to widget CDNs
+          {
+            key: 'Referrer-Policy',
+            value: 'no-referrer'
           }
         ]
       }

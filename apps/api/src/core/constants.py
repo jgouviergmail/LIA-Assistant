@@ -1805,7 +1805,10 @@ MAX_AGENT_RESULTS_DEFAULT = 10
 MAX_ROUTING_HISTORY_DEFAULT = 30
 ROUTER_LLM_TIMEOUT_SECONDS_DEFAULT = 30.0
 RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT = 60.0
-TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS_DEFAULT = 120.0
+# Raised 120 -> 600 (audit D1): must dominate the longest per-step family
+# ceilings (MCP react / browser / sub-agent go up to 600 s) — a 120 s soft
+# plan budget silently stopped scheduling waves after any long legitimate step.
+TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS_DEFAULT = 600.0
 HITL_MAX_WAIT_SECONDS_DEFAULT = 900
 RETRY_MAX_ATTEMPTS_DEFAULT = 3
 RETRY_BACKOFF_FACTOR_DEFAULT = 2.0
@@ -2323,7 +2326,11 @@ MCP_DESCRIPTION_MAX_TOTAL_LENGTH = 400  # Max chars for algorithmic fallback des
 # Reference: tools/mcp_react_tools.py, tools/react_runner.py
 MCP_REACT_ENABLED_DEFAULT = True
 MCP_REACT_MAX_ITERATIONS_DEFAULT = 10  # create_react_agent recursion_limit
-MCP_REACT_STEP_TIMEOUT_SECONDS_DEFAULT = 120  # Wall-clock floor for *_task plan steps
+# Floor raised 120 -> 300 (audit D1): a single diagram-generation LLM call on a
+# large model takes ~105 s alone; 120 s killed legitimate MCP iterative work
+# (read_me + generation + create_view) seconds before completion.
+MCP_REACT_STEP_TIMEOUT_SECONDS_DEFAULT = 300  # Wall-clock floor for *_task plan steps
+MCP_REACT_STEP_MAX_TIMEOUT_SECONDS_DEFAULT = 600  # Hard ceiling for *_task plan steps
 
 # ============================================================================
 # INITIATIVE PHASE (ADR-062)

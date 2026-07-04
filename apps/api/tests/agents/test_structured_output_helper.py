@@ -375,7 +375,8 @@ async def test_native_structured_output_error_handling():
     mock_llm = Mock()
     structured_llm = AsyncMock()
 
-    # Simulate LLM returning wrong type (unexpected behavior)
+    # Simulate LLM returning wrong type (unexpected behavior): neither a schema
+    # instance nor an include_raw bundle with a salvageable raw message.
     structured_llm.ainvoke.return_value = {"reasoning": "test", "action": "test", "confidence": 0.5}
 
     mock_llm.with_structured_output.return_value = structured_llm
@@ -390,7 +391,10 @@ async def test_native_structured_output_error_handling():
                 llm=mock_llm, messages=messages, schema=SimpleDecision, provider="openai"
             )
 
-        assert "unexpected type" in str(exc_info.value)
+        # D5: the no-tool-call path now reports the richer "no parsable payload"
+        # diagnostic (text rescue attempted and failed) instead of a bare
+        # "unexpected type".
+        assert "no parsable payload" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -831,3 +835,137 @@ async def test_full_flow_json_mode_fallback():
     assert result.reasoning == "Processed query with JSON mode"
     assert result.action == "search_database"
     assert result.confidence == 0.88
+
+
+# ============================================================================
+# D5 — Text-JSON rescue (model answers in text instead of calling the tool)
+# ============================================================================
+
+
+class TestRescueStructuredFromText:
+    """Unit tests for _rescue_structured_from_text (audit D5).
+
+    Covers the failure mode where a model resolves the conflict between a
+    forced tool call and legacy "Output JSON only" prompt instructions by
+    answering with raw JSON text (observed on deepseek-v4-flash with the
+    semantic validator prompt).
+    """
+
+    def _rescue(self, raw_message: Any):
+        from src.infrastructure.llm.structured_output import (
+            _rescue_structured_from_text,
+        )
+
+        return _rescue_structured_from_text(
+            raw_message, SimpleDecision, "deepseek", "SimpleDecision"
+        )
+
+    def test_rescues_plain_json_text(self):
+        raw = AIMessage(content='{"reasoning": "from text", "action": "search", "confidence": 0.7}')
+        result = self._rescue(raw)
+        assert isinstance(result, SimpleDecision)
+        assert result.reasoning == "from text"
+
+    def test_rescues_fenced_json_block(self):
+        raw = AIMessage(
+            content='```json\n{"reasoning": "fenced", "action": "go", "confidence": 0.5}\n```'
+        )
+        result = self._rescue(raw)
+        assert isinstance(result, SimpleDecision)
+        assert result.action == "go"
+
+    def test_rescues_json_embedded_in_prose(self):
+        raw = AIMessage(
+            content='Here is my verdict:\n{"reasoning": "embedded", "action": "x", "confidence": 1.0}\nDone.'
+        )
+        result = self._rescue(raw)
+        assert isinstance(result, SimpleDecision)
+
+    def test_rescues_gemini_list_content(self):
+        # Gemini 3.x returns content as a list of blocks (see coerce_content_to_text)
+        raw = AIMessage(
+            content=[
+                {"type": "text", "text": '{"reasoning": "blocks", "action": "y", '},
+                {"type": "text", "text": '"confidence": 0.4}'},
+            ]
+        )
+        result = self._rescue(raw)
+        assert isinstance(result, SimpleDecision)
+        assert result.action == "y"
+
+    def test_returns_none_on_schema_mismatch(self):
+        raw = AIMessage(content='{"totally": "unrelated"}')
+        assert self._rescue(raw) is None
+
+    def test_returns_none_on_invalid_json(self):
+        raw = AIMessage(content="{not json at all")
+        assert self._rescue(raw) is None
+
+    def test_returns_none_on_empty_or_missing_content(self):
+        assert self._rescue(AIMessage(content="")) is None
+        assert self._rescue(None) is None
+
+
+@pytest.mark.asyncio
+async def test_native_path_rescues_text_answer_via_include_raw():
+    """End-to-end through get_structured_output: parsed=None + raw JSON text -> rescued."""
+    mock_llm = Mock()
+    structured = Mock()
+    structured.ainvoke = AsyncMock(
+        return_value={
+            "raw": AIMessage(
+                content='```json\n{"reasoning": "rescued", "action": "act", "confidence": 0.9}\n```'
+            ),
+            "parsed": None,
+            "parsing_error": None,
+        }
+    )
+    mock_llm.with_structured_output = Mock(return_value=structured)
+    mock_llm.model_name = "deepseek-v4-flash"
+    mock_llm.extra_body = {"thinking": {"type": "disabled"}}
+
+    with patch("src.infrastructure.llm.structured_output.settings") as mock_settings:
+        mock_settings.provider_supports_structured_output = {"deepseek": True}
+
+        result = await get_structured_output(
+            llm=mock_llm,
+            messages=[HumanMessage(content="validate")],
+            schema=SimpleDecision,
+            provider="deepseek",
+        )
+
+    assert isinstance(result, SimpleDecision)
+    assert result.reasoning == "rescued"
+    # include_raw must be requested so the raw message is available for rescue
+    assert mock_llm.with_structured_output.call_args.kwargs.get("include_raw") is True
+
+
+@pytest.mark.asyncio
+async def test_native_path_raises_with_raw_output_when_rescue_fails():
+    """No tool call AND non-JSON text -> StructuredOutputError carrying raw_output."""
+    mock_llm = Mock()
+    structured = Mock()
+    structured.ainvoke = AsyncMock(
+        return_value={
+            "raw": AIMessage(content="I cannot answer in the requested format."),
+            "parsed": None,
+            "parsing_error": None,
+        }
+    )
+    mock_llm.with_structured_output = Mock(return_value=structured)
+    mock_llm.model_name = "deepseek-v4-flash"
+    mock_llm.extra_body = {"thinking": {"type": "disabled"}}
+
+    with patch("src.infrastructure.llm.structured_output.settings") as mock_settings:
+        mock_settings.provider_supports_structured_output = {"deepseek": True}
+
+        with pytest.raises(StructuredOutputError) as exc_info:
+            await get_structured_output(
+                llm=mock_llm,
+                messages=[HumanMessage(content="validate")],
+                schema=SimpleDecision,
+                provider="deepseek",
+            )
+
+    assert "no parsable payload" in str(exc_info.value)
+    assert exc_info.value.raw_output == "I cannot answer in the requested format."

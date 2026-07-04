@@ -696,6 +696,66 @@ async def _structured_via_auto_tool[T: BaseModel](
         return None
 
 
+def _rescue_structured_from_text[T: BaseModel](
+    raw_message: Any,
+    schema: type[T],
+    provider: str,
+    schema_name: str,
+) -> T | None:
+    """Salvage a structured output from a model that answered in text.
+
+    Some models resolve the conflict between a forced tool call and prompt
+    instructions by answering with raw JSON text instead of calling the tool
+    (observed on deepseek-v4-flash with legacy "Output JSON only" prompts —
+    audit D5). When ``with_structured_output(include_raw=True)`` yields no
+    parsed object, this helper tries to recover the payload from the raw
+    ``AIMessage`` content before the caller gives up.
+
+    Args:
+        raw_message: The raw ``AIMessage`` returned by the model (``None``
+            tolerated — returns ``None``).
+        schema: Target Pydantic schema.
+        provider: Provider name (logging only).
+        schema_name: Schema name (logging only).
+
+    Returns:
+        A validated schema instance, or ``None`` when no JSON object could
+        be extracted and validated from the text content.
+    """
+    text = coerce_content_to_text(getattr(raw_message, "content", None) or "").strip()
+    if not text:
+        return None
+
+    # Strip markdown code fences if present (```json ... ```)
+    if text.startswith("```"):
+        first_newline = text.find("\n")
+        if first_newline != -1:
+            text = text[first_newline + 1 :]
+        if text.endswith("```"):
+            text = text[: -len("```")]
+        text = text.strip()
+
+    # Extract the outermost JSON object
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end <= start:
+        return None
+
+    try:
+        payload = json.loads(text[start : end + 1])
+        instance = schema.model_validate(payload)
+    except (json.JSONDecodeError, ValidationError):
+        return None
+
+    logger.warning(
+        "structured_output_rescued_from_text",
+        provider=provider,
+        schema=schema_name,
+        msg="Model answered in raw JSON text instead of calling the forced tool — "
+        "payload salvaged; check the prompt for legacy 'output JSON' instructions",
+    )
+    return instance
+
+
 async def _get_native_structured_output[T: BaseModel](
     llm: BaseChatModel,
     messages: list[BaseMessage],
@@ -799,21 +859,18 @@ async def _get_native_structured_output[T: BaseModel](
         #
         # See: https://platform.openai.com/docs/guides/structured-outputs#supported-schemas
         if use_strict_mode:
-            structured_llm = llm.with_structured_output(schema, method="json_schema", strict=True)
             logger.info(
                 "strict_mode_enabled",
                 provider=provider,
                 schema=schema_name,
             )
-        else:
-            structured_llm = llm.with_structured_output(schema, method="function_calling")
-            if provider == "openai" and not is_strict_compatible:
-                logger.debug(
-                    "strict_mode_fallback",
-                    provider=provider,
-                    schema=schema_name,
-                    reason=strict_reason,
-                )
+        elif provider == "openai" and not is_strict_compatible:
+            logger.debug(
+                "strict_mode_fallback",
+                provider=provider,
+                schema=schema_name,
+                reason=strict_reason,
+            )
 
         # Invoke LLM with messages (use async).
         # When a reasoning emitter is provided, consume the structured runnable
@@ -829,10 +886,45 @@ async def _get_native_structured_output[T: BaseModel](
         ):
             reasoning_emit = None
 
+        # Buffered invocations go through an include_raw wrapper so that when
+        # the model answers in text instead of calling the forced tool (prompt
+        # conflict — audit D5), the raw AIMessage is available for the
+        # text-JSON rescue below instead of an opaque ``None``.
+        async def _buffered_invoke() -> Any:
+            raw_structured_llm = (
+                llm.with_structured_output(
+                    schema, method="json_schema", strict=True, include_raw=True
+                )
+                if use_strict_mode
+                else llm.with_structured_output(schema, method="function_calling", include_raw=True)
+            )
+            bundle = await raw_structured_llm.ainvoke(messages, **invoke_kwargs)
+            parsed = bundle.get("parsed") if isinstance(bundle, dict) else bundle
+            if isinstance(parsed, schema):
+                return parsed
+            raw_message = bundle.get("raw") if isinstance(bundle, dict) else None
+            rescued = _rescue_structured_from_text(raw_message, schema, provider, schema_name)
+            if rescued is not None:
+                return rescued
+            raw_text = coerce_content_to_text(getattr(raw_message, "content", None) or "")
+            raise StructuredOutputError(
+                f"Native structured output returned no parsable payload for {schema_name} "
+                f"(no tool call, text rescue failed)",
+                provider=provider,
+                schema_name=schema_name,
+                raw_output=raw_text[:2000] or None,
+            )
+
         result: Any
         if reasoning_emit is not None:
             from src.infrastructure.llm.reasoning_stream import stream_reasoning_events
 
+            # Parsed-only wrapper for the streaming path (astream_events).
+            structured_llm = (
+                llm.with_structured_output(schema, method="json_schema", strict=True)
+                if use_strict_mode
+                else llm.with_structured_output(schema, method="function_calling")
+            )
             result = await stream_reasoning_events(
                 structured_llm,
                 messages,
@@ -841,12 +933,11 @@ async def _get_native_structured_output[T: BaseModel](
             )
             if result is None:
                 _mark_reasoning_stream_broken(provider, model_id, "native_structured", schema_name)
-                result = await structured_llm.ainvoke(messages, **invoke_kwargs)
+                result = await _buffered_invoke()
         else:
-            result = await structured_llm.ainvoke(messages, **invoke_kwargs)
+            result = await _buffered_invoke()
 
-        # LangChain guarantees result is already a Pydantic instance
-        # Type checker hint (result should already be type T)
+        # Both paths above guarantee a validated Pydantic instance
         if not isinstance(result, schema):
             raise StructuredOutputError(
                 f"Native structured output returned unexpected type: {type(result)}",
@@ -862,6 +953,11 @@ async def _get_native_structured_output[T: BaseModel](
         )
 
         return result
+
+    except StructuredOutputError:
+        # Already fully qualified (e.g. rescue failure with raw_output attached)
+        # — do not re-wrap, it would drop the diagnostic payload.
+        raise
 
     except ValidationError as e:
         # Pydantic validation failed (LLM output didn't match schema)

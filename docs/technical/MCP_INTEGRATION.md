@@ -281,6 +281,8 @@ Increase `MCP_TOOL_TIMEOUT_SECONDS` globally or set per-server `timeout_seconds`
 
 **Note:** The full MCP lifecycle (connect + handshake + list_tools / call_tool) is bounded by `timeout_seconds` per server. If a server is unresponsive during connection or handshake, the timeout fires and the server is skipped — other servers and the rest of the pipeline are not blocked.
 
+**`iterative_mode` servers (ReAct loop, e.g. Excalidraw)** are additionally bounded by a **plan-step** wall-clock, not just `MCP_TOOL_TIMEOUT_SECONDS`: the `{server}_task` step runs a multi-iteration sub-agent (read_me → generate → call tools) that legitimately takes minutes. This step has its own timeout family — `MCP_REACT_STEP_TIMEOUT_SECONDS` (floor, default 300 s) / `MCP_REACT_STEP_MAX_TIMEOUT_SECONDS` (ceiling, default 600 s) — separate from the generic 120 s tool ceiling (ADR-100/D1; a single diagram-generation model call alone is ~105 s). If a complex diagram is cut off mid-generation, raise these two, not `MCP_TOOL_TIMEOUT_SECONDS`. See [TIMEOUT_REGISTRY.md](TIMEOUT_REGISTRY.md) §4.
+
 ### OAuth 403 Forbidden on Tool Calls
 
 If `list_tools` succeeds but `call_tool` returns `403 Forbidden`:
@@ -940,8 +942,22 @@ Runtime (tool with UI):
 | HTML resource fetch | `tool_adapter.py` / `user_tool_adapter.py` | Calls `session.read_resource(resourceUri)` after `call_tool()` |
 | `MCP_APP` RegistryItem | `orchestration/parallel_executor.py` | New `RegistryItemType` for app widgets |
 | `McpAppWidget` | `apps/web/src/components/chat/` | React component rendering sandboxed iframe |
+| Widget airlock shell | `apps/web/public/widget-frame.html` | Same-origin document with its own permissive CSP hosting the widget HTML (ADR-098) |
 | JSON-RPC bridge | `McpAppWidget` | `postMessage` bridge between iframe and host |
 | Proxy endpoints | `domains/user_mcp/router.py` / `infrastructure/mcp/admin_router.py` | HTTP proxy for iframe-initiated MCP calls |
+
+**Widget rendering — the CSP airlock (ADR-098)**: the iframe does NOT use
+`srcDoc` (a `srcDoc` document inherits the strict app CSP, which blocks the
+external CDNs third-party widgets load their runtime from — e.g. Excalidraw
+pulls React/morphdom/CSS/fonts from `esm.sh`). Instead the sandboxed iframe
+loads the same-origin shell `/widget-frame.html`, whose HTTP response carries
+a dedicated permissive CSP, and `McpAppWidget` delivers the widget HTML via
+`postMessage` on load; the shell `document.write()`s it. The Window persists
+through `document.write`, so the JSON-RPC bridge below is unaffected (the
+iframe origin stays the opaque `"null"`). Widget isolation comes from the
+`sandbox` attribute (no `allow-same-origin`), not from CSP. See
+[ADR-098](../architecture/ADR-098-CSP-Widget-Airlock.md) for the shell's
+anti-abuse locks and the policy split.
 
 ### JSON-RPC Bridge Protocol
 

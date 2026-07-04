@@ -1518,12 +1518,80 @@ class SmartPlannerService:
             steps, intelligence, config, execution_mode=execution_mode
         )
 
-        # Skills: propagate skill_name from LLM output to plan metadata
+        # Skills: propagate skill_name from LLM output to plan metadata, but
+        # only when it is coherent with reality (audit D2). The planner LLM may
+        # emit a plausible-but-wrong skill_name (observed: "interactive-map" for
+        # a "draw a diagram" request whose steps target the Excalidraw MCP),
+        # which the response node would then activate, producing an absurd
+        # answer. Dropping an incoherent value lets response_node fall back to
+        # the authoritative QueryAnalyzer detection (its priority-3 path).
         skill_name = plan_data.get("skill_name")
-        if skill_name:
-            plan.metadata["skill_name"] = skill_name
+        resolved_skill = self._resolve_plan_skill_name(skill_name, intelligence, config)
+        if resolved_skill:
+            plan.metadata["skill_name"] = resolved_skill
 
         return plan
+
+    def _resolve_plan_skill_name(
+        self,
+        llm_skill_name: str | None,
+        intelligence: QueryIntelligence,
+        config: RunnableConfig,
+    ) -> str | None:
+        """Validate the planner-emitted ``skill_name`` before it reaches metadata.
+
+        Coherence rules (audit D2):
+            1. No skill_name emitted -> nothing to propagate.
+            2. It matches ``intelligence.detected_skill_name`` -> coherent, keep.
+            3. The QueryAnalyzer detected a DIFFERENT skill -> the detection is
+               authoritative; drop the LLM value (response_node uses the
+               detected skill via its own fallback) and log the mismatch.
+            4. No skill detected by the analyzer -> keep only if the emitted
+               name is a real skill in the catalog (user-scoped then global);
+               otherwise it is a hallucination -> drop.
+
+        Args:
+            llm_skill_name: ``skill_name`` field from the planner LLM output.
+            intelligence: Query intelligence carrying ``detected_skill_name``.
+            config: RunnableConfig (used to resolve the user for catalog lookup).
+
+        Returns:
+            The skill name to store in ``plan.metadata``, or ``None`` to omit it.
+        """
+        if not llm_skill_name:
+            return None
+
+        detected = intelligence.detected_skill_name
+
+        if detected and llm_skill_name == detected:
+            return llm_skill_name
+
+        if detected and llm_skill_name != detected:
+            logger.warning(
+                "planner_skill_name_mismatch_dropped",
+                llm_skill_name=llm_skill_name,
+                detected_skill_name=detected,
+                msg="Planner emitted a skill_name inconsistent with the "
+                "QueryAnalyzer detection; dropping it (detection is authoritative)",
+            )
+            return None
+
+        # detected is None: accept only a real, known skill.
+        from src.domains.skills.cache import SkillsCache
+
+        user_id = config.get("configurable", {}).get("user_id", "")
+        known = SkillsCache.get_by_name_for_user(
+            llm_skill_name, str(user_id)
+        ) or SkillsCache.get_by_name(llm_skill_name)
+        if known:
+            return llm_skill_name
+
+        logger.warning(
+            "planner_skill_name_unknown_dropped",
+            llm_skill_name=llm_skill_name,
+            msg="Planner emitted a skill_name absent from the catalog; dropping it",
+        )
+        return None
 
     def _normalize_tool_name(self, tool_name: str, domain: str, query: str = "") -> str:
         """

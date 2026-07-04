@@ -2948,6 +2948,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_7": {
+          "title": "v1.21.7 — 🎨 Corrections de régressions : voix, widgets interactifs & schémas",
+          "date": "Juillet 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎤 La saisie vocale (appui maintenu) fonctionne à nouveau</b> — Un renforcement de sécurité en v1.21.5 bloquait par erreur la capture vocale : rester appuyé sur le bouton d'envoi affichait « une erreur s'est produite lors de la saisie vocale ». Le push-to-talk est entièrement rétabli.",
+            "i2": "<b>🗺️ Les cartes interactives et 🎨 les widgets de schéma s'affichent à nouveau</b> — Le même renforcement empêchait la skill carte interactive et les widgets tiers (comme les schémas Excalidraw) de s'afficher. Ils refonctionnent, désormais exécutés dans un bac à sable dédié qui garde le reste de l'application strictement protégé.",
+            "i3": "<b>🎨 Les schémas complexes n'expirent plus</b> — Demander à LIA de dessiner un schéma détaillé pouvait être interrompu au bout de deux minutes, juste avant la fin. La génération de schémas dispose maintenant du temps nécessaire.",
+            "i4": "<b>🤖 Plus de réponses hors sujet en cas d'échec</b> — Lorsqu'une action demandée échouait, LIA pouvait répondre avec un résultat sans rapport (par exemple une carte pour une demande de schéma). Elle vous indique désormais honnêtement que l'action n'a pas abouti au lieu de le masquer.",
+            "i5": "<b>✅ L'assistant vérifie à nouveau son plan</b> — Un garde-fou interne qui vérifie que le plan de l'assistant correspond bien à votre demande s'était arrêté silencieusement. Il est corrigé et fiabilisé dans tout l'assistant."
+          }
+        },
         "v1_21_6": {
           "title": "v1.21.6 — 🔒 Confidentialité, fiabilité et durcissement du bac à sable (audit vague 4)",
           "date": "Juillet 2026",

@@ -6,12 +6,14 @@ Do NOT extract named entities (e.g., "Jean Dupont") — only implicit references
 
 Query: {query}
 
-Return a JSON array of reference strings exactly as they appear in the query.
-Return [] if no references need resolution.
+Populate the ``references`` field with each reference string exactly as it
+appears in the query. Leave it empty when no reference needs resolution.
+Report your result exclusively through the structured extraction tool provided
+by the API — never answer in free text or raw JSON.
 
-Examples:
-- "envoie un email à mon voisin et mon père" → ["mon voisin", "mon père"]
-- "appelle mon frère" → ["mon frère"]
-- "quelle est l'adresse de Jean Dupont ?" → []
-- "météo demain à Paris" → []
-- "dis à la petite que je l'aime" → ["la petite"]
+Examples (the arrow shows which reference strings to collect):
+- "envoie un email à mon voisin et mon père" → references: mon voisin, mon père
+- "appelle mon frère" → references: mon frère
+- "quelle est l'adresse de Jean Dupont ?" → references: (none)
+- "météo demain à Paris" → references: (none)
+- "dis à la petite que je l'aime" → references: la petite

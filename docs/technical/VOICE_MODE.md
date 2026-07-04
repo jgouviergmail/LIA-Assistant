@@ -832,6 +832,20 @@ logger.info("stt_transcription_completed", duration_seconds=2.5, text_length=50)
 
 Ajouter les headers COOP/COEP dans `next.config.ts`.
 
+### Erreur générique « une erreur s'est produite lors de la saisie vocale » (CSP)
+
+La capture vocale (push-to-talk **et** mode wake-word) charge son `AudioWorklet`
+depuis une URL `blob:`. D'après la spec CSP niveau 3, la destination fetch d'un
+worklet est `audioworklet`, **gouvernée par `script-src`** (et non `worker-src`).
+La CSP de l'app **doit donc conserver `blob:` dans `script-src`** — la retirer
+bloque `audioWorklet.addModule()`, l'exception remonte en erreur générique et
+**aucun octet audio n'est envoyé** (symptôme backend : le WebSocket se connecte
+puis `websocket_disconnected_by_client` avec `total_bytes_received: 0`). Les
+deux politiques CSP vivent dans `apps/web/src/lib/csp.ts` et chaque directive
+porteuse est épinglée par un test de non-régression (`csp.test.ts`). Voir
+[ADR-098](../architecture/ADR-098-CSP-Widget-Airlock.md) (régression réelle de
+la vague 3).
+
 ---
 
 ## Références
