@@ -167,7 +167,10 @@ if not location:
         "error": "Missing 'location' parameter"
     }))
 else:
-    url = f"https://maps.google.com/maps?q={quote(location)}&output=embed"
+    # Hit the embed endpoint directly: the legacy maps.google.com/maps?q=...
+    # URL 301-redirects through a hop that carries X-Frame-Options and breaks
+    # the iframe (and only www.google.com is allowlisted by the app CSP).
+    url = f"https://www.google.com/maps/embed?origin=mfe&pb=!1m2!2m1!1s{quote(location)}"
     print(json.dumps({
         "text": f"Here is {location} on the map.",
         "frame": {

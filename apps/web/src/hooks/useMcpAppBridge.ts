@@ -7,7 +7,8 @@
  * 3. Bidirectional: tools/call, resources/read, ui/open-link, ui/download-file
  *
  * Security:
- * - Validates origin === "null" (srcdoc iframes)
+ * - Validates origin === "null" (opaque-origin iframes: srcdoc AND the
+ *   sandboxed widget-airlock frame — both serialize their origin to "null")
  * - Validates event.source matches our iframe ref
  * - Only allows https:// URLs for ui/open-link
  * - Mounted guard prevents postMessage to destroyed iframes

@@ -2,7 +2,7 @@
 
 Operational configuration for LIA's deployment: Docker Compose services,
 database seeds, observability stack (Prometheus, Grafana, Loki, Tempo),
-Cloudflare tunnel, nginx, and the in-container DevOps CLI.
+Cloudflare tunnel, and the in-container DevOps CLI.
 
 ## Network exposure model (production)
 
@@ -73,7 +73,7 @@ nmap -Pn -p 22,80,443,3000,3001,5432,8000,8080,9000,9090,9100,9121,9187 <prod-ho
 - `database/` — seeds (personalities, pricing, LLM config)
 - `observability/` — Prometheus rules, Grafana dashboards/provisioning, Loki/Tempo/promtail configs
 - `cloudflared/` — tunnel notes (live config is on the host at `/etc/cloudflared/config.yml`)
-- `nginx/`, `ssl/` — reverse-proxy assets (legacy/local scenarios)
+- `ssl/` — dev HTTPS certificate generators (mounted by `docker-compose.dev.yml`)
 - `logwatch/` — daily log digests on the prod host
 - `pgadmin/` — dev-only DB admin UI
 - `claude-cli/` — in-container DevOps CLI (see `CLAUDE.server.md`)
