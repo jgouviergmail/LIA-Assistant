@@ -112,7 +112,7 @@ graph TD
 > Toute l'intelligence est externalisée dans `SmartPlannerService` qui gère :
 > - **UN seul appel LLM** (au lieu de 3 stages legacy)
 > - **Catalogue filtré** par intent sémantique (pas le catalogue complet)
-> - **Cross-domain** géré par templates (pas par LLM)
+> - **Cross-domain** géré par templates (pas par LLM) — le bypass des références cross-domaine (« le restaurant de ce rendez-vous ») est gaté par `PLANNER_CROSS_DOMAIN_BYPASS_ENABLED` (défaut on) ; voir [ADR-102](../architecture/ADR-102-Domain-Vocabulary-Single-Source.md)
 >
 > **Token efficiency** :
 > - Legacy: Stage1 (1600) + Stage2 (12000) + Stage3 (500) = 14,100 tokens

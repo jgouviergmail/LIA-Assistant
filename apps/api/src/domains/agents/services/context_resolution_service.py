@@ -54,6 +54,28 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
+# Payload data-key -> canonical result_key of the domain that produced it.
+# Used to detect the domain of a past turn from its result structure when no
+# explicit meta.domain is present. Values MUST be canonical result_keys
+# (plural): the detected value is compared against item.meta.domain /
+# _derive_domain_from_type (both result_keys) in STRATEGY 3, so a singular or
+# legacy token (e.g. "drive", "weather") never matches and domain-based
+# reference resolution silently degrades. Guarded by the domain-vocabulary
+# parity test.
+_DATA_KEY_TO_RESULT_KEY: dict[str, str] = {
+    "emails": "emails",
+    "contacts": "contacts",
+    "events": "events",
+    "files": "files",
+    "tasks": "tasks",
+    "places": "places",
+    "weather": "weathers",
+    "forecasts": "weathers",
+    "articles": "wikipedias",
+    "results": "perplexitys",
+}
+
+
 # =============================================================================
 # CONTEXT RESOLUTION SERVICE
 # =============================================================================
@@ -934,19 +956,7 @@ class ContextResolutionService:
             # Check data keys
             data = result.get("data", result)
             if isinstance(data, dict):
-                domain_keys = {
-                    "emails": "emails",
-                    "contacts": "contacts",
-                    "events": "events",
-                    "files": "drive",
-                    "tasks": "tasks",
-                    "places": "places",
-                    "weather": "weather",
-                    "forecasts": "weather",
-                    "articles": "wikipedia",
-                    "results": "perplexity",
-                }
-                for key_name, domain in domain_keys.items():
+                for key_name, domain in _DATA_KEY_TO_RESULT_KEY.items():
                     if key_name in data:
                         logger.debug(
                             "domain_detected_from_data_keys",

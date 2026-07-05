@@ -374,8 +374,8 @@ class TestContextualExamples:
         assert "APPROVE" in examples
         assert "REJECT" in examples
         assert "EDIT" in examples
-        assert "non recherche paul" in examples
-        assert "oui" in examples
+        assert "no search paul" in examples
+        assert "yes" in examples
 
     def test_get_send_examples(self, classifier):
         """Test getting contextual examples for SEND actions."""
@@ -383,7 +383,7 @@ class TestContextualExamples:
         assert "APPROVE" in examples
         assert "REJECT" in examples
         assert "EDIT" in examples
-        assert "non envoie à jean" in examples
+        assert "no send to jean" in examples
 
     def test_get_delete_examples(self, classifier):
         """Test getting contextual examples for DELETE actions."""
@@ -391,7 +391,7 @@ class TestContextualExamples:
         assert "APPROVE" in examples
         assert "REJECT" in examples
         assert "EDIT" in examples
-        assert "oui supprime" in examples
+        assert "yes delete it" in examples
 
     def test_get_generic_examples(self, classifier):
         """Test getting contextual examples for GENERIC actions."""

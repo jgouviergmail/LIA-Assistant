@@ -1607,6 +1607,7 @@ class OrchestrationService:
         from src.domains.agents.constants import STATE_KEY_MESSAGES
         from src.domains.agents.services.hitl.resumption_strategies import (
             build_edit_reformulated_intent,
+            resolve_user_language,
         )
 
         # CRITICAL FIX: Extract user_message before processing
@@ -1657,8 +1658,9 @@ class OrchestrationService:
             )
             return Command(resume=resume_data)
 
-        # Build reformulated intent from modifications
-        reformulated_intent = build_edit_reformulated_intent(modifications)
+        # Build reformulated intent from modifications (localized to the user)
+        resume_user_language = await resolve_user_language(graph, runnable_config)
+        reformulated_intent = build_edit_reformulated_intent(modifications, resume_user_language)
 
         if not reformulated_intent:
             logger.debug(

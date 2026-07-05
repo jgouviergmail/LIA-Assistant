@@ -1482,6 +1482,17 @@ class AgentsSettings(BaseSettings):
             "False to disable in prod without a redeploy."
         ),
     )
+    planner_cross_domain_bypass_enabled: bool = Field(
+        default=True,
+        description=(
+            "When True, the planner bypasses the LLM for cross-domain reference "
+            "queries whose resolved item carries a field that maps to the primary "
+            "domain (e.g. 'the restaurant of this meeting': event.location -> "
+            "place search via CROSS_DOMAIN_MAPPINGS), saving ~800 ms of avoidable "
+            "multi-domain LLM planning. Set False to fall back to the LLM planner "
+            "in prod without a redeploy."
+        ),
+    )
     for_each_mutation_threshold: int = Field(
         default=FOR_EACH_MUTATION_THRESHOLD_DEFAULT,
         ge=1,

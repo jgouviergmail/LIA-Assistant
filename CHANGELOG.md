@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.9] - 2026-07-05
+
+> Two-theme release. **HITL internationalization** ([ADR-103 — HITL Backend i18n](docs/architecture/ADR-103-HITL-Backend-i18n.md)): the Human-in-the-Loop layer was structurally French — non-French users hit hardcoded French strings in the approval / edit / refusal flows, and the response classifier was biased by French-only few-shot examples. **Domain-vocabulary single source** ([ADR-102 — Domain Vocabulary Single Source](docs/architecture/ADR-102-Domain-Vocabulary-Single-Source.md)): four derived tables compared a domain token against the wrong axis (singular name vs plural `result_key`), silently disabling the cross-domain reference bypass, goal inference, `$context.file` references and ordinal reference resolution. No DB schema change, no migration; one new `.env` behaviour toggle.
+
+### Added
+
+- **HITL backend internationalization (6 languages).** Approval reformulations (EDIT), the refusal steering message (REJECT) and the rejection summary fallback are localized to all six languages via `HitlMessages` (`get_reformulation` keyed by the new `ReformulationKind` StrEnum, `get_reject_enriched_message`, `get_user_refused_action`). The user's language is read from the checkpointed `MessagesState.user_language` at resume time (`resolve_user_language`, threaded as a parameter — never on `self`, concurrency-safe).
+- **Classifier few-shot externalized to a versioned English prompt.** The HITL response classifier's few-shot examples moved from inline French Python to `prompts/v1/hitl_classifier_examples.txt` (one section per action type, cached loader), removing the French-only bias that skewed classification for non-FR users; the user's reply is now classified by intent structure, in any language. Added to the `PromptName` Literal.
+- **Backend i18n parity guard.** `test_i18n_parity.py` (ADR-085 model) recursively scans the `core.i18n_*` modules and fails on any language-keyed table missing a language, and — for `dict[lang, dict[key]]` translation tables — on any key set diverging across languages (`i18n_patterns` keyword maps excluded, their keys are per-language words).
+- **Domain-vocabulary parity guard.** `test_domain_vocabulary_parity.py` fails on any domain token off the `DOMAIN_REGISTRY`-derived vocabulary, axis-aware (singular name vs plural `result_key`) on the comparison tables, tolerant on the display tables.
+- **`PLANNER_CROSS_DOMAIN_BYPASS_ENABLED`** setting (default on; prod kill switch, `.env` + `.env.prod`) gating the cross-domain reference LLM-bypass.
+
+### Fixed
+
+- **Cross-domain reference queries bypass the LLM planner again.** "the restaurant of this meeting" / "directions to that address" fell through to a full multi-domain LLM plan (~800 ms) because `CROSS_DOMAIN_MAPPINGS` compared a plural `places` against the singular `primary_domain` — a condition that never matched. The target is now the singular `place`, so the LLM-free shortcut fires again.
+- **Follow-up file references resolve.** `$context.files.0` was rejected by the plan validator, whose allow-list carried the legacy `drive` token and omitted the real result_key `files`.
+- **Ordinal reference resolution ("show me the 2nd one") no longer silently degrades** for file / weather / wikipedia / perplexity results — the turn-domain detection returns canonical result_keys (`files`, `weathers`, …) instead of legacy/singular tokens, so it matches `item.meta.domain`.
+- **Goal-inference fast path revived.** `_GOAL_PATTERNS` matched plural domains (`contacts`) against the singular runtime domains, so it never fired; keys are singular (`contact`, `email`, `file`…) now.
+- **No hardcoded French for non-FR users in the HITL flow.** Draft-modifier prompt scaffolding, the classifier action descriptions and its few-shot are English (LLM-facing; the output language stays the user's via the prompt instruction); every emitted/visible message is localized.
+- **Missing Chinese translation.** `_DISPLAY_OPEN_NOW` ("Open now") had no `zh-CN` entry — surfaced and fixed by the new parity guard.
+- **Misleading docstrings** in `detect_domain_from_item` claiming a `TYPE_TO_DOMAIN_MAP` mapping the source of truth does not have.
+
+### Changed
+
+- HITL EDIT reformulation kinds are a `ReformulationKind` StrEnum (no magic strings; an exhaustiveness test forbids a silently-empty message). The `$context` allow-list and the turn-domain detection map were promoted to registry-derived module constants (`VALID_CONTEXT_REFERENCE_DOMAINS`, `_DATA_KEY_TO_RESULT_KEY`).
+- `resolve_user_language` is a public cross-module helper (was module-private); its checkpoint-read failure path now logs a structured warning instead of swallowing the exception.
+
+### Tests
+
+- Domain-vocabulary and HITL-i18n suites (parity guards, behavioural red-first, an end-to-end "no French for a German/Chinese user" guard). Full fast unit suite green; Ruff / Black / MyPy strict clean; Docker startup verified healthy.
+
 ## [1.21.8] - 2026-07-04
 
 > Calendar-search hardening release: pipeline-mode calendar searches that worked in ReAct but failed randomly in Pipeline ("my next medical appointments", "the hotel particulier meeting") now succeed, and a cross-cutting API volumetry-cap bypass is closed. Architecture decision: [ADR-101 — Calendar Search Hardening](docs/architecture/ADR-101-Calendar-Search-Hardening.md). No DB schema change, no migration; new `.env` keys are a behaviour toggle and two cap knobs.

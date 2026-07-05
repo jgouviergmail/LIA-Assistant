@@ -44,7 +44,7 @@ class TestGoalInferrer:
         goal, reasoning = inferrer.infer(
             query="find john's contact",
             intent="search",
-            domains=["contacts"],
+            domains=["contact"],
             messages=[],
         )
         assert goal == UserGoal.COMMUNICATE
@@ -56,7 +56,7 @@ class TestGoalInferrer:
         goal, reasoning = inferrer.infer(
             query="send an email to john",
             intent="send",
-            domains=["emails"],
+            domains=["email"],
             messages=[],
         )
         assert goal == UserGoal.COMMUNICATE
@@ -68,7 +68,7 @@ class TestGoalInferrer:
         goal, reasoning = inferrer.infer(
             query="find meetings tomorrow",
             intent="search",
-            domains=["events"],
+            domains=["event"],
             messages=[],
         )
         assert goal == UserGoal.PLAN_ORGANIZE
@@ -79,18 +79,18 @@ class TestGoalInferrer:
         goal, reasoning = inferrer.infer(
             query="create a meeting",
             intent="create",
-            domains=["events"],
+            domains=["event"],
             messages=[],
         )
         assert goal == UserGoal.PLAN_ORGANIZE
 
-    def test_pattern_matching_search_drive(self):
-        """Test goal inference for searching drive."""
+    def test_pattern_matching_search_file(self):
+        """Test goal inference for searching files (domain 'file', was 'drive')."""
         inferrer = GoalInferrer()
         goal, reasoning = inferrer.infer(
             query="find that document",
             intent="search",
-            domains=["drive"],
+            domains=["file"],
             messages=[],
         )
         assert goal == UserGoal.FIND_INFORMATION
@@ -123,7 +123,7 @@ class TestGoalInferrer:
         goal, reasoning = inferrer.infer(
             query="create a task to call John",
             intent="create",
-            domains=["tasks"],
+            domains=["task"],
             messages=[],
         )
         assert goal == UserGoal.TAKE_ACTION
@@ -316,7 +316,7 @@ class TestRoutingDecider:
         route, confidence, bypass = decider.decide(
             intent="create",
             intent_confidence=0.9,
-            domains=["events"],
+            domains=["event"],
             semantic_score=0.6,
         )
         assert route == "planner"
@@ -340,7 +340,7 @@ class TestRoutingDecider:
         route, confidence, bypass = decider.decide(
             intent="delete",
             intent_confidence=0.9,
-            domains=["events"],
+            domains=["event"],
             semantic_score=0.7,
         )
         assert route == "planner"

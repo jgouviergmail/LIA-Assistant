@@ -2934,6 +2934,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_9": {
+          "title": "v1.21.9 — 🌍 Der Assistent spricht deine Sprache bei Bestätigungen",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🌍 Bestätigungen, Änderungen und Ablehnungen in deiner Sprache</b> — Wenn LIA dich bittet, eine Aktion zu bestätigen, zu ändern oder abzubrechen, sind seine Meldungen — und sein Verständnis deiner Antwort („ja“, „nein“, „schick es lieber an Marie“) — jetzt vollständig in deiner Sprache, für alle sechs Sprachen. Nicht-französische Nutzer sehen dabei kein Französisch mehr.",
+            "i2": "<b>⚡ Schnellere, zuverlässigere Folgeanfragen</b> — Verweise wie „das Restaurant dieses Termins“, „die Route zu dieser Adresse“ oder „zeig mir den 2.“ werden wieder direkt aufgelöst, ohne unnötigen zusätzlichen Planungsschritt, und Folgeanfragen zu einer Datei („öffne die erste“) funktionieren zuverlässig.",
+            "i3": "<b>🛡️ Admin · Umschalter für die domänenübergreifende Abkürzung</b> — Eine neue Einstellung erlaubt es, die LLM-freie Abkürzung für domänenübergreifende Verweise („das Restaurant dieses Termins“) in der Produktion ohne erneutes Deployment ein- oder auszuschalten."
+          }
+        },
         "v1_21_8": {
           "title": "v1.21.8 — 🗓️ Zuverlässigere Kalendersuche",
           "date": "Juli 2026",

@@ -48,19 +48,19 @@ class TestGoalInferrer:
         goal, reasoning = inferrer.infer(
             query="Find John's contact",
             intent="search",
-            domains=["contacts"],
+            domains=["contact"],
             messages=[],
         )
         assert goal == UserGoal.COMMUNICATE
         assert "Contact search" in reasoning
 
-    def test_infer_search_drive_goal(self):
-        """Test inference for 'search drive' -> FIND_INFORMATION."""
+    def test_infer_search_file_goal(self):
+        """Test inference for 'search file' -> FIND_INFORMATION (domain 'file', was 'drive')."""
         inferrer = get_goal_inferrer()
         goal, reasoning = inferrer.infer(
             query="Find my documents",
             intent="search",
-            domains=["drive"],
+            domains=["file"],
             messages=[],
         )
         assert goal == UserGoal.FIND_INFORMATION
@@ -72,7 +72,7 @@ class TestGoalInferrer:
         goal, reasoning = inferrer.infer(
             query="Create a reminder",
             intent="create",
-            domains=["tasks"],
+            domains=["task"],
             messages=[],
         )
         assert goal == UserGoal.TAKE_ACTION

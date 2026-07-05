@@ -32,6 +32,8 @@ from src.core.field_names import (
     FIELD_TURN_ID,
     FIELD_USER_ID,
 )
+from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n_hitl import HitlMessages, ReformulationKind
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.domain_schemas import ToolApprovalDecision
 from src.domains.agents.prompts import get_hitl_resumption_error_message
@@ -199,14 +201,20 @@ def _build_plan_modifications_from_classifier(
     return modifications
 
 
-def build_edit_reformulated_intent(modifications: list[dict[str, Any]]) -> str | None:
+def build_edit_reformulated_intent(
+    modifications: list[dict[str, Any]], user_language: str = DEFAULT_LANGUAGE
+) -> str | None:
     """
-    Build a reformulated user intent from EDIT modifications.
+    Build a reformulated user intent from EDIT modifications, localized.
 
     When a user EDITs parameters via HITL (e.g., "recherche plutot jean" instead of "jean"),
     we need to update the HumanMessage to match the new parameters. Otherwise, the
     response_node sees the original message but agent_results from modified query,
     causing LLM confusion.
+
+    The reformulated intent replaces the user's message in the conversation, so it
+    is localized to ``user_language`` (via ``HitlMessages.get_reformulation``) — a
+    hardcoded phrase would leak a foreign language into the transcript.
 
     This is a LangGraph v1.0.3+ best practice for HITL with Command(update={...}).
 
@@ -214,19 +222,17 @@ def build_edit_reformulated_intent(modifications: list[dict[str, Any]]) -> str |
         modifications: List of modification dicts from HITL classifier.
                       Format: [{"modification_type": "edit_params", "step_id": "...",
                                "new_parameters": {"query": "jean"}}]
+        user_language: User language code (any spelling; normalized internally).
 
     Returns:
-        Reformulated intent string, or None if no reformulation needed.
-        Examples:
-        - "recherche jean" (contacts query)
-        - "recherche emails factures" (emails search_query)
-        - "envoie à jean@example.com" (email recipient)
-        - "exécute avec: count=10, max_results=5" (generic fallback)
+        Reformulated intent string in ``user_language``, or None if no
+        reformulation needed. Examples (en): "search jean", "send to
+        jean@example.com", "execute with: count=10, max_results=5".
 
     Example:
         >>> mods = [{"modification_type": "edit_params", "new_parameters": {"query": "jean"}}]
-        >>> build_edit_reformulated_intent(mods)
-        'recherche jean'
+        >>> build_edit_reformulated_intent(mods, "en")
+        'search jean'
     """
     for mod in modifications:
         if mod.get("modification_type") != "edit_params":
@@ -238,20 +244,28 @@ def build_edit_reformulated_intent(modifications: list[dict[str, Any]]) -> str |
 
         # Contacts domain: query parameter
         if "query" in new_params:
-            return f"recherche {new_params['query']}"
+            return HitlMessages.get_reformulation(
+                ReformulationKind.SEARCH_QUERY, user_language, value=new_params["query"]
+            )
 
         # Emails domain: search_query parameter
         if "search_query" in new_params:
-            return f"recherche emails {new_params['search_query']}"
+            return HitlMessages.get_reformulation(
+                ReformulationKind.SEARCH_EMAILS, user_language, value=new_params["search_query"]
+            )
 
         # Emails domain: recipient parameter (for send)
         if "to" in new_params or "recipient" in new_params:
             recipient = new_params.get("to") or new_params.get("recipient")
-            return f"envoie à {recipient}"
+            return HitlMessages.get_reformulation(
+                ReformulationKind.SEND_TO, user_language, value=recipient
+            )
 
         # Calendar domain: event search
         if "event_query" in new_params:
-            return f"recherche événements {new_params['event_query']}"
+            return HitlMessages.get_reformulation(
+                ReformulationKind.SEARCH_EVENTS, user_language, value=new_params["event_query"]
+            )
 
         # Generic fallback for other parameter types
         param_parts = []
@@ -263,11 +277,42 @@ def build_edit_reformulated_intent(modifications: list[dict[str, Any]]) -> str |
 
         if param_parts:
             param_str = ", ".join(param_parts)
-            return f"exécute avec: {param_str}"
+            return HitlMessages.get_reformulation(
+                ReformulationKind.EXECUTE_PARAMS, user_language, value=param_str
+            )
 
-        return "exécute avec les paramètres modifiés"
+        return HitlMessages.get_reformulation(ReformulationKind.EXECUTE_MODIFIED, user_language)
 
     return None
+
+
+async def resolve_user_language(
+    graph: "CompiledStateGraph", runnable_config: "RunnableConfig"
+) -> str:
+    """Read the user's language from the checkpointed graph state.
+
+    Reformulations injected on resume must match the user's language, which was
+    written to the graph state during the original turn. Falls back to the
+    configured default language if the state cannot be read.
+
+    Args:
+        graph: The compiled graph to read the checkpointed state from.
+        runnable_config: RunnableConfig identifying the thread/checkpoint.
+
+    Returns:
+        The user's language code (raw; callers normalize as needed).
+    """
+    try:
+        snapshot = await graph.aget_state(runnable_config, subgraphs=False)
+        return snapshot.values.get("user_language") or DEFAULT_LANGUAGE
+    except Exception as exc:
+        logger.warning(
+            "resolve_user_language_failed",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            fallback=DEFAULT_LANGUAGE,
+        )
+        return DEFAULT_LANGUAGE
 
 
 def _build_resume_value(
@@ -559,6 +604,10 @@ async def _build_tool_level_command(
     decision_types = [d.get("type") for d in resume_value["decisions"]]
     has_edit_decision = any(dt == "edit" for dt in decision_types)
 
+    # Resolve the user's language for the localized message injections below
+    # (reformulated EDIT intent, enriched REJECT message).
+    tool_user_language = await resolve_user_language(graph, runnable_config)
+
     # Log decision analysis for debugging
     logger.info(
         "hitl_resumption_decision_analysis",
@@ -576,12 +625,16 @@ async def _build_tool_level_command(
         edited_args = edited_action.get("args", {})
         tool_name = edited_action.get("name", "unknown_tool")
 
-        # Build reformulated user intent based on tool and edited params
+        # Build reformulated user intent based on tool and edited params (localized)
         if tool_name == "get_contacts_tool" and "query" in edited_args:
-            reformulated_intent = f"recherche {edited_args['query']}"
+            reformulated_intent = HitlMessages.get_reformulation(
+                ReformulationKind.SEARCH_QUERY, tool_user_language, value=edited_args["query"]
+            )
         else:
             # Generic fallback
-            reformulated_intent = f"exécute {tool_name} avec les paramètres modifiés"
+            reformulated_intent = HitlMessages.get_reformulation(
+                ReformulationKind.EXECUTE_TOOL_MODIFIED, tool_user_language, tool=tool_name
+            )
 
         # Load state snapshot to get last HumanMessage ID
         try:
@@ -690,15 +743,9 @@ async def _build_tool_level_command(
                 )
 
                 if tool_call_id:
-                    # Inject enriched HumanMessage explaining user refusal
-                    enriched_user_message = (
-                        f"[REFUS UTILISATEUR]\n"
-                        f"L'utilisateur a explicitement refusé l'action proposée en disant : '{user_response}'\n\n"
-                        f"IMPORTANT: Ceci est un REFUS UTILISATEUR, PAS une erreur technique.\n"
-                        f"Réponse attendue:\n"
-                        f"- Accuse réception de manière concise (ex: 'Pas de problème')\n"
-                        f"- Demande ce qu'il souhaite faire à la place\n"
-                        f"- NE mentionne AUCUN problème technique, erreur système, ou indisponibilité de service"
+                    # Inject enriched HumanMessage explaining user refusal (localized)
+                    enriched_user_message = HitlMessages.get_reject_enriched_message(
+                        user_response or "", tool_user_language
                     )
 
                     command_input = Command(
@@ -1023,8 +1070,11 @@ class ConversationalHitlResumption:
                 # Extract edited parameters to build reformulated intent
                 modifications = resume_value.get("modifications", [])
 
-                # Build reformulated intent using centralized helper
-                reformulated_intent = build_edit_reformulated_intent(modifications)
+                # Build reformulated intent using centralized helper (localized)
+                edit_user_language = await resolve_user_language(graph, runnable_config)
+                reformulated_intent = build_edit_reformulated_intent(
+                    modifications, edit_user_language
+                )
 
                 if reformulated_intent:
                     # Load state snapshot to get last HumanMessage ID

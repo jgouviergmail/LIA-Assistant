@@ -57,11 +57,15 @@ DOMAIN_BATCH_PARAM_NAMES = {
 
 # Cross-domain bypass mappings
 # Maps source field → (target_domain, target_tool, target_param)
-# Example: event.location → search places
+# Example: event.location → search place
+# target_domain is a SINGULAR DOMAIN_REGISTRY name: it is compared against
+# QueryIntelligence.primary_domain (singular). A plural result_key here (e.g.
+# "places") never matches primary_domain ("place") and silently disables the
+# whole cross-domain LLM bypass. Guarded by the domain-vocabulary parity test.
 CROSS_DOMAIN_MAPPINGS: dict[str, tuple[str, str, str]] = {
-    "location": ("places", "get_places_tool", "query"),
-    "address": ("places", "get_places_tool", "query"),
-    # Future: email → contacts, attendees → contacts, etc.
+    "location": ("place", "get_places_tool", "query"),
+    "address": ("place", "get_places_tool", "query"),
+    # Future: email → contact, attendees → contact, etc. (singular names)
 }
 
 

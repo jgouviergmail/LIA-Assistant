@@ -24,19 +24,27 @@ from src.domains.agents.formatters.text_summary import generate_text_summary_for
 
 def detect_domain_from_item(item: dict[str, Any]) -> str:
     """
-    Detect domain type from a single item's payload structure.
-
-    Domain names must match TYPE_TO_DOMAIN_MAP for consistency:
-    - FILE → "drive" (not "files")
-    - SEARCH_RESULT → "perplexity" (not "search")
+    Detect the display token of a single item from its payload structure.
 
     Used for resolved_context items which are raw payloads without type info.
+
+    The returned token is consumed ONLY by the display layer
+    (``HtmlRenderer`` / ``generate_text_summary_for_items``), which is
+    alias-tolerant: it registers both the canonical result_key AND legacy
+    singular/display aliases for the same card. The tokens returned here are
+    therefore a MIX of canonical result_keys (``contacts``, ``emails``,
+    ``events``, ``places``, ``tasks``, ``routes``) and legacy display aliases
+    (``drive`` for the file domain, ``wikipedia``/``perplexity``/``weather``
+    for their plural result_keys). This is NOT the canonical domain vocabulary
+    and is NEVER compared on a condition axis — see ADR-102. Do not reuse it
+    where a canonical name/result_key is expected.
 
     Args:
         item: Dict representing an item payload
 
     Returns:
-        Domain name string (contacts, emails, calendar, places, drive, etc.)
+        A display token (e.g. ``contacts``, ``emails``, ``places``, ``drive``)
+        or ``other`` when no pattern matches.
     """
     if not isinstance(item, dict):
         return "other"
@@ -51,11 +59,11 @@ def detect_domain_from_item(item: dict[str, Any]) -> str:
     elif "place_id" in item or "formatted_address" in item:
         return "places"
     elif "mimeType" in item or "webViewLink" in item:
-        return "drive"  # Matches TYPE_TO_DOMAIN_MAP: FILE → "drive"
+        return "drive"  # legacy display alias for the file domain (renderer maps it to FileItem)
     elif "extract" in item or "pageid" in item:
         return "wikipedia"
     elif "citations" in item or item.get("source") == "perplexity":
-        return "perplexity"  # Matches TYPE_TO_DOMAIN_MAP: SEARCH_RESULT → "perplexity"
+        return "perplexity"  # legacy display alias (renderer maps it to SearchResultCard)
     elif "temperature" in item or "forecast" in item:
         return "weather"
     elif "title" in item and ("notes" in item or "status" in item):

@@ -245,6 +245,8 @@ To protect your data, LIA uses an **intelligent approval system (Human-in-the-Lo
    • ✏️ **Edit**: correct before validation
    • ❌ **Cancel**: nothing is done
 
+**🌍 In your language**: the approval messages — and LIA's understanding of your reply ("yes", "no", "rather send it to Marie…") — are in your interface language, across all 6 supported languages.
+
 **💡 Tip**: Take time to review the preview, especially for emails!
 
 ## Can LIA make mistakes?

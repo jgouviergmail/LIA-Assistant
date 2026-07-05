@@ -20,16 +20,21 @@ from src.infrastructure.llm.message_text import coerce_content_to_text
 # GOAL PATTERNS (Module-level constants for performance)
 # =============================================================================
 
+# Keys use SINGULAR DOMAIN_REGISTRY names: the pattern domain is matched against
+# QueryIntelligence.domains, which holds singular names (from
+# get_routable_domains()). A plural key ("contacts") or a non-domain ("drive")
+# never matches, silently disabling this fast-path strategy. Guarded by the
+# domain-vocabulary parity test.
 _GOAL_PATTERNS: dict[tuple[str, str], tuple[UserGoal, str]] = {
-    ("search", "contacts"): (UserGoal.COMMUNICATE, "Contact search = probably to communicate"),
-    ("send", "emails"): (UserGoal.COMMUNICATE, "Send email = communication"),
-    ("search", "events"): (UserGoal.PLAN_ORGANIZE, "Event search = planning"),
-    ("create", "events"): (UserGoal.PLAN_ORGANIZE, "Create event = planning"),
-    ("search", "drive"): (UserGoal.FIND_INFORMATION, "File search = need information"),
+    ("search", "contact"): (UserGoal.COMMUNICATE, "Contact search = probably to communicate"),
+    ("send", "email"): (UserGoal.COMMUNICATE, "Send email = communication"),
+    ("search", "event"): (UserGoal.PLAN_ORGANIZE, "Event search = planning"),
+    ("create", "event"): (UserGoal.PLAN_ORGANIZE, "Create event = planning"),
+    ("search", "file"): (UserGoal.FIND_INFORMATION, "File search = need information"),
     ("search", "perplexity"): (UserGoal.UNDERSTAND, "Web search = need to understand"),
     ("search", "wikipedia"): (UserGoal.UNDERSTAND, "Wikipedia search = need to understand"),
-    ("search", "tasks"): (UserGoal.PLAN_ORGANIZE, "Task search = organization"),
-    ("create", "tasks"): (UserGoal.TAKE_ACTION, "Create task = action"),
+    ("search", "task"): (UserGoal.PLAN_ORGANIZE, "Task search = organization"),
+    ("create", "task"): (UserGoal.TAKE_ACTION, "Create task = action"),
 }
 
 _DEFAULT_GOALS: dict[str, tuple[UserGoal, str]] = {

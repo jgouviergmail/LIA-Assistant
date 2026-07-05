@@ -19,6 +19,7 @@ Usage:
 """
 
 import json
+from functools import lru_cache
 from typing import Any, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -74,6 +75,35 @@ class ClassificationResult(BaseModel):
     reasoning: str
     edited_params: dict[str, Any] | None = None  # For EDIT or REPLAN decision
     clarification_question: str | None = None  # For AMBIGUOUS decision
+
+
+@lru_cache(maxsize=1)
+def _load_classifier_example_sections() -> dict[str, str]:
+    """Parse the versioned classifier examples into per-action-type sections.
+
+    Loads ``hitl_classifier_examples.txt`` (English, language-neutral) and splits
+    it on ``=== <key> ===`` markers, where ``<key>`` is an ACTION_TYPE_* value.
+    Cached: the file is read once per process.
+
+    Returns:
+        Mapping of action-type key to its English few-shot example block.
+    """
+    raw = load_prompt("hitl_classifier_examples")
+    sections: dict[str, str] = {}
+    current_key: str | None = None
+    buffer: list[str] = []
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("=== ") and stripped.endswith(" ==="):
+            if current_key is not None:
+                sections[current_key] = "\n".join(buffer).strip()
+            current_key = stripped[4:-4].strip()
+            buffer = []
+        elif current_key is not None:
+            buffer.append(line)
+    if current_key is not None:
+        sections[current_key] = "\n".join(buffer).strip()
+    return sections
 
 
 class HitlResponseClassifier:
@@ -453,196 +483,24 @@ class HitlResponseClassifier:
             return ACTION_TYPE_GENERIC
 
     def _get_contextual_examples(self, action_type: str, action_desc: str) -> str:
-        """Generate few-shot examples contextualized for the action type.
+        """Load language-neutral (English) few-shot examples for the action type.
+
+        Examples are externalized to the versioned prompt
+        ``hitl_classifier_examples.txt`` (English) so the classifier is not
+        biased toward any single user language: the user response may be in
+        any language and is classified by intent structure, not by matching
+        words. ``action_desc`` is accepted for backward-compatible call sites.
 
         Args:
-            action_type: Type of action (from ACTION_TYPE_* constants)
-            action_desc: Description of the specific action
+            action_type: Type of action (from ACTION_TYPE_* constants).
+            action_desc: Description of the specific action (unused).
 
         Returns:
-            Formatted examples string for the prompt
+            The English few-shot example block for the action type.
         """
-        if action_type == ACTION_TYPE_SEARCH:
-            return """
-**APPROVE**:
-- "oui" → APPROVE
-- "ok vas-y" → APPROVE
-- "confirme" → APPROVE
-
-**REJECT** (refus SANS alternative):
-- "non" → REJECT (ATTENTION: juste "non" = REJECT!)
-- "non annule" → REJECT
-- "non laisse tomber" → REJECT
-- "stop" → REJECT
-
-**EDIT** (modification du paramètre de recherche - nouvelle valeur DANS la réponse):
-- "non recherche paul" → EDIT {"query": "paul"}  (paul est dans la réponse)
-- "plutôt jean" → EDIT {"query": "jean"}  (jean est dans la réponse)
-- "non jean" → EDIT {"query": "jean"}  (jean est dans la réponse)
-- "recherche plutôt jean" → EDIT {"query": "jean"}  (jean est dans la réponse)
-
-⚠️ ATTENTION CRITIQUE:
-- "non recherche X" = EDIT (X doit être dans la réponse utilisateur!)
-- "non" seul = REJECT (pas d'extraction depuis le contexte!)
-"""
-        elif action_type == ACTION_TYPE_SEND:
-            return """
-**APPROVE**:
-- "oui" → APPROVE
-- "ok envoie" → APPROVE
-
-**REJECT** (refus SANS alternative):
-- "non annule" → REJECT
-- "non laisse tomber" → REJECT
-
-**EDIT** (modification du destinataire ou sujet):
-- "non envoie à jean" → EDIT {"to": "jean"}
-- "plutôt à marie" → EDIT {"to": "marie"}
-- "non marie@example.com" → EDIT {"to": "marie@example.com"}
-
-⚠️ ATTENTION: "non envoie à X" = EDIT, pas REJECT!
-"""
-        elif action_type == ACTION_TYPE_DELETE:
-            return """
-**APPROVE**:
-- "oui supprime" → APPROVE
-- "ok" → APPROVE
-
-**REJECT** (refus SANS alternative):
-- "non annule" → REJECT
-- "non garde-le" → REJECT
-
-**EDIT** (modification de la cible):
-- "non supprime l'autre" → EDIT (valeur imprécise, laisser edited_params vide)
-- "plutôt fichier2.pdf" → EDIT {"file_name": "fichier2.pdf"}
-"""
-        elif action_type == ACTION_TYPE_PLAN_APPROVAL:
-            # Issue #61: Plan-level HITL - generic prompt using manifest parameter descriptions
-            # The context contains "modifiable parameters: param_name=value (description)"
-            # LLM should understand parameter purpose from description and extract new values
-            return """
-**Plan Approval Classification** (generic, works for any tool/agent):
-
-**APPROVE**: User explicitly agrees to execute the plan as-is.
-Examples: "oui", "yes", "ok", "parfait", "go ahead"
-
-**REJECT**: User refuses WITHOUT providing alternative values.
-Examples: "non", "no", "cancel", "stop", "annule" (alone, no new value)
-
-**EDIT**: User wants to MODIFY a parameter value.
-⚠️ CRITICAL: Look at "paramètres modifiables" - each shows:
-  - Parameter name (e.g., query, max_results, recipient, subject)
-  - Current value (e.g., "jean", 10, "jean@mail.com")
-  - Description from manifest (explains what the parameter does)
-
-**Detection rules**:
-1. If user mentions a DIFFERENT value for any listed parameter → EDIT
-2. Extract the NEW value using the EXACT parameter name from context
-3. The parameter description helps understand user intent
-
-**Examples** (parameter names vary by tool):
-- Context has "query=..." user says "je veux plutôt X" → EDIT {"query": "X"}
-- Context has "max_results=10", user says "juste 2" → EDIT {"max_results": 2}
-- Context has "recipient=...", user says "envoie à Y" → EDIT {"recipient": "Y"}
-- Context has "subject=...", user says "change le sujet en Z" → EDIT {"subject": "Z"}
-
-⚠️ KEY RULES:
-- "non" alone = REJECT
-- "non" + new_value = EDIT (extract into correct parameter!)
-- User provides alternative value = EDIT (use parameter name from context)
-- Unclear which parameter = AMBIGUOUS (ask for clarification)
-"""
-        elif action_type == ACTION_TYPE_DRAFT_CRITIQUE:
-            # Draft critique: User reviews a draft (email, event, contact, task) before execution
-            # EDIT means user wants to MODIFY THE CONTENT of the draft
-            return """
-**Draft Critique Classification** (review of draft content before execution):
-
-**APPROVE**: User confirms the draft should be executed as-is.
-Examples: "oui", "ok", "envoie", "parfait", "confirme", "c'est bon", "vas-y"
-
-**REJECT**: User explicitly cancels the draft WITHOUT requesting changes.
-Examples: "non", "annule", "laisse tomber", "stop", "finalement non"
-
-**EDIT**: User wants to MODIFY the draft content before execution.
-This is the KEY case: user provides instructions for how to change the content.
-
-Examples of EDIT (modification_instructions should capture the user's request):
-- "modifie le contenu, rédige quelque chose de plus touchant" → EDIT {"modification_instructions": "rédige quelque chose de plus touchant"}
-- "change le texte, fais plus court" → EDIT {"modification_instructions": "fais plus court"}
-- "reformule le message" → EDIT {"modification_instructions": "reformule le message"}
-- "ajoute une touche d'humour" → EDIT {"modification_instructions": "ajoute une touche d'humour"}
-- "plus professionnel" → EDIT {"modification_instructions": "plus professionnel"}
-- "enlève la dernière phrase" → EDIT {"modification_instructions": "enlève la dernière phrase"}
-- "c'est bien mais plus court" → EDIT {"modification_instructions": "plus court"}
-- "mets le sujet 'Urgent'" → EDIT {"modification_instructions": "mets le sujet 'Urgent'"}
-- "envoie plutôt à son mail pro" → EDIT {"modification_instructions": "envoie à son mail pro"}
-
-**REPLAN**: User wants a FUNDAMENTALLY DIFFERENT action type than the current draft.
-The user is not modifying the draft content — they want to CHANGE THE ACTION ITSELF.
-
-Examples of REPLAN:
-- On a DELETE draft, user says "non déplace le au 23 mai" → REPLAN {"modification_instructions": "déplace le au 23 mai"} (wants update instead of delete)
-- On a DELETE draft, user says "non modifie juste l'heure" → REPLAN {"modification_instructions": "modifie l'heure"} (wants update instead of delete)
-- On an UPDATE/SEND draft, user says "non supprime-le" → REPLAN {"modification_instructions": "supprime"} (wants delete instead of update/send)
-- On a REPLY draft, user says "non efface l'email" → REPLAN {"modification_instructions": "efface"} (wants delete instead of reply)
-- "en fait annule le rdv" (on an update draft) → REPLAN {"modification_instructions": "annule le rdv"} (wants delete)
-- "finalement déplace-le plutôt" (on a delete draft) → REPLAN {"modification_instructions": "déplace-le"} (wants update)
-
-⚠️ KEY RULES:
-- If user provides ANY instruction to change/modify/improve the draft → EDIT
-- If user wants a DIFFERENT ACTION TYPE (delete↔update/modify/move) → REPLAN
-- Extract the FULL modification instruction into "modification_instructions"
-- "non" alone = REJECT (no modification requested)
-- "modifie...", "change...", "reformule...", "plus...", "moins...", "ajoute...", "enlève..." = EDIT
-- "supprime...", "efface...", "annule..." on a non-delete draft = REPLAN
-- "déplace...", "modifie...", "change la date..." on a delete draft = REPLAN
-- If unclear what to modify → AMBIGUOUS (ask for clarification)
-"""
-        elif action_type == ACTION_TYPE_FOR_EACH_CONFIRMATION:
-            # FOR_EACH confirmation: User reviews list of items before bulk operation
-            # EDIT means user wants to EXCLUDE some items from the list
-            return """
-**FOR_EACH Confirmation Classification** (review item list before bulk operation):
-
-**APPROVE**: User confirms to proceed with ALL items in the list.
-Examples: "oui", "ok", "vas-y", "confirme", "c'est bon", "d'accord"
-
-**REJECT**: User wants to CANCEL the entire operation.
-Examples: "non", "annule", "stop", "laisse tomber", "finalement non"
-
-**EDIT**: User wants to EXCLUDE/REMOVE specific items from the list.
-This is the KEY case: user specifies which items should NOT be affected.
-
-Examples of EDIT (exclude_criteria captures what to remove):
-- "retire les emails de Guy Savoy" → EDIT {"exclude_criteria": "Guy Savoy"}
-- "enlève ceux de marketing" → EDIT {"exclude_criteria": "marketing"}
-- "sans les emails Google" → EDIT {"exclude_criteria": "Google"}
-- "pas ceux de Jean" → EDIT {"exclude_criteria": "Jean"}
-- "garde seulement les 5 premiers" → EDIT {"exclude_criteria": "garder seulement les 5 premiers"}
-- "retire le deuxième" → EDIT {"exclude_criteria": "le deuxième"}
-- "enlève Newsletter Carrefour" → EDIT {"exclude_criteria": "Newsletter Carrefour"}
-
-⚠️ KEY RULES:
-- "oui" / "ok" / "confirme" alone = APPROVE (proceed with all items)
-- "non" / "annule" alone = REJECT (cancel entire operation)
-- User mentions specific items/criteria to remove → EDIT
-- "retire...", "enlève...", "sans...", "pas...", "sauf...", "excepté..." = EDIT
-- Extract the FULL exclusion criteria into "exclude_criteria"
-- The criteria can be: names, domains, keywords, positions (premier, dernier), counts
-"""
-        else:
-            return """
-**APPROVE**:
-- "oui" → APPROVE
-- "ok" → APPROVE
-
-**REJECT**:
-- "non annule" → REJECT
-
-**EDIT**:
-- "non [nouvelle_valeur]" → EDIT avec extraction de la nouvelle valeur
-"""
+        del action_desc  # examples are action-type-scoped; kept for compatibility
+        sections = _load_classifier_example_sections()
+        return sections.get(action_type, sections["default"])
 
     def _format_action_context(self, context: list[dict]) -> str:
         """Format action_requests for prompt context.
@@ -656,7 +514,7 @@ Examples of EDIT (exclude_criteria captures what to remove):
             Human-readable description of actions.
         """
         if not context:
-            return "une action"
+            return "an action"
 
         if len(context) == 1:
             action = context[0]
@@ -686,15 +544,15 @@ Examples of EDIT (exclude_criteria captures what to remove):
             # Include parameter names for EDIT extraction
             if "search" in tool_name.lower():
                 query = tool_args.get(FIELD_QUERY) or tool_args.get("q") or ""
-                return f"recherche de '{query}' (paramètre: query)"
+                return f"search for '{query}' (parameter: query)"
             elif "delete" in tool_name.lower():
-                return f"suppression ({tool_name})"
+                return f"deletion ({tool_name})"
             elif "send" in tool_name.lower():
-                return f"envoi ({tool_name})"
+                return f"send ({tool_name})"
             elif "create" in tool_name.lower():
-                return f"création ({tool_name})"
+                return f"creation ({tool_name})"
             else:
-                return f"{tool_name} avec {tool_args}"
+                return f"{tool_name} with {tool_args}"
 
         else:
             # Multiple actions (future multi-HITL)
@@ -765,11 +623,9 @@ Examples of EDIT (exclude_criteria captures what to remove):
         # Build context description
         if editable_params:
             params_str = ", ".join(editable_params)
-            return (
-                f"plan d'exécution avec {total_steps} étapes (paramètres modifiables: {params_str})"
-            )
+            return f"execution plan with {total_steps} steps (editable parameters: {params_str})"
         else:
-            return f"plan d'exécution avec {total_steps} étapes"
+            return f"execution plan with {total_steps} steps"
 
     def _format_draft_critique_context(self, action: dict) -> str:
         """Format draft_critique action context for classifier prompt.
@@ -794,48 +650,46 @@ Examples of EDIT (exclude_criteria captures what to remove):
             if len(draft_content.get("body", "")) > 100:
                 body_preview += "..."
             return (
-                f"brouillon d'email à {to_addr}, "
-                f"sujet: '{subject}', "
-                f"contenu: '{body_preview}'"
+                f"email draft to {to_addr}, " f"subject: '{subject}', " f"content: '{body_preview}'"
             )
 
         elif draft_type == "email_reply":
             to_addr = draft_content.get("to", "?")
             body_preview = draft_content.get("body", "")[:100]
-            return f"brouillon de réponse à {to_addr}, contenu: '{body_preview}'"
+            return f"reply draft to {to_addr}, content: '{body_preview}'"
 
         elif draft_type == "email_forward":
             to_addr = draft_content.get("to", "?")
-            return f"brouillon de transfert à {to_addr}"
+            return f"forward draft to {to_addr}"
 
         elif draft_type == "event":
             summary = draft_content.get("summary", "?")
             start = draft_content.get("start_datetime", "?")
-            return f"brouillon d'événement '{summary}' le {start}"
+            return f"event draft '{summary}' on {start}"
 
         elif draft_type == "event_update":
             summary = draft_content.get("summary", "?")
-            return f"modification d'événement '{summary}'"
+            return f"event update '{summary}'"
 
         elif draft_type == "contact":
             name = draft_content.get("name", "?")
             email = draft_content.get("email", "")
-            return f"brouillon de contact '{name}' ({email})"
+            return f"contact draft '{name}' ({email})"
 
         elif draft_type == "contact_update":
             name = draft_content.get("name", "?")
-            return f"modification de contact '{name}'"
+            return f"contact update '{name}'"
 
         elif draft_type == "task":
             title = draft_content.get("title", "?")
-            return f"brouillon de tâche '{title}'"
+            return f"task draft '{title}'"
 
         elif draft_type == "task_update":
             title = draft_content.get("title", "?")
-            return f"modification de tâche '{title}'"
+            return f"task update '{title}'"
 
         else:
-            return f"brouillon de type '{draft_type}'"
+            return f"draft of type '{draft_type}'"
 
     def _format_for_each_context(self, action: dict) -> str:
         """Format for_each_confirmation action context for classifier prompt.
@@ -854,20 +708,20 @@ Examples of EDIT (exclude_criteria captures what to remove):
         steps = action.get("steps", [])
 
         # Extract action type from first step
-        action_description = "opération"
+        action_description = "operation"
         if steps:
             first_step = steps[0]
             tool_name = first_step.get("tool_name", "")
             if "delete" in tool_name.lower() or "suppr" in tool_name.lower():
-                action_description = "suppression"
+                action_description = "deletion"
             elif "label" in tool_name.lower():
-                action_description = "étiquetage"
+                action_description = "labeling"
             elif "send" in tool_name.lower():
-                action_description = "envoi"
+                action_description = "send"
             elif "create" in tool_name.lower():
-                action_description = "création"
+                action_description = "creation"
             elif "update" in tool_name.lower():
-                action_description = "modification"
+                action_description = "update"
 
         # Build item list preview for context
         items_preview = ""
@@ -880,11 +734,11 @@ Examples of EDIT (exclude_criteria captures what to remove):
 
             items_preview = "\n".join(preview_lines)
             if len(item_previews) > 5:
-                items_preview += f"\n  ... et {len(item_previews) - 5} autre(s)"
+                items_preview += f"\n  ... and {len(item_previews) - 5} more"
 
-        context_str = f"{action_description} sur {total_affected} élément(s)"
+        context_str = f"{action_description} on {total_affected} item(s)"
         if items_preview:
-            context_str += f"\n\nÉléments concernés:\n{items_preview}"
+            context_str += f"\n\nAffected items:\n{items_preview}"
 
         return context_str
 

@@ -2936,6 +2936,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_9": {
+          "title": "v1.21.9 — 🌍 L'assistente parla la tua lingua nelle conferme",
+          "date": "Luglio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🌍 Conferme, modifiche e rifiuti nella tua lingua</b> — Quando LIA ti chiede di confermare, modificare o annullare un'azione, i suoi messaggi — e la sua comprensione della tua risposta («sì», «no», «piuttosto invialo a Marie») — sono ora interamente nella tua lingua, per tutte e sei le lingue. Gli utenti non francofoni non vedono più il francese in questi scambi.",
+            "i2": "<b>⚡ Follow-up più rapidi e affidabili</b> — Riferimenti come «il ristorante di questo appuntamento», «il percorso verso quell'indirizzo» o «mostrami il 2°» si risolvono di nuovo direttamente, senza un inutile passaggio di pianificazione, e i follow-up su un file («apri il primo») funzionano in modo affidabile.",
+            "i3": "<b>🛡️ Admin · interruttore della scorciatoia cross-dominio</b> — Una nuova impostazione consente di attivare o disattivare la scorciatoia senza LLM per i riferimenti cross-dominio («il ristorante di questo appuntamento») in produzione, senza un nuovo deploy."
+          }
+        },
         "v1_21_8": {
           "title": "v1.21.8 — 🗓️ Ricerca dell'agenda più affidabile",
           "date": "Luglio 2026",

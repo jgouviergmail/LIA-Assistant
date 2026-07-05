@@ -30,7 +30,7 @@ Usage:
 Created: 2025-12-06
 """
 
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 from src.core.i18n import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, Language
@@ -1340,6 +1340,167 @@ _DEFAULT_PERSONALITY: dict[str, str] = {
 }
 
 
+# =============================================================================
+# HITL RESUMPTION — reformulated user intents (EDIT) and refusal (REJECT)
+# =============================================================================
+# When a user EDITs a HITL draft/plan, the original user message is replaced by
+# a reformulated intent that matches the modified parameters (so the response
+# node does not see a stale message). These reformulations impersonate the
+# user's voice and are visible in the conversation, so they MUST be localized —
+# a hardcoded French phrase leaks into a non-FR user's transcript.
+#
+# Placeholders resolved via ``str.format``: ``{value}``, ``{tool}``.
+
+
+class ReformulationKind(StrEnum):
+    """The kinds of HITL EDIT reformulation (keys of _REFORMULATION_TEMPLATES).
+
+    Using an enum instead of bare strings makes a typo a type error at the call
+    site and lets a test assert the templates table is exhaustive — so
+    ``get_reformulation`` can never silently return an empty message.
+    """
+
+    SEARCH_QUERY = "search_query"
+    SEARCH_EMAILS = "search_emails"
+    SEND_TO = "send_to"
+    SEARCH_EVENTS = "search_events"
+    EXECUTE_PARAMS = "execute_params"
+    EXECUTE_MODIFIED = "execute_modified"
+    EXECUTE_TOOL_MODIFIED = "execute_tool_modified"
+
+
+_REFORMULATION_TEMPLATES: dict[ReformulationKind, dict[str, str]] = {
+    ReformulationKind.SEARCH_QUERY: {
+        "fr": "recherche {value}",
+        "en": "search {value}",
+        "es": "busca {value}",
+        "de": "suche {value}",
+        "it": "cerca {value}",
+        "zh-CN": "搜索 {value}",
+    },
+    ReformulationKind.SEARCH_EMAILS: {
+        "fr": "recherche emails {value}",
+        "en": "search emails {value}",
+        "es": "busca correos {value}",
+        "de": "suche E-Mails {value}",
+        "it": "cerca email {value}",
+        "zh-CN": "搜索邮件 {value}",
+    },
+    ReformulationKind.SEND_TO: {
+        "fr": "envoie à {value}",
+        "en": "send to {value}",
+        "es": "envía a {value}",
+        "de": "sende an {value}",
+        "it": "invia a {value}",
+        "zh-CN": "发送给 {value}",
+    },
+    ReformulationKind.SEARCH_EVENTS: {
+        "fr": "recherche événements {value}",
+        "en": "search events {value}",
+        "es": "busca eventos {value}",
+        "de": "suche Termine {value}",
+        "it": "cerca eventi {value}",
+        "zh-CN": "搜索日程 {value}",
+    },
+    ReformulationKind.EXECUTE_PARAMS: {
+        "fr": "exécute avec: {value}",
+        "en": "execute with: {value}",
+        "es": "ejecuta con: {value}",
+        "de": "führe aus mit: {value}",
+        "it": "esegui con: {value}",
+        "zh-CN": "执行，参数为：{value}",
+    },
+    ReformulationKind.EXECUTE_MODIFIED: {
+        "fr": "exécute avec les paramètres modifiés",
+        "en": "execute with the modified parameters",
+        "es": "ejecuta con los parámetros modificados",
+        "de": "führe mit den geänderten Parametern aus",
+        "it": "esegui con i parametri modificati",
+        "zh-CN": "使用修改后的参数执行",
+    },
+    ReformulationKind.EXECUTE_TOOL_MODIFIED: {
+        "fr": "exécute {tool} avec les paramètres modifiés",
+        "en": "execute {tool} with the modified parameters",
+        "es": "ejecuta {tool} con los parámetros modificados",
+        "de": "führe {tool} mit den geänderten Parametern aus",
+        "it": "esegui {tool} con i parametri modificati",
+        "zh-CN": "使用修改后的参数执行 {tool}",
+    },
+}
+
+# Enriched HumanMessage injected on a tool-level REJECT: steers the response
+# node to treat the refusal as a user choice (not a technical error). Injected
+# into the conversation, so localized. Placeholder: ``{user_response}``.
+_REJECT_ENRICHED_MESSAGE: dict[str, str] = {
+    "fr": (
+        "[REFUS UTILISATEUR]\n"
+        "L'utilisateur a explicitement refusé l'action proposée en disant : '{user_response}'\n\n"
+        "IMPORTANT: Ceci est un REFUS UTILISATEUR, PAS une erreur technique.\n"
+        "Réponse attendue:\n"
+        "- Accuse réception de manière concise (ex: 'Pas de problème')\n"
+        "- Demande ce qu'il souhaite faire à la place\n"
+        "- NE mentionne AUCUN problème technique, erreur système, ou indisponibilité de service"
+    ),
+    "en": (
+        "[USER REFUSAL]\n"
+        "The user explicitly refused the proposed action by saying: '{user_response}'\n\n"
+        "IMPORTANT: This is a USER REFUSAL, NOT a technical error.\n"
+        "Expected response:\n"
+        "- Acknowledge concisely (e.g. 'No problem')\n"
+        "- Ask what they would like to do instead\n"
+        "- Do NOT mention any technical problem, system error, or service unavailability"
+    ),
+    "es": (
+        "[RECHAZO DEL USUARIO]\n"
+        "El usuario rechazó explícitamente la acción propuesta diciendo: '{user_response}'\n\n"
+        "IMPORTANTE: Esto es un RECHAZO DEL USUARIO, NO un error técnico.\n"
+        "Respuesta esperada:\n"
+        "- Confirma de forma concisa (p. ej. 'Sin problema')\n"
+        "- Pregunta qué desea hacer en su lugar\n"
+        "- NO menciones ningún problema técnico, error del sistema ni indisponibilidad del servicio"
+    ),
+    "de": (
+        "[BENUTZERABLEHNUNG]\n"
+        "Der Benutzer hat die vorgeschlagene Aktion ausdrücklich abgelehnt und gesagt: '{user_response}'\n\n"
+        "WICHTIG: Dies ist eine BENUTZERABLEHNUNG, KEIN technischer Fehler.\n"
+        "Erwartete Antwort:\n"
+        "- Bestätige knapp (z. B. 'Kein Problem')\n"
+        "- Frage, was stattdessen getan werden soll\n"
+        "- Erwähne KEIN technisches Problem, keinen Systemfehler und keine Dienstunterbrechung"
+    ),
+    "it": (
+        "[RIFIUTO UTENTE]\n"
+        "L'utente ha esplicitamente rifiutato l'azione proposta dicendo: '{user_response}'\n\n"
+        "IMPORTANTE: Questo è un RIFIUTO UTENTE, NON un errore tecnico.\n"
+        "Risposta attesa:\n"
+        "- Conferma in modo conciso (es. 'Nessun problema')\n"
+        "- Chiedi cosa desidera fare invece\n"
+        "- NON menzionare alcun problema tecnico, errore di sistema o indisponibilità del servizio"
+    ),
+    "zh-CN": (
+        "[用户拒绝]\n"
+        "用户明确拒绝了建议的操作，并说：'{user_response}'\n\n"
+        "重要提示：这是用户拒绝，不是技术错误。\n"
+        "期望的回应：\n"
+        "- 简洁地确认（例如“没问题”）\n"
+        "- 询问用户想要改为做什么\n"
+        "- 不要提及任何技术问题、系统错误或服务不可用"
+    ),
+}
+
+
+# Fallback summary shown when a HITL action is rejected without an explicit
+# (already-localized) message. Fed to the response node's status summaries.
+_USER_REFUSED_ACTION: dict[str, str] = {
+    "fr": "L'utilisateur a refusé cette action.",
+    "en": "The user refused this action.",
+    "es": "El usuario rechazó esta acción.",
+    "de": "Der Benutzer hat diese Aktion abgelehnt.",
+    "it": "L'utente ha rifiutato questa azione.",
+    "zh-CN": "用户拒绝了此操作。",
+}
+
+
 class HitlMessages:
     """
     Centralized HITL message provider.
@@ -1417,6 +1578,54 @@ class HitlMessages:
         lang = HitlMessages._normalize_language(language)
         labels = _ACTION_LABELS.get(lang, _ACTION_LABELS["en"])
         return labels.get(action, action)
+
+    @staticmethod
+    def get_reformulation(kind: ReformulationKind, language: str, **params: object) -> str:
+        """Localized reformulated user intent for a HITL EDIT.
+
+        Args:
+            kind: Reformulation kind (a :class:`ReformulationKind` member).
+            language: User language code (any spelling; normalized internally).
+            **params: Template values (``value`` and/or ``tool``).
+
+        Returns:
+            The localized reformulation in the user's language.
+        """
+        lang = HitlMessages._normalize_language(language)
+        # Direct indexing (not .get): a ReformulationKind always has an entry —
+        # the exhaustiveness test guards this, so a missing kind fails loudly in
+        # CI rather than silently returning an empty message.
+        templates = _REFORMULATION_TEMPLATES[kind]
+        template = templates.get(lang, templates["en"])
+        return template.format(**params)
+
+    @staticmethod
+    def get_reject_enriched_message(user_response: str, language: str) -> str:
+        """Localized enriched HumanMessage injected on a tool-level REJECT.
+
+        Args:
+            user_response: The user's raw refusal utterance (embedded verbatim).
+            language: User language code (any spelling; normalized internally).
+
+        Returns:
+            The localized refusal-steering message in the user's language.
+        """
+        lang = HitlMessages._normalize_language(language)
+        template = _REJECT_ENRICHED_MESSAGE.get(lang, _REJECT_ENRICHED_MESSAGE["en"])
+        return template.format(user_response=user_response)
+
+    @staticmethod
+    def get_user_refused_action(language: str) -> str:
+        """Localized fallback summary for a HITL action the user rejected.
+
+        Args:
+            language: User language code (any spelling; normalized internally).
+
+        Returns:
+            The localized "user refused this action" sentence.
+        """
+        lang = HitlMessages._normalize_language(language)
+        return _USER_REFUSED_ACTION.get(lang, _USER_REFUSED_ACTION["en"])
 
     @staticmethod
     def get_action_labels(language: str) -> dict[str, str]:

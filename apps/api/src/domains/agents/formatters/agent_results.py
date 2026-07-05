@@ -16,6 +16,7 @@ Usage:
 from typing import Any
 
 from src.core.field_names import FIELD_REACT_SYNTHESIS, FIELD_STATUS
+from src.core.i18n_hitl import HitlMessages
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.profiling import profile_performance
 
@@ -61,7 +62,7 @@ def format_agent_results_for_prompt(
 
     # Only format status messages (errors, connector_disabled, user_rejected)
     # Data details are now in {data_for_filtering} via generate_data_for_filtering()
-    status_messages = _format_status_messages(agent_results, current_turn_id)
+    status_messages = _format_status_messages(agent_results, current_turn_id, user_language)
 
     return status_messages
 
@@ -69,6 +70,7 @@ def format_agent_results_for_prompt(
 def _format_status_messages(
     agent_results: dict[str, Any],
     current_turn_id: int | None = None,
+    user_language: str = "en",
 ) -> str:
     """
     Format status messages for agent results.
@@ -85,6 +87,8 @@ def _format_status_messages(
     Args:
         agent_results: Dictionary of composite_key → AgentResult
         current_turn_id: Filter by turn ID if specified
+        user_language: User's language code for the localized rejection
+            fallback message. Default: "en".
 
     Returns:
         Formatted status messages string (or empty string if none)
@@ -128,7 +132,7 @@ def _format_status_messages(
             # Check for user rejection (HITL)
             data = result.get("data")
             if data and isinstance(data, dict) and data.get("user_rejected"):
-                message = data.get("message", "L'utilisateur a refusé cette action.")
+                message = data.get("message", HitlMessages.get_user_refused_action(user_language))
                 summaries.append(f"🚫 {agent_name}: {message}")
             # Check for ACTION success messages (reminders, send email, etc.)
             # These have no registry_updates but contain a confirmation message

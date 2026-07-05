@@ -161,24 +161,24 @@ class TestBuildContextInfo:
         draft = {"to": "test@example.com", "cc": "cc@example.com", "subject": "Test"}
         result = service._build_context_info(draft, "email")
 
-        assert "Destinataire actuel (modifiable): test@example.com" in result
-        assert "CC actuel (modifiable): cc@example.com" in result
-        assert "Sujet actuel: Test" in result
+        assert "Current recipient (editable): test@example.com" in result
+        assert "Current CC (editable): cc@example.com" in result
+        assert "Current subject: Test" in result
 
     def test_email_context_info_minimal(self, service):
         """Test context info with minimal email fields."""
         draft = {"to": "test@example.com"}
         result = service._build_context_info(draft, "email")
 
-        assert "Destinataire actuel (modifiable): test@example.com" in result
-        assert "CC" not in result or "CC actuel" not in result
+        assert "Current recipient (editable): test@example.com" in result
+        assert "CC" not in result or "Current CC" not in result
 
     def test_email_reply_context_no_subject(self, service):
         """Test that email_reply doesn't include subject."""
         draft = {"to": "test@example.com", "subject": "Re: Test"}
         result = service._build_context_info(draft, "email_reply")
 
-        assert "Destinataire actuel (modifiable): test@example.com" in result
+        assert "Current recipient (editable): test@example.com" in result
         assert "Sujet" not in result
 
     def test_event_context_info(self, service):
@@ -215,21 +215,21 @@ class TestBuildContextInfo:
         draft = {"title": "Complete report"}
         result = service._build_context_info(draft, "task")
 
-        assert "Tâche: Complete report" in result
+        assert "Task: Complete report" in result
 
     def test_task_update_context_info(self, service):
         """Test context info for task_update draft type."""
         draft = {"title": "Review document"}
         result = service._build_context_info(draft, "task_update")
 
-        assert "Tâche: Review document" in result
+        assert "Task: Review document" in result
 
     def test_unknown_draft_type_returns_generic(self, service):
         """Test that unknown draft types return generic message."""
         draft = {"field": "value"}
         result = service._build_context_info(draft, "unknown_type")
 
-        assert result == "Brouillon générique"
+        assert result == "Generic draft"
 
 
 class TestBuildContactContextInfo:
@@ -256,7 +256,7 @@ class TestBuildContactContextInfo:
         contacts = [{"name": "Jean Dupond", "emails": ["jean@example.com", "jean@carven.com"]}]
         result = service._build_contact_context_info(contacts)
 
-        assert "Adresses email disponibles" in result
+        assert "Contact email addresses available" in result
         assert "Jean Dupond" in result
         assert "jean@example.com" in result
         assert "jean@carven.com" in result
@@ -303,14 +303,14 @@ class TestFormatExpectedFields:
     def test_formats_single_field(self, service):
         """Test formatting a single field."""
         result = service._format_expected_fields(["body"])
-        assert '"body": "contenu modifié"' in result
+        assert '"body": "modified content"' in result
 
     def test_formats_multiple_fields(self, service):
         """Test formatting multiple fields."""
         result = service._format_expected_fields(["subject", "body"])
 
-        assert '"subject": "contenu modifié"' in result
-        assert '"body": "contenu modifié"' in result
+        assert '"subject": "modified content"' in result
+        assert '"body": "modified content"' in result
         assert ",\n" in result  # Fields separated by comma and newline
 
     def test_formats_empty_fields(self, service):

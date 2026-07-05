@@ -80,6 +80,12 @@ class CrossDomainBypassStrategy:
         Returns:
             True if bypass is possible, False otherwise
         """
+        # Kill switch: fall back to the LLM planner when disabled in prod.
+        from src.core.config import get_settings
+
+        if not getattr(get_settings(), "planner_cross_domain_bypass_enabled", True):
+            return False
+
         # Must be a reference action (cross-domain)
         if intelligence.turn_type != "REFERENCE_ACTION":
             return False

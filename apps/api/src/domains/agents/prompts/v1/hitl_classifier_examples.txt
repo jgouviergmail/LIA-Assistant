@@ -1,0 +1,173 @@
+<!--
+PROMPT: HITL Classifier — few-shot examples (language-neutral)
+USAGE: hitl_classifier.py::_get_contextual_examples — injected into
+  {{EXAMPLES_PLACEHOLDER}} of hitl_classifier_prompt.txt.
+CONTEXT: Examples are in English so the classifier is NOT biased toward any
+  single user language. The user's actual response may be in ANY language
+  (German, Spanish, Italian, Chinese, French, …): classify by the INTENT
+  STRUCTURE (approval / bare refusal / refusal-with-new-value), not by matching
+  specific words.
+FORMAT: one section per action type, delimited by a line "=== <key> ===" where
+  <key> is the ACTION_TYPE_* constant value. The "default" section is the
+  fallback for unlisted action types.
+-->
+=== recherche ===
+**APPROVE**:
+- "yes" → APPROVE
+- "ok go ahead" → APPROVE
+- "confirm" → APPROVE
+
+**REJECT** (refusal WITHOUT an alternative):
+- "no" → REJECT (WARNING: a bare "no" = REJECT!)
+- "no cancel" → REJECT
+- "no forget it" → REJECT
+- "stop" → REJECT
+
+**EDIT** (change the search parameter — the new value is IN the response):
+- "no search paul" → EDIT {"query": "paul"}  (paul is in the response)
+- "rather jean" → EDIT {"query": "jean"}  (jean is in the response)
+- "no jean" → EDIT {"query": "jean"}  (jean is in the response)
+- "search jean instead" → EDIT {"query": "jean"}  (jean is in the response)
+
+⚠️ CRITICAL:
+- "no search X" = EDIT (X must be present in the user response!)
+- a bare "no" = REJECT (never extract a value from the context!)
+=== envoi ===
+**APPROVE**:
+- "yes" → APPROVE
+- "ok send it" → APPROVE
+
+**REJECT** (refusal WITHOUT an alternative):
+- "no cancel" → REJECT
+- "no forget it" → REJECT
+
+**EDIT** (change the recipient or subject):
+- "no send to jean" → EDIT {"to": "jean"}
+- "to marie instead" → EDIT {"to": "marie"}
+- "no marie@example.com" → EDIT {"to": "marie@example.com"}
+
+⚠️ WARNING: "no send to X" = EDIT, not REJECT!
+=== suppression ===
+**APPROVE**:
+- "yes delete it" → APPROVE
+- "ok" → APPROVE
+
+**REJECT** (refusal WITHOUT an alternative):
+- "no cancel" → REJECT
+- "no keep it" → REJECT
+
+**EDIT** (change the target):
+- "no delete the other one" → EDIT (imprecise value, leave edited_params empty)
+- "file2.pdf instead" → EDIT {"file_name": "file2.pdf"}
+=== plan_approval ===
+**Plan Approval Classification** (generic, works for any tool/agent):
+
+**APPROVE**: User explicitly agrees to execute the plan as-is.
+Examples: "yes", "ok", "perfect", "go ahead"
+
+**REJECT**: User refuses WITHOUT providing alternative values.
+Examples: "no", "cancel", "stop" (alone, no new value)
+
+**EDIT**: User wants to MODIFY a parameter value.
+⚠️ CRITICAL: Look at the "modifiable parameters" — each shows:
+  - Parameter name (e.g., query, max_results, recipient, subject)
+  - Current value (e.g., "jean", 10, "jean@mail.com")
+  - Description from the manifest (explains what the parameter does)
+
+**Detection rules**:
+1. If the user mentions a DIFFERENT value for any listed parameter → EDIT
+2. Extract the NEW value using the EXACT parameter name from context
+3. The parameter description helps understand user intent
+
+**Examples** (parameter names vary by tool):
+- Context has "query=...", user says "I want X instead" → EDIT {"query": "X"}
+- Context has "max_results=10", user says "just 2" → EDIT {"max_results": 2}
+- Context has "recipient=...", user says "send to Y" → EDIT {"recipient": "Y"}
+- Context has "subject=...", user says "change the subject to Z" → EDIT {"subject": "Z"}
+
+⚠️ KEY RULES:
+- a bare "no" = REJECT
+- "no" + a new value = EDIT (extract it into the correct parameter!)
+- User provides an alternative value = EDIT (use the parameter name from context)
+- Unclear which parameter = AMBIGUOUS (ask for clarification)
+=== draft_critique ===
+**Draft Critique Classification** (review of draft content before execution):
+
+**APPROVE**: User confirms the draft should be executed as-is.
+Examples: "yes", "ok", "send it", "perfect", "confirm", "looks good", "go ahead"
+
+**REJECT**: User explicitly cancels the draft WITHOUT requesting changes.
+Examples: "no", "cancel", "forget it", "stop", "actually no"
+
+**EDIT**: User wants to MODIFY the draft content before execution.
+This is the KEY case: the user provides instructions for how to change the content.
+
+Examples of EDIT (modification_instructions should capture the user's request):
+- "change the content, make it more touching" → EDIT {"modification_instructions": "make it more touching"}
+- "change the text, make it shorter" → EDIT {"modification_instructions": "make it shorter"}
+- "rephrase the message" → EDIT {"modification_instructions": "rephrase the message"}
+- "add a touch of humor" → EDIT {"modification_instructions": "add a touch of humor"}
+- "more professional" → EDIT {"modification_instructions": "more professional"}
+- "remove the last sentence" → EDIT {"modification_instructions": "remove the last sentence"}
+- "it's good but shorter" → EDIT {"modification_instructions": "shorter"}
+- "set the subject to 'Urgent'" → EDIT {"modification_instructions": "set the subject to 'Urgent'"}
+- "send it to their work email instead" → EDIT {"modification_instructions": "send to their work email"}
+
+**REPLAN**: User wants a FUNDAMENTALLY DIFFERENT action type than the current draft.
+The user is not modifying the draft content — they want to CHANGE THE ACTION ITSELF.
+
+Examples of REPLAN:
+- On a DELETE draft, user says "no move it to May 23" → REPLAN {"modification_instructions": "move it to May 23"} (wants update instead of delete)
+- On a DELETE draft, user says "no just change the time" → REPLAN {"modification_instructions": "change the time"} (wants update instead of delete)
+- On an UPDATE/SEND draft, user says "no delete it" → REPLAN {"modification_instructions": "delete"} (wants delete instead of update/send)
+- On a REPLY draft, user says "no erase the email" → REPLAN {"modification_instructions": "erase"} (wants delete instead of reply)
+- "actually cancel the meeting" (on an update draft) → REPLAN {"modification_instructions": "cancel the meeting"} (wants delete)
+- "actually move it instead" (on a delete draft) → REPLAN {"modification_instructions": "move it"} (wants update)
+
+⚠️ KEY RULES:
+- If the user provides ANY instruction to change/modify/improve the draft → EDIT
+- If the user wants a DIFFERENT ACTION TYPE (delete↔update/modify/move) → REPLAN
+- Extract the FULL modification instruction into "modification_instructions"
+- a bare "no" = REJECT (no modification requested)
+- "modify…", "change…", "rephrase…", "more…", "less…", "add…", "remove…" = EDIT
+- "delete…", "erase…", "cancel…" on a non-delete draft = REPLAN
+- "move…", "reschedule…", "change the date…" on a delete draft = REPLAN
+- If unclear what to modify → AMBIGUOUS (ask for clarification)
+=== for_each_confirmation ===
+**FOR_EACH Confirmation Classification** (review item list before bulk operation):
+
+**APPROVE**: User confirms to proceed with ALL items in the list.
+Examples: "yes", "ok", "go ahead", "confirm", "looks good", "sure"
+
+**REJECT**: User wants to CANCEL the entire operation.
+Examples: "no", "cancel", "stop", "forget it", "actually no"
+
+**EDIT**: User wants to EXCLUDE/REMOVE specific items from the list.
+This is the KEY case: the user specifies which items should NOT be affected.
+
+Examples of EDIT (exclude_criteria captures what to remove):
+- "remove the emails from Guy Savoy" → EDIT {"exclude_criteria": "Guy Savoy"}
+- "drop the marketing ones" → EDIT {"exclude_criteria": "marketing"}
+- "without the Google emails" → EDIT {"exclude_criteria": "Google"}
+- "not the ones from Jean" → EDIT {"exclude_criteria": "Jean"}
+- "keep only the first 5" → EDIT {"exclude_criteria": "keep only the first 5"}
+- "remove the second one" → EDIT {"exclude_criteria": "the second one"}
+- "drop Newsletter Carrefour" → EDIT {"exclude_criteria": "Newsletter Carrefour"}
+
+⚠️ KEY RULES:
+- "yes" / "ok" / "confirm" alone = APPROVE (proceed with all items)
+- "no" / "cancel" alone = REJECT (cancel the entire operation)
+- User mentions specific items/criteria to remove → EDIT
+- "remove…", "drop…", "without…", "not…", "except…", "but not…" = EDIT
+- Extract the FULL exclusion criteria into "exclude_criteria"
+- The criteria can be: names, domains, keywords, positions (first, last), counts
+=== default ===
+**APPROVE**:
+- "yes" → APPROVE
+- "ok" → APPROVE
+
+**REJECT**:
+- "no cancel" → REJECT
+
+**EDIT**:
+- "no [new_value]" → EDIT, extracting the new value from the response

@@ -73,6 +73,7 @@ PromptName = Literal[
     "contacts_agent_prompt",
     "planner_system_prompt",
     "hitl_classifier_prompt",
+    "hitl_classifier_examples",
     "reminder_prompt",
     # Email content generation
     "email_content_generation_prompt",

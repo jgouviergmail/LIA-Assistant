@@ -2943,6 +2943,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_9": {
+          "title": "v1.21.9 — 🌍 The assistant speaks your language in approval flows",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🌍 Confirmations, edits and refusals now in your language</b> — When LIA asks you to confirm, modify or cancel an action, its messages — and its understanding of your reply (“yes”, “no”, “rather send it to Marie”) — are now fully in your language, across all six languages. Non-French users no longer see any French in these exchanges.",
+            "i2": "<b>⚡ Faster, more reliable follow-ups</b> — References like “the restaurant of this meeting”, “directions to that address” or “show me the 2nd one” resolve directly again, without a needless extra planning step, and follow-ups on a file (“open the first one”) work reliably.",
+            "i3": "<b>🛡️ Admin · cross-domain shortcut toggle</b> — A new setting lets you enable or disable the LLM-free shortcut for cross-domain references (“the restaurant of this meeting”) in production without a redeploy."
+          }
+        },
         "v1_21_8": {
           "title": "v1.21.8 — 🗓️ More reliable calendar search",
           "date": "July 2026",

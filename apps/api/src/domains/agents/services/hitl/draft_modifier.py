@@ -310,7 +310,7 @@ class DraftModificationService:
             .replace("{expected_fields}", self._format_expected_fields(content_fields))
         )
 
-        user_message = f"Modifie le brouillon selon les instructions: {instructions}"
+        user_message = f"Modify the draft according to the instructions: {instructions}"
 
         return [
             {"role": "system", "content": system_prompt},
@@ -333,7 +333,7 @@ class DraftModificationService:
         if not contact_context:
             return ""
 
-        lines = ["\n## Adresses email disponibles du contact"]
+        lines = ["\n## Contact email addresses available"]
         for contact in contact_context:
             name = contact.get("name", DEFAULT_CONTACT_NAME)
             emails = contact.get("emails", [])
@@ -349,20 +349,20 @@ class DraftModificationService:
     def _build_context_info(self, draft: dict[str, Any], draft_type: str) -> str:
         """Build context information about preserved fields."""
         if draft_type in ("email", "email_reply", "email_forward"):
-            to_addr = draft.get("to", "non spécifié")
+            to_addr = draft.get("to", "not specified")
             cc = draft.get("cc", "")
             subject = draft.get("subject", "")
-            parts = [f"Destinataire actuel (modifiable): {to_addr}"]
+            parts = [f"Current recipient (editable): {to_addr}"]
             if cc:
-                parts.append(f"CC actuel (modifiable): {cc}")
+                parts.append(f"Current CC (editable): {cc}")
             if subject and draft_type == "email":
-                parts.append(f"Sujet actuel: {subject}")
+                parts.append(f"Current subject: {subject}")
             return "\n".join(parts)
 
         elif draft_type in ("event", "event_update"):
             summary = draft.get("summary", "")
             start = draft.get("start_datetime", "")
-            return f"Événement: {summary}\nDate: {start}"
+            return f"Event: {summary}\nDate: {start}"
 
         elif draft_type in ("contact", "contact_update"):
             name = draft.get("name", "")
@@ -370,14 +370,14 @@ class DraftModificationService:
 
         elif draft_type in ("task", "task_update"):
             title = draft.get("title", "")
-            return f"Tâche: {title}"
+            return f"Task: {title}"
 
         else:
-            return "Brouillon générique"
+            return "Generic draft"
 
     def _format_expected_fields(self, fields: list[str]) -> str:
         """Format expected JSON fields for the prompt."""
-        return ",\n".join([f'  "{field}": "contenu modifié"' for field in fields])
+        return ",\n".join([f'  "{field}": "modified content"' for field in fields])
 
     # Regex for extracting email addresses from free-text instructions
     _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")

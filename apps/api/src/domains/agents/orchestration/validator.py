@@ -44,6 +44,7 @@ from src.domains.agents.registry.catalogue import (
     ToolManifest,
     ToolManifestNotFound,
 )
+from src.domains.agents.registry.domain_taxonomy import get_result_key
 from src.domains.agents.tools.common import ToolErrorCode
 from src.infrastructure.observability.logging import get_logger
 
@@ -56,6 +57,27 @@ except ImportError:
     HAS_EXECUTION_PLAN = False
 
 logger = get_logger(__name__)
+
+
+# ============================================================================
+# $context reference vocabulary
+# ============================================================================
+# Domains addressable via ``$context.<result_key>`` references in a plan
+# (contact, email, event, task, file). Derived from DOMAIN_REGISTRY so the
+# tokens are always the canonical result_key: this fixes the historical
+# "drive" token (nothing ever emits ``$context.drive``) and the missing
+# "files" entry that silently rejected legitimate ``$context.files``
+# references. Guarded by the domain-vocabulary parity test.
+_CONTEXT_REFERENCE_DOMAIN_NAMES: tuple[str, ...] = (
+    "contact",
+    "email",
+    "event",
+    "task",
+    "file",
+)
+VALID_CONTEXT_REFERENCE_DOMAINS: frozenset[str] = frozenset(
+    key for name in _CONTEXT_REFERENCE_DOMAIN_NAMES if (key := get_result_key(name)) is not None
+)
 
 
 # ============================================================================
@@ -1448,9 +1470,11 @@ class PlanValidator:
 
         # Pattern to extract $context.X references
         # Captures: $context.contacts.0.resource_name, $context.emails[0].id
-        # Valid domains: contacts, emails, calendar, tasks, drive
+        # Valid domains are the canonical result_keys of the reference-addressable
+        # domains (contact, email, event, task, file) — see
+        # VALID_CONTEXT_REFERENCE_DOMAINS (derived from DOMAIN_REGISTRY).
         context_reference_pattern = re.compile(r"\$context\.([a-zA-Z_][a-zA-Z0-9_]*)")
-        valid_context_domains = {"contacts", "emails", "events", "tasks", "drive"}
+        valid_context_domains = VALID_CONTEXT_REFERENCE_DOMAINS
 
         for idx, step in enumerate(steps):
             # Collect all strings to analyze for this step

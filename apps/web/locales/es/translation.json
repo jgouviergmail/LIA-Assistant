@@ -2934,6 +2934,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_9": {
+          "title": "v1.21.9 — 🌍 El asistente habla tu idioma en las confirmaciones",
+          "date": "Julio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🌍 Confirmaciones, modificaciones y rechazos en tu idioma</b> — Cuando LIA te pide confirmar, modificar o cancelar una acción, sus mensajes — y su comprensión de tu respuesta («sí», «no», «mejor envíalo a Marie») — están ahora completamente en tu idioma, para los seis idiomas. Los usuarios no francófonos ya no ven francés en estos intercambios.",
+            "i2": "<b>⚡ Seguimientos más rápidos y fiables</b> — Referencias como «el restaurante de esta cita», «la ruta a esa dirección» o «muéstrame el 2.º» vuelven a resolverse directamente, sin un paso de planificación innecesario, y los seguimientos sobre un archivo («abre el primero») funcionan de forma fiable.",
+            "i3": "<b>🛡️ Admin · conmutador del atajo entre dominios</b> — Un nuevo ajuste permite activar o desactivar el atajo sin LLM para las referencias entre dominios («el restaurante de esta cita») en producción, sin necesidad de redesplegar."
+          }
+        },
         "v1_21_8": {
           "title": "v1.21.8 — 🗓️ Búsqueda de agenda más fiable",
           "date": "Julio 2026",

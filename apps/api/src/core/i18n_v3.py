@@ -2005,6 +2005,7 @@ _DISPLAY_OPEN_NOW: dict[str, str] = {
     "es": "Abierto ahora",
     "de": "Jetzt geöffnet",
     "it": "Aperto ora",
+    "zh-CN": "营业中",
 }
 
 _DISPLAY_OPENS_AT: dict[str, str] = {

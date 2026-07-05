@@ -2948,6 +2948,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_9": {
+          "title": "v1.21.9 — 🌍 L'assistant parle ta langue dans les validations",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🌍 Confirmations, modifications et refus dans ta langue</b> — Quand LIA te demande de confirmer, modifier ou annuler une action, ses messages — et sa compréhension de ta réponse (« oui », « non », « envoie-le plutôt à Marie ») — sont désormais entièrement dans ta langue, pour les six langues.",
+            "i2": "<b>⚡ Suivis plus rapides et plus fiables</b> — Les références comme « le restaurant de ce rendez-vous », « l'itinéraire vers cette adresse » ou « montre-moi le 2ème » se résolvent à nouveau directement, sans étape de planification superflue, et les suivis sur un fichier (« ouvre le premier ») fonctionnent de façon fiable.",
+            "i3": "<b>🛡️ Admin · bascule du raccourci cross-domaine</b> — Un nouveau réglage permet d'activer ou de désactiver le raccourci sans LLM pour les références cross-domaine (« le restaurant de ce rendez-vous ») en production, sans redéploiement."
+          }
+        },
         "v1_21_8": {
           "title": "v1.21.8 — 🗓️ Recherche d'agenda plus fiable",
           "date": "Juillet 2026",
