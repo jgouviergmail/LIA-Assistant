@@ -383,7 +383,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
             <p>
               {t(
                 'psyche.education.emotions.intro',
-                'The assistant can experience up to 7 simultaneous emotions from a palette of 22, and report up to 3 per message. Each emotion has an intensity (0-100%) that decays over time and pushes the mood in a specific direction.'
+                'The assistant can experience up to 4 simultaneous emotions from a palette of 22, and report up to 3 per message. Each emotion has an intensity (0-100%) that decays over time and pushes the mood in a specific direction.'
               )}
             </p>
 

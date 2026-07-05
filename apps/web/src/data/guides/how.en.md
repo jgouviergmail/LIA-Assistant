@@ -6,7 +6,7 @@
 
 **Version**: 2.4
 **Date**: 2026-05-08
-**Application**: LIA v1.21.9
+**Application**: LIA v1.21.10
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 400+ Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 93 ADRs, ~10,000 pytest-collected tests across 484 files, native observability, 6-level HITL |
+| Production reliability | 98 ADRs, ~10,000 pytest-collected tests across 484 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -953,7 +953,7 @@ LIA accepts external event ingestions (iPhone Apple Health samples, third-party 
 
 ## 24. Architecture Decision Records (ADR)
 
-93 ADRs in MADR format document the major architectural decisions. Some representative examples:
+98 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1003,7 +1003,7 @@ The Psyche Engine gives the assistant a dynamic psychological state that evolves
 |-------|-----------|---------|
 | 1 — Personality | Permanent | Big Five (O/C/E/A/N) inherited from the chosen personality. Modulate emotional reactivity, empathy, recovery speed. |
 | 2 — Mood | Hours | Position in PAD space (Pleasure/Arousal/Dominance) → 14 distinct moods. Decays toward personality baseline. |
-| 3 — Emotions | Minutes | 22 discrete emotions (max 7 simultaneous) with intensity [0-100%]. Push mood via their PAD vector. Cross-suppression ±30%. |
+| 3 — Emotions | Minutes | 22 discrete emotions (max 4 simultaneous) with intensity [0-100%]. Push mood via their PAD vector. Cross-suppression ±30%. |
 | 4 — Relationship | Weeks | 4 stages (Orientation → Exploratory → Affective → Stable). One-way progression. Depth, warmth, trust. |
 | 5 — Drives | Per session | Curiosity (exchange energy) and engagement (quality). Bayesian self-efficacy per domain. |
 
@@ -1036,10 +1036,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 93 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~10,000 tests across 484 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 98 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~10,000 tests across 484 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 93 ADRs, and the changelog (v1.0 to v1.21.9). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 98 ADRs, and the changelog (v1.0 to v1.21.10). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -173,7 +173,9 @@ class PsycheService:
         )
 
         # Compute initial mood at baseline
-        baseline = PsycheEngine.compute_pad_baseline(traits)
+        baseline = PsycheEngine.compute_pad_baseline(
+            traits, damping=settings.psyche_baseline_damping
+        )
         state.mood_pleasure = baseline.pleasure
         state.mood_arousal = baseline.arousal
         state.mood_dominance = baseline.dominance
@@ -213,7 +215,9 @@ class PsycheService:
         state.trait_neuroticism = traits.neuroticism
 
         # Recompute mood baseline — mood will naturally decay toward it
-        baseline = PsycheEngine.compute_pad_baseline(traits, pad_override)
+        baseline = PsycheEngine.compute_pad_baseline(
+            traits, pad_override, damping=settings.psyche_baseline_damping
+        )
         state.mood_pleasure = baseline.pleasure
         state.mood_arousal = baseline.arousal
         state.mood_dominance = baseline.dominance
@@ -254,7 +258,9 @@ class PsycheService:
 
         # Load personality for PAD baseline computation
         traits, pad_override = await self._load_personality_traits_and_override(user_id)
-        baseline = PsycheEngine.compute_pad_baseline(traits, pad_override)
+        baseline = PsycheEngine.compute_pad_baseline(
+            traits, pad_override, damping=settings.psyche_baseline_damping
+        )
 
         # Compute time elapsed since last update
         hours_elapsed = 0.0
@@ -370,12 +376,19 @@ class PsycheService:
         await self.repo.update(state)
         await self._save_to_cache(user_id, state)
 
-        # Build rich prompt injection with behavioral directives + usage guide
+        # Build the psyche injection. Default: the embodied voice (ADR-105 A-E) — the
+        # engine assembles the dynamic block, the versioned frame template holds the
+        # static scaffolding + guardrails. The graduated adjective format is retained
+        # behind PSYCHE_EMBODIED_INJECTION as an instant `.env` rollback path.
         from src.domains.agents.prompts.prompt_loader import load_prompt
 
-        directives, usage_key = PsycheEngine.format_graduated_prompt_injection(profile)
-        usage_guide = str(load_prompt(usage_key))
-        psyche_context = f"<PsycheContext>\n{directives}\n\n{usage_guide}\n</PsycheContext>"
+        if settings.psyche_embodied_injection:
+            dynamic, frame_key = PsycheEngine.format_embodied_prompt_injection(profile)
+            psyche_context = str(load_prompt(frame_key)).format(dynamic=dynamic)
+        else:
+            directives, usage_key = PsycheEngine.format_graduated_prompt_injection(profile)
+            usage_guide = str(load_prompt(usage_key))
+            psyche_context = f"<PsycheContext>\n{directives}\n\n{usage_guide}\n</PsycheContext>"
 
         # Build SSE summary
         top_emotion = None
@@ -470,10 +483,16 @@ class PsycheService:
             expressiveness_scale = 0.15 + 1.85 * (user_sensitivity / 100.0)
             effective_sensitivity = base_sensitivity * expressiveness_scale
 
-            # Load personality traits for Big Five modulation
-            traits, _ = await self._load_personality_traits_and_override(user_id)
+            # Load personality traits for Big Five modulation + baseline (de-saturation)
+            traits, pad_override = await self._load_personality_traits_and_override(user_id)
+            baseline = PsycheEngine.compute_pad_baseline(
+                traits, pad_override, damping=settings.psyche_baseline_damping
+            )
 
-            # Apply appraisal (emotion creation + mood push + trait modulation)
+            # Apply appraisal (emotion creation + mood push + trait modulation).
+            # baseline + relaxation apply a per-interaction homeostatic pull toward
+            # baseline BEFORE the push, so arousal/dominance stop ratcheting up across
+            # a rapid message burst (temporal decay is ~0 within a burst).
             (
                 state.mood_pleasure,
                 state.mood_arousal,
@@ -490,6 +509,8 @@ class PsycheService:
                 max_active=settings.psyche_emotion_max_active,
                 now_iso=now_iso,
                 traits=traits,
+                baseline=baseline,
+                relaxation=settings.psyche_ad_relaxation,
             )
             state.active_emotions = updated_emotions
             # Store mood_label for evolution awareness in next pre-response
@@ -972,7 +993,9 @@ class PsycheService:
 
         # Compute baseline for mood reset
         traits, pad_override = await self._load_personality_traits_and_override(user_id)
-        baseline = PsycheEngine.compute_pad_baseline(traits, pad_override)
+        baseline = PsycheEngine.compute_pad_baseline(
+            traits, pad_override, damping=settings.psyche_baseline_damping
+        )
 
         if level in (RESET_LEVEL_SOFT, RESET_LEVEL_FULL):
             # Reset mood to baseline
@@ -1343,7 +1366,9 @@ async def build_psyche_prompt_block(
             service = PsycheService(db)
             state = await service.get_or_create_state(uid)
             traits, pad_override = await service._load_personality_traits_and_override(uid)
-            baseline = PsycheEngine.compute_pad_baseline(traits, pad_override)
+            baseline = PsycheEngine.compute_pad_baseline(
+                traits, pad_override, damping=settings.psyche_baseline_damping
+            )
 
             # Apply temporal decay in memory (read-only)
             now = datetime.now(UTC)
@@ -1388,22 +1413,40 @@ async def build_psyche_prompt_block(
                 drive_engagement=state.drive_engagement,
             )
 
-            compact = PsycheEngine.format_prompt_injection(profile)
-
-            # Build mood-specific directive for compact context
+            from src.domains.agents.prompts.prompt_loader import load_prompt
             from src.domains.psyche.constants import (
                 MOOD_BEHAVIORAL_DIRECTIVES,
+                MOOD_EXPRESSION_GRAMMAR,
                 RELATIONSHIP_STAGE_DIRECTIVES,
             )
 
-            mood_dir = MOOD_BEHAVIORAL_DIRECTIVES.get(profile.mood_label, "")
-            rel_dir = RELATIONSHIP_STAGE_DIRECTIVES.get(profile.relationship_stage, "")
+            if settings.psyche_embodied_injection:
+                # Embodied voice for proactive messages (ADR-105): the same concrete form
+                # grammar as the main response, in a lighter frame fit for a short message.
+                grammar = MOOD_EXPRESSION_GRAMMAR.get(profile.mood_label, "Even, plain tone.")
+                lead = (
+                    f" — {profile.active_emotions[0][0]} colours it"
+                    if profile.active_emotions
+                    else ""
+                )
+                # Raw intensity label (slightly/moderately/noticeably/strongly), consistent
+                # with the main response — not a separate 3-bucket mapping.
+                return str(load_prompt("psyche_embodied_proactive")).format(
+                    intensity=profile.mood_intensity,
+                    mood=profile.mood_label,
+                    lead=lead,
+                    grammar=grammar,
+                )
+
+            # Legacy compact format — rollback path for PSYCHE_EMBODIED_INJECTION=false.
             intensity_hint = (
                 "strongly"
                 if profile.mood_intensity == "strongly"
                 else "noticeably" if profile.mood_intensity == "noticeably" else "subtly"
             )
-
+            compact = PsycheEngine.format_prompt_injection(profile)
+            mood_dir = MOOD_BEHAVIORAL_DIRECTIVES.get(profile.mood_label, "")
+            rel_dir = RELATIONSHIP_STAGE_DIRECTIVES.get(profile.relationship_stage, "")
             return (
                 f"<PsycheContext>\n{compact}\n"
                 f"You have an inner life. Inhabit this state {intensity_hint}:\n"

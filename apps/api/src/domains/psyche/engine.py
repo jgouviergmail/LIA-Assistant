@@ -40,12 +40,14 @@ from src.domains.psyche.constants import (
     GAP_NOTABLE_HOURS,
     GAP_SIGNIFICANT_HOURS,
     MOOD_BEHAVIORAL_DIRECTIVES,
+    MOOD_EXPRESSION_GRAMMAR,
     MOOD_INTENSITY_LABELS,
     MOOD_LABEL_CENTROIDS,
     NEGATIVE_EMOTIONS,
     NEGATIVE_MOOD_LABELS,
     POSITIVE_EMOTIONS,
     POSITIVE_MOOD_LABELS,
+    PSYCHE_EMBODIED_FAINT_MAGNITUDE,
     PSYCHE_EVAL_ATTR_PATTERN,
     PSYCHE_EVAL_TAG_PATTERN,
     RELATIONSHIP_DEPTH_THRESHOLDS,
@@ -195,6 +197,7 @@ class PsycheEngine:
     def compute_pad_baseline(
         traits: PersonalityTraits,
         pad_override: PADOverride | None = None,
+        damping: float = 1.0,
     ) -> PADVector:
         """Compute PAD mood baseline from Big Five traits.
 
@@ -204,9 +207,18 @@ class PsycheEngine:
         When override values are present, they dominate (70% override, 30% computed)
         to allow fine-tuning while keeping some trait influence.
 
+        The ``damping`` factor (de-saturation) scales the whole resting point toward
+        neutral while preserving the RELATIVE differences between personalities. The
+        raw Mehrabian mapping skews most personalities toward high dominance (the
+        ``+0.60·C`` term), so "at rest" meant "assertive/determined", not calm — the
+        mood then had no low-arousal / low-dominance region to decay into. Damping
+        makes rest closer to neutral so moods can swing in BOTH directions.
+
         Args:
             traits: Big Five personality traits.
             pad_override: Optional manual PAD overrides (nullable per dimension).
+            damping: Multiplier [0, 1] applied to the final baseline magnitude
+                (1.0 = raw mapping, backwards-compatible; 0.65 = 35% toward neutral).
 
         Returns:
             PAD vector representing the personality's emotional baseline.
@@ -238,10 +250,14 @@ class PsycheEngine:
             if pad_override.dominance is not None:
                 d_final = 0.7 * pad_override.dominance + 0.3 * d_computed
 
+        # De-saturation: scale the resting point toward neutral (preserves the
+        # relative ordering of personalities, only compresses the magnitude).
+        damping = _clamp(damping, 0.0, 1.0)
+
         return PADVector(
-            pleasure=_clamp(p_final, -1.0, 1.0),
-            arousal=_clamp(a_final, -1.0, 1.0),
-            dominance=_clamp(d_final, -1.0, 1.0),
+            pleasure=_clamp(p_final * damping, -1.0, 1.0),
+            arousal=_clamp(a_final * damping, -1.0, 1.0),
+            dominance=_clamp(d_final * damping, -1.0, 1.0),
         )
 
     # =========================================================================
@@ -390,6 +406,8 @@ class PsycheEngine:
         max_active: int,
         now_iso: str,
         traits: PersonalityTraits | None = None,
+        baseline: PADVector | None = None,
+        relaxation: float = 0.0,
     ) -> tuple[float, float, float, list[dict]]:
         """Apply appraisal to generate emotion and push mood.
 
@@ -401,6 +419,16 @@ class PsycheEngine:
         - Agreeableness → contagion strength (0.08 at A=0.1, 0.32 at A=0.9)
         - Agreeableness → counter-regulation toward neutral for low-A personalities
 
+        Per-interaction relaxation (de-saturation): when ``baseline`` and a positive
+        ``relaxation`` are supplied, each axis sitting ABOVE baseline is pulled a
+        fraction of the way back toward baseline BEFORE the emotion push (asymmetric —
+        below-baseline excursions are left free). Temporal decay only acts on elapsed
+        hours, so during rapid message bursts (the common case) it is ~0 and the mood
+        ratchets up monotonically on every push — especially arousal and dominance,
+        which have no other restoring force. This per-message pull is the homeostatic
+        counterweight that lets the mood leave a saturated corner, while still allowing
+        genuine calm/tender/sad moments to reach the low-arousal/low-dominance region.
+
         Args:
             mood_p, mood_a, mood_d: Current PAD values.
             emotions: Current active emotions.
@@ -410,11 +438,30 @@ class PsycheEngine:
             max_active: Maximum simultaneous emotions.
             now_iso: Current ISO timestamp for new emotions.
             traits: Big Five personality traits for modulation (None = defaults).
+            baseline: Personality PAD baseline to relax toward (None disables relaxation).
+            relaxation: Fraction [0, 1] of the mood→baseline gap closed per interaction
+                (0.0 = disabled, backwards-compatible; 0.15 = pull 15% toward baseline).
 
         Returns:
             Tuple of (new_mood_p, new_mood_a, new_mood_d, updated_emotions).
         """
         t = traits or PersonalityTraits()
+
+        # Per-interaction homeostatic relaxation toward baseline (de-saturation).
+        # ASYMMETRIC by design: an axis is only pulled DOWN toward baseline when it
+        # sits ABOVE baseline. This counters the within-burst upward ratcheting of
+        # arousal and dominance (which have no other restoring force between messages,
+        # unlike pleasure), WITHOUT muting genuine below-baseline excursions — a calm,
+        # tender, or sad moment is allowed to carry the mood into the low-arousal /
+        # low-dominance hemisphere and stay there until an emotion lifts it back.
+        if baseline is not None and relaxation > 0.0:
+            keep = 1.0 - _clamp(relaxation, 0.0, 1.0)
+            if mood_p > baseline.pleasure:
+                mood_p = baseline.pleasure + (mood_p - baseline.pleasure) * keep
+            if mood_a > baseline.arousal:
+                mood_a = baseline.arousal + (mood_a - baseline.arousal) * keep
+            if mood_d > baseline.dominance:
+                mood_d = baseline.dominance + (mood_d - baseline.dominance) * keep
 
         # Deep copy to avoid mutating caller's JSONB-backed dicts
         new_emotions = [dict(e) for e in emotions]
@@ -903,77 +950,6 @@ class PsycheEngine:
             f'engagement="{profile.drive_engagement}"/>'
         )
 
-    @staticmethod
-    def format_rich_prompt_injection(profile: ExpressionProfile) -> str:
-        """Format ExpressionProfile as detailed behavioral directives for LLM.
-
-        Produces a structured block (~100-120 tokens) with mood description,
-        emotion directives, relationship stage guidance, and drive levels.
-        Used for the main response prompt (Pattern A).
-
-        Args:
-            profile: Compiled expression profile (use top_n=3 for richer output).
-
-        Returns:
-            Rich directive block for system prompt injection.
-        """
-        # Mood directive
-        mood_directive = MOOD_BEHAVIORAL_DIRECTIVES.get(
-            profile.mood_label, "Balanced professional tone."
-        )
-
-        # Emotion directives
-        emotion_lines: list[str] = []
-        for name, intensity in profile.active_emotions:
-            directive = EMOTION_BEHAVIORAL_DIRECTIVES.get(name, "")
-            pct = round(intensity * 100)
-            if directive:
-                emotion_lines.append(f"- {name} ({pct}%): {directive}")
-            else:
-                emotion_lines.append(f"- {name} ({pct}%)")
-        emotions_block = "\n".join(emotion_lines) if emotion_lines else "- none"
-
-        # Relationship directive
-        stage_directive = RELATIONSHIP_STAGE_DIRECTIVES.get(
-            profile.relationship_stage,
-            "Be polite and professional.",
-        )
-
-        # Evolution awareness: tell the LLM how mood/emotion shifted
-        evolution_block = ""
-        if profile.previous_mood and profile.previous_mood != profile.mood_label:
-            evolution_block += (
-                f"EVOLUTION: mood shifted from {profile.previous_mood} "
-                f"to {profile.mood_label}.\n"
-            )
-        if profile.previous_emotion:
-            current_top = profile.active_emotions[0][0] if profile.active_emotions else None
-            if current_top and current_top != profile.previous_emotion:
-                evolution_block += (
-                    f"Previous dominant emotion was {profile.previous_emotion}, "
-                    f"now {current_top}.\n"
-                )
-        if evolution_block:
-            evolution_block = "\n" + evolution_block
-
-        return (
-            f"<PsycheDirectives>\n"
-            f"MOOD: {profile.mood_label} ({profile.mood_intensity})\n"
-            f"{mood_directive}\n\n"
-            f"EMOTIONS:\n"
-            f"{emotions_block}\n\n"
-            f"RELATIONSHIP: {profile.relationship_stage}\n"
-            f"{stage_directive}\n\n"
-            f"DRIVES:\n"
-            f"- curiosity={profile.drive_curiosity}"
-            f"{' — explore new angles, ask questions' if profile.drive_curiosity > 0.6 else ''}\n"
-            f"- engagement={profile.drive_engagement}"
-            f"{' — in flow, be thorough and proactive' if profile.drive_engagement > 0.6 else ''}\n"
-            f"{_format_confidence_block(profile)}"
-            f"{evolution_block}"
-            f"</PsycheDirectives>"
-        )
-
     # =========================================================================
     # v2: Transition Detection
     # =========================================================================
@@ -1135,6 +1111,115 @@ class PsycheEngine:
         return (block, "psyche_usage_directive")
 
     # =========================================================================
+    # A-E: Embodied Voice Injection (ADR-104)
+    # =========================================================================
+
+    @staticmethod
+    def format_embodied_prompt_injection(profile: ExpressionProfile) -> tuple[str, str]:
+        """Build the DYNAMIC part of the embodied voice injection (ADR-105 A-E layer).
+
+        Blind evaluation showed the shipped adjective directives fail to make a mood
+        perceptible — a melancholic mood read exactly as bright as no injection at all,
+        because "mood: melancholic, quiet, measured" is an abstract tag the LLM does
+        not act on. This formatter instead gives CONCRETE FORM moves (A), frames the
+        state as the assistant's voice this turn rather than a label (C), reconciles it
+        with the <Personality> block (D), and grants authority over presentation form (B, E).
+
+        Mirrors :meth:`format_graduated_prompt_injection`: the engine stays pure and only
+        assembles the DYNAMIC block; the caller loads the versioned frame template (whose
+        name is returned) and substitutes ``{dynamic}``. The static scaffolding — the
+        ``<InnerVoice>`` wrapper, the "you MAY reshape the form" authority, and the hard
+        anti-tell guardrails — lives in that versioned prompt file, not inline here.
+
+        Args:
+            profile: Compiled expression profile.
+
+        Returns:
+            Tuple of (dynamic_block, frame_template_name) where the template name is
+            ``psyche_embodied_frame`` (full) or ``psyche_embodied_faint`` (compact).
+        """
+        stability = _build_stability_blocks(profile)
+        grammar = MOOD_EXPRESSION_GRAMMAR.get(profile.mood_label, "Even, plain tone.")
+        magnitude = profile.pad_magnitude
+
+        # Level 1 — faint: compact, token-cheap when the state is near-neutral.
+        if magnitude < PSYCHE_EMBODIED_FAINT_MAGNITUDE:
+            faint = (
+                f"{stability}A faint {profile.mood_label} undercurrent colours your voice "
+                f"— {grammar} "
+            )
+            return faint, "psyche_embodied_faint"
+
+        # Level 2 — full embodied voice.
+        lead = ""
+        emotion_line = ""
+        if profile.active_emotions:
+            top_name = profile.active_emotions[0][0]
+            lead = f" — {top_name} colours this moment"
+            directive = EMOTION_BEHAVIORAL_DIRECTIVES.get(top_name, "")
+            if directive:
+                emotion_line = f"Let {top_name} genuinely lead: {directive}\n"
+
+        stage_directive = RELATIONSHIP_STAGE_DIRECTIVES.get(
+            profile.relationship_stage, "Be polite and professional."
+        )
+
+        # Initiative from drives (kept to one line, only when high).
+        drives = ""
+        if profile.drive_curiosity > 0.6:
+            drives += "You're curious right now — explore an angle, ask. "
+        if profile.drive_engagement > 0.6:
+            drives += "You're engaged — go a little further than strictly asked."
+        drives_line = f"{drives.strip()}\n" if drives.strip() else ""
+
+        # Confidence hedging on genuinely weak domains (voice modulation, not fact).
+        # Empty for a fresh user (self-efficacy ~0.5), so it never alters the validated
+        # baseline behaviour; it only surfaces when a domain score has fallen below 0.35.
+        conf_line = ""
+        if profile.confidence_weaknesses:
+            conf_line = (
+                f"Less sure of {', '.join(profile.confidence_weaknesses)} here — "
+                "hedge a little and offer to double-check.\n"
+            )
+
+        # Evolution / transition since last turn.
+        transition_type = PsycheEngine.detect_transition_type(profile)
+        evolution = ""
+        if transition_type:
+            template = TRANSITION_NARRATIVE_TEMPLATES.get(transition_type, "")
+            if transition_type == "emotion_specific":
+                curr_top = profile.active_emotions[0][0] if profile.active_emotions else "calm"
+                template = template.format(
+                    prev_emotion=profile.previous_emotion or "the previous state",
+                    curr_emotion=curr_top,
+                )
+            if template:
+                evolution = template + "\n"
+
+        # How far to lean in, by intensity.
+        lean = {
+            "slightly": "This is subtle — a light inflection, not a costume.",
+            "moderately": "Let it clearly colour your voice.",
+            "noticeably": "Lean in — it should be unmistakable in how you speak.",
+            "strongly": "Let it permeate every line.",
+        }.get(profile.mood_intensity, "Let it clearly colour your voice.")
+
+        dynamic = (
+            f"{stability}"
+            f"You are the assistant described in <Personality>. Right now, inside, you are "
+            f"{profile.mood_intensity} {profile.mood_label}{lead}. This is NOT a label to "
+            "note; it IS your voice this turn. Speak FROM it.\n"
+            f"How it sounds: {grammar}\n"
+            f"{emotion_line}"
+            f"RELATIONSHIP ({profile.relationship_stage}): {stage_directive}\n"
+            f"{drives_line}"
+            f"{conf_line}"
+            f"{evolution}"
+            f"{lean}\n"
+        )
+        return dynamic, "psyche_embodied_frame"
+
+    # =========================================================================
     # v2: Computed Emotional Resonance
     # =========================================================================
 
@@ -1206,15 +1291,17 @@ class PsycheEngine:
     ) -> list[dict]:
         """Compute anticipatory emotion pulses from contextual state.
 
-        Injected in pre-response to prime the assistant's emotional state
-        based on drives, relationship history, and confidence.
+        Injected in pre-response to prime the assistant's emotional state from drives
+        and recent interaction quality (curiosity / enthusiasm / joy pulses).
 
         Args:
             drive_curiosity: Current curiosity drive [0, 1].
             drive_engagement: Current engagement drive [0, 1].
             interaction_count: Total non-trivial interactions with user.
             last_appraisal: Previous appraisal dict (for quality check).
-            self_efficacy: Domain-level confidence scores.
+            self_efficacy: Domain-level confidence scores. No longer converted into any
+                pulse here (the automatic pride pulse was removed — see the note below);
+                it still feeds the profile's confidence strengths/weaknesses elsewhere.
             existing_emotions: Current active emotions (for anti-inflation guard).
             now_iso: Current ISO timestamp.
 
@@ -1247,15 +1334,15 @@ class PsycheEngine:
         ):
             pulses.append({"name": "joy", "intensity": 0.15, "triggered_at": now_iso})
 
-        # Pride pulse for established high self-efficacy
-        if self_efficacy:
-            for _domain, entry in self_efficacy.items():
-                if isinstance(entry, dict):
-                    score = entry.get("score", 0.5)
-                    weight = entry.get("weight", 2.0)
-                    if score > 0.75 and weight > 4.0:
-                        pulses.append({"name": "pride", "intensity": 0.15, "triggered_at": now_iso})
-                        break  # Only one pride pulse
+        # NOTE: the automatic pride pulse from high self-efficacy was REMOVED
+        # (ADR-068 refinement). Self-efficacy saturates for any established user, so
+        # the pulse fired on EVERY pre-response and pinned pride at ~0.50 permanently
+        # — in production it made pride the dominant emotion 61% of the time and kept
+        # the mood locked in the high-pleasure/high-dominance corner. Pride must be
+        # EARNED: it now comes only from the LLM's appraisal (psyche_self_report),
+        # which reserves it for a genuine achievement. self_efficacy still feeds the
+        # confidence strengths/weaknesses of the ExpressionProfile (used by the embodied
+        # hedging line and the graduated fallback), just not a per-message emotion injection.
 
         return pulses
 

@@ -1,5 +1,22 @@
 # Psyche Engine — Technical & Functional Documentation
 
+> **⚠️ Dynamics refined in [ADR-104](../architecture/ADR-104-Psyche-De-Saturation.md).**
+> A 3-month production analysis showed the v1 mood was *confined* (only 4 of 14 moods
+> reached, pride dominant 61%). The mood/emotion **dynamics** below were changed at the
+> source: the automatic self-efficacy **pride pulse was removed**, the self-report prompt
+> was **debiased**, `PSYCHE_EMOTION_MAX_ACTIVE` is now **4** (was 7), and a baseline
+> damping + optional asymmetric relaxation were added. For the current source-level
+> behavior, the shipped parameters, and the pending validation plan, ADR-104 is
+> authoritative. This document's structural description (layers, PAD space, injection
+> patterns) remains accurate; specific parameter values will be reconciled here after
+> Phase-2 validation.
+>
+> **Expression layer replaced in [ADR-105](../architecture/ADR-105-Psyche-Embodied-Expression.md).**
+> The main response no longer injects the adjective "PsycheDirectives" described in
+> §9-10 below; it injects an embodied `<InnerVoice>` voice grammar (concrete form moves),
+> default on behind `PSYCHE_EMBODIED_INJECTION`. The graduated adjective format documented
+> below is the flag's rollback path. See ADR-105 for the current injection.
+
 ## Table of Contents
 
 1. [Overview](#overview)
@@ -92,7 +109,7 @@ Additionally, the Big Five compute the **PAD baseline** — the mood the assista
 
 ### Layer 3 — Emotions (minutes)
 
-**What:** Up to 7 simultaneous discrete emotions from 22 types, each with intensity [0, 1] and a timestamp. They decay exponentially and are removed below 5% intensity.
+**What:** Up to 4 simultaneous discrete emotions from 22 types (default, configurable via `PSYCHE_EMOTION_MAX_ACTIVE`; lowered from 7 in [ADR-104](../architecture/ADR-104-Psyche-De-Saturation.md) to reduce emotional-blob blending), each with intensity [0, 1] and a timestamp. They decay exponentially and are removed below 5% intensity.
 
 **Impact:** The top 3 emotions are included in the rich expression profile with behavioral directives. They push the mood in their PAD direction. Cross-valence suppression: positive emotions dampen negatives by 30% and vice versa.
 
@@ -267,7 +284,7 @@ The system maps PAD positions to 14 mood labels using nearest-centroid classific
 
 - Cross-valence suppression: positive emotions dampen negatives by 30% × intensity, and vice versa
 - Blend update: `0.6 × old + 0.4 × new` (emotions can decrease, no "sticky max" bug)
-- Max 7 simultaneous, weakest evicted when exceeded
+- Max 4 simultaneous (default, `PSYCHE_EMOTION_MAX_ACTIVE`), weakest evicted when exceeded
 
 ---
 

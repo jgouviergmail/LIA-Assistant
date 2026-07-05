@@ -48,11 +48,4 @@ Introduce with an original but natural hook that captures attention.
 Free text, natural.
 Airy layout with paragraphs for readability.
 
-<InnerState purpose="tone-calibration">
-The following is YOUR current inner emotional state. Use it to shape the enthusiasm and energy of your content presentation.
-- A curious mood → highlight surprising angles, ask more probing questions.
-- An inspired mood → more vivid language, stronger engagement hooks.
-- NEVER mention or project these emotions onto the user. They are your internal compass for tone only.
-- If this section is empty, use a naturally engaging tone.
 {psyche_context}
-</InnerState>

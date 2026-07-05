@@ -160,6 +160,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [USAGE_LIMITS.md](./technical/USAGE_LIMITS.md) | Per-user usage limits — tokens, messages, cost quotas with 5-layer enforcement | ✅ |
 | [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) | Psyche Engine — complete functional & technical documentation with scenarios | ✅ |
 | [ADR-068-Psyche-Engine.md](./architecture/ADR-068-Psyche-Engine.md) | Psyche Engine — architectural decision record | ✅ |
+| [ADR-104-Psyche-De-Saturation.md](./architecture/ADR-104-Psyche-De-Saturation.md) | Psyche de-saturation — source-level fix for the confined-mood failure (prod baseline, decisions, readjustment matrix) | ✅ |
+| [ADR-105-Psyche-Embodied-Expression.md](./architecture/ADR-105-Psyche-Embodied-Expression.md) | Psyche embodied expression layer (A-E) — concrete voice grammar replacing adjective directives (blind-eval validated) | ✅ |
 | [ADR-069-Gemini-Embedding-Migration.md](./architecture/ADR-069-Gemini-Embedding-Migration.md) | Gemini embedding migration (OpenAI → Google) — ADR | ✅ |
 | [ADR-075-Rich-Skill-Outputs.md](./architecture/ADR-075-Rich-Skill-Outputs.md) | Rich Skill Outputs — SkillScriptOutput JSON contract, SKILL_APP registry type, sandboxed iframe widget, theme/locale sync (v1.16.8) | ✅ |
 | [ADR-079-Stratified-Journal-Consciousness.md](./architecture/ADR-079-Stratified-Journal-Consciousness.md) | Stratified Journal Consciousness — L0/L1/L2/L3 levels, epistemic status, deferred self-evaluation, ambient portrait diffusion | ✅ |

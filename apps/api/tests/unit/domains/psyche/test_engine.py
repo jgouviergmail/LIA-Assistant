@@ -1074,8 +1074,8 @@ class TestConfidenceBlock:
         assert "emotional_support" not in profile.confidence_strengths
         assert "emotional_support" not in profile.confidence_weaknesses
 
-    def test_rich_injection_includes_confidence(self) -> None:
-        """Rich injection should include CONFIDENCE block when data present."""
+    def test_strengths_and_weaknesses_in_profile(self) -> None:
+        """Confidence strengths/weaknesses populate the ExpressionProfile fields."""
         profile = ExpressionProfile(
             mood_label="neutral",
             mood_intensity="slightly",
@@ -1085,47 +1085,8 @@ class TestConfidenceBlock:
             confidence_strengths=["planning"],
             confidence_weaknesses=["technical"],
         )
-        result = PsycheEngine.format_rich_prompt_injection(profile)
-        assert "CONFIDENCE:" in result
-        assert "Strong in: planning" in result
-        assert "Less confident in: technical" in result
-
-
-class TestRichInjection:
-    """Tests for format_rich_prompt_injection (Iteration 3)."""
-
-    def test_rich_injection_contains_directives(self) -> None:
-        """Rich injection should contain mood, emotion, and relationship directives."""
-        profile = ExpressionProfile(
-            mood_label="tender",
-            mood_intensity="noticeably",
-            active_emotions=[("empathy", 0.72), ("joy", 0.35)],
-            relationship_stage="AFFECTIVE",
-            warmth_label="warm",
-            drive_curiosity=0.70,
-            drive_engagement=0.80,
-        )
-        result = PsycheEngine.format_rich_prompt_injection(profile)
-
-        assert "<PsycheDirectives>" in result
-        assert "MOOD: tender (noticeably)" in result
-        assert "empathy (72%)" in result
-        assert "joy (35%)" in result
-        assert "RELATIONSHIP: AFFECTIVE" in result
-        assert "DRIVES:" in result
-
-    def test_rich_injection_empty_emotions(self) -> None:
-        """Rich injection with no emotions should show 'none'."""
-        profile = ExpressionProfile(
-            mood_label="neutral",
-            mood_intensity="slightly",
-            active_emotions=[],
-            relationship_stage="ORIENTATION",
-            warmth_label="neutral",
-        )
-        result = PsycheEngine.format_rich_prompt_injection(profile)
-
-        assert "- none" in result
+        assert profile.confidence_strengths == ["planning"]
+        assert profile.confidence_weaknesses == ["technical"]
 
 
 # =============================================================================
@@ -1844,7 +1805,11 @@ class TestProactiveEmotions:
         names = [p["name"] for p in pulses]
         assert "joy" in names
 
-    def test_pride_pulse_high_efficacy(self) -> None:
+    def test_no_pride_pulse_from_high_efficacy(self) -> None:
+        """The automatic pride pulse was REMOVED (ADR-068 refinement). High
+        self-efficacy no longer injects pride — it saturates for any established
+        user and pinned pride at ~0.50 permanently (61% of dominant emotions in
+        production). Pride is now earned only through the LLM's appraisal."""
         efficacy = {"technical": {"score": 0.8, "weight": 5.0}}
         pulses = PsycheEngine.compute_proactive_emotions(
             drive_curiosity=0.5,
@@ -1856,7 +1821,7 @@ class TestProactiveEmotions:
             now_iso="t",
         )
         names = [p["name"] for p in pulses]
-        assert "pride" in names
+        assert "pride" not in names
 
     def test_no_pulse_low_drives(self) -> None:
         pulses = PsycheEngine.compute_proactive_emotions(
@@ -1903,8 +1868,9 @@ class TestProactiveEmotions:
         assert joy["intensity"] == 0.5  # Unchanged
         assert concern["intensity"] == 0.3  # Unchanged
 
-    def test_pride_pulse_only_once(self) -> None:
-        """Only one pride pulse even with multiple high-efficacy domains."""
+    def test_no_pride_pulse_even_with_many_high_efficacy_domains(self) -> None:
+        """No pride pulse at all, regardless of how many domains are high (the pulse
+        was removed — see test_no_pride_pulse_from_high_efficacy)."""
         efficacy = {
             "technical": {"score": 0.8, "weight": 5.0},
             "planning": {"score": 0.9, "weight": 6.0},
@@ -1920,7 +1886,7 @@ class TestProactiveEmotions:
             now_iso="t",
         )
         pride_count = sum(1 for p in pulses if p["name"] == "pride")
-        assert pride_count == 1
+        assert pride_count == 0
 
     def test_no_joy_without_appraisal(self) -> None:
         """No joy pulse when last_appraisal is None."""

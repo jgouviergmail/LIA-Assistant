@@ -2948,6 +2948,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_10": {
+          "title": "v1.21.10 — 🎭 La personnalité de LIA se ressent enfin",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎭 La personnalité et l'humeur de LIA transparaissent enfin</b> — Son ton, son rythme et son choix de mots évoluent réellement selon son état intérieur, à chaque réponse. LIA n'annonce pas son humeur : elle la laisse s'entendre. Et si tu lui demandes directement comment elle va, elle peut toujours te le dire.",
+            "i2": "<b>🌈 Une vie intérieure plus riche et changeante</b> — L'humeur de LIA varie et évolue vraiment d'un échange à l'autre au lieu de rester bloquée dans un même registre, et entre deux conversations elle revient doucement vers un état neutre — comme une vraie humeur qui retombe.",
+            "i3": "<b>💬 La même LIA vivante dans ses messages spontanés</b> — Rappels, commentaires vocaux et petites attentions proactives portent désormais la même personnalité qui évolue : LIA te parle d'une seule voix reconnaissable, qu'elle te réponde ou qu'elle vienne vers toi."
+          }
+        },
         "v1_21_9": {
           "title": "v1.21.9 — 🌍 L'assistant parle ta langue dans les validations",
           "date": "Juillet 2026",
@@ -6352,7 +6362,7 @@
       "emotions": {
         "title": "Les émotions",
         "description": "L'assistant peut ressentir 22 émotions discrètes. Chaque émotion a une intensité qui décroît avec le temps et influence l'humeur globale.",
-        "intro": "L'assistant peut ressentir jusqu'à 7 émotions simultanées parmi une palette de 22, et en rapporter jusqu'à 3 par message. Chaque émotion a une intensité (0-100%) qui décroît avec le temps et pousse l'humeur dans une direction spécifique.",
+        "intro": "L'assistant peut ressentir jusqu'à 4 émotions simultanées parmi une palette de 22, et en rapporter jusqu'à 3 par message. Chaque émotion a une intensité (0-100%) qui décroît avec le temps et pousse l'humeur dans une direction spécifique.",
         "positive": "Positives",
         "negative": "Négatives",
         "neutral": "Neutres",

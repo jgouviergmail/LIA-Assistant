@@ -2943,6 +2943,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_10": {
+          "title": "v1.21.10 — 🎭 LIA's personality finally comes through",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎭 LIA's personality and mood finally show</b> — Its tone, rhythm and word choice genuinely shift with its inner state, in every reply. LIA doesn't announce its mood — it lets you hear it. Ask it directly how it's doing and it can still tell you.",
+            "i2": "<b>🌈 A richer, more changeable inner life</b> — LIA's mood genuinely varies and evolves from one exchange to the next instead of staying stuck in a single register, and between conversations it gently drifts back toward neutral — the way a real mood settles.",
+            "i3": "<b>💬 The same living LIA in its proactive messages</b> — Reminders, voice comments and proactive nudges now carry the same evolving personality, so LIA speaks in one recognisable voice whether it answers you or reaches out first."
+          }
+        },
         "v1_21_9": {
           "title": "v1.21.9 — 🌍 The assistant speaks your language in approval flows",
           "date": "July 2026",
@@ -6347,7 +6357,7 @@
       "emotions": {
         "title": "Emotions",
         "description": "The assistant can experience 22 discrete emotions. Each emotion has an intensity that decays over time and influences the overall mood.",
-        "intro": "The assistant can experience up to 7 simultaneous emotions from a palette of 22, and report up to 3 per message. Each emotion has an intensity (0-100%) that decays over time and pushes the mood in a specific direction.",
+        "intro": "The assistant can experience up to 4 simultaneous emotions from a palette of 22, and report up to 3 per message. Each emotion has an intensity (0-100%) that decays over time and pushes the mood in a specific direction.",
         "positive": "Positive",
         "negative": "Negative",
         "neutral": "Neutral",

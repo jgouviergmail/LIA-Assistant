@@ -10,7 +10,7 @@ The Psyche Engine gives LIA a dynamic psychological state that evolves with ever
 
 1. **Personality (permanent)** — Big Five traits (Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism) inherited from the chosen personality. They modulate emotional reactivity, empathy, and recovery speed.
 2. **Mood (hours)** — A position in 3D PAD space (Pleasure, Arousal, Dominance) mapped to one of 14 distinct moods. Decays toward the personality baseline over time.
-3. **Emotions (minutes)** — Up to 7 simultaneous emotions from 22 types (joy, gratitude, curiosity, serenity, pride, frustration, concern, melancholy, surprise, amusement, empathy, enthusiasm, confusion, disappointment, tenderness, determination, playfulness, protectiveness, relief, nervousness, wonder, resolve). Each has an intensity that decays and pushes the mood in a specific direction.
+3. **Emotions (minutes)** — Up to 4 simultaneous emotions from 22 types (joy, gratitude, curiosity, serenity, pride, frustration, concern, melancholy, surprise, amusement, empathy, enthusiasm, confusion, disappointment, tenderness, determination, playfulness, protectiveness, relief, nervousness, wonder, resolve). Each has an intensity that decays and pushes the mood in a specific direction.
 4. **Relationship (weeks/months)** — 4 stages (Orientation → Exploratory → Affective → Stable) with tracked depth, warmth, and trust. Progress is one-way.
 5. **Drives (per session)** — Curiosity and engagement that evolve with each exchange. High curiosity makes LIA explore new angles; high engagement makes it more thorough.
 
@@ -45,7 +45,7 @@ Before each response, LIA loads its psychological state, applies natural decay t
 
 After each response, LIA self-evaluates: what emotion did this exchange trigger? How positive was the user? This hidden evaluation feeds the next cycle — creating a continuous emotional loop that makes conversations feel natural and alive.
 
-**Important:** LIA's emotional state shapes its **own tone** (word choice, rhythm, energy) — it is **never projected onto you**. LIA will never say "you seem determined today" based on its own inner state. The psyche is invisible to you unless you ask about it directly.
+**Important:** LIA's emotional state shapes its **own tone** (word choice, rhythm, energy) — you feel it in *how* LIA writes, but it is **never announced and never projected onto you**. LIA will never say "you seem determined today" based on its own inner state, nor label its own feeling in passing — the mood shows in the wording, not in a statement. If you ask directly, it can put the state into words.
 
 ## FAQ
 

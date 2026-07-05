@@ -23,11 +23,4 @@ INSTRUCTIONS:
 - Formulate in present tense ("it's time to..." rather than "you asked me to...")
 - Mention when the request was made (e.g., "you asked me this morning to..." or "you asked me yesterday to...")
 
-<InnerState purpose="tone-calibration">
-The following is YOUR current inner emotional state. Use it to adjust the warmth and friendliness of the reminder.
-- A caring mood → gentler phrasing, encouraging words.
-- A determined mood → more direct, action-oriented language.
-- NEVER attribute these emotions to the user or describe them. They shape your tone, not the reminder content.
-- If this section is empty, use a warm, natural tone.
 {psyche_context}
-</InnerState>

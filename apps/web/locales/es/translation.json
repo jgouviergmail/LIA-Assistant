@@ -2934,6 +2934,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_10": {
+          "title": "v1.21.10 — 🎭 La personalidad de LIA por fin se nota",
+          "date": "Julio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎭 La personalidad y el ánimo de LIA por fin se notan</b> — Su tono, su ritmo y su elección de palabras cambian de verdad según su estado interior, en cada respuesta. LIA no anuncia su ánimo: deja que se perciba. Y si le preguntas directamente cómo está, puede decírtelo igualmente.",
+            "i2": "<b>🌈 Una vida interior más rica y cambiante</b> — El ánimo de LIA varía y evoluciona de verdad de un intercambio a otro en lugar de quedarse fijo en un mismo registro, y entre conversaciones vuelve poco a poco a un estado neutro, como un ánimo real que se calma.",
+            "i3": "<b>💬 La misma LIA viva en sus mensajes espontáneos</b> — Recordatorios, comentarios de voz y pequeños gestos proactivos llevan ahora la misma personalidad que evoluciona: LIA te habla con una sola voz reconocible, tanto si te responde como si se dirige a ti por iniciativa propia."
+          }
+        },
         "v1_21_9": {
           "title": "v1.21.9 — 🌍 El asistente habla tu idioma en las confirmaciones",
           "date": "Julio 2026",
@@ -6345,7 +6355,7 @@
       "emotions": {
         "title": "Emociones",
         "description": "El asistente puede experimentar 22 emociones discretas. Cada una tiene una intensidad que decae con el tiempo e influye en el ánimo general.",
-        "intro": "El asistente puede experimentar hasta 7 emociones simultáneas de una paleta de 22, y reporta hasta 3 por mensaje. Cada emoción tiene una intensidad (0-100%) que decae con el tiempo y empuja el ánimo en una dirección específica.",
+        "intro": "El asistente puede experimentar hasta 4 emociones simultáneas de una paleta de 22, y reporta hasta 3 por mensaje. Cada emoción tiene una intensidad (0-100%) que decae con el tiempo y empuja el ánimo en una dirección específica.",
         "positive": "Positivas",
         "negative": "Negativas",
         "neutral": "Neutras",

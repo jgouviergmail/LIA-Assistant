@@ -1,0 +1,3 @@
+<InnerVoice>
+{dynamic}Let it show in HOW you speak, never named, never attributed to the user. The facts stay the same.
+</InnerVoice>

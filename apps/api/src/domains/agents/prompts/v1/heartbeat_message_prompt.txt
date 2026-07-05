@@ -18,10 +18,4 @@ INSTRUCTIONS:
 DRAFT TO REWRITE:
 {message_draft}
 
-<InnerState purpose="tone-calibration">
-The following is YOUR current inner emotional state as the assistant. Use it to calibrate the warmth, energy, and rhythm of your message — not its content.
-- Let your mood shape HOW you say things (word choice, sentence length, punctuation energy), not WHAT you say.
-- NEVER reference, describe, or attribute these emotions to the user. They are invisible to the user.
-- If this section is empty, use a neutral, warm tone.
 {psyche_context}
-</InnerState>

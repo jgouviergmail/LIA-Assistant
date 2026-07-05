@@ -19,9 +19,12 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    PSYCHE_AD_RELAXATION_DEFAULT,
     PSYCHE_APPRAISAL_SENSITIVITY_DEFAULT,
+    PSYCHE_BASELINE_DAMPING_DEFAULT,
     PSYCHE_CACHE_TTL_SECONDS_DEFAULT,
     PSYCHE_CIRCADIAN_AMPLITUDE_DEFAULT,
+    PSYCHE_EMBODIED_INJECTION_DEFAULT,
     PSYCHE_EMOTION_DECAY_RATE_DEFAULT,
     PSYCHE_EMOTION_MAX_ACTIVE_DEFAULT,
     PSYCHE_ENABLED_DEFAULT,
@@ -54,6 +57,15 @@ class PsycheSettings(BaseSettings):
         ),
     )
 
+    psyche_embodied_injection: bool = Field(
+        default=PSYCHE_EMBODIED_INJECTION_DEFAULT,
+        description=(
+            "Expression layer (ADR-104 A-E): when true, the main response uses the "
+            "embodied voice injection (concrete form grammar). When false, roll back to "
+            "the legacy graduated adjective directives."
+        ),
+    )
+
     # ========================================================================
     # Mood Dynamics
     # ========================================================================
@@ -76,6 +88,28 @@ class PsycheSettings(BaseSettings):
         description=(
             "Circadian modulation amplitude on mood pleasure baseline. "
             "0.0 = no circadian effect. 0.08 = subtle midday boost."
+        ),
+    )
+
+    psyche_ad_relaxation: float = Field(
+        default=PSYCHE_AD_RELAXATION_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "De-saturation: fraction of the mood→baseline gap closed on every "
+            "interaction (before the emotion push). Counters within-burst arousal/"
+            "dominance ratcheting when temporal decay is ~0. 0.0 disables it."
+        ),
+    )
+
+    psyche_baseline_damping: float = Field(
+        default=PSYCHE_BASELINE_DAMPING_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "De-saturation: multiplier applied to the computed PAD baseline "
+            "magnitude, pulling every personality's resting point toward neutral "
+            "while preserving relative differences. 1.0 = raw Mehrabian mapping."
         ),
     )
 

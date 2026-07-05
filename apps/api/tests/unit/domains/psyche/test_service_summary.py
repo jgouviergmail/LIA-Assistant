@@ -246,6 +246,8 @@ class TestSnapshotCreation:
             mock_settings.psyche_emotion_max_active = 7
             mock_settings.psyche_history_snapshot_enabled = True
             mock_settings.psyche_self_efficacy_prior_weight = 5.0
+            mock_settings.psyche_ad_relaxation = 0.15
+            mock_settings.psyche_baseline_damping = 0.65
 
             result = await service.process_post_response(user_id, appraisal)
 
@@ -286,6 +288,8 @@ class TestSnapshotCreation:
             mock_settings.psyche_emotion_max_active = 7
             mock_settings.psyche_history_snapshot_enabled = False
             mock_settings.psyche_self_efficacy_prior_weight = 5.0
+            mock_settings.psyche_ad_relaxation = 0.15
+            mock_settings.psyche_baseline_damping = 0.65
 
             await service.process_post_response(user_id, appraisal)
 

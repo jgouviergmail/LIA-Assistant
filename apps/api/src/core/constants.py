@@ -3705,13 +3705,37 @@ REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE: int = 4096
 # System-level feature default
 PSYCHE_ENABLED_DEFAULT: bool = True
 
+# Expression layer: embodied voice injection (ADR-104 A-E) vs the legacy graduated
+# adjective directives. Default True (embodied — validated to make moods perceptible);
+# set False to instantly roll back to the graduated format without a redeploy.
+PSYCHE_EMBODIED_INJECTION_DEFAULT: bool = True
+
 # Mood dynamics
 PSYCHE_MOOD_DECAY_RATE_DEFAULT: float = 0.1  # Per hour, exponential
 PSYCHE_CIRCADIAN_AMPLITUDE_DEFAULT: float = 0.08  # Sinusoidal pleasure modulation
+# De-saturation (ADR-068 refinement). The primary de-saturation comes from fixing
+# the emotion SOURCE (removing the per-message pride pulse + debiasing the self-report
+# palette); these two knobs are secondary dynamics tuning.
+#   - baseline damping: the raw Mehrabian mapping skews high-conscientiousness
+#     personalities to a high dominance baseline (D≈0.40 for Cynic), which locked the
+#     production mood in the assertive/determined corner. Damping nudges the resting
+#     point toward neutral while preserving relative personality differences.
+#   - AD relaxation: an asymmetric anti-ratchet pull toward baseline (only rabbits DOWN
+#     axes ABOVE baseline; below-baseline calm/tender excursions are left free). ENABLED
+#     (0.15): Phase-2 end-to-end testing with a real LLM showed the self-report keeps
+#     emitting the personality's characteristic high-arousal emotions (amusement,
+#     determination, enthusiasm) turn after turn, ratcheting arousal/dominance up to
+#     ~0.84 without it. 0.15 bounds that climb while still letting a genuinely calm/sad
+#     conversation reach the low-arousal register (arousal went negative to -0.43, mood
+#     reached serene/reflective — impossible in production).
+PSYCHE_AD_RELAXATION_DEFAULT: float = 0.15  # Asymmetric anti-ratchet pull (0 = off; tunable)
+PSYCHE_BASELINE_DAMPING_DEFAULT: float = 0.75  # Resting-point magnitude toward neutral (1.0 = raw)
 
 # Emotion parameters
-PSYCHE_EMOTION_DECAY_RATE_DEFAULT: float = 0.3  # Per hour, exponential
-PSYCHE_EMOTION_MAX_ACTIVE_DEFAULT: int = 7  # Max simultaneous emotions (22 emotion palette)
+PSYCHE_EMOTION_DECAY_RATE_DEFAULT: float = 0.4  # Per hour, exponential (was 0.3 — faster turnover)
+PSYCHE_EMOTION_MAX_ACTIVE_DEFAULT: int = (
+    4  # Max simultaneous emotions (was 7 — reduce blob blending)
+)
 PSYCHE_APPRAISAL_SENSITIVITY_DEFAULT: float = 0.7  # Appraisal → emotion multiplier
 
 # Relationship parameters

@@ -419,7 +419,7 @@ class AgentsSettings(BaseSettings):
     react_agent_max_iterations: int = Field(
         default=REACT_AGENT_MAX_ITERATIONS_DEFAULT,
         gt=1,
-        le=30,
+        le=100,
         description="Max ReAct loop iterations (each = 1 LLM call + tool execution).",
     )
     react_agent_timeout_seconds: int = Field(
@@ -3097,7 +3097,7 @@ class AgentsSettings(BaseSettings):
     mcp_react_max_iterations: int = Field(
         default=MCP_REACT_MAX_ITERATIONS_DEFAULT,
         ge=3,
-        le=20,
+        le=60,
         description="Max ReAct iterations for MCP sub-agent (recursion_limit).",
     )
     mcp_react_step_timeout_seconds: int = Field(

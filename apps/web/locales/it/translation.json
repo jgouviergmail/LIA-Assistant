@@ -2936,6 +2936,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_10": {
+          "title": "v1.21.10 — 🎭 La personalità di LIA finalmente si sente",
+          "date": "Luglio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎭 La personalità e l'umore di LIA finalmente traspaiono</b> — Il suo tono, il suo ritmo e la scelta delle parole cambiano davvero in base al suo stato interiore, a ogni risposta. LIA non annuncia il suo umore: lo lascia percepire. E se le chiedi direttamente come sta, può comunque dirtelo.",
+            "i2": "<b>🌈 Una vita interiore più ricca e mutevole</b> — L'umore di LIA varia ed evolve davvero da uno scambio all'altro invece di restare bloccato in un unico registro, e tra una conversazione e l'altra torna dolcemente verso uno stato neutro, come un umore reale che si placa.",
+            "i3": "<b>💬 La stessa LIA viva nei suoi messaggi spontanei</b> — Promemoria, commenti vocali e piccole attenzioni proattive portano ora la stessa personalità che evolve: LIA ti parla con un'unica voce riconoscibile, sia che ti risponda sia che si rivolga a te di sua iniziativa."
+          }
+        },
         "v1_21_9": {
           "title": "v1.21.9 — 🌍 L'assistente parla la tua lingua nelle conferme",
           "date": "Luglio 2026",
@@ -6347,7 +6357,7 @@
       "emotions": {
         "title": "Emozioni",
         "description": "L'assistente può provare 22 emozioni discrete. Ogni emozione ha un'intensità che decade nel tempo e influenza l'umore generale.",
-        "intro": "L'assistente può provare fino a 7 emozioni simultanee da una palette di 22, e riporta fino a 3 per messaggio. Ogni emozione ha un'intensità (0-100%) che decade nel tempo e spinge l'umore in una direzione specifica.",
+        "intro": "L'assistente può provare fino a 4 emozioni simultanee da una palette di 22, e riporta fino a 3 per messaggio. Ogni emozione ha un'intensità (0-100%) che decade nel tempo e spinge l'umore in una direzione specifica.",
         "positive": "Positive",
         "negative": "Negative",
         "neutral": "Neutre",

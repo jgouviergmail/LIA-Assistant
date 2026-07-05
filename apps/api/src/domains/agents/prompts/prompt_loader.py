@@ -146,6 +146,9 @@ PromptName = Literal[
     "psyche_narrative_prompt",
     "psyche_usage_directive",
     "psyche_usage_directive_light",
+    "psyche_embodied_frame",
+    "psyche_embodied_faint",
+    "psyche_embodied_proactive",
     # HTML response formatting (when cards are disabled)
     "html_response_directive",
     # Health Metrics — assistant agent (v1.17.2)

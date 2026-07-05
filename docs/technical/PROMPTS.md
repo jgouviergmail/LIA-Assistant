@@ -186,23 +186,22 @@ async def router_node(state: MessagesState) -> dict:
     return {"routing_decision": response.model_dump()}
 ```
 
-### Psyche Context via Template Variables (v1.16.2)
+### Psyche Context via Template Variables
 
-All user-facing prompts now inject psyche context via template placeholders rather than string concatenation:
+All user-facing prompts inject the psyche state through a `{psyche_context}` template placeholder:
 
 ```python
-# Example: reminder_prompt.txt contains {psyche_context} placeholder
-from src.domains.psyche.service import PsycheService
+# Example: reminder_prompt.txt contains a {psyche_context} placeholder
+from src.domains.psyche.service import build_psyche_prompt_block
 
-psyche_block = await PsycheService.build_psyche_prompt_block(psyche_state, personality)
+psyche_block = await build_psyche_prompt_block(user_id, user_timezone)
 prompt = load_prompt("reminder_prompt").format(
     reminder_info=reminder_data,
-    memory_context=memory_block,
-    psyche_context=psyche_block,  # Injected inside the template's XML structure
+    psyche_context=psyche_block,
 )
 ```
 
-This ensures psyche directives are enclosed within semantic XML blocks (e.g., `<InnerState purpose="tone-calibration">`) rather than appended outside the template structure. All 6 user-facing prompt templates (`fallback_response_prompt`, `heartbeat_message_prompt`, `voice_comment_prompt`, `reminder_prompt`, `interest_content_prompt`, `response_system_prompt_base`) follow this pattern.
+As of [ADR-105](../architecture/ADR-105-Psyche-Embodied-Expression.md) (embodied expression, default on behind `PSYCHE_EMBODIED_INJECTION`), `{psyche_context}` is a **self-framing `<InnerVoice>` block** carrying a concrete voice grammar (per-mood form moves) plus its own anti-tell guardrails — so the prompts no longer wrap it in an `<InnerState purpose="tone-calibration">` block. The main response uses `PsycheEngine.format_embodied_prompt_injection` + the versioned `psyche_embodied_frame.txt` / `psyche_embodied_faint.txt`; the proactive channels (`reminder_prompt`, `heartbeat_message_prompt`, `voice_comment_prompt`, `interest_content_prompt`, `fallback_response_prompt`) use `build_psyche_prompt_block` + `psyche_embodied_proactive.txt`. With the flag off, the legacy graduated `<PsycheContext>` format is used instead (rollback path).
 
 ---
 

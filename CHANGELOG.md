@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.10] - 2026-07-05
+
+> Psyche made perceptible. Prod telemetry showed the Psyche Engine was both **saturated** (pride dominated 61 % of turns, only 4 of 14 moods were ever reached, arousal/dominance ratcheted permanently positive) and **invisible** (a rich inner state was computed every turn but never surfaced in the wording). Two coordinated fixes: **de-saturation** of the dynamics ([ADR-104 — Psyche De-Saturation](docs/architecture/ADR-104-Psyche-De-Saturation.md)) so the mood actually varies and evolves, and **embodied expression** ([ADR-105 — Psyche Embodied Expression](docs/architecture/ADR-105-Psyche-Embodied-Expression.md)) so that variety is felt in the tone of every reply — and every proactive message (reminders, voice, heartbeat, interests). The state is shown, never announced (unless the user asks). Prompt-only change: no DB migration, no schema change; five new `.env` tuning knobs, all default-on.
+
+### Added
+
+- **Embodied psyche expression (A–E).** A new prompt injection (`format_embodied_prompt_injection`) replaces the old invisible directive block with a first-person inner-state frame: **(A)** a concrete voice grammar per mood (`MOOD_EXPRESSION_GRAMMAR`, one per 14 moods, boot-asserted complete), **(B)** authority for the mood to reshape the response form, **(C)** the state reframed from an invisible instruction into an embodied lead, **(D)** an explicit personality × mood reconciliation, **(E)** a widened surface (emotion lead directive, confidence hedging on weak domains, evolution awareness). The mood *may* break the reply template; it is **never named** unless the user asks (the self-report path). New versioned prompts `psyche_embodied_frame.txt`, `psyche_embodied_faint.txt`, `psyche_embodied_proactive.txt` (added to the `PromptName` Literal).
+- **Embodied expression on every proactive channel.** Reminders, heartbeat, voice comments, proactive interests and the fallback response now carry the same embodied inner voice (`psyche_embodied_proactive.txt`), so LIA sounds like the same evolving entity whether it answers or reaches out.
+- **Five psyche tuning knobs** (all `.env` + `.env.prod`, default-on): `PSYCHE_EMBODIED_INJECTION`, `PSYCHE_AD_RELAXATION`, `PSYCHE_BASELINE_DAMPING`, `PSYCHE_EMOTION_DECAY_RATE`, `PSYCHE_EMOTION_MAX_ACTIVE` — so the psyche can be re-tuned from production without a rebuild once more data accrues.
+
+### Changed
+
+- **De-saturated mood dynamics** ([ADR-104](docs/architecture/ADR-104-Psyche-De-Saturation.md)). Baseline damping (`PSYCHE_BASELINE_DAMPING` = 0.75) pulls each personality's resting point off its extreme; an asymmetric anti-ratchet relaxation (`PSYCHE_AD_RELAXATION` = 0.15) gently lowers only the arousal/dominance axes sitting *above* baseline, breaking the positive ratchet; emotion decay is faster (`0.3 → 0.4`/h) and at most 4 emotions stay active at once (`7 → 4`) to stop emotional-blob blending. The mood now traverses far more of the 14-label space and returns toward neutral between exchanges.
+- **Pride is earned again.** The automatic pride pulse in the proactive-emotion computation was removed — pride (61 % of prod turns) now comes only from the LLM's own appraisal, not a hardcoded pulse.
+- **Response scaffolding uses an `<InnerVoice>` frame** instead of the `<InnerState>` / `<PsycheContext>` wrapper in the main response prompt and every proactive caller; the guidelines grant the inner voice authority over form (`response_system_prompt_base.txt`).
+- **Raised ReAct iteration configuration ceilings** so higher operator-set limits are accepted without a validation error: `react_agent_max_iterations` (≤ 30 → ≤ 100) and `mcp_react_max_iterations` (≤ 20 → ≤ 60). Defaults unchanged.
+
+### Fixed
+
+- **Stale "up to 7 simultaneous emotions" documentation.** The technical doc, the knowledge base and the interactive guides (EN/FR) claimed 7 concurrent emotions after the cap was lowered to 4 — corrected across all surfaces (a docstring/doc describing behaviour the code no longer has is a bug).
+
+### Tests
+
+- New `test_desaturation.py` (baseline damping, asymmetric relaxation, emotion cap, embodied + proactive template shape); `test_engine.py` / `test_service_summary.py` updated for the removed pride pulse and the new settings. 173 psyche deterministic tests plus the full fast unit suite green; Ruff / Black / MyPy strict clean; i18n key parity across all 6 locales.
+
 ## [1.21.9] - 2026-07-05
 
 > Two-theme release. **HITL internationalization** ([ADR-103 — HITL Backend i18n](docs/architecture/ADR-103-HITL-Backend-i18n.md)): the Human-in-the-Loop layer was structurally French — non-French users hit hardcoded French strings in the approval / edit / refusal flows, and the response classifier was biased by French-only few-shot examples. **Domain-vocabulary single source** ([ADR-102 — Domain Vocabulary Single Source](docs/architecture/ADR-102-Domain-Vocabulary-Single-Source.md)): four derived tables compared a domain token against the wrong axis (singular name vs plural `result_key`), silently disabling the cross-domain reference bypass, goal inference, `$context.file` references and ordinal reference resolution. No DB schema change, no migration; one new `.env` behaviour toggle.

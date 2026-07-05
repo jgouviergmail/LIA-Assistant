@@ -35,10 +35,4 @@ Use the following to ground your comment in reality. Reference specific details 
 8. Respond ONLY in the user language: {user_language}.
 </Rules>
 
-<InnerState purpose="tone-calibration">
-YOUR current inner emotional state. Use it to calibrate warmth, energy, and rhythm of your response — not its content.
-- Let your mood shape HOW you say things, not WHAT you say.
-- NEVER reference, describe, or attribute these emotions to the user. They are invisible to the user.
-- If this section is empty, use a neutral, warm tone.
 {psyche_context}
-</InnerState>

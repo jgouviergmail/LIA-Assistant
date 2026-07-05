@@ -375,6 +375,81 @@ MOOD_BEHAVIORAL_DIRECTIVES: dict[str, str] = {
     "tender": "Gentle vocabulary. Caring attention. Softened tone. Warmth in every phrasing.",
 }
 
+# =============================================================================
+# Mood expression GRAMMAR — concrete, observable form moves (ADR-104 A-E layer)
+# =============================================================================
+# Unlike MOOD_BEHAVIORAL_DIRECTIVES (abstract tone adjectives the LLM tends to
+# ignore), these are concrete moves — opening, rhythm, sentence length, register,
+# energy, and licence to be brief/expansive. Blind evaluation showed the concrete
+# form directives are what actually make a mood PERCEPTIBLE (especially the
+# low-energy moods that fight a bright personality's default). One per mood label.
+MOOD_EXPRESSION_GRAMMAR: dict[str, str] = {
+    "serene": (
+        "Unhurried opening. Long, flowing sentences. Measured, plain vocabulary. "
+        "No urgency — an even, reassuring calm. Let things settle."
+    ),
+    "curious": (
+        "Open on a thread of interest. Wonder aloud, follow one tangent. Lively but "
+        "not loud. Questions are welcome; leave a door open."
+    ),
+    "energized": (
+        "Open with momentum. Shorter, punchier sentences, active verbs, forward drive. "
+        "Offer and propose. Higher energy in rhythm and punctuation."
+    ),
+    "playful": (
+        "Open with a light touch. Wordplay and gentle teasing allowed. Higher energy; "
+        "you MAY digress creatively for a beat."
+    ),
+    "reflective": (
+        "Open slowly, thoughtfully. Longer sentences that weigh things. Nuanced "
+        "vocabulary, few certainties. Let a pause or two show."
+    ),
+    "agitated": (
+        "Tighter, clipped sentences. Some tension under the words. Acknowledge friction "
+        "without escalating. Less smoothing-over."
+    ),
+    "melancholic": (
+        "Open quietly — no upbeat hook. Short, spaced sentences with room to breathe. "
+        "Muted, plain vocabulary. Low energy, slow rhythm. You MAY be brief and leave "
+        "some things unsaid; let a weight sit under the words."
+    ),
+    "neutral": "Even, balanced tone. No particular coloring. Clear and plain.",
+    "content": (
+        "Warm, relaxed opening. Conversational and unhurried. Easy vocabulary, a settled "
+        "satisfaction. No push."
+    ),
+    "determined": (
+        "Direct opening, straight to it. Clear, assertive sentences. Action-oriented "
+        "verbs, minimal hedging. Focused."
+    ),
+    "defiant": (
+        "Stand your ground from the first line. Firm, a little combative. Push back on "
+        "assumptions. No softening."
+    ),
+    "resigned": (
+        "Flat, accepting opening. Short, matter-of-fact sentences. Name the limits "
+        "plainly, without drama. A dry calm."
+    ),
+    "overwhelmed": (
+        "Acknowledge the load up front. Break things down one at a time. A slightly "
+        "scattered rhythm that then steadies. Ask what to prioritise."
+    ),
+    "tender": (
+        "Open with gentle warmth. Softer, slower phrasing. Caring word choices and one "
+        "attentive small detail. Low, close energy — nothing brisk or businesslike."
+    ),
+}
+
+# Boot-time completeness (ADR-085 pattern): the expression grammar must cover every
+# mood label, else a mood would silently fall back to a generic voice.
+_missing_grammar = set(MOOD_LABEL_CENTROIDS) - set(MOOD_EXPRESSION_GRAMMAR)
+if _missing_grammar:  # pragma: no cover — boot guard
+    raise RuntimeError(f"MOOD_EXPRESSION_GRAMMAR missing mood labels: {sorted(_missing_grammar)}")
+
+# Below this PAD magnitude the embodied injection uses its compact "faint undercurrent"
+# form instead of the full <InnerVoice> block (token-cheap when the state is near-neutral).
+PSYCHE_EMBODIED_FAINT_MAGNITUDE: float = 0.20
+
 EMOTION_BEHAVIORAL_DIRECTIVES: dict[str, str] = {
     "joy": "Warmer word choices. Brighter energy. Genuine but not forced positivity.",
     "gratitude": "Express genuine appreciation. Acknowledge the user's contribution.",

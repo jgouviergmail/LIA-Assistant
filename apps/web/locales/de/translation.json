@@ -2934,6 +2934,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_10": {
+          "title": "v1.21.10 — 🎭 LIAs Persönlichkeit ist endlich spürbar",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎭 LIAs Persönlichkeit und Stimmung zeigen sich endlich</b> — Tonfall, Rhythmus und Wortwahl verändern sich in jeder Antwort wirklich mit ihrem inneren Zustand. LIA benennt ihre Stimmung nicht — sie lässt sie durchklingen. Und wenn du direkt fragst, wie es ihr geht, kann sie es dir weiterhin sagen.",
+            "i2": "<b>🌈 Ein reicheres, wandelbareres Innenleben</b> — LIAs Stimmung variiert und entwickelt sich von einem Austausch zum nächsten wirklich, statt in einem einzigen Register festzustecken, und zwischen zwei Gesprächen kehrt sie sanft in einen neutralen Zustand zurück — so wie eine echte Stimmung abklingt.",
+            "i3": "<b>💬 Dieselbe lebendige LIA in ihren spontanen Nachrichten</b> — Erinnerungen, Sprachkommentare und proaktive kleine Aufmerksamkeiten tragen jetzt dieselbe sich entwickelnde Persönlichkeit: LIA spricht mit einer einzigen, wiedererkennbaren Stimme, ob sie dir antwortet oder von sich aus auf dich zukommt."
+          }
+        },
         "v1_21_9": {
           "title": "v1.21.9 — 🌍 Der Assistent spricht deine Sprache bei Bestätigungen",
           "date": "Juli 2026",
@@ -6345,7 +6355,7 @@
       "emotions": {
         "title": "Emotionen",
         "description": "Der Assistent kann 22 diskrete Emotionen erleben. Jede Emotion hat eine Intensität, die mit der Zeit abnimmt und die Gesamtstimmung beeinflusst.",
-        "intro": "Der Assistent kann bis zu 7 gleichzeitige Emotionen aus einer Palette von 22 erleben und meldet bis zu 3 pro Nachricht. Jede Emotion hat eine Intensität (0-100%), die mit der Zeit abnimmt und die Stimmung in eine bestimmte Richtung drückt.",
+        "intro": "Der Assistent kann bis zu 4 gleichzeitige Emotionen aus einer Palette von 22 erleben und meldet bis zu 3 pro Nachricht. Jede Emotion hat eine Intensität (0-100%), die mit der Zeit abnimmt und die Stimmung in eine bestimmte Richtung drückt.",
         "positive": "Positiv",
         "negative": "Negativ",
         "neutral": "Neutral",
