@@ -402,9 +402,13 @@ delete_email_catalogue_manifest = ToolManifest(
     cost=CostProfile(est_tokens_in=100, est_tokens_out=50, est_cost_usd=0.005, est_latency_ms=400),
     permissions=PermissionProfile(
         required_scopes=GOOGLE_GMAIL_SCOPES,
-        # hitl_required=True: Deletion is destructive and has no draft_critique
-        # HITL via approval_gate is required to confirm before deletion
-        hitl_required=True,
+        # Draft-based: delete_email_tool returns requires_confirmation=True
+        # (email_delete draft) → confirmed post-execution via draft_critique, exactly
+        # like send/create/update and like delete_contact/delete_task. hitl_required
+        # MUST stay False: the flag only drives ReAct's pre-execution interrupt, which
+        # for a draft tool is redundant AND currently unrendered (silent hang).
+        # Enforced by test_hitl_required_consistency.py.
+        hitl_required=False,
         data_classification="CONFIDENTIAL",
     ),
     max_iterations=1,
@@ -621,7 +625,13 @@ delete_label_catalogue_manifest = ToolManifest(
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=100, est_cost_usd=0.001, est_latency_ms=400),
     permissions=PermissionProfile(
-        required_scopes=GOOGLE_GMAIL_SCOPES, hitl_required=True, data_classification="INTERNAL"
+        # Draft-based: delete_label_tool returns requires_confirmation=True
+        # (label_delete draft) → draft_critique. hitl_required stays False (see
+        # test_hitl_required_consistency.py). Note: delete_label_direct_tool is a
+        # separate, internal, non-draft variant.
+        required_scopes=GOOGLE_GMAIL_SCOPES,
+        hitl_required=False,
+        data_classification="INTERNAL",
     ),
     max_iterations=1,
     supports_dry_run=False,

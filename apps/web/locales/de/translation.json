@@ -2934,6 +2934,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_12": {
+          "title": "v1.21.12 — ✅ Klarere, zuverlässigere Aktionsbestätigungen",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📧 Klarere Sammelbestätigungen</b> — Wenn LIA mehrere Aktionen auf einmal vorbereitet (zum Beispiel eine E-Mail an zwei Personen), zeigt die Bestätigung jetzt die korrekte Aktion und bei E-Mails, an wen jede geht — damit du die Empfänger vor dem Bestätigen prüfen kannst. Eine Gruppe von Sendungen zeigt nicht länger fälschlich „diese Löschung bestätigen?“ an.",
+            "i2": "<b>🛡️ Zuverlässige Bestätigungen im autonomen Modus</b> — LIA (im autonomen Modus) zu bitten, eine E-Mail oder einen Termin zu löschen oder eine Aktion eines verbundenen Tools auszuführen, konnte hängen bleiben, ohne dass eine Bestätigung erschien. LIA zeigt jetzt immer eine echte Bestätigung vor einer solchen Aktion — genau wie im Standardmodus.",
+            "i3": "<b>✅ Ein einheitliches Bestätigungserlebnis</b> — Bestätigungen verhalten sich jetzt in beiden Ausführungsmodi (Standard und autonom) identisch, und nichts wird jemals ohne deine ausdrückliche Zustimmung ausgeführt."
+          }
+        },
         "v1_21_11": {
           "title": "v1.21.11 — 🛠️ Zuverlässigkeit und Wartung",
           "date": "Juli 2026",

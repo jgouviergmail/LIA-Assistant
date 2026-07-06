@@ -2936,6 +2936,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_12": {
+          "title": "v1.21.12 — ✅ Conferme delle azioni più chiare e affidabili",
+          "date": "Luglio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📧 Conferme in blocco più chiare</b> — Quando LIA prepara più azioni contemporaneamente (ad esempio un'email a due persone), la conferma mostra ora l'azione corretta e, per le email, a chi è destinata ciascuna — così puoi verificare i destinatari prima di confermare. Un blocco di invii non mostra più, erroneamente, un messaggio “confermare questa eliminazione?”.",
+            "i2": "<b>🛡️ Conferme affidabili in modalità autonoma</b> — Chiedere a LIA (in modalità autonoma) di eliminare un'email o un evento, o di eseguire un'azione di uno strumento collegato, poteva bloccarsi senza che comparisse alcuna conferma. LIA ora mostra sempre una vera conferma prima di un'azione del genere, esattamente come nella modalità standard.",
+            "i3": "<b>✅ Un'esperienza di conferma coerente</b> — Le conferme ora funzionano in modo identico in entrambe le modalità di esecuzione (standard e autonoma), e nulla viene mai eseguito senza la tua approvazione esplicita."
+          }
+        },
         "v1_21_11": {
           "title": "v1.21.11 — 🛠️ Affidabilità e manutenzione",
           "date": "Luglio 2026",

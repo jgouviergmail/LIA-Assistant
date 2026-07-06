@@ -336,7 +336,12 @@ cancel_reminder_catalogue_manifest = ToolManifest(
     permissions=PermissionProfile(
         required_scopes=[],  # Internal tool, no OAuth
         data_classification="CONFIDENTIAL",
-        hitl_required=True,
+        # Draft-based: cancel_reminder_tool returns requires_confirmation=True
+        # (reminder_delete draft) → draft_critique, like delete_contact/delete_task.
+        # hitl_required stays False (see test_hitl_required_consistency.py): the flag
+        # only drives ReAct's pre-execution interrupt, redundant AND unrendered for a
+        # draft tool (silent hang).
+        hitl_required=False,
     ),
     # Discriminant phrases - Reminder cancellation
     semantic_keywords=[

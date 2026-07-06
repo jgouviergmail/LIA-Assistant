@@ -459,9 +459,13 @@ delete_event_catalogue_manifest = ToolManifest(
     cost=CostProfile(est_tokens_in=100, est_tokens_out=50, est_cost_usd=0.01, est_latency_ms=400),
     permissions=PermissionProfile(
         required_scopes=GOOGLE_CALENDAR_SCOPES,
-        # hitl_required=True: Deletion is destructive and has no draft_critique
-        # HITL via approval_gate is required to confirm before deletion
-        hitl_required=True,
+        # Draft-based: delete_event_tool returns requires_confirmation=True
+        # (event_delete draft) → confirmed post-execution via draft_critique, exactly
+        # like create/update and like delete_contact/delete_task. hitl_required MUST
+        # stay False: the flag only drives ReAct's pre-execution interrupt, which for
+        # a draft tool is redundant AND currently unrendered (silent hang).
+        # Enforced by test_hitl_required_consistency.py.
+        hitl_required=False,
         data_classification="CONFIDENTIAL",
     ),
     max_iterations=1,

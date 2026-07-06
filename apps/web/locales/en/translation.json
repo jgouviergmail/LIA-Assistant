@@ -2943,6 +2943,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_12": {
+          "title": "v1.21.12 — ✅ Clearer, more reliable action confirmations",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📧 Clearer batch confirmations</b> — When LIA prepares several actions at once (for example an email to two people), the confirmation now shows the correct action and, for emails, who each one goes to — so you can check the recipients before confirming. A batch of sends no longer shows a misleading “confirm this deletion?” prompt.",
+            "i2": "<b>🛡️ Reliable confirmations in autonomous mode</b> — Asking LIA (in autonomous mode) to delete an email or event, or to run a connected-tool action, could freeze with no confirmation appearing. LIA now always shows a proper confirmation before any such action, exactly as in the standard mode.",
+            "i3": "<b>✅ A consistent confirmation experience</b> — Confirmations now behave identically across both execution modes (standard and autonomous), and nothing is ever carried out without your explicit approval."
+          }
+        },
         "v1_21_11": {
           "title": "v1.21.11 — 🛠️ Reliability & maintenance",
           "date": "July 2026",

@@ -38,6 +38,7 @@ from src.domains.agents.analysis.query_intelligence_helpers import (
 )
 from src.domains.agents.models import MessagesState
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.services.react_tool_selector import ReactToolSelector
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import resolve_tool_instance
@@ -597,18 +598,38 @@ async def react_execute_tools_node(
         if tc_id in existing_tool_msg_ids:
             continue
 
-        # HITL for mutation tools
+        # HITL for mutation tools (non-draft) — route through the SHARED
+        # tool_confirmation contract, the SAME interaction the pipeline uses via
+        # hitl_dispatch. A type-tagged action_request makes the streaming service
+        # render a real confirmation (question + buttons) AND persist it in Redis,
+        # and the resume flows through _parse_approval_decision → {"action": ...}.
+        # The legacy bare "react_tool_approval" value had no action_requests, so it
+        # was never rendered nor resumable (silent hang, #3). Draft-based mutation
+        # tools are hitl_required=False and confirm via the draft_critique handoff
+        # below (invariant enforced by test_hitl_required_consistency.py).
         is_mutation = hitl_map.get(tc_name, False)
         if is_mutation:
-            # interrupt() halts on first call, returns resume value on re-execution
+            # interrupt() halts on first call, returns the resume value on re-execution
             decision = interrupt(
                 {
-                    "type": "react_tool_approval",
-                    "tool_name": tc_name,
-                    "tool_args": tc_args,
+                    "action_requests": [
+                        {
+                            "type": "tool_confirmation",
+                            "tool_name": tc_name,
+                            "tool_args": tc_args,
+                        }
+                    ],
+                    "generate_question_streaming": True,
+                    "user_language": state.get("user_language", "fr"),
+                    "user_timezone": state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE),
+                    "hitl_type": HitlInteractionType.TOOL_CONFIRMATION.value,
                 }
             )
-            if isinstance(decision, dict) and decision.get("action") == "reject":
+            # Execute ONLY on an explicit confirmation. Anything else (cancel,
+            # reject, ambiguous, or a malformed resume) declines — the safe default
+            # for a mutation gated behind HITL.
+            decision_action = decision.get("action") if isinstance(decision, dict) else None
+            if decision_action not in ("confirm", "approve"):
                 new_messages.append(
                     ToolMessage(
                         content=f"Action '{tc_name}' was declined by the user.",
@@ -620,6 +641,7 @@ async def react_execute_tools_node(
                 logger.info(
                     "react_hitl_rejected",
                     tool_name=tc_name,
+                    decision_action=decision_action,
                 )
                 continue
 

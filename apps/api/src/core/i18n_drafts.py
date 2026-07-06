@@ -581,8 +581,54 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
 
 
 # ============================================================================
+# HITL ITEM PREVIEW — recipient connector
+# ============================================================================
+# Localized preposition inserted between the noun and the recipient in a batch
+# item preview for send-type drafts (email / reply / forward), producing
+# "Email à {to}" / "Email to {to}" / "E-Mail an {to}" ... Consumed by
+# format_hitl_item_preview when the draft's DraftDisplayConfig declares an
+# item_recipient_field. Kept as a bare connector (not a full per-type template)
+# so the generic "{emoji} {Noun} {connector} {recipient} : {label}" composition
+# stays draft-type-agnostic.
+
+DRAFT_RECIPIENT_CONNECTOR: dict[Language, str] = {
+    "fr": "à",
+    "en": "to",
+    "es": "a",
+    "de": "an",
+    "it": "a",
+    "zh-CN": "给",
+}
+
+
+# ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
+
+def _stringify_recipient(value: object) -> str:
+    """Normalize an email recipient field to a compact one-line string.
+
+    A draft ``to`` field is either a single address string or a list of
+    addresses. This collapses internal whitespace, joins a list with commas,
+    and bounds the length so a long recipient list stays on one preview row.
+
+    Args:
+        value: Raw recipient value from the draft content (str, list, or None).
+
+    Returns:
+        A compact recipient string, or ``""`` when the value is empty.
+    """
+    if not value:
+        return ""
+    if isinstance(value, (list, tuple)):
+        parts = [" ".join(str(v).split()) for v in value if v]
+        recipient = ", ".join(p for p in parts if p)
+    else:
+        recipient = " ".join(str(value).split())
+    if len(recipient) > 60:
+        recipient = recipient[:57].rstrip() + "..."
+    return recipient
 
 
 def _normalize_language(language: str | None) -> Language:
@@ -1057,6 +1103,25 @@ def format_hitl_item_preview(
             label = " ".join(str(value).split())
             break
 
+    # Optional recipient (send-type drafts only): the WHO of the action — the
+    # critical discriminating field when a batch sends to several people (two
+    # rows would otherwise be identical). Rendered as "{Noun} {connector}
+    # {recipient}" (e.g. "Email à marie@ex.com"). Falls back silently to the
+    # plain noun when the field is unset or empty (delete/create/update types).
+    noun_display: str = noun
+    if config.item_recipient_field and noun:
+        rcpt_value = (
+            resolve_nested_value(content, config.item_recipient_field)
+            if "." in config.item_recipient_field
+            else content.get(config.item_recipient_field)
+        )
+        recipient = _stringify_recipient(rcpt_value)
+        if recipient:
+            connector = DRAFT_RECIPIENT_CONNECTOR.get(
+                lang, DRAFT_RECIPIENT_CONNECTOR[DEFAULT_LANGUAGE]
+            )
+            noun_display = f"{noun} {connector} {recipient}"
+
     # Extract and format the contextual datetime (with weekday name).
     dt_str: str = ""
     if config.item_secondary_datetime_key:
@@ -1077,12 +1142,12 @@ def format_hitl_item_preview(
             except (ValueError, TypeError):
                 dt_str = ""
 
-    # Compose: "{emoji} {Noun} : {label}" + optional " - {date}".
+    # Compose: "{emoji} {Noun[ connector recipient]} : {label}" + optional date.
     head_parts: list[str] = [config.emoji]
-    if noun and label:
-        head_parts.append(f"{noun} : {label}")
-    elif noun:
-        head_parts.append(noun)
+    if noun_display and label:
+        head_parts.append(f"{noun_display} : {label}")
+    elif noun_display:
+        head_parts.append(noun_display)
     elif label:
         head_parts.append(label)
     head = " ".join(head_parts).strip()

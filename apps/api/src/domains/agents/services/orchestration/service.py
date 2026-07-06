@@ -59,6 +59,19 @@ from src.infrastructure.observability.metrics_langgraph import (
 
 logger = get_logger(__name__)
 
+# Fast-path natural-language approval/rejection words (FR/EN) for HITL resume
+# classification (OrchestrationService._parse_approval_decision). Non-FR/EN
+# responses fall through to the LLM classifier, which is i18n-aware. Single
+# source of truth reused by every branch — draft critique adds the send verbs.
+_HITL_CONFIRM_WORDS: frozenset[str] = frozenset(
+    {"ok", "oui", "yes", "approve", "confirme", "confirmer", "d'accord", "dacord"}
+)
+_HITL_CANCEL_WORDS: frozenset[str] = frozenset(
+    {"non", "no", "reject", "refuse", "annule", "annuler", "cancel"}
+)
+# Draft critique additionally fast-paths the send verbs (email drafts).
+_HITL_CONFIRM_WORDS_DRAFT: frozenset[str] = _HITL_CONFIRM_WORDS | frozenset({"envoie", "envoyer"})
+
 
 class GraphChunk:
     """
@@ -268,18 +281,7 @@ class OrchestrationService:
             )
 
             # Simple approval patterns for draft_critique → confirm
-            if message_lower in {
-                "ok",
-                "oui",
-                "yes",
-                "approve",
-                "confirme",
-                "confirmer",
-                "d'accord",
-                "dacord",
-                "envoie",
-                "envoyer",
-            }:
+            if message_lower in _HITL_CONFIRM_WORDS_DRAFT:
                 logger.info(
                     "approval_decision_draft_critique_confirm",
                     run_id=run_id,
@@ -291,7 +293,7 @@ class OrchestrationService:
                 }
 
             # Simple rejection patterns for draft_critique → cancel
-            if message_lower in {"non", "no", "reject", "refuse", "annule", "annuler", "cancel"}:
+            if message_lower in _HITL_CANCEL_WORDS:
                 logger.info(
                     "approval_decision_draft_critique_cancel",
                     run_id=run_id,
@@ -549,8 +551,45 @@ class OrchestrationService:
                     "exclude_criteria": user_message,
                 }
 
+        # === TOOL_CONFIRMATION: pre-execution confirm/cancel for non-draft tools ===
+        # Both hitl_dispatch._handle_tool_confirmation AND the ReAct mutation gate
+        # (react_execute_tools_node) expect {"action": "confirm"|"cancel"} — NOT the
+        # generic {"decision": "APPROVE"} shape. This is a mutation gate, so any
+        # non-approval (reject / ambiguous / classifier failure) maps to "cancel"
+        # (safe default: never execute a mutation without an explicit confirmation).
+        if interrupt_type == "tool_confirmation":
+            if message_lower in _HITL_CONFIRM_WORDS:
+                return {"action": "confirm"}
+            if message_lower in _HITL_CANCEL_WORDS:
+                return {"action": "cancel"}
+            try:
+                from src.domains.agents.services.hitl_classifier import HitlResponseClassifier
+
+                classifier = HitlResponseClassifier()
+                result = await classifier.classify(
+                    user_response=user_message, action_context=action_context
+                )
+                logger.info(
+                    "approval_decision_tool_confirmation_classified",
+                    run_id=run_id,
+                    decision=result.decision,
+                    confidence=result.confidence,
+                )
+                if result.decision == "APPROVE":
+                    return {"action": "confirm"}
+                return {"action": "cancel", "reason": result.reasoning or "declined"}
+            except (ValueError, KeyError, TypeError, RuntimeError, AttributeError) as e:
+                logger.warning(
+                    "approval_decision_tool_confirmation_classifier_error",
+                    run_id=run_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    fallback="cancel",
+                )
+                return {"action": "cancel", "reason": "classification_failed"}
+
         # === FAST PATH: Simple approval patterns (no LLM needed) ===
-        if message_lower in {"ok", "oui", "yes", "approve", "confirme", "d'accord", "dacord"}:
+        if message_lower in _HITL_CONFIRM_WORDS:
             logger.info(
                 "approval_decision_fast_path",
                 run_id=run_id,
@@ -560,8 +599,8 @@ class OrchestrationService:
             return {"decision": "APPROVE"}
 
         # === FAST PATH: Simple rejection patterns (no LLM needed) ===
-        # Only match EXACT "non"/"no" - longer messages need classification
-        if message_lower in {"non", "no", "reject", "refuse", "annule", "cancel"}:
+        # Only match EXACT rejection words - longer messages need classification
+        if message_lower in _HITL_CANCEL_WORDS:
             logger.info(
                 "approval_decision_fast_path",
                 run_id=run_id,

@@ -2948,6 +2948,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_12": {
+          "title": "v1.21.12 — ✅ Des confirmations d'action plus claires et fiables",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📧 Confirmations groupées plus claires</b> — Quand LIA prépare plusieurs actions à la fois (par exemple un email à deux personnes), la confirmation affiche désormais la bonne action et, pour les emails, à qui chacun est destiné — pour vérifier les destinataires avant de confirmer. Un groupe d'envois n'affiche plus, à tort, un message « confirmer cette suppression ? ».",
+            "i2": "<b>🛡️ Confirmations fiables en mode autonome</b> — Demander à LIA (en mode autonome) de supprimer un email ou un événement, ou de lancer une action d'un outil connecté, pouvait se figer sans qu'aucune confirmation n'apparaisse. LIA affiche maintenant toujours une vraie confirmation avant ce type d'action, exactement comme en mode standard.",
+            "i3": "<b>✅ Une expérience de confirmation cohérente</b> — Les confirmations fonctionnent désormais à l'identique dans les deux modes d'exécution (standard et autonome), et rien n'est jamais exécuté sans ton accord explicite."
+          }
+        },
         "v1_21_11": {
           "title": "v1.21.11 — 🛠️ Fiabilité et maintenance",
           "date": "Juillet 2026",

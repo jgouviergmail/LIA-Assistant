@@ -49,6 +49,7 @@ from src.core.field_names import FIELD_CONTENT, FIELD_CONVERSATION_ID
 from src.core.i18n_drafts import format_hitl_item_preview
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
 from src.core.time_utils import format_value_if_datetime_string
+from src.domains.agents.drafts.display import get_draft_display_config
 from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.prompts import format_with_current_datetime
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -711,15 +712,24 @@ Generate the review question:"""
             Formatted batch confirmation message
         """
 
-        translations = HitlMessages.get_destructive_confirm_translations(user_language)
+        # Destructive (delete) batches keep the irreversible-delete warning and
+        # the "confirm deletion?" question. Non-destructive batches (send /
+        # create / update / reply / forward) MUST NOT inherit that deletion
+        # wording — the draft display registry (ADR-085) is the single source of
+        # truth for a draft type's mutation nature (verb_past_key == "deleted").
+        cfg = get_draft_display_config(draft_type)
+        is_destructive = cfg is not None and cfg.verb_past_key == "deleted"
+
+        destructive_ui = HitlMessages.get_destructive_confirm_translations(user_language)
         specific_title = HitlMessages.get_destructive_confirm_title(draft_type, user_language)
 
-        # Header with action-specific title (e.g., "Confirmation de suppression")
+        # Header with action-specific title (e.g., "Confirmation d'envoi").
         header = f"⚠️ **{specific_title}**\n\n"
 
         # Build item list — unified rendering via the draft display registry
-        # (ADR-085). Output per row: "{emoji} {Noun} : {label} - {date_with_day}".
-        items_section = f"**{translations['affected_items']} :**\n"
+        # (ADR-085). Send-type rows include the recipient:
+        # "{emoji} {Noun}[ à {recipient}] : {label}[ - {date_with_day}]".
+        items_section = f"**{destructive_ui['affected_items']} :**\n"
         for draft_data in batch_drafts:
             content = draft_data.get("draft_content", {})
             row = format_hitl_item_preview(
@@ -749,9 +759,18 @@ Generate the review question:"""
 
         items_section += "\n"
 
-        # Warning + question
-        warning = f"⚠️ {translations['default_warning']}\n\n"
-        question = f"**{translations['confirm_question']}**"
+        # Warning + question — action-appropriate. Deletes get the strong
+        # irreversible warning + the deletion question; other mutations get NO
+        # irreversible-delete warning and the neutral FOR_EACH confirmation
+        # question (localized, consistent with the pipeline FOR_EACH
+        # send/create/update flow).
+        if is_destructive:
+            warning = f"⚠️ {destructive_ui['default_warning']}\n\n"
+            question = f"**{destructive_ui['confirm_question']}**"
+        else:
+            for_each_ui = HitlMessages.get_for_each_confirm_translations(user_language)
+            warning = ""
+            question = f"**{for_each_ui['confirm_question']}**"
 
         return header + items_section + warning + question
 

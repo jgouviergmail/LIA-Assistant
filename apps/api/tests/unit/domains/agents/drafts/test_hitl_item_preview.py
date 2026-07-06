@@ -179,6 +179,100 @@ def test_label_delete_uses_label_name() -> None:
 
 
 # =============================================================================
+# Recipient prefix — send-type drafts (email / reply / forward)
+# =============================================================================
+# The critical HITL bug: a batch email confirmation must show WHO each email
+# goes to, otherwise two rows with the same subject are indistinguishable.
+
+
+def test_email_send_shows_recipient_and_subject() -> None:
+    """A send email row shows "Email à {to} : {subject}" (recipient + subject)."""
+    row = format_hitl_item_preview(
+        draft_type=DraftType.EMAIL.value,
+        content={"to": "matheo@example.com", "subject": "Je t'aime"},
+        language="fr",
+    )
+    assert row is not None
+    assert row.startswith("📧 Email à matheo@example.com : Je t'aime"), row
+
+
+def test_email_send_two_recipients_are_distinguishable() -> None:
+    """Two emails with the same subject render as DISTINCT rows (the bug's core)."""
+    matheo = format_hitl_item_preview(
+        DraftType.EMAIL.value, {"to": "matheo@example.com", "subject": "Je t'aime"}, language="fr"
+    )
+    hua = format_hitl_item_preview(
+        DraftType.EMAIL.value, {"to": "hua@example.com", "subject": "Je t'aime"}, language="fr"
+    )
+    assert matheo != hua, "Rows must differ by recipient"
+    assert "matheo@example.com" in (matheo or "")
+    assert "hua@example.com" in (hua or "")
+
+
+@pytest.mark.parametrize(
+    "language,connector",
+    [("fr", "à"), ("en", "to"), ("es", "a"), ("de", "an"), ("it", "a"), ("zh-CN", "给")],
+)
+def test_email_send_recipient_connector_per_language(language: str, connector: str) -> None:
+    """The recipient is introduced by the correct localized connector."""
+    row = format_hitl_item_preview(
+        draft_type=DraftType.EMAIL.value,
+        content={"to": "marie@example.com", "subject": "Sujet"},
+        language=language,
+    )
+    assert row is not None
+    assert f"{connector} marie@example.com" in row, row
+
+
+def test_email_send_recipient_as_list_is_joined() -> None:
+    """A list ``to`` is joined with commas, not rendered as a Python list repr."""
+    row = format_hitl_item_preview(
+        draft_type=DraftType.EMAIL.value,
+        content={"to": ["a@example.com", "b@example.com"], "subject": "Sujet"},
+        language="fr",
+    )
+    assert row is not None
+    assert "a@example.com, b@example.com" in row, row
+    assert "[" not in row and "]" not in row
+
+
+def test_email_send_without_recipient_falls_back_to_noun_label() -> None:
+    """No ``to`` field → plain "Email : {subject}" with no dangling connector."""
+    row = format_hitl_item_preview(
+        draft_type=DraftType.EMAIL.value,
+        content={"subject": "Sujet seul"},
+        language="fr",
+    )
+    assert row is not None
+    assert row.startswith("📧 Email : Sujet seul"), row
+    assert " à " not in row, "No recipient → no connector"
+
+
+@pytest.mark.parametrize("draft_type", [DraftType.EMAIL_REPLY, DraftType.EMAIL_FORWARD])
+def test_email_reply_forward_show_recipient(draft_type: DraftType) -> None:
+    """Reply and forward drafts also surface the recipient."""
+    row = format_hitl_item_preview(
+        draft_type=draft_type.value,
+        content={"to": "contact@example.com", "subject": "Re: Sujet"},
+        language="fr",
+    )
+    assert row is not None
+    assert "à contact@example.com" in row, row
+
+
+def test_email_delete_ignores_recipient_field() -> None:
+    """email_delete has no recipient prefix even if a ``to`` is present."""
+    row = format_hitl_item_preview(
+        draft_type=DraftType.EMAIL_DELETE.value,
+        content={"to": "someone@example.com", "subject": "Facture", "date": None},
+        language="fr",
+    )
+    assert row is not None
+    assert "someone@example.com" not in row, row
+    assert "Email : Facture" in row, row
+
+
+# =============================================================================
 # Edge cases
 # =============================================================================
 

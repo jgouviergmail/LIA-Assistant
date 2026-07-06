@@ -81,6 +81,14 @@ class DraftDisplayConfig:
             header (e.g. ``"reminder"``, ``"email"``).
         verb_past_key: Key in ``DRAFT_RESULT_VERBS_PAST`` for the past
             participle (e.g. ``"deleted"``, ``"sent"``).
+        item_recipient_field: Optional key whose value is shown as the
+            recipient in a batch row for send-type drafts (email / reply /
+            forward), rendered as ``"{Noun} {à} {recipient} : {label}"``. This
+            surfaces the WHO of the action — the critical discriminating field
+            when a batch sends to several people (two rows would otherwise be
+            identical). ``None`` (the default) disables the recipient prefix;
+            delete/create/update types leave it unset. Dotted notation is
+            supported for nested dicts.
     """
 
     emoji: str
@@ -89,6 +97,10 @@ class DraftDisplayConfig:
     detail_fields: tuple[DraftDisplayField, ...]
     noun_key: str
     verb_past_key: str
+    # Defaulted field MUST stay last (dataclass ordering): a non-default field
+    # cannot follow a defaulted one. Every existing entry constructs the config
+    # with keyword args, so this addition is backward-compatible.
+    item_recipient_field: str | None = None
 
 
 # =============================================================================
@@ -110,6 +122,7 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         ),
         noun_key="email",
         verb_past_key="sent",
+        item_recipient_field="to",  # show WHO each email goes to in a batch row
     ),
     DraftType.EMAIL_REPLY: DraftDisplayConfig(
         emoji="↩️",  # ↩️
@@ -123,6 +136,7 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         ),
         noun_key="email",
         verb_past_key="sent",
+        item_recipient_field="to",
     ),
     DraftType.EMAIL_FORWARD: DraftDisplayConfig(
         emoji="↪️",  # ↪️
@@ -136,6 +150,7 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         ),
         noun_key="email",
         verb_past_key="sent",
+        item_recipient_field="to",
     ),
     DraftType.EMAIL_DELETE: DraftDisplayConfig(
         emoji="\U0001f5d1️\U0001f4e7",  # 🗑️📧

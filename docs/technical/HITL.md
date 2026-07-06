@@ -2,8 +2,8 @@
 
 > Système d'approbation plan-level avant exécution avec génération de questions LLM multilingues
 >
-> Version: 8.5 (July 2026 - Replay-safe HITL loops: single-pass draft critique + dedicated `for_each_confirm` node)
-> Date: 2026-07-02
+> Version: 8.6 (July 2026 - Unified HITL contract across pipeline & ReAct: `hitl_required` = pre-exec non-draft only, ReAct mutation gate on `tool_confirmation` — ADR-106)
+> Date: 2026-07-06
 
 ## 📋 Table des Matières
 
@@ -28,6 +28,34 @@
 ## 🎯 Vue d'Ensemble
 
 Le système HITL (Human-in-the-Loop) de LIA permet d'**interrompre l'exécution pour demander l'approbation utilisateur** avant d'effectuer des actions à risque.
+
+### Contrat HITL unifié (ADR-106)
+
+Toute interruption HITL suit **un seul contrat** : un `action_requests` **typé**
+(`draft_critique`, `tool_confirmation`, `for_each_confirmation`,
+`entity_disambiguation`, `plan_approval`, `clarification`) → rendu par son
+interaction (couche streaming) → résumé par sa branche dans
+`OrchestrationService._parse_approval_decision`. **Le pipeline et ReAct partagent
+ce contrat** — ReAct n'a plus de dialecte propre (l'ancien interrupt
+`react_tool_approval`, sans `action_requests`, était non rendu → hang silencieux).
+
+Deux mécanismes de déclenchement, complémentaires :
+
+| Mécanisme | Déclencheur | Portée |
+|-----------|-------------|--------|
+| **Output-driven** (post-exécution) | le tool renvoie `requires_confirmation=True` + un `draft_type` | drafts (`email`, `event`, `*_delete`, …) → `draft_critique` ; ou `draft_type="tool_confirmation"` |
+| **Flag-driven** (pré-exécution) | `manifest.permissions.hitl_required=True` | mutations **non-draft** uniquement ; en ReAct → interaction `tool_confirmation` |
+
+**Invariant `hitl_required`** : le flag signifie *« confirmation pré-exécution
+d'une mutation **sans draft** »* — et rien d'autre. Un tool **draft-based** (qui
+produit un draft, ex. `delete_email_tool`, `cancel_reminder_tool`) DOIT être
+`hitl_required=False` : le draft **est** sa confirmation (via `draft_critique`),
+exactement comme `send_email`/`create_event`/`delete_contact`. Verrouillé par
+`tests/unit/domains/agents/tools/test_hitl_required_consistency.py` (allowlist :
+`delegate_to_sub_agent_tool` + tools MCP utilisateur). En pipeline, `hitl_required`
+n'est **pas** un gate (`approval_gate_node` = pass-through, la confirmation y est
+entièrement output-driven) ; le flag pilote donc surtout le gate **pré-exécution
+ReAct** (`react_execute_tools_node` → `tool_confirmation`).
 
 ### Évolution : Phase 7 → Phase 8
 

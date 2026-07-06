@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.12] - 2026-07-06
+
+> HITL contract coherence. A confirmation-flow release that unifies Human-in-the-Loop across the two execution modes ([ADR-106 — HITL Contract Coherence](docs/architecture/ADR-106-HITL-Contract-Coherence.md)) — prompt-free, no DB migration. Confirmation had drifted into two trigger mechanisms wired inconsistently: the pipeline is entirely output-driven (a tool returns a draft → `draft_critique`), while ReAct additionally gated on `permissions.hitl_required` through a `react_tool_approval` interrupt that carried no `action_requests` — so it was never rendered (a silent hang) and never resumable. This surfaced through a batch confirmation that showed deletion wording for a batch of sends. Four coordinated fixes bring both modes onto one shared contract.
+
+### Added
+
+- **`hitl_required` consistency invariant (`test_hitl_required_consistency.py`).** A boot/CI test scans the full tool catalogue and asserts the set of `hitl_required=True` tools is a subset of an explicit allowlist (`delegate_to_sub_agent_tool` + user MCP mutation tools). A draft-based tool re-acquiring the flag now fails CI instead of shipping a ReAct hang. Model: the ADR-085 registry-completeness assert.
+- **`item_recipient_field` on the draft display registry (ADR-085 extension).** Send-type drafts (`email` / `email_reply` / `email_forward`) declare `item_recipient_field="to"`, so a batch confirmation row renders the recipient (`📧 Email to <to> : <subject>`) — the discriminating field the frontend renders no card for. Localized `DRAFT_RECIPIENT_CONNECTOR` connector (6 languages); no new user-facing i18n strings otherwise.
+
+### Changed
+
+- **ReAct mutation gate unified onto `tool_confirmation` (ADR-106).** `react_execute_tools_node` now raises the shared `action_requests: [{type: "tool_confirmation", …}]` interrupt (rendered by the existing `ToolConfirmationInteraction` and persisted in Redis), and `_parse_approval_decision` gained a `tool_confirmation` branch returning `{"action": "confirm"|"cancel"}` — the shape both `hitl_dispatch._handle_tool_confirmation` and the ReAct gate expect. The bare `react_tool_approval` dialect is removed. A gated mutation defaults to *cancel* on any non-approval (safety); ReAct executes only on an explicit confirm.
+- **Batch draft-critique wording derived from the ADR-085 registry.** `_generate_batch_critique` computes destructiveness from `DraftDisplayConfig.verb_past_key == "deleted"`: deletes keep the irreversible warning + deletion question; sends / creates / updates get the neutral FOR_EACH confirmation question (no irreversible warning), consistent with the pipeline FOR_EACH flow. Both existing 6-language string tables are reused.
+- **`hitl_required` corrected on four draft-based tools.** `delete_email_tool`, `delete_event_tool`, `delete_label_tool` and `cancel_reminder_tool` carried a stale `hitl_required=True` (a leftover from before they became draft-based) that routed them to the broken ReAct gate; set to `False`, aligning them with `delete_contact_tool` / `delete_task_tool`. The `_parse_approval_decision` fast-path approval/rejection word sets were consolidated into shared module constants.
+
+### Fixed
+
+- **Silent hang on ReAct mutations.** Deleting an email/event — or invoking any non-draft `hitl_required` tool (e.g. a user MCP mutation) — in ReAct mode suspended the graph with no confirmation rendered. It now renders a proper `tool_confirmation` and resumes correctly.
+- **Deletion wording on non-delete batch confirmations.** A batch of sends (e.g. "send an email to A and B" in ReAct) showed "this action is irreversible / confirm this deletion?" under a *"Confirm sending"* title, and never showed the recipient. Both are fixed.
+- **Pipeline `tool_confirmation` resume mismatch.** The `tool_confirmation` type previously fell through to the generic `{"decision": "APPROVE"}` path, which `_handle_tool_confirmation` (reading `.get("action")`) silently treated as *cancel*; the new resume branch repairs it.
+
+### Tests
+
+- New: `test_hitl_required_consistency.py` (catalogue-wide invariant), `test_draft_critique_batch.py` (send vs delete wording + recipient), `test_tool_confirmation_resume.py` (confirm/cancel mapping), plus recipient cases in `test_hitl_item_preview.py`.
+- Ruff / Black / MyPy strict clean; full unit suite green; i18n key parity across all 6 locales. New ADR-106; `docs/technical/HITL.md` updated with the unified contract.
+
 ## [1.21.11] - 2026-07-06
 
 > Latent-debt hardening. A maintenance release that resolves four independent, isolated debts surfaced by the 2026-07 codebase audit — no user-facing feature change, prompt-free, no DB migration. Each item was fixed red-first (a failing test before the fix) and validated in isolation.

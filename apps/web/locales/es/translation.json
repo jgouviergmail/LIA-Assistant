@@ -2934,6 +2934,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_12": {
+          "title": "v1.21.12 — ✅ Confirmaciones de acción más claras y fiables",
+          "date": "Julio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📧 Confirmaciones por lotes más claras</b> — Cuando LIA prepara varias acciones a la vez (por ejemplo, un correo a dos personas), la confirmación ahora muestra la acción correcta y, en los correos, a quién va cada uno — para que compruebes los destinatarios antes de confirmar. Un lote de envíos ya no muestra por error un mensaje de «¿confirmar esta eliminación?».",
+            "i2": "<b>🛡️ Confirmaciones fiables en modo autónomo</b> — Pedir a LIA (en modo autónomo) que elimine un correo o un evento, o que ejecute una acción de una herramienta conectada, podía quedarse bloqueado sin que apareciera ninguna confirmación. LIA ahora siempre muestra una confirmación real antes de ese tipo de acción, igual que en el modo estándar.",
+            "i3": "<b>✅ Una experiencia de confirmación coherente</b> — Las confirmaciones ahora se comportan de forma idéntica en ambos modos de ejecución (estándar y autónomo), y nada se ejecuta nunca sin tu aprobación explícita."
+          }
+        },
         "v1_21_11": {
           "title": "v1.21.11 — 🛠️ Fiabilidad y mantenimiento",
           "date": "Julio 2026",

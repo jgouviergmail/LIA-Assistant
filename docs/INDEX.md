@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (93) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (99) |
 
 ### Pour les Product Managers
 
@@ -162,6 +162,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ADR-068-Psyche-Engine.md](./architecture/ADR-068-Psyche-Engine.md) | Psyche Engine — architectural decision record | ✅ |
 | [ADR-104-Psyche-De-Saturation.md](./architecture/ADR-104-Psyche-De-Saturation.md) | Psyche de-saturation — source-level fix for the confined-mood failure (prod baseline, decisions, readjustment matrix) | ✅ |
 | [ADR-105-Psyche-Embodied-Expression.md](./architecture/ADR-105-Psyche-Embodied-Expression.md) | Psyche embodied expression layer (A-E) — concrete voice grammar replacing adjective directives (blind-eval validated) | ✅ |
+| [ADR-106-HITL-Contract-Coherence.md](./architecture/ADR-106-HITL-Contract-Coherence.md) | HITL contract coherence — `hitl_required` = pre-exec non-draft only (invariant-locked), ReAct mutation gate unified on `tool_confirmation`, batch draft-critique wording from the ADR-085 registry | ✅ |
 | [ADR-069-Gemini-Embedding-Migration.md](./architecture/ADR-069-Gemini-Embedding-Migration.md) | Gemini embedding migration (OpenAI → Google) — ADR | ✅ |
 | [ADR-075-Rich-Skill-Outputs.md](./architecture/ADR-075-Rich-Skill-Outputs.md) | Rich Skill Outputs — SkillScriptOutput JSON contract, SKILL_APP registry type, sandboxed iframe widget, theme/locale sync (v1.16.8) | ✅ |
 | [ADR-079-Stratified-Journal-Consciousness.md](./architecture/ADR-079-Stratified-Journal-Consciousness.md) | Stratified Journal Consciousness — L0/L1/L2/L3 levels, epistemic status, deferred self-evaluation, ambient portrait diffusion | ✅ |
@@ -276,7 +277,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 88 ADRs | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 99 ADRs | ✅ |
 
 ### ADRs Récents (2026)
 
