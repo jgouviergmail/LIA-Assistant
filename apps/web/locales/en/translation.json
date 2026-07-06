@@ -2943,6 +2943,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_13": {
+          "title": "v1.21.13 — 🔢 Mathematical formulas now render",
+          "date": "July 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔢 Readable math &amp; science formulas</b> — When LIA writes a mathematical or scientific formula, it now appears as a properly typeset equation — like in a textbook — instead of raw symbols and code. This works both for formulas inside a sentence and for standalone equations.",
+            "i2": "<b>💶 Cleaner currency amounts</b> — Prices such as “9$” inside a rich answer no longer show an unwanted backslash before the amount."
+          }
+        },
         "v1_21_12": {
           "title": "v1.21.12 — ✅ Clearer, more reliable action confirmations",
           "date": "July 2026",

@@ -46,9 +46,14 @@ backlog, both security posture defects rather than single bugs:
 ### XSS sanitization boundary
 
 `rehype-sanitize` is inserted in the markdown pipeline with the exact
-order `rehypeRaw → rehypeSanitize → rehypeKatex` (KaTeX output is
-generated after the boundary; the math nodes it consumes survive via
-allowed `className`). The schema (`src/lib/markdown-sanitize-schema.ts`)
+order `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`
+(KaTeX output is generated after the boundary; the math nodes it
+consumes survive via allowed `className`). `rehypeMathInText`
+(`src/lib/rehype-math-in-text.ts`) sits between the boundary and KaTeX:
+it converts `$…$`/`$$…$$` found inside the raw HTML the assistant emits
+into KaTeX marker spans (remark-math only sees markdown, never the HTML
+blocks answers are wrapped in). It reads only already-sanitized text and
+emits fixed-class `<span>`s, so it adds no XSS surface. The schema (`src/lib/markdown-sanitize-schema.ts`)
 extends the GitHub `defaultSchema` from a full audit of every legitimate
 HTML producer: `button` tag, `className`/`style`/`data*` everywhere —
 including the tags `defaultSchema` constrains (`a`, `code`, `h2`, `li`,

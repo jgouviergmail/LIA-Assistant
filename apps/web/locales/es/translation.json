@@ -2934,6 +2934,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_13": {
+          "title": "v1.21.13 — 🔢 Las fórmulas matemáticas ya se muestran",
+          "date": "Julio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔢 Fórmulas matemáticas y científicas legibles</b> — Cuando LIA escribe una fórmula matemática o científica, ahora aparece como una ecuación bien compuesta —como en un libro de texto— en lugar de símbolos y código en bruto. Funciona tanto para fórmulas dentro de una frase como para ecuaciones independientes.",
+            "i2": "<b>💶 Importes de moneda más limpios</b> — Un precio como «9$» en una respuesta enriquecida ya no muestra una barra invertida no deseada antes del importe."
+          }
+        },
         "v1_21_12": {
           "title": "v1.21.12 — ✅ Confirmaciones de acción más claras y fiables",
           "date": "Julio 2026",

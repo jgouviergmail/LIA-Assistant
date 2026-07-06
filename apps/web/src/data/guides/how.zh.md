@@ -6,7 +6,7 @@
 
 **版本**：2.4
 **日期**：2026-05-08
-**应用**：LIA v1.21.12
+**应用**：LIA v1.21.13
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -721,7 +721,7 @@ URL → SSRF 验证（DNS + IP 黑名单 + 重定向后重检） → 可读性�
 
 | 攻击向量 | 防护措施 |
 |---------|---------|
-| XSS（LLM 渲染） | 聊天 markdown 管线上的 `rehype-sanitize` 边界（`rehypeRaw → rehypeSanitize → rehypeKatex`，经审计的 schema——移除 `script`/`iframe`/`form`/事件处理器）、HTTP-only cookies、后端 CSP；MCP/Skill 应用从不经过 markdown（哨兵 → 沙箱化 iframe 小组件） |
+| XSS（LLM 渲染） | 聊天 markdown 管线上的 `rehype-sanitize` 边界（`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`，经审计的 schema——移除 `script`/`iframe`/`form`/事件处理器）、HTTP-only cookies、后端 CSP；MCP/Skill 应用从不经过 markdown（哨兵 → 沙箱化 iframe 小组件） |
 | CSRF | SameSite=Lax |
 | SQL 注入 | SQLAlchemy ORM（参数化查询） |
 | SSRF | DNS 解析 + IP 黑名单（Web Fetch、MCP、Browser） |
@@ -896,7 +896,7 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 - **对话历史搜索** — `GET /conversations/me/messages` 的 `?search=` 查询参数。过滤使用 PostgreSQL `ILIKE`（不区分大小写、区分重音 — 契约已由测试锁定）。前端使用 `useMemo` 对 `messages` 进行即时过滤；后端端点作为潜在能力保留，供未来深度搜索 UI 使用。
 - **向上滚动分页** — 同一个端点，键集游标 `?before=<created_at>` 返回 `has_more` 和 `next_cursor`。聊天 UI 在第一条消息上方绑定一个 1 px 的哨兵元素并使用 `IntersectionObserver`；更早的页面会按 id 去重后前置插入，并通过共享的 `wasPrependRef` 让自动滚动到底部的 `useEffect` 在该轮跳过，从而让视图精确停留在用户正在阅读的位置。已有的复合索引 `(conversation_id, created_at DESC)` 让每一页都成为索引-only 的 seek，与对话长度无关。分页上下限（默认 50、硬上限 200）可通过环境变量 `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT` 调整。
-- **LaTeX 渲染** — `remark-math` + `rehype-katex` 接入 `MarkdownContent.tsx`。语法 `$inline$` / `$$block$$`。插件顺序 `rehypeRaw → rehypeKatex`，避免在原始 HTML 上双重执行。KaTeX 生成自身已消毒的 HTML（类型化 span），不新增 `rehypeRaw` 已允许之外的攻击面。
+- **LaTeX 渲染** — LIA 写出的数学与科学公式（`$inline$` / `$$block$$`）通过 KaTeX 在 `MarkdownContent.tsx` 中渲染。由于助手将整个回答以 HTML 输出，`rehypeMathInText` 插件在 hast 层（`rehypeRaw` 展开 HTML 之后）检测 `$`/`$$` 分隔符，并转换为 `rehype-katex` 可渲染的标记；仅作用于 markdown 的 `remark-math` 看不到嵌入 HTML 中的公式。顺序：`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`；math 步骤只读取已消毒的文本并生成固定类名的 span，不新增攻击面。
 - **语法高亮** — `react-syntax-highlighter`（PrismAsyncLight）懒加载。25 种语言按需通过 `SyntaxHighlighter.registerLanguage(...)` 注册以保持初始 bundle 较小（语言在首次出现代码块时才拉取）。主题由 `next-themes` 驱动自动切换 `one-dark` / `one-light`。
 
 ### 23.9. 主动反馈持久化
@@ -1013,4 +1013,4 @@ LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个�
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、99 篇 ADR 及变更日志（v1.0 至 v1.21.12）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、99 篇 ADR 及变更日志（v1.0 至 v1.21.13）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

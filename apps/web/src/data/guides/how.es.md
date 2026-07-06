@@ -6,7 +6,7 @@
 
 **Versión**: 2.4
 **Fecha**: 2026-05-08
-**Aplicación**: LIA v1.21.12
+**Aplicación**: LIA v1.21.13
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -721,7 +721,7 @@ Diseño **fail-open**: los fallos de infraestructura no bloquean a los usuarios.
 
 | Vector | Protección |
 |---------|------------|
-| XSS (renderizado LLM) | Frontera `rehype-sanitize` en el pipeline markdown del chat (`rehypeRaw → rehypeSanitize → rehypeKatex`, esquema auditado — `script`/`iframe`/`form`/handlers eliminados), cookies HTTP-only, CSP backend; las MCP/Skill Apps nunca pasan por markdown (centinela → widget iframe en sandbox) |
+| XSS (renderizado LLM) | Frontera `rehype-sanitize` en el pipeline markdown del chat (`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`, esquema auditado — `script`/`iframe`/`form`/handlers eliminados), cookies HTTP-only, CSP backend; las MCP/Skill Apps nunca pasan por markdown (centinela → widget iframe en sandbox) |
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (consultas parametrizadas) |
 | SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser) |
@@ -896,7 +896,7 @@ Cuatro capacidades transversales comparten la misma filosofía de producto: **fe
 
 - **Búsqueda en el historial de conversaciones** — query parameter `?search=` sobre `GET /conversations/me/messages`. El filtrado se apoya en PostgreSQL `ILIKE` (case-insensitive, accent-sensitive — contrato bloqueado por test). El frontend usa un `useMemo` sobre `messages` para filtrar instantáneamente los mensajes cargados; el endpoint backend queda como capacidad latente para una futura UI de búsqueda profunda.
 - **Paginación scroll-up** — el mismo endpoint, cursor keyset `?before=<created_at>` que devuelve `has_more` y `next_cursor`. La UI del chat enlaza un `IntersectionObserver` a una sentinela de 1 px sobre el primer mensaje; las páginas más antiguas se anteponen con deduplicación por id, y un `wasPrependRef` compartido hace que el `useEffect` de auto-scroll-al-fondo se omita en ese ciclo, de modo que la vista queda anclada exactamente donde el lector estaba leyendo. El índice compuesto existente `(conversation_id, created_at DESC)` convierte cada página en un seek index-only, independientemente del largo de la conversación. Los límites de página (por defecto 50, tope duro 200) son configurables vía las variables de entorno `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT`.
-- **Renderizado LaTeX** — `remark-math` + `rehype-katex` conectados en `MarkdownContent.tsx`. Sintaxis `$inline$` / `$$block$$`. Los plugins están ordenados `rehypeRaw → rehypeKatex` para evitar una doble ejecución sobre HTML bruto. KaTeX produce su propio HTML sanitizado (spans tipados), sin nueva superficie de ataque más allá de lo que `rehypeRaw` ya permite.
+- **Renderizado LaTeX** — Las fórmulas matemáticas y científicas que LIA escribe (`$inline$` / `$$block$$`) se renderizan con KaTeX en `MarkdownContent.tsx`. Como el asistente emite toda su respuesta en HTML, un plugin `rehypeMathInText` detecta los delimitadores `$`/`$$` a nivel hast — después de que `rehypeRaw` haya expandido el HTML — y los convierte en los marcadores que `rehype-katex` renderiza; `remark-math`, limitado al markdown, nunca ve las fórmulas incrustadas en HTML. Orden: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`; los pasos de math solo leen texto ya sanitizado y emiten spans de clase fija, sin nueva superficie de ataque.
 - **Resaltado de sintaxis** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 lenguajes registrados bajo demanda vía `SyntaxHighlighter.registerLanguage(...)` para mantener el bundle inicial ligero (los lenguajes se cargan en el primer code block). Tema automático `one-dark` / `one-light` pilotado por `next-themes`.
 
 ### 23.9. Persistencia del feedback proactivo
@@ -1013,4 +1013,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 99 ADRs y del changelog (v1.0 a v1.21.12). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 99 ADRs y del changelog (v1.0 a v1.21.13). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

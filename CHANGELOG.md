@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.13] - 2026-07-07
+
+> Math & LaTeX rendering in chat responses. A frontend-only rendering fix (prompt-nudge, no DB migration) that makes the mathematical and scientific formulas LIA writes actually render. The assistant emits its **entire** answer as HTML (`html_response_directive`), so every formula sits inside a raw HTML block. `remark-math` operates on the markdown AST, treats raw HTML blocks as opaque, and runs **before** `rehype-raw` expands them — so math buried in HTML (100% of real answers) was never tokenized and rendered as literal `$$ P(G) = \frac{…} $$` text. Two prior fix passes missed it because they only ever tested pure markdown. The fix moves dollar-math rendering to the hast level, after the HTML is expanded, covering both HTML-wrapped and pure-markdown paths uniformly.
+
+### Added
+
+- **`rehypeMathInText` rehype plugin (`apps/web/src/lib/rehype-math-in-text.ts`).** Runs at the hast level, after `rehype-raw` + `rehype-sanitize` and before `rehype-katex`, converting `$…$`/`$$…$$` found in text nodes into the `math-inline`/`math-display` marker spans `rehype-katex` consumes. Single left-to-right tokenizer: currency (`9$`) stays literal via MathJax delimiter rules; an unclosed `$$` (common mid-stream) is emitted as literal text — never mis-paired into an empty inline formula (no streaming flash); `<code>`/`<pre>` and existing math elements are skipped. Dependency-free (local structural hast types).
+- **Regression coverage.** A verbatim production-message fixture (the full `<div class="lia-response">` with formula + callout + emoji list + `<em>`) in `MarkdownContent.math.test.tsx`, plus a dedicated plugin unit suite (`src/lib/__tests__/rehype-math-in-text.test.ts`, 10 tokenizer edge cases: currency, unclosed `$$`, escaped `\$`, adjacency, skip regions). The HTML-wrapped tests are the ones the two prior passes lacked.
+
+### Changed
+
+- **`remark-math` set to `singleDollarTextMath: false`.** It no longer touches single `$` (currency is never swallowed); all `$…$`/`$$…$$` rendering is owned by `rehypeMathInText`, which — unlike `remark-math` — also sees math inside the assistant's raw HTML. `remark-math` still handles ```` ```math ```` fences and markdown `$$`.
+- **Response directive guidance (`html_response_directive.txt`).** The prompt now instructs inline `$…$` for formulas inside a sentence and `$$…$$` only for standalone display equations, and never for plain currency amounts.
+- **Removed the fragile string-level currency escaping (net −90 lines).** `protectInlineMathDollars` / `escapeCurrencyDollars` / `spliceEscape` are deleted; their MathJax delimiter logic is relocated into the plugin. `normalizeMathDelimiters` (canonicalizing `\[`/`\(`/```` ```latex ```` → `$`/`$$`) is kept — it is required because CommonMark eats the `\[` backslash before the plugin would see it.
+
+### Fixed
+
+- **Math never rendered in real answers.** Any formula LIA wrote (`$$…$$` display, `$…$` inline) displayed as raw delimiter text because it lived inside the assistant's HTML, invisible to `remark-math`. It now renders as KaTeX (display formulas as a centered block, inline symbols in-line).
+- **Latent stray backslash on currency inside HTML cards.** The removed string-level escaping turned `9$` into `9\$` inside opaque HTML blocks, surfacing a visible backslash; currency is now left literal.
+
+### Tests
+
+- ESLint + `tsc --noEmit` strict clean; full frontend suite green (163 tests) including the production fixture and the plugin edge-case suite; i18n key parity across all 6 locales.
+- Docs: `ADR-093` (XSS boundary) extended with the new stage; `docs/technical/SECURITY.md`, `docs/INDEX.md`, `apps/web/CLAUDE.md` and the sanitize-schema comment updated to the four-plugin order.
+
 ## [1.21.12] - 2026-07-06
 
 > HITL contract coherence. A confirmation-flow release that unifies Human-in-the-Loop across the two execution modes ([ADR-106 — HITL Contract Coherence](docs/architecture/ADR-106-HITL-Contract-Coherence.md)) — prompt-free, no DB migration. Confirmation had drifted into two trigger mechanisms wired inconsistently: the pipeline is entirely output-driven (a tool returns a draft → `draft_critique`), while ReAct additionally gated on `permissions.hitl_required` through a `react_tool_approval` interrupt that carried no `action_requests` — so it was never rendered (a silent hang) and never resumable. This surfaced through a batch confirmation that showed deletion wording for a batch of sends. Four coordinated fixes bring both modes onto one shared contract.

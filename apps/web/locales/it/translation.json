@@ -2936,6 +2936,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_13": {
+          "title": "v1.21.13 — 🔢 Le formule matematiche ora si visualizzano",
+          "date": "Luglio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔢 Formule matematiche e scientifiche leggibili</b> — Quando LIA scrive una formula matematica o scientifica, ora appare come un'equazione ben formattata — come in un libro di testo — invece di simboli e codice grezzi. Funziona sia per le formule all'interno di una frase sia per le equazioni indipendenti.",
+            "i2": "<b>💶 Importi in valuta più puliti</b> — Un prezzo come «9$» in una risposta arricchita non mostra più una barra rovesciata indesiderata prima dell'importo."
+          }
+        },
         "v1_21_12": {
           "title": "v1.21.12 — ✅ Conferme delle azioni più chiare e affidabili",
           "date": "Luglio 2026",

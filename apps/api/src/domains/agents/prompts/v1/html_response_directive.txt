@@ -31,6 +31,12 @@ Available elements:
 - <code> for inline code, <pre><code> for code blocks
 - <hr> to separate major sections
 - <a href="..."> for links
+- Math formulas (ONLY when you actually express a mathematical or scientific
+  formula): write LaTeX between $...$ for an inline formula inside a sentence,
+  and $$...$$ for a standalone display equation on its own line. Prefer $...$
+  inline so the formula flows within the text; reserve $$...$$ for equations
+  you deliberately want centered on their own line. Do NOT use math delimiters
+  for plain currency amounts (write "9$" or "9 USD" as normal text).
 
 Formatting guidelines:
 - Make the response visually RICH — use <strong> liberally for key information (names, dates, places, amounts)

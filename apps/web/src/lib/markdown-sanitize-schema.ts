@@ -39,9 +39,9 @@ function withFreeClassName(tag: string, extra: string[] = []): AttrEntry[] {
  *
  * - `button` tag (card action buttons, `type` + `data-action`)
  * - `className` everywhere, INCLUDING the constrained tags above: `.lia-*`
- *   cards/callouts, KaTeX math spans (sanitize runs BEFORE rehype-katex, so
- *   the math nodes must survive), Material-Symbols icon spans, code language
- *   classes
+ *   cards/callouts, KaTeX math spans (sanitize runs BEFORE rehypeMathInText +
+ *   rehype-katex, so the math nodes must survive), Material-Symbols icon spans,
+ *   code language classes
  * - `style` everywhere: some cards still use inline styles (audited: no
  *   modern browser executes JS from inline CSS — acceptable trade-off)
  * - `data*` wildcard: sentinel/action attributes (`data-registry-id`,

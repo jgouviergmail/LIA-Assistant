@@ -2934,6 +2934,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_13": {
+          "title": "v1.21.13 — 🔢 Mathematische Formeln werden jetzt dargestellt",
+          "date": "Juli 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔢 Lesbare mathematische &amp; wissenschaftliche Formeln</b> — Wenn LIA eine mathematische oder wissenschaftliche Formel schreibt, erscheint sie jetzt als korrekt gesetzte Gleichung – wie in einem Lehrbuch – statt als rohe Symbole und Code. Das gilt sowohl für Formeln mitten im Satz als auch für eigenständige Gleichungen.",
+            "i2": "<b>💶 Sauberere Währungsbeträge</b> — Ein Preis wie „9$“ in einer formatierten Antwort zeigt keinen unerwünschten Rückwärtsschrägstrich mehr vor dem Betrag."
+          }
+        },
         "v1_21_12": {
           "title": "v1.21.12 — ✅ Klarere, zuverlässigere Aktionsbestätigungen",
           "date": "Juli 2026",

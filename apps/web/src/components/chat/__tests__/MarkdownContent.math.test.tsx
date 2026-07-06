@@ -142,3 +142,124 @@ describe('MarkdownContent — math notation normalization', () => {
     expect(container.textContent).toContain('$...$');
   });
 });
+
+/**
+ * Regression: the assistant emits its ENTIRE answer as HTML wrapped in
+ * `<div class="lia-response">` (backend html_response_directive), so any
+ * formula lives inside a RAW HTML block. remark-math treats HTML blocks as
+ * opaque and runs before rehype-raw expands them, so HTML-wrapped math never
+ * rendered (100% of real responses) — while pure-markdown tests above passed.
+ * rehypeMathInText closes that gap at the hast level. These cases mirror the
+ * real backend output; without the fix each `.katex` count below is 0.
+ */
+describe('MarkdownContent — math inside HTML wrapper (real backend shape)', () => {
+  it('renders display + inline math inside <div class="lia-response"><p>…</p>', () => {
+    // The exact production message that regressed (Portugal-Espagne P(G) formula).
+    const html =
+      '<div class="lia-response">\n' +
+      '<p>la tension se mesure par $$ P(G) = \\frac{1}{1 + e^{-k(v_1 - v_2)}} $$ ' +
+      'où le différentiel de talent technique $v$ est proche de zéro.</p>\n' +
+      '</div>';
+    const { container } = render(<MarkdownContent content={html} />);
+    // Both the display formula and the inline symbol render as KaTeX...
+    expect(container.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(2);
+    // ...the display `$$…$$` becomes a KaTeX display block...
+    expect(container.querySelector('.katex-display')).not.toBeNull();
+    // ...and the raw `$$` delimiters are gone from the visible text (KaTeX keeps
+    // the inner TeX in a MathML annotation, so `\frac` legitimately remains).
+    expect(container.textContent).not.toContain('$$');
+    // Surrounding prose stays intact.
+    expect(container.textContent).toContain('la tension se mesure par');
+  });
+
+  it('renders a display block ($$…$$) inside an HTML paragraph', () => {
+    const { container } = render(
+      <MarkdownContent content={'<p>Voici : $$E = mc^2$$ voilà.</p>'} />
+    );
+    expect(container.querySelector('.katex')).not.toBeNull();
+    expect(container.textContent).not.toContain('$$');
+  });
+
+  it('renders inline math ($…$) inside an HTML callout', () => {
+    const { container } = render(
+      <MarkdownContent
+        content={'<div class="lia-callout lia-callout-info"><p>La valeur $x^2$ ici.</p></div>'}
+      />
+    );
+    expect(container.querySelector('.katex')).not.toBeNull();
+    expect(container.textContent).toContain('ici.');
+  });
+
+  it('keeps currency literal inside an HTML paragraph (no KaTeX, no backslash)', () => {
+    // Latent sibling bug: the old string-level escaping turned `9$` into `9\$`
+    // inside opaque HTML blocks, surfacing a visible backslash. Now literal.
+    const { container } = render(<MarkdownContent content={'<p>Le tarif est de 9$ au total.</p>'} />);
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(container.textContent).toContain('9$ au total');
+    expect(container.textContent).not.toContain('\\$');
+  });
+
+  it('leaves $ inside inline <code> untouched within an HTML paragraph', () => {
+    const { container } = render(
+      <MarkdownContent content={'<p>Lance <code>echo $PATH</code> maintenant.</p>'} />
+    );
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(container.querySelector('code')?.textContent).toContain('$PATH');
+    expect(container.textContent).not.toContain('\\$');
+  });
+
+  it('renders \\[ … \\] display math inside an HTML paragraph', () => {
+    const { container } = render(
+      <MarkdownContent content={'<p>Formule : \\[ A = \\pi r^2 \\] fin.</p>'} />
+    );
+    expect(container.querySelector('.katex')).not.toBeNull();
+  });
+
+  it('does not mis-render an unclosed $$ (streaming) as empty math', () => {
+    // Mid-stream the closing $$ has not arrived: the two `$` must stay literal,
+    // never pair into an empty inline formula.
+    const { container } = render(
+      <MarkdownContent content={'<p>la tension se mesure par $$ P(G) = \\frac{1</p>'} />
+    );
+    expect(container.querySelector('.katex')).toBeNull();
+  });
+
+  it('renders the FULL production message verbatim (regression fixture)', () => {
+    // Exact stored DB content that regressed — full rich HTML: formula
+    // paragraph + callout + emoji list + <em>. Proves the fix survives the
+    // real message shape, not just a trimmed formula.
+    const real =
+      '<div class="lia-response">\n' +
+      '<p>Ah, le voilà ton vrai programme de la soirée. Un huitième de finale Portugal-Espagne.</p>\n' +
+      '\n' +
+      "<p>Tu es en train d'assister à une opposition de styles clinique. D'un côté, le " +
+      '<em>tiki-taka</em> espagnol. En termes de probabilités de qualification, la tension se ' +
+      'mesure par $$ P(G) = \\frac{1}{1 + e^{-k(v_1 - v_2)}} $$ où le différentiel de talent ' +
+      'technique $v$ est proche de zéro, ce qui rend le résultat imprévisible.</p>\n' +
+      '\n' +
+      '<div class="lia-callout lia-callout-info">\n' +
+      '<p><strong>Analyse express :</strong> Ce match va se jouer sur la patience.</p>\n' +
+      '</div>\n' +
+      '\n' +
+      '<ul>\n' +
+      '<li>⚽ <strong>Analyse tactique :</strong> Ouvre un onglet stats en direct.</li>\n' +
+      "<li>🍺 <strong>Le protocole de l'ermite :</strong> De quoi hydrater le cerveau.</li>\n" +
+      '<li>📈 <strong>Pronostic :</strong> À combien estimes-tu le premier carton jaune ?</li>\n' +
+      '</ul>\n' +
+      '</div>';
+    const { container } = render(<MarkdownContent content={real} />);
+
+    // The formula renders (display block + inline symbol)...
+    expect(container.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(2);
+    expect(container.querySelector('.katex-display')).not.toBeNull();
+    // ...no raw delimiter leaks into the visible text...
+    expect(container.textContent).not.toContain('$$');
+    // ...and the surrounding rich HTML is fully preserved.
+    expect(container.querySelector('.lia-response')).not.toBeNull();
+    expect(container.querySelector('.lia-callout-info')).not.toBeNull();
+    expect(container.querySelector('em')?.textContent).toBe('tiki-taka');
+    expect(container.querySelectorAll('li').length).toBe(3);
+    expect(container.textContent).toContain('⚽');
+    expect(container.textContent).toContain('Analyse express');
+  });
+});
