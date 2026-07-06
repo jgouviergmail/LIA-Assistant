@@ -12,6 +12,7 @@ from uuid import UUID
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.infrastructure.database.models import BaseModel
 
 
@@ -64,7 +65,7 @@ class Reminder(BaseModel):
     user_timezone: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="Europe/Paris",
+        default=DEFAULT_USER_DISPLAY_TIMEZONE,
         doc="User timezone at creation time",
     )
 

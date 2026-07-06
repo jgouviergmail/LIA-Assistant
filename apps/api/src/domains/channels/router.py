@@ -320,7 +320,7 @@ async def _handle_hitl_callback(message: ChannelInboundMessage) -> None:
 
     # Load user settings (single DB call for both message editing and handler dispatch)
     user_language = "fr"
-    user_timezone = "Europe/Paris"
+    user_timezone = DEFAULT_USER_DISPLAY_TIMEZONE
     user_memory_enabled = True
     user_display_name: str | None = None
 

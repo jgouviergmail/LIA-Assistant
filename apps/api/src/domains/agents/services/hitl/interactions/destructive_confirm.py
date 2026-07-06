@@ -107,7 +107,7 @@ class DestructiveConfirmInteraction:
         self,
         context: DestructiveConfirmContext | dict[str, Any],
         user_language: str,
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: "BaseCallbackHandler | None" = None,
     ) -> AsyncGenerator[str, None]:
         """

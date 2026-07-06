@@ -112,10 +112,9 @@ class MemoryResolver:
                 resolved_references = await self._resolve_memory_references(
                     query, memory_facts, config
                 )
-        elif memory_facts:
-            # No references extracted but we have broad facts → try resolution anyway
-            # (handles cases the extraction LLM might miss)
-            resolved_references = await self._resolve_memory_references(query, memory_facts, config)
+        # No references extracted → skip resolution entirely (N-97). Resolving
+        # broad facts without a reference in the query is a wasted LLM call per
+        # turn: the extraction step already determined there is nothing to resolve.
 
         return memory_facts, resolved_references
 

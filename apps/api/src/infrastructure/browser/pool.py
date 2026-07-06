@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from src.core.config import settings
-from src.core.constants import REDIS_KEY_BROWSER_SESSION_PREFIX
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, REDIS_KEY_BROWSER_SESSION_PREFIX
 from src.infrastructure.browser.models import BrowserSessionInfo
 from src.infrastructure.browser.security import BrowserSecurityPolicy
 from src.infrastructure.observability.metrics_browser import (
@@ -133,7 +133,7 @@ class BrowserPool:
         self,
         user_id: str,
         user_language: str = "fr",
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     ) -> Any:
         """Acquire or create a browser session for the given user.
 

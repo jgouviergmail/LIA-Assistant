@@ -2934,6 +2934,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_11": {
+          "title": "v1.21.11 — 🛠️ Fiabilidad y mantenimiento",
+          "date": "Julio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧠 Captura más fiable de tus recuerdos, diarios e intereses</b> — El análisis de las respuestas internas del asistente (a partir de las cuales anota lo que recuerda de ti) se ha reforzado: ahora tolera pequeñas imperfecciones de formato y falla en silencio con mucha menos frecuencia. Como resultado, lo que LIA debe recordar de ti se capta con más fidelidad.",
+            "i2": "<b>⚡ Análisis más ligero de tus peticiones</b> — Cuando tu mensaje no contiene ninguna referencia personal que resolver (como «mi mujer» o «mi hermano»), ahora se omite un paso de análisis por IA innecesario: un procesamiento algo más rápido y sobrio, sin cambios para ti.",
+            "i3": "<b>🛡️ Admin · historial de psique acotado</b> — El historial de evolución emocional de LIA (una instantánea por mensaje) ahora se purga más allá de una ventana de retención configurable (90 días por defecto), para acotar el crecimiento del almacenamiento en el servidor. Ajustable mediante la configuración."
+          }
+        },
         "v1_21_10": {
           "title": "v1.21.10 — 🎭 La personalidad de LIA por fin se nota",
           "date": "Julio 2026",

@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.11] - 2026-07-06
+
+> Latent-debt hardening. A maintenance release that resolves four independent, isolated debts surfaced by the 2026-07 codebase audit — no user-facing feature change, prompt-free, no DB migration. Each item was fixed red-first (a failing test before the fix) and validated in isolation.
+
+### Added
+
+- **Rolling retention for `psyche_history` (N-201).** The Psyche Engine writes one history snapshot per message (plus reset markers); without a bound an active user accrued ~10k+ rows/year. A new `PsycheStateRepository.delete_snapshots_older_than` purges each user's snapshots older than a configurable rolling window on write, right after a new snapshot is created (in the fire-and-forget post-response task, off the SSE path). New setting `PSYCHE_HISTORY_RETENTION_DAYS` (default 90; `0` disables — keep forever). Uses the existing `ix_psyche_history_user_created` index; no migration. Verified by a unit wiring test, a no-op guard, and a live-DB integration test of the cap.
+- **AST CI guard against hard-coded `"Europe/Paris"` (C3).** `apps/api/tests/unit/test_no_hardcoded_timezone_guard.py` fails the build on any exact `"Europe/Paris"` string constant outside the three legitimate data files (the central constant, the timezone-picker list, the schema examples) — mirroring the JSONB-mutation guard.
+
+### Changed
+
+- **Single-source timezone default (C3).** ~30 hard-coded `"Europe/Paris"` application defaults across 19 files (parameter defaults, `.get(...)` fallbacks, SQLAlchemy/Pydantic `default=`) now reference the central `DEFAULT_USER_DISPLAY_TIMEZONE`. Value-identical → no behaviour change, no migration; docstring examples showing the effective value are left as documentation.
+- **One JSON-LLM parser (S10).** The strip-fences + trailing-comma logic reimplemented across six extractors (memory, journals ×2, interests, personalities, skills) now delegates to the central instrumented `extract_json_from_llm_response`, each keeping its own domain validation. The central parser gained strict-first-then-tolerant recovery: valid JSON — including URL-bearing strings — is never mutated; only on a decode failure are trailing commas, then `//` comments, repaired incrementally. Net −156 lines; the trailing-comma regex now exists in one place.
+
+### Fixed
+
+- **Superfluous LLM call in pre-planner query analysis (N-97).** `MemoryResolver.retrieve_and_resolve` no longer triggers an LLM reference-resolution call when the extraction step detected no anaphoric reference in the message (previously up to one wasted model call per turn on that path). Behaviour is unchanged when a reference is present (targeted resolution, with broad-facts fallback). The existing test that encoded the wasteful behaviour was corrected, and two regression guards were added.
+
+### Tests
+
+- New: `test_no_hardcoded_timezone_guard.py` (AST guard), `psyche/test_retention.py` (no-DB guards), `integration/domains/test_psyche_retention.py` (live-DB cap), JSON-tolerance cases in `test_json_parser.py`, MemoryResolver short-circuit + regression guards in `test_analysis_services.py`.
+- Ruff / Black / MyPy strict clean; full unit suite green (8856 passed, 54 skipped); i18n key parity across all 6 locales. CLAUDE.md's timezone rule now references the new CI guard.
+
 ## [1.21.10] - 2026-07-05
 
 > Psyche made perceptible. Prod telemetry showed the Psyche Engine was both **saturated** (pride dominated 61 % of turns, only 4 of 14 moods were ever reached, arousal/dominance ratcheted permanently positive) and **invisible** (a rich inner state was computed every turn but never surfaced in the wording). Two coordinated fixes: **de-saturation** of the dynamics ([ADR-104 — Psyche De-Saturation](docs/architecture/ADR-104-Psyche-De-Saturation.md)) so the mood actually varies and evolves, and **embodied expression** ([ADR-105 — Psyche Embodied Expression](docs/architecture/ADR-105-Psyche-Embodied-Expression.md)) so that variety is felt in the tone of every reply — and every proactive message (reminders, voice, heartbeat, interests). The state is shown, never announced (unless the user asks). Prompt-only change: no DB migration, no schema change; five new `.env` tuning knobs, all default-on.

@@ -57,6 +57,7 @@ from src.core.constants import (
 from src.core.i18n_types import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
+from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.interests.models import UserInterest
 from src.domains.interests.repository import InterestRepository
 from src.domains.interests.schemas import ExtractedInterest
@@ -493,74 +494,9 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedInterest]:
     Returns:
         List of validated ExtractedInterest objects
     """
-    import re
 
-    # Clean common LLM artifacts
-    cleaned = result_text.strip()
-
-    # Remove markdown code fences if present
-    if cleaned.startswith("```"):
-        lines = cleaned.split("\n")
-        start_idx = 0
-        end_idx = len(lines)
-        for i, line in enumerate(lines):
-            if line.startswith("```") and i == 0:
-                start_idx = 1
-            elif line.startswith("```") and i > 0:
-                end_idx = i
-                break
-        cleaned = "\n".join(lines[start_idx:end_idx])
-
-    # Remove single-line comments
-    cleaned = re.sub(r"//.*$", "", cleaned, flags=re.MULTILINE)
-
-    # Remove trailing commas before ] or }
-    cleaned = re.sub(r",\s*([\]}])", r"\1", cleaned)
-
-    def extract_json_array(text: str) -> str | None:
-        """Extract first valid-looking JSON array from text."""
-        start = text.find("[")
-        if start == -1:
-            return None
-
-        depth = 0
-        in_string = False
-        escape_next = False
-
-        for i, char in enumerate(text[start:], start):
-            if escape_next:
-                escape_next = False
-                continue
-
-            if char == "\\":
-                escape_next = True
-                continue
-
-            if char == '"' and not escape_next:
-                in_string = not in_string
-                continue
-
-            if in_string:
-                continue
-
-            if char == "[":
-                depth += 1
-            elif char == "]":
-                depth -= 1
-                if depth == 0:
-                    return text[start : i + 1]
-
-        return None
-
-    # Try direct parsing first
-    try:
-        data = json.loads(cleaned)
-
-        if not isinstance(data, list):
-            logger.warning("interest_extraction_result_not_list", type=type(data).__name__)
-            return []
-
-        interests = []
+    def _parse_items(data: list) -> list[ExtractedInterest]:
+        interests: list[ExtractedInterest] = []
         for item in data:
             try:
                 action = item.get("action", "create")
@@ -585,48 +521,16 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedInterest]:
                     error=str(e),
                 )
                 continue
-
         return interests
 
-    except json.JSONDecodeError as e:
-        logger.warning(
-            "interest_extraction_json_parse_failed",
-            error=str(e),
-            result_length=len(cleaned),
-            result_preview=cleaned[:500] if cleaned else "empty",
-        )
-
-        # Try to extract JSON array from potentially malformed response
-        extracted = extract_json_array(cleaned)
-        if extracted:
-            try:
-                extracted = re.sub(r",\s*([\]}])", r"\1", extracted)
-                data = json.loads(extracted)
-
-                if isinstance(data, list):
-                    interests = []
-                    for item in data:
-                        try:
-                            action = item.get("action", "create")
-                            if action == "create":
-                                confidence = item.get("confidence", 0)
-                                if confidence < INTEREST_EXTRACTION_MIN_CONFIDENCE:
-                                    continue
-                            interest = ExtractedInterest(**item)
-                            interests.append(interest)
-                        except Exception:
-                            continue
-
-                    if interests:
-                        logger.info(
-                            "interest_extraction_json_recovered",
-                            recovered_count=len(interests),
-                        )
-                        return interests
-            except json.JSONDecodeError:
-                pass
-
+    # Central parser handles fences, array extraction, trailing commas and //
+    # comments (strict-first, instrumented via json_parse_* with this context).
+    result = extract_json_from_llm_response(
+        result_text, expected_type=list, context="interest_extraction"
+    )
+    if not result.success or not isinstance(result.data, list):
         return []
+    return _parse_items(result.data)
 
 
 async def _find_similar_interest(

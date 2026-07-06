@@ -11,6 +11,7 @@ Created: 2026-04-01
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import delete, select
@@ -159,8 +160,6 @@ class PsycheStateRepository:
         Returns:
             List of PsycheHistory, ordered by created_at descending.
         """
-        from datetime import UTC, datetime, timedelta
-
         query = (
             select(PsycheHistory)
             .where(PsycheHistory.user_id == user_id)
@@ -175,3 +174,46 @@ class PsycheStateRepository:
 
         result = await self.db.execute(query)
         return list(result.scalars().all())
+
+    async def delete_snapshots_older_than(
+        self,
+        user_id: UUID,
+        days: int,
+        now: datetime | None = None,
+    ) -> int:
+        """Delete a user's history snapshots older than a rolling time window.
+
+        Rolling retention (N-201): keeps ``psyche_history`` bounded. Enforced on
+        write, per user, right after a new snapshot is created. Uses the
+        ``ix_psyche_history_user_created`` composite index.
+
+        Args:
+            user_id: User UUID whose old snapshots to purge.
+            days: Retention window in days. Values ``<= 0`` disable retention
+                (no query is issued, keep forever).
+            now: Reference time (defaults to current UTC). Injectable for tests.
+
+        Returns:
+            Number of snapshots deleted.
+        """
+        if days <= 0:
+            return 0
+
+        cutoff = (now or datetime.now(UTC)) - timedelta(days=days)
+        result = await self.db.execute(
+            delete(PsycheHistory).where(
+                PsycheHistory.user_id == user_id,
+                PsycheHistory.created_at < cutoff,
+            )
+        )
+        deleted: int = getattr(result, "rowcount", 0) or 0
+        await self.db.flush()
+
+        if deleted:
+            logger.info(
+                "psyche_history_retention_purged",
+                user_id=str(user_id),
+                retention_days=days,
+                deleted=deleted,
+            )
+        return deleted

@@ -25,8 +25,6 @@ Architecture:
 Phase: v1.14.0 -- Migrated from LangGraph store to PostgreSQL custom + create/update/delete
 """
 
-import json
-import re
 import time
 import uuid
 from datetime import UTC, datetime
@@ -43,6 +41,7 @@ from src.core.constants import (
 )
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
+from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.memories.schemas import ExtractedMemory
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.embedding_context import (
@@ -285,52 +284,6 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedMemory]:
     Returns:
         List of validated ExtractedMemory objects.
     """
-    cleaned = result_text.strip()
-
-    # Remove markdown code fences
-    if cleaned.startswith("```"):
-        lines = cleaned.split("\n")
-        start_idx = 0
-        end_idx = len(lines)
-        for i, line in enumerate(lines):
-            if line.startswith("```") and i == 0:
-                start_idx = 1
-            elif line.startswith("```") and i > 0:
-                end_idx = i
-                break
-        cleaned = "\n".join(lines[start_idx:end_idx])
-
-    # Remove single-line comments
-    cleaned = re.sub(r"//.*$", "", cleaned, flags=re.MULTILINE)
-    # Remove trailing commas
-    cleaned = re.sub(r",\s*([\]}])", r"\1", cleaned)
-
-    def _extract_json_array(text: str) -> str | None:
-        start = text.find("[")
-        if start == -1:
-            return None
-        depth = 0
-        in_string = False
-        escape_next = False
-        for i, char in enumerate(text[start:], start):
-            if escape_next:
-                escape_next = False
-                continue
-            if char == "\\":
-                escape_next = True
-                continue
-            if char == '"' and not escape_next:
-                in_string = not in_string
-                continue
-            if in_string:
-                continue
-            if char == "[":
-                depth += 1
-            elif char == "]":
-                depth -= 1
-                if depth == 0:
-                    return text[start : i + 1]
-        return None
 
     def _parse_items(data: list) -> list[ExtractedMemory]:
         entries = []
@@ -355,38 +308,14 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedMemory]:
                 continue
         return entries
 
-    # Try direct parsing
-    try:
-        data = json.loads(cleaned)
-        if not isinstance(data, list):
-            return []
-        return _parse_items(data)
-
-    except json.JSONDecodeError as e:
-        logger.warning(
-            "extraction_json_parse_failed",
-            error=str(e),
-            result_length=len(cleaned) if cleaned else 0,
-        )
-        logger.debug(
-            "extraction_json_parse_failed_details",
-            result_preview=cleaned[:500] if cleaned else "empty",
-        )
-
-        extracted = _extract_json_array(cleaned)
-        if extracted:
-            try:
-                extracted = re.sub(r",\s*([\]}])", r"\1", extracted)
-                data = json.loads(extracted)
-                if isinstance(data, list):
-                    items = _parse_items(data)
-                    if items:
-                        logger.info("extraction_json_recovered", recovered_count=len(items))
-                        return items
-            except json.JSONDecodeError:
-                logger.debug("extraction_json_recovery_failed", raw=extracted[:200])
-
+    # Central parser handles fences, array extraction, trailing commas and //
+    # comments (strict-first, instrumented via json_parse_* with this context).
+    result = extract_json_from_llm_response(
+        result_text, expected_type=list, context="memory_extraction"
+    )
+    if not result.success or not isinstance(result.data, list):
         return []
+    return _parse_items(result.data)
 
 
 # ============================================================================

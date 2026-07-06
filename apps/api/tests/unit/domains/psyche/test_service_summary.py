@@ -87,6 +87,7 @@ def _make_service_with_mocked_repo(user_id: UUID, state: MagicMock) -> Any:
     service.repo = MagicMock()
     service.repo.update = AsyncMock()
     service.repo.create_snapshot = AsyncMock()
+    service.repo.delete_snapshots_older_than = AsyncMock(return_value=0)
     return service
 
 
@@ -245,6 +246,7 @@ class TestSnapshotCreation:
             mock_settings.psyche_appraisal_sensitivity = 0.7
             mock_settings.psyche_emotion_max_active = 7
             mock_settings.psyche_history_snapshot_enabled = True
+            mock_settings.psyche_history_retention_days = 90
             mock_settings.psyche_self_efficacy_prior_weight = 5.0
             mock_settings.psyche_ad_relaxation = 0.15
             mock_settings.psyche_baseline_damping = 0.65
@@ -304,6 +306,7 @@ class TestSnapshotCreation:
 
         with patch("src.domains.psyche.service.settings") as mock_settings:
             mock_settings.psyche_history_snapshot_enabled = True
+            mock_settings.psyche_history_retention_days = 90
 
             result = await service.process_post_response(user_id, appraisal=None)
 
@@ -314,3 +317,35 @@ class TestSnapshotCreation:
 
             # Result should still return a summary
             assert result is not None
+
+    async def test_retention_purge_invoked_after_snapshot(self):
+        """process_post_response purges snapshots older than the retention window.
+
+        The rolling retention (ADR: time-window, enforced on write) must call the
+        repository purge with the configured window right after creating a snapshot.
+        """
+        user_id = uuid4()
+        state = _make_state(user_id=user_id)
+        service = _make_service_with_mocked_repo(user_id, state)
+
+        with patch("src.domains.psyche.service.settings") as mock_settings:
+            mock_settings.psyche_history_snapshot_enabled = True
+            mock_settings.psyche_history_retention_days = 90
+
+            await service.process_post_response(user_id, appraisal=None)
+
+        service.repo.delete_snapshots_older_than.assert_awaited_once_with(user_id, 90)
+
+    async def test_no_retention_purge_when_snapshots_disabled(self):
+        """No purge when snapshots are disabled (no write happened)."""
+        user_id = uuid4()
+        state = _make_state(user_id=user_id)
+        service = _make_service_with_mocked_repo(user_id, state)
+
+        with patch("src.domains.psyche.service.settings") as mock_settings:
+            mock_settings.psyche_history_snapshot_enabled = False
+            mock_settings.psyche_history_retention_days = 90
+
+            await service.process_post_response(user_id, appraisal=None)
+
+        service.repo.delete_snapshots_older_than.assert_not_called()

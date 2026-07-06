@@ -462,26 +462,103 @@ class TestMemoryResolver:
         reset_memory_resolver()
 
     @pytest.mark.asyncio
-    async def test_retrieve_and_resolve_returns_tuple(self):
-        """Test that retrieve_and_resolve returns tuple of facts and references."""
+    async def test_no_references_skips_resolution(self):
+        """No anaphoric reference → no resolution LLM call (N-97).
+
+        When reference extraction finds nothing, resolving against broad facts
+        would be a wasted LLM call per turn. Facts are still returned for the
+        planner; only the resolution step is short-circuited.
+        """
         resolver = MemoryResolver()
         config = MagicMock()
 
-        with patch.object(
-            resolver, "_retrieve_memory_facts", return_value=["fact1", "fact2"]
-        ) as mock_retrieve:
-            with patch.object(
-                resolver, "_resolve_memory_references", return_value=None
-            ) as mock_resolve:
-                facts, refs = await resolver.retrieve_and_resolve(
-                    query="test query",
-                    user_id="user123",
-                    config=config,
-                )
+        with (
+            patch.object(
+                resolver,
+                "_retrieve_memory_facts",
+                new=AsyncMock(return_value=["fact1", "fact2"]),
+            ) as mock_retrieve,
+            patch.object(resolver, "_extract_references", new=AsyncMock(return_value=[])),
+            patch.object(
+                resolver, "_resolve_memory_references", new=AsyncMock(return_value=None)
+            ) as mock_resolve,
+        ):
+            facts, refs = await resolver.retrieve_and_resolve(
+                query="what time is it",
+                user_id="user123",
+                config=config,
+            )
 
-                mock_retrieve.assert_called_once()
-                mock_resolve.assert_called_once()
-                assert facts == ["fact1", "fact2"]
+        mock_retrieve.assert_awaited_once()
+        mock_resolve.assert_not_awaited()
+        assert facts == ["fact1", "fact2"]
+        assert refs is None
+
+    @pytest.mark.asyncio
+    async def test_with_reference_resolves_from_targeted_facts(self):
+        """A detected reference still triggers resolution against targeted facts."""
+        resolver = MemoryResolver()
+        config = MagicMock()
+
+        with (
+            patch.object(resolver, "_retrieve_memory_facts", new=AsyncMock(return_value=["broad"])),
+            patch.object(
+                resolver,
+                "_extract_references",
+                new=AsyncMock(return_value=["ma femme"]),
+            ),
+            patch.object(
+                resolver,
+                "_search_memories_targeted",
+                new=AsyncMock(return_value=["Wife: Jane Smith"]),
+            ),
+            patch.object(
+                resolver,
+                "_resolve_memory_references",
+                new=AsyncMock(return_value="RESOLVED"),
+            ) as mock_resolve,
+        ):
+            facts, refs = await resolver.retrieve_and_resolve(
+                query="email ma femme",
+                user_id="user123",
+                config=config,
+            )
+
+        mock_resolve.assert_awaited_once()
+        # Resolution runs against the targeted facts, not the broad ones.
+        assert mock_resolve.await_args.args[1] == ["Wife: Jane Smith"]
+        assert refs == "RESOLVED"
+
+    @pytest.mark.asyncio
+    async def test_with_reference_but_empty_targeted_falls_back_to_broad(self):
+        """Reference detected but targeted search empty → resolve against broad facts."""
+        resolver = MemoryResolver()
+        config = MagicMock()
+
+        with (
+            patch.object(resolver, "_retrieve_memory_facts", new=AsyncMock(return_value=["broad"])),
+            patch.object(
+                resolver,
+                "_extract_references",
+                new=AsyncMock(return_value=["ma femme"]),
+            ),
+            patch.object(resolver, "_search_memories_targeted", new=AsyncMock(return_value=None)),
+            patch.object(
+                resolver,
+                "_resolve_memory_references",
+                new=AsyncMock(return_value="RESOLVED"),
+            ) as mock_resolve,
+        ):
+            facts, refs = await resolver.retrieve_and_resolve(
+                query="email ma femme",
+                user_id="user123",
+                config=config,
+            )
+
+        mock_resolve.assert_awaited_once()
+        # Fallback resolves against the broad facts.
+        assert mock_resolve.await_args.args[1] == ["broad"]
+        assert refs == "RESOLVED"
 
     @pytest.mark.asyncio
     async def test_retrieve_and_resolve_no_facts_skips_resolution(self):

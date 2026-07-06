@@ -28,6 +28,7 @@ from src.core.constants import (
     PSYCHE_EMOTION_DECAY_RATE_DEFAULT,
     PSYCHE_EMOTION_MAX_ACTIVE_DEFAULT,
     PSYCHE_ENABLED_DEFAULT,
+    PSYCHE_HISTORY_RETENTION_DAYS_DEFAULT,
     PSYCHE_MOOD_DECAY_RATE_DEFAULT,
     PSYCHE_RELATIONSHIP_WARMTH_DECAY_DEFAULT,
     PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT_DEFAULT,
@@ -54,6 +55,18 @@ class PsycheSettings(BaseSettings):
         description=(
             "Enable psyche history snapshots for evolution tracking. "
             "When false, no snapshots are recorded (reduces DB writes)."
+        ),
+    )
+
+    psyche_history_retention_days: int = Field(
+        default=PSYCHE_HISTORY_RETENTION_DAYS_DEFAULT,
+        ge=0,
+        le=3650,
+        description=(
+            "Rolling retention window (days) for psyche history snapshots. "
+            "One snapshot is written per message, so without a bound the table "
+            "grows ~10k+ rows/year for an active user. Snapshots older than this "
+            "are purged on write, per user. 0 disables retention (keep forever)."
         ),
     )
 

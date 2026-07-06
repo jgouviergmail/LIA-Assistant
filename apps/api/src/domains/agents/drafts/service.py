@@ -47,6 +47,7 @@ from uuid import UUID
 
 import structlog
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_drafts import get_draft_summary_label
 from src.domains.agents.data_registry.models import (
     RegistryItem,
@@ -905,7 +906,7 @@ class DraftService:
             RegistryItem with draft payload including detailed preview
         """
         # Extract user_timezone from draft content (set by BaseDraftInput)
-        user_timezone = draft.content.get("user_timezone", "Europe/Paris")
+        user_timezone = draft.content.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
 
         return RegistryItem(
             id=draft.id,
@@ -949,7 +950,7 @@ class DraftService:
             Human-readable summary string with full draft details
         """
         # Extract user_timezone from draft content (set by BaseDraftInput)
-        user_timezone = draft.content.get("user_timezone", "Europe/Paris")
+        user_timezone = draft.content.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
 
         # Get the brief title for the header
         draft_title = draft.get_summary(user_language)
@@ -1226,7 +1227,7 @@ def create_event_draft(
     description: str | None = None,
     location: str | None = None,
     attendees: list[str] | None = None,
-    timezone: str = "Europe/Paris",
+    timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     calendar_id: str | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "create_event_tool",
@@ -1317,7 +1318,7 @@ def create_update_event_draft(
     description: str | None = None,
     location: str | None = None,
     attendees: list[str] | None = None,
-    timezone: str = "Europe/Paris",
+    timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     calendar_id: str | None = None,
     current_event: dict[str, Any] | None = None,
     related_registry_ids: list[str] | None = None,
@@ -1372,7 +1373,7 @@ def create_delete_event_draft(
     description: str | None = None,
     location: str | None = None,
     attendees: list[str] | None = None,
-    timezone: str = "Europe/Paris",
+    timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     send_updates: str = "all",
     calendar_id: str | None = None,
     related_registry_ids: list[str] | None = None,

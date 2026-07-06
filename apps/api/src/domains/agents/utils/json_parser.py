@@ -44,6 +44,49 @@ from src.infrastructure.observability.metrics_agents import (
 
 logger = structlog.get_logger(__name__)
 
+# Recovery patterns for the tolerant parse path (applied only after strict
+# parsing fails). Compiled once at import.
+_TRAILING_COMMA_RE = re.compile(r",\s*([\]}])")
+_LINE_COMMENT_RE = re.compile(r"//.*$", re.MULTILINE)
+
+
+def _loads_tolerant(json_text: str) -> Any:
+    """Parse JSON, progressively repairing common LLM malformations.
+
+    Strict parsing is attempted first, so valid JSON — including string values
+    that contain ``//`` (e.g. URLs) — is never mutated. Only on failure are
+    repairs applied incrementally, re-attempting after each step:
+
+    1. drop trailing commas before a closing ``]`` / ``}``,
+    2. additionally strip single-line ``//`` comments.
+
+    Ordering matters: a payload whose only defect is a trailing comma is fixed
+    at step 1 with URLs intact; the riskier comment stripping runs only if that
+    was not enough.
+
+    Args:
+        json_text: Candidate JSON string (already extracted from any fences).
+
+    Returns:
+        The parsed JSON value.
+
+    Raises:
+        json.JSONDecodeError: If the text is still invalid after all repairs.
+    """
+    try:
+        return json.loads(json_text)
+    except json.JSONDecodeError:
+        pass
+
+    step1 = _TRAILING_COMMA_RE.sub(r"\1", json_text)
+    try:
+        return json.loads(step1)
+    except json.JSONDecodeError:
+        pass
+
+    step2 = _LINE_COMMENT_RE.sub("", step1)
+    return json.loads(step2)  # raises JSONDecodeError if still invalid
+
 
 @dataclass
 class JSONParseResult:
@@ -122,9 +165,9 @@ def extract_json_from_llm_response(
     # Try to extract JSON from the response
     json_text = _extract_json_text(response_text)
 
-    # Attempt to parse the extracted JSON
+    # Attempt to parse the extracted JSON (strict first, then tolerant repair)
     try:
-        data = json.loads(json_text)
+        data = _loads_tolerant(json_text)
 
         # Validate expected type
         if not isinstance(data, expected_type):

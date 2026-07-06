@@ -1068,7 +1068,7 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             summary=result["summary"],
             start_datetime=result["start_datetime"],
             end_datetime=result["end_datetime"],
-            timezone=result.get("timezone", "Europe/Paris"),
+            timezone=result.get("timezone", DEFAULT_USER_DISPLAY_TIMEZONE),
             calendar_id=result.get("calendar_id"),
             description=result.get("description"),
             location=result.get("location"),
@@ -1366,7 +1366,7 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             summary=result.get("summary"),
             start_datetime=result.get("start_datetime"),
             end_datetime=result.get("end_datetime"),
-            timezone=result.get("timezone", "Europe/Paris"),
+            timezone=result.get("timezone", DEFAULT_USER_DISPLAY_TIMEZONE),
             calendar_id=result.get("calendar_id"),
             description=result.get("description"),
             location=result.get("location"),
@@ -1909,7 +1909,7 @@ class CreateEventDirectTool(ConnectorTool[GoogleCalendarClient]):
         summary: str = kwargs["summary"]
         start_datetime: str = kwargs["start_datetime"]
         end_datetime: str = kwargs["end_datetime"]
-        timezone: str = kwargs.get("timezone", "Europe/Paris")
+        timezone: str = kwargs.get("timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
         description: str | None = kwargs.get("description")
         location: str | None = kwargs.get("location")
         attendees: list[str] | None = kwargs.get("attendees")

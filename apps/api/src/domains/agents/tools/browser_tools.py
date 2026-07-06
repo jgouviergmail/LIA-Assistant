@@ -34,6 +34,7 @@ from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel, Field
 
 from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.domains.agents.constants import AGENT_BROWSER, CONTEXT_DOMAIN_BROWSERS
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.data_registry.models import (
@@ -194,7 +195,7 @@ async def _get_session(runtime: ToolRuntime, user_id: str) -> tuple[object, obje
     # Extract user preferences from runtime config for browser locale/timezone
     configurable = (runtime.config.get("configurable") or {}) if runtime else {}
     user_language = configurable.get("user_language", "fr")
-    user_timezone = configurable.get("user_timezone", "Europe/Paris")
+    user_timezone = configurable.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
 
     session = await pool.acquire_session(user_id, user_language, user_timezone)
     return pool, session

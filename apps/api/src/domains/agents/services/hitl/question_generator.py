@@ -22,6 +22,7 @@ from typing import Any
 from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_core.runnables import RunnableConfig
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import FIELD_CONTENT, FIELD_TOOL_NAME
 from src.core.i18n_hitl import HitlMessages
 from src.domains.agents.prompts import format_with_current_datetime, load_prompt
@@ -181,7 +182,7 @@ class HitlQuestionGenerator:
         tool_name: str,
         tool_args: dict[str, Any],
         user_language: str = "fr",
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
     ) -> str:
         """Generate a contextual confirmation question for a tool action.
@@ -272,7 +273,7 @@ class HitlQuestionGenerator:
         tool_name: str,
         tool_args: dict[str, Any],
         user_language: str = "fr",
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
     ) -> AsyncGenerator[str, None]:
         """Stream HITL question tokens progressively (TTFT optimization).
@@ -414,7 +415,7 @@ class HitlQuestionGenerator:
         plan_summary: Any,  # PlanSummary from orchestration.approval_schemas
         approval_reasons: list[str],
         user_language: str = "fr",
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
         personality_instruction: str | None = None,
     ) -> str:
@@ -500,7 +501,7 @@ class HitlQuestionGenerator:
         plan_summary: Any,  # PlanSummary from orchestration.approval_schemas
         approval_reasons: list[str],
         user_language: str = "fr",
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
         personality_instruction: str | None = None,
     ) -> AsyncGenerator[str, None]:
@@ -655,7 +656,7 @@ class HitlQuestionGenerator:
         plan_summary: Any,  # PlanSummary from orchestration.approval_schemas
         approval_reasons: list[str],
         user_language: str,
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         personality_instruction: str | None = None,
     ) -> list[dict[str, str]]:
         """Build prompt messages for plan approval question generation.
@@ -755,7 +756,7 @@ Generate the approval question:"""
         tool_name: str,
         tool_args: dict[str, Any],
         user_language: str,
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         personality_instruction: str | None = None,
     ) -> list[dict[str, str]]:
         """Build prompt messages for question generation.

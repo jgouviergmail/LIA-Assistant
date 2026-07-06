@@ -33,6 +33,8 @@ from collections.abc import AsyncGenerator
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+
 if TYPE_CHECKING:
     from langchain_core.callbacks.base import BaseCallbackHandler
 
@@ -154,7 +156,7 @@ class HitlInteractionProtocol(Protocol):
         self,
         context: dict[str, Any],
         user_language: str,
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: "BaseCallbackHandler | None" = None,
     ) -> AsyncGenerator[str, None]:
         """

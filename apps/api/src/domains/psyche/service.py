@@ -28,7 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import REDIS_KEY_PSYCHE_STATE_PREFIX
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, REDIS_KEY_PSYCHE_STATE_PREFIX
 from src.domains.psyche.constants import (
     PSYCHE_SCHEMA_VERSION,
     RELATIONSHIP_STAGES,
@@ -239,7 +239,7 @@ class PsycheService:
     async def process_pre_response(
         self,
         user_id: UUID,
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     ) -> tuple[str, PsycheStateSummary | None]:
         """Process pre-response: load state, apply decay, compile profile.
 
@@ -670,6 +670,13 @@ class PsycheService:
                 },
             )
             await self.repo.create_snapshot(snapshot)
+
+            # Rolling retention (N-201): purge this user's snapshots older than the
+            # configured window. Bounds psyche_history growth (one snapshot/message).
+            # Runs here, in the fire-and-forget post-response task, off the SSE path.
+            await self.repo.delete_snapshots_older_than(
+                user_id, settings.psyche_history_retention_days
+            )
 
         # Build summary
         profile = PsycheEngine.compile_expression_profile(

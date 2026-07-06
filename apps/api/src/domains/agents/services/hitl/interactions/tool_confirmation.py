@@ -35,6 +35,7 @@ import time
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import FIELD_CONVERSATION_ID
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
 from src.infrastructure.observability.logging import get_logger
@@ -94,7 +95,7 @@ class ToolConfirmationInteraction:
         self,
         context: dict[str, Any],
         user_language: str,
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
     ) -> AsyncGenerator[str, None]:
         """

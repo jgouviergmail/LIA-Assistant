@@ -23,6 +23,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
@@ -89,7 +90,7 @@ class ScheduledAction(BaseModel):
     user_timezone: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="Europe/Paris",
+        default=DEFAULT_USER_DISPLAY_TIMEZONE,
         doc="IANA timezone for schedule evaluation",
     )
 

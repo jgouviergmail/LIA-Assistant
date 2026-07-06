@@ -30,7 +30,7 @@ from typing import Any
 import structlog
 from langchain_core.runnables import RunnableConfig
 
-from src.core.constants import TOOL_NAME_DELEGATE_SUB_AGENT
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, TOOL_NAME_DELEGATE_SUB_AGENT
 from src.domains.agents.constants import (
     STATE_KEY_EXECUTION_PLAN,
     STATE_KEY_PLAN_APPROVED,
@@ -206,7 +206,7 @@ async def _build_approval_request(
     validation_result: Any,
     approval_evaluation: Any = None,
     user_language: str = "fr",
-    user_timezone: str = "Europe/Paris",
+    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     config: RunnableConfig | None = None,
     skip_question_generation: bool = True,
 ) -> PlanApprovalRequest:

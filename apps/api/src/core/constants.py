@@ -3744,6 +3744,12 @@ PSYCHE_RELATIONSHIP_WARMTH_DECAY_DEFAULT: float = 0.02  # Per hour of absence
 # Self-efficacy
 PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT_DEFAULT: float = 5.0  # Bayesian prior weight
 
+# History retention (N-201). psyche_history grows by one snapshot per message
+# (plus reset markers); without a bound an active user accrues ~10k+ rows/year.
+# Rolling time-window retention, enforced on write (per user): snapshots older
+# than this many days are purged after each new snapshot. 0 = keep forever.
+PSYCHE_HISTORY_RETENTION_DAYS_DEFAULT: int = 90
+
 # Caching
 PSYCHE_CACHE_TTL_SECONDS_DEFAULT: int = 300  # Redis TTL (seconds)
 REDIS_KEY_PSYCHE_STATE_PREFIX: str = "psyche:state:"

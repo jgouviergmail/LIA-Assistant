@@ -6,14 +6,13 @@ come from LLM_DEFAULTS and can be overridden from the admin LLM
 Configuration UI (audit wave 3, N-219.1).
 """
 
-import json
-
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import settings
 from src.core.i18n_types import LANGUAGE_NAMES
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 
@@ -108,19 +107,28 @@ Description: {source_description}"""
             )
 
             # Parse response. Gemini 3.x returns content as list[dict] blocks;
-            # coerce to text so .startswith()/json.loads below stay str-safe.
+            # coerce to text so the central parser receives a plain string.
             content = coerce_content_to_text(response.content).strip()
 
-            # Handle markdown code blocks
-            if content.startswith("```"):
-                lines = content.split("\n")
-                # Remove first and last lines (``` markers)
-                content = "\n".join(lines[1:-1])
-                if content.startswith("json"):
-                    content = content[4:].strip()
+            # Central parser handles fences, trailing commas and // comments;
+            # required_fields enforces the translation contract.
+            parse_result = extract_json_from_llm_response(
+                content,
+                expected_type=dict,
+                required_fields=["title", "description"],
+                context="personality_translation",
+            )
+            if not parse_result.success or not isinstance(parse_result.data, dict):
+                logger.error(
+                    "translation_json_parse_error",
+                    personality_code=personality_code,
+                    target_language=target_language,
+                    error=parse_result.error,
+                    response_content=content[:200] if content else None,
+                )
+                raise ValueError(f"Failed to parse translation response: {parse_result.error}")
 
-            # Parse JSON
-            data = json.loads(content)
+            data = parse_result.data
             result = {
                 "title": data["title"],
                 "description": data["description"],
@@ -138,15 +146,8 @@ Description: {source_description}"""
 
             return result
 
-        except json.JSONDecodeError as e:
-            logger.error(
-                "translation_json_parse_error",
-                personality_code=personality_code,
-                target_language=target_language,
-                error=str(e),
-                response_content=content[:200] if content else None,
-            )
-            raise ValueError(f"Failed to parse translation response: {e}") from e
+        except ValueError:
+            raise  # parse failure already logged as translation_json_parse_error
 
         except Exception as e:
             logger.error(

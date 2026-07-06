@@ -36,6 +36,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_drafts import get_draft_preview_labels, get_draft_summary_label
 
 
@@ -119,7 +120,7 @@ class BaseDraftInput(BaseModel):
 
     # User timezone for datetime formatting in HITL previews
     user_timezone: str = Field(
-        default="Europe/Paris",
+        default=DEFAULT_USER_DISPLAY_TIMEZONE,
         description="User's IANA timezone for datetime display",
     )
 
@@ -243,7 +244,7 @@ class EventDraftInput(BaseDraftInput):
     description: str | None = Field(default=None, description="Event description")
     location: str | None = Field(default=None, description="Event location")
     attendees: list[str] = Field(default_factory=list, description="Attendee emails")
-    timezone: str = Field(default="Europe/Paris", description="Timezone")
+    timezone: str = Field(default=DEFAULT_USER_DISPLAY_TIMEZONE, description="Timezone")
     calendar_id: str | None = Field(
         default=None,
         description="Calendar ID to create event in. If None, uses user's default calendar preference.",
@@ -277,7 +278,7 @@ class EventUpdateDraftInput(BaseDraftInput):
     description: str | None = Field(default=None, description="New event description")
     location: str | None = Field(default=None, description="New event location")
     attendees: list[str] | None = Field(default=None, description="New attendee emails")
-    timezone: str = Field(default="Europe/Paris", description="Timezone")
+    timezone: str = Field(default=DEFAULT_USER_DISPLAY_TIMEZONE, description="Timezone")
     calendar_id: str | None = Field(
         default=None,
         description="Calendar ID where the event is located. If None, uses user's default calendar preference.",
@@ -318,7 +319,7 @@ class EventDeleteDraftInput(BaseDraftInput):
     description: str | None = Field(default=None, description="Event description")
     location: str | None = Field(default=None, description="Event location")
     attendees: list[str] | None = Field(default=None, description="Attendee emails")
-    timezone: str = Field(default="Europe/Paris", description="Timezone")
+    timezone: str = Field(default=DEFAULT_USER_DISPLAY_TIMEZONE, description="Timezone")
     calendar_id: str | None = Field(
         default=None,
         description="Calendar ID where the event is located. If None, uses user's default calendar preference.",
@@ -712,7 +713,7 @@ class Draft(BaseModel):
         from src.core.time_utils import format_datetime_for_display
 
         # Use provided timezone or fallback to content.user_timezone
-        tz = user_timezone or self.content.get("user_timezone", "Europe/Paris")
+        tz = user_timezone or self.content.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
 
         def format_dt(dt_str: str | None) -> str:
             """Format an ISO datetime string for display."""
@@ -850,7 +851,7 @@ class Draft(BaseModel):
     def get_detailed_preview(
         self,
         user_language: str = "fr",
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     ) -> str:
         """
         Get a detailed preview of the draft for user confirmation.

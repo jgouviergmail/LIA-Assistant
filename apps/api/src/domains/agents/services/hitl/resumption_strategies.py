@@ -25,6 +25,7 @@ from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import (
     FIELD_CONTENT,
     FIELD_CONVERSATION_ID,
@@ -1173,7 +1174,7 @@ class ConversationalHitlResumption:
         first_values_logged = False
         # Extract user preferences from graph state (populated on first "values" chunk)
         state_user_language = "fr"
-        state_user_timezone = "Europe/Paris"
+        state_user_timezone = DEFAULT_USER_DISPLAY_TIMEZONE
 
         try:
             async for mode, chunk in graph.astream(
@@ -1198,7 +1199,7 @@ class ConversationalHitlResumption:
                     first_values_logged = True
                     # Capture user preferences from graph state
                     state_user_language = chunk.get("user_language", "fr")
-                    state_user_timezone = chunk.get("user_timezone", "Europe/Paris")
+                    state_user_timezone = chunk.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
 
                 # === NESTED HITL: Detect interrupt during resume ===
                 # If the resumed tool triggers another HITL-requiring tool, we must:

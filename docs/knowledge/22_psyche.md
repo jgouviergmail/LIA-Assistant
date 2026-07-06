@@ -39,6 +39,8 @@ Located in Settings > Psyche de LIA:
 
 Reset events are marked as red dashed vertical lines on all charts.
 
+History is kept on a rolling window (90 days by default, configurable) — older snapshots are automatically purged to keep server storage bounded, so the charts always cover recent history.
+
 ## How It Works
 
 Before each response, LIA loads its psychological state, applies natural decay toward its personality baseline, checks what time of day it is (slight mood boost at midday), and compiles behavioral directives that shape the tone of its reply.

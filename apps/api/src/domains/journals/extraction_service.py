@@ -14,8 +14,6 @@ Key design decisions:
 
 from __future__ import annotations
 
-import json
-import re
 import time as _time
 import uuid
 from datetime import UTC, datetime
@@ -31,6 +29,7 @@ if TYPE_CHECKING:
 from src.core.config import settings
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.journals.constants import (
     JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
     JOURNAL_EXTRACTION_CONTEXT_MESSAGES,
@@ -407,36 +406,21 @@ def _parse_consolidation_result(result_text: str) -> ConsolidationParseResult:
     """
     actions = _parse_journal_extraction_result(result_text)
 
-    # Try to also extract a JSON object with portrait fields. Best-effort —
-    # any failure keeps portraits as None and only the actions are applied.
-    cleaned = result_text.strip()
-    if cleaned.startswith("```"):
-        lines = cleaned.split("\n")
-        start_idx, end_idx = 0, len(lines)
-        for i, line in enumerate(lines):
-            if line.startswith("```") and i == 0:
-                start_idx = 1
-            elif line.startswith("```") and i > 0:
-                end_idx = i
-                break
-        cleaned = "\n".join(lines[start_idx:end_idx])
-    cleaned = re.sub(r"//.*$", "", cleaned, flags=re.MULTILINE)
-    cleaned = re.sub(r",\s*([\]}])", r"\1", cleaned)
-
+    # Best-effort: also parse a JSON object carrying portrait fields. Delegates
+    # fence/comment/trailing-comma handling to the central parser; a bare array
+    # (legacy format) yields a type mismatch → portraits stay None.
     portrait_full: str | None = None
     portrait_brief: str | None = None
-    if cleaned.lstrip().startswith("{"):
-        try:
-            obj = json.loads(cleaned)
-            if isinstance(obj, dict):
-                pf = obj.get("portrait_full")
-                pb = obj.get("portrait_brief")
-                if isinstance(pf, str) and pf.strip():
-                    portrait_full = pf.strip()
-                if isinstance(pb, str) and pb.strip():
-                    portrait_brief = pb.strip()
-        except json.JSONDecodeError:
-            pass  # Object format malformed — ignore portraits, keep actions
+    portrait_result = extract_json_from_llm_response(
+        result_text, expected_type=dict, context="journal_portraits"
+    )
+    if portrait_result.success and isinstance(portrait_result.data, dict):
+        pf = portrait_result.data.get("portrait_full")
+        pb = portrait_result.data.get("portrait_brief")
+        if isinstance(pf, str) and pf.strip():
+            portrait_full = pf.strip()
+        if isinstance(pb, str) and pb.strip():
+            portrait_brief = pb.strip()
 
     return ConsolidationParseResult(
         actions=actions,
@@ -460,54 +444,6 @@ def _parse_journal_extraction_result(result_text: str) -> list[ExtractedJournalE
     Returns:
         List of validated ExtractedJournalEntry objects
     """
-    cleaned = result_text.strip()
-
-    # Remove markdown code fences if present
-    if cleaned.startswith("```"):
-        lines = cleaned.split("\n")
-        start_idx = 0
-        end_idx = len(lines)
-        for i, line in enumerate(lines):
-            if line.startswith("```") and i == 0:
-                start_idx = 1
-            elif line.startswith("```") and i > 0:
-                end_idx = i
-                break
-        cleaned = "\n".join(lines[start_idx:end_idx])
-
-    # Remove single-line comments
-    cleaned = re.sub(r"//.*$", "", cleaned, flags=re.MULTILINE)
-
-    # Remove trailing commas before ] or }
-    cleaned = re.sub(r",\s*([\]}])", r"\1", cleaned)
-
-    def _extract_json_array(text: str) -> str | None:
-        """Extract first valid-looking JSON array from text."""
-        start = text.find("[")
-        if start == -1:
-            return None
-        depth = 0
-        in_string = False
-        escape_next = False
-        for i, char in enumerate(text[start:], start):
-            if escape_next:
-                escape_next = False
-                continue
-            if char == "\\":
-                escape_next = True
-                continue
-            if char == '"' and not escape_next:
-                in_string = not in_string
-                continue
-            if in_string:
-                continue
-            if char == "[":
-                depth += 1
-            elif char == "]":
-                depth -= 1
-                if depth == 0:
-                    return text[start : i + 1]
-        return None
 
     def _parse_items(data: list) -> list[ExtractedJournalEntry]:
         """Validate items against schema, skip invalid ones."""
@@ -525,53 +461,31 @@ def _parse_journal_extraction_result(result_text: str) -> list[ExtractedJournalE
                 continue
         return entries
 
-    # Try direct parsing first
-    try:
-        data = json.loads(cleaned)
-        # Enriched object format (commit 3+): extract the `actions` field
-        if isinstance(data, dict):
-            inner = data.get("actions")
-            if isinstance(inner, list):
-                return _parse_items(inner)
-            logger.warning(
-                "journal_extraction_object_missing_actions",
-                keys=list(data.keys())[:5],
-            )
-            return []
-        if not isinstance(data, list):
-            logger.warning(
-                "journal_extraction_result_not_list",
-                type=type(data).__name__,
-            )
-            return []
-        return _parse_items(data)
-
-    except json.JSONDecodeError as e:
-        logger.warning(
-            "journal_extraction_json_parse_failed",
-            error=str(e),
-            result_length=len(cleaned),
-            result_preview=cleaned[:500] if cleaned else "empty",
-        )
-
-        # Fallback: extract JSON array from potentially malformed response
-        extracted = _extract_json_array(cleaned)
-        if extracted:
-            try:
-                extracted = re.sub(r",\s*([\]}])", r"\1", extracted)
-                data = json.loads(extracted)
-                if isinstance(data, list):
-                    items = _parse_items(data)
-                    if items:
-                        logger.info(
-                            "journal_extraction_json_recovered",
-                            recovered_count=len(items),
-                        )
-                        return items
-            except json.JSONDecodeError:
-                logger.debug("journal_extraction_json_recovery_failed")
-
+    # Central parser handles fences, array/object extraction, trailing commas
+    # and // comments. expected_type=object accepts BOTH supported shapes: a
+    # bare array (legacy) and the enriched {actions: [...]} object.
+    result = extract_json_from_llm_response(
+        result_text, expected_type=object, context="journal_extraction"
+    )
+    if not result.success:
         return []
+    data = result.data
+    if isinstance(data, dict):
+        inner = data.get("actions")
+        if isinstance(inner, list):
+            return _parse_items(inner)
+        logger.warning(
+            "journal_extraction_object_missing_actions",
+            keys=list(data.keys())[:5],
+        )
+        return []
+    if not isinstance(data, list):
+        logger.warning(
+            "journal_extraction_result_not_list",
+            type=type(data).__name__,
+        )
+        return []
+    return _parse_items(data)
 
 
 # =============================================================================

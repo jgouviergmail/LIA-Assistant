@@ -13,7 +13,7 @@ from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from src.core.config import settings
-from src.core.constants import REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE
 from src.core.field_names import (
     FIELD_METADATA,
     FIELD_RUN_ID,
@@ -492,7 +492,7 @@ def create_initial_state(
     user_id: uuid.UUID,
     session_id: str,
     run_id: str,
-    user_timezone: str = "Europe/Paris",
+    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     user_language: str = "fr",
     oauth_scopes: list[str] | None = None,
     personality_instruction: str | None = None,

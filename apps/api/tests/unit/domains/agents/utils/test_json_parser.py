@@ -377,6 +377,56 @@ class TestExtractJsonFromLLMResponseContext:
         assert result.success is True
 
 
+class TestExtractJsonFromLLMResponseTolerant:
+    """Tests for tolerant recovery of common LLM JSON malformations (S10).
+
+    Strict-valid JSON is parsed as-is; only on failure are trailing commas and
+    ``//`` comments repaired incrementally, so a URL-bearing payload with a
+    trailing comma is fixed without corrupting the ``://``.
+    """
+
+    @patch("src.domains.agents.utils.json_parser.agent_llm_json_parse_success_total")
+    def test_trailing_comma_in_object(self, mock_metric):
+        """Trailing comma before a closing brace is tolerated."""
+        result = extract_json_from_llm_response('{"a": 1, "b": 2,}')
+
+        assert result.success is True
+        assert result.data == {"a": 1, "b": 2}
+
+    @patch("src.domains.agents.utils.json_parser.agent_llm_json_parse_success_total")
+    def test_trailing_comma_in_array(self, mock_metric):
+        """Trailing comma before a closing bracket is tolerated."""
+        result = extract_json_from_llm_response("[1, 2, 3,]", expected_type=list)
+
+        assert result.success is True
+        assert result.data == [1, 2, 3]
+
+    @patch("src.domains.agents.utils.json_parser.agent_llm_json_parse_success_total")
+    def test_single_line_comments_stripped(self, mock_metric):
+        """Single-line // comments are stripped on the recovery path."""
+        text = '{\n  "a": 1, // first\n  "b": 2 // second\n}'
+        result = extract_json_from_llm_response(text)
+
+        assert result.success is True
+        assert result.data == {"a": 1, "b": 2}
+
+    @patch("src.domains.agents.utils.json_parser.agent_llm_json_parse_success_total")
+    def test_url_preserved_when_repairing_trailing_comma(self, mock_metric):
+        """A URL value must survive trailing-comma repair (no // corruption)."""
+        result = extract_json_from_llm_response('{"url": "https://example.com/x",}')
+
+        assert result.success is True
+        assert result.data == {"url": "https://example.com/x"}
+
+    @patch("src.domains.agents.utils.json_parser.agent_llm_json_parse_success_total")
+    def test_valid_json_with_url_is_untouched(self, mock_metric):
+        """Strict-valid JSON containing a URL parses unchanged (no repair path)."""
+        result = extract_json_from_llm_response('{"url": "https://example.com//path"}')
+
+        assert result.success is True
+        assert result.data == {"url": "https://example.com//path"}
+
+
 # ============================================================================
 # Tests for validate_json_structure
 # ============================================================================

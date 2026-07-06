@@ -2943,6 +2943,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_11": {
+          "title": "v1.21.11 — 🛠️ Reliability & maintenance",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧠 More reliable capture of your memories, journals and interests</b> — Parsing of the assistant's internal outputs (from which it notes what it remembers about you) has been hardened: it now tolerates small formatting imperfections and silently fails far less often. As a result, what LIA should remember about you is captured more faithfully.",
+            "i2": "<b>⚡ Leaner analysis of your requests</b> — When your message carries no personal reference to resolve (such as “my wife” or “my brother”), a redundant AI analysis step is now skipped — slightly faster, leaner processing, with no change for you.",
+            "i3": "<b>🛡️ Admin · bounded psyche history</b> — LIA's emotional-evolution history (one snapshot per message) is now purged beyond a configurable retention window (90 days by default), keeping server storage growth bounded. Adjustable via configuration."
+          }
+        },
         "v1_21_10": {
           "title": "v1.21.10 — 🎭 LIA's personality finally comes through",
           "date": "July 2026",

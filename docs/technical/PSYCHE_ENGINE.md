@@ -129,7 +129,7 @@ Additionally, the Big Five compute the **PAD baseline** — the mood the assista
 
 **Narrative Identity:** A brief first-person self-narrative generated weekly (Sundays at 03:00 UTC) via LLM. Reflects on emotional tendencies, relationship quality, and confidence. Stored in `PsycheState.narrative_identity`.
 
-**Message History:** A `psyche_history` record of type "message" is created after each assistant response. Includes PAD values, dominant emotion + intensity, all active emotions (dict), relationship stage + depth/warmth/trust, and drives. Reset operations (soft/full) create `reset_soft`/`reset_full` snapshots for visual markers on the history chart.
+**Message History:** A `psyche_history` record of type "message" is created after each assistant response. Includes PAD values, dominant emotion + intensity, all active emotions (dict), relationship stage + depth/warmth/trust, and drives. Reset operations (soft/full) create `reset_soft`/`reset_full` snapshots for visual markers on the history chart. To bound growth (one snapshot per message ≈ 10k+ rows/year for an active user), each user's snapshots older than a rolling window are purged on write, right after a new snapshot is created — configurable via `PSYCHE_HISTORY_RETENTION_DAYS` (90 days default; `0` disables). No scheduler and no migration: a single indexed `DELETE` on the existing `ix_psyche_history_user_created`.
 
 **Evolution Awareness:** The `ExpressionProfile` includes `previous_mood` and `previous_emotion` (from `last_appraisal`). When mood or dominant emotion shifted since the last message, an `EVOLUTION:` block is injected into `<PsycheDirectives>`, giving the LLM continuity awareness.
 
@@ -603,6 +603,7 @@ Psyche Engine v2 introduces 8 enhancements that deepen emotional realism:
 | `PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT` | `5.0` | Bayesian prior weight for self-efficacy |
 | `PSYCHE_CACHE_TTL_SECONDS` | `300` | Redis cache TTL |
 | `PSYCHE_HISTORY_SNAPSHOT_ENABLED` | `true` | Record snapshots after each message |
+| `PSYCHE_HISTORY_RETENTION_DAYS` | `90` | Rolling retention window; snapshots older are purged on write per user (`0` = keep forever) |
 
 ### Token Cost
 
