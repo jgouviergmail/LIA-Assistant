@@ -10,6 +10,7 @@ Created: 2026-03-14
 
 from __future__ import annotations
 
+import asyncio
 import os
 import shutil
 import uuid
@@ -411,7 +412,9 @@ class RAGSpaceService:
         storage_dir = Path(settings.rag_spaces_storage_path) / str(user_id) / str(space_id)
         storage_dir.mkdir(parents=True, exist_ok=True)
         file_path = storage_dir / stored_filename
-        file_path.write_bytes(content)
+        # Offload the (potentially multi-MB) disk write so the event loop stays
+        # free for concurrent requests (CA-4).
+        await asyncio.to_thread(file_path.write_bytes, content)
 
         # Create DB record — clean up file on failure to avoid orphans
         try:

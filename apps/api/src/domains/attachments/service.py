@@ -20,6 +20,7 @@ Created: 2026-03-09
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -177,7 +178,9 @@ class AttachmentService:
             absolute_path = Path(self._settings.attachments_storage_path) / relative_path
 
             absolute_path.parent.mkdir(parents=True, exist_ok=True)
-            absolute_path.write_bytes(file_bytes)
+            # Offload the (potentially multi-MB) disk write so the event loop
+            # stays free for concurrent requests (CA-4).
+            await asyncio.to_thread(absolute_path.write_bytes, file_bytes)
 
             # Step 5: Extract PDF text
             extracted_text: str | None = None

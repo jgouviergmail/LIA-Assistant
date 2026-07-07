@@ -15,6 +15,7 @@ Created: 2026-03-09
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from pathlib import Path
 from typing import Any
@@ -105,6 +106,28 @@ def build_vision_message(
             _append_document_content(content, att)
 
     return HumanMessage(content=content)  # type: ignore[arg-type]
+
+
+async def build_vision_message_async(
+    text: str,
+    attachments: list[dict[str, Any]],
+    storage_path: str,
+) -> HumanMessage:
+    """Async wrapper around :func:`build_vision_message`.
+
+    ``build_vision_message`` reads and base64-encodes attachment images from
+    disk. On the response hot path this must not block the event loop, so the
+    blocking work is offloaded to a worker thread (CA-4).
+
+    Args:
+        text: The user's clean text (annotation hint already stripped).
+        attachments: Current-turn attachment metadata dicts.
+        storage_path: Root storage directory for attachment files.
+
+    Returns:
+        Multimodal ``HumanMessage`` with base64 image blocks.
+    """
+    return await asyncio.to_thread(build_vision_message, text, attachments, storage_path)
 
 
 def _append_image_content(

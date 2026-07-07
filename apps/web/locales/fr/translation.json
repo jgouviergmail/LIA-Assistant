@@ -2948,6 +2948,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_14": {
+          "title": "v1.21.14 — 🔒 Confidentialité renforcée &amp; fluidité",
+          "date": "Juillet 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔒 Confidentialité renforcée dans les journaux</b> — Les journaux applicatifs internes de LIA ne contiennent plus aucun de vos contenus personnels — noms des fichiers que vous importez, texte des messages, titres d'événements ou de tâches, rappels. Au niveau standard, seuls des compteurs et identifiants anonymes subsistent, conformément aux bonnes pratiques de minimisation des données.",
+            "i2": "<b>⚡ Une application plus fluide pendant la génération d'images et les imports</b> — Générer une image ou importer un document dans un espace de connaissances ne ralentit plus brièvement les autres actions : ces opérations plus lourdes s'exécutent désormais en arrière-plan, l'application reste réactive pour tout le monde."
+          }
+        },
         "v1_21_13": {
           "title": "v1.21.13 — 🔢 Les formules mathématiques s'affichent enfin",
           "date": "Juillet 2026",

@@ -117,6 +117,49 @@ CONTENT_FIELD_NAMES = {
     # Content previews (memories, tool results)
     "content_preview",
     "result_preview",
+    # Raw user / entity content (CA-1, audit S9). These carried user content at
+    # INFO through logger call-sites not previously covered:
+    #   - user_message: HITL decision logs (orchestration/service.py)
+    #   - summary:      calendar event titles (calendar_tools.py, mixins.py)
+    #   - title:        task titles (tasks_tools.py)
+    #   - content / new_content / original_content_preview:
+    #                   reminder bodies, edited conversation messages
+    #   - original_content / reformulated_intent:
+    #                   HITL edit logs — the user's original message and the
+    #                   reformulated edit request (orchestration/service.py,
+    #                   hitl/resumption_strategies.py)
+    #   - user_response / original_user_response / clarification_response:
+    #                   HITL classifier & clarification logs — the user's raw
+    #                   reply (hitl_classifier.py, clarification_node.py,
+    #                   planner_node_v3.py, hitl/resumption_strategies.py)
+    #   - original_filename: user-uploaded document / attachment names
+    #                   (rag_spaces/service.py, rag_spaces/processing.py at INFO;
+    #                   attachments/llm_content.py at WARNING) — file names embed
+    #                   PII (e.g. "CV Jean Dupont.pdf", "IRM cerveau.png")
+    #   - exclude_criteria: the user's FOR_EACH bulk-operation exclusion text
+    #                   (for_each_confirm_node.py, hitl/item_filter.py,
+    #                   orchestration/service.py)
+    # `title`/`summary`/`content` are ambiguous field names that ALSO appear as
+    # object-construction kwargs (WikipediaResult, BraveSearchItem, ...) and, at
+    # a couple of web logger sites, as PUBLIC content. The net is field-name
+    # based and only touches log event dicts, so construction kwargs are
+    # unaffected; the rare public logger site (web_fetch_success /
+    # wikipedia_search_success) already logs `url=`, making the redacted title
+    # redundant. Any future public-content log that needs the raw value at INFO
+    # must emit it at DEBUG (net off) or log a length/flag instead.
+    "user_message",
+    "summary",
+    "title",
+    "content",
+    "new_content",
+    "original_content_preview",
+    "original_content",
+    "reformulated_intent",
+    "user_response",
+    "original_user_response",
+    "clarification_response",
+    "original_filename",
+    "exclude_criteria",
     # Raw tool parameters
     "params",
     # Query text (may embed names/emails)

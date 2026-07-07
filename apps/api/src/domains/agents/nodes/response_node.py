@@ -1863,9 +1863,12 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     # L2 passive injection
                     skill_content = activate_skill(_target_skill_name, user_id=skill_user_id)
                     if skill_content:
-                        # If resources exist (no scripts), load them in Python
+                        # If resources exist (no scripts), load them in Python.
+                        # Offload the blocking file reads off the event loop (CA-4).
                         if _skill_has_resources_only(_target_skill_name):
-                            resources_content = _load_all_resources(_target_skill_name)
+                            resources_content = await asyncio.to_thread(
+                                _load_all_resources, _target_skill_name
+                            )
                             if resources_content:
                                 skill_content += "\n\n" + resources_content
                                 logger.info(
@@ -2419,7 +2422,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         if current_turn_attachments:
             from src.domains.attachments.llm_content import (
                 ATTACHMENT_HINT_MARKER,
-                build_vision_message,
+                build_vision_message_async,
             )
 
             # Extract clean user text (without annotation hint)
@@ -2429,7 +2432,8 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             if clean_user_text and marker_prefix in clean_user_text:
                 clean_user_text = clean_user_text[: clean_user_text.rfind(marker_prefix)]
 
-            multimodal_msg = build_vision_message(
+            # Offload base64 image loading off the event loop (CA-4).
+            multimodal_msg = await build_vision_message_async(
                 text=clean_user_text,
                 attachments=current_turn_attachments,
                 storage_path=settings.attachments_storage_path,

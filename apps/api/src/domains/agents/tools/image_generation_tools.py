@@ -40,6 +40,27 @@ from src.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 
+async def _write_image_file(image_bytes: bytes, relative_path: str) -> Path:
+    """Persist generated image bytes under the attachments storage root.
+
+    The (potentially multi-MB) disk write is offloaded to a worker thread so it
+    never blocks the event loop during a generation (CA-4). The parent
+    directory is created eagerly (a cheap single ``mkdir``).
+
+    Args:
+        image_bytes: Raw PNG bytes to persist.
+        relative_path: Path relative to ``attachments_storage_path``
+            (e.g. ``"<user_id>/<uuid>.png"``).
+
+    Returns:
+        The absolute path the bytes were written to.
+    """
+    absolute_path = Path(settings.attachments_storage_path) / relative_path
+    absolute_path.parent.mkdir(parents=True, exist_ok=True)
+    await asyncio.to_thread(absolute_path.write_bytes, image_bytes)
+    return absolute_path
+
+
 @registered_tool
 async def generate_image(
     prompt: str,
@@ -193,9 +214,7 @@ async def generate_image(
         image_bytes = base64.b64decode(results[0].b64_data)
         stored_filename = f"{uuid.uuid4()}.png"
         relative_path = f"{user_id}/{stored_filename}"
-        absolute_path = Path(settings.attachments_storage_path) / relative_path
-        absolute_path.parent.mkdir(parents=True, exist_ok=True)
-        absolute_path.write_bytes(image_bytes)
+        await _write_image_file(image_bytes, relative_path)
 
         from src.domains.attachments.models import (
             AttachmentContentType,
@@ -522,9 +541,7 @@ async def edit_image(
         image_bytes = base64.b64decode(results[0].b64_data)
         stored_filename = f"{uuid.uuid4()}.png"
         relative_path = f"{user_id}/{stored_filename}"
-        absolute_path = Path(settings.attachments_storage_path) / relative_path
-        absolute_path.parent.mkdir(parents=True, exist_ok=True)
-        absolute_path.write_bytes(image_bytes)
+        await _write_image_file(image_bytes, relative_path)
 
         from src.domains.attachments.models import (
             AttachmentContentType,

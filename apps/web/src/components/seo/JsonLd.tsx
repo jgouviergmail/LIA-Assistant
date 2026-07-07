@@ -12,6 +12,20 @@ function buildLangUrl(lng: Language): string {
 }
 
 /**
+ * Serialize a JSON-LD schema for safe injection into a `<script>` element.
+ *
+ * `dangerouslySetInnerHTML` emits the string verbatim into the HTML stream, so
+ * a `</script>` sequence inside any (app-compiled) field — FAQ questions, blog
+ * titles, how-to steps — would close the script tag early and allow markup
+ * injection. Escaping every `<` to its `<` JSON form neutralizes every
+ * script-context breakout (`</script>`, `<!--`, `<script`) while keeping the
+ * payload valid, round-trippable JSON-LD.
+ */
+export function serializeJsonLd(schema: object): string {
+  return JSON.stringify(schema).replace(/</g, '\\u003c');
+}
+
+/**
  * WebSite schema — site-level identity for search engines and AI systems.
  * Placed in root layout.
  */
@@ -34,7 +48,7 @@ export function WebSiteJsonLd() {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
     />
   );
 }
@@ -65,7 +79,7 @@ export function OrganizationJsonLd() {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
     />
   );
 }
@@ -121,7 +135,7 @@ export function SoftwareApplicationJsonLd({
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
     />
   );
 }
@@ -154,7 +168,7 @@ export function FAQPageJsonLd({ questions }: FAQPageJsonLdProps) {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
     />
   );
 }
@@ -182,7 +196,7 @@ export function BreadcrumbJsonLd({ items }: BreadcrumbJsonLdProps) {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
     />
   );
 }
@@ -214,7 +228,7 @@ export function HowToJsonLd({ name, description, steps }: HowToJsonLdProps) {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
     />
   );
 }
@@ -253,7 +267,7 @@ export function BlogListJsonLd({ lng, title, description, articles }: BlogListJs
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
     />
   );
 }

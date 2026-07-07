@@ -640,3 +640,216 @@ class TestContentFieldRedactionAtInfo:
         result = add_pii_filter(None, "info", event_dict)
 
         assert result == event_dict
+
+
+class TestContentFieldNetHardening:
+    """CA-1 (audit S9): residual PII leaks where user content is logged at INFO
+    under field names the content-field net did not yet cover.
+
+    Confirmed pre-fix leak sites (all logging raw user content at INFO):
+    - agents/services/orchestration/service.py — ``user_message=`` (8 HITL sites)
+    - agents/tools/calendar_tools.py — ``summary=`` (event titles)
+    - agents/tools/tasks_tools.py — ``title=`` (task titles)
+    - conversations/service.py — ``new_content=`` / ``original_content_preview=``
+    - agents/tools/reminder_tools.py — ``content=`` (reminder body)
+
+    Criterion: each field is redacted at INFO/WARNING/ERROR, passed through at
+    DEBUG (net off) so local debugging keeps the raw value.
+    """
+
+    def test_orchestration_user_message_redacted_at_info(self):
+        """HITL decision log must not leak the user's raw message at INFO."""
+        result = add_pii_filter(
+            None,
+            "info",
+            {"event": "approval_decision_fast_path", "user_message": "rendez-vous médical"},
+        )
+
+        assert result["user_message"] == "[REDACTED]"
+
+    def test_calendar_summary_redacted_at_info(self):
+        """A calendar event summary (``RDV Dr Martin``) must be redacted at INFO."""
+        result = add_pii_filter(
+            None,
+            "info",
+            {"event": "create_event_draft_prepared", "summary": "RDV Dr Martin"},
+        )
+
+        assert result["summary"] == "[REDACTED]"
+
+    def test_task_title_redacted_at_info(self):
+        """A task title must be redacted at INFO."""
+        result = add_pii_filter(
+            None,
+            "info",
+            {"event": "create_task_draft_prepared", "title": "Appeler le cabinet médical"},
+        )
+
+        assert result["title"] == "[REDACTED]"
+
+    def test_conversation_edit_content_fields_redacted_at_info(self):
+        """``last_user_message_updated`` must not leak the edited message body."""
+        result = add_pii_filter(
+            None,
+            "info",
+            {
+                "event": "last_user_message_updated",
+                "original_content_preview": "mon rendez-vous chez le docteur",
+                "new_content": "annule mon rendez-vous chez le docteur",
+            },
+        )
+
+        assert result["original_content_preview"] == "[REDACTED]"
+        assert result["new_content"] == "[REDACTED]"
+
+    def test_reminder_content_redacted_at_info(self):
+        """A reminder body must be redacted at INFO."""
+        result = add_pii_filter(
+            None,
+            "info",
+            {"event": "cancel_reminder_draft_prepared", "content": "prendre le traitement du soir"},
+        )
+
+        assert result["content"] == "[REDACTED]"
+
+    def test_hitl_edit_content_fields_redacted_at_info(self):
+        """HITL edit/reformulation logs carry the user's original message and
+        edit request (orchestration/service.py, hitl/resumption_strategies.py):
+        ``original_content`` and ``reformulated_intent`` must not leak at INFO."""
+        result = add_pii_filter(
+            None,
+            "info",
+            {
+                "event": "hitl_edit_message_reformulation_applied",
+                "original_content": "annule mon rendez-vous chez le docteur",
+                "reformulated_intent": "supprime l'événement du 12 mars avec Dr Martin",
+            },
+        )
+
+        assert result["original_content"] == "[REDACTED]"
+        assert result["reformulated_intent"] == "[REDACTED]"
+
+    def test_hitl_response_fields_redacted_at_info(self):
+        """HITL classifier / clarification logs carry the user's raw reply
+        (hitl_classifier.py, clarification_node.py, resumption_strategies.py):
+        ``user_response`` / ``original_user_response`` / ``clarification_response``
+        must not leak at INFO."""
+        result = add_pii_filter(
+            None,
+            "info",
+            {
+                "event": "hitl_response_classified",
+                "user_response": "oui mais change le destinataire en jean",
+                "original_user_response": "annule le rendez-vous du 12",
+                "clarification_response": "à Paris, chez le Dr Martin",
+            },
+        )
+
+        assert result["user_response"] == "[REDACTED]"
+        assert result["original_user_response"] == "[REDACTED]"
+        assert result["clarification_response"] == "[REDACTED]"
+
+    def test_new_content_fields_redacted_at_warning_and_error(self):
+        """The net applies to every level above DEBUG."""
+        for level in ("warning", "error", "critical"):
+            result = add_pii_filter(
+                None, level, {"event": "e", "user_message": "rendez-vous médical"}
+            )
+            assert result["user_message"] == "[REDACTED]", f"must be redacted at {level}"
+
+    def test_new_content_fields_pass_through_at_debug(self):
+        """DEBUG keeps the raw content (net off) for local debugging."""
+        event = {
+            "event": "details",
+            "user_message": "rendez-vous médical",
+            "summary": "RDV Dr Martin",
+            "title": "Appeler le cabinet médical",
+            "content": "prendre le traitement du soir",
+            "new_content": "annule le rendez-vous",
+            "original_content_preview": "mon rendez-vous",
+        }
+
+        result = add_pii_filter(None, "debug", dict(event))
+
+        for key, value in event.items():
+            assert result[key] == value, f"{key} must pass through unchanged at DEBUG"
+
+    # --- Edge cases (CA-1 hardening) ---
+
+    def test_content_field_redacted_when_nested_at_info(self):
+        """A net field nested inside a payload dict is still redacted at INFO:
+        the redaction recurses (e.g. `context={"user_message": ...}`)."""
+        result = add_pii_filter(
+            None,
+            "info",
+            {
+                "event": "hitl_context",
+                "context": {"user_message": "rendez-vous médical", "attempt": 2},
+            },
+        )
+
+        assert result["context"]["user_message"] == "[REDACTED]"
+        # Non-content siblings stay readable.
+        assert result["context"]["attempt"] == 2
+
+    def test_content_field_value_type_agnostic_at_info(self):
+        """Redaction ignores the value type — a dict/None/number under a net
+        field name is redacted wholesale at INFO (fail-closed)."""
+        result = add_pii_filter(
+            None,
+            "info",
+            {
+                "event": "e",
+                "content": {"secret_body": "x"},  # dict, not str
+                "summary": None,  # None
+                "title": 42,  # number
+            },
+        )
+
+        assert result["content"] == "[REDACTED]"
+        assert result["summary"] == "[REDACTED]"
+        assert result["title"] == "[REDACTED]"
+
+    def test_content_field_at_debug_still_pattern_scrubs_embedded_email(self):
+        """At DEBUG the net is off, but pattern-based scrubbing still runs:
+        an email embedded in a content field is pseudonymized (defense in
+        depth — DEBUG logs must not ship raw emails either)."""
+        result = add_pii_filter(
+            None,
+            "debug",
+            {"event": "details", "user_message": "écris à jean.dupont@example.com stp"},
+        )
+
+        assert "jean.dupont@example.com" not in result["user_message"]
+        assert "email_hash_" in result["user_message"]
+
+    def test_filename_and_exclude_criteria_redacted(self):
+        """O-1 + Rés.3-partiel: user-uploaded file names and FOR_EACH exclusion
+        criteria must not leak in logs.
+
+        - ``original_filename`` — a user's uploaded document/attachment name
+          (rag_spaces/service.py & processing.py at INFO,
+          attachments/llm_content.py at WARNING).
+        - ``exclude_criteria`` — the user's bulk-operation exclusion text
+          (for_each_confirm_node.py, hitl/item_filter.py,
+          orchestration/service.py at INFO).
+        """
+        info_result = add_pii_filter(
+            None,
+            "info",
+            {
+                "event": "rag_document_uploaded",
+                "original_filename": "CV Jean Dupont.pdf",
+                "exclude_criteria": "sauf les emails de Marie",
+            },
+        )
+        assert info_result["original_filename"] == "[REDACTED]"
+        assert info_result["exclude_criteria"] == "[REDACTED]"
+
+        # original_filename also leaks at WARNING (image load failure path).
+        warn_result = add_pii_filter(
+            None,
+            "warning",
+            {"event": "attachment_image_load_failed", "original_filename": "IRM cerveau.png"},
+        )
+        assert warn_result["original_filename"] == "[REDACTED]"

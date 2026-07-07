@@ -6,6 +6,7 @@ DB tables (skills, user_skill_states) for state + display metadata.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import shutil
 import zipfile
@@ -352,7 +353,8 @@ async def download_admin_skill(
     if not skill or skill.get("scope") != "admin":
         raise_skill_not_found(skill_name, scope="admin")
 
-    zip_bytes = _create_skill_zip(skill)
+    # Offload directory read + zip compression off the event loop (CA-4).
+    zip_bytes = await asyncio.to_thread(_create_skill_zip, skill)
     return StreamingResponse(
         BytesIO(zip_bytes),
         media_type="application/zip",
@@ -434,15 +436,15 @@ async def update_admin_skill_description(
     skill_path = Path(skill["source_path"])
     skill_dir = skill_path.parent
 
-    # Update disk (backward compat)
+    # Update disk (backward compat) — offload blocking read+write off the loop (CA-4).
     try:
-        _update_skill_file_description(skill_path, english_desc)
+        await asyncio.to_thread(_update_skill_file_description, skill_path, english_desc)
     except (OSError, ValueError) as exc:
         logger.error("skill_description_write_error", skill_name=skill_name, error=str(exc))
         raise_skill_write_failed(skill_name, "SKILL.md")
 
     try:
-        _save_translations(skill_dir, translations)
+        await asyncio.to_thread(_save_translations, skill_dir, translations)
     except OSError as exc:
         logger.error("skill_translations_write_error", skill_name=skill_name, error=str(exc))
         raise_skill_write_failed(skill_name, "translations.json")
@@ -483,7 +485,8 @@ async def download_skill(
         # Hide existence — respond with the same 404 as missing skill.
         raise_skill_not_found(skill_name)
 
-    zip_bytes = _create_skill_zip(skill)
+    # Offload directory read + zip compression off the event loop (CA-4).
+    zip_bytes = await asyncio.to_thread(_create_skill_zip, skill)
     return StreamingResponse(
         BytesIO(zip_bytes),
         media_type="application/zip",
@@ -517,7 +520,10 @@ async def import_skill(
 
     content = await file.read()
     base_dir = Path(settings.skills_users_path) / user_id
-    target_dir = _extract_skill_to_dir(content, file.filename or "SKILL.md", base_dir)
+    # Offload zip extraction / SKILL.md write off the event loop (CA-4).
+    target_dir = await asyncio.to_thread(
+        _extract_skill_to_dir, content, file.filename or "SKILL.md", base_dir
+    )
     skill = _validate_skill(target_dir)
 
     # Register in DB

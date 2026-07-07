@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.14] - 2026-07-07
+
+> Latent-debt hardening (CA-1, CA-4, CA-5). A maintenance release closing three independent residual debts surfaced by the 2026-07 codebase audit — no user-facing feature change, prompt-free, no DB migration. Each item was fixed red-first (a failing test before the fix). Two are security/privacy hardening (PII no longer reaches INFO logs; JSON-LD SEO scripts can no longer be broken out of), one is a latency hardening (multi-MB file reads/writes no longer block the event loop).
+
+### Added
+
+- **13 field names added to the INFO-level PII redaction net (CA-1).** `pii_filter.CONTENT_FIELD_NAMES` is a field-name denylist redacted at INFO and above (contents allowed only at DEBUG — audit wave 2, C7). It missed several call-sites that logged raw user content at INFO: HITL decision / classifier / clarification replies (`user_message`, `user_response`, `original_user_response`, `clarification_response`, `original_content`, `reformulated_intent`), calendar / task titles (`summary`, `title`), reminder bodies and edited conversation messages (`content`, `new_content`, `original_content_preview`), uploaded document names (`original_filename`) and FOR_EACH bulk-operation exclusion text (`exclude_criteria`). All now redact at INFO / WARNING / ERROR and pass through at DEBUG (where email/token pattern-scrubbing still applies).
+- **Systemic vitest guard against unescaped JSON-LD (CA-5).** A source-scanning test forbids any `dangerouslySetInnerHTML={{ __html: JSON.stringify(…) }}` (whitespace-tolerant, with a non-vacuity assertion) across `apps/web/src`, so a future SEO script that bypasses the escaping helper fails CI.
+- **Off-event-loop regression tests (CA-4).** Five unit tests assert the file I/O runs on a worker thread (image generation, attachment upload + vision read, RAG upload, skill zip) and preserves behaviour — they go red if the `to_thread` wrapper is removed.
+
+### Changed
+
+- **Blocking file I/O offloaded off the event loop on hot / voluminous paths (CA-4).** Seven synchronous `read/write_bytes` / `read_text` calls on async request paths are now wrapped in `asyncio.to_thread`: generated-image PNG writes (`generate_image` / `edit_image`, via a new `_write_image_file` helper), attachment upload write + LLM vision image reads (`build_vision_message_async`), RAG document write + document text extraction, the admin/user skill endpoints (zip creation, SKILL.md read/write, import), and the response-node skill-resource read. Small cached config/registry reads were measured negligible and left synchronous.
+- **JSON-LD serialization centralized through an escaping helper (CA-5).** All eight `<script type="application/ld+json">` sinks in `JsonLd.tsx` plus the blog-article page now render through `serializeJsonLd(schema)`, which JSON-stringifies the schema and rewrites every `<` to its `U+003C` JSON escape — so a `</script>` sequence can no longer survive in the emitted HTML.
+
+### Fixed
+
+- **PII could reach INFO logs (CA-1).** Uploaded file names, HITL replies, calendar/task titles, reminder and edited-message bodies, and bulk-operation exclusion text were logged verbatim at INFO — now redacted by the net. GDPR data-minimization: contents stay at DEBUG or redacted, counters/IDs remain at INFO.
+- **`</script>` breakout in JSON-LD (CA-5).** SEO structured-data scripts injected `JSON.stringify(schema)` raw; a `</script>` sequence inside any app-compiled dynamic field (FAQ question, blog title/excerpt) would close the `<script>` element early and inject markup. Escaping `<` neutralizes every script-context breakout while keeping valid, round-trippable JSON-LD.
+- **Event-loop stalls during image generation and RAG upload (CA-4).** A multi-MB PNG write, or a document write/read, ran synchronously on the event loop and froze concurrent requests (SSE included) for its duration; they now run off-loop.
+
+### Tests
+
+- Red-first for every item; Ruff / Black / MyPy strict clean (src); full backend fast unit suite and frontend suite green; i18n key parity across all 6 locales.
+- Docs: `docs/technical/PII_LOGGING_SECURITY.md` extended with the CA-1 net additions and the ambiguous-field (`title`/`summary`/`content`) handling.
+
 ## [1.21.13] - 2026-07-07
 
 > Math & LaTeX rendering in chat responses. A frontend-only rendering fix (prompt-nudge, no DB migration) that makes the mathematical and scientific formulas LIA writes actually render. The assistant emits its **entire** answer as HTML (`html_response_directive`), so every formula sits inside a raw HTML block. `remark-math` operates on the markdown AST, treats raw HTML blocks as opaque, and runs **before** `rehype-raw` expands them — so math buried in HTML (100% of real answers) was never tokenized and rendered as literal `$$ P(G) = \frac{…} $$` text. Two prior fix passes missed it because they only ever tested pure markdown. The fix moves dollar-math rendering to the hast level, after the HTML is expanded, covering both HTML-wrapped and pure-markdown paths uniformly.

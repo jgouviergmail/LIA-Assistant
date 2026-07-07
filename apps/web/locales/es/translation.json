@@ -2934,6 +2934,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_14": {
+          "title": "v1.21.14 — 🔒 Privacidad reforzada y mayor fluidez",
+          "date": "Julio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔒 Mayor privacidad en los registros</b> — Los registros internos de la aplicación de LIA ya no contienen ninguno de tus contenidos personales: nombres de los archivos que subes, texto de los mensajes, títulos de eventos o tareas, recordatorios. En el nivel estándar solo quedan contadores e identificadores anónimos, conforme a las buenas prácticas de minimización de datos.",
+            "i2": "<b>⚡ Una aplicación más fluida durante la generación de imágenes y las subidas</b> — Generar una imagen o importar un documento en un espacio de conocimiento ya no ralentiza brevemente otras acciones: estas operaciones más pesadas ahora se ejecutan en segundo plano y la aplicación se mantiene ágil para todos."
+          }
+        },
         "v1_21_13": {
           "title": "v1.21.13 — 🔢 Las fórmulas matemáticas ya se muestran",
           "date": "Julio 2026",

@@ -2943,6 +2943,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_14": {
+          "title": "v1.21.14 — 🔒 Stronger privacy &amp; smoother performance",
+          "date": "July 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔒 Stronger privacy in the logs</b> — LIA's internal application logs no longer contain any of your personal content — names of files you upload, message text, calendar or task titles, reminders. At the standard level only anonymous counters and identifiers remain, in line with data-minimization best practice.",
+            "i2": "<b>⚡ A smoother app during image generation and uploads</b> — Generating an image or importing a document into a knowledge space no longer briefly slows other actions down: these heavier operations now run in the background, so the app stays responsive for everyone."
+          }
+        },
         "v1_21_13": {
           "title": "v1.21.13 — 🔢 Mathematical formulas now render",
           "date": "July 2026",

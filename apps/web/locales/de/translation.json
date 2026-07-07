@@ -2934,6 +2934,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_14": {
+          "title": "v1.21.14 — 🔒 Mehr Datenschutz &amp; flüssigere Nutzung",
+          "date": "Juli 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔒 Mehr Datenschutz in den Protokollen</b> — Die internen Anwendungsprotokolle von LIA enthalten keine Ihrer persönlichen Inhalte mehr — Namen hochgeladener Dateien, Nachrichtentexte, Termin- oder Aufgabentitel, Erinnerungen. Auf der Standardebene verbleiben nur anonyme Zähler und Kennungen, im Einklang mit dem Grundsatz der Datenminimierung.",
+            "i2": "<b>⚡ Eine flüssigere App bei Bildgenerierung und Uploads</b> — Ein Bild zu erzeugen oder ein Dokument in einen Wissensraum zu importieren verlangsamt andere Aktionen nicht mehr kurzzeitig: Diese aufwändigeren Vorgänge laufen jetzt im Hintergrund, sodass die App für alle reaktionsschnell bleibt."
+          }
+        },
         "v1_21_13": {
           "title": "v1.21.13 — 🔢 Mathematische Formeln werden jetzt dargestellt",
           "date": "Juli 2026",

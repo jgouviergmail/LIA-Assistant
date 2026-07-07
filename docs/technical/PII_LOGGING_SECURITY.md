@@ -1,8 +1,8 @@
 # PII_LOGGING_SECURITY.md
 
 **Documentation Technique - LIA**
-**Version**: 1.0
-**Dernière mise à jour**: 2025-11-14
+**Version**: 1.1
+**Dernière mise à jour**: 2026-07-07
 **Statut**: ✅ Production-Ready
 
 ---
@@ -282,6 +282,35 @@ C'est un **filet systémique** : les sites d'appel restent la première ligne de
 défense (ne pas logger de contenu à INFO), mais un futur `subject=` ou `lat=`
 à INFO ne peut plus fuir de PII. Tests : `tests/unit/infrastructure/observability/
 test_pii_filter.py::TestContentFieldRedactionAtInfo`.
+
+#### Extension CA-1 (audit S9, 2026-07)
+
+L'audit S9 a relevé des sites qui loggaient encore du contenu utilisateur à INFO
+sous des noms de champ non couverts par le filet. Six noms ont été ajoutés à
+`CONTENT_FIELD_NAMES` :
+
+| Champ | Sites de fuite (INFO) | Contenu |
+|-------|-----------------------|---------|
+| `user_message` | `agents/services/orchestration/service.py` (8 sites HITL) | message brut de l'utilisateur |
+| `summary` | `agents/tools/calendar_tools.py`, `agents/tools/mixins.py` | titre d'événement calendrier |
+| `title` | `agents/tools/tasks_tools.py` | titre de tâche |
+| `content` | `agents/tools/reminder_tools.py`, `agents/services/hitl/item_filter.py` | corps de rappel / item HITL |
+| `new_content` / `original_content_preview` | `conversations/service.py` (`last_user_message_updated`) | message de conversation édité |
+| `original_content` / `reformulated_intent` | `agents/services/orchestration/service.py`, `agents/services/hitl/resumption_strategies.py` | message original + demande d'édition HITL |
+| `user_response` / `original_user_response` / `clarification_response` | `agents/services/hitl_classifier.py`, `agents/nodes/clarification_node.py`, `agents/nodes/planner_node_v3.py`, `agents/services/hitl/resumption_strategies.py` | réponse HITL brute + réponse de clarification |
+| `original_filename` | `rag_spaces/service.py`, `rag_spaces/processing.py` (INFO), `attachments/llm_content.py` (WARNING) | nom de fichier uploadé (PII : « CV Jean Dupont.pdf ») |
+| `exclude_criteria` | `agents/nodes/for_each_confirm_node.py`, `agents/services/hitl/item_filter.py`, `agents/services/orchestration/service.py` | texte d'exclusion FOR_EACH de l'utilisateur |
+
+**Noms ambigus (`title`/`summary`/`content`)** : ils servent aussi de kwargs de
+**construction d'objets** (`WikipediaResult`, `BraveSearchItem`, `ChatStreamChunk`,
+`wrap_external_content`…) et, sur quelques sites web (`web_fetch_success`,
+`wikipedia_search_success`), de contenu **public**. Le filet étant *basé sur le
+nom de champ et n'agissant que sur les event dicts de log*, les kwargs de
+construction ne sont pas affectés. Les rares sites logger publics loggent déjà
+`url=`, ce qui rend le titre rédigé redondant. Règle pour l'avenir : un log de
+contenu public qui a besoin de la valeur brute à INFO doit l'émettre à `DEBUG`
+(filet désactivé) ou logger une longueur/booléen. Tests :
+`test_pii_filter.py::TestContentFieldNetHardening`.
 
 
 ### 3. Regex Patterns (Industry Standards)
@@ -1499,6 +1528,6 @@ python -m pytest tests/unit/test_pii_filter.py --benchmark-only
 
 ---
 
-**Dernière révision** : 2025-11-14
-**Prochaine révision** : 2026-02-14 (tous les 3 mois)
+**Dernière révision** : 2026-07-07
+**Prochaine révision** : 2026-10-07 (tous les 3 mois)
 **Responsable** : Security & Compliance Team

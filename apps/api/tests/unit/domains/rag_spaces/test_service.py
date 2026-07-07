@@ -561,6 +561,50 @@ class TestUploadDocument:
 
     @pytest.mark.asyncio
     @patch("src.domains.rag_spaces.service.settings")
+    async def test_upload_document_writes_off_event_loop(
+        self, mock_settings, service, user_id, space_id, sample_space, tmp_path
+    ) -> None:
+        """CA-4: the (potentially large) file write must run off the event-loop
+        thread via asyncio.to_thread, so a concurrent request is not blocked."""
+        import threading
+        from pathlib import Path
+
+        mock_settings.rag_spaces_max_docs_per_space = 50
+        mock_settings.rag_spaces_allowed_types = "text/plain"
+        mock_settings.rag_spaces_max_file_size_mb = 10
+        mock_settings.rag_spaces_storage_path = str(tmp_path)
+
+        service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
+        service.doc_repo.count_for_space = AsyncMock(return_value=0)
+        mock_doc = MagicMock(id=uuid.uuid4())
+        service.doc_repo.create = AsyncMock(return_value=mock_doc)
+        service.db.commit = AsyncMock()
+
+        mock_file = AsyncMock()
+        mock_file.content_type = "text/plain"
+        mock_file.filename = "notes.txt"
+        mock_file.read = AsyncMock(side_effect=[b"hello knowledge", b""])
+
+        main_tid = threading.get_ident()
+        write_tid: dict[str, int] = {}
+        real_write = Path.write_bytes
+
+        def spy_write(self_path, data):
+            write_tid["tid"] = threading.get_ident()
+            return real_write(self_path, data)
+
+        with patch("pathlib.Path.write_bytes", spy_write):
+            result = await service.upload_document(space_id, user_id, mock_file)
+
+        assert result is mock_doc
+        # Ran in a worker thread, not the event-loop thread.
+        assert write_tid["tid"] != main_tid
+        # Behavior preserved: the file is physically written to disk.
+        written = list(tmp_path.rglob("*.txt"))
+        assert written and written[0].read_bytes() == b"hello knowledge"
+
+    @pytest.mark.asyncio
+    @patch("src.domains.rag_spaces.service.settings")
     async def test_upload_document_limit_exceeded(
         self, mock_settings, service, user_id, space_id, sample_space
     ) -> None:

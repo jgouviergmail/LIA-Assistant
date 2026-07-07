@@ -5,7 +5,7 @@ import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
 import { BLOG_ARTICLES, getArticleBySlug, getAdjacentArticles } from '@/data/blog-articles';
 import { BlogArticleContent } from '@/components/blog/BlogArticleContent';
-import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
+import { BreadcrumbJsonLd, serializeJsonLd } from '@/components/seo/JsonLd';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { PublicFooter } from '@/components/layout/PublicFooter';
 
@@ -127,7 +127,7 @@ export default async function BlogArticlePage({ params }: ArticlePageProps) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <BreadcrumbJsonLd
         items={[
