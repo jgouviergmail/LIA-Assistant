@@ -324,59 +324,6 @@ groups:
           sum by (tool_name) (rate(agent_tool_usage_total[1h]))
 
       # -----------------------------------------------------------------------
-      # HITL FEATURE ADOPTION METRICS (Step 2.3)
-      # -----------------------------------------------------------------------
-
-      # HITL feature usage rate by interaction type (5m window)
-      # Usage: Understand user engagement patterns (approval, edit, reject, clarification)
-      # High edit rate indicates users modify plans frequently
-      - record: business:hitl_usage:rate5m_by_interaction
-        expr: |
-          sum by (interaction_type) (rate(hitl_feature_usage_total[5m]))
-
-      # HITL feature usage rate by agent type (5m window)
-      # Usage: Identify which agents trigger most HITL interactions
-      - record: business:hitl_usage:rate5m_by_agent
-        expr: |
-          sum by (agent_type) (rate(hitl_feature_usage_total[5m]))
-
-      # HITL approval rate (approval vs total interactions) by agent (1h window)
-      # Usage: Measure user trust in agent proposals
-      # Alert threshold: <50% approval rate (low trust)
-      - record: business:hitl_approval_rate:1h_by_agent
-        expr: |
-          sum by (agent_type) (rate(hitl_feature_usage_total{interaction_type="approval"}[1h]))
-          /
-          sum by (agent_type) (rate(hitl_feature_usage_total[1h]))
-
-      # HITL rejection rate by agent (1h window)
-      # Usage: Identify agents with high rejection (poor proposals)
-      # High rejection rate (>30%) indicates agent needs improvement
-      - record: business:hitl_rejection_rate:1h_by_agent
-        expr: |
-          sum by (agent_type) (rate(hitl_feature_usage_total{interaction_type="reject"}[1h]))
-          /
-          sum by (agent_type) (rate(hitl_feature_usage_total[1h]))
-
-      # HITL edit rate by agent (1h window)
-      # Usage: Understand user modification patterns
-      # High edit rate indicates agent proposals need refinement
-      - record: business:hitl_edit_rate:1h_by_agent
-        expr: |
-          sum by (agent_type) (rate(hitl_feature_usage_total{interaction_type="edit"}[1h]))
-          /
-          sum by (agent_type) (rate(hitl_feature_usage_total[1h]))
-
-      # Average tool approval rate from HITL histogram by agent (1h window)
-      # Usage: Fine-grained approval rate tracking (0.0-1.0 scale)
-      # Complements hitl_approval_rate for detailed analysis
-      - record: business:tool_approval_rate:avg_1h_by_agent
-        expr: |
-          sum by (agent_type) (rate(agent_tool_approval_rate_sum[1h]))
-          /
-          sum by (agent_type) (rate(agent_tool_approval_rate_count[1h]))
-
-      # -----------------------------------------------------------------------
       # TOKEN EFFICIENCY METRICS (Step 2.4)
       # -----------------------------------------------------------------------
 
@@ -668,38 +615,6 @@ groups:
           rate(hitl_clarification_fallback_total[1h])
           /
           rate(hitl_classification_method_total[1h])
-
-      # Edit actions rate by type (1h aggregate)
-      # Usage: Understand user modification patterns by agent
-      # High full_rewrite rate (>30%) indicates poor agent proposals
-      - record: hitl:edit_actions:rate1h
-        expr: |
-          sum by (edit_type, agent_type) (rate(hitl_edit_actions_total[1h]))
-
-      # Rejection rate by type (1h rolling window)
-      # Usage: Track rejection patterns to improve agent proposals
-      # High explicit_no rate (>20%) indicates unwanted/inappropriate proposals
-      - record: hitl:rejection_rate:1h
-        expr: |
-          sum by (rejection_type, agent_type) (rate(hitl_rejection_type_total[1h]))
-          /
-          sum(rate(hitl_classification_method_total[1h]))
-
-      # User response time p95 (5m window)
-      # Usage: UX friction indicator (target p95 < 60s, alert > 300s)
-      # Slow responses indicate unclear prompts or bad interrupt timing
-      - record: hitl:user_response_time:p95_5m
-        expr: |
-          histogram_quantile(0.95,
-            sum by (le) (rate(hitl_user_response_time_seconds_bucket[5m]))
-          )
-
-  # ==========================================================================
-  # DOMAIN FILTERING PERFORMANCE - Phase 3 (2025-11-11)
-  # ==========================================================================
-  - name: domain_filtering_performance
-    interval: 60s
-    rules:
       # Catalogue size reduction ratio (1h window)
       # Usage: Track token optimization effectiveness (target: 55-70% for 10 domains)
       # Formula: (full_size - filtered_size) / full_size
@@ -848,32 +763,6 @@ groups:
               rate(hitl_resumption_duration_seconds_bucket[5m])
             )
           )
-
-      # HITL User Response Time (p50, p99) by Decision
-      # Complexity: 75 | Frequency: 1 each | Score: 51.99
-      # Used in: 07-hitl-tool-approval.json (User Response Time)
-
-      - record: decision:hitl_user_response_time:p50_rate5m
-        expr: |
-          histogram_quantile(0.50,
-            sum by (decision, le) (
-              rate(hitl_user_response_time_seconds_bucket[5m])
-            )
-          )
-
-      - record: decision:hitl_user_response_time:p99_rate5m
-        expr: |
-          histogram_quantile(0.99,
-            sum by (decision, le) (
-              rate(hitl_user_response_time_seconds_bucket[5m])
-            )
-          )
-
-  # Redis Rate Limiting - Pre-computed Latency Percentiles
-  # -------------------------------------------------------
-  - name: redis_rate_limiting_optimized
-    interval: 30s
-    rules:
       # Redis Rate Limit Check Latency (p50, p95, p99) by Key Prefix (milliseconds)
       # Complexity: 75 | Frequency: 1 each | Score: 51.99
       # Used in: 10-redis-rate-limiting.json (Rate Limit Check Latency Distribution)

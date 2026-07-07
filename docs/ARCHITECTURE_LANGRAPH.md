@@ -730,7 +730,6 @@ class MessagesState(TypedDict):
     # ═══════════════════════════════════════════════════════════
     # HITL APPROVAL (Phase 8)
     # ═══════════════════════════════════════════════════════════
-    approval_evaluation: Any | None      # Évaluation stratégies
     plan_approved: bool | None           # Décision user
     plan_rejection_reason: str | None    # Raison rejet
 

@@ -180,7 +180,6 @@ tests/agents/
 ├── test_phase32_e2e_integration.py             # Phase 3.2 E2E integration tests
 ├── test_hitl_middleware.py                     # HITL middleware layer
 ├── test_hitl_store.py                          # HITL state persistence
-├── test_manifest_builder.py                    # Tool manifest generation
 ├── test_mappers.py                             # Data transformation
 ├── test_message_filters.py                     # Message filtering logic
 ├── test_message_windowing.py                   # Conversation windowing
@@ -191,9 +190,7 @@ tests/agents/
 ├── test_orchestration.py                       # Orchestration logic
 ├── test_phase32_e2e_integration.py             # Phase 3.2 E2E tests
 ├── test_dependency_graph.py                    # Plan dependency graph (in orchestration/)
-├── test_enhanced_plan_editor.py                # Plan editor (in orchestration/)
 ├── test_plan_validator.py                      # Plan validation rules
-├── test_pydantic_normalization.py              # Schema normalization
 ├── test_agent_registry.py                      # Agent registration & discovery
 ├── test_response_node.py                       # Response node logic
 ├── test_response_node_formatting.py            # Response formatting

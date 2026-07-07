@@ -30,14 +30,6 @@ def mock_graph_dependencies():
         patch(
             "src.domains.agents.services.hitl.question_generator.HitlQuestionGenerator"
         ) as mock_question_gen_class,
-        patch(
-            "src.domains.agents.services.hitl_orchestrator.HITLOrchestrator"
-        ) as mock_orchestrator_class,
-        patch("src.domains.agents.utils.hitl_store.HITLStore") as mock_store_class,
-        patch(
-            "src.infrastructure.cache.redis.get_redis_cache",
-            new_callable=AsyncMock,
-        ) as mock_redis,
     ):
         # Setup default mock return values
         mock_graph = Mock()
@@ -47,17 +39,11 @@ def mock_graph_dependencies():
 
         mock_classifier_class.return_value = Mock()
         mock_question_gen_class.return_value = Mock()
-        mock_store_class.return_value = Mock()
-        mock_orchestrator_class.return_value = Mock()
-        mock_redis.return_value = Mock()
 
         yield {
             "build_graph": mock_build,
             "classifier_class": mock_classifier_class,
             "question_gen_class": mock_question_gen_class,
-            "orchestrator_class": mock_orchestrator_class,
-            "store_class": mock_store_class,
-            "redis": mock_redis,
             "graph": mock_graph,
             "store": mock_store,
         }
@@ -216,24 +202,6 @@ class TestGraphManagementMixin:
         # Verify tuple was unpacked correctly
         assert mixin.graph is expected_graph
         assert mixin._store is expected_store
-
-    @pytest.mark.asyncio
-    async def test_ensure_graph_built_initializes_hitl_orchestrator(self, mock_graph_dependencies):
-        """Test that HITLOrchestrator is properly initialized."""
-        mocks = mock_graph_dependencies
-
-        # Test
-        mixin = GraphManagementMixin()
-        await mixin._ensure_graph_built()
-
-        # Verify HITLOrchestrator was initialized with correct dependencies
-        mocks["orchestrator_class"].assert_called_once()
-        call_kwargs = mocks["orchestrator_class"].call_args.kwargs
-        assert "hitl_classifier" in call_kwargs
-        assert "hitl_question_generator" in call_kwargs
-        assert "hitl_store" in call_kwargs
-        assert "graph" in call_kwargs
-        assert call_kwargs["agent_type"] == "generic"
 
 
 class TestGraphManagementMixinIntegrationBehavior:

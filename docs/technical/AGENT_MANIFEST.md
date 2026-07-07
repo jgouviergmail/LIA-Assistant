@@ -159,9 +159,8 @@ graph TB
         A --> E[OutputFieldSchema]
     end
 
-    subgraph "Builder Layer"
-        F[ToolManifestBuilder] --> A
-        G[create_tool_manifest] --> F
+    subgraph "Declaration Layer"
+        F[catalogue_manifests.py] --> A
     end
 
     subgraph "Registry Layer"
@@ -188,14 +187,11 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant Dev as Developer
-    participant Builder as ToolManifestBuilder
     participant Registry as AgentRegistry
     participant Planner as Planner Node
     participant Validator as PlanValidator
 
-    Dev->>Builder: Create manifest with fluent API
-    Builder->>Builder: Validate fields
-    Builder-->>Dev: Return ToolManifest
+    Dev->>Dev: Declare ToolManifest(...) in catalogue_manifests.py
 
     Dev->>Registry: register_tool_manifest(manifest)
     Registry->>Registry: Store in _tool_manifests
@@ -767,313 +763,14 @@ contacts_agent_manifest = AgentManifest(
 
 ---
 
-## Manifest Builder Pattern
+## Manifest Builder Pattern (removed in v1.21.16)
 
-### Architecture du Builder
-
-Le **ToolManifestBuilder** utilise le **Builder Pattern** avec API fluent pour construire des manifests de manière déclarative et type-safe.
-
-```python
-class ToolManifestBuilder:
-    """
-    Fluent builder for ToolManifest with generic presets.
-
-    Design Principles:
-    - Immutable: Each method returns new builder instance
-    - Composable: Chain methods in any order
-    - Validating: Errors raised at build() time (fail-fast)
-    - Generic: Zero coupling to specific domains (contacts, gmail, etc.)
-    """
-
-    def __init__(self, name: str, agent: str, *, _manifest: ToolManifest | None = None) -> None:
-        """Initialize builder with tool name and agent."""
-        if _manifest is not None:
-            self._manifest = _manifest
-        else:
-            self._manifest = ToolManifest(
-                name=name,
-                agent=agent,
-                description="__BUILDER_PLACEHOLDER__",
-                parameters=[],
-                outputs=[],
-                cost=CostProfile(),
-                permissions=PermissionProfile(),
-                version="1.0.0",
-                maintainer="Team Agents",
-            )
-
-    def _clone(self, **updates: Any) -> Self:
-        """Create new builder with updated manifest (immutability)."""
-        new_manifest = replace(self._manifest, **updates)
-        return self.__class__(
-            name=self._manifest.name,
-            agent=self._manifest.agent,
-            _manifest=new_manifest,
-        )
-```
-
-### Méthodes du Builder
-
-#### Core Configuration
-
-```python
-def with_description(self, description: str) -> Self:
-    """Set tool description."""
-    return self._clone(description=description)
-
-def with_version(self, version: str) -> Self:
-    """Set semantic version."""
-    return self._clone(version=version)
-
-def with_maintainer(self, maintainer: str) -> Self:
-    """Set maintainer identifier."""
-    return self._clone(maintainer=maintainer)
-```
-
-#### Parameters Configuration
-
-```python
-def add_parameter(
-    self,
-    name: str,
-    type: str,
-    required: bool = False,
-    description: str = "",
-    **constraints: Any,
-) -> Self:
-    """
-    Add parameter with automatic constraint detection.
-
-    Args:
-        name: Parameter name
-        type: Parameter type ("string", "integer", "boolean", "array", "object")
-        required: Whether parameter is required
-        description: Parameter description
-        **constraints: Constraint kwargs (min_length, maximum, enum, pattern, etc.)
-
-    Returns:
-        New builder instance
-
-    Examples:
-        >>> .add_parameter("query", "string", required=True, min_length=1)
-        >>> .add_parameter("limit", "integer", min=1, max=100)
-        >>> .add_parameter("status", "string", enum=["active", "inactive"])
-    """
-    # Parse constraints from kwargs
-    constraint_list = self._parse_constraints(**constraints)
-
-    param = ParameterSchema(
-        name=name,
-        type=type,
-        required=required,
-        description=description,
-        constraints=constraint_list,
-    )
-
-    new_params = [*self._manifest.parameters, param]
-    return self._clone(parameters=new_params)
-```
-
-#### Outputs Configuration
-
-```python
-def add_output(
-    self,
-    path: str,
-    type: str,
-    description: str = "",
-    nullable: bool = False,
-) -> Self:
-    """
-    Add output field schema.
-
-    Args:
-        path: JSONPath to output field (e.g., "items", "items[].id")
-        type: Output type ("string", "integer", "array", "object", etc.)
-        description: Field description
-        nullable: Whether field can be null
-
-    Returns:
-        New builder instance
-
-    Examples:
-        >>> .add_output("items", "array", "List of items found")
-        >>> .add_output("items[].id", "string", "Item unique identifier")
-        >>> .add_output("total", "integer", "Total count")
-    """
-    output = OutputFieldSchema(
-        path=path,
-        type=type,
-        description=description,
-        nullable=nullable,
-    )
-
-    new_outputs = [*self._manifest.outputs, output]
-    return self._clone(outputs=new_outputs)
-```
-
-#### Cost & Performance
-
-```python
-def with_cost_profile(
-    self,
-    est_tokens_in: int = 0,
-    est_tokens_out: int = 0,
-    est_cost_usd: float = 0.0,
-    est_latency_ms: int = 0,
-) -> Self:
-    """Set cost and performance estimates."""
-    cost = CostProfile(
-        est_tokens_in=est_tokens_in,
-        est_tokens_out=est_tokens_out,
-        est_cost_usd=est_cost_usd,
-        est_latency_ms=est_latency_ms,
-    )
-    return self._clone(cost=cost)
-```
-
-#### Security & Permissions
-
-```python
-def with_permissions(
-    self,
-    required_scopes: list[str] | None = None,
-    allowed_roles: list[str] | None = None,
-    hitl_required: bool = False,
-    data_classification: Literal["PUBLIC", "INTERNAL", "CONFIDENTIAL", "SENSITIVE", "RESTRICTED"] | None = None,
-) -> Self:
-    """Set security and permission requirements."""
-    permissions = PermissionProfile(
-        required_scopes=required_scopes or [],
-        allowed_roles=allowed_roles or [],
-        hitl_required=hitl_required,
-        data_classification=data_classification or "CONFIDENTIAL",
-    )
-    return self._clone(permissions=permissions)
-
-def with_hitl(
-    self,
-    data_classification: Literal["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"] = "CONFIDENTIAL",
-) -> Self:
-    """Enable HITL (Human-in-the-Loop) with data classification."""
-    existing_perms = self._manifest.permissions or PermissionProfile()
-
-    new_perms = PermissionProfile(
-        required_scopes=existing_perms.required_scopes or [],
-        allowed_roles=existing_perms.allowed_roles or [],
-        hitl_required=True,
-        data_classification=data_classification,
-    )
-
-    return self._clone(permissions=new_perms)
-```
-
-#### Generic Presets
-
-```python
-def with_api_integration(
-    self,
-    provider: str,
-    scopes: list[str],
-    rate_limit: RateLimit | None = None,
-    http2_enabled: bool = False,
-) -> Self:
-    """
-    Generic preset for OAuth API integration.
-
-    Works with ANY OAuth provider (Google, Microsoft, Salesforce, etc.).
-
-    Args:
-        provider: Provider name (for documentation/metrics)
-        scopes: OAuth scopes required
-        rate_limit: Optional rate limit configuration
-        http2_enabled: Whether HTTP/2 should be used
-
-    Returns:
-        New builder instance
-
-    Examples:
-        >>> .with_api_integration(
-        ...     provider="google",
-        ...     scopes=["https://www.googleapis.com/auth/contacts.readonly"],
-        ...     rate_limit=RateLimit(requests=10, period_seconds=1)
-        ... )
-    """
-    # Set permissions with scopes
-    builder = self.with_permissions(
-        required_scopes=scopes,
-        hitl_required=True,
-        data_classification="CONFIDENTIAL",
-    )
-
-    # Set cost estimates (typical API call)
-    builder = builder.with_cost_profile(
-        est_tokens_in=150,
-        est_tokens_out=400,
-        est_cost_usd=0.001,
-        est_latency_ms=500,
-    )
-
-    return builder
-```
-
-#### Validation & Build
-
-```python
-def validate(self, rules: list[ValidationRule] | None = None) -> list[str]:
-    """
-    Validate manifest against rules.
-
-    Args:
-        rules: Optional custom validation rules (extends defaults)
-
-    Returns:
-        List of error messages (empty if valid)
-    """
-    errors = []
-
-    # Default validations
-    if not self._manifest.description or self._manifest.description == "__BUILDER_PLACEHOLDER__":
-        errors.append("Description is required (must call .with_description())")
-
-    if not self._manifest.parameters and not self._manifest.outputs:
-        errors.append("Tool must have at least parameters or outputs defined")
-
-    # Check required parameters have descriptions
-    for param in self._manifest.parameters:
-        if param.required and not param.description:
-            errors.append(f"Required parameter '{param.name}' must have description")
-
-    # Custom rules
-    if rules:
-        for rule in rules:
-            errors.extend(rule.validate(self._manifest))
-
-    return errors
-
-def build(self, validate: bool = True) -> ToolManifest:
-    """
-    Build and return ToolManifest.
-
-    Args:
-        validate: Whether to run validation before building
-
-    Returns:
-        Constructed ToolManifest
-
-    Raises:
-        ValueError: If validation fails
-    """
-    if validate:
-        errors = self.validate()
-        if errors:
-            error_msg = "Manifest validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
-            raise ValueError(error_msg)
-
-    return self._manifest
-```
-
----
+> **ADR-107**: the fluent `ToolManifestBuilder` / `create_tool_manifest`
+> (`registry/manifest_builder.py`) were removed — production manifests were
+> never built through them. Manifests are declared as direct
+> `ToolManifest(...)` dataclass literals in each domain's
+> `catalogue_manifests.py` (see the schema above), which keeps declarations
+> greppable and type-checked without an intermediate API.
 
 ## Catalogue Loader
 
@@ -1616,12 +1313,15 @@ ValueError: Manifest validation failed:
 **Solution** :
 
 ```python
-# Ajouter la description manquante
-builder = (
-    ToolManifestBuilder("my_tool", "my_agent")
-    .with_description("Tool description here")  # ✅ Ajouté
-    .add_parameter("param1", "string", required=True)
-    .build()
+# Ajouter la description manquante (déclaration directe, v1.21.16+)
+manifest = ToolManifest(
+    name="my_tool",
+    agent="my_agent",
+    description="Tool description here",  # ✅ Ajouté
+    parameters=[ParameterSchema(name="param1", type="string", required=True, description="...")],
+    outputs=[],
+    cost=CostProfile(),
+    permissions=PermissionProfile(),
 )
 ```
 
@@ -1629,92 +1329,45 @@ builder = (
 
 ## Exemples Pratiques
 
-### Exemple 1 : Créer un Tool Manifest avec Builder
+### Exemple 1 : Déclarer un Tool Manifest
 
 ```python
-from src.domains.agents.registry.manifest_builder import ToolManifestBuilder
-
-manifest = (
-    ToolManifestBuilder("search_contacts_tool", "contacts_agent")
-    .with_description("Recherche contacts Google par nom, email ou téléphone")
-    .with_version("1.0.0")
-    .with_maintainer("Team AI")
-    # Parameters
-    .add_parameter(
-        "query",
-        "string",
-        required=True,
-        description="Texte de recherche (nom, email, ou téléphone)",
-        min_length=1,
-        max_length=200,
-    )
-    .add_parameter(
-        "limit",
-        "integer",
-        required=False,
-        description="Nombre maximum de résultats (défaut: 10)",
-        min=1,
-        max=100,
-    )
-    # Outputs
-    .add_output("contacts", "array", "Liste des contacts trouvés")
-    .add_output("contacts[].resource_name", "string", "Identifiant Google")
-    .add_output("contacts[].names", "array", "Noms du contact", nullable=True)
-    # Cost
-    .with_cost_profile(
-        est_tokens_in=150,
-        est_tokens_out=800,
-        est_cost_usd=0.001,
-        est_latency_ms=800,
-    )
-    # Permissions
-    .with_api_integration(
-        provider="google",
-        scopes=["https://www.googleapis.com/auth/contacts.readonly"],
-    )
-    # Build
-    .build()
+# Déclaration directe (v1.21.16+ — le builder fluent a été retiré, ADR-107)
+from src.domains.agents.registry.catalogue import (
+    CostProfile, ParameterSchema, PermissionProfile, ToolManifest,
 )
 
-# Register in registry
-registry.register_tool_manifest(manifest)
-```
-
-### Exemple 2 : Créer un Manifest avec Preset Generic
-
-```python
-# Database tool
-manifest = (
-    ToolManifestBuilder("query_users", "database_agent")
-    .with_description("Query users from PostgreSQL database")
-    .add_parameter("sql", "string", required=True, description="SQL query")
-    .add_parameter("limit", "integer", min=1, max=1000)
-    .add_output("rows", "array", "Query results")
-    .with_database_integration(
-        db_type="postgresql",
-        read_only=True,
-        max_rows=1000,
-    )
-    .build()
-)
-
-# REST API tool
-manifest = (
-    ToolManifestBuilder("fetch_weather", "weather_agent")
-    .with_description("Fetch weather data from OpenWeatherMap API")
-    .add_parameter("city", "string", required=True)
-    .add_parameter("units", "string", enum=["metric", "imperial"])
-    .add_output("temperature", "number", "Current temperature")
-    .add_output("description", "string", "Weather description")
-    .with_rest_api_integration(
-        base_url="https://api.openweathermap.org/data/2.5",
-        auth_type="api_key",
-    )
-    .build()
+SEARCH_CONTACTS_MANIFEST = ToolManifest(
+    name="search_contacts_tool",
+    agent="contacts_agent",
+    description="Recherche contacts Google par nom, email ou téléphone",
+    parameters=[
+        ParameterSchema(name="query", type="string", required=True,
+                        description="Texte de recherche (nom, email, ou téléphone)"),
+        ParameterSchema(name="max_results", type="integer", required=False,
+                        description="Nombre max de résultats (1-50)"),
+    ],
+    outputs=[],
+    cost=CostProfile(est_tokens_in=150, est_tokens_out=400,
+                     est_cost_usd=0.0004, est_latency_ms=400),
+    permissions=PermissionProfile(
+        required_scopes=["https://www.googleapis.com/auth/contacts.readonly"],
+        hitl_required=False,
+        data_classification="CONFIDENTIAL",
+    ),
+    version="1.0.0",
+    maintainer="Team AI",
 )
 ```
 
----
+### Exemple 2 : Presets d'intégration (supprimés en v1.21.16)
+
+> **ADR-107**: les presets fluents (`with_database_integration`,
+> `with_rest_api_integration`, `with_api_integration`…) ont disparu avec le
+> `ToolManifestBuilder`. Déclarez les mêmes informations directement dans le
+> dataclass `ToolManifest(...)` (voir Exemple 1) : scopes dans
+> `PermissionProfile`, coûts dans `CostProfile`, contraintes dans
+> `ParameterSchema`.
 
 ## Best Practices
 
@@ -1781,7 +1434,7 @@ manifest = (
 
 **Core Registry:**
 - `apps/api/src/domains/agents/registry/catalogue.py` - Manifest schemas + ToolCategory
-- `apps/api/src/domains/agents/registry/manifest_builder.py` - Builder pattern fluent API
+- `apps/api/src/domains/agents/registry/catalogue.py` - ToolManifest schema (dataclasses)
 - `apps/api/src/domains/agents/registry/catalogue_loader.py` - Catalogue initialization (11 agents, 56+ tools)
 - `apps/api/src/domains/agents/registry/agent_registry.py` - Registry avec export methods
 - `apps/api/src/domains/agents/registry/domain_taxonomy.py` - `filter_admin_mcp_disabled_manifests()` helper

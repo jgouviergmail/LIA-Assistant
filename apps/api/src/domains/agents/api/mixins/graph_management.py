@@ -9,7 +9,6 @@ Responsibilities:
 
 from typing import TYPE_CHECKING, Any
 
-from src.core.config import settings
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -37,8 +36,6 @@ class GraphManagementMixin:
         self.hitl_classifier: Any = None
         # HITL question generator (lazy init with graph) - POC implementation
         self.hitl_question_generator: Any = None
-        # HITL orchestrator (lazy init with graph) - Phase 3.3 Day 5-6
-        self.hitl_orchestrator: Any = None
 
     async def _ensure_graph_built(self) -> None:
         """
@@ -58,9 +55,6 @@ class GraphManagementMixin:
             HitlQuestionGenerator,
         )
         from src.domains.agents.services.hitl_classifier import HitlResponseClassifier
-        from src.domains.agents.services.hitl_orchestrator import HITLOrchestrator
-        from src.domains.agents.utils.hitl_store import HITLStore
-        from src.infrastructure.cache.redis import get_redis_cache
 
         logger.info("building_graph_from_registry")
 
@@ -75,20 +69,6 @@ class GraphManagementMixin:
 
         # HITL question generator creates dynamic clarification questions (POC)
         self.hitl_question_generator = HitlQuestionGenerator()
-
-        # PHASE 3.3 Day 5-6: Initialize HITLOrchestrator with dependencies
-        redis = await get_redis_cache()
-        hitl_store = HITLStore(
-            redis_client=redis,
-            ttl_seconds=settings.hitl_pending_data_ttl_seconds,
-        )
-        self.hitl_orchestrator = HITLOrchestrator(
-            hitl_classifier=self.hitl_classifier,
-            hitl_question_generator=self.hitl_question_generator,
-            hitl_store=hitl_store,
-            graph=self.graph,
-            agent_type="generic",  # Will be updated per agent execution
-        )
 
         logger.info(
             "graph_built_successfully",

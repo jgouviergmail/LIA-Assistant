@@ -287,9 +287,6 @@ class MessagesState(TypedDict):
     validation_result: ValidationResult | None
     """Résultat de validation du plan (errors, warnings)."""
 
-    approval_evaluation: ApprovalEvaluation | None
-    """Évaluation des stratégies d'approbation (requires_approval, reasons)."""
-
     plan_approved: bool | None
     """Décision utilisateur : True (APPROVE), False (REJECT), None (pending)."""
 
@@ -728,79 +725,10 @@ async def approval_gate_node(state: MessagesState) -> dict:
     if not plan:
         return {}  # No plan to approve
 
-    # 1. Evaluate approval strategies
-    evaluator = ApprovalEvaluator(strategies=[
-        ManifestBasedStrategy(),
-        CostThresholdStrategy(threshold=settings.approval_cost_threshold_usd),
-    ])
-
-    evaluation = evaluator.evaluate(plan, context={
-        "user_id": state["metadata"]["user_id"],
-        "user_timezone": state["user_timezone"],
-        "user_language": state["user_language"],
-    })
-
-    # 2. Store evaluation in state
-    state_updates = {"approval_evaluation": evaluation}
-
-    # 3. Check if approval required
-    if not evaluation.requires_approval:
-        logger.info("approval_gate_auto_approved", reasons=evaluation.reasons)
-        hitl_plan_decisions.labels(decision="AUTO_APPROVE").inc()
-        return {**state_updates, "plan_approved": True}
-
-    # 4. Build plan summary for user
-    plan_summary = _build_plan_summary(plan, state)
-
-    # 5. Generate LLM question
-    question_or_error = await _build_approval_request(
-        plan_summary,
-        evaluation,
-        state["user_language"]
-    )
-
-    if isinstance(question_or_error, str) and question_or_error.startswith("ERROR"):
-        # Fallback question
-        question = f"Je vais exécuter {len(plan.steps)} actions. Autorises-tu ?"
-        hitl_plan_approval_question_fallback.labels(error_type="llm_failure").inc()
-    else:
-        question = question_or_error
-
-    # 6. Interrupt user avec question
-    logger.info("approval_gate_interrupt", question_length=len(question))
-
-    # LangGraph interrupt pattern
-    raise NodeInterrupt(
-        value={
-            "type": "plan_approval",
-            "question": question,
-            "plan_summary": plan_summary.dict(),
-            "approval_reasons": evaluation.reasons,
-        }
-    )
-
-    # 7. After resumption (user responded), process decision
-    # This code runs when graph is resumed after interrupt
-    decision = state.get("plan_approved")
-
-    if decision is True:
-        logger.info("approval_gate_approved")
-        hitl_plan_decisions.labels(decision="APPROVE").inc()
-        return state_updates
-
-    elif decision is False:
-        logger.info("approval_gate_rejected", reason=state.get("plan_rejection_reason"))
-        hitl_plan_decisions.labels(decision="REJECT").inc()
-        return {
-            **state_updates,
-            "plan_approved": False,
-        }
-
-    else:
-        # EDIT case handled in service layer (plan_editor)
-        logger.info("approval_gate_edited")
-        hitl_plan_decisions.labels(decision="EDIT").inc()
-        return state_updates
+    # v1.21.16 (ADR-107): pass-through — auto-approve.
+    # Tool-level HITL (draft_critique / for_each_confirmation) supersedes
+    # plan-level approval; the strategy evaluator and PlanEditor were removed.
+    return {"plan_approved": True}
 ```
 
 Pour les détails HITL complets, voir [HITL.md](./HITL.md)
@@ -1621,14 +1549,12 @@ class AdaptiveReplanner:
 
 ---
 
-## 🔐 Secure Plan Editor
+## 🔐 Secure Plan Editor (removed in v1.21.16)
 
-**Fichier** : `apps/api/src/domains/agents/orchestration/plan_editor.py` (756 lignes)
-
-**Architecture à 3 niveaux** :
-1. **PlanEditor** (base) - Basic edit operations
-2. **EnhancedPlanEditor** - Undo/redo history
-3. **SecurePlanEditor** - Injection detection
+> **ADR-107**: `orchestration/plan_editor.py` (PlanEditor / EnhancedPlanEditor /
+> SecurePlanEditor) was removed — its only caller was the dead EDIT branch of
+> the pass-through approval gate. HITL EDIT resumption uses plain modification
+> dicts built by `services/hitl/resumption_strategies.py`.
 
 ### Injection Detection
 

@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.16] - 2026-07-07
+
+> Dead-code remediation (S7, ADR-107) & API-key client consolidation (ADR-108). A maintenance release — no user-facing feature change, no DB migration. The 2026-07 audit's S7 finding (~5,800 lines of dead code) grew under investigation to ~13,600 lines across five clusters, each deletion proven safe by a layered method: all-scopes grep → AST import-graph startup-closure analysis → runtime "simulated deletion" (an import hook making the modules invisible while importing `src.main` and running the full suite) → per-cluster green-baseline / delete / green-suite / fresh-Docker-boot. The follow-up (ADR-108) hardened the previously unused `BaseAPIKeyClient` and migrated the three API-key connector clients onto it, characterization-first.
+
+### Removed
+
+- **v3 autonomy engines (dead since the v3.2 fusion).** `autonomous_executor.py`, `feedback_loop.py`, `relevance_engine.py`, the `agents/v3/` barrel, their inert Pydantic configs (`V3ExecutorConfig`/`V3RelevanceConfig`/`V3FeedbackLoopConfig`/`V3PromptConfig` + factories), 9 settings fields, 9 constants and 9 env vars in both templates. `V3RoutingConfig`, `V3DisplayConfig` and `i18n_v3.V3Messages` were proven live (query analyzer, display cards) and kept; `get_debug_thresholds()` lost its three dead sections.
+- **Plan-level approval framework + ghost HITL orchestrator.** `plan_editor.py` (incl. `EnhancedPlanEditor`/`SecurePlanEditor`), the `services/approval/` strategies package, the four dead helpers of `approval_gate_node.py` (626 → 130 lines — the wired pass-through is kept, so re-enabling plan-level HITL later needs no graph rewiring), the dead schema classes (`PlanApprovalRequest`, `PlanModification`, `PlanApprovalDecision`, `ApprovalEvaluation`, `PlanApprovalAudit`), the never-written `approval_evaluation` state field — and **`hitl_orchestrator.py` (987 lines): a ghost service instantiated in `graph_management` but never accessed**, proven dead by running the full suite with the module blocked (only its own phantom tests failed), together with its `hitl/policies/` package. `PlanSummary`/`StepSummary`/`PlanApprovalInteraction` stay: they are the HITL registry's live fallback for unknown `action_type`s.
+- **Smaller dead clusters.** The fluent `manifest_builder.py` (`ToolManifest` lives in `registry/catalogue.py`; the one TYPE_CHECKING import repointed), the parallel `state_keys.py` constants copy, the contacts-v2 `contacts_models.py`/`contacts_validators.py` and a stale debug script.
+- **Dead observability.** 18 orphaned Prometheus metric definitions (labeled → they never emitted a series), 11 recording rules and 7 alert rules over now-absent metrics (`promtool` green, 86 rules left), 23 no-data panels from Grafana dashboards 07/08. Noted for a future pass: `alert_rules.yml` itself is not loaded by `prometheus.yml` (alerting disabled).
+- **~10 phantom test files** (they exclusively covered removed code — live-code coverage unchanged), including `test_hitl_flows_e2e.py`, which patched a module deleted long before this work.
+- **`i18n_v3` orphan block.** 7 `V3Messages` methods + 11 translation dicts only the removed engines consumed (−381 lines); module docstring updated.
+
+### Added
+
+- **`CircuitBreaker.check()` (public fail-fast gate).** The body of `__aenter__`, now shared with `protect()` (DRY) and used by the api-key, oauth and apple client bases instead of reaching into `cb._lock`/`_should_allow_request()`/`_reject_request()` — the apple base gains the lock, the real state, the `retry_after` hint and the rejected-call metric.
+- **`ToolDependencies.aclose()`.** Closes every cached connector client (pooled `httpx.AsyncClient`) deterministically at end of run — wired in the success and error cleanup paths of `stream_chat_response` and in the contacts-warmup helper; the direct instantiation sites (web_search ×2, heartbeat context_aggregator + geocoding) got try/finally closes. Previously nothing ever called `close()`: sockets leaked until GC.
+- **Characterization harness + 37 pinned-contract tests.** `tests/unit/connectors/characterization_harness.py` (httpx.MockTransport-based, implementation-agnostic: assertions hold whether headers are set at client construction or per request) and per-client characterization suites (Brave 13, OWM 14, Perplexity 10) written against the LEGACY implementations and kept verbatim through the migrations.
+- **ADR-107 & ADR-108** (+ index entries): the remediation method, per-cluster proof, kept-alive boundaries, migration deltas.
+
+### Changed
+
+- **Brave, OpenWeatherMap and Perplexity clients migrated to `BaseAPIKeyClient`** with unchanged constructors, method signatures and error contracts: Brave keeps its None-on-error `search()`, OWM keeps its raising contract, list-returning `geo/1.0/*` endpoints and timezone-aware daily aggregation, Perplexity keeps its payload shape and empty-choices fallbacks. Gains: per-user Redis rate limiting (multi-worker correct; local time-based fallback when disabled), shared per-service circuit breaker, retry with backoff, connection pooling, per-client timeout settings honored via `_get_http_timeout()`.
+- **`BaseAPIKeyClient` hardened before adoption.** Its six raw `HTTPException` raises became domain errors (`ExternalServiceError` for circuit-open and 401/403 — the `raise_google_api_error` model, feeding `external_service_errors_total`; `httpx.HTTPStatusError` for non-auth 4xx; `MaxRetriesExceededError` on exhaustion with the last error kept; `RateLimitError` client-side), `rate_limit_per_second` widened to `float` with `max(1, int(×60))` for the Redis window, `user_id: UUID | None` for system callers, `follow_redirects` class attr. Post-review hardenings: a non-numeric `Retry-After` (RFC 7231 HTTP-date) falls back to exponential backoff; a malformed body on a 200 is retried as a transient failure (then `MaxRetriesExceededError` keeping the decode error) — restoring the legacy retry-on-decode semantics.
+- **Intentional migration deltas (documented):** 5xx responses are now retried before failing; retry exhaustion surfaces as `MaxRetriesExceededError` — the briefing weather fetch's `except` was synced and classifies from `last_error`; 401 surfaces as `ExternalServiceError` instead of `ValueError` (all consumers catch broadly — verified).
+- **`scaffold.py`** template synced with the new base contract.
+
+### Fixed
+
+- **Pooled HTTP client socket leak** across every API-key client call site (see `ToolDependencies.aclose()` above).
+- **Order-dependent circuit-breaker test failures (latent trap).** The process-global `CircuitBreakerRegistry` accumulated failures across tests and could open a shared breaker mid-file; the base and characterization suites now isolate it with an autouse `CircuitBreakerRegistry.clear()` fixture.
+- **Stale docs-vs-code drift in touched files.** Docstrings describing removed behavior (HITLOrchestrator mentions in `api/service.py`/mixins, the `resumption_strategies` "approval_gate expects" comment, the `approval_schemas` module docstring, metrics comments) were corrected in the same change, per the "a docstring describing behavior the code does not have is a bug" rule.
+
+### Tests
+
+- Zero new failures at every checkpoint of the whole campaign (the suite grew from 10,054 to 10,147 passed as characterization/lifecycle tests were added; every pass-count delta exactly matches the phantom tests removed or the tests added). Ruff / Black clean repo-wide; MyPy strict green on all 848 source files; five fresh container boots to healthy; `/metrics` verified (kept metrics present, removed metrics absent); the three migrated clients smoke-tested inside the running container.
+
 ## [1.21.15] - 2026-07-07
 
 > Core-agent decomposition (B1) & i18n/prompt debt hardening. A maintenance release — no user-facing feature change, no behavior change (verbatim extractions, prompt input byte-preserved), no DB migration. The 2026-07 audit flagged the three largest functions of the agent core (B1, "monoliths"); measured strictly (code lines, comments/docstrings excluded), only `response_node` (1516) and `stream_sse_chunks` (403) exceeded the ~300-line threshold and are decomposed here under a characterization-test safety net (Feathers). `parallel_executor` and `_handle_hitl_interrupt` already complied and were left untouched.

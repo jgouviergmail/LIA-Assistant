@@ -2632,206 +2632,6 @@
               "placement": "bottom"
             }
           }
-        },
-        {
-          "id": 60,
-          "type": "timeseries",
-          "title": "Plan Edit Operations (by type)",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 0,
-            "y": 145
-          },
-          "targets": [
-            {
-              "expr": "sum by (operation) (rate(plan_edit_operations_total[$__rate_interval]))",
-              "legendFormat": "{{operation}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "ops",
-              "custom": {
-                "fillOpacity": 10,
-                "lineWidth": 1
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "tooltip": {
-              "mode": "multi"
-            },
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            }
-          }
-        },
-        {
-          "id": 61,
-          "type": "timeseries",
-          "title": "Plan Edit Schema Validation Failures",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 6,
-            "y": 145
-          },
-          "targets": [
-            {
-              "expr": "sum by (tool_name) (rate(plan_edit_schema_validation_failures_total[$__rate_interval]))",
-              "legendFormat": "{{tool_name}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "ops",
-              "custom": {
-                "fillOpacity": 10,
-                "lineWidth": 1
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "tooltip": {
-              "mode": "multi"
-            },
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            }
-          }
-        },
-        {
-          "id": 62,
-          "type": "timeseries",
-          "title": "Plan Edit Injection Blocked",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 12,
-            "y": 145
-          },
-          "targets": [
-            {
-              "expr": "sum by (pattern) (rate(plan_edit_injection_blocked_total[$__rate_interval]))",
-              "legendFormat": "{{pattern}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "ops",
-              "custom": {
-                "fillOpacity": 10,
-                "lineWidth": 1
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "tooltip": {
-              "mode": "multi"
-            },
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            }
-          }
-        },
-        {
-          "id": 63,
-          "type": "timeseries",
-          "title": "Plan Edit Undo Operations",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 18,
-            "y": 145
-          },
-          "targets": [
-            {
-              "expr": "sum(rate(plan_edit_undo_operations_total[$__rate_interval]))",
-              "legendFormat": "undo",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "ops",
-              "custom": {
-                "fillOpacity": 10,
-                "lineWidth": 1
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "tooltip": {
-              "mode": "multi"
-            },
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            }
-          }
         }
       ]
     },
@@ -2840,65 +2640,276 @@
       "type": "row",
       "title": "Latence LLM (Loki — duration_ms)",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 153 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 153
+      },
       "panels": []
     },
     {
       "id": 701,
       "type": "table",
       "title": "Latence par nœud — p50 / p95 / max / nb appels (ms, fenêtre)",
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 154 },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 154
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "queryType": "instant", "expr": "quantile_over_time(0.50, {job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)" },
-        { "refId": "B", "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "queryType": "instant", "expr": "quantile_over_time(0.95, {job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)" },
-        { "refId": "C", "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "queryType": "instant", "expr": "max_over_time({job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)" },
-        { "refId": "D", "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "queryType": "instant", "expr": "sum by (node_name) (count_over_time({job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} [$__range]))" }
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.50, {job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.95, {job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "max_over_time({job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "sum by (node_name) (count_over_time({job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} [$__range]))"
+        }
       ],
       "transformations": [
-        { "id": "merge", "options": {} },
-        { "id": "organize", "options": { "excludeByName": {}, "renameByName": { "Value #A": "p50 (ms)", "Value #B": "p95 (ms)", "Value #C": "max (ms)", "Value #D": "nb appels", "node_name": "Nœud" } } }
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "renameByName": {
+              "Value #A": "p50 (ms)",
+              "Value #B": "p95 (ms)",
+              "Value #C": "max (ms)",
+              "Value #D": "nb appels",
+              "node_name": "Nœud"
+            }
+          }
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "align": "auto" } }, "overrides": [ { "matcher": { "id": "byName", "options": "nb appels" }, "properties": [ { "id": "unit", "value": "short" } ] } ] },
-      "options": { "showHeader": true, "sortBy": [ { "displayName": "p95 (ms)", "desc": true } ] }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "nb appels"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "p95 (ms)",
+            "desc": true
+          }
+        ]
+      }
     },
     {
       "id": 702,
       "type": "bargauge",
       "title": "p95 par nœud sur la fenêtre (ms)",
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 154 },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 154
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "instant": true, "queryType": "instant", "expr": "quantile_over_time(0.95, {job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)", "legendFormat": "{{node_name}}" }
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "instant": true,
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.95, {job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)",
+          "legendFormat": "{{node_name}}"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
-      "options": { "displayMode": "gradient", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
     },
     {
       "id": 703,
       "type": "stat",
       "title": "TTFT bout-en-bout — p50 / p95 (s, fenêtre)",
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 163 },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 163
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "queryType": "instant", "expr": "quantile_over_time(0.50, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap ttft [$__range])", "legendFormat": "TTFT p50" },
-        { "refId": "B", "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "queryType": "instant", "expr": "quantile_over_time(0.95, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap ttft [$__range])", "legendFormat": "TTFT p95" }
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.50, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap ttft [$__range])",
+          "legendFormat": "TTFT p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.95, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap ttft [$__range])",
+          "legendFormat": "TTFT p95"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "orientation": "horizontal", "textMode": "value_and_name", "colorMode": "value" }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value_and_name",
+        "colorMode": "value"
+      }
     },
     {
       "id": 704,
       "type": "stat",
       "title": "Durée totale du tour — p50 / p95 (s, fenêtre)",
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 163 },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 163
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "queryType": "instant", "expr": "quantile_over_time(0.50, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap duration [$__range])", "legendFormat": "Total p50" },
-        { "refId": "B", "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "queryType": "instant", "expr": "quantile_over_time(0.95, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap duration [$__range])", "legendFormat": "Total p95" }
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.50, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap duration [$__range])",
+          "legendFormat": "Total p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "queryType": "instant",
+          "expr": "quantile_over_time(0.95, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap duration [$__range])",
+          "legendFormat": "Total p95"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "orientation": "horizontal", "textMode": "value_and_name", "colorMode": "value" }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value_and_name",
+        "colorMode": "value"
+      }
     }
   ]
 }

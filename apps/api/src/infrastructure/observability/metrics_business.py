@@ -87,15 +87,6 @@ agent_tool_usage_total = Counter(
     # Tracks which tools are most used and their success rates
 )
 
-agent_tool_approval_rate = Histogram(
-    "agent_tool_approval_rate",
-    "HITL tool approval rate per conversation (0-1)",
-    ["agent_type"],
-    # 1.0 = all tools approved, 0.0 = all tools rejected
-    # Low approval rate indicates poor agent behavior or overly conservative users
-    buckets=[0.0, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-)
-
 # ============================================================================
 # USER ENGAGEMENT METRICS
 # ============================================================================
@@ -135,14 +126,6 @@ connector_activation_rate = Gauge(
     # connector_type: google_contacts, gmail, google_drive, etc.
     # Measures feature adoption
     multiprocess_mode="mostrecent",
-)
-
-hitl_feature_usage_total = Counter(
-    "hitl_feature_usage_total",
-    "Total HITL interactions (approval, edit, reject, clarify)",
-    ["interaction_type", "agent_type"],
-    # interaction_type: approval, edit, reject, clarification
-    # Tracks HITL feature engagement
 )
 
 # ============================================================================

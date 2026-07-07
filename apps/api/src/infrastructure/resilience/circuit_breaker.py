@@ -356,11 +356,26 @@ class CircuitBreaker:
             retry_after=retry_after,
         )
 
-    async def __aenter__(self) -> "CircuitBreaker":
-        """Async context manager entry - check if request is allowed."""
+    async def check(self) -> None:
+        """
+        Fail-fast gate: raise if the circuit does not allow a request now.
+
+        Public entry point for callers that manage success/failure recording
+        themselves (via record_success/record_failure) and only need the
+        pre-request check — e.g. HTTP clients with per-attempt retry logic.
+
+        Handles the OPEN -> HALF_OPEN transition and half-open call budget.
+
+        Raises:
+            CircuitBreakerError: If the circuit is open (includes retry_after hint).
+        """
         async with self._lock:
             if not await self._should_allow_request():
                 await self._reject_request()
+
+    async def __aenter__(self) -> "CircuitBreaker":
+        """Async context manager entry - check if request is allowed."""
+        await self.check()
         return self
 
     async def __aexit__(
@@ -396,9 +411,7 @@ class CircuitBreaker:
 
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            async with self._lock:
-                if not await self._should_allow_request():
-                    await self._reject_request()
+            await self.check()
 
             try:
                 result = await func(*args, **kwargs)  # type: ignore[misc]

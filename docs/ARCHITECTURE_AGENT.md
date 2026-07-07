@@ -2723,9 +2723,10 @@ elif decision == "REJECT":
     # Skip execution, return rejection message
     return {"response": "Plan annulé comme demandé."}
 elif decision == "EDIT":
-    # Modify plan, re-validate, loop back
-    edited_plan = await plan_editor.apply_edits(plan, user_edits)
-    return await approval_gate(state_with_edited_plan)
+    # v1.21.16: EDIT is resolved in the HITL resumption flow
+    # (hitl/resumption_strategies builds modification dicts);
+    # plan_editor was removed with the dead plan-approval framework (ADR-107).
+    ...
 ```
 
 ### 17.3 Draft System
@@ -2867,12 +2868,12 @@ class RejectStrategy(ResumptionStrategy):
 
 class EditStrategy(ResumptionStrategy):
     async def apply(self, state, decision):
-        """Modifie le plan avec nouveaux paramètres."""
-        plan = state.metadata["execution_plan"]
-        edited_plan = await plan_editor.apply_edits(plan, decision.new_params)
-        state.metadata["execution_plan"] = edited_plan
-        state.metadata["requires_revalidation"] = True
-        return state
+        """Modifie le plan avec nouveaux paramètres.
+
+        v1.21.16 (ADR-107): the edits are plain modification dicts built by
+        hitl/resumption_strategies — PlanEditor no longer exists.
+        """
+        ...
 ```
 
 ---

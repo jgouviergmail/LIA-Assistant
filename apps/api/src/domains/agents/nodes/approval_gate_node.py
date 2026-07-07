@@ -1,36 +1,21 @@
 """
-Approval Gate Node (Phase 8 - HITL Plan-Level)
+Approval Gate Node (Phase 8 - HITL Plan-Level).
 
-This node presents ExecutionPlans to users for approval BEFORE execution.
-It replaces the problematic tool-level HITL that interrupted execution mid-stream.
+Plan-level HITL is now redundant with tool-level HITL: every mutation tool has
+its own downstream confirmation (draft_critique for individual actions,
+for_each_confirmation for bulk operations). This node is therefore a
+pass-through that always approves the plan, avoiding double/triple confirmation.
 
-Architecture:
-    1. Check if plan requires approval (validation_result.requires_hitl)
-    2. If not, pass through to execution
-    3. If yes, present complete plan summary to user
-    4. Call interrupt() to pause and wait for user decision
-    5. Process decision: APPROVE → execute, REJECT → response, EDIT → re-validate
-    6. Return appropriate state updates for routing
-
-Flow:
-    Planner → Approval Gate → interrupt() → User Decision → Resume
-                           ↓ approved              ↓ rejected
-                     TaskOrchestrator           Response
-
-References:
-    - HITL_PLAN_LEVEL_ARCHITECTURE.md: Complete architecture documentation
-    - approval_schemas.py: PlanApprovalRequest/Decision structures
-    - plan_editor.py: Apply user modifications to plans
+The node stays wired in the graph (planner -> approval_gate -> task_orchestrator)
+so plan-level HITL can be re-enabled later by restoring an interrupt() here
+without re-wiring the graph.
 """
 
-import time
-from datetime import UTC, datetime
 from typing import Any
 
 import structlog
 from langchain_core.runnables import RunnableConfig
 
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, TOOL_NAME_DELEGATE_SUB_AGENT
 from src.domains.agents.constants import (
     STATE_KEY_EXECUTION_PLAN,
     STATE_KEY_PLAN_APPROVED,
@@ -38,488 +23,14 @@ from src.domains.agents.constants import (
     STATE_KEY_VALIDATION_RESULT,
 )
 from src.domains.agents.models import MessagesState
-from src.domains.agents.orchestration.approval_schemas import (
-    PlanApprovalRequest,
-    PlanSummary,
-    StepSummary,
-)
-from src.domains.agents.orchestration.plan_editor import (
-    PlanEditor,
-    PlanModificationError,
-)
-from src.domains.agents.orchestration.plan_schemas import ExecutionPlan
-from src.domains.agents.orchestration.validator import (
-    PlanValidator,
-    ValidationContext,
-)
-from src.domains.agents.registry import get_global_registry
-from src.domains.agents.registry.catalogue import ToolManifestNotFound
-from src.domains.agents.services.hitl.question_generator import HitlQuestionGenerator
 from src.domains.agents.utils.state_tracking import track_state_updates
-from src.infrastructure.observability.callbacks import TokenTrackingCallback
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_node_duration_seconds,
     agent_node_executions_total,
-    hitl_plan_approval_question_duration,
-    hitl_plan_approval_question_fallback,
-    hitl_plan_decisions,
-    hitl_plan_modifications,
-)
-from src.infrastructure.observability.metrics_business import (
-    agent_tool_approval_rate,
-    hitl_feature_usage_total,
 )
 
 logger = structlog.get_logger(__name__)
-
-
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-
-
-def _extract_agent_types_from_plan(plan: ExecutionPlan) -> list[str]:
-    """
-    Extract unique agent_types from an ExecutionPlan.
-
-    Converts agent_name (e.g., "contacts_agent") → agent_type (e.g., "contacts")
-    using the "_agent" suffix removal pattern.
-
-    Args:
-        plan: ExecutionPlan containing steps with agent_name
-
-    Returns:
-        List of unique agent_types (no duplicates)
-
-    Example:
-        >>> plan = ExecutionPlan(steps=[
-        ...     ExecutionStep(agent_name="contacts_agent", ...),
-        ...     ExecutionStep(agent_name="emails_agent", ...),
-        ...     ExecutionStep(agent_name="contacts_agent", ...),  # duplicate
-        ... ])
-        >>> _extract_agent_types_from_plan(plan)
-        ["contacts", "emails"]
-    """
-    agent_types = set()
-
-    for step in plan.steps:
-        agent_name = step.agent_name
-
-        # Skip steps without agent (e.g., CONDITIONAL steps)
-        # ExecutionStep.agent_name is Optional[str] and can be None for non-TOOL steps
-        if not agent_name:
-            continue
-
-        # Pattern: "contacts_agent" → "contacts"
-        if agent_name.endswith("_agent"):
-            agent_type = agent_name[:-6]  # Remove "_agent" suffix
-        else:
-            agent_type = agent_name  # Fallback: use full name
-        agent_types.add(agent_type)
-
-    return list(agent_types)
-
-
-def _build_plan_summary(plan: ExecutionPlan, validation_result: Any) -> PlanSummary:
-    """
-    Build a plan summary for user presentation.
-
-    Args:
-        plan: Complete execution plan
-        validation_result: Validation result with costs and flags
-
-    Returns:
-        PlanSummary for UI display
-    """
-    registry = get_global_registry()
-    steps = []
-    hitl_steps_count = 0
-
-    for step in plan.steps:
-        # Get manifest for metadata (check global registry + user MCP context)
-        manifest = None
-        if step.tool_name:
-            try:
-                manifest = registry.get_tool_manifest(step.tool_name)
-            except ToolManifestNotFound:
-                # Fallback: MCP tools with hallucinated suffix (evolution F2.1/F2.5)
-                from src.core.context import (
-                    strip_hallucinated_mcp_suffix,
-                    user_mcp_tools_ctx,
-                )
-
-                manifest = None
-
-                # 1. Admin MCP: strip suffix and retry central registry
-                stripped = strip_hallucinated_mcp_suffix(step.tool_name)
-                if stripped:
-                    try:
-                        manifest = registry.get_tool_manifest(stripped)
-                    except ToolManifestNotFound:
-                        logger.debug("manifest_strip_suffix_miss", tool_name=step.tool_name)
-
-                # 2. User MCP: ContextVar with fuzzy resolve
-                if manifest is None:
-                    user_ctx = user_mcp_tools_ctx.get()
-                    if user_ctx:
-                        manifest = user_ctx.resolve_tool_manifest(step.tool_name)
-
-                if manifest is None:
-                    logger.warning(
-                        "manifest_not_found_for_step",
-                        tool_name=step.tool_name,
-                    )
-
-        # Determine if step requires HITL
-        step_hitl_required = (
-            manifest and manifest.permissions.hitl_required
-        ) or step.approvals_required
-
-        if step_hitl_required:
-            hitl_steps_count += 1
-
-        step_summary = StepSummary(
-            step_id=step.step_id,
-            tool_name=step.tool_name or "N/A",
-            description=step.description or f"Execute {step.tool_name}",
-            parameters=step.parameters,
-            estimated_cost_usd=(manifest.cost.est_cost_usd if manifest else 0.0),
-            hitl_required=step_hitl_required,
-            data_classification=(manifest.permissions.data_classification if manifest else None),
-            required_scopes=(manifest.permissions.required_scopes if manifest else []),
-        )
-        steps.append(step_summary)
-
-    return PlanSummary(
-        plan_id=plan.plan_id,
-        total_steps=len(plan.steps),
-        total_cost_usd=validation_result.total_cost_usd,
-        hitl_steps_count=hitl_steps_count,
-        steps=steps,
-        generated_at=datetime.now(UTC),
-    )
-
-
-async def _build_approval_request(
-    plan_summary: PlanSummary,
-    validation_result: Any,
-    approval_evaluation: Any = None,
-    user_language: str = "fr",
-    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    config: RunnableConfig | None = None,
-    skip_question_generation: bool = True,
-) -> PlanApprovalRequest:
-    """
-    Build a complete approval request.
-
-    Phase 1 HITL Streaming (OPTIMPLAN):
-    When skip_question_generation=True (default), the question is NOT generated here.
-    Instead, StreamingService generates it lazily via LLM streaming for better TTFT.
-
-    Args:
-        plan_summary: Plan summary
-        validation_result: Validation result
-        approval_evaluation: Strategy evaluation result (optional)
-        user_language: User language for the question (default: "fr")
-        user_timezone: User's IANA timezone for datetime context (default: "Europe/Paris")
-        config: LangGraph RunnableConfig to extract TokenTrackingCallback (optional)
-        skip_question_generation: If True, skip LLM question generation here.
-            The question will be generated via streaming in StreamingService.
-            Default: True (Phase 1 HITL Streaming)
-
-    Returns:
-        PlanApprovalRequest to send to the user
-    """
-    # Extract reasons and strategies
-    reasons = []
-    strategies_triggered = []
-
-    if approval_evaluation:
-        reasons = approval_evaluation.reasons
-        strategies_triggered = approval_evaluation.strategies_triggered
-    elif validation_result.requires_hitl:
-        # Fallback if no approval_evaluation
-        reasons = ["Plan contains tools requiring HITL approval"]
-        strategies_triggered = ["ManifestBasedStrategy"]
-
-    # F6: Enrich reasons for sub-agent delegation plans
-    delegate_steps = [s for s in plan_summary.steps if s.tool_name == TOOL_NAME_DELEGATE_SUB_AGENT]
-    if delegate_steps:
-        count = len(delegate_steps)
-        expertises = [s.parameters.get("expertise", "expert")[:60] for s in delegate_steps]
-        reasons.append(
-            f"This plan delegates to {count} specialized sub-agent(s): "
-            f"{', '.join(expertises)}. "
-            f"Sub-agents perform deeper analysis but take longer (60-90s each) "
-            f"and consume more tokens than a simple search."
-        )
-        strategies_triggered.append("SubAgentDelegation")
-
-    # Phase 1 HITL Streaming: Skip question generation here if enabled
-    # The question will be generated via LLM streaming in StreamingService
-    # This achieves TTFT < 500ms instead of 2-4s blocking here
-    if skip_question_generation:
-        logger.info(
-            "approval_gate_skip_question_generation",
-            plan_id=plan_summary.plan_id,
-            msg="Question will be generated via streaming in StreamingService",
-        )
-        user_message = None  # Will be generated in StreamingService
-    else:
-        # Legacy behavior: Generate question here (blocking)
-        # Extract TokenTrackingCallback from config for accurate token tracking
-        tracker = None
-        if config:
-            callbacks = config.get("callbacks", [])
-            # Ensure callbacks is iterable (could be None or other type)
-            if callbacks and isinstance(callbacks, list):
-                for callback in callbacks:
-                    if isinstance(callback, TokenTrackingCallback):
-                        tracker = callback
-                        break
-
-        # Generate contextual approval question using LLM
-        start_time = time.time()
-        try:
-            generator = HitlQuestionGenerator()
-            user_message = await generator.generate_plan_approval_question(
-                plan_summary=plan_summary,
-                approval_reasons=reasons,
-                user_language=user_language,
-                user_timezone=user_timezone,
-                tracker=tracker,  # ✅ Pass tracker for token tracking
-            )
-
-            generation_duration = time.time() - start_time
-            hitl_plan_approval_question_duration.observe(generation_duration)
-
-            logger.info(
-                "approval_gate_llm_question_generated",
-                plan_id=plan_summary.plan_id,
-                question_length=len(user_message),
-                generation_duration_seconds=generation_duration,
-                user_language=user_language,
-            )
-        except Exception as e:
-            # Track fallback usage
-            error_type = type(e).__name__
-            hitl_plan_approval_question_fallback.labels(error_type=error_type).inc()
-
-            # Fallback to improved static message (no cost display) if LLM fails
-            logger.warning(
-                "approval_gate_llm_question_failed_using_fallback",
-                plan_id=plan_summary.plan_id,
-                error=str(e),
-                error_type=error_type,
-            )
-
-            # Improved fallback: Shows what actions will be performed, no cost
-            # Uses centralized i18n for all 6 supported languages (fr, en, es, de, it, zh-CN)
-            from src.domains.agents.api.error_messages import SSEErrorMessages
-
-            user_message = SSEErrorMessages.plan_approval_fallback(
-                step_count=plan_summary.total_steps,
-                language=user_language,
-            )
-
-    return PlanApprovalRequest(
-        plan_summary=plan_summary,
-        approval_reasons=reasons,
-        strategies_triggered=strategies_triggered,
-        user_message=user_message,
-    )
-
-
-def _process_approval_decision(
-    decision_data: dict[str, Any],
-    plan: ExecutionPlan,
-    context: ValidationContext,
-) -> tuple[bool, ExecutionPlan | None, str, str | None]:
-    """
-    Traite la décision d'approbation de l'utilisateur.
-
-    Phase 3.2 Enhancement:
-    - Tracks framework metrics (hitl_plan_decisions) - existing
-    - Tracks business metrics (hitl_feature_usage_total, agent_tool_approval_rate) - NEW
-
-    Issue #63 Enhancement: REPLAN support
-    - REPLAN now returns replan_instructions for planner regeneration
-    - Enables action type changes via HITL (e.g., search → details)
-
-    Args:
-        decision_data: Données de décision depuis interrupt resume
-        plan: Plan original
-        context: Contexte de validation
-
-    Returns:
-        Tuple (approved, modified_plan, rejection_reason, replan_instructions)
-            approved: True si plan approuvé
-            modified_plan: Plan modifié si EDIT, None sinon
-            rejection_reason: Raison du rejet si REJECT
-            replan_instructions: Instructions pour re-planification si REPLAN, None sinon
-    """
-    decision = decision_data.get("decision", "REJECT")
-
-    # Extract agent types from plan for business metrics
-    agent_types = _extract_agent_types_from_plan(plan)
-
-    if decision == "APPROVE":
-        logger.info("plan_approved_by_user", plan_id=plan.plan_id)
-
-        # Framework metric (existing)
-        hitl_plan_decisions.labels(decision="APPROVE").inc()
-
-        # Business metrics (Phase 3.2 - Step 2.3)
-        # Track HITL feature usage
-        for agent_type in agent_types:
-            hitl_feature_usage_total.labels(
-                interaction_type="approval", agent_type=agent_type
-            ).inc()
-
-        # Track approval rate (1.0 = all tools approved)
-        for agent_type in agent_types:
-            agent_tool_approval_rate.labels(agent_type=agent_type).observe(1.0)
-
-        return True, None, "", None
-
-    elif decision == "REJECT":
-        rejection_reason = decision_data.get("rejection_reason", "User rejected plan")
-        logger.info(
-            "plan_rejected_by_user",
-            plan_id=plan.plan_id,
-            reason=rejection_reason,
-        )
-
-        # Framework metric (existing)
-        hitl_plan_decisions.labels(decision="REJECT").inc()
-
-        # Business metrics (Phase 3.2 - Step 2.3)
-        # Track HITL feature usage
-        for agent_type in agent_types:
-            hitl_feature_usage_total.labels(interaction_type="reject", agent_type=agent_type).inc()
-
-        # Track approval rate (0.0 = all tools rejected)
-        for agent_type in agent_types:
-            agent_tool_approval_rate.labels(agent_type=agent_type).observe(0.0)
-
-        return False, None, rejection_reason, None
-
-    elif decision == "EDIT":
-        modifications = decision_data.get("modifications", [])
-
-        if not modifications:
-            logger.warning(
-                "edit_decision_without_modifications",
-                plan_id=plan.plan_id,
-            )
-            return False, None, "EDIT decision requires modifications", None
-
-        try:
-            # Apply modifications
-            editor = PlanEditor()
-            from src.domains.agents.orchestration.approval_schemas import (
-                PlanModification,
-            )
-
-            modification_objects = [PlanModification(**mod) for mod in modifications]
-            modified_plan = editor.apply_modifications(plan, modification_objects)
-
-            # Re-validate modified plan
-            validator = PlanValidator(get_global_registry())
-            validation_result = validator.validate_execution_plan(modified_plan, context)
-
-            if not validation_result.is_valid:
-                error_msg = f"Modified plan validation failed: {validation_result.errors}"
-                logger.error(
-                    "modified_plan_validation_failed",
-                    plan_id=plan.plan_id,
-                    errors=validation_result.errors,
-                )
-                return False, None, error_msg, None
-
-            # Track modifications
-            for mod in modification_objects:
-                hitl_plan_modifications.labels(modification_type=mod.modification_type).inc()
-
-            logger.info(
-                "plan_edited_and_validated",
-                plan_id=plan.plan_id,
-                modification_count=len(modifications),
-            )
-
-            # Framework metric (existing)
-            hitl_plan_decisions.labels(decision="EDIT").inc()
-
-            # Business metrics (Phase 3.2 - Step 2.3)
-            # Track HITL feature usage
-            for agent_type in agent_types:
-                hitl_feature_usage_total.labels(
-                    interaction_type="edit", agent_type=agent_type
-                ).inc()
-
-            # Track approval rate (1.0 = plan continues after edit)
-            for agent_type in agent_types:
-                agent_tool_approval_rate.labels(agent_type=agent_type).observe(1.0)
-
-            return True, modified_plan, "", None
-
-        except PlanModificationError as e:
-            error_msg = f"Failed to apply modifications: {str(e)}"
-            logger.error(
-                "plan_modification_failed",
-                plan_id=plan.plan_id,
-                error=str(e),
-            )
-            return False, None, error_msg, None
-
-    elif decision == "REPLAN":
-        # Issue #63: REPLAN now implemented - regenerate plan with new instructions
-        replan_instructions = decision_data.get("replan_instructions", "")
-
-        # Extract user's reformulated request from edited_params if available
-        # This happens when classifier detects action type change (e.g., search → details)
-        edited_params = decision_data.get("edited_params", {})
-        if not replan_instructions and edited_params:
-            # Build instructions from edited_params context
-            # This captures the user's intent for the new action type
-            if "new_action" in edited_params:
-                replan_instructions = f"L'utilisateur veut: {edited_params['new_action']}"
-            elif "reformulated_intent" in edited_params:
-                replan_instructions = edited_params["reformulated_intent"]
-
-        logger.info(
-            "replan_requested",
-            plan_id=plan.plan_id,
-            has_instructions=bool(replan_instructions),
-            instructions_preview=replan_instructions[:100] if replan_instructions else None,
-        )
-
-        # Framework metric (existing)
-        hitl_plan_decisions.labels(decision="REPLAN").inc()
-
-        # Business metrics (Phase 3.2 - Step 2.3)
-        # Track HITL feature usage
-        for agent_type in agent_types:
-            hitl_feature_usage_total.labels(interaction_type="replan", agent_type=agent_type).inc()
-
-        # Track approval rate (0.5 = plan modified significantly via replan)
-        for agent_type in agent_types:
-            agent_tool_approval_rate.labels(agent_type=agent_type).observe(0.5)
-
-        # Return with replan_instructions (4th element)
-        # approved=False (not executing current plan)
-        # rejection_reason="" (not a rejection)
-        # replan_instructions=user's new instructions
-        return False, None, "", replan_instructions
-
-    else:
-        logger.warning(
-            "unknown_approval_decision",
-            plan_id=plan.plan_id,
-            decision=decision,
-        )
-        return False, None, f"Unknown decision type: {decision}", None
 
 
 # ============================================================================
@@ -536,29 +47,22 @@ def _process_approval_decision(
 )
 async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> dict[str, Any]:
     """
-    Approval Gate Node - Plan-Level HITL.
+    Approval Gate Node - Plan-Level HITL (pass-through).
 
-    Présente le plan complet à l'utilisateur pour approbation AVANT exécution.
-    Utilise interrupt() pour pauser et attendre la décision.
+    Auto-approves the plan: plan-level HITL is superseded by tool-level HITL
+    (draft_critique / for_each_confirmation), so this node passes through to
+    avoid double confirmation.
 
     Métriques trackées automatiquement via @track_metrics:
     - agent_node_executions_total{node_name="approval_gate", status="success/error"}
     - agent_node_duration_seconds{node_name="approval_gate"}
-
-    Métriques custom trackées dans la fonction:
-    - hitl_plan_approval_requests_total
-    - hitl_plan_decisions_total
-    - hitl_plan_approval_question_duration_seconds
-
-    Si plan approuvé: continue vers task_orchestrator
-    Si plan rejeté: route vers response avec explication
 
     Args:
         state: État du graph avec execution_plan et validation_result
         config: Configuration LangGraph
 
     Returns:
-        Dict avec plan_approved flag et éventuellement modified plan
+        Dict avec plan_approved flag
     """
     # NOTE: Tool approval is always enabled (no kill switch)
 

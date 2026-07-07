@@ -301,15 +301,6 @@ from src.core.constants import (
     V3_DOMAIN_SCORE_DELTA_MIN,
     V3_DOMAIN_SECONDARY_THRESHOLD,
     V3_DOMAIN_SOFTMAX_TEMPERATURE,
-    V3_EXECUTOR_CIRCUIT_BREAKER_THRESHOLD,
-    V3_EXECUTOR_MAX_RECOVERY_PER_STEP,
-    V3_EXECUTOR_MAX_TOTAL_RECOVERIES,
-    V3_EXECUTOR_RECOVERY_TIMEOUT_MS,
-    V3_FEEDBACK_LOOP_CONFIDENCE_THRESHOLD,
-    V3_FEEDBACK_LOOP_MAX_RECORDS,
-    V3_FEEDBACK_LOOP_MIN_SAMPLES,
-    V3_RELEVANCE_MINIMUM_THRESHOLD,
-    V3_RELEVANCE_PRIMARY_THRESHOLD,
     V3_ROUTER_PROMPT_VERSION,
     V3_ROUTING_CHAT_OVERRIDE_THRESHOLD,
     V3_ROUTING_CHAT_SEMANTIC_THRESHOLD,
@@ -2384,99 +2375,6 @@ class AgentsSettings(BaseSettings):
     )
 
     # ------------------------------------------------------------------------
-    # V3 Executor (AutonomousExecutor)
-    # ------------------------------------------------------------------------
-    v3_executor_max_recovery_per_step: int = Field(
-        default=V3_EXECUTOR_MAX_RECOVERY_PER_STEP,
-        ge=1,
-        le=10,
-        description=(
-            "Maximum recovery attempts per individual execution step. "
-            "Higher values = more resilient but potentially longer execution."
-        ),
-    )
-    v3_executor_max_total_recoveries: int = Field(
-        default=V3_EXECUTOR_MAX_TOTAL_RECOVERIES,
-        ge=1,
-        le=20,
-        description=(
-            "Maximum total recovery attempts across entire plan execution. "
-            "Hard limit to prevent infinite recovery loops."
-        ),
-    )
-    v3_executor_recovery_timeout_ms: int = Field(
-        default=V3_EXECUTOR_RECOVERY_TIMEOUT_MS,
-        ge=1000,
-        le=120000,
-        description=(
-            "Global timeout for recovery operations in milliseconds. "
-            "Prevents runaway recovery attempts."
-        ),
-    )
-    v3_executor_circuit_breaker_threshold: int = Field(
-        default=V3_EXECUTOR_CIRCUIT_BREAKER_THRESHOLD,
-        ge=1,
-        le=10,
-        description=(
-            "Circuit breaker threshold: after N consecutive failures, stop trying. "
-            "Prevents cascading failures in execution."
-        ),
-    )
-
-    # ------------------------------------------------------------------------
-    # V3 Relevance Engine
-    # ------------------------------------------------------------------------
-    v3_relevance_primary_threshold: float = Field(
-        default=V3_RELEVANCE_PRIMARY_THRESHOLD,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Score threshold for primary results (highly relevant). "
-            "Results with score >= this are marked as primary."
-        ),
-    )
-    v3_relevance_minimum_threshold: float = Field(
-        default=V3_RELEVANCE_MINIMUM_THRESHOLD,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Minimum score threshold for results. "
-            "Results with score < this are filtered out completely."
-        ),
-    )
-
-    # ------------------------------------------------------------------------
-    # V3 Feedback Loop
-    # ------------------------------------------------------------------------
-    v3_feedback_loop_max_records: int = Field(
-        default=V3_FEEDBACK_LOOP_MAX_RECORDS,
-        ge=100,
-        le=10000,
-        description=(
-            "Maximum recovery pattern records to keep in memory. "
-            "Used for learning from past recovery strategies."
-        ),
-    )
-    v3_feedback_loop_min_samples: int = Field(
-        default=V3_FEEDBACK_LOOP_MIN_SAMPLES,
-        ge=1,
-        le=20,
-        description=(
-            "Minimum samples needed before suggesting a recovery strategy. "
-            "Prevents premature strategy recommendations."
-        ),
-    )
-    v3_feedback_loop_confidence_threshold: float = Field(
-        default=V3_FEEDBACK_LOOP_CONFIDENCE_THRESHOLD,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Confidence threshold for strategy suggestions. "
-            "Only suggest strategies with confidence >= this value."
-        ),
-    )
-
-    # ------------------------------------------------------------------------
     # V3 Display
     # ------------------------------------------------------------------------
     v3_display_enabled: bool = Field(
@@ -3258,54 +3156,6 @@ class V3RoutingConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-class V3ExecutorConfig(BaseModel):
-    """
-    Configuration for AutonomousExecutor self-healing execution.
-
-    Controls recovery behavior, circuit breaker, and timeout settings.
-    """
-
-    max_recovery_per_step: int = Field(ge=1, le=10, description="Max recoveries per step")
-    max_total_recoveries: int = Field(ge=1, le=20, description="Max total recoveries")
-    recovery_timeout_ms: int = Field(ge=1000, le=120000, description="Recovery timeout in ms")
-    circuit_breaker_threshold: int = Field(ge=1, le=10, description="Circuit breaker threshold")
-
-    model_config = ConfigDict(frozen=True)
-
-
-class V3RelevanceConfig(BaseModel):
-    """
-    Configuration for RelevanceEngine result ranking.
-
-    Controls thresholds for primary and minimum relevance scores.
-    """
-
-    primary_threshold: float = Field(
-        ge=0.0, le=1.0, description="Threshold for primary (high relevance) results"
-    )
-    minimum_threshold: float = Field(
-        ge=0.0, le=1.0, description="Minimum threshold (below = filtered out)"
-    )
-
-    model_config = ConfigDict(frozen=True)
-
-
-class V3FeedbackLoopConfig(BaseModel):
-    """
-    Configuration for FeedbackLoopService learning from recovery patterns.
-
-    Controls memory limits and confidence thresholds for strategy suggestions.
-    """
-
-    max_records: int = Field(ge=100, le=10000, description="Max recovery records to keep")
-    min_samples: int = Field(ge=1, le=20, description="Min samples before suggesting")
-    confidence_threshold: float = Field(
-        ge=0.0, le=1.0, description="Confidence threshold for suggestions"
-    )
-
-    model_config = ConfigDict(frozen=True)
-
-
 class V3DisplayConfig(BaseModel):
     """
     Configuration for display/formatting components.
@@ -3326,19 +3176,6 @@ class V3DisplayConfig(BaseModel):
         default=True,
         description="Show action buttons below HTML cards (reply, archive, etc.)",
     )
-
-    model_config = ConfigDict(frozen=True)
-
-
-class V3PromptConfig(BaseModel):
-    """
-    Configuration for v3 prompt versions.
-
-    Controls which prompt versions are used for v3 router and planner.
-    """
-
-    router_version: str = Field(description="V3 router prompt version")
-    planner_version: str = Field(description="V3 smart planner prompt version")
 
     model_config = ConfigDict(frozen=True)
 
@@ -3369,57 +3206,6 @@ def get_v3_routing_config() -> V3RoutingConfig:
     )
 
 
-def get_v3_executor_config() -> V3ExecutorConfig:
-    """
-    Get V3 executor configuration for AutonomousExecutor.
-
-    Returns:
-        V3ExecutorConfig with validated safeguards from settings.
-    """
-    from src.core.config import get_settings
-
-    settings = get_settings()
-    return V3ExecutorConfig(
-        max_recovery_per_step=settings.v3_executor_max_recovery_per_step,
-        max_total_recoveries=settings.v3_executor_max_total_recoveries,
-        recovery_timeout_ms=settings.v3_executor_recovery_timeout_ms,
-        circuit_breaker_threshold=settings.v3_executor_circuit_breaker_threshold,
-    )
-
-
-def get_v3_relevance_config() -> V3RelevanceConfig:
-    """
-    Get V3 relevance configuration for RelevanceEngine.
-
-    Returns:
-        V3RelevanceConfig with validated thresholds from settings.
-    """
-    from src.core.config import get_settings
-
-    settings = get_settings()
-    return V3RelevanceConfig(
-        primary_threshold=settings.v3_relevance_primary_threshold,
-        minimum_threshold=settings.v3_relevance_minimum_threshold,
-    )
-
-
-def get_v3_feedback_loop_config() -> V3FeedbackLoopConfig:
-    """
-    Get V3 feedback loop configuration for FeedbackLoopService.
-
-    Returns:
-        V3FeedbackLoopConfig with validated limits from settings.
-    """
-    from src.core.config import get_settings
-
-    settings = get_settings()
-    return V3FeedbackLoopConfig(
-        max_records=settings.v3_feedback_loop_max_records,
-        min_samples=settings.v3_feedback_loop_min_samples,
-        confidence_threshold=settings.v3_feedback_loop_confidence_threshold,
-    )
-
-
 def get_v3_display_config() -> V3DisplayConfig:
     """
     Get V3 display configuration for display components.
@@ -3436,22 +3222,6 @@ def get_v3_display_config() -> V3DisplayConfig:
         viewport_mobile_max_width=settings.v3_display_viewport_mobile_max_width,
         use_html_rendering=True,  # Always enabled
         show_action_buttons=settings.v3_display_show_action_buttons,
-    )
-
-
-def get_v3_prompt_config() -> V3PromptConfig:
-    """
-    Get V3 prompt configuration for version management.
-
-    Returns:
-        V3PromptConfig with prompt versions from settings.
-    """
-    from src.core.config import get_settings
-
-    settings = get_settings()
-    return V3PromptConfig(
-        router_version=settings.v3_router_prompt_version,
-        planner_version=settings.v3_smart_planner_prompt_version,
     )
 
 
@@ -3474,9 +3244,6 @@ def get_debug_thresholds() -> dict[str, dict[str, float | int | bool]]:
         - tool_selection: Tool selector thresholds
         - context_resolution: Context reference thresholds
         - semantic_validation: Semantic validator thresholds
-        - executor: Executor circuit breaker/recovery thresholds
-        - relevance: Relevance engine thresholds
-        - feedback_loop: Feedback loop thresholds
     """
     from src.core.config import get_settings
 
@@ -3515,20 +3282,5 @@ def get_debug_thresholds() -> dict[str, dict[str, float | int | bool]]:
             "enabled": True,  # Always enabled
             "confidence_threshold": settings.semantic_validation_confidence_threshold,
             "timeout_seconds": settings.semantic_validation_timeout_seconds,
-        },
-        "executor": {
-            "max_recovery_per_step": settings.v3_executor_max_recovery_per_step,
-            "max_total_recoveries": settings.v3_executor_max_total_recoveries,
-            "recovery_timeout_ms": settings.v3_executor_recovery_timeout_ms,
-            "circuit_breaker_threshold": settings.v3_executor_circuit_breaker_threshold,
-        },
-        "relevance": {
-            "primary_threshold": settings.v3_relevance_primary_threshold,
-            "minimum_threshold": settings.v3_relevance_minimum_threshold,
-        },
-        "feedback_loop": {
-            "max_records": settings.v3_feedback_loop_max_records,
-            "min_samples": settings.v3_feedback_loop_min_samples,
-            "confidence_threshold": settings.v3_feedback_loop_confidence_threshold,
         },
     }

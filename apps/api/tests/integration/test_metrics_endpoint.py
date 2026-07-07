@@ -40,26 +40,6 @@ def test_e2e_metric_exposed():
     )
 
 
-def test_hitl_metrics_exposed():
-    """Test that HITL (Human-in-the-Loop) metrics are exposed.
-
-    These metrics track user interaction patterns in conversational HITL:
-    - Response time: How long users take to respond
-    - Edit decisions: How often users modify agent suggestions
-    - Rejections: Why users reject tool executions
-    """
-    response = client.get("/metrics")
-
-    # Response time metric
-    assert "hitl_user_response_time_seconds" in response.text
-
-    # Edit decisions metric
-    assert "hitl_edit_decisions_total" in response.text
-
-    # Tool rejection metric
-    assert "hitl_tool_rejections_by_reason_total" in response.text
-
-
 def test_context_resolution_metrics_exposed():
     """Test that context resolution metrics are exposed.
 
@@ -195,7 +175,6 @@ def test_metrics_no_sensitive_data():
     [
         ("e2e_request_duration_seconds", "histogram"),
         ("context_resolution_attempts_total", "counter"),
-        ("hitl_user_response_time_seconds", "histogram"),
     ],
 )
 def test_specific_metrics_have_correct_type(metric_name: str, metric_type: str):

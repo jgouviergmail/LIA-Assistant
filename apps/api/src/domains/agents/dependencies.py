@@ -35,6 +35,7 @@ Usage in graph execution:
 """
 
 import asyncio
+import inspect
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 from uuid import UUID
@@ -292,6 +293,35 @@ class ToolDependencies:
             "clearing_client_cache",
             cached_clients_count=len(self._clients_cache),
         )
+        self._clients_cache.clear()
+
+    async def aclose(self) -> None:
+        """
+        Close every cached client that exposes a ``close()`` and clear the cache.
+
+        Connector clients hold pooled ``httpx.AsyncClient`` instances; without a
+        deterministic close at the end of the run they leak keep-alive sockets
+        until garbage collection (same concern as the voice services' persistent
+        clients). Best-effort: a failing close on one client never blocks the
+        others.
+
+        Note: Does not close the DB session (owned by the caller).
+        """
+        for cache_key, client in list(self._clients_cache.items()):
+            close = getattr(client, "close", None)
+            if not callable(close):
+                continue
+            try:
+                result = close()
+                if inspect.isawaitable(result):
+                    await result
+            except Exception as close_err:  # noqa: BLE001 — best-effort cleanup
+                logger.warning(
+                    "tool_client_close_failed",
+                    client_type=type(client).__name__,
+                    cache_type=self._get_cache_type(cache_key),
+                    error=str(close_err),
+                )
         self._clients_cache.clear()
 
 

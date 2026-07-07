@@ -14,24 +14,29 @@ Authentication:
 Models available:
 - sonar: Fast, balanced model for search
 - sonar-pro: Advanced reasoning with citations
+
+Built on BaseAPIKeyClient (F4 migration): Redis-backed rate limiting with
+local fallback, circuit breaker, retry with backoff, connection pooling.
+The public contract is unchanged: methods RAISE on errors (callers catch
+broadly) and the search/ask result shapes are preserved.
 """
 
-import asyncio
 from typing import Any
 from uuid import UUID
 
-import httpx
 import structlog
 
 from src.core.config import settings
-from src.core.exceptions import MaxRetriesExceededError
+from src.domains.connectors.clients.base_api_key_client import BaseAPIKeyClient
+from src.domains.connectors.models import ConnectorType
+from src.domains.connectors.schemas import APIKeyCredentials
 
 logger = structlog.get_logger(__name__)
 
 # Note: Cache TTL centralized in src.core.constants.PERPLEXITY_SEARCH_CACHE_TTL
 
 
-class PerplexityClient:
+class PerplexityClient(BaseAPIKeyClient):
     """
     Client for Perplexity API.
 
@@ -46,7 +51,10 @@ class PerplexityClient:
         >>> print(result["answer"])
     """
 
+    connector_type = ConnectorType.PERPLEXITY
     api_base_url = "https://api.perplexity.ai"
+
+    # Bearer token auth (base defaults: Authorization / Bearer / header)
 
     def __init__(
         self,
@@ -62,61 +70,30 @@ class PerplexityClient:
 
         Args:
             api_key: Perplexity API key (starts with pplx-)
-            user_id: Optional user ID for logging
+            user_id: Optional user ID for logging and rate-limit scoping
             model: Model to use (sonar, sonar-pro)
             rate_limit_per_second: Max requests per second (None = use settings)
             user_timezone: User's timezone (default: UTC)
             user_language: User's language (default: fr)
         """
-        self.api_key = api_key
-        self.user_id = user_id
-        self.model = model
-        self.user_timezone = user_timezone
-        self.user_language = user_language
-        # Use settings if not explicitly provided
         effective_rate_limit = (
             rate_limit_per_second
             if rate_limit_per_second is not None
             else settings.client_rate_limit_perplexity_per_second
         )
-        self._rate_limit_interval = 1.0 / effective_rate_limit
-        self._last_request_time = 0.0
-        self._http_client: httpx.AsyncClient | None = None
+        super().__init__(
+            user_id=user_id,
+            credentials=APIKeyCredentials(api_key=api_key),
+            rate_limit_per_second=effective_rate_limit,
+        )
+        self.api_key = api_key
+        self.model = model
+        self.user_timezone = user_timezone
+        self.user_language = user_language
 
-    async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create reusable HTTP client."""
-        if self._http_client is None:
-            self._http_client = httpx.AsyncClient(
-                timeout=settings.http_timeout_perplexity,
-                limits=httpx.Limits(
-                    max_keepalive_connections=5,
-                    max_connections=10,
-                ),
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-            )
-        return self._http_client
-
-    async def close(self) -> None:
-        """Cleanup HTTP client."""
-        if self._http_client:
-            await self._http_client.aclose()
-            self._http_client = None
-
-    async def _rate_limit(self) -> None:
-        """Apply rate limiting."""
-        import time
-
-        now = time.monotonic()
-        elapsed = now - self._last_request_time
-
-        if elapsed < self._rate_limit_interval:
-            wait_time = self._rate_limit_interval - elapsed
-            await asyncio.sleep(wait_time)
-
-        self._last_request_time = time.monotonic()
+    def _get_http_timeout(self) -> float:
+        """Perplexity has a dedicated (LLM-latency) timeout setting."""
+        return float(settings.http_timeout_perplexity)
 
     # =========================================================================
     # SEARCH OPERATIONS
@@ -159,8 +136,6 @@ class PerplexityClient:
             >>> print(result["answer"])
             >>> print(result["citations"])
         """
-        await self._rate_limit()
-
         messages = []
         if system_prompt:
             messages.append(
@@ -189,8 +164,8 @@ class PerplexityClient:
 
         response = await self._make_request(
             "POST",
-            "/chat/completions",
-            json=payload,
+            "chat/completions",
+            json_data=payload,
         )
 
         # Extract answer and citations from response
@@ -252,8 +227,6 @@ class PerplexityClient:
             ...     system_prompt="You are an expert Python developer."
             ... )
         """
-        await self._rate_limit()
-
         messages = []
         if system_prompt:
             messages.append(
@@ -279,8 +252,8 @@ class PerplexityClient:
 
         response = await self._make_request(
             "POST",
-            "/chat/completions",
-            json=payload,
+            "chat/completions",
+            json_data=payload,
         )
 
         choices = response.get("choices", [])
@@ -309,85 +282,6 @@ class PerplexityClient:
     # =========================================================================
     # HELPER METHODS
     # =========================================================================
-
-    async def _make_request(
-        self,
-        method: str,
-        path: str,
-        json: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """
-        Make request to Perplexity API.
-
-        Args:
-            method: HTTP method
-            path: API path
-            json: Request body
-
-        Returns:
-            JSON response
-        """
-        client = await self._get_client()
-        url = f"{self.api_base_url}{path}"
-
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                response = await client.request(
-                    method,
-                    url,
-                    json=json,
-                )
-
-                if response.status_code == 429:
-                    wait_time = 5 * (attempt + 1)
-                    logger.warning(
-                        "perplexity_rate_limited",
-                        user_id=str(self.user_id) if self.user_id else None,
-                        attempt=attempt + 1,
-                        wait_seconds=wait_time,
-                    )
-                    await asyncio.sleep(wait_time)
-                    continue
-
-                response.raise_for_status()
-                result: dict[str, Any] = response.json()
-                return result
-
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 401:
-                    logger.error(
-                        "perplexity_auth_error",
-                        user_id=str(self.user_id) if self.user_id else None,
-                        message="Invalid API key",
-                    )
-                    raise ValueError("Invalid Perplexity API key") from e
-                raise
-
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    logger.error(
-                        "perplexity_request_failed",
-                        user_id=str(self.user_id) if self.user_id else None,
-                        error=str(e),
-                        error_type=type(e).__name__,
-                    )
-                    raise
-
-                wait_time = 2**attempt
-                logger.warning(
-                    "perplexity_request_retry",
-                    user_id=str(self.user_id) if self.user_id else None,
-                    attempt=attempt + 1,
-                    wait_seconds=wait_time,
-                )
-                await asyncio.sleep(wait_time)
-
-        # Should never reach here but satisfy type checker
-        raise MaxRetriesExceededError(
-            operation="perplexity_request",
-            max_retries=3,
-        )
 
     def set_model(self, model: str) -> None:
         """

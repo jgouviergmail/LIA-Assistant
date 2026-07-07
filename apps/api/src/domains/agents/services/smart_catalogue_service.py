@@ -32,7 +32,7 @@ from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
     from src.domains.agents.registry import AgentRegistry
-    from src.domains.agents.registry.manifest_builder import ToolManifest
+    from src.domains.agents.registry.catalogue import ToolManifest
 
 logger = get_logger(__name__)
 

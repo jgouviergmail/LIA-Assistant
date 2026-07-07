@@ -4,7 +4,7 @@ Orchestrates graph execution, streaming, and session management.
 
 Phase 3.3: Service-oriented architecture with dependency injection.
 Uses autonomous services: OrchestrationService, StreamingService,
-HITLOrchestrator, ConversationOrchestrator.
+ConversationOrchestrator.
 """
 
 import asyncio
@@ -102,8 +102,6 @@ class AgentService(
     - GraphManagementMixin: Graph lifecycle and lazy initialization
     - StreamingMixin: SSE streaming and event conversion
     - TokenTrackingMixin: Token aggregation and metadata enrichment
-
-    Uses HITLOrchestrator service for HITL flow management (classification, validation, resumption).
     """
 
     def __init__(self) -> None:
@@ -501,7 +499,11 @@ class AgentService(
 
         async with get_db_context() as warmup_db:
             warmup_deps = ToolDependencies(db_session=warmup_db)
-            await self._warmup_contacts_cache_if_active(user_id, warmup_deps)
+            try:
+                await self._warmup_contacts_cache_if_active(user_id, warmup_deps)
+            finally:
+                # Close the warmup's cached connector clients (pooled httpx).
+                await warmup_deps.aclose()
 
     async def stream_chat_response(
         self,
@@ -607,7 +609,7 @@ class AgentService(
         # === END LAST-KNOWN LOCATION CAPTURE ===
 
         # === PHASE 3.3 - Service Architecture (Migration Complete Day 7) ===
-        # Uses: OrchestrationService, StreamingService, ConversationOrchestrator, HITLOrchestrator
+        # Uses: OrchestrationService, StreamingService, ConversationOrchestrator
         async for chunk in self._stream_with_new_services(
             user_message,
             user_id,
@@ -663,7 +665,6 @@ class AgentService(
         - ConversationOrchestrator: Conversation lifecycle and setup
         - OrchestrationService: State loading + graph execution
         - StreamingService: SSE formatting and HITL detection
-        - HITLOrchestrator: HITL flow management and classification
 
         Args:
             user_message: User's message content.
@@ -2273,6 +2274,11 @@ class AgentService(
                             error=str(voice_close_err),
                         )
 
+                # Connector clients cached by ToolDependencies hold pooled
+                # httpx clients — close them deterministically at end of run
+                # (same rationale as the voice-service cleanup above).
+                await tool_deps.aclose()
+
             except Exception as e:
                 # Cleanup user MCP tools ContextVar on error (evolution F2.1)
                 cleanup_user_mcp_tools(_user_mcp_token)
@@ -2298,6 +2304,9 @@ class AgentService(
                     )
                     if voice_service_parallel is not None:
                         await voice_service_parallel.close()
+                    # Close connector clients cached by ToolDependencies
+                    # (aclose is itself best-effort per client).
+                    await tool_deps.aclose()
                 except Exception:  # noqa: BLE001 — best-effort
                     pass
 

@@ -128,7 +128,6 @@ class SearchContactsTool(ConnectorTool):
 ┌────────────────────┴────────────────────────────────────────┐
 │ Layer 4: MANIFESTS (Tool Declaration)                       │
 │ - ToolManifest (parameters, permissions, cost)              │
-│ - ToolManifestBuilder (fluent API)                          │
 │ - Catalogue (aggregation par domain)                        │
 │ - Single source of truth pour planner                       │
 └────────────────────┬────────────────────────────────────────┘
@@ -761,7 +760,8 @@ class ContactFormatter(BaseFormatter):
 
 ## 📋 Tool Manifests
 
-**Fichier** : `apps/api/src/domains/agents/registry/manifest_builder.py`
+**Fichier** : `apps/api/src/domains/agents/registry/catalogue.py` (schema) +
+`<domain>/catalogue_manifests.py` (déclarations)
 
 ### ToolManifest Schema
 
@@ -841,67 +841,13 @@ class ToolManifest:
     display: DisplayMetadata | None = None
 ```
 
-### ToolManifestBuilder (Fluent API)
+### Déclaration des manifests
 
-```python
-# apps/api/src/domains/agents/registry/manifest_builder.py
-
-class ToolManifestBuilder:
-    """
-    Builder pattern (fluent API) pour construction de manifests.
-    Immutable: chaque méthode retourne une nouvelle instance.
-
-    Usage :
-        manifest = (
-            ToolManifestBuilder("search_contacts_tool", "contact_agent")
-            .with_description("Search contacts by query")
-            .add_parameter("query", "string", required=True, description="Search query")
-            .add_parameter("max_results", "integer", description="Max results")
-            .add_output("contacts", "array", "List of contacts found")
-            .with_permissions(
-                required_scopes=["contacts.readonly"],
-                hitl_required=False,
-                data_classification="CONFIDENTIAL",
-            )
-            .with_cost_profile(
-                est_tokens_in=150, est_tokens_out=400,
-                est_cost_usd=0.001, est_latency_ms=500,
-            )
-            .with_context_key("contacts")
-            .build()
-        )
-    """
-
-    def __init__(self, name: str, agent: str, *, _manifest=None): ...
-
-    # Core
-    def with_description(self, description: str) -> Self: ...
-    def with_version(self, version: str) -> Self: ...
-    def with_maintainer(self, maintainer: str) -> Self: ...
-
-    # Parameters & Outputs
-    def add_parameter(self, name, type, required=False, description="", **constraints) -> Self: ...
-    def add_output(self, path, type, description="", nullable=False) -> Self: ...
-
-    # Cost & Performance
-    def with_cost_profile(self, est_tokens_in=0, est_tokens_out=0,
-                          est_cost_usd=0.0, est_latency_ms=0) -> Self: ...
-
-    # Security
-    def with_permissions(self, required_scopes=None, allowed_roles=None,
-                         hitl_required=False, data_classification=None) -> Self: ...
-    def with_hitl(self, data_classification="CONFIDENTIAL") -> Self: ...
-
-    # Behavior
-    def with_context_key(self, context_key: str) -> Self: ...
-    def with_reference_fields(self, fields: list[str]) -> Self: ...
-
-    # Presets (domain-agnostic)
-    def with_api_integration(self, provider, scopes, rate_limit=None) -> Self: ...
-
-    # Build
-    def build(self, validate=True) -> ToolManifest: ...
-```
+> **v1.21.16 (ADR-107)**: le `ToolManifestBuilder` (API fluent,
+> `registry/manifest_builder.py`) a été supprimé — aucun manifest de
+> production ne passait par lui. Les manifests sont déclarés directement en
+> dataclass `ToolManifest(...)` dans les `catalogue_manifests.py` de chaque
+> domaine, puis enregistrés dans l'`AgentRegistry` au chargement du catalogue.
 
 ---
 
@@ -1073,39 +1019,31 @@ class SearchContactsTool(ConnectorTool):
 
 ```python
 # apps/api/src/domains/agents/google_contacts/catalogue_manifests.py
+# Déclaration directe (v1.21.16+ — le builder fluent a été retiré, ADR-107)
 
-def build_search_contacts_manifest() -> ToolManifest:
-    """Build manifest pour search_contacts_tool."""
-    return (
-        ToolManifestBuilder("search_contacts_tool", "contact_agent")
-        .with_description("Recherche contacts Google par query (nom, email, téléphone, entreprise)")
-        .add_parameter("query", "string", required=True, description="Search query")
-        .add_parameter("max_results", "integer", description="Max results (1-50)")
-        .add_parameter("fields", "string", description="Field set: minimal, search, complete", enum=["minimal", "search", "complete"])
-        .add_parameter("force_refresh", "boolean", description="Bypass cache")
-        .with_permissions(
-            required_scopes=["https://www.googleapis.com/auth/contacts.readonly"],
-            hitl_required=False,
-            data_classification="CONFIDENTIAL",
-        )
-        .with_cost_profile(
-            est_tokens_in=150, est_tokens_out=400,
-            est_cost_usd=0.002, est_latency_ms=2000,
-        )
-        .with_context_key("contacts")
-        .build()
-    )
-
-# Register all manifests
-GOOGLE_CONTACTS_MANIFESTS = [
-    build_search_contacts_manifest(),
-    build_list_contacts_manifest(),
-    build_get_contact_details_manifest(),
-    build_create_contact_manifest(),
-    build_update_contact_manifest(),
-    build_delete_contact_manifest(),
-    build_resolve_reference_manifest(),
-]
+SEARCH_CONTACTS_MANIFEST = ToolManifest(
+    name="search_contacts_tool",
+    agent="contact_agent",
+    description="Recherche contacts Google par query (nom, email, téléphone, entreprise)",
+    parameters=[
+        ParameterSchema(name="query", type="string", required=True, description="Search query"),
+        ParameterSchema(name="max_results", type="integer", required=False,
+                        description="Max results (1-50)"),
+        ParameterSchema(name="fields", type="string", required=False,
+                        description="Field set: minimal, search, complete"),
+        ParameterSchema(name="force_refresh", type="boolean", required=False,
+                        description="Bypass cache"),
+    ],
+    outputs=[],
+    cost=CostProfile(est_tokens_in=150, est_tokens_out=400,
+                     est_cost_usd=0.0004, est_latency_ms=400),
+    permissions=PermissionProfile(
+        required_scopes=["https://www.googleapis.com/auth/contacts.readonly"],
+        hitl_required=False,
+        data_classification="CONFIDENTIAL",
+    ),
+    context_key="contacts",
+)
 ```
 
 ---
@@ -1421,26 +1359,22 @@ class GetWeatherTool(ConnectorTool):
 
 ```python
 # apps/api/src/domains/agents/my_domain/catalogue_manifests.py
+# Déclaration directe (v1.21.16+ — le builder fluent a été retiré, ADR-107)
 
-def build_get_weather_manifest() -> ToolManifest:
-    """Build manifest pour get_weather_tool."""
-    return (
-        ToolManifestBuilder("get_weather_tool", "weather_agent")
-        .with_description("Get current weather for a city")
-        .add_parameter("city", "string", required=True, description="City name")
-        .add_parameter("units", "string", description="Units: metric or imperial", enum=["metric", "imperial"])
-        .with_permissions(
-            required_scopes=[],  # No OAuth required
-            hitl_required=False,
-            data_classification="PUBLIC",
-        )
-        .with_cost_profile(
-            est_tokens_in=100, est_tokens_out=200,
-            est_cost_usd=0.0005, est_latency_ms=500,
-        )
-        .with_context_key("weathers")
-        .build()
-    )
+GET_WEATHER_MANIFEST = ToolManifest(
+    name="get_weather_tool",
+    agent="weather_agent",
+    description="Get current weather for a city",
+    parameters=[
+        ParameterSchema(name="city", type="string", required=True, description="City name"),
+        ParameterSchema(name="units", type="string", required=False,
+                        description="Units: metric or imperial"),
+    ],
+    outputs=[],
+    cost=CostProfile(),
+    permissions=PermissionProfile(required_scopes=[], hitl_required=False,
+                                  data_classification="PUBLIC"),
+)
 ```
 
 #### 3. Enregistrer dans le Catalogue
@@ -1768,7 +1702,7 @@ client = httpx.AsyncClient(
 - `apps/api/src/domains/agents/tools/formatters.py` - Formatters (Contacts, Emails, Calendar, etc.)
 - `apps/api/src/domains/agents/tools/runtime_helpers.py` - Helpers centralisés
 - `apps/api/src/domains/agents/tools/hue_tools.py` - Philips Hue smart home tools (6 tools)
-- `apps/api/src/domains/agents/registry/manifest_builder.py` - ToolManifestBuilder
+- `apps/api/src/domains/agents/registry/catalogue.py` - ToolManifest schema + registry types
 
 ### Fichiers Tools par Domaine
 - `apps/api/src/domains/agents/tools/google_contacts_tools.py` - Contacts (6 tools)

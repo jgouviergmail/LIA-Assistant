@@ -26,8 +26,6 @@ from src.domains.connectors.schemas import AppleCredentials
 from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
 from src.infrastructure.resilience import (
     CircuitBreaker,
-    CircuitBreakerError,
-    CircuitState,
     get_circuit_breaker,
 )
 
@@ -191,13 +189,10 @@ class BaseAppleClient(ABC):
         last_error: Exception | None = None
 
         # Check circuit breaker BEFORE entering retry loop.
-        # Use _should_allow_request() which handles OPEN→HALF_OPEN timeout transition,
-        # not is_open which blocks recovery.
-        if not await cb._should_allow_request():
-            raise CircuitBreakerError(
-                service=self.connector_type.value,
-                state=CircuitState.OPEN,
-            )
+        # check() handles the OPEN→HALF_OPEN timeout transition (unlike is_open,
+        # which would block recovery) and raises CircuitBreakerError with the
+        # actual state and a retry_after hint when the request is rejected.
+        await cb.check()
 
         for attempt in range(max_retries + 1):
             try:

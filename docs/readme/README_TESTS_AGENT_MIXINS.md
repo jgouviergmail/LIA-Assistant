@@ -42,7 +42,7 @@ The LIA agent system uses **minimal mixins for infrastructure concerns** only. B
 AgentService (561 lines) - Main orchestration
 ├── GraphManagementMixin (graph_management.py)
 │   ├── Lazy graph initialization from AgentRegistry
-│   ├── HITLOrchestrator instantiation with dependencies
+│   ├── HITL classifier + question generator initialization
 │   └── _ensure_graph_built() - Lazy build pattern
 │
 └── StreamingMixin (streaming.py)
@@ -50,7 +50,6 @@ AgentService (561 lines) - Main orchestration
 ```
 
 **Business Logic Services (Dependency Injection):**
-- **HITLOrchestrator** (1,002 lines) - HITL classification, approval decisions
 - **OrchestrationService** (502 lines) - Graph execution, state management
 - **StreamingService** (517 lines) - SSE formatting, HITL detection
 - **ConversationOrchestrator** (248 lines) - Conversation lifecycle, persistence
@@ -107,7 +106,7 @@ async def _ensure_graph_built(self) -> None:
 3. Build graph from registry → (CompiledStateGraph, AsyncPostgresStore)
 4. Initialize HITLClassifier (conversational context)
 5. Initialize HitlQuestionGenerator (POC implementation)
-6. Initialize HITLOrchestrator with dependencies:
+6. *(v1.21.16 — removed, ADR-107: the HITLOrchestrator ghost service is gone; the mixin now only initializes:)*
    - hitl_classifier
    - hitl_question_generator
    - hitl_store (Redis-backed with TTL)
@@ -121,7 +120,6 @@ async def _ensure_graph_built(self) -> None:
 - `self._store` - AsyncPostgresStore (LangGraph Store)
 - `self.hitl_classifier` - HitlResponseClassifier
 - `self.hitl_question_generator` - HitlQuestionGenerator
-- `self.hitl_orchestrator` - HITLOrchestrator (Phase 3.3)
 
 #### `_get_agents_bucket_label(agents_count: int)` - Metrics Helper
 
@@ -980,7 +978,6 @@ mock_tracker.get_summary_dto.return_value = TokenSummaryDTO(
 - [README.md](../../src/domains/agents/api/mixins/README.md) - Mixin architecture
 
 **Service Documentation:**
-- [HITLOrchestrator](../../src/domains/agents/services/hitl_orchestrator.py) - HITL business logic
 - [OrchestrationService](../../src/domains/agents/services/orchestration/service.py) - Graph execution
 - [StreamingService](../../src/domains/agents/services/streaming/service.py) - SSE formatting
 

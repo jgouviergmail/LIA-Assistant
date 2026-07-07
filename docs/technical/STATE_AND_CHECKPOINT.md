@@ -117,7 +117,6 @@ class MessagesState(TypedDict):
 
     # === HITL Approval (Phase 8) ===
     validation_result: Any | None  # ValidationResult from planner
-    approval_evaluation: Any | None  # ApprovalEvaluation from strategies
     plan_approved: bool | None  # Approval decision (True/False/None)
     plan_rejection_reason: str | None  # Rejection reason if plan_approved = False
 
@@ -610,7 +609,11 @@ validation_result = ValidationResult(
 
 ---
 
-#### 15. **approval_evaluation** (HITL - Phase 8)
+#### 15. **approval_evaluation** (removed in v1.21.16)
+
+> **v1.21.16 (ADR-107)**: the plan-approval strategy framework (`ApprovalEvaluator`, `services/approval/`), `PlanEditor` and the `approval_evaluation` state field were removed — dead since `approval_gate_node` became a pass-through (auto-approve; tool-level HITL supersedes plan-level, see ADR-106 and HITL.md).
+
+<details><summary>Historical description</summary>
 
 **Type**: `Any | None` (contient un `ApprovalEvaluation` object)
 
@@ -635,6 +638,8 @@ approval_evaluation = ApprovalEvaluation(
 ```
 
 ---
+
+</details>
 
 #### 16. **plan_approved** (HITL - Phase 8)
 
@@ -1216,7 +1221,11 @@ result = await graph.ainvoke(
 **Approval Gate Node**:
 ```python
 async def approval_gate_node(state: MessagesState) -> Command:
-    """HITL approval gate before plan execution."""
+    """HITL approval gate before plan execution.
+
+    NOTE (v1.21.16): historical example — the node is a pass-through today
+    and the ApprovalEvaluator no longer exists (ADR-107).
+    """
 
     # 1. Evaluate if approval needed
     evaluator = ApprovalEvaluator(strategies=[...])

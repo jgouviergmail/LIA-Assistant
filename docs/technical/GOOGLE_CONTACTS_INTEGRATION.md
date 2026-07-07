@@ -1164,7 +1164,6 @@ async with GooglePeopleClient(user_id, credentials, connector_service) as client
 
 **Tools** :
 - `apps/api/src/domains/agents/tools/google_contacts_tools.py` (1200+ lignes)
-- `apps/api/src/domains/agents/tools/contacts_models.py` (326 lignes)
 - `apps/api/src/domains/agents/tools/formatters.py` (ContactsFormatter)
 
 **Manifests** :

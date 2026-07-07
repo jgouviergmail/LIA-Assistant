@@ -31,10 +31,14 @@ from uuid import UUID
 
 import httpx
 import structlog
-from fastapi import HTTPException, status
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_RATE_LIMIT_PER_SECOND
+from src.core.exceptions import (
+    ExternalServiceError,
+    MaxRetriesExceededError,
+    RateLimitError,
+)
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
 from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
@@ -80,20 +84,24 @@ class BaseAPIKeyClient(ABC):
     auth_header_prefix: str = "Bearer"
     auth_method: str = "header"  # "header" or "query"
     auth_query_param: str = "api_key"  # Used if auth_method == "query"
+    follow_redirects: bool = False  # Some APIs (e.g. Brave) redirect on search
 
     def __init__(
         self,
-        user_id: UUID,
+        user_id: UUID | None,
         credentials: "APIKeyCredentials",
-        rate_limit_per_second: int = DEFAULT_RATE_LIMIT_PER_SECOND,
+        rate_limit_per_second: float = DEFAULT_RATE_LIMIT_PER_SECOND,
     ) -> None:
         """
         Initialize API Key client.
 
         Args:
-            user_id: User ID for logging and tracking.
+            user_id: User ID for logging and rate-limit scoping. ``None`` is
+                allowed for system-level callers (e.g. reverse geocoding);
+                their requests share one anonymous rate-limit bucket.
             credentials: API key credentials (decrypted).
             rate_limit_per_second: Maximum requests per second (default: 10).
+                Accepts fractional rates (e.g. 0.9 for free-tier APIs).
         """
         self.user_id = user_id
         self.credentials = credentials
@@ -104,6 +112,18 @@ class BaseAPIKeyClient(ABC):
         self._circuit_breaker: CircuitBreaker | None = None
         self._redis_rate_limiter: RedisRateLimiter | None = None
 
+    def _get_http_timeout(self) -> float:
+        """
+        HTTP timeout for this client (seconds).
+
+        Override in subclasses whose API has a dedicated timeout setting
+        (e.g. ``settings.http_timeout_brave_search``).
+
+        Returns:
+            Timeout in seconds (default: the long connector timeout).
+        """
+        return float(settings.http_timeout_connector_long)
+
     async def _get_client(self) -> httpx.AsyncClient:
         """
         Get or create reusable HTTP client with connection pooling.
@@ -113,7 +133,8 @@ class BaseAPIKeyClient(ABC):
         """
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(
-                timeout=settings.http_timeout_connector_long,
+                timeout=self._get_http_timeout(),
+                follow_redirects=self.follow_redirects,
                 limits=httpx.Limits(
                     max_keepalive_connections=20,
                     max_connections=100,
@@ -208,8 +229,10 @@ class BaseAPIKeyClient(ABC):
             limiter = await self._get_redis_rate_limiter()
             rate_limit_key = self._get_rate_limit_key()
 
-            # Convert per-second limit to per-minute for sliding window
-            max_calls = self._rate_limit_per_second * 60
+            # Convert per-second limit to per-minute for sliding window.
+            # int() for the Redis limiter contract; max(1, ...) so fractional
+            # rates (e.g. 0.01/s) never collapse to a zero-call window.
+            max_calls = max(1, int(self._rate_limit_per_second * 60))
             window_seconds = 60
 
             # Try to acquire rate limit token with retries
@@ -280,13 +303,16 @@ class BaseAPIKeyClient(ABC):
 
     def _on_rate_limit_exceeded(self) -> None:
         """
-        Called when rate limit is exceeded after all retries.
+        Called when the client-side rate limit is exceeded after all retries.
 
-        Raises HTTPException with 429 status code.
+        Raises:
+            RateLimitError: 429 with the effective per-minute limit.
         """
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Rate limit exceeded for {self.connector_type.value}. Please try again later.",
+        raise RateLimitError(
+            limit=max(1, int(self._rate_limit_per_second * 60)),
+            window_seconds=60,
+            retry_after=60,
+            connector_type=self.connector_type.value,
         )
 
     def _build_auth_headers(self) -> dict[str, str]:
@@ -372,15 +398,20 @@ class BaseAPIKeyClient(ABC):
             Parsed JSON response.
 
         Raises:
-            HTTPException: On API errors after retries exhausted, or if circuit breaker is open.
+            ExternalServiceError: If the circuit breaker is open, or on
+                authentication errors (401/403 — invalid or expired API key).
+            httpx.HTTPStatusError: On non-auth 4xx client errors.
+            MaxRetriesExceededError: When retries are exhausted
+                (429 rate limiting, 5xx server errors, or network errors).
+            ValueError: On unsupported HTTP method.
         """
+        operation = f"{self.connector_type.value} {method.upper()} {endpoint}"
+
         # Check circuit breaker first (fail fast if service is down)
         if self._is_circuit_breaker_enabled():
             cb = self._get_circuit_breaker()
             try:
-                async with cb._lock:
-                    if not await cb._should_allow_request():
-                        await cb._reject_request()
+                await cb.check()
             except CircuitBreakerError as e:
                 logger.warning(
                     "circuit_breaker_rejected_request",
@@ -390,10 +421,14 @@ class BaseAPIKeyClient(ABC):
                     user_id=str(self.user_id),
                     retry_after=e.retry_after,
                 )
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=f"{self.connector_type.value} service temporarily unavailable. Please try again later.",
-                    headers={"Retry-After": str(int(e.retry_after))} if e.retry_after else None,
+                raise ExternalServiceError(
+                    service_name=self.connector_type.value,
+                    detail=(
+                        f"{self.connector_type.value} service temporarily unavailable"
+                        " (circuit open). Please try again later."
+                    ),
+                    error_type="circuit_open",
+                    retry_after=e.retry_after,
                 ) from e
 
         # Apply rate limiting
@@ -411,6 +446,7 @@ class BaseAPIKeyClient(ABC):
             params = auth_params if auth_params else None
 
         client = await self._get_client()
+        last_error: Exception | None = None
 
         for attempt in range(max_retries):
             try:
@@ -434,11 +470,20 @@ class BaseAPIKeyClient(ABC):
 
                 # Handle rate limit (429) - record failure for circuit breaker
                 if response.status_code == 429:
+                    last_error = Exception("Rate limited: HTTP 429")
                     if self._is_circuit_breaker_enabled():
-                        await self._get_circuit_breaker().record_failure(
-                            Exception("Rate limited: HTTP 429")
+                        await self._get_circuit_breaker().record_failure(last_error)
+                    # RFC 7231 allows Retry-After to be an HTTP-date; fall back
+                    # to exponential backoff when it is not delta-seconds.
+                    retry_after_header = response.headers.get("Retry-After")
+                    try:
+                        wait_time = (
+                            int(retry_after_header)
+                            if retry_after_header is not None
+                            else 2**attempt
                         )
-                    wait_time = int(response.headers.get("Retry-After", 2**attempt))
+                    except ValueError:
+                        wait_time = 2**attempt
                     logger.warning(
                         "api_rate_limited_retrying",
                         user_id=str(self.user_id),
@@ -451,10 +496,9 @@ class BaseAPIKeyClient(ABC):
 
                 # Handle server errors (5xx) - retry and record failure for circuit breaker
                 if response.status_code >= 500:
+                    last_error = Exception(f"Server error: HTTP {response.status_code}")
                     if self._is_circuit_breaker_enabled():
-                        await self._get_circuit_breaker().record_failure(
-                            Exception(f"Server error: HTTP {response.status_code}")
-                        )
+                        await self._get_circuit_breaker().record_failure(last_error)
                     wait_time = 2**attempt
                     logger.warning(
                         "api_server_error_retrying",
@@ -479,9 +523,11 @@ class BaseAPIKeyClient(ABC):
                         status_code=response.status_code,
                         masked_key=self._mask_api_key(self.credentials.api_key),
                     )
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
+                    raise ExternalServiceError(
+                        service_name=self.connector_type.value,
                         detail=f"{self.connector_type.value}: Invalid or expired API key",
+                        error_type="unauthorized",
+                        http_status=response.status_code,
                     )
 
                 # Handle other client errors (4xx) - no retry, record success (valid response)
@@ -497,21 +543,42 @@ class BaseAPIKeyClient(ABC):
                         status_code=response.status_code,
                         error=error_detail,
                     )
-                    raise HTTPException(
-                        status_code=response.status_code,
-                        detail=f"{self.connector_type.value} API error: {error_detail}",
+                    raise httpx.HTTPStatusError(
+                        f"{operation}: HTTP {response.status_code} - {error_detail}",
+                        request=response.request,
+                        response=response,
                     )
 
-                # Success - record for circuit breaker and parse JSON response
+                # Success - parse BEFORE recording success: a malformed body on
+                # a 200 is a service failure, retried like a transient error.
+                if not response.text:
+                    if self._is_circuit_breaker_enabled():
+                        await self._get_circuit_breaker().record_success()
+                    return {}
+                try:
+                    result: dict[str, Any] = response.json()
+                except ValueError as decode_err:  # json.JSONDecodeError
+                    last_error = decode_err
+                    if self._is_circuit_breaker_enabled():
+                        await self._get_circuit_breaker().record_failure(decode_err)
+                    wait_time = 2**attempt
+                    logger.warning(
+                        "api_response_decode_error_retrying",
+                        user_id=str(self.user_id),
+                        connector_type=self.connector_type.value,
+                        attempt=attempt + 1,
+                        wait_time=wait_time,
+                        error=str(decode_err),
+                    )
+                    await asyncio.sleep(wait_time)
+                    continue
                 if self._is_circuit_breaker_enabled():
                     await self._get_circuit_breaker().record_success()
-                if response.text:
-                    result: dict[str, Any] = response.json()
-                    return result
-                return {}
+                return result
 
             except httpx.RequestError as e:
                 # Network errors should trip the circuit breaker
+                last_error = e
                 if self._is_circuit_breaker_enabled():
                     await self._get_circuit_breaker().record_failure(e)
                 wait_time = 2**attempt
@@ -524,14 +591,16 @@ class BaseAPIKeyClient(ABC):
                     wait_time=wait_time,
                 )
                 if attempt == max_retries - 1:
-                    raise HTTPException(
-                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                        detail=f"{self.connector_type.value} API unavailable: {e!s}",
+                    raise MaxRetriesExceededError(
+                        operation=operation,
+                        max_retries=max_retries,
+                        last_error=e,
                     ) from e
                 await asyncio.sleep(wait_time)
 
-        # Max retries exceeded
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"{self.connector_type.value} API: max retries exceeded",
+        # Max retries exceeded (429 or 5xx responses on every attempt)
+        raise MaxRetriesExceededError(
+            operation=operation,
+            max_retries=max_retries,
+            last_error=last_error,
         )

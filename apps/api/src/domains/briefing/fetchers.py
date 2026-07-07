@@ -30,6 +30,7 @@ from src.core.constants import (
     GMAIL_FORMAT_METADATA,
     HEALTH_METRICS_USER_TOGGLE_ATTR,
 )
+from src.core.exceptions import MaxRetriesExceededError
 from src.domains.auth.models import User
 from src.domains.auth.user_location_service import (
     NoLocationAvailableError,
@@ -144,8 +145,11 @@ async def fetch_weather(
             resolve_city_name(lat=location.lat, lon=location.lon, api_key=credentials.api_key),
             return_exceptions=False,
         )
-    except (TimeoutError, httpx.HTTPError) as exc:
-        raise ConnectorAccessError("openweathermap", _classify_http_error(exc), str(exc)) from exc
+    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError) as exc:
+        # MaxRetriesExceededError: retry-exhaustion from the migrated OWM client
+        # (BaseAPIKeyClient); classify from the underlying cause when available.
+        cause = getattr(exc, "last_error", None) or exc
+        raise ConnectorAccessError("openweathermap", _classify_http_error(cause), str(exc)) from exc
     finally:
         await client.close()
 

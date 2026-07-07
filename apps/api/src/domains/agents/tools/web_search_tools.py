@@ -223,25 +223,29 @@ async def _search_perplexity(
                 user_language=user_language,
             )
 
-            # Build system prompt with datetime context
-            current_datetime = get_current_datetime_context(
-                timezone_str=user_timezone,
-                language=user_language,
-            )
-            system_prompt = f"Current date and time: {current_datetime}"
+            try:
+                # Build system prompt with datetime context
+                current_datetime = get_current_datetime_context(
+                    timezone_str=user_timezone,
+                    language=user_language,
+                )
+                system_prompt = f"Current date and time: {current_datetime}"
 
-            # Convert recency filter
-            recency_filter = None
-            if recency in {"day", "week", "month", "year"}:
-                recency_filter = recency
+                # Convert recency filter
+                recency_filter = None
+                if recency in {"day", "week", "month", "year"}:
+                    recency_filter = recency
 
-            result = await client.search(
-                query=query,
-                search_recency_filter=recency_filter,
-                return_citations=True,
-                return_related_questions=True,
-                system_prompt=system_prompt,
-            )
+                result = await client.search(
+                    query=query,
+                    search_recency_filter=recency_filter,
+                    return_citations=True,
+                    return_related_questions=True,
+                    system_prompt=system_prompt,
+                )
+            finally:
+                # Deterministic close of the pooled httpx client (leak fix)
+                await client.close()
 
             logger.info(
                 "perplexity_search_success",
@@ -301,12 +305,16 @@ async def _search_brave(
                 user_id=user_uuid,
             )
 
-            result = await client.search(
-                query=query,
-                endpoint=endpoint,
-                count=count,
-                freshness=freshness,
-            )
+            try:
+                result = await client.search(
+                    query=query,
+                    endpoint=endpoint,
+                    count=count,
+                    freshness=freshness,
+                )
+            finally:
+                # Deterministic close of the pooled httpx client (leak fix)
+                await client.close()
 
             if not result:
                 return []

@@ -2943,6 +2943,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_16": {
+          "title": "v1.21.16 — 🧹 Major internal cleanup",
+          "date": "July 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🧹 A leaner, safer engine</b> — Around 13,600 lines of inactive code (old mechanisms that were never used) were removed after exhaustive verification, and the admin dashboards were cleared of their empty panels. LIA becomes simpler to maintain and evolve, with no visible change.",
+            "i2": "<b>🌐 More robust web search and weather</b> — The connections to Brave, weather and Perplexity now share a hardened common foundation: smart retries on transient errors, a circuit breaker that stops insisting when an external service is down, fairer request pacing, and a fix for a connection leak that could build up over time."
+          }
+        },
         "v1_21_15": {
           "title": "v1.21.15 — 🛠️ Sturdier under the hood",
           "date": "July 2026",

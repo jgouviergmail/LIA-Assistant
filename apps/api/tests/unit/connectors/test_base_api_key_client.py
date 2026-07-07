@@ -10,11 +10,16 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from fastapi import HTTPException, status
 
+from src.core.exceptions import (
+    ExternalServiceError,
+    MaxRetriesExceededError,
+    RateLimitError,
+)
 from src.domains.connectors.clients.base_api_key_client import BaseAPIKeyClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
+from src.infrastructure.resilience.circuit_breaker import CircuitBreakerError, CircuitState
 
 
 # Mock concrete implementation for testing
@@ -23,6 +28,21 @@ class MockAPIKeyClient(BaseAPIKeyClient):
     api_base_url = "https://api.example.com/v1"
     auth_header_name = "Authorization"
     auth_header_prefix = "Bearer"
+
+
+@pytest.fixture(autouse=True)
+def _fresh_circuit_breaker():
+    """Isolate the global circuit-breaker registry between tests.
+
+    The breaker for "apikey_google_gmail" is a process-global singleton;
+    without a reset, record_failure() calls accumulate across tests and can
+    open the circuit mid-file (order-dependent failures).
+    """
+    from src.infrastructure.resilience.circuit_breaker import CircuitBreakerRegistry
+
+    CircuitBreakerRegistry.clear()
+    yield
+    CircuitBreakerRegistry.clear()
 
 
 @pytest.fixture
@@ -61,6 +81,17 @@ class TestClientInitialization:
         assert client._rate_limit_per_second == 20
         assert client._rate_limit_interval == 1.0 / 20
         assert client._http_client is None
+
+    def test_init_accepts_fractional_rate_limit(self, user_id, valid_credentials):
+        """Test fractional per-second rates (free-tier APIs, e.g. 0.9 req/s)."""
+        client = MockAPIKeyClient(
+            user_id=user_id,
+            credentials=valid_credentials,
+            rate_limit_per_second=0.9,
+        )
+
+        assert client._rate_limit_per_second == 0.9
+        assert client._rate_limit_interval == pytest.approx(1.0 / 0.9)
 
 
 class TestHttpClient:
@@ -123,6 +154,38 @@ class TestRateLimiting:
         with patch.object(client, "_get_redis_rate_limiter", AsyncMock(return_value=mock_limiter)):
             await client._rate_limit()
             # Should not throttle (0.2s > 0.1s interval for 10 req/s)
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_converts_fractional_rate_to_int_max_calls(
+        self, user_id, valid_credentials
+    ):
+        """Test the Redis limiter receives an int max_calls for fractional rates."""
+        client = MockAPIKeyClient(
+            user_id=user_id,
+            credentials=valid_credentials,
+            rate_limit_per_second=0.9,
+        )
+
+        mock_limiter = AsyncMock()
+        mock_limiter.acquire.return_value = True
+        with (
+            patch.object(client, "_get_redis_rate_limiter", AsyncMock(return_value=mock_limiter)),
+            patch("src.domains.connectors.clients.base_api_key_client.settings") as mock_settings,
+        ):
+            mock_settings.rate_limit_enabled = True
+            await client._rate_limit()
+
+        call_kwargs = mock_limiter.acquire.call_args.kwargs
+        assert call_kwargs["max_calls"] == 54  # int(0.9 * 60)
+        assert isinstance(call_kwargs["max_calls"], int)
+
+    def test_on_rate_limit_exceeded_raises_rate_limit_error(self, client):
+        """Test client-side rate-limit exhaustion raises the domain RateLimitError."""
+        with pytest.raises(RateLimitError) as exc_info:
+            client._on_rate_limit_exceeded()
+
+        assert exc_info.value.limit == 600  # 10 req/s * 60
+        assert exc_info.value.window_seconds == 60
 
 
 class TestAuthHeaders:
@@ -344,8 +407,8 @@ class TestMakeRequest:
         assert mock_http_client.get.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_make_request_raises_401_on_auth_error(self, client):
-        """Test request raises 401 on authentication error."""
+    async def test_make_request_raises_external_service_error_on_auth_error(self, client):
+        """Test request raises ExternalServiceError on 401 authentication error."""
         mock_response = Mock()
         mock_response.status_code = 401
 
@@ -354,14 +417,14 @@ class TestMakeRequest:
         client._http_client = mock_http_client
 
         with patch.object(client, "_rate_limit", AsyncMock()):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(ExternalServiceError) as exc_info:
                 await client._make_request("GET", "/test")
 
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert "Invalid or expired API key" in exc_info.value.detail
 
     @pytest.mark.asyncio
-    async def test_make_request_raises_403_on_forbidden(self, client):
-        """Test request raises 401 on 403 forbidden error."""
+    async def test_make_request_raises_external_service_error_on_forbidden(self, client):
+        """Test request raises ExternalServiceError on 403 forbidden error."""
         mock_response = Mock()
         mock_response.status_code = 403
 
@@ -370,14 +433,14 @@ class TestMakeRequest:
         client._http_client = mock_http_client
 
         with patch.object(client, "_rate_limit", AsyncMock()):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(ExternalServiceError) as exc_info:
                 await client._make_request("GET", "/test")
 
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert "Invalid or expired API key" in exc_info.value.detail
 
     @pytest.mark.asyncio
     async def test_make_request_raises_on_other_4xx_errors(self, client):
-        """Test request raises HTTPException on other 4xx errors."""
+        """Test request raises httpx.HTTPStatusError on non-auth 4xx errors."""
         mock_response = Mock()
         mock_response.status_code = 400
         mock_response.text = "Bad Request"
@@ -387,10 +450,11 @@ class TestMakeRequest:
         client._http_client = mock_http_client
 
         with patch.object(client, "_rate_limit", AsyncMock()):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(httpx.HTTPStatusError) as exc_info:
                 await client._make_request("GET", "/test")
 
-        assert exc_info.value.status_code == 400
+        assert exc_info.value.response.status_code == 400
+        assert "Bad Request" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_make_request_handles_network_error(self, client):
@@ -414,17 +478,128 @@ class TestMakeRequest:
         assert mock_http_client.get.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_make_request_raises_503_on_max_network_errors(self, client):
-        """Test request raises 503 when network errors exceed max retries."""
+    async def test_make_request_raises_max_retries_on_network_errors(self, client):
+        """Test request raises MaxRetriesExceededError when network errors exceed retries."""
         mock_http_client = AsyncMock()
         mock_http_client.get = AsyncMock(side_effect=httpx.RequestError("Network error"))
         client._http_client = mock_http_client
 
         with patch.object(client, "_rate_limit", AsyncMock()):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(MaxRetriesExceededError) as exc_info:
                 await client._make_request("GET", "/test", max_retries=3)
 
-        assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert exc_info.value.max_retries == 3
+        assert isinstance(exc_info.value.last_error, httpx.RequestError)
+
+    @pytest.mark.asyncio
+    async def test_make_request_raises_max_retries_on_persistent_429(self, client):
+        """Test request raises MaxRetriesExceededError when every attempt is rate limited."""
+        mock_response_429 = Mock()
+        mock_response_429.status_code = 429
+        mock_response_429.headers = {"Retry-After": "0"}
+
+        mock_http_client = AsyncMock()
+        mock_http_client.get = AsyncMock(return_value=mock_response_429)
+        client._http_client = mock_http_client
+
+        with patch.object(client, "_rate_limit", AsyncMock()):
+            with pytest.raises(MaxRetriesExceededError) as exc_info:
+                await client._make_request("GET", "/test", max_retries=2)
+
+        assert exc_info.value.max_retries == 2
+        assert "429" in str(exc_info.value.last_error)
+
+    @pytest.mark.asyncio
+    async def test_retry_after_http_date_falls_back_to_backoff(self, client):
+        """A non-numeric Retry-After (RFC 7231 HTTP-date) must not crash the retry loop."""
+        mock_response_429 = Mock()
+        mock_response_429.status_code = 429
+        mock_response_429.headers = {"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}
+
+        mock_response_200 = Mock()
+        mock_response_200.status_code = 200
+        mock_response_200.text = '{"result": "success"}'
+        mock_response_200.json.return_value = {"result": "success"}
+
+        mock_http_client = AsyncMock()
+        mock_http_client.get = AsyncMock(side_effect=[mock_response_429, mock_response_200])
+        client._http_client = mock_http_client
+
+        with (
+            patch.object(client, "_rate_limit", AsyncMock()),
+            patch(
+                "src.domains.connectors.clients.base_api_key_client.asyncio.sleep",
+                new=AsyncMock(),
+            ),
+        ):
+            result = await client._make_request("GET", "/test")
+
+        assert result == {"result": "success"}
+        assert mock_http_client.get.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_malformed_json_is_retried_then_succeeds(self, client):
+        """A malformed 200 body is retried like a transient failure."""
+        mock_bad = Mock()
+        mock_bad.status_code = 200
+        mock_bad.text = "<html>gateway garbage</html>"
+        mock_bad.json.side_effect = ValueError("Expecting value")
+
+        mock_ok = Mock()
+        mock_ok.status_code = 200
+        mock_ok.text = '{"result": "success"}'
+        mock_ok.json.return_value = {"result": "success"}
+
+        mock_http_client = AsyncMock()
+        mock_http_client.get = AsyncMock(side_effect=[mock_bad, mock_ok])
+        client._http_client = mock_http_client
+
+        with patch.object(client, "_rate_limit", AsyncMock()):
+            result = await client._make_request("GET", "/test")
+
+        assert result == {"result": "success"}
+        assert mock_http_client.get.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_persistent_malformed_json_raises_max_retries(self, client):
+        """Persistently malformed bodies exhaust retries with the decode error kept."""
+        mock_bad = Mock()
+        mock_bad.status_code = 200
+        mock_bad.text = "not-json"
+        mock_bad.json.side_effect = ValueError("Expecting value")
+
+        mock_http_client = AsyncMock()
+        mock_http_client.get = AsyncMock(return_value=mock_bad)
+        client._http_client = mock_http_client
+
+        with patch.object(client, "_rate_limit", AsyncMock()):
+            with pytest.raises(MaxRetriesExceededError) as exc_info:
+                await client._make_request("GET", "/test", max_retries=2)
+
+        assert exc_info.value.max_retries == 2
+        assert isinstance(exc_info.value.last_error, ValueError)
+
+    @pytest.mark.asyncio
+    async def test_make_request_raises_external_service_error_when_circuit_open(self, client):
+        """Test request fails fast with ExternalServiceError when circuit is open."""
+        mock_cb = Mock()
+        mock_cb.check = AsyncMock(
+            side_effect=CircuitBreakerError(
+                service="apikey_google_gmail",
+                state=CircuitState.OPEN,
+                retry_after=12.5,
+            )
+        )
+
+        with (
+            patch.object(client, "_get_circuit_breaker", return_value=mock_cb),
+            patch.object(client, "_rate_limit", AsyncMock()),
+        ):
+            with pytest.raises(ExternalServiceError) as exc_info:
+                await client._make_request("GET", "/test")
+
+        assert "circuit open" in exc_info.value.detail
+        mock_cb.check.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_make_request_returns_empty_dict_on_no_content(self, client):

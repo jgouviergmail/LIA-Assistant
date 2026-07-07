@@ -173,7 +173,6 @@ langgraph_graph_interrupts_total = Counter(
     ["interrupt_type"],
     # interrupt_type: plan_approval/tool_approval
     # Track HITL intervention points
-    # Complement hitl_plan_approval_requests_total (HITL-specific metrics)
 )
 
 

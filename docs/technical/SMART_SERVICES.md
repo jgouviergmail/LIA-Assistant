@@ -895,11 +895,9 @@ Six modeles Pydantic typesafe organisent la configuration :
 | Modele | Usage | Factory Function |
 |--------|-------|------------------|
 | `V3RoutingConfig` | QueryAnalyzerService - seuils routing | `get_v3_routing_config()` |
-| `V3ExecutorConfig` | AutonomousExecutor - circuit breaker | `get_v3_executor_config()` |
-| `V3RelevanceConfig` | RelevanceEngine - ranking | `get_v3_relevance_config()` |
-| `V3FeedbackLoopConfig` | FeedbackLoopService - learning | `get_v3_feedback_loop_config()` |
 | `V3DisplayConfig` | Formatage reponses | `get_v3_display_config()` |
-| `V3PromptConfig` | Versions prompts v3 | `get_v3_prompt_config()` |
+
+> Note: `V3ExecutorConfig`, `V3RelevanceConfig`, `V3FeedbackLoopConfig` and `V3PromptConfig` were removed in v1.21.16 together with the dead v3 autonomy engines (ADR-107).
 
 ### Variables .env - QueryAnalyzerService LLM
 

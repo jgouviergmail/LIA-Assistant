@@ -2425,57 +2425,6 @@ USER_PREFERENCES_CACHE_MAX_ENTRIES = 10_000
 # No feature flags needed - legacy nodes have been removed.
 
 # -----------------------------------------------------------------------------
-# V3 AUTONOMOUS EXECUTOR - Self-healing execution with safeguards
-# -----------------------------------------------------------------------------
-# Reference: services/autonomous_executor.py
-# SAFEGUARDS ANTI-LOOP: Prevents infinite recovery loops
-
-# Max recovery attempts per individual step
-# Higher = more resilient, but risks longer execution
-V3_EXECUTOR_MAX_RECOVERY_PER_STEP = 2
-
-# Max total recoveries for entire plan execution
-# Hard limit across all steps combined
-V3_EXECUTOR_MAX_TOTAL_RECOVERIES = 6
-
-# Global timeout for recovery operations (milliseconds)
-# Prevents runaway recovery attempts
-V3_EXECUTOR_RECOVERY_TIMEOUT_MS = 15000
-
-# Circuit breaker threshold: after N consecutive failures, stop trying
-# Prevents cascading failures
-V3_EXECUTOR_CIRCUIT_BREAKER_THRESHOLD = 2
-
-# -----------------------------------------------------------------------------
-# V3 RELEVANCE ENGINE - Smart result ranking
-# -----------------------------------------------------------------------------
-# Reference: services/relevance_engine.py
-# Episodic memory-based scoring for personalized results
-
-# Score threshold for primary results (0.0 - 1.0)
-# Results above this are marked as "primary" (highly relevant)
-V3_RELEVANCE_PRIMARY_THRESHOLD = 0.7
-
-# Minimum score threshold (0.0 - 1.0)
-# Results below this are filtered out completely
-V3_RELEVANCE_MINIMUM_THRESHOLD = 0.3
-
-# -----------------------------------------------------------------------------
-# V3 FEEDBACK LOOP - Learning from recovery patterns
-# -----------------------------------------------------------------------------
-# Reference: services/feedback_loop.py
-# Stores recovery patterns for preemptive strategy suggestions
-
-# Maximum recovery records to keep in memory
-V3_FEEDBACK_LOOP_MAX_RECORDS = 1000
-
-# Minimum samples needed before suggesting a strategy
-V3_FEEDBACK_LOOP_MIN_SAMPLES = 3
-
-# Confidence threshold for strategy suggestions (0.0 - 1.0)
-V3_FEEDBACK_LOOP_CONFIDENCE_THRESHOLD = 0.6
-
-# -----------------------------------------------------------------------------
 # V3 SMART CATALOGUE - Token estimation for filtering
 # -----------------------------------------------------------------------------
 # Reference: services/smart_catalogue_service.py

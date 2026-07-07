@@ -6,7 +6,7 @@
 
 **Versione**: 2.4
 **Data**: 2026-05-08
-**Applicazione**: LIA v1.21.15
+**Applicazione**: LIA v1.21.16
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 400+ metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 99 ADR, ~10.000 test raccolti da pytest in 484 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 101 ADR, ~10.000 test raccolti da pytest in 484 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -74,7 +74,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Test | ~10.000 (raccolti da pytest su 484 file di test) + 41 test vitest sul frontend |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 280+ |
-| ADR (Architecture Decision Record) | 81 |
+| ADR (Architecture Decision Record) | 101 |
 | Metriche Prometheus | 400+ definizioni |
 | Dashboard Grafana | 21 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -953,7 +953,7 @@ LIA accetta ingestioni di eventi esterni (misurazioni iPhone Apple Health, paylo
 
 ## 24. Architettura delle decisioni (ADR)
 
-99 ADR in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+101 ADR in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1007,10 +1007,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-Gli 99 ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~10.000 test in 484 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+Gli 101 ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~10.000 test in 484 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 99 ADR e del changelog (da v1.0 a v1.21.15). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 101 ADR e del changelog (da v1.0 a v1.21.16). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

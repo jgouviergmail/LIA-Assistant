@@ -51,10 +51,10 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from fastapi import HTTPException, status
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_RATE_LIMIT_PER_SECOND
+from src.core.exceptions import ExternalServiceError, MaxRetriesExceededError
 from src.domains.connectors.clients.base_api_key_client import BaseAPIKeyClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
@@ -95,7 +95,7 @@ class ${name_class}Client(BaseAPIKeyClient):
         self,
         user_id: UUID,
         credentials: APIKeyCredentials,
-        rate_limit_per_second: int = DEFAULT_RATE_LIMIT_PER_SECOND,
+        rate_limit_per_second: float = DEFAULT_RATE_LIMIT_PER_SECOND,
     ) -> None:
         """
         Initialize ${name_title} client.
@@ -103,7 +103,7 @@ class ${name_class}Client(BaseAPIKeyClient):
         Args:
             user_id: User ID for logging and tracking.
             credentials: API key credentials (decrypted).
-            rate_limit_per_second: Maximum requests per second.
+            rate_limit_per_second: Maximum requests per second (fractional rates allowed).
         """
         super().__init__(user_id, credentials, rate_limit_per_second)
 
@@ -126,7 +126,7 @@ class ${name_class}Client(BaseAPIKeyClient):
             # TODO: Replace with actual validation endpoint
             # Example: await self._make_request("GET", "account")
             return await super().validate_api_key()
-        except HTTPException:
+        except (ExternalServiceError, MaxRetriesExceededError):
             return False
 
     # =========================================================================
@@ -144,7 +144,8 @@ class ${name_class}Client(BaseAPIKeyClient):
             Resource data as dictionary.
 
         Raises:
-            HTTPException: On API errors.
+            ExternalServiceError: On circuit-open or authentication errors.
+            MaxRetriesExceededError: When retries are exhausted.
         """
         return await self._make_request(
             "GET",

@@ -293,7 +293,6 @@ apps/api/src/
 │   │   │   ├── plan_schemas.py       # ExecutionPlan, ExecutionStep
 │   │   │   ├── dependency_graph.py   # Wave calculation
 │   │   │   ├── validator.py          # Plan validation
-│   │   │   ├── plan_editor.py        # HITL plan modifications
 │   │   │   ├── condition_evaluator.py
 │   │   │   ├── adaptive_replanner.py
 │   │   │   └── query_engine/         # Query execution
@@ -301,7 +300,6 @@ apps/api/src/
 │   │   │   ├── agent_registry.py
 │   │   │   ├── catalogue.py
 │   │   │   ├── catalogue_loader.py
-│   │   │   ├── manifest_builder.py
 │   │   │   └── domain_taxonomy.py
 │   │   ├── context/             # Tool context management
 │   │   │   ├── manager.py       # ToolContextManager
@@ -1846,7 +1844,6 @@ class MessagesState(TypedDict):
 
     # HITL Phase 8
     validation_result: ValidationResult | None
-    approval_evaluation: ApprovalEvaluation | None
     plan_approved: bool | None
     plan_rejection_reason: str | None
 
@@ -2073,29 +2070,20 @@ async def router_node(state: MessagesState) -> dict:
     return {"routing_history": [output]}
 ```
 
-### 6. Strategy Pattern (Approval Strategies)
+### 6. Strategy Pattern (HITL interactions)
 
 ```python
-class ApprovalStrategy(Protocol):
-    def evaluate(self, plan: ExecutionPlan) -> ApprovalEvaluation:
-        ...
+# services/hitl/registry.py — interactions register themselves by type;
+# the streaming dispatcher instantiates the right one per interrupt.
+@HitlInteractionRegistry.register(HitlInteractionType.PLAN_APPROVAL)
+class PlanApprovalInteraction: ...
 
-class ManifestBasedStrategy(ApprovalStrategy):
-    def evaluate(self, plan):
-        # Check manifest.permissions.hitl_required
-        ...
-
-class CostThresholdStrategy(ApprovalStrategy):
-    def evaluate(self, plan):
-        # Check plan.estimated_cost_usd > threshold
-        ...
-
-# Compose strategies
-evaluator = ApprovalEvaluator(strategies=[
-    ManifestBasedStrategy(),
-    CostThresholdStrategy(),
-])
+interaction = HitlInteractionRegistry.from_action_type(action_type, ...)
 ```
+
+> The former plan-approval strategy evaluator (`ApprovalEvaluator` +
+> strategies) was removed in v1.21.16 (ADR-107) — dead code since the
+> approval gate became a pass-through.
 
 ---
 

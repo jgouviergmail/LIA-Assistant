@@ -6,7 +6,7 @@
 
 **Version** : 2.5
 **Date** : 2026-05-08
-**Application** : LIA v1.21.15
+**Application** : LIA v1.21.16
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 400+ métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 99 ADRs, ~10 000 tests collectés par pytest sur 484 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 101 ADRs, ~10 000 tests collectés par pytest sur 484 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -74,7 +74,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Tests | ~10 000 (collectés par pytest sur 484 fichiers de test) + 41 tests vitest côté frontend |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 280+ |
-| ADRs (Architecture Decision Records) | 81 |
+| ADRs (Architecture Decision Records) | 101 |
 | Métriques Prometheus | 400+ définitions |
 | Dashboards Grafana | 21 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -957,7 +957,7 @@ LIA accepte les ingestions d'événements externes (mesures iPhone Apple Health,
 
 ## 24. Architecture des décisions (ADR)
 
-99 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+101 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1047,10 +1047,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 99 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~10 000 tests sur 484 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 101 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~10 000 tests sur 484 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 99 ADRs, et du changelog (v1.0 à v1.21.15). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 101 ADRs, et du changelog (v1.0 à v1.21.16). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

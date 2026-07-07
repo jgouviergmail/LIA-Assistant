@@ -459,7 +459,6 @@ tests/
 │   │       │   └── test_token_counter_service.py
 │   │       ├── tools/
 │   │       │   ├── test_constants.py
-│   │       │   ├── test_contacts_models.py
 │   │       │   ├── test_decorators.py
 │   │       │   ├── test_emails_tools.py
 │   │       │   └── test_tool_schemas.py
@@ -467,7 +466,6 @@ tests/
 │   │       │   ├── test_helpers.py
 │   │       │   ├── test_hitl_config.py
 │   │       │   └── test_hitl_store.py
-│   │       └── test_state_keys.py
 │   ├── infrastructure/
 │   │   ├── cache/
 │   │   │   └── test_llm_cache_unit.py
@@ -1764,7 +1762,6 @@ Test-to-Code Ratio: 1.7:1 (Good)
 
 **2. src/domains/agents/orchestration/ (~30%)**
 - ⚠️ parallel_executor.py - Concurrent execution
-- ⚠️ plan_editor.py - Plan modification
 - ⚠️ validator.py - Plan validation
 - **Impact:** Agent reliability compromised
 - **Needed:** 40+ additional test cases

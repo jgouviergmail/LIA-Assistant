@@ -20,7 +20,6 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from src.domains.agents.services.business_metrics import (
     ConversationMetrics,
-    calculate_agent_tool_approval_rate,
     calculate_conversation_metrics,
     calculate_conversation_turns,
     calculate_token_efficiency_ratio,
@@ -510,21 +509,6 @@ def test_calculate_token_efficiency_ratio_low():
     ratio = calculate_token_efficiency_ratio(input_tokens=100, output_tokens=25)
 
     assert ratio == 0.25  # Low ratio (concise)
-
-
-# ============================================================================
-# TESTS - calculate_agent_tool_approval_rate() (Placeholder)
-# ============================================================================
-
-
-def test_calculate_agent_tool_approval_rate_placeholder():
-    """Test tool approval rate calculation (placeholder implementation)."""
-    state = {"messages": []}
-
-    rate = calculate_agent_tool_approval_rate(state)
-
-    # Placeholder returns 0.0
-    assert rate == 0.0
 
 
 # ============================================================================

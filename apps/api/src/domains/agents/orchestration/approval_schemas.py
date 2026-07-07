@@ -1,13 +1,12 @@
 """
 Schemas for the plan approval system (HITL Plan-Level).
 
-This module defines data structures used to present plans to the user
-for approval and to process approval decisions.
+This module defines the plan/step summary structures used to present
+plans to the user (HITL question generation and streaming).
 """
 
 from datetime import UTC, datetime
-from typing import Any, Literal
-from uuid import UUID
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -43,106 +42,3 @@ class PlanSummary(BaseModel):
     generated_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC), description="Plan generation date"
     )
-
-
-class PlanApprovalRequest(BaseModel):
-    """
-    Plan approval request sent to the user.
-
-    This structure is used by approval_gate_node to present
-    a complete plan to the user and await their decision.
-    """
-
-    plan_summary: PlanSummary = Field(..., description="Summary of the plan to approve")
-    approval_reasons: list[str] = Field(
-        default_factory=list,
-        description="Reasons why this plan requires approval",
-    )
-    strategies_triggered: list[str] = Field(
-        default_factory=list,
-        description="Approval strategies triggered (e.g., CostThreshold, ManifestBased)",
-    )
-    user_message: str | None = Field(
-        default=None,
-        description="Contextual message for the user (None if deferred generation via streaming)",
-    )
-
-
-class PlanModification(BaseModel):
-    """
-    Modification to apply to a plan.
-
-    Allows the user to modify step parameters,
-    remove steps, or reorder steps.
-    """
-
-    modification_type: Literal["edit_params", "remove_step", "reorder_steps"] = Field(
-        ..., description="Modification type"
-    )
-    step_id: str | None = Field(
-        None, description="ID of the affected step (edit_params, remove_step)"
-    )
-    new_parameters: dict[str, Any] | None = Field(None, description="New parameters (edit_params)")
-    new_order: list[str] | None = Field(None, description="New step_id order (reorder_steps)")
-
-
-class PlanApprovalDecision(BaseModel):
-    """
-    User decision regarding a plan.
-
-    Represents the user's response to an approval request.
-    """
-
-    decision: Literal["APPROVE", "REJECT", "EDIT", "REPLAN"] = Field(
-        ..., description="Decision type"
-    )
-    rejection_reason: str | None = Field(None, description="Rejection reason (REJECT)")
-    modifications: list[PlanModification] = Field(
-        default_factory=list, description="Modifications to apply (EDIT)"
-    )
-    replan_instructions: str | None = Field(
-        None, description="Instructions to regenerate the plan (REPLAN)"
-    )
-    decided_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="Decision date"
-    )
-
-
-class ApprovalEvaluation(BaseModel):
-    """
-    Result of approval strategy evaluation.
-
-    Used by ApprovalEvaluator to determine if a plan requires approval
-    and why.
-    """
-
-    requires_approval: bool = Field(..., description="Does the plan require approval?")
-    reasons: list[str] = Field(default_factory=list, description="Reasons why approval is required")
-    strategies_triggered: list[str] = Field(
-        default_factory=list, description="Names of triggered strategies"
-    )
-    details: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional details (thresholds, values, etc.)",
-    )
-
-
-class PlanApprovalAudit(BaseModel):
-    """
-    Audit entry for a plan approval decision.
-
-    Used for logging and compliance.
-    """
-
-    id: UUID
-    plan_id: str
-    user_id: UUID
-    conversation_id: UUID
-    plan_summary: dict[str, Any]
-    strategies_triggered: list[str]
-    decision: str
-    decision_timestamp: datetime
-    modifications: dict[str, Any] | None
-    rejection_reason: str | None
-    approval_latency_seconds: float
-    created_at: datetime

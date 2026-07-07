@@ -55,21 +55,21 @@ def _build_plan_modifications_from_classifier(
     run_id: str,
 ) -> list[dict[str, Any]]:
     """
-    Convert classifier's edited_params to PlanModification format.
+    Convert classifier's edited_params to per-step modification dicts.
 
     Issue #60 Fix: Bridge the gap between classifier output (edited_params)
-    and approval_gate_node expectations (modifications).
+    and the modification format consumed by the HITL resumption flow.
 
     The classifier produces:
         {"count": 4, "max_results": 10}
 
-    approval_gate_node expects:
+    The resumption flow expects:
         [{"modification_type": "edit_params", "step_id": "step_2", "new_parameters": {"count": 4}}]
 
     Strategy for step identification:
     1. Get plan_summary.steps from pending_action_requests
     2. For each edited param, find the step whose parameters contain that key
-    3. Create a PlanModification for each matched step
+    3. Create a modification dict for each matched step
 
     Args:
         edited_params: Parameters extracted by classifier (e.g., {"max_results": 4})
@@ -77,7 +77,7 @@ def _build_plan_modifications_from_classifier(
         run_id: Run ID for logging
 
     Returns:
-        List of PlanModification dicts ready for approval_gate_node
+        List of modification dicts consumed by the HITL resumption flow
     """
     if not edited_params:
         return []

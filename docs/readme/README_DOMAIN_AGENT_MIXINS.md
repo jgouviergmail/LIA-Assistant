@@ -17,7 +17,7 @@ AgentService uses minimal mixins for core infrastructure concerns only. Business
 AgentService (561 lines) - Main orchestration
 ├── GraphManagementMixin (graph_management.py)
 │   ├── Lazy graph initialization from AgentRegistry
-│   ├── HITLOrchestrator instantiation with dependencies
+│   ├── HITL classifier + question generator initialization
 │   └── _ensure_graph_built() - Lazy build pattern
 │
 └── StreamingMixin (streaming.py)
@@ -28,12 +28,15 @@ AgentService (561 lines) - Main orchestration
 
 Business logic extracted to autonomous services:
 
-- **OrchestrationService** (502 lines): Graph execution, state management
-- **StreamingService** (517 lines): SSE formatting, HITL detection
-- **HITLOrchestrator** (1,002 lines): HITL classification, approval decisions
-- **ConversationOrchestrator** (248 lines): Conversation lifecycle, persistence
+- **OrchestrationService**: Graph execution, state management (incl. HITL
+  decision parsing via `_parse_approval_decision`)
+- **StreamingService**: SSE formatting, HITL detection & question streaming
+- **ConversationOrchestrator**: Conversation lifecycle, persistence
 
-Total: **2,269 lines** of well-organized, testable business logic.
+> **v1.21.16 (ADR-107)**: `HITLOrchestrator` (987 lines) was removed — it was
+> instantiated here but never called (ghost service). Live HITL logic:
+> `HitlResponseClassifier`, `services/hitl/` (interactions, resumption,
+> question generator) and `OrchestrationService`.
 
 ---
 
@@ -45,7 +48,7 @@ Total: **2,269 lines** of well-organized, testable business logic.
 
 **Methods**:
 - `_ensure_graph_built()`: Lazy initialization of LangGraph from AgentRegistry
-- Instantiates HITLOrchestrator with all dependencies (hitl_classifier, hitl_question_generator, hitl_store, graph)
+- Initializes the HITL classifier and question generator used by the run
 
 **Location**: [graph_management.py](graph_management.py)
 
@@ -65,6 +68,9 @@ Total: **2,269 lines** of well-organized, testable business logic.
 ### Phase 3.3 (Days 1-7) - Service Extraction
 
 **Completed**: HITLManagementMixin (1,069 lines) → HITLOrchestrator service
+*(the orchestrator itself was later found unused and removed in v1.21.16 —
+ADR-107; its live responsibilities are covered by `services/hitl/` and
+`OrchestrationService`)*
 
 **Benefits**:
 - ✅ Dependency injection (explicit dependencies)
@@ -89,7 +95,6 @@ Total: **2,269 lines** of well-organized, testable business logic.
 
 ## See Also
 
-- [HITLOrchestrator](../../services/hitl_orchestrator.py) - HITL business logic
 - [OrchestrationService](../../services/orchestration/service.py) - Graph execution
 - [StreamingService](../../services/streaming/service.py) - SSE formatting
 - [ConversationOrchestrator](../../services/conversation_orchestrator.py) - Conversation lifecycle

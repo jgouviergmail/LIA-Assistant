@@ -65,6 +65,7 @@ async def test_resolve_city_name_cache_miss_calls_api_and_caches():
 
     client = MagicMock()
     client.reverse_geocode = AsyncMock(return_value=[{"name": "Paris"}])
+    client.close = AsyncMock()
 
     with (
         patch(
@@ -82,6 +83,8 @@ async def test_resolve_city_name_cache_miss_calls_api_and_caches():
     redis.set.assert_awaited_once()
     # Verify API was called
     client.reverse_geocode.assert_awaited_once_with(lat=48.85, lon=2.35, limit=1)
+    # Deterministic close of the pooled httpx client (F1 leak fix)
+    client.close.assert_awaited_once()
 
 
 @pytest.mark.unit
@@ -91,6 +94,7 @@ async def test_resolve_city_name_returns_none_on_api_failure():
 
     client = MagicMock()
     client.reverse_geocode = AsyncMock(side_effect=RuntimeError("boom"))
+    client.close = AsyncMock()
 
     with (
         patch(
@@ -111,6 +115,7 @@ async def test_resolve_city_name_returns_none_on_api_failure():
 async def test_resolve_city_name_skips_cache_when_redis_down():
     client = MagicMock()
     client.reverse_geocode = AsyncMock(return_value=[{"name": "Paris"}])
+    client.close = AsyncMock()
 
     with (
         patch(

@@ -2948,6 +2948,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_16": {
+          "title": "v1.21.16 — 🧹 Grand nettoyage interne",
+          "date": "Juillet 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🧹 Un moteur allégé et plus sûr</b> — Environ 13 600 lignes de code inactif (d'anciens mécanismes jamais utilisés) ont été retirées après vérification exhaustive, et les tableaux de bord d'administration ont été débarrassés de leurs panneaux vides. LIA devient plus simple à maintenir et à faire évoluer, sans aucun changement visible.",
+            "i2": "<b>🌐 Recherches web et météo plus robustes</b> — Les connexions vers Brave, la météo et Perplexity reposent désormais sur un socle commun renforcé : nouvelles tentatives intelligentes en cas d'erreur passagère, disjoncteur qui évite d'insister quand un service externe est en panne, meilleure répartition des appels, et correction d'une fuite de connexions qui pouvait s'accumuler au fil du temps."
+          }
+        },
         "v1_21_15": {
           "title": "v1.21.15 — 🛠️ Robustesse renforcée sous le capot",
           "date": "Juillet 2026",

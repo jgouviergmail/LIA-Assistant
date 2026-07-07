@@ -125,7 +125,6 @@ They are NOT listed here. See section 12.
 | `MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS` | `memory_reference_resolution_timeout_ms` | 5000 ms | 100–30000 | `memory_reference_resolution_service.py` | |
 | `PLAN_PATTERN_SUGGESTION_TIMEOUT_MS` | `plan_pattern_suggestion_timeout_ms` | 100 ms | 10–5000 | `plan_pattern_learner.py` | Redis lookup, fail-open |
 | `SEMANTIC_VALIDATION_TIMEOUT_SECONDS` | `semantic_validation_timeout_seconds` | 20.0 s | 0.5–30.0 | `orchestration/semantic_validator.py` | |
-| `V3_EXECUTOR_RECOVERY_TIMEOUT_MS` | `v3_executor_recovery_timeout_ms` | 15000 ms | 1000–120000 | `services/autonomous_executor.py` | |
 | `HEALTH_METRICS_HEARTBEAT_FETCH_TIMEOUT_SECONDS` | `health_metrics_heartbeat_fetch_timeout_seconds` | 2.0 s | 0.5–30.0 | `heartbeat/context_aggregator.py:1029` | Safety wrapper |
 
 ## 7. Database / Cache
@@ -346,8 +345,8 @@ prior — the field was previously inert.
   - **(a) Wire** as a hard cap on HITL pending state: a HITL session left
     pending past `hitl_max_wait_seconds` is auto-cancelled (state moved
     back to a graceful "abandoned" terminal). Preserves resources, predictable
-    UX. Requires touching `hitl_orchestrator` plus a probable migration to
-    persist the deadline.
+    UX. Requires touching the HITL resumption flow (`hitl/resumption_strategies`)
+    plus a probable migration to persist the deadline.
   - **(b) Remove** if the product position is "HITL stays pending until the
     user acts, no auto-timeout". Then drop the Field, the constant, the
     env lines, and document the decision.

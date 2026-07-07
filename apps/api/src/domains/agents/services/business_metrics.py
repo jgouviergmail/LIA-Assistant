@@ -577,37 +577,6 @@ def calculate_token_efficiency_ratio(input_tokens: int, output_tokens: int) -> f
 
 
 # ============================================================================
-# HITL METRICS CALCULATION
-# ============================================================================
-
-
-def calculate_agent_tool_approval_rate(state: MessagesState) -> float:
-    """
-    Calculate HITL tool approval rate for conversation.
-
-    Approval rate = approved_tools / total_tools_proposed (0.0-1.0).
-
-    Low approval rate (<0.5) indicates:
-    - Poor agent behavior (wrong tools proposed)
-    - Overly conservative users
-    - Misaligned expectations
-
-    Args:
-        state: LangGraph state with HITL metadata
-
-    Returns:
-        Approval rate (0.0-1.0), or 0.0 if no tools proposed
-
-    Note:
-        Phase 3.2 MVP: Simplified calculation from state metadata.
-        Production: Track approvals in dedicated HITL events.
-    """
-    # TODO (Phase 3.2.2): Implement approval tracking in approval_gate_node
-    # For now, return 0.0 as placeholder (will be implemented in Step 2.3)
-    return 0.0
-
-
-# ============================================================================
 # AGENT ROUTING ACCURACY (ADVANCED - PHASE 3.2 P2)
 # ============================================================================
 

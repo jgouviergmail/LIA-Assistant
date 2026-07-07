@@ -637,12 +637,17 @@ class ContextAggregator:
         # Fetch current + forecast + city (reverse geocode) in parallel
         from src.domains.heartbeat.geocoding import resolve_city_name
 
-        results = await asyncio.gather(
-            client.get_current_weather(lat=lat, lon=lon, units="metric"),
-            client.get_forecast(lat=lat, lon=lon, units="metric", cnt=16),
-            resolve_city_name(lat=lat, lon=lon, api_key=credentials.api_key),
-            return_exceptions=True,
-        )
+        try:
+            results = await asyncio.gather(
+                client.get_current_weather(lat=lat, lon=lon, units="metric"),
+                client.get_forecast(lat=lat, lon=lon, units="metric", cnt=16),
+                resolve_city_name(lat=lat, lon=lon, api_key=credentials.api_key),
+                return_exceptions=True,
+            )
+        finally:
+            # Deterministic close of the pooled httpx client (leak fix) —
+            # same pattern as briefing/fetchers.py.
+            await client.close()
         current_result: dict[str, Any] | BaseException = results[0]
         forecast_result: dict[str, Any] | BaseException = results[1]
         city_result: str | None | BaseException = results[2]

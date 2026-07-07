@@ -521,9 +521,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             cb = self._get_circuit_breaker()
             try:
                 # Check if we can proceed
-                async with cb._lock:
-                    if not await cb._should_allow_request():
-                        await cb._reject_request()
+                await cb.check()
             except CircuitBreakerError as e:
                 # Convert to HTTPException for consistent API responses
                 from fastapi import HTTPException, status

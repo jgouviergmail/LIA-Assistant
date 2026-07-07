@@ -236,7 +236,6 @@ class MessagesState(TypedDict):
 
     # Phase 8: Plan-level HITL approval support
     validation_result: Any | None  # ValidationResult from planner (contains requires_hitl flag)
-    approval_evaluation: Any | None  # ApprovalEvaluation from approval strategies
     plan_approved: bool | None  # Approval gate decision (True = approved, False = rejected)
     plan_rejection_reason: str | None  # Rejection reason if plan_approved = False
 
@@ -548,7 +547,6 @@ def create_initial_state(
         _schema_version=CURRENT_SCHEMA_VERSION,  # Use constant for consistency
         completed_steps={},  # Phase 5.2B-asyncio: Parallel execution step results
         validation_result=None,  # Phase 8: Plan validation result
-        approval_evaluation=None,  # Phase 8: Approval strategies evaluation
         plan_approved=None,  # Phase 8: Plan approval decision
         plan_rejection_reason=None,  # Phase 8: Plan rejection reason
         # Phase 2 OPTIMPLAN: Semantic Validation (Issue #60)

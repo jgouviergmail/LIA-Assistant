@@ -767,33 +767,6 @@ hitl_resumption_duration_seconds = Histogram(
 )
 
 # ============================================================================
-# HITL USER BEHAVIOR METRICS
-# ============================================================================
-# NOTE: All 3 metrics below are instrumented in hitl_orchestrator.py:
-# - hitl_user_response_time_seconds: _track_response_time_metrics() ligne 261-304
-# - hitl_edit_decisions_total: _build_edit_decision() ligne 250-253
-# - hitl_tool_rejections_by_reason: _build_reject_decision() ligne 143-147
-
-hitl_user_response_time_seconds = Histogram(
-    "hitl_user_response_time_seconds",
-    "Time between HITL tool approval request and user response",
-    ["decision"],  # approve/reject/edit
-    buckets=[1, 5, 10, 30, 60, 300, 600, 1800, 3600],  # 1s to 1h
-)
-
-hitl_edit_decisions_total = Counter(
-    "hitl_edit_decisions_total",
-    "Total EDIT decisions with parameter modification tracking",
-    [FIELD_TOOL_NAME, "param_modified"],  # Track which params are most often corrected by users
-)
-
-hitl_tool_rejections_by_reason = Counter(
-    "hitl_tool_rejections_by_reason_total",
-    "Tool rejections categorized by inferred reason",
-    [FIELD_TOOL_NAME, "rejection_type"],  # rejection_type: explicit_no/timeout/error
-)
-
-# ============================================================================
 # HITL USER BEHAVIOR METRICS (Sprint 1 - Phase 1.2)
 # ============================================================================
 
@@ -848,22 +821,6 @@ hitl_streaming_fallback_total = Counter(
     # label error_type: LLMError, TimeoutError, ConnectionError, etc.
     # Tracks streaming failures requiring fallback to word split
     # Target: < 1% fallback rate in production
-)
-
-hitl_edit_actions_total = Counter(
-    "hitl_edit_actions_total",
-    "Total HITL EDIT actions by type and agent",
-    ["edit_type", "agent_type"],
-    # edit_type: params_modified, tool_changed, full_rewrite, minor_adjustment
-    # Tracks how users modify agent proposals
-)
-
-hitl_rejection_type_total = Counter(
-    "hitl_rejection_type_total",
-    "Total HITL rejections by inferred type and agent",
-    ["rejection_type", "agent_type"],
-    # rejection_type: explicit_no, low_confidence, implicit_no
-    # Categorizes why users reject agent proposals
 )
 
 # ============================================================================
@@ -1021,34 +978,7 @@ agent_llm_json_parse_errors_total = Counter(
 # ============================================================================
 # HITL PLAN-LEVEL APPROVAL METRICS (Phase 8 - 2025-11-09)
 # ============================================================================
-# Metrics for plan-level HITL approval gate (before execution)
-# Replaces problematic tool-level HITL that interrupted mid-execution
-
-hitl_plan_approval_requests = Counter(
-    "hitl_plan_approval_requests_total",
-    "Total plan approval requests sent to users",
-    ["strategy"],  # strategy: ManifestBasedStrategy/CostThresholdStrategy/etc
-)
-
-hitl_plan_approval_latency = Histogram(
-    "hitl_plan_approval_latency_seconds",
-    "Time from approval request to user decision",
-    # Buckets optimized for human response time
-    # Users typically respond within 1-60 seconds for plan review
-    buckets=[1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0],
-)
-
-hitl_plan_decisions = Counter(
-    "hitl_plan_decisions_total",
-    "Plan approval decisions by type",
-    ["decision"],  # decision: APPROVE/REJECT/EDIT/REPLAN
-)
-
-hitl_plan_modifications = Counter(
-    "hitl_plan_modifications_total",
-    "Plan modifications by type during EDIT workflow",
-    ["modification_type"],  # modification_type: edit_params/remove_step/reorder_steps
-)
+# Metrics for the plan approval question generation (HITL streaming path)
 
 hitl_plan_approval_question_duration = Histogram(
     "hitl_plan_approval_question_duration_seconds",
@@ -1056,12 +986,6 @@ hitl_plan_approval_question_duration = Histogram(
     # Buckets optimized for LLM generation time
     # Expected: 0.5-3s for question generation
     buckets=[0.1, 0.3, 0.5, 1.0, 2.0, 3.0, 5.0, 10.0],
-)
-
-hitl_plan_approval_question_fallback = Counter(
-    "hitl_plan_approval_question_fallback_total",
-    "Plan approval questions that fell back to static message",
-    ["error_type"],  # error_type: timeout/llm_error/validation_error/etc
 )
 
 # ============================================================================
@@ -1252,67 +1176,6 @@ semantic_validation_clarification_requests = Counter(
 # - context_resolution_confidence → context_resolution_confidence_score (better naming)
 # - context_resolution_duration_seconds → kept, moved to section 574-579 (turn_type labels)
 # Removed unused: context_reference_detected_total, context_items_resolved_total
-
-
-# ============================================================================
-# PLAN EDITOR METRICS (Phase 3 OPTIMPLAN - 2025-11-26)
-# ============================================================================
-# Metrics for EnhancedPlanEditor and SecurePlanEditor
-# Tracks EDIT operations, schema validation, and security (injection detection)
-
-plan_edit_operations_total = Counter(
-    "plan_edit_operations_total",
-    "Total plan edit operations by type",
-    ["operation"],  # operation: edit_params/remove_step/reorder_steps
-    # Tracks user modification patterns for UX optimization
-    # High edit_params rate may indicate poor default parameters
-)
-
-plan_edit_schema_validation_failures_total = Counter(
-    "plan_edit_schema_validation_failures_total",
-    "Schema validation failures during plan edits",
-    ["tool_name"],  # tool_name: search_contacts_tool/send_email/etc
-    # Tracks tools with most validation failures
-    # High failure rate indicates unclear parameter schemas
-)
-
-plan_edit_injection_blocked_total = Counter(
-    "plan_edit_injection_blocked_total",
-    "Injection patterns blocked during plan edits (security metric)",
-    ["pattern"],  # pattern: dunder_attribute/eval_call/exec_call/import_statement/etc
-    # SECURITY: Tracks attempted injection attacks
-    # Any non-zero value should trigger security review
-)
-
-plan_edit_undo_operations_total = Counter(
-    "plan_edit_undo_operations_total",
-    "Total undo operations on plan edits",
-    # Tracks usage of undo feature
-    # High rate may indicate UX issues with edit flow
-)
-
-
-# ============================================================================
-# HITL REJECTION METRICS (Phase 3 OPTIMPLAN - 2025-11-26)
-# ============================================================================
-# Metrics for dedicated REJECT flow (not error flow)
-# Distinguishes user rejection from system errors
-
-hitl_rejection_total = Counter(
-    "hitl_rejection_total",
-    "Total HITL rejections by reason category",
-    ["reason_category"],
-    # reason_category: explicit_rejection/timeout/modification_failed/etc
-    # Tracks why users reject plans
-    # High rate may indicate poor plan generation
-)
-
-hitl_rejection_response_tokens_total = Counter(
-    "hitl_rejection_response_tokens_total",
-    "Tokens generated for rejection response messages",
-    # Tracks token usage for rejection responses
-    # Used for cost analysis of rejection flow
-)
 
 
 # ============================================================================

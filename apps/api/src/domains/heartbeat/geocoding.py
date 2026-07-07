@@ -90,7 +90,11 @@ async def resolve_city_name(
         )
 
         client = OpenWeatherMapClient(api_key=api_key)
-        entries = await client.reverse_geocode(lat=lat, lon=lon, limit=1)
+        try:
+            entries = await client.reverse_geocode(lat=lat, lon=lon, limit=1)
+        finally:
+            # Deterministic close of the pooled httpx client (leak fix)
+            await client.close()
     except Exception as exc:
         logger.warning("geocode_api_failed", error=str(exc))
         user_location_geocode_total.labels(result="api_error").inc()

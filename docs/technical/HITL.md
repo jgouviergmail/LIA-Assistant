@@ -16,9 +16,9 @@
   - [Destructive Confirm (destructive_confirm.py)](#destructive-confirm-destructive_confirmpy)
   - [FOR_EACH Confirmation (for_each_confirmation.py)](#for_each-confirmation-for_each_confirmationpy)
 - [Question Generation](#question-generation)
-- [Approval Strategies](#approval-strategies)
+- [Approval Strategies (removed)](#-approval-strategies-removed-in-v12116)
 - [Approval Gate Node](#approval-gate-node)
-- [HITL Orchestrator](#hitl-orchestrator)
+- [HITL Orchestrator (removed)](#-hitl-orchestrator-removed-in-v12116)
 - [Configuration & Storage](#configuration--storage)
 - [Métriques](#métriques)
 - [Migration Phase 7 → Phase 8](#migration-phase-7--phase-8)
@@ -157,28 +157,14 @@ class PlanSummary(BaseModel):
     steps: list[StepSummary]
     generated_at: datetime
 
-class PlanApprovalRequest(BaseModel):
-    """Requête d'approbation présentée à l'utilisateur."""
-    plan_summary: PlanSummary
-    approval_reasons: list[str]  # ["Coût élevé", "Action destructive"]
-    strategies_triggered: list[str]  # ["ManifestBasedStrategy", "CostThresholdStrategy"]
-    user_message: str  # Question LLM générée
-
-class PlanApprovalDecision(BaseModel):
-    """Décision utilisateur."""
-    decision: Literal["APPROVE", "REJECT", "EDIT", "REPLAN"]
-    rejection_reason: str | None
-    modifications: list[dict] | None  # [{step_id, field, new_value}]
-    replan_instructions: str | None
-    decided_at: datetime
-
-class ApprovalEvaluation(BaseModel):
-    """Résultat de l'évaluation des stratégies."""
-    requires_approval: bool
-    reasons: list[str]
-    strategies_triggered: list[str]
-    details: dict[str, Any]
 ```
+
+> **v1.21.16 (ADR-107)**: `PlanApprovalRequest`, `PlanApprovalDecision`,
+> `PlanModification`, `ApprovalEvaluation` and `PlanApprovalAudit` were removed
+> with the dead plan-approval framework. `StepSummary` and `PlanSummary` (above)
+> remain: they feed the HITL question streaming and the interaction registry's
+> `PLAN_APPROVAL` fallback. EDIT resumption uses plain modification dicts built
+> by `hitl/resumption_strategies.py`.
 
 ---
 
@@ -501,141 +487,16 @@ async def generate_plan_approval_question(
 
 ---
 
-## 🎯 Approval Strategies
+## 🎯 Approval Strategies (removed in v1.21.16)
 
-### 1. ManifestBasedStrategy (PRINCIPALE)
-
-```python
-# apps/api/src/domains/agents/services/approval/strategies.py
-
-class ManifestBasedStrategy:
-    """
-    Stratégie basée sur manifest.permissions.hitl_required.
-
-    Source de vérité unique : ToolManifest.
-    """
-
-    def evaluate(self, plan: ExecutionPlan, context: dict) -> ApprovalEvaluation:
-        requires_approval = False
-        reasons = []
-
-        for step in plan.steps:
-            manifest = get_tool_manifest(step.tool_name)
-
-            if manifest and manifest.permissions.hitl_required:
-                requires_approval = True
-                reasons.append(f"Tool '{step.tool_name}' requires approval (manifest)")
-
-            # Step-level override
-            if step.approvals_required:
-                requires_approval = True
-                reasons.append(f"Step '{step.step_id}' marked as requiring approval")
-
-        return ApprovalEvaluation(
-            requires_approval=requires_approval,
-            reasons=reasons,
-            strategies_triggered=["ManifestBasedStrategy"],
-            details={}
-        )
-```
-
-### 2. CostThresholdStrategy
-
-```python
-class CostThresholdStrategy:
-    """Déclenche si cost > threshold."""
-
-    def __init__(self, threshold: float = 0.50):
-        self.threshold = threshold
-
-    def evaluate(self, plan: ExecutionPlan, context: dict) -> ApprovalEvaluation:
-        if plan.estimated_cost_usd > self.threshold:
-            return ApprovalEvaluation(
-                requires_approval=True,
-                reasons=[f"Plan cost ${plan.estimated_cost_usd:.2f} exceeds threshold ${self.threshold:.2f}"],
-                strategies_triggered=["CostThresholdStrategy"],
-                details={"cost": plan.estimated_cost_usd}
-            )
-
-        return ApprovalEvaluation(requires_approval=False, reasons=[], strategies_triggered=[], details={})
-```
-
-### 3. DataSensitivityStrategy
-
-```python
-class DataSensitivityStrategy:
-    """Déclenche si data classification sensible."""
-
-    def __init__(self, sensitive_classifications: list[str] = None):
-        self.sensitive = sensitive_classifications or ["sensitive", "pii", "financial"]
-
-    def evaluate(self, plan: ExecutionPlan, context: dict) -> ApprovalEvaluation:
-        for step in plan.steps:
-            manifest = get_tool_manifest(step.tool_name)
-            if manifest and manifest.data_classification in self.sensitive:
-                return ApprovalEvaluation(
-                    requires_approval=True,
-                    reasons=[f"Step '{step.step_id}' handles sensitive data"],
-                    strategies_triggered=["DataSensitivityStrategy"],
-                    details={"classification": manifest.data_classification}
-                )
-
-        return ApprovalEvaluation(requires_approval=False, reasons=[], strategies_triggered=[], details={})
-```
-
-### 4. RoleBasedStrategy
-
-```python
-class RoleBasedStrategy:
-    """Auto-approve pour certains rôles (admin, power users)."""
-
-    def __init__(self, auto_approve_roles: list[str] = None):
-        self.auto_approve_roles = auto_approve_roles or ["admin", "power_user"]
-
-    def evaluate(self, plan: ExecutionPlan, context: dict) -> ApprovalEvaluation:
-        user_role = context.get("user_role", "user")
-
-        if user_role in self.auto_approve_roles:
-            return ApprovalEvaluation(
-                requires_approval=False,
-                reasons=[f"User role '{user_role}' auto-approved"],
-                strategies_triggered=["RoleBasedStrategy"],
-                details={"auto_approved": True}
-            )
-
-        return ApprovalEvaluation(requires_approval=False, reasons=[], strategies_triggered=[], details={})
-```
-
-### 5. CompositeStrategy
-
-```python
-class CompositeStrategy:
-    """Combine multiple strategies avec AND/OR logic."""
-
-    def __init__(self, strategies: list[ApprovalStrategy], logic: Literal["AND", "OR"] = "OR"):
-        self.strategies = strategies
-        self.logic = logic
-
-    def evaluate(self, plan: ExecutionPlan, context: dict) -> ApprovalEvaluation:
-        evaluations = [s.evaluate(plan, context) for s in self.strategies]
-
-        if self.logic == "OR":
-            # Déclenche si AU MOINS UNE stratégie = True
-            requires = any(e.requires_approval for e in evaluations)
-        else:  # AND
-            # Déclenche si TOUTES les stratégies = True
-            requires = all(e.requires_approval for e in evaluations)
-
-        all_reasons = [r for e in evaluations for r in e.reasons]
-        all_strategies = [s for e in evaluations for s in e.strategies_triggered]
-
-        return ApprovalEvaluation(
-            requires_approval=requires,
-            reasons=all_reasons,
-            strategies_triggered=all_strategies,
-            details={"logic": self.logic}
-        )
-```
+> **ADR-107**: the strategy evaluator (`services/approval/` —
+> `ManifestBasedStrategy`, `CostThresholdStrategy`, `DataSensitivityStrategy`,
+> `RoleBasedStrategy`, `CompositeStrategy`, `ApprovalEvaluator`) was removed:
+> it was imported by nothing once `approval_gate_node` became a pass-through.
+> The single live source of plan-time HITL truth is
+> `manifest.permissions.hitl_required` consumed by the **plan validator**
+> (`validation_result.requires_hitl`), and confirmation itself happens at
+> tool level (draft_critique / for_each_confirmation — see ADR-106).
 
 ---
 
@@ -645,240 +506,39 @@ class CompositeStrategy:
 
 > **v1.14.5 Change — Passthrough Mode**: The approval_gate_node no longer interrupts for plan-level HITL approval. It auto-approves all plans unconditionally because every mutation tool already has downstream HITL protection: FOR_EACH confirmation for bulk operations and draft_critique for individual actions (email sends, etc.). The plan-level approval was causing redundant double/triple confirmation prompts (plan approval + FOR_EACH + draft critique) which degraded UX. The node remains in the graph as a passthrough to preserve the architecture for future re-enablement if needed, but currently sets `plan_approved=True` immediately without evaluating strategies or generating LLM questions.
 
-**Complete Flow** :
+**Current Flow (pass-through)** :
 ```python
-@node_with_metrics(node_name=NODE_APPROVAL_GATE)
-async def approval_gate_node(state: MessagesState) -> dict:
-    """
-    Approval Gate : HITL plan-level approval.
-
-    Flow :
-        1. Evaluate strategies
-        2. IF requires_approval:
-            a. Build PlanSummary
-            b. Generate LLM question
-            c. Interrupt user (NodeInterrupt)
-            d. Wait for decision
-            e. Process decision
-        3. Return state updates
-    """
-    plan = state["execution_plan"]
-
-    if not plan:
-        return {}
-
-    # 1. Evaluate approval strategies
-    evaluator = ApprovalEvaluator(strategies=[
-        ManifestBasedStrategy(),
-        CostThresholdStrategy(threshold=settings.approval_cost_threshold_usd),
-    ])
-
-    evaluation = evaluator.evaluate(plan, context={
-        "user_id": state["metadata"]["user_id"],
-        "user_timezone": state["user_timezone"],
-        "user_language": state["user_language"],
-    })
-
-    # 2. Store evaluation
-    state_updates = {"approval_evaluation": evaluation}
-
-    # 3. Check if approval required
-    if not evaluation.requires_approval:
-        logger.info("approval_gate_auto_approved", reasons=evaluation.reasons)
-        hitl_plan_decisions.labels(decision="AUTO_APPROVE").inc()
-        return {**state_updates, "plan_approved": True}
-
-    # 4. Build plan summary
-    plan_summary = _build_plan_summary(plan, state)
-
-    # 5. Generate LLM question
-    question = await _build_approval_request(
-        plan_summary,
-        evaluation,
-        state["user_language"]
-    )
-
-    # 6. Store approval request in DB
-    await store_approval_request(
-        plan_id=plan.plan_id,
-        user_id=state["metadata"]["user_id"],
-        plan_summary=plan_summary,
-        evaluation=evaluation,
-    )
-
-    # 7. Interrupt user
-    logger.info("approval_gate_interrupt", question_length=len(question))
-
-    raise NodeInterrupt(
-        value={
-            "type": "plan_approval",
-            "question": question,
-            "plan_summary": plan_summary.dict(),
-            "approval_reasons": evaluation.reasons,
-        }
-    )
-
-    # 8. After resumption, process decision
-    # (code below runs when graph is resumed)
-    decision = state.get("plan_approved")
-
-    if decision is True:
-        logger.info("approval_gate_approved")
-        hitl_plan_decisions.labels(decision="APPROVE").inc()
-
-        await store_approval_decision(
-            plan_id=plan.plan_id,
-            decision="APPROVE",
-        )
-
-        return {**state_updates, "plan_approved": True}
-
-    elif decision is False:
-        reason = state.get("plan_rejection_reason", "User rejected")
-        logger.info("approval_gate_rejected", reason=reason)
-        hitl_plan_decisions.labels(decision="REJECT").inc()
-
-        await store_approval_decision(
-            plan_id=plan.plan_id,
-            decision="REJECT",
-            rejection_reason=reason,
-        )
-
-        return {**state_updates, "plan_approved": False, "plan_rejection_reason": reason}
-
-    # --- F6: Sub-agent rejection fallback ---
-    # If the rejected plan contains `delegate_to_sub_agent_tool` steps, the rejection
-    # is automatically converted to a REPLAN without sub-agents:
-    # 1. Sets `needs_replan=True` + `exclude_sub_agent_tools=True` in state
-    # 2. Planner regenerates using `exclude_tools` to filter delegation from catalogue
-    # 3. User gets a new plan with direct tools (web_search, etc.) instead
-    # 4. Flags cleared after single replan cycle to prevent infinite loops
-    # Metric: hitl_plan_decisions{decision="REPLAN_SUB_AGENT_FALLBACK"}
-
-    else:
-        # EDIT case
-        logger.info("approval_gate_edited")
-        hitl_plan_decisions.labels(decision="EDIT").inc()
-
-        # Modifications handled in service layer via plan_editor
-        return state_updates
+@track_metrics(node_name="approval_gate", ...)
+async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> dict[str, Any]:
+    # 1. Already approved from clarification? -> return {"plan_approved": True}
+    # 2. No execution_plan  -> {"plan_approved": False, "plan_rejection_reason": ...}
+    # 3. No validation_result -> {"plan_approved": True}
+    # 4. Otherwise: auto-approve (tool-level HITL supersedes plan-level)
+    return {"plan_approved": True}
 ```
+
+> **v1.21.16 (ADR-107)**: the dead plan-approval machinery this node used to
+> carry (strategy evaluator, `PlanSummary` builder, LLM question generation,
+> `PlanEditor` for EDIT decisions — none of it reachable since the node became
+> a pass-through) was removed. The node file shrank from 626 to 130 lines.
+> `PlanSummary`/`StepSummary` and `PlanApprovalInteraction` remain live: they
+> are the HITL interaction registry's fallback for unknown `action_type`s.
+> Re-enabling plan-level HITL means restoring an `interrupt()` here — the node
+> is still wired in the graph, no rewiring needed.
 
 ---
 
-## 🎭 HITL Orchestrator
+## 🎭 HITL Orchestrator (removed in v1.21.16)
 
-**Fichier** : `apps/api/src/domains/agents/services/hitl_orchestrator.py`
-
-**Responsabilités** :
-- Classifier réponses utilisateur (APPROVE/REJECT/EDIT/AMBIGUOUS)
-- Build structured decisions pour LangChain
-- Store tool_call_id mappings (pour REJECT)
-- Error handling + clarification
-
-**Message Counting (Phase 5.2B)** :
-```
-APPROVE:   NOT counted (trivial response)
-REJECT:    NOT counted (trivial response)
-EDIT:      NOT counted (replaces original message)
-AMBIGUOUS: COUNTED (meaningful clarification request)
-```
-
-**Implementation** :
-```python
-class HITLOrchestrator:
-    async def classify_user_response(
-        self,
-        user_message: str,
-        context: dict,
-    ) -> HITLClassification:
-        """
-        Classify user response via LLM.
-
-        Returns:
-            HITLClassification with decision, confidence, edited_params
-        """
-        # Fast-path detection (règles simples)
-        if user_message.lower().strip() in ["oui", "ok", "yes", "vas-y", "confirme"]:
-            return HITLClassification(
-                decision="APPROVE",
-                confidence=0.95,
-                reasoning="Fast-path approval keyword",
-            )
-
-        if user_message.lower().strip() == "non":
-            return HITLClassification(
-                decision="REJECT",
-                confidence=0.90,
-                reasoning="Fast-path rejection keyword",
-            )
-
-        # LLM classification
-        classifier_llm = create_llm(llm_type="hitl_classifier")
-        structured_llm = classifier_llm.with_structured_output(HITLClassification)
-
-        prompt = load_prompt("hitl_classifier_prompt", version="v2")
-
-        classification = await structured_llm.ainvoke([
-            SystemMessage(content=prompt),
-            HumanMessage(content=json.dumps({
-                "user_message": user_message,
-                "context": context,
-            }))
-        ])
-
-        return classification
-
-    async def build_decision_for_graph(
-        self,
-        classification: HITLClassification,
-        state: MessagesState,
-    ) -> dict:
-        """
-        Build state updates basé sur classification.
-
-        Returns:
-            Dict avec plan_approved, plan_rejection_reason, etc.
-        """
-        if classification.decision == "APPROVE":
-            return {"plan_approved": True}
-
-        elif classification.decision == "REJECT":
-            return {
-                "plan_approved": False,
-                "plan_rejection_reason": classification.reasoning,
-            }
-
-        elif classification.decision == "EDIT":
-            # Apply modifications via PlanEditor
-            editor = PlanEditor()
-            modified_plan = editor.apply_modifications(
-                state["execution_plan"],
-                classification.edited_params
-            )
-
-            # Re-validate modified plan
-            validator = PlanValidator()
-            validation_result = validator.validate(modified_plan)
-
-            if not validation_result.is_valid:
-                return {
-                    "plan_approved": False,
-                    "plan_rejection_reason": "Modified plan invalid: " + format_validation_errors(validation_result.errors),
-                }
-
-            return {
-                "execution_plan": modified_plan,
-                "plan_approved": True,  # Auto-approve après modification
-            }
-
-        else:  # AMBIGUOUS
-            # Increment message count (meaningful clarification)
-            return {
-                "plan_approved": None,  # Still pending
-                "clarification_needed": True,
-            }
-```
+> **ADR-107**: `services/hitl_orchestrator.py` (987 lines) was a ghost service —
+> instantiated during graph setup but never called afterwards (proven by running
+> the full test suite with the module blocked at import time). It was removed
+> together with its `hitl/policies/` package. The live equivalents are:
+> - **Response classification / resumption**: `HitlResponseClassifier` +
+>   `services/orchestration/service._parse_approval_decision()` +
+>   `services/hitl/resumption_strategies.py` (replay-safe, ADR-092).
+> - **Question generation**: `services/hitl/question_generator.py` streamed by
+>   `StreamingService` through the interaction registry (`services/hitl/registry.py`).
 
 ---
 
@@ -985,6 +645,10 @@ class HITLStore:
 
 ### Database - plan_approvals Table
 
+> **Note (v1.21.16)**: the table exists (migration 2025-11-09) but has never
+> had a writer — the pass-through approval gate never audits. Kept as-is;
+> candidate for a future migration cleanup.
+
 ```sql
 CREATE TABLE plan_approvals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1024,40 +688,18 @@ CREATE TABLE plan_approvals (
 ```python
 # apps/api/src/infrastructure/observability/metrics_agents.py
 
-# Approval requests
-hitl_plan_approval_requests = Counter(
-    "hitl_plan_approval_requests_total",
-    "Total plan approval requests",
-    ["strategy"]  # ManifestBasedStrategy, CostThresholdStrategy, etc.
-)
-
-# Decisions
-hitl_plan_decisions = Counter(
-    "hitl_plan_decisions_total",
-    "Plan approval decisions",
-    ["decision"]  # APPROVE, REJECT, EDIT, REPLAN, AUTO_APPROVE
-)
-
-# Latency
-hitl_plan_approval_latency = Histogram(
-    "hitl_plan_approval_latency_seconds",
-    "Time from request to decision",
-    buckets=[1, 5, 10, 30, 60, 120, 300, 600]  # 1s to 10min
-)
-
-# Question generation
+# Question generation (live — streamed by StreamingService)
 hitl_plan_approval_question_duration = Histogram(
     "hitl_plan_approval_question_duration_seconds",
     "LLM question generation time",
     buckets=[0.1, 0.2, 0.5, 1, 2, 5, 10]
 )
 
-# Fallbacks
-hitl_plan_approval_question_fallback = Counter(
-    "hitl_plan_approval_question_fallback_total",
-    "Question generation fallbacks",
-    ["error_type"]  # llm_failure, timeout, etc.
-)
+
+> **v1.21.16 (ADR-107)**: `hitl_plan_approval_requests_total`,
+> `hitl_plan_decisions_total`, `hitl_plan_approval_latency_seconds` and
+> `hitl_plan_approval_question_fallback_total` were removed (orphaned —
+> only the deleted framework incremented them).
 
 # Modifications
 hitl_plan_modifications = Counter(
@@ -1121,9 +763,7 @@ hitl_edit_actions_total = Counter(...)
 ### Fichiers Clés
 - `apps/api/src/domains/agents/nodes/approval_gate_node.py`
 - `apps/api/src/domains/agents/services/hitl/question_generator.py`
-- `apps/api/src/domains/agents/services/approval/strategies.py`
-- `apps/api/src/domains/agents/services/hitl_orchestrator.py`
-- `apps/api/src/domains/agents/orchestration/plan_editor.py`
+- `apps/api/src/domains/agents/services/hitl/` (interactions, registry, resumption)
 
 ### Phase 8 Documents
 - `apps/api/docs/PHASE_8_COMPLETE_SUMMARY.md` - Résumé complet Phase 8

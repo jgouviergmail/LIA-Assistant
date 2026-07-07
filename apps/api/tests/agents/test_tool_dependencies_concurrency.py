@@ -257,3 +257,62 @@ class TestToolDependenciesConcurrency:
 
         # Assert: Both get_or_create_client calls return same instance
         assert id(results[2]) == id(results[3])
+
+
+class TestToolDependenciesAclose:
+    """Test suite for ToolDependencies.aclose() (deterministic client cleanup)."""
+
+    async def test_aclose_closes_cached_clients_and_clears_cache(self, tool_deps):
+        """aclose() awaits close() on every cached client and empties the cache."""
+        client_a = MagicMock()
+        client_a.close = AsyncMock()
+        client_b = MagicMock()
+        client_b.close = AsyncMock()
+        tool_deps._clients_cache = {"a": client_a, "b": client_b}
+
+        await tool_deps.aclose()
+
+        client_a.close.assert_awaited_once()
+        client_b.close.assert_awaited_once()
+        assert tool_deps._clients_cache == {}
+
+    async def test_aclose_skips_clients_without_close(self, tool_deps):
+        """Clients without a close() attribute are skipped, cache still cleared."""
+        no_close = object()
+        closable = MagicMock()
+        closable.close = AsyncMock()
+        tool_deps._clients_cache = {"x": no_close, "y": closable}
+
+        await tool_deps.aclose()
+
+        closable.close.assert_awaited_once()
+        assert tool_deps._clients_cache == {}
+
+    async def test_aclose_is_best_effort_on_failing_close(self, tool_deps):
+        """A failing close() never blocks the other clients (best-effort)."""
+        failing = MagicMock()
+        failing.close = AsyncMock(side_effect=RuntimeError("boom"))
+        healthy = MagicMock()
+        healthy.close = AsyncMock()
+        tool_deps._clients_cache = {"bad": failing, "good": healthy}
+
+        await tool_deps.aclose()  # must not raise
+
+        healthy.close.assert_awaited_once()
+        assert tool_deps._clients_cache == {}
+
+    async def test_aclose_supports_sync_close(self, tool_deps):
+        """A synchronous close() (non-awaitable) is also supported."""
+        sync_client = MagicMock()
+        sync_client.close = MagicMock(return_value=None)
+        tool_deps._clients_cache = {"s": sync_client}
+
+        await tool_deps.aclose()
+
+        sync_client.close.assert_called_once()
+        assert tool_deps._clients_cache == {}
+
+    async def test_aclose_on_empty_cache_is_noop(self, tool_deps):
+        """aclose() on an empty cache is a safe no-op."""
+        await tool_deps.aclose()
+        assert tool_deps._clients_cache == {}

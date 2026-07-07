@@ -1,41 +1,41 @@
 """
-OpenWeatherMap API client.
+OpenWeatherMap API Client - Weather Data & Geocoding.
 
-Provides weather data retrieval for current conditions, forecasts, and historical data.
-Uses the OpenWeatherMap API v2.5/3.0.
-
-API Reference:
+Provides access to OpenWeatherMap API:
 - https://openweathermap.org/api
 - Current Weather: https://openweathermap.org/current
 - 5-day Forecast: https://openweathermap.org/forecast5
 - Geocoding: https://openweathermap.org/api/geocoding-api
 
-Free tier limits:
-- 1,000 API calls/day
-- Current weather, 5-day/3-hour forecast, geocoding
-- 60 calls/minute rate limit
-
-Required:
+Authentication:
+- API key as ``appid`` query parameter
 - API key from https://home.openweathermap.org/api_keys
+
+Built on BaseAPIKeyClient (F3 migration): Redis-backed rate limiting with
+local fallback, circuit breaker, retry with backoff, connection pooling.
+The public contract is unchanged: methods RAISE on errors (callers absorb —
+``gather(return_exceptions=True)`` in heartbeat, broad except in geocoding,
+error-family catch in briefing) and the geocoding endpoints return lists.
 """
 
-import asyncio
+from __future__ import annotations
+
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-import httpx
-import structlog
-
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.exceptions import MaxRetriesExceededError
+from src.domains.connectors.clients.base_api_key_client import BaseAPIKeyClient
+from src.domains.connectors.models import ConnectorType
+from src.domains.connectors.schemas import APIKeyCredentials
+from src.infrastructure.observability.logging import get_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
-class OpenWeatherMapClient:
+class OpenWeatherMapClient(BaseAPIKeyClient):
     """
     Client for OpenWeatherMap API.
 
@@ -51,66 +51,42 @@ class OpenWeatherMapClient:
         >>> print(f"Temperature: {weather['main']['temp']}°C")
     """
 
+    connector_type = ConnectorType.OPENWEATHERMAP
     api_base_url = "https://api.openweathermap.org"
-    geo_base_url = "https://api.openweathermap.org/geo/1.0"
+
+    # API key travels as the ``appid`` query parameter
+    auth_method = "query"
+    auth_query_param = "appid"
 
     def __init__(
         self,
         api_key: str,
         user_id: UUID | None = None,
-        rate_limit_per_second: int | None = None,
+        rate_limit_per_second: float | None = None,
     ) -> None:
         """
         Initialize OpenWeatherMap client.
 
         Args:
             api_key: OpenWeatherMap API key
-            user_id: Optional user ID for logging
+            user_id: Optional user ID for logging and rate-limit scoping
             rate_limit_per_second: Max requests per second (None = use settings)
         """
-        self.api_key = api_key
-        self.user_id = user_id
-        # Use settings if not explicitly provided
         effective_rate_limit = (
             rate_limit_per_second
             if rate_limit_per_second is not None
             else settings.client_rate_limit_openweathermap_per_second
         )
-        self._rate_limit_per_second = effective_rate_limit
-        self._rate_limit_interval = 1.0 / effective_rate_limit
-        self._last_request_time = 0.0
-        self._http_client: httpx.AsyncClient | None = None
+        super().__init__(
+            user_id=user_id,
+            credentials=APIKeyCredentials(api_key=api_key),
+            rate_limit_per_second=effective_rate_limit,
+        )
+        self.api_key = api_key
 
-    async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create reusable HTTP client."""
-        if self._http_client is None:
-            self._http_client = httpx.AsyncClient(
-                timeout=settings.http_timeout_weather,
-                limits=httpx.Limits(
-                    max_keepalive_connections=10,
-                    max_connections=20,
-                ),
-            )
-        return self._http_client
-
-    async def close(self) -> None:
-        """Cleanup HTTP client."""
-        if self._http_client:
-            await self._http_client.aclose()
-            self._http_client = None
-
-    async def _rate_limit(self) -> None:
-        """Apply simple rate limiting."""
-        import time
-
-        now = time.monotonic()
-        elapsed = now - self._last_request_time
-
-        if elapsed < self._rate_limit_interval:
-            wait_time = self._rate_limit_interval - elapsed
-            await asyncio.sleep(wait_time)
-
-        self._last_request_time = time.monotonic()
+    def _get_http_timeout(self) -> float:
+        """Weather API has a dedicated timeout setting."""
+        return float(settings.http_timeout_weather)
 
     # =========================================================================
     # GEOCODING OPERATIONS
@@ -147,15 +123,12 @@ class OpenWeatherMapClient:
             query_parts.append(country)
         query = ",".join(query_parts)
 
-        params = {
-            "q": query,
-            "limit": limit,
-            "appid": self.api_key,
-        }
+        params: dict[str, Any] = {"q": query, "limit": limit}
 
-        response = await self._make_geocoding_request(
-            f"{self.geo_base_url}/direct",
-            params,
+        # geo/1.0 endpoints return a JSON list (not a dict)
+        response = cast(
+            "list[dict[str, Any]]",
+            await self._make_request("GET", "geo/1.0/direct", params=params),
         )
 
         logger.info(
@@ -184,19 +157,13 @@ class OpenWeatherMapClient:
         Returns:
             List of locations with name, country, state
         """
-        params = {
-            "lat": lat,
-            "lon": lon,
-            "limit": limit,
-            "appid": self.api_key,
-        }
+        params: dict[str, Any] = {"lat": lat, "lon": lon, "limit": limit}
 
-        response = await self._make_geocoding_request(
-            f"{self.geo_base_url}/reverse",
-            params,
+        # geo/1.0 endpoints return a JSON list (not a dict)
+        return cast(
+            "list[dict[str, Any]]",
+            await self._make_request("GET", "geo/1.0/reverse", params=params),
         )
-
-        return response
 
     # =========================================================================
     # CURRENT WEATHER
@@ -242,10 +209,7 @@ class OpenWeatherMapClient:
             lang=lang,
         )
 
-        response = await self._make_request(
-            f"{self.api_base_url}/data/2.5/weather",
-            params,
-        )
+        response = await self._make_request("GET", "data/2.5/weather", params=params)
 
         logger.info(
             "weather_current_retrieved",
@@ -307,10 +271,7 @@ class OpenWeatherMapClient:
         if cnt:
             params["cnt"] = min(cnt, 40)
 
-        response = await self._make_request(
-            f"{self.api_base_url}/data/2.5/forecast",
-            params,
-        )
+        response = await self._make_request("GET", "data/2.5/forecast", params=params)
 
         logger.info(
             "weather_forecast_retrieved",
@@ -372,7 +333,7 @@ class OpenWeatherMapClient:
 
         # Parse user timezone (fallback to UTC if invalid)
         try:
-            tz = ZoneInfo(user_timezone)
+            tz: Any = ZoneInfo(user_timezone)
         except (KeyError, ValueError):
             logger.warning("invalid_user_timezone", timezone=user_timezone, fallback="UTC")
             tz = UTC
@@ -439,9 +400,8 @@ class OpenWeatherMapClient:
         units: str = "metric",
         lang: str = "en",
     ) -> dict[str, Any]:
-        """Build query parameters for weather API calls."""
+        """Build query parameters for weather API calls (appid injected by base)."""
         params: dict[str, Any] = {
-            "appid": self.api_key,
             "units": units,
             "lang": lang,
         }
@@ -458,182 +418,6 @@ class OpenWeatherMapClient:
             raise ValueError("Either lat/lon or city must be provided")
 
         return params
-
-    async def _make_request(
-        self,
-        url: str,
-        params: dict[str, Any],
-    ) -> dict[str, Any]:
-        """
-        Make authenticated request to OpenWeatherMap API (dict response).
-
-        Args:
-            url: Full API URL
-            params: Query parameters
-
-        Returns:
-            JSON response as dict
-        """
-        # Apply rate limiting
-        await self._rate_limit()
-
-        client = await self._get_client()
-
-        # Make request with retry logic
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                response = await client.get(url, params=params)
-
-                if response.status_code == 429:
-                    # Rate limited
-                    wait_time = 2**attempt
-                    logger.warning(
-                        "weather_rate_limited",
-                        user_id=str(self.user_id) if self.user_id else None,
-                        attempt=attempt + 1,
-                        wait_seconds=wait_time,
-                    )
-                    await asyncio.sleep(wait_time)
-                    continue
-
-                if response.status_code == 401:
-                    logger.error(
-                        "weather_invalid_api_key",
-                        user_id=str(self.user_id) if self.user_id else None,
-                    )
-                    raise ValueError("Invalid OpenWeatherMap API key")
-
-                response.raise_for_status()
-                result: dict[str, Any] = response.json()
-                return result
-
-            except httpx.HTTPStatusError as e:
-                if attempt == max_retries - 1:
-                    logger.error(
-                        "weather_request_failed",
-                        user_id=str(self.user_id) if self.user_id else None,
-                        url=url,
-                        error=str(e),
-                        status_code=e.response.status_code if e.response else None,
-                    )
-                    raise
-
-                wait_time = 2**attempt
-                logger.warning(
-                    "weather_request_retry",
-                    user_id=str(self.user_id) if self.user_id else None,
-                    attempt=attempt + 1,
-                    wait_seconds=wait_time,
-                )
-                await asyncio.sleep(wait_time)
-
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    logger.error(
-                        "weather_request_error",
-                        user_id=str(self.user_id) if self.user_id else None,
-                        url=url,
-                        error=str(e),
-                        error_type=type(e).__name__,
-                    )
-                    raise
-
-                await asyncio.sleep(2**attempt)
-
-        # Should never reach here, but satisfy type checker
-        raise MaxRetriesExceededError(
-            operation="openweathermap_request",
-            max_retries=3,
-        )
-
-    async def _make_geocoding_request(
-        self,
-        url: str,
-        params: dict[str, Any],
-    ) -> list[dict[str, Any]]:
-        """
-        Make geocoding request to OpenWeatherMap API (list response).
-
-        Args:
-            url: Full API URL
-            params: Query parameters
-
-        Returns:
-            JSON response as list
-        """
-        # Apply rate limiting
-        await self._rate_limit()
-
-        client = await self._get_client()
-
-        # Make request with retry logic
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                response = await client.get(url, params=params)
-
-                if response.status_code == 429:
-                    # Rate limited
-                    wait_time = 2**attempt
-                    logger.warning(
-                        "weather_rate_limited",
-                        user_id=str(self.user_id) if self.user_id else None,
-                        attempt=attempt + 1,
-                        wait_seconds=wait_time,
-                    )
-                    await asyncio.sleep(wait_time)
-                    continue
-
-                if response.status_code == 401:
-                    logger.error(
-                        "weather_invalid_api_key",
-                        user_id=str(self.user_id) if self.user_id else None,
-                    )
-                    raise ValueError("Invalid OpenWeatherMap API key")
-
-                response.raise_for_status()
-                result: list[dict[str, Any]] = response.json()
-                return result
-
-            except httpx.HTTPStatusError as e:
-                if attempt == max_retries - 1:
-                    logger.error(
-                        "weather_geocoding_failed",
-                        user_id=str(self.user_id) if self.user_id else None,
-                        url=url,
-                        error=str(e),
-                        status_code=e.response.status_code if e.response else None,
-                    )
-                    raise
-
-                wait_time = 2**attempt
-                logger.warning(
-                    "weather_request_retry",
-                    user_id=str(self.user_id) if self.user_id else None,
-                    attempt=attempt + 1,
-                    wait_seconds=wait_time,
-                )
-                await asyncio.sleep(wait_time)
-
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    logger.error(
-                        "weather_geocoding_error",
-                        user_id=str(self.user_id) if self.user_id else None,
-                        url=url,
-                        error=str(e),
-                        error_type=type(e).__name__,
-                    )
-                    raise
-
-                await asyncio.sleep(2**attempt)
-
-        # Should never reach here, but satisfy type checker
-        raise MaxRetriesExceededError(
-            operation="openweathermap_geocoding_request",
-            max_retries=3,
-        )
 
     @staticmethod
     def get_weather_icon_url(icon_code: str, size: str = "2x") -> str:
