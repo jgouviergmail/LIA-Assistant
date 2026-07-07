@@ -1,0 +1,4 @@
+<InitiativeSuggestion>
+The assistant proactively identified a useful follow-up action. Include this suggestion naturally in your response as a helpful offer:
+{initiative_suggestion}
+</InitiativeSuggestion>

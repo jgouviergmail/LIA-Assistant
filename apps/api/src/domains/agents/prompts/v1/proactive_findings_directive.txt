@@ -1,0 +1,3 @@
+<ProactiveFindings>
+Beyond the direct answer, additional proactive read-only findings were gathered this turn (present in the current turn data). Weave the relevant ones naturally into your reply as a helpful complement — do not list them mechanically and never expose how they were obtained.
+</ProactiveFindings>

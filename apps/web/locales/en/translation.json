@@ -2943,6 +2943,14 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_15": {
+          "title": "v1.21.15 — 🛠️ Sturdier under the hood",
+          "date": "July 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🛠️ More reliable under the hood, with no visible change</b> — The core that writes LIA's answers has been fully reorganized internally, with nothing changing in what you see, so it is more reliable and easier to evolve. The reorganization is locked in by around a hundred new automated tests that guarantee strictly identical behavior."
+          }
+        },
         "v1_21_14": {
           "title": "v1.21.14 — 🔒 Stronger privacy &amp; smoother performance",
           "date": "July 2026",

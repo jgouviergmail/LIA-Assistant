@@ -407,9 +407,20 @@ Fallback: when no conversation tracker exists (background operations), the exist
 
 ### New Debug Panel Section: LLM Pipeline
 
-The `llm_pipeline` section in `debug_metrics` provides a chronological reconciliation of ALL LLM calls, sorted by `sequence`. Built in `StreamingService._add_debug_metrics_sections()` from the `llm_calls` data.
+The `llm_pipeline` section in `debug_metrics` provides a chronological reconciliation of ALL LLM calls, sorted by `sequence`. Built by `DebugMetricsBuilder` from the `llm_calls` data (see *Metrics assembly* below).
 
 Frontend component: `LLMPipelineSection.tsx`
+
+### Metrics assembly: `DebugMetricsBuilder`
+
+All ~16 `debug_metrics` sections (token_budget, planner_intelligence, execution_timeline, tool_selection, llm_calls, google_api_calls, image_generation_calls, execution_waves, request_lifecycle, llm_pipeline, knowledge_enrichment, memory/rag/journal/journal_planner injection, skills) are assembled by **`DebugMetricsBuilder`** in `src/domains/agents/services/streaming/debug_metrics_builder.py`. `StreamingService._add_debug_metrics_sections()` is a thin delegator that constructs the builder (injecting the tracking context, cached tool scores/catalogue and the skill-name resolver) and calls `build(debug_metrics, state, run_id, db_aggregated)`.
+
+Key invariants (behaviour-preserving extraction from the former 730-line inline method):
+
+- **Per-section error isolation** — each `_build_<section>` is independently guarded, so a failure in one section never prevents the others from being built.
+- **Ordering matters** — sections are assembled in a fixed order because several read/enrich values written by earlier ones (`token_budget` is enriched by `llm_calls`; `request_lifecycle` / `llm_pipeline` derive from `llm_calls` after `image_generation` injects its synthetic entries).
+
+> Note: several debug sections are fed by state written in `response_node`, which was itself decomposed into ~27 single-responsibility module-level helpers (context assembly, prompt build, HTML rendering, relevant-ids filtering, post-response extractions, …). The public node signature and the `state_update` key contract are unchanged.
 
 ### Run-level Token Tracking
 

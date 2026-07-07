@@ -125,6 +125,9 @@ PromptName = Literal[
     "journal_analyst_persona",
     # ADR-062: Initiative Phase + MCP ReAct
     "initiative_prompt",
+    # Response-node system-prompt scaffolding (proactive suggestions / ReAct findings)
+    "initiative_suggestion_directive",
+    "proactive_findings_directive",
     "mcp_react_agent_prompt",
     # ADR-070: ReAct Execution Mode
     "react_agent_prompt",

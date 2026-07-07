@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.15] - 2026-07-07
+
+> Core-agent decomposition (B1) & i18n/prompt debt hardening. A maintenance release — no user-facing feature change, no behavior change (verbatim extractions, prompt input byte-preserved), no DB migration. The 2026-07 audit flagged the three largest functions of the agent core (B1, "monoliths"); measured strictly (code lines, comments/docstrings excluded), only `response_node` (1516) and `stream_sse_chunks` (403) exceeded the ~300-line threshold and are decomposed here under a characterization-test safety net (Feathers). `parallel_executor` and `_handle_hitl_interrupt` already complied and were left untouched.
+
+### Added
+
+- **`DebugMetricsBuilder` (new module `services/streaming/debug_metrics_builder.py`).** The 730-line `StreamingService._add_debug_metrics_sections()` is extracted into a dedicated builder that assembles the ~16 debug-panel sections (token_budget, planner_intelligence, execution_timeline, tool_selection, LLM / Google-API / image-generation breakdowns, execution_waves, request_lifecycle, llm_pipeline, knowledge / memory / RAG / journal injections, skills). Per-section error isolation and the exact former assembly order are preserved (several sections enrich values written by earlier ones). `_add_debug_metrics_sections()` becomes a thin delegator.
+- **Versioned prompt directives.** The two inline response-node system-prompt fragments (`<InitiativeSuggestion>`, `<ProactiveFindings>`) are moved to `prompts/v1/initiative_suggestion_directive.txt` and `prompts/v1/proactive_findings_directive.txt`, registered in the `PromptName` literal and loaded via `load_prompt()` — **byte-exact** with the previous inline text (round-trip verified, with regression guards).
+- **~90 characterization / unit tests.** Golden-master coverage pinning the observable contract *before* any extraction: the exact `state_update` key set per return path (nominal / draft fast-path / LLM timeout — the MessagesState "undeclared key dropped by the reducer" trap), ReAct passthrough, vision LLM switch, skill activation, HTML injection; every `DebugMetricsBuilder` section including per-section error isolation; and direct unit tests for the extracted pure helpers (knowledge-enrichment skip/await branches, psyche parse, plan-pattern learning, turn-context resolution, prompt assembly).
+
+### Changed
+
+- **`response_node` decomposed: 1516 → 293 code lines (−81 %), 27 single-responsibility module-level helpers.** Turn preamble, ReAct passthrough, agent-results normalization, registry filtering, conversation-history assembly, knowledge enrichment (launch/await), context injections, skill activation, prompt build, context resolution, domain detection, message prep, chain build, relevant-ids filtering, HTML rendering, business metrics, plan-pattern learning and the four post-response background extractions are now named helpers. The public node signature and the returned `state_update` key contract are unchanged.
+- **`stream_sse_chunks` decomposed (403 → ~250 code lines).** The debug-panel emission and the post-stream registry emission are extracted into `_emit_debug_metrics` / `_emit_post_stream_registry` async generators.
+- **`data_for_filtering` error marker centralized (i18n debt).** The inline French fallback marker is replaced by the English `DATA_FILTERING_GENERATION_ERROR_MARKER` constant — it is LLM-facing prompt content (never surfaced to the user), kept in English per the "LLM prompts are not translated" convention (`core/i18n.py`).
+
+### Fixed
+
+- **`debug_metrics_builder.py` was silently git-ignored.** The new production module matched the `.gitignore` `debug_*.py` scratch-script pattern, so it would not have been committed; `StreamingService` imports it lazily, so the admin debug panel would have crashed at runtime on a fresh checkout. A targeted `.gitignore` negation now tracks it.
+- **Inline French / inline prompt scaffolding removed from Python (systemic-rule debt, surfaced by the decomposition).** LLM-facing text now lives in versioned prompt files; the error marker in a centralized constant.
+
+### Tests
+
+- Characterization-first (Feathers): the golden-master net stayed green *identically* through every extraction and caught one self-introduced bug (a missing `run_id` argument). Ruff / Black / MyPy strict clean; full backend fast-unit and agents suites green; coverage rose on the touched modules (`response_node` 42 → 69 %, `streaming/service` 38 → 59 %, `DebugMetricsBuilder` 91 %).
+- Docs: `docs/technical/DEBUG_PANEL_ARCHITECTURE.md` updated (stale `_add_debug_metrics_sections` reference → `DebugMetricsBuilder`; new *Metrics assembly* section).
+
 ## [1.21.14] - 2026-07-07
 
 > Latent-debt hardening (CA-1, CA-4, CA-5). A maintenance release closing three independent residual debts surfaced by the 2026-07 codebase audit — no user-facing feature change, prompt-free, no DB migration. Each item was fixed red-first (a failing test before the fix). Two are security/privacy hardening (PII no longer reaches INFO logs; JSON-LD SEO scripts can no longer be broken out of), one is a latency hardening (multi-MB file reads/writes no longer block the event loop).

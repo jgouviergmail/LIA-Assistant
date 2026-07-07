@@ -2934,6 +2934,14 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_15": {
+          "title": "v1.21.15 — 🛠️ Mayor robustez interna",
+          "date": "Julio 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🛠️ Más fiabilidad interna, sin cambios visibles</b> — El núcleo que redacta las respuestas de LIA se ha reorganizado por completo internamente, sin ningún cambio en lo que ves, para ser más fiable y fácil de evolucionar. La reorganización queda blindada por un centenar de nuevas pruebas automáticas que garantizan un comportamiento estrictamente idéntico."
+          }
+        },
         "v1_21_14": {
           "title": "v1.21.14 — 🔒 Privacidad reforzada y mayor fluidez",
           "date": "Julio 2026",

@@ -222,6 +222,9 @@ logs/
 
 # Debug and temporary scripts
 debug_*.py
+# Exception: production module (debug-panel metrics builder extracted from
+# streaming/service.py), not a scratch debug script — must be tracked.
+!/apps/api/src/domains/agents/services/streaming/debug_metrics_builder.py
 fix_*.py
 tmpclaude-*
 test_*.sh

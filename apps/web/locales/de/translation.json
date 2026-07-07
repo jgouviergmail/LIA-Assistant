@@ -2934,6 +2934,14 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_15": {
+          "title": "v1.21.15 — 🛠️ Robuster unter der Haube",
+          "date": "Juli 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🛠️ Zuverlässiger unter der Haube, ohne sichtbare Änderung</b> — Der Kern, der LIAs Antworten formuliert, wurde intern vollständig neu strukturiert, ohne dass sich an dem, was Sie sehen, etwas ändert – zuverlässiger und leichter weiterzuentwickeln. Die Umstrukturierung wird durch rund hundert neue automatisierte Tests abgesichert, die ein exakt gleiches Verhalten garantieren."
+          }
+        },
         "v1_21_14": {
           "title": "v1.21.14 — 🔒 Mehr Datenschutz &amp; flüssigere Nutzung",
           "date": "Juli 2026",

@@ -460,91 +460,11 @@ class StreamingService:
                     has_query_intelligence="query_intelligence" in state,
                 )
 
-            # =========================================================================
-            # Data Registry LOT 5.2 BugFix (2025-11-26): Emit registry_update AFTER streaming loop
-            # =========================================================================
-            # The registry is added to state by task_orchestrator_node AFTER the node
-            # executes. Since we use stream_mode=["values", "messages"], there is NO
-            # "__end__" chunk - the final state is captured in the last "values" chunk.
-            #
-            # We emit registry_update here, after the streaming loop completes, using
-            # the accumulated `state` variable which contains the final graph state.
-            # This ensures registry data is sent BEFORE the streaming officially ends.
-            #
-            # Note: Registry is emitted AFTER tokens to ensure consistency. The LLM
-            # generates content with Markdown and the frontend
-            # receives tokens + registry in the same stream. Frontend updates registry
-            # state which triggers re-render of registry components.
-            #
-            # BugFix 2025-12-18: Use current_turn_registry (filtered) instead of full registry
-            # The full registry is merged across all turns. For display purposes, we should
-            # only send items from the current turn to avoid showing stale data.
-            # Example: "detail of the second restaurant" was sending BOTH restaurants (2 items)
-            # instead of just the requested one (1 item).
-            # =========================================================================
-            if state:
-                # For DISPLAY: Prefer current_turn_registry, fallback to full registry
-                # For VOICE: ONLY use current_turn_registry (no fallback)
-                # This ensures chat mode (no tools) gets Direct TTS, not Voice LLM
-                current_turn_registry = state.get("current_turn_registry")
-                display_registry = current_turn_registry or state.get("registry")
-
-                if display_registry:
-                    # Find new items not yet sent (for display)
-                    new_items = {
-                        item_id: item
-                        for item_id, item in display_registry.items()
-                        if item_id not in sent_registry_ids
-                    }
-
-                    if new_items:
-                        # Serialize items for SSE (DRY: use shared helper)
-                        serialized_items = _serialize_registry_items(new_items)
-
-                        # Store registry for voice context (fallback if not captured early)
-                        # CRITICAL: Only use current_turn_registry for voice, NOT fallback registry
-                        # This ensures chat mode (no tools executed) goes to Direct TTS path
-                        # instead of Voice LLM (which would comment on stale registry data)
-                        if not self.voice_context_registry and current_turn_registry:
-                            # Filter serialized items to only include current turn items
-                            current_turn_ids = set(current_turn_registry.keys())
-                            voice_items = {
-                                k: v for k, v in serialized_items.items() if k in current_turn_ids
-                            }
-                            if voice_items:
-                                self.voice_context_registry = voice_items
-                                logger.debug(
-                                    "voice_context_registry_set_post_streaming",
-                                    registry_items_count=len(voice_items),
-                                    source="current_turn_only",
-                                )
-
-                        # Emit registry_update chunk
-                        registry_chunk = self.format_registry_update_chunk(serialized_items)
-
-                        # Track metrics
-                        event_type = _get_chunk_event_type(registry_chunk.type)
-                        langgraph_streaming_chunks_total.labels(event_type=event_type).inc()
-
-                        yield (registry_chunk, "")
-
-                        # Update sent IDs
-                        sent_registry_ids.update(new_items.keys())
-
-                        logger.info(
-                            "data_registry_update_emitted_post_streaming",
-                            run_id=run_id,
-                            new_items_count=len(new_items),
-                            total_sent=len(sent_registry_ids),
-                            registry_ids=list(new_items.keys()),
-                        )
-                    else:
-                        logger.debug(
-                            "data_registry_no_new_items_to_emit",
-                            run_id=run_id,
-                            registry_items_count=len(display_registry),
-                            already_sent_count=len(sent_registry_ids),
-                        )
+            # Data Registry: emit registry_update AFTER the streaming loop (final state).
+            async for _reg_chunk in self._emit_post_stream_registry(
+                state, sent_registry_ids, run_id
+            ):
+                yield _reg_chunk
 
             # PHASE 5.5: Emit final content replacement if post-processing occurred
             # When response_node performs post-processing (e.g., photo HTML injection),
@@ -582,190 +502,9 @@ class StreamingService:
                 response_content = final_content
                 token_count = len(final_content.split())  # Approximate token count
 
-            # =================================================================
-            # Debug Panel: Emit debug_metrics ONCE at the end (all data available)
-            # Skip entirely when panel is disabled (zero processing)
-            # =================================================================
-            if self._debug_panel_enabled:
-                try:
-                    if self._cached_query_intelligence:
-                        logger.debug(
-                            "debug_metrics_building_start",
-                            run_id=run_id,
-                        )
-
-                        query_intelligence = self._cached_query_intelligence
-                        debug_metrics = query_intelligence.to_debug_metrics()
-
-                        logger.debug(
-                            "debug_metrics_base_built",
-                            run_id=run_id,
-                            has_domain_selection="domain_selection" in debug_metrics,
-                            has_routing_decision="routing_decision" in debug_metrics,
-                        )
-
-                        # Wait for background tasks (memory, interest, journal extraction)
-                        # so their token costs are persisted before we read the DB totals.
-                        # This ensures the debug panel shows the same cost as the bubble.
-                        if run_id:
-                            from src.infrastructure.async_utils import await_run_id_tasks
-
-                            awaited = await await_run_id_tasks(run_id, timeout=15.0)
-                            if awaited:
-                                logger.info(
-                                    "debug_panel_awaited_background_tasks",
-                                    run_id=run_id,
-                                    tasks_awaited=awaited,
-                                )
-
-                        # Fetch DB-aggregated totals (now includes background task costs)
-                        db_aggregated = None
-                        if self.tracker and hasattr(
-                            self.tracker, "get_aggregated_summary_dto_from_db"
-                        ):
-                            try:
-                                db_aggregated = (
-                                    await self.tracker.get_aggregated_summary_dto_from_db()
-                                )
-                                logger.info(
-                                    "debug_panel_db_aggregated_fetched",
-                                    run_id=run_id,
-                                    db_tokens_in=getattr(db_aggregated, "tokens_in", 0),
-                                    db_tokens_out=getattr(db_aggregated, "tokens_out", 0),
-                                    db_cost_eur=float(getattr(db_aggregated, "cost_eur", 0)),
-                                )
-                            except Exception as db_fetch_err:
-                                logger.warning(
-                                    "debug_panel_db_aggregated_failed",
-                                    run_id=run_id,
-                                    error=f"{type(db_fetch_err).__name__}: {db_fetch_err}",
-                                )
-
-                        # Add all cached data
-                        self._add_debug_metrics_sections(
-                            debug_metrics=debug_metrics,
-                            state=state,
-                            run_id=run_id,
-                            db_aggregated=db_aggregated,
-                        )
-
-                        # =============================================================
-                        # Interest Detection: Analyze current message for interests
-                        # =============================================================
-                        # Uses analyze_interests_for_debug() to detect interests in the
-                        # current user message. Shows what interests are being extracted.
-                        # Results are cached in Redis (reused by background extraction).
-                        if self.user_id and state:
-                            try:
-                                from src.domains.interests.services.extraction_service import (
-                                    analyze_interests_for_debug,
-                                )
-
-                                messages = state.get("messages", [])
-                                user_language = state.get(
-                                    "user_language", settings.default_language
-                                )
-
-                                interest_detection = await analyze_interests_for_debug(
-                                    user_id=self.user_id,
-                                    messages=messages,
-                                    session_id=run_id,
-                                    user_language=user_language,
-                                )
-                                debug_metrics["interest_profile"] = interest_detection
-
-                                logger.debug(
-                                    "debug_metrics_interest_detection_added",
-                                    run_id=run_id,
-                                    enabled=interest_detection.get("enabled", False),
-                                    analyzed=interest_detection.get("analyzed", False),
-                                    extracted_count=len(
-                                        interest_detection.get("extracted_interests", [])
-                                    ),
-                                )
-                            except (ImportError, ValueError, RuntimeError) as interest_err:
-                                logger.debug(
-                                    "debug_metrics_interest_detection_failed",
-                                    run_id=run_id,
-                                    error=str(interest_err),
-                                    error_type=type(interest_err).__name__,
-                                )
-
-                        # =============================================================
-                        # Memory Detection: Show memories extracted from this message
-                        # =============================================================
-                        # Retrieves debug data cached by extract_memories_background()
-                        # which has already completed (awaited via await_run_id_tasks).
-                        if run_id:
-                            try:
-                                from src.domains.agents.services.memory_extractor import (
-                                    get_memory_extraction_debug,
-                                )
-
-                                memory_detection = get_memory_extraction_debug(run_id)
-                                if memory_detection:
-                                    debug_metrics["memory_detection"] = memory_detection
-
-                                    logger.debug(
-                                        "debug_metrics_memory_detection_added",
-                                        run_id=run_id,
-                                        enabled=memory_detection.get("enabled", False),
-                                        extracted_count=len(
-                                            memory_detection.get("extracted_memories", [])
-                                        ),
-                                    )
-                            except (ImportError, ValueError, RuntimeError) as mem_det_err:
-                                logger.debug(
-                                    "debug_metrics_memory_detection_failed",
-                                    run_id=run_id,
-                                    error=str(mem_det_err),
-                                    error_type=type(mem_det_err).__name__,
-                                )
-
-                        logger.debug(
-                            "debug_metrics_sections_added",
-                            run_id=run_id,
-                            has_tool_selection="tool_selection" in debug_metrics,
-                            has_planner_intelligence="planner_intelligence" in debug_metrics,
-                            has_token_budget="token_budget" in debug_metrics,
-                            has_llm_calls="llm_calls" in debug_metrics,
-                            has_interest_profile="interest_profile" in debug_metrics,
-                            has_memory_injection="memory_injection" in debug_metrics,
-                            has_memory_detection="memory_detection" in debug_metrics,
-                        )
-
-                        # Emit debug_metrics chunk
-                        debug_chunk = ChatStreamChunk(
-                            type="debug_metrics",
-                            content="",
-                            metadata=debug_metrics,
-                        )
-                        yield (debug_chunk, "")
-
-                        logger.debug(
-                            "debug_metrics_emitted_at_end",
-                            run_id=run_id,
-                            tool_selection_present="tool_selection" in debug_metrics,
-                            tool_scores_count=len(
-                                debug_metrics.get("tool_selection", {}).get("all_scores", {})
-                            ),
-                            selected_tools_count=len(
-                                debug_metrics.get("tool_selection", {}).get("selected_tools", [])
-                            ),
-                        )
-                    else:
-                        logger.warning(
-                            "debug_metrics_skipped",
-                            run_id=run_id,
-                            has_cached_query_intelligence=False,
-                        )
-                except (ImportError, ValueError, KeyError, TypeError, AttributeError) as e:
-                    logger.warning(
-                        "debug_metrics_final_emission_failed",
-                        run_id=run_id,
-                        error=str(e),
-                        error_type=type(e).__name__,
-                    )
+            # Debug Panel: emit debug_metrics ONCE at the end (all data available).
+            async for _dbg_chunk in self._emit_debug_metrics(state, run_id):
+                yield _dbg_chunk
 
             # =================================================================
             # SAFETY NET: Fallback for chat when response_node didn't stream
@@ -848,6 +587,268 @@ class StreamingService:
                 error_type=type(e).__name__,
             )
             raise
+
+    async def _emit_debug_metrics(
+        self, state: dict[Any, Any], run_id: str
+    ) -> AsyncGenerator[tuple[ChatStreamChunk, str], None]:
+        """Yield the debug-panel ``debug_metrics`` chunk at end of stream (if enabled).
+
+        Extracted verbatim from ``stream_sse_chunks`` (behavior-preserving): gated on
+        ``_debug_panel_enabled`` + cached query intelligence, it builds the base
+        metrics, awaits background tasks, adds the builder sections plus the
+        interest/memory detections, then yields a single ``debug_metrics`` chunk.
+        """
+        if self._debug_panel_enabled:
+            try:
+                if self._cached_query_intelligence:
+                    logger.debug(
+                        "debug_metrics_building_start",
+                        run_id=run_id,
+                    )
+
+                    query_intelligence = self._cached_query_intelligence
+                    debug_metrics = query_intelligence.to_debug_metrics()
+
+                    logger.debug(
+                        "debug_metrics_base_built",
+                        run_id=run_id,
+                        has_domain_selection="domain_selection" in debug_metrics,
+                        has_routing_decision="routing_decision" in debug_metrics,
+                    )
+
+                    # Wait for background tasks (memory, interest, journal extraction)
+                    # so their token costs are persisted before we read the DB totals.
+                    # This ensures the debug panel shows the same cost as the bubble.
+                    if run_id:
+                        from src.infrastructure.async_utils import await_run_id_tasks
+
+                        awaited = await await_run_id_tasks(run_id, timeout=15.0)
+                        if awaited:
+                            logger.info(
+                                "debug_panel_awaited_background_tasks",
+                                run_id=run_id,
+                                tasks_awaited=awaited,
+                            )
+
+                    # Fetch DB-aggregated totals (now includes background task costs)
+                    db_aggregated = None
+                    if self.tracker and hasattr(self.tracker, "get_aggregated_summary_dto_from_db"):
+                        try:
+                            db_aggregated = await self.tracker.get_aggregated_summary_dto_from_db()
+                            logger.info(
+                                "debug_panel_db_aggregated_fetched",
+                                run_id=run_id,
+                                db_tokens_in=getattr(db_aggregated, "tokens_in", 0),
+                                db_tokens_out=getattr(db_aggregated, "tokens_out", 0),
+                                db_cost_eur=float(getattr(db_aggregated, "cost_eur", 0)),
+                            )
+                        except Exception as db_fetch_err:
+                            logger.warning(
+                                "debug_panel_db_aggregated_failed",
+                                run_id=run_id,
+                                error=f"{type(db_fetch_err).__name__}: {db_fetch_err}",
+                            )
+
+                    # Add all cached data
+                    self._add_debug_metrics_sections(
+                        debug_metrics=debug_metrics,
+                        state=state,
+                        run_id=run_id,
+                        db_aggregated=db_aggregated,
+                    )
+
+                    # =============================================================
+                    # Interest Detection: Analyze current message for interests
+                    # =============================================================
+                    # Uses analyze_interests_for_debug() to detect interests in the
+                    # current user message. Shows what interests are being extracted.
+                    # Results are cached in Redis (reused by background extraction).
+                    if self.user_id and state:
+                        try:
+                            from src.domains.interests.services.extraction_service import (
+                                analyze_interests_for_debug,
+                            )
+
+                            messages = state.get("messages", [])
+                            user_language = state.get("user_language", settings.default_language)
+
+                            interest_detection = await analyze_interests_for_debug(
+                                user_id=self.user_id,
+                                messages=messages,
+                                session_id=run_id,
+                                user_language=user_language,
+                            )
+                            debug_metrics["interest_profile"] = interest_detection
+
+                            logger.debug(
+                                "debug_metrics_interest_detection_added",
+                                run_id=run_id,
+                                enabled=interest_detection.get("enabled", False),
+                                analyzed=interest_detection.get("analyzed", False),
+                                extracted_count=len(
+                                    interest_detection.get("extracted_interests", [])
+                                ),
+                            )
+                        except (ImportError, ValueError, RuntimeError) as interest_err:
+                            logger.debug(
+                                "debug_metrics_interest_detection_failed",
+                                run_id=run_id,
+                                error=str(interest_err),
+                                error_type=type(interest_err).__name__,
+                            )
+
+                    # =============================================================
+                    # Memory Detection: Show memories extracted from this message
+                    # =============================================================
+                    # Retrieves debug data cached by extract_memories_background()
+                    # which has already completed (awaited via await_run_id_tasks).
+                    if run_id:
+                        try:
+                            from src.domains.agents.services.memory_extractor import (
+                                get_memory_extraction_debug,
+                            )
+
+                            memory_detection = get_memory_extraction_debug(run_id)
+                            if memory_detection:
+                                debug_metrics["memory_detection"] = memory_detection
+
+                                logger.debug(
+                                    "debug_metrics_memory_detection_added",
+                                    run_id=run_id,
+                                    enabled=memory_detection.get("enabled", False),
+                                    extracted_count=len(
+                                        memory_detection.get("extracted_memories", [])
+                                    ),
+                                )
+                        except (ImportError, ValueError, RuntimeError) as mem_det_err:
+                            logger.debug(
+                                "debug_metrics_memory_detection_failed",
+                                run_id=run_id,
+                                error=str(mem_det_err),
+                                error_type=type(mem_det_err).__name__,
+                            )
+
+                    logger.debug(
+                        "debug_metrics_sections_added",
+                        run_id=run_id,
+                        has_tool_selection="tool_selection" in debug_metrics,
+                        has_planner_intelligence="planner_intelligence" in debug_metrics,
+                        has_token_budget="token_budget" in debug_metrics,
+                        has_llm_calls="llm_calls" in debug_metrics,
+                        has_interest_profile="interest_profile" in debug_metrics,
+                        has_memory_injection="memory_injection" in debug_metrics,
+                        has_memory_detection="memory_detection" in debug_metrics,
+                    )
+
+                    # Emit debug_metrics chunk
+                    debug_chunk = ChatStreamChunk(
+                        type="debug_metrics",
+                        content="",
+                        metadata=debug_metrics,
+                    )
+                    yield (debug_chunk, "")
+
+                    logger.debug(
+                        "debug_metrics_emitted_at_end",
+                        run_id=run_id,
+                        tool_selection_present="tool_selection" in debug_metrics,
+                        tool_scores_count=len(
+                            debug_metrics.get("tool_selection", {}).get("all_scores", {})
+                        ),
+                        selected_tools_count=len(
+                            debug_metrics.get("tool_selection", {}).get("selected_tools", [])
+                        ),
+                    )
+                else:
+                    logger.warning(
+                        "debug_metrics_skipped",
+                        run_id=run_id,
+                        has_cached_query_intelligence=False,
+                    )
+            except (ImportError, ValueError, KeyError, TypeError, AttributeError) as e:
+                logger.warning(
+                    "debug_metrics_final_emission_failed",
+                    run_id=run_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+
+    async def _emit_post_stream_registry(
+        self, state: dict[Any, Any], sent_registry_ids: set[str], run_id: str
+    ) -> AsyncGenerator[tuple[ChatStreamChunk, str], None]:
+        """Emit the post-streaming ``registry_update`` chunk for the final state.
+
+        Data Registry LOT 5.2 BugFix (2025-11-26): the registry is added to state by
+        task_orchestrator_node AFTER the node executes; with stream_mode
+        ["values", "messages"] there is no "__end__" chunk, so the final registry is
+        emitted here from the accumulated ``state``. Uses current_turn_registry
+        (filtered) with a fallback to the full registry for DISPLAY, and
+        current_turn_registry ONLY for VOICE. Mutates ``sent_registry_ids`` and
+        ``self.voice_context_registry`` exactly as the inline version did.
+        """
+        if state:
+            # For DISPLAY: Prefer current_turn_registry, fallback to full registry
+            # For VOICE: ONLY use current_turn_registry (no fallback)
+            # This ensures chat mode (no tools) gets Direct TTS, not Voice LLM
+            current_turn_registry = state.get("current_turn_registry")
+            display_registry = current_turn_registry or state.get("registry")
+
+            if display_registry:
+                # Find new items not yet sent (for display)
+                new_items = {
+                    item_id: item
+                    for item_id, item in display_registry.items()
+                    if item_id not in sent_registry_ids
+                }
+
+                if new_items:
+                    # Serialize items for SSE (DRY: use shared helper)
+                    serialized_items = _serialize_registry_items(new_items)
+
+                    # Store registry for voice context (fallback if not captured early)
+                    # CRITICAL: Only use current_turn_registry for voice, NOT fallback registry
+                    # This ensures chat mode (no tools executed) goes to Direct TTS path
+                    # instead of Voice LLM (which would comment on stale registry data)
+                    if not self.voice_context_registry and current_turn_registry:
+                        # Filter serialized items to only include current turn items
+                        current_turn_ids = set(current_turn_registry.keys())
+                        voice_items = {
+                            k: v for k, v in serialized_items.items() if k in current_turn_ids
+                        }
+                        if voice_items:
+                            self.voice_context_registry = voice_items
+                            logger.debug(
+                                "voice_context_registry_set_post_streaming",
+                                registry_items_count=len(voice_items),
+                                source="current_turn_only",
+                            )
+
+                    # Emit registry_update chunk
+                    registry_chunk = self.format_registry_update_chunk(serialized_items)
+
+                    # Track metrics
+                    event_type = _get_chunk_event_type(registry_chunk.type)
+                    langgraph_streaming_chunks_total.labels(event_type=event_type).inc()
+
+                    yield (registry_chunk, "")
+
+                    # Update sent IDs
+                    sent_registry_ids.update(new_items.keys())
+
+                    logger.info(
+                        "data_registry_update_emitted_post_streaming",
+                        run_id=run_id,
+                        new_items_count=len(new_items),
+                        total_sent=len(sent_registry_ids),
+                        registry_ids=list(new_items.keys()),
+                    )
+                else:
+                    logger.debug(
+                        "data_registry_no_new_items_to_emit",
+                        run_id=run_id,
+                        registry_items_count=len(display_registry),
+                        already_sent_count=len(sent_registry_ids),
+                    )
 
     def _process_values_chunk(
         self,
@@ -2274,724 +2275,22 @@ class StreamingService:
         This method is called at the END of streaming when ALL data is available.
         It builds token_budget, planner_intelligence, tool_selection, execution_timeline, and llm_calls.
 
+        Delegates the section assembly to ``DebugMetricsBuilder`` (behavior-preserving
+        extraction — same inputs, same in-place mutation, same section ordering).
+
         Args:
             debug_metrics: Base debug metrics dict (from query_intelligence.to_debug_metrics())
             state: Final state dict with all data
             run_id: Run ID for logging
             db_aggregated: Optional DB-aggregated token summary (includes prior HITL requests)
         """
-        from src.core.config import get_settings
-        from src.core.config.agents import get_debug_thresholds
-
-        settings = get_settings()
-
-        # =================================================================
-        # Token Budget: Calculate context size and determine zone
-        # =================================================================
-        try:
-            from src.domains.agents.services.token_counter_service import (
-                FallbackLevel,
-                TokenCounterService,
-            )
-
-            token_counter = TokenCounterService(settings=settings)
-            messages = state.get("messages", [])
-
-            # Count tokens in messages
-            message_tokens = token_counter.count_messages_tokens(messages)
-
-            # Determine zone and strategy
-            fallback_level = token_counter.get_fallback_level(message_tokens)
-
-            # Map fallback level to zone
-            zone_mapping = {
-                FallbackLevel.FULL_CATALOGUE: "safe",
-                FallbackLevel.FILTERED_CATALOGUE: "warning",
-                FallbackLevel.REDUCED_DESCRIPTIONS: "warning",
-                FallbackLevel.PRIMARY_DOMAIN_ONLY: "critical",
-                FallbackLevel.SIMPLE_SEARCH: "emergency",
-            }
-            zone = zone_mapping.get(fallback_level, "safe")
-
-            debug_metrics["token_budget"] = {
-                "current_tokens": message_tokens,
-                "thresholds": {
-                    "safe": token_counter.threshold_safe,
-                    "warning": token_counter.threshold_warning,
-                    "critical": token_counter.threshold_critical,
-                    "max": token_counter.threshold_max,
-                },
-                "zone": zone,
-                "strategy": fallback_level,
-                "fallback_active": fallback_level != FallbackLevel.FULL_CATALOGUE,
-            }
-        except (ImportError, ValueError, RuntimeError, AttributeError) as token_err:
-            logger.debug(
-                "debug_metrics_token_budget_failed",
-                error=str(token_err),
-                error_type=type(token_err).__name__,
-            )
-
-        # =================================================================
-        # Planner Intelligence: Strategy, tokens, corrections
-        # =================================================================
-        planning_result = state.get("planning_result")
-        if planning_result is not None:
-            # Determine strategy name
-            if planning_result.used_template:
-                strategy = "template_bypass"
-            elif planning_result.used_panic_mode:
-                strategy = "panic_mode"
-            elif planning_result.used_generative:
-                strategy = "generative"
-            else:
-                strategy = "filtered_catalogue"
-
-            # Calculate token reduction percentage
-            tokens_used = planning_result.tokens_used
-            tokens_saved = planning_result.tokens_saved
-            total_would_be = tokens_used + tokens_saved
-            reduction_pct = (
-                round((tokens_saved / total_would_be) * 100, 1) if total_would_be > 0 else 0
-            )
-
-            # Get plan details
-            plan_details = {}
-            if planning_result.plan:
-                plan_details = {
-                    "steps_count": len(planning_result.plan.steps),
-                    "tools_used": [
-                        step.tool_name
-                        for step in planning_result.plan.steps
-                        if hasattr(step, "tool_name")
-                    ],
-                    "estimated_cost_usd": (
-                        planning_result.plan.estimated_cost
-                        if hasattr(planning_result.plan, "estimated_cost")
-                        else None
-                    ),
-                }
-
-            debug_metrics["planner_intelligence"] = {
-                "strategy": strategy,
-                "tokens": {
-                    "used": tokens_used,
-                    "saved": tokens_saved,
-                    "full_catalogue_estimate": total_would_be,
-                    "reduction_percentage": reduction_pct,
-                },
-                "plan": plan_details,
-                "flags": {
-                    "used_template": planning_result.used_template,
-                    "used_panic_mode": planning_result.used_panic_mode,
-                    "used_generative": planning_result.used_generative,
-                },
-                "success": planning_result.success,
-                "error": planning_result.error,
-            }
-
-        # =================================================================
-        # Execution Timeline: Collect step information from plan and results
-        # =================================================================
-        execution_plan = state.get("execution_plan")
-        completed_steps = state.get("completed_steps", {})
-        if execution_plan:
-            try:
-                timeline_steps = []
-                for step in execution_plan.steps:
-                    step_id = step.step_id if hasattr(step, "step_id") else str(id(step))
-                    step_result = completed_steps.get(step_id, {})
-
-                    # Extract domain from agent_name (e.g., "contacts_agent" → "contacts")
-                    agent_name = getattr(step, "agent_name", None) or "unknown"
-                    domain = (
-                        agent_name.removesuffix("_agent") if agent_name != "unknown" else "unknown"
-                    )
-
-                    timeline_steps.append(
-                        {
-                            "step_id": step_id,
-                            "tool_name": (
-                                step.tool_name if hasattr(step, "tool_name") else "unknown"
-                            ),
-                            "domain": domain,
-                            "status": "completed" if step_id in completed_steps else "pending",
-                            "success": step_result.get("success", None),
-                            "duration_ms": step_result.get("duration_ms", None),
-                        }
-                    )
-
-                debug_metrics["execution_timeline"] = {
-                    "steps": timeline_steps,
-                    "total_steps": len(timeline_steps),
-                    "completed_steps": len(completed_steps),
-                }
-            except (AttributeError, KeyError, ValueError, TypeError) as timeline_err:
-                logger.debug(
-                    "debug_metrics_execution_timeline_failed",
-                    error=str(timeline_err),
-                    error_type=type(timeline_err).__name__,
-                )
-
-        # =================================================================
-        # Tool Selection: Merge semantic scores + filtered catalogue
-        # =================================================================
-        # Like domain_selection: show ALL tools from domains (with scores)
-        # + highlight which ones are actually selected (filtered catalogue)
-        filtered_catalogue = self._cached_filtered_catalogue
-        tool_scores = self._cached_tool_scores
-
-        logger.debug(
-            "debug_metrics_tool_selection_check",
-            run_id=run_id,
-            has_filtered_catalogue=filtered_catalogue is not None,
-            filtered_catalogue_tools_count=(
-                len(filtered_catalogue.tools) if filtered_catalogue else 0
-            ),
-            has_tool_scores=tool_scores is not None,
-            tool_scores_count=len(tool_scores.get("all_scores", {})) if tool_scores else 0,
+        from src.domains.agents.services.streaming.debug_metrics_builder import (
+            DebugMetricsBuilder,
         )
 
-        if tool_scores:
-            # Use selected_tools from tool_scores (tools that passed the > threshold filter)
-            # This is the authoritative source from SemanticToolSelector
-            selected_tools = tool_scores.get("selected_tools", [])
-
-            # Fallback: if selected_tools not available, build from filtered_catalogue (legacy)
-            if not selected_tools and filtered_catalogue:
-                selected_tool_names = {t.get("name") for t in filtered_catalogue.tools}
-                selected_tools = []
-                for tool_name in selected_tool_names:
-                    score = tool_scores["all_scores"].get(tool_name, 0.0)
-                    selected_tools.append(
-                        {
-                            "tool_name": tool_name,
-                            "score": round(score, 3),
-                            "confidence": (
-                                "high" if score >= 0.40 else ("medium" if score >= 0.15 else "low")
-                            ),
-                        }
-                    )
-                # Sort by score descending
-                selected_tools.sort(key=lambda t: t["score"], reverse=True)
-
-            thresholds = get_debug_thresholds()
-            tool_th = thresholds.get("tool_selection", {})
-
-            # Frontend-compatible format (like domain_selection)
-            debug_metrics["tool_selection"] = {
-                "selected_tools": selected_tools,
-                "top_score": round(tool_scores["top_score"], 3),
-                "has_uncertainty": tool_scores["has_uncertainty"],
-                "all_scores": {
-                    name: round(score, 3)
-                    for name, score in sorted(
-                        tool_scores["all_scores"].items(),
-                        key=lambda x: x[1],
-                        reverse=True,
-                    )
-                },
-                "thresholds": {
-                    "softmax_temperature": {
-                        "value": tool_th.get("softmax_temperature", 0.1),
-                        "info": "Lower = sharper discrimination",
-                    },
-                    "primary_min": {
-                        "value": tool_th.get("primary_min", 0.15),
-                        "actual": round(tool_scores["top_score"], 3),
-                        "passed": tool_scores["top_score"] >= tool_th.get("primary_min", 0.15),
-                    },
-                    "max_tools": {
-                        "value": tool_th.get("max_tools", 8),
-                        "info": f"Selected: {len(selected_tools)} from catalogue (filtered by intent), Scored: {len(tool_scores['all_scores'])} from domains",
-                    },
-                },
-            }
-
-            logger.debug(
-                "debug_metrics_tool_selection_built",
-                run_id=run_id,
-                selected_count=len(selected_tools),
-                scored_count=len(tool_scores["all_scores"]),
-                top_score=tool_scores["top_score"],
-            )
-
-        # =================================================================
-        # LLM Calls Breakdown: Per-node token consumption
-        # =================================================================
-        if self.tracker and hasattr(self.tracker, "get_llm_calls_breakdown"):
-            try:
-                llm_calls = self.tracker.get_llm_calls_breakdown()
-                if llm_calls:
-                    debug_metrics["llm_calls"] = llm_calls
-                    debug_metrics["llm_summary"] = {
-                        "total_calls": len(llm_calls),
-                        "total_tokens_in": sum(c.get("tokens_in", 0) for c in llm_calls),
-                        "total_tokens_out": sum(c.get("tokens_out", 0) for c in llm_calls),
-                        "total_tokens_cache": sum(c.get("tokens_cache", 0) for c in llm_calls),
-                        "total_cost_eur": round(sum(c.get("cost_eur", 0) for c in llm_calls), 6),
-                    }
-                    # v3.1: Update token_budget with REAL total from LLM calls
-                    # v3.3: For HITL flows, the DB-aggregated summary includes
-                    # ALL committed data (HITL request + post-approval + sub-agents).
-                    # Use it when available as it's the most complete source.
-                    # Fall back to in-memory run-level data for non-HITL flows.
-                    if "token_budget" in debug_metrics:
-                        tokens_in = debug_metrics["llm_summary"]["total_tokens_in"]
-                        tokens_out = debug_metrics["llm_summary"]["total_tokens_out"]
-                        tokens_cache = debug_metrics["llm_summary"]["total_tokens_cache"]
-                        cost_eur = debug_metrics["llm_summary"]["total_cost_eur"]
-
-                        # Use DB-aggregated totals if available and more complete
-                        # The DB summary includes all committed data across HITL
-                        # requests sharing the same run_id (UPSERT aggregation).
-                        if db_aggregated:
-                            db_total_in = getattr(db_aggregated, "tokens_in", 0)
-                            db_total_out = getattr(db_aggregated, "tokens_out", 0)
-                            db_total_cache = getattr(db_aggregated, "tokens_cache", 0)
-                            db_cost_eur = float(getattr(db_aggregated, "cost_eur", 0.0))
-                            db_total = db_total_in + db_total_out
-                            mem_total = tokens_in + tokens_out
-                            # Use DB if it has more data (includes prior HITL requests)
-                            if db_total > mem_total:
-                                tokens_in = db_total_in
-                                tokens_out = db_total_out
-                                tokens_cache = db_total_cache
-                                cost_eur = round(db_cost_eur, 6)
-
-                        debug_metrics["token_budget"]["total_consumed"] = tokens_in + tokens_out
-                        debug_metrics["token_budget"]["tokens_input"] = tokens_in
-                        debug_metrics["token_budget"]["tokens_output"] = tokens_out
-                        debug_metrics["token_budget"]["tokens_cache"] = tokens_cache
-                        debug_metrics["token_budget"]["total_cost_eur"] = cost_eur
-            except (AttributeError, ValueError, RuntimeError) as llm_err:
-                logger.debug(
-                    "debug_metrics_llm_calls_failed",
-                    run_id=run_id,
-                    error=str(llm_err),
-                    error_type=type(llm_err).__name__,
-                )
-
-        # =================================================================
-        # Google API Calls Breakdown: Per-call details
-        # =================================================================
-        if self.tracker and hasattr(self.tracker, "get_google_api_calls_breakdown"):
-            try:
-                google_api_calls = self.tracker.get_google_api_calls_breakdown()
-                if google_api_calls:
-                    debug_metrics["google_api_calls"] = google_api_calls
-                    # Summary stats
-                    billable_calls = [c for c in google_api_calls if not c.get("cached", False)]
-                    debug_metrics["google_api_summary"] = {
-                        "total_calls": len(google_api_calls),
-                        "billable_calls": len(billable_calls),
-                        "cached_calls": len(google_api_calls) - len(billable_calls),
-                        "total_cost_usd": round(
-                            sum(c.get("cost_usd", 0) for c in billable_calls), 6
-                        ),
-                        "total_cost_eur": round(
-                            sum(c.get("cost_eur", 0) for c in billable_calls), 6
-                        ),
-                    }
-                    logger.debug(
-                        "debug_metrics_google_api_calls_added",
-                        run_id=run_id,
-                        total_calls=len(google_api_calls),
-                        billable_calls=len(billable_calls),
-                    )
-            except (AttributeError, ValueError, RuntimeError) as gapi_err:
-                logger.debug(
-                    "debug_metrics_google_api_calls_failed",
-                    run_id=run_id,
-                    error=str(gapi_err),
-                    error_type=type(gapi_err).__name__,
-                )
-
-        # =================================================================
-        # Image Generation Calls Breakdown: Per-call details
-        # =================================================================
-        if self.tracker and hasattr(self.tracker, "get_image_generation_calls_breakdown"):
-            try:
-                image_gen_calls = self.tracker.get_image_generation_calls_breakdown()
-                if image_gen_calls:
-                    debug_metrics["image_generation_calls"] = image_gen_calls
-                    debug_metrics["image_generation_summary"] = {
-                        "total_calls": len(image_gen_calls),
-                        "total_images": sum(c.get("image_count", 0) for c in image_gen_calls),
-                        "total_cost_usd": round(
-                            sum(c.get("cost_usd", 0) for c in image_gen_calls), 6
-                        ),
-                        "total_cost_eur": round(
-                            sum(c.get("cost_eur", 0) for c in image_gen_calls), 6
-                        ),
-                    }
-
-                    # Inject into llm_calls as a synthetic entry so it appears
-                    # in LLM Pipeline and Execution Times in the debug panel
-                    if "llm_calls" not in debug_metrics:
-                        debug_metrics["llm_calls"] = []
-                    for ig_call in image_gen_calls:
-                        debug_metrics["llm_calls"].append(
-                            {
-                                "node_name": "image_generation",
-                                "model_name": ig_call["model"],
-                                "tokens_in": 0,
-                                "tokens_out": 0,
-                                "tokens_cache": 0,
-                                "cost_eur": ig_call["cost_eur"],
-                                "duration_ms": ig_call.get("duration_ms", 0),
-                                "call_type": "image_generation",
-                                "sequence": 9999,  # After all LLM calls
-                            }
-                        )
-
-                    logger.debug(
-                        "debug_metrics_image_generation_calls_added",
-                        run_id=run_id,
-                        total_calls=len(image_gen_calls),
-                    )
-            except (AttributeError, ValueError, RuntimeError) as img_err:
-                logger.debug(
-                    "debug_metrics_image_generation_calls_failed",
-                    run_id=run_id,
-                    error=str(img_err),
-                    error_type=type(img_err).__name__,
-                )
-
-        # =================================================================
-        # Execution Waves: Parallel visualization (v3.1)
-        # SYNC: DependencyGraph.get_wave_info() is pure computation, no I/O
-        # =================================================================
-        if execution_plan:
-            try:
-                from src.domains.agents.orchestration.dependency_graph import DependencyGraph
-
-                graph = DependencyGraph(execution_plan)
-                debug_metrics["execution_waves"] = graph.get_wave_info()
-            except (ImportError, AttributeError, ValueError, RuntimeError) as wave_err:
-                logger.debug(
-                    "debug_metrics_execution_waves_failed",
-                    run_id=run_id,
-                    error=str(wave_err),
-                    error_type=type(wave_err).__name__,
-                )
-
-        # =================================================================
-        # Request Lifecycle: Pipeline node progression (v3.2)
-        # SYNC: Pure data transformation from already-collected llm_calls
-        # Now includes duration_ms per node for execution time tracking
-        # =================================================================
-        if "llm_calls" in debug_metrics:
-            try:
-                llm_calls_data = debug_metrics["llm_calls"]
-                nodes_data: dict[str, dict[str, Any]] = {}
-
-                for call in llm_calls_data:
-                    node_name = call.get("node_name", "unknown")
-                    if node_name not in nodes_data:
-                        nodes_data[node_name] = {
-                            "name": node_name,
-                            "status": "completed",
-                            "tokens_in": 0,
-                            "tokens_out": 0,
-                            "tokens_cache": 0,
-                            "cost_eur": 0.0,
-                            "calls_count": 0,
-                            "duration_ms": 0.0,  # v3.2: Track execution time
-                        }
-                    nodes_data[node_name]["tokens_in"] += call.get("tokens_in", 0)
-                    nodes_data[node_name]["tokens_out"] += call.get("tokens_out", 0)
-                    nodes_data[node_name]["tokens_cache"] += call.get("tokens_cache", 0)
-                    nodes_data[node_name]["cost_eur"] += call.get("cost_eur", 0.0)
-                    nodes_data[node_name]["calls_count"] += 1
-                    nodes_data[node_name]["duration_ms"] += call.get("duration_ms", 0.0)
-
-                # Order by pipeline progression
-                from src.core.constants import DEBUG_PIPELINE_NODE_ORDER
-
-                ordered_nodes: list[dict[str, Any]] = []
-
-                # First add nodes in pipeline order
-                for node_name in DEBUG_PIPELINE_NODE_ORDER:
-                    if node_name in nodes_data:
-                        ordered_nodes.append(nodes_data[node_name])
-
-                # Then add any remaining nodes not in pipeline order
-                for node_name, node_data in nodes_data.items():
-                    if node_name not in DEBUG_PIPELINE_NODE_ORDER:
-                        ordered_nodes.append(node_data)
-
-                # v3.2: Calculate total duration across all nodes
-                total_duration_ms = sum(node.get("duration_ms", 0.0) for node in ordered_nodes)
-
-                debug_metrics["request_lifecycle"] = {
-                    "nodes": ordered_nodes,
-                    "total_nodes": len(ordered_nodes),
-                    "total_duration_ms": total_duration_ms,  # v3.2: Total LLM execution time
-                }
-            except (KeyError, TypeError, ValueError) as lifecycle_err:
-                logger.debug(
-                    "debug_metrics_request_lifecycle_failed",
-                    run_id=run_id,
-                    error=str(lifecycle_err),
-                    error_type=type(lifecycle_err).__name__,
-                )
-
-        # =================================================================
-        # LLM Pipeline: Chronological reconciliation of ALL LLM calls (v3.3)
-        # Provides a unified view of all LLM calls (chat + embedding) sorted
-        # by execution order, with per-type breakdowns for the debug panel.
-        # =================================================================
-        if "llm_calls" in debug_metrics:
-            try:
-                sorted_calls = sorted(
-                    debug_metrics["llm_calls"],
-                    key=lambda c: c.get("sequence", 0),
-                )
-                chat_calls = [c for c in sorted_calls if c.get("call_type", "chat") == "chat"]
-                embedding_calls = [c for c in sorted_calls if c.get("call_type") == "embedding"]
-                debug_metrics["llm_pipeline"] = {
-                    "calls": sorted_calls,
-                    "total_calls": len(sorted_calls),
-                    "total_chat_calls": len(chat_calls),
-                    "total_embedding_calls": len(embedding_calls),
-                    "total_duration_ms": round(
-                        sum(c.get("duration_ms", 0) for c in sorted_calls), 1
-                    ),
-                    "total_tokens_in": sum(c.get("tokens_in", 0) for c in sorted_calls),
-                    "total_tokens_out": sum(c.get("tokens_out", 0) for c in sorted_calls),
-                    "total_tokens_cache": sum(c.get("tokens_cache", 0) for c in sorted_calls),
-                    "total_cost_eur": round(sum(c.get("cost_eur", 0) for c in sorted_calls), 6),
-                }
-            except (KeyError, TypeError, ValueError) as pipeline_err:
-                logger.debug(
-                    "debug_metrics_llm_pipeline_failed",
-                    run_id=run_id,
-                    error=str(pipeline_err),
-                    error_type=type(pipeline_err).__name__,
-                )
-
-        # =================================================================
-        # Knowledge Enrichment (Brave Search): Merge execution results
-        # =================================================================
-        # Base structure already created by QueryIntelligence.to_debug_metrics()
-        # with encyclopedia_keywords and is_news_query. Here we enrich with
-        # actual execution results from response_node.
-        try:
-            # Defensive check: ensure knowledge_enrichment section exists
-            # (may not exist if query_intelligence was None during to_debug_metrics())
-            if "knowledge_enrichment" not in debug_metrics:
-                debug_metrics["knowledge_enrichment"] = {
-                    "enabled": settings.knowledge_enrichment_enabled,
-                    "executed": False,
-                    "encyclopedia_keywords": [],
-                    "is_news_query": False,
-                }
-
-            # Get knowledge_enrichment_result from state (set by response_node)
-            enrichment_result = state.get("knowledge_enrichment_result") if state else None
-
-            # Update the enabled field with actual settings value
-            debug_metrics["knowledge_enrichment"]["enabled"] = settings.knowledge_enrichment_enabled
-
-            if enrichment_result:
-                # Determine if enrichment was actually executed (API called)
-                # vs skipped (skip_reason present without endpoint/error)
-                has_api_result = enrichment_result.get("endpoint") is not None
-                has_api_error = enrichment_result.get("error") is not None
-                was_executed = has_api_result or has_api_error
-
-                debug_metrics["knowledge_enrichment"]["executed"] = was_executed
-                debug_metrics["knowledge_enrichment"]["endpoint"] = enrichment_result.get(
-                    "endpoint"
-                )
-                debug_metrics["knowledge_enrichment"]["keyword_used"] = enrichment_result.get(
-                    "keyword_used"
-                )
-                debug_metrics["knowledge_enrichment"]["results_count"] = enrichment_result.get(
-                    "results_count"
-                )
-                debug_metrics["knowledge_enrichment"]["from_cache"] = enrichment_result.get(
-                    "from_cache"
-                )
-                debug_metrics["knowledge_enrichment"]["skip_reason"] = enrichment_result.get(
-                    "skip_reason"
-                )
-                debug_metrics["knowledge_enrichment"]["error"] = enrichment_result.get("error")
-                # Include actual results for debugging (title, description, url)
-                debug_metrics["knowledge_enrichment"]["results"] = enrichment_result.get("results")
-                # Include the formatted context that was injected into the LLM prompt
-                debug_metrics["knowledge_enrichment"]["prompt_context"] = enrichment_result.get(
-                    "prompt_context"
-                )
-            else:
-                # Enrichment was not executed (feature disabled, no keywords, etc.)
-                debug_metrics["knowledge_enrichment"]["executed"] = False
-                if not settings.knowledge_enrichment_enabled:
-                    debug_metrics["knowledge_enrichment"]["skip_reason"] = "feature_disabled"
-                elif not debug_metrics["knowledge_enrichment"].get("encyclopedia_keywords"):
-                    debug_metrics["knowledge_enrichment"]["skip_reason"] = "no_keywords"
-
-            logger.debug(
-                "debug_metrics_knowledge_enrichment_built",
-                run_id=run_id,
-                executed=debug_metrics["knowledge_enrichment"]["executed"],
-                endpoint=debug_metrics["knowledge_enrichment"].get("endpoint"),
-                results_count=debug_metrics["knowledge_enrichment"].get("results_count"),
-            )
-        except (KeyError, TypeError, AttributeError) as ke_err:
-            logger.debug(
-                "debug_metrics_knowledge_enrichment_failed",
-                run_id=run_id,
-                error=str(ke_err),
-                error_type=type(ke_err).__name__,
-            )
-
-        # =================================================================
-        # Memory Injection: Injected memories with scores for tuning
-        # =================================================================
-        try:
-            memory_debug = state.get("memory_injection_debug") if state else None
-            if memory_debug:
-                debug_metrics["memory_injection"] = memory_debug
-                logger.debug(
-                    "debug_metrics_memory_injection_added",
-                    run_id=run_id,
-                    memory_count=memory_debug.get("memory_count", 0),
-                    emotional_state=memory_debug.get("emotional_state"),
-                )
-        except (KeyError, TypeError, AttributeError) as mem_err:
-            logger.debug(
-                "debug_metrics_memory_injection_failed",
-                run_id=run_id,
-                error=str(mem_err),
-                error_type=type(mem_err).__name__,
-            )
-
-        # =================================================================
-        # RAG Injection: Injected RAG chunks with scores for debug panel
-        # =================================================================
-        try:
-            rag_debug = state.get("rag_injection_debug") if state else None
-            if rag_debug:
-                debug_metrics["rag_injection"] = rag_debug
-                logger.debug(
-                    "debug_metrics_rag_injection_added",
-                    run_id=run_id,
-                    spaces_searched=rag_debug.get("spaces_searched", 0),
-                    chunks_injected=rag_debug.get("chunks_injected", 0),
-                )
-        except (KeyError, TypeError, AttributeError) as rag_err:
-            logger.debug(
-                "debug_metrics_rag_injection_failed",
-                run_id=run_id,
-                error=str(rag_err),
-                error_type=type(rag_err).__name__,
-            )
-
-        # =================================================================
-        # Journal Injection (Response): Journal entries with scores for debug panel
-        # =================================================================
-        try:
-            journal_debug = state.get("journal_injection_debug") if state else None
-            if journal_debug:
-                debug_metrics["journal_injection"] = journal_debug
-                logger.info(
-                    "debug_metrics_journal_injection_added",
-                    run_id=run_id,
-                    entries_found=journal_debug.get("entries_found", 0),
-                    entries_injected=journal_debug.get("entries_injected", 0),
-                    entries_count=len(journal_debug.get("entries", [])),
-                )
-            else:
-                logger.info(
-                    "debug_metrics_journal_injection_missing",
-                    run_id=run_id,
-                    state_keys=list(state.keys()) if state else [],
-                )
-        except (KeyError, TypeError, AttributeError) as journal_err:
-            logger.debug(
-                "debug_metrics_journal_injection_failed",
-                run_id=run_id,
-                error=str(journal_err),
-                error_type=type(journal_err).__name__,
-            )
-
-        # =================================================================
-        # Journal Injection (Planner): Journal entries injected into planner context
-        # =================================================================
-        try:
-            journal_planner_debug = state.get("journal_planner_injection_debug") if state else None
-            if journal_planner_debug:
-                debug_metrics["journal_planner_injection"] = journal_planner_debug
-                logger.info(
-                    "debug_metrics_journal_planner_injection_added",
-                    run_id=run_id,
-                    entries_found=journal_planner_debug.get("entries_found", 0),
-                    entries_injected=journal_planner_debug.get("entries_injected", 0),
-                    entries_count=len(journal_planner_debug.get("entries", [])),
-                )
-        except (KeyError, TypeError, AttributeError) as journal_planner_err:
-            logger.debug(
-                "debug_metrics_journal_planner_injection_failed",
-                run_id=run_id,
-                error=str(journal_planner_err),
-                error_type=type(journal_planner_err).__name__,
-            )
-
-        # =================================================================
-        # Skills: Skill activation details for debug panel
-        # =================================================================
-        try:
-            # Route 3 (conversation fallback): detect activate_skill_tool calls
-            # from messages (shared helper — also used for the done metadata).
-            effective_skill_name = self.resolve_activated_skill_name(state)
-
-            if effective_skill_name:
-                from src.domains.skills.cache import SkillsCache
-
-                skill_data = SkillsCache.get_by_name(effective_skill_name)
-                activation_mode = "planner"
-                is_deterministic = False
-
-                # Determine activation mode
-                if planning_result and planning_result.plan and planning_result.plan.metadata:
-                    if planning_result.plan.metadata.get("skill_bypass"):
-                        activation_mode = "bypass"
-                    elif planning_result.plan.metadata.get("skill_name"):
-                        activation_mode = "planner"
-                    else:
-                        # Route 3: LLM called activate_skill_tool directly
-                        activation_mode = "tool"
-                    is_deterministic = bool(planning_result.plan.metadata.get("skill_bypass"))
-                else:
-                    # Route 3: no plan → LLM called activate_skill_tool
-                    activation_mode = "tool"
-
-                skills_debug: dict[str, Any] = {
-                    "activated": True,
-                    "skill_name": effective_skill_name,
-                    "activation_mode": activation_mode,
-                    "is_deterministic": is_deterministic,
-                }
-                if skill_data:
-                    skills_debug["category"] = skill_data.get("category")
-                    skills_debug["priority"] = skill_data.get("priority", 50)
-                    skills_debug["has_scripts"] = bool(skill_data.get("scripts"))
-                    skills_debug["has_references"] = bool(skill_data.get("references"))
-                    skills_debug["scope"] = skill_data.get("scope", "admin")
-
-                debug_metrics["skills"] = skills_debug
-                logger.debug(
-                    "debug_metrics_skills_added",
-                    run_id=run_id,
-                    skill_name=effective_skill_name,
-                    activation_mode=activation_mode,
-                )
-        except (KeyError, TypeError, AttributeError) as skill_err:
-            logger.debug(
-                "debug_metrics_skills_failed",
-                run_id=run_id,
-                error=str(skill_err),
-                error_type=type(skill_err).__name__,
-            )
+        DebugMetricsBuilder(
+            tracker=self.tracker,
+            cached_filtered_catalogue=self._cached_filtered_catalogue,
+            cached_tool_scores=self._cached_tool_scores,
+            skill_name_resolver=self.resolve_activated_skill_name,
+        ).build(debug_metrics, state, run_id, db_aggregated)

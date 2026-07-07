@@ -364,6 +364,10 @@ LOGGING_CONTENT_PREVIEW_CHARS = 300  # Max chars in log content previews
 LOGGING_SUMMARY_PREVIEW_CHARS = 200  # Max chars in log summary previews
 RESPONSE_LIST_PREVIEW_ITEMS = 5  # Items to preview before truncation
 RESPONSE_MAX_ERRORS_DISPLAY = 3  # Max errors to display in response
+# Fallback marker injected into {data_for_filtering} when the filtering-data
+# generation fails. LLM-facing prompt content (never shown to the user) — kept
+# in English per the "LLM prompts are not translated" convention (core/i18n.py).
+DATA_FILTERING_GENERATION_ERROR_MARKER = "(data generation error)"
 PLANNER_ERROR_JSON_PREVIEW_CHARS = 1000  # Max chars of invalid JSON in errors
 PLANNER_CONTEXT_ITEMS_PREVIEW = 5  # Context items in planner summary
 PLANNER_EMAIL_SUBJECT_PREVIEW_CHARS = 50  # Max chars of email subject in preview
@@ -818,6 +822,7 @@ __all__ = [
     "LOGGING_SUMMARY_PREVIEW_CHARS",
     "RESPONSE_LIST_PREVIEW_ITEMS",
     "RESPONSE_MAX_ERRORS_DISPLAY",
+    "DATA_FILTERING_GENERATION_ERROR_MARKER",
     "PLANNER_ERROR_JSON_PREVIEW_CHARS",
     "PLANNER_CONTEXT_ITEMS_PREVIEW",
     "PLANNER_EMAIL_SUBJECT_PREVIEW_CHARS",
