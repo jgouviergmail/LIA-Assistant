@@ -249,9 +249,9 @@ asyncpg==0.31.0 \
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
-asyncssh==2.22.0 \
-    --hash=sha256:c3ce72b01be4f97b40e62844dd384227e5ff5a401a3793007c42f86a5c8eb537 \
-    --hash=sha256:d16465ccdf1ed20eba1131b14415b155e047f6f5be0d19f39c2e0b61331ee0e7
+asyncssh==2.23.0 \
+    --hash=sha256:14108bfdaae17457f0c1841e883ad934271bbfdd46458aa4c4d0973451940ad0 \
+    --hash=sha256:8c54760953c1f2cf282591bcba5c8c70efc48d645bbf26bd2307a9c66a0ed1a7
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
