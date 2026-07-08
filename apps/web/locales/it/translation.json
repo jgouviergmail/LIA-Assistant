@@ -2791,7 +2791,7 @@
         },
         "security": {
           "title": "🔐 Sicurezza Multi-Livello",
-          "description": "OAuth 2.0 con PKCE per servizi Google, blocco distribuito per refresh token, filtraggio PII in log e tracce, rate limiting per utente/endpoint, isolamento completo degli utenti e crittografia dei dati sensibili."
+          "description": "OAuth 2.0 con PKCE per servizi Google, blocco distribuito per refresh token, filtraggio PII in log e tracce, rate limiting per utente/endpoint, isolamento completo degli utenti e crittografia dei dati sensibili. Backup giornalieri automatizzati del database con rotazione a tre livelli (7 giorni / 4 settimane / 6 mesi) e ripristino testato con un solo comando (ADR-109)."
         },
         "resilience": {
           "title": "🛡️ Prestazioni & Ottimizzazione Token",
@@ -3745,6 +3745,15 @@
             "i8": "<b>Tastiera mobile più intelligente</b> — Sullo smartphone, l'area di input della chat attiva ora la maiuscola automatica, la correzione automatica e mostra un pulsante «Invia» dedicato sulla tastiera nativa, invece di un semplice ritorno a capo."
           }
         },
+        "v1_21_18": {
+          "title": "v1.21.18 — 💾 Backup automatici del database",
+          "date": "Luglio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>💾 I tuoi dati ora vengono salvati automaticamente</b> — Tutto ciò che LIA conserva per te (conversazioni, memoria, journal, impostazioni) viene salvato ogni notte, con 7 giorni, 4 settimane e 6 mesi di storico conservati. E la procedura di ripristino non è teorica: è testata davvero — un incidente non può più costare più dell'ultimo giorno.",
+            "i2": "<b>🛠️ Per chi si auto-ospita</b> — Un sidecar di backup pronto all'uso è incluso nello stack: pianificazione e retention configurabili in .env, un comando per il backup (task backup:now), uno per provare che il ripristino funziona (task backup:verify), e un runbook di ripristino completo."
+          }
+        },
         "v1_21_17": {
           "title": "v1.21.17 — ✨ Nuova vetrina e pagina Story",
           "date": "Luglio 2026",
@@ -4466,7 +4475,7 @@
           },
           "q2": {
             "question": "Come vengono protetti i miei dati?",
-            "answer": "Utilizziamo più livelli di sicurezza:<br>• <strong>Protezione delle Informazioni Personali (PII)</strong>: i tuoi dati sensibili (nome, email, contatti) sono protetti e mai condivisi<br>• Cookie HTTP-only per prevenire attacchi XSS<br>• Sessioni sicure lato server con Redis<br>• Crittografia dei dati in transito (HTTPS)<br>• Autenticazione OAuth 2.0 con PKCE"
+            "answer": "Utilizziamo più livelli di sicurezza:<br>• <strong>Protezione delle Informazioni Personali (PII)</strong>: i tuoi dati sensibili (nome, email, contatti) sono protetti e mai condivisi<br>• Cookie HTTP-only per prevenire attacchi XSS<br>• Sessioni sicure lato server con Redis<br>• Crittografia dei dati in transito (HTTPS)<br>• Autenticazione OAuth 2.0 con PKCE<br><br><strong>💾 Durabilità:</strong><br>• Backup giornalieri automatici del database (conservati 7 giorni / 4 settimane / 6 mesi di storico)<br>• Procedura di ripristino testata davvero: un incidente non può costarti più dell'ultimo giorno"
           },
           "q3": {
             "question": "Quali dati raccoglie LIA?",
@@ -5656,7 +5665,7 @@
       "privacy_link": "Leggi la nostra informativa sulla privacy",
       "data_control": {
         "title": "Controllo dei dati",
-        "description": "I tuoi dati restano privati. Nessuna condivisione con terze parti, sessioni isolate, accesso strettamente limitato al necessario."
+        "description": "I tuoi dati restano privati. Nessuna condivisione con terze parti, sessioni isolate, accesso strettamente limitato al necessario. Backup automatico quotidiano, con procedura di ripristino testata."
       },
       "bff": {
         "title": "Architettura sicura",
@@ -6136,7 +6145,7 @@
       "privacy-by-design": {
         "title": "Privacy by Design: GDPR, crittografia e controllo dei dati",
         "excerpt": "LIA crittografa i dati sensibili, minimizza la raccolta e rispetta i principi del GDPR.",
-        "body": "<h2>Privacy by design</h2><p>LIA è progettato fin dall'origine con la protezione dei dati come principio fondante, non come un'aggiunta a posteriori.</p><h2>Crittografia simmetrica Fernet</h2><p>Tutti i dati sensibili sono crittografati con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) tramite la funzione <code>encrypt_data()</code>. Ciò copre i token OAuth, le credenziali dei connettori, i PII e le credenziali dei server MCP. Le credenziali OAuth vengono crittografate prima della scrittura nel database e decrittografate al volo durante il recupero. Le chiavi di crittografia sono gestite separatamente dai dati.</p><h2>Minimizzazione della raccolta</h2><p>LIA raccoglie solo i dati strettamente necessari al suo funzionamento:</p><ul><li>Informazioni del profilo (nome, email, preferenze)</li><li>Storico delle conversazioni (crittografato)</li><li>Token di connessione ai servizi (crittografati)</li><li>Metriche di utilizzo anonimizzate</li></ul><h2>Eliminazione e cascading</h2><p>L'eliminazione di un account utente attiva un <strong>cascading delete</strong> completo: connettori, conversazioni, impostazioni, sessioni, memorie e tutti i dati associati vengono eliminati irreversibilmente. Nessun dato orfano persiste nel database.</p><h2>Sessioni e cookie sicuri</h2><p>I cookie di sessione sono configurati con gli attributi <code>HttpOnly</code>, <code>Secure</code> (in produzione) e <code>SameSite=lax</code>. La durata della sessione è di 7 giorni per impostazione predefinita, estensibile a 30 giorni con l'opzione \"Ricordami\". I token monouso vengono invalidati dopo il primo utilizzo tramite una blacklist Redis.</p><h2>Protezione dei contenuti esterni</h2><p>I contenuti recuperati da fonti esterne (email, pagine web, documenti) vengono contrassegnati come <code>UNTRUSTED</code> con un wrapping configurabile prima dell'iniezione nei prompt. Lo strumento web_fetch è limitato a 10 chiamate per finestra di 60 secondi per utente per prevenire gli abusi.</p><h2>Filtraggio PII nei log</h2><p>Il sistema di logging applica le raccomandazioni <strong>OWASP Logging Cheat Sheet</strong> per filtrare automaticamente i dati personali dai log applicativi. Nessun dato sensibile appare nei log.</p><h2>Portabilità dei dati (v1.9.1)</h2><p>LIA consente a ogni utente di <strong>esportare i propri dati di consumo</strong> in formato CSV da Impostazioni > Funzionalità. Tre tipi di esportazione: consumo LLM (token e costi per chiamata), consumo API Google e riepilogo aggregato. Sicurezza: lo <code>user_id</code> viene forzato lato server — nessun parametro è esposto (protezione IDOR).</p>"
+        "body": "<h2>Privacy by design</h2><p>LIA è progettato fin dall'origine con la protezione dei dati come principio fondante, non come un'aggiunta a posteriori.</p><h2>Crittografia simmetrica Fernet</h2><p>Tutti i dati sensibili sono crittografati con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) tramite la funzione <code>encrypt_data()</code>. Ciò copre i token OAuth, le credenziali dei connettori, i PII e le credenziali dei server MCP. Le credenziali OAuth vengono crittografate prima della scrittura nel database e decrittografate al volo durante il recupero. Le chiavi di crittografia sono gestite separatamente dai dati.</p><h2>Minimizzazione della raccolta</h2><p>LIA raccoglie solo i dati strettamente necessari al suo funzionamento:</p><ul><li>Informazioni del profilo (nome, email, preferenze)</li><li>Storico delle conversazioni (crittografato)</li><li>Token di connessione ai servizi (crittografati)</li><li>Metriche di utilizzo anonimizzate</li></ul><h2>Eliminazione e cascading</h2><p>L'eliminazione di un account utente attiva un <strong>cascading delete</strong> completo: connettori, conversazioni, impostazioni, sessioni, memorie e tutti i dati associati vengono eliminati irreversibilmente. Nessun dato orfano persiste nel database.</p><h2>Sessioni e cookie sicuri</h2><p>I cookie di sessione sono configurati con gli attributi <code>HttpOnly</code>, <code>Secure</code> (in produzione) e <code>SameSite=lax</code>. La durata della sessione è di 7 giorni per impostazione predefinita, estensibile a 30 giorni con l'opzione \"Ricordami\". I token monouso vengono invalidati dopo il primo utilizzo tramite una blacklist Redis.</p><h2>Protezione dei contenuti esterni</h2><p>I contenuti recuperati da fonti esterne (email, pagine web, documenti) vengono contrassegnati come <code>UNTRUSTED</code> con un wrapping configurabile prima dell'iniezione nei prompt. Lo strumento web_fetch è limitato a 10 chiamate per finestra di 60 secondi per utente per prevenire gli abusi.</p><h2>Filtraggio PII nei log</h2><p>Il sistema di logging applica le raccomandazioni <strong>OWASP Logging Cheat Sheet</strong> per filtrare automaticamente i dati personali dai log applicativi. Nessun dato sensibile appare nei log.</p><h2>Portabilità dei dati (v1.9.1)</h2><p>LIA consente a ogni utente di <strong>esportare i propri dati di consumo</strong> in formato CSV da Impostazioni > Funzionalità. Tre tipi di esportazione: consumo LLM (token e costi per chiamata), consumo API Google e riepilogo aggregato. Sicurezza: lo <code>user_id</code> viene forzato lato server — nessun parametro è esposto (protezione IDOR).</p><h2>Backup con ripristino provato</h2><p>Proteggere i dati significa anche garantire che sopravvivano agli incidenti. Il database di produzione viene salvato automaticamente ogni notte, con 7 giorni, 4 settimane e 6 mesi di storico conservati, in una directory dedicata con permessi restrittivi. E poiché un backup conta solo quando il ripristino è stato provato, la procedura è testata davvero: l'ultimo dump viene ripristinato in un container usa e getta e confrontato con il database live (revisione di schema, conteggi di righe) — un'esercitazione inclusa nello stack.</p>"
       },
       "observability": {
         "title": "394 metriche Prometheus, 22 dashboard Grafana e tracing Langfuse",

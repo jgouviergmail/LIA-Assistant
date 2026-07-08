@@ -2789,7 +2789,7 @@
         },
         "security": {
           "title": "🔐 Seguridad Multi-Capas",
-          "description": "OAuth 2.0 con PKCE para servicios Google, bloqueo distribuido para refresh de tokens, filtrado PII en logs y trazas, rate limiting por usuario/endpoint, aislamiento completo entre usuarios, y cifrado de datos sensibles."
+          "description": "OAuth 2.0 con PKCE para servicios Google, bloqueo distribuido para refresh de tokens, filtrado PII en logs y trazas, rate limiting por usuario/endpoint, aislamiento completo entre usuarios, y cifrado de datos sensibles. Copias de seguridad diarias automatizadas de la base de datos con rotación de tres niveles (7 días / 4 semanas / 6 meses) y restauración probada en un solo comando (ADR-109)."
         },
         "resilience": {
           "title": "🛡️ Rendimiento & Optimización de Tokens",
@@ -3743,6 +3743,15 @@
             "i8": "<b>Teclado móvil más inteligente</b> — En el smartphone, la zona de entrada del chat activa ahora la auto-capitalización, la corrección automática y muestra un botón «Enviar» dedicado en el teclado nativo, en lugar de un simple retorno de carro."
           }
         },
+        "v1_21_18": {
+          "title": "v1.21.18 — 💾 Copias de seguridad automáticas de la base de datos",
+          "date": "Julio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>💾 Sus datos ahora se respaldan automáticamente</b> — Todo lo que LIA guarda para usted (conversaciones, memoria, diarios, ajustes) se respalda cada noche, conservando 7 días, 4 semanas y 6 meses de historial. Y el procedimiento de restauración no es teórico: se prueba de verdad — un incidente ya no puede costar más que el último día.",
+            "i2": "<b>🛠️ Para quienes se autoalojan</b> — Un sidecar de respaldo listo para usar se incluye con el stack: programación y retención configurables en .env, un comando para respaldar (task backup:now), otro para probar que la restauración funciona (task backup:verify), y un runbook de restauración completo."
+          }
+        },
         "v1_21_17": {
           "title": "v1.21.17 — ✨ Nueva vitrina y página Story",
           "date": "Julio 2026",
@@ -4464,7 +4473,7 @@
           },
           "q2": {
             "question": "¿Cómo se protegen mis datos?",
-            "answer": "Utilizamos múltiples capas de seguridad:<br>• <strong>Protección de Información Personal (PII)</strong>: sus datos sensibles (nombre, email, contactos) están protegidos y nunca se comparten<br>• Sesiones seguras del lado del servidor (Redis) con cookies HTTP-only<br>• Cifrado de datos en tránsito (HTTPS)<br>• Autenticación OAuth 2.0 con PKCE"
+            "answer": "Utilizamos múltiples capas de seguridad:<br>• <strong>Protección de Información Personal (PII)</strong>: sus datos sensibles (nombre, email, contactos) están protegidos y nunca se comparten<br>• Sesiones seguras del lado del servidor (Redis) con cookies HTTP-only<br>• Cifrado de datos en tránsito (HTTPS)<br>• Autenticación OAuth 2.0 con PKCE<br><br><strong>💾 Durabilidad:</strong><br>• Copias de seguridad diarias automáticas de la base de datos (se conservan 7 días / 4 semanas / 6 meses de historial)<br>• Procedimiento de restauración probado de verdad: un incidente no puede costarle más que el último día"
           },
           "q3": {
             "question": "¿Qué datos recopila LIA?",
@@ -5654,7 +5663,7 @@
       "privacy_link": "Leer nuestra política de privacidad",
       "data_control": {
         "title": "Control de datos",
-        "description": "Tus datos permanecen privados. Sin compartir con terceros, sesiones aisladas, acceso estrictamente limitado a lo necesario."
+        "description": "Tus datos permanecen privados. Sin compartir con terceros, sesiones aisladas, acceso estrictamente limitado a lo necesario. Copia de seguridad automática diaria, con procedimiento de restauración probado."
       },
       "bff": {
         "title": "Arquitectura segura",
@@ -6134,7 +6143,7 @@
       "privacy-by-design": {
         "title": "Privacidad por diseño: RGPD, cifrado y control de datos",
         "excerpt": "LIA cifra datos sensibles, minimiza la recopilación y respeta los principios del RGPD.",
-        "body": "<h2>Privacy by design</h2><p>LIA está diseñado desde el origen con la protección de datos como principio fundacional, no como un añadido posterior.</p><h2>Cifrado simétrico Fernet</h2><p>Todos los datos sensibles se cifran con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) mediante la función <code>encrypt_data()</code>. Esto cubre los tokens OAuth, las credenciales de los conectores, los PII y las credenciales de los servidores MCP. Las credenciales OAuth se cifran antes de escribirse en base de datos y se descifran al vuelo durante la recuperación. Las claves de cifrado se gestionan por separado de los datos.</p><h2>Minimización de la recopilación</h2><p>LIA solo recopila los datos estrictamente necesarios para su funcionamiento:</p><ul><li>Información de perfil (nombre, email, preferencias)</li><li>Historial de conversaciones (cifrado)</li><li>Tokens de conexión a los servicios (cifrados)</li><li>Métricas de uso anonimizadas</li></ul><h2>Eliminación y cascading</h2><p>La eliminación de una cuenta de usuario desencadena un <strong>cascading delete</strong> completo: conectores, conversaciones, configuraciones, sesiones, memorias y todos los datos asociados se eliminan irreversiblemente. Ningún dato huérfano persiste en la base de datos.</p><h2>Sesiones y cookies seguras</h2><p>Las cookies de sesión se configuran con los atributos <code>HttpOnly</code>, <code>Secure</code> (en producción) y <code>SameSite=lax</code>. La duración de la sesión es de 7 días por defecto, extensible a 30 días con la opción \"Recordarme\". Los tokens de un solo uso se invalidan tras su primera utilización mediante una lista negra en Redis.</p><h2>Protección de contenidos externos</h2><p>Los contenidos recuperados de fuentes externas (emails, páginas web, documentos) se etiquetan como <code>UNTRUSTED</code> con un envoltorio configurable antes de su inyección en los prompts. La herramienta web_fetch está limitada a 10 llamadas por ventana de 60 segundos por usuario para prevenir abusos.</p><h2>Filtrado de PII en los logs</h2><p>El sistema de logging aplica las recomendaciones <strong>OWASP Logging Cheat Sheet</strong> para filtrar automáticamente los datos personales de los registros de la aplicación. Ningún dato sensible aparece en los logs.</p><h2>Portabilidad de datos (v1.9.1)</h2><p>LIA permite a cada usuario <strong>exportar sus propios datos de consumo</strong> en formato CSV desde Configuración > Funcionalidades. Tres tipos de exportación: consumo LLM (tokens y costos por llamada), consumo API Google, y resumen agregado. Seguridad: el <code>user_id</code> se fuerza en el servidor — ningún parámetro se expone (protección IDOR).</p>"
+        "body": "<h2>Privacy by design</h2><p>LIA está diseñado desde el origen con la protección de datos como principio fundacional, no como un añadido posterior.</p><h2>Cifrado simétrico Fernet</h2><p>Todos los datos sensibles se cifran con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) mediante la función <code>encrypt_data()</code>. Esto cubre los tokens OAuth, las credenciales de los conectores, los PII y las credenciales de los servidores MCP. Las credenciales OAuth se cifran antes de escribirse en base de datos y se descifran al vuelo durante la recuperación. Las claves de cifrado se gestionan por separado de los datos.</p><h2>Minimización de la recopilación</h2><p>LIA solo recopila los datos estrictamente necesarios para su funcionamiento:</p><ul><li>Información de perfil (nombre, email, preferencias)</li><li>Historial de conversaciones (cifrado)</li><li>Tokens de conexión a los servicios (cifrados)</li><li>Métricas de uso anonimizadas</li></ul><h2>Eliminación y cascading</h2><p>La eliminación de una cuenta de usuario desencadena un <strong>cascading delete</strong> completo: conectores, conversaciones, configuraciones, sesiones, memorias y todos los datos asociados se eliminan irreversiblemente. Ningún dato huérfano persiste en la base de datos.</p><h2>Sesiones y cookies seguras</h2><p>Las cookies de sesión se configuran con los atributos <code>HttpOnly</code>, <code>Secure</code> (en producción) y <code>SameSite=lax</code>. La duración de la sesión es de 7 días por defecto, extensible a 30 días con la opción \"Recordarme\". Los tokens de un solo uso se invalidan tras su primera utilización mediante una lista negra en Redis.</p><h2>Protección de contenidos externos</h2><p>Los contenidos recuperados de fuentes externas (emails, páginas web, documentos) se etiquetan como <code>UNTRUSTED</code> con un envoltorio configurable antes de su inyección en los prompts. La herramienta web_fetch está limitada a 10 llamadas por ventana de 60 segundos por usuario para prevenir abusos.</p><h2>Filtrado de PII en los logs</h2><p>El sistema de logging aplica las recomendaciones <strong>OWASP Logging Cheat Sheet</strong> para filtrar automáticamente los datos personales de los registros de la aplicación. Ningún dato sensible aparece en los logs.</p><h2>Portabilidad de datos (v1.9.1)</h2><p>LIA permite a cada usuario <strong>exportar sus propios datos de consumo</strong> en formato CSV desde Configuración > Funcionalidades. Tres tipos de exportación: consumo LLM (tokens y costos por llamada), consumo API Google, y resumen agregado. Seguridad: el <code>user_id</code> se fuerza en el servidor — ningún parámetro se expone (protección IDOR).</p><h2>Copias de seguridad con restauración probada</h2><p>Proteger los datos también significa garantizar que sobrevivan a los incidentes. La base de datos de producción se respalda automáticamente cada noche, conservando 7 días, 4 semanas y 6 meses de historial, en un directorio dedicado con permisos restrictivos. Y como una copia solo cuenta cuando la restauración ha sido probada, el procedimiento se prueba de verdad: el último dump se restaura en un contenedor desechable y se compara con la base viva (revisión de esquema, recuentos de filas) — un simulacro incluido con el stack.</p>"
       },
       "observability": {
         "title": "394 métricas Prometheus, 22 dashboards Grafana y tracing Langfuse",

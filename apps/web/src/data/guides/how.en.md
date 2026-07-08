@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 2.6
+**Version**: 2.7
 **Date**: 2026-07-08
-**Application**: LIA v1.21.17
+**Application**: LIA v1.21.18
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -729,6 +729,10 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 | Rate Limiting / IP spoofing | Distributed Redis sliding window (atomic Lua); trusted proxy chain — API ports loopback-bound (cloudflared = single entry), uvicorn `--proxy-headers`, `request.client.host` validated as the single IP source (no more shared global bucket, raw XFF never read) |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot weekly |
 
+### 19.4. Data durability: automated backups (ADR-109)
+
+**A backup is only real once a restore has been proven.** A `postgres-backup` sidecar snapshots the full database on a cron schedule with three-tier rotation (daily / weekly / monthly); every parameter — schedule, retention, target directory, pg_dump options — is `.env`-driven. Dumps carry `--clean --if-exists`, so a restore is a single command into the live database or a throwaway container. The drill itself is versioned: `task backup:verify` restores the latest dump into an ephemeral pgvector container and compares the Alembic schema revision and reference row counts against the live source. RPO: ≤ 24 h (tunable). The accepted limits (off-site copy, attachments volume) are tracked in ADR-109 rather than left implicit.
+
 ---
 
 ## 20. Observability and monitoring
@@ -1044,4 +1048,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.21.17). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.21.18). All metrics, versions, and patterns cited are verifiable in the codebase.*

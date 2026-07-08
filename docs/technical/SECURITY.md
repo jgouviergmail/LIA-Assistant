@@ -1216,6 +1216,17 @@ def decrypt_token(encrypted_token: str) -> str:
     return fernet.decrypt(encrypted_token.encode()).decode()
 ```
 
+### 3. Sauvegardes et durabilité des données (ADR-109)
+
+La protection des données inclut leur durabilité : la base PostgreSQL de production est
+sauvegardée automatiquement par un sidecar `pg_dump` (rotation quotidienne/hebdomadaire/mensuelle,
+planification et rétention pilotées par `.env`, section `[80]`). Les dumps sont déposés dans un
+répertoire dédié en `chmod 700` — ils restent sensibles : le chiffrement Fernet couvre les
+colonnes PII, pas le schéma ni les colonnes non chiffrées. La procédure de restauration est
+**testée** (restauration dans un conteneur jetable + comparaison de schéma et de comptages via
+`task backup:verify`). RPO ≤ 24 h (paramétrable). Procédures complètes :
+[DATABASE_BACKUP_RESTORE.md](../runbooks/DATABASE_BACKUP_RESTORE.md).
+
 ---
 
 ## Rate Limiting et prévention des abus

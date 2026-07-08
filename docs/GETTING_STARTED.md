@@ -434,6 +434,7 @@ docker compose -f docker-compose.dev.yml logs -f
 |---------|------|-------------|-----|
 | **ssl-init** | - | SSL certificate generator (runs once) | - |
 | **postgres** | 5432 | PostgreSQL 16 + pgvector | - |
+| **postgres-backup** | - | Scheduled pg_dump backups, daily/weekly/monthly rotation (ADR-109) | - |
 | **pgadmin** | 5050 | DB Administration | http://localhost:5050 |
 | **redis** | 6379 | Cache & Sessions | - |
 | **api** | 8000/5678 | FastAPI Backend | http://localhost:8000 |

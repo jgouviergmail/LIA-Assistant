@@ -53,6 +53,36 @@ services:
     networks:
       - lia-network
 
+  # PostgreSQL scheduled backups (ADR-109) — same sidecar as production
+  # Named volume here (not a bind mount like prod): the image's rotation uses
+  # hardlinks/symlinks, which are unreliable on Windows bind mounts. The
+  # verification script reads dumps via `docker cp`, so storage type is opaque.
+  # Runbook: docs/runbooks/DATABASE_BACKUP_RESTORE.md
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local:16-alpine
+    container_name: lia-postgres-backup-dev
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SCHEDULE: "${POSTGRES_BACKUP_SCHEDULE:-@daily}"
+      BACKUP_KEEP_DAYS: "${POSTGRES_BACKUP_KEEP_DAYS:-7}"
+      BACKUP_KEEP_WEEKS: "${POSTGRES_BACKUP_KEEP_WEEKS:-4}"
+      BACKUP_KEEP_MONTHS: "${POSTGRES_BACKUP_KEEP_MONTHS:-6}"
+      POSTGRES_EXTRA_OPTS: "${POSTGRES_BACKUP_EXTRA_OPTS:--Z6 --clean --if-exists}"
+      TZ: "${POSTGRES_BACKUP_TZ:-Etc/UTC}"
+    volumes:
+      - postgres_backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lia-network
+
   # Redis for caching and sessions - INHERITED FROM compose.services.yml
   redis:
     extends:
@@ -665,6 +695,7 @@ services:
 volumes:
   ssl_certs:  # Shared SSL certificates for HTTPS
   postgres_data:
+  postgres_backups:  # pg_dump rotation target (ADR-109) — named volume, see postgres-backup service note
   pgadmin_data:
   redis_data:
   api_venv:

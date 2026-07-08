@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.18] - 2026-07-08
+
+> Automated PostgreSQL backups with a tested restore (ADR-109). Closes the top operational risk from the 2026-07-07 360° audit: no backup tooling was versioned in the repository and the RPO was undefined. Production (Raspberry Pi 5) now gets scheduled `pg_dump` snapshots with three-tier rotation, every knob `.env`-driven, and — the actual point — a restore procedure that is *proven*, not declared: the release was validated by a real backup restored into a throwaway container with schema and row-count comparison. RPO goes from undefined to ≤ 24 h (tunable).
+
+### Added
+
+- **`postgres-backup` sidecar** (`prodrigestivill/postgres-backup-local:16-alpine`) in both compose files — ARM64 support verified on the image manifest, embedded `pg_dump` 16.10 matching the `pgvector:pg16` server, baked-in healthcheck (its status also reflects the last backup's exit code). Prod: host bind mount `POSTGRES_BACKUP_HOST_DIR` (chmod 700, created by `deploy.sh` *before* `up`), 0.25 CPU / 128M limits. Dev: `postgres_backups` named volume (the image's rotation uses hardlinks, unreliable on Windows bind mounts).
+- **`.env` section `[80] DATABASE BACKUP`** in the three templates (`.env.example`, `.env.prod.example`, `.env.min.prod`): `POSTGRES_BACKUP_SCHEDULE` (`@daily`), `KEEP_DAYS/WEEKS/MONTHS` (7/4/6), `HOST_DIR`, `EXTRA_OPTS`, `TZ` — compose-level defaults, nothing breaks if absent; deliberately no API Settings module (compose-only consumers, `GRAFANA_ADMIN_USER` pattern).
+- **`POSTGRES_EXTRA_OPTS` pinned to `-Z6 --clean --if-exists`**: full database (no schema filter), gzip 6, self-cleaning statements — restore is a single command against a fresh container or the live database.
+- **`verify-backup.sh`** (`infrastructure/docker/backup/`, shipped in the PROD bundle): restores the latest dump into a throwaway `pgvector:pg16` container and compares `alembic_version`, public-table count and reference row counts against the live source (live drift = WARN; SQL error / schema mismatch / empty restored table = FAIL). Reads dumps via `docker cp` — storage-type agnostic, works from Git Bash and the Pi.
+- **Taskfile `backup:now` / `backup:verify`**, runbook `docs/runbooks/DATABASE_BACKUP_RESTORE.md` (manual backup, throwaway + production restore with the systemic aftermath: automatic alembic upgrade on API restart, Redis FLUSHALL, health check), and **ADR-109** (decision, alternatives — custom cron script, host cron, PITR — and accepted phase-2 gaps: off-site encrypted rclone copy, `attachments_data`/`skills_data` volumes, failure push-alerting).
+
+### Changed
+
+- **Landing hero refinements** (shipped on main since v1.21.17): one sentence per line in the hero copy and homogeneous execution-mode badges, across all 6 locales.
+- `docs/INDEX.md` stale ADR counts corrected (93/99 → 102) and a "Runbooks — Opérations" section added (the operational runbooks were absent from the index).
+
+### Tests
+
+- Real backup triggered through the sidecar in the dev environment, restored into a throwaway container: **0 SQL errors**, `alembic_version` identical across repo `alembic heads` / live source / restore, 55 public tables on both sides, identical row counts on `users`, `conversations`, `conversation_messages`. `docker compose -f docker-compose.prod.yml config` renders without error; sidecar reached `healthy` (~240 s, first probe interval).
+
 ## [1.21.17] - 2026-07-08
 
 > Public-showcase overhaul & anonymous-visitor fix. A frontend/documentation release — no backend change, no DB migration. Every public number was re-derived from the codebase and corrected across all six locales (the canonical `ProviderType` Literal counts 7 LLM providers, not 8 — "Mistral" was an Ollama-served model in the pricing seed); the landing page was redesigned around showing the product (animated three-scenario chat demo, engineering proof band, faithful two-mode diagram); a new `/story` field-report page documents how LIA is built (~100% AI-written code under human direction); and a production bug that silently ejected every anonymous visitor from the public pages to `/login` was found during runtime verification and fixed with a filesystem-completeness test.

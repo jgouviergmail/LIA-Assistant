@@ -42,6 +42,10 @@ Multiple security levels protect your data:
 • Ability to revoke connector access
 • Audit logs of sensitive actions
 
+**💾 Durability:**
+• Automatic daily database backups (7 days / 4 weeks / 6 months of history kept)
+• Restore procedure tested for real — the latest dump is restored into a disposable container and compared against the live database, so an incident cannot cost you more than the last day
+
 ## What data does LIA collect?
 LIA only collects data **necessary for its operation**:
 

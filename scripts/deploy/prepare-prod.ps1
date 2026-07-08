@@ -254,27 +254,36 @@ echo "============================================"
 # Verifier si .env existe, sinon decrypter
 if [ ! -f ".env" ]; then
     if [ -f ".env.prod.encrypted" ] && [ -f "keys/age-key-prod.txt" ]; then
-        echo "[1/5] Decryptage des secrets..."
+        echo "[1/6] Decryptage des secrets..."
         export SOPS_AGE_KEY_FILE=./keys/age-key-prod.txt
         sops --decrypt --input-type dotenv --output-type dotenv .env.prod.encrypted > .env
         echo "  -> .env cree depuis .env.prod.encrypted"
     elif [ -f ".env.prod" ]; then
-        echo "[1/5] Copie de .env.prod vers .env..."
+        echo "[1/6] Copie de .env.prod vers .env..."
         cp .env.prod .env
     else
         echo "ERREUR: Aucun fichier .env trouve!"
         exit 1
     fi
 else
-    echo "[1/5] .env existe deja"
+    echo "[1/6] .env existe deja"
 fi
 
 # Fixer les permissions des scripts (CRLF -> LF deja gere dans Dockerfile)
-echo "[2/5] Verification des permissions..."
+echo "[2/6] Verification des permissions..."
 chmod +x apps/api/docker-entrypoint.sh 2>/dev/null || true
 
+# Repertoire des backups PostgreSQL (ADR-109) : cree AVANT le up pour eviter
+# qu'un bind mount cree par Docker (root, 755) n'expose les dumps.
+echo "[3/6] Preparation du repertoire de backups PostgreSQL..."
+BACKUP_DIR=$(grep -E '^POSTGRES_BACKUP_HOST_DIR=' .env | tail -1 | cut -d= -f2- | awk '{print $1}')
+BACKUP_DIR=${BACKUP_DIR:-./backups/postgres}
+mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
+echo "  -> $BACKUP_DIR (chmod 700)"
+
 # Install/update logwatch configuration
-echo "[3/5] Installation de la configuration logwatch..."
+echo "[4/6] Installation de la configuration logwatch..."
 if [ -d "infrastructure/logwatch" ]; then
     # Install logwatch if not present
     if ! command -v logwatch &> /dev/null; then
@@ -311,11 +320,11 @@ else
 fi
 
 # Build des images
-echo "[4/5] Build des images Docker..."
+echo "[5/6] Build des images Docker..."
 docker compose -f docker-compose.prod.yml build
 
 # Demarrage des services (force-recreate pour recharger les volumes)
-echo "[5/5] Demarrage des services..."
+echo "[6/6] Demarrage des services..."
 docker compose -f docker-compose.prod.yml up -d --force-recreate
 
 echo ""

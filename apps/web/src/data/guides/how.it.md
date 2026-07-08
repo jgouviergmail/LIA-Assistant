@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 2.6
+**Versione**: 2.7
 **Data**: 2026-07-08
-**Applicazione**: LIA v1.21.17
+**Applicazione**: LIA v1.21.18
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -729,6 +729,10 @@ Design **fail-open**: i fallimenti dell'infrastruttura non bloccano gli utenti.
 | Rate Limiting / spoofing IP | Redis sliding window distribuito (Lua atomico); catena proxy affidabile — porte API vincolate a loopback (cloudflared = unico ingresso), uvicorn `--proxy-headers`, `request.client.host` validato come unica fonte di IP (niente più bucket globale condiviso, XFF grezzo mai letto) |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot settimanale |
 
+### 19.4. Durabilità dei dati: backup automatizzati (ADR-109)
+
+**Un backup è reale solo quando il ripristino è stato provato.** Un sidecar `postgres-backup` fotografa l'intero database secondo una pianificazione cron con rotazione a tre livelli (giornaliera / settimanale / mensile); ogni parametro — pianificazione, retention, directory di destinazione, opzioni pg_dump — è pilotato da `.env`. I dump portano `--clean --if-exists`: il ripristino è un singolo comando, verso il database live o un container usa e getta. Anche l'esercitazione è versionata: `task backup:verify` ripristina l'ultimo dump in un container pgvector effimero e confronta la revisione di schema Alembic e conteggi di righe di riferimento con la sorgente live. RPO: ≤ 24 h (configurabile). I limiti accettati (copia off-site, volume degli allegati) sono tracciati nell'ADR-109 invece di restare impliciti.
+
 ---
 
 ## 20. Osservabilità e monitoring
@@ -1015,4 +1019,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.21.17). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.21.18). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

@@ -2,8 +2,8 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 7.8
-**Dernière mise à jour**: 2026-05-21
+**Version**: 7.9
+**Dernière mise à jour**: 2026-07-08
 **Statut**: Complète (190+ documents)
 
 ---
@@ -17,8 +17,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents totaux | 190+ |
 | Documents techniques | 50+ |
 | Guides pratiques | 15+ |
-| Runbooks | 34+ |
-| ADRs | 93 |
+| Runbooks | 35+ |
+| ADRs | 102 |
 | Skills Claude | 10 |
 
 ---
@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (99) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (102) |
 
 ### Pour les Product Managers
 
@@ -252,7 +252,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
 | [GUIDE_DEVOPS_CLAUDE_CLI.md](./guides/GUIDE_DEVOPS_CLAUDE_CLI.md) | Guide DevOps Claude CLI (remote server management, setup, security) | ✅ |
-| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (17 files, 119+ Q/A) | ✅ |
+| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (24 files, 200+ Q/A) | ✅ |
 
 ### Operations
 
@@ -277,12 +277,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 99 ADRs | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 102 ADRs | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-109 | PostgreSQL Backup Strategy — pg_dump sidecar, rétention .env-driven, restauration testée | 2026-07 |
 | ADR-089 | Multi-Worker Prometheus Metrics — multiprocess aggregation + per-gauge modes | 2026-06 |
 | ADR-088 | Journal Write Restraint + Level-Routed Injection + ReAct Coherence | 2026-06 |
 | ADR-085 | Draft Display Registry — single source of truth for post-HITL rendering | 2026-05 |
@@ -335,6 +336,14 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 ---
 
 ## Runbooks Opérationnels
+
+### Opérations
+
+| Runbook | Description |
+|---------|-------------|
+| [DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BACKUP_RESTORE.md) | Backup PostgreSQL automatisé (sidecar pg_dump, ADR-109) — backup manuel, restauration testée, vérification d'intégrité |
+| [CLOUDFLARE_TUNNEL.md](./runbooks/CLOUDFLARE_TUNNEL.md) | Tunnel Cloudflare prod (systemd, QUIC, incidents) |
+| [LAST_KNOWN_LOCATION.md](./runbooks/LAST_KNOWN_LOCATION.md) | Persistance last-known location (météo proactive) |
 
 ### Alertes Générales
 

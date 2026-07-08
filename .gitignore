@@ -137,6 +137,8 @@ dump.rdb
 
 # PostgreSQL compressed backups
 *.sql.gz
+# pg_dump sidecar target directory (ADR-109 — prod bind mount default)
+backups/
 
 # ============================================
 # MONITORING (local data volumes)

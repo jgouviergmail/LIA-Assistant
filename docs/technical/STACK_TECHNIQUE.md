@@ -183,6 +183,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | Service | Image | Role |
 |---------|-------|------|
 | **PostgreSQL** | `pgvector/pgvector:pg16` | Base de donnees principale + vectors |
+| **postgres-backup** | `prodrigestivill/postgres-backup-local:16-alpine` | Sauvegardes pg_dump planifiees, rotation daily/weekly/monthly (ADR-109) |
 | **Redis** | `redis:7.4-alpine` | Cache, sessions, rate limiting |
 
 ### Observabilite Stack

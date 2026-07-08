@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 3.5
+**Version** : 3.6
 **Date** : 2026-07-08
-**Application** : LIA v1.21.17
+**Application** : LIA v1.21.18
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -304,7 +304,7 @@ LIA dispose d'une base de connaissances intégrée sur ses propres fonctionnalit
 
 ### 8.1. Le vrai défi de l'IA agentique
 
-La grande majorité des projets d'IA agentique n'atteignent jamais la production. Coûts non maîtrisés, comportement non déterministe, absence de traces d'audit, coordination défaillante entre agents. LIA a résolu ces problèmes — et tourne en production 24/7 sur un Raspberry Pi.
+La grande majorité des projets d'IA agentique n'atteignent jamais la production. Coûts non maîtrisés, comportement non déterministe, absence de traces d'audit, coordination défaillante entre agents. LIA a résolu ces problèmes — et tourne en production 24/7 sur un Raspberry Pi. Et vos données survivent aux incidents : la base est sauvegardée automatiquement chaque nuit, et la procédure de restauration n'est pas théorique — elle est testée.
 
 ### 8.2. Une stack d'observabilité professionnelle
 

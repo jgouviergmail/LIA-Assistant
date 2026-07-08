@@ -49,6 +49,50 @@ services:
           cpus: '0.25'
           memory: 256M
 
+  # PostgreSQL scheduled backups (ADR-109)
+  # Sidecar running pg_dump on a cron schedule with daily/weekly/monthly
+  # rotation into a dedicated host directory (chmod 700, created by deploy.sh).
+  # All knobs are .env-driven (POSTGRES_BACKUP_*, section [80]).
+  # Healthcheck is baked into the image (webhook hook on HEALTHCHECK_PORT 8080).
+  # Restore & verification procedures: docs/runbooks/DATABASE_BACKUP_RESTORE.md
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local:16-alpine
+    container_name: lia-postgres-backup-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SCHEDULE: "${POSTGRES_BACKUP_SCHEDULE:-@daily}"
+      BACKUP_KEEP_DAYS: "${POSTGRES_BACKUP_KEEP_DAYS:-7}"
+      BACKUP_KEEP_WEEKS: "${POSTGRES_BACKUP_KEEP_WEEKS:-4}"
+      BACKUP_KEEP_MONTHS: "${POSTGRES_BACKUP_KEEP_MONTHS:-6}"
+      # Explicit pg_dump options (never rely on image defaults): gzip level 6,
+      # no schema filter (full database), --clean --if-exists so a restore is
+      # a single self-cleaning command against prod or a throwaway container.
+      POSTGRES_EXTRA_OPTS: "${POSTGRES_BACKUP_EXTRA_OPTS:--Z6 --clean --if-exists}"
+      TZ: "${POSTGRES_BACKUP_TZ:-Etc/UTC}"
+    volumes:
+      # Host bind mount (not a named volume): keeps dumps directly reachable
+      # for off-site sync (rclone, phase 2) and host-level chmod 700.
+      - ${POSTGRES_BACKUP_HOST_DIR:-./backups/postgres}:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+
   # Redis for caching and sessions
   redis:
     image: redis:7.4-alpine

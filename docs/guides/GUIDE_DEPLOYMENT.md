@@ -1494,6 +1494,15 @@ docker exec lia-api alembic downgrade -1
 docker exec lia-api alembic downgrade abc123def456
 ```
 
+### Database Restore (depuis backup)
+
+Quand un downgrade Alembic ne suffit pas (données corrompues, volume perdu), restaurer
+depuis les sauvegardes automatiques du sidecar `postgres-backup` (ADR-109) : dumps
+`pg_dump` quotidiens avec rotation daily/weekly/monthly, restauration en une commande,
+vérification par `task backup:verify` (restauration réelle dans un conteneur jetable).
+Procédure complète (arrêt API, restore, migrations auto au restart, flush Redis) :
+[DATABASE_BACKUP_RESTORE.md](../runbooks/DATABASE_BACKUP_RESTORE.md).
+
 ---
 
 ## Troubleshooting Déploiement

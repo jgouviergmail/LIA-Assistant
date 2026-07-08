@@ -330,6 +330,26 @@ tasks:
       - docker compose -f docker-compose.dev.yml exec -T api python -m scripts.seed_system_rag
 
   # ============================================================================
+  # Database Backup (ADR-109 — runbook: docs/runbooks/DATABASE_BACKUP_RESTORE.md)
+  # Defaults target dev; on the prod host pass COMPOSE_FILE / containers:
+  #   task backup:now COMPOSE_FILE=docker-compose.prod.yml
+  #   BACKUP_CONTAINER=lia-postgres-backup-prod SOURCE_CONTAINER=lia-postgres-prod task backup:verify
+  # ============================================================================
+
+  backup:now:
+    desc: Trigger an immediate PostgreSQL backup via the postgres-backup sidecar
+    vars:
+      COMPOSE_FILE: '{{.COMPOSE_FILE | default "docker-compose.dev.yml"}}'
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} exec -T postgres-backup /backup.sh
+
+  backup:verify:
+    desc: Restore the latest dump into a throwaway container and compare schema + row counts
+    cmds:
+      - cmd: bash infrastructure/docker/backup/verify-backup.sh
+        platforms: [windows, linux, darwin]
+
+  # ============================================================================
   # Build & Deploy
   # ============================================================================
 
