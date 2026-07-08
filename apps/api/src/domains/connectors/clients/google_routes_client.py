@@ -27,10 +27,9 @@ from uuid import UUID
 
 import httpx
 import structlog
-from fastapi import HTTPException
-from fastapi import status as http_status
 
 from src.core.config import settings
+from src.core.exceptions import ConnectorAPIError, ExternalServiceError, ValidationError
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 from src.domains.connectors.models import ConnectorType
 
@@ -258,9 +257,10 @@ class GoogleRoutesClient:
             Headers dict with API key and field mask
         """
         if not settings.google_api_key:
-            raise HTTPException(
-                status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            raise ExternalServiceError(
+                service_name="google_routes",
                 detail="Google API key not configured (GOOGLE_API_KEY)",
+                error_type="configuration_missing",
             )
 
         return {
@@ -353,7 +353,8 @@ class GoogleRoutesClient:
             - travelAdvisory: Traffic/toll information
 
         Raises:
-            HTTPException: On API errors
+            ConnectorAPIError: On upstream API errors (status forwarded).
+            ExternalServiceError: On network failure or missing API key (503).
             ValueError: If both departure_time and arrival_time are provided
 
         Example:
@@ -461,9 +462,10 @@ class GoogleRoutesClient:
                     origin=str(origin)[:50],
                     destination=str(destination)[:50],
                 )
-                raise HTTPException(
+                raise ConnectorAPIError(
+                    connector_type="google_routes",
                     status_code=response.status_code,
-                    detail=f"Google Routes API error: {error_detail}",
+                    detail=f"Google Routes API error: {error_detail[:200]}",
                 )
 
             data = response.json()
@@ -501,9 +503,10 @@ class GoogleRoutesClient:
                 origin=str(origin)[:50],
                 destination=str(destination)[:50],
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            raise ExternalServiceError(
+                service_name="google_routes",
                 detail=f"Google Routes API unavailable: {e!s}",
+                error_type="connection_error",
             ) from e
 
     # =========================================================================
@@ -548,9 +551,10 @@ class GoogleRoutesClient:
             >>> # Returns 2x3 matrix
         """
         if len(origins) * len(destinations) > 625:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
+            raise ValidationError(
                 detail="Route matrix limited to 625 elements (25x25 max)",
+                origins_count=len(origins),
+                destinations_count=len(destinations),
             )
 
         client = await self._get_client()
@@ -593,9 +597,10 @@ class GoogleRoutesClient:
                     status_code=response.status_code,
                     error=error_detail[:500],
                 )
-                raise HTTPException(
+                raise ConnectorAPIError(
+                    connector_type="google_routes",
                     status_code=response.status_code,
-                    detail=f"Google Routes Matrix API error: {error_detail}",
+                    detail=f"Google Routes Matrix API error: {error_detail[:200]}",
                 )
 
             # Track API call (always non-cached for Routes Matrix API)
@@ -635,9 +640,10 @@ class GoogleRoutesClient:
                 user_id=str(self.user_id) if self.user_id else "global",
                 error=str(e),
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            raise ExternalServiceError(
+                service_name="google_routes",
                 detail=f"Google Routes Matrix API unavailable: {e!s}",
+                error_type="connection_error",
             ) from e
 
     # =========================================================================

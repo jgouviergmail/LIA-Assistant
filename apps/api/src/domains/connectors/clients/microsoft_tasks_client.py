@@ -18,6 +18,7 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
+from src.core.exceptions import ResourceNotFoundError
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
 from src.domains.connectors.clients.normalizers.microsoft_tasks_normalizer import (
@@ -429,10 +430,8 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
 
         lists = response.get("value", [])
         if not lists:
-            from fastapi import HTTPException, status
-
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise ResourceNotFoundError(
+                resource_type="task_list",
                 detail="No task lists found in Microsoft To Do.",
             )
 

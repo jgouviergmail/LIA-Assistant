@@ -2757,13 +2757,17 @@ class BaseAPIKeyClient(ABC):
                     continue
 
                 if response.status_code in (401, 403):  # Auth error → fail fast
-                    raise HTTPException(401, "Invalid or expired API key")
+                    raise ExternalServiceError(  # typed 503, ADR-108 domain contract
+                        service_name=self.connector_type.value,
+                        detail="Invalid or expired API key",
+                        error_type="unauthorized",
+                    )
 
                 return response.json()
 
             except httpx.RequestError as e:
                 if attempt == max_retries - 1:
-                    raise HTTPException(503, "API unavailable")
+                    raise MaxRetriesExceededError(operation, max_retries, last_error=e)
                 await asyncio.sleep(2**attempt)
 
     def _mask_api_key(self, key: str) -> str:

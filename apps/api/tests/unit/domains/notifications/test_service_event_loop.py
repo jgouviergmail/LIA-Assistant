@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.domains.notifications.service import FCMNotificationService
-from tests.helpers.event_loop import measure_max_loop_stall
+from tests.helpers.event_loop import assert_workload_off_loop
 
 # Simulated Firebase round-trip. Must be much larger than the assertion
 # threshold so a blocking implementation fails unambiguously.
@@ -45,20 +45,19 @@ class TestFCMSendEventLoop:
     ) -> None:
         """A slow messaging.send must not stall concurrent coroutines."""
         with patch("firebase_admin.messaging.send", side_effect=_slow_send):
-            max_stall, result = await measure_max_loop_stall(
+            result = await assert_workload_off_loop(
                 lambda: fcm_service._send_to_token(
                     token="tok-1234567890abcdef",
                     title="Title",
                     body="Body",
-                )
+                ),
+                blocking_baseline=lambda: time.sleep(_SIMULATED_SEND_SECONDS),
+                absolute_threshold_seconds=_MAX_ALLOWED_STALL_SECONDS,
+                context="messaging.send",
             )
 
         assert result.success is True
         assert result.message_id == "projects/test/messages/fake-id"
-        assert max_stall < _MAX_ALLOWED_STALL_SECONDS, (
-            f"event loop stalled {max_stall * 1000:.0f} ms during messaging.send "
-            f"(threshold {_MAX_ALLOWED_STALL_SECONDS * 1000:.0f} ms)"
-        )
 
     async def test_send_multicast_does_not_block_event_loop(
         self, fcm_service: FCMNotificationService
@@ -67,20 +66,19 @@ class TestFCMSendEventLoop:
         tokens = [f"tok-{i:04d}" for i in range(2)]
 
         with patch("firebase_admin.messaging.send", side_effect=_slow_send):
-            max_stall, (sent, failed) = await measure_max_loop_stall(
+            sent, failed = await assert_workload_off_loop(
                 lambda: fcm_service.send_multicast(
                     tokens=tokens,
                     title="Title",
                     body="Body",
-                )
+                ),
+                blocking_baseline=lambda: time.sleep(_SIMULATED_SEND_SECONDS),
+                absolute_threshold_seconds=_MAX_ALLOWED_STALL_SECONDS,
+                context="multicast",
             )
 
         assert sent == len(tokens)
         assert failed == 0
-        assert max_stall < _MAX_ALLOWED_STALL_SECONDS, (
-            f"event loop stalled {max_stall * 1000:.0f} ms during multicast "
-            f"(threshold {_MAX_ALLOWED_STALL_SECONDS * 1000:.0f} ms)"
-        )
 
     async def test_send_multicast_counts_failures(
         self, fcm_service: FCMNotificationService

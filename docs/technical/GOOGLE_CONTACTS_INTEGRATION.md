@@ -385,16 +385,28 @@ async def _make_request(
                     await asyncio.sleep(wait_time)
                     continue
 
-            # 4xx errors: don't retry
-            raise HTTPException(status_code=response.status_code, detail=response.text)
+            # 4xx errors: don't retry — upstream status forwarded as-is (ADR-114)
+            raise ConnectorAPIError(
+                connector_type=connector_type_value,
+                status_code=response.status_code,
+                detail=f"{connector_type_value} API error: {error_detail}",
+            )
 
         except httpx.RequestError as e:
             if attempt < max_retries - 1:
                 await asyncio.sleep(2 ** attempt)
                 continue
-            raise HTTPException(status_code=503, detail=f"Network error: {e}")
+            raise ExternalServiceError(
+                service_name=connector_type_value,
+                detail=f"{connector_type_value} API unavailable: {e!s}",
+                error_type="connection_error",
+            ) from e
 
-    raise HTTPException(status_code=504, detail="Max retries exceeded")
+    raise ExternalServiceError(
+        service_name=connector_type_value,
+        detail=f"{connector_type_value} API: max retries exceeded",
+        error_type="max_retries",
+    )
 ```
 
 ---

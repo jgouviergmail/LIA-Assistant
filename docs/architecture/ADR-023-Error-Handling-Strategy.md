@@ -3,7 +3,7 @@
 **Status**: ✅ IMPLEMENTED (2025-12-21)
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Production-grade error handling with i18n
-**Related Documentation**: `docs/technical/ERROR_HANDLING.md`
+**Related**: [ADR-002](ADR-002-Unified-Error-Handling.md), [ADR-108](ADR-108-BaseAPIKeyClient-Adoption.md), [ADR-114](ADR-114-Connector-Client-Domain-Error-Contract.md)
 
 ---
 
@@ -527,6 +527,25 @@ class CircuitBreakerError(Exception):
 4. **DRY refactoring** — Duplicated transient error detection logic (previously inlined in 5 methods) consolidated into single `_classify_error()` method.
 
 **Files changed:** `api/error_messages.py`, `api/router.py`, `api/service.py`, `nodes/response_node.py`, `services/hitl/resumption_strategies.py`.
+
+### Amendment 2026-07-08: Connector Client Layer Aligned on the Taxonomy (ADR-114)
+
+The connector **client layer** no longer raises raw `HTTPException` (28
+sites migrated): provider 401s raise `AuthenticationError` (detail via
+`APIMessages.connector_auth_invalid()`, `X-Requires-Reconnect` header kept),
+upstream errors are forwarded as-is by the new `ConnectorAPIError`, and
+rate-limit / circuit-open / network / retry-exhaustion / missing-config
+paths raise `RateLimitError` / `ExternalServiceError` with dedicated
+`error_type` labels. `BaseAPIException`, `AuthenticationError` and
+`ExternalServiceError` gained a `headers` parameter; `RateLimitError` gained
+a `detail` override. Status codes, details and headers are byte-identical to
+the legacy raises — the external API contract is unchanged by construction
+(`BaseAPIException` IS-A `HTTPException`). Note: `handle_oauth_error`,
+`handle_rate_limit_error`, `handle_insufficient_permissions` and
+`classify_http_error` in `connectors/error_handlers.py` (documented above)
+have no production callers — the live surface of that module is the
+OAuth-callback family. See ADR-114 for the full mapping table and the
+documented divergence from ADR-108 on retry exhaustion.
 
 ---
 

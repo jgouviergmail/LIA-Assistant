@@ -302,7 +302,7 @@ class OpenWeatherMapClient:
                 - wind_speed: Wind speed
 
         Raises:
-            HTTPException: If API call fails
+            httpx.HTTPStatusError: If the API call fails (raise_for_status)
         """
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -1150,7 +1150,7 @@ print(manifest.domain)  # Must match router detected domain
 
 **Symptômes** :
 ```
-HTTPException: 401 Unauthorized - Token expired
+AuthenticationError: 401: Authentification google_gmail invalide. Veuillez réactiver le connecteur dans les paramètres.
 ```
 
 **Causes** :

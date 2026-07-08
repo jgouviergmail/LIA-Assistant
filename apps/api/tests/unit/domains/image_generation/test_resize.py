@@ -18,7 +18,7 @@ from src.domains.image_generation.resize import (
     resize_image_b64,
     resize_image_b64_async,
 )
-from tests.helpers.event_loop import measure_max_loop_stall
+from tests.helpers.event_loop import assert_workload_off_loop
 
 # Threshold for the event-loop stall assertion. A synchronous resize of the
 # large test image takes several hundred ms; off-loop it stays far below this.
@@ -89,13 +89,12 @@ class TestResizeImageB64Async:
         noise.save(buf, format="PNG")
         source = base64.b64encode(buf.getvalue()).decode("ascii")
 
-        max_stall, (resized_b64, size_str) = await measure_max_loop_stall(
-            lambda: resize_image_b64_async(source)
+        resized_b64, size_str = await assert_workload_off_loop(
+            lambda: resize_image_b64_async(source),
+            blocking_baseline=lambda: resize_image_b64(source),
+            absolute_threshold_seconds=_MAX_ALLOWED_STALL_SECONDS,
+            context="resize",
         )
 
         assert size_str == "1024x1024"
         assert resized_b64
-        assert max_stall < _MAX_ALLOWED_STALL_SECONDS, (
-            f"event loop stalled {max_stall * 1000:.0f} ms during resize "
-            f"(threshold {_MAX_ALLOWED_STALL_SECONDS * 1000:.0f} ms)"
-        )

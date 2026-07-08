@@ -33,6 +33,15 @@ from src.core.constants import (
     HTTP_MAX_KEEPALIVE_CONNECTIONS,
     OAUTH_TOKEN_REFRESH_MARGIN_SECONDS,
 )
+from src.core.exceptions import (
+    AuthenticationError,
+    ConnectorAPIError,
+    ExternalServiceError,
+    RateLimitError,
+    ResourceNotFoundError,
+    ValidationError,
+)
+from src.core.i18n_api_messages import APIMessages
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.locks import OAuthLock
@@ -310,21 +319,24 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
 
     def _on_rate_limit_exceeded(self) -> None:
         """
-        Called when rate limit is exceeded after all retries.
+        Called when the client-side rate limit is exceeded after all retries.
 
-        Override in subclasses to raise appropriate exceptions.
-        Default implementation raises a generic exception.
+        Override in subclasses to raise more specific exceptions if needed.
+
+        Raises:
+            RateLimitError: 429 with the effective per-minute limit.
         """
-        from fastapi import HTTPException, status
-
         connector_type_value = (
             self.connector_type.value
             if hasattr(self.connector_type, "value")
             else str(self.connector_type)
         )
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        raise RateLimitError(
+            limit=max(1, int(self._rate_limit_per_second * 60)),
+            window_seconds=60,
+            retry_after=60,
             detail=f"Rate limit exceeded for {connector_type_value}. Please try again later.",
+            connector_type=connector_type_value,
         )
 
     # =========================================================================
@@ -360,10 +372,9 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             Valid access token string.
 
         Raises:
-            HTTPException: If token refresh fails.
+            ResourceNotFoundError: If the connector row no longer exists (404).
+            ValidationError: If no credentials are stored for the connector (400).
         """
-        from fastapi import HTTPException, status
-
         time_until_expiry = (
             (self.credentials.expires_at - datetime.now(UTC)).total_seconds()
             if self.credentials.expires_at
@@ -419,9 +430,10 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                 connector = await repo.get_by_user_and_type(self.user_id, self.connector_type)
 
                 if not connector:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
+                    raise ResourceNotFoundError(
+                        resource_type="connector",
                         detail=f"{connector_type_value} connector not found",
+                        connector_type=connector_type_value,
                     )
 
                 # Ensure we have fresh credentials to use for refresh
@@ -431,9 +443,9 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                         user_id=str(self.user_id),
                         connector_type=connector_type_value,
                     )
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
+                    raise ValidationError(
                         detail=f"No credentials found for {connector_type_value} connector",
+                        connector_type=connector_type_value,
                     )
 
                 # Refresh via connector service using fresh_credentials from DB
@@ -514,7 +526,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             httpx.Response object
 
         Raises:
-            HTTPException: If circuit breaker is open (503 Service Unavailable)
+            ExternalServiceError: If circuit breaker is open (503 Service Unavailable)
         """
         # Check circuit breaker first (fail fast if service is down)
         if self._is_circuit_breaker_enabled():
@@ -523,9 +535,6 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                 # Check if we can proceed
                 await cb.check()
             except CircuitBreakerError as e:
-                # Convert to HTTPException for consistent API responses
-                from fastapi import HTTPException, status
-
                 connector_type_value = (
                     self.connector_type.value
                     if hasattr(self.connector_type, "value")
@@ -539,9 +548,11 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                     user_id=str(self.user_id),
                     retry_after=e.retry_after,
                 )
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                raise ExternalServiceError(
+                    service_name=connector_type_value,
                     detail=f"{connector_type_value} service temporarily unavailable. Please try again later.",
+                    error_type="circuit_open",
+                    retry_after=e.retry_after,
                     headers={"Retry-After": str(int(e.retry_after))} if e.retry_after else None,
                 ) from e
 
@@ -679,11 +690,11 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             JSON response from API.
 
         Raises:
-            HTTPException: On 4xx errors or max retries exceeded.
+            AuthenticationError: On 401 from the provider (connector invalidated).
+            ConnectorAPIError: On other upstream client errors (status forwarded).
+            ExternalServiceError: On network failure or retry exhaustion (503).
         """
         import time as _time
-
-        from fastapi import HTTPException, status
 
         await self._rate_limit()
 
@@ -813,13 +824,10 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                         action="connector_invalidation_required",
                     )
                     await self._invalidate_connector_on_auth_failure(error_detail)
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail=(
-                            f"Authentification {connector_type_value} invalide. "
-                            f"Veuillez réactiver le connecteur dans les paramètres."
-                        ),
+                    raise AuthenticationError(
+                        detail=APIMessages.connector_auth_invalid(connector_type_value),
                         headers={"X-Requires-Reconnect": "true"},
+                        connector_type=connector_type_value,
                     )
 
                 # Other client errors - don't retry (use hook for error parsing)
@@ -848,7 +856,8 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                     status_code=response.status_code,
                     error=error_detail,
                 )
-                raise HTTPException(
+                raise ConnectorAPIError(
+                    connector_type=connector_type_value,
                     status_code=response.status_code,
                     detail=f"{connector_type_value} API error: {error_detail}",
                 )
@@ -866,15 +875,17 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                     )
                     await asyncio.sleep(wait_time)
                     continue
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                raise ExternalServiceError(
+                    service_name=connector_type_value,
                     detail=f"{connector_type_value} API unavailable: {e!s}",
+                    error_type="connection_error",
                 ) from e
 
         # Max retries exceeded
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        raise ExternalServiceError(
+            service_name=connector_type_value,
             detail=f"{connector_type_value} API: max retries exceeded",
+            error_type="max_retries",
         )
 
     # =========================================================================

@@ -800,7 +800,7 @@ async def list_connector_calendars(
             connector_type=connector_type.value,
         )
 
-    # Instantiate client (may raise HTTPException — let it propagate)
+    # Instantiate client (may raise BaseAPIException — let it propagate)
     client = await _get_client_for_connector(service, user_id, connector_id, connector_type)
 
     # Fetch calendars from external provider
@@ -858,7 +858,7 @@ async def list_connector_task_lists(
             connector_type=connector_type.value,
         )
 
-    # Instantiate client (may raise HTTPException — let it propagate)
+    # Instantiate client (may raise BaseAPIException — let it propagate)
     client = await _get_client_for_connector(service, user_id, connector_id, connector_type)
 
     # Fetch task lists from external provider

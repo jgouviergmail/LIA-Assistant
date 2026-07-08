@@ -26,6 +26,8 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import MICROSOFT_GRAPH_BASE_URL
+from src.core.exceptions import AuthenticationError, ConnectorAPIError, ExternalServiceError
+from src.core.i18n_api_messages import APIMessages
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_oauth_client import BaseOAuthClient
 from src.domains.connectors.models import ConnectorType
@@ -202,8 +204,6 @@ class BaseMicrosoftClient(BaseOAuthClient[ConnectorType]):
         """
         import asyncio
 
-        from fastapi import HTTPException, status
-
         await self._rate_limit()
 
         client = await self._get_client()
@@ -242,14 +242,15 @@ class BaseMicrosoftClient(BaseOAuthClient[ConnectorType]):
                 if response.status_code == 401:
                     error_detail = self._parse_error_detail(response)
                     await self._invalidate_connector_on_auth_failure(error_detail)
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail=f"Authentification {connector_type_value} invalide.",
+                    raise AuthenticationError(
+                        detail=APIMessages.connector_auth_invalid(connector_type_value),
                         headers={"X-Requires-Reconnect": "true"},
+                        connector_type=connector_type_value,
                     )
 
                 error_detail = self._parse_error_detail(response)
-                raise HTTPException(
+                raise ConnectorAPIError(
+                    connector_type=connector_type_value,
                     status_code=response.status_code,
                     detail=f"{connector_type_value} API error: {error_detail}",
                 )
@@ -258,12 +259,14 @@ class BaseMicrosoftClient(BaseOAuthClient[ConnectorType]):
                 if attempt < 2:
                     await asyncio.sleep(self._calculate_backoff(attempt))
                     continue
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                raise ExternalServiceError(
+                    service_name=connector_type_value,
                     detail=f"{connector_type_value} API unavailable: {e!s}",
+                    error_type="connection_error",
                 ) from e
 
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        raise ExternalServiceError(
+            service_name=connector_type_value,
             detail=f"{connector_type_value} API: max retries exceeded",
+            error_type="max_retries",
         )

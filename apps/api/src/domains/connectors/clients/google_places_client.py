@@ -25,13 +25,13 @@ from uuid import UUID
 
 import httpx
 import structlog
-from fastapi import HTTPException, status
 
 from src.core.config import settings
 from src.core.constants import (
     HTTP_MAX_CONNECTIONS,
     HTTP_MAX_KEEPALIVE_CONNECTIONS,
 )
+from src.core.exceptions import ConnectorAPIError, ExternalServiceError
 from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.cache_mixin import CacheableMixin
@@ -99,9 +99,10 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
     def api_key(self) -> str:
         """Get global API key from settings."""
         if not settings.google_api_key:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            raise ExternalServiceError(
+                service_name="google_places",
                 detail="Google Places service unavailable: API key not configured",
+                error_type="configuration_missing",
             )
         return settings.google_api_key
 
@@ -168,7 +169,8 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             JSON response from API.
 
         Raises:
-            HTTPException: On 4xx errors or max retries exceeded.
+            ConnectorAPIError: On upstream client errors (status forwarded).
+            ExternalServiceError: On network failure or retry exhaustion (503).
         """
         await self._rate_limit()
 
@@ -237,9 +239,10 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                     endpoint=endpoint,
                     response_text=response.text[:500] if response.text else None,
                 )
-                raise HTTPException(
+                raise ConnectorAPIError(
+                    connector_type="google_places",
                     status_code=response.status_code,
-                    detail=f"Google Places API error: {response.text}",
+                    detail=f"Google Places API error: {response.text[:200]}",
                 )
 
             except httpx.RequestError as e:
@@ -250,16 +253,18 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                     attempt=attempt + 1,
                 )
                 if attempt == max_retries - 1:
-                    raise HTTPException(
-                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    raise ExternalServiceError(
+                        service_name="google_places",
                         detail=f"Google Places API connection error: {e}",
+                        error_type="connection_error",
                     ) from e
                 await asyncio.sleep(2**attempt)
 
         # Max retries exceeded
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        raise ExternalServiceError(
+            service_name="google_places",
             detail="Google Places API unavailable after retries",
+            error_type="max_retries",
         )
 
     # =========================================================================
@@ -733,7 +738,8 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             - location: {lat, lon} coordinates
 
         Raises:
-            HTTPException: On API errors
+            ConnectorAPIError: On upstream API errors (status forwarded).
+            ExternalServiceError: On network failure (503).
 
         Example:
             >>> result = await client.reverse_geocode(48.8584, 2.2945)
@@ -759,17 +765,23 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
 
             if response.status_code >= 400:
                 error_detail = response.text
+                # No PII at ERROR: GPS coordinates are logged at DEBUG only.
                 logger.error(
                     "geocoding_api_error",
                     user_id=str(self.user_id),
                     status_code=response.status_code,
-                    error=error_detail,
+                    error=error_detail[:200],
+                )
+                logger.debug(
+                    "geocoding_api_error_location",
+                    user_id=str(self.user_id),
                     latitude=latitude,
                     longitude=longitude,
                 )
-                raise HTTPException(
+                raise ConnectorAPIError(
+                    connector_type="google_geocoding",
                     status_code=response.status_code,
-                    detail=f"Google Geocoding API error: {error_detail}",
+                    detail=f"Google Geocoding API error: {error_detail[:200]}",
                 )
 
             data = response.json()
@@ -780,11 +792,16 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             if data.get("status") != "OK":
                 status_msg = data.get("status", "UNKNOWN_ERROR")
                 error_msg = data.get("error_message", "No error message")
+                # No PII above DEBUG: GPS coordinates are logged at DEBUG only.
                 logger.warning(
                     "geocoding_api_status_error",
                     user_id=str(self.user_id),
                     status=status_msg,
                     error_message=error_msg,
+                )
+                logger.debug(
+                    "geocoding_api_status_error_location",
+                    user_id=str(self.user_id),
                     latitude=latitude,
                     longitude=longitude,
                 )
@@ -837,8 +854,13 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                         if comp_type == "country":
                             parsed["country_code"] = component.get("short_name")
 
+            # No PII at INFO: GPS coordinates and address are logged at DEBUG only.
             logger.info(
                 "reverse_geocode_success",
+                user_id=str(self.user_id),
+            )
+            logger.debug(
+                "reverse_geocode_success_location",
                 user_id=str(self.user_id),
                 latitude=latitude,
                 longitude=longitude,
@@ -848,16 +870,22 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             return parsed
 
         except httpx.RequestError as e:
+            # No PII at ERROR: GPS coordinates are logged at DEBUG only.
             logger.error(
                 "geocoding_api_request_error",
                 user_id=str(self.user_id),
                 error=str(e),
+            )
+            logger.debug(
+                "geocoding_api_request_error_location",
+                user_id=str(self.user_id),
                 latitude=latitude,
                 longitude=longitude,
             )
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            raise ExternalServiceError(
+                service_name="google_geocoding",
                 detail=f"Google Geocoding API unavailable: {e!s}",
+                error_type="connection_error",
             ) from e
 
     # =========================================================================

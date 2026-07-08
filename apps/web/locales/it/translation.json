@@ -591,14 +591,7 @@
       "retry_button": "Riprova",
       "retry_failed": "Impossibile recuperare la tua posizione. Verifica che il GPS sia attivato.",
       "detection": {
-        "keywords": [
-          "vicinanze",
-          "dintorni",
-          "zona",
-          "quartiere",
-          "prossimita",
-          "domicilio"
-        ],
+        "keywords": ["vicinanze", "dintorni", "zona", "quartiere", "prossimita", "domicilio"],
         "patterns": [
           "(nelle|in) vicinanz[ae]",
           "intorno a me",
@@ -2936,6 +2929,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_23": {
+          "title": "v1.21.23 — 🔌 Errori dei connettori più affidabili e più puliti",
+          "date": "Luglio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🔁 Microsoft: riconnessione guidata meglio</b> — Quando l'accesso a Outlook, Calendario o To Do scade, il messaggio ora indica chiaramente di riattivare il connettore nelle impostazioni — esattamente come per Google.",
+            "i2": "<b>🔒 Più riservatezza nei log tecnici</b> — Le coordinate GPS non compaiono più nei log del server durante le ricerche di indirizzi, e le risposte di errore dei servizi esterni vengono troncate per non trasportare mai contenuti inutili.",
+            "i3": "<b>📊 Migliore supervisione dei connettori</b> — Ogni errore Google/Microsoft (autenticazione, quota, indisponibilità) è ora classificato e misurato con precisione nei nostri pannelli, per rilevare più rapidamente i problemi dei servizi esterni — senza alcun cambiamento nel tuo utilizzo."
+          }
+        },
         "v1_21_22": {
           "title": "v1.21.22 — 🛡️ Messaggi di errore chiari e affidabilità rafforzata",
           "date": "Luglio 2026",

@@ -591,14 +591,7 @@
       "retry_button": "Erneut versuchen",
       "retry_failed": "Ihre Position konnte nicht abgerufen werden. Überprüfen Sie, ob GPS aktiviert ist.",
       "detection": {
-        "keywords": [
-          "nahe",
-          "umgebung",
-          "gegend",
-          "nachbarschaft",
-          "viertel",
-          "zuhause"
-        ],
+        "keywords": ["nahe", "umgebung", "gegend", "nachbarschaft", "viertel", "zuhause"],
         "patterns": [
           "in der n[aä]he",
           "um mich herum",
@@ -2934,6 +2927,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_23": {
+          "title": "v1.21.23 — 🔌 Robustere, sauberere Connector-Fehler",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🔁 Microsoft: klarere Anleitung zur Neuverbindung</b> — Wenn Ihr Zugriff auf Outlook, Kalender oder To Do abläuft, sagt die Meldung jetzt klar, dass Sie den Connector in den Einstellungen erneut aktivieren müssen — genau wie bei Google.",
+            "i2": "<b>🔒 Mehr Datenschutz in technischen Protokollen</b> — GPS-Koordinaten erscheinen bei Adresssuchen nicht mehr in den Server-Protokollen, und Fehlerantworten externer Dienste werden gekürzt, damit sie nie unnötige Inhalte transportieren.",
+            "i3": "<b>📊 Bessere Überwachung der Connectoren</b> — Jeder Google/Microsoft-Fehler (Authentifizierung, Kontingent, Ausfall) wird jetzt präzise klassifiziert und in unseren Dashboards gemessen, damit Störungen externer Dienste schneller erkannt werden — ohne jede Änderung an Ihrer Nutzung."
+          }
+        },
         "v1_21_22": {
           "title": "v1.21.22 — 🛡️ Klare Fehlermeldungen und gehärtete Zuverlässigkeit",
           "date": "Juli 2026",

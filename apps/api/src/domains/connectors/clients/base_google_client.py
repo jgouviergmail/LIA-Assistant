@@ -23,9 +23,9 @@ from uuid import UUID
 
 import httpx
 import structlog
-from fastapi import HTTPException, status
 
 from src.core.config import settings
+from src.core.exceptions import ConnectorAPIError, ExternalServiceError
 from src.domains.connectors.clients.base_oauth_client import BaseOAuthClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
@@ -216,7 +216,8 @@ class BaseGoogleClient(BaseOAuthClient[ConnectorType]):
             Raw bytes from response.
 
         Raises:
-            HTTPException: On errors or max retries exceeded.
+            ConnectorAPIError: On upstream client errors (status forwarded).
+            ExternalServiceError: On network failure or retry exhaustion (503).
 
         Example:
             >>> content = await self._make_raw_request(
@@ -282,7 +283,8 @@ class BaseGoogleClient(BaseOAuthClient[ConnectorType]):
                     status_code=response.status_code,
                     error=error_detail[:200],
                 )
-                raise HTTPException(
+                raise ConnectorAPIError(
+                    connector_type=self.connector_type.value,
                     status_code=response.status_code,
                     detail=f"{self.connector_type.value} API error: {error_detail}",
                 )
@@ -300,13 +302,15 @@ class BaseGoogleClient(BaseOAuthClient[ConnectorType]):
                     )
                     await asyncio.sleep(wait_time)
                     continue
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                raise ExternalServiceError(
+                    service_name=self.connector_type.value,
                     detail=f"{self.connector_type.value} API unavailable: {e!s}",
+                    error_type="connection_error",
                 ) from e
 
         # Max retries exceeded
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        raise ExternalServiceError(
+            service_name=self.connector_type.value,
             detail=f"{self.connector_type.value} API: max retries exceeded",
+            error_type="max_retries",
         )

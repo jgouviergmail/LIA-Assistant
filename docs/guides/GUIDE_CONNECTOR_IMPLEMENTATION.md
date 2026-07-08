@@ -393,17 +393,33 @@ client = StripeClient(
 
 ### Gestion des erreurs
 
+Depuis ADR-108 (clients API Key) et ADR-114 (clients OAuth + Google-direct), les clients
+ne lèvent **jamais** de `HTTPException` brut : ils lèvent les exceptions typées de
+`src/core/exceptions.py` (logging structuré + métriques Prometheus automatiques), qui
+héritent de `HTTPException` — le contrat HTTP est donc préservé en bordure FastAPI.
+
 ```python
+from src.core.exceptions import (
+    AuthenticationError,   # OAuth 401 — connecteur invalidé, réactivation requise
+    ConnectorAPIError,     # 4xx amont forwardé tel quel (un 403 Google reste un 403)
+    ExternalServiceError,  # réseau/retries épuisés/circuit ouvert (503) ; 401-403 API Key
+    MaxRetriesExceededError,  # clients API Key uniquement : épuisement des retries
+    RateLimitError,        # rate limit côté client (429)
+)
+
 async def safe_operation(client):
     try:
         return await client.list_items()
-    except HTTPException as e:
-        if e.status_code == 401:
-            # Clé invalide ou expirée
-            logger.error("auth_failed", ...)
-        elif e.status_code == 429:
-            # Rate limit (déjà géré par retry, mais informer l'user)
-            logger.warning("rate_limited", ...)
+    except AuthenticationError:
+        # OAuth : le connecteur a été invalidé, l'utilisateur doit le réactiver
+        logger.error("auth_failed", ...)
+        raise
+    except RateLimitError:
+        # Rate limit côté client (déjà retryé — informer l'utilisateur)
+        logger.warning("rate_limited", ...)
+        raise
+    except (ConnectorAPIError, ExternalServiceError, MaxRetriesExceededError):
+        # Erreur amont ou réseau — déjà typée, loggée et mesurée
         raise
     finally:
         await client.close()

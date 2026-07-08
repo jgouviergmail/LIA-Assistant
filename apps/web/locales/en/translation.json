@@ -612,13 +612,7 @@
       "retry_button": "Retry",
       "retry_failed": "Unable to retrieve your position. Check that GPS is enabled.",
       "detection": {
-        "keywords": [
-          "nearby",
-          "vicinity",
-          "neighborhood",
-          "surroundings",
-          "area"
-        ],
+        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -2943,6 +2937,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_23": {
+          "title": "v1.21.23 — 🔌 Sturdier, cleaner connector errors",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🔁 Microsoft: clearer reconnection guidance</b> — When your Outlook, Calendar or To Do access expires, the message now clearly tells you to reactivate the connector in Settings — exactly like Google.",
+            "i2": "<b>🔒 More privacy in technical logs</b> — GPS coordinates no longer appear in server logs during address lookups, and error responses from external services are trimmed so they never carry unnecessary content.",
+            "i3": "<b>📊 Better connector monitoring</b> — Every Google/Microsoft error (authentication, quota, outage) is now precisely classified and measured in our dashboards, so external-service incidents are detected faster — with zero change to how you use LIA."
+          }
+        },
         "v1_21_22": {
           "title": "v1.21.22 — 🛡️ Clear error messages and hardened reliability",
           "date": "July 2026",

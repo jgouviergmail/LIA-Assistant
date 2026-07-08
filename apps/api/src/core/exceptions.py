@@ -55,6 +55,7 @@ class BaseAPIException(HTTPException):
         detail: str,
         log_level: str = "warning",
         log_event: str | None = None,
+        headers: dict[str, str] | None = None,
         **log_context: Any,
     ) -> None:
         """
@@ -65,9 +66,11 @@ class BaseAPIException(HTTPException):
             detail: Error message (user-facing)
             log_level: Logging level (debug, info, warning, error, critical)
             log_event: Structured log event name (defaults to detail)
+            headers: Optional HTTP response headers (e.g. Retry-After,
+                X-Requires-Reconnect) forwarded to the FastAPI response
             **log_context: Additional context for structured logging
         """
-        super().__init__(status_code=status_code, detail=detail)
+        super().__init__(status_code=status_code, detail=detail, headers=headers)
 
         # Automatic structured logging
         log_method = getattr(logger, log_level, logger.warning)
@@ -163,12 +166,18 @@ class BaseAPIException(HTTPException):
 class AuthenticationError(BaseAPIException):
     """Authentication failed - invalid credentials or token."""
 
-    def __init__(self, detail: str = "Invalid credentials", **log_context: Any) -> None:
+    def __init__(
+        self,
+        detail: str = "Invalid credentials",
+        headers: dict[str, str] | None = None,
+        **log_context: Any,
+    ) -> None:
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=detail,
             log_level="warning",
             log_event="authentication_failed",
+            headers=headers,
             **log_context,
         )
 
@@ -285,6 +294,7 @@ class ExternalServiceError(BaseAPIException):
         self,
         service_name: str,
         detail: str | None = None,
+        headers: dict[str, str] | None = None,
         **log_context: Any,
     ) -> None:
         detail = detail or f"{service_name} service unavailable"
@@ -294,6 +304,7 @@ class ExternalServiceError(BaseAPIException):
             detail=detail,
             log_level="error",
             log_event=f"{service_name}_service_error",
+            headers=headers,
             service_name=service_name,
             **log_context,
         )
@@ -409,7 +420,7 @@ def raise_invalid_credentials(email: str | None = None) -> NoReturn:
     Raises:
         AuthenticationError: 401 Unauthorized
     """
-    log_context = {"email": email} if email else {}
+    log_context: dict[str, Any] = {"email": email} if email else {}
     raise AuthenticationError(detail="Invalid credentials", **log_context)
 
 
@@ -839,6 +850,7 @@ class RateLimitError(BaseAPIException):
         limit: int,
         window_seconds: int,
         retry_after: int,
+        detail: str | None = None,
         **kwargs: Any,
     ) -> None:
         self.limit = limit
@@ -847,7 +859,7 @@ class RateLimitError(BaseAPIException):
 
         super().__init__(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Rate limit exceeded: {limit} requests per {window_seconds}s",
+            detail=detail or f"Rate limit exceeded: {limit} requests per {window_seconds}s",
             log_event="rate_limit_exceeded",
             limit=limit,
             window_seconds=window_seconds,
@@ -1325,6 +1337,43 @@ def raise_hybrid_search_error(detail: str, **context: Any) -> NoReturn:
 # ============================================================================
 # Connector-Specific Errors
 # ============================================================================
+
+
+class ConnectorAPIError(BaseAPIException):
+    """Upstream connector API returned a non-retryable error, forwarded as-is.
+
+    Raised by the connector client layer when the upstream provider (Google,
+    Microsoft, etc.) returns an error response that is not handled by a more
+    specific path (401 auth, 429 retry, 5xx retry where applicable). The
+    upstream HTTP status code is forwarded unchanged so the external API
+    contract is preserved end-to-end (a 403 from Google stays a 403).
+    """
+
+    def __init__(
+        self,
+        connector_type: str,
+        status_code: int,
+        detail: str,
+        **log_context: Any,
+    ) -> None:
+        """
+        Initialize connector API error.
+
+        Args:
+            connector_type: Connector type value (e.g. "google_gmail")
+            status_code: Upstream HTTP status code, forwarded as-is (>= 400)
+            detail: Error message (user-facing, no raw PII)
+            **log_context: Additional context for structured logging
+        """
+        super().__init__(
+            status_code=status_code,
+            detail=detail,
+            log_level="warning",
+            log_event="connector_api_error",
+            connector_type=connector_type,
+            upstream_status_code=status_code,
+            **log_context,
+        )
 
 
 class ConnectorValidationError(BaseAPIException):

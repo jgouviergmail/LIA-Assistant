@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.23] - 2026-07-08
+
+> Connector client domain error contract (ADR-114). The 2026-07 audit flagged a layering defect: the connector *client* layer — a domain layer — raised raw transport `HTTPException` at 28 sites across the OAuth bases (Google, Microsoft) and the Google-direct clients (Places, Routes, Geocoding, Microsoft To Do). Raw raises are untyped, invisible to Prometheus, unlogged by the central mechanism, and violate the "centralized raisers only" review rule. ADR-108 had already fixed the same defect in `BaseAPIKeyClient`; this release extends that contract to the whole OAuth family. The structural lever: `BaseAPIException` **is** an `HTTPException` subclass (ADR-002), so migrating to typed subclasses preserves the external API contract *by construction* — same status codes, same `{"detail"}` payloads, same headers through FastAPI's native handler, both `isinstance(HTTPException)` code paths still true, `str(e)` format unchanged. No new exception handler was needed, and none was added.
+
+### Added
+
+- **`ConnectorAPIError`** (`core/exceptions.py`): the one new taxonomy class — upstream connector API errors forwarded with their original status code (a 403 from Google stays a 403; includes 5xx on the no-retry Routes/Geocoding paths). No existing class accepted a dynamic status code.
+- **`headers` parameter on the exception taxonomy** (`BaseAPIException`, `AuthenticationError`, `ExternalServiceError`): typed exceptions can now carry HTTP response headers (`Retry-After` on circuit-open 503s, `X-Requires-Reconnect` on OAuth 401s) — previously expressible only by raw `HTTPException`. `RateLimitError` gains an optional `detail` override so client-side 429 messages stay byte-identical.
+- **Contract test suite** (`tests/unit/connectors/test_connector_client_error_contract.py`, 34 tests): every one of the 28 migrated sites individually pinned (exception type + status code + byte-identical detail + headers), FastAPI edge parity (each typed exception rendered against its raw-`HTTPException` twin via `TestClient` — same status, same JSON, same headers), and tool-path classification (`handle_tool_exception` / `handle_connector_api_error`) proven unchanged.
+- **ADR-114** (`docs/architecture/ADR-114-Connector-Client-Domain-Error-Contract.md`): the full mapping table, the documented divergence from ADR-108 (OAuth retry exhaustion stays a 503 `ExternalServiceError`, *not* the plain `MaxRetriesExceededError` — the OAuth bases feed REST routes where a plain exception would become a 500 through `ErrorHandlerMiddleware`), and the pre-existing quirk kept as-is: the client-side 429 raised inside `_rate_limit()` is swallowed by the Redis-fallback `except Exception` and degrades to local throttling (shared with ADR-108's base; changing it would be a behavior change).
+
+### Changed
+
+- **28 raw `raise HTTPException` sites migrated** across `base_oauth_client.py` (×8: 401 invalidation, 4xx passthrough, network/retry exhaustion, client-side 429, circuit-open, refresh 404/400), `base_google_client.py` (×3, raw downloads path), `base_microsoft_client.py` (×4, nextLink pagination path), `google_places_client.py` (×6, incl. reverse geocoding), `google_routes_client.py` (×6, incl. route matrix), `microsoft_tasks_client.py` (×1). Every client error now feeds `http_errors_total` / `external_service_errors_total` and the central structured logging — new observability, zero API contract change.
+- **Provider parity on the OAuth 401 message**: the inline French literal in the Google base (an i18n-rule violation, byte-identical to the central catalog's French default) is replaced by `APIMessages.connector_auth_invalid()`; the Microsoft base — whose message was missing the "reactivate the connector in settings" sentence — is aligned on the same catalog entry.
+- **Error-detail hygiene**: upstream response bodies embedded in error details truncated to 200 chars (Places, Routes, Geocoding — they previously embedded the full upstream body, a PII/token-waste risk when relayed to the LLM and the frontend).
+- **Geocoding log hygiene (no-PII rule)**: GPS coordinates moved from ERROR/WARNING/INFO log events to dedicated DEBUG events in `google_places_client.reverse_geocode` paths.
+
+### Fixed
+
+- **Pre-existing MyPy invariance in `raise_invalid_credentials`** surfaced by the new `headers` parameter (`**dict[str, str]` unpacking could bind `headers`): the log-context dict is now explicitly `dict[str, Any]`.
+- **Lying docstrings and comments**: `Raises: HTTPException` docstrings across the migrated clients (incl. `google_gmail_client.send_email`) rewritten to the real typed exceptions; the two "may raise HTTPException — let it propagate" comments in `connectors/router.py` updated; ADR-023's dead reference to a non-existent `docs/technical/ERROR_HANDLING.md` removed.
+
+### Docs
+
+- **ADR-114** written; **ADR-023** amended (connector client layer aligned on the taxonomy; the 401/429/403 handlers and `classify_http_error` in `connectors/error_handlers.py` documented as having no production callers — the module's live surface is the OAuth-callback family); `ADR_INDEX.md` + `docs/INDEX.md` cross-referenced; guide stamps v1.21.23 (12 files) with drifted metrics fixed in all 6 locales (test-file count 559 → 560, zh exact ADR count 106 → 107).
+- Out of scope, recorded in ADR-114 for phase 2: the 33 remaining raw `HTTPException` raises in routers/services (right layer, wrong idiom — llm_config ×14, health_metrics ×5, user_mcp ×4, heartbeat ×3, …) and the dead connector error handlers (S7 candidate).
+
+### Tests
+
+- New contract suite 34/34 green; connector unit suites 501 passed; full fast unit selection **8,904 passed / 0 failed**; connector integration structure tests 6/6; ruff/black/MyPy strict green on all touched files; fresh Docker boot to healthy with the OAuth `token_refresh` scheduler exercising the migrated code live (4/4 refreshes, 0 errors).
+- **Event-loop stall tests hardened against machine-load flakiness** (`tests/helpers/event_loop.py`, caught by this release's pre-commit run): the absolute 150 ms stall threshold measured the *machine*, not the loop, when pytest-xdist saturates every core (the ticker coroutine itself gets starved by the OS scheduler). New `assert_workload_off_loop` helper: fast path under the absolute threshold, otherwise a calibration pass measures the same blocking workload run synchronously ON the loop and requires the async stall to stay under half of it — scheduler noise inflates both measurements alike, a regression to a synchronous implementation still fails. Applied to the 3 stall assertions (image resize, FCM send, FCM multicast).
+
 ## [1.21.22] - 2026-07-08
 
 > Backend test suite rehabilitation (ADR-113). The 2026-07 audit found `tests/integration/` (250 tests) ran in **no** CI job — and a full local run proved it had silently rotted, exactly like the agents suite before it: 53 failures out of 243 selected. Thirteen Testcontainers-backed test files were misfiled under `tests/unit/` (the audit saw 10; inventory found 3 more, including `test_checkpointer.py` which ran *nowhere*: win32-skipped locally, `-m`-deselected in CI), ten of them quarantined by a `--ignore` list in ci.yml proven **100% redundant** — CI collection is byte-identical with and without it (8,916 tests both ways). Meanwhile the coverage gate sat at 43% while actual coverage measured 52.31% on the CI runner. Everything is reclassified, gated, repaired at the root, and the gate now ratchets. Bonus: the rehabilitated suite immediately caught a real product bug (every field-validator 422 turned into a 500).

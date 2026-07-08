@@ -57,3 +57,50 @@ async def measure_max_loop_stall(
         await ticker
 
     return (max(stalls) if stalls else 0.0, result)
+
+
+async def assert_workload_off_loop(
+    coro_factory: Callable[[], Awaitable[T]],
+    blocking_baseline: Callable[[], object],
+    absolute_threshold_seconds: float,
+    context: str,
+) -> T:
+    """Assert a workload does not stall the loop, robust to machine load.
+
+    Fast path: if the measured stall stays under the absolute threshold,
+    the workload passes with a single measurement (quiet machines, the
+    common case). Under heavy machine load (pytest-xdist saturating every
+    core, CI contention) the ticker coroutine itself gets starved by the
+    OS scheduler and can exceed any absolute threshold spuriously — the
+    stall then measures the machine, not the event loop. In that case a
+    calibration pass measures the stall of running ``blocking_baseline``
+    synchronously ON the loop in the same environment, and the workload
+    stall must stay under half of it: scheduler noise inflates both
+    measurements alike, while a regression to a synchronous implementation
+    stalls as long as the baseline itself and still fails.
+
+    Args:
+        coro_factory: Zero-arg callable returning the awaitable under test.
+        blocking_baseline: Zero-arg synchronous callable reproducing the
+            blocking behavior a regressed implementation would have
+            (e.g. the sync variant of the code under test).
+        absolute_threshold_seconds: Stall accepted without calibration.
+        context: Short label for the assertion message.
+
+    Returns:
+        The result of the awaited coroutine.
+    """
+    max_stall, result = await measure_max_loop_stall(coro_factory)
+    if max_stall < absolute_threshold_seconds:
+        return result
+
+    async def _blocking_on_loop() -> object:
+        return blocking_baseline()
+
+    baseline_stall, _ = await measure_max_loop_stall(_blocking_on_loop)
+    assert max_stall < baseline_stall * 0.5, (
+        f"event loop stalled {max_stall * 1000:.0f} ms during {context} "
+        f"(absolute threshold {absolute_threshold_seconds * 1000:.0f} ms, "
+        f"blocking baseline {baseline_stall * 1000:.0f} ms)"
+    )
+    return result

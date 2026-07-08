@@ -132,7 +132,6 @@ from uuid import UUID
 from typing import Any
 
 import structlog
-from fastapi import HTTPException, status
 
 from src.core.config import settings
 from src.domains.connectors.clients.base_google_client import BaseGoogleClient

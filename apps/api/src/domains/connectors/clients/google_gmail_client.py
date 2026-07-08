@@ -792,7 +792,8 @@ class GoogleGmailClient(BaseGoogleClient):
             - labelIds: Labels applied to sent message
 
         Raises:
-            HTTPException: On send failure.
+            ConnectorAPIError: On upstream send failure (status forwarded).
+            ExternalServiceError: On network failure or retry exhaustion (503).
 
         Example:
             >>> result = await client.send_email(

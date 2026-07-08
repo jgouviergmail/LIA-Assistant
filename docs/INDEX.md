@@ -277,12 +277,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 105 ADRs | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-114 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-114 | Connector Client Domain Error Contract — 28 HTTPException bruts → taxonomie BaseAPIException, contrat API préservé par construction | 2026-07 |
 | ADR-113 | Backend Test Suite Rehabilitation — job CI integration, fin des quarantaines `--ignore`, ratchet couverture 45 % | 2026-07 |
 | ADR-112 | Python Dependency Locking — lockfiles universels uv, installés par pip partout, garde CI | 2026-07 |
 | ADR-111 | LangGraph Postgres Connection Pooling — pools checkpointer & store, override `_cursor` pool-aware | 2026-07 |

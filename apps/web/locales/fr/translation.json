@@ -2948,6 +2948,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_23": {
+          "title": "v1.21.23 — 🔌 Erreurs de connecteurs plus fiables et plus sobres",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🔁 Microsoft : reconnexion mieux guidée</b> — Quand votre accès Outlook, Calendrier ou To Do expire, le message indique désormais clairement de réactiver le connecteur dans les paramètres — exactement comme pour Google.",
+            "i2": "<b>🔒 Confidentialité renforcée dans les journaux techniques</b> — Les coordonnées GPS n'apparaissent plus dans les journaux du serveur lors des recherches d'adresses, et les réponses d'erreur des services externes sont tronquées pour ne jamais transporter de contenu inutile.",
+            "i3": "<b>📊 Supervision des connecteurs améliorée</b> — Chaque erreur Google/Microsoft (authentification, quota, indisponibilité) est désormais classée et mesurée précisément dans nos tableaux de bord, pour détecter plus vite les incidents des services externes — sans aucun changement dans vos usages."
+          }
+        },
         "v1_21_22": {
           "title": "v1.21.22 — 🛡️ Des messages d'erreur clairs et une fiabilité renforcée",
           "date": "Juillet 2026",
