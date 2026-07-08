@@ -5,6 +5,13 @@ capped by max_tools). Unlike the pipeline Planner which further filters by
 detected domains, the ReAct agent gets all available tools and decides
 autonomously which to use.
 
+When the resolved tool count exceeds ``react_agent_max_tools``, tools owned by
+the agents of the DETECTED domains survive the cap first (stable order within
+each group), and the dropped tool names are logged at warning level. A blind
+positional truncation here used to silently drop e.g. the calendar tools on a
+calendar query whenever user-MCP expansion pushed the count over the cap —
+leaving the model unable to fetch the requested data.
+
 Filtering chain (same as pipeline):
 1. Global registry tools
 2. Minus admin-disabled MCP servers (per user)
@@ -57,7 +64,9 @@ class ReactToolSelector:
         Planner) so it can autonomously decide which to use.
 
         Args:
-            intelligence: Query intelligence (used for logging, not filtering).
+            intelligence: Query intelligence. Its detected domains give their
+                agents' tools priority to SURVIVE the max_tools cap; it never
+                excludes a tool while the count fits under the cap.
 
         Returns:
             Tuple of (wrapped_tools, hitl_map).
@@ -68,12 +77,15 @@ class ReactToolSelector:
         # Same source of truth as pipeline: build_request_tool_manifests()
         available_manifests = get_request_tool_manifests()
 
+        priority_agents = self._domain_priority_agents(intelligence)
         wrapped_tools: list[ReactToolWrapper] = []
+        priority_flags: list[bool] = []
         hitl_map: dict[str, bool] = {}
         skipped: list[str] = []
 
         for manifest in available_manifests:
             tool_name = manifest.name
+            is_priority = getattr(manifest, "agent", "") in priority_agents
 
             # ReAct already IS an iterative loop, so the per-server "task tool"
             # indirection (designed for the single-shot pipeline planner) only
@@ -88,6 +100,7 @@ class ReactToolSelector:
                     wrapped_tools.append(
                         ReactToolWrapper(original_tool=ind_tool, hitl_required=ind_hitl)
                     )
+                    priority_flags.append(is_priority)
                     hitl_map[ind_name] = ind_hitl
                 continue
 
@@ -110,6 +123,7 @@ class ReactToolSelector:
                 hitl_required=hitl_required,
             )
             wrapped_tools.append(wrapper)
+            priority_flags.append(is_priority)
             hitl_map[tool_name] = hitl_required
 
         # Cap at max_tools. Measured on the RESOLVED tool count, not the manifest
@@ -119,8 +133,22 @@ class ReactToolSelector:
         max_tools = settings.react_agent_max_tools
         resolved_count = len(wrapped_tools)
         if resolved_count > max_tools:
-            wrapped_tools = wrapped_tools[:max_tools]
+            # Stable partition: tools of the detected domains' agents first, so
+            # the truncation sacrifices generic tools instead of the very tools
+            # the query needs. Order is untouched when the count fits the cap.
+            ordered = [w for w, keep in zip(wrapped_tools, priority_flags, strict=True) if keep] + [
+                w for w, keep in zip(wrapped_tools, priority_flags, strict=True) if not keep
+            ]
+            dropped = [t.name for t in ordered[max_tools:]]
+            wrapped_tools = ordered[:max_tools]
             hitl_map = {k: v for k, v in hitl_map.items() if k in {t.name for t in wrapped_tools}}
+            logger.warning(
+                "react_tool_selector_capped",
+                resolved_count=resolved_count,
+                max_tools=max_tools,
+                priority_agents=sorted(priority_agents),
+                dropped_tools=dropped,
+            )
 
         if skipped:
             logger.debug(
@@ -139,6 +167,32 @@ class ReactToolSelector:
         )
 
         return wrapped_tools, hitl_map
+
+    @staticmethod
+    def _domain_priority_agents(intelligence: QueryIntelligence | None) -> set[str]:
+        """Resolve the agents owning the detected domains via DOMAIN_REGISTRY.
+
+        Their tools get priority to survive the ``react_agent_max_tools`` cap.
+        Unknown domains resolve to no agents (no priority), never an error.
+
+        Args:
+            intelligence: Query intelligence carrying the detected domains.
+
+        Returns:
+            Set of agent names (e.g. ``{"event_agent"}``); empty when there is
+            no intelligence or no detected domain.
+        """
+        if intelligence is None or not getattr(intelligence, "domains", None):
+            return set()
+
+        from src.domains.agents.registry.domain_taxonomy import get_domain_config
+
+        agents: set[str] = set()
+        for domain in intelligence.domains:
+            config = get_domain_config(domain)
+            if config is not None:
+                agents.update(config.agent_names)
+        return agents
 
     @staticmethod
     def _expand_iterative_user_mcp(

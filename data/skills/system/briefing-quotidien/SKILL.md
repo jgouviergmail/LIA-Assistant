@@ -1,9 +1,12 @@
 ---
 name: briefing-quotidien
 description: >
-  Generates a comprehensive today briefing combining calendar events, priority tasks,
-  weather forecast, recent emails, and pending reminders. Use when the user asks
-  for a briefing, daily summary, or "what's on my schedule today".
+  Trigger ONLY when the user explicitly asks for a "briefing" or a complete
+  overview of their WHOLE day. Generates the full daily briefing: agenda,
+  tasks, weather, emails and reminders — always ALL sections together.
+  A request about one specific category or item (appointments, meetings,
+  events, emails, tasks, weather — e.g. "my next N appointments") is NEVER
+  this skill: leave skill_name null and use the matching functional domain.
 category: quotidien
 priority: 70
 plan_template:
