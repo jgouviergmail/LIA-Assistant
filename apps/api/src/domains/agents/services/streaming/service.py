@@ -325,11 +325,11 @@ class StreamingService:
                             yield (hitl_chunk, "")  # HITL chunks have no content
                         return  # Exit generator after HITL
 
-                    # NO HITL - process normally
-                    # Data Registry: Pass sent_registry_ids to track and emit registry updates
-                    sse_chunks = self._process_values_chunk(
-                        chunk, last_sent_routing, sent_registry_ids
-                    )
+                    # NO HITL - process normally. Registry updates are NOT
+                    # emitted here: they are emitted once, post-stream, by
+                    # _emit_post_stream_registry (final state, deduplicated
+                    # via the generator-scoped sent_registry_ids).
+                    sse_chunks = self._process_values_chunk(chunk, last_sent_routing)
 
                     for sse_chunk, content_fragment in sse_chunks:
                         # PHASE 2.5 - P5: Track streaming chunk emission
@@ -854,7 +854,6 @@ class StreamingService:
         self,
         chunk: dict,
         last_sent_routing: Any,
-        sent_registry_ids: set[str] | None = None,
     ) -> list[tuple[ChatStreamChunk, str]]:
         """
         Process mode="values" state update.
@@ -869,16 +868,11 @@ class StreamingService:
         Args:
             chunk: State dict with routing_history, messages, registry, etc.
             last_sent_routing: Last router decision sent (to avoid duplicates)
-            sent_registry_ids: Set of registry IDs already sent (mutated in-place)
 
         Returns:
             List of (SSE chunk, content) tuples
         """
         sse_chunks: list[tuple[ChatStreamChunk, str]] = []
-
-        # Initialize sent_registry_ids if not provided
-        if sent_registry_ids is None:
-            sent_registry_ids = set()
 
         # 0. Snapshot the latest state.messages so api/service.py can compute the
         # context-usage indicator (tokens vs compaction threshold) when emitting

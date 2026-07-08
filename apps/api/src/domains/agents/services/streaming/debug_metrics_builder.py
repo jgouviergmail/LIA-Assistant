@@ -792,10 +792,9 @@ class DebugMetricsBuilder:
                 from src.domains.skills.cache import SkillsCache
 
                 skill_data = SkillsCache.get_by_name(effective_skill_name)
-                activation_mode = "planner"
                 is_deterministic = False
 
-                # Determine activation mode
+                # Determine activation mode (every branch below assigns it)
                 if planning_result and planning_result.plan and planning_result.plan.metadata:
                     if planning_result.plan.metadata.get("skill_bypass"):
                         activation_mode = "bypass"

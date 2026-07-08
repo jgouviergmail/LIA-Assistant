@@ -269,9 +269,14 @@ class SkillScriptExecutor:
             with tempfile.TemporaryDirectory(prefix="skill_") as tmp_dir:
                 # When dropping privileges, the temp cwd (created 0700, root)
                 # must be writable by the unprivileged uid so legitimate
-                # scripts can still write output files.
+                # scripts can still write output files. Transfer ownership to
+                # that uid and keep the mode at 0700 (owner-only): no other
+                # uid can read or tamper with the sandbox, unlike the previous
+                # world-writable 0777. Cleanup by the parent still works (it
+                # runs privileged, which is what allows the setuid drop).
                 if drop_uid is not None:
-                    os.chmod(tmp_dir, 0o777)
+                    os.chown(tmp_dir, drop_uid, -1)
+                    os.chmod(tmp_dir, 0o700)
                 result = await asyncio.to_thread(
                     subprocess.run,
                     cmd,

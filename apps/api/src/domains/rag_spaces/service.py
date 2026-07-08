@@ -408,8 +408,16 @@ class RAGSpaceService:
         # Generate UUID-based filename (anti-traversal)
         stored_filename = f"{uuid.uuid4().hex}{ext}"
 
-        # Write to disk
-        storage_dir = Path(settings.rag_spaces_storage_path) / str(user_id) / str(space_id)
+        # Write to disk. user_id/space_id are typed uuid.UUID upstream, so the
+        # segments cannot carry traversal sequences; the resolve+containment
+        # check is defense-in-depth (and survives future signature changes).
+        storage_root = Path(settings.rag_spaces_storage_path).resolve()
+        storage_dir = (storage_root / str(user_id) / str(space_id)).resolve()
+        if not storage_dir.is_relative_to(storage_root):
+            raise RuntimeError(
+                "RAG storage path integrity violation: resolved directory "
+                "escapes the storage root"
+            )
         storage_dir.mkdir(parents=True, exist_ok=True)
         file_path = storage_dir / stored_filename
         # Offload the (potentially multi-MB) disk write so the event loop stays

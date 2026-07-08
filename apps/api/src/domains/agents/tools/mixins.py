@@ -266,11 +266,13 @@ class ToolOutputMixin:
 
         # Only pass `preview` when the template consumes it: extra named
         # arguments are ignored by str.format at runtime but read as a
-        # template/call mismatch by static analysis.
+        # template/call mismatch by static analysis (built as a kwargs dict —
+        # a literal keyword in a guarded branch is still matched against the
+        # default template constant by taint tracking).
+        format_args: dict[str, Any] = {"count": len(items)}
         if "{preview}" in summary_template:
-            summary = summary_template.format(count=len(items), preview=preview)
-        else:
-            summary = summary_template.format(count=len(items))
+            format_args["preview"] = preview
+        summary = summary_template.format(**format_args)
 
         resolved_plural_key = plural_key or REGISTRY_TYPE_TO_KEY.get(
             item_type, item_type.value.lower() + "s"

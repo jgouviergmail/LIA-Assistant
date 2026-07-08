@@ -1562,10 +1562,9 @@ class SmartPlannerService:
 
         detected = intelligence.detected_skill_name
 
-        if detected and llm_skill_name == detected:
-            return llm_skill_name
-
-        if detected and llm_skill_name != detected:
+        if detected:
+            if llm_skill_name == detected:
+                return llm_skill_name
             logger.warning(
                 "planner_skill_name_mismatch_dropped",
                 llm_skill_name=llm_skill_name,

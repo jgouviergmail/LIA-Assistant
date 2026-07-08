@@ -1911,9 +1911,10 @@ class AgentService(
                                 with suppress(asyncio.CancelledError):
                                     await active_voice_task
                                 # Fall through to sync generation
+                                # (voice_chunk_queue needs no reset: never
+                                # read again on this path)
                                 voice_parallel_task = None
                                 chat_voice_drain_task = None
-                                voice_chunk_queue = None
 
                             except Exception as parallel_error:
                                 logger.warning(
@@ -1923,9 +1924,10 @@ class AgentService(
                                     error_type=type(parallel_error).__name__,
                                 )
                                 # Fall through to sync generation
+                                # (voice_chunk_queue needs no reset: never
+                                # read again on this path)
                                 voice_parallel_task = None
                                 chat_voice_drain_task = None
-                                voice_chunk_queue = None
 
                         # === PATH 2: Sync fallback (chat mode or parallel failed) ===
                         # Skip if a chat-mode progressive streamer already

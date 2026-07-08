@@ -1998,11 +1998,11 @@ class ListCalendarsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             show_hidden=show_hidden,
         )
 
-        # Get user preferences for locale
-        locale = settings.default_language
-        # Use default locale
-        with suppress(ValueError, KeyError, AttributeError):
+        # Get user preferences for locale, falling back to the default locale
+        try:
             _, _, locale = await get_user_preferences(self.runtime)
+        except (ValueError, KeyError, AttributeError):
+            locale = settings.default_language
 
         return {
             "calendars": calendars,

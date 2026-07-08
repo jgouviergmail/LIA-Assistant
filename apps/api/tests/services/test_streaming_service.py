@@ -423,17 +423,11 @@ class TestLARSRegistryUpdate:
             "messages": [],
         }
 
-        # Process chunk with empty sent_registry_ids
-        sent_registry_ids: set[str] = set()
-        sse_chunks = streaming_service._process_values_chunk(
-            chunk, last_sent_routing=None, sent_registry_ids=sent_registry_ids
-        )
+        sse_chunks = streaming_service._process_values_chunk(chunk, last_sent_routing=None)
 
         # Assert NO registry_update emitted from values chunk (BugFix 2025-11-26)
         # Registry is emitted post-streaming from stream_sse_chunks
         assert len(sse_chunks) == 0
-        # sent_registry_ids should NOT be updated here
-        assert "contact_abc123" not in sent_registry_ids
 
     @pytest.mark.asyncio
     async def test_process_values_chunk_avoids_duplicate_registry_updates(self, streaming_service):
@@ -452,13 +446,9 @@ class TestLARSRegistryUpdate:
             "messages": [],
         }
 
-        # Process with item already in sent_registry_ids
-        sent_registry_ids = {"contact_abc123"}
-        sse_chunks = streaming_service._process_values_chunk(
-            chunk, last_sent_routing=None, sent_registry_ids=sent_registry_ids
-        )
+        sse_chunks = streaming_service._process_values_chunk(chunk, last_sent_routing=None)
 
-        # Assert NO registry_update emitted (already sent)
+        # Assert NO registry_update emitted (registry skipped in values chunks)
         assert len(sse_chunks) == 0
 
     @pytest.mark.asyncio
@@ -480,11 +470,9 @@ class TestLARSRegistryUpdate:
         mock_routing.reasoning = "Test"
 
         # Baseline (empty routing_history) — captures signature
-        sent_registry_ids: set[str] = set()
         streaming_service._process_values_chunk(
             {"routing_history": [], "messages": []},
             last_sent_routing=None,
-            sent_registry_ids=sent_registry_ids,
         )
 
         chunk = {
@@ -492,9 +480,7 @@ class TestLARSRegistryUpdate:
             "routing_history": [mock_routing],
             "messages": [],
         }
-        sse_chunks = streaming_service._process_values_chunk(
-            chunk, last_sent_routing=None, sent_registry_ids=sent_registry_ids
-        )
+        sse_chunks = streaming_service._process_values_chunk(chunk, last_sent_routing=None)
 
         # BugFix 2025-11-26: Registry is skipped in values chunks
         # Only router_decision is emitted
@@ -518,10 +504,7 @@ class TestLARSRegistryUpdate:
             "messages": [],
         }
 
-        sent_registry_ids: set[str] = set()
-        sse_chunks = streaming_service._process_values_chunk(
-            chunk, last_sent_routing=None, sent_registry_ids=sent_registry_ids
-        )
+        sse_chunks = streaming_service._process_values_chunk(chunk, last_sent_routing=None)
 
         # BugFix 2025-11-26: Registry is skipped in values chunks
         # No registry_update emitted
@@ -555,14 +538,10 @@ class TestLARSRegistryUpdate:
             "routing_history": [],
         }
 
-        sent_registry_ids: set[str] = set()
-        sse_chunks1 = streaming_service._process_values_chunk(
-            chunk1, last_sent_routing=None, sent_registry_ids=sent_registry_ids
-        )
+        sse_chunks1 = streaming_service._process_values_chunk(chunk1, last_sent_routing=None)
 
         # BugFix 2025-11-26: No registry emitted from values chunks
         assert len(sse_chunks1) == 0
-        assert "contact_abc" not in sent_registry_ids
 
         # Second chunk with item1 AND item2 - also skipped
         chunk2 = {
@@ -570,13 +549,10 @@ class TestLARSRegistryUpdate:
             "routing_history": [],
         }
 
-        sse_chunks2 = streaming_service._process_values_chunk(
-            chunk2, last_sent_routing=None, sent_registry_ids=sent_registry_ids
-        )
+        sse_chunks2 = streaming_service._process_values_chunk(chunk2, last_sent_routing=None)
 
         # Also no registry emitted
         assert len(sse_chunks2) == 0
-        assert "contact_def" not in sent_registry_ids
 
     @pytest.mark.asyncio
     async def test_stream_sse_chunks_emits_registry_updates(
