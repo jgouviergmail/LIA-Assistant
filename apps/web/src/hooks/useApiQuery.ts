@@ -84,19 +84,25 @@ export function useApiQuery<T = unknown>(
   const [loading, setLoading] = useState<boolean>(enabled);
   const [error, setError] = useState<Error | null>(null);
 
-  // Use refs for callbacks - updated synchronously each render
-  // This ensures callbacks are always current without triggering refetches
+  // Use refs for callbacks - synced after every commit (render-phase ref
+  // writes are forbidden). The refs are only read on the async fetch path,
+  // which always resolves post-commit, so they are current without
+  // triggering refetches.
   const onSuccessRef = useRef(onSuccess);
   const onErrorRef = useRef(onError);
-  onSuccessRef.current = onSuccess;
-  onErrorRef.current = onError;
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+    onErrorRef.current = onError;
+  });
 
   // Memoize params and config by their JSON representation to prevent
   // infinite loops when callers pass inline objects
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const stableParams = useMemo(() => params, [JSON.stringify(params)]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const stableConfig = useMemo(() => config, [JSON.stringify(config)]);
+  const paramsKey = JSON.stringify(params);
+  const configKey = JSON.stringify(config);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- paramsKey is the JSON identity of params
+  const stableParams = useMemo(() => params, [paramsKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- configKey is the JSON identity of config
+  const stableConfig = useMemo(() => config, [configKey]);
 
   const fetchData = useCallback(
     async (signal?: AbortSignal) => {

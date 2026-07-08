@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 
 interface MermaidDiagramProps {
@@ -21,7 +21,11 @@ interface MermaidDiagramProps {
  */
 export function MermaidDiagram({ chart }: MermaidDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const idRef = useRef(`mermaid-${Math.random().toString(36).slice(2, 11)}`);
+  // useId is render-pure (Math.random() is not) and unique per instance;
+  // mermaid.render needs a DOM-id-safe string, so strip the React id
+  // delimiters (e.g. «r1») — the inner token alone stays unique.
+  const reactId = useId();
+  const diagramId = `mermaid-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const { resolvedTheme } = useTheme();
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +41,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
           securityLevel: 'strict',
           fontFamily: 'inherit',
         });
-        const { svg } = await mermaid.render(idRef.current, chart.trim());
+        const { svg } = await mermaid.render(diagramId, chart.trim());
         if (!cancelled && containerRef.current) {
           containerRef.current.innerHTML = svg;
           setError(null);
@@ -52,7 +56,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
     return () => {
       cancelled = true;
     };
-  }, [chart, resolvedTheme]);
+  }, [chart, resolvedTheme, diagramId]);
 
   if (error) {
     return (

@@ -141,10 +141,14 @@ export const useChat = ({
   // The wrapper used to depend on [state] (recreated on every token) while
   // downstream callbacks exclude `dispatch` from their deps ("stable from
   // useReducer") — so their captured wrapper validated against a STALE state.
-  // A render-time ref gives a genuinely stable dispatch AND current-state
-  // validation (dispatches come from SSE/browser events, never mid-render).
+  // The ref is synced post-commit (render-phase ref writes are forbidden),
+  // which keeps the dispatch wrapper genuinely stable AND validates against
+  // current state: dispatches come from SSE/browser events, which fire after
+  // the commit that updated `state`, never mid-render.
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   /**
    * Validated dispatch wrapper - logs errors before passing to pure reducer.

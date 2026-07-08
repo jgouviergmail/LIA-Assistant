@@ -585,6 +585,16 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
   }, [handleSpeechEnd]);
 
   /**
+   * Ref to hold stopRecording for the max-duration timeout in startRecording.
+   * Same pattern as startRecordingRef: breaks the forward reference
+   * (stopRecording is declared after startRecording) and guarantees the
+   * timeout calls the CURRENT instance — a closure would capture the
+   * instance from the creation render, whose captured `state` predates
+   * 'recording', making its `state !== 'recording'` guard a no-op.
+   */
+  const stopRecordingRef = useRef<(() => void) | null>(null);
+
+  /**
    * Start recording.
    *
    * Optimizations:
@@ -737,7 +747,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
         // Step 8: Set max recording timeout
         recordingTimeoutRef.current = setTimeout(() => {
           logger.info('voice_mode_max_duration_reached', { component: 'useVoiceMode' });
-          stopRecording();
+          stopRecordingRef.current?.();
         }, VOICE_MODE_MAX_RECORDING_SECONDS * 1000);
 
         setState('recording');
@@ -762,9 +772,6 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
         isStartingRef.current = false;
       }
     },
-    // stopRecording is intentionally omitted - it's defined after this callback
-    // and captured at runtime via closure when setTimeout executes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       isSupported,
       state,
@@ -791,6 +798,11 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
     serviceRef.current?.endAudio();
     cleanupAudio();
   }, [state, setState, cleanupAudio]);
+
+  // Keep stopRecording ref updated for the max-duration timeout in startRecording
+  useEffect(() => {
+    stopRecordingRef.current = stopRecording;
+  }, [stopRecording]);
 
   /**
    * Called when TTS finishes playing.

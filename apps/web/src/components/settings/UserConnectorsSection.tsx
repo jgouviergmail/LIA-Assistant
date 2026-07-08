@@ -78,13 +78,20 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
 
   // Ref for the section container to observe visibility
   const sectionRef = useRef<HTMLDivElement>(null);
-  // Track last fetch time to avoid too frequent refetches (initialized to now to prevent double fetch on mount)
-  const lastFetchRef = useRef<number>(Date.now());
+  // Track last fetch time to avoid too frequent refetches.
+  // 0 is a sentinel replaced by the mount timestamp in the effect below:
+  // Date.now() must not run during render (render-purity rule).
+  const lastFetchRef = useRef<number>(0);
   // Minimum interval between refetches (5 seconds)
   const REFETCH_INTERVAL_MS = 5000;
 
   // Refetch when section becomes visible (handles navigation and scrolling)
   useEffect(() => {
+    // One-time init to mount time so the observer's immediate first callback
+    // does not duplicate the fetch useApiQuery already runs on mount.
+    if (lastFetchRef.current === 0) {
+      lastFetchRef.current = Date.now();
+    }
     const element = sectionRef.current;
     if (!element) return;
 
