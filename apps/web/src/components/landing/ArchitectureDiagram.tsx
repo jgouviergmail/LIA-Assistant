@@ -185,18 +185,17 @@ export function ArchitectureDiagram() {
 
             {/* The two execution modes, side by side */}
             <div className="grid sm:grid-cols-[1fr_auto_1fr] gap-4 items-stretch">
-              {/* Pipeline panel */}
+              {/* Pipeline panel — header stacked (title, badge, desc) so both
+                  panels stay homogeneous whatever the locale's text length */}
               <div className="rounded-2xl border border-border/60 bg-card/50 p-5 flex flex-col">
-                <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
-                  <span className="text-sm font-semibold">
-                    {t('landing.architecture.pipeline_label')}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-medium">
-                    <Coins className="w-3 h-3" />
-                    {t('landing.architecture.pipeline_badge')}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mb-4">
+                <span className="text-sm font-semibold">
+                  {t('landing.architecture.pipeline_label')}
+                </span>
+                <span className="self-start inline-flex items-center gap-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-medium mt-1.5">
+                  <Coins className="w-3 h-3" />
+                  {t('landing.architecture.pipeline_badge')}
+                </span>
+                <p className="text-xs text-muted-foreground mt-2 mb-4">
                   {t('landing.architecture.pipeline_desc')}
                 </p>
                 <ol className="space-y-4">
@@ -220,18 +219,16 @@ export function ArchitectureDiagram() {
                 <span className="w-px flex-1 bg-border" />
               </div>
 
-              {/* ReAct panel */}
+              {/* ReAct panel — same stacked header as Pipeline */}
               <div className="rounded-2xl border border-border/60 bg-card/50 p-5 flex flex-col">
-                <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
-                  <span className="text-sm font-semibold">
-                    {t('landing.architecture.react_label')}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/30 px-2.5 py-0.5 text-[11px] font-medium">
-                    <Zap className="w-3 h-3" />
-                    {t('landing.architecture.react_badge')}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mb-4">
+                <span className="text-sm font-semibold">
+                  {t('landing.architecture.react_label')}
+                </span>
+                <span className="self-start inline-flex items-center gap-1 rounded-full bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/30 px-2.5 py-0.5 text-[11px] font-medium mt-1.5">
+                  <Zap className="w-3 h-3" />
+                  {t('landing.architecture.react_badge')}
+                </span>
+                <p className="text-xs text-muted-foreground mt-2 mb-4">
                   {t('landing.architecture.react_desc')}
                 </p>
                 {/* The loop: three steps with a cycling arrow rail */}

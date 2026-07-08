@@ -91,11 +91,13 @@ export async function HeroSection({ lng }: HeroSectionProps) {
               <span className="block">{t('landing.hero.title_line3')}</span>
             </h1>
 
-            {/* Subtitle */}
-            <p className="text-lg mobile:text-xl font-semibold text-foreground/90 max-w-xl mx-auto lg:mx-0 leading-relaxed mb-3">
+            {/* Subtitle — whitespace-pre-line renders the sentence break (\n)
+                in subtitle_top; sizes tuned so each sentence holds one line
+                on desktop */}
+            <p className="text-base mobile:text-lg font-semibold text-foreground/90 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-3 whitespace-pre-line">
               {t('landing.hero.subtitle_top')}
             </p>
-            <p className="text-base mobile:text-lg text-foreground/70 max-w-xl mx-auto lg:mx-0 leading-relaxed mb-8">
+            <p className="text-sm mobile:text-base text-foreground/70 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-8">
               {t('landing.hero.subtitle_line1')}
               <br />
               {t('landing.hero.subtitle_line2')}
