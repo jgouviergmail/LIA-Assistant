@@ -17,9 +17,12 @@ updates:
           - minor
           - patch
 
-  # Node.js frontend dependencies
+  # Node.js frontend dependencies.
+  # Must target the workspace ROOT: pnpm-lock.yaml lives at the repo root, so
+  # a directory scoped to /apps/web produces PRs that bump package.json without
+  # the lockfile and can never pass `pnpm install --frozen-lockfile` in CI.
   - package-ecosystem: npm
-    directory: /apps/web
+    directory: /
     schedule:
       interval: weekly
       day: monday

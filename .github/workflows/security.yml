@@ -1,6 +1,8 @@
 name: Security
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
   schedule:
@@ -11,6 +13,14 @@ on:
 permissions:
   contents: read
   security-events: write
+  # Required by codeql-action (analyze/upload-sarif) to read workflow-run
+  # metadata; without it runs fail with "Resource not accessible by
+  # integration", leaving the main-branch alert baseline permanently stale.
+  actions: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   codeql:
@@ -71,7 +81,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
