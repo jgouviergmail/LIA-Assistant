@@ -167,6 +167,7 @@ pnpm test -- --coverage
 | `.bak` files | Error | Detecte les fichiers backup oublies |
 | Sync Store calls | Error | `runtime.store.put()` au lieu de `store.aput()` = deadlock |
 | Redis setex | Warning | `setex()` sans `json.dumps()` = crash serialisation |
+| Python lockfiles sync | Error | `scripts/check_requirements_lock.py` — manifeste `requirements*.txt` modifie sans regenerer les lockfiles (`task deps:lock`), ou lock dev desynchronise du lock runtime (ADR-112) |
 | i18n keys sync | Error | Compare les cles EN vs de/es/fr/it/zh |
 | Alembic conflicts | Error | Detecte les heads multiples (parsing statique des revisions) |
 | `.env.example` | Warning | Variables dans `src/core/config/` absentes de `.env.example` |
@@ -193,9 +194,9 @@ Build smoke test (pas de push) avec cache GitHub Actions :
 | Job | Description |
 |-----|-------------|
 | CodeQL | Analyse statique Python + JavaScript (queries `security-and-quality`) |
-| Dependency Audit | `pip-audit` (Python) + `pnpm audit` (Node) |
+| Dependency Audit | `pip-audit -r requirements.lock.txt` (Python, transitifs inclus — ADR-112) + `pnpm audit` (Node) |
 | Trivy | Scan filesystem (severite CRITICAL/HIGH), resultats SARIF |
-| SBOM | Generation CycloneDX (artifact conserve 90 jours) |
+| SBOM | Generation CycloneDX depuis `requirements.lock.txt` (versions exactes embarquees, artifact conserve 90 jours) |
 
 ---
 
@@ -206,7 +207,7 @@ Build smoke test (pas de push) avec cache GitHub Actions :
 | Job | Description |
 |-----|-------------|
 | Build & Push | Images Docker multi-arch (`amd64` + `arm64`) vers `ghcr.io` |
-| Generate SBOM | CycloneDX pour le backend |
+| Generate SBOM | CycloneDX pour le backend, depuis `requirements.lock.txt` (transitifs inclus) |
 | Create Release | GitHub Release avec changelog + images Docker + SBOM |
 
 Tags semver : `v1.2.3` genere les tags Docker `1.2.3`, `1.2`, `1`, `latest`.
@@ -295,6 +296,25 @@ Toutes les GitHub Actions sont **pinnees par SHA** (pas par tag) pour se protege
 
 Le commentaire `# v4` sert de reference humaine. Le SHA garantit l'immutabilite.
 
+### Lockfiles Python (ADR-112)
+
+Les dependances backend sont installees partout (Dockerfile.prod, Dockerfile.dev, CI,
+venv local) depuis des **lockfiles compiles** avec hashes SHA256 :
+
+- `apps/api/requirements.txt` / `requirements-dev.txt` — **manifestes d'intention**
+  (pins souples autorises) ;
+- `apps/api/requirements.lock.txt` / `requirements-dev.lock.txt` — lockfiles
+  universels compiles par `uv pip compile --universal` (un seul fichier pour
+  linux/amd64, linux/arm64, Windows, Python >= 3.12), installes par pip vanilla
+  avec `--require-hashes`.
+
+Deux builds du meme commit embarquent donc exactement les memes versions, verifiees
+par empreinte. Workflow : editer le manifeste → `task deps:lock` → committer manifeste
+et lockfiles ensemble (le check *Python lockfiles sync* du job code-hygiene echoue
+sinon). Bumps explicites : `task deps:upgrade -- <pkg>` ou `task deps:upgrade:all`.
+Details et pieges (metadonnees de wheels incoherentes, hashes multi-arch) :
+[ADR-112](../architecture/ADR-112-Python-Dependency-Locking.md).
+
 ---
 
 ## Alignement Pre-commit / CI
@@ -316,6 +336,7 @@ Le pre-commit est le filet local rapide, la CI est le filet distant qui doit cou
 | `.env.example` | ✓ (os.environ) | ✓ (config Pydantic) | CI couvre plus large |
 | Secrets | grep basique | Gitleaks | CI superieur |
 | Docker build | — | ✓ | CI only (trop lent en local) |
+| Python lockfiles sync | — | ✓ | CI only (`scripts/check_requirements_lock.py`, offline et deterministe) |
 
 ---
 
@@ -350,6 +371,12 @@ task test:frontend          # Vitest
 
 # Format auto
 task format                 # Black + Prettier
+
+# Dependances Python (lockfiles — ADR-112)
+task deps:lock              # Regenere les lockfiles apres edition d'un manifeste
+task deps:upgrade -- <pkg>  # Bump cible d'un ou plusieurs paquets
+task deps:upgrade:all       # Bump global (mises a jour planifiees)
+task security:scan:backend  # pip-audit sur requirements.lock.txt (transitifs inclus)
 ```
 
 ---

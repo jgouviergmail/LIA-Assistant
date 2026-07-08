@@ -87,12 +87,14 @@ RUN apt-get update && apt-get install -y \
 RUN npm install -g @anthropic-ai/claude-code \
     && mkdir -p /opt/claude-workspace
 
-# Copy requirements
-COPY requirements.txt requirements-dev.txt ./
+# Copy compiled lockfile (requirements-dev.lock.txt is self-contained: it
+# layers requirements-dev.txt on top of requirements.lock.txt via `task deps:lock`)
+COPY requirements-dev.lock.txt ./
 
 # Install Python dependencies with uv (10-100x faster than pip)
-# No cache mount = Docker layer cache works = instant rebuild if requirements unchanged
-RUN uv pip install --system -r requirements.txt -r requirements-dev.txt
+# Exact pins + hash verification: dev containers match prod resolution.
+# No cache mount = Docker layer cache works = instant rebuild if lock unchanged
+RUN uv pip install --system --require-hashes -r requirements-dev.lock.txt
 
 # Copy STT model from model-downloader stage
 COPY --from=model-downloader /models/whisper-small /models/whisper-small

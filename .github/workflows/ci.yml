@@ -29,15 +29,14 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: apps/api/requirements.txt
+          cache-dependency-path: apps/api/requirements-dev.lock.txt
 
       - name: Create venv and install dependencies
         run: |
           python -m venv .venv
           source .venv/bin/activate
           pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          pip install --require-hashes -r requirements-dev.lock.txt
 
       - name: Ruff check
         run: |
@@ -131,15 +130,14 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: apps/api/requirements.txt
+          cache-dependency-path: apps/api/requirements-dev.lock.txt
 
       - name: Create venv and install dependencies
         run: |
           python -m venv .venv
           source .venv/bin/activate
           pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          pip install --require-hashes -r requirements-dev.lock.txt
 
       - name: Run fast unit tests with coverage
         run: |
@@ -296,6 +294,11 @@ jobs:
               sys.exit(1)
           print('All i18n keys are in sync')
           "
+
+      - name: Check Python lockfiles are in sync with manifests
+        run: |
+          pip install packaging
+          python scripts/check_requirements_lock.py
 
       - name: Check Alembic migration conflicts
         run: |

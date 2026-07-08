@@ -6,7 +6,7 @@
 
 **Version** : 2.7
 **Date** : 2026-07-08
-**Application** : LIA v1.21.19
+**Application** : LIA v1.21.20
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -801,7 +801,7 @@ Pre-commit (local)                GitHub Actions CI
 .bak files check                  Lint Backend (Ruff + Black + MyPy strict)
 Secrets grep                      Lint Frontend (ESLint + TypeScript)
 Ruff + Black + MyPy               Unit tests + coverage (43 %)
-Unit tests rapides                Code Hygiene (i18n, Alembic, .env.example)
+Unit tests rapides                Code Hygiene (i18n, Alembic, lockfiles)
 Détection patterns critiques      Docker build smoke test
 Sync clés i18n                    Secret scan (Gitleaks)
 Conflits migration Alembic        ─────────────────────────
@@ -821,7 +821,21 @@ ESLint + TypeScript check           CodeQL (Python + JS)
 | Type checking | MyPy | strict mode |
 | Commits | Conventional Commits | `feat(scope):`, `fix(scope):` |
 | Tests | pytest | `asyncio_mode = "auto"` |
-| Coverage | 43 % minimum | Enforci en CI |
+| Coverage | 43 % minimum | Imposé en CI |
+
+### 22.3. Builds de dépendances reproductibles
+
+Les dépendances backend sont verrouillées de bout en bout. Les fichiers
+requirements sont des manifestes d'intention ; ce que chaque environnement
+installe réellement — image de production, conteneur de dev, CI, venv local —
+ce sont des lockfiles universels committés, compilés par `uv pip compile
+--universal` : un seul fichier couvrant linux/amd64, linux/arm64 et Windows,
+qui épingle les ~200 paquets réellement embarqués avec les hashes SHA256 de
+chaque fichier publié. pip vanilla les installe avec `--require-hashes` : un
+même commit produit donc toujours la même image, vérifiable octet par octet.
+Un garde CI fait échouer toute édition de manifeste sans régénération du lock,
+et `pip-audit` ainsi que le SBOM de release lisent le lockfile — l'arbre
+transitif complet est audité et inventorié, pas seulement les paquets déclarés.
 
 ---
 
@@ -1059,4 +1073,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 100+ ADRs, et du changelog (v1.0 à v1.21.19). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 100+ ADRs, et du changelog (v1.0 à v1.21.20). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

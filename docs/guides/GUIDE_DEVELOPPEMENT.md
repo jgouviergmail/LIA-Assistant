@@ -55,11 +55,11 @@
 cd apps/api
 
 # Créer venv
-python -m venv venv
-source venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate    # Windows : .venv/Scripts/activate
 
-# Installer dependencies + dev tools
-pip install -e ".[dev]"
+# Installer les dépendances depuis le lockfile compilé (runtime + dev)
+pip install --require-hashes -r requirements-dev.lock.txt
 
 # Vérifier installation
 python --version  # 3.12+
@@ -68,38 +68,50 @@ pip list | grep langgraph
 pip list | grep pytest
 ```
 
-**Requirements Structure** :
-```toml
-# pyproject.toml
+> Équivalent une commande : `task setup:backend` (depuis la racine du monorepo).
+> `pyproject.toml` ne contient **pas** de dépendances — il ne sert qu'à la
+> configuration des outils (black, ruff, mypy, pytest).
 
-[project]
-name = "lia-api"
-version = "6.0.0"
-requires-python = ">=3.12"
+### Gestion des Dépendances Python (lockfiles)
 
-dependencies = [
-    "fastapi==0.135.3",
-    "langgraph==1.1.6",
-    "langchain==1.2.15",
-    "langchain-core==1.2.28",
-    "sqlalchemy[asyncio]==2.0.49",
-    "pydantic==2.12.5",
-    "redis==7.3.0",
-    # ... autres dependencies (voir pyproject.toml pour liste complète)
-]
+Quatre fichiers dans `apps/api/`, deux rôles distincts :
 
-[project.optional-dependencies]
-dev = [
-    "pytest==8.3.0",
-    "pytest-asyncio==0.24.0",
-    "pytest-cov==5.0.0",
-    "ruff==0.9.0",
-    "black==25.1.0",
-    "mypy==1.14.0",
-    "pre-commit==4.0.0",
-    "httpx",
-]
+| Fichier | Rôle |
+|---------|------|
+| `requirements.txt` | **Manifeste** d'intention runtime (pins souples `>=` autorisés) |
+| `requirements-dev.txt` | **Manifeste** dev (inclut `-r requirements.txt`) |
+| `requirements.lock.txt` | **Lockfile** compilé — installé par `Dockerfile.prod` (pip) |
+| `requirements-dev.lock.txt` | **Lockfile** compilé — installé par `Dockerfile.dev`, la CI et le venv |
+
+Les lockfiles sont générés par `uv pip compile --universal` : un seul fichier
+multi-plateforme (linux/amd64, linux/arm64, Windows, Python ≥ 3.12) avec
+markers d'environnement et hashes SHA256, installable par pip vanilla.
+On ne les édite **jamais à la main**.
+
+**Process de bump d'une dépendance** :
+
+```bash
+# 1. Modifier le pin dans le manifeste (requirements.txt ou requirements-dev.txt)
+# 2. Régénérer les lockfiles (stable : ne bumpe QUE ce que le manifeste impose)
+task deps:lock
+
+# Bump ciblé d'un paquet (dans les bornes du manifeste) sans toucher au manifeste :
+task deps:upgrade -- pillow mcp
+
+# Bump global de tous les paquets (à réserver aux mises à jour planifiées) :
+task deps:upgrade:all
+
+# 3. Réinstaller le venv local puis lancer les tests
+pip install --require-hashes -r apps/api/requirements-dev.lock.txt
+task test:backend:unit:fast
+
+# 4. Committer manifeste ET lockfiles ensemble
 ```
+
+La CI (job `code-hygiene`) exécute `scripts/check_requirements_lock.py` et
+échoue si un manifeste a changé sans régénération des lockfiles (pin absent,
+pin non satisfait, ou lock dev désynchronisé du lock runtime).
+Décision et détails : `docs/architecture/ADR-112-Python-Dependency-Locking.md`.
 
 ### Configuration Frontend
 
@@ -1016,7 +1028,7 @@ jobs:
         run: |
           cd apps/api
           pip install pip-audit
-          pip-audit
+          pip-audit -r requirements.lock.txt   # lockfile compilé : transitifs inclus (ADR-112)
 
       - name: Run Bandit
         run: |

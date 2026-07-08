@@ -75,6 +75,7 @@ $apiFiles = @(
     "Dockerfile.prod",
     "docker-entrypoint.sh",
     "requirements.txt",
+    "requirements.lock.txt",
     "alembic.ini"
 )
 

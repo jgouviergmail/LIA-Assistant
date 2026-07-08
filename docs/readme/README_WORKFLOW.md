@@ -150,8 +150,9 @@ This directory contains GitHub Actions workflows for the LIA project. The workfl
 3. Install security tools: `pip install pip-audit safety bandit[toml]`
 4. **Run pip-audit** on backend
    - Working directory: `./apps/api`
-   - Command: `pip-audit --desc`
-   - Purpose: Check for known vulnerabilities in Python packages
+   - Command: `pip-audit --desc -r requirements.lock.txt`
+   - Purpose: Check for known vulnerabilities in Python packages — the compiled
+     lockfile is audited, so transitive dependencies are covered too (ADR-112)
 5. **Run safety check** on backend
    - Working directory: `./apps/api`
    - Command: `safety check --json`
@@ -191,9 +192,10 @@ This directory contains GitHub Actions workflows for the LIA project. The workfl
    - Working directory: `./apps/api`
    - Commands:
      ```bash
-     pip install -e .
-     cyclonedx-py requirements -o sbom-backend.json
+     cyclonedx-py requirements requirements.lock.txt -o sbom-backend.json
      ```
+   - The SBOM is generated from the compiled lockfile: exact versions actually
+     shipped, transitive dependencies included (ADR-112)
 5. Upload SBOM artifact (`actions/upload-artifact@v4`)
    - Name: `sbom-backend`
    - Path: `./apps/api/sbom-backend.json`
@@ -941,8 +943,8 @@ cd apps/api
 # Install security tools
 pip install pip-audit safety bandit[toml]
 
-# pip-audit
-pip-audit --desc
+# pip-audit — audits the compiled lockfile (transitives included, ADR-112)
+pip-audit --desc -r requirements.lock.txt
 
 # Safety check
 safety check
@@ -992,9 +994,8 @@ cd apps/api
 # Install cyclonedx-bom
 pip install cyclonedx-bom
 
-# Generate SBOM
-pip install -e .
-cyclonedx-py requirements -o sbom-backend.json
+# Generate SBOM from the compiled lockfile (exact shipped versions, ADR-112)
+cyclonedx-py requirements requirements.lock.txt -o sbom-backend.json
 
 # View SBOM
 cat sbom-backend.json | jq

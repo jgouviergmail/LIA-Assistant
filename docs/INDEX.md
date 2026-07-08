@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (104) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (105) |
 
 ### Pour les Product Managers
 
@@ -277,12 +277,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 104 ADRs | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 105 ADRs | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-112 | Python Dependency Locking — lockfiles universels uv, installés par pip partout, garde CI | 2026-07 |
 | ADR-111 | LangGraph Postgres Connection Pooling — pools checkpointer & store, override `_cursor` pool-aware | 2026-07 |
 | ADR-110 | Backup Encryption — analyse d'options (rclone crypt local / age / LUKS), différée | 2026-07 |
 | ADR-109 | PostgreSQL Backup Strategy — pg_dump sidecar, rétention .env-driven, restauration testée | 2026-07 |

@@ -781,7 +781,7 @@ def validate_pydantic_models(result: ValidationResult) -> None:
             "Pydantic",
             "settings",
             f"Pydantic validation skipped (import error): {e}",
-            "Run 'pip install -r requirements.txt' to install dependencies",
+            "Run 'pip install --require-hashes -r requirements.lock.txt' to install dependencies",
         )
     except Exception as e:
         # Actual configuration error

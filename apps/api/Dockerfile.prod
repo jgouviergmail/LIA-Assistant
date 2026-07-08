@@ -13,9 +13,11 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+# Copy compiled lockfile and install dependencies (exact pins, hash-verified).
+# requirements.lock.txt is generated from requirements.txt via `task deps:lock`
+# (uv pip compile --universal): single multi-platform lock, installable by pip.
+COPY requirements.lock.txt .
+RUN pip install --user --no-cache-dir --require-hashes -r requirements.lock.txt
 
 # Install Playwright Chromium browser binary (stored in ~/.local/)
 # Required for browser agent (evolution F7). ARM64-compatible.

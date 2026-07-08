@@ -6,7 +6,7 @@
 
 **版本**：2.7
 **日期**：2026-07-08
-**应用**：LIA v1.21.19
+**应用**：LIA v1.21.20
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -53,7 +53,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | 数据主权 | 本地 PostgreSQL（非 SaaS 数据库）、Fernet 静态加密、本地 Redis 会话 |
 | 多 LLM 供应商 | Factory 模式搭配 8 个适配器，按节点配置，不与特定供应商强耦合 |
 | 完全透明 | 394 Prometheus 指标、内嵌调试面板、逐 token 追踪 |
-| 生产可靠性 | 104 篇 ADR、由 pytest 在 555 个文件中收集的 ~10,100 个测试、原生可观测性、6 层 HITL |
+| 生产可靠性 | 105 篇 ADR、由 pytest 在 555 个文件中收集的 ~10,100 个测试、原生可观测性、6 层 HITL |
 | 成本可控 | Smart Services（节省 89% token）、语义嵌入、prompt 缓存、目录过滤 |
 
 ### 1.2. 架构原则
@@ -801,11 +801,11 @@ Pre-commit (local)                GitHub Actions CI
 .bak files check                  Lint Backend (Ruff + Black + MyPy strict)
 Secrets grep                      Lint Frontend (ESLint + TypeScript)
 Ruff + Black + MyPy               Unit tests + coverage (43 %)
-Unit tests rapides                Code Hygiene (i18n, Alembic, .env.example)
-Détection patterns critiques      Docker build smoke test
-Sync clés i18n                    Secret scan (Gitleaks)
-Conflits migration Alembic        ─────────────────────────
-Complétude .env.example           Security workflow (hebdomadaire)
+快速单元测试                      Code Hygiene (i18n, Alembic, lockfiles)
+关键模式检测                      Docker build smoke test
+i18n 键同步                       Secret scan (Gitleaks)
+Alembic 迁移冲突                  ─────────────────────────
+.env.example 完整性               Security workflow (每周)
 ESLint + TypeScript check           CodeQL (Python + JS)
                                     pip-audit + pnpm audit
                                     Trivy filesystem scan
@@ -822,6 +822,17 @@ ESLint + TypeScript check           CodeQL (Python + JS)
 | 提交 | Conventional Commits | `feat(scope):`、`fix(scope):` |
 | 测试 | pytest | `asyncio_mode = "auto"` |
 | 覆盖率 | 43% 最低 | CI 中强制执行 |
+
+### 22.3. 可复现的依赖构建
+
+后端依赖已实现端到端锁定。requirements 文件是意图清单；每个环境实际安装的
+——生产镜像、开发容器、CI、本地 venv——是提交到仓库的通用 lockfile，由
+`uv pip compile --universal` 编译：单个文件同时覆盖 linux/amd64、linux/arm64
+和 Windows，将实际交付的约 200 个包连同每个发布文件的 SHA256 哈希一并锁定。
+原生 pip 通过 `--require-hashes` 安装：同一个 commit 始终构建出相同的镜像，
+可逐字节验证。CI 守卫会让任何跳过 lockfile 再生成的清单修改失败；`pip-audit`
+与发布 SBOM 均读取 lockfile——完整的传递依赖树都会被审计和纳入清单，而不仅
+仅是声明的包。
 
 ---
 
@@ -1013,10 +1024,10 @@ LIA 通过统一模式接受外部事件摄入（iPhone Apple Health 样本、�
 
 LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个生产级的多智能体 AI 助手，透明、安全、可扩展，并且能在 Raspberry Pi 上运行。
 
-104 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。555 个文件里的 ~10,100 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
+105 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。555 个文件里的 ~10,100 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
 
 子系统之间的交织 — 心理记忆、贝叶斯学习、语义路由、系统化 HITL、LLM 驱动的主动性、内省日志 — 创造了一个各组件相互增强的系统。HITL 为模式学习提供数据，模式学习降低成本，降低的成本支撑更多功能，更多功能为记忆产生更多数据，记忆改善响应质量。这是一个设计中的良性循环，而非偶然。
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、104 篇 ADR 及变更日志（v1.0 至 v1.21.19）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、105 篇 ADR 及变更日志（v1.0 至 v1.21.20）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

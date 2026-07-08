@@ -17,7 +17,7 @@ redis==7.4.0
 python-dotenv==1.2.2
 pydantic==2.13.4
 jinja2==3.1.6  # Template engine for orchestration queries
-pydantic-settings==2.14.1
+pydantic-settings==2.14.2  # GHSA-4xgf-cpjx-pc3j fix
 pyyaml>=6.0  # YAML parsing for SKILL.md files (agentskills.io standard)
 email-validator==2.3.0
 python-dateutil==2.9.0.post0  # Date utilities for billing cycle calculations
@@ -26,8 +26,8 @@ tzdata==2026.2  # IANA timezone database for Windows/Python 3.9+
 # Authentication & Security
 python-jose[cryptography]==3.5.0  # CVE-2024-33663 fix (algorithm confusion)
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.30  # CVE-2024-53981, CVE-2026-24486 fixes (DoS)
-cryptography==46.0.7  # CVE-2024-12797, CVE-2026-26007 fixes
+python-multipart==0.0.31  # CVE-2024-53981, CVE-2026-24486, CVE-2026-53540 fixes (DoS)
+cryptography==48.0.1  # CVE-2024-12797, CVE-2026-26007, GHSA-537c-gmf6-5ccf fixes
 
 # Observability
 structlog==25.5.0
@@ -57,17 +57,22 @@ edge-tts==7.2.8
 # Uses SenseVoiceSmall model: FR/EN/DE/ES/IT/ZH/JA/KO in a single model
 # Precompiled wheels available for AMD64 (dev) and ARM64 (Raspberry Pi prod)
 sherpa-onnx>=1.10.0
+# Declared explicitly because sherpa-onnx wheel metadata is inconsistent across
+# platforms (armv7l wheel declares no deps), so uv's universal resolver misses
+# it. The runtime wheels require sherpa-onnx-core==<sherpa-onnx version>:
+# ALWAYS upgrade both together (task deps:upgrade -- sherpa-onnx sherpa-onnx-core)
+sherpa-onnx-core>=1.10.0
 
 # Task Scheduling
 apscheduler==3.11.2
 
 # AI/ML Stack - LangChain/LangGraph 1.0.x ecosystem
-langchain-core==1.4.0
-langchain==1.3.2  # Updated 2026-03-09 for ecosystem upgrade (merge_lists fix, SummarizationMiddleware, ContextOverflowError)
+langchain-core==1.4.6  # 1.4.0->1.4.6: minimum required by langchain 1.3.9 (GHSA fix)
+langchain==1.3.9  # 1.3.2->1.3.9: GHSA-gr75-jv2w-4656 fix. 2026-03-09 ecosystem upgrade (merge_lists fix, SummarizationMiddleware, ContextOverflowError)
 langchain-text-splitters==1.1.2  # RecursiveCharacterTextSplitter for RAG Spaces document chunking
 langchain-openai==1.2.2
 openai==2.40.0  # Requis par langchain-openai 1.1.10 (pin 2.14.0 levé — gardes adapter L229-239 protègent input_items)
-langgraph==1.2.2
+langgraph==1.2.4  # 1.2.2->1.2.4: minimum required by langchain 1.3.9 (GHSA fix)
 langgraph-checkpoint==4.1.1  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
 langgraph-prebuilt==1.1.0  # Pinné explicitement (requis par langgraph 1.0.10)
 langgraph-checkpoint-postgres==3.1.0

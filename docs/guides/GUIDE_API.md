@@ -2476,9 +2476,9 @@ Set-Cookie: session_id=xxx;
 | **A03: Injection** | Pydantic validation, SQLAlchemy ORM (parameterized) |
 | **A04: Insecure Design** | Threat modeling, security by design (BFF Pattern) |
 | **A05: Security Misconfiguration** | Secrets in .env, CORS strict, secure headers |
-| **A06: Vulnerable Components** | Dependabot, regular updates, SBOM |
+| **A06: Vulnerable Components** | Dependabot, pip-audit on the lockfile (transitives), SBOM |
 | **A07: Auth Failures** | Rate limiting, bcrypt, session timeout |
-| **A08: Software Integrity Failures** | Docker image verification, SBOM |
+| **A08: Software Integrity Failures** | Hash-verified lockfiles (ADR-112), Docker image verification, SBOM |
 | **A09: Security Logging Failures** | Structlog audit trail, admin_audit_log |
 | **A10: SSRF** | URL validation, no user-controlled URLs |
 

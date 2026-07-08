@@ -7,7 +7,9 @@ authors = [
     {name = "LIA Contributors"},
 ]
 requires-python = ">=3.12"
-# NOTE: Dependencies are managed in requirements.txt (single source of truth)
+# NOTE: Dependencies are declared in requirements.txt / requirements-dev.txt
+# (intent manifests) and installed from the compiled lockfiles
+# requirements.lock.txt / requirements-dev.lock.txt (ADR-112, `task deps:lock`).
 # This pyproject.toml file is only used for dev tools (black, ruff, mypy, pytest)
 dependencies = []
 
@@ -120,7 +122,6 @@ strict_optional = true
 
 [[tool.mypy.overrides]]
 module = [
-    "passlib.*",
     "slowapi.*",
     "prometheus_client.*",
     "pgvector.*",
@@ -129,12 +130,9 @@ module = [
     "langfuse.*",
     "langchain_deepseek.*",
     "apscheduler.*",
-    "scipy.*",
     "jinja2.*",
-    "torch.*",
     "transformers.*",
     "sentence_transformers.*",
-    "pytz.*",
     "edge_tts.*",
     "networkx.*",
     "firebase_admin.*",
@@ -183,10 +181,7 @@ module = [
     "src.domains.agents.display.*",
     "src.domains.agents.services.smart_catalogue_service",
     "src.domains.skills.tools",
-    "src.domains.agents.nodes.decorators",
-    "src.domains.agents.nodes.planner_node",
     "src.domains.agents.nodes.response_node",
-    "src.domains.agents.nodes.draft_critique_node",
     "src.domains.agents.api.service",
     "src.domains.agents.graphs.base_agent_builder",
     "src.domains.agents.services.hitl_classifier",
@@ -201,8 +196,6 @@ module = [
     "src.domains.personalities.*",
     "src.domains.connectors.preferences.*",
     "src.domains.connectors.clients.*",
-    "src.core.decorators",
-    "src.core.service",
     "src.core.security.*",
     "src.infrastructure.cache.redis",
     "src.infrastructure.llm.*",

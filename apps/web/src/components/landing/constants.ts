@@ -11,7 +11,7 @@
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
  * - metrics: Prometheus metric definitions in infrastructure/observability/
  * - tests: backend pytest (~10,140) + frontend vitest
- * - adrs: docs/architecture/ ADR files (numbered up to ADR-108)
+ * - adrs: docs/architecture/ ADR files (numbered up to ADR-112)
  * - releases: CHANGELOG.md release entries
  * - auditScore: 360° technical audit, 20 areas, July 2026 (docs/audit/)
  */

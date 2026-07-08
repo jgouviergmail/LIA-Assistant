@@ -132,7 +132,7 @@
 - **OAuth Security**: Google OAuth + Health Check (every 5 min) + FCM Push Notifications
 - **Secrets Management**: .env encrypted (SOPS) + Firebase/Google/LLM credentials
 - **Docker Security**: .dockerignore exclusions + Non-root user + Security patches (apt-get upgrade)
-- **Dependency Security**: pip-audit + Trivy image scan + CVE tracking
+- **Dependency Security**: hash-verified universal lockfiles (ADR-112) + pip-audit on the lockfile (transitives included) + Trivy image scan + CVE tracking
 - **Production Security**: Nginx + SSL/TLS + HTTPS + Firewall
 
 **Source Code**:

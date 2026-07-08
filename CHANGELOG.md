@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.20] - 2026-07-08
+
+> Reproducible Python builds & dependency security (ADR-112). `Dockerfile.prod` ran `pip install -r requirements.txt` with ~20 loose pins and ~120 unconstrained transitive dependencies, so two builds of the same commit could ship different versions — measured drift: 88 packages diverging between the Windows dev venv and the Linux dev container, both installed from the same manifest (starlette 0.50.0 vs 1.3.1, google-genai 1.67 vs 2.10). Every environment now installs from committed universal lockfiles with SHA256 hash verification. Auditing the lockfile immediately paid off: it surfaced 17 vulnerable packages (25+ CVEs) that the CI dependency-audit job had never seen, because that job audited an *empty* environment — all 17 upgraded, final audit clean.
+
+### Added
+
+- **Universal Python lockfiles** (`apps/api/requirements.lock.txt`, 195 runtime pins; `requirements-dev.lock.txt`, 236 pins compiled with `-c requirements.lock.txt` so runtime versions are bit-identical): compiled by `uv pip compile --universal --python-version 3.12 --generate-hashes` — one marker-annotated file valid for linux/amd64, linux/arm64 and Windows, installable by vanilla pip (`--require-hashes`); uv is a compile-time tool only, absent from the final image. `requirements.txt` / `requirements-dev.txt` become intent manifests (loose pins allowed).
+- **`task deps:lock`** (stable regeneration — existing pins are preferences, only manifest changes move versions; proven no-op on unchanged input), **`task deps:upgrade -- <pkg>`** (targeted bump) and **`task deps:upgrade:all`**; `task setup:backend` installs the dev lock into the venv.
+- **CI lockfile guard** (`scripts/check_requirements_lock.py`, new `code-hygiene` step): offline, deterministic check that every manifest requirement is pinned and satisfied in the locks and that the dev lock layers exactly on the runtime lock — a manifest edit without `task deps:lock` fails CI. Mutation-tested.
+- **ADR-112** (tool decision uv vs pip-tools — pip-tools disqualified by single-platform resolution: this repo has Linux-only `uvloop` and Windows-only `pywin32` branches; hash strategy for multi-arch; aarch64/x86_64 cp312 wheel-coverage audit of all pinned versions; inconsistent-wheel-metadata pitfall).
+
+### Changed
+
+- **`Dockerfile.prod` / `Dockerfile.dev`** install from the lockfiles with hash verification; CI `lint-backend`/`test-backend` install `requirements-dev.lock.txt` (pip cache keyed on it); `prepare-prod.ps1` ships the runtime lock to `PROD/` for the on-Pi rebuild path.
+- **pip-audit and SBOM now read the lockfile** (`task security:scan:backend`, `security.yml` dependency-audit, `release.yml` + `security.yml` SBOM jobs): the full transitive tree (~240 packages) is audited and inventoried, instead of the manifest's 74 declared packages — or worse (see Fixed).
+- **17 vulnerable dependencies upgraded to fix versions** (25+ CVEs): aiohttp 3.13.3→3.14.1 (21 CVEs), starlette 0.50.0→1.3.1 (5 advisories), pyjwt 2.12.1→2.13.0 (5), cryptography 46.0.7→48.0.1, pillow 12.1.1→12.3.0, langchain 1.3.2→1.3.9 (GHSA), python-multipart→0.0.31, pydantic-settings→2.14.2, langsmith→0.9.8, mako→1.3.12, pyasn1→0.6.3, idna→3.18, urllib3→2.7.0, langgraph-sdk→0.4.2, msgpack→1.2.1, ecdsa→0.19.2, requests→2.34.2. The langchain fix forced a metadata-verified cascade: langgraph 1.2.2→1.2.4 and langchain-core 1.4.0→1.4.6 (langchain 1.3.9 minimums), langgraph-sdk ≥0.4.2 (langgraph 1.2.4 requirement), websockets 16.0→15.0.1 (langgraph-sdk caps <16). Full pin diff: exactly those 20 packages, nothing else. One deliberate ignore remains (ecdsa CVE-2024-23342 — timing attack on *signing*; LIA only verifies JWTs).
+
+### Fixed
+
+- **CI dependency audit & SBOM ran against an empty environment**: both `security.yml` jobs did `pip install -e .` on a pyproject that declares no dependencies, so `pip-audit` audited nothing (which is how 25+ CVEs accumulated unseen) and the weekly SBOM inventoried nothing. Both now operate on `requirements.lock.txt`.
+- **`sherpa-onnx` wheel-metadata inconsistency**: the armv7l wheel declares no dependencies while the manylinux/win wheels require `sherpa-onnx-core==<same version>` — uv reads one metadata per version and omitted the core package, breaking hash-checked installs. `sherpa-onnx-core` is now declared explicitly in the manifest with a mandatory joint-upgrade note; a future mismatch fails loudly at install time.
+- Stale docs and hints aligned with reality: `GUIDE_DEVELOPPEMENT.md` described a `pip install -e ".[dev]"` setup and pyproject-managed dependencies that never existed; `validate_config.py` and `STACK_TECHNIQUE.md` pointed at the manifest instead of the lock; `security-architecture.mmd`, `CI_CD.md`, `SECURITY.md` (including a dead `DEPENDENCIES.md` link), `README_WORKFLOW.md`, `GUIDE_API.md` updated.
+
+### Tests
+
+- Lockfile adoption validated with zero silent bumps: initial locks compiled under the tested venv's freeze as constraints (0 version drift; only additions: Linux-only `uvloop`, matching the dev container, and `sherpa-onnx-core`, matching the venv).
+- Hash-verified install on a clean Python 3.13 venv — `pip check` clean, `pip freeze` byte-identical to the lock (235 = 236 pins − uvloop). Prod image (amd64) and dev image rebuilt from the locks; dev container healthy; in-image spot-checks equal the lock.
+- After the CVE wave: 8,856 unit + 958 agents tests green on the upgraded tree (ADR-111 canaries included), final `pip-audit` clean, CI lockfile guard mutation-tested (fake pin bump and stale dev lock both fail).
+
 ## [1.21.19] - 2026-07-08
 
 > LangGraph Postgres connection pooling (ADR-111). Lifts the #1 scalability bottleneck identified by the S2/A7 audit: the LangGraph checkpointer and store each ran on a *single* persistent PostgreSQL connection per worker, and langgraph serializes every operation of a connection behind an instance-level `asyncio.Lock` — so all concurrent conversations of a worker queued on one mutex for every checkpoint read/write. Both now run on settings-driven `psycopg` async pools; checkpoint concurrency per worker goes from 1 to `max_size` (default 8). Bonus fix: a connection killed while idle (PostgreSQL restart) used to leave persistence broken until an API restart — pooled connections are now validated at checkout and replaced.

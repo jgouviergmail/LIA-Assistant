@@ -58,9 +58,9 @@ graph TB
     end
 
     subgraph DepSec["Dependency Security"]
-        Reqs["requirements.txt"] --> PipAudit["pip-audit"]
+        Reqs["requirements.lock.txt<br/>hash-verified (ADR-112)"] --> PipAudit["pip-audit<br/>transitives included"]
         PipAudit --> CVE{CVEs?}
-        CVE -->|Yes| Fix["Update or Exclude"]
+        CVE -->|Yes| Fix["task deps:upgrade"]
         CVE -->|No| Build["Build Image"]
         Fix --> Reqs
         Build --> Trivy["Trivy Scan<br/>HIGH + CRITICAL"]

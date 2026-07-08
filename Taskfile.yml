@@ -10,6 +10,9 @@ vars:
   WEB_DIR: ./apps/web
   PYTHON: python
   UV: uv  # Optional: faster pip alternative
+  # Shared flags for Python lockfile compilation (deps:lock / deps:upgrade*).
+  # --universal: single multi-platform lock (linux amd64/arm64, Windows, py>=3.12)
+  UV_COMPILE_FLAGS: --universal --python-version 3.12 --generate-hashes --custom-compile-command "task deps:lock"
   # Pattern training settings (change these for different environments)
   PATTERNS_BASE_URL: https://localhost:8000/api/v1
   PATTERNS_SSL_FLAG: --insecure  # Use --insecure for self-signed certs, empty for valid certs
@@ -27,13 +30,13 @@ tasks:
       - setup:hooks
 
   setup:backend:
-    desc: Install backend Python dependencies
+    desc: Install backend Python dependencies (from the compiled lockfile)
     dir: "{{.API_DIR}}"
     cmds:
       - "{{.PYTHON}} -m venv .venv"
-      - cmd: .venv/Scripts/pip install -r requirements.txt -r requirements-dev.txt
+      - cmd: .venv/Scripts/pip install --require-hashes -r requirements-dev.lock.txt
         platforms: [windows]
-      - cmd: .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+      - cmd: .venv/bin/pip install --require-hashes -r requirements-dev.lock.txt
         platforms: [linux, darwin]
     status:
       - test -d {{.API_DIR}}/.venv
@@ -53,6 +56,41 @@ tasks:
         platforms: [windows, linux, darwin]
     status:
       - git config core.hooksPath | grep -q ".github/hooks"
+
+  # ============================================================================
+  # Python Dependencies (lockfiles)
+  # ============================================================================
+  # requirements.txt / requirements-dev.txt are the intent manifests (loose pins
+  # allowed); requirements.lock.txt / requirements-dev.lock.txt are the compiled
+  # universal lockfiles actually installed everywhere (Docker, CI, venv).
+  # Workflow: edit the manifest -> task deps:lock -> commit manifest + locks.
+
+  deps:lock:
+    desc: Regenerate Python lockfiles (keeps existing pins; only applies manifest changes)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - "{{.UV}} pip compile requirements.txt {{.UV_COMPILE_FLAGS}} -o requirements.lock.txt"
+      - "{{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt"
+
+  deps:upgrade:
+    desc: "Upgrade specific packages in the lockfiles: task deps:upgrade -- <pkg> [<pkg>...]"
+    dir: "{{.API_DIR}}"
+    preconditions:
+      - sh: test -n "{{.CLI_ARGS}}"
+        msg: "Usage: task deps:upgrade -- <pkg> [<pkg>...] (use deps:upgrade:all for a full upgrade)"
+    cmds:
+      - |
+        UPGRADE_FLAGS=""
+        for pkg in {{.CLI_ARGS}}; do UPGRADE_FLAGS="$UPGRADE_FLAGS --upgrade-package $pkg"; done
+        {{.UV}} pip compile requirements.txt $UPGRADE_FLAGS {{.UV_COMPILE_FLAGS}} -o requirements.lock.txt
+        {{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt $UPGRADE_FLAGS {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt
+
+  deps:upgrade:all:
+    desc: Upgrade ALL packages in the lockfiles to the latest versions allowed by the manifests
+    dir: "{{.API_DIR}}"
+    cmds:
+      - "{{.UV}} pip compile requirements.txt --upgrade {{.UV_COMPILE_FLAGS}} -o requirements.lock.txt"
+      - "{{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt --upgrade {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt"
 
   # ============================================================================
   # Development
@@ -422,9 +460,10 @@ tasks:
       # --ignore-vuln: ecdsa CVE-2024-23342 is a timing attack on ECDSA *signing* (P-256 nonce leak).
       # LIA uses python-jose only for JWT *verification*, which is explicitly unaffected.
       # The ecdsa maintainer has declared side-channel attacks out of scope with no planned fix.
-      - cmd: python -m pip_audit -r requirements.txt --ignore-vuln CVE-2024-23342
+      # Audits the lockfile (not the manifest) so transitive dependencies are covered too.
+      - cmd: python -m pip_audit -r requirements.lock.txt --ignore-vuln CVE-2024-23342
         platforms: [windows]
-      - cmd: python3 -m pip_audit -r requirements.txt --ignore-vuln CVE-2024-23342
+      - cmd: python3 -m pip_audit -r requirements.lock.txt --ignore-vuln CVE-2024-23342
         platforms: [linux, darwin]
 
   security:scan:docker:
@@ -443,9 +482,10 @@ tasks:
     desc: Generate SBOM (Software Bill of Materials) - Requires 'pip install cyclonedx-bom'
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: pip install cyclonedx-bom && python -m cyclonedx_py requirements requirements.txt --of json -o ../../sbom-backend.json
+      # SBOM from the lockfile: exact versions actually shipped, transitives included
+      - cmd: pip install cyclonedx-bom && python -m cyclonedx_py requirements requirements.lock.txt --of json -o ../../sbom-backend.json
         platforms: [windows]
-      - cmd: pip3 install cyclonedx-bom && python3 -m cyclonedx_py requirements requirements.txt --of json -o ../../sbom-backend.json
+      - cmd: pip3 install cyclonedx-bom && python3 -m cyclonedx_py requirements requirements.lock.txt --of json -o ../../sbom-backend.json
         platforms: [linux, darwin]
       - echo "SBOM generated at sbom-backend.json"
 

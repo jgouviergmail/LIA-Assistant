@@ -6,7 +6,7 @@
 
 **Versione**: 2.7
 **Data**: 2026-07-08
-**Applicazione**: LIA v1.21.19
+**Applicazione**: LIA v1.21.20
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -801,7 +801,7 @@ Pre-commit (locale)               GitHub Actions CI
 .bak files check                  Lint Backend (Ruff + Black + MyPy strict)
 Secrets grep                      Lint Frontend (ESLint + TypeScript)
 Ruff + Black + MyPy               Unit tests + coverage (43 %)
-Unit tests rapidi                 Code Hygiene (i18n, Alembic, .env.example)
+Unit tests rapidi                 Code Hygiene (i18n, Alembic, lockfiles)
 Rilevamento pattern critici       Docker build smoke test
 Sync chiavi i18n                  Secret scan (Gitleaks)
 Conflitti migrazione Alembic      ─────────────────────────
@@ -822,6 +822,20 @@ ESLint + TypeScript check           CodeQL (Python + JS)
 | Commit | Conventional Commits | `feat(scope):`, `fix(scope):` |
 | Test | pytest | `asyncio_mode = "auto"` |
 | Coverage | 43% minimo | Applicato in CI |
+
+### 22.3. Build delle dipendenze riproducibili
+
+Le dipendenze del backend sono bloccate da un capo all'altro. I file requirements
+sono manifesti di intento; ciò che ogni ambiente installa davvero — immagine di
+produzione, container di dev, CI, venv locale — sono lockfile universali
+committati, compilati con `uv pip compile --universal`: un unico file che copre
+linux/amd64, linux/arm64 e Windows e fissa i ~200 pacchetti realmente inclusi
+con gli hash SHA256 di ogni file pubblicato. pip vanilla li installa con
+`--require-hashes`: lo stesso commit produce quindi sempre la stessa immagine,
+verificabile byte per byte. Un guard di CI fa fallire qualsiasi modifica del
+manifesto che salti la rigenerazione del lock, e `pip-audit` insieme all'SBOM
+di release leggono il lockfile — l'intero albero transitivo viene auditato e
+inventariato, non solo i pacchetti dichiarati.
 
 ---
 
@@ -1019,4 +1033,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.21.19). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.21.20). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

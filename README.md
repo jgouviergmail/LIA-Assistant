@@ -40,7 +40,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.21.19</strong> — <strong>LangGraph Postgres connection pooling (ADR-111).</strong> A performance &amp; resilience release lifting the #1 scalability bottleneck from the 2026-07 audit (S2/A7): every concurrent conversation of a worker queued on a <em>single</em> PostgreSQL connection — serialized behind an instance-level lock — for every checkpoint read/write. <strong>Changed:</strong> the LangGraph checkpointer and store now run on settings-driven <code>psycopg</code> <code>AsyncConnectionPool</code>s (per-worker min/max sizes, documented connection budget vs <code>max_connections</code>); a pool-aware <code>_cursor</code> override in the instrumented saver bypasses the upstream per-instance lock (<a href="https://github.com/langchain-ai/langgraph/issues/7259">langgraph#7259</a> — a canary test orders its removal once fixed upstream); connections are validated at checkout, so a database restart no longer leaves persistence broken until the API restarts. <strong>Verified:</strong> 20 concurrent compiled-graph invocations on real PostgreSQL all checkpoint and resume correctly; before/after benchmark ×1.10 (4 KB payloads) to ×1.42 (64 KB); ~9,900 backend tests green including the HITL replay suite; rollback without redeploy via <code>LANGGRAPH_CHECKPOINT_POOL_MAX_SIZE=1</code>. — 8 July 2026.
+  <strong>Version 1.21.20</strong> — <strong>Reproducible Python builds &amp; dependency security (ADR-112).</strong> A supply-chain release closing the backend's last build non-determinism: <code>pip install -r requirements.txt</code> re-resolved ~120 unconstrained transitive dependencies at every build, so two builds of the same commit could ship different versions (measured: 88 packages diverging between two same-manifest environments). <strong>Changed:</strong> every environment — prod image, dev container, CI, local venv — now installs from committed universal lockfiles compiled by <code>uv pip compile --universal</code>: one file covering linux/amd64, linux/arm64 and Windows (Python ≥ 3.12), 195 exact runtime pins installed by vanilla pip with SHA256 verification (<code>--require-hashes</code>, no uv in the final image); requirements files become intent manifests, <code>task deps:lock</code> regenerates, and an offline CI guard fails any manifest change that skips regeneration. <strong>Security:</strong> auditing the lockfile surfaced 17 vulnerable pinned packages (25+ CVEs — aiohttp alone carried 21) that the CI dependency-audit job had never seen — it audited an <em>empty</em> environment (<code>pip install -e .</code> on a dependency-less pyproject); the job now audits the lockfile, all 17 packages were upgraded to fix versions (starlette, pyjwt, cryptography, pillow, langchain…, each cascade step verified against resolver metadata), and the final audit reports <strong>zero known vulnerabilities</strong>; pip-audit and the release SBOM now cover the full transitive tree. <strong>Verified:</strong> hash-verified installs on a clean venv and both Docker images; <code>pip freeze</code> byte-identical to the lock; ~9,800 backend tests green including the ADR-111 canaries. — 8 July 2026.
 </p>
 
 ---
@@ -569,7 +569,7 @@ docker compose up -d postgres redis prometheus grafana
 # 2. Backend setup
 cd apps/api
 python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install --require-hashes -r requirements.lock.txt  # compiled lockfile (reproducible)
 cp ../../.env.example .env  # Configure your API keys
 
 # 3. Database migrations
@@ -930,7 +930,7 @@ Pre-commit (local)              GitHub Actions CI
 .bak files check                Lint Backend (Ruff + Black + MyPy)
 Secrets grep                    Lint Frontend (ESLint + TypeScript)
 Ruff + Black + MyPy             Fast unit tests + coverage (43%)
-Fast unit tests                 Code Hygiene (i18n, Alembic, .env.example, patterns)
+Fast unit tests                 Code Hygiene (i18n, Alembic, lockfiles, patterns)
 Critical pattern detection      Docker build smoke test
 i18n keys sync                  Secret scan (Gitleaks)
 Alembic migration conflicts     ──────────────────────
@@ -946,6 +946,7 @@ ESLint + TypeScript check         CodeQL (Python + JS)
 | Practice | Implementation |
 |----------|---------------|
 | **SHA-pinned Actions** | All GitHub Actions pinned by commit SHA (supply-chain security) |
+| **Reproducible builds** | Universal Python lockfiles (linux/amd64 + arm64 + Windows), SHA256 hash-verified installs everywhere; CI guard fails manifest edits without lock regeneration ([ADR-112](./docs/architecture/ADR-112-Python-Dependency-Locking.md)) |
 | **Least privilege** | `permissions: contents: read` on CI workflow |
 | **Branch protection** | PR required (external contributors), 7 status checks, force push forbidden |
 | **Dependabot** | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped |
@@ -1005,6 +1006,7 @@ ESLint + TypeScript check         CodeQL (Python + JS)
 | OWASP Top 10 | XSS, SQL injection, CSRF protection |
 | Prompt Injection | External content wrapping (`<external_content>` safety markers) |
 | OAuth 2.1 | Mandatory PKCE |
+| Supply chain | Hash-verified universal lockfiles, pip-audit on the full transitive tree, SBOM per release |
 
 ### Reporting a Vulnerability
 

@@ -93,7 +93,8 @@ jobs:
         working-directory: apps/api
         run: |
           pip install cyclonedx-bom
-          python -m cyclonedx_py requirements requirements.txt --of json -o ../../sbom-backend.json
+          # SBOM from the lockfile: exact versions actually shipped, transitives included
+          python -m cyclonedx_py requirements requirements.lock.txt --of json -o ../../sbom-backend.json
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -273,7 +273,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 ## Verification des Versions
 
-### Backend (requirements.txt)
+### Backend (requirements.lock.txt — versions effectivement installées)
 
 ```bash
 cd apps/api

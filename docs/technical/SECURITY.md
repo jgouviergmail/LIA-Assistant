@@ -1816,9 +1816,9 @@ class BaseAPIException(HTTPException):
 | A03 | Injection | ✅ | SQLAlchemy ORM + Pydantic | [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) |
 | A04 | Insecure Design | ✅ | Threat modeling + Defense in depth | Ce document |
 | A05 | Security Misconfiguration | ✅ | Secure defaults + env validation | [CONFIGURATION.md](CONFIGURATION.md) |
-| A06 | Vulnerable Components | ✅ | Dependabot + automated updates | [DEPENDENCIES.md](DEPENDENCIES.md) |
+| A06 | Vulnerable Components | ✅ | Dependabot + pip-audit sur lockfile (transitifs inclus) | [ADR-112](../architecture/ADR-112-Python-Dependency-Locking.md) |
 | A07 | Authentication Failures | ✅ | BFF Pattern + rate limiting | [AUTHENTICATION.md](AUTHENTICATION.md) |
-| A08 | Software/Data Integrity | ✅ | Code signing + checksums | [CI_CD.md](CI_CD.md) |
+| A08 | Software/Data Integrity | ✅ | Lockfiles hash-vérifiés + SBOM + actions pinnées par SHA | [CI_CD.md](CI_CD.md) |
 | A09 | Security Logging | ✅ | Structlog + PII filtering | [OBSERVABILITY_AGENTS.md](OBSERVABILITY_AGENTS.md) |
 | A10 | SSRF | ✅ | Whitelist externe APIs + timeouts | Ce document |
 
@@ -2693,13 +2693,13 @@ async with redis_lock(lock_key, timeout=CHANNEL_MESSAGE_LOCK_TIMEOUT):
 ```bash
 # Scan de vulnérabilités (Dependabot + Safety)
 pip install safety
-safety check --file requirements.txt
+safety check --file requirements.lock.txt
 
 # Scan de secrets (git-secrets)
 git secrets --scan
 
-# Audit de dépendances Python
-pip-audit
+# Audit de dépendances Python — sur le lockfile compilé, transitifs inclus (ADR-112)
+task security:scan:backend          # équivalent : pip-audit -r requirements.lock.txt
 
 # SAST (Static Application Security Testing)
 bandit -r apps/api/src/
@@ -2777,10 +2777,11 @@ All 10 OAuth callbacks (Gmail, Google Contacts/Calendar/Drive/Tasks, Microsoft O
 
 Transitive dependency vulnerabilities are managed through a layered approach:
 
-1. **Dependabot** — Weekly PRs for direct dependency updates (pip, npm, Docker, GitHub Actions).
-2. **pnpm overrides** — Force safe versions of transitive dependencies when direct parents haven't updated yet. Overrides are defined in the root `package.json` and pinned to exact versions. See `docs/technical/CI_CD.md` for the full override table and process.
-3. **pip-audit + pnpm audit** — Automated scans in the `security.yml` CI workflow.
-4. **CodeQL** — Static analysis for Python and JavaScript (security-and-quality queries).
+1. **Universal Python lockfiles** (ADR-112) — every environment (prod image, dev container, CI, local venv) installs `requirements.lock.txt` / `requirements-dev.lock.txt`, compiled with SHA256 hashes for every published file: the packages actually shipped are exact, reproducible, and integrity-verified at install time (`pip --require-hashes`).
+2. **Dependabot** — Weekly PRs for direct dependency updates (pip, npm, Docker, GitHub Actions).
+3. **pnpm overrides** — Force safe versions of transitive dependencies when direct parents haven't updated yet. Overrides are defined in the root `package.json` and pinned to exact versions. See `docs/technical/CI_CD.md` for the full override table and process.
+4. **pip-audit + pnpm audit** — Automated scans in the `security.yml` CI workflow; `pip-audit` reads the Python lockfile, so transitive pins are audited too. Targeted fixes land via `task deps:upgrade -- <pkg>` (plus a manifest pin bump when the package is a direct dependency).
+5. **CodeQL** — Static analysis for Python and JavaScript (security-and-quality queries).
 
 ### CodeQL Alert Remediation
 

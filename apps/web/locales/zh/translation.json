@@ -2929,6 +2929,16 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_21_20": {
+          "title": "v1.21.20 — 🔒 安全加固与可复现更新",
+          "date": "2026年7月",
+          "count": "3",
+          "items": {
+            "i1": "<b>🔒 17 个存在漏洞的组件已更新</b> — 自动安全审计现在覆盖 LIA 附带的每一个组件（约 240 个，包括此前无法检测到的间接依赖）。审计发现 17 个组件存在已知漏洞（25+ 个 CVE）；全部已更新，审计现已报告零已知漏洞。",
+            "i2": "<b>📦 每次安装的内容与测试内容完全一致</b> — LIA 的构建现在是可复现的：每个版本都锁定其组件的精确清单，并在安装时通过加密指纹校验。同一版本的两次安装保证完全一致——不再有看不见的差异。",
+            "i3": "<b>🛡️ 面向自托管用户</b> — 随每个版本发布的软件物料清单（SBOM）现在列出实际交付的精确版本，包含传递依赖。更新一个依赖只需一条命令（task deps:lock），CI 会拒绝任何遗漏 lockfile 的更改。"
+          }
+        },
         "v1_21_16": {
           "title": "v1.21.16 — 🧹 大规模内部清理",
           "date": "2026年7月",
@@ -4478,7 +4488,7 @@
           },
           "q2": {
             "question": "我的数据如何受到保护？",
-            "answer": "我们使用多层安全措施：<br>• <strong>个人信息保护（PII）</strong>：您的敏感数据（姓名、邮箱、联系人）受到保护，绝不会被共享<br>• HTTP-only cookies防止XSS攻击<br>• 使用Redis的安全服务器端会话<br>• 传输中的数据加密（HTTPS）<br>• 带PKCE的OAuth 2.0身份验证<br><br><strong>💾 数据持久性：</strong><br>• 数据库每日自动备份（保留 7 天 / 4 周 / 6 个月历史）<br>• 恢复流程定期真实测试——即使发生事故，损失也不会超过最近一天"
+            "answer": "我们使用多层安全措施：<br>• <strong>个人信息保护（PII）</strong>：您的敏感数据（姓名、邮箱、联系人）受到保护，绝不会被共享<br>• HTTP-only cookies防止XSS攻击<br>• 使用Redis的安全服务器端会话<br>• 传输中的数据加密（HTTPS）<br>• 带PKCE的OAuth 2.0身份验证<br><br><strong>💾 数据持久性：</strong><br>• 数据库每日自动备份（保留 7 天 / 4 周 / 6 个月历史）<br>• 恢复流程定期真实测试——即使发生事故，损失也不会超过最近一天<br><br><strong>🧬 软件供应链：</strong><br>• 每个版本都附带一份锁定且经加密校验的组件清单（可复现构建）<br>• 所有依赖——包括间接依赖——都会自动扫描已知漏洞"
           },
           "q3": {
             "question": "LIA收集哪些数据？",
@@ -6143,7 +6153,7 @@
       "security-architecture": {
         "title": "纵深防御：LIA的5项安全原则",
         "excerpt": "纵深防御、最小权限、速率限制、加密和验证保护您的数据。",
-        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 通过Redis按用户按工具的滑动窗口，可按服务配置</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>外部内容（邮件、网页、文档）在注入提示之前封装在可配置的<code>UNTRUSTED</code>标签中。这种显式封装通过清楚地分隔用户数据和系统指令，防止恶意内容劫持助手的行为。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额 (v1.9)</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p>"
+        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 通过Redis按用户按工具的滑动窗口，可按服务配置</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>外部内容（邮件、网页、文档）在注入提示之前封装在可配置的<code>UNTRUSTED</code>标签中。这种显式封装通过清楚地分隔用户数据和系统指令，防止恶意内容劫持助手的行为。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p><h2>软件供应链</h2><p>每个版本都基于锁定的依赖图构建：通用 lockfile 锁定实际安装的约 200 个包，每个包在构建时通过 SHA256 指纹校验——同一版本始终产出相同且经完整性校验的镜像。所有依赖（包括传递依赖）都会持续比对已知漏洞数据库进行审计，随每个版本发布的软件物料清单（SBOM）准确列出生产环境中运行的内容。</p>"
       },
       "privacy-by-design": {
         "title": "隐私设计：GDPR、加密和数据控制",

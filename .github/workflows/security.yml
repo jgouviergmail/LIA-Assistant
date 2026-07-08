@@ -50,16 +50,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install pip-audit
         working-directory: ./apps/api
         run: |
           pip install --upgrade pip
-          pip install -e . pip-audit
+          pip install pip-audit
 
       - name: pip-audit (Python)
         working-directory: ./apps/api
+        # Audits the compiled lockfile so transitive dependencies are covered.
+        # (The previous `pip install -e .` audited an empty environment:
+        # pyproject.toml declares no dependencies.)
         # CVE-2026-4539: Pygments ReDoS in AdlLexer (local-only, low severity, no fix available upstream)
-        run: pip-audit --desc --fix --dry-run --ignore-vuln CVE-2026-4539
+        # CVE-2024-23342: ecdsa timing attack on *signing*; LIA only verifies JWTs (see Taskfile rationale)
+        run: pip-audit --desc -r requirements.lock.txt --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2024-23342
 
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
@@ -119,10 +123,13 @@ jobs:
 
       - name: Generate Python SBOM
         working-directory: ./apps/api
+        # SBOM from the lockfile: exact versions actually shipped, transitives
+        # included. (`pip install -e .` installed nothing: pyproject declares
+        # no dependencies, so the previous environment-mode SBOM was empty.)
         run: |
           pip install --upgrade pip
-          pip install -e . cyclonedx-bom
-          cyclonedx-py environment -o sbom-backend.json --output-format json
+          pip install cyclonedx-bom
+          python -m cyclonedx_py requirements requirements.lock.txt -o sbom-backend.json --output-format json
 
       - name: Upload SBOM
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

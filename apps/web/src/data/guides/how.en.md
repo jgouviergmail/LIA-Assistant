@@ -6,7 +6,7 @@
 
 **Version**: 2.7
 **Date**: 2026-07-08
-**Application**: LIA v1.21.19
+**Application**: LIA v1.21.20
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -801,7 +801,7 @@ Pre-commit (local)                GitHub Actions CI
 .bak files check                  Lint Backend (Ruff + Black + MyPy strict)
 Secrets grep                      Lint Frontend (ESLint + TypeScript)
 Ruff + Black + MyPy               Unit tests + coverage (43%)
-Fast unit tests                   Code Hygiene (i18n, Alembic, .env.example)
+Fast unit tests                   Code Hygiene (i18n, Alembic, lockfiles)
 Critical pattern detection        Docker build smoke test
 i18n key sync                     Secret scan (Gitleaks)
 Alembic migration conflicts       ─────────────────────────
@@ -822,6 +822,19 @@ ESLint + TypeScript check           CodeQL (Python + JS)
 | Commits | Conventional Commits | `feat(scope):`, `fix(scope):` |
 | Tests | pytest | `asyncio_mode = "auto"` |
 | Coverage | 43% minimum | Enforced in CI |
+
+### 22.3. Reproducible dependency builds
+
+Backend dependencies are locked end to end. The requirements files are intent
+manifests; what every environment actually installs — production image, dev
+container, CI, local venv — are committed universal lockfiles compiled by
+`uv pip compile --universal`: a single file covering linux/amd64, linux/arm64 and
+Windows, pinning the ~200 packages actually shipped with SHA256 hashes for every
+published file. Vanilla pip installs them with `--require-hashes`, so the same
+commit always builds the same image, byte-for-byte verifiable. A CI guard fails
+any manifest edit that skips lock regeneration, and `pip-audit` plus the release
+SBOM read the lockfile — the full transitive tree is audited and inventoried,
+not just the declared packages.
 
 ---
 
@@ -1048,4 +1061,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.21.19). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.21.20). All metrics, versions, and patterns cited are verifiable in the codebase.*
