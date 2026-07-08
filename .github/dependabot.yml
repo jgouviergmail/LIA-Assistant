@@ -35,6 +35,26 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # TypeScript 7 (native compiler) breaks typescript-eslint (crash on TS
+      # internals) and `next build` on Next 16.2 (evidence: Dependabot #179 CI).
+      # Revisit when Next.js and typescript-eslint declare TS 7 support.
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+      # ESLint 10 crashes the eslint-config-next 16.2.x plugin chain at config
+      # load ("Class extends value undefined", Dependabot #181 CI) despite the
+      # nominal `eslint >=9` peer range. Revisit when eslint-config-next
+      # supports ESLint 10.
+      - dependency-name: eslint
+        update-types:
+          - version-update:semver-major
+      # @types/node major must track the Node runtime major (node:24-alpine in
+      # apps/web Dockerfiles): newer typings let code compile against APIs the
+      # runtime does not have. Bump together with the runtime image.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
 
   # Docker images
   - package-ecosystem: docker
