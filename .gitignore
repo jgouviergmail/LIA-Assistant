@@ -275,3 +275,7 @@ google*.html
 
 # Source screenshots (originals — cleaned copies in docs/assets/)
 LIA Pics/
+
+
+# Playwright MCP session artifacts
+.playwright-mcp/

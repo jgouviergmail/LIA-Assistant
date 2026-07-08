@@ -33,6 +33,7 @@ import {
   Terminal,
   Heart,
   Activity,
+  Sunrise,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -134,6 +135,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
     cardIconColor: 'text-emerald-600 dark:text-emerald-400',
     cardHoverBorder: 'hover:border-emerald-500/30',
     features: [
+      { key: 'briefing', icon: Sunrise },
       { key: 'proactive', icon: BellRing },
       { key: 'interests', icon: Star },
       { key: 'reminders_scheduling', icon: CalendarClock },
@@ -188,10 +190,10 @@ export async function FeaturesSection({ lng }: FeaturesSectionProps) {
   const { t } = await initI18next(lng);
 
   return (
-    <section id="features" className="landing-section py-24" aria-labelledby="features-title">
+    <section id="features" className="landing-section py-20" aria-labelledby="features-title">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
-          <div className="text-center mb-16">
+          <div className="text-center mb-12">
             <h2
               id="features-title"
               className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4"
@@ -205,7 +207,7 @@ export async function FeaturesSection({ lng }: FeaturesSectionProps) {
         </FadeInOnScroll>
 
         {/* Hero features — connectors & tools with accent colors */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-4 gap-6 mb-14">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {HERO_FEATURES.map(({ key, icon: Icon, accent, iconBg }, i) => (
             <FadeInOnScroll key={key} delay={i * 100}>
               <Card className="hover-lift hover-glow h-full border-border/60 overflow-hidden">
@@ -263,13 +265,10 @@ export async function FeaturesSection({ lng }: FeaturesSectionProps) {
                     </div>
                   </div>
 
-                  {/* Group feature cards */}
-                  <div
-                    className={cn(
-                      'grid grid-cols-1 sm:grid-cols-2 gap-3',
-                      features.length === 5 ? 'mobile:grid-cols-5' : 'mobile:grid-cols-4'
-                    )}
-                  >
+                  {/* Group feature cards — standard rem breakpoints only:
+                      the custom px-based `mobile:` variant does not order
+                      reliably against `sm:` on the same property */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {features.map(({ key, icon: Icon }) => (
                       <Card
                         key={key}
@@ -327,7 +326,7 @@ export async function FeaturesSection({ lng }: FeaturesSectionProps) {
           </div>
         </FadeInOnScroll>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {RESPONSIBLE_FEATURES.map(({ key, icon: Icon }, i) => (
             <FadeInOnScroll key={key} delay={i * 60}>
               <Card className={cn('hover-lift hover-glow h-full border-primary/20 bg-primary/5')}>

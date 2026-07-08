@@ -92,7 +92,10 @@ export function buildAppCsp(isDev: boolean, apiUrl: string | undefined): string 
   return [
     "default-src 'self'",
     // blob: → voice AudioWorklets + Sherpa glue loader (see module docstring)
-    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:${isDev ? " 'unsafe-eval'" : ''}`,
+    // static.cloudflareinsights.com → the analytics beacon Cloudflare injects
+    // at the edge in production; without the allowance it dies as a console
+    // CSP error on every public page
+    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://static.cloudflareinsights.com${isDev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     // https: for user-facing remote images (chat markdown, connector data);

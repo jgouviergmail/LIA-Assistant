@@ -43,7 +43,7 @@ export function ScreenshotsSection() {
   return (
     <section
       id="screenshots"
-      className="landing-section py-24 bg-card"
+      className="landing-section py-20 bg-card"
       aria-labelledby="screenshots-title"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -62,9 +62,10 @@ export function ScreenshotsSection() {
         </FadeInOnScroll>
 
         <FadeInOnScroll delay={100}>
-          {/* Main screenshot display */}
+          {/* Main screenshot display — portrait-friendly frame (the captures
+              are ~0.65–0.88 ratio; a 16/10 frame letterboxes them badly) */}
           <div className="relative group">
-            <div className="relative aspect-[16/10] w-full max-w-5xl mx-auto rounded-xl overflow-hidden border border-border/60 shadow-2xl bg-background">
+            <div className="relative h-[480px] mobile:h-[620px] w-full max-w-3xl mx-auto rounded-xl overflow-hidden border border-border/60 shadow-2xl bg-gradient-to-b from-muted/40 to-background">
               <Image
                 src={active.src}
                 alt={t(`landing.screenshots.items.${active.key}`)}

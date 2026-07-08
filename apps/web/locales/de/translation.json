@@ -3742,6 +3742,16 @@
             "i7": "<b>Fehlermeldungen in Ihrer Sprache</b> — Antworten von Wetter und Philips Hue-Smart-Beleuchtung werden nun in Ihre bevorzugte Sprache übersetzt, statt standardmäßig auf Französisch.",
             "i8": "<b>Intelligentere mobile Tastatur</b> — Auf dem Smartphone aktiviert die Chat-Eingabe nun Auto-Großschreibung, Autokorrektur und zeigt eine eigene „Senden\"-Taste auf der nativen Tastatur, statt einer einfachen Eingabetaste."
           }
+        },
+        "v1_21_17": {
+          "title": "v1.21.17 — ✨ Neue Vitrine & Story-Seite",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📖 Neue „Story“-Seite</b> — Entdecken Sie, wie LIA gebaut wird: Fast 100 % des Codes werden von einer KI unter menschlicher Führung geschrieben — schriftliche Engineering-Regeln, blockierende automatische Prüfungen, systematische Reviews, kontradiktorische Audits. Erreichbar über das Seitenmenü (Story) und auf der Startseite mit den Kennzahlen zusammengefasst.",
+            "i2": "<b>✨ Eine Vitrine, die das echte Produkt zeigt</b> — Die öffentliche Startseite öffnet jetzt mit einer live animierten Konversation (Entwurfsfreigabe, Wetterkarte, Multi-Agenten-Suche), einem Band verifizierter Zahlen (Agenten, Tools, Tests, Versionen) und einer klareren Gegenüberstellung der zwei Ausführungsmodi. Jede Zahl wurde am Code nachgeprüft — darunter 7 KI-Anbieter statt 8 — in allen sechs Sprachen.",
+            "i3": "<b>🔓 Öffentliche Seiten wieder ohne Konto erreichbar</b> — Nicht angemeldete Besucher, die Philosophie, Technik, Blog oder FAQ öffneten, wurden nach wenigen Sekunden stillschweigend zur Anmeldeseite umgeleitet. Behoben — und ein Wächter-Test verhindert künftig die Rückkehr dieses Fehlers."
+          }
         }
       }
     },
@@ -3749,7 +3759,7 @@
       "getting_started": {
         "title": "Erste Schritte",
         "description": "Wie Sie mit LIA beginnen",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Was ist LIA?",
@@ -3774,6 +3784,10 @@
           "q6": {
             "question": "Kann LIA Fehler machen?",
             "answer": "Wie jeder KI-Assistent kann LIA manchmal eine Anfrage falsch interpretieren. So erzielen Sie die besten Ergebnisse:<br><br><strong>✅ Best Practices:</strong><br>• Seien Sie spezifisch: \"<em>Sende eine E-Mail an johann.schmidt@email.com</em>\" statt \"<em>Sende eine E-Mail an Johann</em>\"<br>• Geben Sie Kontext: \"<em>Finde meine E-Mails von dieser Woche über das Alpha-Projekt</em>\"<br>• Überprüfen Sie Vorschauen, bevor Sie Aktionen genehmigen<br><br><strong>⚠️ Bei einem Fehler:</strong><br>• Formulieren Sie Ihre Anfrage mit mehr Details um<br>• Verwenden Sie spezifische Daten (\"<em>15. Januar</em>\") statt relativer (\"<em>letzte Woche</em>\")<br>• Überprüfen Sie bei wichtigen E-Mails immer die Vorschau<br><br><strong>🛡️ Eingebaute Sicherheit:</strong><br>Dank des Genehmigungssystems wird keine kritische Aktion ohne Ihre explizite Validierung ausgeführt."
+          },
+          "q7": {
+            "question": "Wie wurde LIA gebaut?",
+            "answer": "Fast <strong>100 % des Codes von LIA werden von einer KI geschrieben</strong>, unter menschlicher Führung: schriftliche Engineering-Regeln, blockierende automatische Prüfungen, ein Review-Zyklus, in dem der Mensch entscheidet, und wiederkehrende kontradiktorische Audits (letzte Bewertung: 8,0/10 über 20 Bereiche).<br><br>Die ganze Geschichte — Methode, Abwägungen, Betrieb und was noch zu tun bleibt — steht auf der <a href=\"/de/story\">Story-Seite</a>; der Quellcode ist offen auf <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
           }
         }
       },
@@ -5340,7 +5354,7 @@
   "landing": {
     "meta": {
       "title": "LIA — Open-Source KI-Assistent | Multi-Agenten, HITL, 6 Sprachen",
-      "description": "LIA orchestriert 19+ spezialisierte KI-Agenten für E-Mails, Kalender, Kontakte, Drive und mehr. Open Source, menschliche Validierung (HITL), 8 LLM-Anbieter, 6 Sprachen. Privacy by Design."
+      "description": "LIA orchestriert 19+ spezialisierte KI-Agenten für E-Mails, Kalender, Kontakte, Drive und mehr. Open Source, menschliche Validierung (HITL), 7 LLM-Anbieter, 6 Sprachen. Privacy by Design."
     },
     "nav": {
       "features": "Überblick",
@@ -5352,7 +5366,8 @@
       "blog": "Blog",
       "philosophy": "Philosophie",
       "technical": "Technik",
-      "faq": "FAQ"
+      "faq": "FAQ",
+      "story": "Story"
     },
     "hero": {
       "badge_beta": "BETA",
@@ -5367,7 +5382,6 @@
       "subtitle_line2": "Sie orchestriert dein digitales Leben im Hintergrund — von Sarkasmus bis Empathie.",
       "subtitle_line3": "Ein Klick genügt, und du behältst immer das letzte Wort.",
       "cta_primary": "BETA beitreten",
-      "cta_secondary": "Entdecken",
       "scroll_hint": "Scrollen zum Entdecken",
       "trust_agents": "KI-Agenten",
       "trust_providers": "LLM-Anbieter",
@@ -5382,7 +5396,25 @@
       "lia_planning": "Ich erstelle einen humorvollen E-Mail-Entwurf für Marie...",
       "lia_hitl": "Hier ist der Entwurf. Möchtest du ihn absenden?",
       "user_approve": "Absenden!",
-      "lia_done": "E-Mail erfolgreich an Marie gesendet!"
+      "lia_done": "E-Mail erfolgreich an Marie gesendet!",
+      "draft_subject": "Betreff: Heute Abend etwas später (aber mit Stil) 😅",
+      "btn_send": "Senden",
+      "btn_edit": "Bearbeiten",
+      "aria": "Animierte Demo: LIA antwortet mit HTML-Karten und Markdown, ergreift domänenübergreifende Initiative und bittet vor jeder sensiblen Aktion um deine Freigabe.",
+      "s2_user_message": "Wie wird das Wetter morgen? Ich wollte nach der Arbeit laufen gehen",
+      "s2_card_title": "Wetter · Morgen",
+      "s2_card_desc": "Heiter, Schauer ab 18 Uhr",
+      "s2_slot_morning": "Vormittag",
+      "s2_slot_afternoon": "Nachmittag",
+      "s2_slot_evening": "Abend",
+      "s2_initiative": "Regen um 18 Uhr — und um 18:30 steht „Laufen“ in deinem Kalender. Morgen um 7:30 scheint die Sonne: soll ich es verschieben?",
+      "s3_user_message": "Finde mir ein gutes Café, das jetzt geöffnet ist, zum Arbeiten",
+      "s3_status": "3 Agenten parallel: Standort, Orte, Routen…",
+      "s3_md_intro": "Hier die 3 bestbewerteten, jetzt geöffnet:",
+      "s3_md_walk": "Min. zu Fuß",
+      "chip_hitl": "HITL",
+      "chip_cards": "HTML-Karten",
+      "chip_markdown": "Markdown"
     },
     "how_it_works": {
       "title": "So funktioniert's",
@@ -5442,8 +5474,8 @@
         "description": "Multi-Quellen-Websuche (Brave, Perplexity, Wikipedia), Echtzeit-Wetter und 5-Tage-Vorhersage, Suche nach Orten und Geschäften in der Nähe, Routenberechnung mit mehreren Modi (Auto, Fuß, Fahrrad, ÖPNV), automatische Geolokalisierung."
       },
       "voice_mode": {
-        "title": "100% lokaler Sprachmodus",
-        "description": "Sprich mit LIA und höre ihre Antworten. Sofortige Spracherkennung, individuelles Aktivierungswort und natürliche Multi-Engine-Sprachsynthese. Funktioniert auch über Telegram-Sprachnachrichten."
+        "title": "Sprachmodus, lokale Erkennung",
+        "description": "Sprich mit LIA und höre ihre Antworten. Aktivierungswort und Spracherkennung laufen vollständig in deinem Browser — nichts wird gesendet, bevor du LIA ansprichst. Natürliche Multi-Engine-Sprachsynthese. Funktioniert auch über Telegram-Sprachnachrichten."
       },
       "natural_language": {
         "title": "Natürliche Sprache",
@@ -5478,7 +5510,7 @@
         "description": "Nutze LIA über den Browser, Telegram oder erhalte Push-Benachrichtigungen auf deinem Handy. Deine Gespräche überall synchronisiert."
       },
       "personalities": {
-        "title": "Über 10 Persönlichkeiten",
+        "title": "14 Persönlichkeiten",
         "description": "Professor, Freund, Philosoph, Zyniker, Influencer, Enthusiastisch, Dichter, Coach und viele mehr. Wähle den Ton, der zu dir passt, LIA passt jede Antwort an."
       },
       "psyche": {
@@ -5564,6 +5596,10 @@
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
         "description": "Administratoren diagnostizieren Server in natürlicher Sprache: Docker-Logs, Container-Gesundheit, Speicherplatz — Claude Code CLI im API-Container integriert."
+      },
+      "briefing": {
+        "title": "Tagesbriefing",
+        "description": "Jeden Morgen dein Tag auf einen Blick: personalisierte Synthese, Wetter, Kalender, Geburtstage, Erinnerungen, Gesundheit und ungelesene E-Mails — noch bevor du fragst."
       }
     },
     "use_cases": {
@@ -5572,23 +5608,23 @@
       "intro": "Jede Anfrage kann mehrere Agenten gleichzeitig mobilisieren. LIA identifiziert automatisch die relevanten Bereiche, erstellt einen Ausführungsplan und koordiniert die Agenten parallel — alles in wenigen Sekunden, mit Ihrer Genehmigung bei sensiblen Aktionen.",
       "example1": {
         "query": "Finde die 3 besten Cafés in meiner Nähe, die jetzt geöffnet sind, und zeige mir die Fußwege dorthin",
-        "description": "Geolokalisierung + Orte + Routen — kontextuelle Multi-Kriterien-Suche"
+        "description": "LIA aktiviert 3 Agenten parallel: Geolokalisierung für deine aktuelle Position, Ortssuche mit Filter „jetzt geöffnet\" und Berechnung der Fußwege. Die Ergebnisse erscheinen als interaktive Karten mit Entfernungen und Gehzeiten."
       },
       "example2": {
         "query": "Schicke eine E-Mail an meine Frau und meinen Sohn, dass ich 30 Minuten zu spät komme. Schreib es etwas humorvoll, damit sie es mir nicht übel nehmen",
-        "description": "Kontakte (Gedächtnis) + E-Mails — personalisiertes Schreiben an mehrere Empfänger"
+        "description": "LIA findet die Kontakte im Gedächtnis, verfasst eine E-Mail im gewünschten Ton und sendet sie nach deiner Freigabe an beide Empfänger. Persönlichkeit und Schreibstil passen sich der Anweisung an."
       },
       "example3": {
         "query": "Wann muss ich losfahren, um morgen um 21 Uhr an der Bastille anzukommen, wenn ich öffentliche Verkehrsmittel nehme?",
-        "description": "Routen + Fahrpläne — umgekehrte Abfahrtszeitberechnung"
+        "description": "Der Routen-Agent berechnet die Fahrzeit mit öffentlichen Verkehrsmitteln und leitet die optimale Abfahrtszeit ab. Das Ergebnis erscheint als interaktive Karte mit den Etappen der Strecke."
       },
       "example4": {
         "query": "Erstelle eine Erinnerung am Vorabend um 19 Uhr für jeden meiner Termine diese Woche",
-        "description": "Kalender + Erinnerungen — automatische FOR_EACH Bulk-Iteration"
+        "description": "LIA prüft deinen Kalender, identifiziert alle Termine der Woche und erstellt für jeden eine Erinnerung am Vorabend — per automatischer FOR_EACH-Iteration. Eine einzige Anfrage genügt."
       },
       "example5": {
-        "query": "Welcher Tag diese Woche eignet sich am besten für einen Spaziergang und welche 3 Orte in der Nähe von Joinville-le-Pont wären dafür geeignet, möglichst in der Nähe eines netten Cafés?",
-        "description": "Wetter + Orte + Analyse — kontextuelle Multi-Domain-Empfehlung"
+        "query": "Welcher Tag diese Woche eignet sich am besten für einen Spaziergang im Freien, und welche 3 Orte in der Nähe von Straßburg wären dafür ideal, möglichst nahe an einem netten Café?",
+        "description": "LIA kombiniert die 5-Tage-Wettervorhersage, sucht Spazierorte in der Nähe von Straßburg und filtert jene nahe einem Café. Drei Agenten arbeiten parallel für eine vollständige Empfehlung."
       }
     },
     "audience": {
@@ -5610,14 +5646,6 @@
         "title": "Administrator",
         "description": "Kontrollieren Sie Nutzungskontingente, wählen Sie LLM-Anbieter pro Knoten und verwalten Sie Teamberechtigungen."
       }
-    },
-    "stats": {
-      "agents": "KI-Agenten",
-      "tools": "Integrierte Tools",
-      "providers": "KI-Anbieter",
-      "voice_languages": "Sprachsprachen",
-      "metrics": "Metriken",
-      "ui_languages": "Oberflächensprachen"
     },
     "security": {
       "title": "Sicherheit & Datenschutz",
@@ -5644,14 +5672,14 @@
     "tech": {
       "title": "Unter der Haube",
       "subtitle": "Eine Architektur für Leistung und Skalierbarkeit",
-      "intro": "LIA bietet zwei komplementäre Ausführungsmodi.\n\nDer Pipeline-Modus (Standard) ist echte Ingenieurskunst: intelligente Planung, semantische Validierung, parallele Tool-Ausführung — bei 4- bis 8-mal weniger Token-Verbrauch als der ReAct-Modus. Der ReAct-Modus bietet maximale Autonomie: das LLM denkt Schritt für Schritt, ruft Tools nacheinander auf und passt sich in Echtzeit an.\n\nBeide Modi teilen dieselben 19+ spezialisierten Agenten, dasselbe HITL-System und Bayesianisches Pattern-Learning.",
+      "intro": "Kein Chatbot: ein Orchestrierungssystem. Jede Anfrage durchläuft semantisches Routing, einen Planner und parallel ausgeführte Agenten — instrumentiert von Ende zu Ende, vom Token bis zum Euro.\n\nHinter der Oberfläche: bayessches Plan-Lernen, hybrides BM25-+-Embeddings-Gedächtnis, eine in PostgreSQL gecheckpointete LangGraph-State-Machine. Alles selbst hostbar — bis hinunter zum Raspberry Pi.",
       "deep_dive_link": "Vollständiger technischer Einblick",
       "langgraph": {
         "title": "LangGraph",
         "description": "Agenten-Orchestrierung mit Zustandsgraphen, wellenbasierte Parallelausführung und Bayesianisches Lernen von Planmustern."
       },
       "llm_providers": {
-        "title": "8 LLM-Anbieter",
+        "title": "7 LLM-Anbieter",
         "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama. Dynamische Auswahl des besten Modells pro Aufgabentyp."
       },
       "bayesian": {
@@ -5660,7 +5688,7 @@
       },
       "hybrid_search": {
         "title": "Hybride Suche",
-        "description": "BM25 + mehrsprachige semantische Embeddings. Präzises und schnelles kontextuelles Gedächtnis, ohne API-Kosten."
+        "description": "BM25 + mehrsprachige semantische Embeddings. Präzises und schnelles kontextuelles Gedächtnis, in allen Sprachen."
       },
       "realtime": {
         "title": "Echtzeit-Streaming",
@@ -5690,17 +5718,28 @@
         "hitl": "Genehmigung",
         "orchestrator": "Orchestrator",
         "agents": "Agenten",
-        "response": "Antwort"
+        "response": "Antwort",
+        "reason": "Denkt",
+        "tools": "Handelt",
+        "observe": "Beobachtet"
       },
       "diagram_title": "Vollständige Systemarchitektur",
       "diagram_zoom": "Klicken zum Vergrößern",
-      "diagram_alt": "Vollständiges Architekturdiagramm von LIA — Multi-Agenten-Orchestrierung, Observierbarkeit und Sicherheit"
+      "diagram_alt": "Vollständiges Architekturdiagramm von LIA — Multi-Agenten-Orchestrierung, Observierbarkeit und Sicherheit",
+      "pipeline_label": "Pipeline-Modus (Standard)",
+      "pipeline_badge": "4–8× weniger Tokens",
+      "react_label": "ReAct-Modus",
+      "react_badge": "Maximale Autonomie",
+      "pipeline_desc": "Ein optimierter Plan, validiert und parallel ausgeführt — vorhersehbar und sparsam.",
+      "react_desc": "Das LLM wählt bei jedem Schritt sein nächstes Tool, bis das Ziel erreicht ist — explorativ und adaptiv.",
+      "or_label": "oder",
+      "response_hint": "Streamt Token für Token"
     },
     "screenshots": {
       "title": "LIA in Bildern",
       "subtitle": "Eine klare, intuitive Oberfläche für alle — keine technischen Kenntnisse erforderlich",
       "items": {
-        "homepage": "Dashboard — Startseite mit Nutzungsstatistiken und personalisierter Begrüßung",
+        "homepage": "Startseite — Tagesbriefing: personalisierte Synthese, Wetter, Kalender, Geburtstage, Gesundheit und Nutzungsstatistiken",
         "chat": "Chat — Multi-Agenten-Konversation mit Echtzeit-Debug-Panel",
         "chat_debug_panel": "Chat — Debug-Panel: Routing, Tool-Aufrufe, Token-Kosten und Reasoning-Zeitleiste",
         "chat_interactive_skills": "Chat — Interaktive Skills: Karten, Dashboards, Kalender und Mini-Apps inline gerendert",
@@ -5710,13 +5749,13 @@
         "settings_features_psyche": "Einstellungen — Psyche Engine: Big-Five-Persönlichkeitsmerkmale modulieren die emotionale Reaktivität",
         "settings_administration": "Administration — Vollständiges Kontrollpanel für Betreiber",
         "settings_administration_oneclick": "Administration — Ein-Klick-Einfachheit: jede Aktion sofort zugänglich",
-        "settings_administration_llm": "Administration — LLM-Konfiguration: 8 Anbieter, Modellauswahl pro Knoten",
+        "settings_administration_llm": "Administration — LLM-Konfiguration: 7 Anbieter, Modellauswahl pro Knoten",
         "faq": "FAQ — Durchsuchbares Hilfezentrum mit kategorisierten Fragen"
       }
     },
     "presentation": {
       "title": "Detaillierte Präsentation",
-      "subtitle": "Entdecken Sie LIAs Architektur, Funktionen und Philosophie in 13 Folien",
+      "subtitle": "Entdecke LIAs Architektur, Funktionen und Philosophie in 15 Folien",
       "slide_alt": "LIA-Präsentation Folie {{number}}",
       "slide_counter": "Folie {{current}} von {{total}}"
     },
@@ -5724,7 +5763,7 @@
       "title": "Bereit, LIA auszuprobieren?",
       "subtitle": "Tritt der BETA bei und entdecke, was ein wirklich intelligenter KI-Assistent für dich tun kann.",
       "button": "Mein Konto erstellen",
-      "note_beta": "Voll funktionsfähige App, alpha-getestet. Kostenpflichtige Abonnements in Kürze.",
+      "note_beta": "Vollständige Anwendung, rund um die Uhr in Produktion. Kostenlose Beta — kostenpflichtige Abos folgen.",
       "philosophy_link": "Oder entdecken Sie zuerst unsere Philosophie"
     },
     "blog_preview": {
@@ -5749,7 +5788,49 @@
       "faq": "FAQ",
       "technical": "Technik",
       "philosophy": "Philosophie",
-      "terms": "AGB"
+      "terms": "AGB",
+      "story": "Erfahrungsbericht"
+    },
+    "proof": {
+      "title": "Zahlen, die für sich sprechen",
+      "items": {
+        "tests": "Automatisierte Tests",
+        "adrs": "Architekturentscheidungen",
+        "releases": "Ausgelieferte Versionen",
+        "audit": "Technisches 360°-Audit",
+        "agents": "KI-Agenten",
+        "tools": "Integrierte Tools",
+        "providers": "LLM-Anbieter",
+        "voice_languages": "Sprachen (Voice)"
+      },
+      "audit_value": "8,0/10",
+      "rex_teaser": "Fast 100 % dieses Codes wurden von einer KI geschrieben — von einem Menschen geführt, geprüft und auditiert.",
+      "rex_link": "Zum Erfahrungsbericht"
+    },
+    "rex": {
+      "eyebrow": "Erfahrungsbericht",
+      "title": "Von einer KI gebaut. Von einem Menschen geführt.",
+      "quote": "Die Geschwindigkeit kommt von der KI. Die Qualität kommt vom Rahmen.",
+      "kpis": {
+        "ai": {
+          "value": "≈100 %",
+          "label": "des Codes von einer KI geschrieben"
+        },
+        "tests": {
+          "value": "10.000+",
+          "label": "automatisierte Tests"
+        },
+        "audit": {
+          "value": "8,0/10",
+          "label": "im technischen Audit über 20 Bereiche"
+        },
+        "lines": {
+          "value": "420.000",
+          "label": "Codezeilen, ohne Tests"
+        }
+      },
+      "body": "LIA entstand als persönliches Projekt: Eine KI schrieb den Code, ein Mensch setzte den Rahmen — schriftliche Engineering-Standards, blockierende automatische Prüfungen, systematische Reviews, kontradiktorische Audits. Die vollständige Methode, die Ergebnisse und was noch zu tun bleibt, sind offen dokumentiert.",
+      "cta": "Den vollständigen Bericht lesen"
     }
   },
   "public_footer": {
@@ -5759,7 +5840,8 @@
     "technical": "Technik",
     "philosophy": "Philosophie",
     "privacy": "Datenschutz",
-    "terms": "AGB"
+    "terms": "AGB",
+    "story": "Erfahrungsbericht"
   },
   "privacy": {
     "meta": {
@@ -6603,5 +6685,25 @@
   "conversations": {
     "search_placeholder": "Im Verlauf suchen...",
     "search_clear": "Suche löschen"
+  },
+  "story": {
+    "meta": {
+      "title": "Story — Eine KI führen, die programmiert | LIA",
+      "description": "Wie LIA entstand: ~100 % KI-geschriebener Code unter menschlicher Führung, 10.000+ Tests, 100+ ADRs, ein technisches Audit mit 8,0/10. Der vollständige Erfahrungsbericht."
+    },
+    "breadcrumb": "Erfahrungsbericht",
+    "hero": {
+      "title": "Eine KI führen, die programmiert",
+      "subtitle": "Ein vollständiges System, vom Entwurf bis zur Produktion — die Methode, die Zahlen, der Beweis."
+    },
+    "toc": {
+      "essentials": "Das Wesentliche",
+      "approach": "Der Ansatz",
+      "method": "Die Methode",
+      "tradeoffs": "Die Abwägungen",
+      "operations": "Der Betrieb",
+      "proof": "Der Beweis",
+      "convictions": "Überzeugungen"
+    }
   }
 }

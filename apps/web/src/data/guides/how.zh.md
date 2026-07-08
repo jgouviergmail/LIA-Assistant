@@ -4,9 +4,9 @@
 >
 > 面向架构师、工程师和技术专家的技术展示文档。
 
-**版本**：2.4
-**日期**：2026-05-08
-**应用**：LIA v1.21.16
+**版本**：2.6
+**日期**：2026-07-08
+**应用**：LIA v1.21.17
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -52,8 +52,8 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | ARM64 自托管 | Docker 多架构、语义嵌入（多语言）、Playwright chromium 跨平台 |
 | 数据主权 | 本地 PostgreSQL（非 SaaS 数据库）、Fernet 静态加密、本地 Redis 会话 |
 | 多 LLM 供应商 | Factory 模式搭配 8 个适配器，按节点配置，不与特定供应商强耦合 |
-| 完全透明 | 400+ Prometheus 指标、内嵌调试面板、逐 token 追踪 |
-| 生产可靠性 | 101 篇 ADR、由 pytest 在 484 个文件中收集的 ~10,000 个测试、原生可观测性、6 层 HITL |
+| 完全透明 | 394 Prometheus 指标、内嵌调试面板、逐 token 追踪 |
+| 生产可靠性 | 101 篇 ADR、由 pytest 在 555 个文件中收集的 ~10,100 个测试、原生可观测性、6 层 HITL |
 | 成本可控 | Smart Services（节省 89% token）、语义嵌入、prompt 缓存、目录过滤 |
 
 ### 1.2. 架构原则
@@ -71,12 +71,12 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 
 | 指标 | 数值 |
 |------|------|
-| 测试 | ~10,000 个（由 pytest 在 484 个测试文件中收集）+ 前端 41 个 vitest 测试 |
+| 测试 | ~10,100 个（由 pytest 在 555 个测试文件中收集）+ 前端 169 个 vitest 测试 |
 | 可复用 Fixtures | 170+ |
 | 文档 | 280+ |
-| ADR（架构决策记录） | 101 |
-| Prometheus 指标 | 400+ 定义 |
-| Grafana 仪表板 | 21 |
+| ADR（架构决策记录） | 100+ |
+| Prometheus 指标 | 394 定义 |
+| Grafana 仪表板 | 22 |
 | 支持语言（i18n） | 6（fr、en、de、es、it、zh） |
 
 ---
@@ -88,15 +88,15 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | 技术 | 版本 | 角色 | 选型原因 |
 |------|------|------|---------|
 | Python | 3.12+ | 运行时 | 最丰富的 ML/AI 生态系统、原生异步、完整类型标注 |
-| FastAPI | 0.135.1 | REST API + SSE | Pydantic 自动验证、OpenAPI 文档、async-first、高性能 |
-| LangGraph | 1.1.2 | 多智能体编排 | 唯一原生支持状态持久化 + 循环 + 中断（HITL）的框架 |
-| LangChain Core | 1.2.19 | LLM/工具抽象 | `@tool` 装饰器、消息格式、标准化回调 |
-| SQLAlchemy | 2.0.48 | 异步 ORM | `Mapped[Type]` + `mapped_column()`、异步会话、`selectinload()` |
+| FastAPI | 0.136.3 | REST API + SSE | Pydantic 自动验证、OpenAPI 文档、async-first、高性能 |
+| LangGraph | 1.2.2 | 多智能体编排 | 唯一原生支持状态持久化 + 循环 + 中断（HITL）的框架 |
+| LangChain Core | 1.4.0 | LLM/工具抽象 | `@tool` 装饰器、消息格式、标准化回调 |
+| SQLAlchemy | 2.0.50 | 异步 ORM | `Mapped[Type]` + `mapped_column()`、异步会话、`selectinload()` |
 | PostgreSQL | 16 + pgvector | 数据库 + 向量搜索 | 原生 LangGraph 检查点、HNSW 语义搜索、成熟度 |
-| Redis | 7.3.0 | 缓存、会话、限流 | O(1) 操作、原子滑动窗口（Lua）、SETNX 领导者选举 |
-| Pydantic | 2.12.5 | 验证 + 序列化 | `ConfigDict`、`field_validator`、通过 MRO 组合设置 |
+| Redis | 7.4.0 | 缓存、会话、限流 | O(1) 操作、原子滑动窗口（Lua）、SETNX 领导者选举 |
+| Pydantic | 2.13.4 | 验证 + 序列化 | `ConfigDict`、`field_validator`、通过 MRO 组合设置 |
 | structlog | latest | 结构化日志 | JSON 输出、自动 PII 过滤、snake_case 事件 |
-| openai | 1.0+ | 语义嵌入 | OpenAI 多语言嵌入，优化语义路由 |
+| Gemini Embeddings | gemini-embedding-001 | 语义嵌入 | Gemini多语言嵌入（记忆、路由、兴趣、日志）— ADR-069 |
 | Playwright | latest | 浏览器自动化 | Chromium 无头模式、CDP 无障碍树、跨平台 |
 | APScheduler | 3.x | 后台任务 | Cron/间隔触发器、兼容 Redis 领导者选举 |
 
@@ -104,13 +104,13 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 
 | 技术 | 版本 | 角色 |
 |------|------|------|
-| Next.js | 16.1.7 | App Router、SSR、ISR |
-| React | 19.2.4 | UI（含 Server Components） |
-| TypeScript | 5.9.3 | 严格类型 |
-| TailwindCSS | 4.2.1 | 实用优先 CSS |
-| TanStack Query | 5.90 | 服务端状态管理、缓存、变更 |
+| Next.js | 16.2.7 | App Router、SSR、ISR |
+| React | 19.2.5 | UI（含 Server Components） |
+| TypeScript | 6.0.2 | 严格类型 |
+| TailwindCSS | 4.2.2 | 实用优先 CSS |
+| TanStack Query | 5.99 | 服务端状态管理、缓存、变更 |
 | Radix UI | v2 | 无障碍 UI 基元 |
-| react-i18next | 16.5 | i18n（6 种语言），基于命名空间 |
+| react-i18next | 17.0 | i18n（6 种语言），基于命名空间 |
 | Zod | 3.x | 调试模式的运行时验证 |
 
 ### 2.3. 支持的 LLM 提供商
@@ -125,7 +125,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | Qwen | qwen3.5-plus、qwen3.5-flash、qwen3-max | 思考模式、工具 + 视觉（阿里云） |
 | Ollama | 所有本地模型（动态发现） | 零 API 成本、自托管 |
 
-**为什么要 8 个提供商？** 这并非为了收藏而收藏，而是一种弹性策略：管道中的每个节点可以分配不同的提供商。如果 OpenAI 提价，路由器切换到 DeepSeek。如果 Anthropic 宕机，响应切换到 Gemini。LLM 抽象层（`src/infrastructure/llm/factory.py`）使用 Factory 模式配合 `init_chat_model()`，并通过特定适配器覆盖（`ResponsesLLM` 用于 OpenAI 的 Responses API，通过正则表达式 `^(gpt-4\.1|gpt-5|o[1-9])` 判断适用性）。
+**为什么要 7 个提供商？** 这并非为了收藏而收藏，而是一种弹性策略：管道中的每个节点可以分配不同的提供商。如果 OpenAI 提价，路由器切换到 DeepSeek。如果 Anthropic 宕机，响应切换到 Gemini。LLM 抽象层（`src/infrastructure/llm/factory.py`）使用 Factory 模式配合 `init_chat_model()`，并通过特定适配器覆盖（`ResponsesLLM` 用于 OpenAI 的 Responses API，通过正则表达式 `^(gpt-4\.1|gpt-5|o[1-9])` 判断适用性）。
 
 ---
 
@@ -423,7 +423,7 @@ QueryAnalyzer 产生的远不止领域检测——它生成深度 `QueryIntellig
 
 | 属性 | 值 |
 |------|------|
-| 供应商 | OpenAI |
+| 供应商 | Google Gemini (`gemini-embedding-001`) |
 | 语言 | 100+ |
 | 精度提升 | 相比纯 LLM 路由，Q/A 匹配提升 +48% |
 
@@ -575,7 +575,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` 通过 `get_llm_config_for_agent(settings, agent_type)` 解析有效配置（代码默认值 → 数据库管理员覆盖），实例化模型，并应用特定适配器。
 
-### 12.2. 34 种 LLM 配置类型
+### 12.2. 54 种 LLM 配置类型
 
 管道中的每个节点都可通过 Admin UI 独立配置 — 无需重新部署：
 
@@ -737,8 +737,8 @@ URL → SSRF 验证（DNS + IP 黑名单 + 重定向后重检） → 可读性�
 
 | 技术 | 角色 |
 |------|------|
-| Prometheus | 400+ 自定义指标（RED 模式） |
-| Grafana | 20 个生产就绪仪表板 |
+| Prometheus | 394 自定义指标（RED 模式） |
+| Grafana | 22 个生产就绪仪表板 |
 | Loki | JSON 结构化日志聚合 |
 | Tempo | 跨服务分布式追踪（OTLP gRPC） |
 | Langfuse | LLM 专用追踪（prompt 版本、token 用量） |
@@ -764,12 +764,14 @@ URL → SSRF 验证（DNS + IP 黑名单 + 重定向后重检） → 可读性�
 | 指标 | 值 | SLO |
 |------|------|-----|
 | API 延迟 | 450 ms | < 500 ms |
-| TTFT（首 token 时间） | 380 ms | < 500 ms |
+| 首个SSE事件（请求已确认） | 380 ms | < 500 ms |
 | 路由器延迟 | 800 ms | < 2 s |
 | 规划器延迟 | 2.5 s | < 5 s |
 | 语义嵌入 | 约 100 ms | < 200 ms |
 | 检查点保存 | < 50 ms | P95 |
 | Redis 会话查找 | < 5 ms | P95 |
+
+> 这些延迟衡量的是基础设施。完整的感知响应时间取决于LLM调用链（从几秒到几十秒不等，视请求复杂度和硬件而定）——这是当前主要的优化方向，已在生产环境中度量并纳入路线图。
 
 ### 21.2. 已实施的优化
 
@@ -1007,10 +1009,10 @@ LIA 通过统一模式接受外部事件摄入（iPhone Apple Health 样本、�
 
 LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个生产级的多智能体 AI 助手，透明、安全、可扩展，并且能在 Raspberry Pi 上运行。
 
-101 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。484 个文件里的 ~10,000 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
+101 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。555 个文件里的 ~10,100 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
 
 子系统之间的交织 — 心理记忆、贝叶斯学习、语义路由、系统化 HITL、LLM 驱动的主动性、内省日志 — 创造了一个各组件相互增强的系统。HITL 为模式学习提供数据，模式学习降低成本，降低的成本支撑更多功能，更多功能为记忆产生更多数据，记忆改善响应质量。这是一个设计中的良性循环，而非偶然。
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、101 篇 ADR 及变更日志（v1.0 至 v1.21.16）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、101 篇 ADR 及变更日志（v1.0 至 v1.21.17）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

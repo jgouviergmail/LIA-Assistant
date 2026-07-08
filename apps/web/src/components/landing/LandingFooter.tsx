@@ -28,10 +28,11 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
     {
       title: t('landing.footer.resources'),
       links: [
+        { label: t('landing.footer.story'), href: buildLocalizedPath('/story', lang) },
+        { label: t('landing.footer.philosophy'), href: buildLocalizedPath('/why', lang) },
+        { label: t('landing.footer.technical'), href: buildLocalizedPath('/how', lang) },
         { label: t('landing.footer.blog'), href: buildLocalizedPath('/blog', lang) },
         { label: t('landing.footer.faq'), href: buildLocalizedPath('/faq', lang) },
-        { label: t('landing.footer.technical'), href: buildLocalizedPath('/how', lang) },
-        { label: t('landing.footer.philosophy'), href: buildLocalizedPath('/why', lang) },
       ],
     },
     {

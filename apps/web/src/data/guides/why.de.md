@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 3.3
-**Datum** : 2026-05-08
-**Anwendung** : LIA v1.21.16
+**Version** : 3.5
+**Datum** : 2026-07-08
+**Anwendung** : LIA v1.21.17
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -336,7 +336,7 @@ LIA lehnt sensible Aktionen nicht ab — sie **legt sie Ihnen vor** mit dem jewe
 
 ChatGPT bindet Sie an OpenAI. Gemini an Google. Copilot an Microsoft.
 
-LIA verbindet Sie mit **8 KI-Anbietern gleichzeitig**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen und Ollama (lokale Modelle). Sie können mischen: OpenAI für die Planung, Anthropic für die Antwort, DeepSeek für Hintergrundaufgaben — alles über die Administrationsoberfläche konfigurierbar, mit einem Klick.
+LIA verbindet Sie mit **7 KI-Anbietern gleichzeitig**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen und Ollama (lokale Modelle). Sie können mischen: OpenAI für die Planung, Anthropic für die Antwort, DeepSeek für Hintergrundaufgaben — alles über die Administrationsoberfläche konfigurierbar, mit einem Klick.
 
 Wenn ein Anbieter seine Preise ändert oder seinen Service verschlechtert, wechseln Sie sofort. Keine Abhängigkeiten, keine Fallen.
 
@@ -375,5 +375,7 @@ LIA ist kein Konkurrent der Cloud-Giganten und erhebt keinen Anspruch, mit deren
 ### 10.3. Warum LIA existiert
 
 LIA existiert, weil der Welt ein KI-Assistent fehlt, der **Ihnen gehört**. Wirklich Ihnen gehört. Im Alltag einfach zu verwalten. Mit Ihren Liebsten teilbar — jeder mit seiner eigenen emotionalen Beziehung. Auf Ihrem Server gehostet. Transparent in jeder Entscheidung und bei jedem Kostenpunkt. Zu einer emotionalen Tiefe fähig, die kommerzielle Assistenten nicht bieten. Produktionszuverlässig. Und offen — offen gegenüber Anbietern, Standards und dem Quellcode.
+
+Wie LIA gebaut wird — eine KI schreibt den Code, ein Mensch führt, prüft und auditiert — erzählt ausführlich unser [Erfahrungsbericht](/de/story).
 
 **Your Life. Your AI. Your Rules.**

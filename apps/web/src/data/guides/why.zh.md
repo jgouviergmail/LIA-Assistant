@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**版本**：3.3
-**日期**：2026-05-08
-**应用**：LIA v1.21.16
+**版本**：3.5
+**日期**：2026-07-08
+**应用**：LIA v1.21.17
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -336,7 +336,7 @@ LIA不会拒绝执行敏感操作——而是以适当的详细程度**提交给
 
 ChatGPT把你绑定到OpenAI，Gemini绑定到Google，Copilot绑定到Microsoft。
 
-LIA同时连接**8家AI提供商**：OpenAI、Anthropic、Google、DeepSeek、Perplexity、Qwen，以及Ollama（本地模型）。你可以自由组合：OpenAI负责规划，Anthropic负责回复，DeepSeek处理后台任务——一切都可以在管理界面中一键配置。
+LIA同时连接**7家AI提供商**：OpenAI、Anthropic、Google、DeepSeek、Perplexity、Qwen，以及Ollama（本地模型）。你可以自由组合：OpenAI负责规划，Anthropic负责回复，DeepSeek处理后台任务——一切都可以在管理界面中一键配置。
 
 如果某家提供商调整定价或服务质量下降，你可以即刻切换。没有依赖，没有陷阱。
 
@@ -375,5 +375,7 @@ LIA不是云端巨头的竞争者，也不打算与其研究预算相抗衡。�
 ### 10.3. LIA 存在的理由
 
 LIA的存在，是因为这个世界缺少一个真正**属于你**的AI助手。真正属于你。日常管理简单。可以与你的家人朋友共享，每个人都有独特的情感关系。托管在你自己的服务器上。对每一个决策和每一分成本都透明公开。能够提供商业助手所没有的情感深度。在生产环境中稳定可靠。并且完全开放——对提供商、对标准、对代码。
+
+LIA是如何构建的——AI编写代码，人类指导、审查和审计——详见我们的[经验报告](/zh/story)。
 
 **Your Life. Your AI. Your Rules.**

@@ -112,6 +112,48 @@ function buildUrl(endpoint: string, params?: Record<string, string | number | bo
 }
 
 /**
+ * Public route segments — pages an anonymous visitor may browse.
+ *
+ * A 401 on these routes is expected (e.g. the AuthProvider session probe)
+ * and must NOT eject the visitor to /login. Every public page under
+ * `app/[lng]/` MUST be listed here: the completeness test in
+ * `__tests__/api-client.public-routes.test.ts` scans the filesystem and
+ * fails the build when a new public page is missing from this list —
+ * the exact regression that silently ejected /why, /how, /blog and /faq
+ * visitors to the login page.
+ */
+const PUBLIC_ROUTE_SEGMENTS = [
+  'login',
+  'register',
+  'registration-success',
+  'forgot-password',
+  'reset-password',
+  'verify-email',
+  'oauth-callback',
+  'why',
+  'how',
+  'story',
+  'blog',
+  'faq',
+  'privacy',
+  'terms',
+] as const;
+
+const PUBLIC_ROUTE_REGEX = new RegExp(
+  `^\\/([a-z]{2}\\/)?(${PUBLIC_ROUTE_SEGMENTS.join('|')})(\\/|$)`
+);
+
+/**
+ * Whether a pathname belongs to a public (anonymous-browsable) page.
+ *
+ * Matches with or without a locale prefix — /why, /en/blog/mcp-protocol,
+ * /fr/story, /login — plus the landing root (/, /en, /fr/).
+ */
+export function isPublicPath(pathname: string): boolean {
+  return PUBLIC_ROUTE_REGEX.test(pathname) || /^\/([a-z]{2})?\/?$/.test(pathname);
+}
+
+/**
  * Handle fetch response and errors.
  */
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -120,14 +162,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname;
 
-      // Check if on a public route (auth pages or landing page)
-      // Matches: /login, /register, /oauth-callback, /, /en, /fr/
-      // Also matches: /en/login, /fr/register, /es/oauth-callback, etc.
-      const isPublicRoute =
-        pathname.match(/^\/([a-z]{2}\/)?(login|register|oauth-callback)/) ||
-        pathname.match(/^\/([a-z]{2})?\/?$/);
-
-      if (!isPublicRoute) {
+      if (!isPublicPath(pathname)) {
         // Extract current language from pathname (e.g., /en/dashboard → 'en')
         const langMatch = pathname.match(/^\/([a-z]{2})\//);
         const currentLang = langMatch ? langMatch[1] : null;

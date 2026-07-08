@@ -55,9 +55,11 @@ describe('buildAppCsp (strict app policy)', () => {
     expect(prod.get('worker-src')).toEqual(["'self'", 'blob:']);
   });
 
-  it('never allows external script hosts (the whole point of the policy)', () => {
+  it('allows exactly one external script host — the Cloudflare Insights beacon injected at the edge', () => {
     const scriptSrc = prod.get('script-src') ?? [];
-    expect(scriptSrc.filter(s => s.startsWith('https://'))).toEqual([]);
+    expect(scriptSrc.filter(s => s.startsWith('https://'))).toEqual([
+      'https://static.cloudflareinsights.com',
+    ]);
   });
 
   it('covers Google Fonts (stylesheet + font files)', () => {

@@ -21,10 +21,10 @@
 <p align="center">
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22%20LTS-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22 LTS"></a>
-  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.135.3-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.136.3-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
-  <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.1.6-FF6F00?style=flat-square" alt="LangGraph"></a>
-  <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.2.15-4B8BBE?style=flat-square" alt="LangChain"></a>
+  <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.2.2-FF6F00?style=flat-square" alt="LangGraph"></a>
+  <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.3.2-4B8BBE?style=flat-square" alt="LangChain"></a>
   <a href="#internationalization-i18n--6-languages"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
   <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
   <a href="https://deepwiki.com/jgouviergmail/LIA-Assistant"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
@@ -40,7 +40,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.21.16</strong> — <strong>Dead-code remediation (S7, ADR-107) &amp; API-key client consolidation (ADR-108).</strong> A maintenance release — no user-facing feature change, no DB migration. <strong>Removed:</strong> ~13,600 lines of proven-dead code in five verified clusters — the v3 autonomy engines (<code>autonomous_executor</code>, <code>feedback_loop</code>, <code>relevance_engine</code>), the plan-level approval framework (<code>plan_editor</code>, approval strategies, the never-called <code>hitl_orchestrator</code> ghost service and its policies package), the fluent <code>manifest_builder</code>, the parallel <code>state_keys</code> constants, the contacts-v2 models — plus their inert settings/env vars, 18 orphaned Prometheus metrics, 11 dead recording rules, 7 dead alerts, 23 no-data Grafana panels and every phantom test. Each deletion was proven safe by import-graph closure analysis, runtime "simulated deletion" (full suite with the modules blocked) and fresh-container boots. <strong>Consolidated:</strong> the Brave, OpenWeatherMap and Perplexity clients now inherit a hardened <code>BaseAPIKeyClient</code> — Redis-backed rate limiting (multi-worker correct), shared circuit breaker (new public <code>CircuitBreaker.check()</code>, private-API usage eliminated from the oauth/apple bases too), retry with backoff (429 <code>Retry-After</code> date-tolerant, malformed-200 bodies retried), domain error taxonomy — with constructors, signatures and error contracts pinned by 37 characterization tests written against the legacy implementations and kept byte-identical through the migration. <strong>Fixed:</strong> pooled HTTP clients are now closed deterministically (new <code>ToolDependencies.aclose()</code> at end of run + try/finally on the direct call sites) instead of leaking sockets until GC. <strong>Tests:</strong> ~10,140 backend tests green with zero new failures at every checkpoint; Ruff / Black / MyPy strict clean repo-wide; i18n parity across all 6 locales; five healthy fresh boots. — 7 July 2026.
+  <strong>Version 1.21.17</strong> — <strong>Public-showcase overhaul &amp; anonymous-visitor fix.</strong> A frontend/documentation release — no backend change, no DB migration. <strong>Added:</strong> a new <a href="https://lia.jeyswork.com/story"><code>/story</code></a> field-report page in all 6 languages (how LIA is built: ~100% AI-written code under human direction — rulebook, blocking checks, deciding review, adversarial audits — with the measured 8.0/10 / 20-area profile, weaknesses included), wired into the nav, both footers and a new landing section; an animated three-scenario hero chat demo mirroring the real display modes (HITL draft approval, rich HTML weather card + proactive cross-domain initiative, multi-agent Markdown reply); an engineering proof band (19+ agents · 76 tools · 7 providers · 10,000+ tests · 100+ ADRs · 120+ releases); a Today-briefing feature card. <strong>Changed:</strong> the two-mode diagram now shows the real topology (router fork, five numbered pipeline steps with the human-approval step highlighted, ReAct reason→act→observe loop, streaming convergence); every public number re-derived from the codebase and corrected across all six locales — 7 LLM providers (not 8: "Mistral" was an Ollama-served model), 394 metrics, 22 dashboards, 54 LLM types, Gemini embeddings (not OpenAI), honest latency framing — plus a unified French tutoiement on the landing and rewritten de/es/it/zh use-case copy. <strong>Fixed:</strong> a production bug silently redirecting every logged-out visitor from the public pages (/why, /how, /blog, /faq) to /login — the 401-handler public-route list now covers all public pages and is locked by a filesystem-completeness test (31 new tests); the Cloudflare Insights beacon is CSP-allowed (test-pinned, ADR-098); SEO JsonLd repaired (wrong GitHub URL, hardcoded 1.8.2 softwareVersion) and <code>llms.txt</code> rewritten. <strong>Tests:</strong> 200 vitest green (169 + 31), tsc strict &amp; ESLint clean, i18n parity across all 6 locales, every change verified on the rendered app (desktop, mobile, dark mode, anonymous session). — 8 July 2026.
 </p>
 
 ---
@@ -49,6 +49,7 @@
 
 - [Why LIA?](#why-lia)
 - [Try LIA Online](#try-lia-online)
+- [Built by an AI, Directed by a Human](#built-by-an-ai-directed-by-a-human)
 - [Screenshots](#screenshots)
 - [Features](#features)
 - [Administration & Monitoring](#administration--monitoring)
@@ -75,8 +76,8 @@
 |---------|---------------------|
 | **Unpredictable LLM costs** | Real-time token tracking, budget alerts, 93% optimization |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
-| **Fragmented integrations** | Unified multi-domain orchestration (18 agents + MCP + sub-agents) |
-| **Limited observability** | 500+ Prometheus metrics, 20 Grafana dashboards, GeoIP analytics |
+| **Fragmented integrations** | Unified multi-domain orchestration (19+ agents + MCP + sub-agents) |
+| **Limited observability** | 394 Prometheus metrics, 22 Grafana dashboards, GeoIP analytics |
 | **Inconsistent performance** | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring |
 
 ### Primary Use Cases
@@ -99,6 +100,23 @@
 LIA is available as a hosted service at **https://lia.jeyswork.com/** — no installation required.
 
 > **Closed beta**: Access is currently limited to a restricted number of users, at the administrator's discretion. To request an invitation, contact **liamyassistant@gmail.com**.
+
+---
+
+## Built by an AI, Directed by a Human
+
+> *"Speed comes from the AI. Quality comes from the framework."*
+
+Nearly **100% of this codebase was written by an AI**, under human direction: a written
+engineering rulebook, blocking automated checks, systematic review, adversarial audits.
+The result is measured, not proclaimed:
+
+| | | | |
+|---|---|---|---|
+| **31** functional domains | **420,000** lines of code (excl. tests) | **10,000+** automated tests | **100+** ADRs |
+| **120+** versions shipped | **6 languages**, parity enforced in CI | **394** Prometheus metrics | **8.0/10** 360° technical audit |
+
+- **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 
 ---
 
@@ -159,7 +177,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 <p align="center">
   <img src="docs/assets/screenshot-settings-administration-llm.png" alt="Settings — LLM Configuration with multi-provider support" width="800" />
-  <br /><em>Administration — LLM Configuration: 8 providers (OpenAI, Anthropic, DeepSeek, Qwen, Perplexity, Ollama, Gemini, Mistral), per-node model selection</em>
+  <br /><em>Administration — LLM Configuration: 7 providers (OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama), per-node model selection</em>
 </p>
 
 <p align="center">
@@ -294,10 +312,14 @@ ExecutionStep(
 | FOR_EACH Confirm | Bulk mutations | WARNING |
 | Modifier Review | Review and approve AI-suggested modifications to draft content | INFO |
 
+> Note: the plan-approval level is currently auto-approved — tool-level HITL supersedes it
+> (see [ADR-106](docs/architecture/ADR-106-HITL-Contract-Coherence.md)); the other five levels
+> interrupt execution and wait for the user.
+
 ### Enterprise Observability
 
-- **Prometheus**: 500+ custom metrics (agents, LLM, infrastructure)
-- **Grafana**: 20 production-ready dashboards
+- **Prometheus**: 394 custom metrics (agents, LLM, infrastructure)
+- **Grafana**: 22 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
 - **Tempo**: Distributed cross-service tracing
@@ -450,11 +472,15 @@ LIA is fully translated in **6 languages**: English, French, German, Spanish, It
 - **Skills**: Auto-translated descriptions in all 6 languages
 - **react-i18next**: Namespace-based translations with `locales/{lang}/translation.json`
 
-### Landing Page
+### Landing Page & Public Showcase
 
-- **Presentation page**: Responsive landing page with animated components (Hero, Features, Architecture, Security, Stats, Use Cases, How It Works, CTA)
-- **SEO & OpenGraph**: Dynamically generated OG image for social media previews
-- **Authenticated redirect**: Automatic redirect to dashboard if already logged in
+- **Animated hero chat demo**: three rotating scenarios mirroring the real display modes — HITL draft approval, rich HTML weather card + proactive cross-domain initiative, multi-agent Markdown reply — with per-mode title-bar chips
+- **Proof band**: verifiable engineering numbers (agents, tools, providers, tests, ADRs, releases, audit score) sourced from the codebase (`LANDING_STATS` documents each origin)
+- **Two-mode diagram**: faithful LangGraph topology — router fork, five numbered pipeline steps (human approval highlighted), ReAct reason→act→observe loop, streaming convergence
+- **`/story` field report** (6 languages): how LIA is built — method, trade-offs, operations, measured audit profile — on the /why–/how guide pattern
+- **SEO & OpenGraph**: dynamically generated OG image, per-locale hreflang, JsonLd (WebSite, Organization, SoftwareApplication, breadcrumbs), `llms.txt` for AI crawlers
+- **Public-route guard**: the 401 handler's public-page list is pinned by a filesystem-completeness test — a new public page missing from the list fails CI instead of ejecting anonymous visitors to /login
+- **Authenticated redirect**: automatic redirect to dashboard if already logged in
 
 ---
 
@@ -691,7 +717,7 @@ apps/api/src/
 │   └── bootstrap.py         # Initialization functions
 ├── domains/                 # Bounded Contexts (DDD)
 │   ├── agents/              # LangGraph nodes, services, tools
-│   │   ├── nodes/           # 7 nodes (router, planner, response...)
+│   │   ├── nodes/           # Graph nodes (router, planner, react ×4, response...)
 │   │   ├── services/        # Smart services, HITL
 │   │   ├── tools/           # Domain-specific tools
 │   │   └── orchestration/   # ExecutionPlan, parallel executor
@@ -750,14 +776,14 @@ apps/api/src/
 | Technology | Version | Role |
 |------------|---------|------|
 | Python | 3.12+ | Primary runtime |
-| FastAPI | 0.135.3 | REST API + SSE framework |
-| LangGraph | 1.1.6 | Multi-agent orchestration |
-| LangChain | 1.2.15 | LLM abstraction + tools |
-| SQLAlchemy | 2.0.49 | Async ORM |
-| Alembic | latest | Database migrations |
+| FastAPI | 0.136.3 | REST API + SSE framework |
+| LangGraph | 1.2.2 | Multi-agent orchestration |
+| LangChain | 1.3.2 | LLM abstraction + tools |
+| SQLAlchemy | 2.0.50 | Async ORM |
+| Alembic | 1.18.4 | Database migrations |
 | PostgreSQL | 16 + pgvector | Database + vector search |
-| Redis | 7.3.0 | Cache, sessions, rate limiting |
-| Pydantic | 2.12.5 | Validation + serialization |
+| Redis | 7.4.0 | Cache, sessions, rate limiting |
+| Pydantic | 2.13.4 | Validation + serialization |
 | structlog | latest | Structured JSON logging |
 | openai | 1.0+ | LLM provider |
 | Edge TTS | 6.1+ | Voice synthesis (free) |
@@ -769,12 +795,12 @@ apps/api/src/
 | Technology | Version | Role |
 |------------|---------|------|
 | Node.js | 22 LTS | JavaScript runtime |
-| Next.js | 16.1.7 | React framework |
-| React | 19.2.4 | UI library |
-| TypeScript | 5.9.3 | Type safety |
-| TailwindCSS | 4.2.1 | Styling |
-| TanStack Query | 5.90.16 | Server state management |
-| react-i18next | 16.5.1 | i18n (6 languages) |
+| Next.js | 16.2.7 | React framework |
+| React | 19.2.5 | UI library |
+| TypeScript | 6.0.2 | Type safety |
+| TailwindCSS | 4.2.2 | Styling |
+| TanStack Query | 5.99.0 | Server state management |
+| react-i18next | 17.0.2 | i18n (6 languages) |
 | Radix UI | latest | Accessible UI primitives |
 
 **Responsive Design**: Fully optimized for desktop, tablet, and smartphone. Adaptive layouts, touch-friendly interactions, and mobile-first components ensure a seamless experience on any device.
@@ -795,8 +821,8 @@ apps/api/src/
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 500+ metrics |
-| Grafana | 20 dashboards |
+| Prometheus | 394 metrics |
+| Grafana | 22 dashboards |
 | Loki | Aggregated logs |
 | Tempo | Distributed tracing |
 | Langfuse | LLM observability |
@@ -844,12 +870,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md) | Complete development workflow |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md) | How to create a new tool |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (~10,000 tests across 484 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (~10,100 tests across 555 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md) | LangGraph and log debugging |
 
 ### Architecture Decision Records (ADR)
 
-81 ADRs documenting major architectural decisions:
+100+ ADRs (numbered up to ADR-108) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
@@ -883,9 +909,9 @@ pytest --cov=src --cov-report=html -v
 
 | Metric | Value |
 |--------|-------|
-| Total tests | ~10,000 (pytest collected, 484 test files) |
-| Backend breakdown | unit 8,017 · agents 1,285 · integration 236 · e2e 12 |
-| Frontend tests (vitest) | 41 |
+| Total tests | ~10,140 (pytest collected, 555 test files) |
+| Backend breakdown | unit ~8,800 · agents ~1,160 · integration ~240 |
+| Frontend tests (vitest) | 169 |
 | Coverage target | 43% |
 | CI Workflows | 3 (CI, Security, Release) |
 
@@ -944,12 +970,17 @@ ESLint + TypeScript check         CodeQL (Python + JS)
 | Metric | Value | SLO |
 |--------|-------|-----|
 | API Latency | 450ms | < 500ms |
-| TTFT (Time To First Token) | 380ms | < 500ms |
+| First SSE event (request acknowledged) | 380ms | < 500ms |
 | Router Latency | 800ms | < 2s |
 | Planner Latency | 2.5s | < 5s |
-| OpenAI Embedding | ~100-200ms | < 300ms |
+| Gemini Embedding | ~100-200ms | < 300ms |
 | Token Reduction (Windowing) | 93% | > 80% |
 | Context Compaction Savings | ~60% per compaction | — |
+
+> These figures measure the infrastructure. The full perceived response time depends on the
+> LLM call cascade (seconds to tens of seconds depending on request complexity and hardware) —
+> this is the main optimization programme in progress, measured in production and identified
+> as the top product finding of the July 2026 360° technical audit.
 
 ### Implemented Optimizations
 

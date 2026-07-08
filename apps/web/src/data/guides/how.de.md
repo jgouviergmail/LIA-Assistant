@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 2.4
-**Datum**: 2026-05-08
-**Application**: LIA v1.21.16
+**Version**: 2.6
+**Datum**: 2026-07-08
+**Application**: LIA v1.21.17
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,8 +52,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 400+ Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 101 ADRs, ~10.000 von pytest gesammelte Tests in 484 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 394 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 100+ ADRs, ~10.100 von pytest gesammelte Tests in 555 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -71,12 +71,12 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~10.000 von pytest gesammelt (von pytest über 484 Testdateien gesammelt) + 41 vitest-Tests im Frontend |
+| Tests | ~10.100 von pytest gesammelt (von pytest über 555 Testdateien gesammelt) + 169 vitest-Tests im Frontend |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 280+ |
-| ADRs (Architecture Decision Records) | 101 |
-| Prometheus-Metriken | 400+ Definitionen |
-| Grafana-Dashboards | 21 |
+| ADRs (Architecture Decision Records) | 100+ |
+| Prometheus-Metriken | 394 Definitionen |
+| Grafana-Dashboards | 22 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -88,15 +88,15 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Technologie | Version | Rolle | Warum diese Wahl |
 |-------------|---------|------|-------------------|
 | Python | 3.12+ | Runtime | Reichstes ML/KI-Ökosystem, natives Async, vollständiges Typing |
-| FastAPI | 0.135.1 | REST-API + SSE | Automatische Pydantic-Validierung, OpenAPI-Docs, Async-First, Performance |
-| LangGraph | 1.1.2 | Multi-Agent-Orchestrierung | Einziges Framework mit nativer State-Persistenz + Zyklen + Interrupts (HITL) |
-| LangChain Core | 1.2.19 | LLM/Tools-Abstraktionen | `@tool`-Decorator, Nachrichtenformate, standardisierte Callbacks |
-| SQLAlchemy | 2.0.48 | Async ORM | `Mapped[Type]` + `mapped_column()`, Async Sessions, `selectinload()` |
+| FastAPI | 0.136.3 | REST-API + SSE | Automatische Pydantic-Validierung, OpenAPI-Docs, Async-First, Performance |
+| LangGraph | 1.2.2 | Multi-Agent-Orchestrierung | Einziges Framework mit nativer State-Persistenz + Zyklen + Interrupts (HITL) |
+| LangChain Core | 1.4.0 | LLM/Tools-Abstraktionen | `@tool`-Decorator, Nachrichtenformate, standardisierte Callbacks |
+| SQLAlchemy | 2.0.50 | Async ORM | `Mapped[Type]` + `mapped_column()`, Async Sessions, `selectinload()` |
 | PostgreSQL | 16 + pgvector | Datenbank + Vektorsuche | Native LangGraph-Checkpoints, semantische HNSW-Suche, Reife |
-| Redis | 7.3.0 | Cache, Sessions, Rate Limiting | O(1)-Operationen, atomisches Sliding Window (Lua), SETNX Leader Election |
-| Pydantic | 2.12.5 | Validierung + Serialisierung | `ConfigDict`, `field_validator`, Settings-Komposition via MRO |
+| Redis | 7.4.0 | Cache, Sessions, Rate Limiting | O(1)-Operationen, atomisches Sliding Window (Lua), SETNX Leader Election |
+| Pydantic | 2.13.4 | Validierung + Serialisierung | `ConfigDict`, `field_validator`, Settings-Komposition via MRO |
 | structlog | latest | Strukturiertes Logging | JSON-Ausgabe mit automatischer PII-Filterung, snake_case Events |
-| openai | 1.0+ | Semantische Embeddings | Mehrsprachige OpenAI-Embeddings, optimiert für semantisches Routing |
+| Gemini Embeddings | gemini-embedding-001 | Semantische Embeddings | Mehrsprachige Gemini-Embeddings (Gedächtnis, Routing, Interessen, Journale) — ADR-069 |
 | Playwright | latest | Browser-Automatisierung | Chromium Headless, CDP Accessibility Tree, Cross-Platform |
 | APScheduler | 3.x | Hintergrund-Jobs | Cron/Interval-Trigger, kompatibel mit Redis Leader Election |
 
@@ -104,13 +104,13 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Technologie | Version | Rolle |
 |-------------|---------|------|
-| Next.js | 16.1.7 | App Router, SSR, ISR |
-| React | 19.2.4 | UI mit Server Components |
-| TypeScript | 5.9.3 | Striktes Typing |
-| TailwindCSS | 4.2.1 | Utility-First CSS |
-| TanStack Query | 5.90 | Server State Management, Cache, Mutations |
+| Next.js | 16.2.7 | App Router, SSR, ISR |
+| React | 19.2.5 | UI mit Server Components |
+| TypeScript | 6.0.2 | Striktes Typing |
+| TailwindCSS | 4.2.2 | Utility-First CSS |
+| TanStack Query | 5.99 | Server State Management, Cache, Mutations |
 | Radix UI | v2 | Barrierefreie UI-Primitives |
-| react-i18next | 16.5 | i18n (6 Sprachen), Namespace-basiert |
+| react-i18next | 17.0 | i18n (6 Sprachen), Namespace-basiert |
 | Zod | 3.x | Runtime-Validierung der Debug-Schemata |
 
 ### 2.3. Unterstützte LLM-Provider
@@ -125,7 +125,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Qwen | qwen3.5-plus, qwen3.5-flash, qwen3-max | Thinking Mode, Tools + Vision (Alibaba Cloud) |
 | Ollama | Jedes lokale Modell (dynamische Erkennung) | Null API-Kosten, Self-Hosted |
 
-**Warum 8 Provider?** Die Auswahl ist kein Selbstzweck. Es ist eine Resilienzstrategie: Jeder Knoten der Pipeline kann einem anderen Provider zugewiesen werden. Wenn OpenAI die Preise erhöht, wechselt der Router auf DeepSeek. Wenn Anthropic einen Ausfall hat, wird die Antwort auf Gemini umgeleitet. Die LLM-Abstraktion (`src/infrastructure/llm/factory.py`) verwendet das Factory Pattern mit `init_chat_model()`, überschrieben durch spezifische Adapter (`ResponsesLLM` für die OpenAI Responses API, Eligibility per Regex `^(gpt-4\.1|gpt-5|o[1-9])`).
+**Warum 7 Provider?** Die Auswahl ist kein Selbstzweck. Es ist eine Resilienzstrategie: Jeder Knoten der Pipeline kann einem anderen Provider zugewiesen werden. Wenn OpenAI die Preise erhöht, wechselt der Router auf DeepSeek. Wenn Anthropic einen Ausfall hat, wird die Antwort auf Gemini umgeleitet. Die LLM-Abstraktion (`src/infrastructure/llm/factory.py`) verwendet das Factory Pattern mit `init_chat_model()`, überschrieben durch spezifische Adapter (`ResponsesLLM` für die OpenAI Responses API, Eligibility per Regex `^(gpt-4\.1|gpt-5|o[1-9])`).
 
 ---
 
@@ -423,7 +423,7 @@ Das rein LLM-basierte Routing hatte zwei Probleme: Kosten (jede Anfrage = ein LL
 
 | Eigenschaft | Wert |
 |-----------|--------|
-| Anbieter | OpenAI |
+| Anbieter | Google Gemini (`gemini-embedding-001`) |
 | Sprachen | 100+ |
 | Genauigkeitsgewinn | +48 % bei Q/A-Matching vs. LLM-Routing allein |
 
@@ -575,7 +575,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` löst die effektive Konfiguration über `get_llm_config_for_agent(settings, agent_type)` auf (Code-Defaults → DB-Admin-Overrides), instanziiert das Modell und wendet die spezifischen Adapter an.
 
-### 12.2. 34 LLM-Konfigurationstypen
+### 12.2. 54 LLM-Konfigurationstypen
 
 Jeder Knoten der Pipeline ist über die Admin-UI unabhängig konfigurierbar — ohne erneutes Deployment:
 
@@ -737,8 +737,8 @@ Autonomer ReAct-Agent (Playwright Chromium Headless). Redis-gesicherter Session 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 400+ benutzerdefinierte Metriken (RED Pattern) |
-| Grafana | 20 produktionsreife Dashboards |
+| Prometheus | 394 benutzerdefinierte Metriken (RED Pattern) |
+| Grafana | 22 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
 | Langfuse | LLM-spezifisches Tracing (Prompt-Versionen, Token-Nutzung) |
@@ -764,12 +764,14 @@ Administratoren können über die LIA-Konversation direkt mit Claude Code CLI in
 | Metrik | Wert | SLO |
 |----------|--------|-----|
 | API-Latenz | 450 ms | < 500 ms |
-| TTFT (Time To First Token) | 380 ms | < 500 ms |
+| Erstes SSE-Ereignis (Anfrage bestätigt) | 380 ms | < 500 ms |
 | Router-Latenz | 800 ms | < 2 s |
 | Planner-Latenz | 2.5 s | < 5 s |
 | Semantisches Embedding | ~100 ms | < 200 ms |
 | Checkpoint Save | < 50 ms | P95 |
 | Redis Session Lookup | < 5 ms | P95 |
+
+> Diese Latenzen messen die Infrastruktur. Die vollständige wahrgenommene Antwortzeit hängt von der LLM-Aufrufkaskade ab (von wenigen Sekunden bis zu mehreren Dutzend, je nach Komplexität der Anfrage und Hardware) — das ist die wichtigste laufende Optimierungsbaustelle, in Produktion gemessen und in der Roadmap verfolgt.
 
 ### 21.2. Implementierte Optimierungen
 
@@ -953,7 +955,7 @@ LIA akzeptiert externe Event-Ingestionen (iPhone-Apple-Health-Messwerte, Drittan
 
 ## 24. Architekturentscheidungen (ADR)
 
-101 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+100+ ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1007,10 +1009,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 101 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~10.000 Tests in 484 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 100+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~10.100 Tests in 555 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 101 ADRs und des Changelogs (v1.0 bis v1.21.16). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 100+ ADRs und des Changelogs (v1.0 bis v1.21.17). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

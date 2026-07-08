@@ -1,8 +1,8 @@
 # Landing Page — Documentation technique
 
-> **Version** : 1.0
-> **Date** : 2026-03-08
-> **Emplacement** : `apps/web/src/app/[lng]/page.tsx` + `apps/web/src/components/landing/`
+> Architecture, composants, i18n, SEO et patterns de la vitrine publique de LIA.
+>
+> Derniere revision : v1.21.17 (refonte hero/preuve/diagramme, page /story, fix visiteurs anonymes).
 
 ---
 
@@ -14,7 +14,7 @@
 4. [Animations et interactions](#4-animations-et-interactions)
 5. [Internationalisation (i18n)](#5-internationalisation-i18n)
 6. [SEO et OpenGraph](#6-seo-et-opengraph)
-7. [Redirect authentifie](#7-redirect-authentifie)
+7. [Pages publiques et garde 401](#7-pages-publiques-et-garde-401)
 8. [Responsive Design](#8-responsive-design)
 9. [Theming](#9-theming)
 
@@ -22,14 +22,18 @@
 
 ## 1. Vue d'ensemble
 
-La landing page est le point d'entree public de l'application LIA (LIA). Elle sert a :
+La landing page est le point d'entree public de l'application LIA. Elle sert a :
 
-- **Presenter le produit** : fonctionnalites, architecture, cas d'usage, technologies
+- **Montrer le produit** : demo de conversation animee dans le hero (3 scenarios refletant les vrais modes d'affichage), diagramme fidele des deux modes d'execution, cas d'usage
+- **Prouver la qualite** : bande de preuve (chiffres d'ingenierie sources du codebase), section Retour d'experience renvoyant vers la page `/story`
 - **Convertir les visiteurs** : CTA vers l'inscription (`/register`) et la connexion (`/login`)
 - **Rediriger les utilisateurs authentifies** : vers le dashboard automatiquement
-- **Renforcer la confiance** : section securite, statistiques chiffrees, badges GDPR/Beta
 
-La page est un composant serveur async (`async function HomePage`) qui initialise l'i18n cote serveur et delegue le rendu a une dizaine de sections modulaires. Les composants interactifs (header, diagramme, compteurs, constellation) sont marques `'use client'`.
+La page est un composant serveur async (`async function HomePage`) qui initialise l'i18n cote serveur et delegue le rendu a 14 sections modulaires. Les composants interactifs (header, demo chat, diagramme, compteurs, screenshots) sont marques `'use client'`.
+
+**Regle d'or des chiffres** : toute statistique publique vit dans `constants.ts` (`LANDING_STATS`), dont la docstring documente la source canonique de chaque nombre dans le codebase (ex. providers = le `Literal ProviderType`, tools = les `ToolManifest`). Ne jamais inliner un chiffre dans une cle i18n sans le sourcer.
+
+La page `/story` (retour d'experience, 6 langues) suit le pattern des guides /why et /how : contenu markdown `story.{lng}.md` charge par `StoryContent`, TOC, hreflang, sitemap, robots.
 
 ---
 
@@ -41,39 +45,45 @@ Tous les composants sont dans `apps/web/src/components/landing/` et reexportes v
 
 | Composant | Fichier | Type | Props | Description |
 |-----------|---------|------|-------|-------------|
-| `HeroSection` | `HeroSection.tsx` | Server (async) | `lng: string` | Section hero plein ecran avec tagline, badges Beta, CTA principal/secondaire, trust badges (19+ agents, 8 providers, 99+ voices, GDPR), chevron de scroll. Integre `HeroBackground`. |
-| `HowItWorksSection` | `HowItWorksSection.tsx` | Server (async) | `lng: string` | Timeline en 4 etapes (question, planification, validation HITL, execution) avec icones colorees et numerotation. Layout horizontal desktop, vertical mobile. |
-| `FeaturesSection` | `FeaturesSection.tsx` | Server (async) | `lng: string` | 3 categories de fonctionnalites : **Hero features** (3 cartes avec accent colore : Google Workspace, Web Intelligence, Voice), **Functional features** (13 cartes : langage naturel, multi-agent, proactif, centres d'interet, rappels, memoire, reponses riches, multicanal, personnalites, MCP, langues, MCP Apps, Excalidraw), **Responsible features** (4 cartes : controle, vie privee, simplicite, themes). |
-| `ArchitectureDiagram` | `ArchitectureDiagram.tsx` | Client | aucune | Pipeline d'orchestration en 8 noeuds (Query, Router, Planner, Validator, HITL, Orchestrator, Agents, Response). Layout horizontal desktop avec fleches, vertical mobile. Chaque noeud a un degrade de couleur unique. |
-| `UseCasesSection` | `UseCasesSection.tsx` | Server (async) | `lng: string` | 5 exemples de requetes utilisateur en cartes alternees gauche/droite avec timeline verticale et dots connecteurs. Chaque carte contient la requete entre guillemets et sa description. |
-| `StatsSection` | `StatsSection.tsx` | Client | aucune | 6 statistiques avec compteurs animes : 19+ agents, 65+ tools, 8 providers, 99+ voice languages, 500+ metrics, 6 UI languages. Fond `bg-primary/5`. |
-| `SecuritySection` | `SecuritySection.tsx` | Server (async) | `lng: string` | Layout 2 colonnes : visuel bouclier anime a gauche, 4 piliers de securite a droite (controle des donnees, BFF, chiffrement, GDPR). |
-| `TechSection` | `TechSection.tsx` | Server (async) | `lng: string` | Grille 2x3 de cartes techniques : LangGraph, LLM providers, apprentissage bayesien, recherche hybride, temps reel, stack technique. Style `glass` avec `hover-lift`. |
-| `CtaSection` | `CtaSection.tsx` | Server (async) | `lng: string` | Call-to-action final avec fond degrade bleu/violet, overlay constellation SVG, badge Beta, bouton blanc d'inscription. |
+| `HeroSection` | `HeroSection.tsx` | Server (async) | `lng: string` | Hero scinde : colonne texte (badges BETA/Open Source + version/date de mise a jour, tagline 3 lignes, sous-titres, 2 CTA, trust badges 19+/7/99+/GDPR) et colonne demo (`ChatMockup`). Fond ambient (3 halos degrades + fade bas), plus d'image de fond. |
+| `ProofSection` | `ProofSection.tsx` | Client | `lng: string` | Bande de preuve (ancre `#proof`, cible du chevron hero) : 8 chiffres verifiables (agents, tools, providers, langues vocales, tests, ADRs, releases, score d'audit) + teaser vers `/story`. Compteurs `AnimatedCounter`, valeur finale rendue en SSR. |
+| `HowItWorksSection` | `HowItWorksSection.tsx` | Server (async) | `lng: string` | Timeline en 4 etapes (question, planification, validation HITL, execution). |
+| `ScreenshotsSection` | `ScreenshotsSection.tsx` | Client | aucune | Carrousel de 12 captures dans un cadre adapte au format portrait (`h-[480px] mobile:h-[620px]`, `object-contain` — les captures font ~0.65-0.88 de ratio), fleches au hover, vignettes desktop, dots mobile. |
+| `FeaturesSection` | `FeaturesSection.tsx` | Server (async) | `lng: string` | 3 etages : **Hero features** (4 cartes accentuees : connecteurs, smart home, web intelligence, voix), **5 groupes fonctionnels** (conversation, personnalite, proactivite — avec la carte Briefing du jour —, creation, extensibilite) en grille `sm:grid-cols-2 lg:grid-cols-3`, **Responsible features** (6 cartes). Breakpoints rem uniquement : le variant custom `mobile:` (px) ne s'ordonne pas fiablement contre `sm:` sur la meme propriete. |
+| `ArchitectureDiagram` | `ArchitectureDiagram.tsx` | Client | aucune | Diagramme des deux modes d'execution, fidele a la topologie LangGraph (ADR-070) : entree Requete → Routeur, fourche « ou » vers deux panneaux cote a cote — Pipeline (5 etapes numerotees verticales, etape Approbation surlignee ambre, badge « 4 a 8x moins de tokens ») et ReAct (boucle Raisonne → Agit → Observe, badge « autonomie maximale ») — convergence vers Reponse (streaming token par token). Vertical sur mobile. |
+| `PresentationSection` | `PresentationSection.tsx` | Client | aucune | Carrousel de 15 slides (`/presentation/slide-XX.png`). |
+| `UseCasesSection` | `UseCasesSection.tsx` | Server (async) | `lng: string` | 5 exemples : 1 carte vedette pleine largeur + grille 2x2. Plus de zigzag/timeline (gaspillait 50% de la largeur). |
+| `AudienceSection` | `AudienceSection.tsx` | Server (async) | `lng: string` | 4 personas (freelance, famille, developpeur, administrateur). |
+| `RexSection` | `RexSection.tsx` | Server (async) | `lng: string` | Retour d'experience (ancre `#story`) : eyebrow, titre, citation signature, 4 KPIs durables (lignes de code, ~100% IA, tests, audit), corps, CTA vers `/story`. |
+| `SecuritySection` | `SecuritySection.tsx` | Server (async) | `lng: string` | Visuel bouclier + 4 piliers de securite. |
+| `TechSection` | `TechSection.tsx` | Server (async) | `lng: string` | Intro « systeme d'orchestration » (2 paragraphes, sans redondance avec le diagramme) + grille de cartes techniques (LangGraph, 7 providers, bayesien, recherche hybride, temps reel, stack, rich skills, HITL). |
+| `BlogPreviewSection` | `BlogPreviewSection.tsx` | Server (async) | `lng: string` | Apercu des articles de blog. |
+| `CtaSection` | `CtaSection.tsx` | Server (async) | `lng: string` | CTA final degrade bleu/violet, note « production 24/7, beta gratuite », lien philosophie. |
 
 ### 2.2 Composants structurels
 
 | Composant | Fichier | Type | Props | Description |
 |-----------|---------|------|-------|-------------|
-| `LandingHeader` | `LandingHeader.tsx` | Client | `lng: string` | Header fixe avec logo LIA, navigation desktop (4 sections avec scroll spy via `IntersectionObserver`), selecteur de langue, toggle theme, boutons login/register. Menu hamburger mobile avec fermeture via Escape. Effet `glass` au scroll (>20px). |
-| `LandingFooter` | `LandingFooter.tsx` | Server (async) | `lng: string` | Footer avec logo, copyright dynamique (annee), version, lien vers la section securite. |
+| `LandingHeader` | `LandingHeader.tsx` | Client | `lng: string` | Header fixe : ancre Presentation (scroll spy) + 5 liens de pages dans l'ordre **Story, Philosophie, Technique, Blog, FAQ**, selecteur de langue, toggle theme, login/register. Menu hamburger mobile. Effet `glass` au scroll. |
+| `LandingFooter` | `LandingFooter.tsx` | Server (async) | `lng: string` | 4 colonnes (Produit, Ressources — meme ordre que le header —, Legal, Communaute), copyright + version. |
 
 ### 2.3 Composants utilitaires
 
 | Composant | Fichier | Type | Props | Description |
 |-----------|---------|------|-------|-------------|
-| `FadeInOnScroll` | `FadeInOnScroll.tsx` | Client | `children`, `className?`, `delay?: number`, `threshold?: number` | Wrapper d'animation fade-in + slide-up declenche par `IntersectionObserver` (seuil par defaut : 15%). Se declenche une seule fois. Supporte le delai en ms. |
-| `AnimatedCounter` | `AnimatedCounter.tsx` | Client | `target: number`, `suffix?: string`, `duration?: number` | Compteur anime de 0 a `target` avec easing cubic (ease-out). Declenche par `IntersectionObserver` (seuil 30%). Duree par defaut : 2000ms. Affichage `tabular-nums`. |
-| `ConstellationBackground` | `ConstellationBackground.tsx` | Client | aucune | SVG plein ecran avec 27 noeuds et aretes auto-calculees (seuil de distance < 28 unites). Animation `constellation-pulse` par noeud avec delais decales. Degrade radial subtil en `--color-primary`. |
-| `HeroBackground` | `HeroBackground.tsx` | Client | aucune | Image de fond adaptative (theme clair/sombre, genre LIA via `useLiaGender` hook). Clic pour basculer male/femelle (preference persistee en cookie). Overlays semi-transparents + degrades haut/bas pour lisibilite du texte. Transition d'opacite au montage. |
-| `ChatMockup` | `ChatMockup.tsx` | Client | aucune | Simulation de conversation LIA dans une fenetre type macOS (3 dots rouge/ambre/vert). 5 bulles animees en sequence : message utilisateur, planification LIA, demande HITL (ambre), approbation utilisateur, confirmation (vert). 3 variantes de bulle : `default`, `hitl`, `success`. |
-| `AuthRedirect` | `AuthRedirect.tsx` | Client | `lng: string` | Composant invisible. Verifie l'authentification via `useAuth()`. Si l'utilisateur est connecte, redirige vers `/{lng}/dashboard`. Ne rend rien (`return null`). |
+| `FadeInOnScroll` | `FadeInOnScroll.tsx` | Client | `children`, `className?`, `delay?`, `threshold?` | Fade-in + slide-up via `IntersectionObserver`. Seuil par defaut **0.01** + `rootMargin: '0px 0px -10% 0px'` — un seuil fractionnel type 0.15 exigeait des centaines de px visibles sur les sections hautes (features ~3900px) avant de reveler quoi que ce soit. One-shot. |
+| `AnimatedCounter` | `AnimatedCounter.tsx` | Client | `target`, `suffix?`, `duration?`, `locale?` | **Rend la valeur finale au premier rendu** (SSR, no-JS, crawlers voient les vrais chiffres) puis anime 0 → target a l'intersection. Formatage localise optionnel via `toLocaleString(locale)` (ex. 10 000 vs 10,000). |
+| `ChatMockup` | `ChatMockup.tsx` | Client | aucune | Demo de conversation du hero. **3 scenarios en rotation**, chacun refletant un vrai mode d'affichage avec son chip de barre de titre : HITL (email humoristique, carte brouillon, boutons Envoyer/Modifier, approbation), Cartes HTML (carte meteo riche + bulle d'initiative proactive inter-domaines), Markdown (recherche multi-agents, reponse en liste numerotee). Boucle par timeouts (`STEP_TIMINGS`/`holdMs` par scenario), fondu entre scenarios. `prefers-reduced-motion` : scenario 1 statique, sans boucle. `role="img"` + aria localise, boutons decoratifs en `<span>`. |
+| `ConstellationBackground` | `ConstellationBackground.tsx` | Client | aucune | SVG constellation (disponible via index.ts). |
+| `AuthRedirect` | `AuthRedirect.tsx` | Client | `lng: string` | Invisible ; redirige les utilisateurs authentifies vers `/{lng}/dashboard`. |
+
+Composants supprimes en v1.21.17 : `HeroBackground` (image de fond remplacee par la demo ; le hook `useLiaGender` reste utilise par le dashboard et le chat) et `StatsSection` (remplace par `ProofSection`).
 
 ---
 
 ## 3. Structure de la page
 
-L'ordre des sections dans `page.tsx` est le suivant :
+L'ordre des sections dans `page.tsx` :
 
 ```
 AuthRedirect (invisible, redirect si authentifie)
@@ -81,23 +91,28 @@ AuthRedirect (invisible, redirect si authentifie)
 LandingHeader (fixed, z-50)
 |
 <main>
-  1. HeroSection         — plein ecran, ancre implicite (haut de page)
-  2. HowItWorksSection   — ancre #how-it-works, fond bg-card
-  3. FeaturesSection      — ancre #features
-  4. ArchitectureDiagram  — ancre #architecture
-  5. UseCasesSection      — ancre #use-cases, fond bg-card
-  6. StatsSection         — fond bg-primary/5
-  7. SecuritySection      — ancre #security
-  8. TechSection          — ancre #technology, fond bg-card
-  9. CtaSection           — fond degrade bleu/violet
+   1. HeroSection          — plein ecran, demo chat, chevron vers #proof
+   2. ProofSection         — ancre #proof, fond bg-primary/5
+   3. HowItWorksSection    — ancre #how-it-works
+   4. ScreenshotsSection   — ancre #screenshots, fond bg-card
+   5. FeaturesSection      — ancre #features
+   6. ArchitectureDiagram  — ancre #architecture
+   7. PresentationSection  — ancre #presentation
+   8. UseCasesSection      — ancre #use-cases, fond bg-card
+   9. AudienceSection      — personas
+  10. RexSection           — ancre #story, fond bg-card
+  11. SecuritySection      — ancre #security
+  12. TechSection          — ancre #technology
+  13. BlogPreviewSection   — ancre #blog
+  14. CtaSection           — fond degrade bleu/violet
 </main>
 |
 LandingFooter
 ```
 
-Le lien "Skip to content" (`sr-only`) pointe vers `#features` pour l'accessibilite.
+Le lien "Skip to content" (`sr-only`) pointe vers `#features`.
 
-Le header navigable contient 4 liens d'ancrage : Features, How it works, Security, Technology. Le scroll spy met en surbrillance la section active via `IntersectionObserver` avec `rootMargin: '-20% 0px -70% 0px'`.
+Navigation header : 1 ancre (Presentation → `#how-it-works`, scroll spy `IntersectionObserver` avec `rootMargin: '-20% 0px -70% 0px'`) + 5 pages : `/story`, `/why`, `/how`, `/blog`, `/faq`.
 
 ---
 
@@ -105,47 +120,29 @@ Le header navigable contient 4 liens d'ancrage : Features, How it works, Securit
 
 ### 4.1 FadeInOnScroll
 
-- **Mecanisme** : `IntersectionObserver` observe l'element. Au croisement du seuil (`threshold`, defaut 15%), la classe `animate-fade-in-up` est appliquee (definie dans les styles globaux TailwindCSS).
-- **Delai** : prop `delay` en ms, applique via `animationDelay` inline.
-- **One-shot** : l'animation ne se joue qu'une fois (`unobserve` apres declenchement).
-- **Utilisation** : wraps la majorite des cartes et titres de section pour un effet d'apparition progressif au scroll.
+- `IntersectionObserver`, seuil 0.01 + `rootMargin '0px 0px -10% 0px'` : la section se revele des que son bord franchit les 90% bas du viewport, quelle que soit sa hauteur.
+- Prop `delay` en ms (`animationDelay` inline). One-shot (`unobserve` apres declenchement).
 
 ### 4.2 AnimatedCounter
 
-- **Mecanisme** : `IntersectionObserver` (seuil 30%) + `requestAnimationFrame` pour interpolation fluide.
-- **Easing** : cubic ease-out (`1 - (1 - progress)^3`).
-- **Duree** : 2000ms par defaut, configurable.
-- **Suffix** : `+` ou vide, ajoute apres le nombre.
-- **Utilisation** : `StatsSection` — 6 compteurs (16+, 50+, 6, 99+, 500+, 6).
+- Premier rendu = valeur finale (pas de « 0+ » pour les crawlers/captures pleine page). A l'intersection (seuil 30%), `requestAnimationFrame` anime 0 → target avec easing cubic ease-out (2000ms par defaut).
+- `locale` optionnel pour le formatage (`ProofSection` passe la langue i18n active pour les milliers).
 
-### 4.3 ConstellationBackground
+### 4.3 ChatMockup (demo du hero)
 
-- **27 noeuds** avec positions (cx, cy), rayons et delais pre-definis.
-- **Aretes** calculees statiquement : distance euclidienne < 28 unites entre deux noeuds.
-- **Animation** : `constellation-pulse` CSS (pulsation) avec duree = `3 + delay` secondes.
-- **Degrade** : `radialGradient` en `--color-primary` avec opacite 8%.
-- **Utilisation** : fond derriere la section hero (via HeroSection > ConstellationBackground — non utilise directement dans la page actuelle mais disponible via index.ts).
+- `SCENARIOS` : tableau de scenarios `{chip, steps: [{kind, at}], holdMs}`. Kinds : `user`, `planning`, `status`, `hitl`, `approve`, `done`, `weather`, `initiative`, `markdown`.
+- Sequencement par `setTimeout` (un timer par etape + hold + fondu de 600ms), rotation infinie scenario 1 → 2 → 3 → 1.
+- Indicateur de frappe (3 points) entre le message utilisateur et la premiere reponse LIA.
+- Cartes fideles au produit : `WeatherCard` (header degrade, temperature, 3 creneaux matin/apres-midi/soir), `MarkdownReply` (liste numerotee, noms en gras, notes ★), carte brouillon HITL (objet d'email + boutons Envoyer/Modifier avec effet « presse » a l'approbation).
+- Le chip de la barre de titre change avec le scenario : HITL / Cartes HTML / Markdown (cles `landing.chat_mockup.chip_*`).
 
-### 4.4 ChatMockup
-
-- **5 bulles** avec animations `animate-chat-bubble` a delais sequentiels (`delay-300` a `delay-2500`).
-- **3 variantes visuelles** : default (bleu/neutre), hitl (ambre), success (vert).
-- **Composant Bubble interne** : gere l'alignement (utilisateur a droite, LIA a gauche), icones (User, Bot, ShieldCheck, Check) et styles.
-- **Utilisation** : disponible via index.ts, non integre directement dans la page actuelle.
-
-### 4.5 HeroBackground
-
-- **Image adaptative** : via le hook `useLiaGender` qui fournit `liaBackgroundImage` en fonction du theme (clair/sombre) et du genre (male/femelle).
-- **Toggle** : clic sur l'image bascule le genre (persistance cookie).
-- **Fade-in** : transition d'opacite 700ms au montage (`mounted` state).
-- **Overlays** : `bg-background/40` semi-transparent + degrades haut (h-24) et bas (h-32).
-
-### 4.6 Accessibilite des animations
+### 4.4 Accessibilite des animations
 
 Tous les composants animes respectent `prefers-reduced-motion: reduce` :
 - `FadeInOnScroll` : affiche directement sans animation.
-- `AnimatedCounter` : affiche la valeur finale instantanement.
-- `ConstellationBackground` : n'applique pas les animations CSS.
+- `AnimatedCounter` : valeur finale instantanee.
+- `ChatMockup` : scenario 1 rendu statique en entier, pas de boucle.
+- Boucle `RefreshCw` du diagramme : `motion-safe:animate-spin` uniquement.
 
 ---
 
@@ -153,42 +150,32 @@ Tous les composants animes respectent `prefers-reduced-motion: reduce` :
 
 ### 5.1 Mecanisme
 
-- **6 langues** : fr, en, es, de, it, zh (fallback : fr).
-- **Route dynamique** : `[lng]` dans l'App Router — ex. `/fr`, `/en/`, `/de`.
-- La langue est validee via `validateLanguage(lngParam)` dans `page.tsx`.
+- **6 langues** : fr, en, es, de, it, zh (fallback : fr). Route dynamique `[lng]`, validee via `validateLanguage`.
+- **Registre editorial** : la landing francaise **tutoie** (decision v1.21.17, appliquee sur tout le namespace `landing.*`) ; la FAQ applicative vouvoie. Ne pas melanger.
 
 ### 5.2 Composants serveur
 
-Les composants `async` (HeroSection, FeaturesSection, SecuritySection, etc.) utilisent :
-```ts
-const { t } = await initI18next(lng);
-```
-Les cles de traduction suivent le namespace `landing.*` :
-- `landing.meta.title` / `landing.meta.description` — metadata SEO
-- `landing.hero.*` — hero section (title_line1/2/3, subtitle, badges, CTA, trust)
-- `landing.features.*` — fonctionnalites (titre + description par cle)
-- `landing.how_it_works.step1-4.*` — etapes du pipeline
-- `landing.use_cases.example1-5.*` — cas d'usage (query + description)
-- `landing.security.*` — piliers securite
-- `landing.tech.*` — elements techniques
-- `landing.architecture.*` — noeuds du pipeline
-- `landing.stats.*` — labels des compteurs
-- `landing.cta.*` — call-to-action final
-- `landing.nav.*` — navigation header
-- `landing.footer.*` — footer (copyright, version, privacy)
-- `landing.chat_mockup.*` — bulles du ChatMockup
+Les composants `async` utilisent `const { t } = await initI18next(lng);`. Namespaces `landing.*` principaux :
+- `landing.meta.*` — metadata SEO
+- `landing.hero.*` — hero (title_line1/2/3, subtitle, badges, CTA, trust)
+- `landing.chat_mockup.*` — demo : scenario 1 (`user_message`, `lia_planning`, `lia_hitl`, `draft_subject`, `btn_send`, `btn_edit`, `user_approve`, `lia_done`), scenario 2 (`s2_user_message`, `s2_card_*`, `s2_slot_*`, `s2_initiative`), scenario 3 (`s3_user_message`, `s3_status`, `s3_md_*`), chips (`chip_hitl`, `chip_cards`, `chip_markdown`), `aria`
+- `landing.proof.*` — bande de preuve (`title`, `items.*`, `audit_value`, `rex_teaser`, `rex_link`)
+- `landing.features.*` — fonctionnalites (dont `briefing`)
+- `landing.how_it_works.step1-4.*` — etapes
+- `landing.use_cases.example1-5.*` — cas d'usage
+- `landing.rex.*` — retour d'experience (`eyebrow`, `title`, `quote`, `kpis.{lines,ai,tests,audit}.{value,label}`, `body`, `cta`)
+- `landing.architecture.*` — diagramme (`nodes.*` dont `reason`/`tools`/`observe`, `pipeline_label/badge/desc`, `react_label/badge/desc`, `or_label`, `response_hint`)
+- `landing.security.*`, `landing.tech.*`, `landing.cta.*`, `landing.nav.*` (dont `story`), `landing.footer.*` (dont `story`)
+
+Le namespace `story.*` (top-level) porte la page /story : `meta.*`, `breadcrumb`, `hero.*`, `toc.*`.
 
 ### 5.3 Composants client
 
-Les composants `'use client'` (LandingHeader, StatsSection, ArchitectureDiagram, ChatMockup) utilisent :
-```ts
-const { t } = useTranslation();
-```
-La langue est propagee via le provider i18n du layout parent (`[lng]/layout.tsx`).
+`'use client'` (LandingHeader, ProofSection, ArchitectureDiagram, ChatMockup, ScreenshotsSection, PresentationSection) : `const { t } = useTranslation();` via le provider du layout parent.
 
 ### 5.4 Fichiers de traduction
 
-Les traductions sont dans `apps/web/locales/{lng}/translation.json` pour chaque langue.
+`apps/web/locales/{lng}/translation.json` — parite stricte des cles imposee par le hook pre-commit (reference : `en`).
 
 ---
 
@@ -196,37 +183,31 @@ Les traductions sont dans `apps/web/locales/{lng}/translation.json` pour chaque 
 
 ### 6.1 Metadata dynamique
 
-`page.tsx` exporte `generateMetadata()` qui produit un objet `Metadata` :
-```ts
-{
-  title: t('landing.meta.title'),
-  description: t('landing.meta.description'),
-}
-```
-Les balises meta sont donc localisees selon la langue de la route.
+`generateMetadata()` produit title/description localises + `alternates.languages` (hreflang ×6 + x-default) + OpenGraph/Twitter. Idem pour `/story`, `/why`, `/how`, `/blog`.
 
-### 6.2 Image OpenGraph
+### 6.2 JsonLd
 
-Fichier : `apps/web/src/app/[lng]/opengraph-image.tsx`
+`components/seo/JsonLd.tsx` : `WebSiteJsonLd`, `OrganizationJsonLd` (sameAs → `github.com/jgouviergmail/LIA-Assistant`), `SoftwareApplicationJsonLd` (featureList derivee de `LANDING_STATS`, `softwareVersion` = `APP_VERSION` — jamais en dur), `HowToJsonLd`, breadcrumbs. Serialisation via `serializeJsonLd` (echappement `<`).
 
-- **Runtime** : Edge (generation a la volee).
-- **Dimensions** : 1200x630 px (standard OG).
-- **Format** : PNG.
-- **Contenu** : fond degrade (indigo → bleu → violet), logo "L" dans un cercle, tagline localisee en 6 langues, sous-titre, badge "BETA".
-- **Taglines** : dictionnaire inline `taglines` avec les 3 lignes + sous-titre par langue (fr, en, es, de, it, zh), fallback sur `fr`.
-- **Convention Next.js** : le fichier est auto-detecte par Next.js comme generateur d'image OG pour la route `[lng]`.
+### 6.3 Image OpenGraph
+
+`app/[lng]/opengraph-image.tsx` — Edge runtime, 1200x630, taglines localisees ×6.
+
+### 6.4 llms.txt
+
+`public/llms.txt` : resume du produit a destination des crawlers IA (features, architecture, liens — dont /story). A maintenir en coherence avec `LANDING_STATS` a chaque release.
 
 ---
 
-## 7. Redirect authentifie
+## 7. Pages publiques et garde 401
 
-Fichier : `apps/web/src/components/landing/AuthRedirect.tsx`
+Le `AuthProvider` du layout racine sonde `/auth/me` sur chaque page ; pour un visiteur anonyme la reponse est 401. Le handler 401 de `api-client.ts` redirige vers `/login` **sauf** si `isPublicPath(pathname)` est vrai.
 
-- **Composant client invisible** (`return null`).
-- Utilise le hook `useAuth()` pour verifier l'etat d'authentification.
-- **Comportement** : si `!isLoading && user` est truthy, redirige immediatement vers `/{lng}/dashboard` via `router.push()`.
-- **Position** : premier element rendu dans `page.tsx`, avant le header.
-- **Consequence UX** : un utilisateur deja connecte ne voit jamais la landing page.
+- `PUBLIC_ROUTE_SEGMENTS` (api-client.ts) : liste nommee et documentee des segments publics (pages auth + `/why`, `/how`, `/story`, `/blog`, `/faq`, `/privacy`, `/terms`) ; `isPublicPath` matche avec ou sans prefixe de langue + la racine.
+- **Invariant executables** : `src/lib/__tests__/api-client.public-routes.test.ts` (31 tests) epingle les comportements public/protege, refuse le matching par prefixe (`/blogus`), et **scanne `app/[lng]/`** : tout repertoire de page hors ensemble authentifie (`dashboard`, `account-inactive`) doit etre couvert — ajouter une page publique sans mettre a jour la liste fait echouer la CI.
+- Historique : avant v1.21.17 la liste ne couvrait que login/register/racine — tout visiteur anonyme ouvrant /why, /how, /blog ou /faq etait ejecte vers /login au bout de quelques secondes (invisible pour les developpeurs, toujours porteurs d'un cookie de session).
+
+`AuthRedirect` reste le pendant inverse (utilisateur connecte → dashboard).
 
 ---
 
@@ -234,29 +215,27 @@ Fichier : `apps/web/src/components/landing/AuthRedirect.tsx`
 
 ### 8.1 Breakpoints
 
-Le projet utilise les breakpoints TailwindCSS avec un breakpoint custom `mobile` :
-
 | Prefix | Usage dans la landing |
 |--------|-----------------------|
-| (defaut) | Mobile portrait — layout en colonne unique |
-| `sm:` | ~640px — grilles 2 colonnes pour features, ajustements padding |
-| `mobile:` | Breakpoint custom — passage aux layouts desktop (grilles 3-6 colonnes, navigation horizontale, timeline horizontale) |
-| `lg:` | ~1024px — tailles de texte hero (7xl), padding elargi |
+| (defaut) | Mobile portrait — colonne unique |
+| `sm:` | ~640px — grilles 2 colonnes |
+| `lg:` | ~1024px — grilles 3-4 colonnes, hero scinde (`lg:grid-cols-[1.05fr_0.95fr]`), texte 7xl |
+| `mobile:` | Breakpoint custom 880px (px) — navigation horizontale, hauteurs du cadre screenshots |
+
+**Piege connu** : `mobile:` est declare en px, les breakpoints par defaut en rem — quand les deux ciblent la meme propriete, l'ordre d'emission CSS n'est pas garanti par la valeur. Pour les grilles, utiliser exclusivement les breakpoints rem (`sm:`/`lg:`), reserver `mobile:` aux bascules d'affichage (`hidden mobile:flex`).
 
 ### 8.2 Patterns responsives
 
-- **Header** : navigation inline desktop (`hidden mobile:flex`), menu hamburger mobile (`mobile:hidden`).
-- **HowItWorksSection** : timeline horizontale desktop (`mobile:grid-cols-4`), verticale mobile (colonne unique avec lignes de connexion).
-- **ArchitectureDiagram** : pipeline horizontal desktop (`hidden mobile:flex`), vertical mobile (`flex mobile:hidden`).
-- **FeaturesSection** : hero features 3 colonnes (`mobile:grid-cols-3`), functional features jusqu'a 3 colonnes, responsible features 4 colonnes.
-- **SecuritySection** : 2 colonnes desktop (`mobile:grid-cols-2`), empilees en mobile.
-- **StatsSection** : 6 colonnes desktop (`mobile:grid-cols-6`), 2 colonnes mobile.
-- **UseCasesSection** : cartes alternees gauche/droite desktop (48% width), empilees mobile. Timeline verticale visible uniquement desktop.
-- **LandingFooter** : horizontal desktop (`mobile:flex-row`), vertical mobile.
+- **HeroSection** : colonne unique mobile (texte centre, demo dessous), scinde a partir de `lg:`.
+- **ProofSection** : `grid-cols-2 sm:grid-cols-4 mobile:grid-cols-8`.
+- **ArchitectureDiagram** : panneaux empiles mobile, cote a cote avec divider « ou » a partir de `sm:`.
+- **FeaturesSection** : `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` (groupes), `lg:grid-cols-4` (hero features).
+- **UseCasesSection** : vedette pleine largeur + `sm:grid-cols-2`.
+- **Header** : navigation inline (`hidden mobile:flex`), hamburger (`mobile:hidden`).
 
 ### 8.3 Textes adaptatifs
 
-Les tailles de texte du hero s'adaptent : `text-5xl` → `mobile:text-6xl` → `lg:text-7xl`.
+Hero : `text-5xl` → `mobile:text-6xl` → `lg:text-7xl`.
 
 ---
 
@@ -264,35 +243,27 @@ Les tailles de texte du hero s'adaptent : `text-5xl` → `mobile:text-6xl` → `
 
 ### 9.1 TailwindCSS 4 et OKLCH
 
-Le projet utilise TailwindCSS 4 avec des variables CSS en espace colorimetrique OKLCH. Les classes utilitaires de la landing s'appuient sur le design system global :
-
-- **Couleurs semantiques** : `text-foreground`, `text-muted-foreground`, `bg-background`, `bg-card`, `bg-primary`, `text-primary`, `border-border`, etc.
-- **Opacites** : `bg-primary/5`, `bg-primary/10`, `bg-primary/15`, `border-border/60`, etc.
-- **Degrades** : `text-gradient-brand` (classe custom pour le texte hero), degrades `from-*/to-*` pour les icones et accents de features.
+Classes semantiques du design system (`bg-background`, `text-foreground`, `bg-card`, `bg-primary/5`, `border-border/60`, `text-gradient-brand`, degrades `from-*/to-*`).
 
 ### 9.2 Dark mode
 
-Le dark mode est gere automatiquement via les variables CSS. Les composants utilisent exclusivement des classes semantiques (`bg-background`, `text-foreground`, etc.) qui s'adaptent au theme actif. Quelques ajustements specifiques :
-- `ChatMockup` : variantes `dark:text-amber-300`, `dark:text-green-300` pour les bulles HITL/success.
-- `HeroBackground` : l'image de fond change selon le theme (via `useLiaGender` qui fournit des assets differents light/dark).
+Gere par les variables CSS + variantes `dark:` ponctuelles (bulles HITL/success/initiative du ChatMockup, badges du diagramme). Verifie visuellement en clair ET en sombre a chaque refonte.
 
 ### 9.3 Effets visuels custom
 
 | Classe | Description |
 |--------|-------------|
-| `glass` | Effet glassmorphism (`backdrop-blur` + fond semi-transparent) |
-| `hover-lift` | Elevation au hover (scale + shadow) |
-| `hover-glow` | Glow subtil au hover |
-| `animate-fade-in-up` | Animation keyframe fade-in + translate-y |
+| `glass` | Glassmorphism (`backdrop-blur` + fond semi-transparent) |
+| `hover-lift` / `hover-glow` | Elevation / glow au hover |
+| `animate-fade-in-up` | Fade-in + translate-y |
 | `animate-bounce-scroll` | Bounce du chevron hero |
-| `animate-chat-bubble` | Apparition sequentielle des bulles chat |
-| `constellation-pulse` | Pulsation des noeuds SVG |
-| `text-gradient-brand` | Gradient de texte pour le highlight hero |
-| `landing-section` | Classe de base pour les sections (espacement, overflow) |
+| `animate-chat-bubble` | Apparition des bulles de la demo |
+| `text-gradient-brand` | Gradient de texte hero |
+| `landing-section` | Base des sections (espacement, overflow) |
 
 ### 9.4 Toggle de theme
 
-Le `ThemeToggle` est integre dans le `LandingHeader` et accessible en permanence (desktop et mobile).
+`ThemeToggle` integre au `LandingHeader` (desktop et mobile).
 
 ---
 
@@ -302,24 +273,34 @@ Le `ThemeToggle` est integre dans le `LandingHeader` et accessible en permanence
 apps/web/src/
   app/[lng]/
     page.tsx                          # Page principale (Server Component)
-    opengraph-image.tsx               # Generateur d'image OG (Edge Runtime)
+    opengraph-image.tsx               # Image OG (Edge Runtime)
+    story/page.tsx                    # Page /story (pattern guides why/how)
   components/landing/
     index.ts                          # Barrel exports (18 composants)
     AuthRedirect.tsx                  # Redirect si authentifie
-    LandingHeader.tsx                 # Header fixe avec scroll spy
-    LandingFooter.tsx                 # Footer avec copyright
-    HeroSection.tsx                   # Section hero plein ecran
-    HeroBackground.tsx                # Image de fond adaptative (theme + genre)
-    HowItWorksSection.tsx             # Timeline en 4 etapes
-    FeaturesSection.tsx               # 20 fonctionnalites en 3 categories
-    ArchitectureDiagram.tsx           # Pipeline 8 noeuds
-    UseCasesSection.tsx               # 5 exemples de requetes
-    StatsSection.tsx                  # 6 compteurs animes
+    LandingHeader.tsx                 # Header fixe (Story avant Philosophie)
+    LandingFooter.tsx                 # Footer 4 colonnes
+    HeroSection.tsx                   # Hero scinde texte + demo
+    ChatMockup.tsx                    # Demo 3 scenarios (HITL / cartes / markdown)
+    ProofSection.tsx                  # Bande de preuve (8 chiffres + teaser /story)
+    HowItWorksSection.tsx             # Timeline 4 etapes
+    ScreenshotsSection.tsx            # Carrousel captures (cadre portrait)
+    FeaturesSection.tsx               # 4 hero cards + 5 groupes + responsible
+    ArchitectureDiagram.tsx           # Deux modes (pipeline numerote / boucle ReAct)
+    PresentationSection.tsx           # Carrousel 15 slides
+    UseCasesSection.tsx               # 1 vedette + grille 2x2
+    AudienceSection.tsx               # 4 personas
+    RexSection.tsx                    # Retour d'experience (KPIs + CTA /story)
     SecuritySection.tsx               # 4 piliers securite
-    TechSection.tsx                   # 6 cartes technologies
-    CtaSection.tsx                    # Call-to-action final
-    FadeInOnScroll.tsx                # Wrapper animation scroll
-    AnimatedCounter.tsx               # Compteur anime
+    TechSection.tsx                   # Sous le capot
+    BlogPreviewSection.tsx            # Apercu blog
+    CtaSection.tsx                    # CTA final
+    FadeInOnScroll.tsx                # Animation scroll (seuil 0.01 + rootMargin)
+    AnimatedCounter.tsx               # Compteur (valeur finale en SSR)
     ConstellationBackground.tsx       # Fond SVG constellation
-    ChatMockup.tsx                    # Simulation de conversation
+    constants.ts                      # LANDING_STATS (chiffres sources)
+  components/guides/
+    StoryContent.tsx                  # Contenu /story (TOC + GuideMarkdown)
+  data/guides/
+    story.{fr,en,de,es,it,zh}.md      # Retour d'experience (6 langues)
 ```

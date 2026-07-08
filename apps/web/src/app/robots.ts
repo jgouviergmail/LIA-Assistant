@@ -20,6 +20,7 @@ export default function robots(): MetadataRoute.Robots {
     '/faq',
     '/why',
     '/how',
+    '/story',
     '/blog',
     '/blog/*',
     '/privacy',

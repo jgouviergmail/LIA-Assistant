@@ -1,6 +1,7 @@
 import type { Language } from '@/i18n/settings';
 import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import { LANDING_STATS } from '@/components/landing/constants';
+import { APP_VERSION } from '@/lib/version';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
 
@@ -37,7 +38,7 @@ export function WebSiteJsonLd() {
     alternateName: 'LIA — Intelligent Personal AI Assistant',
     url: BASE_URL,
     description:
-      'LIA orchestrates 15 specialized AI agents to manage your emails, calendar, contacts, and more. Human validation at every step, privacy by design.',
+      `LIA orchestrates ${LANDING_STATS.agents}+ specialized AI agents to manage your emails, calendar, contacts, and more. Human validation at every step, privacy by design.`,
     inLanguage: languages.map(lng => LOCALE_MAP[lng]),
     potentialAction: {
       '@type': 'ReadAction',
@@ -66,7 +67,7 @@ export function OrganizationJsonLd() {
     logo: `${BASE_URL}/icon.svg`,
     description:
       'Open-source multi-agent conversational AI assistant with human-in-the-loop approval workflows.',
-    sameAs: ['https://github.com/JeysWork/LIA'],
+    sameAs: ['https://github.com/jgouviergmail/LIA-Assistant'],
     knowsAbout: [
       'Conversational AI',
       'Multi-Agent Systems',
@@ -116,7 +117,7 @@ export function SoftwareApplicationJsonLd({
     },
     featureList: [
       `${LANDING_STATS.agents}+ specialized AI agents`,
-      `${LANDING_STATS.providers} LLM providers (OpenAI, Anthropic, Google, DeepSeek, Qwen, Ollama)`,
+      `${LANDING_STATS.providers} LLM providers (OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama)`,
       'Human-in-the-Loop approval (6 levels)',
       'Google, Apple iCloud & Microsoft 365 connectors',
       `${LANDING_STATS.uiLanguages} UI languages, ${LANDING_STATS.voiceLanguages}+ voice languages`,
@@ -127,7 +128,7 @@ export function SoftwareApplicationJsonLd({
       'Extensible via MCP protocol',
     ],
     screenshot: `${BASE_URL}/Title.png`,
-    softwareVersion: '1.8.2',
+    softwareVersion: APP_VERSION,
     inLanguage: LOCALE_MAP[lng],
     image: `${BASE_URL}/Title.png`,
   };

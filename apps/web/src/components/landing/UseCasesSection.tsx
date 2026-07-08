@@ -15,12 +15,12 @@ export async function UseCasesSection({ lng }: UseCasesSectionProps) {
   return (
     <section
       id="use-cases"
-      className="landing-section py-24 bg-card"
+      className="landing-section py-20 bg-card"
       aria-labelledby="use-cases-title"
     >
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
-          <div className="text-center mb-16">
+          <div className="text-center mb-12">
             <h2
               id="use-cases-title"
               className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4"
@@ -36,50 +36,45 @@ export async function UseCasesSection({ lng }: UseCasesSectionProps) {
           </div>
         </FadeInOnScroll>
 
-        {/* Alternating conversation cards with vertical connector */}
-        <div className="relative">
-          {/* Vertical line */}
-          <div
-            className="absolute left-1/2 top-0 bottom-0 w-px bg-border hidden mobile:block"
-            aria-hidden="true"
-          />
-
-          <div className="space-y-8">
-            {EXAMPLES.map((key, i) => {
-              const isLeft = i % 2 === 0;
-              return (
-                <FadeInOnScroll key={key} delay={i * 120}>
-                  <div
-                    className={cn(
-                      'relative mobile:w-[48%]',
-                      isLeft ? 'mobile:mr-auto mobile:pr-8' : 'mobile:ml-auto mobile:pl-8'
-                    )}
-                  >
-                    {/* Connector dot */}
-                    <div
+        {/* Featured example + compact 2-column grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {EXAMPLES.map((key, i) => {
+            const featured = i === 0;
+            return (
+              <FadeInOnScroll
+                key={key}
+                delay={i * 80}
+                className={cn(featured && 'sm:col-span-2')}
+              >
+                <div
+                  className={cn(
+                    'h-full rounded-xl border border-border bg-background p-5 hover-lift',
+                    featured && 'border-primary/30 bg-primary/[0.03]'
+                  )}
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <Quote
                       className={cn(
-                        'hidden mobile:block absolute top-6 w-3 h-3 rounded-full bg-primary border-2 border-background',
-                        isLeft ? '-right-1.5' : '-left-1.5'
+                        'w-5 h-5 flex-shrink-0 mt-0.5 text-primary',
+                        featured && 'w-6 h-6'
                       )}
-                      aria-hidden="true"
                     />
-
-                    <div className="rounded-xl border border-border bg-background p-5 hover-lift">
-                      <div className="flex items-start gap-3 mb-3">
-                        <Quote className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                        <p className="text-sm font-medium leading-relaxed italic">
-                          &ldquo;{t(`landing.use_cases.${key}.query`)}&rdquo;
-                        </p>
-                      </div>
-                      <p className="text-xs text-muted-foreground pl-8">
-                        {t(`landing.use_cases.${key}.description`)}
-                      </p>
-                    </div>
+                    <p
+                      className={cn(
+                        'font-medium leading-relaxed italic',
+                        featured ? 'text-base' : 'text-sm'
+                      )}
+                    >
+                      &ldquo;{t(`landing.use_cases.${key}.query`)}&rdquo;
+                    </p>
                   </div>
-                </FadeInOnScroll>
-              );
-            })}
-          </div>
+                  <p className="text-xs text-muted-foreground pl-8 leading-relaxed">
+                    {t(`landing.use_cases.${key}.description`)}
+                  </p>
+                </div>
+              </FadeInOnScroll>
+            );
+          })}
         </div>
       </div>
     </section>

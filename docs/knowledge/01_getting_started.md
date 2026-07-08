@@ -264,3 +264,13 @@ Like any AI assistant, LIA may sometimes misinterpret a request. Here's how to g
 
 **🛡️ Built-in security:**
 Thanks to the approval system, no critical action is executed without your explicit validation.
+
+## How was LIA built?
+Nearly **100% of LIA's code is written by an AI**, under human direction. Four management mechanisms keep the quality high:
+
+• **A written engineering rulebook**: architecture rules, conventions and known traps, versioned in the repository
+• **Blocking automated checks**: strict typing, code analysis, six-language parity and a full test battery reject any non-compliant change
+• **A review cycle where the human decides**: impact analysis → proposal → explicit validation → implementation → verification
+• **Recurring adversarial audits**: the whole system is re-examined against evidence (latest assessment: 8.0/10 across 20 areas)
+
+The full story — method, trade-offs, operations and what remains to be done — is on the **Story page** of the website (menu → Story), and the source code is open on GitHub: https://github.com/jgouviergmail/LIA-Assistant

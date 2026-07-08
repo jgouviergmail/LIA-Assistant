@@ -6,6 +6,7 @@ import { SoftwareApplicationJsonLd, HowToJsonLd } from '@/components/seo/JsonLd'
 import { AuthRedirect } from '@/components/landing/AuthRedirect';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { HeroSection } from '@/components/landing/HeroSection';
+import { ProofSection } from '@/components/landing/ProofSection';
 import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { ScreenshotsSection } from '@/components/landing/ScreenshotsSection';
@@ -13,7 +14,7 @@ import { ArchitectureDiagram } from '@/components/landing/ArchitectureDiagram';
 import { PresentationSection } from '@/components/landing/PresentationSection';
 import { UseCasesSection } from '@/components/landing/UseCasesSection';
 import { AudienceSection } from '@/components/landing/AudienceSection';
-import { StatsSection } from '@/components/landing/StatsSection';
+import { RexSection } from '@/components/landing/RexSection';
 import { SecuritySection } from '@/components/landing/SecuritySection';
 import { TechSection } from '@/components/landing/TechSection';
 import { BlogPreviewSection } from '@/components/landing/BlogPreviewSection';
@@ -123,6 +124,7 @@ export default async function HomePage({ params }: HomePageProps) {
 
         <main>
           <HeroSection lng={lng} />
+          <ProofSection lng={lng} />
           <HowItWorksSection lng={lng} />
           <ScreenshotsSection />
           <FeaturesSection lng={lng} />
@@ -130,7 +132,7 @@ export default async function HomePage({ params }: HomePageProps) {
           <PresentationSection />
           <UseCasesSection lng={lng} />
           <AudienceSection lng={lng} />
-          <StatsSection />
+          <RexSection lng={lng} />
           <SecuritySection lng={lng} />
           <TechSection lng={lng} />
           <BlogPreviewSection lng={lng} />

@@ -2799,7 +2799,7 @@
         },
         "llm": {
           "title": "🤖 Multi-Fournisseurs LLM & Pattern Learning",
-          "description": "Support 8 fournisseurs : OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity et Ollama local. Apprentissage bayésien des patterns de planification (≥90% confiance → bypass LLM). Économie moyenne de 89% des tokens. Profils configurables par tâche avec suivi temps réel des coûts."
+          "description": "Support 7 fournisseurs : OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity et Ollama local. Apprentissage bayésien des patterns de planification (≥90% confiance → bypass LLM). Économie moyenne de 89% des tokens. Profils configurables par tâche avec suivi temps réel des coûts."
         },
         "security": {
           "title": "🔐 Sécurité Multi-Niveaux",
@@ -3756,6 +3756,16 @@
             "i7": "<b>Messages d'erreur dans votre langue</b> — Les retours de la météo (Weather) et des ampoules connectées (Philips Hue) sont maintenant traduits dans votre langue préférée au lieu d'apparaître en français par défaut.",
             "i8": "<b>Clavier mobile plus intelligent</b> — Sur smartphone, la zone de saisie du chat active maintenant l'auto-capitalisation, la correction automatique et affiche un bouton « Envoyer » dédié sur le clavier natif, au lieu d'un simple retour chariot."
           }
+        },
+        "v1_21_17": {
+          "title": "v1.21.17 — ✨ Nouvelle vitrine & page Story",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📖 Nouvelle page « Story »</b> — Découvrez comment LIA est construite : près de 100 % du code est écrit par une IA sous direction humaine — règles d'ingénierie écrites, contrôles automatiques bloquants, revue systématique, audits contradictoires. Accessible depuis le menu du site (Story) et résumée sur la page d'accueil avec ses chiffres clés.",
+            "i2": "<b>✨ Une vitrine qui montre le vrai produit</b> — La page d'accueil publique s'ouvre désormais sur une conversation animée en direct (approbation de brouillon, carte météo, recherche multi-agents), une bande de chiffres vérifiés (agents, outils, tests, versions) et une vue côte à côte plus claire des deux modes d'exécution. Chaque chiffre a été revérifié dans le code — dont 7 fournisseurs d'IA, et non 8 — dans les six langues.",
+            "i3": "<b>🔓 Pages publiques de nouveau accessibles sans compte</b> — Les visiteurs non connectés qui ouvraient Philosophie, Technique, Blog ou FAQ étaient silencieusement renvoyés vers la page de connexion après quelques secondes. Corrigé — et un test de garde empêche désormais ce bug de revenir."
+          }
         }
       }
     },
@@ -3763,7 +3773,7 @@
       "getting_started": {
         "title": "Démarrage",
         "description": "Comment commencer avec LIA",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Qu'est-ce que LIA ?",
@@ -3788,6 +3798,10 @@
           "q6": {
             "question": "LIA peut-il faire des erreurs ?",
             "answer": "Comme tout assistant IA, LIA peut parfois mal interpréter une demande. Voici comment obtenir les meilleurs résultats :<br><br><strong>✅ Bonnes pratiques :</strong><br>• Soyez précis : \"<em>Envoie un email à jean.dupont@email.com</em>\" plutôt que \"<em>Envoie un email à Jean</em>\"<br>• Donnez le contexte : \"<em>Trouve mes emails de cette semaine concernant le projet Alpha</em>\"<br>• Vérifiez les aperçus avant d'approuver les actions<br><br><strong>⚠️ En cas d'erreur :</strong><br>• Reformulez votre demande avec plus de détails<br>• Utilisez des dates précises (\"<em>le 15 janvier</em>\") plutôt que relatives (\"<em>la semaine dernière</em>\")<br>• Pour les emails importants, relisez toujours l'aperçu<br><br><strong>🛡️ Sécurité intégrée :</strong><br>Grâce au système d'approbation, aucune action critique n'est exécutée sans votre validation explicite."
+          },
+          "q7": {
+            "question": "Comment LIA a-t-elle été construite ?",
+            "answer": "Près de <strong>100 % du code de LIA est écrit par une IA</strong>, sous direction humaine : règles d'ingénierie écrites, contrôles automatiques bloquants, un cycle de revue où l'humain décide, et des audits contradictoires récurrents (dernière évaluation : 8,0/10 sur 20 périmètres).<br><br>L'histoire complète — méthode, arbitrages, exploitation et ce qu'il reste à faire — est sur la <a href=\"/story\">page Story</a>, et le code source est ouvert sur <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
           }
         }
       },
@@ -5346,7 +5360,7 @@
   "landing": {
     "meta": {
       "title": "LIA — Assistant IA personnel open source | Multi-agents, HITL, 6 langues",
-      "description": "LIA orchestre 19+ agents IA spécialisés pour gérer vos emails, agenda, contacts, Drive et plus. Open source, validation humaine (HITL), 8 fournisseurs LLM, 6 langues. Confidentialité par conception."
+      "description": "LIA orchestre 19+ agents IA spécialisés pour gérer tes emails, ton agenda, tes contacts, ton Drive et plus. Open source, validation humaine (HITL), 7 fournisseurs LLM, 6 langues. Confidentialité par conception."
     },
     "nav": {
       "features": "Présentation",
@@ -5358,7 +5372,8 @@
       "blog": "Blog",
       "philosophy": "Philosophie",
       "technical": "Technique",
-      "faq": "FAQ"
+      "faq": "FAQ",
+      "story": "Story"
     },
     "hero": {
       "badge_beta": "BETA",
@@ -5373,7 +5388,6 @@
       "subtitle_line2": "Elle orchestre ta vie numérique en coulisses — du sarcasme à l'empathie.",
       "subtitle_line3": "Un clic suffit, et c'est toujours toi qui décides.",
       "cta_primary": "Rejoins la BETA",
-      "cta_secondary": "Découvrir",
       "scroll_hint": "Défiler pour explorer",
       "trust_agents": "agents IA",
       "trust_providers": "fournisseurs LLM",
@@ -5381,14 +5395,32 @@
       "trust_gdpr": "Conforme RGPD",
       "badge_opensource": "Open Source",
       "cta_github": "GitHub",
-      "intro_paragraph": "LIA est un assistant IA personnel open source qui orchestre 19+ agents spécialisés pour gérer vos emails, agenda, contacts, fichiers, tâches, rappels, recherche web, météo, itinéraires et maison connectée. Compatible Google Workspace, Apple iCloud et Microsoft 365, LIA fonctionne en langage naturel avec validation humaine de chaque action sensible. Disponible en 6 langues d'interface, avec mode vocal et 8 fournisseurs LLM au choix."
+      "intro_paragraph": "LIA est un assistant IA personnel open source qui orchestre 19+ agents spécialisés pour gérer tes emails, ton agenda, tes contacts, tes fichiers, tes tâches, tes rappels, la recherche web, la météo, tes itinéraires et ta maison connectée. Compatible Google Workspace, Apple iCloud et Microsoft 365, LIA fonctionne en langage naturel avec validation humaine de chaque action sensible. Disponible en 6 langues d'interface, avec mode vocal et 7 fournisseurs LLM au choix."
     },
     "chat_mockup": {
       "user_message": "Envoie un email à Marie pour lui dire que je serai en retard ce soir, utilise un ton humoristique",
       "lia_planning": "Je prépare un brouillon d'email humoristique pour Marie...",
       "lia_hitl": "Voici le brouillon. Tu veux l'envoyer ?",
       "user_approve": "Envoyer !",
-      "lia_done": "Email envoyé à Marie avec succès !"
+      "lia_done": "Email envoyé à Marie avec succès !",
+      "draft_subject": "Objet : Petit retard ce soir (mais avec style) 😅",
+      "btn_send": "Envoyer",
+      "btn_edit": "Modifier",
+      "aria": "Démo animée : LIA répond en cartes HTML et en Markdown, prend des initiatives entre domaines, et demande ton accord avant toute action sensible.",
+      "s2_user_message": "Quel temps demain ? Je comptais courir après le boulot",
+      "s2_card_title": "Météo · Demain",
+      "s2_card_desc": "Éclaircies, averses à partir de 18 h",
+      "s2_slot_morning": "Matin",
+      "s2_slot_afternoon": "Après-midi",
+      "s2_slot_evening": "Soir",
+      "s2_initiative": "Pluie à 18 h — et tu as « Footing » à 18 h 30 dans ton agenda. Demain 7 h 30 : grand soleil. Je te le décale ?",
+      "s3_user_message": "Trouve-moi un bon café ouvert maintenant pour aller bosser",
+      "s3_status": "3 agents en parallèle : position, lieux, itinéraires…",
+      "s3_md_intro": "Voici les 3 mieux notés, ouverts en ce moment :",
+      "s3_md_walk": "min à pied",
+      "chip_hitl": "HITL",
+      "chip_cards": "Cartes HTML",
+      "chip_markdown": "Markdown"
     },
     "how_it_works": {
       "title": "Comment ça marche",
@@ -5437,19 +5469,19 @@
       },
       "connected_services": {
         "title": "Google, Apple iCloud & Microsoft 365",
-        "description": "Emails, agenda, contacts et tâches via Google, Apple iCloud ou Microsoft 365 — au choix. Plus Google Drive. Le tout en langage naturel, quel que soit votre fournisseur."
+        "description": "Emails, agenda, contacts et tâches via Google, Apple iCloud ou Microsoft 365 — au choix. Plus Google Drive. Le tout en langage naturel, quel que soit ton fournisseur."
       },
       "smart_home": {
         "title": "Maison connectée (Philips Hue)",
-        "description": "Contrôlez vos lumières connectées à la voix : allumez, éteignez, réglez la luminosité et les couleurs, gérez pièces et ambiances. Dites simplement « tamise le salon » ou « active le mode film ». Connexion locale ou cloud."
+        "description": "Contrôle tes lumières connectées à la voix : allume, éteins, règle la luminosité et les couleurs, gère pièces et ambiances. Dis simplement « tamise le salon » ou « active le mode film ». Connexion locale ou cloud."
       },
       "web_intelligence": {
         "title": "Recherche, Météo & Navigation",
         "description": "Recherche web multi-sources (Brave, Perplexity, Wikipedia), météo en temps réel et prévisions 5 jours, recherche de lieux et commerces à proximité, calcul d'itinéraires multi-modes (voiture, marche, vélo, transports), géolocalisation automatique."
       },
       "voice_mode": {
-        "title": "Mode vocal 100% local",
-        "description": "Parle à LIA et écoute ses réponses. Reconnaissance vocale instantanée, mot d'activation personnalisé et synthèse vocale naturelle. Fonctionne aussi via Telegram en message audio."
+        "title": "Mode vocal, écoute 100 % locale",
+        "description": "Parle à LIA et écoute ses réponses. Le mot d'activation et la reconnaissance vocale tournent entièrement dans ton navigateur — rien n'est transmis avant que tu t'adresses à LIA. Synthèse vocale naturelle multi-moteurs. Fonctionne aussi via Telegram en message audio."
       },
       "natural_language": {
         "title": "Langage naturel",
@@ -5484,7 +5516,7 @@
         "description": "Utilise LIA depuis le navigateur, Telegram ou reçois des notifications push sur ton mobile. Tes conversations synchronisées partout."
       },
       "personalities": {
-        "title": "Plus de 10 personnalités",
+        "title": "14 personnalités",
         "description": "Professeur, Ami, Philosophe, Cynique, Influenceur, Enthousiaste, Poète, Coach et bien d'autres. Choisis le ton qui te correspond, LIA adapte chaque réponse."
       },
       "psyche": {
@@ -5505,7 +5537,7 @@
       },
       "attachments": {
         "title": "Photos & fichiers joints",
-        "description": "Joignez des photos et documents PDF à vos messages via le bouton 📎 ou par glisser-déposer. LIA analyse le contenu visuel, extrait le texte et raisonne sur les documents."
+        "description": "Joins des photos et documents PDF à tes messages via le bouton 📎 ou par glisser-déposer. LIA analyse le contenu visuel, extrait le texte et raisonne sur les documents."
       },
       "languages": {
         "title": "Multilingue",
@@ -5529,27 +5561,27 @@
       },
       "skills": {
         "title": "Skills avec cartes et mini-apps",
-        "description": "Spécialisez LIA avec des compétences sur mesure capables d'afficher cartes, dashboards et mini-apps directement dans le chat. Créez en langage naturel ou importez."
+        "description": "Spécialise LIA avec des compétences sur mesure capables d'afficher cartes, dashboards et mini-apps directement dans le chat. Crée-les en langage naturel ou importe-les."
       },
       "health_metrics": {
         "title": "Données santé",
-        "description": "Poussez fréquence cardiaque et nombre de pas depuis n'importe quelle source. Visualisation par période, dédoublonnage automatique, jeton dédié révocable."
+        "description": "Envoie ta fréquence cardiaque et ton nombre de pas depuis n'importe quelle source. Visualisation par période, dédoublonnage automatique, jeton dédié révocable."
       },
       "sub_agents": {
         "title": "Sous-agents",
-        "description": "Déléguez des tâches complexes à des experts éphémères spécialisés travaillant en parallèle pour une recherche approfondie, une analyse multi-sources et une synthèse experte."
+        "description": "Délègue des tâches complexes à des experts éphémères spécialisés travaillant en parallèle pour une recherche approfondie, une analyse multi-sources et une synthèse experte."
       },
       "rag_spaces": {
         "title": "Espaces de connaissances",
-        "description": "Importez des documents dans 15+ formats (PDF, DOCX, PPTX, XLSX, HTML, EPUB, et plus) ou synchronisez vos dossiers Google Drive directement. LIA indexe automatiquement et enrichit ses réponses via recherche hybride (sémantique + mots-clés)."
+        "description": "Importe des documents dans 15+ formats (PDF, DOCX, PPTX, XLSX, HTML, EPUB, et plus) ou synchronise tes dossiers Google Drive directement. LIA indexe automatiquement et enrichit ses réponses via recherche hybride (sémantique + mots-clés)."
       },
       "browser_control": {
         "title": "Contrôle navigateur",
-        "description": "Navigue sur les sites web de façon autonome : recherche de produits, remplissage de formulaires, extraction de données depuis les pages dynamiques JavaScript. Visualisez la navigation en temps réel grâce aux captures d'écran progressives affichées dans la conversation."
+        "description": "Navigue sur les sites web de façon autonome : recherche de produits, remplissage de formulaires, extraction de données depuis les pages dynamiques JavaScript. Suis la navigation en temps réel grâce aux captures d'écran progressives affichées dans la conversation."
       },
       "self_knowledge": {
         "title": "Auto-connaissance",
-        "description": "LIA peut répondre aux questions sur elle-même grâce à sa base de connaissances FAQ intégrée — posez des questions sur les fonctionnalités, la configuration ou le fonctionnement."
+        "description": "LIA peut répondre aux questions sur elle-même grâce à sa base de connaissances FAQ intégrée — pose-lui des questions sur les fonctionnalités, la configuration ou le fonctionnement."
       },
       "journals": {
         "title": "Journaux personnels",
@@ -5557,7 +5589,7 @@
       },
       "responsive": {
         "title": "PWA & Design responsive",
-        "description": "Application Web Progressive installable avec une interface optimisee pour ordinateur, tablette et smartphone — utilisez LIA partout, sur tous vos appareils"
+        "description": "Application Web Progressive installable avec une interface optimisée pour ordinateur, tablette et smartphone — utilise LIA partout, sur tous tes appareils."
       },
       "usage_limits": {
         "title": "Quotas d'utilisation",
@@ -5565,24 +5597,28 @@
       },
       "image_generation": {
         "title": "Génération d’images IA",
-        "description": "Générez des images à partir de descriptions textuelles, retouchez-les ou modifiez vos propres photos en pièce jointe. Qualité ajustable et suivi des coûts intégrés."
+        "description": "Génère des images à partir de descriptions textuelles, retouche-les ou modifie tes propres photos en pièce jointe. Qualité ajustable et suivi des coûts intégré."
       },
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
         "description": "Les administrateurs diagnostiquent les serveurs en langage naturel : logs Docker, santé des containers, espace disque — Claude Code CLI intégré dans le container API."
+      },
+      "briefing": {
+        "title": "Briefing du jour",
+        "description": "Chaque matin, ta journée en un coup d'œil : synthèse personnalisée, météo, agenda, anniversaires, rappels, santé et emails non lus — avant même que tu demandes."
       }
     },
     "use_cases": {
       "title": "Cas d'usage",
       "subtitle": "LIA t'accompagne au quotidien dans toutes les situations",
-      "intro": "Chaque requête peut mobiliser plusieurs agents simultanément. LIA identifie automatiquement les domaines concernés, construit un plan d'exécution et coordonne les agents en parallèle — le tout en quelques secondes, avec votre validation quand l'action est sensible.",
+      "intro": "Chaque requête peut mobiliser plusieurs agents simultanément. LIA identifie automatiquement les domaines concernés, construit un plan d'exécution et coordonne les agents en parallèle — le tout en quelques secondes, avec ta validation quand l'action est sensible.",
       "example1": {
         "query": "Trouve les 3 meilleurs cafés proches de ma position et qui sont ouverts maintenant et donne moi les itinéraires pour y aller à pied",
-        "description": "LIA active 3 agents en parallèle : géolocalisation pour votre position actuelle, recherche de lieux avec filtre « ouvert maintenant », et calcul d'itinéraires piétons. Les résultats s'affichent en cartes interactives avec distances et temps de marche."
+        "description": "LIA active 3 agents en parallèle : géolocalisation pour ta position actuelle, recherche de lieux avec filtre « ouvert maintenant », et calcul d'itinéraires piétons. Les résultats s'affichent en cartes interactives avec distances et temps de marche."
       },
       "example2": {
         "query": "Envoie un email à mon épouse et mon fils pour leur expliquer que je vais arriver 30 minutes en retard. Rédige le mail de façon un peu humoristique pour faire passer la pilule",
-        "description": "LIA retrouve les contacts en mémoire, rédige un email au ton demandé et l'envoie aux deux destinataires après votre validation. Personnalité et style d'écriture s'adaptent à la consigne."
+        "description": "LIA retrouve les contacts en mémoire, rédige un email au ton demandé et l'envoie aux deux destinataires après ta validation. Personnalité et style d'écriture s'adaptent à la consigne."
       },
       "example3": {
         "query": "Je dois partir à quelle heure pour arriver à Bastille demain à 21h en prenant les transports en commun ?",
@@ -5590,7 +5626,7 @@
       },
       "example4": {
         "query": "Crée un rappel la veille à 19h pour chacun de mes rendez-vous cette semaine",
-        "description": "LIA consulte votre agenda, identifie tous les rendez-vous de la semaine et crée un rappel la veille pour chacun via une itération automatique FOR_EACH — une seule demande suffit."
+        "description": "LIA consulte ton agenda, identifie tous les rendez-vous de la semaine et crée un rappel la veille pour chacun via une itération automatique FOR_EACH — une seule demande suffit."
       },
       "example5": {
         "query": "Quel sera le jour le plus propice à une balade dehors cette semaine et quels sont les 3 endroits proches de Strasbourg qui se prêteraient à cette balade, si possible à proximité d'un café sympa",
@@ -5602,33 +5638,25 @@
       "subtitle": "Un assistant qui s'adapte à chaque profil et à chaque besoin",
       "freelance": {
         "title": "Indépendant / Freelance",
-        "description": "Centralisez emails, agenda et tâches de plusieurs clients sans jongler entre les applications. LIA unifie Google, Apple et Microsoft en une seule conversation."
+        "description": "Centralise emails, agenda et tâches de plusieurs clients sans jongler entre les applications. LIA unifie Google, Apple et Microsoft en une seule conversation."
       },
       "family": {
         "title": "Famille",
-        "description": "Coordonnez les agendas familiaux, programmez des rappels et trouvez des itinéraires pour le quotidien. Chaque membre peut choisir sa langue et sa personnalité préférée."
+        "description": "Coordonne les agendas familiaux, programme des rappels et trouve des itinéraires pour le quotidien. Chaque membre choisit sa langue et sa personnalité préférée."
       },
       "developer": {
         "title": "Développeur",
-        "description": "Étendez LIA avec vos propres serveurs MCP, créez des skills sur mesure et déployez des sous-agents spécialisés. Le code source est ouvert et documenté."
+        "description": "Étends LIA avec tes propres serveurs MCP, crée des skills sur mesure et déploie des sous-agents spécialisés. Le code source est ouvert et documenté."
       },
       "admin": {
         "title": "Administrateur",
-        "description": "Contrôlez les quotas d'utilisation, choisissez les fournisseurs LLM par nœud et gérez les permissions de votre équipe depuis le panneau d'administration."
+        "description": "Contrôle les quotas d'utilisation, choisis les fournisseurs LLM par nœud et gère les permissions de ton équipe depuis le panneau d'administration."
       }
-    },
-    "stats": {
-      "agents": "Agents IA",
-      "tools": "Outils intégrés",
-      "providers": "Fournisseurs IA",
-      "voice_languages": "Langues vocales",
-      "metrics": "Métriques",
-      "ui_languages": "Langues interface"
     },
     "security": {
       "title": "Sécurité & Vie privée",
       "subtitle": "Puissant par nature. Privé par conception.",
-      "intro": "LIA a été conçue dès le premier jour avec une approche « privacy by design ». Contrairement aux assistants cloud centralisés, vos credentials ne transitent jamais par le frontend : l'architecture Backend-for-Frontend isole complètement vos tokens. Le filtrage PII automatique empêche les données personnelles identifiables d'atteindre les fournisseurs LLM.",
+      "intro": "LIA a été conçue dès le premier jour avec une approche « privacy by design ». Contrairement aux assistants cloud centralisés, tes credentials ne transitent jamais par le frontend : l'architecture Backend-for-Frontend isole complètement tes tokens. Le filtrage PII automatique empêche les données personnelles identifiables d'atteindre les fournisseurs LLM.",
       "privacy_link": "Lire notre politique de confidentialité",
       "data_control": {
         "title": "Contrôle des données",
@@ -5650,14 +5678,14 @@
     "tech": {
       "title": "Sous le capot",
       "subtitle": "Une architecture pensée pour la performance et l'évolutivité",
-      "intro": "LIA propose deux modes d'exécution complémentaires.\n\nLe mode Pipeline (par défaut) est un véritable travail d'ingénierie : planification intelligente, validation sémantique, exécution parallèle des outils — le tout en consommant 4 à 8 fois moins de tokens que le mode ReAct. Le mode ReAct offre une autonomie maximale : le LLM raisonne étape par étape, appelle les outils un par un et s'adapte en temps réel.\n\nLes deux modes partagent les mêmes 19+ agents spécialisés, le même système HITL et l'apprentissage bayésien de patterns.",
+      "intro": "Pas un chatbot : un système d'orchestration. Chaque requête traverse un routage sémantique, un planificateur et des agents exécutés en parallèle — instrumenté de bout en bout, du token à l'euro.\n\nDerrière l'interface : apprentissage bayésien des plans, mémoire hybride BM25 + embeddings, une state machine LangGraph checkpointée en PostgreSQL. Le tout auto-hébergeable — jusque sur un Raspberry Pi.",
       "deep_dive_link": "Plongée technique complète",
       "langgraph": {
         "title": "LangGraph",
         "description": "Orchestration d'agents avec graphes d'état, exécution parallèle par vagues, et apprentissage bayésien des patterns de plans."
       },
       "llm_providers": {
-        "title": "8 fournisseurs LLM",
+        "title": "7 fournisseurs LLM",
         "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama. Sélection dynamique du meilleur modèle par type de tâche."
       },
       "bayesian": {
@@ -5666,7 +5694,7 @@
       },
       "hybrid_search": {
         "title": "Recherche hybride",
-        "description": "BM25 + embeddings sémantiques multilingues. Mémoire contextuelle précise et rapide, sans coût API."
+        "description": "BM25 + embeddings sémantiques multilingues. Une mémoire contextuelle précise et rapide, dans toutes les langues que tu parles."
       },
       "realtime": {
         "title": "Streaming temps réel",
@@ -5687,26 +5715,37 @@
     },
     "architecture": {
       "title": "Deux modes d'exécution",
-      "subtitle": "Pipeline pour l'efficacité, ReAct pour l'autonomie — à vous de choisir",
+      "subtitle": "Pipeline pour l'efficacité, ReAct pour l'autonomie — à toi de choisir",
       "nodes": {
         "query": "Requête",
         "router": "Routeur",
         "planner": "Planificateur",
         "validator": "Validateur",
-        "hitl": "Validation",
+        "hitl": "Approbation",
         "orchestrator": "Orchestrateur",
         "agents": "Agents",
-        "response": "Réponse"
+        "response": "Réponse",
+        "reason": "Raisonne",
+        "tools": "Agit",
+        "observe": "Observe"
       },
       "diagram_title": "Architecture complète du système",
       "diagram_zoom": "Cliquer pour agrandir le diagramme",
-      "diagram_alt": "Diagramme d'architecture complète de LIA — orchestration multi-agents, observabilité et sécurité"
+      "diagram_alt": "Diagramme d'architecture complète de LIA — orchestration multi-agents, observabilité et sécurité",
+      "pipeline_label": "Mode Pipeline (par défaut)",
+      "pipeline_badge": "4 à 8× moins de tokens",
+      "react_label": "Mode ReAct",
+      "react_badge": "Autonomie maximale",
+      "pipeline_desc": "Un plan optimisé, validé, puis exécuté en parallèle — prévisible et économe.",
+      "react_desc": "Le LLM choisit son prochain outil à chaque étape, jusqu'au résultat — exploratoire et adaptatif.",
+      "or_label": "ou",
+      "response_hint": "Streaming token par token"
     },
     "screenshots": {
       "title": "LIA en images",
       "subtitle": "Une interface claire et intuitive, conçue pour tous — aucune compétence technique requise",
       "items": {
-        "homepage": "Tableau de bord — Accueil avec statistiques d'utilisation et accueil personnalisé",
+        "homepage": "Accueil — Briefing du jour : synthèse personnalisée, météo, agenda, anniversaires, santé et statistiques d'usage",
         "chat": "Chat — Conversation multi-agents avec panneau debug en temps réel",
         "chat_debug_panel": "Chat — Panneau debug : routage, appels d'outils, coût en tokens et timeline du raisonnement",
         "chat_interactive_skills": "Chat — Skills interactives : cartes, dashboards, calendriers et mini-applications affichés en ligne",
@@ -5716,13 +5755,13 @@
         "settings_features_psyche": "Paramètres — Psyche Engine : traits de personnalité Big Five modulant la réactivité émotionnelle",
         "settings_administration": "Administration — Panneau de contrôle complet pour les opérateurs",
         "settings_administration_oneclick": "Administration — Simplicité en un clic : chaque action accessible instantanément",
-        "settings_administration_llm": "Administration — Configuration LLM : 8 fournisseurs, sélection de modèle par nœud",
+        "settings_administration_llm": "Administration — Configuration LLM : 7 fournisseurs, sélection de modèle par nœud",
         "faq": "FAQ — Centre d'aide avec recherche et catégories"
       }
     },
     "presentation": {
       "title": "Présentation détaillée",
-      "subtitle": "Découvrez l'architecture, les fonctionnalités et la philosophie de LIA en 13 slides",
+      "subtitle": "Découvre l'architecture, les fonctionnalités et la philosophie de LIA en 15 slides",
       "slide_alt": "Slide {{number}} de la présentation LIA",
       "slide_counter": "Slide {{current}} sur {{total}}"
     },
@@ -5730,8 +5769,8 @@
       "title": "Prêt à essayer LIA ?",
       "subtitle": "Rejoins la BETA et découvre ce qu'un assistant IA vraiment intelligent peut faire pour toi.",
       "button": "Créer mon compte",
-      "note_beta": "Application opérationnelle, testée en alpha. Abonnements payants à venir.",
-      "philosophy_link": "Ou découvrez d'abord notre philosophie"
+      "note_beta": "Application complète, exploitée en production 24/7. Bêta gratuite — abonnements payants à venir.",
+      "philosophy_link": "Ou découvre d'abord notre philosophie"
     },
     "blog_preview": {
       "title": "Dans les coulisses de LIA",
@@ -5755,7 +5794,49 @@
       "faq": "FAQ",
       "technical": "Technique",
       "philosophy": "Philosophie",
-      "terms": "CGU"
+      "terms": "CGU",
+      "story": "Retour d'expérience"
+    },
+    "proof": {
+      "title": "La preuve par les chiffres",
+      "items": {
+        "tests": "Tests automatisés",
+        "adrs": "Décisions d'architecture",
+        "releases": "Versions livrées",
+        "audit": "Audit technique 360°",
+        "agents": "Agents IA",
+        "tools": "Outils intégrés",
+        "providers": "Fournisseurs LLM",
+        "voice_languages": "Langues vocales"
+      },
+      "audit_value": "8,0/10",
+      "rex_teaser": "Près de 100 % de ce code a été écrit par une IA — dirigée, contrôlée et auditée par un humain.",
+      "rex_link": "Lire le retour d'expérience"
+    },
+    "rex": {
+      "eyebrow": "Retour d'expérience",
+      "title": "Écrit par une IA. Dirigé par un humain.",
+      "quote": "La vitesse vient de l'IA. La qualité vient du cadre.",
+      "kpis": {
+        "ai": {
+          "value": "≈100 %",
+          "label": "du code écrit par une IA"
+        },
+        "tests": {
+          "value": "10 000+",
+          "label": "tests automatisés"
+        },
+        "audit": {
+          "value": "8,0/10",
+          "label": "à l'audit technique sur 20 périmètres"
+        },
+        "lines": {
+          "value": "420 000",
+          "label": "lignes de code, hors tests"
+        }
+      },
+      "body": "LIA a été construite en projet personnel : une IA a écrit le code, un humain a fixé le cadre — référentiel d'ingénierie écrit, contrôles automatiques bloquants, revue systématique, audits contradictoires. La méthode complète, les résultats et ce qu'il reste à faire sont documentés publiquement.",
+      "cta": "Lire le retour d'expérience complet"
     }
   },
   "public_footer": {
@@ -5765,7 +5846,8 @@
     "technical": "Technique",
     "philosophy": "Philosophie",
     "privacy": "Confidentialité",
-    "terms": "CGU"
+    "terms": "CGU",
+    "story": "Retour d’expérience"
   },
   "privacy": {
     "meta": {
@@ -6609,5 +6691,25 @@
   "conversations": {
     "search_placeholder": "Rechercher dans l'historique...",
     "search_clear": "Effacer la recherche"
+  },
+  "story": {
+    "meta": {
+      "title": "Story — Diriger une IA qui code | LIA",
+      "description": "Comment LIA a été construite : ~100 % de code écrit par une IA sous direction humaine, 10 000+ tests, 100+ ADRs, un audit technique à 8,0/10. Le retour d'expérience complet."
+    },
+    "breadcrumb": "Retour d'expérience",
+    "hero": {
+      "title": "Diriger une IA qui code",
+      "subtitle": "Un système complet, de la conception à la production — la méthode, les chiffres, la preuve."
+    },
+    "toc": {
+      "essentials": "L'essentiel",
+      "approach": "La démarche",
+      "method": "La méthode",
+      "tradeoffs": "Les arbitrages",
+      "operations": "L'exploitation",
+      "proof": "La preuve",
+      "convictions": "Convictions"
+    }
   }
 }

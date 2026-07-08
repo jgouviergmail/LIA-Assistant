@@ -19,12 +19,13 @@ interface LandingHeaderProps {
 /** Anchor links to landing page sections */
 const SECTION_ANCHORS = [{ id: 'how-it-works', key: 'landing.nav.features' }] as const;
 
-/** Links to separate pages */
+/** Links to separate pages — order: Story, Philosophy, Technical, Blog, FAQ */
 const PAGE_LINKS = [
-  { id: 'blog', key: 'landing.nav.blog', href: '/blog' },
-  { id: 'faq', key: 'landing.nav.faq', href: '/faq' },
+  { id: 'story', key: 'landing.nav.story', href: '/story' },
   { id: 'why', key: 'landing.nav.philosophy', href: '/why' },
   { id: 'how', key: 'landing.nav.technical', href: '/how' },
+  { id: 'blog', key: 'landing.nav.blog', href: '/blog' },
+  { id: 'faq', key: 'landing.nav.faq', href: '/faq' },
 ] as const;
 
 export function LandingHeader({ lng }: LandingHeaderProps) {
