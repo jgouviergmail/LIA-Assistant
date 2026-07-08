@@ -2,7 +2,7 @@
 Instrumented checkpointer wrapper for LangGraph state persistence with observability.
 
 Wraps AsyncPostgresSaver to add Prometheus metrics tracking for checkpoint operations
-without modifying LangGraph's internal checkpoint mechanism.
+without altering LangGraph's checkpoint semantics (state layout, SQL, serde).
 
 This enables monitoring of:
 - Checkpoint save/load duration (detect slow database writes/reads)
@@ -14,13 +14,21 @@ This enables monitoring of:
 The wrapper is transparent to LangGraph - it passes through all method calls
 while capturing metrics on the critical paths (aget, aput, alist).
 
+It additionally overrides the private `_cursor()` context manager to bypass the
+instance-level lock when the saver runs on an `AsyncConnectionPool` (upstream
+issue langchain-ai/langgraph#7259, fixed for the store but not the saver in
+langgraph-checkpoint-postgres 3.1.0) — see ADR-111.
+
 Phase 3.3 Metrics Added:
 - checkpoint_operations_total{operation, status} - Counter for all operations
 - checkpoint_errors_total{error_type, operation} - Counter for errors with categorization
 """
 
+import asyncio
 import pickle
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import cast as typing_cast
 
 from langchain_core.runnables import RunnableConfig
@@ -30,7 +38,11 @@ from langgraph.checkpoint.base import (
     CheckpointMetadata,
     CheckpointTuple,
 )
+from langgraph.checkpoint.postgres import _ainternal
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg import AsyncCursor
+from psycopg.rows import DictRow, dict_row
+from psycopg_pool import AsyncConnectionPool
 
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -63,6 +75,10 @@ class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
     - aget(): Checkpoint load (reads state from PostgreSQL)
     - alist(): Checkpoint list (queries checkpoint history)
 
+    It also overrides the private `_cursor()` context manager to make the saver
+    pool-aware (bypass the instance-level lock when `conn` is an
+    `AsyncConnectionPool`) — see `_cursor` docstring and ADR-111.
+
     All other methods (setup, atuple, etc.) are passed through unchanged.
 
     Usage:
@@ -76,6 +92,76 @@ class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
         - Errors are categorized (db_connection/serialization/timeout/permission)
         - All errors are logged AND re-raised (no silent failures)
     """
+
+    @asynccontextmanager
+    async def _cursor(self, *, pipeline: bool = False) -> AsyncIterator[AsyncCursor[DictRow]]:
+        """Pool-aware override of `AsyncPostgresSaver._cursor` (upstream issue #7259).
+
+        In langgraph-checkpoint-postgres 3.1.0 the parent implementation acquires
+        the instance-level `self.lock` around EVERY database operation, even when
+        `self.conn` is an `AsyncConnectionPool` — which serializes all concurrent
+        checkpoint reads/writes of the worker on a single mutex and defeats the
+        pool entirely. `AsyncPostgresStore._cursor` (same package, same release)
+        already carries the fix: with a pool, each `_cursor()` call checks out its
+        own connection and the pool never hands the same connection to two callers,
+        so the shared lock is unnecessary. This override applies that exact
+        reasoning to the saver, keeping the parent body verbatim otherwise.
+
+        Safety argument (ADR-111): production already runs 4 uvicorn workers whose
+        savers write concurrently to the same checkpoint tables with no
+        cross-process lock — the instance lock therefore cannot be load-bearing
+        for data consistency; it only guards single-connection exclusivity, which
+        the pool checkout already guarantees.
+
+        Behavior is bit-for-bit identical to the parent for single-connection
+        (and pipeline) configurations: only the pooled case swaps the shared lock
+        for a fresh no-op lock.
+
+        REMOVE this override once upstream ships the fix for
+        https://github.com/langchain-ai/langgraph/issues/7259 — the canary test
+        `test_upstream_cursor_still_locks_pools` fails loudly when that happens.
+
+        Args:
+            pipeline: Whether to use pipeline mode for the DB operations inside
+                the context manager (falls back to a transaction context manager
+                when pipeline mode is not supported).
+
+        Yields:
+            An async cursor bound to a connection that is exclusively ours for
+            the duration of the context.
+        """
+        is_pooled_conn = isinstance(self.conn, AsyncConnectionPool)
+        lock = asyncio.Lock() if is_pooled_conn else self.lock
+        async with lock, _ainternal.get_connection(self.conn) as conn:
+            if self.pipe:
+                # a connection in pipeline mode can be used concurrently
+                # in multiple threads/coroutines, but only one cursor can be
+                # used at a time
+                try:
+                    async with conn.cursor(binary=True, row_factory=dict_row) as cur:
+                        yield cur
+                finally:
+                    if pipeline:
+                        await self.pipe.sync()
+            elif pipeline:
+                # a connection not in pipeline mode can only be used by one
+                # thread/coroutine at a time, so we acquire a lock
+                if self.supports_pipeline:
+                    async with (
+                        conn.pipeline(),
+                        conn.cursor(binary=True, row_factory=dict_row) as cur,
+                    ):
+                        yield cur
+                else:
+                    # Use connection's transaction context manager when pipeline mode not supported
+                    async with (
+                        conn.transaction(),
+                        conn.cursor(binary=True, row_factory=dict_row) as cur,
+                    ):
+                        yield cur
+            else:
+                async with conn.cursor(binary=True, row_factory=dict_row) as cur:
+                    yield cur
 
     async def aput(
         self,

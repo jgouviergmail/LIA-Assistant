@@ -6,7 +6,7 @@
 
 **Versión**: 2.7
 **Fecha**: 2026-07-08
-**Aplicación**: LIA v1.21.18
+**Aplicación**: LIA v1.21.19
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -504,7 +504,7 @@ Cuando el número de tokens supera un umbral dinámico (ratio de la context wind
 
 ### 10.4. Checkpointing PostgreSQL
 
-State completo checkpointeado después de cada nodo. P95 save < 50 ms, P95 load < 100 ms, tamaño medio ~15 KB/conversación.
+State completo checkpointeado después de cada nodo. P95 save < 50 ms, P95 load < 100 ms, tamaño medio ~15 KB/conversación. El checkpointer y el store se apoyan cada uno en un pool de conexiones PostgreSQL dedicado por worker (tamaños ajustables por entorno): las conversaciones concurrentes ya no se serializan sobre una conexión única, y una conexión caída se detecta en el checkout y se reemplaza automáticamente (ADR-111).
 
 ---
 
@@ -1019,4 +1019,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.21.18). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.21.19). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

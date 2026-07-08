@@ -3,10 +3,14 @@ Unit tests for tool context store singleton factory.
 
 Phase: Session 10 - Tests Quick Wins (context/store)
 Created: 2025-11-20
+Updated: 2026-07 (ADR-111) — the factory now builds an AsyncConnectionPool
+instead of a single persistent AsyncConnection.
 
-Focus: AsyncPostgresStore singleton pattern, connection management, cleanup
+Focus: AsyncPostgresStore singleton pattern, pool lifecycle, cleanup.
+Fully mocked: no PostgreSQL connection is ever opened.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -18,30 +22,35 @@ from src.domains.agents.context.store import (
 )
 
 
+def _configure_settings(mock_settings: MagicMock) -> None:
+    """Apply the settings attributes the store factory reads."""
+    mock_settings.database_url = "postgresql+asyncpg://user:pass@localhost/db"
+    mock_settings.memory_embedding_dimensions = 384
+    mock_settings.langgraph_store_pool_min_size = 1
+    mock_settings.langgraph_store_pool_max_size = 4
+    mock_settings.database_pool_timeout = 30
+
+
 class TestGetToolContextStore:
     """Tests for get_tool_context_store() singleton factory."""
 
     @pytest.mark.asyncio
     async def test_get_tool_context_store_creates_instance(self):
-        """Test that get_tool_context_store() creates AsyncPostgresStore instance."""
+        """Test that get_tool_context_store() creates AsyncPostgresStore on a pool."""
         reset_tool_context_store()  # Start fresh
 
         with (
-            patch("src.domains.agents.context.store.AsyncConnection") as mock_conn_class,
+            patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
             patch("src.domains.agents.context.store.AsyncPostgresStore") as mock_store_class,
             patch("src.domains.agents.context.store.settings") as mock_settings,
             patch("src.domains.agents.context.store._get_embeddings_model") as mock_embeddings,
         ):
-            # Mock settings for basic store creation
-            mock_settings.database_url = "postgresql+asyncpg://user:pass@localhost/db"
-            mock_settings.memory_embedding_dimensions = 384
+            _configure_settings(mock_settings)
             mock_embeddings.return_value = MagicMock()
 
-            # Mock connection
-            mock_conn = AsyncMock()
-            mock_conn_class.connect = AsyncMock(return_value=mock_conn)
+            mock_pool = AsyncMock()
+            mock_pool_cls.return_value = mock_pool
 
-            # Mock store
             mock_store = AsyncMock()
             mock_store.setup = AsyncMock()
             mock_store_class.return_value = mock_store
@@ -49,16 +58,16 @@ class TestGetToolContextStore:
             # Call function
             store = await get_tool_context_store()
 
-            # Verify connection created with psycopg URL
-            mock_conn_class.connect.assert_called_once()
-            call_args = mock_conn_class.connect.call_args
-            assert "postgresql://" in call_args[0][0]  # URL converted
-            assert "asyncpg" not in call_args[0][0]  # asyncpg removed
+            # Verify pool created with psycopg URL
+            mock_pool_cls.assert_called_once()
+            pool_url = mock_pool_cls.call_args.args[0]
+            assert "postgresql://" in pool_url  # URL converted
+            assert "asyncpg" not in pool_url  # asyncpg removed
 
-            # Verify store created with index (semantic search enabled by default)
+            # Verify store created on the pool with index (semantic search enabled)
             mock_store_class.assert_called_once()
             call_kwargs = mock_store_class.call_args.kwargs
-            assert call_kwargs["conn"] is mock_conn
+            assert call_kwargs["conn"] is mock_pool
             assert "index" in call_kwargs  # Semantic search enabled
             assert call_kwargs["index"]["dims"] == 384
 
@@ -68,25 +77,24 @@ class TestGetToolContextStore:
             # Verify return value
             assert store is mock_store
 
+        reset_tool_context_store()
+
     @pytest.mark.asyncio
     async def test_get_tool_context_store_singleton_pattern(self):
         """Test that get_tool_context_store() returns same instance on repeated calls."""
         reset_tool_context_store()  # Start fresh
 
         with (
-            patch("src.domains.agents.context.store.AsyncConnection") as mock_conn_class,
+            patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
             patch("src.domains.agents.context.store.AsyncPostgresStore") as mock_store_class,
             patch("src.domains.agents.context.store.settings") as mock_settings,
+            patch("src.domains.agents.context.store._get_embeddings_model") as mock_embeddings,
         ):
-            # Mock settings
-            mock_settings.tool_context_enabled = True
-            mock_settings.database_url = "postgresql+asyncpg://user:pass@localhost/db"
+            _configure_settings(mock_settings)
+            mock_embeddings.return_value = MagicMock()
 
-            # Mock connection
-            mock_conn = AsyncMock()
-            mock_conn_class.connect = AsyncMock(return_value=mock_conn)
+            mock_pool_cls.return_value = AsyncMock()
 
-            # Mock store
             mock_store = AsyncMock()
             mock_store.setup = AsyncMock()
             mock_store_class.return_value = mock_store
@@ -98,10 +106,12 @@ class TestGetToolContextStore:
             # Verify same instance
             assert store1 is store2
 
-            # Verify connection/store created only once
-            assert mock_conn_class.connect.call_count == 1
+            # Verify pool/store created only once
+            assert mock_pool_cls.call_count == 1
             assert mock_store_class.call_count == 1
             assert mock_store.setup.call_count == 1
+
+        reset_tool_context_store()
 
     # NOTE: test_get_tool_context_store_with_disabled_setting removed
     # Tool context is now always enabled (no feature flag)
@@ -112,19 +122,17 @@ class TestGetToolContextStore:
         reset_tool_context_store()  # Start fresh
 
         with (
-            patch("src.domains.agents.context.store.AsyncConnection") as mock_conn_class,
+            patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
             patch("src.domains.agents.context.store.AsyncPostgresStore") as mock_store_class,
             patch("src.domains.agents.context.store.settings") as mock_settings,
+            patch("src.domains.agents.context.store._get_embeddings_model") as mock_embeddings,
         ):
-            # Mock settings with asyncpg URL
-            mock_settings.tool_context_enabled = True
+            _configure_settings(mock_settings)
             mock_settings.database_url = "postgresql+asyncpg://user:pass@localhost:5432/testdb"
+            mock_embeddings.return_value = MagicMock()
 
-            # Mock connection
-            mock_conn = AsyncMock()
-            mock_conn_class.connect = AsyncMock(return_value=mock_conn)
+            mock_pool_cls.return_value = AsyncMock()
 
-            # Mock store
             mock_store = AsyncMock()
             mock_store.setup = AsyncMock()
             mock_store_class.return_value = mock_store
@@ -133,29 +141,31 @@ class TestGetToolContextStore:
             await get_tool_context_store()
 
             # Verify URL converted correctly
-            call_args = mock_conn_class.connect.call_args[0][0]
-            assert call_args == "postgresql://user:pass@localhost:5432/testdb"
-            assert "+asyncpg" not in call_args
+            pool_url = mock_pool_cls.call_args.args[0]
+            assert pool_url == "postgresql://user:pass@localhost:5432/testdb"
+            assert "+asyncpg" not in pool_url
+
+        reset_tool_context_store()
 
     @pytest.mark.asyncio
-    async def test_get_tool_context_store_connection_params(self):
-        """Test that connection is created with correct parameters."""
+    async def test_get_tool_context_store_pool_params(self):
+        """Test that the pool is created with correct sizes and connection kwargs."""
         reset_tool_context_store()  # Start fresh
 
         with (
-            patch("src.domains.agents.context.store.AsyncConnection") as mock_conn_class,
+            patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
             patch("src.domains.agents.context.store.AsyncPostgresStore") as mock_store_class,
             patch("src.domains.agents.context.store.settings") as mock_settings,
+            patch("src.domains.agents.context.store._get_embeddings_model") as mock_embeddings,
         ):
-            # Mock settings
-            mock_settings.tool_context_enabled = True
-            mock_settings.database_url = "postgresql+asyncpg://user:pass@localhost/db"
+            _configure_settings(mock_settings)
+            mock_settings.langgraph_store_pool_min_size = 2
+            mock_settings.langgraph_store_pool_max_size = 5
+            mock_embeddings.return_value = MagicMock()
 
-            # Mock connection
-            mock_conn = AsyncMock()
-            mock_conn_class.connect = AsyncMock(return_value=mock_conn)
+            mock_pool = AsyncMock()
+            mock_pool_cls.return_value = mock_pool
 
-            # Mock store
             mock_store = AsyncMock()
             mock_store.setup = AsyncMock()
             mock_store_class.return_value = mock_store
@@ -163,11 +173,54 @@ class TestGetToolContextStore:
             # Call function
             await get_tool_context_store()
 
-            # Verify connection parameters
-            call_kwargs = mock_conn_class.connect.call_args[1]
-            assert call_kwargs["autocommit"] is True
-            assert call_kwargs["prepare_threshold"] == 0
-            assert "row_factory" in call_kwargs
+            # Pool sizes flow from settings (never hardcoded in the factory)
+            call_kwargs = mock_pool_cls.call_args.kwargs
+            assert call_kwargs["min_size"] == mock_settings.langgraph_store_pool_min_size
+            assert call_kwargs["max_size"] == mock_settings.langgraph_store_pool_max_size
+            # Connection kwargs identical to the former single AsyncConnection
+            conn_kwargs = call_kwargs["kwargs"]
+            assert conn_kwargs["autocommit"] is True
+            assert conn_kwargs["prepare_threshold"] == 0
+            assert "row_factory" in conn_kwargs
+            # Deferred explicit open + fail-fast wait for min_size connections
+            assert call_kwargs["open"] is False
+            mock_pool.open.assert_awaited_once_with(
+                wait=True, timeout=mock_settings.database_pool_timeout
+            )
+
+        reset_tool_context_store()
+
+    @pytest.mark.asyncio
+    async def test_setup_failure_closes_pool_and_allows_retry(self):
+        """A setup() failure must not leak the opened pool nor poison the singleton."""
+        reset_tool_context_store()
+
+        with (
+            patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
+            patch("src.domains.agents.context.store.AsyncPostgresStore") as mock_store_class,
+            patch("src.domains.agents.context.store.settings") as mock_settings,
+            patch("src.domains.agents.context.store._get_embeddings_model") as mock_embeddings,
+        ):
+            _configure_settings(mock_settings)
+            mock_embeddings.return_value = MagicMock()
+
+            failing_pool = AsyncMock()
+            healthy_pool = AsyncMock()
+            mock_pool_cls.side_effect = [failing_pool, healthy_pool]
+
+            failing_store = AsyncMock()
+            failing_store.setup.side_effect = RuntimeError("setup boom")
+            healthy_store = AsyncMock()
+            mock_store_class.side_effect = [failing_store, healthy_store]
+
+            with pytest.raises(RuntimeError, match="setup boom"):
+                await get_tool_context_store()
+            failing_pool.close.assert_awaited_once()
+
+            store = await get_tool_context_store()
+            assert store is healthy_store
+
+        reset_tool_context_store()
 
 
 class TestCleanupToolContextStore:
@@ -175,24 +228,21 @@ class TestCleanupToolContextStore:
 
     @pytest.mark.asyncio
     async def test_cleanup_with_existing_store(self):
-        """Test cleanup closes connection and clears store."""
+        """Test cleanup closes the pool and clears the store."""
         reset_tool_context_store()  # Start fresh
 
         with (
-            patch("src.domains.agents.context.store.AsyncConnection") as mock_conn_class,
+            patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
             patch("src.domains.agents.context.store.AsyncPostgresStore") as mock_store_class,
             patch("src.domains.agents.context.store.settings") as mock_settings,
+            patch("src.domains.agents.context.store._get_embeddings_model") as mock_embeddings,
         ):
-            # Mock settings
-            mock_settings.tool_context_enabled = True
-            mock_settings.database_url = "postgresql+asyncpg://user:pass@localhost/db"
+            _configure_settings(mock_settings)
+            mock_embeddings.return_value = MagicMock()
 
-            # Mock connection
-            mock_conn = AsyncMock()
-            mock_conn.close = AsyncMock()
-            mock_conn_class.connect = AsyncMock(return_value=mock_conn)
+            mock_pool = AsyncMock()
+            mock_pool_cls.return_value = mock_pool
 
-            # Mock store
             mock_store = AsyncMock()
             mock_store.setup = AsyncMock()
             mock_store_class.return_value = mock_store
@@ -203,13 +253,15 @@ class TestCleanupToolContextStore:
             # Cleanup
             await cleanup_tool_context_store()
 
-            # Verify connection closed
-            mock_conn.close.assert_called_once()
+            # Verify pool closed
+            mock_pool.close.assert_awaited_once()
 
             # Verify store cleared (next call creates new instance)
             await get_tool_context_store()
-            # New instance created
-            assert mock_conn_class.connect.call_count == 2  # Once for first, once after cleanup
+            # New pool created after cleanup
+            assert mock_pool_cls.call_count == 2
+
+        reset_tool_context_store()
 
     @pytest.mark.asyncio
     async def test_cleanup_with_no_store(self):
@@ -221,22 +273,23 @@ class TestCleanupToolContextStore:
         # No assertions needed - just verify no exception
 
     @pytest.mark.asyncio
-    async def test_cleanup_without_connection(self):
-        """Test cleanup handles case where store exists but connection is None."""
+    async def test_cleanup_without_pool(self):
+        """Test cleanup handles case where store exists but pool is None."""
         reset_tool_context_store()
 
-        with patch("src.domains.agents.context.store._tool_context_store", AsyncMock()):
-            # Store exists but no connection
-            with patch("src.domains.agents.context.store._store_connection", None):
-                # Should not crash
-                await cleanup_tool_context_store()
+        with (
+            patch("src.domains.agents.context.store._tool_context_store", AsyncMock()),
+            patch("src.domains.agents.context.store._store_pool", None),
+        ):
+            # Should not crash
+            await cleanup_tool_context_store()
 
 
 class TestResetToolContextStore:
     """Tests for reset_tool_context_store() reset function."""
 
     def test_reset_clears_singleton(self):
-        """Test that reset clears global store and connection."""
+        """Test that reset clears global store and pool."""
         # This is a synchronous function
         reset_tool_context_store()
 
@@ -250,17 +303,15 @@ class TestResetToolContextStore:
         reset_tool_context_store()
 
         with (
-            patch("src.domains.agents.context.store.AsyncConnection") as mock_conn_class,
+            patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
             patch("src.domains.agents.context.store.AsyncPostgresStore") as mock_store_class,
             patch("src.domains.agents.context.store.settings") as mock_settings,
+            patch("src.domains.agents.context.store._get_embeddings_model") as mock_embeddings,
         ):
-            # Mock settings
-            mock_settings.tool_context_enabled = True
-            mock_settings.database_url = "postgresql+asyncpg://user:pass@localhost/db"
+            _configure_settings(mock_settings)
+            mock_embeddings.return_value = MagicMock()
 
-            # Mock connection
-            mock_conn = AsyncMock()
-            mock_conn_class.connect = AsyncMock(return_value=mock_conn)
+            mock_pool_cls.return_value = AsyncMock()
 
             # Mock store - create different instances
             mock_store1 = AsyncMock()
@@ -283,6 +334,33 @@ class TestResetToolContextStore:
             assert store1 is mock_store1
             assert store2 is mock_store2
 
+        reset_tool_context_store()
+
+    @pytest.mark.asyncio
+    async def test_reset_schedules_pool_close(self):
+        """reset closes the previous pool best-effort via a background task."""
+        reset_tool_context_store()
+
+        with (
+            patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
+            patch("src.domains.agents.context.store.AsyncPostgresStore") as mock_store_class,
+            patch("src.domains.agents.context.store.settings") as mock_settings,
+            patch("src.domains.agents.context.store._get_embeddings_model") as mock_embeddings,
+        ):
+            _configure_settings(mock_settings)
+            mock_embeddings.return_value = MagicMock()
+
+            mock_pool = AsyncMock()
+            mock_pool_cls.return_value = mock_pool
+            mock_store_class.return_value = AsyncMock()
+
+            await get_tool_context_store()
+            reset_tool_context_store()
+            # Yield to the loop so the scheduled close task runs
+            await asyncio.sleep(0)
+
+            mock_pool.close.assert_awaited_once()
+
 
 class TestIntegration:
     """Integration tests for store lifecycle."""
@@ -293,18 +371,16 @@ class TestIntegration:
         reset_tool_context_store()
 
         with (
-            patch("src.domains.agents.context.store.AsyncConnection") as mock_conn_class,
+            patch("src.domains.agents.context.store.AsyncConnectionPool") as mock_pool_cls,
             patch("src.domains.agents.context.store.AsyncPostgresStore") as mock_store_class,
             patch("src.domains.agents.context.store.settings") as mock_settings,
+            patch("src.domains.agents.context.store._get_embeddings_model") as mock_embeddings,
         ):
-            # Mock settings
-            mock_settings.tool_context_enabled = True
-            mock_settings.database_url = "postgresql+asyncpg://user:pass@localhost/db"
+            _configure_settings(mock_settings)
+            mock_embeddings.return_value = MagicMock()
 
-            # Mock connection
-            mock_conn = AsyncMock()
-            mock_conn.close = AsyncMock()
-            mock_conn_class.connect = AsyncMock(return_value=mock_conn)
+            mock_pool = AsyncMock()
+            mock_pool_cls.return_value = mock_pool
 
             # Mock stores - create different instances
             mock_store1 = AsyncMock()
@@ -323,9 +399,11 @@ class TestIntegration:
 
             # Step 3: Cleanup
             await cleanup_tool_context_store()
-            mock_conn.close.assert_called_once()
+            mock_pool.close.assert_awaited_once()
 
             # Step 4: Recreate after cleanup
             store2 = await get_tool_context_store()
             assert store2 is mock_store2
             assert store2 is not store1
+
+        reset_tool_context_store()

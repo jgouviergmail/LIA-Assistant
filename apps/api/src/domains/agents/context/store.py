@@ -6,6 +6,8 @@ across all agent executions for tool context persistence AND semantic memory.
 
 Pattern:
     - Singleton AsyncPostgresStore (similar to checkpointer.py pattern)
+    - Backed by an AsyncConnectionPool: each store operation checks out its own
+      connection instead of queueing on a single persistent one (ADR-111)
     - PostgreSQL-backed for persistence across restarts
     - Semantic search via Gemini gemini-embedding-001 (1536 dims)
     - Thread-safe, module-level singleton
@@ -33,9 +35,13 @@ References:
     - Similar pattern: src/domains/conversations/checkpointer.py
 """
 
+import asyncio
+from typing import cast
+
 from langgraph.store.postgres import AsyncPostgresStore
 from psycopg import AsyncConnection
-from psycopg.rows import dict_row
+from psycopg.rows import DictRow, dict_row
+from psycopg_pool import AsyncConnectionPool
 
 from src.core.config import settings
 from src.infrastructure.observability.logging import get_logger
@@ -71,9 +77,9 @@ def _get_embeddings_model():
     return _embeddings_model
 
 
-# Global Store instance and connection (initialized on first access)
+# Global Store instance and connection pool (initialized on first access)
 _tool_context_store: AsyncPostgresStore | None = None
-_store_connection: AsyncConnection | None = None
+_store_pool: AsyncConnectionPool[AsyncConnection[DictRow]] | None = None
 
 
 async def get_tool_context_store() -> AsyncPostgresStore:
@@ -107,22 +113,42 @@ async def get_tool_context_store() -> AsyncPostgresStore:
         >>> # Store is auto-injected into tools via `*, store: BaseStore` parameter
         >>> # Semantic search: results = await store.asearch((user_id, "memories"), query="...")
     """
-    global _tool_context_store, _store_connection
+    global _tool_context_store, _store_pool
 
     if _tool_context_store is None:
-        logger.info("tool_context_store_initializing")
+        logger.info(
+            "tool_context_store_initializing",
+            pool_min_size=settings.langgraph_store_pool_min_size,
+            pool_max_size=settings.langgraph_store_pool_max_size,
+        )
 
         # Convert asyncpg URL to psycopg3 URL (same as checkpointer.py)
         database_url_str = str(settings.database_url)
         psycopg_url = database_url_str.replace("postgresql+asyncpg://", "postgresql://")
 
-        # Create persistent connection for store
-        _store_connection = await AsyncConnection.connect(
-            psycopg_url,
-            autocommit=True,
-            prepare_threshold=0,
-            row_factory=dict_row,  # type: ignore[arg-type]
+        # Connection pool for the store (ADR-111). AsyncPostgresStore._cursor is
+        # natively pool-aware: each operation checks out its own connection.
+        # Connection kwargs match the former single AsyncConnection exactly.
+        # check= validates connections on checkout (parity with SQLAlchemy
+        # pool_pre_ping=True). The cast mirrors upstream (store aio.py).
+        pool = cast(
+            AsyncConnectionPool[AsyncConnection[DictRow]],
+            AsyncConnectionPool(
+                psycopg_url,
+                min_size=settings.langgraph_store_pool_min_size,
+                max_size=settings.langgraph_store_pool_max_size,
+                kwargs={
+                    "autocommit": True,
+                    "prepare_threshold": 0,
+                    "row_factory": dict_row,
+                },
+                check=AsyncConnectionPool.check_connection,
+                open=False,
+            ),
         )
+        # Fail fast at startup: wait until min_size connections are established.
+        await pool.open(wait=True, timeout=settings.database_pool_timeout)
+        _store_pool = pool
 
         # Build index configuration for semantic search
         # NOTE: Memory/semantic search is always enabled (Gemini embeddings)
@@ -151,23 +177,28 @@ async def get_tool_context_store() -> AsyncPostgresStore:
                 message="Falling back to non-semantic store",
             )
 
-        # Create store with persistent connection and optional semantic index
-        if index_config:
-            _tool_context_store = AsyncPostgresStore(
-                conn=_store_connection,  # type: ignore[arg-type]
-                index=index_config,
-            )
-        else:
-            _tool_context_store = AsyncPostgresStore(conn=_store_connection)  # type: ignore[arg-type]
+        try:
+            # Create store on the pool, with optional semantic index
+            if index_config:
+                _tool_context_store = AsyncPostgresStore(conn=pool, index=index_config)
+            else:
+                _tool_context_store = AsyncPostgresStore(conn=pool)
 
-        # Setup store tables (idempotent) - includes pgvector index if semantic enabled
-        await _tool_context_store.setup()
+            # Setup store tables (idempotent) - includes pgvector index if semantic enabled
+            await _tool_context_store.setup()
+        except Exception:
+            # Don't leak an opened pool if setup fails: next call re-enters init.
+            await pool.close()
+            _store_pool = None
+            _tool_context_store = None
+            raise
 
         logger.info(
             "tool_context_store_initialized",
             store_type="AsyncPostgresStore",
             semantic_search=semantic_search_enabled,
             persistence=True,
+            pooled=True,
             tables_created=["store_items", "store_metadata"],
         )
 
@@ -178,20 +209,21 @@ async def cleanup_tool_context_store() -> None:
     """
     Cleanup tool context store on application shutdown.
 
-    Closes connection pool gracefully to avoid hanging connections.
+    Closes the connection pool gracefully: in-flight connections are closed as
+    they return to the pool, remaining workers are terminated after the pool's
+    close timeout.
 
     Usage:
         Add to FastAPI lifespan shutdown hook (already done in main.py)
     """
-    global _tool_context_store, _store_connection
+    global _tool_context_store, _store_pool
 
-    if _tool_context_store is not None:
+    if _tool_context_store is not None or _store_pool is not None:
         logger.info("tool_context_store_cleanup_started")
 
-        # Close the persistent psycopg connection
-        if _store_connection is not None:
-            await _store_connection.close()
-            _store_connection = None
+        if _store_pool is not None:
+            await _store_pool.close()
+            _store_pool = None
 
         _tool_context_store = None
         logger.info("tool_context_store_cleanup_completed")
@@ -204,10 +236,20 @@ def reset_tool_context_store() -> None:
     WARNING: Only use in tests to force recreation of store.
     Production code should never call this method.
 
-    This method clears the global singleton, forcing a new store
-    to be created on next access. Useful for test isolation.
+    This method clears the global singleton, forcing a new store to be created
+    on next access. The previous pool is closed best-effort: as a background
+    task when an event loop is running, abandoned otherwise (prefer
+    `await cleanup_tool_context_store()` from async code).
     """
-    global _tool_context_store, _store_connection
+    global _tool_context_store, _store_pool
+    if _store_pool is not None:
+        pool = _store_pool
+        try:
+            asyncio.get_running_loop().create_task(pool.close(), name="store_pool_close_on_reset")
+        except RuntimeError:
+            # No running loop (sync context): abandon the pool; connections are
+            # reclaimed at process exit. Test-only path, mirrors previous behavior.
+            pass
     _tool_context_store = None
-    _store_connection = None
+    _store_pool = None
     logger.warning("tool_context_store_reset")

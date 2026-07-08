@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.19] - 2026-07-08
+
+> LangGraph Postgres connection pooling (ADR-111). Lifts the #1 scalability bottleneck identified by the S2/A7 audit: the LangGraph checkpointer and store each ran on a *single* persistent PostgreSQL connection per worker, and langgraph serializes every operation of a connection behind an instance-level `asyncio.Lock` — so all concurrent conversations of a worker queued on one mutex for every checkpoint read/write. Both now run on settings-driven `psycopg` async pools; checkpoint concurrency per worker goes from 1 to `max_size` (default 8). Bonus fix: a connection killed while idle (PostgreSQL restart) used to leave persistence broken until an API restart — pooled connections are now validated at checkout and replaced.
+
+### Changed
+
+- **LangGraph checkpointer & store on `AsyncConnectionPool`** (`domains/conversations/checkpointer.py`, `domains/agents/context/store.py`): the single persistent `AsyncConnection` per worker is replaced by a pool with identical connection kwargs (`autocommit=True`, `prepare_threshold=0`, `dict_row`), explicit deferred open with fail-fast boot semantics (`open=False` + `await pool.open(wait=True)`), checkout-time validation (`check=check_connection`, parity with SQLAlchemy `pool_pre_ping=True`), and leak-free error paths (a `setup()` failure closes the pool). Factory contracts, msgpack serde allowlist and the 5 `checkpoint_*` Prometheus metrics are unchanged.
+- **Pool-aware `_cursor` override in `InstrumentedAsyncPostgresSaver`**: in `langgraph-checkpoint-postgres==3.1.0` (latest, unfixed on upstream `main` — [langgraph#7259](https://github.com/langchain-ai/langgraph/issues/7259)) only the *store* bypasses the shared instance lock when running on a pool; the *saver* holds it unconditionally, so a pool alone buys zero checkpoint concurrency. The override replicates the store's own pool-aware pattern with the upstream method body verbatim — single-connection behavior stays bit-for-bit identical. Safety argument recorded in ADR-111: 4 production workers already write concurrently to the same checkpoint tables with no cross-process lock, so the instance lock cannot be load-bearing for consistency. Two canary tests order the override's removal the day upstream ships the fix.
+- Waiting behavior under saturation is now bounded and observable: beyond `max_size` concurrent operations, a checkout waits at most the pool timeout (30 s) then raises `PoolTimeout`, surfaced as `checkpoint_errors_total{error_type="timeout"}` — previously operations queued invisibly and indefinitely behind the lock.
+
+### Added
+
+- **4 settings** (`DatabaseSettings`, min/max cross-validated, defaults + full connection budget documented in `core/constants.py`): `LANGGRAPH_CHECKPOINT_POOL_MIN_SIZE=1` / `MAX_SIZE=8`, `LANGGRAPH_STORE_POOL_MIN_SIZE=1` / `MAX_SIZE=4` — per worker, in `.env.example` + `.env.prod.example`. The store max is deliberately smaller (`AsyncBatchedBaseStore` processes batches sequentially — its pool gain is resilience, not concurrency). **Rollback without redeploy**: `LANGGRAPH_CHECKPOINT_POOL_MAX_SIZE=1` reproduces the former fully-serialized behavior.
+- **`psycopg-pool==3.3.1`** pinned explicitly (became a direct import).
+- **ADR-111** (decision, upstream-trap analysis, cross-worker safety proof, connection budget — persistent baseline ≈130 of 197 usable; the worst-case overcommit predates this change and is dominated by the per-worker SQLAlchemy overflow, right-sizing recorded as follow-up).
+- Docs aligned: `STATE_AND_CHECKPOINT.md` (which had documented a pool the code never had — the contradiction resolves in the doc's favor), cross-ref note in ADR-022, `STACK_TECHNIQUE.md`, `docs/INDEX.md`, `ADR_INDEX.md`.
+
+### Fixed
+
+- **Dead-connection lockup**: a checkpointer/store connection dropped while idle no longer disables conversation persistence until the API restarts — checkout validation replaces broken connections transparently.
+- Legacy `tests/unit/test_checkpointer.py` now skips cleanly when the test-settings database URL is unreachable (same guard as `conftest._skip_if_db_unreachable`) instead of failing with connection errors in the dev container — pre-existing environmental failure, proven identical on the old code path; still runs in CI.
+
+### Tests
+
+- 3 new test files + 2 reworked: cross-platform mocked factory tests (pool config from settings, singleton, cleanup, setup-failure paths), behavioral lock tests (pooled `_cursor`s overlap — the test fails by timeout under upstream behavior; single-connection stays serialized), upstream canaries, real-PostgreSQL integration (20 concurrent compiled-graph invocations, all checkpoints persisted and resumable + 20 concurrent store put/get), and a parametrized before/after benchmark.
+- Benchmark (dev container, PG on the same Docker network — the *least* pool-favorable setting): 20 concurrent tasks × 5 rounds of aput+aget, **×1.10** at 4 KB payloads, **×1.42** at 64 KB; the speedup grows with the I/O-bound share.
+- Non-regression: `tests/unit` 8,916 passed, `tests/agents` 958 passed (HITL replay/resumption suites included), MyPy strict on 848 files, Docker boot healthy with `pooled=true` on both factories.
+
 ## [1.21.18] - 2026-07-08
 
 > Automated PostgreSQL backups with a tested restore (ADR-109). Closes the top operational risk from the 2026-07-07 360° audit: no backup tooling was versioned in the repository and the RPO was undefined. Production (Raspberry Pi 5) now gets scheduled `pg_dump` snapshots with three-tier rotation, every knob `.env`-driven, and — the actual point — a restore procedure that is *proven*, not declared: the release was validated by a real backup restored into a throwaway container with schema and row-count comparison. RPO goes from undefined to ≤ 24 h (tunable).

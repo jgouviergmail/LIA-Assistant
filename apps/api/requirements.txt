@@ -6,6 +6,7 @@ uvicorn[standard]==0.48.0
 sqlalchemy[asyncio]==2.0.50
 asyncpg==0.31.0
 psycopg[binary]==3.3.4  # PostgreSQL adapter v3 (modern, for LangGraph checkpointer & SQLAlchemy)
+psycopg-pool==3.3.1  # Async connection pool for LangGraph checkpointer & store (ADR-111; pinned: direct import)
 alembic==1.18.4
 pgvector==0.4.2
 

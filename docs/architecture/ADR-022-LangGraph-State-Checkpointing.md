@@ -141,6 +141,14 @@ class MessagesState(TypedDict):
 
 ### PostgreSQL Checkpointer
 
+> **Update 2026-07 ([ADR-111](ADR-111-LangGraph-Postgres-Connection-Pooling.md))**:
+> the single persistent `AsyncConnection` shown below was replaced by a
+> settings-driven `psycopg_pool.AsyncConnectionPool` (plus a pool-aware
+> `_cursor` override in `InstrumentedAsyncPostgresSaver`). The snippet is kept
+> as the original decision record; see
+> [checkpointer.py](../../apps/api/src/domains/conversations/checkpointer.py)
+> for the current implementation.
+
 ```python
 # apps/api/src/domains/agents/checkpointer.py
 

@@ -573,6 +573,31 @@ DATABASE_MAX_OVERFLOW_DEFAULT = 30  # Burst capacity for peak load (was 20)
 DATABASE_POOL_TIMEOUT_DEFAULT = 30  # Seconds to wait for connection (SQLAlchemy default)
 DATABASE_POOL_RECYCLE_DEFAULT = 1800  # Recycle connections every 30min (avoid stale connections)
 
+# LangGraph PostgreSQL connection pools (ADR-111 — checkpointer & store scalability)
+# Replaces the former single persistent AsyncConnection per worker (audit S2/A7):
+# every checkpoint/store operation used to queue on one connection per worker.
+# Sizes are per worker process (uvicorn --workers 4 in production).
+#
+# Connection budget (production: postgres max_connections=200):
+# - Superuser reserved: 3 (PostgreSQL default)          -> 197 usable
+# - SQLAlchemy:   4 workers x (pool_size=30)            = 120 persistent
+#                 4 workers x (max_overflow=30)         = +120 transient burst
+# - Checkpointer: 4 workers x (min=1 .. max=8)          = 4 persistent, 32 burst
+# - Store:        4 workers x (min=1 .. max=4)          = 4 persistent, 16 burst
+# - postgres-exporter: ~2
+# Persistent baseline: 120 + 4 + 4 + 2 = 130 <= 197. OK
+# Absolute worst case (every burst simultaneously): 240 + 48 + 2 = 290 > 197 — this
+# overcommit predates this change and is dominated by the per-worker SQLAlchemy
+# overflow (the LangGraph pools add at most +40 vs the former 8 fixed connections).
+# Right-sizing the SQLAlchemy pool is recorded as a follow-up in ADR-111.
+#
+# Rollback knob: LANGGRAPH_CHECKPOINT_POOL_MAX_SIZE=1 reproduces the former
+# fully-serialized behavior (single connection checkout) without a redeploy.
+LANGGRAPH_CHECKPOINT_POOL_MIN_SIZE_DEFAULT = 1  # Parity with former 1 connection/worker
+LANGGRAPH_CHECKPOINT_POOL_MAX_SIZE_DEFAULT = 8  # Checkpoint concurrency ceiling per worker
+LANGGRAPH_STORE_POOL_MIN_SIZE_DEFAULT = 1  # Parity with former 1 connection/worker
+LANGGRAPH_STORE_POOL_MAX_SIZE_DEFAULT = 4  # Store batches are sequential (AsyncBatchedBaseStore)
+
 # Redis database indices (0-15 available)
 REDIS_SESSION_DB = 1  # Session storage
 REDIS_CACHE_DB = 2  # Application cache

@@ -90,6 +90,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | **Alembic** | 1.14.0 | Migrations |
 | **asyncpg** | 0.31.0 | PostgreSQL driver async |
 | **psycopg** | 3.3.x | PostgreSQL driver |
+| **psycopg-pool** | 3.3.x | Pool de connexions async (checkpointer & store LangGraph, ADR-111) |
 | **pgvector** | 0.4.2 | Vector similarity search |
 
 ### Cache & Sessions

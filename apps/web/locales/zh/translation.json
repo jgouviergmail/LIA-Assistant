@@ -3738,6 +3738,16 @@
             "i8": "<b>更智能的移动键盘</b> — 在手机上,聊天输入区域现在启用自动大写、自动更正,并在原生键盘上显示专用的「发送」按钮,而不是简单的回车键。"
           }
         },
+        "v1_21_19": {
+          "title": "v1.21.19 — ⚡ 高负载下更流畅，存储可自愈",
+          "date": "2026年7月",
+          "count": "3",
+          "items": {
+            "i1": "<b>⚡ 多个对话同时进行时更流畅</b> — LIA 在每一步都会保存对话状态，以便随时从中断处继续。此前，这些保存操作每个 worker 只能通过一条数据库通道依次排队；现在它们并行执行，即使多个对话同时活跃，响应时间也保持稳定。",
+            "i2": "<b>🔄 可自我修复的存储</b> — 如果数据库重启或连接意外断开，LIA 现在会自动检测并替换连接。此前这可能悄无声息地阻塞对话保存，直到应用重启。",
+            "i3": "<b>🛠️ 面向自托管用户</b> — 连接池大小可在 .env 中调整（LANGGRAPH_CHECKPOINT_POOL_MIN/MAX_SIZE、LANGGRAPH_STORE_POOL_MIN/MAX_SIZE），连接预算有完整文档。将最大值设为 1 即可恢复之前的行为 — 无需重新部署的回滚。"
+          }
+        },
         "v1_21_18": {
           "title": "v1.21.18 — 💾 数据库自动备份",
           "date": "2026年7月",
@@ -6063,7 +6073,7 @@
       "multi-agent-orchestration": {
         "title": "LIA如何编排19+个专业AI智能体",
         "excerpt": "探索LIA的多智能体系统：智能路由器通过LangGraph、规划器和并行任务编排器将每个请求导向正确的智能体。",
-        "body": "<h2>系统核心：8节点状态图</h2><p>当您向LIA发送消息时，消息并不会直接发送到语言模型，而是经过一个<strong>由8个节点组成的LangGraph状态机</strong>：<code>compaction</code>、<code>router_v3</code>、<code>planner</code>、<code>task_orchestrator</code>、<code>approval_gate</code>、<code>semantic_validator</code>、<code>clarification</code>和<code>response</code>。每个节点都是一个专门的异步函数，具有条件转换。</p><h2>统一智能路由器</h2><p><code>router_v3</code>节点使用<code>QueryAnalyzerService.analyze_full()</code>对每条消息进行统一分析。结果是一个<strong>RouterOutput</strong>，包含：意图（<code>action</code>或<code>conversation</code>）、置信度分数、检测到的领域列表以及路由器的推理过程。如果意图是对话性的，流程直接进入<code>response</code>节点；如果是操作性的，流程进入<code>planner</code>生成结构化计划。</p><h2>丰富的状态与Token管理</h2><p>LangGraph状态（<code>MessagesState</code>）是一个包含<strong>50多个字段</strong>的TypedDict。它使用基于tiktoken的自定义reducer <code>add_messages_with_truncate</code>来管理按Token截断、消息窗口化和OpenAI消息序列验证。该状态通过LangGraph持久化系统检查点保存到<strong>PostgreSQL</strong>中。</p><h2>原生并行执行</h2><p>对于可操作的请求（如\"发送一封邮件并创建一个日程\"），LIA通过规划节点生成结构化的<strong>ExecutionPlan</strong>。任务编排器分析依赖图，并通过原生<code>asyncio.gather()</code>（Phase 5.2B）并行执行独立步骤，大幅减少了多领域请求的响应时间。</p><h2>按领域专门化的智能体</h2><p>每个领域都有自己的智能体：邮件、日历、联系人、任务、Drive、天气、路线、网络搜索、Wikipedia、智能家居等。每个智能体都有专属工具、专业提示和独立上下文。这种划分使LIA能够自动协调多个智能体来处理跨领域请求，例如\"将我下次会议的详情发送给所有参与者\"。</p><h2>持久化与恢复</h2><p>每个对话的完整状态通过LangGraph持久化系统检查点保存到PostgreSQL中。如果中断，对话会从中断处精确恢复，保留所有上下文——包括正在执行的计划和等待中的审批。</p>"
+        "body": "<h2>系统核心：8节点状态图</h2><p>当您向LIA发送消息时，消息并不会直接发送到语言模型，而是经过一个<strong>由8个节点组成的LangGraph状态机</strong>：<code>compaction</code>、<code>router_v3</code>、<code>planner</code>、<code>task_orchestrator</code>、<code>approval_gate</code>、<code>semantic_validator</code>、<code>clarification</code>和<code>response</code>。每个节点都是一个专门的异步函数，具有条件转换。</p><h2>统一智能路由器</h2><p><code>router_v3</code>节点使用<code>QueryAnalyzerService.analyze_full()</code>对每条消息进行统一分析。结果是一个<strong>RouterOutput</strong>，包含：意图（<code>action</code>或<code>conversation</code>）、置信度分数、检测到的领域列表以及路由器的推理过程。如果意图是对话性的，流程直接进入<code>response</code>节点；如果是操作性的，流程进入<code>planner</code>生成结构化计划。</p><h2>丰富的状态与Token管理</h2><p>LangGraph状态（<code>MessagesState</code>）是一个包含<strong>50多个字段</strong>的TypedDict。它使用基于tiktoken的自定义reducer <code>add_messages_with_truncate</code>来管理按Token截断、消息窗口化和OpenAI消息序列验证。该状态通过LangGraph持久化系统检查点保存到<strong>PostgreSQL</strong>中。</p><h2>原生并行执行</h2><p>对于可操作的请求（如\"发送一封邮件并创建一个日程\"），LIA通过规划节点生成结构化的<strong>ExecutionPlan</strong>。任务编排器分析依赖图，并通过原生<code>asyncio.gather()</code>（Phase 5.2B）并行执行独立步骤，大幅减少了多领域请求的响应时间。</p><h2>按领域专门化的智能体</h2><p>每个领域都有自己的智能体：邮件、日历、联系人、任务、Drive、天气、路线、网络搜索、Wikipedia、智能家居等。每个智能体都有专属工具、专业提示和独立上下文。这种划分使LIA能够自动协调多个智能体来处理跨领域请求，例如\"将我下次会议的详情发送给所有参与者\"。</p><h2>持久化与恢复</h2><p>每个对话的完整状态通过LangGraph持久化系统检查点保存到PostgreSQL中。如果中断，对话会从中断处精确恢复，保留所有上下文——包括正在执行的计划和等待中的审批。每个 worker 通过专属连接池与 PostgreSQL 通信：同时进行的对话在保存状态时不再互相排队等待——断开的连接也会被自动检测并替换。</p>"
       },
       "execution-plans": {
         "title": "ExecutionPlan：LIA如何规划和执行复杂请求",

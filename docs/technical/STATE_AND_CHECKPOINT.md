@@ -987,26 +987,32 @@ class State(TypedDict):
 
 ### Configuration
 
-**Fichier source**: [apps/api/src/domains/agents/graph.py](apps/api/src/domains/agents/graph.py)
+**Fichier source**: [apps/api/src/domains/conversations/checkpointer.py](../../apps/api/src/domains/conversations/checkpointer.py) (factory singleton, ADR-111)
 
 ```python
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
-# Create connection pool
+# Connection pool shared by all graph executions of the worker (ADR-111).
+# Sizes come from settings: LANGGRAPH_CHECKPOINT_POOL_MIN_SIZE / MAX_SIZE.
 pool = AsyncConnectionPool(
-    conninfo=settings.database_url,
-    min_size=2,
-    max_size=10
+    psycopg_url,  # settings.database_url converted to the psycopg3 scheme
+    min_size=settings.langgraph_checkpoint_pool_min_size,
+    max_size=settings.langgraph_checkpoint_pool_max_size,
+    kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+    check=AsyncConnectionPool.check_connection,  # pre-ping parity with SQLAlchemy
+    open=False,
 )
+await pool.open(wait=True, timeout=settings.database_pool_timeout)  # fail-fast boot
 
-# Create checkpointer with msgpack allowlist for custom types
+# Instrumented checkpointer (Prometheus metrics + pool-aware _cursor override)
+# with msgpack allowlist for custom types
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
 serde = JsonPlusSerializer(allowed_msgpack_modules=_CHECKPOINT_ALLOWED_MODULES)
-checkpointer = AsyncPostgresSaver(pool, serde=serde)
+checkpointer = InstrumentedAsyncPostgresSaver(conn=pool, serde=serde)
 
-# Initialize schema (run once)
+# Initialize schema (run once per process, guarded by the singleton factory)
 await checkpointer.setup()
 
 # Compile graph with checkpointer
@@ -1014,6 +1020,15 @@ graph = StateGraph(MessagesState)
 # ... add nodes ...
 compiled = graph.compile(checkpointer=checkpointer)
 ```
+
+> **⚠️ Verrou amont (ADR-111)**: en `langgraph-checkpoint-postgres==3.1.0`, le
+> `_cursor` d'`AsyncPostgresSaver` tient son lock d'instance même avec un pool
+> ([langchain-ai/langgraph#7259](https://github.com/langchain-ai/langgraph/issues/7259)) —
+> sans l'override pool-aware d'`InstrumentedAsyncPostgresSaver`, le pool
+> n'apporterait aucune concurrence au checkpointer. Un test canari ordonne le
+> retrait de l'override dès que le fix amont est livré. Le store
+> (`AsyncPostgresStore`, [store.py](../../apps/api/src/domains/agents/context/store.py))
+> est nativement pool-aware et suit le même pattern de factory.
 
 > **⚠️ Msgpack Allowlist (langgraph-checkpoint 4.0+)**: Les types custom
 > (dataclasses, Enums) stockés dans le state du graph doivent être enregistrés

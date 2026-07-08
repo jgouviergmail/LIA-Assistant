@@ -5,17 +5,41 @@ Tests checkpointer initialization, connection management, and state persistence.
 
 Note: These tests require PostgreSQL connection (psycopg v3) which is incompatible
 with Windows ProactorEventLoop. They are skipped on Windows in unit test runs.
+They also skip when the database URL resolved by the test settings is
+unreachable (the dev container has no PostgreSQL on the .env.test localhost
+URL — same guard as conftest._skip_if_db_unreachable; they run in CI).
 For integration testing, run: pytest tests/integration/test_checkpointer.py
 """
 
+import socket
 import sys
+from urllib.parse import urlparse
 
 import pytest
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
+from src.core.config import settings
 from src.domains.conversations.checkpointer import (
     get_checkpointer,
     reset_checkpointer,
+)
+
+
+def _test_db_reachable() -> bool:
+    """True when the database URL from test settings accepts TCP connections."""
+    parsed = urlparse(str(settings.database_url).replace("postgresql+asyncpg://", "postgresql://"))
+    host, port = parsed.hostname or "localhost", parsed.port or 5432
+    try:
+        sock = socket.create_connection((host, port), timeout=1)
+        sock.close()
+        return True
+    except OSError:
+        return False
+
+
+pytestmark = pytest.mark.skipif(
+    sys.platform != "win32" and not _test_db_reachable(),
+    reason="Test database unreachable (no PostgreSQL on the .env.test URL; runs in CI)",
 )
 
 

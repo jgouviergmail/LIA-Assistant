@@ -6,7 +6,7 @@
 
 **Version**: 2.7
 **Date**: 2026-07-08
-**Application**: LIA v1.21.18
+**Application**: LIA v1.21.19
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -504,7 +504,7 @@ When the token count exceeds a dynamic threshold (ratio of the response model's 
 
 ### 10.4. PostgreSQL Checkpointing
 
-Full state checkpointed after each node. P95 save < 50 ms, P95 load < 100 ms, average size ~15 KB/conversation.
+Full state checkpointed after each node. P95 save < 50 ms, P95 load < 100 ms, average size ~15 KB/conversation. Checkpointer and store each run on a dedicated PostgreSQL connection pool per worker (sizes tunable via environment): concurrent conversations no longer serialize on a single connection, and a connection dropped while idle is detected at checkout and replaced automatically (ADR-111).
 
 ---
 
@@ -1048,4 +1048,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.21.18). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.21.19). All metrics, versions, and patterns cited are verifiable in the codebase.*
