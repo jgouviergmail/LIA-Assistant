@@ -5,7 +5,7 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 2.7
-**Date**: 2026-07-08
+**Date**: 2026-07-09
 **Application**: LIA v1.21.24
 **License**: AGPL-3.0 (Open Source)
 
