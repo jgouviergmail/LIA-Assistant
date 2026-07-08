@@ -249,9 +249,9 @@ asyncpg==0.31.0 \
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
-asyncssh==2.22.0 \
-    --hash=sha256:c3ce72b01be4f97b40e62844dd384227e5ff5a401a3793007c42f86a5c8eb537 \
-    --hash=sha256:d16465ccdf1ed20eba1131b14415b155e047f6f5be0d19f39c2e0b61331ee0e7
+asyncssh==2.23.0 \
+    --hash=sha256:14108bfdaae17457f0c1841e883ad934271bbfdd46458aa4c4d0973451940ad0 \
+    --hash=sha256:8c54760953c1f2cf282591bcba5c8c70efc48d645bbf26bd2307a9c66a0ed1a7
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
@@ -263,9 +263,9 @@ attrs==25.4.0 \
     #   aiohttp
     #   jsonschema
     #   referencing
-authlib==1.6.9 \
-    --hash=sha256:d8f2421e7e5980cc1ddb4e32d3f5fa659cfaf60d8eaf3281ebed192e4ab74f04 \
-    --hash=sha256:f08b4c14e08f0861dc18a32357b33fbcfd2ea86cfe3fe149484b4d764c4a0ac3
+authlib==1.6.12 \
+    --hash=sha256:0656d8482f28fc8221929d5f35b2bde5d13e10555ebc06b4561b0d622e83b1bd \
+    --hash=sha256:e9229ad7fde610b139dd12f5edbe97eab9ee78bfb85691247e767727850b99ab
     # via safety
 backoff==2.2.1 \
     --hash=sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba \
@@ -869,6 +869,7 @@ defusedxml==0.7.1 \
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
+    #   nltk
     #   odfpy
 deprecated==1.3.1 \
     --hash=sha256:597bfef186b6f60181535a29fbe44865ce137a5079f295b479886c82729d5f3f \
@@ -1737,9 +1738,9 @@ langchain==1.3.9 \
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
-langchain-anthropic==1.4.4 \
-    --hash=sha256:10a5d2915e8d4fd8a9f169774e760b089c7f14de044e13259db5f1c2d3d59d9b \
-    --hash=sha256:9ea39ed345f8b13f13bb37549130eedcec2d032eb08b4942642e758c5ba3ece5
+langchain-anthropic==1.4.6 \
+    --hash=sha256:78942d4458d883b7d362438a095ed501ed84f44d402622404482481fc973b9da \
+    --hash=sha256:dbd412a956b6b8b0716d9d8460ef71f834a6731cdbfc59e6160482a4a9fb5200
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
@@ -2578,9 +2579,9 @@ niquests==3.18.2 \
     # via
     #   -c requirements.lock.txt
     #   caldav
-nltk==3.9.3 \
-    --hash=sha256:60b3db6e9995b3dd976b1f0fa7dec22069b2677e759c28eb69b62ddd44870522 \
-    --hash=sha256:cb5945d6424a98d694c2b9a0264519fab4363711065a46aa0ae7a2195b92e71f
+nltk==3.10.0 \
+    --hash=sha256:4fbac1d98203cbcd1b5d94a2877fb822300072d80604a5e7fae49d2c5f84e8c1 \
+    --hash=sha256:54ff84d4916d3ef127e8953bee0023f6a6b320b75d634a19e06ef056d3d244bf
     # via safety
 numpy==2.4.3 \
     --hash=sha256:0200b25c687033316fb39f0ff4e3e690e8957a2c3c8d22499891ec58c37a3eb5 \
@@ -3469,9 +3470,9 @@ pyee==13.0.1 \
     # via
     #   -c requirements.lock.txt
     #   playwright
-pygments==2.19.2 \
-    --hash=sha256:636cb2477cec7f8952536970bc533bc43743542f70392ae026374600add5b887 \
-    --hash=sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b
+pygments==2.20.0 \
+    --hash=sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f \
+    --hash=sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176
     # via
     #   pytest
     #   rich
@@ -4499,9 +4500,9 @@ types-pyasn1==0.6.0.20250914 \
     --hash=sha256:236102553b76c938953037b7ae93d11d395d9413b7f2f8083d3b19d740f7eda6 \
     --hash=sha256:68ffeef3c28e1ed120b8b81a242f238f137543e68d466d84a97edcf3e4203b5b
     # via types-python-jose
-types-python-jose==3.5.0.20260402 \
-    --hash=sha256:2ee7c7dc77071b09e774b7367f32667a4ecbd4b26b9f22daac67ba1e74ba85ef \
-    --hash=sha256:81b411a300edbaa8a0589a493bc9f1e6d0e0d289094d6f55f5daf1f1dcbb4bae
+types-python-jose==3.5.0.20260408 \
+    --hash=sha256:3f8dccdc327bfffea7a81084ea1cea722fa499f13c1d04f7978b491dd36e0cf1 \
+    --hash=sha256:968d8a8eac1ff9da249d6335a2bb9f82288d59ba23afe91fcc2662eb9f485e2a
     # via -r requirements-dev.txt
 typing-extensions==4.15.0 \
     --hash=sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466 \

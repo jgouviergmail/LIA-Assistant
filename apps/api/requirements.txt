@@ -18,7 +18,7 @@ python-dotenv==1.2.2
 pydantic==2.13.4
 jinja2==3.1.6  # Template engine for orchestration queries
 pydantic-settings==2.14.2  # GHSA-4xgf-cpjx-pc3j fix
-pyyaml>=6.0  # YAML parsing for SKILL.md files (agentskills.io standard)
+pyyaml>=6.0.3  # YAML parsing for SKILL.md files (agentskills.io standard). >=6.0.3: security floor
 email-validator==2.3.0
 python-dateutil==2.9.0.post0  # Date utilities for billing cycle calculations
 tzdata==2026.2  # IANA timezone database for Windows/Python 3.9+
@@ -89,7 +89,7 @@ tenacity==9.1.4  # Retry with exponential backoff (used by compaction service)
 
 # LLM Provider Integrations
 langchain-deepseek==1.0.1  # DeepSeek V3 (chat/reasoner) + V4 (flash/pro). Patched locally via _deepseek_patched.py for V4 reasoning_content round-trip in tool flows; track issue #37178 for upstream fix.
-langchain-anthropic==1.4.4  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix)
+langchain-anthropic==1.4.6  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix). 1.4.6: GHSA-gr75-jv2w-4656 fix
 langchain-google-genai==4.2.4  # Gemini models
 anthropic==0.105.2  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
 
@@ -117,15 +117,15 @@ Pillow>=11.0.0  # Image validation, HEIC→JPEG conversion
 filetype>=1.2.0  # MIME detection by magic bytes (pure Python, ARM64 native)
 PyMuPDF>=1.25.0  # PDF text extraction (lightweight, ARM64 compatible)
 python-docx>=1.1.0  # DOCX text extraction for RAG Spaces
-python-pptx>=1.0.0  # PPTX text extraction for RAG Spaces
+python-pptx>=1.0.2  # PPTX text extraction for RAG Spaces. >=1.0.2: security floor
 openpyxl>=3.1.0  # XLSX text extraction for RAG Spaces
 striprtf>=0.0.26  # RTF text extraction for RAG Spaces (pure Python)
 
 # Skills — used by bundled system skills (scripts/)
-segno>=1.6.0  # Pure-Python QR code generator (no C deps, tiny) — qr-code skill
+segno>=1.6.6  # Pure-Python QR code generator (no C deps, tiny) — qr-code skill. >=1.6.6: security floor
 odfpy>=1.4.1  # ODF (ODT/ODS/ODP) text extraction for RAG Spaces
 ebooklib>=0.18  # EPUB text extraction for RAG Spaces
 defusedxml>=0.7.1  # Secure XML parsing (prevents XXE, XML bombs) for RAG Spaces
 
 # DevOps — Claude CLI Remote Server Management
-asyncssh>=2.18.0  # Async SSH client for remote Claude CLI execution
+asyncssh>=2.23.0  # Async SSH client for remote Claude CLI execution. >=2.23.0: GHSA-g794-3fmp-753h fix (AuthorizedKeysFile %u path traversal)
