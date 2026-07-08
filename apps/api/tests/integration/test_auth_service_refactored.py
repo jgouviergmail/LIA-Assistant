@@ -1,5 +1,5 @@
 """
-Unit tests for AuthService refactored methods (Sprint 5).
+Integration tests for AuthService refactored methods (Sprint 5).
 
 Tests cover:
 - handle_google_callback() decomposed into 3 helpers
@@ -8,8 +8,7 @@ Tests cover:
 - _find_or_create_google_user() - Find existing or create new user
 - Full OAuth flow scenarios
 
-NOTE: These tests require a real database (testcontainers) and are slow.
-They should be moved to tests/integration/ folder.
+NOTE: These tests require a real database (external via TEST_DATABASE_URL or Testcontainers).
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -22,8 +21,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domains.auth.service import AuthService
 from tests.fixtures.factories import UserFactory
 
-# Skip module - requires testcontainers/Docker, too slow for pre-commit
-# TODO: Move to tests/integration/
+# Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
+
 pytestmark = pytest.mark.integration
 
 
@@ -41,7 +40,6 @@ async def auth_service(async_session: AsyncSession) -> AuthService:
     return AuthService(async_session)
 
 
-@pytest.mark.unit
 class TestHandleGoogleCallbackRefactored:
     """Test AuthService.handle_google_callback() refactored method."""
 
@@ -138,7 +136,6 @@ class TestHandleGoogleCallbackRefactored:
         assert user_response.email == oauth_user.email
 
 
-@pytest.mark.unit
 class TestExchangeOAuthCode:
     """Test AuthService._exchange_oauth_code() private method."""
 
@@ -189,7 +186,6 @@ class TestExchangeOAuthCode:
                     assert "OAuth flow failed" in exc_info.value.detail
 
 
-@pytest.mark.unit
 class TestFetchGoogleUserinfo:
     """Test AuthService._fetch_google_userinfo() private method."""
 
@@ -266,7 +262,6 @@ class TestFetchGoogleUserinfo:
             assert exc_info.value.status_code == 400
 
 
-@pytest.mark.unit
 class TestFindOrCreateGoogleUser:
     """Test AuthService._find_or_create_google_user() private method."""
 
@@ -399,7 +394,6 @@ class TestFindOrCreateGoogleUser:
         assert user.is_verified is True
 
 
-@pytest.mark.unit
 class TestIntegrationScenarios:
     """Test integration scenarios combining multiple methods."""
 

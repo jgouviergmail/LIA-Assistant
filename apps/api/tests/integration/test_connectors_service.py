@@ -38,8 +38,8 @@ from src.domains.connectors.schemas import (
 from src.domains.connectors.service import ConnectorService
 from tests.fixtures.factories import ConnectorFactory, UserFactory
 
-# Skip in pre-commit - uses testcontainers/real DB, too slow
-# Run manually with: pytest tests/unit/test_connectors_service.py -v
+# Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
+# Run manually with: pytest tests/integration/test_connectors_service.py -v
 pytestmark = pytest.mark.integration
 
 # ============================================================================
@@ -103,7 +103,6 @@ async def mock_redis_cache():
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGetUserConnectors:
     """Test ConnectorService.get_user_connectors()"""
 
@@ -180,7 +179,6 @@ class TestGetUserConnectors:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGetConnectorById:
     """Test ConnectorService.get_connector_by_id()"""
 
@@ -218,7 +216,6 @@ class TestGetConnectorById:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestUpdateConnector:
     """Test ConnectorService.update_connector()"""
 
@@ -313,7 +310,6 @@ class TestUpdateConnector:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestDeleteConnector:
     """Test ConnectorService.delete_connector()"""
 
@@ -375,7 +371,6 @@ class TestDeleteConnector:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGetConnectorCredentials:
     """Test ConnectorService.get_connector_credentials()"""
 
@@ -495,7 +490,6 @@ class TestGetConnectorCredentials:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestRefreshConnectorCredentials:
     """Test ConnectorService.refresh_connector_credentials()"""
 
@@ -550,7 +544,6 @@ class TestRefreshConnectorCredentials:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestRefreshOAuthToken:
     """Test ConnectorService._refresh_oauth_token()"""
 
@@ -638,7 +631,6 @@ class TestRefreshOAuthToken:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestRevokeOAuthToken:
     """Test ConnectorService._revoke_oauth_token()"""
 
@@ -689,7 +681,6 @@ class TestRevokeOAuthToken:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGmailOAuthFlow:
     """Test Gmail OAuth flow methods."""
 
@@ -725,7 +716,6 @@ class TestGmailOAuthFlow:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGoogleContactsOAuthFlow:
     """Test Google Contacts OAuth flow methods."""
 
@@ -762,7 +752,6 @@ class TestGoogleContactsOAuthFlow:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGlobalConfig:
     """Test global config management methods."""
 
@@ -894,7 +883,6 @@ class TestGlobalConfig:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestCheckConnectorEnabled:
     """Test _check_connector_enabled method."""
 
@@ -937,7 +925,6 @@ class TestCheckConnectorEnabled:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestRevokeAllConnectorsByType:
     """Test _revoke_all_connectors_by_type method."""
 

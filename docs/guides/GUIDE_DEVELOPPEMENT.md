@@ -580,14 +580,14 @@ export function ChatMessage({ message, isStreaming, onRetry }: any) {
 ```
 apps/api/tests/
 ├── conftest.py                  # Fixtures globales
-├── unit/                        # Tests unitaires (rapides)
+├── unit/                        # Tests unitaires (rapides, sans DB réelle)
 │   ├── test_auth_service.py
+│   ├── test_session_store.py
+│   └── test_config.py
+├── integration/                 # Tests intégration (DB réelle, Redis)
+│   ├── test_auth.py
 │   ├── test_pricing_service.py
-│   └── test_message_windowing.py
-├── integration/                 # Tests intégration (DB, Redis)
-│   ├── test_auth_flow.py
-│   ├── test_oauth_callback.py
-│   └── test_conversation_persistence.py
+│   └── test_conversations.py
 ├── agents/                      # Tests agents/tools
 │   ├── tools/
 │   │   └── test_google_contacts_tools.py

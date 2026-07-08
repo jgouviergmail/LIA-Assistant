@@ -25,7 +25,7 @@ from src.core.field_names import (
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.conversations.repository import ConversationRepository
 
-# Skip in pre-commit: requires Postgres (JSONB functions).
+# Requires Postgres (JSONB functions) — external via TEST_DATABASE_URL or Testcontainers.
 pytestmark = pytest.mark.integration
 
 

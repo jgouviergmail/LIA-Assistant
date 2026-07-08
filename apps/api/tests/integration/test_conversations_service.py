@@ -36,8 +36,8 @@ from src.domains.conversations.models import (
 )
 from src.domains.conversations.service import ConversationService
 
-# Skip in pre-commit - uses testcontainers/real DB, too slow
-# Run manually with: pytest tests/unit/test_conversations_service.py -v
+# Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
+# Run manually with: pytest tests/integration/test_conversations_service.py -v
 pytestmark = pytest.mark.integration
 
 # ============================================================================
@@ -92,7 +92,6 @@ def service() -> ConversationService:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestHITLFiltering:
     """Test HITL approval filtering static methods - NOW DISABLED.
 
@@ -224,7 +223,6 @@ class TestHITLFiltering:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGetOrCreateConversation:
     """Test get_or_create_conversation method."""
 
@@ -285,7 +283,6 @@ class TestGetOrCreateConversation:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGetActiveConversation:
     """Test get_active_conversation method."""
 
@@ -339,7 +336,6 @@ class TestGetActiveConversation:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestArchiveMessage:
     """Test archive_message method."""
 
@@ -403,7 +399,6 @@ class TestArchiveMessage:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestUpdateLastUserMessage:
     """Test update_last_user_message method."""
 
@@ -487,10 +482,14 @@ class TestUpdateLastUserMessage:
         # The new dict object is what makes SQLAlchemy emit the UPDATE
         assert updated is not None
 
+        # Capture the PK before expire_all(): reading an expired attribute
+        # afterwards triggers a sync lazy refresh (MissingGreenlet).
+        created_id = created.id
+
         # Re-read from the database, bypassing in-memory state
         async_session.expire_all()
         result = await async_session.execute(
-            select(ConversationMessage).where(ConversationMessage.id == created.id)
+            select(ConversationMessage).where(ConversationMessage.id == created_id)
         )
         fresh = result.scalar_one()
 
@@ -541,7 +540,6 @@ class TestUpdateLastUserMessage:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestIncrementConversationStats:
     """Test increment_conversation_stats method."""
 
@@ -595,7 +593,6 @@ class TestIncrementConversationStats:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGetMessages:
     """Test get_messages method."""
 
@@ -738,7 +735,6 @@ class TestGetMessages:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGetAuditLogs:
     """Test get_audit_logs method."""
 
@@ -799,7 +795,6 @@ class TestGetAuditLogs:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGetMessagesWithTokens:
     """Test get_messages_with_tokens method."""
 
@@ -885,7 +880,6 @@ class TestGetMessagesWithTokens:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGetMessagesWithTokensV2:
     """Test get_messages_with_tokens_v2 (optimized) method."""
 
@@ -945,7 +939,6 @@ class TestGetMessagesWithTokensV2:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGetMessagesWithTokensAuto:
     """Test get_messages_with_tokens_auto always uses v2 implementation.
 
@@ -983,7 +976,6 @@ class TestGetMessagesWithTokensAuto:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGetConversationTotals:
     """Test get_conversation_totals method."""
 
@@ -1042,7 +1034,6 @@ class TestGetConversationTotals:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestResetConversation:
     """Test reset_conversation with proper mocking."""
 
@@ -1183,7 +1174,6 @@ class TestResetConversation:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 class TestGenerateTitle:
     """Test _generate_title method."""
 

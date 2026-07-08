@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
@@ -1295,9 +1296,13 @@ async def _validation_exception_handler(
     except Exception:  # noqa: BLE001 — metrics must never break the handler
         pass
 
+    # jsonable_encoder mirrors FastAPI's default handler: exc.errors() may
+    # embed raw exception objects (ctx.error from field_validator ValueError),
+    # which json.dumps cannot serialize — returning them raw turned every
+    # such 422 into a 500.
     return JSONResponse(
         status_code=422,
-        content={"detail": exc.errors()},
+        content={"detail": jsonable_encoder(exc.errors())},
     )
 
 

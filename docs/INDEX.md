@@ -283,6 +283,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-113 | Backend Test Suite Rehabilitation — job CI integration, fin des quarantaines `--ignore`, ratchet couverture 45 % | 2026-07 |
 | ADR-112 | Python Dependency Locking — lockfiles universels uv, installés par pip partout, garde CI | 2026-07 |
 | ADR-111 | LangGraph Postgres Connection Pooling — pools checkpointer & store, override `_cursor` pool-aware | 2026-07 |
 | ADR-110 | Backup Encryption — analyse d'options (rclone crypt local / age / LUKS), différée | 2026-07 |

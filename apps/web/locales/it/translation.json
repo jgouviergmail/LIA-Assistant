@@ -2936,6 +2936,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_22": {
+          "title": "v1.21.22 — 🛡️ Messaggi di errore chiari e affidabilità rafforzata",
+          "date": "Luglio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🛠️ I moduli spiegano di nuovo cosa non va</b> — Quando un dato inserito non è valido (ad esempio una password troppo corta alla registrazione), LIA mostra di nuovo il messaggio preciso con la regola da rispettare, invece di un errore tecnico generico. Il difetto riguardava tutti i moduli con regole di validazione avanzate.",
+            "i2": "<b>✅ Oltre 450 test di integrazione vegliano ora su ogni aggiornamento</b> — L'intera catena critica (account, connettori, conversazioni, tariffazione) viene ora riconvalidata automaticamente su un database reale a ogni modifica del codice, e il requisito di copertura dei test è stato innalzato. In pratica: meno rischi di regressione a ogni nuova versione."
+          }
+        },
         "v1_21_21": {
           "title": "v1.21.21 — 🕐 L'ora giusta, nel tuo fuso orario",
           "date": "Luglio 2026",

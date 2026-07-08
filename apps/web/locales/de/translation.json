@@ -2934,6 +2934,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_22": {
+          "title": "v1.21.22 — 🛡️ Klare Fehlermeldungen und gehärtete Zuverlässigkeit",
+          "date": "Juli 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🛠️ Formulare erklären wieder, was nicht stimmt</b> — Bei einer ungültigen Eingabe (zum Beispiel einem zu kurzen Passwort bei der Registrierung) zeigt LIA wieder die präzise Meldung mit der einzuhaltenden Regel an, statt eines generischen technischen Fehlers. Der Defekt betraf alle Formulare mit erweiterten Validierungsregeln.",
+            "i2": "<b>✅ Über 450 Integrationstests wachen jetzt über jedes Update</b> — Die gesamte kritische Kette (Konten, Konnektoren, Unterhaltungen, Preisverwaltung) wird nun bei jeder Codeänderung automatisch gegen eine echte Datenbank neu validiert, und die Anforderung an die Testabdeckung wurde angehoben. Konkret: weniger Regressionsrisiko bei jeder neuen Version."
+          }
+        },
         "v1_21_21": {
           "title": "v1.21.21 — 🕐 Die richtige Uhrzeit, in Ihrer Zeitzone",
           "date": "Juli 2026",

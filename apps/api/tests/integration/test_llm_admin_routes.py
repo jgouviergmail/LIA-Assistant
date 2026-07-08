@@ -14,8 +14,42 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.auth.models import User
-from src.domains.llm.models import CurrencyExchangeRate, LLMModelPricing
+from src.domains.llm.models import CurrencyExchangeRate, LLMModel, LLMModelPricing
 from tests.helpers.llm_helpers import create_llm_pricing_async
+
+
+def _model_price_create_payload(model_name: str, **overrides: object) -> dict:
+    """Full ModelPriceCreate payload (model catalogue + initial pricing).
+
+    POST /admin/llm/pricing creates the LLMModel row AND its pricing in one
+    transaction, so the payload carries the whole capability matrix. Uses
+    the explicit (non-template) reasoning mode.
+    """
+    payload: dict = {
+        "provider": "openai",
+        "model_name": model_name,
+        "kind": "chat",
+        "max_input_tokens": 128000,
+        "max_output_tokens": 16384,
+        "supports_tools": True,
+        "supports_structured_output": True,
+        "supports_strict_mode": False,
+        "supports_streaming": True,
+        "supports_vision": False,
+        "supports_temperature": True,
+        "supports_top_p": True,
+        "supports_frequency_penalty": True,
+        "supports_presence_penalty": True,
+        "is_reasoning_model": False,
+        "reasoning_widget": "none",
+        "pricing_unit": "per_1m_tokens",
+        "input_unit_price": "0.15",
+        "cached_input_unit_price": "0.075",
+        "output_unit_price": "0.60",
+    }
+    payload.update(overrides)
+    return payload
+
 
 # ============================================================================
 # FIXTURES
@@ -124,12 +158,7 @@ async def test_create_pricing_as_admin(
     """Test admin can create new pricing entry."""
     client, _ = admin_client
 
-    payload = {
-        "model_name": "gpt-4.1-mini",
-        "input_unit_price": "0.15",
-        "cached_input_unit_price": "0.075",
-        "output_unit_price": "0.60",
-    }
+    payload = _model_price_create_payload("gpt-4.1-mini")
 
     response = await client.post("/api/v1/admin/llm/pricing", json=payload)
 
@@ -141,8 +170,8 @@ async def test_create_pricing_as_admin(
     assert Decimal(data["output_unit_price"]) == Decimal("0.60")
     assert data["is_active"] is True
 
-    # Verify in database
-    stmt = select(LLMModelPricing).where(LLMModelPricing.model_name == "gpt-4.1-mini")
+    # Verify in database (model_name lives on the LLMModel catalogue row)
+    stmt = select(LLMModelPricing).join(LLMModel).where(LLMModel.model_name == "gpt-4.1-mini")
     result = await async_session.execute(stmt)
     pricing = result.scalar_one()
     assert pricing.input_unit_price == Decimal("0.15")
@@ -156,12 +185,12 @@ async def test_create_pricing_without_cached_input(
     """Test creating pricing without cached input support."""
     client, _ = admin_client
 
-    payload = {
-        "model_name": "o1-mini",
-        "input_unit_price": "3.00",
-        "cached_input_unit_price": None,
-        "output_unit_price": "12.00",
-    }
+    payload = _model_price_create_payload(
+        "o1-mini",
+        input_unit_price="3.00",
+        cached_input_unit_price=None,
+        output_unit_price="12.00",
+    )
 
     response = await client.post("/api/v1/admin/llm/pricing", json=payload)
 
@@ -179,12 +208,12 @@ async def test_create_pricing_duplicate_model(
     """Test creating pricing for existing active model fails."""
     client, _ = admin_client
 
-    payload = {
-        "model_name": "gpt-4.1-mini",  # Already exists
-        "input_unit_price": "2.50",
-        "cached_input_unit_price": "1.25",
-        "output_unit_price": "10.00",
-    }
+    payload = _model_price_create_payload(
+        "gpt-4.1-mini",  # Already exists (sample_pricing fixture)
+        input_unit_price="2.50",
+        cached_input_unit_price="1.25",
+        output_unit_price="10.00",
+    )
 
     response = await client.post("/api/v1/admin/llm/pricing", json=payload)
 
@@ -262,10 +291,14 @@ async def test_update_pricing_as_admin(
     await async_session.refresh(sample_pricing)
     assert sample_pricing.is_active is False
 
-    # Verify new entry exists
-    stmt = select(LLMModelPricing).where(
-        LLMModelPricing.model_name == "gpt-4.1-mini",
-        LLMModelPricing.is_active == True,  # noqa: E712
+    # Verify new entry exists (model_name lives on the LLMModel catalogue row)
+    stmt = (
+        select(LLMModelPricing)
+        .join(LLMModel)
+        .where(
+            LLMModel.model_name == "gpt-4.1-mini",
+            LLMModelPricing.is_active == True,  # noqa: E712
+        )
     )
     result = await async_session.execute(stmt)
     new_pricing = result.scalar_one()

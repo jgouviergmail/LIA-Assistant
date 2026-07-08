@@ -1,5 +1,5 @@
 """
-Unit tests for LLM metrics and cost estimation.
+Integration tests for LLM metrics and cost estimation.
 
 Tests model name normalization, confidence buckets, and cost estimation with database.
 """
@@ -19,8 +19,8 @@ from src.infrastructure.observability.metrics_agents import (
 )
 from tests.helpers.llm_helpers import create_llm_pricing_async
 
-# Skip in pre-commit - some tests use testcontainers/real DB, too slow
-# Run manually with: pytest tests/unit/test_metrics_agents.py -v
+# Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
+# Run manually with: pytest tests/integration/test_metrics_agents.py -v
 pytestmark = pytest.mark.integration
 
 # ============================================================================
@@ -28,7 +28,6 @@ pytestmark = pytest.mark.integration
 # ============================================================================
 
 
-@pytest.mark.unit
 def test_normalize_model_name_with_date():
     """Test normalizing model name with YYYY-MM-DD date suffix."""
     assert normalize_model_name("gpt-4.1-mini-2025-04-14") == "gpt-4.1-mini"
@@ -36,14 +35,12 @@ def test_normalize_model_name_with_date():
     assert normalize_model_name("o1-mini-2025-12-31") == "o1-mini"
 
 
-@pytest.mark.unit
 def test_normalize_model_name_with_compact_date():
     """Test normalizing model name with YYYYMMDD date suffix."""
     assert normalize_model_name("gpt-4.1-mini-20250115") == "gpt-4.1-mini"
     assert normalize_model_name("o1-mini-20251231") == "o1-mini"
 
 
-@pytest.mark.unit
 def test_normalize_model_name_without_date():
     """Test normalizing model name without date suffix."""
     assert normalize_model_name("gpt-4.1-mini") == "gpt-4.1-mini"
@@ -52,7 +49,6 @@ def test_normalize_model_name_without_date():
     assert normalize_model_name("claude-3-opus") == "claude-3-opus"
 
 
-@pytest.mark.unit
 def test_normalize_model_name_edge_cases():
     """Test edge cases in model name normalization."""
     # Model with number that looks like date but isn't at end
@@ -70,7 +66,6 @@ def test_normalize_model_name_edge_cases():
 # ============================================================================
 
 
-@pytest.mark.unit
 def test_get_confidence_bucket_low():
     """Test low confidence bucket (< 0.6)."""
     assert get_confidence_bucket(0.0) == "low"
@@ -78,7 +73,6 @@ def test_get_confidence_bucket_low():
     assert get_confidence_bucket(0.59) == "low"
 
 
-@pytest.mark.unit
 def test_get_confidence_bucket_medium():
     """Test medium confidence bucket (0.6 - 0.8)."""
     assert get_confidence_bucket(0.6) == "medium"
@@ -86,7 +80,6 @@ def test_get_confidence_bucket_medium():
     assert get_confidence_bucket(0.79) == "medium"
 
 
-@pytest.mark.unit
 def test_get_confidence_bucket_high():
     """Test high confidence bucket (>= 0.8)."""
     assert get_confidence_bucket(0.8) == "high"
@@ -140,7 +133,6 @@ async def usd_eur_rate(async_session: AsyncSession) -> CurrencyExchangeRate:
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_basic(
     async_session: AsyncSession, pricing_gpt4o_with_cache: LLMModelPricing
 ):
@@ -158,7 +150,6 @@ async def test_estimate_cost_basic(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_with_cached_tokens(
     async_session: AsyncSession, pricing_gpt4o_with_cache: LLMModelPricing
 ):
@@ -180,7 +171,6 @@ async def test_estimate_cost_with_cached_tokens(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_no_cached_support(
     async_session: AsyncSession, pricing_o1_mini_no_cache: LLMModelPricing
 ):
@@ -199,7 +189,6 @@ async def test_estimate_cost_no_cached_support(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_with_date_suffix(
     async_session: AsyncSession, pricing_gpt4o_with_cache: LLMModelPricing
 ):
@@ -217,7 +206,6 @@ async def test_estimate_cost_with_date_suffix(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_model_not_found(async_session: AsyncSession):
     """Test cost estimation for non-existent model returns 0.0."""
     cost = await estimate_cost_usd(
@@ -231,7 +219,6 @@ async def test_estimate_cost_model_not_found(async_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_zero_tokens(
     async_session: AsyncSession, pricing_gpt4o_with_cache: LLMModelPricing
 ):
@@ -248,7 +235,6 @@ async def test_estimate_cost_zero_tokens(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_small_tokens(
     async_session: AsyncSession, pricing_gpt4o_with_cache: LLMModelPricing
 ):
@@ -272,7 +258,6 @@ async def test_estimate_cost_small_tokens(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_usd_default(
     async_session: AsyncSession, pricing_gpt4o_with_cache: LLMModelPricing, monkeypatch
 ):
@@ -294,7 +279,6 @@ async def test_estimate_cost_usd_default(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_converts_to_eur(
     async_session: AsyncSession,
     pricing_gpt4o_with_cache: LLMModelPricing,
@@ -326,7 +310,6 @@ async def test_estimate_cost_converts_to_eur(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_eur_fallback_if_rate_missing(
     async_session: AsyncSession, pricing_gpt4o_with_cache: LLMModelPricing, monkeypatch
 ):
@@ -361,7 +344,6 @@ async def test_estimate_cost_eur_fallback_if_rate_missing(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_handles_db_error(monkeypatch):
     """Test cost estimation handles database errors gracefully."""
     # This test is complex to implement without breaking other tests
@@ -371,7 +353,6 @@ async def test_estimate_cost_handles_db_error(monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_estimate_cost_with_negative_tokens(
     async_session: AsyncSession, pricing_gpt4o_with_cache: LLMModelPricing
 ):

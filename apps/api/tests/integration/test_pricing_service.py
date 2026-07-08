@@ -1,5 +1,5 @@
 """
-Unit tests for Async LLM Pricing Service.
+Integration tests for Async LLM Pricing Service.
 
 Tests async pricing service with caching, TTL, and error handling.
 """
@@ -16,8 +16,8 @@ from src.domains.llm.models import CurrencyExchangeRate, LLMModelPricing
 from src.domains.llm.pricing_service import AsyncPricingService, ModelPrice
 from tests.helpers.llm_helpers import create_llm_pricing_async
 
-# Skip in pre-commit - uses testcontainers/real DB, too slow
-# Run manually with: pytest tests/unit/test_pricing_service.py -v
+# Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
+# Run manually with: pytest tests/integration/test_pricing_service.py -v
 pytestmark = pytest.mark.integration
 
 # ============================================================================
@@ -59,7 +59,6 @@ async def sample_currency_rate(async_session: AsyncSession) -> CurrencyExchangeR
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_get_active_model_price_found(
     async_session: AsyncSession, sample_pricing_gpt4o: LLMModelPricing
 ):
@@ -77,7 +76,6 @@ async def test_get_active_model_price_found(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_get_active_model_price_not_found(async_session: AsyncSession):
     """Test retrieving non-existent model pricing returns None."""
     service = AsyncPricingService(db=async_session)
@@ -88,7 +86,6 @@ async def test_get_active_model_price_not_found(async_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_get_active_currency_rate_found(
     async_session: AsyncSession, sample_currency_rate: CurrencyExchangeRate
 ):
@@ -101,7 +98,6 @@ async def test_get_active_currency_rate_found(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_get_active_currency_rate_not_found(async_session: AsyncSession):
     """Test retrieving non-existent currency rate raises ValueError."""
     service = AsyncPricingService(db=async_session)
@@ -111,7 +107,6 @@ async def test_get_active_currency_rate_not_found(async_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_cache_expiry(async_session: AsyncSession, sample_pricing_gpt4o: LLMModelPricing):
     """Test that pricing cache expires after TTL."""
     service = AsyncPricingService(db=async_session, cache_ttl_seconds=1)
@@ -130,7 +125,6 @@ async def test_cache_expiry(async_session: AsyncSession, sample_pricing_gpt4o: L
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_invalidate_all_caches(
     async_session: AsyncSession, sample_pricing_gpt4o: LLMModelPricing
 ):

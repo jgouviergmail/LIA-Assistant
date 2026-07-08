@@ -23,6 +23,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.i18n_api_messages import APIMessages
 from src.domains.auth.models import User
 from tests.conftest import assert_cookie_set, extract_cookie_value
 
@@ -54,7 +55,9 @@ class TestUserRegistration:
         assert data["user"]["full_name"] == "New User"
         assert data["user"]["is_active"] is False  # Requires email verification
         assert data["user"]["is_verified"] is False
-        assert data["message"] == "Registration successful"
+        # Locale-agnostic: the endpoint answers with the default-language
+        # catalog message (auth routes do not resolve Accept-Language yet).
+        assert data["message"] == APIMessages.registration_successful()
 
         # BFF Pattern: Session cookie should be set with correct attributes
         assert_cookie_set(response, "lia_session", httponly=True, samesite="lax")
@@ -165,7 +168,7 @@ class TestUserLogin:
         assert "tokens" not in data  # BFF: No tokens exposed
         assert data["user"]["email"] == test_user.email
         assert data["user"]["id"] == str(test_user.id)
-        assert data["message"] == "Login successful"
+        assert data["message"] == APIMessages.login_successful()
 
         # BFF Pattern: Session cookie should be set
         assert_cookie_set(response, "lia_session", httponly=True, samesite="lax")
@@ -390,7 +393,9 @@ class TestEmailVerification:
         assert verify_response.status_code == 200
         data = verify_response.json()
         assert data["is_verified"] is True
-        assert data["is_active"] is True
+        # Account lifecycle (v1.13.7+): verifying the email does NOT activate
+        # the account — it stays pending until an admin activates it.
+        assert data["is_active"] is False
 
     @pytest.mark.asyncio
     async def test_verify_email_invalid_token(self, async_client: AsyncClient):
@@ -544,7 +549,7 @@ class TestLogout:
 
         assert logout_response.status_code == 200
         data = logout_response.json()
-        assert "logged out" in data["message"].lower()
+        assert data["message"] == APIMessages.logout_successful()
 
         # Session should be invalid after logout
         me_response_after = await async_client.get("/api/v1/auth/me")
@@ -578,7 +583,7 @@ class TestLogout:
 
         assert response.status_code == 200
         data = response.json()
-        assert "all devices" in data["message"].lower()
+        assert data["message"] == APIMessages.logout_all_successful()
 
         # Session should be invalid
         me_response = await async_client.get("/api/v1/auth/me")

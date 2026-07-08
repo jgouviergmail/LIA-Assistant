@@ -97,14 +97,20 @@ def _reset_redis_singletons():
     loop, so any later test touching Redis crashed with "Event loop is
     closed" / "Future attached to a different loop". Dropping the singletons
     forces every test to lazily reconnect on ITS OWN loop.
+
+    The shared RedisRateLimiter singleton wraps one of those clients and has
+    the same loop-affinity problem — reset it alongside them.
     """
     from src.infrastructure.cache import redis as redis_module
+    from src.infrastructure.rate_limiting import redis_limiter as limiter_module
 
     redis_module._redis_cache = None
     redis_module._redis_session = None
+    limiter_module._shared_limiter = None
     yield
     redis_module._redis_cache = None
     redis_module._redis_session = None
+    limiter_module._shared_limiter = None
 
 
 @pytest.fixture(autouse=True)
@@ -168,37 +174,30 @@ def clean_context_registry():
 
 def _detect_environment() -> tuple[bool, str | None]:
     """
-    Detect if running inside Docker and if external postgres is available.
+    Decide whether tests should use an external PostgreSQL or Testcontainers.
+
+    An external database is used when either:
+    - TEST_DATABASE_URL is set explicitly (CI service containers, or a local
+      run against the dev compose PostgreSQL — point it at a DISPOSABLE
+      database such as ``lia_test``: the engine fixtures drop and recreate
+      every table). This variable is intentionally absent from .env.test so
+      it survives the ``load_dotenv(override=True)`` above.
+    - Running inside Docker with DATABASE_URL available (dev container /
+      docker-compose), where spawning Testcontainers is not possible.
+
+    Otherwise the ``postgres_container`` fixture falls back to Testcontainers.
 
     Returns:
-        (is_docker, external_db_url): Tuple indicating environment and DB URL
+        (use_external, external_db_url): whether to use an external DB, and
+        its URL (always truthy when use_external is True).
     """
-    # Check if running inside Docker
     is_docker = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER") == "true"
 
-    # Check for external postgres (docker-compose postgres service)
-    external_db = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    explicit_test_db = os.environ.get("TEST_DATABASE_URL")
+    external_db = explicit_test_db or os.environ.get("DATABASE_URL")
 
-    # OPTIMIZATION: If not in Docker but docker-compose postgres is running on localhost,
-    # use it directly instead of testcontainers (much faster startup)
-    if not is_docker and not external_db:
-        import socket
-
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1)
-            result = sock.connect_ex(("localhost", 5432))
-            sock.close()
-            if result == 0:
-                # Postgres is available on localhost - use it for tests
-                # Use a dedicated test database to avoid conflicts with dev data
-                _pg_user = os.environ.get("POSTGRES_USER", "lia_admin")
-                _pg_pass = os.environ.get("POSTGRES_PASSWORD", "change_me_test_password")
-                external_db = f"postgresql+asyncpg://{_pg_user}:{_pg_pass}@localhost:5432/lia_test"
-        except Exception:
-            pass  # No postgres on localhost, will use testcontainers
-
-    return is_docker, external_db
+    use_external = bool(explicit_test_db) or (is_docker and bool(external_db))
+    return use_external, external_db
 
 
 @pytest.fixture(scope="session")
@@ -207,16 +206,17 @@ def postgres_container() -> Generator[PostgresContainer | None, None, None]:
     Create a PostgreSQL test container for integration tests.
 
     Strategy:
-    - If inside Docker with accessible postgres service: Use existing postgres (no container)
+    - If an external database is configured (TEST_DATABASE_URL, or in-Docker
+      DATABASE_URL): use it directly (no container)
     - If local with Docker socket: Create testcontainer
     - Otherwise: Skip DB tests
 
     The container is session-scoped and shared across all tests.
     """
-    is_docker, external_db = _detect_environment()
+    use_external, _ = _detect_environment()
 
-    # Strategy 1: Use existing postgres from docker-compose (fastest)
-    if is_docker and external_db:
+    # Strategy 1: Use the configured external postgres (fastest)
+    if use_external:
         # No container needed, will use external DB directly
         yield None
     else:
@@ -257,12 +257,11 @@ def test_database_url(postgres_container: PostgresContainer | None) -> str:
     """
     Get the async database URL (asyncpg driver).
 
-    Uses external postgres if available (docker-compose), otherwise testcontainer.
+    Uses the configured external postgres if available, otherwise testcontainer.
     """
-    is_docker, external_db = _detect_environment()
+    use_external, external_db = _detect_environment()
 
-    if is_docker and external_db:
-        # Use existing postgres from docker-compose
+    if use_external and external_db:
         # Ensure asyncpg driver for async operations
         url = external_db.replace("postgresql://", "postgresql+asyncpg://")
         _skip_if_db_unreachable(url)
@@ -281,14 +280,14 @@ def test_database_url_sync(postgres_container: PostgresContainer | None) -> str:
     """
     Get the sync database URL (psycopg2 driver).
 
-    Uses external postgres if available (docker-compose), otherwise testcontainer.
+    Uses the configured external postgres if available, otherwise testcontainer.
     """
-    is_docker, external_db = _detect_environment()
+    use_external, external_db = _detect_environment()
 
-    if is_docker and external_db:
-        # Use existing postgres from docker-compose
-        # Ensure psycopg2 (default driver) for sync operations
+    if use_external and external_db:
+        # Ensure the sync (non-asyncpg) driver for sync operations
         url = external_db.replace("postgresql+asyncpg://", "postgresql://")
+        _skip_if_db_unreachable(url)
         return url
     elif postgres_container:
         # Use testcontainer with default psycopg2 driver for sync operations
@@ -363,6 +362,9 @@ async def async_engine(test_database_url: str):
         # create_all. Idempotent + no-op when already present (local dev DB);
         # the CI test DB (pgvector image) needs it created explicitly.
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        # Mirror the extensions the Alembic migrations create: the admin user
+        # search relies on unaccent() and 500s without it.
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
@@ -427,6 +429,8 @@ def sync_engine(test_database_url_sync: str):
     with engine.begin() as conn:
         # pgvector extension must exist before create_all on Vector-column tables.
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        # Mirror the Alembic migrations (unaccent is used by admin user search).
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 

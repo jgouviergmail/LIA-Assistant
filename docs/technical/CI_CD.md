@@ -93,6 +93,7 @@ git commit --no-verify
 
 ```
 lint-backend ──> test-backend
+             └─> test-backend-integration
 lint-frontend ─> test-frontend
 code-hygiene (independant)
 docker-build (independant)
@@ -141,18 +142,49 @@ Principe du moindre privilege : le `GITHUB_TOKEN` n'a acces qu'en lecture.
 
 Services containers : PostgreSQL (`pgvector/pgvector:pg16`) + Redis (`redis:7-alpine`).
 
-Commande :
+Step 1 — tests unitaires :
 ```bash
 pytest tests/unit/ -v --tb=short \
   -m "not integration and not slow and not e2e and not benchmark and not multiprocess" \
-  --ignore=tests/unit/test_base_repository.py \
-  --ignore=tests/unit/test_auth_service_refactored.py \
-  # ... (10 fichiers exclus — tests necessitant des fixtures specifiques)
-  --cov=src --cov-report=xml --cov-fail-under=43
+  --cov=src --cov-report=xml --cov-fail-under=45
 ```
 
-Seuil de couverture : **43%** minimum.
-Coverage uploade sur [Codecov](https://codecov.io).
+Step 2 — suite agents (cablee en 2026-07 apres l'audit — elle avait pourri
+en silence faute de gate) :
+```bash
+pytest tests/agents/ -v --tb=short \
+  -m "not slow and not e2e and not benchmark and not multiprocess" --no-cov
+```
+
+Seuil de couverture : **45%** minimum (doctrine ratchet +2 points par
+release, jamais de baisse — voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md)
+et ADR-113). Coverage uploade sur [Codecov](https://codecov.io).
+
+Il n'y a **plus de liste `--ignore`** : les tests exigeant une vraie base
+portent le marker `integration` et vivent dans `tests/integration/`
+(reclasses en 2026-07 — la quarantaine par `--ignore` etait redondante avec
+le filtre `-m` et masquait le pourrissement de la suite).
+
+#### Test Backend Integration
+
+Memes services PostgreSQL + Redis, mais la base est consommee directement :
+
+```bash
+pytest tests/integration/ -v --tb=short \
+  -m "not e2e and not benchmark and not multiprocess" --no-cov
+```
+
+Le job pose `TEST_DATABASE_URL=postgresql+asyncpg://test:test@localhost:5432/test_db` —
+seule variable DB qui survit au `load_dotenv(.env.test, override=True)` du
+conftest ; elle route les fixtures vers le service PostgreSQL au lieu de
+Testcontainers (`tests/conftest.py::_detect_environment`). Les credentials du
+service reproduisent volontairement `.env.test` pour que les tests lisant
+`settings.database_url` en direct (checkpointer LangGraph) atteignent la
+meme base. `--no-cov` : le gate de couverture appartient au job unit.
+
+En local : `TEST_DATABASE_URL=...lia_test task test:backend:integration`
+(base JETABLE obligatoire — les fixtures droppent toutes les tables), ou
+fallback Testcontainers sans variable.
 
 #### Test Frontend
 
@@ -326,7 +358,9 @@ Le pre-commit est le filet local rapide, la CI est le filet distant qui doit cou
 | Ruff (`src/ tests/`) | ✓ | ✓ | Aligne |
 | Black (`src/ tests/`) | ✓ | ✓ | Aligne |
 | MyPy (`src/`) | ✓ | ✓ | Aligne |
-| Unit tests | ✓ (fast, no cov) | ✓ (fast + cov 43%) | CI ajoute coverage |
+| Unit tests | ✓ (fast, no cov) | ✓ (fast + cov 45%) | CI ajoute coverage |
+| Agents tests | — | ✓ (`tests/agents/`) | CI only (~1 min, hors hook pour garder les commits rapides) |
+| Integration tests | — | ✓ (`tests/integration/`) | CI only (necessitent PostgreSQL + Redis) |
 | ESLint | ✓ | ✓ | Aligne |
 | TypeScript | ✓ | ✓ | Aligne |
 | `.bak` files | ✓ | ✓ | Aligne |

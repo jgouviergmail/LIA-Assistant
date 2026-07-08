@@ -106,22 +106,22 @@ def test_serialize_arg_dataclass_success():
     assert isinstance(result, dict)
 
 
-@pytest.mark.skip(reason="Serialization implementation changed")
 def test_serialize_arg_dataclass_with_non_serializable_field():
     """
     Test dataclass with non-serializable field (e.g., PGconn).
 
     Scenario:
-    - Dataclass contains object that can't be serialized
-    - Should gracefully skip field with placeholder
+    - Dataclass contains an object whose str() raises (the safe conversion
+      never calls __reduce__, so the failure surfaces at the str() fallback)
+    - Should gracefully replace the field with a placeholder
 
-    Validates: Graceful handling of psycopg PGconn errors
+    Validates: Graceful handling of psycopg PGconn-like errors
     """
 
     class NonSerializable:
         """Object that simulates PGconn - can't be serialized."""
 
-        def __reduce__(self):
+        def __str__(self):
             raise TypeError("no default __reduce__ due to non-trivial __cinit__")
 
     obj = DataclassWithNonSerializable(id="test-123", connection=NonSerializable())
@@ -132,7 +132,6 @@ def test_serialize_arg_dataclass_with_non_serializable_field():
     assert "non-serializable" in result["connection"].lower()
 
 
-@pytest.mark.skip(reason="Serialization implementation changed")
 def test_serialize_arg_dataclass_extraction_error_fallback():
     """
     Test dataclass field extraction failure fallback.
@@ -155,12 +154,19 @@ def test_serialize_arg_dataclass_extraction_error_fallback():
                 raise AttributeError("Simulated broken field")
             return super().__getattribute__(name)
 
+        def __repr__(self) -> str:
+            # The default dataclass repr reads self.value and would raise
+            # inside the str() fallback — keep it safe so the fallback path
+            # itself is what gets exercised.
+            return "BrokenDataclass(value=<broken>)"
+
     obj = BrokenDataclass(value=42)
 
     # Should fallback to str() without crashing
     result = _serialize_arg(obj)
 
     assert isinstance(result, str)
+    assert result == "BrokenDataclass(value=<broken>)"
 
 
 def test_serialize_arg_list_tuple_set():
@@ -339,7 +345,6 @@ def test_generate_cache_key_handles_complex_args():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Metrics implementation changed")
 async def test_record_cache_hit_metrics_all_token_types():
     """
     Test that all token types are recorded correctly.
@@ -348,6 +353,9 @@ async def test_record_cache_hit_metrics_all_token_types():
     - Input tokens counter incremented
     - Output tokens counter incremented
     - Cached tokens counter incremented
+
+    Note: the metrics are imported inside _record_cache_hit_metrics from
+    metrics_agents, so the patches target that module (not llm_cache).
     """
     usage_metadata = {
         "input_tokens": 200,
@@ -356,24 +364,32 @@ async def test_record_cache_hit_metrics_all_token_types():
         "model_name": "gpt-4.1-mini",
     }
 
-    with patch("src.infrastructure.cache.llm_cache.llm_tokens_consumed_total") as mock_counter:
-        with patch("src.infrastructure.cache.llm_cache.estimate_cost_usd", return_value=0.01):
-            with patch("src.infrastructure.cache.llm_cache.llm_cost_total"):
-                await _record_cache_hit_metrics(usage_metadata, node_name="test_node")
+    with (
+        patch(
+            "src.infrastructure.observability.metrics_agents.llm_tokens_consumed_total"
+        ) as mock_tokens,
+        patch("src.infrastructure.observability.metrics_agents.llm_cost_total") as mock_cost,
+        patch(
+            "src.infrastructure.observability.metrics_agents.estimate_cost_usd",
+            new=AsyncMock(return_value=0.01),
+        ),
+    ):
+        await _record_cache_hit_metrics(usage_metadata, node_name="test_node")
 
-                # Verify all token types recorded
-                assert mock_counter.labels.call_count >= 3
+        # Every non-zero token type gets its own labelled increment
+        token_types = {call.kwargs["token_type"] for call in mock_tokens.labels.call_args_list}
+        assert token_types == {"prompt_tokens", "completion_tokens", "cached_tokens"}
+        mock_cost.labels.assert_called_once()
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Metrics implementation changed")
 async def test_record_cache_hit_metrics_cost_calculation():
     """
-    Test that cost is estimated and recorded.
+    Test that cost is estimated (async) and recorded.
 
     Validates:
-    - estimate_cost_usd called with correct parameters
-    - llm_cost_total counter incremented
+    - estimate_cost_usd awaited with correct parameters
+    - llm_cost_total counter incremented with the estimated cost
     """
     usage_metadata = {
         "input_tokens": 100,
@@ -382,36 +398,42 @@ async def test_record_cache_hit_metrics_cost_calculation():
         "model_name": "gpt-4.1-mini",
     }
 
-    with patch("src.infrastructure.cache.llm_cache.estimate_cost_usd") as mock_estimate:
-        mock_estimate.return_value = 0.0025
+    mock_estimate = AsyncMock(return_value=0.0025)
+    with (
+        patch("src.infrastructure.observability.metrics_agents.llm_tokens_consumed_total"),
+        patch("src.infrastructure.observability.metrics_agents.llm_cost_total") as mock_cost,
+        patch(
+            "src.infrastructure.observability.metrics_agents.estimate_cost_usd",
+            new=mock_estimate,
+        ),
+        patch("src.core.config.settings") as mock_settings,
+    ):
+        mock_settings.default_currency = "eur"
 
-        with patch("src.infrastructure.cache.llm_cache.llm_tokens_consumed_total"):
-            with patch("src.infrastructure.cache.llm_cache.llm_cost_total") as mock_cost:
-                with patch("src.infrastructure.cache.llm_cache.settings") as mock_settings:
-                    mock_settings.default_currency = "eur"
+        await _record_cache_hit_metrics(usage_metadata, node_name="test_node")
 
-                    await _record_cache_hit_metrics(usage_metadata, node_name="test_node")
+        mock_estimate.assert_awaited_once_with(
+            model="gpt-4.1-mini",
+            prompt_tokens=100,
+            completion_tokens=50,
+            cached_tokens=0,
+        )
 
-                    # Verify estimate_cost_usd called
-                    mock_estimate.assert_called_once_with(
-                        model="gpt-4.1-mini",
-                        prompt_tokens=100,
-                        completion_tokens=50,
-                        cached_tokens=0,
-                    )
-
-                    # Verify cost counter incremented
-                    assert mock_cost.labels.called
+        mock_cost.labels.assert_called_once_with(
+            model="gpt-4.1-mini",
+            node_name="test_node",
+            currency="EUR",
+        )
+        mock_cost.labels.return_value.inc.assert_called_once_with(0.0025)
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Metrics implementation changed")
 async def test_record_cache_hit_metrics_prometheus_counters():
     """
-    Test that Prometheus counters are incremented correctly.
+    Test that Prometheus counters are incremented with the correct labels.
 
     Validates:
-    - Token counters incremented with correct labels
+    - Token counters incremented with correct labels (zero types excluded)
     - Cost counter incremented with correct labels
     """
     usage_metadata = {
@@ -421,26 +443,46 @@ async def test_record_cache_hit_metrics_prometheus_counters():
         "model_name": "gpt-4.1-mini",
     }
 
-    with patch("src.infrastructure.cache.llm_cache.llm_tokens_consumed_total") as mock_tokens:
-        with patch("src.infrastructure.cache.llm_cache.llm_cost_total") as mock_cost:
-            with patch("src.infrastructure.cache.llm_cache.estimate_cost_usd", return_value=0.01):
-                with patch("src.infrastructure.cache.llm_cache.settings") as mock_settings:
-                    mock_settings.default_currency = "usd"
+    with (
+        patch(
+            "src.infrastructure.observability.metrics_agents.llm_tokens_consumed_total"
+        ) as mock_tokens,
+        patch("src.infrastructure.observability.metrics_agents.llm_cost_total") as mock_cost,
+        patch(
+            "src.infrastructure.observability.metrics_agents.estimate_cost_usd",
+            new=AsyncMock(return_value=0.01),
+        ),
+        patch("src.core.config.settings") as mock_settings,
+    ):
+        mock_settings.default_currency = "usd"
 
-                    await _record_cache_hit_metrics(usage_metadata, node_name="router")
+        await _record_cache_hit_metrics(usage_metadata, node_name="router")
 
-                    # Verify labels called with correct parameters
-                    mock_tokens.labels.assert_called()
-                    mock_cost.labels.assert_called()
+        mock_tokens.labels.assert_any_call(
+            model="gpt-4.1-mini", node_name="router", token_type="prompt_tokens"
+        )
+        mock_tokens.labels.assert_any_call(
+            model="gpt-4.1-mini", node_name="router", token_type="completion_tokens"
+        )
+        # cached_tokens == 0 → its counter must NOT be touched
+        cached_calls = [
+            call
+            for call in mock_tokens.labels.call_args_list
+            if call.kwargs.get("token_type") == "cached_tokens"
+        ]
+        assert cached_calls == []
+        mock_cost.labels.assert_called_once_with(
+            model="gpt-4.1-mini", node_name="router", currency="USD"
+        )
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Metrics implementation changed")
 async def test_record_cache_hit_metrics_zero_tokens():
     """
     Test handling of zero token values.
 
-    Validates: Counters only incremented for non-zero values
+    Validates: token counters are NOT incremented for zero values, while the
+    cost counter is still recorded (with the 0.0 estimate).
     """
     usage_metadata = {
         "input_tokens": 0,
@@ -449,14 +491,20 @@ async def test_record_cache_hit_metrics_zero_tokens():
         "model_name": "gpt-4.1-mini",
     }
 
-    with patch("src.infrastructure.cache.llm_cache.llm_tokens_consumed_total"):
-        with patch("src.infrastructure.cache.llm_cache.llm_cost_total"):
-            with patch("src.infrastructure.cache.llm_cache.estimate_cost_usd", return_value=0.0):
-                await _record_cache_hit_metrics(usage_metadata, node_name="test_node")
+    with (
+        patch(
+            "src.infrastructure.observability.metrics_agents.llm_tokens_consumed_total"
+        ) as mock_tokens,
+        patch("src.infrastructure.observability.metrics_agents.llm_cost_total") as mock_cost,
+        patch(
+            "src.infrastructure.observability.metrics_agents.estimate_cost_usd",
+            new=AsyncMock(return_value=0.0),
+        ),
+    ):
+        await _record_cache_hit_metrics(usage_metadata, node_name="test_node")
 
-                # Should not increment counters for zero values
-                # (implementation may vary, this validates no errors)
-                assert True  # No exception raised
+        mock_tokens.labels.assert_not_called()
+        mock_cost.labels.return_value.inc.assert_called_once_with(0.0)
 
 
 # ============================================================================

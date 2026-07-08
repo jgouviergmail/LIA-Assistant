@@ -1,14 +1,14 @@
 """
-Unit tests for LangGraph PostgreSQL Checkpointer.
+Integration tests for LangGraph PostgreSQL Checkpointer.
 
 Tests checkpointer initialization, connection management, and state persistence.
 
 Note: These tests require PostgreSQL connection (psycopg v3) which is incompatible
-with Windows ProactorEventLoop. They are skipped on Windows in unit test runs.
+with Windows ProactorEventLoop. They are skipped on Windows (local runs) and execute on the Linux CI runner.
 They also skip when the database URL resolved by the test settings is
 unreachable (the dev container has no PostgreSQL on the .env.test localhost
 URL — same guard as conftest._skip_if_db_unreachable; they run in CI).
-For integration testing, run: pytest tests/integration/test_checkpointer.py
+Run manually with: pytest tests/integration/test_checkpointer.py -v
 """
 
 import socket

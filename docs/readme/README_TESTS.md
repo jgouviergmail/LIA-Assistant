@@ -65,7 +65,7 @@ Conftest Files:                  6 files (fixture hierarchy)
 Total Lines of Test Code:        ~176,000 lines
 Total Size:                      ~6.4 MB
 Average Lines per Test File:     ~390 lines
-Coverage Target:                 43% (enforced in CI)
+Coverage Target:                 45% (enforced in CI)
 ```
 
 ### 1.3 Test Distribution by Type
@@ -3260,7 +3260,7 @@ def test_with_mock(mock_function):
 **Current Statistics (pytest --collect-only authoritative):**
 - Total Test Files: 448 (`test_*.py`) + 6 conftests
 - Total Lines of Test Code: ~176,000
-- Coverage Target: 43% (enforced in CI)
+- Coverage Target: 45% (enforced in CI)
 - Total Test Count: **9,992 collected by pytest**
 - Frontend (vitest): 41 tests across 3 files
 

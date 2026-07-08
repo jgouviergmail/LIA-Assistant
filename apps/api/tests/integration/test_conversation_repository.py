@@ -1,5 +1,5 @@
 """
-Unit tests for ConversationRepository.
+Integration tests for ConversationRepository.
 
 Tests the new repository layer in isolation without affecting existing service.
 These tests validate the repository pattern implementation and query optimization.
@@ -14,8 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.conversations.repository import ConversationRepository
 
-# Skip in pre-commit - uses testcontainers/real DB, too slow
-# Run manually with: pytest tests/unit/test_conversation_repository.py -v
+# Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
+# Run manually with: pytest tests/integration/test_conversation_repository.py -v
 pytestmark = pytest.mark.integration
 
 

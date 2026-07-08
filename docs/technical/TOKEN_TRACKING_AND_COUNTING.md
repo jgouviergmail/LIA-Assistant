@@ -1935,7 +1935,7 @@ class TestTokenCounting:
 
 ### Tests d'Intégration - Pricing Service
 
-**Fichier** : `apps/api/tests/domains/test_pricing_service.py`
+**Fichier** : `apps/api/tests/integration/test_pricing_service.py`
 
 ```python
 import pytest

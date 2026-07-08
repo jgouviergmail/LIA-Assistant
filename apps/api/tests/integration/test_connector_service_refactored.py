@@ -1,15 +1,17 @@
 """
-Unit tests for ConnectorService refactored methods (Sprint 5).
+Integration tests for ConnectorService refactored methods.
 
 Tests cover:
 - _handle_oauth_connector_callback() generic handler
-- handle_gmail_callback() using generic handler
-- handle_google_contacts_callback() using generic handler
+- handle_gmail_callback_stateless() using the generic stateless handler
+- handle_google_contacts_callback_stateless() using the generic stateless handler
 - Token exchange, credential encryption, connector creation/update
 - Error handling and edge cases
 """
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
@@ -20,6 +22,17 @@ from src.core.security import encrypt_data
 from src.domains.connectors.models import ConnectorStatus, ConnectorType
 from src.domains.connectors.service import ConnectorService
 from tests.fixtures.factories import UserFactory
+
+
+def _stateless_state_redis(user_id: UUID) -> AsyncMock:
+    """Redis mock serving the OAuth state peek of the stateless handlers.
+
+    The stateless callback wrappers read ``oauth:state:{state}`` to extract
+    the user_id before delegating to the generic handler.
+    """
+    redis = AsyncMock()
+    redis.get = AsyncMock(return_value=json.dumps({"user_id": str(user_id), "provider": "google"}))
+    return redis
 
 
 @pytest_asyncio.fixture
@@ -371,7 +384,7 @@ class TestHandleOAuthConnectorCallbackGeneric:
 
 @pytest.mark.integration  # Uses testcontainers (PostgreSQL) but mocks Redis
 class TestHandleGmailCallback:
-    """Test ConnectorService.handle_gmail_callback() using generic handler."""
+    """Test ConnectorService.handle_gmail_callback_stateless() using generic handler."""
 
     @pytest.fixture(autouse=True)
     def mock_redis_cache(self):
@@ -405,7 +418,10 @@ class TestHandleGmailCallback:
             "connector_type": ConnectorType.GOOGLE_GMAIL.value,
         }
 
-        with patch("src.domains.connectors.service.get_redis_session"):
+        with patch(
+            "src.domains.connectors.service.get_redis_session",
+            new=AsyncMock(return_value=_stateless_state_redis(test_user_with_id.id)),
+        ):
             with patch("src.domains.connectors.service.SessionService"):
                 with patch("src.core.oauth.OAuthFlowHandler") as mock_handler_class:
                     mock_handler = mock_handler_class.return_value
@@ -413,10 +429,8 @@ class TestHandleGmailCallback:
                         return_value=(mock_token_response, mock_stored_state)
                     )
 
-                    # Act
-                    result = await connector_service.handle_gmail_callback(
-                        test_user_with_id.id, code, state
-                    )
+                    # Act — stateless API: user_id comes from the OAuth state
+                    result = await connector_service.handle_gmail_callback_stateless(code, state)
                     await async_session.commit()
 
         # Assert
@@ -443,7 +457,10 @@ class TestHandleGmailCallback:
             "connector_type": ConnectorType.GOOGLE_GMAIL.value,
         }
 
-        with patch("src.domains.connectors.service.get_redis_session"):
+        with patch(
+            "src.domains.connectors.service.get_redis_session",
+            new=AsyncMock(return_value=_stateless_state_redis(test_user_with_id.id)),
+        ):
             with patch("src.domains.connectors.service.SessionService"):
                 with patch("src.core.oauth.OAuthFlowHandler") as mock_handler_class:
                     mock_handler = mock_handler_class.return_value
@@ -456,20 +473,19 @@ class TestHandleGmailCallback:
                     ) as mock_generic:
                         mock_generic.return_value = AsyncMock()
 
-                        # Act
-                        await connector_service.handle_gmail_callback(
-                            test_user_with_id.id, "code", "state"
-                        )
+                        # Act — stateless API: user_id comes from the OAuth state
+                        await connector_service.handle_gmail_callback_stateless("code", "state")
 
-        # Assert - Generic handler was called
+        # Assert - Generic handler was called with the user_id from the state
         mock_generic.assert_called_once()
         call_kwargs = mock_generic.call_args.kwargs
         assert call_kwargs["connector_type"] == ConnectorType.GOOGLE_GMAIL
+        assert call_kwargs["user_id"] == test_user_with_id.id
 
 
 @pytest.mark.integration  # Uses testcontainers (PostgreSQL) but mocks Redis
 class TestHandleGoogleContactsCallback:
-    """Test ConnectorService.handle_google_contacts_callback() using generic handler."""
+    """Test ConnectorService.handle_google_contacts_callback_stateless() using generic handler."""
 
     @pytest.fixture(autouse=True)
     def mock_redis_cache(self):
@@ -503,7 +519,10 @@ class TestHandleGoogleContactsCallback:
             "connector_type": ConnectorType.GOOGLE_CONTACTS.value,
         }
 
-        with patch("src.domains.connectors.service.get_redis_session"):
+        with patch(
+            "src.domains.connectors.service.get_redis_session",
+            new=AsyncMock(return_value=_stateless_state_redis(test_user_with_id.id)),
+        ):
             with patch("src.domains.connectors.service.SessionService"):
                 with patch("src.core.oauth.OAuthFlowHandler") as mock_handler_class:
                     mock_handler = mock_handler_class.return_value
@@ -511,16 +530,16 @@ class TestHandleGoogleContactsCallback:
                         return_value=(mock_token_response, mock_stored_state)
                     )
 
-                    # Act
-                    result = await connector_service.handle_google_contacts_callback(
-                        test_user_with_id.id, code, state
+                    # Act — stateless API: user_id comes from the OAuth state
+                    result = await connector_service.handle_google_contacts_callback_stateless(
+                        code, state
                     )
                     await async_session.commit()
 
         # Assert
         assert result.connector_type == ConnectorType.GOOGLE_CONTACTS
         assert result.status == ConnectorStatus.ACTIVE
-        assert result.metadata.get("created_via") == "oauth_flow"
+        assert result.metadata.get("created_via") == "oauth_flow_stateless"
 
     async def test_contacts_callback_uses_default_scopes(
         self, connector_service, test_user_with_id, async_session
@@ -541,7 +560,10 @@ class TestHandleGoogleContactsCallback:
             "connector_type": ConnectorType.GOOGLE_CONTACTS.value,
         }
 
-        with patch("src.domains.connectors.service.get_redis_session"):
+        with patch(
+            "src.domains.connectors.service.get_redis_session",
+            new=AsyncMock(return_value=_stateless_state_redis(test_user_with_id.id)),
+        ):
             with patch("src.domains.connectors.service.SessionService"):
                 with patch("src.core.oauth.OAuthFlowHandler") as mock_handler_class:
                     mock_handler = mock_handler_class.return_value
@@ -549,9 +571,9 @@ class TestHandleGoogleContactsCallback:
                         return_value=(mock_token_response, mock_stored_state)
                     )
 
-                    # Act
-                    result = await connector_service.handle_google_contacts_callback(
-                        test_user_with_id.id, "code", "state"
+                    # Act — stateless API: user_id comes from the OAuth state
+                    result = await connector_service.handle_google_contacts_callback_stateless(
+                        "code", "state"
                     )
                     await async_session.commit()
 

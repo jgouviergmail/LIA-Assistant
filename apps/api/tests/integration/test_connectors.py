@@ -166,16 +166,16 @@ class TestCreateConnector:
         """Test Gmail OAuth callback with invalid state."""
         client, _ = authenticated_client
 
-        # Correct route is /activate (POST)
-        response = await client.post(
-            "/api/v1/connectors/gmail/activate",
-            json={
-                "code": "fake-auth-code",
-                "state": "invalid-state",
-            },
+        # Current contract: GET /gmail/callback redirects to the frontend
+        # settings page with a connector_error param on failure (302), it
+        # does not return a 400 (see handle_oauth_callback_error_redirect).
+        response = await client.get(
+            "/api/v1/connectors/gmail/callback",
+            params={"code": "fake-auth-code", "state": "invalid-state"},
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 302
+        assert "connector_error=" in response.headers["location"]
 
 
 @pytest.mark.integration

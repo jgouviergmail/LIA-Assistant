@@ -162,6 +162,9 @@ class TestHomeDeletionCascade:
         authenticated_client: tuple[AsyncClient, User],
         async_session: AsyncSession,
     ):
+        from src.core.security.utils import encrypt_data
+        from src.domains.users.schemas import HomeLocationData
+
         client, user = authenticated_client
 
         # Set up: opt-in, set home, push a last-known
@@ -169,14 +172,15 @@ class TestHomeDeletionCascade:
             "/api/v1/auth/me/weather-location-preference",
             json={"enabled": True},
         )
-        # Home must be set for the DELETE endpoint to make sense; use the
-        # existing users endpoint. If Google Places is not configured in the
-        # test env this write will fail — that's an env concern, not a
-        # cascade-logic concern.
-        await client.put(
-            "/api/v1/users/me/home-location",
-            json={"address": "Lyon", "lat": 45.75, "lon": 4.85, "place_id": "p1"},
-        )
+        # Set the home directly at the DB level: the PUT endpoint requires an
+        # active Google Places connector (absent in the test env) and would
+        # fail silently, turning the DELETE into a no-op. The subject under
+        # test is the DELETE cascade, not the PUT. Mirror the service's
+        # storage format (encrypt_data of HomeLocationData JSON).
+        home = HomeLocationData(address="Lyon", lat=45.75, lon=4.85, place_id="p1")
+        user.home_location_encrypted = encrypt_data(home.model_dump_json())
+        await async_session.commit()
+
         await client.put(
             "/api/v1/auth/me/last-location",
             json={"lat": 48.85, "lon": 2.35},
@@ -192,6 +196,7 @@ class TestHomeDeletionCascade:
 
         # Last-known must be gone too
         await async_session.refresh(user)
+        assert user.home_location_encrypted is None
         assert user.last_known_location_encrypted is None
         assert user.last_known_location_updated_at is None
 

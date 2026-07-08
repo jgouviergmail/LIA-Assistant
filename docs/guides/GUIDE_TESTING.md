@@ -1905,25 +1905,45 @@ async def test_with_mocked_llm_call():
 ```toml
 # pyproject.toml
 [tool.pytest.ini_options]
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=45"
 ```
 
 **Rapports générés** :
 - **Terminal** : `--cov-report=term-missing` → lignes non couvertes
 - **HTML** : `--cov-report=html` → htmlcov/index.html
 
+⚠️ Le gate `--cov-fail-under` étant dans `addopts`, il s'applique à **toute**
+invocation pytest sans `--no-cov`. Pour lancer un sous-ensemble de tests
+(un fichier, un dossier), ajoutez `--no-cov` — sinon la couverture du
+sous-ensemble échoue mécaniquement sous le seuil global.
+
+### Doctrine du seuil de couverture (ratchet)
+
+Le seuil CI est un **cliquet** (ratchet) : il ne descend jamais, et il monte
+de **+2 points à chaque release** tant que l'objectif de 75 % n'est pas
+atteint (recommandation n°4 de l'audit 2026-07 : paliers 43→55→65→75).
+
+Règles :
+1. Le seuil vit à **deux endroits qui doivent rester synchrones** :
+   `apps/api/pyproject.toml` (addopts) et `.github/workflows/ci.yml`
+   (job test-backend).
+2. On ne monte le seuil que si la couverture réelle mesurée en CI laisse
+   **au moins 2 points de marge** (éviter les échecs de CI sur variance).
+3. Baisser le seuil est interdit — si une PR fait chuter la couverture sous
+   le gate, c'est la PR qu'on corrige, pas le gate.
+4. Historique : 43 % (baseline audit) → **45 % (v1.21.22, couverture réelle
+   mesurée : 52,3 %)**.
+
 ### Exécuter Coverage
 
 ```bash
-# Coverage complète
+# Coverage complète (applique le gate --cov-fail-under=45)
 cd apps/api
 pytest --cov=src --cov-report=term-missing --cov-report=html
 
-# Coverage par module
-pytest tests/domains/agents/ --cov=src/domains/agents --cov-report=term-missing
-
-# Vérifier minimum coverage
-pytest --cov=src --cov-report=term-missing --cov-fail-under=80
+# Coverage par module (--cov ciblé désactive le gate global de facto ;
+# préférez --no-cov si vous ne voulez pas de rapport)
+pytest tests/unit/domains/agents/ --cov=src/domains/agents --cov-report=term-missing --cov-fail-under=0
 
 # Générer rapport XML pour CI/CD
 pytest --cov=src --cov-report=xml
@@ -1955,136 +1975,75 @@ TOTAL                                       311     19    94%
 - **≥90% agents** : nodes, services, tools
 - **≥70% intégration** : acceptable car coûteux
 
-### Coverage Badges (CI/CD)
+### Coverage en CI
 
-```yaml
-# .github/workflows/tests.yml
-- name: Upload coverage to Codecov
-  uses: codecov/codecov-action@v4
-  with:
-    file: ./apps/api/coverage.xml
-    flags: unittests
-    name: codecov-umbrella
-    fail_ci_if_error: false
-
-- name: Check minimum coverage
-  working-directory: ./apps/api
-  run: |
-    coverage report --fail-under=30  # Fail if <30%
-```
+Le rapport XML est uploadé vers Codecov par le job `test-backend`
+(`codecov-action`, flag `backend`, non bloquant) ; le **gate bloquant** est
+le `--cov-fail-under=45` du même job (voir la doctrine ratchet ci-dessus).
 
 ---
 
 ## CI/CD Testing Workflow
 
-### GitHub Actions Workflow
+### Jobs de test backend (.github/workflows/ci.yml)
 
-```yaml
-# .github/workflows/tests.yml
-name: Tests
+Le workflow réel est `.github/workflows/ci.yml` (déclenché sur push/PR vers
+`main`). Trois périmètres de tests backend, chacun avec son job :
 
-on:
-  push:
-    branches: [main, develop, feature/*]
-  pull_request:
-    branches: [main, develop]
+| Job | Commande | Sélection | Gate |
+|---|---|---|---|
+| `test-backend` | `pytest tests/unit/` | `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 45 % |
+| `test-backend` (step 2) | `pytest tests/agents/` | `-m "not slow and not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
+| `test-backend-integration` | `pytest tests/integration/` | `-m "not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
+Points structurants :
 
-    strategy:
-      matrix:
-        python-version: ["3.12", "3.13"]
+- **Services provisionnés** : les deux jobs déclarent PostgreSQL
+  (`pgvector/pgvector:pg16`) et Redis (`redis:7-alpine`) en services.
+- **`TEST_DATABASE_URL`** (job integration) : seule variable DB qui survit au
+  `load_dotenv(.env.test, override=True)` du conftest — elle route les
+  fixtures vers le service PostgreSQL au lieu de Testcontainers
+  (voir `tests/conftest.py::_detect_environment`). Les credentials du service
+  (`test:test@localhost:5432/test_db`) reproduisent volontairement
+  `.env.test` pour que les tests qui lisent `settings.database_url`
+  directement (checkpointer LangGraph) atteignent la même base.
+- **Aucune liste `--ignore`** : les tests nécessitant une vraie base portent
+  le marker `integration` et vivent dans `tests/integration/` — la
+  quarantaine par `--ignore` (supprimée en 2026-07, ADR-113) est interdite :
+  un test exclu sans marker ni ticket est un test qui ne revient jamais.
+- **e2e / benchmark / multiprocess** restent hors CI PR (exécution manuelle
+  via `task test:backend:slow`).
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-
-      - name: Install dependencies
-        working-directory: ./apps/api
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Run unit tests
-        working-directory: ./apps/api
-        run: |
-          pytest tests/core/ tests/domains/agents/api/mixins/ -v --cov=src/core --cov=src/domains/agents/api/mixins --cov-report=term-missing
-        continue-on-error: false
-
-      - name: Run integration tests
-        working-directory: ./apps/api
-        run: |
-          pytest tests/integration/ -v -m integration --cov=src --cov-append --cov-report=term-missing
-        continue-on-error: false
-
-      - name: Run E2E tests
-        working-directory: ./apps/api
-        run: |
-          pytest tests/e2e/ tests/agents/ -v -m e2e --cov=src --cov-append --cov-report=xml --cov-report=term-missing
-        continue-on-error: false
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./apps/api/coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
-
-      - name: Check minimum coverage
-        working-directory: ./apps/api
-        run: |
-          coverage report --fail-under=30
-
-      - name: Generate test summary
-        if: always()
-        working-directory: ./apps/api
-        run: |
-          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          pytest tests/ --tb=no -q || true
-```
-
-**Explications** :
-- **Matrix strategy** : tests sur Python 3.12 et 3.13
-- **Cache pip** : accélère installation dépendances
-- **continue-on-error: false** : fail fast si tests échouent
-- **--cov-append** : combine coverage de plusieurs runs
-- **GitHub Summary** : rapport visible dans PR
-
-### Pre-commit Hooks Testing
+### Exécution locale équivalente
 
 ```bash
-# .github/hooks/pre-commit
-#!/bin/bash
+# Suite unit (équivalent job test-backend)
+task test:backend:unit:fast
 
-# Run unit tests before commit
-echo "Running unit tests..."
-cd apps/api
-pytest tests/ -m "not e2e" -q
+# Suite agents
+task test:backend:agents
 
-if [ $? -ne 0 ]; then
-    echo "❌ Unit tests failed. Commit aborted."
-    exit 1
-fi
-
-echo "✅ All tests passed."
+# Suite integration (équivalent job test-backend-integration).
+# Nécessite PostgreSQL + Redis (task dev:detach) et une base JETABLE :
+# les fixtures droppent et recréent toutes les tables à chaque test.
+docker exec lia-postgres-dev psql -U <user> -d postgres -c "CREATE DATABASE lia_test"  # une fois
+TEST_DATABASE_URL="postgresql+asyncpg://<user>:<pass>@127.0.0.1:5432/lia_test" task test:backend:integration
 ```
 
-**Installation** :
+Sans `TEST_DATABASE_URL`, la suite integration retombe sur Testcontainers
+(nécessite un socket Docker fonctionnel) et skippe proprement sinon.
+
+### Pre-commit Hook
+
+Le hook réel est `.github/hooks/pre-commit` (installé via
+`task setup:hooks`, `git config core.hooksPath`). Son étape pytest :
 
 ```bash
-# Enable pre-commit hook
-cp .github/hooks/pre-commit .git/hooks/
-chmod +x .git/hooks/pre-commit
+pytest tests/unit/ --tb=short --no-cov -q -m "not integration and not slow"
 ```
+
+Même sélection que `task test:backend:unit:fast` — les tests `integration`
+et `slow` n'y tournent jamais ; ils sont couverts par les jobs CI dédiés.
 
 ---
 

@@ -116,8 +116,12 @@ if [ -n "$PYTHON_FILES" ]; then
     fi
 
     # 2.4 Unit tests (fast only - same as `task test:backend:unit:fast`)
+    # -n auto --dist loadscope: parallel workers (pytest-xdist), tests grouped
+    # by module so module-scoped fixtures never split across workers. Keeps
+    # the pytest step inside the 5-minute pre-commit budget (single-process
+    # baseline measured at ~12 min on 8916 tests).
     echo "  Running fast unit tests..."
-    if ! $PYTEST_BIN tests/unit/ --tb=short --no-cov -q -m "not integration" 2>&1; then
+    if ! $PYTEST_BIN tests/unit/ --tb=short --no-cov -q -m "not integration and not slow" -n auto --dist loadscope 2>&1; then
         print_error "Unit tests failed"
         FAILED=1
     else

@@ -40,7 +40,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.21.21</strong> — <strong>Timezone correctness, enforced end-to-end.</strong> A correctness release closing the "server time vs user time" bug class for good. <strong>Fixed:</strong> in voice mode, the fallback for the spoken "current time" injected the server's naive clock (UTC in production) into the voice prompt — the announced hour was wrong for any user outside UTC; the resolution now goes through the user's preferred timezone (central <code>DEFAULT_USER_DISPLAY_TIMEZONE</code> as last resort), threaded from both streaming call paths. Seven more naive <code>datetime.now()</code> sites migrated to explicit frames (HITL cache TTL, display fallback, search-recency year, route/weather registry IDs — UTC), and the briefing birthday reference date became a required parameter in the user's local frame instead of a latent <code>date.today()</code> server-date trap. <strong>Added:</strong> the CI AST guard now bans naive <code>datetime.now()</code>, <code>datetime.utcnow()</code> and <code>date.today()</code> across the whole backend (self-tested scanner, explicit allow-list, actionable failure messages) — the doctrine documented in <code>core/time_utils.py</code> is no longer a convention but a build gate. <strong>Docs:</strong> GETTING_STARTED fully rewritten (v4.0): production-proven defaults throughout, external platform setup (Google/Microsoft/Apple…), lockfile-based install (ADR-112), feature configuration reference and deployment checklist; living docs' code snippets aligned on the timezone doctrine. <strong>Verified:</strong> TDD red→green on all 8 sites; 8,912 unit tests green; Docker boot verified. — 8 July 2026.
+  <strong>Version 1.21.22</strong> — <strong>Backend test suite rehabilitation (ADR-113).</strong> The 2026-07 audit found <code>tests/integration/</code> ran in <em>no</em> CI job and had silently rotted (53 failures measured out of 243), 13 Testcontainers-backed files were misfiled under <code>tests/unit/</code> — ten of them quarantined by a <code>--ignore</code> list in ci.yml proven 100% redundant — and the coverage gate sat at 43% while actual coverage measured 52%. <strong>Added:</strong> a <code>test-backend-integration</code> CI job (465 tests against real PostgreSQL + Redis service containers, routed via <code>TEST_DATABASE_URL</code> with an unchanged Testcontainers fallback); the 13 files reclassified into <code>tests/integration/</code> with zero test loss (identical 8,916-test CI unit selection before/after); <code>--ignore</code> quarantines are now forbidden. <strong>Fixed:</strong> a product bug found by the rehabilitated suite — the custom <code>RequestValidationError</code> handler serialized raw exception objects, turning <em>every</em> field-validator 422 (e.g. weak password at registration) into a 500; now <code>jsonable_encoder</code>, matching FastAPI's default. All 53 integration failures repaired at the root (auth rate-limiter buckets purged per test, missing <code>unaccent</code> extension mirrored from migrations, locale-aware assertions, ~10 obsolete tests rewritten against the current API). The 6 <code>llm_cache</code> tests skipped as "implementation changed" repaired, not deleted. <strong>Changed:</strong> coverage gate ratcheted 43% → 45% (doctrine: +2 per release, never lowered — real coverage 52%); pre-commit pytest step parallelized with pytest-xdist (<code>-n auto --dist loadscope</code>): 12 min → <strong>3 min 54 s</strong> measured. <strong>Verified:</strong> integration suite 450/450 green (plus 7/7 never-executed Linux-only tests proven in a CI-faithful container), unit suite green at the 45% gate, agents suite unchanged (958 passed). — 8 July 2026.
 </p>
 
 ---
@@ -113,7 +113,7 @@ The result is measured, not proclaimed:
 
 | | | | |
 |---|---|---|---|
-| **31** functional domains | **420,000** lines of code (excl. tests) | **10,000+** automated tests | **100+** ADRs |
+| **31** functional domains | **420,000** lines of code (excl. tests) | **11,000+** automated tests | **100+** ADRs |
 | **120+** versions shipped | **6 languages**, parity enforced in CI | **394** Prometheus metrics | **8.0/10** 360° technical audit |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
@@ -871,7 +871,7 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md) | Complete development workflow |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md) | How to create a new tool |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (~10,100 tests across 555 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (~11,000 tests across 559 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md) | LangGraph and log debugging |
 
 ### Architecture Decision Records (ADR)
@@ -892,7 +892,7 @@ apps/api/src/
 ```bash
 cd apps/api
 
-# Unit tests (fast, ~30s)
+# Unit tests (parallel: task test:backend:unit:fast, ~4 min)
 pytest tests/unit -v
 
 # Integration tests (require PostgreSQL + Redis)
@@ -913,7 +913,7 @@ pytest --cov=src --cov-report=html -v
 | Total tests | ~10,140 (pytest collected, 555 test files) |
 | Backend breakdown | unit ~8,800 · agents ~1,160 · integration ~240 |
 | Frontend tests (vitest) | 169 |
-| Coverage target | 43% |
+| Coverage target | 45% |
 | CI Workflows | 3 (CI, Security, Release) |
 
 ---
@@ -929,13 +929,15 @@ Pre-commit (local)              GitHub Actions CI
 ===================             ==================
 .bak files check                Lint Backend (Ruff + Black + MyPy)
 Secrets grep                    Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy             Fast unit tests + coverage (43%)
-Fast unit tests                 Code Hygiene (i18n, Alembic, lockfiles, patterns)
-Critical pattern detection      Docker build smoke test
-i18n keys sync                  Secret scan (Gitleaks)
-Alembic migration conflicts     ──────────────────────
-.env.example completeness       Security workflow (weekly)
-ESLint + TypeScript check         CodeQL (Python + JS)
+Ruff + Black + MyPy             Fast unit tests + coverage (45%)
+Fast unit tests                 Integration tests (PostgreSQL + Redis)
+Critical pattern detection      Agents suite
+i18n keys sync                  Code Hygiene (i18n, Alembic, lockfiles, patterns)
+Alembic migration conflicts     Docker build smoke test
+.env.example completeness       Secret scan (Gitleaks)
+ESLint + TypeScript check       ──────────────────────
+                                Security workflow (weekly)
+                                  CodeQL (Python + JS)
                                   Dependency audit (pip-audit + pnpm audit)
                                   Trivy filesystem scan
                                   SBOM generation
@@ -951,13 +953,13 @@ ESLint + TypeScript check         CodeQL (Python + JS)
 | **Branch protection** | PR required (external contributors), 7 status checks, force push forbidden |
 | **Dependabot** | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped |
 | **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more) |
-| **Coverage threshold** | 43% minimum enforced in CI |
+| **Coverage threshold** | 45% minimum enforced in CI (ratchet +2 per release) |
 
 ### Workflows
 
 | Workflow | Trigger | Jobs |
 |----------|---------|------|
-| **CI** (`ci.yml`) | Push to `main`, PR | 7 jobs: lint, test, code hygiene, docker build, secret scan |
+| **CI** (`ci.yml`) | Push to `main`, PR | 8 jobs: lint, unit tests, integration tests, code hygiene, docker build, secret scan |
 | **Security** (`security.yml`) | PR, weekly schedule, manual | CodeQL, dependency audit, Trivy, SBOM |
 | **Release** (`release.yml`) | Tag `v*` | Docker multi-arch build + push (ghcr.io), GitHub Release |
 
@@ -1062,7 +1064,7 @@ git push origin feature/my-feature
 - **Python**: Black + Ruff + MyPy (strict)
 - **TypeScript**: ESLint + Prettier
 - **Commits**: [Conventional Commits](https://www.conventionalcommits.org/)
-- **Coverage**: >= 43% enforced in CI
+- **Coverage**: >= 45% enforced in CI (ratchet +2 per release, never lowered)
 - **Pre-commit hook**: Installed via `task setup` — runs linters + tests on staged files
 - **CI**: All PRs must pass 7 status checks before merge (see [CI/CD](#cicd))
 

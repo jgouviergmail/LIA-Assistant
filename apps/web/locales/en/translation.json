@@ -2943,6 +2943,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_22": {
+          "title": "v1.21.22 — 🛡️ Clear error messages and hardened reliability",
+          "date": "July 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🛠️ Forms explain again what's wrong</b> — When an input is invalid (for example a too-short password at sign-up), LIA once again shows the precise message explaining the rule to follow, instead of a generic technical error. The defect affected every form with advanced validation rules.",
+            "i2": "<b>✅ 450+ integration tests now watch over every update</b> — The whole critical chain (accounts, connectors, conversations, pricing) is now automatically re-validated against a real database on every code change, and the test-coverage requirement was raised. In practice: less regression risk with each new version."
+          }
+        },
         "v1_21_21": {
           "title": "v1.21.21 — 🕐 The right time, in your timezone",
           "date": "July 2026",

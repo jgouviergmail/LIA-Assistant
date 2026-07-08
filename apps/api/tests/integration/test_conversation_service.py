@@ -1,5 +1,5 @@
 """
-Unit tests for ConversationService.
+Integration tests for ConversationService.
 
 Tests conversation lifecycle, message archival, and statistics tracking.
 Adapted to match existing service implementation.
@@ -19,8 +19,8 @@ from src.domains.conversations.models import (
 )
 from src.domains.conversations.service import ConversationService
 
-# Skip in pre-commit - uses testcontainers/real DB, too slow
-# Run manually with: pytest tests/unit/test_conversation_service.py -v
+# Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
+# Run manually with: pytest tests/integration/test_conversation_service.py -v
 pytestmark = pytest.mark.integration
 
 
@@ -65,7 +65,6 @@ async def sample_conversation(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_get_or_create_conversation_creates_new(
     async_session: AsyncSession,
     sample_user: User,
@@ -87,7 +86,6 @@ async def test_get_or_create_conversation_creates_new(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_get_or_create_conversation_returns_existing(
     async_session: AsyncSession,
     sample_user: User,
@@ -106,7 +104,6 @@ async def test_get_or_create_conversation_returns_existing(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_get_or_create_conversation_with_soft_deleted(
     async_session: AsyncSession,
     sample_user: User,
@@ -158,7 +155,6 @@ async def test_get_or_create_conversation_with_soft_deleted(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_archive_message_user(
     async_session: AsyncSession,
     sample_user: User,
@@ -183,7 +179,6 @@ async def test_archive_message_user(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_archive_message_with_metadata(
     async_session: AsyncSession,
     sample_user: User,
@@ -214,7 +209,6 @@ async def test_archive_message_with_metadata(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_archive_message_sequence_numbering(
     async_session: AsyncSession,
     sample_user: User,
@@ -249,7 +243,6 @@ async def test_archive_message_sequence_numbering(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_increment_conversation_stats(
     async_session: AsyncSession,
     sample_user: User,
@@ -277,7 +270,6 @@ async def test_increment_conversation_stats(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_increment_conversation_stats_accumulates(
     async_session: AsyncSession,
     sample_user: User,
@@ -321,7 +313,6 @@ async def test_increment_conversation_stats_accumulates(
     "or 3) Use SAVEPOINT in reset_conversation to isolate checkpoint deletion failure."
 )
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_reset_conversation(
     async_session: AsyncSession,
     sample_user: User,
@@ -370,7 +361,6 @@ async def test_reset_conversation(
     reason="INFRASTRUCTURE: Same issue as test_reset_conversation - checkpoint tables missing"
 )
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_reset_conversation_creates_audit_log(
     async_session: AsyncSession,
     sample_user: User,
@@ -410,7 +400,6 @@ async def test_reset_conversation_creates_audit_log(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_get_messages_empty(
     async_session: AsyncSession,
     sample_user: User,
@@ -429,7 +418,6 @@ async def test_get_messages_empty(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_get_messages_pagination(
     async_session: AsyncSession,
     sample_user: User,
@@ -475,7 +463,6 @@ async def test_get_messages_pagination(
 
 
 @pytest.mark.asyncio
-@pytest.mark.unit
 async def test_get_messages_ordered_by_sequence(
     async_session: AsyncSession,
     sample_user: User,

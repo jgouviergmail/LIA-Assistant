@@ -228,18 +228,20 @@ tasks:
     desc: Run fast unit tests only (excludes slow/integration tests) - used by pre-commit
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/ -v -m "not integration and not slow"
+      # -n auto --dist loadscope (pytest-xdist): parallel workers, tests
+      # grouped by module — same flags as the pre-commit hook pytest step.
+      - cmd: .venv/Scripts/pytest tests/unit/ -v --no-cov -m "not integration and not slow" -n auto --dist loadscope
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v -m "not integration and not slow"
+      - cmd: .venv/bin/pytest tests/unit/ -v --no-cov -m "not integration and not slow" -n auto --dist loadscope
         platforms: [linux, darwin]
 
   test:backend:integration:
-    desc: Run backend integration tests only
+    desc: Run backend integration tests (mirrors CI test-backend-integration; needs PG+Redis)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/integration/ -v
+      - cmd: .venv/Scripts/pytest tests/integration/ -v --no-cov -m "not e2e and not benchmark and not multiprocess"
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/integration/ -v
+      - cmd: .venv/bin/pytest tests/integration/ -v --no-cov -m "not e2e and not benchmark and not multiprocess"
         platforms: [linux, darwin]
 
   test:backend:exhaustive:
@@ -1090,7 +1092,7 @@ tasks:
   # ============================================================================
 
   ci:
-    desc: Run CI pipeline locally (lint + fast tests + agents tests + security)
+    desc: Run CI pipeline locally (lint + fast tests + agents + integration + security)
     cmds:
       - task: lint
       - task: test:backend:unit:fast
@@ -1098,6 +1100,10 @@ tasks:
       # found it had silently rotted for months (83 failures) because no gate
       # ever ran it. Not in pre-commit (~1min) to keep commits fast.
       - task: test:backend:agents
+      # Integration suite (tests/integration) — mirrors the CI job
+      # test-backend-integration (requires PostgreSQL + Redis running; set
+      # TEST_DATABASE_URL to a DISPOSABLE database, e.g. lia_test).
+      - task: test:backend:integration
       - task: test:frontend
       - task: security:scan
 

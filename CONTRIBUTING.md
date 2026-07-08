@@ -642,7 +642,7 @@ pytest --cov=src --cov-report=html -v
 pytest -n auto --cov=src -v
 
 # Specific test
-pytest tests/unit/test_pricing_service.py::test_calculate_cost_usd -v
+pytest tests/integration/test_pricing_service.py::test_get_active_model_price_found -v
 ```
 
 ### Unit Test Example

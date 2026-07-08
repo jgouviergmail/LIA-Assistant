@@ -16,8 +16,8 @@ from src.domains.chat.models import MessageTokenSummary
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.conversations.service import ConversationService
 
-# Skip in pre-commit - uses testcontainers/real DB, too slow
-# Run manually with: pytest tests/unit/test_conversation_service_v2.py -v
+# Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
+# Run manually with: pytest tests/integration/test_conversation_service_v2.py -v
 pytestmark = pytest.mark.integration
 
 

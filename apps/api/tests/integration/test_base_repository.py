@@ -1,5 +1,5 @@
 """
-Unit tests for BaseRepository generic repository pattern.
+Integration tests for BaseRepository generic repository pattern.
 
 Tests cover:
 - CRUD operations (create, read, update, delete)
@@ -8,8 +8,7 @@ Tests cover:
 - Structured logging
 - Edge cases and error handling
 
-NOTE: These tests require a real database (testcontainers) and are slow.
-They should be moved to tests/integration/ folder.
+NOTE: These tests require a real database (external via TEST_DATABASE_URL or Testcontainers).
 """
 
 from uuid import UUID, uuid4
@@ -22,12 +21,11 @@ from src.core.repository import BaseRepository
 from src.domains.auth.models import User
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
 
-# Skip module - requires testcontainers/Docker, too slow for pre-commit
-# TODO: Move to tests/integration/
+# Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
+
 pytestmark = pytest.mark.integration
 
 
-@pytest.mark.unit
 class TestBaseRepositoryCreate:
     """Test BaseRepository.create() method."""
 
@@ -104,7 +102,6 @@ class TestBaseRepositoryCreate:
         assert user.is_verified is False  # Default from model
 
 
-@pytest.mark.unit
 class TestBaseRepositoryGetById:
     """Test BaseRepository.get_by_id() method."""
 
@@ -191,7 +188,6 @@ class TestBaseRepositoryGetById:
         assert result.is_active is False
 
 
-@pytest.mark.unit
 class TestBaseRepositoryGetAll:
     """Test BaseRepository.get_all() method."""
 
@@ -291,7 +287,6 @@ class TestBaseRepositoryGetAll:
         assert len(offset_users) == 2
 
 
-@pytest.mark.unit
 class TestBaseRepositoryUpdate:
     """Test BaseRepository.update() method."""
 
@@ -366,7 +361,6 @@ class TestBaseRepositoryUpdate:
         assert updated.updated_at > original_updated_at
 
 
-@pytest.mark.unit
 class TestBaseRepositoryDelete:
     """Test BaseRepository.delete() method (soft delete)."""
 
@@ -441,7 +435,6 @@ class TestBaseRepositoryDelete:
         assert result.is_active is False
 
 
-@pytest.mark.unit
 class TestBaseRepositoryCount:
     """Test BaseRepository.count() method."""
 
@@ -501,7 +494,6 @@ class TestBaseRepositoryCount:
         assert count == 3  # Only active users
 
 
-@pytest.mark.unit
 class TestBaseRepositoryTypeSafety:
     """Test BaseRepository type safety with Generic[ModelType]."""
 

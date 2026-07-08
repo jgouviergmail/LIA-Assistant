@@ -2948,6 +2948,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_22": {
+          "title": "v1.21.22 — 🛡️ Des messages d'erreur clairs et une fiabilité renforcée",
+          "date": "Juillet 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🛠️ Les formulaires expliquent à nouveau ce qui ne va pas</b> — Quand une saisie est invalide (par exemple un mot de passe trop court à l'inscription), LIA affiche de nouveau le message précis expliquant la règle à respecter, au lieu d'une erreur technique générique. Le défaut touchait tous les formulaires soumis à des règles de validation avancées.",
+            "i2": "<b>✅ 450+ tests d'intégration veillent désormais sur chaque mise à jour</b> — Toute la chaîne critique (comptes, connecteurs, conversations, tarification) est maintenant revalidée automatiquement contre une vraie base de données à chaque évolution du code, et l'exigence de couverture de tests a été relevée. Concrètement : moins de risques de régression à chaque nouvelle version."
+          }
+        },
         "v1_21_21": {
           "title": "v1.21.21 — 🕐 La bonne heure, dans votre fuseau horaire",
           "date": "Juillet 2026",
