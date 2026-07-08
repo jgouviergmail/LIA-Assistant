@@ -1202,7 +1202,7 @@ def _create_route_registry_item(
 
     item_id = generate_registry_id(
         RegistryItemType.ROUTE,
-        f"{origin}_{destination}_{travel_mode.value}_{datetime.now().strftime('%Y%m%d%H%M')}",
+        f"{origin}_{destination}_{travel_mode.value}_{datetime.now(UTC).strftime('%Y%m%d%H%M')}",
     )
 
     registry_item = RegistryItem(

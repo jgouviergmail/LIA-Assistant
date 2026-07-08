@@ -600,7 +600,7 @@ echo "Before: $BEFORE, After: $AFTER"
 
 **File**: `apps/api/src/domains/conversations/services/checkpoint_service.py`
 ```python
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -614,7 +614,7 @@ class CheckpointService:
         Prune checkpoints older than retention_days to prevent memory bloat.
         Keeps only most recent checkpoint per conversation.
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
 
         # Delete old checkpoints, keeping only latest per conversation
         deleted = await self.db.execute("""

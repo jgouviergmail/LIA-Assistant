@@ -72,7 +72,7 @@ graph TB
 ```python
 from decimal import Decimal
 from typing import NamedTuple
-from datetime import datetime
+from datetime import UTC, datetime
 import time
 
 class ModelPrice(NamedTuple):
@@ -597,7 +597,7 @@ async def sync_currency_rates():
                 from_currency="USD",
                 to_currency="EUR",
                 rate=Decimal(str(data["rates"]["EUR"])),
-                effective_from=datetime.utcnow(),
+                effective_from=datetime.now(UTC),
                 is_active=True
             )
             db.add(new_rate)

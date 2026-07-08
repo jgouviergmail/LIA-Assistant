@@ -690,7 +690,7 @@ def upcoming_birthdays_from_connections(
     *,
     horizon_days: int,
     max_items: int,
-    today: date | None = None,
+    today: date,
 ) -> list[BirthdayItem]:
     """Extract upcoming birthdays from People API connections.
 
@@ -704,13 +704,15 @@ def upcoming_birthdays_from_connections(
         connections: ``connections`` array from ``GooglePeopleClient.list_connections``.
         horizon_days: Look-ahead window from today (e.g. 14).
         max_items: Cap on the returned list size.
-        today: Override for testing; defaults to ``date.today()``.
+        today: Reference date, REQUIRED in the **user's local frame**
+            (``now_in_timezone(user_tz).date()``) — a ``date.today()`` default
+            would be the server's date, which marks yesterday's birthdays as
+            "today" for users ahead of UTC (see ``fetchers.fetch_birthdays``).
 
     Returns:
         List of BirthdayItem sorted ascending by ``days_until``.
         Birthdays today have days_until=0.
     """
-    today = today or date.today()
     horizon_end = today.toordinal() + horizon_days
 
     candidates: list[BirthdayItem] = []

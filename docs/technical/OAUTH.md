@@ -184,7 +184,7 @@ async with uow:
         connector_type="google_contacts",
         access_token=encrypt(tokens.access_token),  # Encrypted
         refresh_token=encrypt(tokens.refresh_token),  # Encrypted
-        expires_at=datetime.utcnow() + timedelta(seconds=tokens.expires_in),
+        expires_at=datetime.now(UTC) + timedelta(seconds=tokens.expires_in),
         scopes=tokens.scope.split(" ")
     )
     await uow.commit()
@@ -967,7 +967,7 @@ await session_service.store_oauth_state(
     {
         "provider": "google",
         "code_verifier": code_verifier,  # Stored for later
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     },
     expire_minutes=5
 )
@@ -1251,7 +1251,7 @@ async def create_connector(
     encrypted_refresh = encrypt_token(refresh_token, settings.encryption_key) if refresh_token else None
 
     # Calculate expiration
-    expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+    expires_at = datetime.now(UTC) + timedelta(seconds=expires_in)
 
     # Insert
     async with uow:
@@ -1333,7 +1333,7 @@ async def refresh_access_token(connector_id: UUID) -> str:
 
     # 3. Update connector
     new_access_token = token_data["access_token"]
-    new_expires_at = datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
+    new_expires_at = datetime.now(UTC) + timedelta(seconds=token_data["expires_in"])
 
     encrypted_access = encrypt_token(new_access_token, settings.encryption_key)
 

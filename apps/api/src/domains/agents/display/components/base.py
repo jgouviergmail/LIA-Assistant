@@ -10,7 +10,7 @@ import html
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import quote
@@ -363,7 +363,9 @@ def format_date(
 
             now = datetime.now(ZoneInfo(timezone))
         except Exception:
-            now = datetime.now(parsed_dt.tzinfo) if parsed_dt.tzinfo else datetime.now()
+            # parsed_dt is always aware (convert_to_user_timezone guarantees it);
+            # UTC is a pure defensive fallback that keeps `now` aware regardless.
+            now = datetime.now(parsed_dt.tzinfo or UTC)
 
         diff = now.date() - parsed_dt.date()
 

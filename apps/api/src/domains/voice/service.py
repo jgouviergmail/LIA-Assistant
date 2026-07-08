@@ -22,7 +22,6 @@ import re
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 
 import structlog
@@ -31,6 +30,7 @@ from langchain_core.runnables import RunnableConfig
 from src.core.config import settings
 from src.core.constants import VOICE_TTS_MS_PER_CHAR_HEURISTIC
 from src.core.i18n_types import get_language_name
+from src.core.time_utils import now_in_timezone
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.voice.factory import TTSConfig, get_tts_client, get_tts_config
 from src.domains.voice.protocol import TTSClient
@@ -80,6 +80,31 @@ class _SynthesisMetrics:
 
 # Type alias for synthesis mode (used in logging)
 SynthesisMode = Literal["voice_comment", "direct_tts"]
+
+# Format used when the caller did not supply a pre-formatted current datetime.
+_PROMPT_DATETIME_FALLBACK_FORMAT = "%Y-%m-%d %H:%M"
+
+
+def _resolve_prompt_datetime(current_datetime: str | None, user_timezone: str | None) -> str:
+    """Resolve the datetime string injected into the voice prompt.
+
+    Callers normally pass ``current_datetime`` already formatted in the user's
+    timezone (see ``agents/api/service.py``). When absent, the fallback must
+    NOT use the server clock frame: the value is spoken to the user as "the
+    current time", so it is resolved in the user's timezone via
+    ``now_in_timezone`` (``None`` falls back to
+    ``DEFAULT_USER_DISPLAY_TIMEZONE``).
+
+    Args:
+        current_datetime: Pre-formatted datetime string, or None/empty string.
+        user_timezone: User's IANA timezone, or None for the central default.
+
+    Returns:
+        The datetime string to inject into the voice prompt.
+    """
+    if current_datetime:
+        return current_datetime
+    return now_in_timezone(user_timezone).strftime(_PROMPT_DATETIME_FALLBACK_FORMAT)
 
 
 class VoiceCommentService:
@@ -471,6 +496,7 @@ class VoiceCommentService:
         user_language: str = "fr",
         current_datetime: str | None = None,
         user_query: str = "",
+        user_timezone: str | None = None,
     ) -> AsyncGenerator[VoiceAudioChunk, None]:
         """
         Stream voice comment as audio chunks using sentence-level pipelining.
@@ -484,16 +510,19 @@ class VoiceCommentService:
             context_summary: Summary of results to comment on.
             personality_instruction: Personality prompt instruction.
             user_language: User's language code.
-            current_datetime: Current datetime string (optional).
+            current_datetime: Current datetime string, pre-formatted in the
+                user's timezone (optional).
             user_query: Original user query for better context (optional).
+            user_timezone: User's IANA timezone, used to resolve the current
+                datetime when ``current_datetime`` is not provided (optional;
+                None falls back to the central default).
 
         Yields:
             VoiceAudioChunk for each synthesized sentence (in completion order;
             phrase_index respects dispatch order, so the consumer can sort if
             strict playback order matters).
         """
-        if not current_datetime:
-            current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M")
+        current_datetime = _resolve_prompt_datetime(current_datetime, user_timezone)
 
         request = VoiceCommentRequest(
             context_summary=context_summary,

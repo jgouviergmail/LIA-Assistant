@@ -280,11 +280,11 @@ class PKCEState(Base):
 
 class DatabasePKCEStore:
     async def save_state(self, state: str, code_verifier: str, ttl: int):
-        expires_at = datetime.utcnow() + timedelta(seconds=ttl)
+        expires_at = datetime.now(UTC) + timedelta(seconds=ttl)
         pkce_state = PKCEState(
             state=state,
             code_verifier=code_verifier,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
             expires_at=expires_at
         )
         session.add(pkce_state)
@@ -294,7 +294,7 @@ class DatabasePKCEStore:
         result = await session.execute(
             select(PKCEState).where(
                 PKCEState.state == state,
-                PKCEState.expires_at > datetime.utcnow()
+                PKCEState.expires_at > datetime.now(UTC)
             )
         )
         pkce_state = result.scalar_one_or_none()

@@ -622,7 +622,7 @@ class HITLStore:
         data = {
             **interrupt_data,
             "schema_version": schema_version,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         await self.redis.setex(key, 3600, json.dumps(data))  # TTL 1h
 

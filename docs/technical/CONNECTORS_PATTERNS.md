@@ -403,7 +403,7 @@ def _token_needs_refresh(self) -> bool:
         return True
 
     margin = timedelta(seconds=OAUTH_TOKEN_REFRESH_MARGIN_SECONDS)
-    return datetime.utcnow() + margin >= expires_at
+    return datetime.now(UTC) + margin >= expires_at
 ```
 
 ---

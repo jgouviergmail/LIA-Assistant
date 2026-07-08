@@ -414,7 +414,7 @@ async def get_recent_traces(self, limit: int = 10, hours: int = 24) -> list[dict
     Returns:
         List of trace objects
     """
-    from_timestamp = datetime.utcnow() - timedelta(hours=hours)
+    from_timestamp = datetime.now(UTC) - timedelta(hours=hours)
 
     params = {
         "page": 1,

@@ -2934,6 +2934,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_21": {
+          "title": "v1.21.21 — 🕐 Die richtige Uhrzeit, in Ihrer Zeitzone",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🕐 Der Sprachmodus nennt die korrekte Ortszeit</b> — Wenn ein Sprachkommentar die aktuelle Uhrzeit erwähnt, löst LIA sie jetzt immer in Ihrer bevorzugten Zeitzone auf. Zuvor konnte die gesprochene Uhrzeit in seltenen Fällen die der Server-Uhr (UTC) sein statt Ihrer.",
+            "i2": "<b>🌍 Korrekte Datums- und Zeitangaben, dauerhaft garantiert</b> — Jedes Datum, das LIA verarbeitet (angezeigte Daten, Geburtstagserinnerungen, technische Zeitstempel), ist jetzt garantiert zeitzonenbewusst: Eine automatisierte Prüfung blockiert die gesamte Fehlerfamilie „Serverzeit vs. Ihre Zeit“ dauerhaft.",
+            "i3": "<b>📘 Installationsanleitung komplett neu geschrieben (für Self-Hoster)</b> — Der Getting-Started-Guide wurde von Grund auf neu aufgebaut: durchgehend produktionserprobte Standardwerte, Schritt-für-Schritt-Einrichtung der externen Plattformen (Google, Microsoft, Apple…), eine Referenz zur Funktionskonfiguration und eine finale Deployment-Checkliste."
+          }
+        },
         "v1_21_20": {
           "title": "v1.21.20 — 🔒 Gehärtete Sicherheit & reproduzierbare Updates",
           "date": "Juli 2026",

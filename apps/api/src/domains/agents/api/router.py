@@ -194,7 +194,7 @@ async def _check_pending_hitl(conversation_id: str) -> dict | None:
     """
     global _hitl_cache
 
-    now = datetime.now()
+    now = datetime.now(UTC)
 
     # Cache hit (fresh data)
     if conversation_id in _hitl_cache:

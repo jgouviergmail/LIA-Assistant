@@ -2943,6 +2943,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_21": {
+          "title": "v1.21.21 — 🕐 The right time, in your timezone",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🕐 Voice mode announces the correct local time</b> — When a voice comment mentions the current time, LIA now always resolves it in your preferred timezone. Previously, in rare cases, the spoken time could be the server's clock (UTC) instead of yours.",
+            "i2": "<b>🌍 Date & time correctness, guaranteed for good</b> — Every date LIA handles (displayed dates, birthday reminders, technical timestamps) is now guaranteed timezone-aware: an automated check permanently blocks the entire \"server time vs your time\" bug family from ever coming back.",
+            "i3": "<b>📘 Installation guide fully rewritten (for self-hosters)</b> — The Getting Started guide was rebuilt from scratch: production-proven default values throughout, step-by-step setup of the external platforms (Google, Microsoft, Apple…), a feature configuration reference and a final deployment checklist."
+          }
+        },
         "v1_21_20": {
           "title": "v1.21.20 — 🔒 Security hardening & reproducible updates",
           "date": "July 2026",

@@ -2948,6 +2948,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_21": {
+          "title": "v1.21.21 — 🕐 La bonne heure, dans votre fuseau horaire",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🕐 Le mode vocal annonce la bonne heure locale</b> — Quand un commentaire vocal mentionne l'heure courante, LIA la résout désormais toujours dans votre fuseau horaire préféré. Auparavant, dans de rares cas, l'heure énoncée pouvait être celle de l'horloge du serveur (UTC) et non la vôtre.",
+            "i2": "<b>🌍 La justesse des dates et heures, garantie pour de bon</b> — Chaque date manipulée par LIA (dates affichées, rappels d'anniversaires, horodatages techniques) est désormais garantie avec fuseau horaire : un contrôle automatisé bloque définitivement le retour de toute la famille de bugs « heure serveur vs votre heure ».",
+            "i3": "<b>📘 Guide d'installation entièrement réécrit (auto-hébergement)</b> — Le guide de démarrage a été reconstruit de zéro : valeurs par défaut éprouvées en production, configuration pas à pas des plateformes externes (Google, Microsoft, Apple…), référence de configuration des fonctionnalités et checklist finale de déploiement."
+          }
+        },
         "v1_21_20": {
           "title": "v1.21.20 — 🔒 Sécurité renforcée & mises à jour reproductibles",
           "date": "Juillet 2026",

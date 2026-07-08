@@ -610,7 +610,7 @@ class ConversationRepository:
             id=uuid.uuid4(),
             user_id=user_id,
             title=title,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
         )
         self.db.add(conversation)
         await self.db.commit()

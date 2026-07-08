@@ -213,12 +213,12 @@ scheduler.add_job(
 Exécution unique à une date précise.
 
 ```python
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 scheduler.add_job(
     send_scheduled_email,
     trigger="date",
-    run_date=datetime.now() + timedelta(hours=2),
+    run_date=datetime.now(UTC) + timedelta(hours=2),
     id=f"email_{email_id}",
 )
 ```

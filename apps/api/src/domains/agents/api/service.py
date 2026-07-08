@@ -261,6 +261,7 @@ class AgentService(
         current_datetime: str,
         user_query: str,
         chunk_queue: asyncio.Queue,
+        user_timezone: str | None = None,
     ) -> None:
         """
         Stream voice audio chunks to a queue for progressive emission.
@@ -273,9 +274,11 @@ class AgentService(
             context_summary: Rich context from registry (generate_text_summary_for_llm)
             personality_instruction: Personality instruction for voice LLM
             user_language: User's language code (fr, en, etc.)
-            current_datetime: ISO datetime string
+            current_datetime: ISO datetime string (in the user's timezone)
             user_query: Original user message
             chunk_queue: asyncio.Queue to put chunks into for progressive emission
+            user_timezone: User's IANA timezone (defense in depth: lets the
+                voice service resolve a correct fallback datetime)
 
         Note:
             Puts None as sentinel value when generation is complete.
@@ -287,6 +290,7 @@ class AgentService(
                 user_language=user_language,
                 current_datetime=current_datetime,
                 user_query=user_query,
+                user_timezone=user_timezone,
             ):
                 await chunk_queue.put(audio_chunk)
         finally:
@@ -1179,6 +1183,7 @@ class AgentService(
                                             ).isoformat(),
                                             user_query=user_message,
                                             chunk_queue=voice_chunk_queue,
+                                            user_timezone=user_timezone,
                                         )
                                     )
 
@@ -2031,6 +2036,7 @@ class AgentService(
                                     user_language=user_language,
                                     current_datetime=current_dt,
                                     user_query=user_message,
+                                    user_timezone=user_timezone,
                                 ):
                                     chunk_count += 1
                                     # DRY: use helper for audio chunk formatting

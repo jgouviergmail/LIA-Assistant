@@ -1367,7 +1367,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 
         return {
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "version": "1.0.0",
         }
     except Exception as e:

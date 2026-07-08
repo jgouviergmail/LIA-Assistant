@@ -310,7 +310,7 @@ class UserLLMCost(Base):
 
 async def track_user_cost(user_id: str, cost: float, tokens: int):
     """Track per-user daily costs"""
-    today = datetime.utcnow().date()
+    today = datetime.now(UTC).date()
 
     result = await session.execute(
         select(UserLLMCost).where(

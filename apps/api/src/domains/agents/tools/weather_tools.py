@@ -508,7 +508,7 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         # Create registry item for current weather
         item_id = generate_registry_id(
             RegistryItemType.WEATHER,
-            f"current_{location_info.get('name', 'unknown')}_{datetime.now().strftime('%Y%m%d')}",
+            f"current_{location_info.get('name', 'unknown')}_{datetime.now(UTC).strftime('%Y%m%d')}",
         )
 
         registry_item = RegistryItem(
@@ -974,7 +974,7 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         # Create single registry item for hourly forecast (grouped)
         item_id = generate_registry_id(
             RegistryItemType.WEATHER,
-            f"hourly_{location_info.get('name', 'unknown')}_{datetime.now().strftime('%Y%m%d%H')}",
+            f"hourly_{location_info.get('name', 'unknown')}_{datetime.now(UTC).strftime('%Y%m%d%H')}",
         )
 
         registry_item = RegistryItem(

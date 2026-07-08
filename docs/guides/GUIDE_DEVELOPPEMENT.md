@@ -363,6 +363,36 @@ def _internal_helper():
 ModelType = TypeVar("ModelType")
 ```
 
+#### Dates & heures (doctrine timezone-aware)
+
+Toutes les datetimes sont **timezone-aware**. `datetime.utcnow()`, `datetime.now()` sans
+argument tz et `date.today()` sont interdits dans `src/` : un garde AST en CI
+(`apps/api/tests/unit/test_no_hardcoded_timezone_guard.py`) fait échouer le build sur
+chaque occurrence — ainsi que sur tout littéral `"Europe/Paris"` en dur (le fuseau
+d'affichage vient des préférences utilisateur, à défaut `DEFAULT_USER_DISPLAY_TIMEZONE`).
+
+```python
+from datetime import UTC, datetime
+
+from src.core.time_utils import now_in_timezone
+
+# ✅ Timestamps techniques (clés de cache, TTL, comparaisons) : UTC
+now = datetime.now(UTC)
+
+# ✅ Tout ce qui est affiché ou énoncé à l'utilisateur : SON timezone
+local_now = now_in_timezone(user_timezone)  # None → DEFAULT_USER_DISPLAY_TIMEZONE
+
+# ✅ Date « du jour » : toujours dérivée d'une datetime aware
+today = now_in_timezone(user_timezone).date()
+
+# ❌ INTERDITS (le garde CI casse le build)
+# datetime.utcnow() / datetime.now() / date.today() / default="Europe/Paris"
+```
+
+`src/core/time_utils.py` est la source unique de vérité (parsing, conversion,
+formatage localisé 6 langues) — lire sa docstring de module avant tout nouveau code
+manipulant des dates.
+
 #### Type Hints (Obligatoire)
 
 ```python

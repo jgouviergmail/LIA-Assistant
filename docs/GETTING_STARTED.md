@@ -1,143 +1,92 @@
 # Getting Started - LIA
 
-> Complete guide to install, configure, and get started with LIA - Multi-Agent AI Assistant v6.4
+> Complete guide to install, configure, and get started with LIA — Multi-Agent AI Assistant.
+> Every default value in this guide is the **production-proven configuration** actually running in production; you can adopt them as-is with confidence.
 
-**Version**: 3.11
-**Last Updated**: 2026-05-17
-**Compatibility**: LIA v1.20.7 (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home, Rich Skill Outputs — ADR-075, Chat UX polish — LaTeX, syntax highlighting, history search, copy buttons — v1.16.9, Observability overhaul — 90+ metrics revived, 2 new dashboards, DB indexes — v1.16.10, Health Metrics — iPhone Shortcuts ingestion + token auth + chart visualization — ADR-076 — v1.17.0, Health Metrics polymorphic batch upsert refactor — v1.17.1, Health Metrics assistant integrations — agents + Heartbeat + journal + memory via central HEALTH_KINDS registry — v1.17.2, Today Briefing — daily ritual home page with greeting LLM + synthesis + 6 cards + per-section cache + tokens/cost UI — v1.18.0, Today Briefing polish — greeting integrated into Hero + mobile-visible refresh icon + lifetime totals "since" anchor + section icons + 12 fresh screenshots with cache-busting — v1.18.1, LLM Catalogue DB-Source-of-Truth — chat + image catalogue persisted in DB, admin form with 14 fields, cross-worker Pub/Sub invalidation, cross-sibling React Context — ADR-078 — v1.19.0, DeepSeek V4 family + parameterizable Perplexity/Qwen base URLs — V4 thinking-mode toggle, JSON-mode fallback for V4+thinking structured output, local ChatDeepSeekPatched subclass for reasoning_content round-trip — v1.19.1, Stratified Journal Consciousness — 4 abstraction levels (L0-L3), epistemic status, deferred T→T+1 self-evaluation, ambient user-model portrait diffused across 8 flows, 3 corrective levers, 11 Prometheus metrics — ADR-079 — v1.20.0, LLM admin: per-model sampling matrix + reusable reasoning shape templates — v1.20.1, Voice STT/TTS catalogue + per-message cost attribution + sentence streaming — ADR-080/081/082 — v1.20.2, Itinerary tool resilience for in-progress events — v1.20.3, Browser agent reliability — step timeout + AX-tree budget + BROWSER_REACT_MAX_ITERATIONS + prompt rewrite — Anthropic Claude 4.x model-id normalization + migration — robust LLM config on model/provider change — v1.20.4, Sub-agent delivery quality — dedicated step timeout + tools whitelist + recursion bump + rewritten prompt + response_node verbatim delivery override — v1.20.5, Indexable vs Semantic planning principle — universal `PlanValidator._check_semantic_leak` + structured `semantic_filter_terms` hint + `ToolManifest.text_search_mode` opt-out, ships in `observe` mode — ADR-084 — Gemini 3.x `BaseMessage.text` migration across 33 sites in 26 files (planner, response, compaction, memory, HITL, voice, journals, llm_cache key serialization) — Vagues 1–5 timeout centralization (28 hardcoded values exposed as Pydantic Fields, 2 new config modules `LocksSettings` + `SchedulerSettings`, 1 orphan field wired as soft cap on multi-wave plans + new `lia_parallel_execution_global_timeout_total` Prometheus counter, single source of doc truth `docs/technical/TIMEOUT_REGISTRY.md` with Annex A/B/C, 4 legacy `gt=0`-only Fields tightened to match `validate_config.py`) — v1.20.6, Draft Display Registry — ADR-085 — single declarative source of truth for post-HITL and pre-confirmation rendering of every `DraftType` (registry + assert at lifespan startup + grammatical i18n with gender/number agreement across 6 languages + unified `format_hitl_item_preview()` helper consumed by both `DraftCritiqueInteraction` batch and `ForEachConfirmationInteraction` previews + `reminder_delete` parity in success/cancel/destructive titles) — v1.20.7)
+**Version**: 4.0
+**Last Updated**: 2026-07-08
+**Compatibility**: LIA v1.21.21
 
 ## Table of Contents
 
 - [Project Overview](#project-overview)
-- [What's New in v6.3](#whats-new-in-v63)
 - [Prerequisites](#prerequisites)
 - [Step-by-Step Installation](#step-by-step-installation)
 - [Environment Configuration](#environment-configuration)
 - [Starting the Services](#starting-the-services)
 - [First Steps](#first-steps)
-- [Advanced Features](#advanced-features)
-  - [Recommended LLM Configuration](#recommended-llm-configuration-optimal-quality--cost)
+- [External Platform Setup](#external-platform-setup)
+- [Feature Configuration Reference](#feature-configuration-reference)
+- [LLM Configuration](#llm-configuration)
+- [Python Dependency Management](#python-dependency-management)
+- [Running Tests](#running-tests)
 - [Troubleshooting](#troubleshooting)
+- [Production Deployment](#production-deployment)
 - [Next Steps](#next-steps)
+- [Final Checklist](#final-checklist)
 
 ---
 
 ## Project Overview
 
-**LIA** is a multi-agent conversational AI assistant built with LangGraph. It orchestrates multiple specialized agents to interact with Google services (Contacts, Gmail, Calendar, Drive, Tasks), Places, Weather, Wikipedia, Perplexity, and Routes.
+**LIA** is a multi-agent conversational AI assistant built with **FastAPI**, **Next.js** and **LangGraph**. It orchestrates 19+ specialized agents and 76 tools across Google, Microsoft and Apple services (contacts, emails, calendar, files, tasks), plus Places, Routes, Weather, Wikipedia, Perplexity, Brave Search, web fetch, browser control, Philips Hue, image generation and per-user MCP servers.
 
-### v6.3 Highlights
+Two user-toggleable execution modes (switchable in the chat header):
 
-| Feature | Description |
-|---------|-------------|
-| **Philips Hue Smart Home** | Control smart lights via natural language — local press-link or remote OAuth2 (v1.8.0) |
-| **Personal Journals** | Assistant's stratified introspective logbooks (4 abstraction levels L0–L3, epistemic status, deferred self-evaluation T→T+1) with a compiled user-model portrait diffused across 8 flows and 3 corrective levers (v1.7.1, refactored in v1.20.0 — ADR-079) |
-| **Health Metrics** | iPhone Shortcuts batch ingestion + conversational agents + proactive Heartbeat + journal/memory enrichment; single per-user opt-in toggle; extensible `HEALTH_KINDS` registry (ADR-076) |
-| **System Knowledge Spaces** | Built-in FAQ knowledge base — LIA answers questions about itself (v1.6.1) |
-| **Browser Control** | Interactive web browsing via Playwright with autonomous ReAct agent (v1.6.0) |
-| **Sub-Agents** | Persistent specialized sub-agents for delegation (research, analysis, synthesis) (v1.5.0) |
-| **RAG Knowledge Spaces** | Personal document spaces (15+ formats) with hybrid search and Drive sync (v1.4-v1.5) |
-| **Multi-Channel Telegram** | Bidirectional chat via Telegram with HITL inline keyboards and voice STT |
-| **MCP Per-User** | External per-user MCP servers with OAuth 2.1, structured parsing |
-| **Web Fetch Tool** | Web page content extraction for agents |
-| **Heartbeat Autonome** | LLM-driven proactive notifications: weather, calendar, interests |
-| **Google API Tracking** | Automatic Google Maps Platform cost tracking |
-| **Skills System** | 10 specialized Claude skills + built-in Skill Generator |
-| **FOR_EACH Pattern** | Smart iteration with HITL confirmation for bulk operations |
-| **Voice Mode** | Voice input with wake word, Push-to-Talk, and VAD |
-| **Voice TTS Catalogue** | Catalogue-driven TTS (ADR-081): Edge (free), OpenAI tts-1/tts-1-hd, ElevenLabs multilingual_v2/turbo/flash |
-| **Interest Learning** | Automatic interest extraction via LLM |
-| **OAuth Health Check** | Proactive connector monitoring with notifications |
-| **Hybrid Search** | Combined BM25 + semantic search (alpha=0.6) |
+- **Pipeline mode** (default) — deterministic and economical: Router → Planner → Semantic Validator → Task Orchestrator → Domain Agents → Response. Roughly 4-8× fewer tokens than ReAct.
+- **ReAct mode** — autonomous iterative reasoning loop for exploratory or ambiguous queries.
+
+Both modes converge on the same streaming response (SSE) and the same HITL (Human-in-the-Loop) approval system.
+
+### Key Figures
+
+| | |
+|---|---|
+| Specialized agents | 19+ |
+| Tools | 76 |
+| LLM providers (text) | 7 — OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama |
+| Voice providers | ElevenLabs (STT/TTS), Edge TTS (free), OpenAI TTS + local Whisper STT |
+| Configurable LLM slots | 54 (admin UI, hot-reloaded) |
+| UI languages | 6 — fr, en, es, de, it, zh |
+| Prometheus metrics | 394 |
+| Grafana dashboards | 22 |
+| Built-in FAQ knowledge base | 200+ Q/A (auto-indexed at startup) |
 
 ### Technical Architecture
 
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
-| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.135.3, LangGraph 1.1.6 |
-| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.1.7, React 19.2.4 |
-| **Database** | PostgreSQL + pgvector | PostgreSQL 16 |
+| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.136.3, LangGraph 1.2.4, LangChain 1.3.9, SQLAlchemy 2.0.50, Python 3.12 |
+| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.2.7, React 19.2.5 |
+| **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector:pg16`) |
 | **Cache/Sessions** | Redis | Redis 7.4 |
-| **Observability** | Prometheus + Grafana + Loki + Tempo + Langfuse | Grafana 11.3.0 |
-| **LLM Providers** | OpenAI, Anthropic, DeepSeek, Google Gemini, Ollama | Multi-provider |
+| **Observability** | Prometheus + Grafana + Loki + Tempo (+ Langfuse in dev) | Prometheus 3.0.0, Grafana 11.3.0, Loki 3.2.1, Tempo 2.6.1 |
+| **Backups** | pg_dump sidecar with 3-tier rotation | `postgres-backup-local:16-alpine` |
 
-### Supported Domains
+### Capabilities & Integrations
 
-| Domain | Description | Connector |
+| Capability | Description | Integration |
 |--------|-------------|-----------|
-| **Contacts** | Google contact management | Google People API |
-| **Emails** | Read/send emails | Gmail API |
-| **Calendar** | Event management | Google Calendar API |
-| **Drive** | File search | Google Drive API |
-| **Tasks** | Task management | Google Tasks API |
+| **Contacts** | Contact management | Google People API / Microsoft Graph / Apple CardDAV |
+| **Emails** | Read/send/organize emails | Gmail API / Microsoft Graph / Apple IMAP-SMTP |
+| **Calendar** | Event management | Google Calendar API / Microsoft Graph / Apple CalDAV |
+| **Files** | File search | Google Drive API |
+| **Tasks** | Task management | Google Tasks API / Microsoft To Do |
 | **Places** | Location search | Google Places API (New) |
-| **Weather** | Real-time weather | OpenWeatherMap API |
+| **Routes** | Directions and itineraries | Google Routes API |
+| **Weather** | Real-time weather & forecast | OpenWeatherMap (per-user API key connector) |
 | **Wikipedia** | Encyclopedia search | Wikipedia API |
 | **Perplexity** | AI-powered web search | Perplexity API |
-| **Routes** | Directions and itineraries | Google Routes API |
-| **Brave Search** | AI web search | Per-user API key |
+| **Brave Search** | Web search | Per-user API key connector |
 | **Web Fetch** | Web page extraction | Built-in |
+| **Browser Control** | Autonomous interactive browsing | Playwright + ReAct agent |
+| **Smart Home** | Philips Hue lights | Local press-link or remote OAuth2 |
+| **Telegram** | Bidirectional chat channel (text, voice, HITL) | Telegram Bot API |
+| **Health Metrics** | iPhone Shortcuts ingestion + insights | Token-authenticated API |
+| **Image Generation** | AI image creation/editing | gpt-image / Imagen / Stability (admin catalogue) |
+| **MCP** | External tool servers (admin + per-user, OAuth 2.1) | Model Context Protocol |
 
----
-
-## What's New in v6.3
-
-This version introduces several transformative features.
-
-### Skills System (Claude)
-
-10 specialized skills integrated via `.claude/skills/`:
-
-| Skill | Trigger | Description |
-|-------|---------|-------------|
-| `analyzing-bugs` | Bug, crash, error | Fact-based diagnosis |
-| `designing-architecture` | Architecture, structure | Design patterns and modules |
-| `developing-code` | Code, implement | Production-ready code |
-| `reviewing-code` | Review, audit, validate | Gold Grade validation |
-| `optimizing-performance` | Slow, performance, cost | Bottleneck analysis |
-| `monitoring-systems` | Monitoring, alerting | SRE and observability |
-| `innovating-products` | Idea, improve, UX | Product strategy |
-| `specifying-features` | Behavior, workflow | Functional specifications |
-| `upgrading-dependencies` | Update, upgrade | Safe migrations |
-| `writing-documentation` | Document, README | Technical documentation |
-
-### FOR_EACH Iteration Pattern
-
-Smart execution of repetitive operations with granular control:
-
-```python
-# Example: Send an email to all contacts in a group
-ExecutionStep(
-    step_id="send_emails",
-    tool_name="send_email",
-    parameters={"to": "$item.email", "subject": "Newsletter"},
-    for_each="$steps.get_contacts.contacts",  # Iteration
-    for_each_max=10  # HITL limit
-)
-```
-
-**HITL Confirmation**: Automatically requested for bulk mutations (>3 items).
-
-### Voice Mode
-
-| Mode | Description | Technology |
-|------|-------------|------------|
-| **Wake Word** | Activation by saying "OK" | Sherpa-onnx WASM (KWS) |
-| **Push-to-Talk** | Hold to speak | WebRTC MediaRecorder |
-| **VAD** | End-of-speech detection | Silero VAD WASM |
-| **STT (local)** | On-server transcription | Sherpa-onnx Whisper (free) |
-| **STT (remote)** | Cloud transcription | ElevenLabs Scribe ($0.22/h, ADR-080) |
-| **TTS Edge** | Free synthesis | Edge TTS (default) |
-| **TTS OpenAI** | Premium synthesis | tts-1 / tts-1-hd (alloy / echo / nova / …) |
-| **TTS ElevenLabs** | Premium synthesis | eleven_multilingual_v2 / turbo / flash |
-
-### OAuth Health Check
-
-Proactive connector monitoring with:
-- Periodic verification (5 min by default)
-- FCM notification on error
-- Automatic reconnection modal
-- Dedicated Prometheus metrics
+Beyond integrations, LIA ships assistant-level systems configured later in this guide: long-term memory, interest learning, personal journals, psychological state (Psyche), proactive Heartbeat notifications, Today Briefing home page, RAG knowledge spaces, sub-agents, skills, scheduled actions and per-user usage limits.
 
 ---
 
@@ -149,41 +98,32 @@ Proactive connector monitoring with:
 |----|---------|-------|
 | **Linux** | Ubuntu 22.04+, Debian 11+, Fedora 38+ | Native, best performance |
 | **macOS** | 12 (Monterey)+ | Docker Desktop required |
-| **Windows** | 10/11 | WSL2 recommended or Docker Desktop |
+| **Windows** | 10/11 | Docker Desktop (WSL2) — the reference dev setup |
+
+Production reference platform: Raspberry Pi 5 (linux/arm64) — all images are multi-arch (amd64 + arm64).
 
 ### Required Tools
 
 | Tool | Minimum Version | Installation | Verification |
 |------|-----------------|--------------|--------------|
 | **Python** | 3.12+ | [python.org](https://www.python.org/) | `python --version` |
-| **Node.js** | 22.x+ (LTS) | [nodejs.org](https://nodejs.org/) | `node --version` |
+| **Node.js** | 22.x (LTS) | [nodejs.org](https://nodejs.org/) | `node --version` |
 | **pnpm** | 10.x+ | `npm install -g pnpm` | `pnpm --version` |
 | **Docker** | 24.x+ | [docker.com](https://www.docker.com/) | `docker --version` |
 | **Docker Compose** | 2.x+ | Included with Docker Desktop | `docker compose version` |
 | **Git** | 2.40+ | [git-scm.com](https://git-scm.com/) | `git --version` |
+| **Task** | 3.x+ | [taskfile.dev](https://taskfile.dev/installation/) | `task --version` |
 
-### Recommended Tools (Optional)
+> **Task is the project's build tool** — every workflow command (`task setup`, `task dev`, `task test:*`, `task db:*`) is defined in `Taskfile.yml`. Manual equivalents are given where useful, but installing Task is strongly recommended.
+
+### Optional Tools
 
 | Tool | Usage | Installation |
 |------|-------|--------------|
-| **pyenv** | Python version management | `brew install pyenv` (macOS) |
-| **nvm** | Node.js version management | [nvm-sh/nvm](https://github.com/nvm-sh/nvm) |
-| **direnv** | Auto-load environment variables | `brew install direnv` |
+| **uv** | Regenerating Python lockfiles (`task deps:lock`) — not needed to install/run | [astral.sh/uv](https://docs.astral.sh/uv/) |
+| **SOPS + Age** | Encrypting production secrets | `brew install sops age` / `choco install sops age` |
 | **jq** | JSON parsing (logs) | `apt install jq` / `brew install jq` |
 | **Redis CLI** | Debug cache & sessions | `apt install redis-tools` |
-| **Claude Code** | AI development assistant | [claude.ai/claude-code](https://claude.ai/claude-code) |
-
-### Verifying Prerequisites
-
-```bash
-# Check all versions
-python --version    # >= 3.12
-node --version      # >= 20.0
-pnpm --version      # >= 10.0
-docker --version    # >= 24.0
-docker compose version  # >= 2.0
-git --version       # >= 2.40
-```
 
 ### Required API Accounts
 
@@ -191,20 +131,21 @@ git --version       # >= 2.40
 
 | Service | Usage | Sign Up |
 |---------|-------|---------|
-| **OpenAI** | Primary LLM provider (configured via Admin UI) | [platform.openai.com](https://platform.openai.com/api-keys) |
-| **Google Cloud** | OAuth + Google APIs | [console.cloud.google.com](https://console.cloud.google.com/) |
+| **At least one LLM provider** | Configured via Admin UI after first login (keys encrypted in DB) | OpenAI / Anthropic / DeepSeek / Gemini / Qwen — see [LLM Configuration](#llm-configuration) |
 
-#### Optional (Depending on Connectors)
+> The production configuration uses **DeepSeek** (primary), **OpenAI**, **Google Gemini** and **ElevenLabs** (voice). OpenAI alone is enough to start: every slot can be repointed from the Admin UI.
+
+#### Optional (Depending on Features)
 
 | Service | Usage | Sign Up |
 |---------|-------|---------|
-| **Microsoft Azure** | Microsoft 365 connectors (Outlook, Calendar, Contacts, Tasks) | [portal.azure.com](https://portal.azure.com/) |
+| **Google Cloud** | Google OAuth login + Google connectors + Places/Routes | [console.cloud.google.com](https://console.cloud.google.com/) |
+| **Microsoft Azure** | Microsoft 365 connectors (Outlook, Calendar, Contacts, To Do) | [portal.azure.com](https://portal.azure.com/) |
 | **Firebase** | Push notifications (FCM) | [console.firebase.google.com](https://console.firebase.google.com/) |
-| **Anthropic** | Claude (alternative LLM) | [console.anthropic.com](https://console.anthropic.com/) |
-| **DeepSeek** | Budget-friendly LLM | [platform.deepseek.com](https://platform.deepseek.com/) |
-| **Google Gemini** | Google LLM | [aistudio.google.com](https://aistudio.google.com/app/apikey) |
+| **ElevenLabs** | Premium STT (Scribe) + TTS | [elevenlabs.io](https://elevenlabs.io/) |
 | **Perplexity** | AI-powered web search | [perplexity.ai/settings/api](https://www.perplexity.ai/settings/api) |
-| **OpenWeatherMap** | Weather (free) | [openweathermap.org/api](https://openweathermap.org/api) |
+| **OpenWeatherMap** | Weather (free tier) — connected per user in Settings > Connectors | [openweathermap.org/api](https://openweathermap.org/api) |
+| **Telegram** | Multi-channel chat (bot via @BotFather) | [t.me/BotFather](https://t.me/BotFather) |
 
 ---
 
@@ -213,275 +154,108 @@ git --version       # >= 2.40
 ### Step 1: Clone the Repository
 
 ```bash
-# Clone the project
 git clone https://github.com/jgouviergmail/LIA-Assistant.git lia
 cd lia
-
-# Check the branch
 git branch  # Should display: * main
 ```
 
-### Step 2: Set Up the Python Backend
+### Step 2: Full Setup with Task (Recommended)
+
+```bash
+# Backend venv + lockfile install, frontend pnpm install, git hooks
+task setup
+```
+
+This runs three sub-tasks you can also invoke individually: `task setup:backend`, `task setup:frontend`, `task setup:hooks`.
+
+<details>
+<summary><strong>Manual equivalent (without Task)</strong></summary>
+
+#### Backend (from `apps/api/`)
 
 ```bash
 cd apps/api
 
-# Create the Python 3.12+ virtual environment
-python -m venv venv
+# Create the Python 3.12+ virtual environment (named .venv)
+python -m venv .venv
 
-# Activate the virtual environment
-# Linux/macOS:
-source venv/bin/activate
+# Activate it
+source .venv/bin/activate        # Linux/macOS
+.venv\Scripts\Activate.ps1       # Windows PowerShell
 
-# Windows CMD:
-venv\Scripts\activate.bat
-
-# Windows PowerShell:
-venv\Scripts\Activate.ps1
-
-# Install dependencies (development mode)
-pip install -e ".[dev]"
-
-# Verify the installation
-pip list | grep fastapi     # fastapi 0.135.1
-pip list | grep langgraph   # langgraph 1.1.2
-
-# Install pre-commit hooks (recommended)
-pre-commit install
+# Install from the compiled universal lockfile (reproducible, hash-verified — ADR-112)
+pip install --require-hashes -r requirements-dev.lock.txt
 ```
 
-> **Tip**: If you have [Task](https://taskfile.dev/) installed, you can use `task setup:backend` instead of manual steps above. Similarly, use `task setup:frontend` for Step 3.
+> **Do not** `pip install -r requirements.txt` — the `requirements*.txt` files are *intent manifests* with loose pins. Every environment (prod image, dev container, CI, local venv) installs from the compiled lockfiles `requirements.lock.txt` (runtime) / `requirements-dev.lock.txt` (dev). See [Python Dependency Management](#python-dependency-management).
 
-**Estimated time**: 3-5 minutes depending on connection speed.
-
-### Step 3: Set Up the Frontend
+#### Frontend (from `apps/web/`)
 
 ```bash
-cd ../web  # From apps/api
-
-# Install dependencies with pnpm
+cd ../web
 pnpm install
-
-# Verify the installation
-pnpm list next  # next 16.1.7
+pnpm list next  # next 16.2.7
 ```
 
-**Estimated time**: 1-3 minutes.
-
-### Step 4: Configure Environment Variables
-
-#### 4.1 Copy the Template
+#### Git hooks
 
 ```bash
-cd ../..  # Back to the project root
-
-# Copy the environment template
-cp .env.example .env
-
-# Edit the .env file
-# Linux/macOS: nano .env
-# Windows: notepad .env
-# VSCode: code .env
+git config core.hooksPath .github/hooks
 ```
 
-#### 4.2 Minimum Configuration (.env)
+</details>
 
-Here are the **mandatory** variables to configure:
+**Estimated time**: 4-6 minutes depending on connection speed.
 
-```bash
-# ============================================================================
-# SECURITY (MANDATORY - Generate unique values!)
-# ============================================================================
-
-# Secret key for JWT and sessions (32+ characters)
-# Generate with: openssl rand -hex 32
-SECRET_KEY=YOUR_UNIQUE_SECRET_KEY_32_CHARACTERS_MINIMUM
-
-# Encryption key for OAuth credentials (Fernet)
-# Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-FERNET_KEY=YOUR_UNIQUE_FERNET_KEY
-
-# ============================================================================
-# DATABASE (Default configuration for Docker)
-# ============================================================================
-
-# PostgreSQL user and password
-POSTGRES_USER=lia
-POSTGRES_PASSWORD=lia_password_secure
-POSTGRES_DB=lia
-
-# Connection URL (uses the variables above)
-DATABASE_URL=postgresql+asyncpg://lia:lia_password_secure@postgres:5432/lia
-
-# ============================================================================
-# REDIS (Default configuration for Docker)
-# ============================================================================
-
-# Redis password (required for authentication)
-# Generate with: openssl rand -base64 16
-REDIS_PASSWORD=redis_password_secure
-REDIS_URL=redis://:redis_password_secure@redis:6379/0
-
-# ============================================================================
-# LLM PROVIDERS
-# ============================================================================
-# NOTE: LLM provider API keys are NO LONGER configured here.
-# They are managed via the Admin UI: Settings > Administration > LLM Configuration.
-# Keys are encrypted (Fernet) in the database and hot-reloadable (no restart needed).
-# .env keys are only used as fallback if no database key exists for a provider.
-#
-# Supported providers: OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama
-# At least one provider (typically OpenAI) must be configured via Admin UI after first login.
-
-# OpenWeatherMap (optional - for weather tool, still configured via .env)
-OPENWEATHERMAP_API_KEY=...
-
-# ============================================================================
-# GOOGLE OAUTH (MANDATORY for Google connectors)
-# ============================================================================
-
-# Google Cloud Console > APIs & Services > Credentials
-# Create an "OAuth 2.0 Client ID" of type "Web application"
-GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=YOUR_CLIENT_SECRET
-GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
-
-# Google API key (for Places photos, Drive thumbnails)
-GOOGLE_API_KEY=...
-
-# ============================================================================
-# APPLICATION
-# ============================================================================
-
-ENVIRONMENT=development
-DEBUG=true
-LOG_LEVEL=DEBUG
-CORS_ORIGINS=http://localhost:3000,http://localhost:8000
-FRONTEND_URL=http://localhost:3000
-API_URL=http://localhost:8000
-
-# ============================================================================
-# GRAFANA (Dashboards)
-# ============================================================================
-
-GRAFANA_ADMIN_USER=admin
-GRAFANA_ADMIN_PASSWORD=admin
-
-# ============================================================================
-# PGADMIN (DB Administration)
-# ============================================================================
-
-PGADMIN_DEFAULT_EMAIL=admin@lia.local
-PGADMIN_DEFAULT_PASSWORD=admin
-```
-
-#### 4.3 Generating Cryptographic Keys
-
-```bash
-# Generate SECRET_KEY (32 bytes hex = 64 characters)
-openssl rand -hex 32
-
-# Generate FERNET_KEY (44 base64 characters)
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-
-# Generate REDIS_PASSWORD (16 bytes base64)
-openssl rand -base64 16
-```
-
-#### 4.4 LAN Access & SSL Configuration (Development)
-
-If you need to access LIA from other devices on your local network (e.g., mobile testing), configure LAN access using [nip.io](https://nip.io):
-
-1. **Find your local IP address** (e.g., `192.168.1.100`)
-
-2. **Set SSL_DOMAIN in `.env`**:
-   ```bash
-   # Replace with your actual IP
-   SSL_DOMAIN=192.168.1.100.nip.io
-   ```
-
-3. **Update related variables in `.env`**:
-   ```bash
-   NEXT_PUBLIC_API_URL=https://192.168.1.100.nip.io:8000
-   NEXT_PUBLIC_APP_URL=https://192.168.1.100.nip.io:3000
-   NEXT_PUBLIC_ALLOWED_DEV_ORIGINS=192.168.1.100.nip.io
-   ```
-
-4. **Accept the self-signed certificate** — after starting Docker, navigate to `https://192.168.1.100.nip.io:8000` in your browser and accept the certificate. This is required for the browser to make API calls.
-
-> **Important**: `NEXT_PUBLIC_ALLOWED_DEV_ORIGINS` must be a **hostname only** (e.g., `192.168.1.100.nip.io`), NOT a full URL with protocol/port. Using `https://...` will cause WebSocket HMR failures and page refresh loops.
-
-The `ssl-init` Docker service automatically generates self-signed certificates covering the configured domain. Certificates are shared between the API and Web containers via a Docker volume.
-
-### Step 5: Start Docker Infrastructure
+### Step 3: Configure Environment Variables
 
 ```bash
 # From the project root
+cp .env.example .env
+```
 
-# Start all services (19 containers)
-docker compose -f docker-compose.dev.yml up -d
+Then edit `.env` — see [Environment Configuration](#environment-configuration) for the mandatory minimum and key generation.
+
+> **Single `.env` file**: all variables — backend, frontend `NEXT_PUBLIC_*`, observability — live in the **root `.env`**. Both the `api` and `web` containers load it via `env_file`. There is no `apps/web/.env.local` in the Docker workflow.
+
+### Step 4: Start the Docker Infrastructure
+
+```bash
+# Start the dev environment — 17 services (foreground: task dev)
+task dev:detach
+# equivalent: docker compose -f docker-compose.dev.yml up -d --build
+
+# Optional: start WITH the Langfuse LLM-tracing stack (6 extra services, opt-in compose profile)
+task dev:langfuse
 
 # Verify all services are "healthy"
 docker compose -f docker-compose.dev.yml ps
 
-# View real-time logs
-docker compose -f docker-compose.dev.yml logs -f
+# Follow logs
+docker compose -f docker-compose.dev.yml logs -f api
 ```
 
-#### Launched Docker Services
+See [Launched Docker Services](#launched-docker-services) for the full service/port table.
 
-| Service | Port | Description | URL |
-|---------|------|-------------|-----|
-| **ssl-init** | - | SSL certificate generator (runs once) | - |
-| **postgres** | 5432 | PostgreSQL 16 + pgvector | - |
-| **postgres-backup** | - | Scheduled pg_dump backups, daily/weekly/monthly rotation (ADR-109) | - |
-| **pgadmin** | 5050 | DB Administration | http://localhost:5050 |
-| **redis** | 6379 | Cache & Sessions | - |
-| **api** | 8000/5678 | FastAPI Backend | http://localhost:8000 |
-| **web** | 3000 | Next.js Frontend | http://localhost:3000 |
-| **prometheus** | 9090 | Metrics | http://localhost:9090 |
-| **alertmanager** | 9094 | Alert management | http://localhost:9094 |
-| **grafana** | 3001 | Dashboards | http://localhost:3001 |
-| **loki** | 3100 | Log aggregation | - |
-| **promtail** | 9080 | Log collection | - |
-| **tempo** | 3200/4317/4318 | Distributed traces | http://localhost:3200 |
-| **cadvisor** | 8080 | Container metrics | http://localhost:8080 |
-| **postgres-exporter** | 9187 | PostgreSQL metrics | - |
-| **redis-exporter** | 9121 | Redis metrics | - |
-| **node-exporter** | 9100 | System metrics | - |
-| **minio** | 9092/9093 | S3 for Langfuse | http://localhost:9093 |
-| **langfuse-db** | - | Langfuse PostgreSQL | - |
-| **langfuse-clickhouse** | - | ClickHouse analytics | - |
-| **langfuse-redis** | - | Langfuse Redis | - |
-| **langfuse-web** | 3002 | LLM Observability | http://localhost:3002 |
-| **langfuse-worker** | 3030 | Langfuse Worker | - |
-
-### Step 6: Apply Migrations
+### Step 5: Apply Migrations
 
 ```bash
-cd apps/api
-source venv/bin/activate  # If not already activated
-
-# Apply Alembic migrations
-alembic upgrade head
-
-# Verify the migration
-alembic current
-# Should display the latest revision
+task db:migrate
+# equivalent: cd apps/api && alembic upgrade head   (venv activated)
 ```
 
-#### Step 7: Create Admin User and Seed Data
+> Migrations are also applied automatically when the API container starts; running them explicitly here makes the first boot deterministic.
 
-After migrations, create the initial admin account and seed development data:
+### Step 6: Create the Admin User and Seed Data
 
 ```bash
-# Option A: Full reset (migrate + admin + seed + SQL seeds) — recommended for first setup
+# Option A: Full reset (drop + migrate + admin + seed + SQL seeds) — recommended for first setup
 task db:reset
 
 # Option B: Step by step
-task db:create-admin                    # Creates admin user (admin@example.com / admin123)
-task db:seed                            # Seeds test users and connectors
-task db:seed:sql                        # Seeds personalities and LLM pricing data
+task db:create-admin     # Creates admin user (admin@example.com / admin123)
+task db:seed             # Seeds dev users and connectors
+task db:seed:sql         # Seeds personalities and LLM pricing data
 
 # Option C: Custom admin credentials
 task db:create-admin -- --email you@example.com --password YourSecurePassword123
@@ -495,33 +269,173 @@ task db:create-admin -- --email you@example.com --password YourSecurePassword123
 | Password | `admin123` |
 | Role | Superuser (full admin access) |
 
-> **Important**: Change the default admin password after first login! Go to Settings > Account to update it.
+> **Important**: Change the default admin password after first login (Settings > Account).
 
-> **Note**: `task db:seed:sql` populates assistant personalities and LLM pricing data. Without it, the assistant won't have a personality and cost tracking won't work.
+> **Note**: `task db:seed:sql` populates assistant personalities and LLM pricing data. Without it, the assistant has no personality and cost tracking cannot price calls.
 
-> **Note**: System FAQ knowledge base (119 Q/A) is automatically indexed at app startup. No manual seed required. For manual indexation: `task db:seed:system-rag`.
+> **Note**: The built-in FAQ knowledge base (200+ Q/A) is automatically indexed at app startup. Manual re-indexation: `task db:seed:system-rag`.
 
-#### Created Tables
+### Step 7: Configure an LLM Provider Key (Mandatory First-Run Step)
 
-Migrations automatically create:
+LLM API keys are **not** read from `.env` in normal operation — they are managed in the database, encrypted (Fernet), via the Admin UI:
 
-**Main Tables**:
-- `users` - User accounts
-- `conversations`, `conversation_messages` - Conversation history
-- `connectors` - User OAuth connections
-- `personalities` - Assistant personalities
-- `connector_preferences` - Per-connector user preferences
+1. Open https://localhost:3000 and accept the self-signed certificate (dev serves HTTPS)
+2. Also open https://localhost:8000/docs once and accept the API certificate
+3. Log in with the admin account
+4. Go to **Settings > Administration > LLM Configuration**
+5. In **Provider Keys**, enter the API key for at least one provider (e.g. OpenAI)
+6. Changes are hot-reloaded across workers — no restart needed
 
-**LangGraph Tables**:
-- `checkpoints`, `checkpoint_blobs`, `checkpoint_writes` - State persistence
+`.env` keys (e.g. `OPENAI_API_KEY`) are only a **fallback** used when no database key exists for a provider.
 
-**HITL Tables**:
-- `plan_approvals` - Plan approvals (Human-in-the-Loop)
+---
 
-**Pricing Tables**:
-- `llm_model_pricing` - Per-model LLM pricing
-- `currency_exchange_rates` - USD/EUR exchange rates
-- `token_usage_logs` - Token consumption tracking
+## Environment Configuration
+
+### Generating Cryptographic Keys
+
+```bash
+# SECRET_KEY (JWT & sessions, 32+ chars)
+openssl rand -base64 32
+
+# FERNET_KEY (encryption of OAuth credentials and provider API keys)
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+# REDIS_PASSWORD / POSTGRES_PASSWORD
+openssl rand -base64 16
+```
+
+### Minimum Configuration (`.env`)
+
+The mandatory variables, with the production-proven values as reference (`ENVIRONMENT`, `DEBUG`, `LOG_LEVEL` and URLs are the only ones that differ between dev and prod):
+
+```bash
+# ============================================================================
+# [01] ENVIRONMENT
+# ============================================================================
+ENVIRONMENT=development          # production in prod
+DEBUG=true                       # false in prod
+LOG_LEVEL=DEBUG                  # INFO in prod
+
+# ============================================================================
+# [02] SECURITY & AUTHENTICATION (MANDATORY — generate unique values!)
+# ============================================================================
+SECRET_KEY=CHANGE_ME_MIN_32_CHARS          # openssl rand -base64 32
+ALGORITHM=HS256
+FERNET_KEY=CHANGE_ME_FERNET_KEY            # see command above
+
+# Session cookies (production-proven)
+SESSION_COOKIE_NAME=lia_session
+SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_HTTPONLY=true
+SESSION_COOKIE_SAMESITE=lax
+SESSION_COOKIE_MAX_AGE=604800              # 7 days
+SESSION_COOKIE_MAX_AGE_REMEMBER=2592000    # 30 days ("remember me")
+
+# ============================================================================
+# [03] DATABASE (PostgreSQL)
+# ============================================================================
+POSTGRES_USER=lia
+POSTGRES_PASSWORD=CHANGE_ME_PASSWORD
+POSTGRES_DB=lia
+DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+
+# SQLAlchemy pool (production values)
+DATABASE_POOL_SIZE=30
+DATABASE_MAX_OVERFLOW=30
+DATABASE_POOL_TIMEOUT=30
+DATABASE_POOL_RECYCLE=1800
+
+# LangGraph checkpoint/store connection pools, per worker (ADR-111)
+LANGGRAPH_CHECKPOINT_POOL_MIN_SIZE=1
+LANGGRAPH_CHECKPOINT_POOL_MAX_SIZE=8
+LANGGRAPH_STORE_POOL_MIN_SIZE=1
+LANGGRAPH_STORE_POOL_MAX_SIZE=4
+
+# ============================================================================
+# [04] REDIS
+# ============================================================================
+REDIS_PASSWORD=CHANGE_ME_PASSWORD
+REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+REDIS_SESSION_DB=1
+REDIS_CACHE_DB=2
+REDIS_MAX_CONNECTIONS=100
+
+# ============================================================================
+# [05] URLS & CORS  (dev values; see .env.min.prod for the prod shape)
+# ============================================================================
+CORS_ORIGINS=https://localhost:3000,https://localhost:8000
+FRONTEND_URL=https://localhost:3000
+API_URL=https://localhost:8000
+NEXT_PUBLIC_API_URL=https://localhost:8000
+NEXT_PUBLIC_APP_URL=https://localhost:3000
+NEXT_PUBLIC_APP_NAME=LIA
+DEFAULT_LANGUAGE=fr
+
+# ============================================================================
+# [06] LLM PROVIDERS
+# ============================================================================
+# API keys are managed via the Admin UI (encrypted in DB, hot-reloaded).
+# .env keys are only a fallback if no database key exists for a provider.
+# Ollama needs no key, only a base URL:
+OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
+
+# ============================================================================
+# [07] GOOGLE OAUTH (required for Google login + Google connectors)
+# ============================================================================
+GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=YOUR_CLIENT_SECRET
+GOOGLE_REDIRECT_URI=https://localhost:8000/api/v1/auth/google/callback
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
+# API key for Places / Routes / Geocoding (see External Platform Setup)
+GOOGLE_API_KEY=...
+
+# ============================================================================
+# [08] DATABASE BACKUP (safe defaults apply if omitted — ADR-109)
+# ============================================================================
+POSTGRES_BACKUP_SCHEDULE=@daily
+POSTGRES_BACKUP_KEEP_DAYS=7
+POSTGRES_BACKUP_KEEP_WEEKS=4
+POSTGRES_BACKUP_KEEP_MONTHS=6
+POSTGRES_BACKUP_EXTRA_OPTS=-Z6 --clean --if-exists
+POSTGRES_BACKUP_TZ=Etc/UTC
+
+# ============================================================================
+# [09] OBSERVABILITY UIS (dev)
+# ============================================================================
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=admin
+PGADMIN_DEFAULT_EMAIL=admin@lia.local
+PGADMIN_DEFAULT_PASSWORD=admin
+```
+
+> For production, start from **`.env.min.prod`** (the minimal working set with `CHANGE_ME` placeholders) or **`.env.prod.example`** (the full template, ~740 settings). Everything not listed above has sensible defaults; the [Feature Configuration Reference](#feature-configuration-reference) documents the production values of every subsystem.
+
+### LAN Access & SSL (Development)
+
+Both dev containers serve **HTTPS with self-signed certificates** (required for Google OAuth and service workers). The `ssl-init` service generates certificates once and shares them with `api` and `web` via a Docker volume.
+
+To access LIA from other devices on your network (e.g. mobile testing), use [nip.io](https://nip.io):
+
+1. Find your local IP (e.g. `192.168.1.100`)
+2. Set in `.env` (the nip.io domain replaces localhost in the public-facing URLs and is **added** to the CORS origins):
+
+   ```bash
+   SSL_DOMAIN=192.168.1.100.nip.io
+   CORS_ORIGINS=https://localhost:3000,https://localhost:8000,https://192.168.1.100.nip.io:3000,https://192.168.1.100.nip.io:8000
+   FRONTEND_URL=https://192.168.1.100.nip.io:3000
+   API_URL=https://192.168.1.100.nip.io:8000
+   NEXT_PUBLIC_API_URL=https://192.168.1.100.nip.io:8000
+   NEXT_PUBLIC_APP_URL=https://192.168.1.100.nip.io:3000
+   NEXT_PUBLIC_ALLOWED_DEV_ORIGINS=192.168.1.100.nip.io
+   GOOGLE_REDIRECT_URI=https://192.168.1.100.nip.io:8000/api/v1/auth/google/callback
+   ```
+
+3. If you use Google OAuth, also add the nip.io redirect URIs (auth + connectors) to the OAuth client in the Google Cloud Console.
+
+4. Restart, then browse to `https://192.168.1.100.nip.io:8000` **and** `:3000` and accept both certificates.
+
+> **Important**: `NEXT_PUBLIC_ALLOWED_DEV_ORIGINS` must be a **hostname only** (no protocol/port). A full URL causes WebSocket HMR failures and refresh loops.
 
 ---
 
@@ -530,112 +444,98 @@ Migrations automatically create:
 ### Method 1: Docker Compose (Recommended)
 
 ```bash
-# From the project root
-
-# Start all services
-docker compose -f docker-compose.dev.yml up -d
-
-# Check status
-docker compose -f docker-compose.dev.yml ps
-
-# API and Web services are started automatically
-# - Backend: http://localhost:8000
-# - Frontend: http://localhost:3000
+task dev            # foreground
+task dev:detach     # background
+task stop           # stop everything
 ```
 
-### Method 2: Manual Launch (For Debugging)
+- Backend: https://localhost:8000 (Swagger: https://localhost:8000/docs)
+- Frontend: https://localhost:3000
 
-If you want to debug the code with hot-reload:
+### Method 2: Hybrid (Infrastructure in Docker, App Manual)
 
-#### Terminal 1: Infrastructure Only
+For debugging with local hot-reload:
 
 ```bash
-# Start only infrastructure services (without api and web)
-docker compose -f docker-compose.dev.yml up -d postgres redis prometheus grafana loki tempo langfuse-web
-
-# Or stop api/web if already running
+# Stop the containerized app, keep the infrastructure
 docker compose -f docker-compose.dev.yml stop api web
-```
 
-#### Terminal 2: Backend API
-
-```bash
-cd apps/api
-source venv/bin/activate
-
-# Start with automatic reload
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8000 --log-level debug
-
-# Or with Python debugging (debugpy)
+# Terminal 1 — Backend (from apps/api, venv activated)
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+# or with debugpy:
 python -m debugpy --listen 0.0.0.0:5678 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-```
 
-#### Terminal 3: Next.js Frontend
-
-```bash
-cd apps/web
-
-# Start in development mode
+# Terminal 2 — Frontend (from apps/web)
 pnpm dev
-
-# Or on a different port
-pnpm dev -- -p 3001
 ```
+
+Or use the shortcuts `task dev:api` / `task dev:web` (require PostgreSQL + Redis already running).
+
+### Launched Docker Services
+
+Dev environment (`docker-compose.dev.yml`): 17 services by default, plus 6 opt-in Langfuse services (compose profile `langfuse`, started via `task dev:langfuse`):
+
+| Service | Port(s) | Description | URL |
+|---------|---------|-------------|-----|
+| **ssl-init** | — | Self-signed certificate generator (runs once) | — |
+| **postgres** | 5432 | PostgreSQL 16 + pgvector | — |
+| **postgres-backup** | — | Scheduled pg_dump, daily/weekly/monthly rotation (ADR-109) | — |
+| **pgadmin** | 5050 | DB administration | http://localhost:5050 |
+| **redis** | 6379 | Cache & sessions | — |
+| **api** | 8000, 5678 | FastAPI backend (HTTPS) + debugpy | https://localhost:8000 |
+| **web** | 3000 | Next.js frontend (HTTPS) | https://localhost:3000 |
+| **prometheus** | 9090 | Metrics | http://localhost:9090 |
+| **alertmanager** | 9094 | Alert management | http://localhost:9094 |
+| **grafana** | 3001 | Dashboards | http://localhost:3001 |
+| **loki** | 3100 | Log aggregation | — |
+| **promtail** | 9080 | Log collection | — |
+| **tempo** | 3200, 4317, 4318 | Distributed traces (OTLP) | — |
+| **cadvisor** | 8080 | Container metrics | http://localhost:8080 |
+| **postgres-exporter** | 9187 | PostgreSQL metrics | — |
+| **redis-exporter** | 9121 | Redis metrics | — |
+| **node-exporter** | 9100 | System metrics | — |
+| **minio** * | 9092, 9093 | S3 storage for Langfuse | http://localhost:9093 |
+| **langfuse-db** * | — | Langfuse PostgreSQL | — |
+| **langfuse-clickhouse** * | — | ClickHouse analytics | — |
+| **langfuse-redis** * | — | Langfuse Redis | — |
+| **langfuse-web** * | 3002 | LLM observability UI | http://localhost:3002 |
+| **langfuse-worker** * | 3030 | Langfuse worker | — |
+
+\* Opt-in `langfuse` compose profile — started only by `task dev:langfuse`.
+
+The production compose (`docker-compose.prod.yml`) runs a leaner 15-service stack: postgres, postgres-backup, redis, api, web, prometheus, grafana, loki, promtail, tempo, node-exporter, cadvisor, postgres-exporter, redis-exporter, portainer — no pgAdmin, no Langfuse stack, no Alertmanager.
 
 ### Service Verification
 
 ```bash
-# Verify Backend
-curl http://localhost:8000/health
-# Response: {"status":"healthy","database":"connected","redis":"connected"}
+# Backend (self-signed cert → -k)
+curl -k https://localhost:8000/health
+# {"status":"healthy","database":"connected","redis":"connected"}
 
-# Verify API Docs (Swagger)
-# Open: http://localhost:8000/docs
+# Frontend
+curl -sk https://localhost:3000 | head -5
 
-# Verify Frontend
-curl -s http://localhost:3000 | head -5
-# Should return HTML
-
-# Verify Grafana
-# Open: http://localhost:3001
-# Login: admin / admin
-
-# Verify Langfuse
-# Open: http://localhost:3002
-# Login: admin@lia.local / admin123
+# Grafana: http://localhost:3001 (admin / admin)
+# Langfuse (dev, opt-in via task dev:langfuse): http://localhost:3002 (admin@lia.local / admin123)
 ```
 
 ---
 
 ## First Steps
 
-### 1. Log In with the Admin Account
+### 1. Log In and Secure the Admin Account
 
-If you ran `task db:reset` or `task db:create-admin` in Step 7, an admin account is already available:
-
-1. Open http://localhost:3000
+1. Open https://localhost:3000 (accept the certificate)
 2. Log in with `admin@example.com` / `admin123`
-3. **Change your password** in Settings > Account
+3. **Change the password** in Settings > Account
+4. Configure at least one LLM provider key (Settings > Administration > LLM Configuration) if not done in Step 7
 
-> The admin account has superuser privileges: access to the Administration panel (LLM configuration, user management, system settings).
+### 2. Create User Accounts (Optional)
 
-### 2. Create Additional User Accounts (Optional)
-
-#### Via Frontend
-
-1. Open http://localhost:3000
-2. Click "Sign Up"
-3. Fill in the form:
-   - Email
-   - Password (8+ characters)
-   - Full name
-   - Language (fr, en, es, de, it, zh-CN)
-   - Timezone
-
-#### Via API
+Via the frontend ("Sign Up") or via API:
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/register \
+curl -k -X POST https://localhost:8000/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -646,257 +546,180 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
   }'
 ```
 
-### 3. Configure External Platform Accounts
+Supported languages: `fr`, `en`, `es`, `de`, `it`, `zh-CN`.
 
-LIA integrates with Google, Microsoft, and Firebase. Each platform requires specific configuration. Follow the sections relevant to your setup.
+### 3. First Conversation
+
+Open https://localhost:3000/chat and try:
+
+```
+# Simple conversation
+Hello, who are you?
+
+# Execution mode: use the toggle in the chat header to switch Pipeline ↔ ReAct
+
+# Contacts / Emails / Calendar (once a provider is connected)
+Search my contacts named Jean
+Show me my last 5 emails
+What are my events for this week?
+
+# Weather (once the OpenWeatherMap connector is set in Settings > Connectors)
+What's the weather like in Paris?
+
+# Knowledge & web
+Tell me about the Eiffel Tower
+What are the latest news about AI?
+
+# Routes
+How do I get from Paris to Lyon by car?
+```
+
+The **Today Briefing** home page aggregates agenda, emails, birthdays, reminders, weather and health into a daily ritual view with an LLM synthesis.
+
+### 4. Explore Grafana Dashboards
+
+Open http://localhost:3001 (`admin` / `admin`), then Dashboards > Browse:
+
+| Dashboard | Focus |
+|-----------|-------|
+| 01-app-overview | Global API health & latency |
+| 02-slo-tracking | Service Level Objectives |
+| 03-infra-resources | CPU, RAM, disk, containers |
+| 04-http-api | Endpoint-level HTTP metrics |
+| 05-llm-tokens-cost | Token consumption & LLM costs |
+| 06-logs-traces | Loki logs + Tempo traces |
+| 07-agents-pipeline | LangGraph pipeline flow |
+| 08-hitl | Human-in-the-Loop approvals |
+| 09-conversations-users | Conversation analytics |
+| 10-oauth-connectors-mcp | OAuth health, connectors, MCP |
+| 11-voice-websocket | Voice mode & WebSocket |
+| 12-channels | Telegram channel |
+| 13-proactive-heartbeat | Heartbeat & interest notifications |
+| 14-compaction | Context compaction |
+| 14-registry-checkpoints | Data registry & checkpoints |
+| 15-langgraph-deep | Detailed LangGraph internals |
+| 16-meta-health | Recording rules & scrape health |
+| 17-user-analytics-geo | User analytics & GeoIP |
+| 18-rag-spaces | RAG knowledge spaces |
+| 19-subagents-skills | Sub-agents & skills |
+| 20-react-browser | ReAct mode & browser control |
+| 21-health-metrics | Health metrics ingestion |
+
+### 5. Explore Langfuse (LLM Observability, Dev)
+
+The Langfuse stack is opt-in: start it with `task dev:langfuse` and set `LANGFUSE_ENABLED=true`. Then open http://localhost:3002 (`admin@lia.local` / `admin123`) to inspect per-call LLM traces, latency, tokens and costs. It is **disabled in production**, where cost tracking relies on the built-in token/pricing pipeline and Grafana dashboard 05.
 
 ---
 
-#### 3.1 Google Cloud Platform Setup
+## External Platform Setup
+
+LIA integrates with Google, Microsoft, Apple, Firebase and Philips Hue. Follow the sections relevant to your setup. All callback URLs below use the dev API URL — for production, replace `https://localhost:8000` with your API domain.
+
+### 1. Google Cloud Platform
 
 > **Required for**: Google OAuth login, Gmail, Calendar, Contacts, Drive, Tasks, Places, Routes, Geocoding.
 
-##### 3.1.1 Create a Google Cloud Project
+#### 1.1 Create a Project
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Click the project selector (top bar) > **New Project**
-3. Project name: `LIA` (or your preferred name)
-4. Click **Create**, then select the project
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) > **New Project** (e.g. `LIA`)
 
-##### 3.1.2 Configure the OAuth Consent Screen
+#### 1.2 Configure the OAuth Consent Screen
 
-1. Navigate to **APIs & Services** > **OAuth consent screen**
-2. Choose **External** user type (unless you have a Google Workspace org) > **Create**
-3. Fill in the required fields:
-   - **App name**: `LIA`
-   - **User support email**: your email
-   - **Developer contact email**: your email
-4. Click **Save and Continue**
-5. On the **Scopes** page, click **Add or Remove Scopes** and add:
+1. **APIs & Services** > **OAuth consent screen** > **External** > **Create**
+2. Fill app name, support email, developer email
+3. On **Scopes**, add:
 
    | Scope | Purpose |
    |-------|---------|
-   | `openid` | Authentication |
-   | `email` | User email |
-   | `profile` | User name & avatar |
+   | `openid`, `email`, `profile` | Authentication & profile |
    | `https://www.googleapis.com/auth/gmail.readonly` | Read emails |
    | `https://www.googleapis.com/auth/gmail.send` | Send emails |
-   | `https://www.googleapis.com/auth/gmail.modify` | Modify emails (labels, trash) |
-   | `https://www.googleapis.com/auth/contacts` | Manage contacts |
-   | `https://www.googleapis.com/auth/contacts.readonly` | Read contacts |
-   | `https://www.googleapis.com/auth/contacts.other.readonly` | Read "Other contacts" |
-   | `https://www.googleapis.com/auth/calendar` | Full calendar access |
-   | `https://www.googleapis.com/auth/calendar.readonly` | Read calendar |
-   | `https://www.googleapis.com/auth/calendar.events` | Manage events |
-   | `https://www.googleapis.com/auth/drive.readonly` | Read Drive files |
-   | `https://www.googleapis.com/auth/drive.file` | Manage files created by LIA |
-   | `https://www.googleapis.com/auth/drive` | Full Drive access |
-   | `https://www.googleapis.com/auth/drive.metadata.readonly` | Read file metadata |
-   | `https://www.googleapis.com/auth/tasks` | Manage tasks |
-   | `https://www.googleapis.com/auth/tasks.readonly` | Read tasks |
+   | `https://www.googleapis.com/auth/gmail.modify` | Labels, trash |
+   | `https://www.googleapis.com/auth/contacts` + `contacts.readonly` + `contacts.other.readonly` | Contacts |
+   | `https://www.googleapis.com/auth/calendar` + `calendar.readonly` + `calendar.events` | Calendar |
+   | `https://www.googleapis.com/auth/drive.readonly` + `drive.file` + `drive` + `drive.metadata.readonly` | Drive |
+   | `https://www.googleapis.com/auth/tasks` + `tasks.readonly` | Tasks |
 
-6. Click **Save and Continue**
-7. On the **Test Users** page, add the Google accounts that will use LIA during development (required while the app is in "Testing" mode — max 100 users)
-8. Click **Save and Continue** > **Back to Dashboard**
+4. On **Test Users**, add the Google accounts that will use LIA (required in "Testing" mode, max 100)
 
-> **Note**: While in "Testing" mode, only test users can authorize. To allow any Google user, submit the app for **Verification** (requires privacy policy URL and domain ownership). For development, testing mode is sufficient.
+> While in "Testing" mode only test users can authorize. Public access requires Google **verification** (privacy policy URL + domain ownership); testing mode is sufficient for development and self-hosting.
 
-##### 3.1.3 Enable Google APIs
+#### 1.3 Enable the APIs
 
-Navigate to **APIs & Services** > **Library** and enable each of these APIs:
+**APIs & Services** > **Library**, enable: **People API**, **Gmail API**, **Google Calendar API**, **Google Drive API**, **Tasks API**, **Places API (New)**, **Routes API**, **Geocoding API**.
 
-| API | Usage in LIA | Search Term |
-|-----|--------------|-------------|
-| **People API** | Google Contacts | `People API` |
-| **Gmail API** | Email read/send | `Gmail API` |
-| **Google Calendar API** | Event management | `Google Calendar API` |
-| **Google Drive API** | File search & RAG sync | `Google Drive API` |
-| **Tasks API** | Task management | `Tasks API` |
-| **Places API (New)** | Location search | `Places API (New)` |
-| **Routes API** | Directions & itineraries | `Routes API` |
-| **Geocoding API** | Address resolution | `Geocoding API` |
+#### 1.4 Create OAuth 2.0 Credentials
 
-For each API: click it > click **Enable**.
-
-##### 3.1.4 Create OAuth 2.0 Credentials
-
-1. Navigate to **APIs & Services** > **Credentials**
-2. Click **Create Credentials** > **OAuth 2.0 Client ID**
-3. Application type: **Web application**
-4. Name: `LIA Development`
-5. **Authorized JavaScript origins**: `http://localhost:3000`
-6. **Authorized redirect URIs** — add all of these:
+1. **Credentials** > **Create Credentials** > **OAuth 2.0 Client ID** > type **Web application**
+2. **Authorized JavaScript origins**: `https://localhost:3000`
+3. **Authorized redirect URIs** — add all of these:
 
    ```
-   http://localhost:8000/api/v1/auth/google/callback
-   http://localhost:8000/api/v1/connectors/gmail/callback
-   http://localhost:8000/api/v1/connectors/google-calendar/callback
-   http://localhost:8000/api/v1/connectors/google-contacts/callback
-   http://localhost:8000/api/v1/connectors/google-drive/callback
-   http://localhost:8000/api/v1/connectors/google-tasks/callback
+   https://localhost:8000/api/v1/auth/google/callback
+   https://localhost:8000/api/v1/connectors/gmail/callback
+   https://localhost:8000/api/v1/connectors/google-calendar/callback
+   https://localhost:8000/api/v1/connectors/google-contacts/callback
+   https://localhost:8000/api/v1/connectors/google-drive/callback
+   https://localhost:8000/api/v1/connectors/google-tasks/callback
    ```
 
-7. Click **Create**
-8. Copy the **Client ID** and **Client Secret** into `.env`:
+4. Copy the credentials into `.env` (root — used by both backend and frontend):
 
    ```bash
    GOOGLE_CLIENT_ID=123456789-abcdef.apps.googleusercontent.com
    GOOGLE_CLIENT_SECRET=GOCSPX-...
-   GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
+   GOOGLE_REDIRECT_URI=https://localhost:8000/api/v1/auth/google/callback
+   NEXT_PUBLIC_GOOGLE_CLIENT_ID=123456789-abcdef.apps.googleusercontent.com
    ```
 
-> **Production**: Replace `http://localhost:8000` with your production API URL (e.g., `https://lia-back.yourdomain.com`) in both the redirect URIs and `.env`.
+#### 1.5 Create an API Key (Places, Routes, Geocoding)
 
-##### 3.1.5 Create an API Key (for Places, Routes, Geocoding)
+1. **Credentials** > **Create Credentials** > **API Key**
+2. Restrict it to **Places API (New)**, **Routes API**, **Geocoding API**
+3. `GOOGLE_API_KEY=AIzaSy...` in `.env`
 
-Places, Routes, and Geocoding APIs use an API key (not OAuth):
+#### 1.6 Connect in the Application
 
-1. In **APIs & Services** > **Credentials**, click **Create Credentials** > **API Key**
-2. Click **Edit API key** (pencil icon) to restrict it:
-   - **Name**: `LIA API Key`
-   - **Application restrictions**: None (or HTTP referrers for production)
-   - **API restrictions**: Select **Restrict key** and choose:
-     - Places API (New)
-     - Routes API
-     - Geocoding API
-3. Click **Save**
-4. Copy the key into `.env`:
+Settings > **Connectors** > **Connect** on the desired Google services.
+
+### 2. Microsoft Azure (Optional)
+
+> **Required for**: Outlook (email), Calendar, Contacts and To Do via Microsoft Graph.
+
+1. [Azure Portal](https://portal.azure.com/) > **Microsoft Entra ID** > **App registrations** > **New registration**
+   - Supported account types: **Accounts in any organizational directory and personal Microsoft accounts** (`tenant=common`)
+2. **Authentication** > **Web** > add the 4 redirect URIs:
+
+   ```
+   https://localhost:8000/api/v1/connectors/microsoft-outlook/callback
+   https://localhost:8000/api/v1/connectors/microsoft-calendar/callback
+   https://localhost:8000/api/v1/connectors/microsoft-contacts/callback
+   https://localhost:8000/api/v1/connectors/microsoft-tasks/callback
+   ```
+
+   Leave implicit grant unchecked (LIA uses authorization code flow with PKCE).
+3. **API permissions** > **Microsoft Graph** > **Delegated**: `User.Read`, `offline_access`, `Mail.Read`, `Mail.ReadWrite`, `Mail.Send`, `Calendars.Read`, `Calendars.ReadWrite`, `Contacts.Read`, `Contacts.ReadWrite`, `Tasks.Read`, `Tasks.ReadWrite` (no admin consent needed for personal accounts)
+4. **Certificates & secrets** > **New client secret** — copy the value immediately
+5. In `.env`:
 
    ```bash
-   GOOGLE_API_KEY=AIzaSy...
+   MICROSOFT_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   MICROSOFT_CLIENT_SECRET=your-client-secret-value
+   MICROSOFT_TENANT_ID=common
    ```
 
-##### 3.1.6 Frontend Google Client ID
+6. Connect in Settings > Connectors
 
-For the Google Sign-In button on the frontend, add to `apps/web/.env.local`:
+> **Mutual exclusivity**: only one provider per functional category (email, calendar, contacts, tasks) can be active. Activating Microsoft deactivates Google/Apple for that category (deactivated connectors are set INACTIVE, not deleted).
 
-```bash
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=123456789-abcdef.apps.googleusercontent.com
-```
+> See [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md).
 
-This is the **same Client ID** as the backend.
+### 3. Firebase / FCM Push Notifications (Optional)
 
-##### 3.1.7 Connect in the Application
+> **Required for**: OAuth health alerts, Heartbeat proactive notifications, interest notifications.
 
-1. Log in to the frontend
-2. Go to **Settings** > **Connectors**
-3. Click **Connect** on the desired Google services
-4. Authorize OAuth access
-5. You will be redirected with the connector activated
-
----
-
-#### 3.2 Microsoft Azure Portal Setup (Optional)
-
-> **Required for**: Microsoft Outlook (email), Calendar, Contacts, and To Do (tasks) via Microsoft Graph API.
-
-##### 3.2.1 Register an Application
-
-1. Go to [Azure Portal](https://portal.azure.com/)
-2. Navigate to **Microsoft Entra ID** (formerly Azure Active Directory) > **App registrations**
-3. Click **New registration**
-4. Fill in:
-   - **Name**: `LIA`
-   - **Supported account types**: **Accounts in any organizational directory and personal Microsoft accounts** (this corresponds to `tenant=common`)
-   - **Redirect URI**: Select **Web** and add:
-     ```
-     http://localhost:8000/api/v1/connectors/microsoft-outlook/callback
-     ```
-5. Click **Register**
-6. On the app overview page, copy the **Application (client) ID**
-
-##### 3.2.2 Add All Redirect URIs
-
-1. In the app registration, go to **Authentication**
-2. Under **Web** > **Redirect URIs**, click **Add URI** and add all 4 callback URLs:
-
-   ```
-   http://localhost:8000/api/v1/connectors/microsoft-outlook/callback
-   http://localhost:8000/api/v1/connectors/microsoft-calendar/callback
-   http://localhost:8000/api/v1/connectors/microsoft-contacts/callback
-   http://localhost:8000/api/v1/connectors/microsoft-tasks/callback
-   ```
-
-3. Under **Implicit grant and hybrid flows**, ensure nothing is checked (LIA uses authorization code flow with PKCE)
-4. Click **Save**
-
-> **Production**: Add your production URLs as well (e.g., `https://lia-back.yourdomain.com/api/v1/connectors/microsoft-outlook/callback`).
-
-##### 3.2.3 Configure API Permissions
-
-1. Go to **API permissions** > **Add a permission** > **Microsoft Graph** > **Delegated permissions**
-2. Add the following permissions:
-
-   | Permission | Purpose |
-   |-----------|---------|
-   | `User.Read` | Read user profile |
-   | `offline_access` | Refresh tokens (long-lived sessions) |
-   | `Mail.Read` | Read emails |
-   | `Mail.ReadWrite` | Modify emails |
-   | `Mail.Send` | Send emails |
-   | `Calendars.Read` | Read calendar events |
-   | `Calendars.ReadWrite` | Create/update/delete events |
-   | `Contacts.Read` | Read contacts |
-   | `Contacts.ReadWrite` | Create/update/delete contacts |
-   | `Tasks.Read` | Read To Do tasks |
-   | `Tasks.ReadWrite` | Create/update/delete tasks |
-
-3. Click **Add permissions**
-
-> **Note**: These are all **delegated** permissions (acting on behalf of the user). No admin consent is required for personal accounts.
-
-##### 3.2.4 Create a Client Secret
-
-1. Go to **Certificates & secrets** > **Client secrets** > **New client secret**
-2. Description: `LIA Development`
-3. Expiry: Choose your preferred duration (24 months recommended for dev)
-4. Click **Add**
-5. **Immediately copy the secret Value** (it will only be shown once!)
-
-##### 3.2.5 Configure Environment Variables
-
-Add to your `.env`:
-
-```bash
-MICROSOFT_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-MICROSOFT_CLIENT_SECRET=your-client-secret-value
-MICROSOFT_TENANT_ID=common
-```
-
-> **`MICROSOFT_TENANT_ID=common`** supports both personal Microsoft accounts (outlook.com, hotmail.com, live.com) and enterprise Azure AD accounts. Microsoft automatically detects the account type.
-
-##### 3.2.6 Connect in the Application
-
-1. Log in to the frontend
-2. Go to **Settings** > **Connectors**
-3. Click **Connect** on the desired Microsoft services (Outlook, Calendar, Contacts, Tasks)
-4. Sign in with your Microsoft account and authorize
-
-> **Mutual exclusivity**: Only one provider per category (email, calendar, contacts, tasks) can be active. Activating Microsoft deactivates Google/Apple for that category (and vice versa). Deactivated connectors are set to INACTIVE, not deleted.
-
-> See [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md) for full technical details.
-
----
-
-#### 3.3 Firebase Console Setup (Optional)
-
-> **Required for**: Push notifications (FCM) — OAuth health alerts, heartbeat proactive notifications, interest-based notifications.
-
-##### 3.3.1 Create a Firebase Project
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Click **Add project**
-3. Project name: `LIA` (you can link it to your existing Google Cloud project)
-4. Disable Google Analytics (not needed) or enable it if desired
-5. Click **Create project**
-
-##### 3.3.2 Register a Web App
-
-1. In the Firebase project dashboard, click the **Web** icon (`</>`) to add a web app
-2. App nickname: `LIA Web`
-3. Do **not** check "Also set up Firebase Hosting"
-4. Click **Register app**
-5. Firebase will display a config object. Copy these values into `apps/web/.env.local`:
+1. [Firebase Console](https://console.firebase.google.com/) > **Add project** (can be linked to your Google Cloud project)
+2. Register a **Web app** and copy the config into the **root `.env`**:
 
    ```bash
    NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
@@ -907,31 +730,13 @@ MICROSOFT_TENANT_ID=common
    NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789012:web:abcdef123456
    ```
 
-6. Click **Continue to console**
-
-##### 3.3.3 Enable Cloud Messaging
-
-1. In the Firebase project, go to **Project Settings** (gear icon) > **Cloud Messaging** tab
-2. Verify that **Firebase Cloud Messaging API (V1)** is enabled. If it shows "Disabled", click the three-dot menu and enable it via the Google Cloud Console link
-
-##### 3.3.4 Generate a VAPID Key (Web Push)
-
-1. Still in **Project Settings** > **Cloud Messaging** tab
-2. Scroll down to **Web Push certificates**
-3. Click **Generate key pair**
-4. Copy the generated key into `apps/web/.env.local`:
+3. **Project Settings > Cloud Messaging**: ensure **FCM API (V1)** is enabled; under **Web Push certificates**, **Generate key pair**:
 
    ```bash
-   NEXT_PUBLIC_FIREBASE_VAPID_KEY=BLxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...
+   NEXT_PUBLIC_FIREBASE_VAPID_KEY=BLxxxxxxxx...
    ```
 
-##### 3.3.5 Create a Service Account Key (Backend)
-
-1. Go to **Project Settings** > **Service accounts** tab
-2. Select **Firebase Admin SDK** > **Node.js** (the language doesn't matter, the JSON key is universal)
-3. Click **Generate new private key** > **Generate key**
-4. Save the downloaded JSON file as `apps/api/config/firebase-service-account.json`
-5. Configure in `.env`:
+4. **Project Settings > Service accounts** > **Generate new private key**, save as `apps/api/config/firebase-service-account.json`:
 
    ```bash
    FIREBASE_CREDENTIALS_PATH=config/firebase-service-account.json
@@ -939,748 +744,705 @@ MICROSOFT_TENANT_ID=common
    FCM_ENABLED=true
    ```
 
-> **Security**: The `config/` directory is gitignored. Never commit the service account JSON to the repository.
+> **Security**: `config/` is gitignored — never commit the service account JSON.
 
-##### 3.3.6 Verify the Configuration
+Verification: enable notifications in Settings > Notifications (browser prompt), then look for `FCM notification sent successfully` in the API logs. Guide: [GUIDE_FCM_PUSH_NOTIFICATIONS.md](./guides/GUIDE_FCM_PUSH_NOTIFICATIONS.md).
 
-After starting LIA, push notifications should work when:
-- A user enables notifications in **Settings** > **Notifications** (browser permission prompt)
-- An OAuth connector encounters an error (health check notification)
-- A heartbeat proactive notification is triggered
+### 4. Apple iCloud (Optional)
 
-Check the backend logs for:
-```
-FCM notification sent successfully
-```
-
----
-
-#### 3.4 Apple iCloud Connectors (Optional)
-
-LIA supports Apple Email (IMAP), Calendar (CalDAV), and Contacts (CardDAV):
+Apple Email (IMAP/SMTP), Calendar (CalDAV) and Contacts (CardDAV):
 
 1. Generate an app-specific password at [appleid.apple.com](https://appleid.apple.com/)
-2. Connect in Settings > Connectors with your Apple ID and app-specific password
+2. Connect in Settings > Connectors with your Apple ID and that password
 
-> See [APPLE_ICLOUD_INTEGRATION.md](./technical/APPLE_ICLOUD_INTEGRATION.md) for details.
+The IMAP/SMTP/DAV endpoints are preconfigured (`imap.mail.me.com`, `smtp.mail.me.com`, `caldav.icloud.com`, `contacts.icloud.com`). See [APPLE_ICLOUD_INTEGRATION.md](./technical/APPLE_ICLOUD_INTEGRATION.md).
 
-> **Note**: Only one provider per functional category (email, calendar, contacts) can be active at a time. Google, Apple, and Microsoft are mutually exclusive per category.
+### 5. Philips Hue (Optional)
 
-### 4. First Conversation
+Two pairing modes:
 
-1. Go to http://localhost:3000/chat
-2. Type a message
+- **Local** (same network): press the bridge link button when prompted in Settings > Connectors — no configuration needed.
+- **Remote** (cloud OAuth2): create an app on the [Hue Developer Portal](https://developers.meethue.com/) and set `HUE_REMOTE_CLIENT_ID`, `HUE_REMOTE_CLIENT_SECRET`, `HUE_REMOTE_APP_ID` in `.env`.
 
-**Example Queries**:
+See [CONNECTOR_PHILIPS_HUE.md](./technical/CONNECTOR_PHILIPS_HUE.md).
 
-```
-# Simple conversation
-Hello, who are you?
+### 6. OpenWeatherMap & Brave Search (Per-User Connectors)
 
-# Contacts (if connected)
-Search my contacts named Jean
-
-# Emails (if connected)
-Show me my last 5 emails
-
-# Calendar (if connected)
-What are my events for this week?
-
-# Weather (if API key configured)
-What's the weather like in Paris?
-
-# Wikipedia
-Tell me about the Eiffel Tower
-
-# Web search (if Perplexity configured)
-What are the latest news about AI?
-
-# Routes (if API key configured)
-How do I get from Paris to Lyon by car?
-What's the distance between my office and the airport?
-```
-
-### 5. Explore Grafana Dashboards
-
-1. Open http://localhost:3001
-2. Login: `admin` / `admin` (change on first login)
-3. Go to "Dashboards" > "Browse"
-
-**Available Dashboards**:
-
-| Dashboard | Description |
-|-----------|-------------|
-| **01-app-performance** | API performance (latency, errors) |
-| **02-infra-resources** | System resources (CPU, RAM) |
-| **03-business-metrics** | Business metrics (conversations, users) |
-| **04-agents-langgraph** | LangGraph agent flow |
-| **05-llm-tokens-cost** | Token consumption and LLM costs |
-| **06-conversations** | Conversation analytics |
-| **08-oauth-security** | OAuth security |
-| **09-logs-traces** | Logs and distributed traces |
-| **10-redis-rate-limiting** | Redis rate limiting |
-| **11-langgraph-framework** | Detailed LangGraph metrics |
-| **12-recording-rules-health** | Recording rules health |
-| **13-slo-tracking** | SLO tracking (Service Level Objectives) |
-| **14-data-registry** | Agent Data Registry |
-| **15-checkpoint-observability** | Checkpoint observability |
-
-### 6. Explore Langfuse (LLM Observability)
-
-1. Open http://localhost:3002
-2. Login: `admin@lia.local` / `admin123`
-3. Explore LLM traces
-
-**Langfuse Metrics**:
-- Traces for each LLM call
-- Response time per model
-- Tokens used (input/output)
-- Estimated costs
-- Quality evaluation (optional)
+Weather and Brave Search are **per-user API-key connectors**: each user enters their own key in **Settings > Connectors** (keys encrypted in DB). Get free keys at [openweathermap.org/api](https://openweathermap.org/api) and [brave.com/search/api](https://brave.com/search/api/).
 
 ---
 
-## Advanced Features
+## Feature Configuration Reference
 
-### Enable Voice Mode
+Every subsystem below ships with working defaults; the values shown are the **production configuration**. All of them can be tuned in `.env`.
 
-#### TTS Configuration
+### Feature Flags (Production Values)
 
-TTS provider/model/voice are configured **through the admin UI**, not via
-env vars (since v1.20.2 / [ADR-081](architecture/ADR-081-Voice-TTS-Catalogue-Driven.md)). Open **Settings → Configuration LLM →
-Voice Synthesis (TTS)** to pick a provider (Edge — free, OpenAI `tts-1` /
-`tts-1-hd`, or ElevenLabs `eleven_multilingual_v2` / `eleven_turbo_v2_5` /
-`eleven_flash_v2_5`) and the male/female voice for each. The admin form
-fetches a live voice catalogue from the provider for ElevenLabs (requires
-the `voices_read` scope on the API key).
+| Flag | Feature | Prod |
+|------|---------|------|
+| `ATTACHMENTS_ENABLED` | File attachments in chat (images, PDF) | `true` |
+| `SKILLS_ENABLED` / `SKILLS_SCRIPTS_ENABLED` | Skills system (SKILL.md) + skill scripts | `true` / `true` |
+| `INITIATIVE_ENABLED` | Proactive initiative phase after responses | `true` |
+| `RAG_SPACES_ENABLED` | Personal document knowledge spaces | `true` |
+| `RAG_SPACES_SYSTEM_ENABLED` | Built-in FAQ knowledge base | `true` |
+| `RAG_SPACES_DRIVE_SYNC_ENABLED` | Google Drive sync for RAG spaces | `true` |
+| `SUB_AGENTS_ENABLED` | Persistent specialized sub-agents | `true` |
+| `JOURNALS_ENABLED` | Assistant introspective journals | `true` |
+| `PSYCHE_ENABLED` | Dynamic psychological state | `true` |
+| `USAGE_LIMITS_ENABLED` | Per-user usage quotas | `true` |
+| `IMAGE_GENERATION_ENABLED` | AI image generation | `true` |
+| `HEALTH_METRICS_ENABLED` | iPhone health metrics ingestion | `true` |
+| `HEARTBEAT_ENABLED` | Autonomous proactive notifications | `true` |
+| `CHANNELS_ENABLED` | Multi-channel messaging (Telegram) | `true` |
+| `MCP_ENABLED` / `MCP_USER_ENABLED` / `MCP_REACT_ENABLED` | Admin MCP / per-user MCP / MCP ReAct loop | `true` |
+| `REACT_AGENT_ENABLED` | ReAct execution mode toggle | `true` |
+| `FCM_ENABLED` | Firebase push notifications | `true` |
+| `GEOIP_ENABLED` | IP geolocation in logs (DB-IP Lite MMDB) | `true` |
+| `OAUTH_HEALTH_CHECK_ENABLED` | Proactive connector monitoring | `true` |
+| `MEMORY_EXTRACTION_ENABLED` / `MEMORY_CONSOLIDATION_ENABLED` | Long-term memory | `true` |
+| `INTEREST_EXTRACTION_ENABLED` / `INTEREST_NOTIFICATIONS_ENABLED` | Interest learning | `true` |
+| `EVALUATOR_ENABLED` | LLM-as-judge response evaluation | `true` |
+| `DEVOPS_ENABLED` | In-container DevOps Claude CLI (read-only investigation) | `true` |
+| `COMPACTION_ENABLED` | Conversation context compaction | `true` |
+| `RATE_LIMIT_ENABLED` | Per-user API rate limiting | `true` |
+| `VOICE_STT_ENABLED` / `ELEVENLABS_STT_ENABLED` | Local Whisper STT / ElevenLabs Scribe STT | `true` |
+| `LANGFUSE_ENABLED` | Langfuse LLM tracing | **`false`** (dev-only tool) |
+| `MEMORY_HYBRID_ENABLED` | BM25+semantic hybrid for memory search | `false` |
+| `PLAN_PATTERN_TRAINING_ENABLED` | Plan pattern learning | `false` |
+| `ENABLE_FALLBACK_MIDDLEWARE` | LLM fallback model chain | `false` |
+| `BROWSER_SCREENSHOT_ENABLED` | Browser session screenshots | `false` |
 
-For a paid provider, the API key must be set via **Settings → Tarification
-LLM Texte → Provider Keys**.
+### Memory (Long-Term)
 
 ```bash
-# In .env — only the voice-comment LLM and the chat-mode TTS sentence
-# cap remain configurable here. TTS provider/model/voice are admin-driven.
-VOICE_LLM_PROVIDER=openai
-VOICE_LLM_MODEL=gpt-4.1-nano
-VOICE_CHAT_MODE_MAX_SENTENCES=3   # 1..50 hard cap on sentence streaming
+MEMORY_EXTRACTION_ENABLED=true
+MEMORY_EMBEDDING_MODEL=models/gemini-embedding-001   # requires a Gemini API key
+MEMORY_EMBEDDING_DIMENSIONS=1536
+MEMORY_MIN_SEARCH_SCORE=0.70
+MEMORY_RELEVANCE_THRESHOLD=0.76
+MEMORY_CONSOLIDATION_ENABLED=true
+MEMORY_CONSOLIDATION_HOUR=5          # daily dedup/merge pass
+MEMORY_CLEANUP_HOUR=4                # daily retention pass
+MEMORY_RECENCY_DECAY_DAYS=45
+MEMORY_RETENTION_WEIGHT_IMPORTANCE=0.7
+MEMORY_RETENTION_WEIGHT_RECENCY=0.3
 ```
 
-#### STT Configuration
+> All embeddings (memory, interests, journals, RAG spaces) use Gemini `gemini-embedding-001` in production — configure a Google Gemini API key in the Admin UI (or `GOOGLE_GEMINI_API_KEY` as fallback).
 
-Voice Mode uses Sherpa-onnx (WASM) for wake word detection and Whisper Small (OpenAI) for transcription.
+### Interest Learning
 
 ```bash
-# In .env
-
-# Enable/disable the "OK" wake word
-VOICE_WAKE_WORD_ENABLED=true
-
-# VAD sensitivity (Voice Activity Detection)
-VOICE_VAD_THRESHOLD=0.5
+INTEREST_EXTRACTION_ENABLED=true
+INTEREST_NOTIFICATIONS_ENABLED=true
+INTEREST_NOTIFY_START_HOUR=9          # notification window 9:00–22:00
+INTEREST_NOTIFY_END_HOUR=22
+INTEREST_NOTIFICATION_INTERVAL_MINUTES=5
+INTEREST_GLOBAL_COOLDOWN_HOURS=1
+INTEREST_PER_TOPIC_COOLDOWN_HOURS=12
+INTEREST_PRIOR_ALPHA=2                # Beta(2,1) confidence prior
+INTEREST_PRIOR_BETA=1
+INTEREST_DECAY_RATE_PER_DAY=0.005
+INTEREST_DORMANT_THRESHOLD_DAYS=15
+INTEREST_DELETION_THRESHOLD_DAYS=30
 ```
 
-#### Usage
+Interests are visible in **Settings > Interests**. See [INTERESTS.md](./technical/INTERESTS.md).
 
-1. Open the chat: http://localhost:3000/chat
-2. Click the microphone icon
-3. Choose the mode:
-   - **Wake Word**: Say "OK" to activate
-   - **Push-to-Talk**: Hold the button
-4. Speak naturally
-5. The transcription appears automatically
-
-### Configure Interest Learning
-
-The system automatically learns interests by analyzing conversations.
+### Heartbeat (Proactive Notifications)
 
 ```bash
-# In .env
-
-# Enable automatic extraction
-INTEREST_LEARNING_ENABLED=true
-
-# Confidence threshold for creating an interest (Beta(2,1))
-INTEREST_MIN_CONFIDENCE=0.6
-
-# Decay factor for unused interests
-INTEREST_DECAY_FACTOR=0.95
-```
-
-Interests are visible in **Settings > Interests**.
-
-### Configure OAuth Health Check
-
-Proactive monitoring of OAuth connectors.
-
-```bash
-# In .env
-
-# Enable periodic verification
-OAUTH_HEALTH_CHECK_ENABLED=true
-
-# Verification interval (minutes)
-OAUTH_HEALTH_CHECK_INTERVAL_MINUTES=5
-
-# Enable FCM notifications
-FCM_NOTIFICATIONS_ENABLED=true
-```
-
-### Configure Scheduled Actions
-
-Scheduled actions allow you to program recurring actions executed automatically (email sending, verifications, reminders).
-
-```bash
-# In .env
-
-# Global feature flag
-SCHEDULED_ACTIONS_ENABLED=true
-```
-
-> See [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) and [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) for complete documentation.
-
-### Configure MCP (Model Context Protocol)
-
-MCP allows connecting external tool servers (admin or per-user).
-
-```bash
-# In .env
-
-# Admin MCP (shared servers)
-MCP_ENABLED=true
-
-# Per-user MCP (each user connects their own servers)
-MCP_USER_ENABLED=true  # Requires MCP_ENABLED=true
-
-# Limits
-MCP_MAX_TOOLS_PER_SERVER=50
-MCP_CONNECTION_TIMEOUT=30
-
-# MCP Apps (interactive iframe widgets)
-MCP_APPS_MAX_HTML_SIZE=500000
-
-# LLM-based domain description auto-generation
-MCP_DESCRIPTION_LLM_PROVIDER=openai
-MCP_DESCRIPTION_LLM_MODEL=gpt-4.1-mini
-
-# Excalidraw Iterative Builder (diagrams)
-MCP_EXCALIDRAW_LLM_PROVIDER=anthropic
-MCP_EXCALIDRAW_LLM_MODEL=claude-opus-4-6
-```
-
-> See [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) and [GUIDE_MCP_INTEGRATION.md](./guides/GUIDE_MCP_INTEGRATION.md) for complete documentation.
-
-### Configure Telegram (Multi-Channel Messaging)
-
-The Telegram channel allows chatting with LIA directly from Telegram (text, voice, HITL).
-
-```bash
-# In .env
-
-# Global channels feature flag
-CHANNELS_ENABLED=true
-
-# Telegram bot (obtain via @BotFather on Telegram)
-TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
-
-# Secret for webhook validation (generate with openssl rand -hex 32)
-TELEGRAM_WEBHOOK_SECRET=your-secret-here
-```
-
-**Webhook configuration**:
-1. Create a bot via [@BotFather](https://t.me/BotFather) on Telegram
-2. Configure the webhook: `https://api.your-domain.com/api/v1/channels/telegram/webhook`
-3. Users link their account via an OTP code in Settings > Telegram
-
-> See [CHANNELS_INTEGRATION.md](./technical/CHANNELS_INTEGRATION.md) and [GUIDE_TELEGRAM_INTEGRATION.md](./guides/GUIDE_TELEGRAM_INTEGRATION.md) for complete documentation.
-
-### Configure Heartbeat Autonome (Proactive Notifications)
-
-LIA takes the initiative to inform you when relevant (upcoming events, weather changes, interests).
-
-```bash
-# In .env
-
-# Global feature flag (must be true to enable)
 HEARTBEAT_ENABLED=true
-
-# Scheduler interval (minutes, 10-120)
-HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES=30
-
-# Default maximum notifications per day (1-8)
-# Users can adjust this from Settings
-HEARTBEAT_MAX_PER_DAY_DEFAULT=3
-
-# Global cooldown between notifications (hours)
-HEARTBEAT_GLOBAL_COOLDOWN_HOURS=2
-
-# LLM models (decision = budget-friendly, message = personality-aware)
-HEARTBEAT_DECISION_LLM_MODEL=gpt-4.1-mini
-HEARTBEAT_MESSAGE_LLM_MODEL=gpt-4.1-mini
-
-# Weather change detection thresholds
+HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES=30   # scheduler tick
+HEARTBEAT_GLOBAL_COOLDOWN_HOURS=1
+HEARTBEAT_ACTIVITY_COOLDOWN_MINUTES=15
+HEARTBEAT_CONTEXT_CALENDAR_HOURS=4
 HEARTBEAT_WEATHER_RAIN_THRESHOLD_HIGH=0.6
 HEARTBEAT_WEATHER_TEMP_CHANGE_THRESHOLD=5.0
 HEARTBEAT_WEATHER_WIND_THRESHOLD=14.0
+HEARTBEAT_INACTIVE_SKIP_DAYS=7
 ```
 
-**User side**: Settings > Proactive Notifications > Enable, choose max/day, enable/disable push, configure time windows (independent from interests).
+The per-user daily cap (1-8/day) is a **user setting** (Settings > Proactive Notifications), not an env var. See [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md).
 
-> See [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) for complete technical documentation.
+### Journals & Psyche
 
-### Feature Flags Reference
+```bash
+JOURNALS_ENABLED=true
+JOURNAL_EXTRACTION_ENABLED=true
+JOURNAL_CONSOLIDATION_INTERVAL_HOURS=5
+JOURNAL_CONSOLIDATION_COOLDOWN_HOURS=6
+JOURNAL_MAX_ENTRY_CHARS=300
 
-All optional features are disabled by default. Enable them in `.env`:
+PSYCHE_ENABLED=true
+PSYCHE_EMBODIED_INJECTION=true
+PSYCHE_MOOD_DECAY_RATE=0.1
+PSYCHE_EMOTION_DECAY_RATE=0.4
+PSYCHE_EMOTION_MAX_ACTIVE=4
+PSYCHE_HISTORY_RETENTION_DAYS=90
+```
 
-| Flag | Feature | Dependencies |
-|------|---------|-------------|
-| `HEARTBEAT_ENABLED` | Autonomous proactive notifications | — |
-| `CHANNELS_ENABLED` | Multi-channel messaging (Telegram) | `TELEGRAM_BOT_TOKEN` |
-| `MCP_ENABLED` | Admin MCP servers | — |
-| `MCP_USER_ENABLED` | Per-user MCP connections | `MCP_ENABLED=true` |
-| `FCM_NOTIFICATIONS_ENABLED` | Firebase push notifications | FCM credentials |
-| `SCHEDULED_ACTIONS_ENABLED` | User-scheduled deferred actions | — |
-| `SUB_AGENTS_ENABLED` | Persistent specialized sub-agents (F6) | — |
-| `SKILLS_ENABLED` | Skills system (SKILL.md) | — |
-| `GEOIP_ENABLED` | IP geolocation in logs | DB-IP Lite MMDB file |
-| `INTEREST_LEARNING_ENABLED` | Automatic interest extraction | — |
-| `OAUTH_HEALTH_CHECK_ENABLED` | Proactive connector monitoring | — |
-| `USAGE_LIMITS_ENABLED` | Per-user usage quotas (tokens, messages, cost) | — |
+See [JOURNALS.md](./technical/JOURNALS.md) and [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md).
 
-### Recommended LLM Configuration (Optimal Quality / Cost)
+### Today Briefing
 
-LIA uses **44 specialized LLM slots**, each independently configurable per provider, model, and parameters. The configuration below represents the **optimal balance between response quality and LLM costs**, tested in production. It is the default shipped with LIA.
+```bash
+BRIEFING_MAX_AGENDA_ITEMS=10
+BRIEFING_AGENDA_LOOKAHEAD_HOURS=24
+BRIEFING_MAX_MAILS_ITEMS=10
+BRIEFING_MAX_BIRTHDAYS_ITEMS=5
+BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS=14
+BRIEFING_HEALTH_WINDOW_DAYS=14
+BRIEFING_WEATHER_DAILY_FORECAST_DAYS=5
+```
 
-> **Fully customizable**: Every slot can be changed at runtime via the **Admin UI** (Settings > Administration > LLM Configuration). You can use any supported provider (OpenAI, Anthropic, DeepSeek, Google Gemini, Ollama, Perplexity, Qwen) and mix them freely. Changes are hot-reloaded (no restart needed).
+See [BRIEFING_DOMAIN.md](./technical/BRIEFING_DOMAIN.md).
+
+### RAG Knowledge Spaces
+
+```bash
+RAG_SPACES_ENABLED=true
+RAG_SPACES_MAX_SPACES_PER_USER=10
+RAG_SPACES_MAX_DOCS_PER_SPACE=100
+RAG_SPACES_MAX_FILE_SIZE_MB=20
+RAG_SPACES_CHUNK_SIZE=1000
+RAG_SPACES_CHUNK_OVERLAP=200
+RAG_SPACES_RETRIEVAL_LIMIT=5
+RAG_SPACES_RETRIEVAL_MIN_SCORE=0.55
+RAG_SPACES_HYBRID_ALPHA=0.7           # BM25 + semantic hybrid weighting
+RAG_SPACES_DRIVE_SYNC_ENABLED=true
+RAG_DRIVE_MAX_SOURCES_PER_SPACE=5
+```
+
+15+ document formats supported (PDF, DOCX, PPTX, XLSX, ODT, EPUB, HTML, Markdown…). See [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md).
+
+### Sub-Agents & Skills
+
+```bash
+SUB_AGENTS_ENABLED=true
+SUBAGENT_DEFAULT_MAX_ITERATIONS=20
+SUBAGENT_TOOL_TIMEOUT_SECONDS=300.0
+SUBAGENT_RESEARCH_TOOLS_WHITELIST=perplexity_search_tool,brave_search_tool,fetch_web_page_tool
+
+SKILLS_ENABLED=true
+SKILLS_MAX_PER_USER=20
+SKILLS_SCRIPTS_ENABLED=true
+SKILLS_SCRIPT_TIMEOUT_SECONDS=30
+```
+
+See [SUB_AGENTS.md](./technical/SUB_AGENTS.md).
+
+### ReAct Mode & Browser Control
+
+```bash
+REACT_AGENT_ENABLED=true
+REACT_AGENT_MAX_ITERATIONS=90
+REACT_AGENT_TIMEOUT_SECONDS=300
+REACT_AGENT_HISTORY_WINDOW_TURNS=5
+
+BROWSER_REACT_MAX_ITERATIONS=50
+BROWSER_MAX_CONCURRENT_SESSIONS=1
+BROWSER_SESSION_TIMEOUT_SECONDS=300
+BROWSER_MAX_NAVIGATIONS_PER_SESSION=30
+BROWSER_AX_TREE_MAX_TOKENS=30000
+BROWSER_MEMORY_LIMIT_MB=1024
+```
+
+See [BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md).
+
+### MCP (Model Context Protocol)
+
+```bash
+MCP_ENABLED=true                       # admin (shared) MCP servers
+MCP_USER_ENABLED=true                  # per-user servers (OAuth 2.1)
+MCP_REACT_ENABLED=true
+MCP_MAX_SERVERS=20
+MCP_MAX_TOOLS_PER_SERVER=40
+MCP_TOOL_TIMEOUT_SECONDS=120
+MCP_REACT_MAX_ITERATIONS=50
+MCP_RATE_LIMIT_CALLS=60                # per 60s window
+MCP_USER_MAX_SERVERS_PER_USER=20
+MCP_USER_POOL_MAX_TOTAL=50
+MCP_USER_POOL_TTL_SECONDS=900
+MCP_USER_OAUTH_CALLBACK_BASE_URL=https://your-api-domain   # public API URL
+
+# Admin servers are declared as JSON (production example: Excalidraw diagrams)
+MCP_SERVERS_CONFIG={"excalidraw":{"transport":"streamable_http","url":"https://mcp.excalidraw.com","timeout_seconds":60,"enabled":true,"hitl_required":false,"iterative_mode":true,"description":"..."}}
+```
+
+See [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) and [GUIDE_MCP_INTEGRATION.md](./guides/GUIDE_MCP_INTEGRATION.md).
+
+### Telegram Channel
+
+```bash
+CHANNELS_ENABLED=true
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF...              # via @BotFather
+TELEGRAM_WEBHOOK_SECRET=...                        # openssl rand -hex 32
+TELEGRAM_WEBHOOK_URL=https://your-api-domain/api/v1/channels/telegram/webhook
+TELEGRAM_BOT_USERNAME=@your_bot
+CHANNEL_OTP_TTL_SECONDS=300                        # account linking OTP
+CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE=10
+```
+
+Users link their account with an OTP code in Settings > Telegram. Requires a publicly reachable API URL for the webhook. See [GUIDE_TELEGRAM_INTEGRATION.md](./guides/GUIDE_TELEGRAM_INTEGRATION.md).
+
+### Voice Mode
+
+**Input (STT)** — two engines, both enabled in production:
+
+```bash
+VOICE_STT_ENABLED=true                 # local Sherpa-onnx Whisper Small (free)
+VOICE_STT_MODEL_PATH=/models/whisper-small
+VOICE_STT_NUM_THREADS=4
+VOICE_STT_MAX_DURATION_SECONDS=60
+ELEVENLABS_STT_ENABLED=true            # ElevenLabs Scribe (premium, ~$0.22/h)
+ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS=300
+```
+
+Wake word ("OK") and VAD run **in the browser** (Sherpa-onnx / Silero WASM) — no server configuration.
+
+**Output (TTS) and the voice-comment LLM are configured in the Admin UI** (LLM slots `voice_tts`, `voice_transcription`, `voice_comment`), not in `.env`. Production uses ElevenLabs `eleven_flash_v2_5` (TTS) and `scribe_v2` (STT); Edge TTS is the free default and always available. For a paid provider, set its API key in the Provider Keys admin section (ElevenLabs keys need the `voices_read` scope for the live voice catalogue).
+
+```bash
+# Remaining .env knobs
+VOICE_MAX_SENTENCES=3                  # sentences per TTS chunk in voice mode
+VOICE_CHAT_MODE_MAX_SENTENCES=15      # sentence cap for chat-mode read-aloud
+```
+
+See [VOICE_MODE.md](./technical/VOICE_MODE.md).
+
+### Image Generation & Attachments
+
+```bash
+IMAGE_GENERATION_ENABLED=true
+IMAGE_GENERATION_MAX_IMAGES_PER_REQUEST=1
+IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS=90.0
+
+ATTACHMENTS_ENABLED=true
+ATTACHMENTS_MAX_IMAGE_SIZE_MB=10
+ATTACHMENTS_MAX_DOC_SIZE_MB=20
+ATTACHMENTS_MAX_PER_MESSAGE=5
+ATTACHMENTS_TTL_HOURS=24
+```
+
+The image model (production: `gpt-image-2`) and its pricing matrix are managed in the Admin UI. See [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) and [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md).
+
+### Health Metrics (iPhone Shortcuts)
+
+```bash
+HEALTH_METRICS_ENABLED=true
+HEALTH_METRICS_RATE_LIMIT_PER_HOUR=60
+HEALTH_METRICS_MAX_SAMPLES_PER_REQUEST=1000
+HEALTH_METRICS_BASELINE_MIN_DAYS=7
+```
+
+Per-user opt-in toggle + ingestion token in Settings. Setup guide: [GUIDE_IPHONE_SHORTCUTS_HEALTH.md](./guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md).
+
+### Usage Limits & Rate Limiting
+
+```bash
+USAGE_LIMITS_ENABLED=true              # per-user quotas (tokens, messages, cost) — set per user in the Admin UI
+USAGE_LIMIT_CACHE_TTL_SECONDS=60
+
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_PER_MINUTE=60
+RATE_LIMIT_BURST=10
+RATE_LIMIT_SCOPE=user
+```
+
+See [USAGE_LIMITS.md](./technical/USAGE_LIMITS.md) and [RATE_LIMITING.md](./technical/RATE_LIMITING.md).
+
+### Scheduled Actions & Reminders
+
+Scheduled actions (deferred/recurring actions created conversationally) and one-shot reminders are always available — no feature flag.
+
+```bash
+SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS=300
+SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES=10
+```
+
+See [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) and [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md).
+
+### OAuth Health Check
+
+```bash
+OAUTH_HEALTH_CHECK_ENABLED=true
+OAUTH_HEALTH_CHECK_INTERVAL_MINUTES=5
+OAUTH_PROACTIVE_REFRESH_INTERVAL_MINUTES=15
+OAUTH_PROACTIVE_REFRESH_MARGIN_SECONDS=1800
+OAUTH_HEALTH_CRITICAL_COOLDOWN_HOURS=12
+```
+
+Failing connectors trigger an FCM notification and a reconnection modal. See [OAUTH_HEALTH_CHECK.md](./technical/OAUTH_HEALTH_CHECK.md).
+
+### Context Management
+
+```bash
+COMPACTION_ENABLED=true
+COMPACTION_THRESHOLD_RATIO=0.4
+COMPACTION_PRESERVE_RECENT_MESSAGES=10
+TOKEN_THRESHOLD_SAFE=50000
+TOKEN_THRESHOLD_WARNING=65000
+TOKEN_THRESHOLD_CRITICAL=85000
+TOKEN_THRESHOLD_MAX=100000
+MAX_MESSAGES_HISTORY=150
+TOKEN_ENCODING_NAME=o200k_base
+```
+
+### Database Backups (ADR-109)
+
+The `postgres-backup` sidecar runs scheduled `pg_dump` with three-tier rotation in **both** dev and prod:
+
+```bash
+POSTGRES_BACKUP_SCHEDULE=@daily
+POSTGRES_BACKUP_KEEP_DAYS=7
+POSTGRES_BACKUP_KEEP_WEEKS=4
+POSTGRES_BACKUP_KEEP_MONTHS=6
+POSTGRES_BACKUP_EXTRA_OPTS=-Z6 --clean --if-exists
+POSTGRES_BACKUP_HOST_DIR=./backups/postgres    # prod only (dev uses a named volume)
+```
+
+```bash
+task backup:now      # trigger an immediate backup
+task backup:verify   # restore the latest dump into a throwaway container and compare schema/row counts
+```
+
+Restore procedure: [runbooks/DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BACKUP_RESTORE.md).
+
+---
+
+## LLM Configuration
+
+LIA drives **54 independently configurable LLM slots** — every pipeline node, domain agent and background task has its own provider/model/parameters. Configuration is resolved as: **code defaults (`LLM_DEFAULTS`) → database overrides** (admin UI), hot-reloaded across workers.
+
+- **Admin UI**: Settings > Administration > LLM Configuration (per-slot provider, model, temperature, max tokens, reasoning effort; provider API keys encrypted at rest).
+- **Providers**: OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama (text) + ElevenLabs and Edge (voice). Ollama needs only `OLLAMA_BASE_URL`; Perplexity/Qwen base URLs are parameterizable.
+- Model catalogue and pricing are database-driven: adding a model is an admin operation, no deploy needed.
+
+The tables below show the **effective production configuration** (code defaults merged with the production database overrides) — a battle-tested quality/cost balance you can reproduce as-is. *Reasoning* is the per-slot reasoning-effort setting (`off` = thinking disabled, `—` = non-reasoning model).
 
 #### Pipeline (Orchestration & Routing)
 
-| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
-|------|----------|-------|------|-----------|------------|-----------|
-| **Semantic Pivot** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 5 000 | Fast deterministic classification |
-| **Query Analyzer** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 5 000 | Balanced intent analysis |
-| **Router** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 1 000 | Cheap, structured routing decision |
-| **Planner** | Qwen | `qwen3.5-plus` | 0.2 | low | 10 000 | Cost-effective complex plan generation |
-| **Semantic Validator** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 1 000 | Strict plan validation |
-| **Context Resolver** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 1 000 | Fast context disambiguation |
-| **Compaction** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 4 000 | Context window compression |
-| **Initiative** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 5 000 | Proactive initiative detection |
+| Slot | Provider | Model | Temp | Max Tokens | Reasoning |
+|------|----------|-------|------|------------|-----------|
+| `semantic_pivot` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
+| `query_analyzer` | DeepSeek | `deepseek-v4-flash` | 0.2 | 10 000 | off |
+| `router` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
+| `planner` | DeepSeek | `deepseek-v4-flash` | 0.2 | 10 000 | off |
+| `semantic_validator` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
+| `context_resolver` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
+| `compaction` | DeepSeek | `deepseek-v4-flash` | 0.5 | 50 000 | high |
+| `initiative` | DeepSeek | `deepseek-v4-flash` | 0.2 | 10 000 | off |
 
 #### Domain Agents (Tool-Calling)
 
-| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
-|------|----------|-------|------|-----------|------------|-----------|
-| **Contacts** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Cheapest, tool calls are structured |
-| **Emails** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same — deterministic API calls |
-| **Calendar** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
-| **Drive** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
-| **Tasks** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
-| **Weather** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 1 000 | Same, shorter output |
-| **Wikipedia** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
-| **Perplexity** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 3 000 | Same |
-| **Brave** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
-| **Web Search** | OpenAI | `gpt-4.1-nano` | 0.3 | — | 4 000 | Slight creativity for search synthesis |
-| **Web Fetch** | OpenAI | `gpt-4.1-nano` | 0.3 | — | 3 000 | Same |
-| **Browser** | OpenAI | `gpt-5.4` | 0.2 | low | 8 000 | Needs strong reasoning for navigation |
-| **Places** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Structured API calls |
-| **Routes** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
-| **Hue** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 1 000 | Smart home commands are structured |
-| **Sub-Agent** | OpenAI | `gpt-5.4` | 0.5 | low | 8 000 | Delegation tasks need strong reasoning |
-| **MCP React Agent** | OpenAI | `gpt-5.4` | 0.2 | low | 16 000 | External tool orchestration needs quality |
+| Slot | Provider | Model | Temp | Max Tokens | Reasoning |
+|------|----------|-------|------|------------|-----------|
+| `contacts_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
+| `emails_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
+| `calendar_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
+| `drive_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
+| `tasks_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
+| `weather_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 1 000 | — |
+| `wikipedia_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
+| `perplexity_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 3 000 | — |
+| `brave_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
+| `web_search_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 4 000 | — |
+| `web_fetch_agent` | OpenAI | `gpt-4.1-nano` | 0.3 | 3 000 | — |
+| `places_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
+| `routes_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 2 000 | — |
+| `hue_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 1 000 | — |
+| `health_agent` | OpenAI | `gpt-4.1-nano` | 0.0 | 1 500 | — |
+| `browser_agent` | DeepSeek | `deepseek-v4-flash` | 0.5 | 20 000 | off |
+| `react_agent` | DeepSeek | `deepseek-v4-flash` | 0.2 | 20 000 | off |
+| `mcp_react_agent` | DeepSeek | `deepseek-v4-flash` | 0.5 | 30 000 | off |
+| `subagent` | DeepSeek | `deepseek-v4-flash` | 1.0 | 10 000 | off |
 
 #### Query & Response
 
-| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
-|------|----------|-------|------|-----------|------------|-----------|
-| **Query Agent** | OpenAI | `gpt-4.1-mini` | 0.0 | — | 5 000 | Balanced conversational answers |
-| **Response** | Anthropic | `claude-sonnet-4-6` | 0.7 | low | 5 000 | Natural, personality-aware final output |
+| Slot | Provider | Model | Temp | Max Tokens | Reasoning |
+|------|----------|-------|------|------------|-----------|
+| `query_agent` | DeepSeek | `deepseek-v4-flash` | 0.2 | 10 000 | off |
+| `response` | DeepSeek | `deepseek-v4-flash` | 1.0 | 10 000 | off |
 
 #### HITL (Human-in-the-Loop)
 
-| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
-|------|----------|-------|------|-----------|------------|-----------|
-| **HITL Classifier** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 300 | Fast binary classification |
-| **HITL Question Gen** | Anthropic | `claude-sonnet-4-6` | 0.5 | low | 500 | Conversational question phrasing |
-| **HITL Plan Approval** | Anthropic | `claude-sonnet-4-6` | 0.5 | low | 500 | Natural approval prompts |
+| Slot | Provider | Model | Temp | Max Tokens | Reasoning |
+|------|----------|-------|------|------------|-----------|
+| `hitl_classifier` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
+| `hitl_question_generator` | DeepSeek | `deepseek-v4-flash` | 1.0 | 5 000 | off |
+| `hitl_plan_approval_question_generator` | DeepSeek | `deepseek-v4-flash` | 1.0 | 5 000 | off |
 
 #### Memory & Background
 
-| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
-|------|----------|-------|------|-----------|------------|-----------|
-| **Memory Extraction** | Anthropic | `claude-sonnet-4-6` | 0.3 | low | 1 000 | Precise fact extraction |
-| **Memory Reference** | OpenAI | `gpt-4.1-mini` | 0.0 | — | 500 | Coreference resolution |
-| **Interest Extraction** | Anthropic | `claude-sonnet-4-6` | 0.3 | low | 500 | Background interest detection |
-| **Interest Content** | Anthropic | `claude-sonnet-4-6` | 0.7 | low | 1 000 | Creative interest-related content |
-| **Heartbeat Decision** | Qwen | `qwen3.5-plus` | 0.3 | none | 2 000 | Cost-effective send/skip decision |
-| **Heartbeat Message** | Anthropic | `claude-sonnet-4-6` | 0.7 | low | 500 | Personality-aware proactive messages |
-| **Broadcast Translator** | OpenAI | `gpt-4.1-mini` | 0.3 | — | 500 | Fast multilingual translation |
-| **Journal Extraction** | Anthropic | `claude-sonnet-4-6` | 0.3 | low | 5 000 | Introspective journal entry creation |
-| **Journal Consolidation** | Qwen | `qwen3.5-plus` | 0.5 | none | 10 000 | Daily journal synthesis |
+| Slot | Provider | Model | Temp | Max Tokens | Reasoning |
+|------|----------|-------|------|------------|-----------|
+| `memory_extraction` | OpenAI | `gpt-5.2` | 0.2 | 10 000 | none |
+| `memory_reference_extraction` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
+| `memory_reference_resolution` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
+| `interest_extraction` | OpenAI | `gpt-5.2` | 0.2 | 10 000 | none |
+| `interest_content` | DeepSeek | `deepseek-v4-flash` | 1.0 | 10 000 | high |
+| `journal_extraction` | OpenAI | `gpt-5.2` | 0.2 | 10 000 | none |
+| `journal_consolidation` | DeepSeek | `deepseek-v4-flash` | 0.5 | 50 000 | high |
+| `heartbeat_decision` | DeepSeek | `deepseek-v4-flash` | 0.5 | 10 000 | high |
+| `heartbeat_message` | DeepSeek | `deepseek-v4-flash` | 1.0 | 10 000 | high |
+| `psyche_summary` | DeepSeek | `deepseek-v4-flash` | 1.0 | 5 000 | off |
+| `briefing` | OpenAI | `gpt-5.4-mini` | 1.0 | 5 000 | none |
+| `broadcast_translator` | DeepSeek | `deepseek-v4-flash` | 0.5 | 5 000 | off |
+| `personality_translation` | OpenAI | `gpt-4.1-nano` | 0.3 | 500 | — |
 
 #### Specialized
 
-| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
-|------|----------|-------|------|-----------|------------|-----------|
-| **Voice Comment** | OpenAI | `gpt-4.1-mini` | 0.7 | — | 500 | Natural voice commentary |
-| **MCP Description** | OpenAI | `gpt-4.1-mini` | 0.3 | — | 300 | Auto-describe MCP server tools |
-| **MCP Excalidraw** | Anthropic | `claude-opus-4-6` | 0.2 | medium | 20 000 | Complex diagram generation |
-| **Vision Analysis** | OpenAI | `gpt-4.1-mini` | 0.5 | — | 4 096 | Image understanding |
-| **Skill Translator** | OpenAI | `gpt-4.1-mini` | 0.3 | — | 1 000 | Skill description i18n |
-| **Evaluator** | OpenAI | `gpt-4.1-mini` | 0.0 | — | 1 000 | LLM-as-Judge scoring |
-| **Image Generation** | OpenAI | `gpt-image-1` | 0.0 | — | 1 | AI image generation |
+| Slot | Provider | Model | Temp | Max Tokens | Reasoning |
+|------|----------|-------|------|------------|-----------|
+| `vision_analysis` | Gemini | `gemini-3.5-flash` | 1.0 | 5 000 | — |
+| `image_generation` | OpenAI | `gpt-image-2` | — | — | — |
+| `voice_comment` | OpenAI | `gpt-5.4-mini` | 1.0 | 5 000 | none |
+| `voice_transcription` | ElevenLabs | `scribe_v2` | — | — | — |
+| `voice_tts` | ElevenLabs | `eleven_flash_v2_5` | — | — | — |
+| `mcp_description` | DeepSeek | `deepseek-v4-flash` | 0.5 | 5 000 | off |
+| `mcp_app_react_agent` | Anthropic | `claude-opus-4-6` | 1.0 | 30 000 | medium |
+| `skill_description_translator` | DeepSeek | `deepseek-v4-flash` | 0.5 | 5 000 | off |
+| `evaluator` | OpenAI | `gpt-4.1-mini` | 0.0 | 500 | — |
 
-#### Design Principles
+#### Design Principles of the Production Configuration
 
-The configuration follows a **tiered strategy**:
+1. **DeepSeek V4 Flash** carries the bulk of the pipeline (routing, planning, response, ReAct, HITL, heartbeat): near-frontier quality at a fraction of the cost, with thinking (`high`) enabled only where depth pays (compaction, journal consolidation, heartbeat) and disabled (`off`) on latency-sensitive nodes.
+2. **`gpt-4.1-nano`** powers the structured tool-calling domain agents — they need reliable function calling, not reasoning, and they represent the majority of calls for a tiny fraction of cost.
+3. **`gpt-5.2`** handles precision extraction (memory, journals, interests) where structured-output quality matters most.
+4. **`gemini-3.5-flash`** (vision), **`claude-opus-4-6`** (interactive MCP apps / diagram generation), **`gpt-image-2`** (images) and **ElevenLabs** (voice) cover the specialized slots.
 
-1. **`gpt-4.1-nano`** (cheapest) — Domain agents doing structured tool calls. These don't need strong reasoning, just reliable function calling.
-2. **`gpt-4.1-mini`** — Pipeline nodes, memory, background tasks. Good balanced reasoning at low cost.
-3. **`qwen3.5-plus`** — Cost-effective reasoning for planning and background tasks (planner, heartbeat decision, journal consolidation).
-4. **`gpt-5.4`** — Advanced agents needing strong autonomous reasoning (browser, sub-agent, MCP react).
-5. **`claude-sonnet-4-6`** — Core intelligence: response, HITL, memory extraction. Best quality/cost ratio for personality-aware and nuanced output.
-6. **`claude-opus-4-6`** — Reserved for demanding creative tasks (Excalidraw diagram generation).
+> **Cost tip**: the dominant cost drivers are `response`, `planner` and the ReAct/browser loops. The domain agents are almost free. Any slot can be repointed at runtime from the Admin UI — including to a local Ollama model — without restart.
 
-> **Cost optimization tip**: Domain agents (`gpt-4.1-nano`) represent 50%+ of all LLM calls but a tiny fraction of cost. The real cost drivers are **Response** and **Planner** — switching these to cheaper models has the biggest cost impact (but also the biggest quality impact).
+---
 
-### Running Tests
+## Python Dependency Management
 
-#### Backend Tests
+Since ADR-112, Python dependencies are **locked and reproducible**:
 
-```bash
-# Fast unit tests (no database required, used by pre-commit)
-task test:backend:unit:fast
+| File | Role |
+|------|------|
+| `apps/api/requirements.txt` / `requirements-dev.txt` | **Intent manifests** — direct dependencies, loose pins allowed |
+| `apps/api/requirements.lock.txt` | **Universal runtime lockfile** — 195 exact pins + SHA256 hashes, one file for linux/amd64, linux/arm64 and Windows; installed by `Dockerfile.prod` |
+| `apps/api/requirements-dev.lock.txt` | **Dev lockfile** — layered on the runtime lock (identical runtime versions); installed by `Dockerfile.dev`, CI and the local venv |
 
-# All unit tests (including slow)
-task test:backend:unit
-
-# Integration tests (requires running infrastructure)
-task test:backend:integration
-
-# Full exhaustive suite
-task test:backend:exhaustive
-
-# Single test file
-cd apps/api && .venv/Scripts/pytest tests/unit/test_specific.py -v
-```
-
-#### Frontend Tests
+Workflow when changing a dependency:
 
 ```bash
-# Single run
-task test:frontend
+# 1. Edit the manifest (requirements.txt or requirements-dev.txt)
+# 2. Regenerate the lockfiles (requires uv; stable — only manifest changes move versions)
+task deps:lock
 
-# Watch mode
-cd apps/web && pnpm test:watch
+# Targeted upgrade of one package, or everything:
+task deps:upgrade -- <package>
+task deps:upgrade:all
 
-# With coverage
-cd apps/web && pnpm test:coverage
+# 3. Reinstall locally
+pip install --require-hashes -r apps/api/requirements-dev.lock.txt
+
+# 4. Commit manifest AND lockfiles together
 ```
 
-#### Pre-commit Hooks
+The CI `code-hygiene` job runs `scripts/check_requirements_lock.py` and **fails any manifest change that skips lockfile regeneration**. `uv` is a compile-time tool only — installs use vanilla pip with hash verification, and uv is absent from the final images. `pyproject.toml` declares no dependencies; it only configures tools (black, ruff, mypy, pytest).
 
-Pre-commit hooks run automatically on `git commit` and check:
-- **Security**: detects `.bak` files, hardcoded secrets
-- **Backend**: Ruff + Black + MyPy + fast unit tests
-- **Frontend**: ESLint + TypeScript type-check
-- **LangGraph safety**: blocks synchronous Store calls (must use async variants)
+Security: `pip-audit` and the SBOM (CI + release) audit the **full transitive tree** from the lockfile.
+
+---
+
+## Running Tests
+
+### Backend Tests
 
 ```bash
-# Run manually
-task pre-commit
+task test:backend:unit:fast        # fast unit tests (pre-commit scope)
+task test:backend:unit             # all unit tests
+task test:backend:integration      # integration tests (requires PostgreSQL + Redis)
+task test:backend:agents           # agent-specific tests
+task test:backend:exhaustive       # full suite with coverage (long)
 
-# Full CI locally
-task ci
+# Single test file / test name
+cd apps/api && .venv/Scripts/pytest tests/unit/path/to/test_file.py -v
+cd apps/api && .venv/Scripts/pytest tests/ -k "test_name" -v
 ```
 
-### Using Claude Skills
+### Frontend Tests
 
-The 10 skills are auto-discovered via `.claude/skills/`. To use them:
+```bash
+task test:frontend                 # vitest run
+cd apps/web && pnpm test:watch     # watch mode
+cd apps/web && pnpm test:coverage  # with coverage
+```
 
-1. Open Claude Code in the project
-2. Formulate a request matching the skill:
-   - "I have a bug in the router" -> `analyzing-bugs`
-   - "Review this code" -> `reviewing-code`
-   - "How to structure this feature" -> `designing-architecture`
+### Pre-commit & CI
 
-See [CLAUDE.md](../CLAUDE.md) for the complete list.
+Git hooks (installed by `task setup:hooks`) run on every commit: secrets/`.bak` detection, Ruff + Black + MyPy + fast unit tests (backend), ESLint + TypeScript check (frontend), i18n key parity across the 6 locales, LangGraph safety checks.
+
+```bash
+task pre-commit    # format + lint + fast tests (run before committing)
+task ci            # full CI pipeline: lint + test + security scan
+```
 
 ---
 
 ## Troubleshooting
 
-### Problem: Backend Won't Start
+### Backend Won't Start
 
-#### Error: `ModuleNotFoundError`
+#### `ModuleNotFoundError`
 
 ```bash
 cd apps/api
-source venv/bin/activate
-pip install -e ".[dev]"
+source .venv/bin/activate    # Windows: .venv\Scripts\Activate.ps1
+pip install --require-hashes -r requirements-dev.lock.txt
 ```
 
-#### Error: `Connection refused` PostgreSQL
+#### `pip` fails with a hash mismatch
+
+The lockfile and manifest are out of sync — never hand-edit a `.lock.txt` file:
 
 ```bash
-# Check that PostgreSQL is running
-docker compose -f docker-compose.dev.yml ps postgres
+task deps:lock    # regenerate from the manifests, then reinstall
+```
 
-# If not running
-docker compose -f docker-compose.dev.yml up -d postgres
+#### `Connection refused` — PostgreSQL / Redis
 
-# Check the logs
+```bash
+docker compose -f docker-compose.dev.yml ps postgres redis
+docker compose -f docker-compose.dev.yml up -d postgres redis
 docker compose -f docker-compose.dev.yml logs postgres
+
+# Redis connectivity test
+docker compose -f docker-compose.dev.yml exec redis redis-cli -a "$REDIS_PASSWORD" ping   # PONG
 ```
 
-#### Error: `Connection refused` Redis
+### Browser Can't Reach the App / API Calls Fail
+
+Dev serves **HTTPS with self-signed certificates**. Visit https://localhost:8000 **and** https://localhost:3000 once each and accept both certificates — until then, frontend API calls fail silently. With `curl`, use `-k`.
+
+### Frontend Won't Start
 
 ```bash
-# Check Redis
-docker compose -f docker-compose.dev.yml ps redis
+# Cannot find module 'next'
+cd apps/web && rm -rf node_modules && pnpm install
 
-# Test connectivity
-docker compose -f docker-compose.dev.yml exec redis redis-cli -a "$REDIS_PASSWORD" ping
-# Expected response: PONG
+# EADDRINUSE: port 3000
+# Linux/macOS: lsof -i :3000 && kill -9 <PID>
+# Windows: netstat -ano | findstr :3000 && taskkill /PID <PID> /F
 ```
 
-### Problem: Frontend Won't Start
-
-#### Error: `Cannot find module 'next'`
+### Alembic Migrations
 
 ```bash
-cd apps/web
-rm -rf node_modules
-pnpm install
-```
-
-#### Error: `EADDRINUSE: port 3000 already in use`
-
-```bash
-# Linux/macOS
-lsof -i :3000
-kill -9 <PID>
-
-# Windows
-netstat -ano | findstr :3000
-taskkill /PID <PID> /F
-
-# Or start on a different port
-pnpm dev -- -p 3001
-```
-
-### Problem: Alembic Migrations
-
-#### Error: `Target database is not up to date`
-
-```bash
-cd apps/api
-source venv/bin/activate
-
-# Check the current state
+cd apps/api && source .venv/bin/activate
 alembic current
-
-# Apply all migrations
 alembic upgrade head
 
-# If the error persists, reset (WARNING: data loss!)
-alembic downgrade base
-alembic upgrade head
+# Last resort (WARNING: data loss!)
+alembic downgrade base && alembic upgrade head
 ```
 
-### Problem: LLM API Keys
+### LLM Errors (`AuthenticationError`, empty responses)
 
-#### Error: `AuthenticationError: Incorrect API key`
+LLM keys live in the database, not `.env`:
 
-LLM API keys are managed via the **Admin UI** (Settings > Administration > LLM Configuration), not in `.env`.
+1. Log in as admin > **Settings > Administration > LLM Configuration**
+2. Check the **Provider Keys** status for the failing provider and re-enter the key
+3. Changes apply immediately (no restart)
 
-1. Log in as admin
-2. Go to **Settings** > **Administration** > **LLM Configuration**
-3. In the **Provider Keys** section, verify the key status for the failing provider
-4. Update or re-enter the API key (keys are encrypted at rest)
-5. Changes take effect immediately (no restart needed)
+If the Admin UI is unreachable (e.g. first boot), a temporary `.env` fallback works: `OPENAI_API_KEY=sk-...`
 
-If the Admin UI is not accessible (e.g., first startup), you can temporarily set the key in `.env` as fallback:
+### Docker Desktop Network Access on Windows
 
-```bash
-# Temporary fallback only — prefer Admin UI
-OPENAI_API_KEY=sk-proj-...
-```
-
-### Problem: Docker Desktop Network Access on Windows
-
-#### Symptom: API inaccessible from the local network
-
-On **Windows with Docker Desktop**, exposed ports are only accessible on `localhost` by default, not on the local network IP (e.g., `192.168.0.x`).
-
-**Diagnosis**:
-```bash
-# From the Windows machine
-curl -k https://localhost:8000/docs     # Works
-curl -k https://YOUR_LOCAL_IP:8000/docs  # Timeout
-
-# Inside the container, the API responds correctly
-docker exec lia-api-dev python -c "import httpx; print(httpx.get('https://127.0.0.1:8000/docs', verify=False).status_code)"
-# Output: 200
-```
-
-**Cause**: Docker Desktop on Windows uses WSL2 with a NAT that does not automatically expose ports on all network interfaces.
-
-**Solution 1: Windows Port Forwarding (netsh)**
+On Windows, exposed ports are only reachable on `localhost` by default, not on the LAN IP.
 
 ```powershell
-# In Administrator PowerShell
-# Replace YOUR_LOCAL_IP with your local IP (ipconfig)
-
-# Add forwarding
+# Administrator PowerShell — forward the LAN IP to localhost
 netsh interface portproxy add v4tov4 listenaddress=YOUR_LOCAL_IP listenport=8000 connectaddress=127.0.0.1 connectport=8000
-
-# Verify the configuration
 netsh interface portproxy show v4tov4
-
-# Remove forwarding (if needed)
-netsh interface portproxy delete v4tov4 listenaddress=YOUR_LOCAL_IP listenport=8000
+# Remove: netsh interface portproxy delete v4tov4 listenaddress=YOUR_LOCAL_IP listenport=8000
 ```
 
-**Solution 2: Use 0.0.0.0 in Docker Desktop Settings**
+Alternatives: Docker Desktop host networking (Settings > Resources > Network), or a reverse proxy. This issue does not exist on native Linux/macOS.
 
-1. Docker Desktop -> Settings -> Resources -> Network
-2. Check "Enable host networking" (if available)
-3. Restart Docker Desktop
-
-**Solution 3: Use a Reverse Proxy (Caddy/nginx)**
+### Docker Compose
 
 ```bash
-# Example with Caddy (simple)
-caddy reverse-proxy --from :8000 --to localhost:8000
+docker compose -f docker-compose.dev.yml logs api          # service logs
+docker compose -f docker-compose.dev.yml restart api       # restart one service
+docker compose -f docker-compose.dev.yml up -d --force-recreate
+
+# Corrupted volumes (WARNING: data loss!)
+docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d
 ```
 
-**Note**: This issue does not exist on native Linux or macOS where ports are exposed on all interfaces by default.
+### Slow Performance
 
-**See also**: [Docker Desktop Networking](https://docs.docker.com/desktop/networking/)
+```bash
+docker stats                                    # container resources
+docker compose -f docker-compose.dev.yml logs api | grep -i duration
+```
+
+| Symptom | Check | Lever |
+|---------|-------|-------|
+| Slow LLM responses | Grafana dashboard 05 (llm-tokens-cost) | Repoint heavy slots (`response`, `planner`) to a faster model in the Admin UI |
+| Slow DB | `EXPLAIN ANALYZE`, dashboard 03 | Indexes, `DATABASE_POOL_SIZE` |
+| Checkpoint contention | `checkpoint_errors_total{error_type="timeout"}` | Increase `LANGGRAPH_CHECKPOINT_POOL_MAX_SIZE` |
+| Saturated Redis | dashboard 03 | `REDIS_MAX_CONNECTIONS`, eviction policy |
+
+### Voice Mode
+
+**Wake word not detected**: check browser microphone permission (`chrome://settings/content/microphone`) and look for "Sherpa KWS initialized" in the browser console (F12).
+
+**Paid TTS not working (OpenAI / ElevenLabs)**:
+
+1. Verify the provider key in the admin Provider Keys section
+2. In the `voice_tts` slot config, confirm provider/model and that both `voice_male`/`voice_female` are set (ElevenLabs voice dropdown requires the `voices_read` key scope)
+3. ElevenLabs Voice Library (community) voices require a paid plan — the free tier rejects them with HTTP 402; use the default voices
+4. Edge TTS is free and always available as fallback
 
 ---
 
-### Problem: Docker Compose
+## Production Deployment
 
-#### Error: Services Won't Start
+LIA ships multi-architecture images (`linux/amd64` + `linux/arm64`) — the reference production platform is a Raspberry Pi 5.
 
-```bash
-# View all service logs
-docker compose -f docker-compose.dev.yml logs
+### Configuration
 
-# Logs for a specific service
-docker compose -f docker-compose.dev.yml logs api
+1. Start from **`.env.min.prod`** (minimal working set) or `.env.prod.example` (full template) → `.env.prod`
+2. Replace every `CHANGE_ME_*` placeholder; set your real domains (CORS, URLs, cookie domain, OAuth redirect URIs on Google/Azure side)
+3. Production hardening baked into the defaults: `DEBUG=false`, `LOG_LEVEL=INFO`, secure cookies, per-user rate limiting, no pgAdmin/Langfuse
 
-# Restart a service
-docker compose -f docker-compose.dev.yml restart api
-
-# Recreate containers
-docker compose -f docker-compose.dev.yml up -d --force-recreate
-```
-
-#### Error: Corrupted Volumes
+### Secrets Encryption (SOPS + Age)
 
 ```bash
-# Delete and recreate (WARNING: data loss!)
-docker compose -f docker-compose.dev.yml down -v
-docker compose -f docker-compose.dev.yml up -d
-```
-
-### Production Deployment
-
-LIA supports multi-architecture Docker builds (`linux/amd64` + `linux/arm64`) for deployment on standard servers and Raspberry Pi.
-
-#### Build Production Images
-
-```bash
-# Build all production images
-task build
-
-# Or manually
-docker compose -f docker-compose.prod.yml build
-```
-
-#### Production Configuration
-
-1. Copy `.env.prod.example` to `.env.prod` and configure all values
-2. Production uses `docker-compose.prod.yml` (optimized, no dev tools)
-3. SOPS encryption is available for secrets management (see below)
-
-#### SOPS Secrets Encryption
-
-LIA uses [SOPS](https://github.com/getsops/sops) with [Age](https://github.com/FiloSottile/age) for encrypting sensitive environment variables at rest.
-
-```bash
-# Install SOPS and Age
-# Windows: choco install sops age
-# macOS: brew install sops age
-# Linux: apt install sops age
-
-# Generate an Age key pair
+# Generate an Age key pair (keys/ is gitignored)
 age-keygen -o keys/age-key-prod.txt
 
-# Encrypt .env.prod
+# Encrypt / decrypt .env.prod
 export SOPS_AGE_KEY_FILE=keys/age-key-prod.txt
 sops --encrypt --input-type dotenv --output-type dotenv .env.prod > .env.prod.encrypted
-
-# Decrypt
 sops --decrypt --input-type dotenv --output-type dotenv .env.prod.encrypted > .env.prod
 ```
 
-> **Important**: The `keys/` directory is gitignored. Never commit Age private keys to the repository. Only the `.sops.yaml` configuration (with public keys) is tracked.
-
-#### Deploy Script
+### Build & Deploy
 
 ```bash
-# Deploy to production server (uses scripts/deploy/deploy-prod.ps1)
-task deploy:prod
+task build                 # build all production images (docker-compose.prod.yml)
 
-# Dry run (simulation)
-task deploy:prod:dry-run
+task deploy:prod           # full pipeline: encrypt + prepare bundle + scp + remote build & up
+task deploy:prod:dry-run   # simulate without executing
+task deploy:prepare        # prepare the PROD/ bundle only
 ```
 
-> See the [Deployment Guide](./guides/GUIDE_DEPLOYMENT.md) for detailed production setup instructions.
+`task deploy:prod` runs `scripts/deploy/deploy-prod.ps1`, which prepares a `PROD/` bundle (compose file, configs, `requirements.lock.txt`, generated `deploy.sh`), ships it to the server and **rebuilds the images on the target** before `up --force-recreate`. The production stack is the 15-service compose described [above](#launched-docker-services).
 
-### Problem: Slow Performance
+### Post-Deploy Operations
 
-#### Diagnosis
+- **Backups**: the `postgres-backup` sidecar starts with the stack; `deploy.sh` creates the host backup directory (chmod 700). Verify restores periodically with `task backup:verify` — the restore path is documented and tested ([runbook](./runbooks/DATABASE_BACKUP_RESTORE.md)).
+- **Migrations** run automatically on API startup.
+- **Monitoring**: Grafana/Prometheus/Loki/Tempo are part of the prod stack; Portainer provides container administration.
 
-```bash
-# Check Prometheus metrics
-curl http://localhost:9090/api/v1/query?query=llm_api_latency_seconds
-
-# View backend logs with jq
-docker compose -f docker-compose.dev.yml logs api | grep -i duration
-
-# Check container resources
-docker stats
-```
-
-#### Solutions
-
-| Symptom | Diagnosis | Solution |
-|---------|-----------|----------|
-| **Slow LLM** | Model too heavy | Use gpt-4.1-nano vs gpt-4.1-mini |
-| **Slow DB** | Missing indexes | Check `EXPLAIN ANALYZE` on queries |
-| **Slow Redis** | Saturated memory | Increase `maxmemory` or cleanup |
-| **Slow API** | N+1 queries | Enable SQLAlchemy eager loading |
-
-### Problem: Voice Mode
-
-#### Wake word not detecting
-
-```bash
-# Check that the browser has microphone access
-# Chrome: chrome://settings/content/microphone
-
-# Check console logs (F12)
-# Look for: "Sherpa KWS initialized"
-```
-
-#### Paid TTS not working (OpenAI / ElevenLabs)
-
-1. Verify the provider's API key is set via **Settings → Tarification LLM Texte → Provider Keys** (admin only).
-2. In **Settings → Configuration LLM → Voice Synthesis (TTS)**, confirm the active override is on the right provider/model and that both `voice_male` / `voice_female` are filled (use the dynamic dropdown — for ElevenLabs the catalogue is fetched live, so `voices_read` scope is required on the key).
-3. For ElevenLabs Voice Library voices (community voices added to "My Voices"), a paid plan is required — Free tier rejects them with HTTP 402. Use the 9 default voices (Sarah, Charlotte, Rachel, …) on the free tier.
-4. Edge TTS is free and always available — pick it as a fallback while debugging.
+> Full server setup (reverse proxy/tunnel, systemd, first-boot checklist): [GUIDE_DEPLOYMENT.md](./guides/GUIDE_DEPLOYMENT.md).
 
 ---
 
@@ -1691,131 +1453,101 @@ docker stats
 | Priority | Document | Description |
 |----------|----------|-------------|
 | **1** | [ARCHITECTURE.md](./ARCHITECTURE.md) | Overall system architecture |
-| **2** | [technical/GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | LangGraph multi-agent system |
-| **3** | [technical/HITL.md](./technical/HITL.md) | Human-in-the-Loop v6.0 |
-| **4** | [technical/PLANNER.md](./technical/PLANNER.md) | ExecutionPlan DSL + FOR_EACH |
-| **5** | [technical/VOICE_MODE.md](./technical/VOICE_MODE.md) | Voice Mode (STT + Wake Word) |
+| **2** | [technical/GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | LangGraph multi-agent system (Pipeline + ReAct) |
+| **3** | [technical/HITL.md](./technical/HITL.md) | Human-in-the-Loop approval system |
+| **4** | [technical/PLANNER.md](./technical/PLANNER.md) | ExecutionPlan DSL + FOR_EACH iteration |
+| **5** | [technical/LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | LLM slots administration |
 
-### v6.2-v6.3 Specific Documentation
+### Feature Deep-Dives
 
 | Document | Feature |
 |----------|---------|
-| [technical/INTERESTS.md](./technical/INTERESTS.md) | Interest Learning System |
-| [technical/OAUTH_HEALTH_CHECK.md](./technical/OAUTH_HEALTH_CHECK.md) | OAuth Health Check |
-| [technical/HYBRID_SEARCH.md](./technical/HYBRID_SEARCH.md) | BM25 hybrid search |
-| [technical/SMART_SERVICES.md](./technical/SMART_SERVICES.md) | Smart Services v3 |
-| [technical/SUB_AGENTS.md](./technical/SUB_AGENTS.md) | Sub-Agents (F6) |
-| [technical/BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) | Browser Control (F7) |
-| [technical/JOURNALS.md](./technical/JOURNALS.md) | Personal Journals (F8) |
+| [technical/BRIEFING_DOMAIN.md](./technical/BRIEFING_DOMAIN.md) | Today Briefing |
+| [technical/JOURNALS.md](./technical/JOURNALS.md) | Personal journals |
+| [technical/PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) | Psychological state |
+| [technical/HEALTH_METRICS.md](./technical/HEALTH_METRICS.md) | Health metrics |
+| [technical/SUB_AGENTS.md](./technical/SUB_AGENTS.md) | Sub-agents |
+| [technical/BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) | Browser control |
+| [technical/VOICE_MODE.md](./technical/VOICE_MODE.md) | Voice mode |
+| [guides/GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | RAG knowledge spaces |
+| [technical/LONG_TERM_MEMORY.md](./technical/LONG_TERM_MEMORY.md) | Long-term memory |
+| [technical/SMART_SERVICES.md](./technical/SMART_SERVICES.md) | Smart services (caching, pattern learning) |
 
 ### Practical Tutorials
 
 | Tutorial | Document |
 |----------|----------|
-| Create a New Agent | [guides/GUIDE_AGENT_CREATION.md](./guides/GUIDE_AGENT_CREATION.md) |
-| Add a Tool | [technical/TOOLS.md](./technical/TOOLS.md) |
-| Configure Monitoring | [guides/GUIDE_OBSERVABILITE.md](./guides/GUIDE_OBSERVABILITE.md) |
-| Optimize Prompts | [technical/PROMPTS.md](./technical/PROMPTS.md) |
-| Develop with Skills | [../CLAUDE.md](../CLAUDE.md) |
-
-### Experimentation
-
-```bash
-# Run tests to understand the patterns
-cd apps/api
-pytest tests/unit -v --tb=short
-
-# Explore v3 prompts
-ls src/domains/agents/prompts/v*/
-
-# Test different LLM providers
-# Edit .env: QUERY_ANALYZER_LLM_PROVIDER=anthropic
-
-# Explore Claude skills
-ls .claude/skills/
-```
+| Create a new agent | [guides/GUIDE_AGENT_CREATION.md](./guides/GUIDE_AGENT_CREATION.md) |
+| Add a tool | [guides/GUIDE_TOOL_CREATION.md](./guides/GUIDE_TOOL_CREATION.md) |
+| Observability & dashboards | [technical/GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) · [technical/METRICS_REFERENCE.md](./technical/METRICS_REFERENCE.md) |
+| Prompts | [guides/GUIDE_PROMPTS.md](./guides/GUIDE_PROMPTS.md) |
+| Testing strategy | [guides/GUIDE_TESTING.md](./guides/GUIDE_TESTING.md) |
+| Development workflow | [guides/GUIDE_DEVELOPPEMENT.md](./guides/GUIDE_DEVELOPPEMENT.md) |
 
 ### External Resources
 
-| Resource | Description | Link |
-|----------|-------------|------|
-| **LangGraph Docs** | Official documentation | [langchain-ai.github.io/langgraph](https://langchain-ai.github.io/langgraph/) |
-| **FastAPI Docs** | FastAPI reference | [fastapi.tiangolo.com](https://fastapi.tiangolo.com/) |
-| **Next.js Docs** | Next.js reference | [nextjs.org/docs](https://nextjs.org/docs) |
-| **Grafana Dashboards** | Dashboard examples | [grafana.com/grafana/dashboards](https://grafana.com/grafana/dashboards/) |
-| **Langfuse Docs** | LLM Observability | [langfuse.com/docs](https://langfuse.com/docs) |
-| **Claude Code** | AI CLI assistant | [claude.ai/claude-code](https://claude.ai/claude-code) |
-| **Sherpa-onnx** | Wake word / KWS | [k2-fsa.github.io/sherpa](https://k2-fsa.github.io/sherpa/) |
+| Resource | Link |
+|----------|------|
+| **LangGraph Docs** | [langchain-ai.github.io/langgraph](https://langchain-ai.github.io/langgraph/) |
+| **FastAPI Docs** | [fastapi.tiangolo.com](https://fastapi.tiangolo.com/) |
+| **Next.js Docs** | [nextjs.org/docs](https://nextjs.org/docs) |
+| **Task** | [taskfile.dev](https://taskfile.dev/) |
+| **uv** | [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
+| **Langfuse Docs** | [langfuse.com/docs](https://langfuse.com/docs) |
+| **Sherpa-onnx** | [k2-fsa.github.io/sherpa](https://k2-fsa.github.io/sherpa/) |
 
 ---
 
 ## Final Checklist
 
-Before considering your installation complete, verify:
-
 ### Infrastructure
 
-- [ ] Docker Compose launched without errors (`docker compose ps` - all "healthy")
-- [ ] PostgreSQL accessible (port 5432)
-- [ ] Redis accessible (port 6379)
-- [ ] Backend starts (`curl http://localhost:8000/health`)
-- [ ] Frontend accessible (`http://localhost:3000`)
+- [ ] `docker compose -f docker-compose.dev.yml ps` — all services healthy (17 in dev, 23 with the Langfuse profile)
+- [ ] Backend answers: `curl -k https://localhost:8000/health`
+- [ ] Frontend reachable: https://localhost:3000 (certificate accepted on **both** :3000 and :8000)
+- [ ] Migrations applied (`task db:migrate`), admin created, seeds loaded (`task db:seed:sql`)
 
 ### Configuration
 
-- [ ] SECRET_KEY and FERNET_KEY generated (unique!)
-- [ ] At least 1 LLM provider API key configured via Admin UI (OpenAI minimum)
-- [ ] Google Cloud: OAuth consent screen + APIs enabled + credentials created (if using Google connectors)
-- [ ] Microsoft Azure: App registration + API permissions + client secret (if using Microsoft connectors)
-- [ ] Firebase: Project created + FCM enabled + service account + VAPID key (if using push notifications)
-- [ ] POSTGRES_* and REDIS_* variables configured
+- [ ] `SECRET_KEY` and `FERNET_KEY` generated (unique!)
+- [ ] `POSTGRES_*` and `REDIS_*` credentials set
+- [ ] At least one LLM provider key configured **via the Admin UI**
+- [ ] A Gemini key configured if you use memory/interests/journals/RAG (embeddings)
+- [ ] Google Cloud OAuth + APIs (if using Google login/connectors)
+- [ ] Microsoft app registration (if using Microsoft connectors)
+- [ ] Firebase + VAPID (if using push notifications)
 
 ### Features
 
-- [ ] User account created
-- [ ] Login successful
-- [ ] Simple conversation works
-- [ ] API Docs accessible (`http://localhost:8000/docs`)
-
-### v6.2-v6.3 Features
-
-- [ ] Voice Mode works (microphone authorized, wake word detected)
-- [ ] TTS responds (Edge / OpenAI / ElevenLabs depending on the active `voice_tts` override)
-- [ ] Interest Learning enabled (visible in Settings)
-- [ ] OAuth Health Check active (logs show "health check passed")
+- [ ] Login works, first conversation streams a response
+- [ ] Execution mode toggle (Pipeline ↔ ReAct) visible in the chat header
+- [ ] Connectors connect and appear ACTIVE in Settings > Connectors
+- [ ] Voice mode: microphone authorized, transcription works, TTS speaks
+- [ ] Today Briefing renders on the home page
 
 ### Observability
 
-- [ ] Grafana accessible (`http://localhost:3001`)
-- [ ] Prometheus accessible (`http://localhost:9090`)
-- [ ] Langfuse accessible (`http://localhost:3002`)
-- [ ] 15 dashboards load correctly
+- [ ] Grafana up (http://localhost:3001) — 22 dashboards load
+- [ ] Prometheus up (http://localhost:9090)
+- [ ] Langfuse up in dev (http://localhost:3002) if started via `task dev:langfuse` with `LANGFUSE_ENABLED=true`
 
 ### Tests
 
-- [ ] Unit tests pass: `pytest tests/unit -v`
-- [ ] Pre-commit hooks installed: `pre-commit run --all-files`
+- [ ] `task test:backend:unit:fast` passes
+- [ ] Pre-commit hooks installed (`task setup:hooks`)
 
 ---
 
 ## Support
 
-If you encounter issues not covered by this guide:
-
 | Resource | Description |
 |----------|-------------|
-| **GitHub Issues** | Documented common problems |
-| **docs/runbooks/** | Resolution procedures |
-| **ADR Index** | [docs/architecture/ADR_INDEX.md](./architecture/ADR_INDEX.md) |
+| **GitHub Issues** | Bug reports & questions |
+| **docs/runbooks/** | Operational procedures (backups, restore…) |
+| **ADR Index** | [docs/architecture/ADR_INDEX.md](./architecture/ADR_INDEX.md) — 100+ architecture decisions |
 | **Security** | [../SECURITY.md](../SECURITY.md) |
 
-### Creating an Issue
-
-Include:
-1. LIA version (`git describe --tags`)
-2. OS and versions (Docker, Python, Node)
-3. Complete logs (sanitized of secrets)
-4. Steps to reproduce
+When creating an issue, include: LIA version (`git describe --tags`), OS and tool versions (Docker, Python, Node), sanitized logs, steps to reproduce.
 
 ---
 
@@ -1823,23 +1555,22 @@ Include:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| **3.4** | 2026-04-01 | Added detailed platform setup guides (Google Cloud, Microsoft Azure, Firebase); updated LLM config to Admin UI (removed .env API keys); refreshed 44 LLM slot defaults to current production values |
-| **3.2** | 2026-03-20 | Added v6.3 features (Sub-Agents, Browser Control, Personal Journals, System Knowledge Spaces) |
-| **3.0** | 2026-03-13 | Added v6.2 features (Telegram, MCP, Heartbeat, Skills, SOPS, Testing, Production Deployment sections) |
-| **2.0** | 2026-02-03 | Added v6.0 (Skills, FOR_EACH, Voice Mode, Interest Learning) |
-| **1.5** | 2025-12-15 | Added Routes API, OAuth Health Check |
+| **4.0** | 2026-07-08 | Full realignment on LIA v1.21.20: lockfile-based install (ADR-112) with dependency-management section; all defaults set to the production-proven values (`.env.prod`); LLM section rebuilt from the live production configuration (54 slots, DeepSeek-centric); HTTPS dev URLs; single root `.env` (incl. `NEXT_PUBLIC_*`); services/ports/dashboards/versions refreshed (17 dev services + opt-in Langfuse profile, 22 dashboards); added Briefing, Psyche, Health Metrics, RAG Spaces, Journals, Sub-agents, Usage Limits, Image Generation, Attachments, DevOps CLI, backups (ADR-109) and LangGraph pooling (ADR-111); removed legacy v6.x numbering, dead env vars and obsolete Claude-skills sections |
+| **3.4** | 2026-04-01 | Platform setup guides (Google Cloud, Microsoft Azure, Firebase); LLM config moved to Admin UI |
+| **3.2** | 2026-03-20 | Sub-Agents, Browser Control, Personal Journals, System Knowledge Spaces |
+| **3.0** | 2026-03-13 | Telegram, MCP, Heartbeat, Skills, SOPS, Testing, Production Deployment sections |
+| **2.0** | 2026-02-03 | Skills, FOR_EACH, Voice Mode, Interest Learning |
+| **1.5** | 2025-12-15 | Routes API, OAuth Health Check |
 | **1.0** | 2025-10-01 | Initial version |
 
 ---
 
-**Congratulations!**
-
-You are now ready to use and develop with LIA v6.3.
+**Congratulations!** You are now ready to use, operate and develop with LIA.
 
 **Recommended next step**: [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ---
 
 <p align="center">
-  <strong>LIA</strong> — Multi-Agent AI Assistant v6.2
+  <strong>LIA</strong> — Multi-Agent AI Assistant
 </p>

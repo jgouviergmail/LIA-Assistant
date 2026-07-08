@@ -2911,7 +2911,7 @@ async def process_due_reminders() -> None:
         due_reminders = await session.execute(
             select(Reminder)
             .where(
-                Reminder.reminder_datetime <= datetime.utcnow(),
+                Reminder.reminder_datetime <= datetime.now(UTC),
                 Reminder.status == ReminderStatus.PENDING,
                 Reminder.failed_attempts < MAX_RETRIES
             )
@@ -3036,7 +3036,7 @@ async def update_lifetime_metrics() -> None:
 
     while True:
         try:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(UTC)
 
             async with get_db_context() as db:
                 # Optimized aggregation query (uses index)
@@ -3070,9 +3070,9 @@ async def update_lifetime_metrics() -> None:
                     _lifetime_cache[cache_key] = current_values
                     updated_count += 1
 
-                duration = (datetime.utcnow() - start_time).total_seconds()
+                duration = (datetime.now(UTC) - start_time).total_seconds()
                 lifetime_metrics_update_duration_seconds.set(duration)
-                lifetime_metrics_last_update_timestamp.set(datetime.utcnow().timestamp())
+                lifetime_metrics_last_update_timestamp.set(datetime.now(UTC).timestamp())
 
             await asyncio.sleep(update_interval)
 

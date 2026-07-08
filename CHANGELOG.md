@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.21] - 2026-07-08
+
+> Timezone correctness, enforced end-to-end. The datetime doctrine (`core/time_utils.py`: every datetime timezone-aware; user-facing times in the user's preferred timezone) was documented and mostly followed — but not *enforced*: the CI AST guard only caught hardcoded `"Europe/Paris"` literals, and 8 naive-datetime sites survived in production code. The most visible one: in voice mode, the fallback for the spoken "current time" injected the server's naive clock (UTC in production) into the voice prompt, so the announced hour was wrong for any user outside UTC. All sites are fixed with explicit frames (user timezone for anything spoken/displayed, UTC for technical timestamps), and the guard now bans the entire bug class from the build.
+
+### Added
+
+- **Naive-datetime CI guard** (`tests/unit/test_no_hardcoded_timezone_guard.py`, new `TestNoNaiveDatetimeCalls` scan alongside the existing `"Europe/Paris"` scan): AST detection over all of `src/` of `datetime.now()` without a tz argument (including `now(None)` / `now(tz=None)`, and the aliased `dt.datetime.now()` form — SQLAlchemy's server-side `func.now()` correctly excluded), `*.utcnow()` (any receiver), and `date.today()` / `datetime.today()`. Explicit allow-list (`core/time_utils.py`, the doctrine module), actionable per-pattern failure messages, and two self-tests that fail if the scanner stops detecting synthetic violations (guard-rot protection, same model as the Paris scan). Docstring examples are intentionally out of scope (string constants, not calls).
+- **`stream_voice_comment(user_timezone=...)`** (`domains/voice/service.py`): optional parameter threaded from both streaming call paths in `agents/api/service.py`, with the fallback resolution extracted into a testable `_resolve_prompt_datetime()` helper — provided `current_datetime` passes through verbatim; absent, the time resolves via `now_in_timezone(user_timezone)` (None → `DEFAULT_USER_DISPLAY_TIMEZONE`), never the server clock.
+- **Voice service unit tests** (`tests/unit/domains/voice/test_service.py`, first tests for `VoiceCommentService`): pin the spoken-time contract on a frozen instant — a New York user at 12:00 UTC hears 08:00, not 12:00; empty string triggers the fallback like None; no timezone falls back to the central default.
+
+### Fixed
+
+- **Voice comment spoke the server's time** (`domains/voice/service.py`): the `current_datetime` fallback used naive `datetime.now().strftime(...)` — server UTC formatted as if it were the user's local time. Now resolved in the user's preferred timezone (see Added). Both production callers already passed a pre-formatted user-timezone datetime; the fallback no longer betrays them when it fires.
+- **7 naive `datetime.now()` sites migrated to explicit frames**: HITL pending-interrupt cache TTL comparisons → `datetime.now(UTC)` (`agents/api/router.py`); relative-date display fallback → `datetime.now(parsed_dt.tzinfo or UTC)`, naive branch proven unreachable (`display/components/base.py`); Brave Search recency year → `datetime.now(UTC).year` + import hoisted to module level (`knowledge_enrichment_service.py`); route and weather registry-ID date components → `datetime.now(UTC)`, aligning `weather_tools.py` with its own payload dates (`routes_tools.py`, `weather_tools.py` ×2).
+- **Latent server-date trap in briefing birthdays** (`briefing/formatters.py`): `upcoming_birthdays_from_connections(today=...)` defaulted to `date.today()` — the server's date, which marks yesterday's birthdays as "today" for users ahead of UTC. The parameter is now required in the user's local frame; the sole production caller and all tests already passed it explicitly.
+- **Docstring examples contradicting real usage** (`graphs/base_agent_builder.py`): two examples showed `datetime.now().strftime(...)` where all 17 production agent builders pass `get_prompt_datetime_formatted` — examples now match reality.
+
+### Docs
+
+- **`GETTING_STARTED.md` fully rewritten (v4.0)**: every default is the production-proven configuration; new sections for external platform setup (Google/Microsoft/Apple/Telegram/…), feature configuration reference, LLM configuration rebuilt from the live production setup (54 slots), Python dependency management (ADR-112 lockfiles), testing, production deployment and final checklist; legacy v6.x numbering, dead env vars and obsolete sections removed.
+- **`GUIDE_DEVELOPPEMENT.md`**: new "Dates & heures (doctrine timezone-aware)" subsection under Standards de Code — the doctrine, the canonical patterns, and the CI guard documented for contributors.
+- **Living docs' snippets aligned on the doctrine** (13 files): `datetime.utcnow()` / naive `datetime.now()` replaced by `datetime.now(UTC)` (with import fixes) in `ARCHITECTURE.md`, `technical/{CONNECTORS_PATTERNS,HITL,LLM_PRICING_MANAGEMENT,LANGFUSE,OAUTH}.md`, `guides/{GUIDE_TESTING,GUIDE_DEPLOYMENT,GUIDE_BACKGROUND_JOBS_APSCHEDULER,GUIDE_PROMPTS}.md` and 4 runbooks. ADRs untouched (historical records); deliberate anti-examples kept.
+- Guide stamps refreshed to v1.21.21 (12 how/why files); stale "91 ADRs" figure in `how.zh.md` aligned with the other 5 locales ("100+").
+
+### Tests
+
+- TDD sequence proven: extended guard red on exactly the 8 executable sites (no false positives across ~84k lines of `src/`), green after the fixes; scanner self-tests green.
+- Full unit suite green post-fix: **8,912 passed, 0 failed** (the 259 skips are pre-existing Testcontainers-unavailable skips on the Windows host). Ruff/Black/MyPy strict clean on all touched files; API Docker boot verified (`Application startup complete`, container healthy).
+
 ## [1.21.20] - 2026-07-08
 
 > Reproducible Python builds & dependency security (ADR-112). `Dockerfile.prod` ran `pip install -r requirements.txt` with ~20 loose pins and ~120 unconstrained transitive dependencies, so two builds of the same commit could ship different versions — measured drift: 88 packages diverging between the Windows dev venv and the Linux dev container, both installed from the same manifest (starlette 0.50.0 vs 1.3.1, google-genai 1.67 vs 2.10). Every environment now installs from committed universal lockfiles with SHA256 hash verification. Auditing the lockfile immediately paid off: it surfaced 17 vulnerable packages (25+ CVEs) that the CI dependency-audit job had never seen, because that job audited an *empty* environment — all 17 upgraded, final audit clean.

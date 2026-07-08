@@ -615,7 +615,7 @@ class RouterNode:
 
         # 3. Temporal signals
         from datetime import datetime
-        hour = datetime.now().hour
+        hour = datetime.now(UTC).hour
         if 9 <= hour <= 17:  # Business hours
             # Email/calendar more likely during work hours
             if base_result['intention'] in ['email', 'calendar']:

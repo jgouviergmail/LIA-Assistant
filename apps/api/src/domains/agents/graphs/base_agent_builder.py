@@ -153,7 +153,7 @@ def build_generic_agent(config: AgentConfig) -> Any:
         ...     tools=[search_contacts_tool, list_contacts_tool, get_contact_details_tool,
         ...            resolve_reference, set_current_item, get_context_state, list_active_domains],
         ...     system_prompt=CONTACTS_AGENT_SYSTEM_PROMPT.format(
-        ...         current_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        ...         current_datetime=get_prompt_datetime_formatted(),
         ...         context_instructions="...",
         ...     ),
         ...     # llm_config: omit to use centralized config (LLM_DEFAULTS + DB overrides)
@@ -704,7 +704,7 @@ def create_agent_config_from_settings(
         ...     agent_name="contacts_agent",
         ...     tools=[search_contacts_tool, list_contacts_tool],
         ...     system_prompt=CONTACTS_AGENT_SYSTEM_PROMPT.format(...),
-        ...     datetime_generator=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        ...     datetime_generator=get_prompt_datetime_formatted,
         ... )
         >>> agent = build_generic_agent(config)
     """

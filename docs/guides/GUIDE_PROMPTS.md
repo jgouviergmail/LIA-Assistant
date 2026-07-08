@@ -623,7 +623,7 @@ router_prompt = ChatPromptTemplate.from_messages([
 
 # ❌ MAUVAIS - Prompt dynamique < 1024 tokens
 router_prompt = ChatPromptTemplate.from_messages([
-    ("system", f"You are a router. Current time: {datetime.now()}"),  # Dynamic → no cache
+    ("system", f"You are a router. Current time: {datetime.now(UTC)}"),  # Dynamic → no cache
     ("human", "{user_message}"),
 ])
 ```

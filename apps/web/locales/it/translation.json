@@ -2936,6 +2936,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_21": {
+          "title": "v1.21.21 — 🕐 L'ora giusta, nel tuo fuso orario",
+          "date": "Luglio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🕐 La modalità vocale annuncia l'ora locale corretta</b> — Quando un commento vocale menziona l'ora corrente, LIA la risolve ora sempre nel tuo fuso orario preferito. In precedenza, in rari casi, l'ora pronunciata poteva essere quella dell'orologio del server (UTC) invece della tua.",
+            "i2": "<b>🌍 Correttezza di date e orari, garantita per sempre</b> — Ogni data gestita da LIA (date visualizzate, promemoria di compleanni, timestamp tecnici) è ora garantita con fuso orario: un controllo automatizzato blocca definitivamente il ritorno dell'intera famiglia di bug «ora del server vs la tua ora».",
+            "i3": "<b>📘 Guida di installazione interamente riscritta (per il self-hosting)</b> — La guida introduttiva è stata ricostruita da zero: valori predefiniti collaudati in produzione, configurazione passo passo delle piattaforme esterne (Google, Microsoft, Apple…), un riferimento per la configurazione delle funzionalità e una checklist finale di deployment."
+          }
+        },
         "v1_21_20": {
           "title": "v1.21.20 — 🔒 Sicurezza rafforzata e aggiornamenti riproducibili",
           "date": "Luglio 2026",

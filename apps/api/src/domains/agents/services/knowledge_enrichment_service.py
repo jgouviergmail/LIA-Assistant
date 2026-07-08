@@ -27,6 +27,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
 
 from src.core.config import settings
@@ -223,9 +224,7 @@ class KnowledgeEnrichmentService:
         # For non-news queries (encyclopedic), append current year to get recent info
         # This helps with time-sensitive questions like "when is Chinese New Year"
         if not is_news_query:
-            from datetime import datetime
-
-            current_year = datetime.now().year
+            current_year = datetime.now(UTC).year
             keyword = f"{keyword} {current_year}"
 
         # Try cache first (global cache - same results for all users)
