@@ -2929,6 +2929,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_24": {
+          "title": "v1.21.24 — 🛡️ Sicurezza rafforzata e risposte più precise",
+          "date": "Luglio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📅 I tuoi prossimi appuntamenti, senza deviazioni</b> — Chiedere i tuoi prossimi appuntamenti non attiva più il briefing quotidiano completo: LIA ora distingue chiaramente una domanda specifica da una panoramica dell'intera giornata, e legge sempre il tuo calendario reale prima di rispondere.",
+            "i2": "<b>🔒 Aggiornamenti di sicurezza su tutta la linea</b> — Cinque librerie di terze parti sono state aggiornate alle versioni corrette (tra cui il client SSH e la libreria del connettore Claude), e la nostra analisi di sicurezza automatizzata è stata riparata: ogni modifica viene ora controllata in continuo.",
+            "i3": "<b>⚙️ Fondamenta più solide</b> — Quasi 200 punti di gestione silenziosa degli errori nel backend sono stati resi espliciti, con una salvaguardia permanente in CI che impedisce di reintrodurne, e la piattaforma web passa a Node.js 24 LTS: i problemi si diagnosticano più in fretta e si risolvono prima."
+          }
+        },
         "v1_21_23": {
           "title": "v1.21.23 — 🔌 Errori dei connettori più affidabili e più puliti",
           "date": "Luglio 2026",

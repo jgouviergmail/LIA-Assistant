@@ -2937,6 +2937,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_24": {
+          "title": "v1.21.24 — 🛡️ Security hardening & sharper answers",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📅 Your next appointments, without detours</b> — Asking for your next appointments no longer triggers the full daily briefing: LIA now clearly distinguishes a specific question from a whole-day overview, and always reads your real calendar before answering.",
+            "i2": "<b>🔒 Security updates across the board</b> — Five third-party libraries were updated to their patched versions (including the SSH client and the Claude connector library), and our automated security scanning was repaired so every change is now checked continuously.",
+            "i3": "<b>⚙️ Sounder foundations</b> — Nearly 200 silent error-handling spots in the backend were made explicit, with a permanent CI guard preventing new ones, and the web platform moved to Node.js 24 LTS — issues get diagnosed faster and fixed sooner."
+          }
+        },
         "v1_21_23": {
           "title": "v1.21.23 — 🔌 Sturdier, cleaner connector errors",
           "date": "July 2026",

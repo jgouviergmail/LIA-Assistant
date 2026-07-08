@@ -2927,6 +2927,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_24": {
+          "title": "v1.21.24 — 🛡️ Härtere Sicherheit & präzisere Antworten",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📅 Ihre nächsten Termine, ohne Umwege</b> — Die Frage nach Ihren nächsten Terminen löst nicht mehr das vollständige Tagesbriefing aus: LIA unterscheidet jetzt klar zwischen einer konkreten Frage und einem Überblick über den ganzen Tag und liest vor jeder Antwort Ihren echten Kalender.",
+            "i2": "<b>🔒 Sicherheitsupdates auf ganzer Linie</b> — Fünf Drittbibliotheken wurden auf ihre korrigierten Versionen aktualisiert (darunter der SSH-Client und die Claude-Connector-Bibliothek), und unsere automatisierte Sicherheitsanalyse wurde repariert: Jede Änderung wird jetzt kontinuierlich geprüft.",
+            "i3": "<b>⚙️ Solidere Grundlagen</b> — Fast 200 stille Fehlerbehandlungsstellen im Backend wurden explizit gemacht, mit einer dauerhaften CI-Sicherung gegen neue Fälle, und die Web-Plattform wechselt zu Node.js 24 LTS — Probleme werden schneller diagnostiziert und früher behoben."
+          }
+        },
         "v1_21_23": {
           "title": "v1.21.23 — 🔌 Robustere, sauberere Connector-Fehler",
           "date": "Juli 2026",
