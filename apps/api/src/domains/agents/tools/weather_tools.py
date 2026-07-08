@@ -19,6 +19,7 @@ Architecture:
 """
 
 import re
+from contextlib import suppress
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID
@@ -416,13 +417,12 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         # User's language preference takes precedence over kwargs default so that
         # translated error messages (via _()) match the user's locale.
         user_timezone = "UTC"
-        try:
+        # Use default
+        with suppress(Exception):
             if runtime:
                 user_timezone, user_lang, _locale = await get_user_preferences(runtime)
                 if user_lang:
                     language = user_lang
-        except Exception:
-            pass  # Use default
 
         lat: float | None = None
         lon: float | None = None

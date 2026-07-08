@@ -11,6 +11,7 @@ Created: 2026-03-03
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -169,10 +170,8 @@ class InboundMessageHandler:
         finally:
             # Cancel typing indicator
             typing_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await typing_task
-            except asyncio.CancelledError:
-                pass
 
     async def _stream_and_collect(
         self,
@@ -362,11 +361,14 @@ class InboundMessageHandler:
         long processing times (agent pipeline: 5-60s).
         """
         try:
-            while True:
-                await self.sender.send_typing_indicator(channel_user_id)
-                await asyncio.sleep(TELEGRAM_TYPING_INTERVAL_SECONDS)
-        except asyncio.CancelledError:
-            pass
+            # CancelledError is the expected stop signal (the caller cancels
+            # this task once processing completes); suppress() intercepts it
+            # before the Exception handler below, like the dedicated handler
+            # it replaces.
+            with suppress(asyncio.CancelledError):
+                while True:
+                    await self.sender.send_typing_indicator(channel_user_id)
+                    await asyncio.sleep(TELEGRAM_TYPING_INTERVAL_SECONDS)
         except Exception:
             # Non-critical: typing indicator failure should not break the pipeline
             logger.debug(

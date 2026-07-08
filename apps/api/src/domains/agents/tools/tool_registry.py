@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import structlog
@@ -437,7 +438,8 @@ def _collect_tools_from_module(module: Any, module_name: str) -> None:
         if attr_name.startswith("_"):
             continue
 
-        try:
+        # Skip attributes that can't be accessed
+        with suppress(Exception):
             attr = getattr(module, attr_name)
 
             # Check if it's a BaseTool instance (from @tool decorator)
@@ -454,10 +456,6 @@ def _collect_tools_from_module(module: Any, module_name: str) -> None:
                             tool_name=tool_name,
                             module=module_name,
                         )
-
-        except Exception:
-            # Skip attributes that can't be accessed
-            pass
 
     if collected_count > 0:
         logger.debug(

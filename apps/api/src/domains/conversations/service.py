@@ -8,6 +8,7 @@ Handles conversation lifecycle:
 - Statistics tracking
 """
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -263,7 +264,7 @@ class ConversationService:
         # Detect returning user — single DB roundtrip returns (last_prior_ts) and we
         # classify client-side. A "returning user" is one who already had a
         # conversation older than 1 hour at the time of creating this one.
-        try:
+        with suppress(Exception):
             from datetime import UTC, datetime, timedelta
 
             from sqlalchemy import func as _sql_func
@@ -291,8 +292,6 @@ class ConversationService:
                 else:
                     window = "30d"
                 user_return_rate_total.labels(time_window=window).inc()
-        except Exception:
-            pass
 
         logger.info(
             "conversation_created",
@@ -877,14 +876,12 @@ class ConversationService:
         )
 
         # Prometheus metric: dashboard 09 "Messages by Role"
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_agents import (
                 conversation_message_archived_total,
             )
 
             conversation_message_archived_total.labels(role=role).inc()
-        except Exception:
-            pass
 
         # Note: Caller is responsible for commit to allow batching
 

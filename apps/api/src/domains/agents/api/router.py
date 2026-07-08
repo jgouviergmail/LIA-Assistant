@@ -8,6 +8,7 @@ import json
 import threading
 import time
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, Request
@@ -460,7 +461,7 @@ async def stream_chat(
                         )
 
                         # Track security events (dashboards 08 / 16)
-                        try:
+                        with suppress(Exception):
                             from src.infrastructure.observability.metrics_agents import (
                                 hitl_security_events_total,
                             )
@@ -474,8 +475,6 @@ async def stream_chat(
                             security_violations_total.labels(
                                 violation_type="hitl_rate_limit_exceeded"
                             ).inc()
-                        except Exception:
-                            pass
 
                         # Raise HTTP 429 with Retry-After header
                         raise HTTPException(

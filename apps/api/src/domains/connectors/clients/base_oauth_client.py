@@ -19,6 +19,7 @@ Created: 2025-12-18
 import asyncio
 import time
 from abc import ABC
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import Any, Generic, TypeVar
 from uuid import UUID
@@ -453,7 +454,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                     connector, fresh_credentials
                 )
                 self.credentials = refreshed_credentials
-                try:
+                with suppress(Exception):
                     from src.infrastructure.observability.metrics import (
                         connector_token_refresh_total,
                     )
@@ -461,8 +462,6 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                     connector_token_refresh_total.labels(
                         connector_type=connector_type_value, status="success"
                     ).inc()
-                except Exception:
-                    pass
                 logger.info(
                     "oauth_token_refreshed_success",
                     user_id=str(self.user_id),
@@ -710,7 +709,6 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             else str(self.connector_type)
         )
         _conn_start = _time.perf_counter()
-        _conn_status = "success"
         # Sanitize endpoint path segment-by-segment to keep label cardinality bounded.
         # Without this each unique resource ID would create a new Prometheus series,
         # exploding memory and Grafana queries.
@@ -767,7 +765,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
 
                 # Success
                 if response.status_code < 400:
-                    try:
+                    with suppress(Exception):
                         from src.infrastructure.observability.metrics import (
                             connector_api_duration_seconds,
                             connector_api_requests_total,
@@ -781,8 +779,6 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                         connector_api_duration_seconds.labels(
                             connector_type=connector_type_value, operation=_conn_op
                         ).observe(_time.perf_counter() - _conn_start)
-                    except Exception:
-                        pass
                     return response.json() if response.content else {}
 
                 # Rate limited - retry with hook-based delay
@@ -832,7 +828,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
 
                 # Other client errors - don't retry (use hook for error parsing)
                 error_detail = self._parse_error_detail(response)
-                try:
+                with suppress(Exception):
                     from src.infrastructure.observability.metrics import (
                         connector_api_errors_total,
                         connector_api_requests_total,
@@ -847,8 +843,6 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                         connector_type=connector_type_value,
                         error_type=f"http_{response.status_code}",
                     ).inc()
-                except Exception:
-                    pass
                 logger.error(
                     "api_client_error",
                     user_id=str(self.user_id),

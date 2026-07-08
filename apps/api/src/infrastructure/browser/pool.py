@@ -18,6 +18,7 @@ import json
 import os
 import time
 import uuid
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -276,7 +277,8 @@ class BrowserPool:
         Returns:
             Memory usage in MB, or None if not available.
         """
-        try:
+        # Graceful fallback: /proc not available on non-Linux platforms
+        with suppress(FileNotFoundError, OSError, ValueError):
             pid = os.getpid()
             with open(f"/proc/{pid}/status") as f:
                 for line in f:
@@ -286,8 +288,6 @@ class BrowserPool:
                         mb = kb / 1024.0
                         browser_memory_bytes.set(kb * 1024)  # Convert kB → bytes
                         return mb
-        except (FileNotFoundError, OSError, ValueError):
-            pass  # Graceful fallback: /proc not available on non-Linux platforms
         return None
 
     async def close(self) -> None:

@@ -41,6 +41,7 @@ import asyncio
 import re
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import suppress
 from typing import Any
 
 import structlog
@@ -378,10 +379,8 @@ class ProgressiveSentenceStreamer:
         if self._sentinel_pushed:
             return
         self._sentinel_pushed = True
-        try:
+        # Queue is unbounded so this should never happen — but the flag
+        # is already set, so a future caller will short-circuit instead
+        # of retrying forever.
+        with suppress(asyncio.QueueFull):
             self._queue.put_nowait(None)
-        except asyncio.QueueFull:
-            # Queue is unbounded so this should never happen — but the flag
-            # is already set, so a future caller will short-circuit instead
-            # of retrying forever.
-            pass

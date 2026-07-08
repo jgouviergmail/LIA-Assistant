@@ -35,6 +35,7 @@ Example:
     )
 """
 
+from contextlib import suppress
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -174,14 +175,12 @@ class ContextTypeRegistry:
         cls._registry[definition.context_type] = definition
 
         # Dashboard 15 "Domain Handlers Registered" (startup-time counter)
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_agents import (
                 domain_handlers_registered_total,
             )
 
             domain_handlers_registered_total.labels(domain=definition.agent_name).inc()
-        except Exception:
-            pass
 
         logger.info(
             "context_type_registered",

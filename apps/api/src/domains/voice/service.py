@@ -21,6 +21,7 @@ import asyncio
 import re
 import time
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
@@ -396,15 +397,15 @@ class VoiceCommentService:
         psyche_block = ""
         user_model_block = ""
         if self._user_id:
-            try:
+            # Psyche injection is best-effort
+            with suppress(Exception):
                 from src.domains.psyche.service import build_psyche_prompt_block
 
                 psyche_block = await build_psyche_prompt_block(
                     user_id=self._user_id, user_timezone=None
                 )
-            except Exception:
-                pass  # Psyche injection is best-effort
-            try:
+            # Journal portrait injection is best-effort
+            with suppress(Exception):
                 from src.domains.journals.portrait_builder import (
                     build_journal_user_model_block,
                 )
@@ -412,8 +413,6 @@ class VoiceCommentService:
                 user_model_block = await build_journal_user_model_block(
                     user_id=self._user_id, format="brief", flow="voice"
                 )
-            except Exception:
-                pass  # Journal portrait injection is best-effort
 
         prompt = self._build_prompt(
             context_summary=request.context_summary,
@@ -467,7 +466,7 @@ class VoiceCommentService:
         # Prometheus: voice comment tokens (dashboard 11).
         # token_type values follow the codebase convention used by llm_tokens_consumed_total
         # (prompt_tokens / completion_tokens / cached_tokens) so aggregations stay consistent.
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_voice import (
                 voice_comment_tokens_total,
             )
@@ -484,8 +483,6 @@ class VoiceCommentService:
                 voice_comment_tokens_total.labels(
                     model=model_name, token_type="completion_tokens"
                 ).inc(completion_t)
-        except Exception:
-            pass
 
         return result
 
@@ -596,14 +593,12 @@ class VoiceCommentService:
             finally:
                 streamer.close_input()
                 # Track LLM generation duration once the stream ends.
-                try:
+                with suppress(Exception):
                     from src.core.llm_config_helper import get_llm_config_for_agent
 
                     voice_comment_generation_duration_seconds.labels(
                         model=get_llm_config_for_agent(settings, "voice_comment").model
                     ).observe(time.time() - llm_start_time)
-                except Exception:
-                    pass
 
         feed_task = asyncio.create_task(_feed_llm())
 
@@ -668,14 +663,12 @@ class VoiceCommentService:
             # consumes), holding httpx connections and hogging the event
             # loop.
             await self._abort_voice_comment_pipeline(streamer, feed_task)
-            try:
+            with suppress(Exception):
                 from src.infrastructure.observability.metrics_voice import (
                     voice_interruptions_total,
                 )
 
                 voice_interruptions_total.labels(trigger="client_cancelled").inc()
-            except Exception:
-                pass
             raise
         except Exception as e:
             # Same cleanup contract as on cancellation — leak avoidance is
@@ -705,10 +698,8 @@ class VoiceCommentService:
         if not feed_task.done():
             feed_task.cancel()
         streamer.cancel_pending()
-        try:
+        with suppress(asyncio.CancelledError, Exception):
             await feed_task
-        except (asyncio.CancelledError, Exception):  # noqa: BLE001
-            pass
 
     async def stream_direct_tts(
         self,

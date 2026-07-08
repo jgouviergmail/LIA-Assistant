@@ -7,6 +7,7 @@ Endpoints for FCM token management and SSE notifications.
 import asyncio
 import json
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 
 import structlog
 from fastapi import APIRouter, Depends, status
@@ -304,10 +305,9 @@ async def stream_notifications(
             yield f"event: error\ndata: {json.dumps({'error': 'An unexpected error occurred'})}\n\n"
         finally:
             # Clean up SSE tracking key on disconnect
-            try:
+            # Best effort cleanup
+            with suppress(Exception):
                 await redis.delete(sse_key)
-            except Exception:
-                pass  # Best effort cleanup
             await pubsub.unsubscribe(channel)
             await pubsub.close()
 

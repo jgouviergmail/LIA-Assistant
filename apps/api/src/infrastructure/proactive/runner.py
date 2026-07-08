@@ -28,6 +28,7 @@ References:
 """
 
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -312,7 +313,7 @@ class ProactiveTaskRunner:
         # Lazy import to avoid circular deps; isolated behind a helper so metric
         # failures never break the business logic.
         def _record_eligibility(result: str) -> None:
-            try:
+            with suppress(Exception):
                 from src.infrastructure.observability.metrics_registry import (
                     proactive_eligibility_check_total,
                 )
@@ -320,8 +321,6 @@ class ProactiveTaskRunner:
                 proactive_eligibility_check_total.labels(
                     task_type=self.task.task_type, result=result
                 ).inc()
-            except Exception:
-                pass
 
         # 0. Usage limit check (Layer 3) — centralized via is_user_blocked_for_llm
         from src.domains.usage_limits.service import UsageLimitService
@@ -439,7 +438,7 @@ class ProactiveTaskRunner:
         # use getattr() so tasks that don't populate it (or test fakes) don't break.
         _source_name = getattr(result, "source_name", None)
         if _source_name:
-            try:
+            with suppress(Exception):
                 from src.infrastructure.observability.metrics_registry import (
                     proactive_content_source_total,
                 )
@@ -447,8 +446,6 @@ class ProactiveTaskRunner:
                 proactive_content_source_total.labels(
                     task_type=self.task.task_type, source=_source_name
                 ).inc()
-            except Exception:
-                pass
 
         # 4b. Pre-generate run_id and compute cost for metadata injection.
         # This ensures the archived message contains run_id + token data
@@ -511,7 +508,7 @@ class ProactiveTaskRunner:
 
         # Track per-channel notification delivery + tokens/cost (dashboard 13).
         # Failures here must never break the proactive pipeline.
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_registry import (
                 track_proactive_notification,
             )
@@ -532,8 +529,6 @@ class ProactiveTaskRunner:
                 tokens_cache=result.tokens_cache,
                 cost_eur=cost_eur,
             )
-        except Exception:
-            pass
 
         # 6. Track tokens (autonomous transaction - each component manages its own)
         tracked_run_id = await track_proactive_tokens(

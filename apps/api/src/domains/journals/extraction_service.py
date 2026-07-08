@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import time as _time
 import uuid
+from contextlib import suppress
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -250,10 +251,14 @@ async def _build_previous_turn_directives_section(
                 "AT THE CURRENT TURN. For each directive that was clearly applied "
                 "and where you can read a signal in the user's reaction:"
             ),
-            "- If the user pushed back, reformulated, or corrected → propose `update` with "
-            '`evidence_outcome="contradiction"` on that entry.',
-            "- If the user engaged smoothly, thanked you, or visibly benefited → propose `update` "
-            'with `evidence_outcome="evidence"`.',
+            (
+                "- If the user pushed back, reformulated, or corrected → propose `update` with "
+                '`evidence_outcome="contradiction"` on that entry.'
+            ),
+            (
+                "- If the user engaged smoothly, thanked you, or visibly benefited → propose "
+                '`update` with `evidence_outcome="evidence"`.'
+            ),
             "- If the directive was not relevant to what unfolded → leave it alone (no signal).",
             "- The system increments the counters atomically; you only signal the outcome.",
             "",
@@ -875,20 +880,16 @@ async def extract_journal_entry_background(
                 user_id=user_id,
             )
         except Exception:
-            try:
+            with suppress(Exception):
                 journal_extraction_duration_seconds.labels(outcome="error").observe(
                     _time.time() - _llm_start
                 )
-            except Exception:  # pragma: no cover
-                pass
             raise
         _llm_duration_ms = (_time.time() - _llm_start) * 1000
-        try:
+        with suppress(Exception):
             journal_extraction_duration_seconds.labels(outcome="success").observe(
                 _llm_duration_ms / 1000.0
             )
-        except Exception:  # pragma: no cover
-            pass
         result_content = result.text
 
         # Persist token usage (use effective config, not defaults — admin overrides matter)

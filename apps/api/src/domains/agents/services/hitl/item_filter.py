@@ -26,6 +26,7 @@ Created: 2026-01-30
 from __future__ import annotations
 
 import json
+from contextlib import suppress
 from typing import Any
 
 import structlog
@@ -254,12 +255,10 @@ Response:"""
             numbers = re.findall(r"\b(\d+)\b", content)
             valid_indices = []
             for num_str in numbers:
-                try:
+                with suppress(ValueError):
                     idx = int(num_str)
                     if 0 <= idx < max_index:
                         valid_indices.append(idx)
-                except ValueError:
-                    pass
             return valid_indices
 
 

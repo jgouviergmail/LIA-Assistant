@@ -49,6 +49,7 @@ MAIN FUNCTIONS:
 
 import datetime as dt
 import re
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -394,27 +395,23 @@ def parse_datetime(dt_input: str | int | datetime | None) -> datetime | None:
             normalized = dt_input.replace("Z", "+00:00")
 
             # Try ISO 8601 format first
-            try:
+            with suppress(ValueError):
                 dt = datetime.fromisoformat(normalized)
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=UTC)
                 return dt
-            except ValueError:
-                pass
 
             # Try RFC 2822 format (Gmail date header): "Sat, 03 Jan 2026 10:45:00 +0100"
             # Also handles: "03 Jan 2026 10:45:00 +0100" (without day name)
             import email.utils
 
-            try:
+            with suppress(TypeError, ValueError, OverflowError):
                 parsed_tuple = email.utils.parsedate_tz(dt_input)
                 if parsed_tuple:
                     # parsedate_tz returns (y, m, d, H, M, S, weekday, yearday, dst, tz_offset_seconds)
                     # tz_offset_seconds is the offset from UTC in seconds (can be None)
                     timestamp = email.utils.mktime_tz(parsed_tuple)
                     return datetime.fromtimestamp(timestamp, tz=UTC)
-            except (TypeError, ValueError, OverflowError):
-                pass
 
             # Try date-only format (e.g., "2025-12-02")
             if len(dt_input) == 10 and dt_input.count("-") == 2:

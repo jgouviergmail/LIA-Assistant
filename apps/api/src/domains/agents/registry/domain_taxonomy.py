@@ -22,6 +22,7 @@ Usage Example:
 """
 
 import re
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -756,7 +757,7 @@ def get_result_key(domain_name: str) -> str | None:
     if is_mcp_domain(domain_name):
         return "mcps"
     # Unknown domain → log normalization failure for dashboard 15
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_agents import (
             domain_normalization_errors_total,
         )
@@ -764,8 +765,6 @@ def get_result_key(domain_name: str) -> str | None:
         domain_normalization_errors_total.labels(
             domain=domain_name[:40], error_type="unknown_result_key"
         ).inc()
-    except Exception:
-        pass
     return None
 
 

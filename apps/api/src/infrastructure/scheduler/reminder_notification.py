@@ -23,6 +23,7 @@ Metrics:
 import json
 import time
 import uuid
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -225,15 +226,15 @@ Generate a short, natural message in {language}.
     psyche_block = ""
     user_model_block = ""
     if user_id:
-        try:
+        # Psyche injection is best-effort
+        with suppress(Exception):
             from src.domains.psyche.service import build_psyche_prompt_block
 
             psyche_block = await build_psyche_prompt_block(
                 user_id=user_id, user_timezone=user_timezone
             )
-        except Exception:
-            pass  # Psyche injection is best-effort
-        try:
+        # Journal portrait injection is best-effort
+        with suppress(Exception):
             from src.domains.journals.portrait_builder import (
                 build_journal_user_model_block,
             )
@@ -241,8 +242,6 @@ Generate a short, natural message in {language}.
             user_model_block = await build_journal_user_model_block(
                 user_id=user_id, format="brief", flow="reminder"
             )
-        except Exception:
-            pass  # Journal portrait injection is best-effort
 
     system_prompt = template.format(
         persona_prompt=persona_prompt,
@@ -471,10 +470,9 @@ async def process_pending_reminders() -> dict[str, Any]:
                     # 3. Load personality (optional)
                     personality = None
                     if user.personality_id:
-                        try:
+                        # Use default if personality not found
+                        with suppress(Exception):
                             personality = await personality_service.get_by_id(user.personality_id)
-                        except Exception:
-                            pass  # Use default if personality not found
 
                     # 4. Search relevant memories (always enabled)
                     memories = await get_relevant_memories(

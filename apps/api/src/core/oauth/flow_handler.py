@@ -15,6 +15,7 @@ Security Features:
 - Timeout protection on HTTP requests
 """
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlencode
@@ -335,7 +336,7 @@ class OAuthFlowHandler:
                 )
                 response.raise_for_status()
                 # Dashboard 10 OAuth token exchange duration
-                try:
+                with suppress(Exception):
                     from src.infrastructure.observability.metrics_oauth import (
                         oauth_token_exchange_duration_seconds,
                     )
@@ -343,13 +344,11 @@ class OAuthFlowHandler:
                     oauth_token_exchange_duration_seconds.labels(provider=provider_name).observe(
                         _time.perf_counter() - _start
                     )
-                except Exception:
-                    pass
                 return response.json()  # type: ignore[no-any-return]
 
             except httpx.HTTPStatusError as e:
                 error_detail = e.response.text if e.response else str(e)
-                try:
+                with suppress(Exception):
                     from src.infrastructure.observability.metrics_oauth import (
                         oauth_provider_errors_total,
                     )
@@ -357,8 +356,6 @@ class OAuthFlowHandler:
                     oauth_provider_errors_total.labels(
                         provider=provider_name, endpoint="token_exchange"
                     ).inc()
-                except Exception:
-                    pass
                 logger.error(
                     "oauth_token_exchange_failed",
                     provider=provider_name,
@@ -371,7 +368,7 @@ class OAuthFlowHandler:
                 ) from e
 
             except httpx.RequestError as e:
-                try:
+                with suppress(Exception):
                     from src.infrastructure.observability.metrics_oauth import (
                         oauth_provider_errors_total,
                     )
@@ -379,8 +376,6 @@ class OAuthFlowHandler:
                     oauth_provider_errors_total.labels(
                         provider=provider_name, endpoint="token_exchange"
                     ).inc()
-                except Exception:
-                    pass
                 logger.error(
                     "oauth_token_exchange_network_error",
                     provider=provider_name,

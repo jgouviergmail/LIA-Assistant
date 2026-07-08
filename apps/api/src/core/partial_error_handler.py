@@ -33,6 +33,7 @@ Usage:
 Phase: Multi-Domain Architecture v1.0
 """
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
@@ -658,10 +659,8 @@ class PartialErrorHandler:
             if hasattr(response, "headers"):
                 retry_after = response.headers.get("Retry-After")
                 if retry_after:
-                    try:
+                    with suppress(ValueError, TypeError):
                         return int(retry_after)
-                    except (ValueError, TypeError):
-                        pass
 
         # Default retry timing based on patterns
         error_str = str(error).lower()

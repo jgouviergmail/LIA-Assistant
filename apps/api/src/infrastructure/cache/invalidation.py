@@ -39,6 +39,7 @@ import asyncio
 import json
 import os
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 
 from src.core.constants import REDIS_CHANNEL_CACHE_INVALIDATION
 from src.infrastructure.cache.redis import get_redis_cache
@@ -213,11 +214,10 @@ async def run_invalidation_subscriber() -> None:
         except asyncio.CancelledError:
             logger.info("cache_invalidation_subscriber_stopped", pid=os.getpid())
             if pubsub:
-                try:
+                # Best-effort cleanup: pubsub may already be closed
+                with suppress(Exception):
                     await pubsub.unsubscribe(REDIS_CHANNEL_CACHE_INVALIDATION)
                     await pubsub.close()
-                except Exception:
-                    pass  # Best-effort cleanup: pubsub may already be closed
             raise
         except Exception:
             logger.error(
@@ -226,8 +226,7 @@ async def run_invalidation_subscriber() -> None:
                 exc_info=True,
             )
             if pubsub:
-                try:
+                # Best-effort cleanup: pubsub may already be closed
+                with suppress(Exception):
                     await pubsub.close()
-                except Exception:
-                    pass  # Best-effort cleanup: pubsub may already be closed
             await asyncio.sleep(reconnect_delay)

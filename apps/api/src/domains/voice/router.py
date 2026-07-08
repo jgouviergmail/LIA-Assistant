@@ -18,6 +18,7 @@ Created: 2026-02-01
 
 import asyncio
 import time
+from contextlib import suppress
 from decimal import Decimal
 from typing import Annotated, cast
 from uuid import UUID
@@ -316,7 +317,7 @@ async def websocket_audio(
                                         "websocket_stt_remote_disabled",
                                         user_id=user_id,
                                     )
-                                    try:
+                                    with suppress(Exception):
                                         await websocket.send_json(
                                             {
                                                 "type": "error",
@@ -327,8 +328,6 @@ async def websocket_audio(
                                                 ),
                                             }
                                         )
-                                    except Exception:  # noqa: BLE001
-                                        pass
                                     await websocket.close(
                                         code=WS_CLOSE_CODE_STT_PROVIDER_ERROR,
                                         reason="remote_stt_disabled",
@@ -356,7 +355,7 @@ async def websocket_audio(
                                             settings.elevenlabs_stt_max_audio_duration_seconds
                                         ),
                                     )
-                                    try:
+                                    with suppress(Exception):
                                         await websocket.send_json(
                                             {
                                                 "type": "error",
@@ -367,8 +366,6 @@ async def websocket_audio(
                                                 ),
                                             }
                                         )
-                                    except Exception:  # noqa: BLE001
-                                        pass
                                     await websocket.close(
                                         code=WS_CLOSE_CODE_STT_PROVIDER_ERROR,
                                         reason="audio_too_long_for_remote",
@@ -423,7 +420,8 @@ async def websocket_audio(
                                     if e.code == "provider_rate_limited"
                                     else WS_CLOSE_CODE_STT_PROVIDER_ERROR
                                 )
-                                try:
+                                # Client may have closed already; ignore.
+                                with suppress(Exception):
                                     await websocket.send_json(
                                         {
                                             "type": "error",
@@ -432,9 +430,6 @@ async def websocket_audio(
                                             "retry_after_seconds": e.retry_after_seconds,
                                         }
                                     )
-                                except Exception:  # noqa: BLE001
-                                    # Client may have closed already; ignore.
-                                    pass
                                 await websocket.close(code=close_code, reason=e.code[:120])
                                 break
 
@@ -469,16 +464,14 @@ async def websocket_audio(
                                 )
                                 stt_cost_usd = cost_usd
                                 stt_cost_eur = cost_eur
-                                try:
+                                # Tracking failure must not break the user-facing
+                                # transcription delivery; we already logged it.
+                                with suppress(Exception):
                                     await StatisticsService.record_remote_stt(
                                         user_id=UUID(user_id),
                                         audio_duration_seconds=duration_seconds,
                                         cost_eur=Decimal(str(cost_eur)),
                                     )
-                                except Exception:  # noqa: BLE001
-                                    # Tracking failure must not break the user-facing
-                                    # transcription delivery; we already logged it.
-                                    pass
 
                             # Send result
                             await websocket.send_json(

@@ -3,6 +3,7 @@ Auth service containing business logic for authentication.
 Handles user registration, login, OAuth, email verification, and password reset.
 """
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -466,7 +467,7 @@ class AuthService:
             )
 
             # Dashboard 10 OAuth user-info fetch duration
-            try:
+            with suppress(Exception):
                 from src.infrastructure.observability.metrics_oauth import (
                     oauth_user_info_fetch_duration_seconds,
                 )
@@ -474,18 +475,14 @@ class AuthService:
                 oauth_user_info_fetch_duration_seconds.labels(provider="google").observe(
                     _time.perf_counter() - _start
                 )
-            except Exception:
-                pass
 
             if userinfo_response.status_code != 200:
-                try:
+                with suppress(Exception):
                     from src.infrastructure.observability.metrics_oauth import (
                         oauth_provider_errors_total,
                     )
 
                     oauth_provider_errors_total.labels(provider="google", endpoint="userinfo").inc()
-                except Exception:
-                    pass
                 logger.error(
                     "google_userinfo_api_failed",
                     status_code=userinfo_response.status_code,

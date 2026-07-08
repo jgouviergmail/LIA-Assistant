@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -92,7 +93,8 @@ class PatternConfig:
         """Load from settings on first access."""
         if self._loaded:
             return
-        try:
+        # Use defaults if settings not available
+        with suppress(Exception):
             from src.core.config import settings
 
             self._prior_alpha = settings.plan_pattern_prior_alpha
@@ -108,8 +110,6 @@ class PatternConfig:
             self._redis_ttl_days = settings.plan_pattern_redis_ttl_days
             # NOTE: Plan pattern learning is always enabled (_enabled = True by default)
             self._training_enabled = settings.plan_pattern_training_enabled
-        except Exception:
-            pass  # Use defaults if settings not available
         self._loaded = True
 
     @property

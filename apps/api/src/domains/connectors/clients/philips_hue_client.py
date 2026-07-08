@@ -23,6 +23,7 @@ Reference: docs/connectors/CONNECTOR_PHILIPS_HUE.md
 """
 
 import asyncio
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -105,14 +106,13 @@ def resolve_color(color_input: str) -> tuple[float, float] | None:
         return HUE_COLOR_MAP[normalized]
 
     # Try parsing as 'x,y' coordinates
-    try:
+    # Expected: input is not x,y coordinates, fall through to return None
+    with suppress(ValueError):
         parts = normalized.split(",")
         if len(parts) == 2:
             x, y = float(parts[0].strip()), float(parts[1].strip())
             if 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0:
                 return (x, y)
-    except ValueError:
-        pass  # Expected: input is not x,y coordinates, fall through to return None
 
     return None
 

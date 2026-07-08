@@ -35,6 +35,7 @@ Architecture:
 """
 
 import re
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Annotated
 from urllib.parse import urlparse
@@ -411,7 +412,8 @@ async def fetch_web_page_tool(
                 # 6c. Check Content-Length if available
                 content_length_header = response.headers.get("content-length")
                 if content_length_header:
-                    try:
+                    # Invalid Content-Length header, proceed with download
+                    with suppress(ValueError):
                         declared_length = int(content_length_header)
                         if declared_length > WEB_FETCH_MAX_CONTENT_LENGTH:
                             return UnifiedToolOutput.failure(
@@ -421,8 +423,6 @@ async def fetch_web_page_tool(
                                 ),
                                 error_code="CONSTRAINT_VIOLATION",
                             )
-                    except ValueError:
-                        pass  # Invalid Content-Length header, proceed with download
 
                 # 6d. Read the WHOLE body into memory (headers were validated
                 # pre-download; actual size is enforced after the read)

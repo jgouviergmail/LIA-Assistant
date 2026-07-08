@@ -2,6 +2,7 @@
 Service layer for chat domain - token tracking and statistics.
 """
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, NamedTuple
@@ -1249,12 +1250,11 @@ class TrackingContext:
 
         # Invalidate usage limit cache after stats update
         if getattr(settings, "usage_limits_enabled", False):
-            try:
+            # Cache invalidation failure must not break token tracking
+            with suppress(Exception):
                 from src.domains.usage_limits.service import UsageLimitService
 
                 await UsageLimitService.invalidate_cache_static(self.user_id)
-            except Exception:
-                pass  # Cache invalidation failure must not break token tracking
 
 
 class StatisticsService:
@@ -1457,10 +1457,8 @@ class StatisticsService:
             return
 
         if getattr(settings, "usage_limits_enabled", False):
-            try:
+            # Cache invalidation failure must never break STT tracking.
+            with suppress(Exception):
                 from src.domains.usage_limits.service import UsageLimitService
 
                 await UsageLimitService.invalidate_cache_static(user_id)
-            except Exception:  # noqa: BLE001
-                # Cache invalidation failure must never break STT tracking.
-                pass

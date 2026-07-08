@@ -7,6 +7,7 @@ Phase: Reminders with FCM notifications
 Created: 2025-12-28
 """
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -187,11 +188,9 @@ class ReminderService:
             Resolved Reminder instance (not cancelled).
         """
         # Try UUID first
-        try:
+        with suppress(ValueError):
             reminder_id = UUID(identifier)
             return await self.get_by_id(reminder_id, user_id)
-        except ValueError:
-            pass
 
         # Get pending reminders for user
         pending_reminders = await self.list_pending_for_user(user_id)
@@ -209,12 +208,10 @@ class ReminderService:
             return pending_reminders[-1]
 
         # Try numeric index
-        try:
+        with suppress(ValueError):
             idx = int(identifier) - 1  # 1-indexed
             if 0 <= idx < len(pending_reminders):
                 return pending_reminders[idx]
-        except ValueError:
-            pass
 
         # Try content match
         for reminder in pending_reminders:

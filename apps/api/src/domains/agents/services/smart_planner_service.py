@@ -20,6 +20,7 @@ PANIC MODE: If planning fails with filtered catalogue,
 retry ONCE with expanded catalogue.
 """
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -1351,7 +1352,7 @@ class SmartPlannerService:
             is_multi_domain=True,
         )
         # Dashboard 15: multi-domain prompt formatting duration
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_agents import (
                 multi_domain_formatting_duration_seconds,
             )
@@ -1359,8 +1360,6 @@ class SmartPlannerService:
             multi_domain_formatting_duration_seconds.labels(
                 domain_count=str(len(intelligence.domains) if intelligence.domains else 0)
             ).observe(_time.perf_counter() - _fmt_start)
-        except Exception:
-            pass
         return result
 
     def _build_plan(

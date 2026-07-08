@@ -17,6 +17,7 @@ Flow:
 
 import asyncio
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 if TYPE_CHECKING:
@@ -611,12 +612,11 @@ def _format_draft_execution_result(result: dict[str, Any] | None) -> str:
                 label = labels.get(field.label_key, field.content_key)
                 str_value = str(value)
                 if field.is_datetime and isinstance(value, str) and "T" in value:
-                    try:
+                    # Keep raw ISO if formatting fails.
+                    with suppress(ValueError, TypeError):
                         str_value = format_datetime_for_display(
                             value, user_tz, user_lang, include_time=True
                         )
-                    except (ValueError, TypeError):
-                        pass  # Keep raw ISO if formatting fails.
                 # Truncate long body-like fields (last path segment for nested keys).
                 last_key = field.content_key.rsplit(".", 1)[-1]
                 if last_key in ("body", "description", "notes") and len(str_value) > 200:
@@ -2928,7 +2928,7 @@ def _detect_response_result_domains(
     result_domains = _detect_result_domains_from_registry(current_turn_registry)
     is_mono_domain = len(result_domains) == 1 and "other" not in result_domains
     # Prometheus: domain detection + multi-domain composition (dashboard 15)
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_agents import (
             domain_detection_total,
             multi_domain_composition_total,
@@ -2941,8 +2941,6 @@ def _detect_response_result_domains(
                 composition_mode="sequential",
                 domain_count=str(len(result_domains)),
             ).inc()
-    except Exception:
-        pass
     logger.info(
         "response_node_domain_detection",
         run_id=run_id,

@@ -21,6 +21,7 @@ any template, use generative planning (LLM).
 Templates cover 80% (Pareto), LLM handles the rest.
 """
 
+from contextlib import suppress
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
@@ -494,7 +495,7 @@ async def planner_node_v3(
         # triggered by SmartPlannerService after an initial failure. The ContextVar
         # `panic_mode_attempted` is True whenever a retry was attempted (regardless of
         # outcome), whereas `used_panic_mode` is True only on retry success.
-        try:
+        with suppress(Exception):
             from src.core.context import panic_mode_attempted
             from src.infrastructure.observability.metrics_agents import (
                 planner_plans_created_total,
@@ -511,8 +512,6 @@ async def planner_node_v3(
                 ).inc()
                 if planning_result.used_panic_mode:
                     planner_retry_success_total.labels(retry_attempt="1").inc()
-        except Exception:
-            pass
 
         # Validate plan to determine HITL requirements
         from src.domains.agents.orchestration.validator import (
@@ -548,18 +547,16 @@ async def planner_node_v3(
 
         # Track validation rejections (dashboard 07 Plans Rejected panel)
         if not validation_result.is_valid:
-            try:
+            with suppress(Exception):
                 from src.infrastructure.observability.metrics_agents import (
                     planner_plans_rejected_total,
                 )
 
                 reason = validation_result.errors[0].code if validation_result.errors else "unknown"
                 planner_plans_rejected_total.labels(reason=str(reason)).inc()
-            except Exception:
-                pass
 
         # Domain filtering status + confidence (dashboard 07 domain filtering row)
-        try:
+        with suppress(Exception):
             from src.core.config import settings as _settings
             from src.infrastructure.observability.metrics_agents import (
                 planner_domain_confidence_score,
@@ -578,8 +575,6 @@ async def planner_node_v3(
             planner_domain_confidence_score.labels(fallback_triggered=fallback_triggered).observe(
                 domain_confidence
             )
-        except Exception:
-            pass
 
         result = {
             STATE_KEY_EXECUTION_PLAN: planning_result.plan,
@@ -625,7 +620,7 @@ async def planner_node_v3(
 
         # If panic mode was attempted (retry) and we still failed → exhausted.
         # Emit both planner_retries_total (the attempt) and retry_exhausted (the outcome).
-        try:
+        with suppress(Exception):
             from src.core.context import panic_mode_attempted
             from src.infrastructure.observability.metrics_agents import (
                 planner_retries_total,
@@ -638,8 +633,6 @@ async def planner_node_v3(
                     validation_error_type="catalogue_expansion",
                 ).inc()
                 planner_retry_exhausted_total.labels(final_error_type="planning_failed").inc()
-        except Exception:
-            pass
 
         result = {
             STATE_KEY_EXECUTION_PLAN: None,

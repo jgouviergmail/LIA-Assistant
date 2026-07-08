@@ -33,6 +33,7 @@ import asyncio
 import json
 import re
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -1478,7 +1479,7 @@ class PlanSemanticValidator:
             semantic_validation_total.labels(result="valid" if result.is_valid else "invalid").inc()
 
             # Dashboard 16 "Semantic Validation Issues" panel — non-critical
-            try:
+            with suppress(Exception):
                 from src.infrastructure.observability.metrics_agents import (
                     semantic_validation_issues_detected,
                 )
@@ -1488,8 +1489,6 @@ class PlanSemanticValidator:
                         _issue.get("issue_type") if isinstance(_issue, dict) else "unknown"
                     )
                     semantic_validation_issues_detected.labels(issue_type=str(_issue_type)).inc()
-            except Exception:
-                pass
 
             logger.info(
                 "semantic_validation_complete",

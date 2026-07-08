@@ -131,6 +131,7 @@ References
 - Error #5 Documentation: INTEGRATION_GUIDE.md - Erreur Critique #5
 """
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, NamedTuple
 from uuid import UUID
 
@@ -203,7 +204,7 @@ def parse_user_id(user_id: str | UUID) -> UUID:
             # Crockford: 0123456789ABCDEFGHJKMNPQRSTVWXYZ (excludes I, L, O, U)
             # We need to convert ULID to its 128-bit integer representation
             base32_chars = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
-            try:
+            with suppress(ValueError, OverflowError):
                 # Decode ULID to 128-bit integer
                 num = 0
                 for char in user_id.upper():
@@ -211,8 +212,6 @@ def parse_user_id(user_id: str | UUID) -> UUID:
                 # Convert to 16 bytes (128 bits)
                 ulid_bytes = num.to_bytes(16, byteorder="big")
                 return UUID(bytes=ulid_bytes)
-            except (ValueError, OverflowError):
-                pass
 
         # Last resort: raise error
         raise ValueError(f"Invalid user_id format: {user_id}") from None
@@ -662,7 +661,8 @@ async def save_to_context_store(
     if not runtime.store:
         return
 
-    try:
+    # Context save is non-critical
+    with suppress(Exception):
         user_id_raw = runtime.config.get("configurable", {}).get("user_id")
         thread_id = runtime.config.get("configurable", {}).get("thread_id")
 
@@ -673,8 +673,6 @@ async def save_to_context_store(
                 key,
                 value,
             )
-    except Exception:
-        pass  # Context save is non-critical
 
 
 # =============================================================================

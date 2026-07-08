@@ -15,6 +15,7 @@ Key design decisions:
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -513,12 +514,10 @@ async def consolidate_journals_for_user(
         # the portrait — the two are independent products of the same call.
         if parsed.portrait_full or parsed.portrait_brief:
             await _persist_compiled_portrait(user_id, parsed.portrait_full, parsed.portrait_brief)
-            try:
+            with suppress(Exception):
                 journal_portrait_compile_duration_seconds.observe(
                     _time.time() - _portrait_compile_start
                 )
-            except Exception:  # pragma: no cover
-                pass
 
         if not actions:
             logger.debug(

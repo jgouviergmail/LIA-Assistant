@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from typing import Any, TypeVar
 
 from langchain_core.embeddings import Embeddings
@@ -283,7 +284,8 @@ class GeminiRetrievalEmbeddings(Embeddings):
         import asyncio
 
         cost_usd = token_count * GEMINI_EMBEDDING_COST_PER_TOKEN_USD
-        try:
+        # No event loop running (CLI context) — Prometheus metrics are sufficient
+        with suppress(RuntimeError):
             loop = asyncio.get_running_loop()
             from src.infrastructure.llm.embedding_context import persist_embedding_tokens
 
@@ -296,9 +298,6 @@ class GeminiRetrievalEmbeddings(Embeddings):
                     duration_ms=latency * 1000,
                 )
             )
-        except RuntimeError:
-            # No event loop running (CLI context) — Prometheus metrics are sufficient
-            pass
 
     def _emit_metrics(
         self,

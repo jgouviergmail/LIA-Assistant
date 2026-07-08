@@ -16,6 +16,7 @@ centralizes the two-step lookup so both execution modes behave identically.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from src.core.context import strip_hallucinated_mcp_suffix, user_mcp_tools_ctx
@@ -118,22 +119,18 @@ def resolve_tool_manifest_named(name: str) -> tuple[ToolManifest | None, str]:
     registry = get_global_registry()
 
     # 1. Global agent registry — exact.
-    try:
+    with suppress(ToolManifestNotFound):
         manifest = registry.get_tool_manifest(name)
         if manifest is not None:
             return manifest, name
-    except ToolManifestNotFound:
-        pass
 
     # 2. Global agent registry — hallucinated suffix stripped (admin MCP).
     stripped = strip_hallucinated_mcp_suffix(name)
     if stripped:
-        try:
+        with suppress(ToolManifestNotFound):
             manifest = registry.get_tool_manifest(stripped)
             if manifest is not None:
                 return manifest, stripped
-        except ToolManifestNotFound:
-            pass
 
     # 3. User MCP ContextVar — per-request manifests (exact + fuzzy resolve).
     user_ctx = user_mcp_tools_ctx.get()

@@ -50,6 +50,7 @@ Date: 2025-11-04
 """
 
 import uuid
+from contextlib import suppress
 from typing import Any
 
 import structlog
@@ -338,7 +339,8 @@ def create_instrumented_config(
     enriched_metadata["langfuse_trace_depth"] = depth
 
     # Instrument Prometheus metrics for subgraph tracing (Phase 3.1.6.3)
-    try:
+    # Graceful degradation - metrics failure shouldn't break instrumentation
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_langfuse import (
             langfuse_subgraph_invocations,
             langfuse_trace_depth,
@@ -355,9 +357,6 @@ def create_instrumented_config(
                 subgraph_name=subgraph_name,
                 status="invoked",  # Will be updated to success/error by callbacks
             ).inc()
-    except Exception:
-        # Graceful degradation - metrics failure shouldn't break instrumentation
-        pass
 
     # Add metadata to config (always, even if Langfuse disabled)
     config["metadata"] = enriched_metadata

@@ -14,6 +14,7 @@ import asyncio
 import time
 import uuid
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 from typing import Any
 
 from langchain_core.exceptions import ContextOverflowError
@@ -136,7 +137,7 @@ class OrchestrationService:
                 data = event.get("data", {})
 
                 # Dashboard 15 langgraph_streaming_events metric (non-critical)
-                try:
+                with suppress(Exception):
                     from src.infrastructure.observability.metrics_langgraph import (
                         langgraph_streaming_events_total,
                     )
@@ -144,8 +145,6 @@ class OrchestrationService:
                     langgraph_streaming_events_total.labels(
                         event_name=str(event_type or "unknown")
                     ).inc()
-                except Exception:
-                    pass
 
                 # Yield graph event
                 yield GraphChunk(event_type=event_type, data=data)

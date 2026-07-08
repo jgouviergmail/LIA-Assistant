@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from contextlib import suppress
 from typing import Annotated
 
 import structlog
@@ -151,12 +152,11 @@ async def admin_usage_ws(
                     last_activity = time.time()
 
                     # Handle client messages
-                    try:
+                    # Ignore malformed messages
+                    with suppress(json.JSONDecodeError):
                         data = json.loads(message)
                         if data.get("type") == "ping":
                             await websocket.send_json({"type": "pong"})
-                    except json.JSONDecodeError:
-                        pass  # Ignore malformed messages
 
                 except TimeoutError:
                     # No message received — check idle timeout then loop (push next update)

@@ -28,6 +28,7 @@ References:
 Created: 2025-11-25
 """
 
+from contextlib import suppress
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
@@ -147,7 +148,7 @@ async def clarification_node(
     )
 
     # Track clarification request (dashboard 08 HITL Clarification Requests panel)
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_agents import (
             hitl_clarification_requests_total,
         )
@@ -160,8 +161,6 @@ async def clarification_node(
             elif hasattr(first_issue, "issue_type"):
                 reason = first_issue.issue_type
         hitl_clarification_requests_total.labels(reason=str(reason)).inc()
-    except Exception:
-        pass
 
     # Prepare interrupt payload
     # Format compatible with HITL streaming infrastructure

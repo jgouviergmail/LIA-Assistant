@@ -5,6 +5,7 @@ Manages user connections to external services (Gmail, Drive, etc.).
 
 import enum
 import uuid
+from contextlib import suppress
 from typing import Any
 
 from sqlalchemy import Enum, ForeignKey, Text
@@ -424,13 +425,12 @@ def _mark_connector_activation_start(
         target: Connector instance about to be inserted.
     """
     del mapper, connection  # unused
-    try:
+    # metrics must never break the INSERT
+    with suppress(Exception):
         import time as _time
 
         # Per-instance attribute avoids interfering with the SQLAlchemy session.
         target.__dict__["_obs_activation_start"] = _time.perf_counter()
-    except Exception:  # noqa: BLE001 — metrics must never break the INSERT
-        pass
 
 
 @_sa_event.listens_for(Connector, "after_insert")
@@ -445,7 +445,8 @@ def _track_connector_activation(
         target: Connector instance that was just inserted.
     """
     del mapper, connection  # unused
-    try:
+    # metrics must never break the INSERT
+    with suppress(Exception):
         import time as _time
 
         from src.infrastructure.observability.metrics_oauth import (
@@ -465,8 +466,6 @@ def _track_connector_activation(
             oauth_connector_activation_duration_seconds.labels(
                 connector_type=connector_type_value
             ).observe(_time.perf_counter() - _start)
-    except Exception:  # noqa: BLE001 — metrics must never break the INSERT
-        pass
 
 
 class ConnectorGlobalConfig(BaseModel):

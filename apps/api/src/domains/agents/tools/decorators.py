@@ -44,6 +44,7 @@ Usage Example:
 """
 
 from collections.abc import Callable
+from contextlib import suppress
 from typing import Literal, TypeVar, cast
 
 from langchain_core.tools import tool
@@ -393,7 +394,9 @@ def with_user_preferences(func: Callable[..., T]) -> Callable[..., T]:
         locale = settings.default_language
 
         if runtime:
-            try:
+            # Silent fallback to defaults
+            # Logging is already done in get_user_preferences()
+            with suppress(Exception):
                 # Import here to avoid circular dependency
                 from src.domains.agents.tools.runtime_helpers import get_user_preferences
 
@@ -401,10 +404,6 @@ def with_user_preferences(func: Callable[..., T]) -> Callable[..., T]:
                 fetched_tz, _, fetched_locale = await get_user_preferences(runtime)
                 user_timezone = fetched_tz
                 locale = fetched_locale
-            except Exception:
-                # Silent fallback to defaults
-                # Logging is already done in get_user_preferences()
-                pass
 
         # Inject into kwargs (unless already provided)
         kwargs.setdefault("user_timezone", user_timezone)

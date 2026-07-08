@@ -36,6 +36,7 @@ References:
 """
 
 import asyncio
+from contextlib import suppress
 from typing import cast
 
 from langgraph.store.postgres import AsyncPostgresStore
@@ -244,12 +245,10 @@ def reset_tool_context_store() -> None:
     global _tool_context_store, _store_pool
     if _store_pool is not None:
         pool = _store_pool
-        try:
+        # No running loop (sync context): abandon the pool; connections are
+        # reclaimed at process exit. Test-only path, mirrors previous behavior.
+        with suppress(RuntimeError):
             asyncio.get_running_loop().create_task(pool.close(), name="store_pool_close_on_reset")
-        except RuntimeError:
-            # No running loop (sync context): abandon the pool; connections are
-            # reclaimed at process exit. Test-only path, mirrors previous behavior.
-            pass
     _tool_context_store = None
     _store_pool = None
     logger.warning("tool_context_store_reset")

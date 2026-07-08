@@ -25,6 +25,7 @@ Usage:
 from __future__ import annotations
 
 import re
+from contextlib import suppress
 from datetime import date, datetime
 from difflib import SequenceMatcher
 from typing import Any
@@ -693,18 +694,14 @@ class QueryExecutor:
             return int(value)
 
         # Float
-        try:
+        with suppress(ValueError):
             if "." in value:
                 return float(value)
-        except ValueError:
-            pass
 
         # Date (ISO format heuristic)
         if len(value) >= 10 and value[4] == "-" and value[7] == "-":
-            try:
+            with suppress(ValueError):
                 return datetime.fromisoformat(value[:10]).date()
-            except ValueError:
-                pass
 
         return value
 

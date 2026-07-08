@@ -50,6 +50,7 @@ References:
 """
 
 import asyncio
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 
 import structlog
@@ -536,7 +537,8 @@ async def _sync_period_metrics_from_db(db: AsyncSession) -> None:
     # -----------------------------------------------------------------
     # Redis pool gauges (dashboards 03, 04) — uses public redis-py API
     # -----------------------------------------------------------------
-    try:
+    # Redis may not be reachable; keep gauges unchanged
+    with suppress(Exception):
         from src.infrastructure.cache.redis import get_redis_cache
         from src.infrastructure.observability.metrics_redis import (
             redis_connection_pool_available_current,
@@ -558,14 +560,11 @@ async def _sync_period_metrics_from_db(db: AsyncSession) -> None:
                 _in_use = 0
         redis_connection_pool_size_current.set(_max)
         redis_connection_pool_available_current.set(max(0, _max - _in_use))
-    except Exception:
-        # Redis may not be reachable; keep gauges unchanged
-        pass
 
     # -----------------------------------------------------------------
     # Checkpoints table size (dashboard 14) — Postgres storage
     # -----------------------------------------------------------------
-    try:
+    with suppress(Exception):
         from sqlalchemy import text as _sql_text
 
         from src.infrastructure.observability.metrics_registry import (
@@ -577,13 +576,11 @@ async def _sync_period_metrics_from_db(db: AsyncSession) -> None:
         ).first()
         if _row is not None and _row.s is not None:
             checkpoints_table_size_bytes.set(int(_row.s))
-    except Exception:
-        pass
 
     # -----------------------------------------------------------------
     # Connector activation rate Gauge (dashboard 09) — % of users with ≥ 1 active connector
     # -----------------------------------------------------------------
-    try:
+    with suppress(Exception):
         from src.domains.connectors.models import Connector, ConnectorStatus
         from src.infrastructure.observability.metrics_business import (
             connector_activation_rate,
@@ -609,8 +606,6 @@ async def _sync_period_metrics_from_db(db: AsyncSession) -> None:
                 connector_activation_rate.labels(connector_type=ctype_value).set(
                     (ucount or 0) * 100.0 / total_users
                 )
-    except Exception:
-        pass
 
     # NOTE: `user_return_rate_total` and `user_daily_conversations_total` are
     # intentionally NOT set from a polling job — they are semantic "event" metrics
@@ -624,7 +619,7 @@ async def _sync_period_metrics_from_db(db: AsyncSession) -> None:
     # Observes the per-user conversation count for the last 24h as a histogram
     # sample. Called once per updater cycle, so cardinality stays bounded.
     # -----------------------------------------------------------------
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_business import (
             user_daily_conversations_total,
         )
@@ -638,8 +633,6 @@ async def _sync_period_metrics_from_db(db: AsyncSession) -> None:
         ).all()
         for _user_id, _count in _rows:
             user_daily_conversations_total.observe(_count or 0)
-    except Exception:
-        pass
 
     # NOTE: the placeholder gauges `agent_routing_accuracy`, `agent_error_rate`
     # and `agent_latency_p95_seconds` were removed (2026-05) — they required

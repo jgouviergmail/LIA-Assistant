@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import base64
 import time
+from contextlib import suppress
 from typing import Any
 
 import httpx
@@ -210,8 +211,6 @@ class ElevenLabsTTSClient:
 
     async def close(self) -> None:
         """Close the persistent httpx client and release pooled connections."""
-        try:
+        # Already closed or never opened; non-fatal.
+        with suppress(Exception):
             await self._http_client.aclose()
-        except Exception:
-            # Already closed or never opened; non-fatal.
-            pass

@@ -18,6 +18,7 @@ API Reference:
 - https://developers.google.com/maps/documentation/routes/overview
 """
 
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from urllib.parse import quote
@@ -1393,13 +1394,11 @@ async def get_route_tool(
         language = "fr"
         user_timezone = DEFAULT_USER_DISPLAY_TIMEZONE
         if runtime:
-            try:
+            with suppress(ValueError, KeyError, RuntimeError, AttributeError):
                 tz, lang, _locale = await get_user_preferences(runtime)
                 language = lang
                 if tz:
                     user_timezone = tz
-            except (ValueError, KeyError, RuntimeError, AttributeError):
-                pass
 
         # Get original user message if not provided
         if not user_message and runtime:
@@ -1803,11 +1802,9 @@ async def get_route_matrix_tool(
         # Get user preferences
         language = "fr"
         if runtime:
-            try:
+            with suppress(ValueError, KeyError, RuntimeError, AttributeError):
                 _tz, lang, _locale = await get_user_preferences(runtime)
                 language = lang
-            except (ValueError, KeyError, RuntimeError, AttributeError):
-                pass
 
         # Parse travel mode
         mode = _parse_travel_mode(travel_mode)

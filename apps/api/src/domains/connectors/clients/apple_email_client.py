@@ -18,6 +18,7 @@ import asyncio
 import json
 import smtplib
 import uuid
+from contextlib import suppress
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -272,7 +273,7 @@ class AppleEmailClient(BaseAppleClient):
                 logger.debug("apple_email_cache_write_error", error=str(e))
 
         # Prometheus (dashboard 10 Email)
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_agents import (
                 email_api_calls,
                 email_api_latency,
@@ -284,8 +285,6 @@ class AppleEmailClient(BaseAppleClient):
                 _time.perf_counter() - _email_start
             )
             email_results_count.labels(operation="search").observe(len(messages))
-        except Exception:
-            pass
 
         return {
             "messages": [{"id": msg["id"]} for msg in messages],
@@ -309,25 +308,21 @@ class AppleEmailClient(BaseAppleClient):
                 cache_key = f"apple_email:{self.user_id}:msg:{message_id}"
                 cached = await redis.get(cache_key)
                 if cached:
-                    try:
+                    with suppress(Exception):
                         from src.infrastructure.observability.metrics_agents import (
                             email_cache_hits,
                         )
 
                         email_cache_hits.labels(cache_type="redis_message").inc()
-                    except Exception:
-                        pass
                     result = json.loads(cached)
                     result["from_cache"] = True
                     return result
-                try:
+                with suppress(Exception):
                     from src.infrastructure.observability.metrics_agents import (
                         email_cache_misses,
                     )
 
                     email_cache_misses.labels(cache_type="redis_message").inc()
-                except Exception:
-                    pass
             except Exception as e:
                 logger.debug("apple_email_cache_read_error", error=str(e))
 

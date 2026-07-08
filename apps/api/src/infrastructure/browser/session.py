@@ -11,6 +11,7 @@ Phase: evolution F7 — Browser Control (Playwright)
 from __future__ import annotations
 
 import time
+from contextlib import suppress
 from io import BytesIO
 from typing import TYPE_CHECKING
 
@@ -119,20 +120,18 @@ class BrowserSession:
         try:
             await self.page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
             # Wait for JavaScript to finish rendering (SPAs, dynamic content)
-            try:
+            # Some pages never reach networkidle (analytics, websockets)
+            with suppress(Exception):
                 await self.page.wait_for_load_state("networkidle", timeout=10000)
-            except Exception:
-                pass  # Some pages never reach networkidle (analytics, websockets)
             # Auto-dismiss cookie consent banners (blocks content on most sites)
             await self._dismiss_cookie_banner()
         except Exception as nav_error:
             # Page crashed or navigation failed — close corrupted page to prevent
             # subsequent operations from hanging on a dead page
-            try:
+            # Best-effort cleanup: page may already be crashed
+            with suppress(Exception):
                 if self.page and not self.page.is_closed():
                     await self.page.close()
-            except Exception:
-                pass  # Best-effort cleanup: page may already be crashed
             self.page = None
             raise nav_error
 
@@ -248,10 +247,9 @@ class BrowserSession:
         self.last_activity = time.monotonic()
 
         # Wait briefly for page to settle after click (may not reload on SPAs)
-        try:
+        # SPA pages don't reload — timeout is expected
+        with suppress(Exception):
             await self.page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass  # SPA pages don't reload — timeout is expected
 
         return await self.get_snapshot()
 
@@ -308,10 +306,9 @@ class BrowserSession:
         self.last_activity = time.monotonic()
 
         # Wait briefly for page to settle (may not reload on SPAs)
-        try:
+        # SPA pages don't reload — timeout is expected
+        with suppress(Exception):
             await self.page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass  # SPA pages don't reload — timeout is expected
 
         return await self.get_snapshot()
 
@@ -358,16 +355,14 @@ class BrowserSession:
 
     async def close(self) -> None:
         """Close the page and browser context, releasing all resources."""
-        try:
+        # Best-effort cleanup: page may already be closed or disconnected
+        with suppress(Exception):
             if self.page and not self.page.is_closed():
                 await self.page.close()
-        except Exception:
-            pass  # Best-effort cleanup: page may already be closed or disconnected
 
-        try:
+        # Best-effort cleanup: context may already be closed
+        with suppress(Exception):
             await self.context.close()
-        except Exception:
-            pass  # Best-effort cleanup: context may already be closed
 
         self.page = None
         logger.info("browser_session_closed", user_id=self.user_id[:8])

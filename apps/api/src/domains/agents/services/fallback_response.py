@@ -12,6 +12,7 @@ Usage:
 """
 
 from collections.abc import AsyncGenerator, Callable
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from src.domains.agents.prompts import load_prompt
@@ -95,13 +96,13 @@ async def generate_fallback_response(
     psyche_block = ""
     user_model_block = ""
     if user_id:
-        try:
+        # Psyche injection is best-effort
+        with suppress(Exception):
             from src.domains.psyche.service import build_psyche_prompt_block
 
             psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
-        except Exception:
-            pass  # Psyche injection is best-effort
-        try:
+        # Journal portrait injection is best-effort
+        with suppress(Exception):
             from src.domains.journals.portrait_builder import (
                 build_journal_user_model_block,
             )
@@ -109,8 +110,6 @@ async def generate_fallback_response(
             user_model_block = await build_journal_user_model_block(
                 user_id=user_id, format="brief", flow="fallback"
             )
-        except Exception:
-            pass  # Journal portrait injection is best-effort
 
     # Build the prompt
     prompt = load_prompt("fallback_response_prompt").format(
@@ -191,13 +190,13 @@ async def generate_fallback_response_sync(
     psyche_block = ""
     user_model_block = ""
     if user_id:
-        try:
+        # Psyche injection is best-effort
+        with suppress(Exception):
             from src.domains.psyche.service import build_psyche_prompt_block
 
             psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
-        except Exception:
-            pass  # Psyche injection is best-effort
-        try:
+        # Journal portrait injection is best-effort
+        with suppress(Exception):
             from src.domains.journals.portrait_builder import (
                 build_journal_user_model_block,
             )
@@ -205,8 +204,6 @@ async def generate_fallback_response_sync(
             user_model_block = await build_journal_user_model_block(
                 user_id=user_id, format="brief", flow="fallback"
             )
-        except Exception:
-            pass  # Journal portrait injection is best-effort
 
     prompt = load_prompt("fallback_response_prompt").format(
         user_query=user_query or "unavailable query",

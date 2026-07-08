@@ -26,6 +26,7 @@ Phase: v1.20.x — Stratified journal consciousness, commit 3
 
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import Literal
 from uuid import UUID
 
@@ -99,10 +100,9 @@ async def build_journal_user_model_block(
         if not portrait or not portrait.strip():
             return ""
 
-        try:
+        # metrics never break injection
+        with suppress(Exception):
             journal_portrait_present_total.labels(flow=flow, format=format).inc()
-        except Exception:  # pragma: no cover — metrics never break injection
-            pass
 
         return (
             "<UserModelContext>\n"

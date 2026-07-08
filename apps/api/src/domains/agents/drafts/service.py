@@ -42,6 +42,7 @@ Usage:
 Created: 2025-11-27
 """
 
+from contextlib import suppress
 from typing import Any
 from uuid import UUID
 
@@ -675,7 +676,7 @@ class DraftService:
         )
 
         # Dashboard 14 Registry Drafts row - action counter
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_agents import (
                 registry_draft_actions_total,
                 registry_draft_edit_iterations_total,
@@ -689,7 +690,7 @@ class DraftService:
                 registry_draft_edit_iterations_total.labels(draft_type=draft.type.value).inc()
             # Lifecycle duration for terminal actions (CONFIRM / CANCEL)
             if request.action in (DraftAction.CONFIRM, DraftAction.CANCEL):
-                try:
+                with suppress(Exception):
                     created_at = getattr(draft, "created_at", None)
                     if created_at is not None:
                         from datetime import UTC, datetime
@@ -699,10 +700,6 @@ class DraftService:
                             draft_type=draft.type.value,
                             final_action=request.action.value,
                         ).observe(duration)
-                except Exception:
-                    pass
-        except Exception:
-            pass
 
         if request.action == DraftAction.CONFIRM:
             return await self._execute_draft(draft, user_id, execute_fn)
@@ -974,18 +971,18 @@ class DraftService:
 
     def _track_draft_created(self, draft_type: DraftType) -> None:
         """Track draft creation metric."""
-        try:
+        # Metrics are non-critical
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_agents import (
                 registry_drafts_created_total,
             )
 
             registry_drafts_created_total.labels(draft_type=draft_type.value).inc()
-        except Exception:
-            pass  # Metrics are non-critical
 
     def _track_draft_executed(self, draft_type: DraftType, outcome: str) -> None:
         """Track draft execution metric."""
-        try:
+        # Metrics are non-critical
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_agents import (
                 registry_drafts_executed_total,
             )
@@ -994,8 +991,6 @@ class DraftService:
                 draft_type=draft_type.value,
                 outcome=outcome,
             ).inc()
-        except Exception:
-            pass  # Metrics are non-critical
 
 
 # ============================================================================

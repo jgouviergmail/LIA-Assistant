@@ -36,6 +36,7 @@ Migration (2025-12-30):
 
 import re
 import time
+from contextlib import suppress
 from datetime import timedelta
 from typing import Annotated, Any
 from uuid import UUID
@@ -525,7 +526,8 @@ async def search_events_tool(
 
     # Save to context for reference resolution
     if runtime and runtime.store:
-        try:
+        # Context save is non-critical
+        with suppress(RuntimeError, ValueError, OSError):
             user_id_raw = runtime.config.get("configurable", {}).get("user_id")
             thread_id = runtime.config.get("configurable", {}).get("thread_id")
 
@@ -550,8 +552,6 @@ async def search_events_tool(
                         "timestamp": time.time(),
                     },
                 )
-        except (RuntimeError, ValueError, OSError):
-            pass  # Context save is non-critical
 
     return result
 
@@ -915,7 +915,8 @@ async def get_event_details_tool(
     # Save to context
     # MULTI-ORDINAL FIX (2026-01-01): Support batch mode context saving
     if runtime and runtime.store:
-        try:
+        # Context save is non-critical
+        with suppress(RuntimeError, ValueError, OSError):
             user_id_raw = runtime.config.get("configurable", {}).get("user_id")
             thread_id = runtime.config.get("configurable", {}).get("thread_id")
 
@@ -952,8 +953,6 @@ async def get_event_details_tool(
                             "timestamp": time.time(),
                         },
                     )
-        except (RuntimeError, ValueError, OSError):
-            pass  # Context save is non-critical
 
     return result
 
@@ -2001,10 +2000,9 @@ class ListCalendarsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
 
         # Get user preferences for locale
         locale = settings.default_language
-        try:
+        # Use default locale
+        with suppress(ValueError, KeyError, AttributeError):
             _, _, locale = await get_user_preferences(self.runtime)
-        except (ValueError, KeyError, AttributeError):
-            pass  # Use default locale
 
         return {
             "calendars": calendars,

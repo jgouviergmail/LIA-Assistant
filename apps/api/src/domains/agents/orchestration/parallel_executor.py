@@ -75,6 +75,7 @@ import asyncio
 import json
 import threading
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -724,7 +725,7 @@ def _check_plan_completion(
     required_steps = all_step_ids - skipped_steps
 
     # Dashboard 15 LangGraph plan execution metrics
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_agents import (
             langgraph_plan_execution_efficiency,
             langgraph_plan_steps_skipped_total,
@@ -741,8 +742,6 @@ def _check_plan_completion(
             langgraph_plan_steps_skipped_total.labels(
                 plan_type=plan_type, skip_reason="conditional_branch"
             ).inc()
-    except Exception:
-        pass
 
     if set(completed_steps.keys()) >= required_steps:
         # Plan complete: all required steps executed
@@ -1420,7 +1419,7 @@ async def execute_plan_parallel(
         )
 
         # Dashboard 15: wave filtered counter (skipped-branch exclusion)
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_agents import (
                 langgraph_plan_wave_filtered_total,
             )
@@ -1431,8 +1430,6 @@ async def execute_plan_parallel(
                 langgraph_plan_wave_filtered_total.labels(
                     plan_type=_plan_type, filter_type="excluded_steps"
                 ).inc(filtered_count)
-        except Exception:
-            pass
 
         if not next_wave:
             # No more steps can execute - check if plan complete or deadlocked

@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import AsyncGenerator, Callable, Coroutine, Generator
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -133,7 +134,8 @@ class MCPOAuth2Auth(httpx.Auth):
         """
         lock_key = f"mcp_oauth_refresh_lock:{self.server_id}"
         lock_acquired = False
-        try:
+        # Redis unavailable — proceed without lock (best-effort)
+        with suppress(Exception):
             from src.infrastructure.cache.redis import get_redis_session
 
             redis = await get_redis_session()
@@ -147,8 +149,6 @@ class MCPOAuth2Auth(httpx.Auth):
                     server_id=str(self.server_id),
                 )
                 return await self._get_creds_fn()
-        except Exception:
-            pass  # Redis unavailable — proceed without lock (best-effort)
 
         try:
             data = {
@@ -194,11 +194,10 @@ class MCPOAuth2Auth(httpx.Auth):
             return None
         finally:
             if lock_acquired:
-                try:
+                # Lock will expire via TTL
+                with suppress(Exception):
                     redis = await get_redis_session()
                     await redis.delete(lock_key)
-                except Exception:
-                    pass  # Lock will expire via TTL
 
 
 def build_auth_for_server(server: UserMCPServer) -> httpx.Auth:

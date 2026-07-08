@@ -32,6 +32,7 @@ Created: 2025-11-19
 
 import json
 import re
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 
@@ -73,16 +74,12 @@ def _loads_tolerant(json_text: str) -> Any:
     Raises:
         json.JSONDecodeError: If the text is still invalid after all repairs.
     """
-    try:
+    with suppress(json.JSONDecodeError):
         return json.loads(json_text)
-    except json.JSONDecodeError:
-        pass
 
     step1 = _TRAILING_COMMA_RE.sub(r"\1", json_text)
-    try:
+    with suppress(json.JSONDecodeError):
         return json.loads(step1)
-    except json.JSONDecodeError:
-        pass
 
     step2 = _LINE_COMMENT_RE.sub("", step1)
     return json.loads(step2)  # raises JSONDecodeError if still invalid

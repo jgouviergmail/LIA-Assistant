@@ -2,6 +2,8 @@
 Auth router with FastAPI endpoints for authentication.
 """
 
+from contextlib import suppress
+
 import structlog
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
@@ -700,7 +702,7 @@ async def update_voice_preference(
     await db.commit()
     await db.refresh(user)
 
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_voice import (
             voice_preference_toggles_total,
         )
@@ -708,8 +710,6 @@ async def update_voice_preference(
         voice_preference_toggles_total.labels(
             action="enabled" if data.voice_enabled else "disabled"
         ).inc()
-    except Exception:
-        pass
 
     logger.info(
         "user_voice_preference_updated",

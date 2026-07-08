@@ -11,6 +11,7 @@ Renders weather data with:
 
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import Any
 
 from src.core.config import settings
@@ -588,7 +589,7 @@ class WeatherCard(BaseComponent):
 
         temp_str = str(temp)
         # Extract numeric part and round
-        try:
+        with suppress(ValueError, TypeError):
             # Remove unit suffix if present (e.g., "12.5°C" -> "12.5")
             import re
 
@@ -599,22 +600,18 @@ class WeatherCard(BaseComponent):
                 # Preserve unit if present
                 unit = temp_str[len(match.group(0)) :].strip()
                 return f"{rounded}{unit}" if unit else f"{rounded}°C"
-        except (ValueError, TypeError):
-            pass
         return temp_str
 
     def _extract_numeric_temp(self, temp_str: str) -> float | None:
         """Extract numeric value from temperature string."""
         if not temp_str:
             return None
-        try:
+        with suppress(ValueError, TypeError):
             import re
 
             match = re.match(r"(-?\d+\.?\d*)", str(temp_str).replace(",", "."))
             if match:
                 return float(match.group(1))
-        except (ValueError, TypeError):
-            pass
         return None
 
     def _format_wind_direction(self, direction: Any) -> str:
@@ -623,7 +620,7 @@ class WeatherCard(BaseComponent):
             return ""
         dir_str = str(direction)
         # If it's just degrees, convert to cardinal
-        try:
+        with suppress(ValueError, TypeError):
             import re
 
             # Match angle pattern like "180°" or "180"
@@ -631,8 +628,6 @@ class WeatherCard(BaseComponent):
             if match:
                 angle = float(match.group(1))
                 return self._angle_to_cardinal(angle)
-        except (ValueError, TypeError):
-            pass
         # Already cardinal or mixed - extract just the letters
         import re
 

@@ -17,6 +17,7 @@ import json
 import re
 import time
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 from typing import Any
 
 from langchain_core.callbacks.base import BaseCallbackHandler
@@ -237,7 +238,7 @@ class HitlQuestionGenerator:
         # Invoke LLM with instrumented config (Langfuse + TokenTracking + node_name)
         _gen_start = time.time()
         response = await self.tool_question_llm.ainvoke(prompt, config=config)
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_agents import (
                 hitl_question_generation_duration_seconds,
             )
@@ -245,8 +246,6 @@ class HitlQuestionGenerator:
             hitl_question_generation_duration_seconds.labels(streaming="false").observe(
                 time.time() - _gen_start
             )
-        except Exception:
-            pass
 
         # BaseMessage.text (LangChain Core 1.2+) handles both str content and
         # Gemini 3.x list[dict] content blocks transparently.
@@ -372,7 +371,7 @@ class HitlQuestionGenerator:
 
             # Log completion metrics
             total_duration = time.time() - start_time
-            try:
+            with suppress(Exception):
                 from src.infrastructure.observability.metrics_agents import (
                     hitl_question_generation_duration_seconds,
                 )
@@ -380,8 +379,6 @@ class HitlQuestionGenerator:
                 hitl_question_generation_duration_seconds.labels(streaming="true").observe(
                     total_duration
                 )
-            except Exception:
-                pass
             logger.info(
                 "hitl_question_generated_stream",
                 tool_name=tool_name,

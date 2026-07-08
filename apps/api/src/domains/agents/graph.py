@@ -17,6 +17,7 @@ Phase 5.2B-asyncio - Asyncio Pattern:
                                   Response → END
 """
 
+from contextlib import suppress
 from typing import Any
 
 from langgraph.graph import END, StateGraph
@@ -602,7 +603,8 @@ async def build_graph(
 
     # Browser agent (F7 - auto-detected, registered if Playwright available)
     _browser_registered = False
-    try:
+    # Browser agent not registered (Playwright not installed)
+    with suppress(Exception):
         browser_agent_runnable = registry_for_wrapper.get_agent("browser_agent")
         browser_agent_node = build_agent_wrapper(
             agent_runnable=browser_agent_runnable,
@@ -611,8 +613,6 @@ async def build_graph(
         )
         graph.add_node(AGENT_BROWSER, browser_agent_node)
         _browser_registered = True
-    except Exception:
-        pass  # Browser agent not registered (Playwright not installed)
 
     graph.add_node(NODE_RESPONSE, response_node)
 

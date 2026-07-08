@@ -9,6 +9,7 @@ from __future__ import annotations
 import html
 import re
 from abc import ABC, abstractmethod
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -476,14 +477,12 @@ def format_time(
         return str(dt)
 
     # Convert to target timezone if aware
-    try:
+    with suppress(ImportError, KeyError):
         import zoneinfo
 
         if dt.tzinfo is not None:
             target_tz = zoneinfo.ZoneInfo(timezone)
             dt = dt.astimezone(target_tz)
-    except (ImportError, KeyError):
-        pass
 
     # Format based on language convention
     if language == "en":

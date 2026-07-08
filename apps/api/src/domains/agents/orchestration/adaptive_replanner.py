@@ -35,6 +35,7 @@ Created: 2025-12-03 (INTELLIPLANNER Phase E)
 """
 
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -427,7 +428,7 @@ class AdaptiveRePlanner:
         adaptive_replanner_decisions_total.labels(decision=decision.value).inc()
 
         # Dashboard 07: track attempts + recovery success — non-critical
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_agents import (
                 adaptive_replanner_attempts_total,
                 adaptive_replanner_recovery_success_total,
@@ -439,8 +440,6 @@ class AdaptiveRePlanner:
             # Recovery success = non-GIVE_UP decision leading to continued execution
             if decision.value not in ("give_up", "abort", "fail"):
                 adaptive_replanner_recovery_success_total.labels(strategy=strategy.value).inc()
-        except Exception:
-            pass
 
         return self._create_result(
             decision=decision,

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
+from contextlib import suppress
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
@@ -294,10 +295,8 @@ class PricingCacheService:
                 error=str(e),
                 error_type=type(e).__name__,
             )
-            try:
+            with suppress(Exception):
                 await self.redis.delete(self._cache_key)
-            except Exception:  # noqa: BLE001
-                pass
             return False
         except Exception as e:
             logger.warning(

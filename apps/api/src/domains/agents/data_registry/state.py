@@ -29,6 +29,7 @@ Usage:
 Created: 2025-11-27
 """
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -136,12 +137,10 @@ def merge_registry(
     # "aggregated" label value to avoid cardinality explosion. The existing
     # metric declaration uses `[thread_id]`, which is a cardinality risk we
     # mitigate by always passing "aggregated".
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_registry import registry_size
 
         registry_size.labels(thread_id="aggregated").set(len(merged))
-    except Exception:
-        pass
 
     return merged
 
@@ -229,15 +228,13 @@ def clear_registry_expired(
 
     # Dashboard 14 "Expired Items" panel
     if expired_by_type:
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_registry import (
                 registry_expired_total,
             )
 
             for _type, _count in expired_by_type.items():
                 registry_expired_total.labels(type=_type).inc(_count)
-        except Exception:
-            pass
 
     return result
 

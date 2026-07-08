@@ -24,6 +24,7 @@ Created: 2026-03-24
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from typing import Any
 
 import structlog
@@ -765,7 +766,7 @@ async def initiative_node(
     )
 
     # Prometheus: evaluation decision (dashboard 13) — non-critical
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_agents import (
             initiative_duration_seconds,
             initiative_evaluations_total,
@@ -773,8 +774,6 @@ async def initiative_node(
 
         initiative_evaluations_total.labels(decision="act" if decision.should_act else "skip").inc()
         initiative_duration_seconds.observe(_time.perf_counter() - _initiative_start)
-    except Exception:
-        pass
 
     # ── 7. Collect suggestion (even if should_act=False) ─────────────
     state_update: dict[str, Any] = {
@@ -789,15 +788,13 @@ async def initiative_node(
         return state_update
 
     # Emit one initiative_actions_executed_total per validated action (done below)
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_agents import (
             initiative_actions_executed_total,
         )
 
         for _action in decision.actions:
             initiative_actions_executed_total.labels(tool_name=_action.tool_name).inc()
-    except Exception:
-        pass
 
     # ── 9. Validate read-only (defense in depth) ─────────────────────
     validated_actions = _validate_read_only(decision.actions, adjacent_manifests)

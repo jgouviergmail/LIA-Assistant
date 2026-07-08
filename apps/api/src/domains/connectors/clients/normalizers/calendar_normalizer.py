@@ -5,6 +5,7 @@ Converts caldav Event objects to the dict structure
 expected by calendar_tools.py (same format as GoogleCalendarClient).
 """
 
+from contextlib import suppress
 from datetime import date, datetime
 from typing import Any
 
@@ -167,21 +168,17 @@ def _extract_attendees(vevent: Any) -> list[dict[str, str]]:
 
 def _get_prop(vevent: Any, prop_name: str, default: str = "") -> str:
     """Safely get a string property from a VEVENT."""
-    try:
+    with suppress(Exception):
         prop = getattr(vevent, prop_name, None)
         if prop is not None:
             return str(prop.value) if hasattr(prop, "value") else str(prop)
-    except Exception:
-        pass
     return default
 
 
 def _get_prop_value(vevent: Any, prop_name: str) -> Any:
     """Safely get the raw value of a VEVENT property."""
-    try:
+    with suppress(Exception):
         prop = getattr(vevent, prop_name, None)
         if prop is not None:
             return prop.value
-    except Exception:
-        pass
     return None

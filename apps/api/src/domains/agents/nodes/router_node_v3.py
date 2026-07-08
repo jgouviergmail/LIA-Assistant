@@ -12,6 +12,7 @@ All INTELLIGENCE is in QueryAnalyzerService (unified service).
 This node is intentionally simple (~80 lines instead of legacy ~1430 lines).
 """
 
+from contextlib import suppress
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
@@ -233,7 +234,7 @@ async def router_node_v3(
     # Router-specific metrics (dashboard 07 panels). Wrapped defensively:
     # the router is on the hot path for every chat turn, so metric failures
     # must never propagate.
-    try:
+    with suppress(Exception):
         router_latency_seconds.observe(_time.perf_counter() - _router_start)
         router_confidence_score.labels(intention=router_output.intention).observe(
             float(intelligence.confidence)
@@ -252,8 +253,6 @@ async def router_node_v3(
                 router_data_presumption_total.labels(
                     pattern_detected=pattern, decision=router_output.intention
                 ).inc()
-    except Exception:
-        pass
 
     # Build state update.
     # turn_type is normalized to the lowercase canonical form so state

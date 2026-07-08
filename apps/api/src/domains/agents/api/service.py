@@ -12,6 +12,7 @@ import re
 import time
 import uuid
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from langgraph.errors import GraphInterrupt
@@ -330,10 +331,8 @@ class AgentService(
                 streamer.cancel_pending()
             if drain_task is not None and not drain_task.done():
                 drain_task.cancel()
-                try:
+                with suppress(asyncio.CancelledError, Exception):
                     await drain_task
-                except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                    pass
             if service is not None:
                 try:
                     await service.close()
@@ -1909,10 +1908,8 @@ class AgentService(
                                 )
                                 # Cancel and await for proper cleanup (asyncio best practice)
                                 active_voice_task.cancel()
-                                try:
+                                with suppress(asyncio.CancelledError):
                                     await active_voice_task
-                                except asyncio.CancelledError:
-                                    pass
                                 # Fall through to sync generation
                                 voice_parallel_task = None
                                 chat_voice_drain_task = None
@@ -2301,7 +2298,8 @@ class AgentService(
                 # Voice services owned by this generator must be torn down
                 # so their persistent httpx clients aren't leaked when the
                 # exception propagates upwards.
-                try:
+                # best-effort
+                with suppress(Exception):
                     await self._cleanup_chat_voice_pipeline(
                         chat_voice_streamer,
                         chat_voice_drain_task,
@@ -2313,8 +2311,6 @@ class AgentService(
                     # Close connector clients cached by ToolDependencies
                     # (aclose is itself best-effort per client).
                     await tool_deps.aclose()
-                except Exception:  # noqa: BLE001 — best-effort
-                    pass
 
                 logger.error(
                     "new_service_architecture_error",

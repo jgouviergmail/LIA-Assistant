@@ -64,6 +64,7 @@ Usage:
 """
 
 import asyncio
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
@@ -706,16 +707,14 @@ class ToolContextManager:
         """
         namespace = self._build_namespace(str(user_id), session_id, domain)
 
-        try:
+        # Ignore if current_item doesn't exist
+        with suppress(Exception):
             await store.adelete(namespace, "current")
             logger.debug(
                 "current_item_cleared",
                 user_id=str(user_id),
                 domain=domain,
             )
-        except Exception:
-            # Ignore if current_item doesn't exist
-            pass
 
     # ==========================================
     # MULTI-DOMAIN OPERATIONS

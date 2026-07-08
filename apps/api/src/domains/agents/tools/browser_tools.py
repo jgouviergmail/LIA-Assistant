@@ -25,6 +25,7 @@ Reference: docs/technical/BROWSER_CONTROL.md
 
 import base64
 import time
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -304,10 +305,9 @@ async def browser_task_tool(
         current_url = session.page.url if session.page and not session.page.is_closed() else ""
         current_title = ""
         if session.page and not session.page.is_closed():
-            try:
+            # Best-effort: page may be navigating or closed
+            with suppress(Exception):
                 current_title = await session.page.title()
-            except Exception:
-                pass  # Best-effort: page may be navigating or closed
 
         # Update Redis with final page state
         if current_url:
@@ -342,7 +342,7 @@ async def browser_task_tool(
 
     except Exception as e:
         # Dashboard 20 browser errors metric (non-critical)
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_browser import (
                 browser_errors_total,
             )
@@ -350,8 +350,6 @@ async def browser_task_tool(
             browser_errors_total.labels(
                 error_type="timeout" if "Timeout" in type(e).__name__ else type(e).__name__
             ).inc()
-        except Exception:
-            pass
         if "Timeout" in type(e).__name__:
             logger.error("browser_task_timeout", task=task[:100])
             return UnifiedToolOutput.failure(

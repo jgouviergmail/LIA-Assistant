@@ -264,7 +264,13 @@ class ToolOutputMixin:
         if len(items) > preview_limit:
             preview += f", ... (+{len(items) - preview_limit} more)"
 
-        summary = summary_template.format(count=len(items), preview=preview)
+        # Only pass `preview` when the template consumes it: extra named
+        # arguments are ignored by str.format at runtime but read as a
+        # template/call mismatch by static analysis.
+        if "{preview}" in summary_template:
+            summary = summary_template.format(count=len(items), preview=preview)
+        else:
+            summary = summary_template.format(count=len(items))
 
         resolved_plural_key = plural_key or REGISTRY_TYPE_TO_KEY.get(
             item_type, item_type.value.lower() + "s"

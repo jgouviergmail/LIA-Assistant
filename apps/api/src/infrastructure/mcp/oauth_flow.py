@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import time
+from contextlib import suppress
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
 from uuid import UUID
@@ -113,7 +114,7 @@ class MCPOAuthFlowHandler:
             return await self._fetch_auth_server_metadata(auth_server_url)
 
         # Strategy 2: Unauthenticated request → WWW-Authenticate header
-        try:
+        with suppress(httpx.HTTPError):
             resp = await self._http_client.get(mcp_url)
             if resp.status_code == 401:
                 www_auth = resp.headers.get("www-authenticate", "")
@@ -125,8 +126,6 @@ class MCPOAuthFlowHandler:
                         if rm_data and "authorization_servers" in rm_data:
                             auth_server_url = rm_data["authorization_servers"][0]
                             return await self._fetch_auth_server_metadata(auth_server_url)
-        except httpx.HTTPError:
-            pass
 
         # Strategy 3: .well-known/oauth-authorization-server (RFC 8414)
         metadata = await self._try_fetch_json(f"{base_url}/.well-known/oauth-authorization-server")
@@ -389,11 +388,9 @@ class MCPOAuthFlowHandler:
             return result
 
         # Try JSON anyway (some servers don't set Content-Type correctly)
-        try:
+        with suppress(json.JSONDecodeError, ValueError):
             result = resp.json()
             return result
-        except (json.JSONDecodeError, ValueError):
-            pass
 
         # Fallback: application/x-www-form-urlencoded (GitHub convention)
         parsed = parse_qs(resp.text, keep_blank_values=True)
@@ -412,13 +409,11 @@ class MCPOAuthFlowHandler:
 
     async def _try_fetch_json(self, url: str) -> dict[str, Any] | None:
         """Fetch a URL and parse as JSON, returning None on failure."""
-        try:
+        with suppress(httpx.HTTPError, json.JSONDecodeError):
             resp = await self._http_client.get(url)
             if resp.status_code == 200:
                 result: dict[str, Any] = resp.json()
                 return result
-        except (httpx.HTTPError, json.JSONDecodeError):
-            pass
         return None
 
     async def _fetch_auth_server_metadata(self, auth_server_url: str) -> MCPAuthServerMetadata:

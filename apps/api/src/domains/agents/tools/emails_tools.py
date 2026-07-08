@@ -25,6 +25,7 @@ Migration Note (2025-12-30):
 
 import json
 import time
+from contextlib import suppress
 from datetime import timedelta
 from typing import Annotated, Any
 from uuid import UUID
@@ -1055,7 +1056,8 @@ async def search_emails_tool(
     # BUGFIX (Issue #38): Store with proper user-scoped namespace for automatic cleanup
     # Format: (user_id, thread_id, "context", "emails") enables cleanup on conversation reset
     if runtime and runtime.store:
-        try:
+        # Context save is non-critical
+        with suppress(Exception):
             # Extract user_id and thread_id from runtime.config
             user_id_raw = runtime.config.get("configurable", {}).get("user_id")
             thread_id = runtime.config.get("configurable", {}).get("thread_id")
@@ -1088,8 +1090,6 @@ async def search_emails_tool(
                         "timestamp": time.time(),
                     },
                 )
-        except Exception:
-            pass  # Context save is non-critical
 
     return result
 
@@ -1515,7 +1515,8 @@ async def get_email_details_tool(
     # BUGFIX (Issue #38): Store with proper user-scoped namespace for automatic cleanup
     # MULTI-ORDINAL FIX (2026-01-01): Support batch mode context saving
     if runtime and runtime.store:
-        try:
+        # Context save is non-critical
+        with suppress(Exception):
             # Extract user_id and thread_id from runtime.config
             user_id_raw = runtime.config.get("configurable", {}).get("user_id")
             thread_id = runtime.config.get("configurable", {}).get("thread_id")
@@ -1587,8 +1588,6 @@ async def get_email_details_tool(
                             "timestamp": time.time(),
                         },
                     )
-        except Exception:
-            pass  # Context save is non-critical
 
     return result
 

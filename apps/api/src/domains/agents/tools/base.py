@@ -52,6 +52,7 @@ Benefits:
 
 import json
 from abc import ABC, abstractmethod
+from contextlib import suppress
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, TypeVar, Union
 from uuid import UUID
@@ -591,16 +592,14 @@ class ConnectorTool[ClientType](ABC):
         locale = settings.default_language
 
         if self.runtime:
-            try:
+            # Silent fallback to defaults
+            # Logging is already done in get_user_preferences()
+            with suppress(Exception):
                 from src.domains.agents.tools.runtime_helpers import get_user_preferences
 
                 fetched_tz, _, fetched_locale = await get_user_preferences(self.runtime)
                 user_timezone = fetched_tz
                 locale = fetched_locale
-            except Exception:
-                # Silent fallback to defaults
-                # Logging is already done in get_user_preferences()
-                pass
 
         return user_timezone, locale
 

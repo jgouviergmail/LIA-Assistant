@@ -12,6 +12,7 @@ Validation is lenient per client implementation guide:
 
 import json
 import re
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -60,12 +61,10 @@ def _fallback_yaml_parse(yaml_str: str) -> dict[str, Any] | None:
         yaml_str,
         flags=re.MULTILINE,
     )
-    try:
+    with suppress(yaml.YAMLError):
         result = yaml.safe_load(fixed)
         if isinstance(result, dict):
             return result
-    except yaml.YAMLError:
-        pass
     return None
 
 

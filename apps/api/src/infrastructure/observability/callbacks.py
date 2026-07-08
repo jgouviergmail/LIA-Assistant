@@ -6,6 +6,7 @@ callback system for comprehensive observability.
 """
 
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -158,14 +159,12 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
                 model=model_name, node_name=node_name, token_type="prompt_tokens"
             ).inc(prompt_tokens)
             # Dashboard 07 "Context Tokens by Node" — current context size
-            try:
+            with suppress(Exception):
                 from src.infrastructure.observability.metrics_agents import (
                     agent_context_tokens_gauge,
                 )
 
                 agent_context_tokens_gauge.labels(node_name=node_name).set(prompt_tokens)
-            except Exception:
-                pass
 
         if completion_tokens > 0:
             llm_tokens_consumed_total.labels(
@@ -225,10 +224,8 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         # Extract model name from LLM instance if available
         model_name = "unknown"
         if self.llm:
-            try:
+            with suppress(Exception):
                 model_name = getattr(self.llm, "model_name", "unknown")
-            except Exception:
-                pass
 
         # Track API call error
         llm_api_calls_total.labels(model=model_name, node_name=node_name, status="error").inc()

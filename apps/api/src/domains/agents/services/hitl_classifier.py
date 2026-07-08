@@ -19,6 +19,7 @@ Usage:
 """
 
 import json
+from contextlib import suppress
 from functools import lru_cache
 from typing import Any, Literal
 
@@ -591,14 +592,12 @@ class HitlResponseClassifier:
             # Get parameter descriptions from tool manifest (generic approach)
             param_descriptions = {}
             if tool_name:
-                try:
+                # Manifest not found - continue without descriptions
+                with suppress(Exception):
                     manifest = registry.get_tool_manifest(tool_name)
                     # Build lookup: param_name -> description
                     for param_schema in manifest.parameters:
                         param_descriptions[param_schema.name] = param_schema.description
-                except Exception:
-                    # Manifest not found - continue without descriptions
-                    pass
 
             for key, value in params.items():
                 # Include all primitive types (int, str, bool)

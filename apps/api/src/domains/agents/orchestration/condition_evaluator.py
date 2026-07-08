@@ -13,6 +13,7 @@ Refactored: 2025-11-16 (Session 15)
 
 import ast
 import re
+from contextlib import suppress
 from typing import Any
 
 import structlog
@@ -263,13 +264,11 @@ class ReferenceResolver:
             )
 
         # Sort by timestamp to get insertion order
-        try:
+        # If sorting fails, use original order (dict insertion order)
+        with suppress(TypeError, AttributeError):
             registry_items.sort(
                 key=lambda x: x.get("meta", {}).get("timestamp", ""),
             )
-        except (TypeError, AttributeError):
-            # If sorting fails, use original order (dict insertion order)
-            pass
 
         if index >= len(registry_items):
             raise ValueError(

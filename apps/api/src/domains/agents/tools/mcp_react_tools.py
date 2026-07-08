@@ -23,6 +23,7 @@ Created: 2026-03-24
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from typing import Annotated, Any
 
 import structlog
@@ -250,7 +251,7 @@ async def _run_mcp_react_task(
     )
 
     # Prometheus: MCP ReAct invocations + iteration distribution (dashboard 10)
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_agents import (
             mcp_react_invocations_total,
             mcp_react_iterations_histogram,
@@ -261,8 +262,6 @@ async def _run_mcp_react_task(
         mcp_react_iterations_histogram.labels(server_name=server_name).observe(
             react_result.iteration_count
         )
-    except Exception:
-        pass
 
     structured_data: dict[str, Any] = {
         "server_name": server_name,

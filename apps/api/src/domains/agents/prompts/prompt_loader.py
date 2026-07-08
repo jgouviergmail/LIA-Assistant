@@ -12,6 +12,7 @@ Compliance: LangGraph v1.0 + LangChain v1.0 best practices
 
 import hashlib
 import re
+from contextlib import suppress
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -295,14 +296,12 @@ def load_prompt(
         logger.info("prompt_integrity_validated", name=name, version=version, hash=actual_hash[:8])
 
     # Dashboard 15: prompt version usage counter (Langfuse-adjacent analytics)
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_langfuse import (
             langfuse_prompt_version_usage,
         )
 
         langfuse_prompt_version_usage.labels(prompt_id=name, version=version).inc()
-    except Exception:
-        pass
 
     logger.debug("loaded_prompt", name=name, version=version, chars=len(content))
     return content

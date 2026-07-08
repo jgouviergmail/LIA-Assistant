@@ -10,6 +10,7 @@ Provides optimized queries for:
 - GDPR export and bulk delete
 """
 
+from contextlib import suppress
 from uuid import UUID
 
 from sqlalchemy import and_, delete, func, select
@@ -61,12 +62,11 @@ class JournalEntryRepository:
             source=entry.source,
             char_count=entry.char_count,
         )
-        try:
+        # metrics must never break writes
+        with suppress(Exception):
             journal_entries_total.labels(
                 action="create", theme=entry.theme, source=entry.source
             ).inc()
-        except Exception:  # pragma: no cover — metrics must never break writes
-            pass
 
         return entry
 
@@ -106,12 +106,11 @@ class JournalEntryRepository:
             theme=entry.theme,
             char_count=entry.char_count,
         )
-        try:
+        # metrics must never break writes
+        with suppress(Exception):
             journal_entries_total.labels(
                 action="update", theme=entry.theme, source=entry.source
             ).inc()
-        except Exception:  # pragma: no cover — metrics must never break writes
-            pass
 
         return entry
 
@@ -127,10 +126,9 @@ class JournalEntryRepository:
             entry_id=str(entry.id),
             user_id=str(entry.user_id),
         )
-        try:
+        # metrics must never break writes
+        with suppress(Exception):
             journal_entries_total.labels(action="delete", theme=theme, source=source).inc()
-        except Exception:  # pragma: no cover — metrics must never break writes
-            pass
 
     # =========================================================================
     # Specialized Queries

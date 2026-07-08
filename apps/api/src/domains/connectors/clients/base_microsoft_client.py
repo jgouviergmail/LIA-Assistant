@@ -18,6 +18,7 @@ Subclasses must implement:
 - api_base_url: Base URL (default: MICROSOFT_GRAPH_BASE_URL)
 """
 
+from contextlib import suppress
 from typing import Any
 from uuid import UUID
 
@@ -111,10 +112,8 @@ class BaseMicrosoftClient(BaseOAuthClient[ConnectorType]):
         """
         retry_after = response.headers.get("Retry-After")
         if retry_after:
-            try:
+            with suppress(ValueError):
                 return float(retry_after)
-            except ValueError:
-                pass
         return self._calculate_backoff(attempt)
 
     # =========================================================================

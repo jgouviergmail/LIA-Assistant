@@ -12,6 +12,7 @@ References:
     - Pattern: domains/memories/router.py
 """
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
@@ -689,14 +690,12 @@ async def submit_feedback(
         await db.commit()
 
         # Prometheus metric for dashboard 13 "User Feedback"
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_registry import (
                 track_proactive_feedback,
             )
 
             track_proactive_feedback(task_type="interest", feedback_type=data.feedback)
-        except Exception:
-            pass
 
         logger.info(
             "interest_feedback_submitted",

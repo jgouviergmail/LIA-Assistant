@@ -8,6 +8,7 @@ Two-phase approach:
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -181,13 +182,13 @@ async def generate_heartbeat_message(
     psyche_block = ""
     user_model_block = ""
     if user_id:
-        try:
+        # Psyche injection is best-effort
+        with suppress(Exception):
             from src.domains.psyche.service import build_psyche_prompt_block
 
             psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
-        except Exception:
-            pass  # Psyche injection is best-effort
-        try:
+        # Journal portrait injection is best-effort
+        with suppress(Exception):
             from src.domains.journals.portrait_builder import (
                 build_journal_user_model_block,
             )
@@ -195,8 +196,6 @@ async def generate_heartbeat_message(
             user_model_block = await build_journal_user_model_block(
                 user_id=user_id, format="brief", flow="heartbeat"
             )
-        except Exception:
-            pass  # Journal portrait injection is best-effort
 
     system_prompt = load_prompt("heartbeat_message_prompt").format(
         personality_instruction=personality_instruction or DEFAULT_PERSONALITY_PROMPT,

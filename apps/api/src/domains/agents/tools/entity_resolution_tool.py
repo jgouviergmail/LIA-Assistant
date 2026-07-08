@@ -32,6 +32,7 @@ Created: 2025-12-07
 Updated: 2025-12-30
 """
 
+from contextlib import suppress
 from typing import Annotated, Any
 
 from langchain.tools import ToolRuntime
@@ -248,7 +249,7 @@ async def _search_entities(
             # Legacy string output - try to parse
             import json
 
-            try:
+            with suppress(json.JSONDecodeError):
                 data = json.loads(result)
                 if isinstance(data, list):
                     return data
@@ -257,8 +258,6 @@ async def _search_entities(
                     for key in ("contacts", "emails", "events", "items", "results"):
                         if key in data:
                             return data[key]
-            except json.JSONDecodeError:
-                pass
 
         return []
 

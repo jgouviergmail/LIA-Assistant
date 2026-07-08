@@ -5,6 +5,7 @@ Pure functions: no DB, no I/O, no global state. Trivially unit-testable.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import UTC, date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -212,10 +213,8 @@ def _aggregate_daily_forecast(
         for key in ("temp_min", "temp_max", "temp"):
             val = slot_main.get(key)
             if val is not None:
-                try:
+                with suppress(TypeError, ValueError):
                     bucket["temps"].append(float(val))
-                except (TypeError, ValueError):
-                    pass
 
         weather_arr = entry.get("weather", []) or []
         if weather_arr:

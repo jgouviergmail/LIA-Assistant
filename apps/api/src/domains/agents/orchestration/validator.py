@@ -33,6 +33,7 @@ Compliance: LangGraph v1.0 + declarative catalogue Phase 1
 
 from __future__ import annotations
 
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -356,7 +357,7 @@ class PlanValidator:
             )
 
         # Dashboard 15: LangGraph plan validation warnings (soft, non-blocking)
-        try:
+        with suppress(Exception):
             from src.infrastructure.observability.metrics_agents import (
                 langgraph_plan_validation_warnings_total,
             )
@@ -366,8 +367,6 @@ class PlanValidator:
                 langgraph_plan_validation_warnings_total.labels(
                     warning_type=_warning_type, plan_type="execution_plan"
                 ).inc()
-        except Exception:
-            pass
 
         logger.info(
             "plan_validated",
@@ -435,11 +434,9 @@ class PlanValidator:
             # 1. Admin MCP: strip suffix and retry central registry
             stripped = strip_hallucinated_mcp_suffix(tool_name)
             if stripped:
-                try:
+                with suppress(ToolManifestNotFound):
                     manifest = self.registry.get_tool_manifest(stripped)
                     step["tool"] = stripped
-                except ToolManifestNotFound:
-                    pass
 
             # 2. User MCP: ContextVar with fuzzy resolve
             if manifest is None:
@@ -910,11 +907,9 @@ class PlanValidator:
                 # 1. Admin MCP: strip suffix and retry central registry
                 stripped = strip_hallucinated_mcp_suffix(step.tool_name)
                 if stripped:
-                    try:
+                    with suppress(ToolManifestNotFound):
                         manifest = self.registry.get_tool_manifest(stripped)
                         step.tool_name = stripped
-                    except ToolManifestNotFound:
-                        pass
 
                 # 2. User MCP: ContextVar with fuzzy resolve
                 if manifest is None:

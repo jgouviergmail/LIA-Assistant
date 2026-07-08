@@ -25,6 +25,7 @@ References:
 """
 
 import asyncio
+from contextlib import suppress
 from typing import cast
 
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
@@ -231,13 +232,11 @@ def reset_checkpointer() -> None:
     global _checkpointer, _pool
     if _pool is not None:
         pool = _pool
-        try:
+        # No running loop (sync context): abandon the pool; connections are
+        # reclaimed at process exit. Test-only path, mirrors previous behavior.
+        with suppress(RuntimeError):
             asyncio.get_running_loop().create_task(
                 pool.close(), name="checkpointer_pool_close_on_reset"
             )
-        except RuntimeError:
-            # No running loop (sync context): abandon the pool; connections are
-            # reclaimed at process exit. Test-only path, mirrors previous behavior.
-            pass
     _checkpointer = None
     _pool = None

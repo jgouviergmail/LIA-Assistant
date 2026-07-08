@@ -16,6 +16,7 @@ References:
 import csv
 import io
 import json
+from contextlib import suppress
 from typing import Literal
 from uuid import UUID
 
@@ -621,14 +622,12 @@ async def portrait_feedback(
     )
     duration_ms = int((time.monotonic() - started) * 1000)
 
-    try:
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_journals import (
             journal_portrait_feedback_total,
         )
 
         journal_portrait_feedback_total.labels(outcome="success").inc()
-    except Exception:  # pragma: no cover
-        pass
 
     logger.info(
         "journal_portrait_feedback_processed",

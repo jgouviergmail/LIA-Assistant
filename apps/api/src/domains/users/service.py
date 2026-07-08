@@ -2,6 +2,7 @@
 Users service containing business logic for user management.
 """
 
+from contextlib import suppress
 from datetime import datetime
 from typing import TYPE_CHECKING, cast
 from uuid import UUID
@@ -85,15 +86,13 @@ class UserService:
         # Extract home_address from encrypted field
         home_address = None
         if user.home_location_encrypted:
-            try:
+            # If decryption fails, leave home_address as None
+            with suppress(Exception):
                 from src.core.security.utils import decrypt_data
 
                 decrypted_json = decrypt_data(user.home_location_encrypted)
                 location_data = HomeLocationData.model_validate_json(decrypted_json)
                 home_address = location_data.address
-            except Exception:
-                # If decryption fails, leave home_address as None
-                pass
 
         return UserProfile(
             id=user.id,
@@ -949,12 +948,11 @@ class UserService:
             await self._invalidate_all_user_sessions(user_id)
             # Invalidate usage limit cache so _compute_status() immediately
             # reflects the is_active=False state (prevents stale cache allowing LLM calls)
-            try:
+            # Best-effort, cache will expire naturally after TTL
+            with suppress(Exception):
                 from src.domains.usage_limits.service import UsageLimitService
 
                 await UsageLimitService.invalidate_cache_static(user_id)
-            except Exception:
-                pass  # Best-effort, cache will expire naturally after TTL
 
             logger.warning(
                 "user_deactivated",

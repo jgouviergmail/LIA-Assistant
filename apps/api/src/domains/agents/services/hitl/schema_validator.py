@@ -12,6 +12,7 @@ Features:
 Production-ready as of Phase 1 Final Implementation (2025-01-29).
 """
 
+from contextlib import suppress
 from typing import Any
 
 from pydantic import ValidationError
@@ -87,7 +88,8 @@ class HitlSchemaValidator:
             )
 
         # Emails tools (future extension point)
-        try:
+        # Module doesn't exist yet (expected)
+        with suppress(ImportError):
             from src.domains.agents.tools.emails_tools import (  # type: ignore[import-not-found]
                 create_email,
                 delete_email,
@@ -99,11 +101,10 @@ class HitlSchemaValidator:
             tools_list.extend(
                 [send_email, reply_to_email, forward_email, delete_email, create_email]
             )
-        except ImportError:
-            pass  # Module doesn't exist yet (expected)
 
         # Calendar tools (future extension point)
-        try:
+        # Module doesn't exist yet (expected)
+        with suppress(ImportError):
             from src.domains.agents.tools.calendar_tools import (  # type: ignore[import-not-found]
                 create_event,
                 delete_event,
@@ -111,8 +112,6 @@ class HitlSchemaValidator:
             )
 
             tools_list.extend([create_event, update_event, delete_event])
-        except ImportError:
-            pass  # Module doesn't exist yet (expected)
 
         # Context tools (excluded - internal, not user-facing)
         # resolve_reference, set_current_item, etc. are NOT validated

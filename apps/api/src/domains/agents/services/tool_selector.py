@@ -37,6 +37,7 @@ import asyncio
 import hashlib
 import json
 import re
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -330,7 +331,8 @@ class SemanticToolSelector:
             return
 
         # Load from settings if not provided
-        try:
+        # Use defaults if settings not available
+        with suppress(Exception):
             from src.core.config import get_settings
 
             settings = get_settings()
@@ -350,8 +352,6 @@ class SemanticToolSelector:
             hybrid_enabled = getattr(settings, "v3_tool_selector_hybrid_enabled", None)
             if hybrid_enabled is not None:
                 self._hybrid_enabled = hybrid_enabled
-        except Exception:
-            pass  # Use defaults if settings not available
 
         # Apply overrides
         if max_tools is not None:

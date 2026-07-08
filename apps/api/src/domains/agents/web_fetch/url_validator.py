@@ -18,6 +18,7 @@ Architecture:
 import asyncio
 import ipaddress
 import socket
+from contextlib import suppress
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -283,12 +284,11 @@ async def validate_resolved_url(url: str) -> bool:
         return False
 
     # Check if hostname is a raw IP address
-    try:
+    # Not a raw IP — resolve DNS below
+    with suppress(ValueError):
         ipaddress.ip_address(hostname)
         # It's a raw IP — validate it
         return check_ip_safety(hostname)
-    except ValueError:
-        pass  # Not a raw IP — resolve DNS below
 
     # Resolve DNS for domain hostnames
     try:

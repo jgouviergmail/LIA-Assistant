@@ -13,6 +13,7 @@ Background extraction/consolidation services also use this service
 for consistent char_count + embedding handling (DRY).
 """
 
+from contextlib import suppress
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -268,26 +269,21 @@ class JournalService:
             entry.confidence = confidence
 
         if level is not None and level != entry.level:
-            try:
+            # metrics never break writes
+            with suppress(Exception):
                 journal_consolidation_promotions_total.labels(
                     from_level=entry.level, to_level=level
                 ).inc()
-            except Exception:  # pragma: no cover — metrics never break writes
-                pass
             entry.level = level
 
         if evidence_outcome == "evidence":
             entry.evidence_count = entry.evidence_count + 1
-            try:
+            with suppress(Exception):
                 journal_evidence_total.labels(outcome="evidence").inc()
-            except Exception:  # pragma: no cover
-                pass
         elif evidence_outcome == "contradiction":
             entry.contradiction_count = entry.contradiction_count + 1
-            try:
+            with suppress(Exception):
                 journal_evidence_total.labels(outcome="contradiction").inc()
-            except Exception:  # pragma: no cover
-                pass
 
         # Regenerate dual embeddings if title, content, or search_hints changed
         if content_changed:

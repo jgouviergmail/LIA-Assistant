@@ -19,6 +19,7 @@ import asyncio
 import os
 import time
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 
 import redis.asyncio as aioredis
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -143,10 +144,9 @@ class SchedulerLeaderElector:
         # Cancel re-election task (if running)
         if self._re_election_task is not None and not self._re_election_task.done():
             self._re_election_task.cancel()
-            try:
+            # Expected: task was just cancelled above
+            with suppress(asyncio.CancelledError):
                 await self._re_election_task
-            except asyncio.CancelledError:
-                pass  # Expected: task was just cancelled above
             logger.debug(
                 "scheduler_leader_re_election_cancelled",
                 worker_id=self._worker_id,
@@ -171,15 +171,14 @@ class SchedulerLeaderElector:
                 )
 
             # Release lock for fast takeover on restart
-            try:
+            # Lock will expire via TTL anyway
+            with suppress(Exception):
                 if self._redis is not None:
                     await self._redis.delete(self._lock_key)
                     logger.debug(
                         "scheduler_leader_lock_deleted",
                         worker_id=self._worker_id,
                     )
-            except Exception:
-                pass  # Lock will expire via TTL anyway
 
         logger.info(
             "scheduler_leader_released",
@@ -264,10 +263,9 @@ class SchedulerLeaderElector:
             self._elected_at = None
             # Release the lock so re-election loop can retry
             if self._redis is not None:
-                try:
+                # Lock will expire via TTL
+                with suppress(Exception):
                     await self._redis.delete(self._lock_key)
-                except Exception:
-                    pass  # Lock will expire via TTL
             logger.error(
                 "scheduler_leader_become_leader_failed",
                 worker_id=self._worker_id,
@@ -356,7 +354,8 @@ class SchedulerLeaderElector:
         so it is logged at ``info``. A genuinely stuck lock (TTL ``-1`` = key
         with no expiry) is escalated to ``warning``.
         """
-        try:
+        # Best-effort diagnostics
+        with suppress(Exception):
             if self._redis is not None:
                 lock_holder = await self._redis.get(self._lock_key)
                 lock_ttl = await self._redis.ttl(self._lock_key)
@@ -374,5 +373,3 @@ class SchedulerLeaderElector:
                         lock_holder=lock_holder,  # str (decode_responses=True)
                         lock_ttl_remaining=lock_ttl,
                     )
-        except Exception:
-            pass  # Best-effort diagnostics

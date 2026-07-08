@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from contextlib import suppress
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -446,7 +447,8 @@ async def _handle_otp_verification(
 
     # Determine user language for success message
     language = "fr"  # Default
-    try:
+    # Fallback to French
+    with suppress(Exception):
         from src.domains.users.service import UserService
 
         async with get_db_context() as db:
@@ -454,8 +456,6 @@ async def _handle_otp_verification(
             user = await user_service.get_user_by_id(UUID(result["user_id"]))
             if user and hasattr(user, "language") and user.language:
                 language = user.language
-    except Exception:
-        pass  # Fallback to French
 
     await sender.send_text(
         channel_user_id,

@@ -5,7 +5,7 @@ Configures middleware, routes, observability and lifecycle events.
 
 import os
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -1094,10 +1094,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if lifetime_metrics_task:
         try:
             lifetime_metrics_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await lifetime_metrics_task
-            except asyncio.CancelledError:
-                pass
             logger.info("lifetime_metrics_updater_stopped")
         except RuntimeError as exc:
             logger.error("lifetime_metrics_updater_shutdown_failed", error=str(exc))
@@ -1158,13 +1156,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.error("user_mcp_pool_shutdown_failed", error=str(exc))
 
     # Close browser pool (evolution F7)
-    try:
+    # Browser not installed — nothing to close
+    with suppress(RuntimeError, ImportError):
         from src.infrastructure.browser.pool import close_browser_pool
 
         await close_browser_pool()
         logger.info("browser_pool_closed")
-    except (RuntimeError, ImportError):
-        pass  # Browser not installed — nothing to close
 
     # Shutdown Telegram Bot (evolution F3)
     if telegram_bot:
@@ -1222,10 +1219,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if cache_invalidation_task:
         try:
             cache_invalidation_task.cancel()
-            try:
+            # Expected: task was just cancelled above
+            with suppress(asyncio.CancelledError):
                 await cache_invalidation_task
-            except asyncio.CancelledError:
-                pass  # Expected: task was just cancelled above
             logger.info("cache_invalidation_subscriber_stopped")
         except RuntimeError as exc:
             logger.error("cache_invalidation_subscriber_shutdown_failed", error=str(exc))
@@ -1281,7 +1277,8 @@ async def _validation_exception_handler(
         422 JSONResponse with the standard `detail` error structure.
     """
     del request  # unused
-    try:
+    # metrics must never break the handler
+    with suppress(Exception):
         from src.infrastructure.observability.metrics_errors import (
             validation_errors_total,
         )
@@ -1293,8 +1290,6 @@ async def _validation_exception_handler(
             field_leaf = field.rsplit(".", 1)[-1][:40]
             error_type = err.get("type", "unknown")[:40]
             validation_errors_total.labels(field=field_leaf, error_type=error_type).inc()
-    except Exception:  # noqa: BLE001 — metrics must never break the handler
-        pass
 
     # jsonable_encoder mirrors FastAPI's default handler: exc.errors() may
     # embed raw exception objects (ctx.error from field_validator ValueError),

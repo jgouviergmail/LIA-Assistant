@@ -12,6 +12,7 @@ Renders contact information with:
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import datetime
 from typing import Any
 
@@ -638,7 +639,7 @@ class ContactCard(BaseComponent):
             # Calculate age
             age = None
             if year:
-                try:
+                with suppress(ValueError, TypeError):
                     from src.core.time_utils import now_in_timezone
 
                     year_int = int(year) if not isinstance(year, int) else year
@@ -649,8 +650,6 @@ class ContactCard(BaseComponent):
                     age = today.year - birth_date.year
                     if (today.month, today.day) < (month_int, day_int):
                         age -= 1
-                except (ValueError, TypeError):
-                    pass
 
             return date_str, age
 
