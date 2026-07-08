@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 50+ |
 | Guides pratiques | 15+ |
 | Runbooks | 35+ |
-| ADRs | 102 |
+| ADRs | 103 |
 | Skills Claude | 10 |
 
 ---
@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (102) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (103) |
 
 ### Pour les Product Managers
 
@@ -277,12 +277,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 102 ADRs | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 103 ADRs | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-110 | Backup Encryption — analyse d'options (rclone crypt local / age / LUKS), différée | 2026-07 |
 | ADR-109 | PostgreSQL Backup Strategy — pg_dump sidecar, rétention .env-driven, restauration testée | 2026-07 |
 | ADR-089 | Multi-Worker Prometheus Metrics — multiprocess aggregation + per-gauge modes | 2026-06 |
 | ADR-088 | Journal Write Restraint + Level-Routed Injection + ReAct Coherence | 2026-06 |

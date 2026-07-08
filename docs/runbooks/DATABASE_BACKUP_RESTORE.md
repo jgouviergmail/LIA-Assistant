@@ -111,7 +111,7 @@ specific rows. Remove with `docker rm -f lia-restore-tmp`.
 > every object it contains. Stop the application first.
 
 ```bash
-cd ~/PROD   # compose directory on the Pi
+cd /home/jgo/lia   # compose directory on the Pi (deploy target)
 
 # 1. Stop everything that writes to the DB (postgres itself stays up)
 docker compose -f docker-compose.prod.yml stop api web
@@ -155,9 +155,12 @@ docker compose -f docker-compose.prod.yml up -d postgres   # fresh, empty PGDATA
   it also appears in Portainer and cAdvisor (Dashboard 03) like any container.
 - Backup runs and failures are visible in its logs (collected by Promtail → Loki):
   `docker logs lia-postgres-backup-prod`.
-- Worst-case disk: (7 + 4 + 6 + last) ≈ 18 compressed dumps. Check the size of one
-  dump after first deploy and extrapolate; the existing
+- Worst-case disk: (7 + 4 + 6 + last) ≈ 18 compressed dumps. First prod dump measured
+  at ~119 MB (2026-07-08) → steady state ≈ 2-3 GB; the existing
   [DiskSpaceCritical](alerts/DiskSpaceCritical.md) alert covers the NVMe globally.
+- Cosmetic: the sidecar image inherits `VOLUME /var/lib/postgresql/data` from the
+  postgres base image, so each recreate leaves a small anonymous Docker volume
+  behind. Harmless (a few MB); cleaned by the usual `docker volume prune`.
 
 ## Troubleshooting
 
@@ -174,6 +177,9 @@ docker compose -f docker-compose.prod.yml up -d postgres   # fresh, empty PGDATA
 1. **No off-site copy yet**: dumps live on the same NVMe as the database. An
    encrypted `rclone` sync is the planned phase 2 — until then, a disk failure
    destroys both. The bind-mount layout was chosen to make that sync trivial.
+   Encryption options (on-site rclone-crypt copy, age-at-dump, device-level
+   LUKS) were analyzed and deliberately deferred — see
+   [ADR-110](../architecture/ADR-110-Backup-Encryption-Options.md).
 2. **Database only**: the `attachments_data` and `skills_data` volumes (file
    attachments, user skills) are not covered.
 3. **No PITR**: pg_dump snapshots only — recovery granularity is the schedule

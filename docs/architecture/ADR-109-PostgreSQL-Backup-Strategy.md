@@ -93,11 +93,18 @@ Key choices, each with its evidence or rationale:
   volumes not covered, no push alerting on backup failure (webhook hooks
   available in the image if wanted).
 
-## Verification (2026-07-08, dev environment)
+## Verification (2026-07-08)
 
-Real backup triggered via the sidecar; restore into a throwaway
+**Dev**: real backup triggered via the sidecar; restore into a throwaway
 `pgvector/pgvector:pg16` container via `task backup:verify`: 0 SQL errors,
 `alembic_version` identical to `alembic heads` (repo) and to the live source,
 public-table count identical, row counts on `users`, `conversations`,
 `conversation_messages` identical. `docker compose -f docker-compose.prod.yml
 config` renders without error.
+
+**Production (post-deploy drill, same day)**: sidecar `healthy` on the Pi,
+backup directory created `drwx------` by `deploy.sh`, real ~119 MB dump
+produced with full three-tier rotation, then `verify-backup.sh` run against
+the live production database: restore with 0 SQL errors, `alembic_version`
+MATCH, 55/55 public tables, identical row counts (111 users / 5 conversations
+/ 453 messages). The backup chain is proven end-to-end in both environments.
