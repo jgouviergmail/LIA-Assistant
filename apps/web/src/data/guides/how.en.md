@@ -525,7 +525,7 @@ Each memory is a structured document with:
 - `content`, `category` (preference, fact, personality, relationship, sensitivity...)
 - `importance` (1-10), `emotional_weight` (-10 to +10)
 - `usage_nuance`: how to use this information in a caring manner
-- Embedding `text-embedding-3-small` (1536d) via pgvector HNSW
+- Embedding `gemini-embedding-001` (1536d) via pgvector HNSW
 
 **Why an emotional weight?** An assistant that knows your mother is ill but treats this fact like any other piece of data is at best clumsy, at worst hurtful. The emotional weight enables the `DANGER_DIRECTIVE` (prohibition on joking, minimizing, comparing, trivializing) when a sensitive subject is touched upon.
 
@@ -677,13 +677,13 @@ APScheduler with Redis leader election (SETNX, TTL 120s, recheck 5s). `FOR UPDAT
 
 ### 17.1. Pipeline
 
-Upload → Chunking → Embedding (text-embedding-3-small, 1536d) → pgvector HNSW → Hybrid search (cosine + BM25 with alpha fusion) → Context injection in the **Response Node**.
+Upload → Chunking → Embedding (gemini-embedding-001, 1536d) → pgvector HNSW → Hybrid search (cosine + BM25 with alpha fusion) → Context injection in the **Response Node**.
 
 Note: RAG injection is done in the response node, not in the planner. The planner however receives personal journal injection via `build_journal_context()`.
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-Built-in FAQ (119+ Q/A, 17 sections) indexed from `docs/knowledge/`. `is_app_help_query` detection by QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). SHA-256 staleness detection, auto-indexation at startup.
+Built-in FAQ (200+ Q/A, 24 sections) indexed from `docs/knowledge/`. `is_app_help_query` detection by QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). SHA-256 staleness detection, auto-indexation at startup.
 
 ---
 

@@ -525,7 +525,7 @@ AsyncPostgresStore + Semantic Index (pgvector)
 - `content`、`category`（偏好、事实、个性、关系、敏感性……）
 - `importance`（1-10）、`emotional_weight`（-10 到 +10）
 - `usage_nuance`：如何善意地使用此信息
-- 嵌入 `text-embedding-3-small`（1536d）通过 pgvector HNSW
+- 嵌入 `gemini-embedding-001`（1536d）通过 pgvector HNSW
 
 **为什么需要情感权重？** 一个知道你母亲生病却把这个事实当作普通数据处理的助手，往好了说是笨拙，往坏了说是伤人的。情感权重允许在涉及敏感话题时激活 `DANGER_DIRECTIVE`（禁止开玩笑、轻描淡写、比较、淡化）。
 
@@ -677,13 +677,13 @@ APScheduler 配合 Redis 领导者选举（SETNX、TTL 120s、5s 重检）。`FO
 
 ### 17.1. 管道
 
-上传 → 分块 → 嵌入（text-embedding-3-small，1536d） → pgvector HNSW → 混合搜索（余弦 + BM25，alpha 融合） → 注入上下文到 **Response Node**。
+上传 → 分块 → 嵌入（gemini-embedding-001，1536d） → pgvector HNSW → 混合搜索（余弦 + BM25，alpha 融合） → 注入上下文到 **Response Node**。
 
 注意：RAG 注入在响应节点中进行，而非规划器。规划器则通过 `build_journal_context()` 接收个人日志的注入。
 
 ### 17.2. System RAG Spaces（ADR-058）
 
-内置 FAQ（119+ Q/A，17 个分区），从 `docs/knowledge/` 索引。QueryAnalyzer 的 `is_app_help_query` 检测，RoutingDecider 中的 Rule 0 覆盖，App Identity Prompt（约 200 token，懒加载）。SHA-256 过期检测，启动时自动索引。
+内置 FAQ（200+ Q/A, 24 个分区），从 `docs/knowledge/` 索引。QueryAnalyzer 的 `is_app_help_query` 检测，RoutingDecider 中的 Rule 0 覆盖，App Identity Prompt（约 200 token，懒加载）。SHA-256 过期检测，启动时自动索引。
 
 ---
 

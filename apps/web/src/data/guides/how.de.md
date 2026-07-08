@@ -525,7 +525,7 @@ Jede Erinnerung ist ein strukturiertes Dokument mit:
 - `content`, `category` (Präferenz, Fakt, Persönlichkeit, Beziehung, Sensibilität...)
 - `importance` (1-10), `emotional_weight` (-10 bis +10)
 - `usage_nuance`: Wie diese Information auf einfühlsame Weise verwendet werden soll
-- Embedding `text-embedding-3-small` (1536d) via pgvector HNSW
+- Embedding `gemini-embedding-001` (1536d) via pgvector HNSW
 
 **Warum ein emotionales Gewicht?** Ein Assistent, der weiß, dass Ihre Mutter krank ist, diese Tatsache aber wie jede andere Information behandelt, ist bestenfalls unbeholfen, schlimmstenfalls verletzend. Das emotionale Gewicht ermöglicht die Aktivierung der `DANGER_DIRECTIVE` (Verbot zu scherzen, zu minimieren, zu vergleichen, zu bagatellisieren), wenn ein sensibles Thema berührt wird.
 
@@ -677,13 +677,13 @@ APScheduler mit Redis Leader Election (SETNX, TTL 120s, Recheck 5s). `FOR UPDATE
 
 ### 17.1. Pipeline
 
-Upload → Chunking → Embedding (text-embedding-3-small, 1536d) → pgvector HNSW → Hybride Suche (Cosine + BM25 mit Alpha-Fusion) → Kontextinjection in den **Response Node**.
+Upload → Chunking → Embedding (gemini-embedding-001, 1536d) → pgvector HNSW → Hybride Suche (Cosine + BM25 mit Alpha-Fusion) → Kontextinjection in den **Response Node**.
 
 Hinweis: Die RAG-Injection erfolgt im Antwortknoten, nicht im Planner. Der Planner erhält stattdessen die Injection der persönlichen Journale über `build_journal_context()`.
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-Integrierte FAQ (119+ Q/A, 17 Abschnitte), indexiert aus `docs/knowledge/`. Erkennung `is_app_help_query` durch QueryAnalyzer, Rule 0 Override im RoutingDecider, App Identity Prompt (~200 Token, Lazy Loading). SHA-256 Staleness Detection, Auto-Indexierung beim Start.
+Integrierte FAQ (200+ Q/A, 24 Abschnitte), indexiert aus `docs/knowledge/`. Erkennung `is_app_help_query` durch QueryAnalyzer, Rule 0 Override im RoutingDecider, App Identity Prompt (~200 Token, Lazy Loading). SHA-256 Staleness Detection, Auto-Indexierung beim Start.
 
 ---
 

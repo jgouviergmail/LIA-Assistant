@@ -525,7 +525,7 @@ Ogni ricordo è un documento strutturato con:
 - `content`, `category` (preferenza, fatto, personalità, relazione, sensibilità...)
 - `importance` (1-10), `emotional_weight` (da -10 a +10)
 - `usage_nuance`: come utilizzare questa informazione in modo empatico
-- Embedding `text-embedding-3-small` (1536d) via pgvector HNSW
+- Embedding `gemini-embedding-001` (1536d) via pgvector HNSW
 
 **Perché un peso emotivo?** Un assistente che sa che vostra madre è malata ma tratta questo fatto come un qualsiasi dato è nel migliore dei casi maldestro, nel peggiore offensivo. Il peso emotivo consente di attivare la `DANGER_DIRECTIVE` (divieto di scherzare, minimizzare, confrontare, banalizzare) quando viene toccato un argomento sensibile.
 
@@ -677,13 +677,13 @@ APScheduler con leader election Redis (SETNX, TTL 120s, recheck 5s). `FOR UPDATE
 
 ### 17.1. Pipeline
 
-Upload → Chunking → Embedding (text-embedding-3-small, 1536d) → pgvector HNSW → Ricerca ibrida (cosine + BM25 con alpha fusion) → Iniezione contesto nel **Response Node**.
+Upload → Chunking → Embedding (gemini-embedding-001, 1536d) → pgvector HNSW → Ricerca ibrida (cosine + BM25 con alpha fusion) → Iniezione contesto nel **Response Node**.
 
 Nota: l'iniezione RAG avviene nel nodo di risposta, non nel pianificatore. Il planner riceve invece l'iniezione dei diari personali tramite `build_journal_context()`.
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-FAQ integrata (119+ Q/A, 17 sezioni) indicizzata da `docs/knowledge/`. Rilevamento `is_app_help_query` da QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 token, lazy loading). Rilevamento obsolescenza SHA-256, auto-indicizzazione all'avvio.
+FAQ integrata (200+ Q/A, 24 sezioni) indicizzata da `docs/knowledge/`. Rilevamento `is_app_help_query` da QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 token, lazy loading). Rilevamento obsolescenza SHA-256, auto-indicizzazione all'avvio.
 
 ---
 

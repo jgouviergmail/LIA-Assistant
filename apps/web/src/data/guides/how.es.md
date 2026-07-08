@@ -525,7 +525,7 @@ Cada recuerdo es un documento estructurado con:
 - `content`, `category` (preferencia, hecho, personalidad, relación, sensibilidad...)
 - `importance` (1-10), `emotional_weight` (-10 a +10)
 - `usage_nuance`: cómo utilizar esta información de manera benevolente
-- Embedding `text-embedding-3-small` (1536d) via pgvector HNSW
+- Embedding `gemini-embedding-001` (1536d) via pgvector HNSW
 
 **¿Por qué un peso emocional?** Un asistente que sabe que su madre está enferma pero trata ese hecho como cualquier otro dato es, en el mejor de los casos, torpe y, en el peor, hiriente. El peso emocional permite activar la `DANGER_DIRECTIVE` (prohibición de bromear, minimizar, comparar, banalizar) cuando se toca un tema sensible.
 
@@ -677,13 +677,13 @@ APScheduler con leader election Redis (SETNX, TTL 120s, recheck 5s). `FOR UPDATE
 
 ### 17.1. Pipeline
 
-Upload → Chunking → Embedding (text-embedding-3-small, 1536d) → pgvector HNSW → Búsqueda híbrida (cosine + BM25 con alpha fusion) → Inyección de contexto en el **Response Node**.
+Upload → Chunking → Embedding (gemini-embedding-001, 1536d) → pgvector HNSW → Búsqueda híbrida (cosine + BM25 con alpha fusion) → Inyección de contexto en el **Response Node**.
 
 Nota: la inyección RAG se realiza en el nodo de respuesta, no en el planificador. El planner recibe en cambio la inyección de los diarios personales via `build_journal_context()`.
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-FAQ integrada (119+ Q/A, 17 secciones) indexada desde `docs/knowledge/`. Detección `is_app_help_query` por QueryAnalyzer, Rule 0 override en RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). SHA-256 staleness detection, auto-indexación al arranque.
+FAQ integrada (200+ Q/A, 24 secciones) indexada desde `docs/knowledge/`. Detección `is_app_help_query` por QueryAnalyzer, Rule 0 override en RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). SHA-256 staleness detection, auto-indexación al arranque.
 
 ---
 

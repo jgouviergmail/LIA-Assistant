@@ -120,7 +120,7 @@ LIA uses several anti-duplicate mechanisms:
 **🔄 Duplicate protection:**
 
 **1. Interest deduplication:**
-• Semantic similarity via OpenAI text-embedding-3-small
+• Semantic similarity via Gemini gemini-embedding-001
 • 90% threshold: two similar topics → consolidation
 • "*Python*" and "*Python Programming*" = same interest
 
