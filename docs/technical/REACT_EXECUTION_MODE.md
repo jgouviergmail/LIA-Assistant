@@ -138,7 +138,7 @@ Collects iteration count and prepares metadata for the response node:
 
 The ReAct agent receives ALL available tools (not domain-filtered like the planner):
 - Filtered by active connectors (`get_request_tool_manifests()`)
-- Capped by `REACT_AGENT_MAX_TOOLS` (default: 100) — measured on the **resolved** tool count, after iterative expansion
+- Capped by `REACT_AGENT_MAX_TOOLS` (default: 100) — measured on the **resolved** tool count, after iterative expansion. The cap is **domain-aware** (v1.21.24): tools owned by the detected domains' agents (resolved via `DOMAIN_REGISTRY`) survive first through a stable partition, and every dropped tool is named in a `react_tool_selector_capped` warning. A blind positional truncation here used to silently drop e.g. calendar tools on a calendar query once user-MCP expansion pushed the count over the cap, leaving the model unable to fetch the requested data (2026-07-08 incident: hallucinated appointments). Order is untouched when the count fits under the cap.
 - Wrapped in `ReactToolWrapper` for string conversion + registry collection
 - HITL map built from the in-hand tool manifests (`permissions.hitl_required`)
 

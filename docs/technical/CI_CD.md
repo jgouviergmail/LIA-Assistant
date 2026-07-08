@@ -221,7 +221,9 @@ Build smoke test (pas de push) avec cache GitHub Actions :
 
 ## Security Workflow (`security.yml`)
 
-**Declencheurs** : `pull_request`, schedule hebdomadaire (lundi 9h UTC), `workflow_dispatch`
+**Declencheurs** : `push` sur `main`, `pull_request`, schedule hebdomadaire (lundi 9h UTC), `workflow_dispatch` — avec groupe `concurrency` (annulation des runs obsoletes). Le trigger `push` garantit que la baseline d'alertes code-scanning de `main` se rafraichit a chaque merge, pas seulement une fois par semaine.
+
+**Permissions** : `contents: read`, `security-events: write`, `actions: read`. La derniere est requise par `codeql-action`/`upload-sarif` (lecture des metadonnees de workflow run) : sans elle, les runs echouent avec "Resource not accessible by integration" et la baseline d'alertes reste figee (incident corrige en v1.21.24 apres deux mois de baseline gelee).
 
 | Job | Description |
 |-----|-------------|

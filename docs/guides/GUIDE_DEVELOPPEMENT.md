@@ -393,6 +393,39 @@ today = now_in_timezone(user_timezone).date()
 formatage localisé 6 langues) — lire sa docstring de module avant tout nouveau code
 manipulant des dates.
 
+#### Exceptions avalées (doctrine `contextlib.suppress`)
+
+Un handler `except` dont le corps est un simple `pass` est interdit dans `src/` : un
+garde AST en CI (`apps/api/tests/unit/test_no_empty_except_guard.py`) fait échouer le
+build sur chaque occurrence (193 sites purgés en v1.21.24, classe CodeQL
+`py/empty-except` fermée).
+
+```python
+from contextlib import suppress
+
+# ✅ Avalement best-effort intentionnel (métriques, invalidation de cache, teardown)
+# metrics must never break the request path
+with suppress(Exception):
+    my_counter.labels(kind=kind).inc()
+
+# ✅ Multi-handler : suppress() IMBRIQUÉ dans le try — même ordre de capture
+try:
+    with suppress(asyncio.CancelledError):
+        await task
+except Exception as exc:
+    logger.debug("teardown_failed", error=str(exc))
+
+# ❌ INTERDITS (le garde CI casse le build)
+# try: ...           # noqa / pragma ne changent rien : l'AST ne voit
+# except Exception:  # que les statements — le commentaire de justification
+#     pass           # se place AU-DESSUS du bloc suppress()
+```
+
+Si le silence masque un vrai signal, ce n'est ni `pass` ni `suppress` : c'est un
+`logger.debug(...)` avec contexte. Exemples canoniques :
+`infrastructure/database/session.py` (métriques), `agents/api/sse_keepalive.py`
+(teardown multi-handler).
+
 #### Type Hints (Obligatoire)
 
 ```python
