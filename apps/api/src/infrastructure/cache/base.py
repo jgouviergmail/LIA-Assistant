@@ -124,7 +124,7 @@ def create_cache_entry(data: dict[str, Any], ttl_seconds: int) -> CacheEntryV2:
 
 
 def parse_cache_entry(
-    cached_json: str,
+    cached_json: str | bytes,
     cache_type: str,
     context_info: dict[str, Any] | None = None,
 ) -> CacheResult:
@@ -134,7 +134,9 @@ def parse_cache_entry(
     Handles both V2 format (with metadata) and legacy V1 format.
 
     Args:
-        cached_json: JSON string from Redis.
+        cached_json: JSON payload from Redis. The clients are configured with
+            decode_responses=True so this is a str in practice, but redis-py 8
+            types GET as ``bytes | str`` — json.loads accepts both natively.
         cache_type: Type identifier for logging (e.g., "contacts_search").
         context_info: Additional context for logging.
 

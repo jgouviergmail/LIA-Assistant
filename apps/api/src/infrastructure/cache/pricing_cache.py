@@ -132,8 +132,12 @@ class PricingCacheData:
         )
 
     @classmethod
-    def from_json(cls, data: str) -> PricingCacheData:
-        """Deserialize from Redis JSON."""
+    def from_json(cls, data: str | bytes) -> PricingCacheData:
+        """Deserialize from Redis JSON.
+
+        redis-py 8 types GET as ``bytes | str`` (decode_responses is not
+        narrowed statically); json.loads accepts both natively.
+        """
         parsed = json.loads(data)
         models = {k: CachedModelPrice(**v) for k, v in parsed["models"].items()}
         return cls(

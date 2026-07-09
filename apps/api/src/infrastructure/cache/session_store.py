@@ -5,9 +5,8 @@ Conforms to OAuth 2.1 and modern web security best practices.
 """
 
 import json
-from collections.abc import Awaitable
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 from uuid import uuid4
 
 import redis.asyncio as aioredis
@@ -168,8 +167,7 @@ class SessionStore:
         # Performance gain: 80× improvement for logout-all operations
         # ========================================================================
         user_sessions_key = f"user:{user_id}:sessions"
-        # Note: cast() needed due to redis.asyncio type stubs incorrectly returning Awaitable[int] | int
-        await cast(Awaitable[int], self.redis.sadd(user_sessions_key, session_id))
+        await self.redis.sadd(user_sessions_key, session_id)
 
         # Set TTL on user sessions SET to prevent orphaned indexes
         # Use max possible TTL (remember_me case) to ensure index outlives session
@@ -249,8 +247,7 @@ class SessionStore:
             # Remove from user's session index if we know the user_id
             if session:
                 user_sessions_key = f"user:{session.user_id}:sessions"
-                # Note: cast() needed due to redis.asyncio type stubs bug
-                await cast(Awaitable[int], self.redis.srem(user_sessions_key, session_id))
+                await self.redis.srem(user_sessions_key, session_id)
 
             logger.info(
                 "session_deleted",
@@ -290,11 +287,10 @@ class SessionStore:
         """
         user_sessions_key = f"user:{user_id}:sessions"
 
-        # O(1) lookup: Get all session IDs for this user from index
-        # Note: cast() needed due to redis.asyncio type stubs bug
-        session_ids_bytes = await cast(
-            Awaitable[set[bytes]], self.redis.smembers(user_sessions_key)
-        )
+        # O(1) lookup: Get all session IDs for this user from index.
+        # decode_responses=True yields str members at runtime, but redis-py 8
+        # types SMEMBERS as bytes-capable — the decode loop below handles both.
+        session_ids_bytes = await self.redis.smembers(user_sessions_key)
 
         if not session_ids_bytes:
             logger.debug(

@@ -1342,7 +1342,7 @@ async def health_check() -> JSONResponse:
     # Check Redis
     try:
         redis = await get_redis_cache()
-        await redis.ping()  # type: ignore[misc]
+        await redis.ping()
         health_status["checks"]["redis"] = "healthy"  # type: ignore[index]
     except Exception as exc:
         logger.error("health_check_redis_failed", error=str(exc))
