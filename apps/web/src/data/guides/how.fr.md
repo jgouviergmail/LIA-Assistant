@@ -89,11 +89,11 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 |-------------|---------|------|-------------------|
 | Python | 3.12+ | Runtime | Écosystème ML/IA le plus riche, async natif, typing complet |
 | FastAPI | 0.136.3 | API REST + SSE | Validation auto Pydantic, docs OpenAPI, async-first, performances |
-| LangGraph | 1.2.2 | Orchestration multi-agent | Seul framework offrant state persistence + cycles + interrupts (HITL) natifs |
-| LangChain Core | 1.4.0 | Abstractions LLM/tools | Décorateur `@tool`, formats de messages, callbacks standardisés |
+| LangGraph | 1.2.4 | Orchestration multi-agent | Seul framework offrant state persistence + cycles + interrupts (HITL) natifs |
+| LangChain Core | 1.4.6 | Abstractions LLM/tools | Décorateur `@tool`, formats de messages, callbacks standardisés |
 | SQLAlchemy | 2.0.50 | ORM async | `Mapped[Type]` + `mapped_column()`, async sessions, `selectinload()` |
 | PostgreSQL | 16 + pgvector | Database + vector search | Checkpoints LangGraph natifs, recherche sémantique HNSW, maturité |
-| Redis | 7.4.0 | Cache, sessions, rate limiting | O(1) ops, sliding window atomique (Lua), SETNX leader election |
+| Redis | 7.4 | Cache, sessions, rate limiting | O(1) ops, sliding window atomique (Lua), SETNX leader election |
 | Pydantic | 2.13.4 | Validation + sérialisation | `ConfigDict`, `field_validator`, composition de settings via MRO |
 | structlog | latest | Logging structuré | JSON output avec filtrage PII automatique, snake_case events |
 | Gemini Embeddings | gemini-embedding-001 | Embeddings sémantiques | Embeddings multilingues Gemini (mémoire, routage, intérêts, journaux) — ADR-069 |
@@ -104,14 +104,14 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Technologie | Version | Rôle |
 |-------------|---------|------|
-| Next.js | 16.2.7 | App Router, SSR, ISR |
-| React | 19.2.5 | UI avec Server Components |
+| Next.js | 16.2.10 | App Router, SSR, ISR |
+| React | 19.2.7 | UI avec Server Components |
 | TypeScript | 6.0.2 | Typage strict |
-| TailwindCSS | 4.2.2 | Utility-first CSS |
-| TanStack Query | 5.99 | Server state management, cache, mutations |
+| TailwindCSS | 4.3.2 | Utility-first CSS |
+| TanStack Query | 5.101 | Server state management, cache, mutations |
 | Radix UI | v2 | Primitives UI accessibles |
 | react-i18next | 17.0 | i18n (6 langues), namespace-based |
-| Zod | 3.x | Validation runtime des schémas debug |
+| Zod | 4.x | Validation runtime des schémas debug |
 
 ### 2.3. LLM Providers supportés
 

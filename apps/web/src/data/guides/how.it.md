@@ -89,11 +89,11 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 |------------|----------|-------|---------------------|
 | Python | 3.12+ | Runtime | Ecosistema ML/IA più ricco, async nativo, typing completo |
 | FastAPI | 0.136.3 | API REST + SSE | Validazione automatica Pydantic, doc OpenAPI, async-first, performance |
-| LangGraph | 1.2.2 | Orchestrazione multi-agente | Unico framework con state persistence + cicli + interrupt (HITL) nativi |
-| LangChain Core | 1.4.0 | Astrazioni LLM/tools | Decoratore `@tool`, formati messaggi, callback standardizzati |
+| LangGraph | 1.2.4 | Orchestrazione multi-agente | Unico framework con state persistence + cicli + interrupt (HITL) nativi |
+| LangChain Core | 1.4.6 | Astrazioni LLM/tools | Decoratore `@tool`, formati messaggi, callback standardizzati |
 | SQLAlchemy | 2.0.50 | ORM async | `Mapped[Type]` + `mapped_column()`, sessioni async, `selectinload()` |
 | PostgreSQL | 16 + pgvector | Database + vector search | Checkpoint LangGraph nativi, ricerca semantica HNSW, maturità |
-| Redis | 7.4.0 | Cache, sessioni, rate limiting | Operazioni O(1), sliding window atomica (Lua), SETNX leader election |
+| Redis | 7.4 | Cache, sessioni, rate limiting | Operazioni O(1), sliding window atomica (Lua), SETNX leader election |
 | Pydantic | 2.13.4 | Validazione + serializzazione | `ConfigDict`, `field_validator`, composizione settings via MRO |
 | structlog | latest | Logging strutturato | Output JSON con filtraggio PII automatico, eventi snake_case |
 | Gemini Embeddings | gemini-embedding-001 | Embedding semantici | Embedding multilingue Gemini (memoria, routing, interessi, diari) — ADR-069 |
@@ -104,14 +104,14 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Tecnologia | Versione | Ruolo |
 |------------|----------|-------|
-| Next.js | 16.2.7 | App Router, SSR, ISR |
-| React | 19.2.5 | UI con Server Components |
+| Next.js | 16.2.10 | App Router, SSR, ISR |
+| React | 19.2.7 | UI con Server Components |
 | TypeScript | 6.0.2 | Tipizzazione strict |
-| TailwindCSS | 4.2.2 | Utility-first CSS |
-| TanStack Query | 5.99 | Server state management, cache, mutation |
+| TailwindCSS | 4.3.2 | Utility-first CSS |
+| TanStack Query | 5.101 | Server state management, cache, mutation |
 | Radix UI | v2 | Primitive UI accessibili |
 | react-i18next | 17.0 | i18n (6 lingue), namespace-based |
-| Zod | 3.x | Validazione runtime degli schemi debug |
+| Zod | 4.x | Validazione runtime degli schemi debug |
 
 ### 2.3. LLM Provider supportati
 

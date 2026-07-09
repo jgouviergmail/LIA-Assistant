@@ -71,7 +71,7 @@ This directory contains GitHub Actions workflows for the LIA project. The workfl
 **Steps:**
 1. Checkout code (`actions/checkout@v4`)
 2. Install pnpm (`pnpm/action-setup@v4`)
-3. Set up Node.js 20 (`actions/setup-node@v4`) with pnpm cache
+3. Set up Node.js 24 (`actions/setup-node@v4`) with pnpm cache
 4. Install dependencies: `pnpm install --frozen-lockfile`
 5. Run **ESLint**: `pnpm run lint`
 6. Run **TypeScript** type check: `pnpm run type-check`
@@ -130,7 +130,7 @@ This directory contains GitHub Actions workflows for the LIA project. The workfl
 **Steps:**
 1. Checkout code (`actions/checkout@v4`)
 2. Install pnpm (`pnpm/action-setup@v4`)
-3. Set up Node.js 20 (`actions/setup-node@v4`) with pnpm cache
+3. Set up Node.js 24 (`actions/setup-node@v4`) with pnpm cache
 4. Install dependencies: `pnpm install --frozen-lockfile`
 5. Run tests (placeholder - Vitest tests to be implemented)
 
@@ -348,7 +348,7 @@ This directory contains GitHub Actions workflows for the LIA project. The workfl
 **Steps:**
 1. Checkout code (`actions/checkout@v4`)
 2. Setup pnpm (`pnpm/action-setup@v4`)
-3. Setup Node.js 20 (`actions/setup-node@v4`) with pnpm cache
+3. Setup Node.js 24 (`actions/setup-node@v4`) with pnpm cache
 4. Install dependencies: `pnpm install --frozen-lockfile`
 5. **Run TypeScript Compiler**
    - Command: `pnpm run type-check`
@@ -830,7 +830,7 @@ Used in `test-backend` job in `ci.yml`:
 
 ### Prerequisites
 - Python 3.12
-- Node.js 20
+- Node.js 24
 - pnpm
 - Docker (for Docker builds and services)
 - PostgreSQL (for integration tests)

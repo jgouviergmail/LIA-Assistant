@@ -89,11 +89,11 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 |-------------|---------|------|-------------------|
 | Python | 3.12+ | Runtime | Reichstes ML/KI-Ökosystem, natives Async, vollständiges Typing |
 | FastAPI | 0.136.3 | REST-API + SSE | Automatische Pydantic-Validierung, OpenAPI-Docs, Async-First, Performance |
-| LangGraph | 1.2.2 | Multi-Agent-Orchestrierung | Einziges Framework mit nativer State-Persistenz + Zyklen + Interrupts (HITL) |
-| LangChain Core | 1.4.0 | LLM/Tools-Abstraktionen | `@tool`-Decorator, Nachrichtenformate, standardisierte Callbacks |
+| LangGraph | 1.2.4 | Multi-Agent-Orchestrierung | Einziges Framework mit nativer State-Persistenz + Zyklen + Interrupts (HITL) |
+| LangChain Core | 1.4.6 | LLM/Tools-Abstraktionen | `@tool`-Decorator, Nachrichtenformate, standardisierte Callbacks |
 | SQLAlchemy | 2.0.50 | Async ORM | `Mapped[Type]` + `mapped_column()`, Async Sessions, `selectinload()` |
 | PostgreSQL | 16 + pgvector | Datenbank + Vektorsuche | Native LangGraph-Checkpoints, semantische HNSW-Suche, Reife |
-| Redis | 7.4.0 | Cache, Sessions, Rate Limiting | O(1)-Operationen, atomisches Sliding Window (Lua), SETNX Leader Election |
+| Redis | 7.4 | Cache, Sessions, Rate Limiting | O(1)-Operationen, atomisches Sliding Window (Lua), SETNX Leader Election |
 | Pydantic | 2.13.4 | Validierung + Serialisierung | `ConfigDict`, `field_validator`, Settings-Komposition via MRO |
 | structlog | latest | Strukturiertes Logging | JSON-Ausgabe mit automatischer PII-Filterung, snake_case Events |
 | Gemini Embeddings | gemini-embedding-001 | Semantische Embeddings | Mehrsprachige Gemini-Embeddings (Gedächtnis, Routing, Interessen, Journale) — ADR-069 |
@@ -104,14 +104,14 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Technologie | Version | Rolle |
 |-------------|---------|------|
-| Next.js | 16.2.7 | App Router, SSR, ISR |
-| React | 19.2.5 | UI mit Server Components |
+| Next.js | 16.2.10 | App Router, SSR, ISR |
+| React | 19.2.7 | UI mit Server Components |
 | TypeScript | 6.0.2 | Striktes Typing |
-| TailwindCSS | 4.2.2 | Utility-First CSS |
-| TanStack Query | 5.99 | Server State Management, Cache, Mutations |
+| TailwindCSS | 4.3.2 | Utility-First CSS |
+| TanStack Query | 5.101 | Server State Management, Cache, Mutations |
 | Radix UI | v2 | Barrierefreie UI-Primitives |
 | react-i18next | 17.0 | i18n (6 Sprachen), Namespace-basiert |
-| Zod | 3.x | Runtime-Validierung der Debug-Schemata |
+| Zod | 4.x | Runtime-Validierung der Debug-Schemata |
 
 ### 2.3. Unterstützte LLM-Provider
 

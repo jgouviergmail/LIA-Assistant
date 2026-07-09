@@ -57,7 +57,7 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
 | **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.136.3, LangGraph 1.2.4, LangChain 1.3.9, SQLAlchemy 2.0.50, Python 3.12 |
-| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.2.7, React 19.2.5 |
+| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.2.10, React 19.2.7 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector:pg16`) |
 | **Cache/Sessions** | Redis | Redis 7.4 |
 | **Observability** | Prometheus + Grafana + Loki + Tempo (+ Langfuse in dev) | Prometheus 3.0.0, Grafana 11.3.0, Loki 3.2.1, Tempo 2.6.1 |
@@ -107,7 +107,7 @@ Production reference platform: Raspberry Pi 5 (linux/arm64) — all images are m
 | Tool | Minimum Version | Installation | Verification |
 |------|-----------------|--------------|--------------|
 | **Python** | 3.12+ | [python.org](https://www.python.org/) | `python --version` |
-| **Node.js** | 22.x (LTS) | [nodejs.org](https://nodejs.org/) | `node --version` |
+| **Node.js** | 24.x (LTS) | [nodejs.org](https://nodejs.org/) | `node --version` |
 | **pnpm** | 10.x+ | `npm install -g pnpm` | `pnpm --version` |
 | **Docker** | 24.x+ | [docker.com](https://www.docker.com/) | `docker --version` |
 | **Docker Compose** | 2.x+ | Included with Docker Desktop | `docker compose version` |

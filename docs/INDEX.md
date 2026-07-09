@@ -10,7 +10,7 @@
 
 ## Vue d'Ensemble
 
-Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA conversationnel multi-agent basé sur **LangGraph 1.1.6**, **FastAPI 0.135.3**, et **Next.js 16**.
+Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA conversationnel multi-agent basé sur **LangGraph 1.2.4**, **FastAPI 0.136.3**, et **Next.js 16**.
 
 | Métrique | Valeur |
 |----------|--------|

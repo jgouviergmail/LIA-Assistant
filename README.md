@@ -20,7 +20,7 @@
 
 <p align="center">
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+"></a>
-  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22%20LTS-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22 LTS"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24%20LTS-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 24 LTS"></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.136.3-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.2.2-FF6F00?style=flat-square" alt="LangGraph"></a>
@@ -535,7 +535,7 @@ A 24-section debug panel embedded in the chat interface, organized into **6 logi
 | Software | Version | Required |
 |----------|---------|----------|
 | Python | 3.12+ | Yes |
-| Node.js | 22 LTS | Yes |
+| Node.js | 24 LTS | Yes |
 | Docker | 24+ | Yes |
 | pnpm | 10+ | Yes |
 | [Task](https://taskfile.dev/) | 3+ | Yes (build tool) |
@@ -795,7 +795,7 @@ apps/api/src/
 
 | Technology | Version | Role |
 |------------|---------|------|
-| Node.js | 22 LTS | JavaScript runtime |
+| Node.js | 24 LTS | JavaScript runtime |
 | Next.js | 16.2.7 | React framework |
 | React | 19.2.5 | UI library |
 | TypeScript | 6.0.2 | Type safety |

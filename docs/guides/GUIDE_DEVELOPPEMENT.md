@@ -27,7 +27,7 @@
 
 **Prérequis** :
 - Python 3.12+
-- Node.js 20+
+- Node.js 24+
 - Docker & Docker Compose
 - Git 2.40+
 - VS Code (recommandé) ou PyCharm

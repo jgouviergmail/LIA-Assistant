@@ -89,11 +89,11 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 |------|------|------|---------|
 | Python | 3.12+ | 运行时 | 最丰富的 ML/AI 生态系统、原生异步、完整类型标注 |
 | FastAPI | 0.136.3 | REST API + SSE | Pydantic 自动验证、OpenAPI 文档、async-first、高性能 |
-| LangGraph | 1.2.2 | 多智能体编排 | 唯一原生支持状态持久化 + 循环 + 中断（HITL）的框架 |
-| LangChain Core | 1.4.0 | LLM/工具抽象 | `@tool` 装饰器、消息格式、标准化回调 |
+| LangGraph | 1.2.4 | 多智能体编排 | 唯一原生支持状态持久化 + 循环 + 中断（HITL）的框架 |
+| LangChain Core | 1.4.6 | LLM/工具抽象 | `@tool` 装饰器、消息格式、标准化回调 |
 | SQLAlchemy | 2.0.50 | 异步 ORM | `Mapped[Type]` + `mapped_column()`、异步会话、`selectinload()` |
 | PostgreSQL | 16 + pgvector | 数据库 + 向量搜索 | 原生 LangGraph 检查点、HNSW 语义搜索、成熟度 |
-| Redis | 7.4.0 | 缓存、会话、限流 | O(1) 操作、原子滑动窗口（Lua）、SETNX 领导者选举 |
+| Redis | 7.4 | 缓存、会话、限流 | O(1) 操作、原子滑动窗口（Lua）、SETNX 领导者选举 |
 | Pydantic | 2.13.4 | 验证 + 序列化 | `ConfigDict`、`field_validator`、通过 MRO 组合设置 |
 | structlog | latest | 结构化日志 | JSON 输出、自动 PII 过滤、snake_case 事件 |
 | Gemini Embeddings | gemini-embedding-001 | 语义嵌入 | Gemini多语言嵌入（记忆、路由、兴趣、日志）— ADR-069 |
@@ -104,14 +104,14 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 
 | 技术 | 版本 | 角色 |
 |------|------|------|
-| Next.js | 16.2.7 | App Router、SSR、ISR |
-| React | 19.2.5 | UI（含 Server Components） |
+| Next.js | 16.2.10 | App Router、SSR、ISR |
+| React | 19.2.7 | UI（含 Server Components） |
 | TypeScript | 6.0.2 | 严格类型 |
-| TailwindCSS | 4.2.2 | 实用优先 CSS |
-| TanStack Query | 5.99 | 服务端状态管理、缓存、变更 |
+| TailwindCSS | 4.3.2 | 实用优先 CSS |
+| TanStack Query | 5.101 | 服务端状态管理、缓存、变更 |
 | Radix UI | v2 | 无障碍 UI 基元 |
 | react-i18next | 17.0 | i18n（6 种语言），基于命名空间 |
-| Zod | 3.x | 调试模式的运行时验证 |
+| Zod | 4.x | 调试模式的运行时验证 |
 
 ### 2.3. 支持的 LLM 提供商
 

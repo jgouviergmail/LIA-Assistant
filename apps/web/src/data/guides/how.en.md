@@ -89,11 +89,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 |------------|---------|------|-----------------|
 | Python | 3.12+ | Runtime | Richest ML/AI ecosystem, native async, complete typing |
 | FastAPI | 0.136.3 | REST API + SSE | Auto Pydantic validation, OpenAPI docs, async-first, performance |
-| LangGraph | 1.2.2 | Multi-agent orchestration | Only framework offering native state persistence + cycles + interrupts (HITL) |
-| LangChain Core | 1.4.0 | LLM/tools abstractions | `@tool` decorator, message formats, standardized callbacks |
+| LangGraph | 1.2.4 | Multi-agent orchestration | Only framework offering native state persistence + cycles + interrupts (HITL) |
+| LangChain Core | 1.4.6 | LLM/tools abstractions | `@tool` decorator, message formats, standardized callbacks |
 | SQLAlchemy | 2.0.50 | Async ORM | `Mapped[Type]` + `mapped_column()`, async sessions, `selectinload()` |
 | PostgreSQL | 16 + pgvector | Database + vector search | Native LangGraph checkpoints, HNSW semantic search, maturity |
-| Redis | 7.4.0 | Cache, sessions, rate limiting | O(1) ops, atomic sliding window (Lua), SETNX leader election |
+| Redis | 7.4 | Cache, sessions, rate limiting | O(1) ops, atomic sliding window (Lua), SETNX leader election |
 | Pydantic | 2.13.4 | Validation + serialization | `ConfigDict`, `field_validator`, settings composition via MRO |
 | structlog | latest | Structured logging | JSON output with automatic PII filtering, snake_case events |
 | Gemini Embeddings | gemini-embedding-001 | Semantic embeddings | Gemini multilingual embeddings (memory, routing, interests, journals) — ADR-069 |
@@ -104,14 +104,14 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Technology | Version | Role |
 |------------|---------|------|
-| Next.js | 16.2.7 | App Router, SSR, ISR |
-| React | 19.2.5 | UI with Server Components |
+| Next.js | 16.2.10 | App Router, SSR, ISR |
+| React | 19.2.7 | UI with Server Components |
 | TypeScript | 6.0.2 | Strict typing |
-| TailwindCSS | 4.2.2 | Utility-first CSS |
-| TanStack Query | 5.99 | Server state management, cache, mutations |
+| TailwindCSS | 4.3.2 | Utility-first CSS |
+| TanStack Query | 5.101 | Server state management, cache, mutations |
 | Radix UI | v2 | Accessible UI primitives |
 | react-i18next | 17.0 | i18n (6 languages), namespace-based |
-| Zod | 3.x | Runtime validation of debug schemas |
+| Zod | 4.x | Runtime validation of debug schemas |
 
 ### 2.3. Supported LLM Providers
 

@@ -678,7 +678,7 @@ CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--worker
 # ============================================================================
 # Stage 1: Base image with Node.js and pnpm
 # ============================================================================
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.18.3 --activate
