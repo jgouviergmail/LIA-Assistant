@@ -7,7 +7,7 @@ import asyncio
 import json
 import threading
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 
@@ -21,7 +21,7 @@ from src.core.constants import (
     HITL_RATE_LIMIT_REQUESTS,
     HITL_RATE_LIMIT_WINDOW_SECONDS,
 )
-from src.core.exceptions import raise_user_id_mismatch
+from src.core.exceptions import raise_not_found_or_unauthorized, raise_user_id_mismatch
 from src.core.field_names import (
     FIELD_ACTION_REQUESTS,
     FIELD_CONTENT,
@@ -34,10 +34,15 @@ from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_hitl import get_user_language
 from src.core.session_dependencies import get_current_active_session
 from src.core.user_display import resolve_user_display_name
+from src.domains.agents.api.background_runner import (
+    PartialFinalizer,
+    spawn_chat_run_producer,
+)
 from src.domains.agents.api.error_messages import SSEErrorMessages
 from src.domains.agents.api.schemas import ChatRequest
 from src.domains.agents.api.service import AgentService
 from src.domains.agents.api.sse_keepalive import KeepalivePulse, iter_with_keepalive
+from src.domains.agents.utils import generate_run_id
 from src.domains.auth.models import User
 from src.domains.chat.schemas import TokenSummaryDTO
 from src.infrastructure.observability.logging import get_logger
@@ -101,6 +106,128 @@ def get_agent_service() -> AgentService:
             _agent_service = AgentService()
 
     return _agent_service
+
+
+async def stream_run_as_sse(stream_id: str) -> AsyncGenerator[str, None]:
+    """Subscribe to a run stream and format events as SSE lines.
+
+    Transport-only (ADR-117): chunks are relayed verbatim (already-serialized
+    ChatStreamChunk JSON), empty XREAD windows become heartbeats, the broker
+    end marker terminates the generator. Client disconnects cancel THIS
+    generator only — the detached producer is unaffected (proven by the
+    2026-07 de-risking POC).
+
+    Lot 2 semantics:
+      - Subscriber presence is tracked (INCR/DECR around the whole read) —
+        voice synthesis is skipped by the producer when nobody listens.
+      - Replay entries (backlog existing before this subscriber attached)
+        are relayed WITHOUT pacing, with ``voice_audio_chunk`` payloads
+        dropped (stale audio), and the transport comment ``: replay-end``
+        is emitted at the replay→live boundary so reattaching clients can
+        lift their replay-mode side-effect suppression. Legacy clients
+        ignore unknown SSE comments — the chunk contract is untouched.
+
+    Args:
+        stream_id: Transport identifier (stream key suffix) — fresh per
+            invocation, distinct from the billing run_id on HITL resumption.
+
+    Yields:
+        SSE-formatted lines (``data: ...`` frames and transport comments).
+    """
+    from src.infrastructure.cache.redis import get_redis_cache
+    from src.infrastructure.streaming.run_stream_broker import (
+        listener_decr,
+        listener_incr,
+        listener_touch,
+        subscribe,
+    )
+
+    redis = await get_redis_cache()
+    await listener_incr(redis, stream_id)
+    # Presence TTL is armed at INCR time only — re-arm it periodically or a
+    # subscriber attached longer than the TTL would silently drop out of the
+    # count and voice synthesis would be wrongly skipped mid-run.
+    touch_period = settings.background_runs_listener_ttl_seconds / 3
+    last_touch = time.monotonic()
+    replay_boundary_emitted = False
+    try:
+        async for event in subscribe(redis, stream_id):
+            if time.monotonic() - last_touch > touch_period:
+                last_touch = time.monotonic()
+                with suppress(Exception):
+                    await listener_touch(redis, stream_id)
+            if not event.is_replay and not replay_boundary_emitted:
+                yield ": replay-end\n\n"
+                replay_boundary_emitted = True
+            if event.kind == "keepalive":
+                yield ": heartbeat\n\n"
+            elif event.kind == "chunk":
+                if event.is_replay and '"voice_audio_chunk"' in event.payload:
+                    # Stale audio is worthless and heavy (base64 MP3) — the
+                    # substring pre-filter avoids parsing every replay chunk.
+                    with suppress(ValueError):
+                        if json.loads(event.payload).get("type") == "voice_audio_chunk":
+                            continue
+                yield f"data: {event.payload}\n\n"
+                if not event.is_replay:
+                    # Client pacing applies to LIVE chunks only — a replayed
+                    # backlog must flush at full speed (POC-L2-2).
+                    await asyncio.sleep(settings.agent_stream_sleep_interval)
+            else:  # end
+                return
+    finally:
+        # Best-effort: presence must decay even if the client vanished
+        with suppress(Exception):
+            await listener_decr(redis, stream_id)
+
+
+def _build_listener_probe(stream_id: str) -> "Callable[[], Awaitable[bool]]":
+    """Async probe: is anyone currently subscribed to this run's stream?
+
+    Injected into stream_chat_response (ADR-117 Lot 2) so voice synthesis
+    is skipped when the run executes with no listeners.
+    """
+
+    async def _probe() -> bool:
+        from src.infrastructure.cache.redis import get_redis_cache
+        from src.infrastructure.streaming.run_stream_broker import has_listeners
+
+        return await has_listeners(await get_redis_cache(), stream_id)
+
+    return _probe
+
+
+def _build_partial_finalizer(conversation_id: str, run_id: str) -> PartialFinalizer:
+    """Best-effort archiver for partial assistant content on hard kill.
+
+    Product decision (2026-07): interrupted partial content is KEPT and
+    flagged, never silently dropped (billing honesty + context continuity).
+
+    Args:
+        conversation_id: Conversation UUID string (owner of the run).
+        run_id: Run identifier stored in the row metadata.
+
+    Returns:
+        Async callback ``(partial_content, reason) -> None``.
+    """
+
+    async def _finalize(partial_content: str, reason: str) -> None:
+        import uuid as _uuid
+
+        from src.domains.conversations.service import ConversationService
+        from src.infrastructure.database import get_db_context
+
+        conv_service = ConversationService()
+        async with get_db_context() as db:
+            await conv_service.archive_message(
+                _uuid.UUID(conversation_id),
+                "assistant",
+                partial_content,
+                {FIELD_RUN_ID: run_id, "interrupted": True, "interrupt_reason": reason},
+                db,
+            )
+
+    return _finalize
 
 
 async def _check_pending_hitl_uncached(conversation_id: str) -> dict | None:
@@ -290,6 +417,50 @@ async def stream_chat(
 
             raise_usage_limit_exceeded(_limit_check.exceeded_limit, _limit_check.blocked_reason)
     # === END USAGE LIMIT CHECK ===
+
+    # === ACTIVE-RUN LOCK (ADR-117 Lot 2: HTTP 409 BEFORE the SSE stream) ===
+    # One concurrent run per conversation. Acquired here (the SSE generator
+    # starts after the 200 status is committed — too late for a 409) and
+    # kept alive by the producer's heartbeat; a killed producer frees the
+    # conversation in at most background_runs_active_ttl_seconds.
+    background_stream_id: str | None = None
+    background_conversation_id: str | None = None
+    if settings.background_runs_enabled:
+        from fastapi import HTTPException, status
+
+        from src.infrastructure.cache import get_conversation_id_cached
+        from src.infrastructure.cache.redis import get_redis_cache
+        from src.infrastructure.streaming.run_stream_broker import (
+            get_active_run,
+            register_active_run,
+        )
+
+        background_stream_id = generate_run_id()
+        background_conversation_id = await get_conversation_id_cached(request.user_id)
+        if background_conversation_id:
+            _lock_redis = await get_redis_cache()
+            acquired = await register_active_run(
+                _lock_redis,
+                background_conversation_id,
+                run_id=background_stream_id,
+                stream_id=background_stream_id,
+            )
+            if not acquired:
+                active = await get_active_run(_lock_redis, background_conversation_id)
+                logger.info(
+                    "chat_run_lock_conflict",
+                    user_id=str(current_user.id),
+                    conversation_id=background_conversation_id,
+                    active_stream_id=(active or {}).get("stream_id"),
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "error": "run_in_progress",
+                        "active_run": active,
+                    },
+                )
+    # === END ACTIVE-RUN LOCK ===
 
     logger.info(
         "sse_stream_started",
@@ -519,6 +690,21 @@ async def stream_chat(
                     # (": heartbeat") pulse during long silent phases (eg compaction
                     # LLM call). The legacy post-chunk heartbeat in this block was
                     # blind to in-flight awaits — Day 2 / Task 2.3 replaces it.
+                    # ADR-117: billing id (run_id) is REUSED across HITL
+                    # interrupt + resumption for token aggregation, but the
+                    # transport id (stream_id) MUST be fresh per invocation —
+                    # the interrupt phase already wrote a terminal marker on
+                    # its own stream, and a replay-from-0 subscriber would
+                    # stop at that stale marker. Lot 2: the id was generated
+                    # in the endpoint body (the active-run lock is keyed on
+                    # it); the fallback covers the flag-OFF-at-body edge.
+                    stream_id = background_stream_id or generate_run_id()
+                    producer_run_id = original_run_id or stream_id
+                    listener_probe = (
+                        _build_listener_probe(stream_id)
+                        if settings.background_runs_enabled
+                        else None
+                    )
                     chat_stream = agent_service.stream_chat_response(
                         user_message=request.message,
                         user_id=request.user_id,
@@ -527,6 +713,8 @@ async def stream_chat(
                         user_language=user_language,
                         user_display_name=user_display_name,
                         original_run_id=original_run_id,  # Reuse for token aggregation
+                        run_id=producer_run_id,
+                        has_listeners=listener_probe,
                         browser_context=request.context,  # Pass browser context (geolocation, etc.)
                         user_memory_enabled=getattr(current_user, "memory_enabled", True),
                         user_journals_enabled=getattr(current_user, "journals_enabled", False),
@@ -539,25 +727,45 @@ async def stream_chat(
                         stt_cost_usd=request.stt_cost_usd,
                         stt_cost_eur=request.stt_cost_eur,
                     )
-                    async for item in iter_with_keepalive(
-                        chat_stream,
-                        keepalive_interval_seconds=settings.sse_heartbeat_interval,
-                    ):
-                        if isinstance(item, KeepalivePulse):
-                            yield ": heartbeat\n\n"
-                            continue
+                    if settings.background_runs_enabled:
+                        # ADR-117: detached execution — the run survives client
+                        # disconnects; this endpoint is a mere subscriber.
+                        # The e2e duration metric is observed by the producer.
+                        spawn_chat_run_producer(
+                            chat_stream=chat_stream,
+                            run_id=producer_run_id,
+                            stream_id=stream_id,
+                            user_id=str(current_user.id),
+                            session_id=request.session_id,
+                            finalize_partial=(
+                                _build_partial_finalizer(conversation_id, producer_run_id)
+                                if conversation_id
+                                else None
+                            ),
+                            conversation_id=background_conversation_id,
+                        )
+                        async for sse_line in stream_run_as_sse(stream_id):
+                            yield sse_line
+                    else:
+                        async for item in iter_with_keepalive(
+                            chat_stream,
+                            keepalive_interval_seconds=settings.sse_heartbeat_interval,
+                        ):
+                            if isinstance(item, KeepalivePulse):
+                                yield ": heartbeat\n\n"
+                                continue
 
-                        chunk = item
-                        # E2E metrics: Extract metadata from chunks (PHASE 1.2)
-                        if chunk.type == "router_decision" and chunk.metadata:
-                            intention_label = chunk.metadata.get("intention", "unknown")
+                            chunk = item
+                            # E2E metrics: Extract metadata from chunks (PHASE 1.2)
+                            if chunk.type == "router_decision" and chunk.metadata:
+                                intention_label = chunk.metadata.get("intention", "unknown")
 
-                        # Send chunk as SSE data
-                        chunk_json = chunk.model_dump_json()
-                        yield f"data: {chunk_json}\n\n"
+                            # Send chunk as SSE data
+                            chunk_json = chunk.model_dump_json()
+                            yield f"data: {chunk_json}\n\n"
 
-                        # Small delay
-                        await asyncio.sleep(settings.agent_stream_sleep_interval)
+                            # Small delay
+                            await asyncio.sleep(settings.agent_stream_sleep_interval)
 
             else:
                 # Normal flow - no pending HITL
@@ -584,6 +792,15 @@ async def stream_chat(
                 # Wrap with concurrent keepalive so heartbeats fire during long
                 # silent awaits (Day 2 / Task 2.3) — the legacy inline check
                 # only pulsed between received chunks.
+                # ADR-117: fresh id per POST — serves as BOTH billing run_id
+                # and transport stream_id on the normal (non-HITL) path.
+                # Lot 2: generated in the endpoint body (lock key); fallback
+                # covers the flag-OFF-at-body edge.
+                stream_id = background_stream_id or generate_run_id()
+                producer_run_id = stream_id
+                listener_probe = (
+                    _build_listener_probe(stream_id) if settings.background_runs_enabled else None
+                )
                 chat_stream = agent_service.stream_chat_response(
                     user_message=request.message,
                     user_id=request.user_id,
@@ -591,6 +808,8 @@ async def stream_chat(
                     user_timezone=user_timezone,
                     user_language=user_language,
                     user_display_name=user_display_name,
+                    run_id=producer_run_id,
+                    has_listeners=listener_probe,
                     browser_context=request.context,  # Pass browser context (geolocation, etc.)
                     user_memory_enabled=getattr(current_user, "memory_enabled", True),
                     user_journals_enabled=getattr(current_user, "journals_enabled", False),
@@ -603,30 +822,50 @@ async def stream_chat(
                     stt_cost_usd=request.stt_cost_usd,
                     stt_cost_eur=request.stt_cost_eur,
                 )
-                async for item in iter_with_keepalive(
-                    chat_stream,
-                    keepalive_interval_seconds=settings.sse_heartbeat_interval,
-                ):
-                    if isinstance(item, KeepalivePulse):
-                        yield ": heartbeat\n\n"
-                        logger.debug(
-                            "sse_heartbeat_sent",
-                            user_id=str(current_user.id),
-                            session_id=request.session_id,
-                        )
-                        continue
+                if settings.background_runs_enabled:
+                    # ADR-117: detached execution — the run survives client
+                    # disconnects; this endpoint is a mere subscriber.
+                    # The e2e duration metric is observed by the producer.
+                    spawn_chat_run_producer(
+                        chat_stream=chat_stream,
+                        run_id=producer_run_id,
+                        stream_id=stream_id,
+                        user_id=str(current_user.id),
+                        session_id=request.session_id,
+                        finalize_partial=(
+                            _build_partial_finalizer(conversation_id, producer_run_id)
+                            if conversation_id
+                            else None
+                        ),
+                        conversation_id=background_conversation_id,
+                    )
+                    async for sse_line in stream_run_as_sse(stream_id):
+                        yield sse_line
+                else:
+                    async for item in iter_with_keepalive(
+                        chat_stream,
+                        keepalive_interval_seconds=settings.sse_heartbeat_interval,
+                    ):
+                        if isinstance(item, KeepalivePulse):
+                            yield ": heartbeat\n\n"
+                            logger.debug(
+                                "sse_heartbeat_sent",
+                                user_id=str(current_user.id),
+                                session_id=request.session_id,
+                            )
+                            continue
 
-                    chunk = item
-                    # E2E metrics: Extract metadata from chunks (PHASE 1.2)
-                    if chunk.type == "router_decision" and chunk.metadata:
-                        intention_label = chunk.metadata.get("intention", "unknown")
+                        chunk = item
+                        # E2E metrics: Extract metadata from chunks (PHASE 1.2)
+                        if chunk.type == "router_decision" and chunk.metadata:
+                            intention_label = chunk.metadata.get("intention", "unknown")
 
-                    # Send chunk as SSE data
-                    chunk_json = chunk.model_dump_json()
-                    yield f"data: {chunk_json}\n\n"
+                        # Send chunk as SSE data
+                        chunk_json = chunk.model_dump_json()
+                        yield f"data: {chunk_json}\n\n"
 
-                    # Small delay to prevent overwhelming client
-                    await asyncio.sleep(settings.agent_stream_sleep_interval)
+                        # Small delay to prevent overwhelming client
+                        await asyncio.sleep(settings.agent_stream_sleep_interval)
 
             # E2E metrics: Record request duration (PHASE 1.2)
             request_duration = time.time() - request_start_time
@@ -738,6 +977,143 @@ async def stream_chat(
             "Cache-Control": "no-cache",  # Prevent browser caching
             "X-Accel-Buffering": "no",  # Disable Nginx buffering
             "Connection": "keep-alive",  # Keep connection open
+        },
+    )
+
+
+@router.get("/runs/active")
+async def get_active_run_status(
+    current_user: User = Depends(get_current_active_session),
+) -> dict:
+    """Report the in-flight background run of the user's conversation, if any.
+
+    ADR-117 Lot 2: polled by the frontend at chat-page mount (and on
+    visibility change) to decide whether to reattach to a live stream.
+    Read-only — no usage-limit layer, no lock side effects.
+
+    Returns:
+        ``{"active": False}`` or
+        ``{"active": True, "stream_id": ..., "run_id": ...}``.
+    """
+    if not settings.background_runs_enabled:
+        return {"active": False}
+
+    from src.infrastructure.cache import get_conversation_id_cached
+    from src.infrastructure.cache.redis import get_redis_cache
+    from src.infrastructure.streaming.run_stream_broker import get_active_run
+
+    conversation_id = await get_conversation_id_cached(current_user.id)
+    if not conversation_id:
+        return {"active": False}
+    redis = await get_redis_cache()
+    active = await get_active_run(redis, conversation_id)
+    if not active:
+        return {"active": False}
+    return {
+        "active": True,
+        "stream_id": active.get("stream_id"),
+        "run_id": active.get("run_id"),
+    }
+
+
+@router.post("/runs/active/cancel")
+async def cancel_active_run(
+    current_user: User = Depends(get_current_active_session),
+) -> dict:
+    """Request cancellation of the caller's in-flight background run.
+
+    ADR-117 Lot 3 (stop button). Resolves the caller's OWN conversation's
+    active run server-side — no stream id needed from the client, ownership
+    is trivially enforced. The producer's cancel watcher (any worker) picks
+    the signal up within ``background_runs_cancel_poll_seconds``; the
+    partial content is archived flagged ``interrupted`` and subscribers
+    receive a synthesized ``done`` chunk with ``metadata.cancelled``.
+
+    Idempotent; already-billed tokens stay billed (no rollback of executed
+    tools — cancellation stops what remains, it does not undo the past).
+
+    Returns:
+        ``{"cancelled": True, "stream_id": ...}`` when a signal was set,
+        ``{"cancelled": False}`` when no run is active (or flag OFF) — the
+        frontend then falls back to the legacy local abort.
+    """
+    if not settings.background_runs_enabled:
+        return {"cancelled": False}
+
+    from src.infrastructure.cache import get_conversation_id_cached
+    from src.infrastructure.cache.redis import get_redis_cache
+    from src.infrastructure.streaming.run_stream_broker import (
+        get_active_run,
+        request_cancel,
+    )
+
+    conversation_id = await get_conversation_id_cached(current_user.id)
+    if not conversation_id:
+        return {"cancelled": False}
+    redis = await get_redis_cache()
+    active = await get_active_run(redis, conversation_id)
+    if not active or not active.get("stream_id"):
+        return {"cancelled": False}
+    stream_id = active["stream_id"]
+    await request_cancel(redis, stream_id)
+    logger.info(
+        "chat_run_cancel_endpoint",
+        user_id=str(current_user.id),
+        conversation_id=conversation_id,
+        stream_id=stream_id,
+    )
+    return {"cancelled": True, "stream_id": stream_id}
+
+
+@router.get("/runs/{stream_id}/stream")
+async def reattach_run_stream(
+    stream_id: str,
+    current_user: User = Depends(get_current_active_session),
+) -> StreamingResponse:
+    """Reattach to an in-flight background run (full replay + live tail).
+
+    ADR-117 Lot 2. Ownership: the stream must be the CURRENT active run of
+    the caller's own conversation — anything else (finished run, foreign
+    stream, unknown id) answers 404 without revealing existence. Finished
+    runs are reloaded through the conversation history instead.
+
+    SSE contract: identical to POST /chat/stream (``retry`` hint, ``data:``
+    ChatStreamChunk frames, heartbeats), plus the ``: replay-end`` transport
+    comment at the replay→live boundary (ignored by parsers that don't
+    know it).
+    """
+    from src.infrastructure.cache import get_conversation_id_cached
+    from src.infrastructure.cache.redis import get_redis_cache
+    from src.infrastructure.streaming.run_stream_broker import get_active_run
+
+    if not settings.background_runs_enabled:
+        raise_not_found_or_unauthorized("run")
+
+    conversation_id = await get_conversation_id_cached(current_user.id)
+    redis = await get_redis_cache()
+    active = await get_active_run(redis, conversation_id) if conversation_id else None
+    if not active or active.get("stream_id") != stream_id:
+        raise_not_found_or_unauthorized("run")
+
+    logger.info(
+        "chat_run_reattach",
+        user_id=str(current_user.id),
+        conversation_id=conversation_id,
+        stream_id=stream_id,
+    )
+
+    async def reattach_generator() -> AsyncGenerator[str, None]:
+        yield "retry: 5000\n\n"
+        async for sse_line in stream_run_as_sse(stream_id):
+            yield sse_line
+
+    return StreamingResponse(
+        reattach_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
         },
     )
 

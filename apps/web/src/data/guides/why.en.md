@@ -4,7 +4,7 @@
 
 **Version**: 3.6
 **Date**: 2026-07-09
-**Application**: LIA v1.21.26
+**Application**: LIA v1.22.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -327,6 +327,10 @@ The response system features a three-layer anti-hallucination mechanism: data fo
 ### 8.4. Human-in-the-Loop with 6 levels
 
 LIA doesn't refuse sensitive actions — it **submits** them to you with the appropriate level of detail: plan approval, clarification, draft critique, destructive confirmation, batch operation confirmation, modification review. Each approval feeds the learning system — the system accelerates over time. And the promise is kept to the letter: what you approve — after one, two or ten edits — is **exactly** what gets executed, never a version silently re-generated behind the scenes.
+
+### 8.5. Your answers don't need you
+
+Send a question, close the tab, walk away. Generation continues on the server, and the answer is waiting in the conversation — or resumes live, exactly where it left off, if you come back while it is still being written. Nothing to do, nothing to configure: continuity is the default behavior. And when you are the one changing your mind, a stop button interrupts generation within a second — what was already written stays on screen, honestly marked as interrupted. A reliable assistant isn't just one that answers correctly: it's one that finishes what it starts.
 
 ---
 

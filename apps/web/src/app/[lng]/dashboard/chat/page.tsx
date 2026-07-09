@@ -67,6 +67,8 @@ export default function ChatPage() {
     browserScreenshot, // Browser Screenshots: Current overlay data
     contextUsage, // Context-usage pill: tokens vs compaction threshold
     hydrateContextUsage, // Seeds the pill from /me/totals on page load
+    checkAndResumeActiveRun, // ADR-117 Lot 2: silent reattach to an in-flight run
+    stopGeneration, // ADR-117 Lot 3: stop button (cancels the in-flight run)
   } = useChat({ debugPanelVisible: showDebugPanel });
   const {
     loadConversationPage,
@@ -336,6 +338,12 @@ export default function ChatPage() {
           // first new SSE `done` event.
           hydrateContextUsage(totals.context_tokens, totals.context_threshold);
         }
+
+        // ADR-117 Lot 2: a generation may still be running in the background
+        // (the user navigated away mid-run). Silently reattach AFTER the
+        // history is rendered so the in-progress bubble lands below its
+        // already-persisted user message (product decision: auto-resume).
+        await checkAndResumeActiveRun();
       }
     };
 
@@ -375,12 +383,22 @@ export default function ChatPage() {
       try {
         const page = await loadConversationPage();
 
-        // Only update if there are new messages (avoid unnecessary re-renders)
-        if (page.messages.length > lastMessageCountRef.current) {
+        // ADR-117 Lot 2: the OS may have dropped the SSE subscription while
+        // backgrounded — if the run is still going, silently reattach (the
+        // isTyping guard above already skips this when a stream is active).
+        const resumed = await checkAndResumeActiveRun();
+
+        // Update when there are new messages (avoid unnecessary re-renders)
+        // OR when a resume just started: a connection dropped mid-stream may
+        // have left a stale partial bubble + error bubble behind — replace
+        // with DB truth so the resumed bubble isn't duplicated. The reducer's
+        // SET_MESSAGES anti-race guard preserves the resuming bubble itself.
+        if (page.messages.length > lastMessageCountRef.current || resumed) {
           logger.debug('New messages detected on foreground return', {
             component: 'ChatPage',
             previousCount: lastMessageCountRef.current,
             newCount: page.messages.length,
+            resumed,
           });
           setMessages(page.messages);
           // Pagination state aligned with the freshly loaded newest page.
@@ -402,7 +420,7 @@ export default function ChatPage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user, apiAvailable, isTyping, loadConversationPage, setMessages]);
+  }, [user, apiAvailable, isTyping, loadConversationPage, setMessages, checkAndResumeActiveRun]);
 
   // Handle conversation reset with confirmation
   const handleResetConversation = async () => {
@@ -613,6 +631,8 @@ export default function ChatPage() {
               apiAvailable={apiAvailable && !isUsageBlocked}
               onMessageChange={handleMessageChange}
               attachmentsEnabled={appConfig?.features?.attachments_enabled ?? true}
+              isGenerating={isTyping}
+              onStopGeneration={stopGeneration}
             />
           </div>
         </div>

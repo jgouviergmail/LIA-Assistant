@@ -258,3 +258,23 @@ Since v1.20.14, you can **scroll up in the chat** to reach the beginning of any 
 - Messages are **always preserved in the database** — nothing is ever lost, even after compaction (which only summarises older messages for the AI's working memory, not the displayed history)
 - The in-chat search continues to filter on what's currently loaded, so loading more messages also expands the searchable scope
 - Returning to the conversation later, switching tabs, or running a scheduled action all reload the newest page from scratch — so you start fresh at the bottom
+
+## What happens if I leave the page while LIA is answering?
+
+Nothing is lost. Since v1.22.0, generation continues **in the background** on the server:
+
+**🔄 Continuity by default**
+- Your message and the full answer are saved even if you close the tab, switch apps or lose the connection
+- The finished answer is waiting in the conversation when you come back
+
+**📡 Live resume**
+- If you return while the answer is still being written, it **resumes live automatically** — the in-progress bubble rebuilds itself and keeps streaming
+- This also works with several tabs open
+
+**⏹️ Stopping an in-progress answer**
+- While LIA is writing, the send button becomes a **Stop** button
+- The partial text is kept and marked "interrupted" ⏸
+- Note: actions already performed (a sent email, a created event…) are **not undone**
+
+**📌 Good to know**
+- Only one answer runs at a time per conversation: if you try to send another message during a generation, LIA reattaches you to the answer in progress instead of showing an error

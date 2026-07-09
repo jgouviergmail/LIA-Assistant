@@ -1085,6 +1085,10 @@ The "updates" mode solved a fundamental visibility gap: pipeline nodes (planner,
 
 **ReAct tool visibility**: When react_call_model produces an AIMessage with tool_calls, per-tool execution_step events are emitted using the catalogue's DisplayMetadata. Reasoning content is extracted and included as a `detail` field.
 
+### Detached transport (ADR-117)
+
+With `BACKGROUND_RUNS_ENABLED=true`, the `ChatStreamChunk` flow above no longer terminates in the HTTP response generator: a detached producer consumes `stream_chat_response` and publishes each chunk to a per-run Redis Stream, and the SSE endpoint merely subscribes to that stream. Generation therefore survives client disconnects, reattaches live on return (full replay + live tail), and can be cancelled cross-worker. The chunk contract is unchanged — the broker envelope is transport-level only. See [ADR-117](architecture/ADR-117-Background-Chat-Runs.md) and [BACKGROUND_RUNS.md](technical/BACKGROUND_RUNS.md).
+
 ---
 
 ## 9. Configuration Clé

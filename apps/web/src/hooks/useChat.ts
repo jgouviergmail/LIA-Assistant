@@ -20,7 +20,7 @@ import {
   persistDebugMetricsHistory,
 } from '@/reducers/chat-reducer';
 import { validateReducerAction } from '@/reducers/chat-reducer-errors';
-import { chatSSEClient, ChatStreamError } from '@/lib/api/chat';
+import { cancelActiveRun, chatSSEClient, ChatStreamError, fetchActiveRun } from '@/lib/api/chat';
 import { useAuth } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useLiaGender } from '@/hooks/useLiaGender';
@@ -102,6 +102,20 @@ export interface UseChatReturn {
     tokens: number | null | undefined,
     threshold: number | null | undefined
   ) => void;
+  /** ADR-117 Lot 2: reattach to an in-flight background run (replay + live). */
+  resumeActiveRun: (streamId: string) => Promise<void>;
+  /**
+   * ADR-117 Lot 2: check for an active background run and silently resume
+   * it. Returns true when a resume was started (does not await the stream).
+   */
+  checkAndResumeActiveRun: () => Promise<boolean>;
+  /**
+   * ADR-117 Lot 3 (stop button): cancel the in-flight generation. Flag ON,
+   * the server cancels the detached run (the partial answer is kept and
+   * flagged); the synthesized `done` chunk then closes the stream normally.
+   * Flag OFF (or no active run), falls back to the legacy local abort.
+   */
+  stopGeneration: () => Promise<void>;
 }
 
 export const useChat = ({
@@ -224,6 +238,135 @@ export const useChat = ({
       [] // dispatch excluded: stable from useReducer (React guarantees identity stability)
     ),
   });
+
+  /**
+   * Reattach to an in-flight background run (ADR-117 Lot 2).
+   *
+   * Replays the run's backlog through the exact same handler pipeline as a
+   * live stream (the reducer rebuilds the in-progress assistant bubble),
+   * with `isReplay: true` suppressing out-of-reducer side effects (toasts,
+   * voice) until the server's `: replay-end` boundary, then follows the
+   * live tail to completion. Reuses the existing FSM lifecycle:
+   * SSE_CONNECTING → (replayed chunks drive STREAM_START/streaming) → done.
+   */
+  const resumeActiveRun = useCallback(
+    async (streamId: string) => {
+      // Never stack two subscriptions on the singleton client
+      chatSSEClient.cancel();
+      stopPlayback();
+
+      const assistantMessageId = generateUUID();
+      let progressMessageId: string | null = null;
+      let normalStreamInitialized = false;
+      let replayDone = false;
+
+      executionStepsRef.current = [];
+      emittedStepKeysRef.current = new Set();
+      reasoningBufRef.current = '';
+      resetTokenBatching();
+
+      logger.info('chat_resume_active_run', withContext({ component: 'useChat' }));
+      dispatch({ type: 'SSE_CONNECTING' });
+
+      try {
+        await chatSSEClient.reattachStream(
+          streamId,
+          (chunk: ChatStreamChunk) => {
+            const handlerContext: SSEHandlerContext = {
+              dispatch,
+              t,
+              withContext,
+              handleVoiceChunk,
+              hitlQuestionBuffer,
+              executionStepsRef,
+              emittedStepKeysRef,
+              reasoningBufRef,
+              assistantMessageId,
+              progressMessageId,
+              setProgressMessageId: (id: string | null) => {
+                progressMessageId = id;
+              },
+              normalStreamInitialized,
+              setNormalStreamInitialized: (v: boolean) => {
+                normalStreamInitialized = v;
+              },
+              isReplay: !replayDone,
+            };
+            processSSEChunk(chunk, handlerContext);
+          },
+          (error: Error) => {
+            flushTokenBatching();
+            if (error instanceof ChatStreamError && error.name === 'RunGoneError') {
+              // The run finished between the active-run check and this call —
+              // the history reload owns that content now. Not an error state.
+              logger.info('chat_resume_run_gone', withContext({ component: 'useChat' }));
+              dispatch({ type: 'SSE_DISCONNECTED' });
+              return;
+            }
+            dispatch({
+              type: 'SSE_ERROR',
+              payload: { error: resolveStreamErrorMessage(error) },
+            });
+          },
+          () => {
+            dispatch({ type: 'SSE_DISCONNECTED' });
+          },
+          () => {
+            replayDone = true;
+          }
+        );
+      } catch (error) {
+        dispatch({
+          type: 'SSE_ERROR',
+          payload: { error: resolveStreamErrorMessage(error as Error) },
+        });
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [t, withContext, stopPlayback, handleVoiceChunk, resolveStreamErrorMessage] // dispatch excluded: stable from useReducer
+  );
+
+  /**
+   * Check for an in-flight background run and silently reattach to it
+   * (product decision 2026-07: automatic resume, no banner). Returns true
+   * when a resume was started — the stream keeps flowing in the background,
+   * this does NOT await its completion.
+   */
+  const checkAndResumeActiveRun = useCallback(async (): Promise<boolean> => {
+    const status = await fetchActiveRun();
+    if (!status.active || !status.stream_id) {
+      return false;
+    }
+    void resumeActiveRun(status.stream_id);
+    return true;
+  }, [resumeActiveRun]);
+
+  /**
+   * Stop the in-flight generation (ADR-117 Lot 3).
+   *
+   * Server-side cancellation first: the detached producer archives the
+   * partial answer (flagged `interrupted`) and synthesizes a `done` chunk
+   * with `metadata.cancelled` — our open subscription receives it and the
+   * FSM closes normally (the partial bubble stays, badged). When no
+   * detached run exists (flag OFF / legacy path), falls back to the local
+   * abort, which kills the inline generation exactly as before ADR-117.
+   */
+  const stopGeneration = useCallback(async () => {
+    const { cancelled } = await cancelActiveRun();
+    if (cancelled) {
+      // The stream stays open: the synthesized done arrives within
+      // ~BACKGROUND_RUNS_CANCEL_POLL_SECONDS and finalizes the bubble.
+      logger.info('chat_stop_requested', withContext({ component: 'useChat' }));
+      return;
+    }
+    // Legacy fallback: no detached run to cancel — abort locally.
+    logger.info('chat_stop_local_abort', withContext({ component: 'useChat' }));
+    chatSSEClient.cancel();
+    stopPlayback();
+    flushTokenBatching();
+    dispatch({ type: 'SSE_DISCONNECTED' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [withContext, stopPlayback]); // dispatch excluded: stable from useReducer
 
   /**
    * Send a chat message and handle SSE streaming response.
@@ -409,6 +552,7 @@ export const useChat = ({
               setNormalStreamInitialized: (v: boolean) => {
                 normalStreamInitialized = v;
               },
+              isReplay: false,
             };
 
             // Delegate to extracted SSE handlers (see lib/sse-handlers/)
@@ -416,6 +560,20 @@ export const useChat = ({
           },
           // onError: Handle SSE connection errors
           (error: Error) => {
+            // ADR-117 Lot 2: HTTP 409 — another run is already streaming for
+            // this conversation (multi-tab / return-mid-run race). Reattach
+            // to it instead of erroring. The optimistic user bubble stays
+            // visible but unsent; the next history reload reconciles it.
+            if (
+              error instanceof ChatStreamError &&
+              error.name === 'RunInProgressError' &&
+              error.activeStreamId
+            ) {
+              toast.info(t('chat.resume.in_progress'));
+              void resumeActiveRun(error.activeStreamId);
+              return;
+            }
+
             logger.error(
               'chat_sse_error',
               error,
@@ -475,6 +633,7 @@ export const useChat = ({
       geolocationPermission,
       t,
       resolveStreamErrorMessage,
+      resumeActiveRun,
       stopPlayback,
       handleVoiceChunk,
       warmupAudio,
@@ -659,5 +818,10 @@ export const useChat = ({
     // Context-usage pill: tokens vs compaction threshold (null on first load)
     contextUsage: state.contextUsage,
     hydrateContextUsage,
+    // ADR-117 Lot 2: background-run reattachment
+    resumeActiveRun,
+    checkAndResumeActiveRun,
+    // ADR-117 Lot 3: stop button
+    stopGeneration,
   };
 };

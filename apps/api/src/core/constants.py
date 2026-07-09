@@ -1078,10 +1078,46 @@ REDIS_KEY_CURRENCY_RATE_PREFIX = "async_currency_rate_"
 REDIS_KEY_CONVERSATION_ID_PREFIX = "conv:user:"
 REDIS_CONVERSATION_ID_TTL_SECONDS_DEFAULT = 60  # 1 minute (configurable via .env)
 
+# Background chat runs (ADR-117): one Redis Stream per detached run
+REDIS_KEY_RUN_STREAM_PREFIX = "chat:run:"
+# Lot 2: active-run lock per conversation + subscriber presence per stream
+REDIS_KEY_ACTIVE_RUN_PREFIX = "chat:active_run:"
+REDIS_KEY_RUN_LISTENERS_PREFIX = "chat:listeners:"
+# Lot 3: user-requested cancellation signal per stream
+REDIS_KEY_RUN_CANCEL_PREFIX = "chat:cancel:"
+
 # Conversation message history search (GET /conversations/me/messages?search=)
 # Case-insensitive ILIKE substring match on ConversationMessage.content.
 CONVERSATION_SEARCH_MIN_LENGTH = 2  # Shortest substring accepted (avoid 1-char noise)
 CONVERSATION_SEARCH_MAX_LENGTH = 200  # Upper bound to prevent pathological queries
+
+# ============================================================================
+# BACKGROUND CHAT RUNS (ADR-117 — Lot 1 durability)
+# ============================================================================
+
+# Stream cap (entries) — a large run is a few thousand chunks (POC-2: ~122KB/1000).
+DEFAULT_BACKGROUND_RUNS_STREAM_MAXLEN = 10000
+# Stream TTL after the terminal marker — long enough for Lot 2 reattach, short
+# enough to bound Redis memory on the RPi5.
+DEFAULT_BACKGROUND_RUNS_STREAM_TTL_SECONDS = 3600
+# XREAD block window. MUST stay well below REDIS_SOCKET_TIMEOUT (POC-2 2026-07:
+# a block >= socket_timeout raises TimeoutError on redis-py 8).
+DEFAULT_BACKGROUND_RUNS_XREAD_BLOCK_MS = 2000
+# Lifespan shutdown: max wait for in-flight chat producers (POC-4b) then for
+# generic fire-and-forget tasks. Their sum must stay below the compose
+# stop_grace_period (90s) with margin.
+DEFAULT_BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS = 45
+DEFAULT_SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS = 15
+# Lot 2 — active-run lock: TTL kept alive by the producer heartbeat; a killed
+# producer frees the conversation in at most ACTIVE_TTL seconds (POC-L2-1).
+DEFAULT_BACKGROUND_RUNS_ACTIVE_TTL_SECONDS = 15
+DEFAULT_BACKGROUND_RUNS_HEARTBEAT_SECONDS = 5
+# Lot 2 — subscriber presence TTL (voice synthesis is skipped with no listeners)
+DEFAULT_BACKGROUND_RUNS_LISTENER_TTL_SECONDS = 30
+# Lot 3 — producer-side cancellation poll period (user stop-button latency)
+DEFAULT_BACKGROUND_RUNS_CANCEL_POLL_SECONDS = 1
+# Lot 3 — cancel-signal key TTL (self-cleans if the producer died first)
+DEFAULT_BACKGROUND_RUNS_CANCEL_TTL_SECONDS = 600
 
 # Conversation message history pagination (GET /conversations/me/messages)
 # Keyset (scroll-up) pagination — see ConversationRepository.get_messages_with_token_summaries.

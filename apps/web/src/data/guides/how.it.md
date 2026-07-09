@@ -6,7 +6,7 @@
 
 **Versione**: 2.7
 **Data**: 2026-07-09
-**Applicazione**: LIA v1.21.26
+**Applicazione**: LIA v1.22.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 394 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 100+ ADR, ~11.000 test raccolti da pytest in 560 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 100+ ADR, ~11.000 test raccolti da pytest in 572 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -71,7 +71,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~11.000 (raccolti da pytest su 560 file di test) + 434 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~11.000 (raccolti da pytest su 572 file di test) + 453 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 280+ |
 | ADR (Architecture Decision Record) | 100+ |
@@ -323,6 +323,19 @@ Router → react_setup → react_call_model ↔ react_execute_tools → react_fi
 La modalità Pipeline è un autentico capolavoro ingegneristico: SmartPlanner, Semantic Validator, cache bayesiana dei pattern ed esecutore parallelo insieme offrono la stessa potenza funzionale di ReAct consumando una frazione dei token. Il compromesso sta nell'adattabilità — quando la sequenza ottimale di strumenti non è prevedibile in anticipo, il ragionamento iterativo di ReAct eccelle.
 
 Entrambe le modalità condividono lo stesso registro degli strumenti, il sistema HITL, il nodo di risposta e l'infrastruttura di osservabilità. Gli utenti passano dall'una all'altra tramite un interruttore nell'intestazione della chat.
+
+### 5.4. Esecuzioni disaccoppiate: la generazione sopravvive alla connessione (ADR-117)
+
+Lo streaming SSE classico ha un difetto strutturale: la generazione vive *dentro* il generatore della risposta HTTP. Chiudere la scheda, navigare altrove o perdere la rete uccide la connessione — e, con essa, l'intero turno di conversazione. LIA disaccoppia le due cose: un **produttore disaccoppiato** (un task asyncio indipendente dalla richiesta) esegue il grafo e pubblica ogni chunk in un **Redis Stream per run**; l'endpoint SSE si riduce a un **sottoscrittore** che ritrasmette quello stream.
+
+- **Disconnessione ≠ annullamento** — chiudere la pagina interrompe la sottoscrizione, mai la generazione. Il messaggio dell'utente viene archiviato *prima* dell'avvio dell'esecuzione, la risposta termina lato server e attende nella conversazione.
+- **Ripresa live** — al ritorno (mount della pagina, visibilità della scheda), il frontend rileva il run attivo, riproduce tutti i chunk già emessi (senza pacing) e poi passa al flusso live; il confine è un commento di trasporto SSE (`: replay-end`), il contratto dei chunk resta intatto. Durante il replay, gli effetti collaterali (toast, audio) vengono soppressi mentre il reducer ricostruisce la bolla in corso.
+- **Un solo run per conversazione** — un lock Redis (`SET NX EX` + heartbeat del produttore + rilascio condizionale Lua a prova di zombie) fa rispondere HTTP 409 a un invio concorrente, che il frontend trasforma in un riaggancio silenzioso.
+- **Annullamento cross-worker** — il pulsante di invio si trasforma in pulsante di stop; il segnale di annullamento viaggia via Redis e viene sondato lato produttore (~1 s), anche quando il produttore vive in un worker diverso da quello della richiesta HTTP. La risposta parziale viene conservata e contrassegnata come «interrotta»; i token già consumati restano fatturati — la fatturazione è onorata su ogni percorso di uscita, kill compresi.
+- **Voce solo se qualcuno ascolta** — la presenza dei sottoscrittori (un contatore Redis con TTL riarmato periodicamente) condiziona la sintesi vocale: nessun TTS per un run che nessuno ascolta, e un ascoltatore che si aggiunge a metà strada ottiene la voce per il resto.
+- **Spegnimento pulito** — allo shutdown, il lifespan drena i produttori in corso prima di cedere il controllo; un run ucciso archivia il suo parziale con il flag `interrupted`, e una riparazione a inizio turno ripulisce i `tool_calls` orfani che un checkpoint interrotto lascerebbe (i provider rigorosi li rifiutano al turno successivo).
+
+L'insieme è governato da un feature flag e una dozzina di impostazioni configurabili via env (TTL, heartbeat, drain, polling) validate al boot — un periodo di heartbeat incompatibile con il TTL del lock rifiuta di avviarsi.
 
 ---
 
@@ -1028,10 +1041,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-Gli 100+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~11.000 test in 560 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+Gli 100+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~11.000 test in 572 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.21.26). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.22.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

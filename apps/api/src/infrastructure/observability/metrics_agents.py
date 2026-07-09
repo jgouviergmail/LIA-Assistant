@@ -63,6 +63,21 @@ sse_streaming_errors_total = Counter(
 )
 
 # ============================================================================
+# BACKGROUND CHAT RUNS (ADR-117)
+# ============================================================================
+
+chat_background_producers_active = Gauge(
+    "chat_background_producers_active",
+    "Detached chat-run producer tasks currently running in this worker",
+)
+
+chat_background_runs_total = Counter(
+    "chat_background_runs_total",
+    "Detached chat runs by terminal status",
+    ["status"],  # completed | error | killed
+)
+
+# ============================================================================
 # ROUTER METRICS
 # ============================================================================
 

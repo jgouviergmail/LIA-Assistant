@@ -6,7 +6,7 @@
 
 **Version**: 2.7
 **Date**: 2026-07-09
-**Application**: LIA v1.21.26
+**Application**: LIA v1.22.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 394 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 100+ ADRs, ~11,000 pytest-collected tests across 560 files, native observability, 6-level HITL |
+| Production reliability | 100+ ADRs, ~11,000 pytest-collected tests across 572 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -71,7 +71,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~11,000 (collected by pytest across 560 test files) + 434 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~11,000 (collected by pytest across 572 test files) + 453 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 280+ |
 | ADRs (Architecture Decision Records) | 100+ |
@@ -323,6 +323,19 @@ Router → react_setup → react_call_model ↔ react_execute_tools → react_fi
 The Pipeline mode is a genuine engineering achievement: the SmartPlanner, Semantic Validator, Bayesian pattern cache, and parallel executor together deliver the same functional power as ReAct while consuming a fraction of the tokens. The trade-off is adaptability — when the optimal tool sequence cannot be predicted upfront, ReAct's iterative reasoning excels.
 
 Both modes share the same tool registry, HITL system, response node, and observability infrastructure. Users switch between them via a toggle in the chat header.
+
+### 5.4. Detached executions: generation survives the connection (ADR-117)
+
+Classic SSE streaming has a structural flaw: generation lives *inside* the HTTP response generator. Closing the tab, navigating away or losing the network kills the connection — and, with it, the whole conversation turn. LIA decouples the two: a **detached producer** (an asyncio task independent of the request) executes the graph and publishes every chunk to a **per-run Redis Stream**; the SSE endpoint is reduced to a **subscriber** relaying that stream.
+
+- **Disconnection ≠ cancellation** — closing the page stops the subscription, never the generation. The user message is archived *before* execution starts, the answer finishes server-side and waits in the conversation.
+- **Live resume** — on return (page mount, tab visibility), the frontend detects the active run, replays every chunk already emitted (without pacing) then switches to the live tail; the boundary is an SSE transport comment (`: replay-end`), so the chunk contract stays untouched. During replay, side effects (toasts, audio) are suppressed while the reducer rebuilds the in-progress bubble.
+- **One run per conversation** — a Redis lock (`SET NX EX` + producer heartbeat + zombie-safe conditional Lua release) makes a concurrent send answer HTTP 409, which the frontend turns into a silent reattachment.
+- **Cross-worker cancellation** — the send button morphs into a stop button; the cancel signal travels through Redis and is polled producer-side (~1 s), even when the producer lives in a different worker than the HTTP request. The partial answer is kept and badged "interrupted"; tokens already consumed stay billed — billing is honored on every exit path, kills included.
+- **Voice only if someone is listening** — subscriber presence (a Redis counter with a periodically re-armed TTL) gates voice synthesis: no TTS for a run nobody is listening to, and a listener joining mid-run gets voice for the remainder.
+- **Clean shutdown** — on shutdown, the lifespan drains in-flight producers before yielding; a killed run archives its partial flagged `interrupted`, and a turn-start repair cleans up the dangling `tool_calls` an interrupted checkpoint would leave behind (strict providers reject them on the next turn).
+
+The whole system is governed by a feature flag and a dozen env-tunable settings (TTLs, heartbeat, drain, polling) validated at boot — a heartbeat period incompatible with the lock TTL refuses to start.
 
 ---
 
@@ -1056,10 +1069,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 100+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~11,000 tests across 560 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 100+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~11,000 tests across 572 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.21.26). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.22.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

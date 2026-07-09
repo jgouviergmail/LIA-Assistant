@@ -6,7 +6,7 @@
 
 **Versión**: 2.7
 **Fecha**: 2026-07-09
-**Aplicación**: LIA v1.21.26
+**Aplicación**: LIA v1.22.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 394 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 100+ ADRs, ~11.000 tests recogidos por pytest en 560 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 100+ ADRs, ~11.000 tests recogidos por pytest en 572 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -71,7 +71,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~11.000 (recopilados por pytest en 560 archivos de prueba) + 434 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~11.000 (recopilados por pytest en 572 archivos de prueba) + 453 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 280+ |
 | ADRs (Architecture Decision Records) | 100+ |
@@ -323,6 +323,19 @@ Router → react_setup → react_call_model ↔ react_execute_tools → react_fi
 El modo Pipeline es un verdadero logro de ingeniería: el SmartPlanner, el Semantic Validator, la caché bayesiana de patrones y el ejecutor paralelo entregan juntos la misma potencia funcional que ReAct consumiendo una fracción de los tokens. La contrapartida es la adaptabilidad — cuando la secuencia óptima de herramientas no puede predecirse de antemano, el razonamiento iterativo de ReAct destaca.
 
 Ambos modos comparten el mismo registro de herramientas, sistema HITL, nodo de respuesta e infraestructura de observabilidad. Los usuarios alternan entre ellos mediante un interruptor en la cabecera del chat.
+
+### 5.4. Ejecuciones desacopladas: la generación sobrevive a la conexión (ADR-117)
+
+El streaming SSE clásico tiene un defecto estructural: la generación vive *dentro* del generador de la respuesta HTTP. Cerrar la pestaña, navegar a otra página o perder la red mata la conexión — y, con ella, el turno de conversación entero. LIA desacopla ambas cosas: un **productor desacoplado** (una tarea asyncio independiente de la petición) ejecuta el grafo y publica cada chunk en un **Redis Stream por run**; el endpoint SSE queda reducido a un **suscriptor** que retransmite ese stream.
+
+- **Desconexión ≠ cancelación** — cerrar la página detiene la suscripción, nunca la generación. El mensaje del usuario se archiva *antes* de iniciar la ejecución, la respuesta termina en el servidor y espera en la conversación.
+- **Reanudación en vivo** — al volver (montaje de la página, visibilidad de la pestaña), el frontend detecta el run activo, reproduce todos los chunks ya emitidos (sin pacing) y luego conmuta al flujo en vivo; la frontera es un comentario de transporte SSE (`: replay-end`), el contrato de los chunks queda intacto. Durante el replay, los efectos secundarios (toasts, audio) se suprimen mientras el reducer reconstruye la burbuja en curso.
+- **Un solo run por conversación** — un lock Redis (`SET NX EX` + heartbeat del productor + liberación condicional Lua a prueba de zombis) hace que un envío concurrente responda HTTP 409, que el frontend convierte en una reconexión silenciosa.
+- **Cancelación entre workers** — el botón de envío se transforma en botón de stop; la señal de cancelación viaja por Redis y el productor la sondea (~1 s), incluso cuando el productor vive en un worker distinto al de la petición HTTP. La respuesta parcial se conserva y se marca como «interrumpida»; los tokens ya consumidos siguen facturados — la facturación se respeta en todos los caminos de salida, kills incluidos.
+- **Voz solo si alguien escucha** — la presencia de suscriptores (un contador Redis con TTL rearmado periódicamente) condiciona la síntesis de voz: nada de TTS para un run que nadie escucha, y un oyente que se incorpora a mitad de camino obtiene la voz para el resto.
+- **Apagado limpio** — al apagarse, el lifespan drena los productores en curso antes de ceder el control; un run matado archiva su parcial marcado `interrupted`, y una reparación al inicio del turno siguiente limpia los `tool_calls` huérfanos que un checkpoint interrumpido dejaría (los providers estrictos los rechazan en el turno siguiente).
+
+El conjunto se gobierna con un feature flag y una docena de ajustes configurables por env (TTLs, heartbeat, drain, polling) validados en el arranque — un período de heartbeat incompatible con el TTL del lock se niega a arrancar.
 
 ---
 
@@ -1028,10 +1041,10 @@ El Psyche Engine dota al asistente de un estado psicológico dinámico que evolu
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 100+ ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~11.000 tests en 560 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 100+ ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~11.000 tests en 572 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.21.26). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.22.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

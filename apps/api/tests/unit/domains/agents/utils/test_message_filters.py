@@ -11,6 +11,7 @@ import pytest
 from langchain_core.messages import (
     AIMessage,
     HumanMessage,
+    RemoveMessage,
     SystemMessage,
     ToolMessage,
 )
@@ -25,6 +26,7 @@ from src.domains.agents.utils.message_filters import (
     filter_for_llm_context,
     filter_tool_messages,
     remove_orphan_tool_messages,
+    sanitize_stale_dangling_tool_calls,
     split_messages_by_turn,
 )
 
@@ -1658,3 +1660,114 @@ class TestEnforceToolMessagePairing:
             AIMessage(content="hello"),
         ]
         assert enforce_tool_message_pairing(messages) == messages
+
+
+# =============================================================================
+# ADR-117 Lot 3 — stale dangling tool_calls sanitation (cancellation aftermath)
+# =============================================================================
+# Proof derived from POC-3 (2026-07): cancelling a ReAct run between
+# call_model and execute_tools leaves an AIMessage with UNANSWERED tool_calls
+# in the checkpoint. The next turn restarts from START but the dangling
+# message stays in history and poisons strict providers ("tool_calls must be
+# followed by tool messages"). Sanitized at TURN START (router_node) — never
+# in the reducer, where a dangling AIMessage is a LEGITIMATE mid-run state.
+
+
+class TestSanitizeStaleDanglingToolCalls:
+    def test_poc3_poisoned_sequence_is_repaired(self):
+        """The exact POC-3 scenario-C sequence: dangling AI(tool_calls) with
+        empty content from a cancelled turn -> removed entirely."""
+        messages = [
+            HumanMessage(content="turn1", id="h1"),
+            AIMessage(
+                content="",
+                id="a1",
+                tool_calls=[{"name": "search", "args": {"q": "x"}, "id": "call_dead"}],
+            ),
+            HumanMessage(content="turn2", id="h2"),
+        ]
+
+        ops = sanitize_stale_dangling_tool_calls(messages)
+
+        assert len(ops) == 1
+        assert isinstance(ops[0], RemoveMessage)
+        assert ops[0].id == "a1"
+
+    def test_dangling_with_content_keeps_text_strips_tool_calls(self):
+        """An AIMessage that carries text plus unanswered tool_calls keeps its
+        text (same id -> reducer replacement) but loses the dangling calls."""
+        messages = [
+            HumanMessage(content="turn1", id="h1"),
+            AIMessage(
+                content="Je vais chercher…",
+                id="a1",
+                tool_calls=[{"name": "search", "args": {}, "id": "call_dead"}],
+            ),
+        ]
+
+        ops = sanitize_stale_dangling_tool_calls(messages)
+
+        assert len(ops) == 1
+        replacement = ops[0]
+        assert isinstance(replacement, AIMessage)
+        assert replacement.id == "a1"
+        assert replacement.content == "Je vais chercher…"
+        assert replacement.tool_calls == []
+
+    def test_answered_tool_calls_are_untouched(self):
+        """A healthy completed turn (every call answered) produces no ops."""
+        messages = [
+            HumanMessage(content="turn1", id="h1"),
+            AIMessage(
+                content="",
+                id="a1",
+                tool_calls=[{"name": "search", "args": {}, "id": "call_ok"}],
+            ),
+            ToolMessage(content="result", tool_call_id="call_ok", id="t1"),
+            AIMessage(content="final answer", id="a2"),
+        ]
+
+        assert sanitize_stale_dangling_tool_calls(messages) == []
+
+    def test_partially_answered_calls_are_dangling(self):
+        """Parallel tool_calls where only SOME got answers (cancel mid-batch):
+        the message must be repaired to keep only the answered calls."""
+        messages = [
+            AIMessage(
+                content="",
+                id="a1",
+                tool_calls=[
+                    {"name": "a", "args": {}, "id": "call_answered"},
+                    {"name": "b", "args": {}, "id": "call_dead"},
+                ],
+            ),
+            ToolMessage(content="ok", tool_call_id="call_answered", id="t1"),
+        ]
+
+        ops = sanitize_stale_dangling_tool_calls(messages)
+
+        assert len(ops) == 1
+        replacement = ops[0]
+        assert isinstance(replacement, AIMessage)
+        assert replacement.id == "a1"
+        assert [tc["id"] for tc in replacement.tool_calls] == ["call_answered"]
+
+    def test_plain_history_is_untouched(self):
+        messages = [
+            SystemMessage(content="sys", id="s1"),
+            HumanMessage(content="hello", id="h1"),
+            AIMessage(content="hi", id="a1"),
+        ]
+        assert sanitize_stale_dangling_tool_calls(messages) == []
+
+    def test_empty_input(self):
+        assert sanitize_stale_dangling_tool_calls([]) == []
+
+    def test_message_without_id_is_left_alone(self):
+        # Defensive: reducer replacement/removal is id-based; without an id we
+        # cannot repair safely — leave it and let the provider error surface
+        # (never silently corrupt).
+        messages = [
+            AIMessage(content="", tool_calls=[{"name": "x", "args": {}, "id": "call_dead"}])
+        ]
+        assert sanitize_stale_dangling_tool_calls(messages) == []

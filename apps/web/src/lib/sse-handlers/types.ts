@@ -41,6 +41,15 @@ export interface SSEHandlerContext {
   normalStreamInitialized: boolean;
   /** Setter for normal stream initialization flag */
   setNormalStreamInitialized: (v: boolean) => void;
+  /**
+   * Replay mode (ADR-117 Lot 2): true while reattaching to an in-flight
+   * background run and replaying its backlog. Reducer dispatches run
+   * normally (state reconstruction) but out-of-reducer side effects
+   * (sonner toasts, voice playback) are suppressed — they already happened
+   * or are stale. Lifted when the server emits the `: replay-end`
+   * transport comment. Always false on the normal send path.
+   */
+  isReplay: boolean;
 }
 
 /**

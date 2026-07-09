@@ -454,6 +454,7 @@
       "placeholder_unavailable": "Service temporarily unavailable...",
       "placeholder_disabled": "Waiting for response...",
       "send": "Send",
+      "stop": "Stop",
       "sending": "Sending...",
       "status": {
         "unavailable": "Service unavailable",
@@ -476,6 +477,9 @@
       "error_not_supported": "Voice input is not supported in this browser.",
       "error_connection": "Failed to connect to voice service. Please try again.",
       "error_generic": "An error occurred during voice input. Please try again."
+    },
+    "resume": {
+      "in_progress": "Reattaching to the response in progress…"
     },
     "compaction": {
       "in_progress": "Summarizing the conversation to free up context...",
@@ -556,6 +560,8 @@
       "copied": "Copied to clipboard",
       "stt_unit_seconds": "s",
       "tts_unit_chars": "chars",
+      "interrupted": "interrupted",
+      "interrupted_tooltip": "This response was stopped before completion — the partial content is kept.",
       "stt_tooltip_provider": "Speech-to-text via {{provider}}",
       "stt_tooltip_fallback": "Speech-to-text cost",
       "tts_tooltip_provider": "Text-to-speech via {{provider}}{{model}}",
@@ -2493,7 +2499,9 @@
       "network_error": "Network connection error. Check your internet connection.",
       "connection_error": "Connection error: {{message}}",
       "unknown_error": "Unknown error during streaming",
-      "usage_limit_exceeded": "You have reached your usage limit. Contact your administrator."
+      "usage_limit_exceeded": "You have reached your usage limit. Contact your administrator.",
+      "run_in_progress": "A response is already being generated — reattaching to it.",
+      "run_gone": "This response finished in the background. The history has been updated."
     },
     "settings": {
       "title": "An error occurred",
@@ -2725,7 +2733,7 @@
     },
     "intro": {
       "title": "How LIA Works",
-      "description": "LIA is a next-generation AI assistant that combines advanced technologies to offer you an intelligent, secure, and personalized experience.",
+      "description": "LIA is a next-generation AI assistant that combines advanced technologies to offer you an intelligent, secure, and personalized experience. Answers are generated server-side independently of your connection: you can leave the page mid-response and find it — or resume it live — when you come back.",
       "features": {
         "architecture": {
           "title": "🏗️ LangGraph Multi-Agent Architecture",
@@ -2938,6 +2946,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_22_0": {
+          "title": "v1.22.0 — 🔄 Answers that keep going without you",
+          "date": "July 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔄 Your answers keep generating in the background</b> — Leaving the page, switching apps or losing the connection no longer kills an in-progress answer: LIA finishes it server-side and it's waiting in your history when you come back — with its full cost accounting.",
+            "i2": "<b>📡 Live resume when you return</b> — Come back while LIA is still writing and the in-progress bubble rebuilds itself and continues streaming live, automatically. Works across tabs too — and only one answer runs at a time per conversation.",
+            "i3": "<b>⏹️ A stop button, finally</b> — Stop an in-progress answer with one click. The partial text is kept and marked \"interrupted\"; actions already performed (a sent email…) are not undone, and what was consumed is billed honestly.",
+            "i4": "<b>🔊 Voice only when someone is listening</b> — When an answer finishes in the background with nobody connected, LIA no longer synthesizes its audio: lower costs, same experience when you're there."
+          }
+        },
         "v1_21_26": {
           "title": "v1.21.26 — 🛡️ A sturdier chat & voice core",
           "date": "July 2026",
@@ -3886,7 +3905,7 @@
       "chat": {
         "title": "Conversations",
         "description": "Using chat and conversations",
-        "count": "13",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "Can I have multiple conversations at the same time?",
@@ -3939,6 +3958,10 @@
           "q13": {
             "question": "How do I access older messages in a very long conversation?",
             "answer": "Since v1.20.14, you can <strong>scroll up in the chat</strong> to reach the beginning of any conversation, even one that has grown to thousands of messages:<br><br><strong>📜 How it works</strong><br>• When you open a conversation, the <strong>50 newest messages</strong> are loaded instantly<br>• <strong>Scroll up</strong> in the chat — as soon as you reach the top, the previous 50 messages load automatically<br>• A small \"<em>Loading older messages…</em>\" indicator appears briefly at the top during each fetch<br>• Repeat as needed — you can scroll all the way back to the very first message<br><br><strong>✨ What stays smooth</strong><br>• Your reading position is preserved — the viewport stays exactly where you were, the new content slides in above without jumping<br>• Duplicates are filtered out, so no message ever appears twice<br><br><strong>📌 Good to know</strong><br>• Messages are <strong>always preserved in the database</strong> — nothing is ever lost, even after compaction (which only summarises older messages for the AI's working memory, not the displayed history)<br>• The in-chat search continues to filter on what's currently loaded, so loading more messages also expands the searchable scope<br>• Returning to the conversation later, switching tabs, or running a scheduled action all reload the newest page from scratch — so you start fresh at the bottom"
+          },
+          "q14": {
+            "question": "What happens if I leave the page while LIA is answering?",
+            "answer": "Nothing is lost. Generation continues <strong>in the background</strong> on the server: your message and the full answer are saved even if you close the tab, switch apps or lose the connection.<br><br>When you come back to the chat while the answer is still being written, it <strong>resumes live automatically</strong> — the in-progress bubble rebuilds itself and keeps streaming (this also works with several tabs open).<br><br>You can also <strong>stop an in-progress answer</strong>: while LIA is writing, the send button becomes a <strong>Stop</strong> button. The partial text is kept and marked \"interrupted\" ⏸ — but note that actions already performed (a sent email, a created event…) are not undone.<br><br>Only one answer runs at a time per conversation: if you try to send another message during a generation, LIA reattaches you to the answer in progress."
           }
         }
       },
@@ -5702,7 +5725,7 @@
       },
       "control": {
         "title": "You stay in control",
-        "description": "Before any sensitive action (sending email, modifying calendar...), LIA shows you her plan and waits for your approval. Nothing happens without your consent."
+        "description": "Before any sensitive action (sending email, modifying calendar...), LIA shows you her plan and waits for your approval. Nothing happens without your consent. And while LIA writes, a stop button lets you interrupt the answer at any moment — the partial text stays."
       },
       "privacy": {
         "title": "Protected data",
@@ -5855,7 +5878,7 @@
       },
       "realtime": {
         "title": "Real-time streaming",
-        "description": "See each execution step in real time — routing, planning, validation, tool calls — then watch the response stream token by token. No black box, no waiting."
+        "description": "See each execution step in real time — routing, planning, validation, tool calls — then watch the response stream token by token. No black box, no waiting. Generation itself is detached from the connection: answers keep executing server-side through disconnects, replay on reattach, and stop on demand."
       },
       "stack": {
         "title": "Modern stack",

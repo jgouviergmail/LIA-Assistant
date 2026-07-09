@@ -254,6 +254,18 @@ async def router_node_v3(
                     pattern_detected=pattern, decision=router_output.intention
                 ).inc()
 
+    # === ADR-117 Lot 3: repair cancellation aftermath at TURN START ===
+    # A cancelled/killed run can leave an AIMessage with UNANSWERED
+    # tool_calls in the checkpoint (POC-3): it poisons strict providers on
+    # the next turn. At router time every prior message belongs to a
+    # finished turn, so repairing here is safe — unlike the messages
+    # reducer, where dangling tool_calls are a legitimate mid-run state.
+    # (HITL resumptions resume the interrupted node via Command(resume) and
+    # never re-enter the router, so pending approvals are unaffected.)
+    from src.domains.agents.utils.message_filters import sanitize_stale_dangling_tool_calls
+
+    _dangling_ops = sanitize_stale_dangling_tool_calls(state.get("messages", []))
+
     # Build state update.
     # turn_type is normalized to the lowercase canonical form so state
     # consumers (response_node, task_orchestrator, …) can compare against
@@ -312,6 +324,16 @@ async def router_node_v3(
     # Add resolved references if available
     if intelligence.resolved_references:
         state_update[STATE_KEY_RESOLVED_REFERENCES] = intelligence.resolved_references
+
+    # ADR-117 Lot 3: apply the dangling-tool_calls repair operations through
+    # the messages reducer (same-id replacement / RemoveMessage).
+    if _dangling_ops:
+        state_update["messages"] = _dangling_ops
+        logger.warning(
+            "router_sanitized_stale_dangling_tool_calls",
+            run_id=run_id,
+            operations=len(_dangling_ops),
+        )
 
     logger.info(
         "router_v3_complete",

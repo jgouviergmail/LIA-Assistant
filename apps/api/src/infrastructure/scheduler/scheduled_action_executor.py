@@ -197,6 +197,7 @@ async def execute_single_action(
                 async def _run_stream(
                     svc: AgentService = agent_service,
                     _sid: str = attempt_session_id,
+                    _attempt: int = attempt,
                 ) -> str:
                     content_parts: list[str] = []
                     async for chunk in svc.stream_chat_response(
@@ -209,6 +210,9 @@ async def execute_single_action(
                         user_display_mode=user_display_mode,  # honor user's cards/html/markdown preference
                         is_automated_source=True,  # skip memory/interest/journal/psyche extraction
                         auto_approve_plan=True,
+                        # Archive-first (ADR-117): attempt 1 already persisted
+                        # the user row at run start; retries must not duplicate it.
+                        archive_user_message=(_attempt == 1),
                     ):
                         if (
                             chunk.type == "token"

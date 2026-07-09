@@ -454,6 +454,7 @@
       "placeholder_unavailable": "Service temporairement indisponible...",
       "placeholder_disabled": "En attente de réponse...",
       "send": "Envoyer",
+      "stop": "Arrêter",
       "sending": "Envoi...",
       "status": {
         "unavailable": "Service indisponible",
@@ -476,6 +477,9 @@
       "error_not_supported": "La saisie vocale n'est pas prise en charge dans ce navigateur.",
       "error_connection": "Impossible de se connecter au service vocal. Veuillez réessayer.",
       "error_generic": "Une erreur s'est produite lors de la saisie vocale. Veuillez réessayer."
+    },
+    "resume": {
+      "in_progress": "Reconnexion à la réponse en cours…"
     },
     "compaction": {
       "in_progress": "Résumé de la conversation en cours pour libérer du contexte...",
@@ -555,6 +559,8 @@
       "copied": "Copié dans le presse-papiers",
       "stt_unit_seconds": "s",
       "tts_unit_chars": "car.",
+      "interrupted": "interrompue",
+      "interrupted_tooltip": "Cette réponse a été arrêtée avant la fin — le contenu partiel est conservé.",
       "stt_tooltip_provider": "Reconnaissance vocale via {{provider}}",
       "stt_tooltip_fallback": "Coût de la transcription",
       "tts_tooltip_provider": "Synthèse vocale via {{provider}}{{model}}",
@@ -2504,7 +2510,9 @@
       "network_error": "Erreur de connexion réseau. Vérifiez votre connexion internet.",
       "connection_error": "Erreur de connexion : {{message}}",
       "unknown_error": "Erreur inconnue lors du streaming",
-      "usage_limit_exceeded": "Vous avez atteint votre limite d'utilisation. Contactez votre administrateur."
+      "usage_limit_exceeded": "Vous avez atteint votre limite d'utilisation. Contactez votre administrateur.",
+      "run_in_progress": "Une réponse est déjà en cours de génération — reconnexion au flux.",
+      "run_gone": "Cette réponse s'est terminée en arrière-plan. L'historique a été mis à jour."
     },
     "settings": {
       "title": "Une erreur est survenue",
@@ -2736,7 +2744,7 @@
     },
     "intro": {
       "title": "Comment fonctionne LIA",
-      "description": "LIA est un assistant IA de nouvelle génération qui combine des technologies avancées pour vous offrir une expérience intelligente, sécurisée et personnalisée.",
+      "description": "LIA est un assistant IA de nouvelle génération qui combine des technologies avancées pour vous offrir une expérience intelligente, sécurisée et personnalisée. Les réponses sont générées côté serveur indépendamment de votre connexion : vous pouvez quitter la page en pleine réponse et la retrouver — ou la reprendre en direct — à votre retour.",
       "features": {
         "architecture": {
           "title": "🏗️ Architecture LangGraph Multi-Agents",
@@ -2949,6 +2957,17 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_22_0": {
+          "title": "v1.22.0 — 🔄 Vos réponses continuent sans vous",
+          "date": "Juillet 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔄 Vos réponses continuent en arrière-plan</b> — Quitter la page, changer d'application ou perdre la connexion n'interrompt plus une réponse en cours : LIA la termine côté serveur et elle vous attend dans l'historique à votre retour — avec sa comptabilité de coûts complète.",
+            "i2": "<b>📡 Reprise en direct à votre retour</b> — Revenez pendant que LIA écrit encore : la bulle en cours se reconstruit et reprend le streaming en direct, automatiquement. Fonctionne aussi en multi-onglets — et une seule réponse à la fois par conversation.",
+            "i3": "<b>⏹️ Un bouton stop, enfin</b> — Arrêtez une réponse en cours d'un clic. Le texte partiel est conservé et marqué « interrompue » ; les actions déjà effectuées (un email envoyé…) ne sont pas annulées, et ce qui a été consommé est facturé honnêtement.",
+            "i4": "<b>🔊 La voix seulement quand on écoute</b> — Quand une réponse se termine en arrière-plan sans personne de connecté, LIA ne synthétise plus l'audio correspondant : moins de coûts, même expérience quand vous êtes là."
+          }
+        },
         "v1_21_26": {
           "title": "v1.21.26 — 🛡️ Un cœur chat & voix plus robuste",
           "date": "Juillet 2026",
@@ -3897,7 +3916,7 @@
       "chat": {
         "title": "Conversations",
         "description": "Utilisation du chat et des conversations",
-        "count": "13",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "Puis-je avoir plusieurs conversations en même temps ?",
@@ -3950,6 +3969,10 @@
           "q13": {
             "question": "Comment accéder aux messages anciens dans une très longue conversation ?",
             "answer": "Depuis la v1.20.14, tu peux <strong>faire défiler vers le haut dans le chat</strong> pour remonter jusqu'au début d'une conversation, même si elle compte plusieurs milliers de messages :<br><br><strong>📜 Comment ça fonctionne</strong><br>• À l'ouverture d'une conversation, les <strong>50 messages les plus récents</strong> sont chargés instantanément<br>• <strong>Fais défiler vers le haut</strong> dans le chat — dès que tu atteins le sommet, les 50 messages précédents se chargent automatiquement<br>• Un petit indicateur « <em>Chargement des messages plus anciens…</em> » apparaît brièvement en haut pendant chaque chargement<br>• Répète l'opération autant de fois que nécessaire — tu peux remonter jusqu'au tout premier message<br><br><strong>✨ Ce qui reste fluide</strong><br>• Ta position de lecture est conservée — la vue reste exactement là où tu étais, le nouveau contenu se glisse au-dessus sans saut<br>• Les doublons sont filtrés, donc aucun message n'apparaît deux fois<br><br><strong>📌 Bon à savoir</strong><br>• Les messages sont <strong>toujours conservés en base de données</strong> — rien n'est jamais perdu, même après une compaction (qui ne résume que les anciens messages pour la mémoire de travail de l'IA, pas l'historique affiché)<br>• La recherche intégrée continue de filtrer ce qui est déjà chargé, donc charger plus de messages élargit également le champ de recherche<br>• Revenir plus tard sur la conversation, changer d'onglet ou exécuter une action planifiée recharge la page la plus récente — tu repars en bas, propre"
+          },
+          "q14": {
+            "question": "Que se passe-t-il si je quitte la page pendant que LIA répond ?",
+            "answer": "Rien n'est perdu. La génération continue <strong>en arrière-plan</strong> côté serveur : votre message et la réponse complète sont sauvegardés même si vous fermez l'onglet, changez d'application ou perdez la connexion.<br><br>Si vous revenez sur le chat pendant que la réponse s'écrit encore, elle <strong>reprend en direct automatiquement</strong> — la bulle en cours se reconstruit et continue de streamer (cela fonctionne aussi avec plusieurs onglets ouverts).<br><br>Vous pouvez aussi <strong>arrêter une réponse en cours</strong> : pendant que LIA écrit, le bouton d'envoi devient un bouton <strong>Stop</strong>. Le texte partiel est conservé et marqué « interrompue » ⏸ — attention toutefois, les actions déjà effectuées (un email envoyé, un événement créé…) ne sont pas annulées.<br><br>Une seule réponse à la fois par conversation : si vous tentez d'envoyer un autre message pendant une génération, LIA vous reconnecte à la réponse en cours."
           }
         }
       },
@@ -5634,7 +5657,7 @@
       },
       "control": {
         "title": "Tu gardes le contrôle",
-        "description": "Avant toute action sensible (envoi d'email, modification d'agenda...), LIA te montre son plan et attend ta validation. Rien ne part sans ton accord."
+        "description": "Avant toute action sensible (envoi d'email, modification d'agenda...), LIA te montre son plan et attend ta validation. Rien ne part sans ton accord. Et pendant que LIA écrit, un bouton stop te permet d'interrompre la réponse à tout moment — le texte partiel reste."
       },
       "privacy": {
         "title": "Données protégées",
@@ -5787,7 +5810,7 @@
       },
       "realtime": {
         "title": "Streaming temps réel",
-        "description": "Voyez chaque étape d'exécution en temps réel — routage, planification, validation, appels d'outils — puis la réponse en streaming token par token. Pas de boîte noire, pas d'attente."
+        "description": "Voyez chaque étape d'exécution en temps réel — routage, planification, validation, appels d'outils — puis la réponse en streaming token par token. Pas de boîte noire, pas d'attente. La génération est découplée de la connexion : les réponses continuent côté serveur malgré les déconnexions, se rejouent au rattachement, et s'arrêtent à la demande."
       },
       "stack": {
         "title": "Stack moderne",

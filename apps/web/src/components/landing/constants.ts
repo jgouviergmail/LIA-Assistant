@@ -10,8 +10,8 @@
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
  * - metrics: Prometheus metric definitions in infrastructure/observability/
- * - tests: backend pytest (~11,089) + frontend vitest
- * - adrs: docs/architecture/ ADR files (numbered up to ADR-116)
+ * - tests: backend pytest (~11,100) + frontend vitest
+ * - adrs: docs/architecture/ ADR files (numbered up to ADR-117)
  * - releases: CHANGELOG.md release entries
  * - auditScore: 360° technical audit, 20 areas, July 2026 (docs/audit/)
  */

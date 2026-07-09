@@ -126,6 +126,9 @@ services:
       dockerfile: Dockerfile.prod
     container_name: lia-api-prod
     restart: unless-stopped
+    # ADR-117: lifespan shutdown drains in-flight chat runs (45s) + generic
+    # background tasks (15s). Default 10s grace would SIGKILL mid-drain.
+    stop_grace_period: 90s
     group_add:
       - "${DOCKER_GID:-999}"  # Host docker group GID for DevOps Claude CLI socket access
     security_opt:

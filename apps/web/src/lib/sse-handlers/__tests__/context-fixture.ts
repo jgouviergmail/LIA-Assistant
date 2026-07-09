@@ -21,6 +21,8 @@ export interface FixtureOptions {
   normalStreamInitialized?: boolean;
   /** Custom translation function (default: echoes the key). */
   t?: (key: string, opts?: Record<string, unknown>) => unknown;
+  /** Replay mode — suppresses out-of-reducer side effects (default: false). */
+  isReplay?: boolean;
 }
 
 export interface HandlerFixture {
@@ -63,6 +65,7 @@ export function buildHandlerContext(options: FixtureOptions = {}): HandlerFixtur
     setNormalStreamInitialized: (v: boolean) => {
       state.normalStreamInitialized = v;
     },
+    isReplay: options.isReplay ?? false,
   } as unknown as SSEHandlerContext;
 
   return { context, dispatch, handleVoiceChunk, state };

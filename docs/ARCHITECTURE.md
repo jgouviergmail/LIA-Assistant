@@ -235,6 +235,8 @@ sequenceDiagram
     F->>U: Display result
 ```
 
+> **Note (ADR-117)** : avec `BACKGROUND_RUNS_ENABLED=true`, la génération est exécutée par un producteur détaché qui publie chaque chunk dans un Redis Stream par run ; l'endpoint SSE n'est qu'un abonné. La génération survit ainsi aux déconnexions client, se réattache en live au retour et peut être annulée cross-worker. Voir [BACKGROUND_RUNS.md](technical/BACKGROUND_RUNS.md).
+
 ---
 
 ## 🔧 Architecture Backend

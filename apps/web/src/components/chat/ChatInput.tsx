@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, KeyboardEvent, FormEvent, DragEvent } fr
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Send, Mic, Paperclip } from 'lucide-react';
+import { Send, Mic, Paperclip, Square } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -43,6 +43,14 @@ export interface ChatInputProps {
   onMessageChange?: (message: string) => void;
   /** Whether attachments feature is enabled */
   attachmentsEnabled?: boolean;
+  /**
+   * ADR-117 Lot 3: true while a response is streaming — with
+   * onStopGeneration provided, the send button morphs into a stop button.
+   * Distinct from `disabled` (usage-block must NOT offer a stop).
+   */
+  isGenerating?: boolean;
+  /** ADR-117 Lot 3: stop-button handler (cancels the in-flight run). */
+  onStopGeneration?: () => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -53,6 +61,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   className,
   onMessageChange,
   attachmentsEnabled = false,
+  isGenerating = false,
+  onStopGeneration,
 }) => {
   const { t } = useTranslation();
   const [message, setMessage] = useState('');
@@ -427,59 +437,78 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             spellCheck
             enterKeyHint="send"
           />
-          {/* Send / Push-to-talk button */}
-          <Button
-            type={showSendMode ? 'submit' : 'button'}
-            size="lg"
-            disabled={isButtonDisabled || (showSendMode && !hasMessage)}
-            className={cn(
-              'gap-2 h-12 self-end transition-all duration-200',
-              'touch-manipulation select-none [-webkit-touch-callout:none]',
-              isRecording && 'bg-destructive hover:bg-destructive/90 animate-pulse'
-            )}
-            // Handlers always attached to prevent race conditions when showSendMode
-            // changes during a touch event. Guards inside handlers filter non-PTT calls.
-            onMouseDown={handlePressStart}
-            onMouseUp={handlePressEnd}
-            onMouseLeave={isRecording ? handlePressEnd : undefined}
-            onTouchStart={handlePressStart}
-            onTouchEnd={handlePressEnd}
-            onTouchCancel={handlePressEnd}
-            onTouchMove={isRecording ? handleTouchMove : undefined}
-            onContextMenu={e => e.preventDefault()}
-            aria-label={
-              isRecording
-                ? t('chat.voice.recording')
-                : isProcessing
-                  ? t('chat.voice.processing')
-                  : showSendMode
-                    ? t('chat.input.send')
-                    : t('chat.voice.hold_to_speak')
-            }
-          >
-            <span className="relative inline-flex items-center justify-center">
-              {isRecording ? (
-                <Mic className="h-4 w-4" />
-              ) : (
-                <Send
-                  className={cn(
-                    'h-4 w-4 transition-opacity',
-                    (disabled || isProcessing) && 'opacity-30'
+          {/* Stop button (ADR-117 Lot 3): replaces send while a response is
+              streaming. Cancellation is not a rollback — tools that already
+              ran have acted; it stops what remains. */}
+          {isGenerating && onStopGeneration ? (
+            <Button
+              type="button"
+              size="lg"
+              variant="destructive"
+              className="gap-2 h-12 self-end transition-all duration-200"
+              onClick={onStopGeneration}
+              aria-label={t('chat.input.stop')}
+            >
+              <Square className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('chat.input.stop')}</span>
+            </Button>
+          ) : (
+            <>
+              {/* Send / Push-to-talk button */}
+              <Button
+                type={showSendMode ? 'submit' : 'button'}
+                size="lg"
+                disabled={isButtonDisabled || (showSendMode && !hasMessage)}
+                className={cn(
+                  'gap-2 h-12 self-end transition-all duration-200',
+                  'touch-manipulation select-none [-webkit-touch-callout:none]',
+                  isRecording && 'bg-destructive hover:bg-destructive/90 animate-pulse'
+                )}
+                // Handlers always attached to prevent race conditions when showSendMode
+                // changes during a touch event. Guards inside handlers filter non-PTT calls.
+                onMouseDown={handlePressStart}
+                onMouseUp={handlePressEnd}
+                onMouseLeave={isRecording ? handlePressEnd : undefined}
+                onTouchStart={handlePressStart}
+                onTouchEnd={handlePressEnd}
+                onTouchCancel={handlePressEnd}
+                onTouchMove={isRecording ? handleTouchMove : undefined}
+                onContextMenu={e => e.preventDefault()}
+                aria-label={
+                  isRecording
+                    ? t('chat.voice.recording')
+                    : isProcessing
+                      ? t('chat.voice.processing')
+                      : showSendMode
+                        ? t('chat.input.send')
+                        : t('chat.voice.hold_to_speak')
+                }
+              >
+                <span className="relative inline-flex items-center justify-center">
+                  {isRecording ? (
+                    <Mic className="h-4 w-4" />
+                  ) : (
+                    <Send
+                      className={cn(
+                        'h-4 w-4 transition-opacity',
+                        (disabled || isProcessing) && 'opacity-30'
+                      )}
+                    />
                   )}
-                />
-              )}
-              {(disabled || isProcessing) && !isRecording && (
-                <LoadingSpinner className="absolute inset-0 m-auto text-primary-foreground" />
-              )}
-            </span>
-            <span className="hidden sm:inline">
-              {isRecording
-                ? t('chat.voice.recording')
-                : isProcessing
-                  ? t('chat.voice.processing')
-                  : t('chat.input.send')}
-            </span>
-          </Button>
+                  {(disabled || isProcessing) && !isRecording && (
+                    <LoadingSpinner className="absolute inset-0 m-auto text-primary-foreground" />
+                  )}
+                </span>
+                <span className="hidden sm:inline">
+                  {isRecording
+                    ? t('chat.voice.recording')
+                    : isProcessing
+                      ? t('chat.voice.processing')
+                      : t('chat.input.send')}
+                </span>
+              </Button>
+            </>
+          )}
         </form>
       </div>
     </div>

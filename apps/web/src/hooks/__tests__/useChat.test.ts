@@ -22,9 +22,15 @@ import type { ChatStreamChunk } from '@/types/chat';
 const h = vi.hoisted(() => {
   const streamChat = vi.fn();
   const cancel = vi.fn();
+  const reattachStream = vi.fn();
+  const fetchActiveRun = vi.fn(async () => ({ active: false }) as Record<string, unknown>);
+  const cancelActiveRun = vi.fn(async () => ({ cancelled: false }));
   return {
     streamChat,
     cancel,
+    reattachStream,
+    fetchActiveRun,
+    cancelActiveRun,
     user: {
       id: 'user-1',
       email: 'u@test.local',
@@ -53,9 +59,12 @@ vi.mock('@/lib/api/chat', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/api/chat')>();
   return {
     ...actual,
+    fetchActiveRun: () => h.fetchActiveRun(),
+    cancelActiveRun: () => h.cancelActiveRun(),
     chatSSEClient: {
       streamChat: (...args: unknown[]) => h.streamChat(...args),
       cancel: (...args: unknown[]) => h.cancel(...args),
+      reattachStream: (...args: unknown[]) => h.reattachStream(...args),
     },
   };
 });
@@ -109,6 +118,9 @@ vi.mock('sonner', () => ({
 }));
 
 import { useChat } from '../useChat';
+// Real class preserved by the module mock's `...actual` spread — useChat
+// narrows with `instanceof ChatStreamError`, so tests must throw the real one.
+import { ChatStreamError } from '@/lib/api/chat';
 
 // ---------------------------------------------------------------------------
 // Scripted stream driver
@@ -745,5 +757,197 @@ describe('useChat — conversation management API', () => {
       result.current.hydrateContextUsage(null, 16_000); // missing tokens → no-op
     });
     expect(result.current.contextUsage).toMatchObject({ tokens: 4_000 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Background-run reattachment (ADR-117 Lot 2)
+// ---------------------------------------------------------------------------
+
+/** Configure the mocked reattachStream: replay chunks, boundary, live chunks. */
+function scriptReattach(replayChunks: ChatStreamChunk[], liveChunks: ChatStreamChunk[]): void {
+  h.reattachStream.mockImplementation(
+    async (
+      _streamId: string,
+      onChunk: OnChunk,
+      _onError: OnError,
+      onDone: OnDone,
+      onReplayEnd?: () => void
+    ) => {
+      for (const chunk of replayChunks) onChunk(chunk);
+      onReplayEnd?.();
+      for (const chunk of liveChunks) onChunk(chunk);
+      onDone();
+    }
+  );
+}
+
+describe('useChat — background-run reattachment (ADR-117 Lot 2)', () => {
+  it('resumeActiveRun rebuilds the in-progress bubble from the replay then goes idle', async () => {
+    scriptReattach([ROUTER_CHUNK, token('Hel'), token('lo')], [token(' world'), done()]);
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.resumeActiveRun('stream-1');
+    });
+
+    expect(h.reattachStream).toHaveBeenCalledTimes(1);
+    expect(h.reattachStream.mock.calls[0][0]).toBe('stream-1');
+    const assistant = result.current.messages.find(m => m.role === 'assistant');
+    expect(assistant).toMatchObject({ content: 'Hello world' });
+    expect(result.current.isTyping).toBe(false);
+  });
+
+  it('suppresses stale voice during replay, plays live voice after replay-end', async () => {
+    const voiceChunk = (marker: string) =>
+      ({
+        type: 'voice_audio_chunk',
+        content: { audio_base64: marker, phrase_index: 0, is_last: false },
+        metadata: null,
+      }) as unknown as ChatStreamChunk;
+    scriptReattach([voiceChunk('STALE'), token('x')], [voiceChunk('LIVE'), done()]);
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.resumeActiveRun('stream-2');
+    });
+
+    expect(h.voice.handleVoiceChunk).toHaveBeenCalledTimes(1);
+    expect(h.voice.handleVoiceChunk.mock.calls[0][0]).toMatchObject({ audio_base64: 'LIVE' });
+  });
+
+  it('checkAndResumeActiveRun is a no-op without an active run', async () => {
+    h.fetchActiveRun.mockResolvedValueOnce({ active: false });
+    const { result } = renderHook(() => useChat());
+
+    let resumed = true;
+    await act(async () => {
+      resumed = await result.current.checkAndResumeActiveRun();
+    });
+
+    expect(resumed).toBe(false);
+    expect(h.reattachStream).not.toHaveBeenCalled();
+  });
+
+  it('checkAndResumeActiveRun reattaches to the reported stream', async () => {
+    h.fetchActiveRun.mockResolvedValueOnce({ active: true, stream_id: 'stream-3' });
+    scriptReattach([token('resumed')], [done()]);
+    const { result } = renderHook(() => useChat());
+
+    let resumed = false;
+    await act(async () => {
+      resumed = await result.current.checkAndResumeActiveRun();
+    });
+    // The resume itself runs fire-and-forget — flush the microtask chain.
+    await act(async () => {});
+
+    expect(resumed).toBe(true);
+    expect(h.reattachStream).toHaveBeenCalledTimes(1);
+    expect(h.reattachStream.mock.calls[0][0]).toBe('stream-3');
+  });
+
+  it('HTTP 409 on send reattaches to the in-flight run instead of erroring', async () => {
+    h.streamChat.mockImplementation(
+      async (_req: unknown, _onChunk: OnChunk, onError: OnError, _onDone: OnDone) => {
+        onError(
+          new ChatStreamError(
+            'RunInProgressError',
+            'errors.chat.run_in_progress',
+            'already running',
+            undefined,
+            'stream-9'
+          )
+        );
+      }
+    );
+    scriptReattach([token('ongoing answer')], [done()]);
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.sendMessage('double message');
+    });
+    await act(async () => {});
+
+    expect(toast.info).toHaveBeenCalledWith('chat.resume.in_progress');
+    expect(h.reattachStream).toHaveBeenCalledTimes(1);
+    expect(h.reattachStream.mock.calls[0][0]).toBe('stream-9');
+    // No error bubble was appended for the 409
+    expect(result.current.messages.some(m => m.content === 'errors.chat.run_in_progress')).toBe(
+      false
+    );
+  });
+
+  it('RunGoneError on reattach ends quietly (history owns the content)', async () => {
+    h.reattachStream.mockImplementation(
+      async (
+        _streamId: string,
+        _onChunk: OnChunk,
+        onError: OnError,
+        _onDone: OnDone,
+        _onReplayEnd?: () => void
+      ) => {
+        onError(new ChatStreamError('RunGoneError', 'errors.chat.run_gone', 'gone'));
+      }
+    );
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.resumeActiveRun('stream-4');
+    });
+
+    expect(result.current.isTyping).toBe(false);
+    // Quiet exit: no assistant error bubble
+    expect(result.current.messages).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Stop button (ADR-117 Lot 3)
+// ---------------------------------------------------------------------------
+
+describe('useChat — stopGeneration (ADR-117 Lot 3)', () => {
+  it('server-side cancel: keeps the subscription open for the synthesized done', async () => {
+    h.cancelActiveRun.mockResolvedValueOnce({ cancelled: true });
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.stopGeneration();
+    });
+
+    expect(h.cancelActiveRun).toHaveBeenCalledTimes(1);
+    // The local stream must NOT be aborted: the synthesized done (with
+    // metadata.cancelled) finalizes the bubble through the open stream.
+    expect(h.cancel).not.toHaveBeenCalled();
+  });
+
+  it('legacy fallback: no detached run -> local abort restores pre-ADR-117 stop', async () => {
+    h.cancelActiveRun.mockResolvedValueOnce({ cancelled: false });
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.stopGeneration();
+    });
+
+    expect(h.cancel).toHaveBeenCalledTimes(1);
+    expect(h.voice.stopPlayback).toHaveBeenCalled();
+    expect(result.current.isTyping).toBe(false); // SSE_DISCONNECTED -> idle
+  });
+
+  it('cancelled done finalizes the partial bubble with the interrupted badge flag', async () => {
+    // Full pipeline: stream two tokens, then the producer's synthesized done
+    scriptStream([ROUTER_CHUNK, token('partial '), token('answer'), done({ cancelled: true })]);
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.sendMessage('longue question');
+    });
+
+    const assistant = result.current.messages.find(m => m.role === 'assistant');
+    expect(assistant).toMatchObject({ content: 'partial answer' });
+    expect(assistant?.metadata).toMatchObject({
+      interrupted: true,
+      interrupt_reason: 'cancelled',
+    });
+    expect(result.current.isTyping).toBe(false);
   });
 });

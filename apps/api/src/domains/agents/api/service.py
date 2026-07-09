@@ -11,7 +11,7 @@ import asyncio
 import re
 import time
 import uuid
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
@@ -33,6 +33,7 @@ from src.domains.agents.utils import generate_run_id
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
+    from src.domains.conversations.service import ConversationService
     from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
     from src.domains.voice.service import VoiceCommentService
 
@@ -40,6 +41,11 @@ logger = get_logger(__name__)
 
 # MAX_HITL_ACTIONS_PER_REQUEST defined in src.core.constants
 # Phase 3.3: Centralized constant management
+
+# ADR-117 Lot 2: async probe answering "is anyone subscribed to this run's
+# stream right now?" — injected by the detached-producer path so voice
+# synthesis (a pure per-character cost) is skipped with no listeners.
+ListenerProbe = Callable[[], Awaitable[bool]]
 
 
 # Recognised HTML element tags emitted by the response/display layer. Used to
@@ -508,6 +514,168 @@ class AgentService(
                 # Close the warmup's cached connector clients (pooled httpx).
                 await warmup_deps.aclose()
 
+    async def _archive_user_message_first(
+        self,
+        *,
+        conv_service: "ConversationService",
+        conversation_id: uuid.UUID,
+        user_message: str,
+        run_id: str,
+        is_hitl_resumption: bool,
+        attachment_meta: dict[str, Any],
+        stt_kwargs: dict[str, Any],
+    ) -> uuid.UUID | None:
+        """Persist the user message BEFORE graph execution (archive-first).
+
+        ADR-117 (Lot 1): the user turn must survive client disconnects,
+        cancellations and crashes. End-of-run HITL flags (decision_type,
+        hitl_interrupted) are patched onto this row during finalization.
+
+        Args:
+            conv_service: Conversation service used for archiving.
+            conversation_id: Target conversation UUID.
+            user_message: Raw user message content.
+            run_id: Run identifier stored in the row metadata.
+            is_hitl_resumption: True when this message answers a pending
+                HITL interrupt (sets ``hitl_response`` immediately).
+            attachment_meta: Attachment metadata block ({} when none).
+            stt_kwargs: Per-message STT cost attribution kwargs.
+
+        Returns:
+            The archived row id, or None when archiving failed (best-effort:
+            an archiving hiccup must never block the generation itself).
+        """
+        from src.core.field_names import FIELD_RUN_ID
+        from src.infrastructure.database import get_db_context
+
+        metadata: dict[str, Any] = {FIELD_RUN_ID: run_id, **attachment_meta}
+        if is_hitl_resumption:
+            metadata["hitl_response"] = True
+        try:
+            async with get_db_context() as archive_db:
+                row = await conv_service.archive_message(
+                    conversation_id,
+                    "user",
+                    user_message,
+                    metadata,
+                    archive_db,
+                    **stt_kwargs,
+                )
+                return row.id
+        except Exception as archive_err:  # noqa: BLE001 — must not kill the run
+            logger.error(
+                "archive_first_user_message_failed",
+                run_id=run_id,
+                conversation_id=str(conversation_id),
+                error=str(archive_err),
+                error_type=type(archive_err).__name__,
+            )
+            return None
+
+    async def _patch_user_message_hitl_flags(
+        self,
+        *,
+        conv_service: "ConversationService",
+        db: AsyncSession,
+        archived_user_msg_id: uuid.UUID | None,
+        is_hitl_resumption: bool,
+        hitl_interrupt_detected: bool,
+        decision_type: str,
+        run_id: str,
+        conversation_id: uuid.UUID,
+    ) -> None:
+        """Patch end-of-run HITL flags onto the archive-first user row (ADR-117).
+
+        The user row is archived BEFORE graph execution; the flags that are
+        only known at end-of-run are merged here:
+          - HITL resumption: ``decision_type`` (``hitl_response`` was already
+            set at archive time)
+          - HITL interrupt: ``hitl_interrupted: True``
+          - Regular message (or missing row): nothing to patch
+
+        Args:
+            conv_service: Conversation service used for the metadata merge.
+            db: Database session (caller manages commit via its context).
+            archived_user_msg_id: Row id from archive-first, None if it failed.
+            is_hitl_resumption: True when this turn answered a pending HITL.
+            hitl_interrupt_detected: True when this turn raised a new HITL.
+            decision_type: Parsed approval decision (resumption case).
+            run_id: Run identifier (logging).
+            conversation_id: Conversation UUID (logging).
+        """
+        if archived_user_msg_id is None:
+            return
+        if is_hitl_resumption:
+            await conv_service.patch_message_metadata(
+                archived_user_msg_id,
+                {"decision_type": decision_type},
+                db,
+            )
+            logger.info(
+                "hitl_user_response_flag_patched",
+                run_id=run_id,
+                conversation_id=str(conversation_id),
+                decision_type=decision_type,
+            )
+        elif hitl_interrupt_detected:
+            await conv_service.patch_message_metadata(
+                archived_user_msg_id,
+                {"hitl_interrupted": True},
+                db,
+            )
+            logger.info(
+                "hitl_interrupted_flag_patched",
+                run_id=run_id,
+                conversation_id=str(conversation_id),
+            )
+
+    @staticmethod
+    async def _should_start_voice(
+        user_obj: Any,
+        has_listeners: ListenerProbe | None,
+        run_id: str,
+        voice_path: str,
+    ) -> bool:
+        """Gate every voice-synthesis start point (ADR-117 Lot 2).
+
+        Voice synthesis is a pure per-character cost: when the run executes
+        detached and nobody is subscribed to its stream, synthesizing audio
+        is waste. The probe is None on paths without presence tracking
+        (legacy inline SSE, scheduled actions, channels) — behavior is then
+        unchanged.
+
+        Args:
+            user_obj: The User (or None) — voice_enabled preference source.
+            has_listeners: Async presence probe, or None (no gating).
+            run_id: Run identifier (logging).
+            voice_path: Which start point is asking (logging):
+                "chat_progressive" | "agent_parallel" | "sync_fallback".
+
+        Returns:
+            True when voice synthesis should start.
+        """
+        if user_obj is None or not user_obj.voice_enabled:
+            return False
+        if has_listeners is None:
+            return True
+        try:
+            listening = await has_listeners()
+        except Exception as probe_err:  # noqa: BLE001 — fail-open on Redis hiccup
+            logger.warning(
+                "voice_listener_probe_failed",
+                run_id=run_id,
+                voice_path=voice_path,
+                error=str(probe_err),
+            )
+            return True
+        if not listening:
+            logger.info(
+                "voice_skipped_no_listeners",
+                run_id=run_id,
+                voice_path=voice_path,
+            )
+        return listening
+
     async def stream_chat_response(
         self,
         user_message: str,
@@ -517,6 +685,9 @@ class AgentService(
         user_language: str = "fr",
         user_display_name: str | None = None,
         original_run_id: str | None = None,
+        run_id: str | None = None,
+        archive_user_message: bool = True,
+        has_listeners: ListenerProbe | None = None,
         browser_context: BrowserContext | None = None,
         user_memory_enabled: bool = True,
         user_journals_enabled: bool = False,
@@ -544,6 +715,13 @@ class AgentService(
             user_display_name: User's friendly first name for sender/signature context
                 (default: None = unknown).
             original_run_id: Optional run_id from HITL resumption (for token aggregation).
+            run_id: Optional externally-generated run identifier (ADR-117: the
+                detached-producer path generates it up-front so the Redis run
+                stream key is known before execution). Falls back to
+                original_run_id, then to a fresh id.
+            archive_user_message: When False, skips the archive-first user-row
+                persistence (ADR-117) — used by scheduled-action retries whose
+                first attempt already archived the row.
             browser_context: Browser context (geolocation, etc.) sent automatically by frontend.
             user_memory_enabled: User's preference for long-term memory (default: True).
             user_journals_enabled: User's preference for personal journals (default: False).
@@ -630,6 +808,9 @@ class AgentService(
             is_automated_source,
             auto_approve_plan,
             attachment_ids,
+            run_id=run_id,
+            archive_user_message=archive_user_message,
+            has_listeners=has_listeners,
             stt_provider=stt_provider,
             stt_audio_duration_seconds=stt_audio_duration_seconds,
             stt_cost_usd=stt_cost_usd,
@@ -656,6 +837,9 @@ class AgentService(
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
         *,
+        run_id: str | None = None,
+        archive_user_message: bool = True,
+        has_listeners: ListenerProbe | None = None,
         stt_provider: str | None = None,
         stt_audio_duration_seconds: float | None = None,
         stt_cost_usd: float | None = None,
@@ -689,9 +873,15 @@ class AgentService(
                 memory/interest/journal/psyche extraction (default: False).
             auto_approve_plan: If True, inject plan_approved=True into state to bypass HITL gate.
             attachment_ids: Optional list of attachment UUIDs for the current message.
+            run_id: Optional externally-generated run identifier (ADR-117 detached
+                producer path). Falls back to original_run_id, then to a fresh id.
+            archive_user_message: When False, skips the archive-first user-row
+                persistence (scheduled-action retries — attempt 1 archived it).
         """
-        # CRITICAL: Reuse original_run_id for HITL token aggregation
-        run_id = original_run_id or generate_run_id()
+        # CRITICAL: Reuse original_run_id for HITL token aggregation.
+        # ADR-117: an externally-supplied run_id (detached producer) wins so
+        # the Redis stream key is known before execution starts.
+        run_id = run_id or original_run_id or generate_run_id()
         # Detect HITL resumption early (needed for message counting logic)
         is_hitl_resumption = original_run_id is not None
         start_time = time.time()
@@ -910,6 +1100,47 @@ class AgentService(
                             user_id=str(user_id),
                         )
 
+                    # === ARCHIVE-FIRST (ADR-117): persist the user turn NOW ===
+                    # The user message must survive client disconnects,
+                    # cancellations and crashes. End-of-run HITL flags
+                    # (decision_type, hitl_interrupted) are patched onto this
+                    # row during finalization below.
+                    stt_kwargs = {
+                        "stt_provider": stt_provider,
+                        "stt_audio_duration_seconds": stt_audio_duration_seconds,
+                        "stt_cost_usd": stt_cost_usd,
+                        "stt_cost_eur": stt_cost_eur,
+                    }
+                    _attachment_meta: dict[str, Any] = {}
+                    if attachment_ids and getattr(settings, "attachments_enabled", False):
+                        _turn_attachments = state.get("metadata", {}).get(
+                            "current_turn_attachments", []
+                        )
+                        if _turn_attachments:
+                            _attachment_meta = {
+                                "attachments": [
+                                    {
+                                        "id": a["id"],
+                                        "filename": a["original_filename"],
+                                        "mime_type": a["mime_type"],
+                                        "size": a.get("file_size", 0),
+                                        "content_type": a["content_type"],
+                                    }
+                                    for a in _turn_attachments
+                                ]
+                            }
+                    archived_user_msg_id: uuid.UUID | None = None
+                    if archive_user_message:
+                        archived_user_msg_id = await self._archive_user_message_first(
+                            conv_service=conv_service,
+                            conversation_id=conversation_id,
+                            user_message=user_message,
+                            run_id=run_id,
+                            is_hitl_resumption=is_hitl_resumption,
+                            attachment_meta=_attachment_meta,
+                            stt_kwargs=stt_kwargs,
+                        )
+
                     # === TRACKING: Count user message ===
                     # Count ALL user messages (initial AND HITL responses)
                     # Each user message is a distinct interaction that should be counted:
@@ -1060,8 +1291,9 @@ class AgentService(
                                     chat_voice_streamer is None
                                     and voice_parallel_task is None
                                     and intention_label == "conversation"
-                                    and user_obj is not None
-                                    and user_obj.voice_enabled
+                                    and await self._should_start_voice(
+                                        user_obj, has_listeners, run_id, "chat_progressive"
+                                    )
                                 ):
                                     try:
                                         from src.domains.voice.service import (
@@ -1140,8 +1372,9 @@ class AgentService(
                                 # would silently disappear when the parallel
                                 # path overwrites the queue reference below.
                                 and streaming_service.voice_context_registry is not None
-                                and user_obj is not None
-                                and user_obj.voice_enabled
+                                and await self._should_start_voice(
+                                    user_obj, has_listeners, run_id, "agent_parallel"
+                                )
                             ):
                                 # Import voice dependencies (lazy)
 
@@ -1325,25 +1558,8 @@ class AgentService(
                     duration = time.time() - start_time
                     ttft = first_token_time - start_time if first_token_time else None
 
-                    # === Build attachment metadata for archiving (evolution F4) ===
-                    _attachment_meta: dict = {}
-                    if attachment_ids and getattr(settings, "attachments_enabled", False):
-                        _turn_attachments = state.get("metadata", {}).get(
-                            "current_turn_attachments", []
-                        )
-                        if _turn_attachments:
-                            _attachment_meta = {
-                                "attachments": [
-                                    {
-                                        "id": a["id"],
-                                        "filename": a["original_filename"],
-                                        "mime_type": a["mime_type"],
-                                        "size": a.get("file_size", 0),
-                                        "content_type": a["content_type"],
-                                    }
-                                    for a in _turn_attachments
-                                ]
-                            }
+                    # NOTE (ADR-117): attachment metadata and STT kwargs are now
+                    # built BEFORE graph execution (archive-first block above).
 
                     # Signal end-of-input to the chat-mode sentence streamer
                     # so its trailing buffer (last sentence — likely without
@@ -1359,95 +1575,34 @@ class AgentService(
                                 error=str(close_err),
                             )
 
-                    # === Archive messages BEFORE exiting tracker context ===
-                    # Messages must be persisted to DB for frontend to load on page refresh
-                    #
-                    # HITL Archiving Logic:
-                    # 1. HITL resumption (user responds "oui"/"non"):
-                    #    Archive with {run_id, hitl_response: True, decision_type}
-                    # 2. HITL interrupt (graph paused for user approval):
-                    #    Archive with {run_id, hitl_interrupted: True}
-                    # 3. Regular message (no HITL):
-                    #    Archive with {run_id}
+                    # === Finalize archived rows BEFORE exiting tracker context ===
+                    # ADR-117 (archive-first): the user row was persisted BEFORE
+                    # graph execution. Here we only patch the HITL flags that are
+                    # first known at end-of-run:
+                    # 1. HITL resumption: patch {decision_type} (hitl_response was
+                    #    already set at archive time)
+                    # 2. HITL interrupt: patch {hitl_interrupted: True}
+                    # 3. Regular message: nothing to patch
+                    # The assistant row (response OR HITL question) is archived
+                    # here as before.
 
                     # Track number of messages archived for accurate stats
-                    messages_archived = 0
+                    # (user row was archived up-front — count it if it exists)
+                    messages_archived = 1 if archived_user_msg_id is not None else 0
                     archived_assistant_msg_id: uuid.UUID | None = None
 
-                    # Per-message STT cost — only attached on the first
-                    # user-bubble archival of the turn (guard against double
-                    # accounting if the same turn produces several rows).
-                    stt_kwargs = {
-                        "stt_provider": stt_provider,
-                        "stt_audio_duration_seconds": stt_audio_duration_seconds,
-                        "stt_cost_usd": stt_cost_usd,
-                        "stt_cost_eur": stt_cost_eur,
-                    }
-
                     async with get_db_context() as archive_db:
-                        # Determine archiving mode based on HITL state
-                        if is_hitl_resumption:
-                            # Case 1: HITL resumption - user responded to HITL question
-                            interrupt_resume_data = state.get("_interrupt_resume_data", {})
-                            decision_type = interrupt_resume_data.get("decision", "UNKNOWN")
-
-                            await conv_service.archive_message(
-                                conversation_id,
-                                "user",
-                                user_message,
-                                {
-                                    FIELD_RUN_ID: run_id,
-                                    "hitl_response": True,
-                                    "decision_type": decision_type,
-                                    **_attachment_meta,
-                                },
-                                archive_db,
-                                **stt_kwargs,
-                            )
-                            messages_archived += 1
-
-                            logger.info(
-                                "hitl_user_response_archived",
-                                run_id=run_id,
-                                conversation_id=str(conversation_id),
-                                decision_type=decision_type,
-                                user_message_preview=user_message[:50] if user_message else "",
-                            )
-
-                        elif streaming_service.hitl_interrupt_detected:
-                            # Case 2: HITL interrupt - graph paused, awaiting user response
-                            await conv_service.archive_message(
-                                conversation_id,
-                                "user",
-                                user_message,
-                                {
-                                    FIELD_RUN_ID: run_id,
-                                    "hitl_interrupted": True,
-                                    **_attachment_meta,
-                                },
-                                archive_db,
-                                **stt_kwargs,
-                            )
-                            messages_archived += 1
-
-                            logger.info(
-                                "hitl_interrupted_message_archived",
-                                run_id=run_id,
-                                conversation_id=str(conversation_id),
-                                user_message_preview=user_message[:50] if user_message else "",
-                            )
-
-                        else:
-                            # Case 3: Regular message - no HITL involved
-                            await conv_service.archive_message(
-                                conversation_id,
-                                "user",
-                                user_message,
-                                {FIELD_RUN_ID: run_id, **_attachment_meta},
-                                archive_db,
-                                **stt_kwargs,
-                            )
-                            messages_archived += 1
+                        _interrupt_resume_data = state.get("_interrupt_resume_data", {})
+                        await self._patch_user_message_hitl_flags(
+                            conv_service=conv_service,
+                            db=archive_db,
+                            archived_user_msg_id=archived_user_msg_id,
+                            is_hitl_resumption=is_hitl_resumption,
+                            hitl_interrupt_detected=streaming_service.hitl_interrupt_detected,
+                            decision_type=_interrupt_resume_data.get("decision", "UNKNOWN"),
+                            run_id=run_id,
+                            conversation_id=conversation_id,
+                        )
 
                         # Archive assistant message (response OR HITL question)
                         if streaming_service.hitl_interrupt_detected:
@@ -1796,11 +1951,13 @@ class AgentService(
                 #           3) Sync fallback if no parallel task
                 # Skip if voice_complete was already emitted during streaming loop
                 voice_needs_finalization = (
-                    user_obj is not None
-                    and user_obj.voice_enabled
-                    and response_content.strip()
+                    bool(response_content.strip())
                     and not streaming_service.hitl_interrupt_detected
                     and not voice_complete_emitted  # Skip if already completed during streaming
+                    # Listener gating last (may hit Redis) — cheap checks first
+                    and await self._should_start_voice(
+                        user_obj, has_listeners, run_id, "sync_fallback"
+                    )
                 )
 
                 # DIAGNOSTIC: Track parallel task state at end of streaming

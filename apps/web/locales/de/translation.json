@@ -433,6 +433,7 @@
       "placeholder_unavailable": "Dienst vorübergehend nicht verfügbar...",
       "placeholder_disabled": "Warten auf Antwort...",
       "send": "Senden",
+      "stop": "Stoppen",
       "sending": "Wird gesendet...",
       "status": {
         "unavailable": "Dienst nicht verfügbar",
@@ -455,6 +456,9 @@
       "error_not_supported": "Spracheingabe wird in diesem Browser nicht unterstützt.",
       "error_connection": "Verbindung zum Sprachdienst fehlgeschlagen. Bitte versuchen Sie es erneut.",
       "error_generic": "Bei der Spracheingabe ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut."
+    },
+    "resume": {
+      "in_progress": "Wiederverbindung zur laufenden Antwort…"
     },
     "compaction": {
       "in_progress": "Konversation wird zusammengefasst, um Kontext freizugeben...",
@@ -535,6 +539,8 @@
       "copied": "In die Zwischenablage kopiert",
       "stt_unit_seconds": "s",
       "tts_unit_chars": "Z.",
+      "interrupted": "unterbrochen",
+      "interrupted_tooltip": "Diese Antwort wurde vor dem Abschluss gestoppt — der Teilinhalt bleibt erhalten.",
       "stt_tooltip_provider": "Spracherkennung via {{provider}}",
       "stt_tooltip_fallback": "Kosten der Transkription",
       "tts_tooltip_provider": "Sprachsynthese via {{provider}}{{model}}",
@@ -2470,7 +2476,9 @@
       "service_unavailable": "Der Dienst ist vorübergehend nicht verfügbar. Bitte versuchen Sie es in einigen Augenblicken erneut.",
       "session_expired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
       "unknown_error": "Unbekannter Fehler beim Streaming",
-      "usage_limit_exceeded": "Sie haben Ihr Nutzungslimit erreicht. Kontaktieren Sie Ihren Administrator."
+      "usage_limit_exceeded": "Sie haben Ihr Nutzungslimit erreicht. Kontaktieren Sie Ihren Administrator.",
+      "run_in_progress": "Eine Antwort wird bereits generiert — Verbindung wird wiederhergestellt.",
+      "run_gone": "Diese Antwort wurde im Hintergrund abgeschlossen. Der Verlauf wurde aktualisiert."
     },
     "settings": {
       "title": "Ein Fehler ist aufgetreten",
@@ -2715,7 +2723,7 @@
     },
     "intro": {
       "title": "Wie LIA funktioniert",
-      "description": "LIA ist ein KI-Assistent der nächsten Generation, der fortschrittliche Technologien kombiniert, um Ihnen eine intelligente, sichere und personalisierte Erfahrung zu bieten.",
+      "description": "LIA ist ein KI-Assistent der nächsten Generation, der fortschrittliche Technologien kombiniert, um Ihnen eine intelligente, sichere und personalisierte Erfahrung zu bieten. Antworten werden serverseitig unabhängig von Ihrer Verbindung generiert: Sie können die Seite mitten in einer Antwort verlassen und sie bei Ihrer Rückkehr wiederfinden — oder live fortsetzen.",
       "features": {
         "architecture": {
           "title": "🏗️ LangGraph Multi-Agenten-Architektur",
@@ -2928,6 +2936,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_22_0": {
+          "title": "v1.22.0 — 🔄 Antworten, die ohne Sie weiterlaufen",
+          "date": "Juli 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔄 Ihre Antworten laufen im Hintergrund weiter</b> — Die Seite verlassen, die App wechseln oder die Verbindung verlieren unterbricht eine laufende Antwort nicht mehr: LIA stellt sie serverseitig fertig und sie wartet bei Ihrer Rückkehr im Verlauf — mit vollständiger Kostenabrechnung.",
+            "i2": "<b>📡 Live-Wiederaufnahme bei Ihrer Rückkehr</b> — Kommen Sie zurück, während LIA noch schreibt: die laufende Antwortblase baut sich automatisch wieder auf und streamt live weiter. Funktioniert auch über mehrere Tabs — und pro Unterhaltung läuft nur eine Antwort gleichzeitig.",
+            "i3": "<b>⏹️ Endlich ein Stopp-Knopf</b> — Stoppen Sie eine laufende Antwort mit einem Klick. Der Teiltext bleibt erhalten und wird als „unterbrochen“ markiert; bereits ausgeführte Aktionen (eine gesendete E-Mail…) werden nicht rückgängig gemacht, und Verbrauchtes wird ehrlich abgerechnet.",
+            "i4": "<b>🔊 Sprache nur, wenn jemand zuhört</b> — Endet eine Antwort im Hintergrund, ohne dass jemand verbunden ist, synthetisiert LIA das Audio nicht mehr: weniger Kosten, gleiche Erfahrung, wenn Sie da sind."
+          }
+        },
         "v1_21_26": {
           "title": "v1.21.26 — 🛡️ Ein robusterer Chat- & Sprachkern",
           "date": "Juli 2026",
@@ -3876,7 +3895,7 @@
       "chat": {
         "title": "Unterhaltungen",
         "description": "Chat- und Unterhaltungsnutzung",
-        "count": "13",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "Kann ich mehrere Unterhaltungen gleichzeitig führen?",
@@ -3929,6 +3948,10 @@
           "q13": {
             "question": "Wie greife ich auf ältere Nachrichten in einer sehr langen Konversation zu?",
             "answer": "Seit v1.20.14 kannst du <strong>im Chat nach oben scrollen</strong>, um den Anfang jeder Konversation zu erreichen, selbst wenn sie auf Tausende von Nachrichten angewachsen ist:<br><br><strong>📜 So funktioniert es</strong><br>• Beim Öffnen einer Konversation werden die <strong>50 neuesten Nachrichten</strong> sofort geladen<br>• <strong>Scrolle nach oben</strong> im Chat — sobald du den oberen Rand erreichst, werden die vorherigen 50 Nachrichten automatisch nachgeladen<br>• Eine kleine Anzeige „<em>Ältere Nachrichten werden geladen…</em>\" erscheint kurz oben während jedes Ladevorgangs<br>• Wiederhole das Verfahren so oft wie nötig — du kannst bis zur allerersten Nachricht zurückscrollen<br><br><strong>✨ Was reibungslos bleibt</strong><br>• Deine Leseposition wird erhalten — die Ansicht bleibt genau dort, wo du warst, der neue Inhalt schiebt sich darüber, ohne dass es springt<br>• Duplikate werden herausgefiltert, sodass keine Nachricht zweimal erscheint<br><br><strong>📌 Gut zu wissen</strong><br>• Nachrichten werden <strong>immer in der Datenbank gespeichert</strong> — es geht nie etwas verloren, selbst nach einer Komprimierung (die nur ältere Nachrichten für das Arbeitsgedächtnis der KI zusammenfasst, nicht den angezeigten Verlauf)<br>• Die integrierte Suche filtert weiterhin das bereits Geladene, sodass das Nachladen weiterer Nachrichten auch den Suchbereich erweitert<br>• Wenn du später zur Konversation zurückkehrst, den Tab wechselst oder eine geplante Aktion läuft, wird die neueste Seite frisch geladen — du beginnst dann sauber unten"
+          },
+          "q14": {
+            "question": "Was passiert, wenn ich die Seite verlasse, während LIA antwortet?",
+            "answer": "Nichts geht verloren. Die Generierung läuft <strong>im Hintergrund</strong> auf dem Server weiter: Ihre Nachricht und die vollständige Antwort werden gespeichert, auch wenn Sie den Tab schließen, die App wechseln oder die Verbindung verlieren.<br><br>Kehren Sie zurück, während die Antwort noch geschrieben wird, <strong>wird sie automatisch live fortgesetzt</strong> — die laufende Antwortblase baut sich wieder auf und streamt weiter (das funktioniert auch mit mehreren offenen Tabs).<br><br>Sie können eine laufende Antwort auch <strong>stoppen</strong>: Während LIA schreibt, wird der Senden-Knopf zu einem <strong>Stopp</strong>-Knopf. Der Teiltext bleibt erhalten und wird als „unterbrochen“ ⏸ markiert — beachten Sie jedoch, dass bereits ausgeführte Aktionen (eine gesendete E-Mail, ein erstellter Termin…) nicht rückgängig gemacht werden.<br><br>Pro Unterhaltung läuft nur eine Antwort gleichzeitig: Versuchen Sie, während einer Generierung eine weitere Nachricht zu senden, verbindet LIA Sie wieder mit der laufenden Antwort."
           }
         }
       },
@@ -5621,7 +5644,7 @@
       },
       "control": {
         "title": "Du behältst die Kontrolle",
-        "description": "Vor jeder sensiblen Aktion (E-Mail senden, Kalender ändern...) zeigt LIA dir ihren Plan und wartet auf deine Genehmigung. Nichts geschieht ohne deine Zustimmung."
+        "description": "Vor jeder sensiblen Aktion (E-Mail senden, Kalender ändern...) zeigt LIA dir ihren Plan und wartet auf deine Genehmigung. Nichts geschieht ohne deine Zustimmung. Und während LIA schreibt, kannst du die Antwort jederzeit mit einem Stopp-Knopf unterbrechen — der Teiltext bleibt erhalten."
       },
       "privacy": {
         "title": "Geschützte Daten",
@@ -5774,7 +5797,7 @@
       },
       "realtime": {
         "title": "Echtzeit-Streaming",
-        "description": "Sehen Sie jeden Ausführungsschritt in Echtzeit — Routing, Planung, Validierung, Tool-Aufrufe — dann die Antwort Token für Token im Streaming. Keine Black Box, kein Warten."
+        "description": "Sehen Sie jeden Ausführungsschritt in Echtzeit — Routing, Planung, Validierung, Tool-Aufrufe — dann die Antwort Token für Token im Streaming. Keine Black Box, kein Warten. Die Generierung ist von der Verbindung entkoppelt: Antworten laufen serverseitig auch bei Verbindungsabbrüchen weiter, werden beim Wiederverbinden erneut abgespielt und stoppen auf Wunsch."
       },
       "stack": {
         "title": "Moderner Stack",

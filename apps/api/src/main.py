@@ -1078,6 +1078,37 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Shutdown
     logger.info("application_shutdown")
 
+    # === Drain in-flight background work FIRST (ADR-117) ===
+    # Order matters: chat producers need the checkpointer, DB pool and Redis
+    # that are torn down below. Without this drain, uvicorn worker recycling
+    # (--limit-max-requests) and docker stop kill in-flight runs (proven by
+    # the 2026-07 de-risking POC: 1/30 chunks survived without drain, 30/30
+    # with it). Keep drain + generic-task timeouts below stop_grace_period.
+    try:
+        from src.domains.agents.api.background_runner import drain_chat_producers
+
+        drained_done, drained_pending = await drain_chat_producers(
+            timeout=settings.background_runs_drain_timeout_seconds
+        )
+        if drained_pending:
+            logger.warning(
+                "chat_producers_drain_incomplete",
+                done=drained_done,
+                pending=drained_pending,
+            )
+    except Exception as exc:
+        logger.error("chat_producers_drain_failed", error=str(exc))
+
+    # Generic fire-and-forget tasks (memory/interest extraction, warmups).
+    # wait_all_background_tasks existed but was never wired — latent bug fixed
+    # here (Systemic Rules: dead code is wired or removed).
+    try:
+        from src.infrastructure.async_utils import wait_all_background_tasks
+
+        await wait_all_background_tasks(timeout=settings.shutdown_background_tasks_timeout_seconds)
+    except Exception as exc:
+        logger.error("background_tasks_drain_failed", error=str(exc))
+
     # Prometheus multiprocess: drop this worker's per-process metric files so its
     # contribution leaves the 'live*' gauges on exit. Counters/histograms persist
     # (correct — totals must survive a worker restart). No-op outside multiprocess.

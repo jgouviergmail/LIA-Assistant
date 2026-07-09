@@ -144,6 +144,11 @@ They are NOT listed here. See section 12.
 | `VOICE_WS_IDLE_TIMEOUT_SECONDS` | `voice_ws_idle_timeout_seconds` | 120 s | 30–600 | `voice/router.py` | STT WebSocket idle close |
 | `VOICE_PARALLEL_TIMEOUT_SECONDS` | `voice_parallel_timeout_seconds` | 15.0 s | 1.0–120.0 | `voice/sentence_streamer.py` | Per parallel TTS chunk |
 | `USAGE_LIMIT_WS_IDLE_TIMEOUT_SECONDS` | `usage_limit_ws_idle_timeout_seconds` | 120 s | 30–600 | `usage_limits/websocket.py:163` | Usage limit live-stream WS idle close |
+| `BACKGROUND_RUNS_XREAD_BLOCK_MS` | `background_runs_xread_block_ms` | 2000 ms | 250–15000 | `infrastructure/streaming/run_stream_broker.py` | XREAD BLOCK window for run-stream subscribers (ADR-117). MUST stay well below `REDIS_SOCKET_TIMEOUT`×1000 — redis-py raises `TimeoutError` past it (POC-proven). Doubles as the subscriber keepalive cadence |
+| `BACKGROUND_RUNS_STREAM_TTL_SECONDS` | `background_runs_stream_ttl_seconds` | 3600 s | 60–86400 | `infrastructure/streaming/run_stream_broker.py` | EXPIRE armed on the run stream at the terminal marker; must exceed the longest window during which a reload may still replay the run |
+| `BACKGROUND_RUNS_LISTENER_TTL_SECONDS` | `background_runs_listener_ttl_seconds` | 30 s | 5–300 | `infrastructure/streaming/run_stream_broker.py` | TTL of the subscriber-presence counter gating voice synthesis; re-armed on INCR/DECR and touched ~TTL/3 by attached subscribers |
+| `BACKGROUND_RUNS_CANCEL_POLL_SECONDS` | `background_runs_cancel_poll_seconds` | 1 s | 1–10 | `agents/api/background_runner.py` | Producer-side poll of the cancel signal — bounds the stop-button latency |
+| `BACKGROUND_RUNS_CANCEL_TTL_SECONDS` | `background_runs_cancel_ttl_seconds` | 600 s | 30–3600 | `infrastructure/streaming/run_stream_broker.py` | Self-cleaning TTL of the cancel-signal key (producer already gone → nothing to cancel) |
 
 ## 9. Scheduler / background jobs
 
@@ -160,13 +165,19 @@ They are NOT listed here. See section 12.
 | Env var | Field | Default | Range | Used in | Notes |
 | --- | --- | --- | --- | --- | --- |
 | `OAUTH_LOCK_TIMEOUT_SECONDS` | `oauth_lock_timeout_seconds` | 10 s | 1–120 | `infrastructure/locks/oauth_lock.py` | Distributed lock acquisition |
+| `BACKGROUND_RUNS_ACTIVE_TTL_SECONDS` | `background_runs_active_ttl_seconds` | 15 s | 5–120 | `infrastructure/streaming/run_stream_broker.py` | TTL of the per-conversation active-run lock (ADR-117 Lot 2); a killed producer frees the conversation in at most this many seconds |
+| `BACKGROUND_RUNS_HEARTBEAT_SECONDS` | `background_runs_heartbeat_seconds` | 5 s | 1–60 | `agents/api/background_runner.py` | Producer heartbeat refreshing the active-run lock; boot-time validator enforces `heartbeat <= active_ttl / 2` (a single missed beat must not expire a healthy run's lock) |
 
 ## 11. Lifecycle (startup / shutdown)
 
-> *No timeouts at this layer yet. Candidates flagged in audit V3 — Vague 6:*
-> *PostgreSQL `statement_timeout`, FastAPI lifespan startup wrap, MCP*
-> *`session.close()` shutdown wrap, sub-agent / browser / MCP ReAct loop*
-> *temporal guards.*
+| Env var | Field | Default | Range | Used in | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS` | `background_runs_drain_timeout_seconds` | 45 s | 5–300 | `main.py` lifespan / `agents/api/background_runner.py` | Max wait for in-flight chat producers on shutdown (ADR-117). Drain + generic-task timeouts must stay below the compose `stop_grace_period` (90 s) |
+| `SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS` | `shutdown_background_tasks_timeout_seconds` | 15 s | 1–120 | `main.py` lifespan / `infrastructure/async_utils.py` | Max wait for generic fire-and-forget tasks (memory/interest extraction, warmups) after chat producers are drained |
+
+> *Remaining candidates flagged in audit V3 — Vague 6: PostgreSQL*
+> *`statement_timeout`, FastAPI lifespan startup wrap, MCP `session.close()`*
+> *shutdown wrap, sub-agent / browser / MCP ReAct loop temporal guards.*
 
 ## Annex A — LLM-related (out-of-scope)
 

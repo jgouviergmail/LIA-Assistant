@@ -27,6 +27,7 @@ from src.core.constants import (
 from .advanced import AdvancedSettings
 from .agents import AgentsSettings
 from .attachments import AttachmentsSettings
+from .background_runs import BackgroundRunsSettings
 from .briefing import BriefingSettings
 from .browser import BrowserSettings
 from .channels import ChannelsSettings
@@ -104,6 +105,7 @@ class Settings(
     HealthMetricsSettings,
     SchedulerSettings,
     LocksSettings,
+    BackgroundRunsSettings,
     BaseSettings,
 ):
     """

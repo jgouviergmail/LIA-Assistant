@@ -9,7 +9,14 @@ All functions preserve immutability - input lists are never modified.
 
 import re
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    RemoveMessage,
+    SystemMessage,
+    ToolMessage,
+)
 
 from src.core.constants import (
     COMPACTION_SUMMARY_MARKER,
@@ -646,3 +653,79 @@ __all__ = [
     "remove_orphan_tool_messages",
     "split_messages_by_turn",
 ]
+
+
+def sanitize_stale_dangling_tool_calls(
+    messages: list[BaseMessage],
+) -> list[BaseMessage | RemoveMessage]:
+    """Repair AIMessages whose tool_calls were never answered (ADR-117 Lot 3).
+
+    A cancelled (or hard-killed) run can leave an ``AIMessage`` with
+    UNANSWERED ``tool_calls`` in the checkpoint (proven by the 2026-07
+    de-risking POC-3: cancellation between the model call and the tool
+    execution). On the next turn that dangling message poisons strict
+    providers: *"messages with 'tool_calls' must be followed by tool
+    messages responding to each 'tool_call_id'"*.
+
+    This is the symmetric counterpart of :func:`remove_orphan_tool_messages`
+    and returns REDUCER OPERATIONS (same-id replacements / RemoveMessage),
+    to be merged through the ``messages`` channel by the caller.
+
+    CRITICAL — call sites: ONLY at turn start (router_node), where every
+    prior message belongs to a finished or cancelled turn. NEVER inside the
+    messages reducer: mid-run, an AIMessage with not-yet-answered
+    tool_calls is a LEGITIMATE transient state between the model call and
+    the tool execution super-steps.
+
+    Args:
+        messages: Full message history at turn start (last entry is the new
+            HumanMessage; it is never affected).
+
+    Returns:
+        Reducer operations — empty when the history is healthy:
+        - ``RemoveMessage(id=...)`` for dangling AIMessages with no content;
+        - a replacement ``AIMessage`` (same id, answered tool_calls only)
+          when the message carries content or partially-answered calls.
+        Messages without an id are left untouched (id-based repair only).
+
+    Note:
+        Replacements DELIBERATELY omit ``additional_kwargs`` and response
+        metadata: providers' raw ``tool_calls`` often live in
+        ``additional_kwargs`` too, and carrying them over would re-poison
+        the serialized payload this repair exists to fix.
+    """
+    if not messages:
+        return []
+
+    answered_ids = {
+        msg.tool_call_id
+        for msg in messages
+        if isinstance(msg, ToolMessage) and getattr(msg, "tool_call_id", None)
+    }
+
+    operations: list[BaseMessage | RemoveMessage] = []
+    for msg in messages:
+        if not isinstance(msg, AIMessage) or not msg.tool_calls:
+            continue
+        if msg.id is None:
+            # Reducer repair is id-based; without an id we cannot replace or
+            # remove safely — never silently corrupt, let it surface.
+            logger.warning("dangling_tool_calls_message_without_id_skipped")
+            continue
+        answered_calls = [tc for tc in msg.tool_calls if tc.get("id") in answered_ids]
+        if len(answered_calls) == len(msg.tool_calls):
+            continue  # healthy: every call answered
+        has_content = bool(str(msg.content).strip()) if msg.content else False
+        if answered_calls or has_content:
+            # Keep the text and the answered calls; strip the dangling ones.
+            operations.append(AIMessage(content=msg.content, id=msg.id, tool_calls=answered_calls))
+        else:
+            operations.append(RemoveMessage(id=msg.id))
+        logger.warning(
+            "stale_dangling_tool_calls_sanitized",
+            message_id=msg.id,
+            dangling_count=len(msg.tool_calls) - len(answered_calls),
+            repaired_as="replacement" if (answered_calls or has_content) else "removal",
+        )
+
+    return operations

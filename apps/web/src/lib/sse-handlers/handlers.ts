@@ -364,9 +364,13 @@ function handleCompactionStep(chunk: ChatStreamChunk, context: SSEHandlerContext
     // sonner morphs the same toast into a success/warning rather than
     // stacking. Toasts live outside the chat scroll container, so they remain
     // visible no matter where the user is scrolled.
-    toast.loading(context.t('chat.compaction.in_progress'), {
-      id: COMPACTION_TOAST_ID,
-    });
+    // Replay (ADR-117 Lot 2): the compaction already happened — rebuild the
+    // reducer state silently, no toast.
+    if (!context.isReplay) {
+      toast.loading(context.t('chat.compaction.in_progress'), {
+        id: COMPACTION_TOAST_ID,
+      });
+    }
     context.dispatch({
       type: 'STREAM_COMPACTION_START',
       payload: {
@@ -381,16 +385,19 @@ function handleCompactionStep(chunk: ChatStreamChunk, context: SSEHandlerContext
     const strategy = metadata.strategy as string | undefined;
     // Truncation = the LLM summary failed and we fell back to dropping older
     // messages. Surface as a warning so the user knows the recap is degraded.
-    if (strategy === 'truncation') {
-      toast.warning(context.t('chat.compaction.truncated'), {
-        id: COMPACTION_TOAST_ID,
-        duration: 6000,
-      });
-    } else {
-      toast.success(context.t('chat.compaction.completed', { tokens: tokensSaved ?? 0 }), {
-        id: COMPACTION_TOAST_ID,
-        duration: 4000,
-      });
+    // Replay (ADR-117 Lot 2): no toast — state reconstruction only.
+    if (!context.isReplay) {
+      if (strategy === 'truncation') {
+        toast.warning(context.t('chat.compaction.truncated'), {
+          id: COMPACTION_TOAST_ID,
+          duration: 6000,
+        });
+      } else {
+        toast.success(context.t('chat.compaction.completed', { tokens: tokensSaved ?? 0 }), {
+          id: COMPACTION_TOAST_ID,
+          duration: 4000,
+        });
+      }
     }
     context.dispatch({
       type: 'STREAM_COMPACTION_DONE',
@@ -844,6 +851,13 @@ export function handleVoiceCommentStart(chunk: ChatStreamChunk, context: SSEHand
  */
 export function handleVoiceAudioChunk(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
   const { handleVoiceChunk, withContext } = context;
+
+  // Replay (ADR-117 Lot 2): stale audio must never play. The server already
+  // drops voice chunks from the replayed backlog — this is belt-and-braces.
+  if (context.isReplay) {
+    return;
+  }
+
   const audioChunk = chunk.content as unknown as VoiceAudioChunk;
 
   if (audioChunk?.audio_base64) {
@@ -923,8 +937,9 @@ export function handleError(chunk: ChatStreamChunk, context: SSEHandlerContext):
   const metadata = chunk.metadata as Record<string, unknown> | null;
   const errorCode = metadata?.error_code as string | undefined;
 
-  // Usage limit exceeded — show specific toast (from Layer 1/2 enforcement)
-  if (errorCode === 'usage_limit_exceeded') {
+  // Usage limit exceeded — show specific toast (from Layer 1/2 enforcement).
+  // Replay (ADR-117 Lot 2): the toast already fired when it happened live.
+  if (errorCode === 'usage_limit_exceeded' && !context.isReplay) {
     toast.error(chunk.content || 'Usage limit exceeded');
   }
 

@@ -327,10 +327,16 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                   browserScreenshot: metadata.browser_screenshot as
                     | { url: string; alt: string }
                     | undefined,
-                  // Store psyche state snapshot for avatar display
+                  // Store psyche state snapshot for avatar display.
+                  // ADR-117 Lot 3: a cancelled run's synthesized done flags
+                  // the partial bubble with the SAME `interrupted` field as
+                  // archived history rows — one badge for live and reload.
                   metadata: {
                     ...m.metadata,
                     psyche_state: metadata.psyche_state,
+                    ...(metadata.cancelled
+                      ? { interrupted: true, interrupt_reason: 'cancelled' }
+                      : {}),
                   },
                 }
               : m
@@ -377,10 +383,16 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                       browserScreenshot: metadata.browser_screenshot as
                         | { url: string; alt: string }
                         | undefined,
-                      // Store psyche state snapshot for avatar display
+                      // Store psyche state snapshot for avatar display.
+                      // ADR-117 Lot 3: same interrupted-flag merge as the
+                      // matched-id branch — a cancelled done landing through
+                      // this fallback must badge the bubble identically.
                       metadata: {
                         ...m.metadata,
                         psyche_state: metadata.psyche_state,
+                        ...(metadata.cancelled
+                          ? { interrupted: true, interrupt_reason: 'cancelled' }
+                          : {}),
                       },
                     }
                   : m

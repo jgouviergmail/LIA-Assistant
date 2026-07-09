@@ -189,6 +189,42 @@ describe('chatReducer — STREAM_DONE', () => {
       browserScreenshot: { url: 'https://shot/1.jpg', alt: 'shot' },
     });
     expect(next.messages[0].metadata?.psyche_state).toEqual(fullMetadata.psyche_state);
+    // A NORMAL done never marks the bubble as interrupted (ADR-117 Lot 3)
+    expect(next.messages[0].metadata?.interrupted).toBeUndefined();
+  });
+
+  it('flags the partial bubble as interrupted on a cancelled done (ADR-117 Lot 3)', () => {
+    const state = streamingState('a-1', 'partial', [makeMessage('a-1', 'assistant', 'partial')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: { cancelled: true } },
+    });
+
+    // Same flag as archived history rows — one badge for live and reload
+    expect(next.messages[0].metadata).toMatchObject({
+      interrupted: true,
+      interrupt_reason: 'cancelled',
+    });
+    // The partial content is KEPT (product decision: never silently dropped)
+    expect(next.messages[0].content).toBe('partial');
+  });
+
+  it('flags interrupted through the last-assistant fallback too (ADR-117 Lot 3)', () => {
+    // done targets an unknown id -> fallback attaches to the last assistant
+    const state = streamingState('gone-id', 'partial', [
+      makeMessage('a-9', 'assistant', 'partial'),
+    ]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'gone-id', metadata: { cancelled: true } },
+    });
+
+    expect(next.messages[0].metadata).toMatchObject({
+      interrupted: true,
+      interrupt_reason: 'cancelled',
+    });
   });
 
   it('leaves non-matching messages untouched when metadata targets one message', () => {

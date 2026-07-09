@@ -112,6 +112,9 @@ export interface ChatStreamChunk {
 export interface DoneMetadata {
   duration_ms?: number;
   total_tokens?: number;
+  // ADR-117 Lot 3: synthesized done of a user-cancelled run — the partial
+  // bubble is kept and badged "interrupted" (same flag as archived rows).
+  cancelled?: boolean;
   // Token tracking metadata
   tokens_in?: number;
   tokens_out?: number;

@@ -613,6 +613,15 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
           </div>
           <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-right">
             {formatTime(message.timestamp)}
+            {/* ADR-117 Lot 3: partial answer of a cancelled/interrupted run.
+                Same metadata flag for live bubbles (synthesized done) and
+                archived history rows. */}
+            {Boolean(message.metadata?.interrupted) && (
+              <span className="text-amber-500" title={t('chat.message.interrupted_tooltip')}>
+                {' '}
+                ⏸ {t('chat.message.interrupted')}
+              </span>
+            )}
             {tokensIn !== undefined && showTokens && (
               <span className="hidden mobile:inline">
                 {' | '}

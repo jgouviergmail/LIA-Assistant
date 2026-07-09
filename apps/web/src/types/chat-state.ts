@@ -169,6 +169,10 @@ export type ChatAction =
       payload: {
         messageId: string;
         metadata?: {
+          // ADR-117 Lot 3: synthesized done of a user-cancelled run — the
+          // partial bubble is kept and badged "interrupted" (same flag as
+          // archived history rows). Mirror of DoneMetadata.cancelled.
+          cancelled?: boolean;
           tokens_in?: number;
           tokens_out?: number;
           tokens_cache?: number;

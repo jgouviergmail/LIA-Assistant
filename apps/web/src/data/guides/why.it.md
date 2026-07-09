@@ -4,7 +4,7 @@
 
 **Versione** : 3.6
 **Data** : 2026-07-09
-**Applicazione** : LIA v1.21.26
+**Applicazione** : LIA v1.22.0
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -327,6 +327,10 @@ Il sistema di risposta dispone di un meccanismo anti-allucinazione a tre livelli
 ### 8.4. Human-in-the-Loop a 6 livelli
 
 LIA non rifiuta le azioni sensibili — te le **sottopone** con il livello di dettaglio appropriato: approvazione del piano, chiarimento, critica della bozza, conferma distruttiva, conferma di operazioni in massa, revisione delle modifiche. Ogni approvazione alimenta l'apprendimento — il sistema si velocizza nel tempo. E la promessa è mantenuta alla lettera: ciò che approvi — dopo una, due o dieci modifiche — è **esattamente** ciò che viene eseguito, mai una versione rigenerata dietro le quinte.
+
+### 8.5. Le tue risposte non hanno bisogno di te
+
+Invia una domanda, chiudi la scheda, vai via. La generazione continua sul server, e la risposta ti aspetta nella conversazione — oppure riprende in diretta, esattamente dove era rimasta, se torni mentre è ancora in scrittura. Niente da fare, niente da configurare: la continuità è il comportamento predefinito. E quando sei tu a cambiare idea, un pulsante di stop interrompe la generazione in un secondo — ciò che è già scritto resta visibile, onestamente contrassegnato come interrotto. Un assistente affidabile non è solo quello che risponde bene: è quello che finisce ciò che inizia.
 
 ---
 

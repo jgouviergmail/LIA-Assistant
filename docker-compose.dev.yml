@@ -122,6 +122,9 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile.dev
     container_name: lia-api-dev
+    # ADR-117: parity with prod — lifespan shutdown drains in-flight chat
+    # runs + background tasks before exit (see docker-compose.prod.yml).
+    stop_grace_period: 90s
     security_opt:
       - no-new-privileges:true
     env_file:

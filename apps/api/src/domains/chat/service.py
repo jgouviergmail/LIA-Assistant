@@ -2,6 +2,7 @@
 Service layer for chat domain - token tracking and statistics.
 """
 
+import asyncio
 from contextlib import suppress
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -278,16 +279,27 @@ class TrackingContext:
             )
             return
 
-        # Only persist if auto_commit is enabled, no exception, and we have pending data
-        if self.auto_commit and exc_type is None:
+        # Persist whenever auto_commit is enabled — INCLUDING on exception or
+        # cancellation (ADR-117): pending records correspond to LLM calls that
+        # actually happened and were billed by the provider. The UPSERT commit
+        # is incremental and idempotent (records are cleared after persist),
+        # so this cannot double-count.
+        if self.auto_commit:
             try:
-                await self._persist_to_database()
+                if exc_type is not None and issubclass(exc_type, asyncio.CancelledError):
+                    # __aexit__ may run while the task is being cancelled
+                    # (detached producer drain / hard kill): shield the write
+                    # so a second cancellation cannot abort it mid-flight.
+                    await asyncio.shield(self._persist_to_database())
+                else:
+                    await self._persist_to_database()
                 logger.info(
                     "tracking_context_persisted",
                     run_id=self.run_id,
                     node_records_count=pending_records,
                     total_committed=self._total_committed_records,
                     message_count=self._message_count,
+                    exit_exception=exc_type.__name__ if exc_type else None,
                 )
             except Exception as e:
                 logger.error(

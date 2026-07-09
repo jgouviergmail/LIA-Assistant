@@ -433,6 +433,7 @@
       "placeholder_unavailable": "Servicio temporalmente no disponible...",
       "placeholder_disabled": "Esperando respuesta...",
       "send": "Enviar",
+      "stop": "Detener",
       "sending": "Enviando...",
       "status": {
         "unavailable": "Servicio no disponible",
@@ -455,6 +456,9 @@
       "error_not_supported": "La entrada de voz no es compatible con este navegador.",
       "error_connection": "No se pudo conectar al servicio de voz. Por favor, inténtelo de nuevo.",
       "error_generic": "Se produjo un error durante la entrada de voz. Por favor, inténtelo de nuevo."
+    },
+    "resume": {
+      "in_progress": "Reconectando a la respuesta en curso…"
     },
     "compaction": {
       "in_progress": "Resumiendo la conversación para liberar contexto...",
@@ -535,6 +539,8 @@
       "copied": "Copiado al portapapeles",
       "stt_unit_seconds": "s",
       "tts_unit_chars": "car.",
+      "interrupted": "interrumpida",
+      "interrupted_tooltip": "Esta respuesta se detuvo antes de completarse — el contenido parcial se conserva.",
       "stt_tooltip_provider": "Reconocimiento de voz vía {{provider}}",
       "stt_tooltip_fallback": "Coste de la transcripción",
       "tts_tooltip_provider": "Síntesis de voz vía {{provider}}{{model}}",
@@ -2470,7 +2476,9 @@
       "service_unavailable": "El servicio no está disponible temporalmente. Por favor, inténtelo en unos momentos.",
       "session_expired": "Su sesión ha expirado. Por favor, vuelva a conectarse.",
       "unknown_error": "Error desconocido durante el streaming",
-      "usage_limit_exceeded": "Has alcanzado tu limite de uso. Contacta a tu administrador."
+      "usage_limit_exceeded": "Has alcanzado tu limite de uso. Contacta a tu administrador.",
+      "run_in_progress": "Ya se está generando una respuesta — reconectando al flujo.",
+      "run_gone": "Esta respuesta terminó en segundo plano. El historial se ha actualizado."
     },
     "settings": {
       "title": "Se produjo un error",
@@ -2715,7 +2723,7 @@
     },
     "intro": {
       "title": "Cómo funciona LIA",
-      "description": "LIA es un asistente de IA de nueva generación que combina tecnologías avanzadas para ofrecerle una experiencia inteligente, segura y personalizada.",
+      "description": "LIA es un asistente de IA de nueva generación que combina tecnologías avanzadas para ofrecerle una experiencia inteligente, segura y personalizada. Las respuestas se generan en el servidor independientemente de tu conexión: puedes salir de la página en plena respuesta y encontrarla — o retomarla en directo — a tu regreso.",
       "features": {
         "architecture": {
           "title": "🏗️ Arquitectura LangGraph Multi-Agentes",
@@ -2928,6 +2936,17 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_22_0": {
+          "title": "v1.22.0 — 🔄 Respuestas que continúan sin ti",
+          "date": "Julio 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔄 Tus respuestas continúan en segundo plano</b> — Salir de la página, cambiar de aplicación o perder la conexión ya no interrumpe una respuesta en curso: LIA la termina en el servidor y te espera en el historial a tu regreso — con su contabilidad de costes completa.",
+            "i2": "<b>📡 Reanudación en directo al volver</b> — Vuelve mientras LIA sigue escribiendo: la burbuja en curso se reconstruye y retoma el streaming en directo, automáticamente. Funciona también con varias pestañas — y solo una respuesta a la vez por conversación.",
+            "i3": "<b>⏹️ Un botón de detener, por fin</b> — Detén una respuesta en curso con un clic. El texto parcial se conserva y se marca como «interrumpida»; las acciones ya realizadas (un email enviado…) no se deshacen, y lo consumido se factura honestamente.",
+            "i4": "<b>🔊 Voz solo cuando alguien escucha</b> — Cuando una respuesta termina en segundo plano sin nadie conectado, LIA ya no sintetiza su audio: menos costes, la misma experiencia cuando estás."
+          }
+        },
         "v1_21_26": {
           "title": "v1.21.26 — 🛡️ Un núcleo de chat y voz más robusto",
           "date": "Julio de 2026",
@@ -3876,7 +3895,7 @@
       "chat": {
         "title": "Conversaciones",
         "description": "Uso del chat y conversaciones",
-        "count": "13",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "¿Puedo tener varias conversaciones al mismo tiempo?",
@@ -3929,6 +3948,10 @@
           "q13": {
             "question": "¿Cómo accedo a mensajes antiguos en una conversación muy larga?",
             "answer": "Desde la v1.20.14, puedes <strong>desplazarte hacia arriba en el chat</strong> para llegar al inicio de cualquier conversación, incluso una que haya crecido a miles de mensajes:<br><br><strong>📜 Cómo funciona</strong><br>• Al abrir una conversación, los <strong>50 mensajes más recientes</strong> se cargan al instante<br>• <strong>Desplázate hacia arriba</strong> en el chat — en cuanto llegas al tope, los 50 mensajes anteriores se cargan automáticamente<br>• Un pequeño indicador «<em>Cargando mensajes anteriores…</em>» aparece brevemente arriba durante cada carga<br>• Repite tantas veces como sea necesario — puedes retroceder hasta el primer mensaje<br><br><strong>✨ Lo que sigue siendo fluido</strong><br>• Tu posición de lectura se conserva — la vista permanece exactamente donde estabas, el nuevo contenido se desliza arriba sin saltos<br>• Los duplicados se filtran, por lo que ningún mensaje aparece dos veces<br><br><strong>📌 Bueno saber</strong><br>• Los mensajes siempre se <strong>conservan en la base de datos</strong> — nada se pierde, ni siquiera tras una compactación (que sólo resume los mensajes antiguos para la memoria de trabajo de la IA, no el historial mostrado)<br>• La búsqueda integrada sigue filtrando lo ya cargado, por lo que cargar más mensajes amplía también el alcance de la búsqueda<br>• Volver a la conversación más tarde, cambiar de pestaña o ejecutar una acción programada recarga la página más reciente — empiezas limpio abajo"
+          },
+          "q14": {
+            "question": "¿Qué pasa si salgo de la página mientras LIA responde?",
+            "answer": "No se pierde nada. La generación continúa <strong>en segundo plano</strong> en el servidor: tu mensaje y la respuesta completa se guardan aunque cierres la pestaña, cambies de aplicación o pierdas la conexión.<br><br>Si vuelves al chat mientras la respuesta aún se está escribiendo, <strong>se reanuda en directo automáticamente</strong> — la burbuja en curso se reconstruye y sigue el streaming (también funciona con varias pestañas abiertas).<br><br>También puedes <strong>detener una respuesta en curso</strong>: mientras LIA escribe, el botón de enviar se convierte en un botón <strong>Detener</strong>. El texto parcial se conserva y se marca como «interrumpida» ⏸ — ten en cuenta que las acciones ya realizadas (un email enviado, un evento creado…) no se deshacen.<br><br>Solo una respuesta a la vez por conversación: si intentas enviar otro mensaje durante una generación, LIA te reconecta a la respuesta en curso."
           }
         }
       },
@@ -5621,7 +5644,7 @@
       },
       "control": {
         "title": "Tú mantienes el control",
-        "description": "Antes de cualquier acción sensible (enviar email, modificar calendario...), LIA te muestra su plan y espera tu aprobación. Nada se ejecuta sin tu consentimiento."
+        "description": "Antes de cualquier acción sensible (enviar email, modificar calendario...), LIA te muestra su plan y espera tu aprobación. Nada se ejecuta sin tu consentimiento. Y mientras LIA escribe, un botón de detener te permite interrumpir la respuesta en cualquier momento — el texto parcial se conserva."
       },
       "privacy": {
         "title": "Datos protegidos",
@@ -5774,7 +5797,7 @@
       },
       "realtime": {
         "title": "Streaming en tiempo real",
-        "description": "Vea cada paso de ejecución en tiempo real — enrutamiento, planificación, validación, llamadas de herramientas — y luego la respuesta en streaming token a token. Sin caja negra, sin esperas."
+        "description": "Vea cada paso de ejecución en tiempo real — enrutamiento, planificación, validación, llamadas de herramientas — y luego la respuesta en streaming token a token. Sin caja negra, sin esperas. La generación está desacoplada de la conexión: las respuestas siguen ejecutándose en el servidor pese a las desconexiones, se reproducen al reconectar y se detienen bajo demanda."
       },
       "stack": {
         "title": "Stack moderno",
