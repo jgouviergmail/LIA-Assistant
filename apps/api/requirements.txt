@@ -1,14 +1,14 @@
 # Core Framework
-fastapi==0.136.3
-uvicorn[standard]==0.48.0
+fastapi==0.139.0
+uvicorn[standard]==0.51.0
 
 # Database
-sqlalchemy[asyncio]==2.0.50
+sqlalchemy[asyncio]==2.0.51
 asyncpg==0.31.0
 psycopg[binary]==3.3.4  # PostgreSQL adapter v3 (modern, for LangGraph checkpointer & SQLAlchemy)
 psycopg-pool==3.3.1  # Async connection pool for LangGraph checkpointer & store (ADR-111; pinned: direct import)
-alembic==1.18.4
-pgvector==0.4.2
+alembic==1.18.5
+pgvector==0.5.0
 
 # Cache & Session
 redis==7.4.0
@@ -26,21 +26,21 @@ tzdata==2026.2  # IANA timezone database for Windows/Python 3.9+
 # Authentication & Security
 python-jose[cryptography]==3.5.0  # CVE-2024-33663 fix (algorithm confusion)
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.31  # CVE-2024-53981, CVE-2026-24486, CVE-2026-53540 fixes (DoS)
+python-multipart==0.0.32  # CVE-2024-53981, CVE-2026-24486, CVE-2026-53540 fixes (DoS)
 cryptography==48.0.1  # CVE-2024-12797, CVE-2026-26007, GHSA-537c-gmf6-5ccf fixes
 
 # Observability
 structlog==25.5.0
 geoip2==5.2.0  # IP geolocation (DB-IP Lite MMDB — free, CC-BY-4.0)
-opentelemetry-api==1.42.1
-opentelemetry-sdk==1.42.1
-opentelemetry-instrumentation-fastapi==0.63b1
-opentelemetry-exporter-otlp==1.42.1
+opentelemetry-api==1.43.0
+opentelemetry-sdk==1.43.0
+opentelemetry-instrumentation-fastapi==0.64b0
+opentelemetry-exporter-otlp==1.43.0
 prometheus-client==0.25.0
-langfuse==4.7.1  # Phase 6 - LLM Observability
+langfuse==4.13.2  # Phase 6 - LLM Observability
 
 # Rate Limiting
-slowapi==0.1.9
+slowapi==0.1.10
 
 # HTTP Client
 httpx==0.28.1
@@ -48,7 +48,7 @@ httpx==0.28.1
 # Web Page Content Extraction (evolution F1 — Web Fetch Tool)
 readability-lxml==0.8.4.1    # Mozilla Readability algorithm (article extraction)
 lxml_html_clean==0.4.5     # Required by readability-lxml (split from lxml 5.2+)
-markdownify==1.2.2        # HTML → Markdown conversion
+markdownify==1.2.3        # HTML → Markdown conversion
 
 # Text-to-Speech (Edge TTS - Microsoft neural voices, free)
 edge-tts==7.2.8
@@ -56,23 +56,23 @@ edge-tts==7.2.8
 # Speech-to-Text (Sherpa-onnx - Offline, multi-language STT)
 # Uses SenseVoiceSmall model: FR/EN/DE/ES/IT/ZH/JA/KO in a single model
 # Precompiled wheels available for AMD64 (dev) and ARM64 (Raspberry Pi prod)
-sherpa-onnx>=1.10.0
+sherpa-onnx>=1.13.4
 # Declared explicitly because sherpa-onnx wheel metadata is inconsistent across
 # platforms (armv7l wheel declares no deps), so uv's universal resolver misses
 # it. The runtime wheels require sherpa-onnx-core==<sherpa-onnx version>:
 # ALWAYS upgrade both together (task deps:upgrade -- sherpa-onnx sherpa-onnx-core)
-sherpa-onnx-core>=1.10.0
+sherpa-onnx-core>=1.13.4
 
 # Task Scheduling
-apscheduler==3.11.2
+apscheduler==3.11.3
 
 # AI/ML Stack - LangChain/LangGraph 1.0.x ecosystem
-langchain-core==1.4.6  # 1.4.0->1.4.6: minimum required by langchain 1.3.9 (GHSA fix)
-langchain==1.3.9  # 1.3.2->1.3.9: GHSA-gr75-jv2w-4656 fix. 2026-03-09 ecosystem upgrade (merge_lists fix, SummarizationMiddleware, ContextOverflowError)
+langchain-core==1.4.9  # 1.4.0->1.4.6: minimum required by langchain 1.3.9 (GHSA fix)
+langchain==1.3.12  # 1.3.2->1.3.9: GHSA-gr75-jv2w-4656 fix. 2026-03-09 ecosystem upgrade (merge_lists fix, SummarizationMiddleware, ContextOverflowError)
 langchain-text-splitters==1.1.2  # RecursiveCharacterTextSplitter for RAG Spaces document chunking
-langchain-openai==1.2.2
-openai==2.40.0  # Requis par langchain-openai 1.1.10 (pin 2.14.0 levé — gardes adapter L229-239 protègent input_items)
-langgraph==1.2.4  # 1.2.2->1.2.4: minimum required by langchain 1.3.9 (GHSA fix)
+langchain-openai==1.3.4
+openai==2.44.0  # Requis par langchain-openai 1.1.10 (pin 2.14.0 levé — gardes adapter L229-239 protègent input_items)
+langgraph==1.2.8  # 1.2.2->1.2.4: minimum required by langchain 1.3.9 (GHSA fix)
 langgraph-checkpoint==4.1.1  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
 langgraph-prebuilt==1.1.0  # Pinné explicitement (requis par langgraph 1.0.10)
 langgraph-checkpoint-postgres==3.1.0
@@ -88,38 +88,38 @@ networkx==3.6.1  # Dependency graph for semantic type expansion
 tenacity==9.1.4  # Retry with exponential backoff (used by compaction service)
 
 # LLM Provider Integrations
-langchain-deepseek==1.0.1  # DeepSeek V3 (chat/reasoner) + V4 (flash/pro). Patched locally via _deepseek_patched.py for V4 reasoning_content round-trip in tool flows; track issue #37178 for upstream fix.
-langchain-anthropic==1.4.6  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix). 1.4.6: GHSA-gr75-jv2w-4656 fix
-langchain-google-genai==4.2.4  # Gemini models
-anthropic==0.105.2  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
+langchain-deepseek==1.1.0  # DeepSeek V3 (chat/reasoner) + V4 (flash/pro). Patched locally via _deepseek_patched.py for V4 reasoning_content round-trip in tool flows; track issue #37178 for upstream fix.
+langchain-anthropic==1.4.8  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix). 1.4.6: GHSA-gr75-jv2w-4656 fix
+langchain-google-genai==4.2.7  # Gemini models
+anthropic==0.116.0  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
 
 # MCP (Model Context Protocol) — evolution F2
-mcp>=1.20.0,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps support). Requires starlette>=0.27
+mcp>=1.28.1,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps support). Requires starlette>=0.27
 
 # Browser Automation — Interactive web browsing (evolution F7)
-playwright==1.60.0  # Headless Chromium for web interaction via accessibility tree
+playwright==1.61.0  # Headless Chromium for web interaction via accessibility tree
 
 # Push Notifications
-firebase-admin==7.4.0  # Firebase Cloud Messaging for push notifications
+firebase-admin==7.5.0  # Firebase Cloud Messaging for push notifications
 pytz==2026.2  # Timezone handling for reminders
 
 # Channels — Multi-Channel Messaging (evolution F3)
-python-telegram-bot>=21.0  # Telegram Bot API (async, v21+)
+python-telegram-bot>=22.8  # Telegram Bot API (async, v21+)
 pydub>=0.25.1  # Audio format conversion for voice messages (OGG→PCM, requires ffmpeg)
 
 # Apple iCloud Connectors — Email (IMAP), Calendar (CalDAV), Contacts (CardDAV)
-caldav[async]>=3.0.1  # CalDAV client with async support (caldav.aio)
-imap-tools>=1.7.0  # IMAP email client (synchronous, wrapped via asyncio.to_thread)
+caldav[async]>=3.2.1  # CalDAV client with async support (caldav.aio)
+imap-tools>=1.13.0  # IMAP email client (synchronous, wrapped via asyncio.to_thread)
 vobject>=0.9.8  # vCard/vCalendar parser (iCloud uses vCard 3.0)
 
 # Attachments — File Uploads & Vision Analysis (evolution F4)
 Pillow>=11.0.0  # Image validation, HEIC→JPEG conversion
 filetype>=1.2.0  # MIME detection by magic bytes (pure Python, ARM64 native)
-PyMuPDF>=1.25.0  # PDF text extraction (lightweight, ARM64 compatible)
+PyMuPDF>=1.28.0  # PDF text extraction (lightweight, ARM64 compatible)
 python-docx>=1.1.0  # DOCX text extraction for RAG Spaces
 python-pptx>=1.0.2  # PPTX text extraction for RAG Spaces. >=1.0.2: security floor
 openpyxl>=3.1.0  # XLSX text extraction for RAG Spaces
-striprtf>=0.0.26  # RTF text extraction for RAG Spaces (pure Python)
+striprtf>=0.0.32  # RTF text extraction for RAG Spaces (pure Python)
 
 # Skills — used by bundled system skills (scripts/)
 segno>=1.6.6  # Pure-Python QR code generator (no C deps, tiny) — qr-code skill. >=1.6.6: security floor
@@ -128,4 +128,4 @@ ebooklib>=0.18  # EPUB text extraction for RAG Spaces
 defusedxml>=0.7.1  # Secure XML parsing (prevents XXE, XML bombs) for RAG Spaces
 
 # DevOps — Claude CLI Remote Server Management
-asyncssh>=2.23.0  # Async SSH client for remote Claude CLI execution. >=2.23.0: GHSA-g794-3fmp-753h fix (AuthorizedKeysFile %u path traversal)
+asyncssh>=2.24.0  # Async SSH client for remote Claude CLI execution. >=2.23.0: GHSA-g794-3fmp-753h fix (AuthorizedKeysFile %u path traversal)
