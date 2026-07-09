@@ -11,7 +11,7 @@ alembic==1.18.4
 pgvector==0.4.2
 
 # Cache & Session
-redis==7.4.0
+redis==8.0.1
 
 # Configuration
 python-dotenv==1.2.2
