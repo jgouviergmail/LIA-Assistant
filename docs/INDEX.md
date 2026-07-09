@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (105) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (108) |
 
 ### Pour les Product Managers
 
@@ -277,12 +277,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-114 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-115 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-115 | Liveness/Readiness Probe Split — /health toujours 200 (liveness Docker), nouveau /ready 503 si PostgreSQL ou Redis down | 2026-07 |
 | ADR-114 | Connector Client Domain Error Contract — 28 HTTPException bruts → taxonomie BaseAPIException, contrat API préservé par construction | 2026-07 |
 | ADR-113 | Backend Test Suite Rehabilitation — job CI integration, fin des quarantaines `--ignore`, ratchet couverture 45 % | 2026-07 |
 | ADR-112 | Python Dependency Locking — lockfiles universels uv, installés par pip partout, garde CI | 2026-07 |

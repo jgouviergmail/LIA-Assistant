@@ -17,6 +17,7 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from src.api.health import health_router
 from src.api.v1.routes import api_router
 from src.core.bootstrap import (
     log_event_loop_configuration,
@@ -1304,6 +1305,9 @@ async def _validation_exception_handler(
 # Include API routes
 app.include_router(api_router, prefix=settings.api_prefix)
 
+# Infrastructure probes: liveness (/health) + readiness (/ready) — src/api/health.py
+app.include_router(health_router)
+
 # Metrics endpoint
 app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], include_in_schema=False)
 
@@ -1319,53 +1323,6 @@ async def root() -> dict[str, str | None]:
         "environment": settings.environment,
         "docs": "/docs" if not settings.is_production else None,
     }
-
-
-# Health check endpoint
-@app.get("/health", include_in_schema=False)
-async def health_check() -> JSONResponse:
-    """
-    Health check endpoint for monitoring and load balancers.
-    Verifies database and Redis connectivity.
-    """
-    health_status: dict[str, str | dict[str, str]] = {
-        FIELD_STATUS: "healthy",
-        "environment": settings.environment,
-        "checks": {},
-    }
-
-    # Probe failures must degrade the payload, never crash to a 500: raw driver
-    # exceptions bypass typed wraps (asyncpg auth errors are re-raised unwrapped
-    # by SQLAlchemy's greenlet bridge; redis-py ConnectionError is NOT the
-    # builtin ConnectionError), so only a broad except is actually exhaustive.
-
-    # Check Redis
-    try:
-        redis = await get_redis_cache()
-        await redis.ping()
-        health_status["checks"]["redis"] = "healthy"  # type: ignore[index]
-    except Exception as exc:
-        logger.error("health_check_redis_failed", error=str(exc))
-        health_status["checks"]["redis"] = "unhealthy"  # type: ignore[index]
-        health_status[FIELD_STATUS] = "degraded"
-
-    # Check database
-    try:
-        from sqlalchemy import text
-
-        from src.infrastructure.database.session import engine
-
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-        health_status["checks"]["database"] = "healthy"  # type: ignore[index]
-    except Exception as exc:
-        logger.error("health_check_database_failed", error=str(exc))
-        health_status["checks"]["database"] = "unhealthy"  # type: ignore[index]
-        health_status[FIELD_STATUS] = "degraded"
-
-    status_code = 200 if health_status[FIELD_STATUS] != "unhealthy" else 503
-
-    return JSONResponse(content=health_status, status_code=status_code)
 
 
 if __name__ == "__main__":

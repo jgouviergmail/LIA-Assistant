@@ -162,7 +162,6 @@ loki_data/
 
 # Claude Code
 .claude/
-CLAUDE.md
 
 # Vim / Emacs
 *.swp

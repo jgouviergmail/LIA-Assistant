@@ -1339,43 +1339,25 @@ aws secretsmanager create-secret \
 
 ### Health Checks
 
-**Endpoint /health** :
+The API exposes three endpoints (implementation: `apps/api/src/api/health.py`, contract: ADR-115):
 
-```python
-# apps/api/src/api/health.py
-from fastapi import APIRouter, status
-from sqlalchemy import text
+| Endpoint | Role | Behavior |
+|---|---|---|
+| `GET /health` | **Liveness** | Always `200` while the process serves requests — even when PostgreSQL/Redis are down (payload: `status: healthy\|degraded` + per-dependency `checks`). Consumed by the Docker healthchecks. |
+| `GET /ready` | **Readiness** | `200` + `status: ready` only when PostgreSQL **and** Redis answer their probe; `503` + `status: not_ready` otherwise. Poll it for deploy verification and user-impact monitoring. |
+| `GET /api/v1/health` | Static process check | `200` with service name + version (OpenAPI-documented). No dependency probing. |
 
-router = APIRouter()
+Docker healthchecks stay on `/health` on purpose: restarting the API cannot fix
+a dependency outage, so a dependency failure must never send the container into
+a restart loop. Anything that asks "can the service actually serve users?" —
+post-deploy smoke tests, uptime monitoring — polls `/ready` instead.
 
-@router.get("/health", status_code=status.HTTP_200_OK)
-async def health_check(db: AsyncSession = Depends(get_db)):
-    """
-    Health check endpoint.
+```bash
+curl -s http://localhost:8000/health
+# {"status":"degraded","environment":"production","checks":{"redis":"unhealthy","database":"healthy"}}
 
-    Verifies:
-    - API is responsive
-    - Database connection OK
-    - Redis connection OK
-    """
-    try:
-        # Check database
-        await db.execute(text("SELECT 1"))
-
-        # Check Redis
-        await redis_client.ping()
-
-        return {
-            "status": "healthy",
-            "timestamp": datetime.now(UTC).isoformat(),
-            "version": "1.0.0",
-        }
-    except Exception as e:
-        logger.error("health_check_failed", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service unhealthy"
-        )
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/ready
+# 200 (all dependencies up) / 503 (PostgreSQL or Redis down)
 ```
 
 ### Metrics Post-Déploiement
@@ -1413,9 +1395,10 @@ API_URL="https://api.yourdomain.com"
 
 echo "🔍 Running smoke tests..."
 
-# 1. Health check
-echo "Testing /health endpoint..."
-curl -f "$API_URL/health" || exit 1
+# 1. Readiness check (200 only when PostgreSQL AND Redis answer — /health
+#    would pass even with a dependency down, it is a liveness probe)
+echo "Testing /ready endpoint..."
+curl -f "$API_URL/ready" || exit 1
 
 # 2. Authentication
 echo "Testing authentication..."
@@ -1547,8 +1530,8 @@ alembic upgrade head  # Apply
 **Causes** :
 
 1. **Container not ready** : increase start_period
-2. **Wrong health endpoint** : verify /health returns 200
-3. **Database connection fail** : check DATABASE_URL
+2. **Wrong health endpoint** : verify /health returns 200 (liveness — always 200 while the process is up; use /ready to test dependencies)
+3. **Database connection fail** : check DATABASE_URL (visible in the /health payload `checks.database`, and /ready returns 503)
 
 **Fix** :
 

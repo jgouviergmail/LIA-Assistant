@@ -2810,7 +2810,7 @@
         },
         "observability": {
           "title": "📊 Production-Ready Observability",
-          "description": "Vollständiger Stack: Prometheus-Metriken (Tokens, Latenz, Fehler, Kosten), 22 Grafana-Dashboards, verteiltes Tracing mit Tempo, zentralisierte Logs mit Loki und Langfuse-Integration für LLM-Leistungsanalyse. Konfigurierbare Alerts mit umgebungsspezifischen Schwellenwerten."
+          "description": "Vollständiger Stack: Prometheus-Metriken (Tokens, Latenz, Fehler, Kosten), 22 Grafana-Dashboards, verteiltes Tracing mit Tempo, zentralisierte Logs mit Loki und Langfuse-Integration für LLM-Leistungsanalyse. Konfigurierbare Alerts mit umgebungsspezifischen Schwellenwerten. Dedizierte Liveness- (/health) und Readiness-Sonden (/ready) trennen „der Prozess läuft“ von „PostgreSQL und Redis können tatsächlich bedienen“."
         },
         "tools": {
           "title": "🔧 75+ Typisierte Werkzeuge",
@@ -2927,6 +2927,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_25": {
+          "title": "v1.21.25 — 🩺 Statusprüfungen, die die Wahrheit sagen",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🩺 Ein echtes Verfügbarkeitssignal</b> — LIA stellt jetzt zwei Sonden statt eines mehrdeutigen Endpunkts bereit: /health meldet, dass die Anwendung läuft, während das neue /ready bestätigt, dass alles, was für den Betrieb nötig ist — Datenbank und Cache — tatsächlich verfügbar ist. Monitoring und Deployments können endlich einen kurzen Aussetzer von einem echten Ausfall unterscheiden.",
+            "i2": "<b>🚦 Ehrliche Diagnosen für Self-Hoster</b> — Die Statusprüfung per Einzelbefehl liefert wieder korrekte Ergebnisse für alle Dienste (sie schlug seit der Umstellung der Entwicklungsumgebung auf HTTPS stillschweigend fehl), und das dokumentierte Startverhalten entspricht jetzt dem tatsächlichen Ablauf beim Hochfahren.",
+            "i3": "<b>🧱 Frische Fundamente</b> — Der Redis-Client, die Test-Engine des Frontends und rund vierzig Interface-Bibliotheken wurden aktualisiert — bei durchgehend grüner Testsuite."
+          }
+        },
         "v1_21_24": {
           "title": "v1.21.24 — 🛡️ Härtere Sicherheit & präzisere Antworten",
           "date": "Juli 2026",

@@ -40,7 +40,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.21.24</strong> — <strong>Security &amp; code-scanning remediation.</strong> A full triage of the GitHub security surface (76 code-scanning alerts, 24 Dependabot alerts, 15 dependency PRs) traced every finding to root cause. <strong>Fixed (CI):</strong> the Security workflow was silently broken — a missing <code>actions: read</code> permission failed every CodeQL/Trivy upload, freezing the main-branch alert baseline for two months; it now also runs on every push to <code>main</code>. Dependabot's npm ecosystem moves to the workspace root: scoped to <code>apps/web</code> it produced PRs that could never pass <code>--frozen-lockfile</code>. <strong>Security:</strong> consolidated bumps — asyncssh 2.23.0, langchain-anthropic 1.4.6, authlib 1.6.12, nltk 3.10.0, pygments 2.20.0 — plus manifest security floors (pyyaml, segno, python-pptx); locks regenerated hash-verified with a surgical diff. The 3 ecdsa alerts (Minerva timing attack, no upstream fix) are dismissed with rationale: HS256-only JWT and the <code>cryptography</code> backend leave zero EC code paths. <strong>Changed:</strong> all 193 <code>except: pass</code> handlers replaced by explicit <code>contextlib.suppress(...)</code> (or restructured multi-handler equivalents), closing the CodeQL <code>py/empty-except</code> class — a new AST guard fails CI on any regression; web images and CI move from Node 22 to Node 24 LTS. <strong>Fixed (assistant):</strong> "give me my next N appointments" no longer over-matches the daily-briefing skill (trigger-first description rewrite), and the ReAct tool cap now keeps the detected domains' tools first and names every dropped tool — no more silent starvation, no more invented appointments. <strong>Verified:</strong> 8,921 unit tests green, MyPy strict, Docker boot healthy on the regenerated lock, 200/200 vitest on Node 24. — 9 July 2026.
+  <strong>Version 1.21.25</strong> — <strong>Liveness/readiness probes done right (ADR-115), plus a dependency refresh.</strong> <code>GET /health</code> genuinely probed PostgreSQL and Redis, but its documented 503 was unreachable since inception — probe failures only ever degraded the payload. The contract is now split honestly: <code>/health</code> is a pure liveness probe (always 200 while the process serves; Docker healthchecks stay here, so a database outage can never trigger a restart loop) and the new <code>GET /ready</code> answers the question that matters — 200 only when PostgreSQL <em>and</em> Redis actually respond, 503 otherwise — for deploy verification and uptime monitoring. Boot measurement retired the "E5 model loading" folklore: startup cost is Alembic migrations plus the LangGraph app import (Whisper STT loads lazily). Ops surfaces realigned end to end: runbooks state which endpoint to poll for what, the in-container DevOps doctrine drops two stale claims (prod runs 4 uvicorn workers; ADR-111 pools do reconnect), <code>docker-entrypoint.sh</code> reads its <code>pg_isready</code> target from the environment, and <code>task health</code> — silently broken since the dev TLS switch — reports real statuses again, readiness included. <strong>Dependencies:</strong> redis-py 8.0.1, vite 8.1.3 + plugin-react 6, 40 frontend minor/patch bumps, five backend transitives via a surgical lock recompile. <strong>Verified:</strong> 8,918 unit tests green, live 200→503→200 demo with Redis stopped, Docker boot healthy. — 9 July 2026.
 </p>
 
 ---
@@ -114,7 +114,7 @@ The result is measured, not proclaimed:
 | | | | |
 |---|---|---|---|
 | **31** functional domains | **420,000** lines of code (excl. tests) | **11,000+** automated tests | **100+** ADRs |
-| **120+** versions shipped | **6 languages**, parity enforced in CI | **394** Prometheus metrics | **8.0/10** 360° technical audit |
+| **130+** versions shipped | **6 languages**, parity enforced in CI | **394** Prometheus metrics | **8.0/10** 360° technical audit |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 
@@ -323,6 +323,7 @@ ExecutionStep(
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
 - **Tempo**: Distributed cross-service tracing
+- **Probes**: liveness (`GET /health`, always 200 while the process serves — what Docker healthchecks poll) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](./docs/architecture/ADR-115-Liveness-Readiness-Probes.md)
 
 ### Cost Tracking & Billing
 

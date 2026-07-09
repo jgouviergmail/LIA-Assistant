@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-07-09
-**Compatibility**: LIA v1.21.24
+**Compatibility**: LIA v1.21.25
 
 ## Table of Contents
 
@@ -508,9 +508,12 @@ The production compose (`docker-compose.prod.yml`) runs a leaner 15-service stac
 ### Service Verification
 
 ```bash
-# Backend (self-signed cert → -k)
+# Backend liveness (self-signed cert → -k) — 200 even if PG/Redis are down
 curl -k https://localhost:8000/health
-# {"status":"healthy","database":"connected","redis":"connected"}
+# {"status":"healthy","environment":"development","checks":{"redis":"healthy","database":"healthy"}}
+
+# Backend readiness — 200 only when PostgreSQL AND Redis answer (503 otherwise)
+curl -k -s -o /dev/null -w "%{http_code}" https://localhost:8000/ready
 
 # Frontend
 curl -sk https://localhost:3000 | head -5
@@ -1503,7 +1506,7 @@ task deploy:prepare        # prepare the PROD/ bundle only
 ### Infrastructure
 
 - [ ] `docker compose -f docker-compose.dev.yml ps` — all services healthy (17 in dev, 23 with the Langfuse profile)
-- [ ] Backend answers: `curl -k https://localhost:8000/health`
+- [ ] Backend answers: `curl -k https://localhost:8000/health` (liveness) and `curl -k https://localhost:8000/ready` returns 200 (readiness — DB + Redis up)
 - [ ] Frontend reachable: https://localhost:3000 (certificate accepted on **both** :3000 and :8000)
 - [ ] Migrations applied (`task db:migrate`), admin created, seeds loaded (`task db:seed:sql`)
 

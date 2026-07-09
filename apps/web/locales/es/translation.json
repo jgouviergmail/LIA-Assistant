@@ -2810,7 +2810,7 @@
         },
         "observability": {
           "title": "📊 Observabilidad Production-Ready",
-          "description": "Stack completa: métricas Prometheus (tokens, latencia, errores, costos), 22 dashboards Grafana, trazado distribuido Tempo, logs centralizados Loki, e integración Langfuse para análisis de rendimiento LLM. Alertas configurables con umbrales por entorno."
+          "description": "Stack completa: métricas Prometheus (tokens, latencia, errores, costos), 22 dashboards Grafana, trazado distribuido Tempo, logs centralizados Loki, e integración Langfuse para análisis de rendimiento LLM. Alertas configurables con umbrales por entorno. Sondas dedicadas de liveness (/health) y readiness (/ready) separan «el proceso está en marcha» de «PostgreSQL y Redis pueden atender realmente»."
         },
         "tools": {
           "title": "🔧 75+ Herramientas Tipadas",
@@ -2927,6 +2927,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_25": {
+          "title": "v1.21.25 — 🩺 Comprobaciones de salud que dicen la verdad",
+          "date": "Julio de 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🩺 Una señal de disponibilidad real</b> — LIA expone ahora dos sondas en lugar de un endpoint ambiguo: /health indica que la aplicación está en marcha, mientras que el nuevo /ready confirma que todo lo necesario para atenderte — base de datos y caché — está realmente operativo. La monitorización y los despliegues por fin distinguen un contratiempo pasajero de una avería real.",
+            "i2": "<b>🚦 Diagnósticos honestos para el autoalojamiento</b> — La comprobación de salud con un solo comando vuelve a mostrar estados correctos para cada servicio (fallaba silenciosamente desde el paso del entorno de desarrollo a HTTPS), y el comportamiento de arranque documentado coincide ahora con lo que ocurre realmente.",
+            "i3": "<b>🧱 Cimientos renovados</b> — El cliente de Redis, el motor de pruebas del frontend y unas cuarenta bibliotecas de interfaz se han actualizado, con toda la suite de pruebas en verde."
+          }
+        },
         "v1_21_24": {
           "title": "v1.21.24 — 🛡️ Seguridad reforzada y respuestas más precisas",
           "date": "Julio de 2026",

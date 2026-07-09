@@ -2831,7 +2831,7 @@
         },
         "observability": {
           "title": "📊 Observabilité Production-Ready",
-          "description": "Stack complète : métriques Prometheus (tokens, latence, erreurs, coûts), 22 dashboards Grafana, tracing distribué Tempo, logs centralisés Loki, et intégration Langfuse pour l'analyse des performances LLM. Alertes configurables avec seuils par environnement."
+          "description": "Stack complète : métriques Prometheus (tokens, latence, erreurs, coûts), 22 dashboards Grafana, tracing distribué Tempo, logs centralisés Loki, et intégration Langfuse pour l'analyse des performances LLM. Alertes configurables avec seuils par environnement. Sondes dédiées liveness (/health) et readiness (/ready) : distinguer « le processus tourne » de « PostgreSQL et Redis peuvent réellement servir »."
         },
         "tools": {
           "title": "🔧 75+ Outils Typés",
@@ -2948,6 +2948,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_25": {
+          "title": "v1.21.25 — 🩺 Des sondes de santé qui disent la vérité",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🩺 Un vrai signal de disponibilité</b> — LIA expose désormais deux sondes au lieu d'un endpoint ambigu : /health indique que l'application tourne, tandis que le nouveau /ready confirme que tout ce qui est nécessaire pour vous servir — base de données et cache — est réellement opérationnel. La supervision et les déploiements distinguent enfin un incident passager d'une vraie panne.",
+            "i2": "<b>🚦 Des diagnostics honnêtes pour l'auto-hébergement</b> — La vérification de santé en une commande affiche de nouveau des statuts corrects pour chaque service (elle échouait silencieusement depuis le passage de l'environnement de développement en HTTPS), et le comportement de démarrage documenté correspond désormais à ce qui se passe réellement.",
+            "i3": "<b>🧱 Des fondations rafraîchies</b> — Le client Redis, le moteur de tests du frontend et une quarantaine de bibliothèques d'interface ont été mis à jour, avec la suite de tests entièrement verte."
+          }
+        },
         "v1_21_24": {
           "title": "v1.21.24 — 🛡️ Sécurité renforcée & réponses plus justes",
           "date": "Juillet 2026",

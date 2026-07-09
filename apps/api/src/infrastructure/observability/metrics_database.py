@@ -58,6 +58,10 @@ db_connection_pool_overflow = Gauge(
     multiprocess_mode="livesum",
 )
 
+# Naming quirk: the `_total` suffix is reserved for Counters by the Prometheus
+# naming convention, but this Gauge shipped with it and the name is referenced
+# by Grafana dashboard 03-infra-resources.json ("Connection Pool" panel).
+# Renaming would silently blank that panel — keep the name.
 db_connection_pool_waiting_total = Gauge(
     "db_connection_pool_waiting_total",
     "Number of requests waiting for a connection (saturation indicator)",

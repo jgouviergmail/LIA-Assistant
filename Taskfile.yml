@@ -521,12 +521,13 @@ tasks:
       - docker compose -f docker-compose.dev.yml logs -f redis
 
   health:
-    desc: Check health of all services
+    desc: Check health of all services (dev stack — API/Web serve HTTPS with self-signed certs)
     cmds:
-      - curl -f http://localhost:8000/health || echo "API down"
-      - curl -f http://localhost:3000/ || echo "Web down"
-      - curl -f http://localhost:9090/-/healthy || echo "Prometheus down"
-      - curl -f http://localhost:3001/api/health || echo "Grafana down"
+      - curl -fsk https://localhost:8000/health || echo "API down"
+      - curl -fsk https://localhost:8000/ready || echo "API not ready (PostgreSQL or Redis down)"
+      - curl -fsk https://localhost:3000/ > /dev/null && echo "Web up" || echo "Web down"
+      - curl -fs http://localhost:9090/-/healthy || echo "Prometheus down"
+      - curl -f -s http://localhost:3001/api/health || echo "Grafana down"
 
   # ============================================================================
   # Cleanup

@@ -2843,7 +2843,8 @@ HSTS en production uniquement) via un `send`-wrapper sur
 #### LoggingMiddleware
 
 Logue `request_started`/`request_completed` (niveau configurable
-`HTTP_LOG_LEVEL`, exclusions `http_log_exclude_paths` — `/health`, `/metrics`)
+`HTTP_LOG_LEVEL`, exclusions `http_log_exclude_paths` — `/health`, `/ready`,
+`/metrics`)
 avec `duration_ms` mesurée au `http.response.start` (≈ TTFB pour les réponses
 streaming, sémantique historique documentée). Enrichit les contextvars GeoIP
 et incrémente `http_requests_by_country_total` (chemins exclus non comptés).

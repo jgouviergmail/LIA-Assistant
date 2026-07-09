@@ -2812,7 +2812,7 @@
         },
         "observability": {
           "title": "📊 Osservabilità Production-Ready",
-          "description": "Stack completo: metriche Prometheus (token, latenza, errori, costi), 22 dashboard Grafana, tracing distribuito Tempo, log centralizzati Loki e integrazione Langfuse per analisi prestazioni LLM. Alert configurabili con soglie per ambiente."
+          "description": "Stack completo: metriche Prometheus (token, latenza, errori, costi), 22 dashboard Grafana, tracing distribuito Tempo, log centralizzati Loki e integrazione Langfuse per analisi prestazioni LLM. Alert configurabili con soglie per ambiente. Sonde dedicate di liveness (/health) e readiness (/ready) distinguono «il processo è attivo» da «PostgreSQL e Redis possono davvero servire»."
         },
         "tools": {
           "title": "🔧 75+ Strumenti Tipizzati",
@@ -2929,6 +2929,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_21_25": {
+          "title": "v1.21.25 — 🩺 Controlli di salute che dicono la verità",
+          "date": "Luglio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🩺 Un vero segnale di disponibilità</b> — LIA espone ora due sonde invece di un endpoint ambiguo: /health indica che l'applicazione è in esecuzione, mentre il nuovo /ready conferma che tutto ciò che serve per servirti — database e cache — è davvero operativo. Monitoraggio e deployment possono finalmente distinguere un intoppo passeggero da un guasto reale.",
+            "i2": "<b>🚦 Diagnostica onesta per il self-hosting</b> — Il controllo di salute con un solo comando mostra di nuovo stati corretti per ogni servizio (falliva silenziosamente dal passaggio dell'ambiente di sviluppo a HTTPS), e il comportamento di avvio documentato corrisponde ora a ciò che accade davvero.",
+            "i3": "<b>🧱 Fondamenta rinnovate</b> — Il client Redis, il motore di test del frontend e una quarantina di librerie d'interfaccia sono stati aggiornati, con l'intera suite di test verde."
+          }
+        },
         "v1_21_24": {
           "title": "v1.21.24 — 🛡️ Sicurezza rafforzata e risposte più precise",
           "date": "Luglio 2026",

@@ -653,7 +653,7 @@ LOG_LEVEL_DEFAULT = "INFO"
 
 # HTTP request logging
 HTTP_LOG_LEVEL_DEFAULT = "DEBUG"  # DEBUG in production (Prometheus handles metrics)
-HTTP_LOG_EXCLUDE_PATHS_DEFAULT = ["/metrics", "/health"]  # Exclude noisy endpoints
+HTTP_LOG_EXCLUDE_PATHS_DEFAULT = ["/metrics", "/health", "/ready"]  # Exclude noisy endpoints
 
 # OpenTelemetry
 OTEL_SERVICE_NAME_DEFAULT = "lia-api"

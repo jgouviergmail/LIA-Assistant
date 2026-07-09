@@ -172,11 +172,17 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
+      # Liveness probe on purpose (/health is 200 even if PG/Redis are down):
+      # restarting the API cannot fix a dependency outage. Readiness = /ready.
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s  # Increased for E5 model loading (~10s)
+      # start_period covers the real boot path: alembic migrations in the
+      # entrypoint, then 4 uvicorn workers each importing the full app
+      # (LangGraph graph + tool registry) — ~45s on dev hardware, slower on
+      # the Pi 5. Whisper STT loads lazily on first voice use, not at boot.
+      start_period: 60s
     networks:
       - lia-network
     deploy:

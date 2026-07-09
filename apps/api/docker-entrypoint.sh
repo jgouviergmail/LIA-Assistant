@@ -1,11 +1,13 @@
 #!/usr/bin/env sh
 set -e
 
-echo "=== LIA API Dev Entrypoint ==="
+echo "=== LIA API Entrypoint ==="
 
 # Wait for PostgreSQL
+# Fallbacks mirror the compose defaults so the image still boots when run
+# outside compose (an unset var would expand empty and loop forever).
 echo "Waiting for PostgreSQL to be ready..."
-while ! pg_isready -h postgres -U postgres -d lia > /dev/null 2>&1; do
+while ! pg_isready -h "${POSTGRES_HOST:-postgres}" -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-lia}" > /dev/null 2>&1; do
     echo "PostgreSQL is unavailable - sleeping"
     sleep 1
 done

@@ -2820,7 +2820,7 @@
         },
         "observability": {
           "title": "📊 Production-Ready Observability",
-          "description": "Full stack: Prometheus metrics (tokens, latency, errors, costs), 22 Grafana dashboards, Tempo distributed tracing, Loki centralized logs, and Langfuse integration for LLM performance analysis. Configurable alerts with per-environment thresholds."
+          "description": "Full stack: Prometheus metrics (tokens, latency, errors, costs), 22 Grafana dashboards, Tempo distributed tracing, Loki centralized logs, and Langfuse integration for LLM performance analysis. Configurable alerts with per-environment thresholds. Dedicated liveness (/health) and readiness (/ready) probes separate “the process is up” from “PostgreSQL and Redis can actually serve you”."
         },
         "tools": {
           "title": "🔧 75+ Typed Tools",
@@ -2937,6 +2937,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_25": {
+          "title": "v1.21.25 — 🩺 Health checks that tell the truth",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🩺 A real availability signal</b> — LIA now exposes two health probes instead of one ambiguous endpoint: /health reports that the app is running, while the new /ready confirms that everything needed to serve you — database and cache — is actually up. Monitoring and deployments can finally tell a brief hiccup from a real outage.",
+            "i2": "<b>🚦 Honest diagnostics for self-hosters</b> — The one-command health check reports correct statuses again for every service (it had been failing silently since the development stack moved to HTTPS), and the documented startup behaviour now matches what really happens at boot.",
+            "i3": "<b>🧱 Fresh foundations</b> — The Redis client, the frontend test engine and about forty interface libraries were brought up to date, with the full test suite green."
+          }
+        },
         "v1_21_24": {
           "title": "v1.21.24 — 🛡️ Security hardening & sharper answers",
           "date": "July 2026",

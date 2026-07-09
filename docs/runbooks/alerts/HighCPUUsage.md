@@ -384,8 +384,9 @@ curl -s "http://localhost:9093/api/v2/alerts" | jq '.[] | select(.labels.alertna
 
 # Expected: "inactive" or empty result
 
-# 3. Verify service health
-curl -f http://localhost:8000/health
+# 3. Verify service readiness (200 only when PostgreSQL AND Redis answer;
+#    /health would stay 200 even with a dependency down — liveness only)
+curl -f http://localhost:8000/ready
 
 # Expected: HTTP 200, response <500ms
 

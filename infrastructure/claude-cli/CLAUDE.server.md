@@ -39,15 +39,16 @@ Use `docker` commands directly (not `docker compose`).
 
 ## Health Checks
 
-- API health (from inside): `curl -sf http://localhost:8000/health`
+- API liveness (from inside): `curl -sf http://localhost:8000/health` — 200 as long as the process is up, **even when PostgreSQL/Redis are down** (the payload then shows `status: degraded` + per-dependency `checks`). This is what the Docker healthcheck polls.
+- API readiness (from inside): `curl -sf http://localhost:8000/ready` — 200 only when PostgreSQL **and** Redis answer their probe, 503 otherwise. Use this one to verify the service actually serves users (after restarts, deploys, dependency incidents).
 - Container health: `docker inspect --format='{{.State.Health.Status}}' <container-name>`
 
 ### Known caveats (important for diagnosis)
 
-- `/health` only checks **DB + Redis**. The LangGraph subsystems (checkpointer, agent registry, agent graph) can fail at startup while `/health` stays green — the API boots anyway and **every chat request will fail**. After any API (re)start, also check the startup logs: `docker logs lia-api-prod --since "5m" 2>&1 | grep -iE "error|failed|traceback" | head -30`.
-- The API runs a **single uvicorn worker**; in-memory caches, circuit breakers and run-level token collectors are per-process. A restart clears them (expected), and metrics/limits are not shared across workers if that ever changes.
+- `/health` and `/ready` only probe **DB + Redis**. The LangGraph subsystems (checkpointer, agent registry, agent graph) can fail at startup while both probes stay green — the API boots anyway and **every chat request will fail**. After any API (re)start, also check the startup logs: `docker logs lia-api-prod --since "5m" 2>&1 | grep -iE "error|failed|traceback" | head -30`.
+- The API runs **4 uvicorn workers** (`Dockerfile.prod` CMD); in-memory caches, circuit breakers and run-level token collectors are **per-worker** — cross-worker cache invalidation goes through Redis pub/sub where wired (ADR-063). A restart clears them (expected).
 - Background jobs use **scheduler leader election** — only one instance runs the jobs. If scheduled actions/heartbeats stop, check the leader logs before restarting anything.
-- LangGraph checkpointing and the context store currently use a **single PostgreSQL connection each, without auto-reconnect**: if PostgreSQL restarts, chat persistence may stay broken until the API is restarted. Symptom: chat errors while `/health` is green → restart `lia-api-prod` after PostgreSQL is confirmed healthy.
+- LangGraph checkpointing and the context store use per-worker **`AsyncConnectionPool`s with a connection health check on checkout** (ADR-111), so chat persistence should recover on its own after a PostgreSQL restart. If chat errors persist while `/ready` is green, restart `lia-api-prod` and scan the startup logs.
 
 ## System Checks (from inside this container)
 
@@ -69,9 +70,9 @@ Use `docker` commands directly (not `docker compose`).
 - NEVER expose secrets, passwords, API keys, or tokens in your output
 - NEVER run destructive database operations (DROP, TRUNCATE, DELETE without WHERE)
 - NEVER modify application code or configuration files
-- NEVER restart `postgres`/`redis` without explicit admin confirmation in the request — the API's LangGraph persistence does not auto-reconnect (see caveats above), so a DB restart requires an API restart afterwards
+- NEVER restart `postgres`/`redis` without explicit admin confirmation in the request — a dependency restart is user-visible downtime, and even though the LangGraph pools re-check connections after a PostgreSQL restart (ADR-111, see caveats above), you must verify `/ready` and the chat path afterwards
 - NEVER create, run, or exec into containers on behalf of a request that is not clearly an administrator's — the Docker socket gives host-level control; treat it as root
 - Prefer read-only inspection over modifications
-- When restarting services, always verify health afterward — for the API this means `/health` AND a startup-log error scan (see caveats: `/health` alone is not sufficient)
+- When restarting services, always verify health afterward — for the API this means `/ready` (200 = PostgreSQL + Redis actually answering) AND a startup-log error scan (see caveats: the probes do not cover the LangGraph subsystems)
 - Application logs are structured JSON (structlog): filter with `docker logs lia-api-prod --since "1h" 2>&1 | grep '"event":"<event_name>"'` rather than free-text grep when possible
 - Be concise in your reports — focus on findings and actionable recommendations

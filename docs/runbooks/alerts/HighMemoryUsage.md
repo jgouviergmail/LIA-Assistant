@@ -578,8 +578,9 @@ dmesg | grep -i "oom" | tail -5
 
 # Expected: No new entries
 
-# 4. Verify service health
-curl -f http://localhost:8000/health
+# 4. Verify service readiness (200 only when PostgreSQL AND Redis answer;
+#    /health would stay 200 even with a dependency down — liveness only)
+curl -f http://localhost:8000/ready
 
 # Expected: HTTP 200, response <500ms
 

@@ -50,6 +50,23 @@ description: "LIA API has been unreachable for more than 1 minute"
 
 ---
 
+## Probe Endpoints — which one for what
+
+Canonical reference (contract: ADR-115, implementation: `apps/api/src/api/health.py`):
+
+| Endpoint | Role | Returns | Poll it for |
+|---|---|---|---|
+| `GET /health` | **Liveness** | Always `200` while the process serves requests — even when PostgreSQL/Redis are down (payload: `status: healthy\|degraded` + per-dependency `checks`) | Docker healthchecks (`docker-compose.{dev,prod}.yml`, `Dockerfile.prod`). Never wire a restart-on-failure to a dependency outage. |
+| `GET /ready` | **Readiness** | `200` + `status: ready` only when PostgreSQL **and** Redis answer; `503` + `status: not_ready` otherwise | Deploy verification, uptime/user-impact monitoring, post-incident checks |
+| `GET /api/v1/health` | Static process check | `200` + service name/version, no dependency probing | OpenAPI-documented smoke checks |
+| `up{job="api"}` (port 9091) | Prometheus scrape | `0`/`1` | This alert (`ServiceDown`) |
+
+Neither probe covers the LangGraph subsystems (checkpointer, agent registry):
+they can fail at startup while both probes stay green — after any API
+(re)start, also scan the startup logs for errors.
+
+---
+
 ## 3. Possible Causes
 
 ### Cause 1: Application Crash (High Likelihood)
@@ -97,8 +114,9 @@ docker-compose restart api
 sleep 15
 docker-compose ps api
 
-# Test endpoint
-curl -f http://localhost:8000/health || echo "Still down"
+# Test endpoints: liveness first (process up?), then readiness (deps up?)
+curl -f http://localhost:8000/health || echo "Process still down"
+curl -f http://localhost:8000/ready || echo "Dependencies not ready (PostgreSQL/Redis)"
 ```
 
 ---
@@ -138,6 +156,6 @@ changes(container_start_time_seconds{name="lia_api_1"}[24h])
 
 ## 7. Runbook Metadata
 
-**Version**: 1.0
-**Last Updated**: 2025-11-22
+**Version**: 1.1
+**Last Updated**: 2026-07-09
 **Author**: SRE Team

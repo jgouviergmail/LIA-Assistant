@@ -402,10 +402,11 @@ locust -f test_conversations.py --host=http://localhost:8000 --users=100 --spawn
 # Build nouvelle image
 docker-compose build api
 
-# Deploy avec health check
+# Deploy avec readiness check (/ready = 200 seulement si PostgreSQL ET Redis
+# répondent ; /health resterait 200 même avec une dépendance down)
 docker-compose up -d api
 sleep 30
-curl http://localhost:8000/health
+curl -f http://localhost:8000/ready
 
 # Monitor success rate 15 minutes
 watch -n 10 'curl -s "http://localhost:9090/api/v1/query?query=(sum(rate(langgraph_graph_executions_total{status=\"success\"}[5m]))/sum(rate(langgraph_graph_executions_total[5m])))*100" | jq ".data.result[0].value[1]"'

@@ -17,6 +17,7 @@ from unittest.mock import patch
 
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
+from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from src.core.config import Settings
@@ -24,23 +25,27 @@ from src.core.constants import HTTP_LOG_EXCLUDE_PATHS_DEFAULT, HTTP_LOG_LEVEL_DE
 from src.core.middleware import LoggingMiddleware
 
 
+async def _test_endpoint(_request):
+    return JSONResponse({"status": "ok"})
+
+
+async def _metrics_endpoint(_request):
+    return JSONResponse({"metrics": "data"})
+
+
+async def _health_endpoint(_request):
+    return JSONResponse({"health": "ok"})
+
+
 def create_test_app():
-    """Create test app with routes."""
-    app = Starlette()
-
-    @app.route("/test")
-    async def test_endpoint(_request):
-        return JSONResponse({"status": "ok"})
-
-    @app.route("/metrics")
-    async def metrics_endpoint(_request):
-        return JSONResponse({"metrics": "data"})
-
-    @app.route("/health")
-    async def health_endpoint(_request):
-        return JSONResponse({"health": "ok"})
-
-    return app
+    """Create test app with routes (Starlette removed the @app.route decorator)."""
+    return Starlette(
+        routes=[
+            Route("/test", _test_endpoint),
+            Route("/metrics", _metrics_endpoint),
+            Route("/health", _health_endpoint),
+        ]
+    )
 
 
 # ============================================================================
@@ -220,6 +225,7 @@ def test_constants_used_correctly():
     assert HTTP_LOG_LEVEL_DEFAULT == "DEBUG"
     assert "/metrics" in HTTP_LOG_EXCLUDE_PATHS_DEFAULT
     assert "/health" in HTTP_LOG_EXCLUDE_PATHS_DEFAULT
+    assert "/ready" in HTTP_LOG_EXCLUDE_PATHS_DEFAULT
 
     # Verify Settings uses these constants
     settings = Settings()
