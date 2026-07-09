@@ -63,6 +63,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [TIMEOUT_REGISTRY.md](./technical/TIMEOUT_REGISTRY.md) | Référence centralisée de tous les timeouts backend (HTTP, tools, locks, scheduler, SSE/WS) — Settings, ranges, defaults, cascades |
 | [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Guide observabilité quickstart |
 | [runbooks/](./runbooks/) | Runbooks opérationnels (34+ procédures) |
+| [audit/](./audit/README.md) | **Audit technique 360° public** — rapport (8.4/10, 24 périmètres ISO 25010) + [protocole reproductible](./audit/AUDIT_PROTOCOL.md) et pipeline de republication |
 
 ---
 

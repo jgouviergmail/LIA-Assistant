@@ -271,6 +271,6 @@ Nearly **100% of LIA's code is written by an AI**, under human direction. Four m
 • **A written engineering rulebook**: architecture rules, conventions and known traps, versioned in the repository
 • **Blocking automated checks**: strict typing, code analysis, six-language parity and a full test battery reject any non-compliant change
 • **A review cycle where the human decides**: impact analysis → proposal → explicit validation → implementation → verification
-• **Recurring adversarial audits**: the whole system is re-examined against evidence (latest assessment: 8.0/10 across 20 areas)
+• **Recurring adversarial audits**: the whole system is re-examined against evidence (latest assessment: 8.4/10 across 24 areas — full public report: https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)
 
 The full story — method, trade-offs, operations and what remains to be done — is on the **Story page** of the website (menu → Story), and the source code is open on GitHub: https://github.com/jgouviergmail/LIA-Assistant

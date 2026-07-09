@@ -4,9 +4,9 @@
 >
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
-**Versión**: 2.7
-**Fecha**: 2026-07-09
-**Aplicación**: LIA v1.23.0
+**Versión**: 2.8
+**Fecha**: 2026-07-10
+**Aplicación**: LIA v1.23.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -853,6 +853,10 @@ no solo los paquetes declarados.
 
 ---
 
+### 22.4. La auditoría es pública — y reproducible
+
+El nivel de exigencia descrito en esta guía no es autodeclarado: una auditoría técnica 360° completa — **8,4/10 sobre 24 perímetros** de la matriz ISO/IEC 25010, hallazgos abiertos incluidos — está publicada en el repositorio ([informe completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), junto con el [protocolo de auditoría](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) que hace reproducible cada ciclo: commit fijado, requisitos de evidencia por perímetro, calificación anclada y un script versionado que mide el tamaño en SLOC lógicas. El informe termina con los comandos exactos para reproducir las mediciones usted mismo.
+
 ## 23. Patrones de ingeniería transversales
 
 ### 23.1. Sistema de Tools: arquitectura de 5 capas
@@ -1049,4 +1053,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.23.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.23.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

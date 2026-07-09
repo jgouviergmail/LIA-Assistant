@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 2.7
-**Date**: 2026-07-09
-**Application**: LIA v1.23.0
+**Version**: 2.8
+**Date**: 2026-07-10
+**Application**: LIA v1.23.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -852,6 +852,10 @@ not just the declared packages.
 
 ---
 
+### 22.4. The audit is public — and reproducible
+
+The quality bar described in this guide is not self-declared: a complete 360° technical audit — **8.4/10 across 24 areas** on the ISO/IEC 25010 grid, open findings included — is published in the repository ([full report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), together with the [audit protocol](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) that makes every cycle reproducible: pinned commit, per-area evidence requirements, anchored scoring, and a committed script measuring size in logical SLOC. The report ends with the exact commands to reproduce the measurements yourself.
+
 ## 23. Cross-cutting engineering patterns
 
 ### 23.1. Tool System: 5-layer architecture
@@ -1077,4 +1081,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.23.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.23.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -2931,6 +2931,16 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_23_1": {
+          "title": "v1.23.1 — 🔍 审计公开化",
+          "date": "2026年7月",
+          "count": "3",
+          "items": {
+            "i1": "技术审计评分提升至<strong>24个领域8.4/10</strong>——完整报告现已发布在<a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>：包含评分表、方法、修复闭环与待办事项，并附上可自行复现测量的命令。",
+            "i2": "首页的「360°技术审计」卡片现在可直接打开完整报告。",
+            "i3": "应用中显示的所有审计数字（首页、FAQ、Story页面）均已更新，覆盖全部6种语言。"
+          }
+        },
         "v1_23_0": {
           "title": "v1.23.0 — 🧩 自动安装的技能",
           "date": "2026年7月",
@@ -3895,7 +3905,7 @@
           },
           "q7": {
             "question": "LIA是如何构建的？",
-            "answer": "LIA近<strong>100%的代码由AI编写</strong>，在人类指导下完成：书面工程规范、强制自动检查、由人类拍板的评审流程，以及周期性的对抗性审计（最新评估：20个领域8.0/10）。<br><br>完整的故事——方法、权衡、运维以及待办事项——见<a href=\"/zh/story\">Story页面</a>；源代码开放于<a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>。"
+            "answer": "LIA近<strong>100%的代码由AI编写</strong>，在人类指导下完成：书面工程规范、强制自动检查、由人类拍板的评审流程，以及周期性的对抗性审计（最新评估：24个领域8.4/10，<a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">完整报告</a>）。<br><br>完整的故事——方法、权衡、运维以及待办事项——见<a href=\"/zh/story\">Story页面</a>；源代码开放于<a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>。"
           }
         }
       },
@@ -5915,7 +5925,8 @@
         "providers": "LLM供应商",
         "voice_languages": "语音语言"
       },
-      "audit_value": "8.0/10",
+      "audit_value": "8.4/10",
+      "audit_link_aria": "8.4/10 —— 360°技术审计。在 GitHub 上查看完整的公开审计报告。",
       "rex_teaser": "这些代码几乎100%由AI编写——由人类指导、审查和审计。",
       "rex_link": "阅读经验报告"
     },
@@ -5933,8 +5944,8 @@
           "label": "项自动化测试"
         },
         "audit": {
-          "value": "8.0/10",
-          "label": "技术审计（20个领域）"
+          "value": "8.4/10",
+          "label": "技术审计（24个领域）"
         },
         "lines": {
           "value": "420,000",
@@ -6801,7 +6812,7 @@
   "story": {
     "meta": {
       "title": "故事 — 指挥一个会写代码的AI | LIA",
-      "description": "LIA如何建成：约100%由AI编写的代码、人类指导、10,000+测试、100+架构决策、8.0/10技术审计。完整经验报告。"
+      "description": "LIA如何建成：约100%由AI编写的代码、人类指导、10,000+测试、100+架构决策、8.4/10技术审计。完整经验报告。"
     },
     "breadcrumb": "经验报告",
     "hero": {

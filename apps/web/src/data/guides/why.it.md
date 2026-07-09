@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione** : 3.6
-**Data** : 2026-07-09
-**Applicazione** : LIA v1.23.0
+**Versione** : 3.7
+**Data** : 2026-07-10
+**Applicazione** : LIA v1.23.1
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -255,6 +255,8 @@ Non paghi un abbonamento che nasconde i costi reali. Vedi esattamente quanto cos
 La trasparenza non è un gadget tecnico. Cambia il rapporto con il tuo assistente: **capisci** le sue decisioni, **controlli** i tuoi costi, **individui** i problemi. Ti fidi perché puoi verificare — non perché ti viene chiesto di credere.
 
 ---
+
+Questa trasparenza si estende alla qualità del sistema stesso. L'audit tecnico completo — voti, metodo, punti di forza e ciò che resta da migliorare — è pubblicato nel repository, con il protocollo per ripeterlo e i comandi per verificare le misurazioni: [rapporto di audit completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). Non vi si chiede di credere alle cifre di questo sito; potete verificarle.
 
 ## 7. Profondità emotiva
 

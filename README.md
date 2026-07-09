@@ -26,6 +26,7 @@
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.2.2-FF6F00?style=flat-square" alt="LangGraph"></a>
   <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.3.2-4B8BBE?style=flat-square" alt="LangChain"></a>
   <a href="#internationalization-i18n--6-languages"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
+  <a href="docs/audit/README.md"><img src="https://img.shields.io/badge/360%C2%B0%20audit-8.4%2F10-2E7D5B?style=flat-square" alt="360° technical audit: 8.4/10 — full public report"></a>
   <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
   <a href="https://deepwiki.com/jgouviergmail/LIA-Assistant"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
@@ -40,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.23.0</strong> — <strong>Chat-driven skill import (ADR-118): skills that install themselves.</strong> Ask LIA to create a skill and the built-in generator now delivers it <strong>directly into My Skills</strong> — validated, installed and announced by name in the same turn, no more copying code blocks or uploading zips. Under the hood, every import path (uploads and chat) converges on a single hardened pipeline: strict agentskills.io name validation <em>before any filesystem write</em> — closing a path-traversal vulnerability that let a crafted <code>SKILL.md</code> overwrite a system skill — plus zip-expansion caps, cross-scope name-conflict rejection (409), and an atomic install that restores the previous version if anything fails. Multi-turn skill dialogues finally work: the skill runner receives the conversation history and a new <code>dialogue: true</code> frontmatter extension tells the router to keep the skill detected across conversational follow-up turns (one-shot skills keep their anti-contamination). Anti-drift parity tests pin the name contract across its three necessary copies and the generator's agent catalogue against the domain registry. <strong>Verified:</strong> 9,030 backend tests green (+71), in-container E2E proofs for the import pipeline, traversal rejection, conflict handling and rollback. — 9 July 2026.
+  <strong>Version 1.23.1</strong> — <strong>The audit goes public: a reproducible 360° protocol and the full report, wired everywhere.</strong> The quality figures LIA displays now have their public backing: <a href="docs/audit/README.md">docs/audit/</a> ships the complete technical audit report — <strong>8.4/10 across 24 areas</strong> on the ISO/IEC 25010 grid at pinned commit <code>182f3927</code> — with the scorecard, the finding→ADR→release remediation loop, the open worksites and the exact commands to reproduce every measurement (including a transparency note on a test-isolation quirk the audit itself uncovered). The audit is now an instrument, not an event: <code>AUDIT_PROTOCOL.md</code> freezes scope, depth, evidence requirements, scoring discipline and the 7-step publication pipeline, and <code>scripts/audit/measure_sloc.py</code> makes the size metrics reproducible (logical SLOC, never raw lines). The landing proof band's audit tile now opens the report (aria-labelled, 6 languages), and every published audit figure — README, landing, FAQ, /story, SEO descriptions, knowledge base — moved from the stale 8.0/20-areas to 8.4/24 in the same sweep (19 corrected spots). <strong>Verified:</strong> 452 frontend tests green under locked coverage thresholds, 6-locale key parity, TypeScript/ESLint clean, and the rendered landing checked live down to the clickable tile. — 10 July 2026.
 </p>
 
 ---
@@ -114,9 +115,10 @@ The result is measured, not proclaimed:
 | | | | |
 |---|---|---|---|
 | **31** functional domains | **420,000** lines of code (excl. tests) | **11,000+** automated tests | **100+** ADRs |
-| **130+** versions shipped | **6 languages**, parity enforced in CI | **394** Prometheus metrics | **8.0/10** 360° technical audit |
+| **130+** versions shipped | **6 languages**, parity enforced in CI | **394** Prometheus metrics | [**8.4/10** 360° technical audit](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
+- **The audit itself** — 24 areas scored on the ISO/IEC 25010 grid, open findings included, with the protocol to reproduce it: [docs/audit/](docs/audit/README.md)
 
 ---
 
@@ -916,6 +918,7 @@ pytest --cov=src --cov-report=html -v
 | Frontend tests (vitest) | 169 |
 | Coverage target | 45% |
 | CI Workflows | 3 (CI, Security, Release) |
+| 360° technical audit | **8.4/10** across 24 areas — [full public report & protocol](docs/audit/README.md) |
 
 ---
 
@@ -985,7 +988,7 @@ ESLint + TypeScript check       ────────────────
 > These figures measure the infrastructure. The full perceived response time depends on the
 > LLM call cascade (seconds to tens of seconds depending on request complexity and hardware) —
 > this is the main optimization programme in progress, measured in production and identified
-> as the top product finding of the July 2026 360° technical audit.
+> as the top product finding of the [July 2026 360° technical audit](docs/audit/README.md).
 
 ### Implemented Optimizations
 

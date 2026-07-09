@@ -13,7 +13,11 @@
  * - tests: backend pytest (~11,100) + frontend vitest
  * - adrs: docs/architecture/ ADR files (numbered up to ADR-118)
  * - releases: CHANGELOG.md release entries
- * - auditScore: 360° technical audit, 20 areas, July 2026 (docs/audit/)
+ * - auditScore/auditAreas: 360° technical audit at commit 182f3927 (v1.22.0,
+ *   2026-07-09), 24 areas on the ISO/IEC 25010 grid. Full public report +
+ *   protocol: docs/audit/ (AUDIT_REPORT_URL below). The i18n key
+ *   landing.proof.audit_value carries the locale-formatted display value and
+ *   must be updated in the 6 locales whenever auditScore changes.
  */
 
 export const LANDING_STATS = {
@@ -25,6 +29,11 @@ export const LANDING_STATS = {
   uiLanguages: 6,
   tests: 11000,
   adrs: 100,
-  releases: 134,
-  auditScore: '8.0/10',
+  releases: 135,
+  auditScore: '8.4/10',
+  auditAreas: 24,
 } as const;
+
+/** Public audit report — target of the ProofSection audit tile. */
+export const AUDIT_REPORT_URL =
+  'https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md';

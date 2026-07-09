@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.1] - 2026-07-10
+
+> The 360° technical audit becomes a public, reproducible artifact. `docs/audit/` now ships the full report — **8.4/10 across 24 areas** on the ISO/IEC 25010 grid, pinned to commit `182f3927` — together with the protocol that produces it (scope, depth, evidence requirements, scoring discipline, publication pipeline) and the committed measurement script. The landing proof band, README, FAQ, /story pages, SEO descriptions and knowledge base all point to it, and every published audit figure was refreshed from the stale 8.0/20-areas to 8.4/24 in the same sweep.
+
+### Added
+
+- **Public audit report — [docs/audit/README.md](docs/audit/README.md)**: 24-area scorecard with evidence highlights, the finding→ADR→release remediation-loop table (10 findings resolved in 48h, each shipped with its ADR), openly published worksites, DORA read-out, audit history, and a "Reproduce it yourself" section with the exact commands — including a transparency note documenting the test-isolation quirk the audit itself uncovered when running unit+agents in a single pytest process.
+- **Reproducible audit protocol — [docs/audit/AUDIT_PROTOCOL.md](docs/audit/AUDIT_PROTOCOL.md)**: 7 non-negotiable invariants (commit pinning, evidence-only findings, counter-verification, executed suites, logical-SLOC metrics, register continuity, inline conduct), per-area minimum evidence sets for all 24 areas, anchored scoring discipline, and the 7-step constants-first publication pipeline — a future audit cycle is triggered by a single request and lands on every public surface. `CLAUDE.md` documentation pointers reference it.
+- **`scripts/audit/measure_sloc.py`**: the official size-metrics tool — logical SLOC via tokenize + AST (docstrings, comments and blank lines excluded), file- and function-level, with the data-module exemption list (i18n tables, configuration, constants) that keeps "god file" scoring honest. Standard library only.
+- **Landing — the audit tile is now a link**: the proof-band "360° technical audit" tile opens the full public report on GitHub (new `AUDIT_REPORT_URL` constant, `aria-label` in all 6 languages, keyboard-focus ring) instead of being a static figure.
+- **README — audit surfaces**: a `360° audit 8.4/10` badge in the header block, an audit row in the Tests → Statistics table, and direct links from the "Built by an AI" section and the Performance note to the public report.
+
+### Changed
+
+- **All published audit figures moved to 8.4/10 across 24 areas** (previously 8.0/10 across 20): landing constants (`auditScore`, new `auditAreas`), proof-band tile values in the 6 locales, the "who wrote this code" FAQ answer ×6, the REX stats block (value and label) ×6, the /story pages ×6 — which now also link to the full report — the story SEO descriptions ×6, `docs/knowledge/01_getting_started.md`, and `docs/INDEX.md` (new audit entry).
+
+### Fixed
+
+- **19 stale audit-figure occurrences** on public surfaces still claiming 8.0/10 across 20 areas after the July 9 re-audit — FAQ answers, REX stats labels, story SEO meta-descriptions and the knowledge-base entry that feeds the in-app system FAQ (RAG) — found by the repository-wide sweep now mandated by the audit protocol's publication pipeline.
+
 ## [1.23.0] - 2026-07-09
 
 > Chat-driven skill import (ADR-118): the skill-generator now delivers finished skills directly into "My Skills" — no more copy/paste of code blocks, manual folder assembly, or zip upload. The audit of the import pipeline this feature builds on uncovered and fixed a critical path-traversal vulnerability plus three more defects, and multi-turn skill dialogues finally keep their context (history forwarded to the skill runner + a `dialogue: true` frontmatter extension the chat override respects).

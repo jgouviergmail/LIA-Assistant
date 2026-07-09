@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 3.6
-**Date**: 2026-07-09
-**Application**: LIA v1.23.0
+**Version**: 3.7
+**Date**: 2026-07-10
+**Application**: LIA v1.23.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -255,6 +255,8 @@ You're not paying a subscription that hides the real costs. You see exactly what
 Transparency is not a technical gimmick. It changes your relationship with your assistant: you **understand** its decisions, you **control** your costs, you **detect** problems. You trust because you can verify — not because you're asked to believe.
 
 ---
+
+This transparency extends to the system's own quality. The complete technical audit — scores, method, strengths and what remains to be improved — is published in the repository, with the protocol to rerun it and the commands to verify the measurements: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). You are not asked to trust the figures on this site; you can check them.
 
 ## 7. Emotional depth
 

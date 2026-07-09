@@ -3,8 +3,8 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 1.0
-**Date** : 2026-07-09
-**Application** : LIA v1.23.0
+**Date** : 2026-07-10
+**Application** : LIA v1.23.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -13,7 +13,7 @@
 
 LIA est un assistant IA multi-agents complet — connecteurs métier, voix, mémoire, six langues — conçu, développé et exploité en production en continu, en projet personnel.
 
-La quasi-totalité du code a été écrite par une IA, sous direction humaine : référentiel d'ingénierie écrit, contrôles automatiques bloquants, revue systématique, audits récurrents. Le résultat est mesuré : **8,0/10** à l'audit technique sur 20 périmètres. Le dépôt est open-source ; les conclusions de l'audit — points forts comme faiblesses — sont assumées et résumées dans ce document.
+La quasi-totalité du code a été écrite par une IA, sous direction humaine : référentiel d'ingénierie écrit, contrôles automatiques bloquants, revue systématique, audits récurrents. Le résultat est mesuré : **8,4/10** à l'audit technique sur 24 périmètres. Le dépôt est open-source ; les conclusions de l'audit — points forts comme faiblesses — sont assumées et résumées dans ce document.
 
 | Indicateur | Valeur |
 | --- | --- |
@@ -23,7 +23,7 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Décisions d'architecture documentées (ADR) | **100+** |
 | Versions livrées à rythme régulier | **120+** |
 | Langues, parité vérifiée automatiquement | **6** |
-| Audit technique sur 20 périmètres | **8,0/10** |
+| Audit technique sur 24 périmètres | **8,4/10** |
 
 Conviction d'expérience : le développement assisté par IA est industrialisable dès aujourd'hui. Le facteur limitant n'est pas l'outil — c'est le cadre de direction qu'on lui donne.
 
@@ -69,7 +69,7 @@ Un système qu'on pilote aux instruments :
 
 ## 6. La preuve
 
-Le niveau annoncé dans ce document résulte d'un audit technique complet : 20 périmètres notés, chaque constat vérifié dans le code et contre-vérifié pour éliminer les faux positifs. L'audit applique la méthode du projet lui-même — conduit avec l'outillage IA, en posture contradictoire, chaque conclusion ancrée dans une preuve vérifiée sur pièces. Dernière évaluation : **8,0/10**, avec un profil assumé.
+Le niveau annoncé dans ce document résulte d'un audit technique complet : 24 périmètres notés, chaque constat vérifié dans le code et contre-vérifié pour éliminer les faux positifs. L'audit applique la méthode du projet lui-même — conduit avec l'outillage IA, en posture contradictoire, chaque conclusion ancrée dans une preuve vérifiée sur pièces. Dernière évaluation : **8,4/10**, avec un profil assumé. Le rapport complet — grille de notation, méthode, constats ouverts et protocole de reproduction — est public : [rapport d'audit complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Points forts confirmés :**
 

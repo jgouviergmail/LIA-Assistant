@@ -2936,6 +2936,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_23_1": {
+          "title": "v1.23.1 — 🔍 La auditoría se hace pública",
+          "date": "Julio 2026",
+          "count": "3",
+          "items": {
+            "i1": "La nota de la auditoría técnica pasa a <strong>8,4/10 sobre 24 perímetros</strong> — y el informe completo ya está publicado en <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>: cuadro de calificaciones, método, bucle de remediación y frentes abiertos incluidos, con los comandos para reproducir las mediciones usted mismo.",
+            "i2": "La tarjeta «Auditoría técnica 360°» de la página de inicio ahora abre directamente el informe completo.",
+            "i3": "Todas las cifras de auditoría mostradas en la aplicación (página de inicio, FAQ, página Story) han sido actualizadas, en los 6 idiomas."
+          }
+        },
         "v1_23_0": {
           "title": "v1.23.0 — 🧩 Skills que se instalan solas",
           "date": "Julio 2026",
@@ -3900,7 +3910,7 @@
           },
           "q7": {
             "question": "¿Cómo se construyó LIA?",
-            "answer": "Cerca del <strong>100 % del código de LIA lo escribe una IA</strong>, bajo dirección humana: reglas de ingeniería escritas, controles automáticos bloqueantes, un ciclo de revisión donde el humano decide, y auditorías contradictorias recurrentes (última evaluación: 8,0/10 sobre 20 perímetros).<br><br>La historia completa — método, arbitrajes, explotación y lo que queda por hacer — está en la <a href=\"/es/story\">página Story</a>, y el código fuente es abierto en <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
+            "answer": "Cerca del <strong>100 % del código de LIA lo escribe una IA</strong>, bajo dirección humana: reglas de ingeniería escritas, controles automáticos bloqueantes, un ciclo de revisión donde el humano decide, y auditorías contradictorias recurrentes (última evaluación: 8,4/10 sobre 24 perímetros — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">informe completo</a>).<br><br>La historia completa — método, arbitrajes, explotación y lo que queda por hacer — está en la <a href=\"/es/story\">página Story</a>, y el código fuente es abierto en <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
           }
         }
       },
@@ -5920,7 +5930,8 @@
         "providers": "Proveedores LLM",
         "voice_languages": "Idiomas de voz"
       },
-      "audit_value": "8,0/10",
+      "audit_value": "8,4/10",
+      "audit_link_aria": "8,4/10 — auditoría técnica 360°. Ver el informe de auditoría público completo en GitHub.",
       "rex_teaser": "Casi el 100 % de este código fue escrito por una IA — dirigida, revisada y auditada por un humano.",
       "rex_link": "Leer el informe de experiencia"
     },
@@ -5938,8 +5949,8 @@
           "label": "tests automatizados"
         },
         "audit": {
-          "value": "8,0/10",
-          "label": "en la auditoría técnica sobre 20 perímetros"
+          "value": "8,4/10",
+          "label": "en la auditoría técnica sobre 24 perímetros"
         },
         "lines": {
           "value": "420.000",
@@ -6806,7 +6817,7 @@
   "story": {
     "meta": {
       "title": "Story — Dirigir una IA que programa | LIA",
-      "description": "Cómo se construyó LIA: ~100 % de código escrito por IA bajo dirección humana, 10.000+ tests, 100+ ADRs, una auditoría técnica de 8,0/10. El informe completo."
+      "description": "Cómo se construyó LIA: ~100 % de código escrito por IA bajo dirección humana, 10.000+ tests, 100+ ADRs, una auditoría técnica de 8,4/10. El informe completo."
     },
     "breadcrumb": "Informe",
     "hero": {

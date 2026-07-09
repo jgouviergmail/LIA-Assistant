@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, BadgeCheck } from 'lucide-react';
 import { AnimatedCounter } from './AnimatedCounter';
-import { LANDING_STATS } from './constants';
+import { AUDIT_REPORT_URL, LANDING_STATS } from './constants';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
 
@@ -68,16 +68,23 @@ export function ProofSection({ lng }: ProofSectionProps) {
             </div>
           ))}
 
-          {/* Audit score — string value, not a counter */}
-          <div className="text-center">
+          {/* Audit score — string value, not a counter; links to the full
+              public report (transparency: the figure is backed by docs/audit/) */}
+          <a
+            href={AUDIT_REPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t('landing.proof.audit_link_aria')}
+            className="text-center group rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
             <div className="text-3xl mobile:text-4xl font-bold text-primary inline-flex items-center gap-1.5">
               <BadgeCheck className="w-6 h-6 mobile:w-7 mobile:h-7" aria-hidden="true" />
               {t('landing.proof.audit_value')}
             </div>
-            <div className="text-sm text-muted-foreground mt-1">
+            <div className="text-sm text-muted-foreground mt-1 group-hover:text-primary group-hover:underline">
               {t('landing.proof.items.audit')}
             </div>
-          </div>
+          </a>
         </div>
 
         {/* Field-report teaser */}

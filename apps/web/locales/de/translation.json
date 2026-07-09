@@ -2936,6 +2936,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_23_1": {
+          "title": "v1.23.1 — 🔍 Das Audit wird öffentlich",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "Die Bewertung des technischen Audits steigt auf <strong>8,4/10 über 24 Bereiche</strong> — und der vollständige Bericht ist jetzt auf <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a> veröffentlicht: Bewertungsraster, Methode, Remediations-Schleife und offene Baustellen inklusive, mit den Befehlen, um die Messungen selbst zu reproduzieren.",
+            "i2": "Die Kachel „Technisches 360°-Audit“ auf der Startseite öffnet jetzt direkt den vollständigen Bericht.",
+            "i3": "Alle in der App angezeigten Audit-Zahlen (Startseite, FAQ, Story-Seite) wurden aktualisiert, in allen 6 Sprachen."
+          }
+        },
         "v1_23_0": {
           "title": "v1.23.0 — 🧩 Skills, die sich selbst installieren",
           "date": "Juli 2026",
@@ -3900,7 +3910,7 @@
           },
           "q7": {
             "question": "Wie wurde LIA gebaut?",
-            "answer": "Fast <strong>100 % des Codes von LIA werden von einer KI geschrieben</strong>, unter menschlicher Führung: schriftliche Engineering-Regeln, blockierende automatische Prüfungen, ein Review-Zyklus, in dem der Mensch entscheidet, und wiederkehrende kontradiktorische Audits (letzte Bewertung: 8,0/10 über 20 Bereiche).<br><br>Die ganze Geschichte — Methode, Abwägungen, Betrieb und was noch zu tun bleibt — steht auf der <a href=\"/de/story\">Story-Seite</a>; der Quellcode ist offen auf <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
+            "answer": "Fast <strong>100 % des Codes von LIA werden von einer KI geschrieben</strong>, unter menschlicher Führung: schriftliche Engineering-Regeln, blockierende automatische Prüfungen, ein Review-Zyklus, in dem der Mensch entscheidet, und wiederkehrende kontradiktorische Audits (letzte Bewertung: 8,4/10 über 24 Bereiche — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">vollständiger Bericht</a>).<br><br>Die ganze Geschichte — Methode, Abwägungen, Betrieb und was noch zu tun bleibt — steht auf der <a href=\"/de/story\">Story-Seite</a>; der Quellcode ist offen auf <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
           }
         }
       },
@@ -5920,7 +5930,8 @@
         "providers": "LLM-Anbieter",
         "voice_languages": "Sprachen (Voice)"
       },
-      "audit_value": "8,0/10",
+      "audit_value": "8,4/10",
+      "audit_link_aria": "8,4/10 — technisches 360°-Audit. Den vollständigen öffentlichen Audit-Bericht auf GitHub ansehen.",
       "rex_teaser": "Fast 100 % dieses Codes wurden von einer KI geschrieben — von einem Menschen geführt, geprüft und auditiert.",
       "rex_link": "Zum Erfahrungsbericht"
     },
@@ -5938,8 +5949,8 @@
           "label": "automatisierte Tests"
         },
         "audit": {
-          "value": "8,0/10",
-          "label": "im technischen Audit über 20 Bereiche"
+          "value": "8,4/10",
+          "label": "im technischen Audit über 24 Bereiche"
         },
         "lines": {
           "value": "420.000",
@@ -6806,7 +6817,7 @@
   "story": {
     "meta": {
       "title": "Story — Eine KI führen, die programmiert | LIA",
-      "description": "Wie LIA entstand: ~100 % KI-geschriebener Code unter menschlicher Führung, 10.000+ Tests, 100+ ADRs, ein technisches Audit mit 8,0/10. Der vollständige Erfahrungsbericht."
+      "description": "Wie LIA entstand: ~100 % KI-geschriebener Code unter menschlicher Führung, 10.000+ Tests, 100+ ADRs, ein technisches Audit mit 8,4/10. Der vollständige Erfahrungsbericht."
     },
     "breadcrumb": "Erfahrungsbericht",
     "hero": {
