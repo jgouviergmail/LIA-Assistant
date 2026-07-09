@@ -1439,9 +1439,9 @@ hyperframe==6.1.0 \
     # via
     #   -c requirements.lock.txt
     #   h2
-icalendar==6.3.2 \
-    --hash=sha256:d400e9c9bb8c025e5a3c77c236941bb690494be52528a0b43cc7e8b7c9505064 \
-    --hash=sha256:e0c10ecbfcebe958d33af7d491f6e6b7580d11d475f2eeb29532d0424f9110a1
+icalendar==7.2.0 \
+    --hash=sha256:32dacc396101825b82f9f1bbdf691c02be613130d5ab7a457e553fcd20959fdd \
+    --hash=sha256:77922b6be57dfcc2e94f93063d2fd7e948ada9b5bdf7b08bebbc684b1b66c7c4
     # via
     #   -c requirements.lock.txt
     #   caldav
