@@ -763,6 +763,7 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     # Register Skills tool manifests (agentskills.io standard)
     from src.domains.skills.catalogue_manifests import (
         activate_skill_catalogue_manifest,
+        import_user_skill_catalogue_manifest,
         read_skill_resource_catalogue_manifest,
         run_skill_script_catalogue_manifest,
     )
@@ -770,6 +771,7 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     registry.register_tool_manifest(activate_skill_catalogue_manifest)
     registry.register_tool_manifest(read_skill_resource_catalogue_manifest)
     registry.register_tool_manifest(run_skill_script_catalogue_manifest)
+    registry.register_tool_manifest(import_user_skill_catalogue_manifest)
 
     # Register Sub-Agent delegation tool (F6 — transversal, always in catalogue)
     from src.core.config import get_settings as _get_settings

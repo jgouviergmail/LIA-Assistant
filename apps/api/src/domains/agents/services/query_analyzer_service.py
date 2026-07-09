@@ -630,6 +630,29 @@ def _build_available_domains() -> list[dict[str, str]]:
     return available_domains
 
 
+def _is_dialogue_skill(skill_name: str | None) -> bool:
+    """Return True when ``skill_name`` declares the ``dialogue: true`` extension.
+
+    Dialogue skills (ADR-118, e.g. skill-generator) run a multi-turn process:
+    the user's answers to the skill's own questions are legitimately
+    conversational, so the chat override must NOT clear the detected
+    skill_name for them — clearing is what breaks the dialogue across turns.
+    One-shot skills keep the anti-contamination behavior.
+
+    Args:
+        skill_name: Skill name detected by the analyzer LLM (may be None).
+
+    Returns:
+        True only when the skill exists in the cache and opts into dialogue.
+    """
+    if not skill_name:
+        return False
+    from src.domains.skills.cache import SkillsCache
+
+    skill = SkillsCache.get_by_name(skill_name)
+    return bool(skill and skill.get("dialogue"))
+
+
 async def analyze_query(
     query: str,
     available_domains: list[dict[str, str]] | None = None,
@@ -1208,7 +1231,23 @@ class QueryAnalyzerService:
                     # from prior turns (e.g. a greeting after a skill was used)
                     # rather than from the current query. Clear it so the
                     # response_node does not re-activate the skill ReAct agent.
-                    if analysis_result.skill_name:
+                    # EXCEPTION (ADR-118): skills declaring `dialogue: true` run
+                    # a multi-turn process — the user's conversational reply IS
+                    # part of the skill flow, so the detection is preserved.
+                    if analysis_result.skill_name and _is_dialogue_skill(
+                        analysis_result.skill_name
+                    ):
+                        logger.info(
+                            "chat_override_kept_dialogue_skill",
+                            skill_name=analysis_result.skill_name,
+                            intent=intent,
+                            confidence=confidence,
+                            reason="dialogue skill — follow-up turns continue its flow",
+                        )
+                        reasoning_trace.append(
+                            f"Chat Override: dialogue skill kept ({analysis_result.skill_name})"
+                        )
+                    elif analysis_result.skill_name:
                         logger.info(
                             "chat_override_cleared_skill_name",
                             skill_name=analysis_result.skill_name,

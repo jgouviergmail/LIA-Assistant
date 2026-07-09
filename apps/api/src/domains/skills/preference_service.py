@@ -162,10 +162,20 @@ class SkillPreferenceService:
 
         For system skills: creates states for ALL existing users.
         For user skills: creates a state for the owner only.
+
+        Raises:
+            ValueError: when the name is already registered under a different
+                scope/owner. The import pipeline rejects such conflicts with a
+                409 before reaching this point (ADR-118) — this guard is
+                defense-in-depth against races and future callers.
         """
         # Check if skill already exists (re-import case)
         existing = await self.skill_repo.get_by_name(name)
         if existing:
+            if existing.is_system != is_system or existing.owner_id != owner_id:
+                raise ValueError(
+                    f"Skill '{name}' is already registered with a different owner/scope"
+                )
             existing.description = description
             existing.descriptions = descriptions
             self.db.add(existing)

@@ -6,7 +6,7 @@
 
 **Versione**: 2.7
 **Data**: 2026-07-09
-**Applicazione**: LIA v1.22.0
+**Applicazione**: LIA v1.23.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -924,6 +924,8 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 Una libreria di skill integrati dimostra il contratto: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — ciascuno illustra una combinazione diversa dei tre canali.
 
+**Ciclo di vita delle skill**: ogni skill entra da un'unica pipeline di importazione rafforzata (`SkillImportService`) — validazione rigorosa del nome agentskills.io prima di qualsiasi scrittura su disco (guardia anti path-traversal), limiti di espansione degli zip, staging + swap con ripristino automatico della versione precedente in caso di errore, e rifiuto dei conflitti di nomi tra ambiti (DB + cache come doppia autorità). Il generatore di skill integrato usa la stessa pipeline tramite il tool `import_user_skill`: una skill creata in chat viene validata, installata e annunciata con il suo nome nello stesso turno — senza upload manuale. Le skill il cui workflow copre più turni dichiarano `dialogue: true` nel frontmatter, che il chat override del QueryAnalyzer rispetta (la loro rilevazione sopravvive alle risposte conversazionali di follow-up), mentre il runner ReAct delle skill riceve la cronologia di conversazione finestrata per riprendere il dialogo invece di ricominciarlo.
+
 ### 23.8. Cronologia conversazioni, ricerca e rendering ricco della chat
 
 Quattro capacità trasversali condividono la stessa filosofia di prodotto: **feedback immediato, zero costo server quando non necessario**.
@@ -1047,4 +1049,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.22.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.23.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

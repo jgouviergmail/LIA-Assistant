@@ -144,6 +144,7 @@ async def test_activate_skills_disabled_is_noop():
             {"configurable": {}},
             "r",
             last_user_message="q",
+            conversation_history="",
             current_turn_registry=registry,
             react_result=None,
         )
@@ -172,6 +173,7 @@ async def test_activate_skills_always_loaded_passive_injection():
             {"configurable": {}},
             "r",
             last_user_message="q",
+            conversation_history="",
             current_turn_registry=None,
             react_result=None,
         )
@@ -214,6 +216,7 @@ async def test_activate_skills_script_skill_runs_react_runner():
             {"configurable": {}},
             "r",
             last_user_message="lance mon skill",
+            conversation_history="",
             current_turn_registry=None,
             react_result=None,
         )
@@ -254,6 +257,7 @@ async def test_activate_skills_runner_error_falls_back_to_passive_l2():
             {"configurable": {}},
             "r",
             last_user_message="lance mon skill",
+            conversation_history="",
             current_turn_registry=None,
             react_result=None,
         )

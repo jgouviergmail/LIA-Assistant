@@ -6,7 +6,7 @@
 
 **Versión**: 2.7
 **Fecha**: 2026-07-09
-**Aplicación**: LIA v1.22.0
+**Aplicación**: LIA v1.23.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -924,6 +924,8 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 Una biblioteca de skills integrados demuestra el contrato: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — cada uno ilustrando una combinación distinta de los tres canales.
 
+**Ciclo de vida de las skills**: toda skill entra por un único pipeline de importación reforzado (`SkillImportService`) — validación estricta del nombre agentskills.io antes de cualquier escritura en disco (guarda anti path-traversal), límites de expansión de zips, staging + swap con restauración automática de la versión anterior en caso de fallo, y rechazo de conflictos de nombres entre ámbitos (DB + caché como doble autoridad). El generador de skills integrado usa el mismo pipeline mediante la herramienta `import_user_skill`: una skill creada en el chat se valida, se instala y se anuncia por su nombre en el mismo turno — sin subida manual. Las skills cuyo flujo abarca varios turnos declaran `dialogue: true` en su frontmatter, que el chat override del QueryAnalyzer respeta (su detección sobrevive a las respuestas conversacionales de seguimiento), mientras el runner ReAct de skills recibe el historial de conversación ventaneado para retomar el diálogo en lugar de reiniciarlo.
+
 ### 23.8. Historial de conversaciones, búsqueda y renderizado enriquecido del chat
 
 Cuatro capacidades transversales comparten la misma filosofía de producto: **feedback inmediato, cero coste servidor cuando no es necesario**.
@@ -1047,4 +1049,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.22.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.23.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

@@ -100,6 +100,31 @@ def raise_skill_file_too_large(file_size: int, max_size_kb: int) -> NoReturn:
     )
 
 
+def raise_skill_name_conflict(skill_name: str) -> NoReturn:
+    """Raise 409 when an imported skill name collides with a protected name.
+
+    Covers two cases (deliberately not distinguished in the response so the
+    existence of another user's skill is not confirmed):
+    - name of a system skill (shadowing is forbidden at import time)
+    - name already registered by another user (``skills.name`` is unique)
+
+    Args:
+        skill_name: Conflicting skill name from the frontmatter.
+
+    Raises:
+        BaseAPIException: 409 Conflict.
+    """
+    raise BaseAPIException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=(
+            f"Skill name '{skill_name}' is not available — choose a different "
+            "name (system skill names and names used by other users are reserved)"
+        ),
+        log_event="skill_name_conflict",
+        skill_name=skill_name,
+    )
+
+
 def raise_skill_quota_exceeded(user_id: str, max_per_user: int) -> NoReturn:
     """Raise 429 when a user has reached the maximum number of imported skills.
 

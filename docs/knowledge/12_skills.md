@@ -14,7 +14,7 @@ A skill is a **SKILL.md** file that extends the assistant's capabilities with ex
 In **Settings > Features > My Skills**, click **Import skill** and select a .md or .zip file. Compatible skills are available on **skillsmp.com** or GitHub. Limits: 100 KB for SKILL.md, 50 KB per resource file, 20 skills max per user.
 
 ## How do I create my own skill?
-**The easiest way: just ask LIA!** Say something like "*create a skill for [your need]*" and the built-in **Skill Generator** will guide you step by step: need analysis, archetype selection (Prompt Expert, Advisory or Plan Template), SKILL.md generation, and automatic validation.
+**The easiest way: just ask LIA!** Say something like "*create a skill for [your need]*" and the built-in **Skill Generator** will guide you step by step: need analysis, archetype selection (any of the 5 archetypes), generation, automatic validation — and **direct import**: the finished skill lands in **My Skills** immediately, ready to use, no manual upload.
 
 You can also manually create a SKILL.md file with a minimal YAML header (name + description) followed by Markdown instructions. See the **built-in guide** (📖 Guide button in My Skills) for advanced options including full agent & tool catalogue with parameters.
 
@@ -27,7 +27,7 @@ The **Guide** button in My Skills opens a comprehensive 3-tab reference:
 ## What is the difference between admin skills and my skills?
 **Admin skills (built-in)**: shipped with the application, available to all users. You can enable/disable them individually.
 **My skills (imported)**: personal skills you import. You can toggle, download, or delete them.
-If you import a skill with the same name as an admin skill, yours overrides it (override semantics).
+Skill names are unique: an import reusing the name of a built-in skill (or of another user's skill) is rejected with a clear error — pick a variant name instead.
 
 ## How does LIA decide which skill to use?
 Skill activation uses a **hybrid model** with 3 strategies:
@@ -48,11 +48,9 @@ Yes. Hover over any skill in settings and click the **download** icon (⬇️). 
 ## What is the Skill Generator?
 The **Skill Generator** is a built-in system skill that lets you **create your own skills using natural language**. Simply describe your need ("*I want a detailed 5-day weather forecast*") and the assistant guides you through 4 steps:
 1. **Need analysis**: clarifying questions about the task, tools, and desired format
-2. **Archetype selection**: Prompt Expert, Advisory, or Plan Template
-3. **Generation**: creates a SKILL.md file compliant with the agentskills.io standard
-4. **Validation**: automatic format verification via a built-in script
-
-The generated file is ready to import in **Settings > Features > My Skills**.
+2. **Archetype selection**: Prompt Expert, Advisory, Plan Template, Visualizer, or Generator
+3. **Generation**: creates the SKILL.md (plus scripts/references if needed) compliant with the agentskills.io standard
+4. **Validation & import**: automatic format verification, then **direct import** — the assistant announces the skill by name and it is immediately active in **My Skills** (toggle, download, or delete it there like any imported skill)
 
 ## What can skills include beyond instructions?
 A skill package (.zip) can contain:

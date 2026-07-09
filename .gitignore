@@ -280,3 +280,6 @@ LIA Pics/
 
 # Playwright MCP session artifacts
 .playwright-mcp/
+
+# User-imported skills (runtime data, per-user content — never in the repo)
+data/skills/users/

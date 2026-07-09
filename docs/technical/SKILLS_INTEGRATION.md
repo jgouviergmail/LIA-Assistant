@@ -261,12 +261,69 @@ SKILLS_USERS_PATH=data/skills/users
 # Limits
 SKILLS_MAX_PER_USER=20
 
+# Import hardening (ADR-118)
+SKILLS_CHAT_IMPORT_ENABLED=true
+SKILLS_ZIP_MAX_DECOMPRESSED_KB=2048
+SKILLS_ZIP_MAX_FILES=64
+
 # Script execution
 SKILLS_SCRIPTS_ENABLED=false
 SKILLS_SCRIPT_TIMEOUT_SECONDS=30
 SKILLS_SCRIPT_MAX_OUTPUT_KB=50
 SKILLS_SCRIPT_MAX_INPUT_KB=100
 ```
+
+## Import Pipeline (ADR-118)
+
+Every skill import — user upload, admin upload, or chat-driven — goes through
+the single hardened pipeline in `src/domains/skills/import_service.py`
+(`SkillImportService`). Stages:
+
+1. **Stage** into a temp directory: bare `SKILL.md` write, bounded zip
+   extraction (decompressed-size cap `SKILLS_ZIP_MAX_DECOMPRESSED_KB`,
+   member-count cap `SKILLS_ZIP_MAX_FILES`, per-member zip-slip check, only
+   the SKILL.md subtree extracted), or text-file map (chat path — text
+   extensions only).
+2. **Validate**: strict agentskills.io name contract
+   (`^[a-z0-9][a-z0-9-]*[a-z0-9]$`, ≤64 chars, no consecutive hyphens, no
+   `claude`/`anthropic` prefix) enforced BEFORE any write into the live tree
+   (path-traversal guard), then full `parse_skill_file` content validation.
+3. **Conflict + quota** (user imports): rejects names owned by a system skill
+   or another user (409, existence not disclosed); re-importing one's own
+   skill upserts; `SKILLS_MAX_PER_USER` enforced.
+4. **Commit**: atomic swap staging → live tree, DB registration
+   (`create_skill_for_import`), `SkillsCache.invalidate_and_reload()`
+   (cross-worker, ADR-063).
+
+### Chat-driven import (`import_user_skill` tool)
+
+The skill-generator delivers finished skills directly: it calls
+`import_user_skill(files={path: content, ...})` (in `skills_tools`, so it is
+available inside the skill ReAct runner), then announces the imported skill
+by name. Gated by `SKILLS_CHAT_IMPORT_ENABLED`, rate-limited 5/min/user.
+Failures return structured errors (invalid name, conflict, quota) that the
+LLM uses to fix the files and retry once; after two failures it falls back to
+the legacy code-block delivery protocol.
+
+Failure atomicity: the previous version of a re-imported skill is parked in
+the staging temp directory during the swap and restored if the DB
+registration or commit fails — a failed import can neither destroy an
+existing skill nor leave disk and DB diverging. A lost registration race
+(concurrent import winning the name between check and flush) rolls the disk
+back and answers the same 409 as the up-front conflict check.
+
+### Dialogue skills (`dialogue: true` extension field)
+
+Skills whose workflow spans several turns (the skill-generator's
+clarify → answer → generate flow) declare `dialogue: true` in their
+frontmatter (LIA extension, default `false`). Effect: the QueryAnalyzer's
+chat override — which normally clears a detected `skill_name` on confidently
+conversational turns to prevent history contamination — preserves the
+detection for dialogue skills, because the user's conversational reply IS
+part of the skill's flow. Combined with the conversation history forwarded to
+the skill ReAct runner (`<conversation_history>` block in the runner task),
+the dialogue resumes where it left off instead of restarting. One-shot skills
+(qr-code, dice-roller…) keep the anti-contamination behavior.
 
 ## Script Execution Security
 
@@ -285,7 +342,7 @@ See [ADR-097](../architecture/ADR-097-Concurrency-GDPR-Sandbox-Wave4-Audit.md) f
 
 ## Override Semantics
 
-Per agentskills.io: user skills override admin skills with the same name (last-one-wins). This allows users to customize system skills.
+Per agentskills.io, the cache resolves a user skill over an admin skill with the same name (`get_by_name_for_user`, last-one-wins) — this remains for pre-existing data. **New imports can no longer create such shadows**: since ADR-118 the import pipeline rejects a user import whose name collides with a system skill or with another user's skill (the DB `skills.name` column is globally unique, so a shadow import used to silently rewrite the other row's display metadata).
 
 ## Skill Archetypes
 

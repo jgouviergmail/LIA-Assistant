@@ -30,6 +30,8 @@ from src.core.constants import (
     SKILLS_SCRIPT_UNPRIVILEGED_UID,
     SKILLS_SYSTEM_PATH_DEFAULT,
     SKILLS_USERS_PATH_DEFAULT,
+    SKILLS_ZIP_MAX_DECOMPRESSED_KB,
+    SKILLS_ZIP_MAX_FILES,
 )
 
 
@@ -71,6 +73,36 @@ class SkillsSettings(BaseSettings):
         ge=1,
         le=100,
         description="Maximum number of imported skills per user.",
+    )
+
+    # ========================================================================
+    # Import Hardening (upload endpoints + chat import tool)
+    # ========================================================================
+
+    skills_zip_max_decompressed_kb: int = Field(
+        default=SKILLS_ZIP_MAX_DECOMPRESSED_KB,
+        ge=100,
+        le=51200,
+        description=(
+            "Maximum total decompressed size of an imported skill package (KB). "
+            "Guards against zip bombs — checked before extraction."
+        ),
+    )
+
+    skills_zip_max_files: int = Field(
+        default=SKILLS_ZIP_MAX_FILES,
+        ge=1,
+        le=512,
+        description="Maximum number of files in an imported skill package.",
+    )
+
+    skills_chat_import_enabled: bool = Field(
+        default=True,
+        description=(
+            "Enable direct skill import from chat via the import_user_skill tool "
+            "(skill-generator flow). When false, generated skills must be "
+            "imported manually through Settings."
+        ),
     )
 
     # ========================================================================

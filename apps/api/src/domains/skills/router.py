@@ -29,10 +29,7 @@ from src.domains.auth.models import User
 from src.domains.skills.exceptions import (
     raise_admin_skill_delete_forbidden,
     raise_admin_skill_only,
-    raise_skill_file_too_large,
-    raise_skill_invalid_format,
     raise_skill_not_found,
-    raise_skill_quota_exceeded,
     raise_skill_translation_failed,
     raise_skill_translation_invalid,
     raise_skill_write_failed,
@@ -99,102 +96,6 @@ def _skill_to_response(
         "has_plan_template": bool(skill.get("plan_template")),
         "enabled_for_user": enabled_for_user,
     }
-
-
-def _extract_skill_to_dir(content: bytes, filename: str, base_dir: Path) -> Path:
-    """Extract a SKILL.md or .zip package to a target directory.
-
-    Returns the target directory containing SKILL.md.
-
-    Raises:
-        BaseAPIException: 413 when the file exceeds ``SKILLS_MAX_FILE_SIZE_KB``.
-        ValidationError: 400 on any format / zip / UTF-8 / YAML error.
-    """
-    from src.core.constants import SKILLS_MAX_FILE_SIZE_KB
-
-    if len(content) > SKILLS_MAX_FILE_SIZE_KB * 1024:
-        raise_skill_file_too_large(len(content), SKILLS_MAX_FILE_SIZE_KB)
-
-    if filename.endswith(".zip"):
-        return _extract_zip(content, base_dir)
-    return _extract_single_md(content, base_dir)
-
-
-def _extract_zip(content: bytes, base_dir: Path) -> Path:
-    """Extract a .zip skill package with Zip Slip protection.
-
-    Handles two zip layouts:
-    - Nested: my-skill/SKILL.md (standard) → extract to base_dir, target = base_dir/my-skill
-    - Flat: SKILL.md at root → extract to base_dir/imported-skill, parse name from frontmatter
-    """
-    try:
-        with zipfile.ZipFile(BytesIO(content)) as zf:
-            skill_files = [n for n in zf.namelist() if n.endswith("SKILL.md")]
-            if not skill_files:
-                raise_skill_invalid_format("No SKILL.md found in zip")
-            skill_md_path = skill_files[0]
-            parent = Path(skill_md_path).parent
-
-            if parent == Path(".") or parent == Path(""):
-                target_dir = base_dir / "imported-skill"
-                target_dir.mkdir(parents=True, exist_ok=True)
-            else:
-                target_dir = base_dir / parent.parts[0]
-                target_dir.mkdir(parents=True, exist_ok=True)
-
-            extract_to = (
-                target_dir.parent if parent != Path(".") and parent != Path("") else target_dir
-            )
-            extract_to_resolved = extract_to.resolve()
-            for member in zf.namelist():
-                member_path = (extract_to / member).resolve()
-                try:
-                    member_path.relative_to(extract_to_resolved)
-                except ValueError:
-                    raise_skill_invalid_format("Zip contains path traversal entries")
-
-            if parent == Path(".") or parent == Path(""):
-                zf.extractall(str(target_dir))
-            else:
-                zf.extractall(str(base_dir))
-    except zipfile.BadZipFile:
-        raise_skill_invalid_format("Invalid zip file")
-    return target_dir
-
-
-def _extract_single_md(content: bytes, base_dir: Path) -> Path:
-    """Extract a single SKILL.md file to a named directory."""
-    if content.startswith(b"\xef\xbb\xbf"):
-        content = content[3:]
-
-    try:
-        text = content.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        logger.warning("skill_file_decode_error", error=str(exc))
-        raise_skill_invalid_format("SKILL.md must be a valid UTF-8 text file")
-
-    if not text.startswith("---"):
-        logger.warning("skill_file_no_frontmatter_import", preview=text[:80])
-        raise_skill_invalid_format("SKILL.md must start with YAML frontmatter (---)")
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        logger.warning("skill_file_bad_frontmatter_import")
-        raise_skill_invalid_format("Invalid YAML frontmatter (missing closing ---)")
-    try:
-        meta = yaml.safe_load(parts[1])
-    except yaml.YAMLError as exc:
-        logger.warning("skill_file_yaml_error_import", error=str(exc))
-        raise_skill_invalid_format(f"Invalid YAML in frontmatter: {exc}")
-
-    if not isinstance(meta, dict):
-        logger.warning("skill_file_invalid_meta_import", meta_type=type(meta).__name__)
-        raise_skill_invalid_format("YAML frontmatter must be a mapping (key: value pairs)")
-
-    skill_name: str = meta.get("name", "imported-skill")
-    target_dir = base_dir / skill_name
-    target_dir.mkdir(parents=True, exist_ok=True)
-    (target_dir / "SKILL.md").write_text(text, encoding="utf-8")
-    return target_dir
 
 
 def _create_skill_zip(skill: dict[str, Any]) -> bytes:
@@ -267,25 +168,6 @@ def _save_translations(skill_dir: Path, translations: dict[str, str]) -> None:
         json.dumps(translations, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-
-
-def _validate_skill(target_dir: Path) -> dict[str, Any]:
-    """Parse and validate SKILL.md in target_dir, clean up on failure.
-
-    Does NOT reload cache — caller is responsible for calling
-    ``await SkillsCache.invalidate_and_reload()`` after DB commit (ADR-063).
-    """
-    from src.domains.skills.loader import parse_skill_file
-
-    skill_file = target_dir / "SKILL.md"
-    skill = parse_skill_file(skill_file)
-    if not skill:
-        shutil.rmtree(target_dir, ignore_errors=True)
-        raise_skill_invalid_format(
-            "SKILL.md validation failed (missing description or invalid format)"
-        )
-
-    return skill
 
 
 # ---------------------------------------------------------------------------
@@ -506,39 +388,17 @@ async def import_skill(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Import a SKILL.md file or .zip package (user scope)."""
-    from src.core.config import get_settings
-    from src.domains.skills.cache import SkillsCache
-    from src.domains.skills.preference_service import SkillPreferenceService
-
-    settings = get_settings()
-    user_id = str(user.id)
-
-    # Check per-user limit
-    user_skills = [s for s in SkillsCache.get_all() if s.get("owner_id") == user_id]
-    if len(user_skills) >= settings.skills_max_per_user:
-        raise_skill_quota_exceeded(user_id, settings.skills_max_per_user)
+    from src.domains.skills.import_service import SkillImportService
 
     content = await file.read()
-    base_dir = Path(settings.skills_users_path) / user_id
-    # Offload zip extraction / SKILL.md write off the event loop (CA-4).
-    target_dir = await asyncio.to_thread(
-        _extract_skill_to_dir, content, file.filename or "SKILL.md", base_dir
-    )
-    skill = _validate_skill(target_dir)
-
-    # Register in DB
-    svc = SkillPreferenceService(db)
-    await svc.create_skill_for_import(
-        name=skill["name"],
-        description=skill.get("description", skill["name"]),
-        is_system=False,
+    svc = SkillImportService(db)
+    skill = await svc.import_upload(
+        content,
+        file.filename or "SKILL.md",
         owner_id=user.id,
-        descriptions=skill.get("descriptions"),
+        is_system=False,
     )
-    await db.commit()
-    await SkillsCache.invalidate_and_reload()
-
-    logger.info("skill_imported", skill_name=skill["name"], user_id=user_id)
+    logger.info("skill_imported", skill_name=skill["name"], user_id=str(user.id))
     return _skill_to_response(skill, "user")
 
 
@@ -554,29 +414,16 @@ async def import_admin_skill(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Import a skill to the system (admin) directory."""
-    from src.core.config import get_settings
-    from src.domains.skills.cache import SkillsCache
-    from src.domains.skills.preference_service import SkillPreferenceService
-
-    settings = get_settings()
-    system_base = Path(settings.skills_system_path)
-    system_base.mkdir(parents=True, exist_ok=True)
+    from src.domains.skills.import_service import SkillImportService
 
     content = await file.read()
-    target_dir = _extract_skill_to_dir(content, file.filename or "SKILL.md", system_base)
-    skill = _validate_skill(target_dir)
-
-    # Register in DB + create states for all users
-    svc = SkillPreferenceService(db)
-    await svc.create_skill_for_import(
-        name=skill["name"],
-        description=skill.get("description", skill["name"]),
+    svc = SkillImportService(db)
+    skill = await svc.import_upload(
+        content,
+        file.filename or "SKILL.md",
+        owner_id=None,
         is_system=True,
-        descriptions=skill.get("descriptions"),
     )
-    await db.commit()
-    await SkillsCache.invalidate_and_reload()
-
     logger.info("admin_skill_imported", skill_name=skill["name"], user_id=str(user.id))
     return _skill_to_response(skill, "admin")
 

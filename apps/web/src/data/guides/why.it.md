@@ -4,7 +4,7 @@
 
 **Versione** : 3.6
 **Data** : 2026-07-09
-**Applicazione** : LIA v1.22.0
+**Applicazione** : LIA v1.23.0
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -356,7 +356,7 @@ Se un provider cambia i prezzi o peggiora il servizio, passi istantaneamente all
 
 ### 9.3. Estensibilità
 
-Ogni utente può connettere i propri server MCP, estendendo le capacità di LIA ben oltre gli strumenti integrati. Le Skills (standard agentskills.io) permettono di iniettare istruzioni specializzate in linguaggio naturale — con un generatore di Skills integrato per crearne facilmente di nuove. Dalla v1.16.8, uno Skill può anche restituire un **frame HTML interattivo** (mappa, dashboard, calendario, convertitore...) o un'**immagine** (QR code, grafico) direttamente nella chat, in un sandbox sotto CSP rigorosa, con tema e lingua sincronizzati automaticamente.
+Ogni utente può connettere i propri server MCP, estendendo le capacità di LIA ben oltre gli strumenti integrati. Le Skills (standard agentskills.io) permettono di iniettare istruzioni specializzate in linguaggio naturale — con un generatore di Skills integrato che le crea tramite un dialogo guidato e le installa direttamente tra le tue skill, pronte all'uso. Dalla v1.16.8, uno Skill può anche restituire un **frame HTML interattivo** (mappa, dashboard, calendario, convertitore...) o un'**immagine** (QR code, grafico) direttamente nella chat, in un sandbox sotto CSP rigorosa, con tema e lingua sincronizzati automaticamente.
 
 L'architettura di LIA è pensata per facilitare l'aggiunta di nuovi connettori, canali, agenti e provider IA. Il codice è strutturato con astrazioni chiare e guide di sviluppo dedicate (agent creation guide, tool creation guide) che rendono l'estensione accessibile a qualsiasi sviluppatore.
 

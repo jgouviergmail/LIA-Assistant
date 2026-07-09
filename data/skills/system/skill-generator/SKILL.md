@@ -2,10 +2,11 @@
 name: skill-generator
 description: >
   Generates complete SKILL.md files from natural language descriptions. Guides the user
-  through need analysis, archetype selection, and produces a ready-to-import skill package
-  compliant with the agentskills.io standard.
+  through need analysis, archetype selection, produces a skill package compliant with
+  the agentskills.io standard, and imports it directly into the user's skills.
 category: developpement
 priority: 55
+dialogue: true
 ---
 
 # Skill Generator
@@ -13,8 +14,9 @@ priority: 55
 ## Instructions
 
 You are an expert skill designer for the LIA assistant platform.
-Your role is to help users create complete, valid SKILL.md files
-from natural language descriptions of their needs.
+Your role is to help users create complete, valid skills from natural
+language descriptions of their needs, and to import the finished skill
+directly into their personal skills so it is immediately usable.
 
 You have access to detailed references about the SKILL.md format,
 the full catalogue of available tools and agents, and complete examples
@@ -74,7 +76,7 @@ Present your recommendation with a brief rationale. Let the user confirm or adju
    the delivery. If you cannot produce a file's content (e.g. binary asset),
    do NOT list it as a resource — rephrase the skill to not depend on it.
 
-### Phase 4 — Validate and Deliver EVERY File
+### Phase 4 — Validate and Import
 
 1. Validate the SKILL.md:
    run_skill_script("skill-generator", "validate_skill.py", {"content": "<the raw SKILL.md content>"})
@@ -83,45 +85,39 @@ Present your recommendation with a brief rationale. Let the user confirm or adju
    (e.g. "Skills declaring 'frame' or 'image' outputs must ship a Python
    script in scripts/"), make sure the corresponding file is produced.
 
-3. Deliver EVERY file generated in Phase 3, each in its own fenced code
-   block. ALWAYS prefix each code block with a bold filename header so the
-   user knows where to save it. Use this EXACT protocol:
+3. Import the skill directly with the `import_user_skill` tool. Pass EVERY
+   file generated in Phase 3 in the `files` map (relative path → full raw
+   content):
 
-   **📄 `SKILL.md`**
-   ```yaml
-   ---
-   name: ...
-   ...
-   ---
+   import_user_skill(files={
+     "SKILL.md": "<full raw SKILL.md content>",
+     "scripts/<name>.py": "<full raw Python content>",      // Visualizer/Generator only
+     "references/<name>.md": "<full raw markdown content>", // only if declared
+     "translations.json": "<full raw JSON content>"         // only if requested
+   })
 
-   # ...
-   [full raw SKILL.md content]
-   ```
+   Every resource declared under `## Ressources disponibles` in the SKILL.md
+   MUST be present in the map. If the tool returns an error (invalid name,
+   name conflict, quota reached, invalid file), fix the files accordingly and
+   retry ONCE. A name conflict means the name is taken: pick a close variant
+   (e.g. suffix `-perso`) and update the SKILL.md name before retrying.
 
-   **🐍 `scripts/<script-name>.py`**  (Visualizer / Generator only)
-   ```python
-   [full raw Python content]
-   ```
+4. Announce the result (in the user's language). On success, tell the user:
+   - the skill is imported and immediately active, with its exact name
+   - it is managed (toggle / download / delete) in
+     Settings > LIA Skills > My Skills
+   Do NOT paste the full file contents in the answer — give a one-paragraph
+   summary of what the skill does. Only show a file's content if the user
+   asks for it.
 
-   **📚 `references/<reference-name>.md`**  (only if listed under `## Ressources disponibles`)
-   ```markdown
-   [full raw markdown content]
-   ```
-
-   **🌐 `translations.json`**  (only if user asked for multilingual)
-   ```json
-   [full raw JSON content]
-   ```
-
-   Repeat the pattern for EVERY file declared in the SKILL.md's
-   `## Ressources disponibles` section. The filename header above the code
-   block is what tells the user the exact path to save the file.
-
-4. Closing message (adapt to user language). Example (French):
-   "Créez un dossier `<skill-name>/`, placez-y chaque fichier dans le
-   chemin indiqué au-dessus de son bloc (SKILL.md à la racine, scripts
-   dans `scripts/`, références dans `references/`, etc.). Importez ensuite
-   via Settings > Features > My Skills."
+5. Fallback — ONLY if `import_user_skill` is unavailable or failed twice:
+   deliver every file in its own fenced code block, each preceded by a bold
+   filename header (**📄 `SKILL.md`**, **🐍 `scripts/<name>.py`**,
+   **📚 `references/<name>.md`**, **🌐 `translations.json`**), the SKILL.md
+   inside a ```yaml block so the copy button yields raw content, and close
+   with (adapt to user language): "Créez un dossier `<skill-name>/`, placez-y
+   chaque fichier dans le chemin indiqué, puis importez via
+   Réglages > Compétences LIA > Mes skills."
 
 ## Exact Structure to Follow
 
@@ -147,16 +143,12 @@ BODY (markdown after the closing ---):
 
 ## Critical Output Rules
 
-The SKILL.md content MUST be wrapped inside a ```yaml code block so the user can
-use the copy button to get the raw content. The code block ensures the markdown
-is NOT rendered (headers, --- delimiters stay visible as-is).
-
 NEVER use markdown formatting inside YAML frontmatter (no **bold**, no `code`).
 
-Tell the user: "Click the copy button on the code block below, then paste into
-a new file named SKILL.md and import it via Settings > Features > My Skills."
+The content passed to `import_user_skill` must be the RAW file text — exactly
+what would be saved on disk, no code fences, no commentary mixed in.
 
-CORRECT output format:
+CORRECT SKILL.md format:
 
 ```yaml
 ---
@@ -182,12 +174,13 @@ priority: 55
 - references/example.md — Description
 ```
 
-WRONG output (will be REJECTED by the importer):
-- NOT inside a code block (markdown is rendered, user cannot copy raw content)
+WRONG output (REJECTED by the importer):
 - Having **name**: in YAML (markdown bold formatting in YAML)
 - Having version: 1.0.0 (non-existent field)
 - Having archetype: DATA_SYNTHESIS (non-existent field)
 - Having metadata/tags/author fields (not part of the standard)
+- A name that is not strict kebab-case (the importer enforces
+  ^[a-z0-9][a-z0-9-]*[a-z0-9]$, max 64 chars, no reserved prefixes)
 
 ## Constraints
 
@@ -246,29 +239,23 @@ these conventions (detailed with snippets in
 ## Delivery Checklist (enforce before ending your response)
 
 Before sending your final message, verify EACH item below. A skill with
-missing files cannot be imported by the user — partial delivery is a FAIL.
+missing files does not work — partial delivery is a FAIL.
 
-- [ ] **SKILL.md** delivered in a ```yaml code block with its filename
-      header (**📄 `SKILL.md`**) placed immediately above the block
-- [ ] For **Visualizer/Generator** archetypes: EVERY script listed in
-      `## Ressources disponibles` delivered in its own ```python code
-      block, each preceded by its filename header
-      (e.g. **🐍 `scripts/render_map.py`**)
-- [ ] For every `references/*.md` declared in `## Ressources disponibles`:
-      delivered in its own ```markdown code block with filename header
-      (e.g. **📚 `references/rules.md`**)
-- [ ] If multilingual support requested: **translations.json** delivered in
-      a ```json code block with filename header
-      (**🌐 `translations.json`**)
-- [ ] Every code block has a filename header ABOVE it. No naked code blocks.
-- [ ] Closing message tells the user how to assemble the folder structure
-      (SKILL.md at root, scripts in `scripts/`, references in `references/`)
+- [ ] SKILL.md validated with validate_skill.py (no errors)
+- [ ] `import_user_skill` called with the **complete** files map: SKILL.md
+      plus EVERY resource declared under `## Ressources disponibles`
+      (scripts/*.py for Visualizer/Generator, references/*.md,
+      translations.json if requested)
+- [ ] Tool returned success — the announcement names the imported skill and
+      points to Settings > LIA Skills > My Skills
+- [ ] No full file content pasted in the answer (summary only), unless the
+      user explicitly asked to see it or the fallback protocol was used
 
 **Consistency cross-check**: count the resources you listed under
-`## Ressources disponibles` inside the SKILL.md — you must deliver exactly
-that number of additional files. If the count does not match, your response
-is INCOMPLETE. Go back and either produce the missing files or remove the
-unused entries from `## Ressources disponibles`.
+`## Ressources disponibles` inside the SKILL.md — the files map must contain
+exactly that number of additional files. If the count does not match, your
+import is INCOMPLETE. Go back and either produce the missing files or remove
+the unused entries from `## Ressources disponibles`.
 
 ## Ressources disponibles
 

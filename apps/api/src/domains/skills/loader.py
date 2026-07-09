@@ -45,6 +45,11 @@ EXTENSION_FIELDS: dict[str, Any] = {
     # visibility_mode: "include" (whitelist) | "exclude" (blacklist)
     "agent_visibility": None,
     "visibility_mode": "include",
+    # ADR-118: multi-turn dialogue skill. When true, the QueryAnalyzer's chat
+    # override preserves the detected skill_name on conversational follow-up
+    # turns (answers to the skill's own questions) instead of clearing it as
+    # history contamination — the skill's dialogue survives across turns.
+    "dialogue": False,
 }
 
 

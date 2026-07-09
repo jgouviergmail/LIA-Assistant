@@ -3452,6 +3452,15 @@ SKILLS_REACT_RECURSION_LIMIT = 25
 SKILLS_RESOURCE_SKIP_DIRS = frozenset({".git", "__pycache__", ".venv", "node_modules"})
 SKILLS_RESOURCE_SKIP_FILES = frozenset({"SKILL.md", "translations.json"})
 
+# Import hardening (shared by upload endpoints and the chat import tool).
+# Zip expansion guards: a 100KB compressed upload can inflate ~1000x with
+# deflate — cap the decompressed payload and the member count before extract.
+SKILLS_ZIP_MAX_DECOMPRESSED_KB = 2048
+SKILLS_ZIP_MAX_FILES = 64
+# Chat-driven import (import_user_skill tool) only accepts text files —
+# binary assets cannot transit as tool-call string arguments anyway.
+SKILLS_IMPORT_TEXT_EXTENSIONS = frozenset({".md", ".py", ".txt", ".json", ".yaml", ".yml", ".csv"})
+
 # ============================================================================
 # CONTEXT COMPACTION (Intelligent History Summarization)
 # ============================================================================

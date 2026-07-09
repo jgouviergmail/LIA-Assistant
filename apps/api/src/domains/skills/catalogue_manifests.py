@@ -116,6 +116,56 @@ read_skill_resource_catalogue_manifest = ToolManifest(
     version="1.0.0",
 )
 
+import_user_skill_catalogue_manifest = ToolManifest(
+    name="import_user_skill",
+    agent="query_agent",
+    description=(
+        "**Tool: import_user_skill** - Import a generated skill into the user's "
+        "imported skills.\n"
+        "**Use for**: Delivering a finished skill produced by the skill-generator "
+        "so it becomes immediately usable (no manual upload).\n"
+        "**Output**: Confirmation with the imported skill name."
+    ),
+    semantic_keywords=[
+        "skill",
+        "import",
+        "install",
+        "generate",
+        "create",
+        "publish",
+    ],
+    parameters=[
+        ParameterSchema(
+            name="files",
+            type="object",
+            required=True,
+            description=(
+                "Map of relative path → text content. Must include a top-level "
+                "'SKILL.md'; resources go under scripts/ or references/."
+            ),
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(
+            path="message",
+            type="string",
+            description="Confirmation message with the imported skill name",
+        ),
+    ],
+    cost=CostProfile(
+        est_tokens_in=50,
+        est_tokens_out=50,
+        est_cost_usd=0.0,
+        est_latency_ms=200,
+    ),
+    permissions=PermissionProfile(
+        required_scopes=[],
+        hitl_required=False,
+        data_classification="INTERNAL",
+    ),
+    version="1.0.0",
+)
+
 run_skill_script_catalogue_manifest = ToolManifest(
     name="run_skill_script",
     agent="query_agent",

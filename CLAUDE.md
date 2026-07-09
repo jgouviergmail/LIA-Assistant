@@ -337,4 +337,4 @@ When working with settings-driven thresholds in tests (e.g. `mcp_user_max_server
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (110 architectural decisions, ADR-117 latest): `docs/architecture/ADR_INDEX.md`
+- ADR index (111 architectural decisions, ADR-118 latest): `docs/architecture/ADR_INDEX.md`

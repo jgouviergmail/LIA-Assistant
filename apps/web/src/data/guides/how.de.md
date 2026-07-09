@@ -6,7 +6,7 @@
 
 **Version**: 2.7
 **Datum**: 2026-07-09
-**Application**: LIA v1.22.0
+**Application**: LIA v1.23.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -924,6 +924,8 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 Eine Bibliothek eingebauter Skills demonstriert den Vertrag: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — jeder veranschaulicht eine unterschiedliche Kombination der drei Kanäle.
 
+**Skill-Lebenszyklus**: Jeder Skill durchläuft eine einzige gehärtete Import-Pipeline (`SkillImportService`) — strikte agentskills.io-Namensvalidierung vor jedem Dateisystemzugriff (Path-Traversal-Schutz), Zip-Expansionslimits, Staging + Swap mit automatischer Wiederherstellung der vorherigen Version bei Fehlern und Ablehnung scope-übergreifender Namenskonflikte (DB + Cache als doppelte Autorität). Der integrierte Skill-Generator nutzt dieselbe Pipeline über das Tool `import_user_skill`: Ein im Chat erstellter Skill wird in derselben Runde validiert, installiert und beim Namen genannt — ohne manuellen Upload. Skills, deren Workflow sich über mehrere Runden erstreckt, deklarieren `dialogue: true` im Frontmatter, was der Chat-Override des QueryAnalyzers respektiert (ihre Erkennung überlebt konversationelle Folgeantworten), während der Skill-ReAct-Runner den gefensterten Gesprächsverlauf erhält, um den Dialog fortzusetzen statt ihn neu zu starten.
+
 ### 23.8. Konversations-Verlauf, Suche und reiches Chat-Rendering
 
 Vier bereichsübergreifende Funktionen teilen dieselbe Produktphilosophie: **sofortiges Feedback, keine Server-Kosten, wenn nicht nötig**.
@@ -1047,4 +1049,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 100+ ADRs und des Changelogs (v1.0 bis v1.22.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 100+ ADRs und des Changelogs (v1.0 bis v1.23.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

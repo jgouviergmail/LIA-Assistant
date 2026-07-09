@@ -85,7 +85,63 @@ def _coerce_parameters(
 # Rate limit constants (per-user, per minute)
 _RATE_LIMIT_SCRIPT = 5  # subprocess execution — conservative
 _RATE_LIMIT_RESOURCE = 20  # file reads — more permissive
+_RATE_LIMIT_IMPORT = 5  # skill import — disk write + DB + cache reload
 _RATE_LIMIT_WINDOW = 60
+
+
+def _coerce_files(
+    files: dict[str, Any] | str | None,
+) -> tuple[dict[str, str] | None, UnifiedToolOutput | None]:
+    """Coerce the ``files`` argument of :func:`import_user_skill` to a str map.
+
+    Mirrors :func:`_coerce_parameters`: some LLMs serialize nested dict tool
+    arguments as JSON strings. Accepts a ``dict``, a JSON-object string, or
+    ``None``; rejects anything else with a clean failure output. Every value is
+    coerced to ``str`` (skill files are text).
+
+    Args:
+        files: Raw value received from the tool invocation.
+
+    Returns:
+        Tuple ``(coerced_map, failure_output)`` — exactly one is non-None.
+    """
+    raw: dict[str, Any] | None
+    if files is None:
+        return None, UnifiedToolOutput.failure(
+            message="files is required (map of relative path → text content)",
+            error_code="INVALID_INPUT",
+        )
+    if isinstance(files, dict):
+        raw = files
+    elif isinstance(files, str):
+        try:
+            parsed = json.loads(files)
+        except json.JSONDecodeError as exc:
+            return None, UnifiedToolOutput.failure(
+                message=f"files is not a valid JSON string: {exc}",
+                error_code="INVALID_INPUT",
+            )
+        if not isinstance(parsed, dict):
+            return None, UnifiedToolOutput.failure(
+                message="files JSON must decode to an object (path → content map)",
+                error_code="INVALID_INPUT",
+            )
+        raw = parsed
+    else:
+        return None, UnifiedToolOutput.failure(
+            message=f"files must be a dict or JSON string — got {type(files).__name__}",
+            error_code="INVALID_INPUT",
+        )
+
+    coerced: dict[str, str] = {}
+    for key, value in raw.items():
+        if not isinstance(key, str):
+            return None, UnifiedToolOutput.failure(
+                message="files keys must be strings (relative file paths)",
+                error_code="INVALID_INPUT",
+            )
+        coerced[key] = value if isinstance(value, str) else str(value)
+    return coerced, None
 
 
 @tool
@@ -323,5 +379,79 @@ async def read_skill_resource(
     )
 
 
+@tool
+@track_tool_metrics(
+    tool_name="import_user_skill",
+    agent_name=AGENT_QUERY,
+    duration_metric=agent_tool_duration_seconds,
+    counter_metric=agent_tool_invocations,
+)
+@rate_limit(max_calls=_RATE_LIMIT_IMPORT, window_seconds=_RATE_LIMIT_WINDOW, scope="user")
+async def import_user_skill(
+    files: Annotated[
+        dict[str, Any] | str,
+        (
+            "The skill's files as a map of relative path → text content. MUST "
+            "include a top-level 'SKILL.md'. Optional resources go under their "
+            "standard sub-path, e.g. 'scripts/render.py', 'references/rules.md'. "
+            "Either a JSON object (preferred) or a JSON string."
+        ),
+    ],
+    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+) -> UnifiedToolOutput:
+    """Import a generated skill directly into the user's imported skills.
+
+    Validates the SKILL.md and every bundled file, then registers the skill so
+    it is immediately available (no manual upload). Used by the skill-generator
+    to deliver a finished skill. On any validation error, returns a failure
+    describing the problem so the caller can fix the files and retry.
+    """
+    coerced_files, coercion_error = _coerce_files(files)
+    if coercion_error is not None:
+        return coercion_error
+
+    config = validate_runtime_config(runtime, "import_user_skill")
+    if isinstance(config, UnifiedToolOutput):
+        return config
+
+    from src.core.config import get_settings
+
+    if not getattr(get_settings(), "skills_chat_import_enabled", False):
+        return UnifiedToolOutput.failure(
+            message="Direct skill import from chat is disabled",
+            error_code="FEATURE_DISABLED",
+        )
+
+    from uuid import UUID
+
+    from src.core.exceptions import BaseAPIException
+    from src.domains.skills.import_service import SkillImportService
+    from src.infrastructure.database.session import get_db_context
+
+    try:
+        async with get_db_context() as db:
+            skill = await SkillImportService(db).import_files(
+                coerced_files or {}, owner_id=UUID(str(config.user_id))
+            )
+    except BaseAPIException as exc:
+        # Surface the validation detail so the LLM can correct and retry.
+        return UnifiedToolOutput.failure(
+            message=str(getattr(exc, "detail", exc)),
+            error_code="IMPORT_REJECTED",
+        )
+
+    return UnifiedToolOutput.action_success(
+        message=(
+            f"Skill '{skill['name']}' imported and active. "
+            "It is available in Settings › LIA Skills › My Skills."
+        ),
+        metadata={
+            "skill_name": skill["name"],
+            "has_scripts": bool(skill.get("scripts")),
+            "resource_count": len(skill.get("all_resources") or []),
+        },
+    )
+
+
 # Module-level list for tool_registry auto-discovery
-skills_tools = [activate_skill_tool, run_skill_script, read_skill_resource]
+skills_tools = [activate_skill_tool, run_skill_script, read_skill_resource, import_user_skill]

@@ -32,6 +32,13 @@ Always respond in {user_language}.
   script, parameters for run_skill_script).
 - If a tool returns an error, analyze it, adjust parameters, retry once,
   then return.
+
+### Multi-turn skill dialogues
+The task may include a <conversation_history> block. When present, it is the
+prior dialogue between the user and the assistant. Use it to RESUME the
+skill's process instead of restarting it: questions already asked and answers
+already given must not be repeated. Treat the latest user message as a reply
+within that ongoing dialogue.
 </StrictLogic>
 
 <AvailableSkills>

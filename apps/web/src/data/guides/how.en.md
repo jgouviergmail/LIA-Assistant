@@ -6,7 +6,7 @@
 
 **Version**: 2.7
 **Date**: 2026-07-09
-**Application**: LIA v1.22.0
+**Application**: LIA v1.23.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -923,6 +923,8 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 A library of built-in skills demonstrates the contract: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — each illustrating a different combination of the three channels.
 
+**Skill lifecycle**: every skill enters through a single hardened import pipeline (`SkillImportService`) — strict agentskills.io name validation before any filesystem write (path-traversal guard), zip expansion caps, staging + swap with automatic restore of the previous version on failure, and cross-scope name-conflict rejection (DB + cache as dual authority). The built-in skill-generator uses the same pipeline through the `import_user_skill` tool: a skill created in chat is validated, installed and announced by name in one turn — no manual upload. Skills whose workflow spans several turns declare `dialogue: true` in their frontmatter, which the QueryAnalyzer's chat override respects (their detection survives conversational follow-up answers) while the skill ReAct runner receives the windowed conversation history to resume the dialogue instead of restarting it.
+
 ### 23.8. Conversation history, search and rich chat rendering
 
 Four cross-cutting capabilities share the same product philosophy: **instant feedback, zero server cost when unnecessary**.
@@ -1075,4 +1077,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.22.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.23.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

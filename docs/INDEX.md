@@ -118,7 +118,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [HEALTH_METRICS.md](./technical/HEALTH_METRICS.md) | Health Metrics — iPhone Shortcuts ingestion, per-user tokens, charts, aggregation; assistant integrations (agents + Heartbeat + journal + memory) + `HEALTH_KINDS` registry (v1.17.2) | ✅ |
 | [LANDING_PAGE.md](./technical/LANDING_PAGE.md) | Architecture Landing Page — composants React, SEO, OpenGraph | ✅ |
 | [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (34 types, 8 providers) | ✅ |
-| [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts, rich outputs (frames + images), runtime conventions (v1.16.8) | ✅ |
+| [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts, rich outputs (frames + images), runtime conventions, hardened import pipeline + chat-driven install + dialogue skills (ADR-118) | ✅ |
 
 ### Cost Tracking & Billing
 
@@ -278,12 +278,14 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-116 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-118 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-118 | Chat-Driven Skill Import — le skill-generator installe directement les skills générées (outil `import_user_skill`), pipeline d'import unique durci (S1 path traversal corrigé, conflits 409, gardes zip, install atomique avec rollback), dialogues multi-tours (`dialogue: true` + historique au runner) | 2026-07 |
+| ADR-117 | Background Chat Runs — génération détachée de la connexion HTTP (producteur + Redis Streams), reprise live, bouton stop cross-worker, archive-first, facturation honnête sur interruption | 2026-07 |
 | ADR-116 | Frontend Test Foundation — gate de couverture ratchet vitest (100 % verrouillé sur reducers/sse-handlers/stores), symétrie du contrat SSE exécutable, purge des types morts | 2026-07 |
 | ADR-115 | Liveness/Readiness Probe Split — /health toujours 200 (liveness Docker), nouveau /ready 503 si PostgreSQL ou Redis down | 2026-07 |
 | ADR-114 | Connector Client Domain Error Contract — 28 HTTPException bruts → taxonomie BaseAPIException, contrat API préservé par construction | 2026-07 |

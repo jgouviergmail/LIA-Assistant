@@ -1475,6 +1475,7 @@ async def _activate_response_skills(
     run_id: str,
     *,
     last_user_message: str,
+    conversation_history: str,
     current_turn_registry: dict[str, Any] | None,
     react_result: Any,
 ) -> _SkillActivationResult:
@@ -1486,6 +1487,12 @@ async def _activate_response_skills(
     directive), so it is passed in and returned to reproduce that exact behavior.
     Mutates/returns ``current_turn_registry`` when the runner accumulates registry
     items, exactly as the inline version did.
+
+    ``conversation_history`` is forwarded to the script-skill runner (S5): the
+    runner spawns a fresh sub-agent each turn that otherwise only sees the last
+    user message, which breaks multi-turn skill dialogues (e.g. the
+    skill-generator's clarify → answer → generate flow). Passing the windowed
+    history lets the sub-agent resume where the previous turn left off.
     """
     skills_context = ""
     skill_react_response: str | None = None
@@ -1639,10 +1646,22 @@ async def _activate_response_skills(
                             f"</collected_data>\n"
                             f"Use this data to generate your response."
                         )
+                # S5: forward the windowed history so a fresh runner sub-agent
+                # can resume a multi-turn skill dialogue (clarify → answer →
+                # generate). Harmless for one-shot skills (extra context only).
+                _history_block = ""
+                if conversation_history and conversation_history.strip():
+                    _history_block = (
+                        f"\n\n<conversation_history>\n{conversation_history}\n"
+                        "</conversation_history>\n"
+                        "If the skill runs a multi-step dialogue, use this history "
+                        "to resume it (e.g. treat the latest user message as the "
+                        "answer to a question you asked earlier)."
+                    )
                 _task = (
                     f"Activate skill '{_activated_skill_name}' and follow "
                     f"its instructions to respond to: {last_user_message}"
-                    f"{_agent_data}"
+                    f"{_history_block}{_agent_data}"
                 )
                 _catalog_for_prompt = (
                     f"<available_skills><skill><name>"
@@ -3553,6 +3572,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             config,
             run_id,
             last_user_message=last_user_message,
+            conversation_history=conversation_history,
             current_turn_registry=current_turn_registry,
             react_result=react_result,
         )

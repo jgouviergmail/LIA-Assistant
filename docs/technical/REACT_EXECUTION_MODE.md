@@ -209,7 +209,7 @@ Safety limits:
 
 Skills are available to the ReAct agent through the same mechanism as the pipeline:
 - The filtered L1 skills catalogue is injected as a `SystemMessage` in `react_setup`
-- The 3 existing skill tools (`activate_skill_tool`, `run_skill_script`, `read_skill_resource`) are in the tool catalogue and available to the ReAct agent
+- The 4 skill tools (`activate_skill_tool`, `run_skill_script`, `read_skill_resource`, `import_user_skill` — ADR-118) are in the tool catalogue and available to the ReAct agent
 - Active skill filtering uses `active_skills_ctx` (same per-request context as pipeline)
 
 ## Configuration

@@ -6,7 +6,7 @@
 
 **Version** : 2.7
 **Date** : 2026-07-09
-**Application** : LIA v1.22.0
+**Application** : LIA v1.23.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -924,6 +924,8 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 Une bibliothèque de skills système démontre le contrat : `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — chacun illustrant une combinaison différente des trois canaux.
 
+**Cycle de vie des skills** : toute skill entre par un pipeline d'import unique et durci (`SkillImportService`) — validation stricte du nom agentskills.io avant toute écriture disque (garde anti path-traversal), plafonds d'expansion des zips, staging + swap avec restauration automatique de la version précédente en cas d'échec, et rejet des conflits de noms inter-scopes (DB + cache en double autorité). Le générateur de skills intégré emprunte le même pipeline via l'outil `import_user_skill` : une skill créée dans le chat est validée, installée et annoncée par son nom dans le même tour — sans upload manuel. Les skills dont le workflow s'étend sur plusieurs tours déclarent `dialogue: true` dans leur frontmatter, que le chat override du QueryAnalyzer respecte (leur détection survit aux réponses conversationnelles de suivi) tandis que le runner ReAct des skills reçoit l'historique de conversation fenêtré pour reprendre le dialogue au lieu de le recommencer.
+
 ### 23.8. Historique de conversation, recherche et rendu riche du chat
 
 Quatre capacités transverses partagent la même philosophie produit : **feedback immédiat, zéro surcoût serveur quand ce n'est pas nécessaire**.
@@ -1087,4 +1089,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 100+ ADRs, et du changelog (v1.0 à v1.22.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 100+ ADRs, et du changelog (v1.0 à v1.23.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
