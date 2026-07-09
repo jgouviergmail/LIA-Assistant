@@ -1183,9 +1183,9 @@ google-crc32c==1.8.0 \
     #   -c requirements.lock.txt
     #   google-cloud-storage
     #   google-resumable-media
-google-genai==1.67.0 \
-    --hash=sha256:58b0484ff2d4335fa53c724b489e9f807fcca8115d9cdbd8fdf341121fbd6d2d \
-    --hash=sha256:897195a6a9742deb6de240b99227189ada8b2d901d61bdfba836c3092021eab6
+google-genai==2.10.0 \
+    --hash=sha256:77912cd558cd7dfd5b75c25fd1c609e78d7954dde583331104022a46ea90f9ee \
+    --hash=sha256:d5350311567ae660c24cbc1752aee4b3d660f89c0106d2dcd2a69978c35afe1e
     # via
     #   -c requirements.lock.txt
     #   langchain-google-genai
