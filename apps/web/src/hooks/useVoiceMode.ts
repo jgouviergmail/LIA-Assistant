@@ -387,16 +387,21 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
    */
   const handleConnectionChange = useCallback(
     (connected: boolean) => {
-      if (!connected && state === 'processing') {
+      // The WebSocket service holds this callback from startRecording time —
+      // read the CURRENT machine state from the store, not the render-time
+      // closure: a stale `state` (still 'listening' when wired) silently
+      // swallowed connection drops during 'processing', leaving the UI stuck.
+      if (!connected && useVoiceModeStore.getState().state === 'processing') {
         const err = new Error('Connection lost during transcription');
         logger.warn('voice_mode_connection_lost', { component: 'useVoiceMode' });
+        // setError also drives the state transition (listening while enabled,
+        // idle otherwise) — no explicit setState needed.
         setError(err);
         onError?.(err);
         cleanupService();
-        setState('listening');
       }
     },
-    [state, setError, onError, cleanupService, setState]
+    [setError, onError, cleanupService]
   );
 
   /**
@@ -405,13 +410,15 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
   const handleError = useCallback(
     (err: Error) => {
       logger.error('voice_mode_error', err, { component: 'useVoiceMode' });
+      // setError also drives the state transition: back to 'listening' while
+      // enabled, 'idle' otherwise — a trailing setState('listening') here
+      // used to leave the inconsistent pair state='listening'/isEnabled=false.
       setError(err);
       onError?.(err);
       cleanupAudio();
       cleanupService();
-      setState('listening');
     },
-    [setError, onError, cleanupAudio, cleanupService, setState]
+    [setError, onError, cleanupAudio, cleanupService]
   );
 
   /**
@@ -617,6 +624,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
       }
 
       isStartingRef.current = true;
+      let setupTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
       try {
         cleanupService();
@@ -650,11 +658,17 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
 
         // Step 2: Get mic + connect WS (with timeout protection)
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(
+          setupTimeoutId = setTimeout(
             () => reject(new Error('Voice recording setup timed out')),
             VOICE_RECORDING_SETUP_TIMEOUT_MS
           );
         });
+        // Not every path races against this promise (the wake-word flow with
+        // a reused stream and a pre-warmed WS skips both races) — without a
+        // default handler its rejection fired as an unhandled rejection
+        // ~10s after every such recording. The timer itself is disarmed in
+        // the finally block once setup ends.
+        timeoutPromise.catch(() => {});
 
         let stream: MediaStream;
 
@@ -769,6 +783,9 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
           handleError(error);
         }
       } finally {
+        if (setupTimeoutId !== undefined) {
+          clearTimeout(setupTimeoutId);
+        }
         isStartingRef.current = false;
       }
     },

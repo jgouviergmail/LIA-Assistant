@@ -94,18 +94,17 @@ def _get_chunk_event_type(chunk_type: str) -> str:
     Mapping:
         - token → STREAM_TOKEN
         - content_replacement → STREAM_TOKEN (final content is also token-like)
-        - router_decision, planner_metadata, execution_step → STREAM_METADATA
+        - router_decision, execution_step → STREAM_METADATA
         - registry_update → STREAM_REGISTRY (Data Registry side-channel data)
         - hitl_* → STREAM_INTERRUPT
         - error → STREAM_ERROR
         - done → STREAM_COMPLETE
-        - planner_error → STREAM_ERROR
     """
     if chunk_type == "token":
         return "STREAM_TOKEN"
     elif chunk_type == "content_replacement":
         return "STREAM_TOKEN"  # Final content is token-like
-    elif chunk_type in ("router_decision", "planner_metadata", "execution_step"):
+    elif chunk_type in ("router_decision", "execution_step"):
         return "STREAM_METADATA"
     elif chunk_type == "registry_update":
         return "STREAM_REGISTRY"  # Data Registry: Side-channel registry data
@@ -113,7 +112,7 @@ def _get_chunk_event_type(chunk_type: str) -> str:
         return "STREAM_DEBUG"  # Debug Panel: Scoring metrics (DEBUG=true only)
     elif chunk_type.startswith("hitl_"):
         return "STREAM_INTERRUPT"
-    elif chunk_type in ("error", "planner_error"):
+    elif chunk_type == "error":
         return "STREAM_ERROR"
     elif chunk_type == "done":
         return "STREAM_COMPLETE"

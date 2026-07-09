@@ -18,7 +18,6 @@ import {
   handleDebugMetricsUpdate,
   // Progress handlers
   handleRouterDecision,
-  handlePlannerMetadata,
   handleExecutionStep,
   // Streaming handlers
   handleToken,
@@ -28,6 +27,7 @@ import {
   handleHitlInterruptMetadata,
   handleHitlQuestionToken,
   handleHitlInterruptComplete,
+  handleHitlStreamingFallback,
   handleHitlInterruptLegacy,
   // Voice handlers
   handleVoiceCommentStart,
@@ -50,7 +50,10 @@ export { getProgressMessage };
 
 /**
  * Map of SSE chunk types to their handler functions.
- * Covers all 17 event types from the backend.
+ *
+ * Symmetry with the backend ChatStreamChunk contract is enforced by
+ * __tests__/sse-symmetry.test.ts: every backend type must either have a
+ * handler here or be explicitly acknowledged as unhandled there.
  */
 const SSE_HANDLERS: SSEHandlerMap = {
   // Data events
@@ -60,7 +63,6 @@ const SSE_HANDLERS: SSEHandlerMap = {
 
   // Progress feedback events
   router_decision: handleRouterDecision,
-  planner_metadata: handlePlannerMetadata,
   execution_step: handleExecutionStep,
 
   // Streaming events
@@ -72,6 +74,7 @@ const SSE_HANDLERS: SSEHandlerMap = {
   hitl_interrupt_metadata: handleHitlInterruptMetadata,
   hitl_question_token: handleHitlQuestionToken,
   hitl_interrupt_complete: handleHitlInterruptComplete,
+  hitl_streaming_fallback: handleHitlStreamingFallback, // Awareness-only (degraded question stream)
   hitl_interrupt: handleHitlInterruptLegacy, // Legacy
 
   // Voice TTS events

@@ -20,7 +20,7 @@ import {
   persistDebugMetricsHistory,
 } from '@/reducers/chat-reducer';
 import { validateReducerAction } from '@/reducers/chat-reducer-errors';
-import { chatSSEClient } from '@/lib/api/chat';
+import { chatSSEClient, ChatStreamError } from '@/lib/api/chat';
 import { useAuth } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useLiaGender } from '@/hooks/useLiaGender';
@@ -154,38 +154,53 @@ export const useChat = ({
    * Validated dispatch wrapper - logs errors before passing to pure reducer.
    * This maintains reducer purity while enabling error detection.
    */
-  const dispatch: Dispatch<ChatAction> = useCallback(
-    (action: ChatAction) => {
-      // Validate action against current state (development only)
-      if (process.env.NODE_ENV === 'development') {
-        const errors = validateReducerAction(stateRef.current, action);
-        errors.forEach(validationError => {
-          const logContext = {
-            errorType: validationError.type,
-            action: validationError.action,
-            severity: validationError.severity,
-            ...validationError.context,
-          };
+  const dispatch: Dispatch<ChatAction> = useCallback((action: ChatAction) => {
+    // Validate action against current state (development only)
+    if (process.env.NODE_ENV === 'development') {
+      const errors = validateReducerAction(stateRef.current, action);
+      errors.forEach(validationError => {
+        const logContext = {
+          errorType: validationError.type,
+          action: validationError.action,
+          severity: validationError.severity,
+          ...validationError.context,
+        };
 
-          // Log with appropriate severity level
-          switch (validationError.severity) {
-            case 'error':
-              logger.error('reducer_validation_error', undefined, logContext);
-              break;
-            case 'warning':
-              logger.warn('reducer_validation_warning', logContext);
-              break;
-            case 'debug':
-              logger.debug('reducer_validation_debug', logContext);
-              break;
-          }
-        });
+        // Log with appropriate severity level
+        switch (validationError.severity) {
+          case 'error':
+            logger.error('reducer_validation_error', undefined, logContext);
+            break;
+          case 'warning':
+            logger.warn('reducer_validation_warning', logContext);
+            break;
+          case 'debug':
+            logger.debug('reducer_validation_debug', logContext);
+            break;
+        }
+      });
+    }
+
+    // Pass to pure reducer
+    baseDispatch(action);
+  }, []);
+
+  /**
+   * Resolve a stream error to a user-facing, localized message.
+   *
+   * ChatStreamError carries the i18n key of the typed HTTP/network failure
+   * (session expired, usage limit, …); any other error is wrapped in the
+   * generic connection-error template. The SSE_ERROR reducer renders the
+   * result verbatim — localization happens here, where t() is available.
+   */
+  const resolveStreamErrorMessage = useCallback(
+    (error: Error): string => {
+      if (error instanceof ChatStreamError) {
+        return t(error.i18nKey, { ...error.i18nParams, defaultValue: error.message });
       }
-
-      // Pass to pure reducer
-      baseDispatch(action);
+      return t('errors.chat.connection_error', { message: error.message });
     },
-    []
+    [t]
   );
 
   // HITL streaming buffer (stores partial questions during progressive rendering)
@@ -413,10 +428,11 @@ export const useChat = ({
             // and prevent a late animation-frame flush after SSE_ERROR.
             flushTokenBatching();
 
-            // Transition to error state
+            // Transition to error state (message localized here — the pure
+            // reducer renders it verbatim)
             dispatch({
               type: 'SSE_ERROR',
-              payload: { error: error.message },
+              payload: { error: resolveStreamErrorMessage(error) },
             });
           },
           // onDone: SSE stream completed
@@ -441,10 +457,10 @@ export const useChat = ({
           })
         );
 
-        // Transition to error state
+        // Transition to error state (message localized here)
         dispatch({
           type: 'SSE_ERROR',
-          payload: { error: (error as Error).message },
+          payload: { error: resolveStreamErrorMessage(error as Error) },
         });
       }
     },
@@ -458,6 +474,7 @@ export const useChat = ({
       enableGeolocation,
       geolocationPermission,
       t,
+      resolveStreamErrorMessage,
       stopPlayback,
       handleVoiceChunk,
       warmupAudio,

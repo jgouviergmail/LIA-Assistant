@@ -98,7 +98,13 @@ interface BubbleProps {
   wide?: boolean;
 }
 
-function Bubble({ isUser = false, children, icon, variant = 'default', wide = false }: BubbleProps) {
+function Bubble({
+  isUser = false,
+  children,
+  icon,
+  variant = 'default',
+  wide = false,
+}: BubbleProps) {
   const variantStyles = {
     default: isUser
       ? 'bg-primary text-primary-foreground'

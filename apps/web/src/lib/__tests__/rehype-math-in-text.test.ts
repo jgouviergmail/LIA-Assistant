@@ -22,7 +22,11 @@ interface ENode {
 type Node = TNode | ENode;
 
 const text = (value: string): TNode => ({ type: 'text', value });
-const el = (tagName: string, children: Node[], properties: Record<string, unknown> = {}): ENode => ({
+const el = (
+  tagName: string,
+  children: Node[],
+  properties: Record<string, unknown> = {}
+): ENode => ({
   type: 'element',
   tagName,
   properties,
@@ -44,8 +48,7 @@ const classOf = (n: Node): string | null => {
   return Array.isArray(cn) ? String(cn[0]) : null;
 };
 /** Flattened text of a node. */
-const textOf = (n: Node): string =>
-  n.type === 'text' ? n.value : n.children.map(textOf).join('');
+const textOf = (n: Node): string => (n.type === 'text' ? n.value : n.children.map(textOf).join(''));
 
 describe('rehypeMathInText — tokenizer via hast', () => {
   it('turns $$…$$ into a math-display span with trimmed TeX', () => {
@@ -67,7 +70,9 @@ describe('rehypeMathInText — tokenizer via hast', () => {
   it('leaves currency $ as literal text (no span)', () => {
     const out = runOn(el('p', [text('tarif 1,50$ puis 9$ en sortie')]));
     expect(out.every(n => classOf(n) === null)).toBe(true);
-    expect(textOf({ type: 'element', tagName: 'p', children: out } as ENode)).toContain('9$ en sortie');
+    expect(textOf({ type: 'element', tagName: 'p', children: out } as ENode)).toContain(
+      '9$ en sortie'
+    );
   });
 
   it('does not treat "$5 and $6" as math', () => {

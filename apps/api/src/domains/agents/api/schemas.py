@@ -125,8 +125,6 @@ class ChatStreamChunk(BaseModel):
         - token: Individual response token (for streaming text)
         - content_replacement: Full content replacement after post-processing (Phase 5.5)
         - router_decision: Router metadata (intention, confidence, etc.)
-        - planner_metadata: Planner metadata (plan details, validation, steps)
-        - planner_error: Planner validation errors/warnings
         - execution_step: Execution step tracking (node/tool with emoji and i18n)
         - debug_metrics: Scoring metrics with thresholds (only when DEBUG=true)
         - hitl_interrupt: HITL interrupt (used in resumption strategies)
@@ -135,6 +133,15 @@ class ChatStreamChunk(BaseModel):
         - hitl_interrupt_complete: HITL streaming completion (step 3: finalize)
         - error: Error message
         - done: Completion signal with final metadata
+
+    This Literal is the single source of truth for the SSE wire contract:
+    Pydantic enforces it at runtime on every emission path (including the
+    LangGraph custom-mode passthrough), and the frontend symmetry test
+    (apps/web/src/lib/sse-handlers/__tests__/sse-symmetry.test.ts) re-parses
+    it to guarantee every type has a frontend handler. Never-emitted entries
+    (planner_metadata, planner_error, hitl_clarification_*, hitl_question,
+    hitl_rejection*) were removed in the 2026-07 contract cleanup — add a
+    type back only together with its emission site and frontend handler.
 
     Attributes:
         type: Chunk type (see above for full list).
@@ -147,8 +154,6 @@ class ChatStreamChunk(BaseModel):
         "token",
         "content_replacement",  # Phase 5.5: Post-processed content replacement
         "router_decision",
-        "planner_metadata",  # Phase 5: Planner execution details
-        "planner_error",  # Phase 5: Planner validation errors/warnings
         "execution_step",  # Phase 6: Execution step tracking (nodes/tools)
         # Data Registry: Registry-First Architecture (side-channel data)
         "registry_update",  # Data Registry: Registry items for frontend rendering (emitted BEFORE tokens)
@@ -160,13 +165,6 @@ class ChatStreamChunk(BaseModel):
         "hitl_question_token",  # HITL Streaming: Step 2 - Progressive question tokens
         "hitl_interrupt_complete",  # HITL Streaming: Step 3 - Completion signal
         "hitl_streaming_fallback",  # HITL Streaming: Fallback event when LLM streaming fails
-        "hitl_clarification_token",  # HITL clarification question token
-        "hitl_clarification_complete",  # HITL clarification complete
-        "hitl_question",  # HITL question (legacy/fallback)
-        # Phase 3 OPTIMPLAN: Dedicated rejection types (not "error")
-        "hitl_rejection",  # HITL rejection metadata (plan rejected by user)
-        "hitl_rejection_token",  # HITL rejection response tokens (streaming)
-        "hitl_rejection_complete",  # HITL rejection finalization
         # Voice TTS: Voice comment audio streaming
         "voice_comment_start",  # Voice: Start of voice comment generation
         "voice_audio_chunk",  # Voice: Audio chunk (base64 MP3)

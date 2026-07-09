@@ -16,25 +16,6 @@
 import { Message, RegistryItem, DebugMetrics, BrowserScreenshotData } from './chat';
 
 // ============================================================================
-// SSE Constants
-// ============================================================================
-
-export const SSE_CHUNK_TYPES = {
-  TOKEN: 'token',
-  ROUTER_DECISION: 'router_decision',
-  ERROR: 'error',
-  DONE: 'done',
-  TOOL_APPROVAL_REQUEST: 'tool_approval_request',
-} as const;
-
-export const SSE_STATUS = {
-  CONNECTING: 'connecting',
-  CONNECTED: 'connected',
-  DISCONNECTED: 'disconnected',
-  ERROR: 'error',
-} as const;
-
-// ============================================================================
 // Chat State Machine
 // ============================================================================
 

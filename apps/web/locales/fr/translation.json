@@ -2502,6 +2502,7 @@
       "server_error": "Erreur serveur ({{status}}). Veuillez réessayer.",
       "http_error": "Erreur HTTP {{status}}: {{statusText}}",
       "network_error": "Erreur de connexion réseau. Vérifiez votre connexion internet.",
+      "connection_error": "Erreur de connexion : {{message}}",
       "unknown_error": "Erreur inconnue lors du streaming",
       "usage_limit_exceeded": "Vous avez atteint votre limite d'utilisation. Contactez votre administrateur."
     },
@@ -2948,6 +2949,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_21_26": {
+          "title": "v1.21.26 — 🛡️ Un cœur chat & voix plus robuste",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎙️ Le mode vocal récupère les coupures réseau</b> — Si la connexion tombait pendant que LIA transcrivait votre voix, l'interface pouvait rester bloquée sur « traitement » indéfiniment. Elle affiche désormais l'erreur et revient aussitôt à l'écoute — et une erreur d'arrière-plan rare qui apparaissait après chaque enregistrement au mot d'activation a également disparu.",
+            "i2": "<b>🌍 Les messages d'erreur du chat dans votre langue</b> — Les problèmes de connexion, sessions expirées ou limites d'utilisation s'affichaient avec un préfixe français figé autour d'un message en anglais, quelle que soit votre langue. Ces messages sont désormais correctement traduits dans les 6 langues.",
+            "i3": "<b>🛡️ Le moteur de chat est désormais anti-régression</b> — Le cœur de LIA (streaming des messages, approbations d'actions, mode vocal) est couvert par 434 tests automatisés avec des seuils de couverture verrouillés : toute régression dans ces zones critiques est désormais bloquée avant de vous atteindre."
+          }
+        },
         "v1_21_25": {
           "title": "v1.21.25 — 🩺 Des sondes de santé qui disent la vérité",
           "date": "Juillet 2026",

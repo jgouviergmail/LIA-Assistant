@@ -37,8 +37,7 @@ export function WebSiteJsonLd() {
     name: 'LIA',
     alternateName: 'LIA — Intelligent Personal AI Assistant',
     url: BASE_URL,
-    description:
-      `LIA orchestrates ${LANDING_STATS.agents}+ specialized AI agents to manage your emails, calendar, contacts, and more. Human validation at every step, privacy by design.`,
+    description: `LIA orchestrates ${LANDING_STATS.agents}+ specialized AI agents to manage your emails, calendar, contacts, and more. Human validation at every step, privacy by design.`,
     inLanguage: languages.map(lng => LOCALE_MAP[lng]),
     potentialAction: {
       '@type': 'ReadAction',

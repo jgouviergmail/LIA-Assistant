@@ -1033,11 +1033,9 @@ async def node_function(state: MessagesState) -> dict:
 | `token` | response_node | Token LLM pour streaming |
 | `router_decision` | router_node | Décision routing + confidence |
 | `execution_step` | graph transitions | Entrée/sortie node |
-| `planner_metadata` | planner_node | Structure plan + coût |
 | `registry_update` | tools | Data Registry items |
 | `hitl_interrupt_metadata` | HITL nodes | Payload interrupt |
 | `content_replacement` | response_node | Contenu post-traité (rare) |
-| `planner_error` | planner_node | Erreur génération |
 | `error` | Any node | Message exception |
 | `done` | Graph completion | Chunk final |
 
@@ -1061,7 +1059,6 @@ async def node_function(state: MessagesState) -> dict:
 │        │                                                            │
 │        ├─── mode="updates" ────► Extraire metadata:                 │
 │        │                         • router_decision                  │
-│        │                         • planner_metadata                 │
 │        │                         • registry_update                  │
 │        │                         • execution_step                   │
 │        │                         • hitl_interrupt_metadata          │

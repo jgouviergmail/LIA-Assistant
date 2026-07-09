@@ -3,7 +3,7 @@
  * Handles streaming responses from the agents endpoint
  */
 
-import { ChatStreamChunk, ChatRequest, OrchestrationMetadata } from '@/types/chat';
+import { ChatStreamChunk, ChatRequest } from '@/types/chat';
 import { logger } from '@/lib/logger';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -57,11 +57,9 @@ export class ChatSSEClient {
       // Alternative: use fetch with ReadableStream
       await this.streamChatWithFetch(request, onChunk, onError, onDone);
     } catch (error) {
-      logger.error(
-        'chat_sse_stream_error',
-        error instanceof Error ? error : undefined,
-        { component: 'ChatSSEClient' }
-      );
+      logger.error('chat_sse_stream_error', error instanceof Error ? error : undefined, {
+        component: 'ChatSSEClient',
+      });
       onError(error instanceof Error ? error : new Error('Unknown error'));
     }
   }
@@ -177,68 +175,10 @@ export class ChatSSEClient {
               const chunk: ChatStreamChunk = JSON.parse(data);
 
               // ============================================================================
-              // PHASE 5 - Enhanced Logging for Orchestration Workflow
               // Structured logger: debug-level entries are dropped in production,
               // and message content is never logged (PII protection).
               // ============================================================================
-              if (chunk.type === 'node') {
-                logger.debug('chat_sse_node', {
-                  component: 'ChatSSEClient',
-                  node: chunk.node_name,
-                });
-              } else if (chunk.type === 'content') {
-                // Content chunks - log length only, never the content itself
-                logger.debug('chat_sse_content', {
-                  component: 'ChatSSEClient',
-                  content_length: chunk.content?.length ?? 0,
-                });
-              } else if (chunk.type === 'tool_call') {
-                logger.debug('chat_sse_tool_call', {
-                  component: 'ChatSSEClient',
-                  tool: chunk.tool_name,
-                });
-              } else if (chunk.type === 'tool_result') {
-                logger.debug('chat_sse_tool_result', {
-                  component: 'ChatSSEClient',
-                  tool: chunk.tool_name,
-                  success: chunk.success,
-                });
-              } else if (chunk.type === 'metadata') {
-                // Phase 5: Orchestration metadata
-                const metadata = (chunk.metadata || {}) as OrchestrationMetadata;
-                if (metadata.step === 'plan_validation') {
-                  logger.debug('chat_sse_plan_validation', {
-                    component: 'ChatSSEClient',
-                    valid: metadata.is_valid,
-                    cost: metadata.total_cost_usd,
-                    steps: metadata.step_count,
-                  });
-                } else if (metadata.step === 'plan_execution') {
-                  logger.debug('chat_sse_plan_execution', {
-                    component: 'ChatSSEClient',
-                    current_step: metadata.current_step,
-                    total_steps: metadata.total_steps,
-                  });
-                } else if (metadata.step === 'orchestrator') {
-                  logger.debug('chat_sse_orchestrator', {
-                    component: 'ChatSSEClient',
-                    agent: metadata.agent_name,
-                    plan_generated: metadata.plan_generated,
-                  });
-                } else if (metadata.router_decision) {
-                  logger.debug('chat_sse_router_decision', {
-                    component: 'ChatSSEClient',
-                    intention: metadata.router_decision.intention,
-                    confidence: metadata.router_decision.confidence,
-                    agent: metadata.router_decision.selected_agent,
-                  });
-                } else {
-                  logger.debug('chat_sse_metadata', {
-                    component: 'ChatSSEClient',
-                    metadata_keys: Object.keys(metadata),
-                  });
-                }
-              } else if (chunk.type === 'error') {
+              if (chunk.type === 'error') {
                 logger.error('chat_sse_error_chunk', undefined, {
                   component: 'ChatSSEClient',
                   error: chunk.error,
@@ -262,8 +202,6 @@ export class ChatSSEClient {
                 // Token chunks are frequent - no logging needed
               } else if (
                 chunk.type === 'hitl_question_token' ||
-                chunk.type === 'hitl_clarification_token' ||
-                chunk.type === 'hitl_rejection_token' ||
                 chunk.type === 'content_replacement'
               ) {
                 // HITL streaming tokens and content replacements - no logging needed
@@ -304,11 +242,9 @@ export class ChatSSEClient {
         }
       }
     } catch (error) {
-      logger.error(
-        'chat_sse_fetch_stream_error',
-        error instanceof Error ? error : undefined,
-        { component: 'ChatSSEClient' }
-      );
+      logger.error('chat_sse_fetch_stream_error', error instanceof Error ? error : undefined, {
+        component: 'ChatSSEClient',
+      });
       this.isConnected = false;
 
       // Handle network errors with i18n-ready error codes

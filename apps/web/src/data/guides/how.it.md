@@ -6,7 +6,7 @@
 
 **Versione**: 2.7
 **Data**: 2026-07-09
-**Applicazione**: LIA v1.21.25
+**Applicazione**: LIA v1.21.26
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -71,7 +71,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~11.000 (raccolti da pytest su 560 file di test) + 169 test vitest sul frontend |
+| Test | ~11.000 (raccolti da pytest su 560 file di test) + 434 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 280+ |
 | ADR (Architecture Decision Record) | 100+ |
@@ -1034,4 +1034,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.21.25). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.21.26). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

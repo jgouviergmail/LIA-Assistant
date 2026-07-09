@@ -1,0 +1,343 @@
+/**
+ * chat-reducer — streaming actions (STREAM_START / TOKEN / REPLACE / DONE /
+ * ERROR).
+ *
+ * The STREAM_DONE fallback-to-last-assistant path and the HITL id guard are
+ * covered by chat-reducer.hitl-token-guard.test.ts; the context-usage pill
+ * fields by chat-reducer.context-usage.test.ts. This suite covers the
+ * remaining branches: idempotent START, buffer accumulation, no-op guards,
+ * full metadata mapping and totals accumulation.
+ */
+
+import { describe, it, expect } from 'vitest';
+
+import { chatReducer } from '@/reducers/chat-reducer';
+import { initialChatState, type ChatState } from '@/types/chat-state';
+import type { Message } from '@/types/chat';
+import { deepFreeze } from '@/__tests__/deep-freeze';
+
+function makeMessage(id: string, role: Message['role'] = 'assistant', content = ''): Message {
+  return { id, role, content, timestamp: new Date() };
+}
+
+function frozenState(overrides: Partial<ChatState> = {}): ChatState {
+  return deepFreeze({ ...structuredClone(initialChatState), ...overrides });
+}
+
+function streamingState(messageId: string, buffer: string, messages: Message[]): ChatState {
+  return frozenState({
+    status: 'streaming',
+    streaming: { currentMessageId: messageId, streamBuffer: buffer, sseStatus: 'connected' },
+    messages,
+  });
+}
+
+describe('chatReducer — STREAM_START', () => {
+  it('creates the assistant message with the initial content', () => {
+    const next = chatReducer(frozenState({ status: 'sending' }), {
+      type: 'STREAM_START',
+      payload: { messageId: 'a-1', initialContent: '*thinking…*' },
+    });
+
+    expect(next.status).toBe('streaming');
+    expect(next.messages).toHaveLength(1);
+    expect(next.messages[0]).toMatchObject({
+      id: 'a-1',
+      role: 'assistant',
+      content: '*thinking…*',
+    });
+    expect(next.streaming.currentMessageId).toBe('a-1');
+    expect(next.streaming.streamBuffer).toBe('*thinking…*');
+  });
+
+  it('defaults to an empty content when initialContent is omitted', () => {
+    const next = chatReducer(frozenState(), {
+      type: 'STREAM_START',
+      payload: { messageId: 'a-1' },
+    });
+
+    expect(next.messages[0].content).toBe('');
+    expect(next.streaming.streamBuffer).toBe('');
+  });
+
+  it('is idempotent: re-targets an existing message instead of duplicating it', () => {
+    // Happens when a progress message was already created (e.g. by
+    // router_decision) and STREAM_START is re-dispatched for the same id.
+    const existing = makeMessage('a-1', 'assistant', 'progress content');
+    const state = frozenState({ status: 'sending', messages: [existing] });
+
+    const next = chatReducer(state, {
+      type: 'STREAM_START',
+      payload: { messageId: 'a-1', initialContent: 'ignored' },
+    });
+
+    expect(next.messages).toHaveLength(1);
+    expect(next.messages[0]).toBe(existing);
+    expect(next.status).toBe('streaming');
+    expect(next.streaming.currentMessageId).toBe('a-1');
+    // Buffer resyncs to the existing content so STREAM_TOKEN appends correctly.
+    expect(next.streaming.streamBuffer).toBe('progress content');
+  });
+});
+
+describe('chatReducer — STREAM_TOKEN', () => {
+  it('appends the token to the target message and the buffer', () => {
+    const state = streamingState('a-1', 'Hello', [makeMessage('a-1', 'assistant', 'Hello')]);
+
+    const next = chatReducer(state, { type: 'STREAM_TOKEN', payload: { token: ' world' } });
+
+    expect(next.messages[0].content).toBe('Hello world');
+    expect(next.streaming.streamBuffer).toBe('Hello world');
+  });
+
+  it('ignores tokens when no stream is active (same state reference)', () => {
+    const state = frozenState();
+
+    const next = chatReducer(state, { type: 'STREAM_TOKEN', payload: { token: 'late' } });
+
+    expect(next).toBe(state);
+  });
+
+  it('ignores tokens when the target message vanished (state inconsistency guard)', () => {
+    const state = streamingState('ghost', 'buf', [makeMessage('other', 'assistant')]);
+
+    const next = chatReducer(state, { type: 'STREAM_TOKEN', payload: { token: 'x' } });
+
+    expect(next).toBe(state);
+  });
+});
+
+describe('chatReducer — STREAM_REPLACE', () => {
+  it('replaces the message content entirely and resets the buffer to it', () => {
+    const state = streamingState('a-1', 'old buffer', [
+      makeMessage('a-1', 'assistant', 'placeholder'),
+    ]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_REPLACE',
+      payload: { content: 'final answer' },
+    });
+
+    expect(next.messages[0].content).toBe('final answer');
+    expect(next.streaming.streamBuffer).toBe('final answer');
+  });
+
+  it('is a no-op without an active stream', () => {
+    const state = frozenState();
+
+    const next = chatReducer(state, { type: 'STREAM_REPLACE', payload: { content: 'x' } });
+
+    expect(next).toBe(state);
+  });
+
+  it('is a no-op when the target message is missing', () => {
+    const state = streamingState('ghost', '', [makeMessage('other', 'assistant')]);
+
+    const next = chatReducer(state, { type: 'STREAM_REPLACE', payload: { content: 'x' } });
+
+    expect(next).toBe(state);
+  });
+});
+
+describe('chatReducer — STREAM_DONE', () => {
+  const fullMetadata = {
+    tokens_in: 100,
+    tokens_out: 50,
+    tokens_cache: 25,
+    cost_eur: 0.02,
+    message_count: 2,
+    google_api_requests: 3,
+    tts_provider: 'elevenlabs',
+    tts_model: 'eleven_v3',
+    tts_characters: 420,
+    tts_cost_eur: 0.01,
+    skill_name: 'weather',
+    generated_images: [{ url: 'https://img/1.png', alt: 'img' }],
+    browser_screenshot: { url: 'https://shot/1.jpg', alt: 'shot' },
+    psyche_state: {
+      mood_label: 'joyful',
+      mood_color: '#00ff00',
+      mood_pleasure: 0.8,
+      mood_arousal: 0.4,
+      mood_dominance: 0.5,
+      active_emotion: 'joy',
+      emotion_intensity: 0.7,
+      relationship_stage: 'EXPLORATION',
+    },
+  };
+
+  it('maps the full done metadata onto the matching message', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: fullMetadata },
+    });
+
+    expect(next.messages[0]).toMatchObject({
+      tokensIn: 100,
+      tokensOut: 50,
+      tokensCache: 25,
+      costEur: 0.02,
+      googleApiRequests: 3,
+      ttsProvider: 'elevenlabs',
+      ttsModel: 'eleven_v3',
+      ttsCharacters: 420,
+      ttsCostEur: 0.01,
+      skillName: 'weather',
+      generatedImages: [{ url: 'https://img/1.png', alt: 'img' }],
+      browserScreenshot: { url: 'https://shot/1.jpg', alt: 'shot' },
+    });
+    expect(next.messages[0].metadata?.psyche_state).toEqual(fullMetadata.psyche_state);
+  });
+
+  it('leaves non-matching messages untouched when metadata targets one message', () => {
+    const bystander = makeMessage('u-1', 'user', 'question');
+    const target = makeMessage('a-1', 'assistant', 'answer');
+    const state = streamingState('a-1', 'answer', [bystander, target]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: { tokens_in: 7 } },
+    });
+
+    expect(next.messages[0]).toBe(bystander);
+    expect(next.messages[1].tokensIn).toBe(7);
+  });
+
+  it('fallback path: attaches full metadata to the last assistant message among several', () => {
+    // No message matches the done messageId → the reducer walks back to the
+    // last assistant message and enriches it, leaving earlier messages as-is.
+    const earlier = makeMessage('a-0', 'assistant', 'older answer');
+    const user = makeMessage('u-1', 'user', 'question');
+    const last = makeMessage('a-1', 'assistant', 'latest answer');
+    const state = streamingState('ghost', '', [earlier, user, last]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'ghost', metadata: fullMetadata },
+    });
+
+    expect(next.messages[0]).toBe(earlier);
+    expect(next.messages[1]).toBe(user);
+    expect(next.messages[2]).toMatchObject({
+      tokensIn: 100,
+      ttsProvider: 'elevenlabs',
+      skillName: 'weather',
+    });
+    expect(next.messages[2].metadata?.psyche_state).toEqual(fullMetadata.psyche_state);
+  });
+
+  it('nullifies absent TTS attribution fields (free providers stay badge-less)', () => {
+    const state = streamingState('a-1', '', [makeMessage('a-1')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: { tokens_in: 1 } },
+    });
+
+    expect(next.messages[0].ttsProvider).toBeNull();
+    expect(next.messages[0].ttsModel).toBeNull();
+    expect(next.messages[0].ttsCharacters).toBeNull();
+    expect(next.messages[0].ttsCostEur).toBeNull();
+  });
+
+  it('accumulates conversation totals across turns', () => {
+    const state = streamingState('a-1', '', [makeMessage('a-1')]);
+
+    const first = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: fullMetadata },
+    });
+    const secondState = deepFreeze({
+      ...first,
+      status: 'streaming' as const,
+      streaming: { currentMessageId: 'a-1', streamBuffer: '', sseStatus: 'connected' as const },
+    });
+    const second = chatReducer(secondState, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: fullMetadata },
+    });
+
+    expect(second.totals).toEqual({
+      totalTokensIn: 200,
+      totalTokensOut: 100,
+      totalTokensCache: 50,
+      totalCostEur: 0.04,
+      totalMessages: 4,
+      totalGoogleApiRequests: 6,
+    });
+  });
+
+  it('treats missing numeric metadata fields as zero in the totals', () => {
+    const state = streamingState('a-1', '', [makeMessage('a-1')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: {} },
+    });
+
+    expect(next.totals).toEqual(initialChatState.totals);
+  });
+
+  it('finalizes the stream: idle status, streaming reset, screenshot cleared', () => {
+    const state = frozenState({
+      status: 'streaming',
+      streaming: { currentMessageId: 'a-1', streamBuffer: 'x', sseStatus: 'connected' },
+      messages: [makeMessage('a-1')],
+      browserScreenshot: { image_base64: 'b64', url: 'https://x', title: 't' },
+    });
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1' },
+    });
+
+    expect(next.status).toBe('idle');
+    expect(next.streaming).toEqual({
+      currentMessageId: null,
+      streamBuffer: '',
+      sseStatus: 'disconnected',
+    });
+    expect(next.browserScreenshot).toBeNull();
+  });
+
+  it('leaves messages and totals untouched when metadata is absent', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, { type: 'STREAM_DONE', payload: { messageId: 'a-1' } });
+
+    expect(next.messages).toBe(state.messages);
+    expect(next.totals).toBe(state.totals);
+  });
+
+  it('leaves messages untouched when no message matches and none is an assistant message', () => {
+    const state = streamingState('ghost', '', [makeMessage('u-1', 'user', 'hi')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'ghost', metadata: { tokens_in: 5 } },
+    });
+
+    expect(next.messages).toEqual(state.messages);
+    // Totals still accumulate: the turn did consume tokens.
+    expect(next.totals.totalTokensIn).toBe(5);
+  });
+});
+
+describe('chatReducer — STREAM_ERROR', () => {
+  it('appends the backend-localized error as an assistant bubble and flags the error state', () => {
+    const state = streamingState('a-1', 'partial', [makeMessage('a-1', 'assistant', 'partial')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_ERROR',
+      payload: { error: 'Something went wrong (localized)' },
+    });
+
+    expect(next.status).toBe('error');
+    expect(next.streaming.sseStatus).toBe('error');
+    expect(next.messages).toHaveLength(2);
+    expect(next.messages[1].role).toBe('assistant');
+    expect(next.messages[1].content).toBe('Something went wrong (localized)');
+  });
+});

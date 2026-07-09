@@ -272,7 +272,10 @@ jobs:
 
       - name: Run Vitest
         working-directory: ./apps/web
-        run: pnpm test -- --coverage
+        # NOTE: must be the dedicated script, NOT `pnpm test -- --coverage`:
+        # pnpm forwards the literal `--` to vitest, which silently ignores the
+        # coverage flag (no report is produced and Codecov uploads nothing).
+        run: pnpm test:coverage
 
       - name: Upload coverage
         if: always()

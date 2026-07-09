@@ -2465,6 +2465,7 @@
       "account_inactive": "Ihr Konto ist deaktiviert. Überprüfen Sie Ihre E-Mails oder kontaktieren Sie einen Administrator.",
       "http_error": "HTTP-Fehler {{status}}: {{statusText}}",
       "network_error": "Netzwerkverbindungsfehler. Überprüfen Sie Ihre Internetverbindung.",
+      "connection_error": "Verbindungsfehler: {{message}}",
       "server_error": "Serverfehler ({{status}}). Bitte versuchen Sie es erneut.",
       "service_unavailable": "Der Dienst ist vorübergehend nicht verfügbar. Bitte versuchen Sie es in einigen Augenblicken erneut.",
       "session_expired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
@@ -2927,6 +2928,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_21_26": {
+          "title": "v1.21.26 — 🛡️ Ein robusterer Chat- & Sprachkern",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎙️ Der Sprachmodus erholt sich von Verbindungsabbrüchen</b> — Fiel die Verbindung aus, während LIA Ihre Sprache transkribierte, konnte die Oberfläche dauerhaft bei „Verarbeitung\" hängen bleiben. Sie zeigt jetzt den Fehler an und kehrt sofort zum Zuhören zurück — und ein seltener Hintergrundfehler nach jeder Wake-Word-Aufnahme ist ebenfalls behoben.",
+            "i2": "<b>🌍 Chat-Fehlermeldungen in Ihrer Sprache</b> — Verbindungsprobleme, abgelaufene Sitzungen oder Nutzungslimits erschienen bisher mit einem festen französischen Präfix um eine englische Meldung, unabhängig von Ihrer Sprache. Diese Meldungen sind jetzt in allen 6 Sprachen korrekt übersetzt.",
+            "i3": "<b>🛡️ Der Chat-Kern ist jetzt regressionssicher</b> — Das Herz von LIA (Nachrichten-Streaming, Aktionsfreigaben, Sprachmodus) ist durch 434 automatisierte Tests mit fixierten Abdeckungsschwellen geschützt: Jede Regression in diesen kritischen Bereichen wird jetzt blockiert, bevor sie Sie erreicht."
+          }
+        },
         "v1_21_25": {
           "title": "v1.21.25 — 🩺 Statusprüfungen, die die Wahrheit sagen",
           "date": "Juli 2026",

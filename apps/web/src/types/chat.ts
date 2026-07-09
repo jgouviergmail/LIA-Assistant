@@ -59,25 +59,24 @@ export interface Message {
 // SSE (Server-Sent Events) types
 export type SSEStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
+/**
+ * SSE chunk types — MUST mirror the backend ChatStreamChunk `type` Literal
+ * (apps/api/src/domains/agents/api/schemas.py), which Pydantic enforces at
+ * runtime on every emission path. Symmetry is guarded by
+ * lib/sse-handlers/__tests__/sse-symmetry.test.ts. Phantom entries that were
+ * never part of the wire contract were removed in the 2026-07 cleanup.
+ */
 export type SSEChunkType =
   | 'token'
   | 'router_decision'
-  | 'planner_metadata'
   | 'error'
   | 'done'
   | 'hitl_interrupt'
   // HITL Streaming (Phase 4): Progressive question rendering
   | 'hitl_interrupt_metadata'
   | 'hitl_question_token'
-  | 'hitl_clarification_token'
-  | 'hitl_rejection_token'
   | 'hitl_interrupt_complete'
-  // Phase 5: Orchestration types
-  | 'node'
-  | 'tool_call'
-  | 'tool_result'
-  | 'metadata'
-  | 'content'
+  | 'hitl_streaming_fallback'
   // Phase 5.5: Post-processing streaming (photo HTML injection, etc.)
   | 'content_replacement'
   // Phase 6: Execution step tracking (generic node/tool display)
@@ -100,19 +99,12 @@ export interface ChatStreamChunk {
   content: string;
   metadata?:
     | RouterMetadata
-    | PlannerMetadata
     | DoneMetadata
     | ToolApprovalMetadata
-    | OrchestrationMetadata
     | RegistryUpdateMetadata
     | DebugMetricsMetadata
     | Record<string, unknown>
     | null;
-  // Phase 5: Additional fields for orchestration
-  node_name?: string;
-  tool_name?: string;
-  args?: Record<string, unknown>;
-  success?: boolean;
   error?: string;
   error_code?: string;
 }
@@ -159,32 +151,6 @@ export interface RouterMetadata {
   context_label: string;
   next_node: string;
   reasoning?: string | null;
-  router_decision?: {
-    intention: string;
-    confidence: number;
-    selected_agent: string;
-  };
-}
-
-// Phase 5: Orchestration metadata types
-export interface PlannerMetadata {
-  step: string;
-  is_valid?: boolean;
-  total_cost_usd?: number;
-  step_count?: number;
-  agent_name?: string;
-  plan_generated?: boolean;
-}
-
-export interface OrchestrationMetadata {
-  step?: string; // 'plan_validation' | 'plan_execution' | 'orchestrator'
-  is_valid?: boolean;
-  total_cost_usd?: number;
-  step_count?: number;
-  current_step?: number;
-  total_steps?: number;
-  agent_name?: string;
-  plan_generated?: boolean;
   router_decision?: {
     intention: string;
     confidence: number;

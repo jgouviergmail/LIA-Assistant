@@ -41,11 +41,7 @@ export async function UseCasesSection({ lng }: UseCasesSectionProps) {
           {EXAMPLES.map((key, i) => {
             const featured = i === 0;
             return (
-              <FadeInOnScroll
-                key={key}
-                delay={i * 80}
-                className={cn(featured && 'sm:col-span-2')}
-              >
+              <FadeInOnScroll key={key} delay={i * 80} className={cn(featured && 'sm:col-span-2')}>
                 <div
                   className={cn(
                     'h-full rounded-xl border border-border bg-background p-5 hover-lift',

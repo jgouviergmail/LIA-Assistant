@@ -83,9 +83,7 @@ describe('MarkdownContent — math delimiters', () => {
   });
 
   it('leaves $ inside fenced code blocks untouched', () => {
-    const { container } = render(
-      <MarkdownContent content={'```sh\nexport A=$B\ncost 9$\n```'} />
-    );
+    const { container } = render(<MarkdownContent content={'```sh\nexport A=$B\ncost 9$\n```'} />);
     expect(container.textContent).toContain('$B');
     expect(container.textContent).toContain('9$');
     expect(container.textContent).not.toContain('\\$');
@@ -102,9 +100,7 @@ describe('MarkdownContent — math delimiters', () => {
 
 describe('MarkdownContent — math notation normalization', () => {
   it('renders a ```latex fenced block as math, not a code block', () => {
-    const { container } = render(
-      <MarkdownContent content={'```latex\nA = \\pi r^2\n```'} />
-    );
+    const { container } = render(<MarkdownContent content={'```latex\nA = \\pi r^2\n```'} />);
     expect(container.querySelector('.katex')).not.toBeNull();
     // Not rendered as a <code>/<pre> block.
     expect(container.querySelector('pre code')).toBeNull();
@@ -193,7 +189,9 @@ describe('MarkdownContent — math inside HTML wrapper (real backend shape)', ()
   it('keeps currency literal inside an HTML paragraph (no KaTeX, no backslash)', () => {
     // Latent sibling bug: the old string-level escaping turned `9$` into `9\$`
     // inside opaque HTML blocks, surfacing a visible backslash. Now literal.
-    const { container } = render(<MarkdownContent content={'<p>Le tarif est de 9$ au total.</p>'} />);
+    const { container } = render(
+      <MarkdownContent content={'<p>Le tarif est de 9$ au total.</p>'} />
+    );
     expect(container.querySelector('.katex')).toBeNull();
     expect(container.textContent).toContain('9$ au total');
     expect(container.textContent).not.toContain('\\$');

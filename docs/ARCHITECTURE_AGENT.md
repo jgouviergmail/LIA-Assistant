@@ -2884,43 +2884,43 @@ class EditStrategy(ResumptionStrategy):
 **Fichier**: `src/domains/agents/api/schemas.py`
 
 ```python
-# Types SSE validés (20 types au total)
+# Types SSE du contrat (19 types — Literal de ChatStreamChunk, schemas.py)
+# Le contrat est clos aux deux bouts : Pydantic valide le Literal à chaque
+# émission, et le test de symétrie frontend (sse-symmetry.test.ts, ADR-116)
+# exige un handler frontend pour chaque type. Les 8 types jamais émis
+# (planner_metadata, planner_error, hitl_clarification_*, hitl_question,
+# hitl_rejection*) ont été purgés en v1.21.26.
 VALID_SSE_TYPES = [
     # ═══════════════════════════════════════════════════════════════════
     # CORE EVENTS
     # ═══════════════════════════════════════════════════════════════════
     "token",                      # Token de réponse LLM
-    "content_replacement",        # Remplacement contenu (édition)
+    "content_replacement",        # Remplacement contenu (post-processing)
     "router_decision",            # Décision du router (domaine sélectionné)
-    "execution_step",             # Progression step du plan
+    "execution_step",             # Progression step (nodes/tools/compaction/reasoning)
     "registry_update",            # Data Registry items (avant LLM)
-    "planner_metadata",           # Métadonnées du plan généré
-    "planner_error",              # Erreur du planner
+    "debug_metrics",              # Métriques de scoring (DEBUG=true)
+    "debug_metrics_update",       # Métriques supplémentaires (post-background)
     "error",                      # Erreur générale
     "done",                       # Fin de réponse
 
     # ═══════════════════════════════════════════════════════════════════
     # HITL EVENTS (Human-In-The-Loop)
     # ═══════════════════════════════════════════════════════════════════
-    "hitl_interrupt",             # Interruption HITL (legacy)
-    "hitl_interrupt_metadata",    # Métadonnées interruption
-    "hitl_question_token",        # Token streaming question HITL
-    "hitl_interrupt_complete",    # Fin interruption HITL
-    "hitl_streaming_fallback",    # Fallback si streaming LLM échoue
-    "hitl_question",              # Question HITL complète (legacy)
+    "hitl_interrupt",             # Interruption HITL (resumption strategies)
+    "hitl_interrupt_metadata",    # Métadonnées interruption (step 1)
+    "hitl_question_token",        # Token streaming question HITL (step 2)
+    "hitl_interrupt_complete",    # Fin interruption HITL (step 3)
+    "hitl_streaming_fallback",    # Awareness : streaming LLM de la question échoué
 
     # ═══════════════════════════════════════════════════════════════════
-    # HITL CLARIFICATION EVENTS
+    # VOICE / BROWSER SIDE-CHANNELS
     # ═══════════════════════════════════════════════════════════════════
-    "hitl_clarification_token",   # Token question clarification
-    "hitl_clarification_complete", # Fin clarification
-
-    # ═══════════════════════════════════════════════════════════════════
-    # HITL REJECTION EVENTS
-    # ═══════════════════════════════════════════════════════════════════
-    "hitl_rejection",             # Plan rejeté par utilisateur
-    "hitl_rejection_token",       # Token réponse rejet
-    "hitl_rejection_complete",    # Fin rejet
+    "voice_comment_start",        # Début du commentaire vocal
+    "voice_audio_chunk",          # Chunk audio (base64 MP3)
+    "voice_complete",             # Fin du commentaire vocal
+    "voice_error",                # Erreur TTS (dégradation gracieuse)
+    "browser_screenshot",         # Screenshot progressif (base64 JPEG)
 ]
 ```
 
@@ -2928,14 +2928,13 @@ VALID_SSE_TYPES = [
 
 | Catégorie | Events | Usage |
 |-----------|--------|-------|
-| **Core** | token, done, error | Streaming LLM de base |
-| **Routing** | router_decision, execution_step | Progression du plan |
+| **Core** | token, content_replacement, done, error | Streaming LLM de base |
+| **Routing** | router_decision, execution_step | Progression (steps, compaction, reasoning) |
 | **Registry** | registry_update | Envoi données avant LLM |
-| **Planner** | planner_metadata, planner_error | Métadonnées/erreurs plan |
-| **HITL Base** | hitl_interrupt, hitl_interrupt_metadata, hitl_interrupt_complete | Interruption générique |
-| **HITL Question** | hitl_question_token, hitl_question, hitl_streaming_fallback | Question streaming |
-| **HITL Clarification** | hitl_clarification_token, hitl_clarification_complete | Demande d'infos |
-| **HITL Rejection** | hitl_rejection, hitl_rejection_token, hitl_rejection_complete | Rejet plan |
+| **Debug** | debug_metrics, debug_metrics_update | Panel debug (DEBUG=true) |
+| **HITL** | hitl_interrupt, hitl_interrupt_metadata, hitl_question_token, hitl_interrupt_complete, hitl_streaming_fallback | Interruption + question streaming |
+| **Voice** | voice_comment_start, voice_audio_chunk, voice_complete, voice_error | Commentaire vocal TTS |
+| **Browser** | browser_screenshot | Screenshots progressifs |
 
 ### 18.2 Structure des Chunks
 

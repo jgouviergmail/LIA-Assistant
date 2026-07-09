@@ -61,8 +61,6 @@ export function getProgressMessage(
   switch (eventType) {
     case 'router_decision':
       return getRandomAnalyzingMessage(t);
-    case 'planner_metadata':
-      return `*📋 ${t('execution.steps.planner_generation', { defaultValue: 'Planning...' })}*`;
     case 'hitl_interrupt_metadata':
       return t('hitl.validating_access');
     case 'execution_step':
@@ -333,57 +331,6 @@ export function handleRouterDecision(chunk: ChatStreamChunk, context: SSEHandler
     dispatch({
       type: 'STREAM_REPLACE',
       payload: { content: fullContent },
-    });
-  }
-}
-
-/**
- * Handle planner_metadata: Planning progress (~2s after send)
- */
-export function handlePlannerMetadata(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
-  const {
-    dispatch,
-    withContext,
-    t,
-    progressMessageId,
-    setProgressMessageId,
-    assistantMessageId,
-    executionStepsRef,
-    emittedStepKeysRef,
-  } = context;
-
-  logger.info(
-    'chat_planner_metadata',
-    withContext({
-      component: 'useChat',
-      metadata: chunk.metadata,
-    })
-  );
-
-  // Accumulate planner step and register for dedup
-  const plannerStep = getProgressMessage('planner_metadata', t);
-  executionStepsRef.current.push(plannerStep);
-  emittedStepKeysRef.current.add('planner_generation');
-  const fullContent = buildProgressContent(
-    executionStepsRef.current,
-    context.reasoningBufRef.current,
-    t
-  );
-
-  if (progressMessageId) {
-    dispatch({
-      type: 'STREAM_REPLACE',
-      payload: { content: fullContent },
-    });
-  } else {
-    // Edge case: planner_metadata arrived before router_decision
-    setProgressMessageId(assistantMessageId);
-    dispatch({
-      type: 'STREAM_START',
-      payload: {
-        messageId: assistantMessageId,
-        initialContent: fullContent,
-      },
     });
   }
 }
@@ -815,6 +762,32 @@ export function handleHitlInterruptComplete(
       message_id: completeMessageId,
       question_length: finalQuestion.length,
       fallback_used: fallbackUsed,
+    })
+  );
+}
+
+/**
+ * Handle hitl_streaming_fallback: HITL question streaming degraded.
+ *
+ * Awareness-only event: the backend emits it when the LLM stream generating
+ * the HITL question fails and it falls back to a template question. The
+ * regular hitl_question_token chunks that follow carry that fallback text,
+ * so the UX needs no action here — but the degradation must be visible in
+ * the frontend logs (it went unnoticed for months as an unknown event type).
+ */
+export function handleHitlStreamingFallback(
+  chunk: ChatStreamChunk,
+  context: SSEHandlerContext
+): void {
+  const { withContext } = context;
+  const metadata = chunk.metadata as Record<string, unknown> | undefined;
+
+  logger.warn(
+    'chat_hitl_streaming_fallback',
+    withContext({
+      component: 'useChat',
+      message_id: metadata?.message_id,
+      error_type: metadata?.error_type,
     })
   );
 }

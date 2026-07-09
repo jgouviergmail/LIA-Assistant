@@ -25,10 +25,7 @@ describe('api-client timeout signal', () => {
 
   it('does not leak a pending abort timer after the request completes', async () => {
     vi.useFakeTimers();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(jsonResponse())
-    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse()));
 
     await apiClient.get('/api/v1/health', { timeout: 30_000 });
 

@@ -44,6 +44,19 @@ idle → listening → recording → processing → speaking → listening
   └────(enable voice mode)────┘
 ```
 
+**Récupération d'erreur** (durcie en v1.21.26, ADR-116) : toute erreur
+(permission micro refusée, échec de connexion WebSocket, **coupure WebSocket
+pendant `processing`**) affiche l'erreur puis ramène la machine à `listening`
+si le mode vocal est activé, `idle` sinon — jamais de paire incohérente
+`state='listening'`/`isEnabled=false`, jamais de spinner `processing` bloqué.
+Le guard de coupure lit l'état courant du store (pas la closure du render du
+`startRecording`, qui avalait silencieusement les coupures), et le timeout de
+setup est désarmé une fois l'enregistrement démarré (plus d'unhandled
+rejection différée après les enregistrements au wake word). La machine
+complète est verrouillée par la suite `useVoiceMode.test.ts` (sans audio
+réel : fakes AudioContext/Worklet/getUserMedia, callbacks KWS/VAD/WS
+capturés).
+
 ---
 
 ## Architecture

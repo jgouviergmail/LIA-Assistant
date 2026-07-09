@@ -109,6 +109,26 @@ describe('handleExecutionStep — compaction interception (Task 3.2)', () => {
     });
   });
 
+  it('defaults tokensSaved to undefined when compaction_done omits tokens_saved', () => {
+    const { context, dispatch } = buildContext();
+    const chunk: ChatStreamChunk = {
+      type: 'execution_step',
+      content: '',
+      metadata: {
+        step_type: 'compaction',
+        step_label: 'compaction_done',
+        strategy: 'single_chunk',
+      },
+    };
+
+    handleExecutionStep(chunk, context);
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'STREAM_COMPACTION_DONE',
+      payload: { tokensSaved: undefined, durationMs: undefined, strategy: 'single_chunk' },
+    });
+  });
+
   it('does NOT intercept non-compaction execution_step chunks (regression guard)', () => {
     const { context, dispatch } = buildContext();
     // A regular execution_step chunk (eg from a tool) must not trigger any

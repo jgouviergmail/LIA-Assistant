@@ -2465,6 +2465,7 @@
       "account_inactive": "Su cuenta está desactivada. Consulte sus correos electrónicos o contacte a un administrador.",
       "http_error": "Error HTTP {{status}}: {{statusText}}",
       "network_error": "Error de conexión de red. Verifique su conexión a internet.",
+      "connection_error": "Error de conexión: {{message}}",
       "server_error": "Error del servidor ({{status}}). Por favor, inténtelo de nuevo.",
       "service_unavailable": "El servicio no está disponible temporalmente. Por favor, inténtelo en unos momentos.",
       "session_expired": "Su sesión ha expirado. Por favor, vuelva a conectarse.",
@@ -2927,6 +2928,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_21_26": {
+          "title": "v1.21.26 — 🛡️ Un núcleo de chat y voz más robusto",
+          "date": "Julio de 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎙️ El modo de voz se recupera de los cortes de red</b> — Si la conexión se perdía mientras LIA transcribía tu voz, la interfaz podía quedarse bloqueada en «procesando» indefinidamente. Ahora muestra el error y vuelve enseguida a la escucha — y también ha desaparecido un error de fondo poco frecuente que aparecía tras cada grabación por palabra de activación.",
+            "i2": "<b>🌍 Mensajes de error del chat en tu idioma</b> — Los problemas de conexión, sesiones caducadas o límites de uso aparecían con un prefijo fijo en francés alrededor de un mensaje en inglés, fuera cual fuera tu idioma. Ahora estos mensajes están correctamente traducidos a los 6 idiomas.",
+            "i3": "<b>🛡️ El motor del chat ahora es a prueba de regresiones</b> — El corazón de LIA (streaming de mensajes, aprobaciones de acciones, modo de voz) está cubierto por 434 pruebas automatizadas con umbrales de cobertura bloqueados: cualquier regresión en estas zonas críticas se detiene antes de llegar a ti."
+          }
+        },
         "v1_21_25": {
           "title": "v1.21.25 — 🩺 Comprobaciones de salud que dicen la verdad",
           "date": "Julio de 2026",

@@ -189,8 +189,18 @@ fallback Testcontainers sans variable.
 #### Test Frontend
 
 ```bash
-pnpm test -- --coverage
+pnpm test:coverage
 ```
+
+Le script dédié est obligatoire : `pnpm test -- --coverage` transmet le `--`
+littéral à vitest, qui ignore silencieusement le flag — aucun rapport n'est
+produit (piège corrigé en v1.21.26, ADR-116). Le job applique les **seuils de
+couverture ratchet** de `apps/web/vitest.config.ts` (reducers/sse-handlers/
+stores verrouillés à 100 %, hooks aux valeurs mesurées, plancher global) et
+uploade `coverage/coverage-final.json` vers Codecov. Le test de symétrie SSE
+(`sse-symmetry.test.ts`) reparse le Literal backend depuis `apps/api/` — un
+nouveau type d'événement SSE backend fait échouer ce job tant que le frontend
+n'a pas pris de décision explicite (handler ou non-gestion documentée).
 
 #### Code Hygiene
 

@@ -2491,6 +2491,7 @@
       "server_error": "Server error ({{status}}). Please try again.",
       "http_error": "HTTP Error {{status}}: {{statusText}}",
       "network_error": "Network connection error. Check your internet connection.",
+      "connection_error": "Connection error: {{message}}",
       "unknown_error": "Unknown error during streaming",
       "usage_limit_exceeded": "You have reached your usage limit. Contact your administrator."
     },
@@ -2937,6 +2938,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_21_26": {
+          "title": "v1.21.26 — 🛡️ A sturdier chat & voice core",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎙️ Voice mode recovers from network drops</b> — If the connection was lost while LIA transcribed your speech, the interface could stay stuck on \"processing\" forever. It now shows the error and goes right back to listening — and a rare background error that appeared after each wake-word recording is gone too.",
+            "i2": "<b>🌍 Chat error messages in your language</b> — Connection problems, expired sessions or usage limits used to appear with a fixed French prefix around an English message, whatever your language. These messages are now properly translated in all 6 languages.",
+            "i3": "<b>🛡️ The chat engine is now regression-proof</b> — The heart of LIA (message streaming, action approvals, voice mode) is covered by 434 automated tests with locked coverage thresholds: any regression in these critical areas is now blocked before it can reach you."
+          }
+        },
         "v1_21_25": {
           "title": "v1.21.25 — 🩺 Health checks that tell the truth",
           "date": "July 2026",

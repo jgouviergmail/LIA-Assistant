@@ -48,10 +48,6 @@ class TestChunkEventTypeMapping:
         """Verify router_decision maps to STREAM_METADATA."""
         assert _get_chunk_event_type("router_decision") == "STREAM_METADATA"
 
-    def test_maps_planner_metadata_to_stream_metadata(self):
-        """Verify planner_metadata maps to STREAM_METADATA."""
-        assert _get_chunk_event_type("planner_metadata") == "STREAM_METADATA"
-
     def test_maps_execution_step_to_stream_metadata(self):
         """Verify execution_step maps to STREAM_METADATA."""
         assert _get_chunk_event_type("execution_step") == "STREAM_METADATA"
@@ -66,7 +62,6 @@ class TestChunkEventTypeMapping:
     def test_maps_error_to_stream_error(self):
         """Verify error chunks map to STREAM_ERROR."""
         assert _get_chunk_event_type("error") == "STREAM_ERROR"
-        assert _get_chunk_event_type("planner_error") == "STREAM_ERROR"
 
     def test_maps_done_to_stream_complete(self):
         """Verify done chunk maps to STREAM_COMPLETE."""
@@ -255,14 +250,14 @@ class TestMetricsCardinality:
 
     def test_chunk_event_type_cardinality(self):
         """Verify langgraph_streaming_chunks_total has acceptable label combinations."""
-        # Expected event_type values: 5 categories
+        # Expected event_type values: 6 categories
         expected_event_types = [
             "STREAM_TOKEN",  # token, content_replacement
-            "STREAM_METADATA",  # router_decision, planner_metadata, execution_step
+            "STREAM_METADATA",  # router_decision, execution_step
             "STREAM_INTERRUPT",  # hitl_*
-            "STREAM_ERROR",  # error, planner_error
+            "STREAM_ERROR",  # error
             "STREAM_COMPLETE",  # done
-            "STREAM_OTHER",  # future additions
+            "STREAM_OTHER",  # registry/debug/voice/browser + future additions
         ]
 
         max_expected_series = len(expected_event_types)
@@ -271,25 +266,19 @@ class TestMetricsCardinality:
         assert max_expected_series == 6
 
     def test_event_type_mapping_coverage(self):
-        """Verify all ChatStreamChunk types are mapped."""
-        # All known chunk types from api/schemas.py
-        known_chunk_types = [
-            "token",
-            "content_replacement",
-            "router_decision",
-            "planner_metadata",
-            "planner_error",
-            "execution_step",
-            "hitl_interrupt",
-            "hitl_interrupt_metadata",
-            "hitl_question_token",
-            "hitl_interrupt_complete",
-            "hitl_clarification_token",
-            "hitl_clarification_complete",
-            "hitl_question",
-            "error",
-            "done",
-        ]
+        """Verify every ChatStreamChunk contract type maps to a valid event_type.
+
+        The chunk types are extracted from the REAL ChatStreamChunk Literal
+        (api/schemas.py) instead of a hand-maintained copy, so this test stays
+        in sync with the wire contract by construction (ADR-116: the frontend
+        symmetry test guards the same Literal from the other side).
+        """
+        from typing import get_args
+
+        from src.domains.agents.api.schemas import ChatStreamChunk
+
+        contract_chunk_types = get_args(ChatStreamChunk.model_fields["type"].annotation)
+        assert len(contract_chunk_types) > 0, "Contract Literal extraction failed"
 
         # Verify all types map to valid event_type
         valid_event_types = [
@@ -299,9 +288,11 @@ class TestMetricsCardinality:
             "STREAM_ERROR",
             "STREAM_COMPLETE",
             "STREAM_OTHER",
+            "STREAM_REGISTRY",
+            "STREAM_DEBUG",
         ]
 
-        for chunk_type in known_chunk_types:
+        for chunk_type in contract_chunk_types:
             event_type = _get_chunk_event_type(chunk_type)
             assert (
                 event_type in valid_event_types

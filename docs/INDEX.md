@@ -2,8 +2,8 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 7.9
-**Dernière mise à jour**: 2026-07-08
+**Version**: 7.10
+**Dernière mise à jour**: 2026-07-09
 **Statut**: Complète (190+ documents)
 
 ---
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 50+ |
 | Guides pratiques | 15+ |
 | Runbooks | 35+ |
-| ADRs | 103 |
+| ADRs | 109 |
 | Skills Claude | 10 |
 
 ---
@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (108) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (109) |
 
 ### Pour les Product Managers
 
@@ -238,7 +238,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_AGENT_CREATION.md](./guides/GUIDE_AGENT_CREATION.md) | Créer un nouvel agent de A à Z | ✅ |
 | [GUIDE_TOOL_CREATION.md](./guides/GUIDE_TOOL_CREATION.md) | Créer un nouveau tool | ✅ |
 | [GUIDE_PROMPTS.md](./guides/GUIDE_PROMPTS.md) | Optimiser les prompts, versioning | ✅ |
-| [GUIDE_TESTING.md](./guides/GUIDE_TESTING.md) | Tests unitaires, integration, E2E | ✅ |
+| [GUIDE_TESTING.md](./guides/GUIDE_TESTING.md) | Tests unitaires, integration, E2E, frontend (Vitest) | ✅ |
 | [GUIDE_DESIGN_SYSTEM.md](./guides/GUIDE_DESIGN_SYSTEM.md) | Design System v4 — HTML card components | ✅ |
 | [GUIDE_DEBUGGING.md](./guides/GUIDE_DEBUGGING.md) | Debug LangGraph, logs, breakpoints | ✅ |
 | [GUIDE_CONNECTOR_IMPLEMENTATION.md](./guides/GUIDE_CONNECTOR_IMPLEMENTATION.md) | Implémenter un nouveau connecteur | ✅ |
@@ -277,12 +277,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-115 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-116 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-116 | Frontend Test Foundation — gate de couverture ratchet vitest (100 % verrouillé sur reducers/sse-handlers/stores), symétrie du contrat SSE exécutable, purge des types morts | 2026-07 |
 | ADR-115 | Liveness/Readiness Probe Split — /health toujours 200 (liveness Docker), nouveau /ready 503 si PostgreSQL ou Redis down | 2026-07 |
 | ADR-114 | Connector Client Domain Error Contract — 28 HTTPException bruts → taxonomie BaseAPIException, contrat API préservé par construction | 2026-07 |
 | ADR-113 | Backend Test Suite Rehabilitation — job CI integration, fin des quarantaines `--ignore`, ratchet couverture 45 % | 2026-07 |
@@ -514,7 +515,7 @@ LIA/
 ├── docs/                       # Documentation (ce répertoire)
 │   ├── technical/              # Docs techniques détaillées (50+)
 │   ├── guides/                 # Guides pratiques (15+)
-│   ├── architecture/           # ADRs (82)
+│   ├── architecture/           # ADRs (109)
 │   ├── runbooks/               # Procédures opérationnelles (34+)
 │   └── readme/                 # README spécialisés (15+)
 ├── infrastructure/             # Docker, observabilité

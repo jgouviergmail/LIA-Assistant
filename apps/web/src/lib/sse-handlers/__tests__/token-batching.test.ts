@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { processSSEChunk, resetTokenBatching } from '@/lib/sse-handlers';
+import { flushTokenBatching, processSSEChunk, resetTokenBatching } from '@/lib/sse-handlers';
 import type { SSEHandlerContext } from '@/lib/sse-handlers/types';
 import type { ChatStreamChunk } from '@/types/chat';
 
@@ -133,6 +133,59 @@ describe('processSSEChunk — token batching', () => {
     processSSEChunk(token(''), context);
 
     expect(rafCallbacks).toHaveLength(0);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('flushTokenBatching dispatches buffered tokens synchronously (stream-error path)', () => {
+    const { context, dispatch } = buildContext();
+
+    processSSEChunk(token('before '), context);
+    processSSEChunk(token('the error'), context);
+    expect(dispatch).not.toHaveBeenCalled();
+
+    flushTokenBatching();
+
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'STREAM_TOKEN',
+      payload: { token: 'before the error' },
+    });
+
+    // The already-consumed animation frame must not re-dispatch anything.
+    rafCallbacks.forEach(cb => cb(0));
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('flushTokenBatching is a no-op on an empty buffer', () => {
+    const { dispatch } = buildContext();
+
+    flushTokenBatching();
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('degrades to synchronous dispatch when requestAnimationFrame is unavailable (SSR)', () => {
+    const { context, dispatch } = buildContext();
+    vi.stubGlobal('requestAnimationFrame', undefined);
+
+    processSSEChunk(token('sync'), context);
+
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'STREAM_TOKEN',
+      payload: { token: 'sync' },
+    });
+  });
+
+  it('routes unknown chunk types to the debug log without throwing', () => {
+    const { context, dispatch } = buildContext();
+
+    expect(() =>
+      processSSEChunk(
+        { type: 'some_future_event', content: 'x' } as unknown as ChatStreamChunk,
+        context
+      )
+    ).not.toThrow();
     expect(dispatch).not.toHaveBeenCalled();
   });
 });

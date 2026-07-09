@@ -551,10 +551,6 @@ async def stream_chat(
                         # E2E metrics: Extract metadata from chunks (PHASE 1.2)
                         if chunk.type == "router_decision" and chunk.metadata:
                             intention_label = chunk.metadata.get("intention", "unknown")
-                        elif chunk.type == "planner_metadata" and chunk.metadata:
-                            # Extract agents count from planner
-                            agents_list = chunk.metadata.get("agents", [])
-                            agents_count = len(agents_list) if agents_list else 0
 
                         # Send chunk as SSE data
                         chunk_json = chunk.model_dump_json()
@@ -624,10 +620,6 @@ async def stream_chat(
                     # E2E metrics: Extract metadata from chunks (PHASE 1.2)
                     if chunk.type == "router_decision" and chunk.metadata:
                         intention_label = chunk.metadata.get("intention", "unknown")
-                    elif chunk.type == "planner_metadata" and chunk.metadata:
-                        # Extract agents count from planner
-                        agents_list = chunk.metadata.get("agents", [])
-                        agents_count = len(agents_list) if agents_list else 0
 
                     # Send chunk as SSE data
                     chunk_json = chunk.model_dump_json()

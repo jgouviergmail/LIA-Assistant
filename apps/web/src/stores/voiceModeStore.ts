@@ -134,11 +134,14 @@ export const useVoiceModeStore = create<VoiceModeStore>()(
       setKwsListening: (listening: boolean) => set({ isKwsListening: listening }),
 
       setError: (err: Error | null) =>
-        set({
+        set((s: VoiceModeStore) => ({
           error: err,
-          // On error, go back to listening if enabled, else idle
-          state: err ? 'listening' : undefined,
-        }),
+          // On error, go back to listening if enabled, else idle. Clearing
+          // the error (err = null) must leave the state machine untouched —
+          // an explicit `state: undefined` would be copied by Object.assign
+          // in zustand's setState and corrupt the state key.
+          ...(err ? { state: s.isEnabled ? 'listening' : 'idle' } : {}),
+        })),
 
       recordWakeWord: () => set({ lastWakeWordTime: Date.now() }),
 

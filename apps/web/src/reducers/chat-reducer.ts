@@ -169,12 +169,15 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           ...state.streaming,
           sseStatus: 'error',
         },
-        // Add error message to chat
+        // Add error message to chat. The payload arrives ALREADY localized
+        // (useChat resolves the ChatStreamError i18nKey / generic key through
+        // t()) — the pure reducer has no i18n access and must not prepend
+        // hardcoded text in any language.
         messages: [
           ...state.messages,
           {
             id: generateUUID(),
-            content: `Erreur de connexion: ${action.payload.error}`,
+            content: action.payload.error,
             role: 'assistant',
             timestamp: new Date(),
           },

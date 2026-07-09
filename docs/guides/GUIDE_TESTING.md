@@ -25,7 +25,8 @@
 15. [Tests Telegram (Multi-Channel)](#tests-telegram-multi-channel)
 16. [Tests Heartbeat (Notifications Proactives)](#tests-heartbeat-notifications-proactives)
 17. [Tests Scheduled Actions](#tests-scheduled-actions)
-18. [Références](#références)
+18. [Tests Frontend (Vitest)](#tests-frontend-vitest)
+19. [Références](#références)
 
 ---
 
@@ -2710,6 +2711,59 @@ def sample_scheduled_action():
 cd apps/api
 pytest tests/unit/domains/scheduled_actions/ -v
 ```
+
+---
+
+## Tests Frontend (Vitest)
+
+### Organisation et commandes
+
+Les tests frontend (Vitest + jsdom + Testing Library) sont co-localisés avec le code source dans des répertoires `__tests__/` :
+
+```
+apps/web/src/
+├── __tests__/setup.ts              # Setup global (mocks next/navigation, react-i18next, matchMedia)
+├── reducers/__tests__/             # Machine à états du chat (chat-reducer)
+├── lib/sse-handlers/__tests__/     # Pipeline SSE (handlers, batching, symétrie contrat backend)
+├── stores/__tests__/               # Stores zustand (psycheStore, voiceModeStore)
+└── hooks/__tests__/                # Hooks (useChat, useConversation, useVoiceMode)
+```
+
+```bash
+# Exécuter les tests frontend
+cd apps/web
+pnpm test                # vitest run
+pnpm test:coverage       # avec couverture + application des seuils
+
+# ⚠️ PIÈGE : `pnpm test -- --coverage` ne fonctionne PAS — pnpm transmet le
+# `--` littéralement et vitest ignore silencieusement le flag (aucun rapport).
+# Toujours utiliser le script dédié `pnpm test:coverage`.
+```
+
+### Seuils de couverture (doctrine ratchet)
+
+Les seuils vivent dans `apps/web/vitest.config.ts` (`coverage.thresholds`) et suivent la même doctrine ratchet que le gate backend :
+
+- **Seuils fixés juste sous la valeur mesurée** au moment du verrouillage — jamais à l'aveugle.
+- **Ils ne montent que lorsque de nouveaux tests arrivent, et ne descendent jamais** : baisser un seuil pour faire passer la CI est une régression à corriger, pas un réglage.
+- Les zones critiques (reducers, sse-handlers, stores) sont **verrouillées à 100 %** par des seuils par glob ; un plancher global bas protège le reste.
+- Note vérifiée empiriquement (vitest 4.1) : le plancher global est calculé sur **tout** l'ensemble `include` — les fichiers matchés par un glob n'en sont pas soustraits.
+- Le reporter texte masque les fichiers à 100 % (`skipFull`) : pour vérifier une valeur exacte, utiliser `--coverage.reporter=json-summary` et lire `coverage/coverage-summary.json`.
+
+### Patterns de test frontend
+
+- **Mocks au niveau module** avec `vi.mock` + `vi.hoisted` pour l'état configurable par test — pas de MSW. Le client SSE custom (fetch-stream) se teste par un *driver de chunks scriptés* : chaque test décrit la séquence exacte de chunks que le backend émettrait et la rejoue à travers le vrai pipeline (`processSSEChunk` → reducer). Voir `hooks/__tests__/useChat.test.ts`.
+- **Immutabilité prouvée** : les états d'entrée des reducers sont gelés en profondeur (`src/__tests__/deep-freeze.ts`) — toute mutation in-place lève une TypeError en mode strict.
+- **Symétrie du contrat SSE** : `lib/sse-handlers/__tests__/sse-symmetry.test.ts` pinne la liste des types du `Literal` backend (`ChatStreamChunk`) et la re-parse depuis `apps/api` quand le fichier est accessible (hôte + CI). Tout nouveau type backend force une décision frontend explicite (handler ou entrée documentée dans `ACKNOWLEDGED_UNHANDLED`).
+- **Audio sans audio** : `useVoiceMode` se teste avec des fakes `AudioContext`/`AudioWorkletNode`/`getUserMedia` et des mocks Sherpa/VAD dont les callbacks capturés pilotent la machine (wake word, fin de parole, transcription).
+- **Branches SSR** : un fichier de test peut opter pour l'environnement node (`// @vitest-environment node` en première ligne) pour couvrir les gardes `typeof window === 'undefined'` — le setup global est gardé en conséquence.
+- **Déterminisme** : pas de timers réels (`vi.useFakeTimers`), `Math.random` stubé, `requestAnimationFrame` stubé pour le batching de tokens.
+
+### Pièges connus
+
+- **Stabilité des mocks de hooks** : un mock dont les fonctions retournées changent d'identité à chaque render (ex. `withContext`) re-déclenche tous les effets qui en dépendent — mimer la mémoïsation du vrai hook (fonction définie une fois dans la factory du mock).
+- **`vi.mock` de `sonner`** : mocker l'objet `toast` complet (`loading`, `success`, `warning`, `error`, `info`) — les handlers SSE l'utilisent pour la compaction et les limites d'usage.
+- Les tests tournent sur l'hôte (et en CI) — dans le container `lia-web-dev`, le test de synchronisation du contrat SSE se skip proprement (seul `apps/web` y est monté).
 
 ---
 

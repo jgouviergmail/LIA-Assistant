@@ -45,7 +45,9 @@ describe('MarkdownContent — XSS vectors stripped', () => {
   });
 
   it('drops javascript: URLs (schema + urlTransform double layer)', () => {
-    const { container } = render(<MarkdownContent content={'<a href="javascript:alert(1)">x</a>'} />);
+    const { container } = render(
+      <MarkdownContent content={'<a href="javascript:alert(1)">x</a>'} />
+    );
     const link = container.querySelector('a');
     expect(link?.getAttribute('href') || '').not.toContain('javascript');
   });
@@ -83,7 +85,9 @@ describe('MarkdownContent — legitimate markup survives', () => {
     // Regression: defaultSchema allows a.className ONLY as data-footnote-backref,
     // which stripped .lia-card__title and rendered the title as a blue link.
     const { container } = render(
-      <MarkdownContent content={'<a href="/x" class="lia-card__title lia-title-underline">Titre</a>'} />
+      <MarkdownContent
+        content={'<a href="/x" class="lia-card__title lia-title-underline">Titre</a>'}
+      />
     );
     const link = container.querySelector('a');
     expect(link).not.toBeNull();
@@ -115,7 +119,9 @@ describe('MarkdownContent — legitimate markup survives', () => {
   it('keeps collapsible details/summary with open attribute', () => {
     const { container } = render(
       <MarkdownContent
-        content={'<details class="lia-collapsible" open><summary>plus</summary><p>corps</p></details>'}
+        content={
+          '<details class="lia-collapsible" open><summary>plus</summary><p>corps</p></details>'
+        }
       />
     );
     const details = container.querySelector('details');
@@ -126,7 +132,9 @@ describe('MarkdownContent — legitimate markup survives', () => {
   it('keeps tel: links (click-to-call)', () => {
     // Note: formatPhonesInText (existing behaviour) may reformat the number —
     // what matters here is that the tel: protocol survives sanitization.
-    const { container } = render(<MarkdownContent content={'<a href="tel:+33612345678">tel</a>'} />);
+    const { container } = render(
+      <MarkdownContent content={'<a href="tel:+33612345678">tel</a>'} />
+    );
     expect(container.querySelector('a')?.getAttribute('href')).toMatch(/^tel:/);
   });
 

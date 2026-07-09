@@ -47,10 +47,7 @@ export async function RexSection({ lng }: RexSectionProps) {
           {/* KPIs */}
           <div className="grid grid-cols-2 mobile:grid-cols-4 gap-4 mb-10">
             {KPI_KEYS.map(key => (
-              <div
-                key={key}
-                className="rounded-xl border border-border/60 bg-background px-4 py-5"
-              >
+              <div key={key} className="rounded-xl border border-border/60 bg-background px-4 py-5">
                 <div className="text-2xl mobile:text-3xl font-bold text-primary tabular-nums">
                   {t(`landing.rex.kpis.${key}.value`)}
                 </div>
