@@ -80,6 +80,31 @@ else
     print_success "No secrets detected"
 fi
 
+# 1.5 Check for real infra/personal info (open-source hygiene; local git-ignored denylist)
+echo ""
+print_info "Checking for real infra/personal info..."
+INFRA_DENYLIST="apps/api/tests/.infra_denylist"
+if [ -f "$INFRA_DENYLIST" ]; then
+    TOKENS_FILE=$(mktemp)
+    grep -vE '^[[:space:]]*(#|$)' "$INFRA_DENYLIST" > "$TOKENS_FILE" 2>/dev/null || true
+    STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+    INFRA_HITS=""
+    if [ -s "$TOKENS_FILE" ] && [ -n "$STAGED_FILES" ]; then
+        INFRA_HITS=$(echo "$STAGED_FILES" | tr '\n' '\0' | xargs -0 grep -Fwn -f "$TOKENS_FILE" 2>/dev/null || true)
+    fi
+    rm -f "$TOKENS_FILE"
+    if [ -n "$INFRA_HITS" ]; then
+        print_error "Real infra/personal info found in staged files (denylist: $INFRA_DENYLIST)!"
+        echo "$INFRA_HITS" | sed 's/^/      /'
+        echo "    Use placeholders instead (e.g. <user>@<prod-host>, .env-rendered templates)."
+        FAILED=1
+    else
+        print_success "No infra/personal info detected"
+    fi
+else
+    print_info "No $INFRA_DENYLIST (copy .infra_denylist.example to arm it) — skipping infra check"
+fi
+
 # 2. Backend checks (only if Python files are staged)
 PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep "\.py$" || true)
 

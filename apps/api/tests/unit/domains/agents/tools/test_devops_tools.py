@@ -30,7 +30,7 @@ class TestResolveServer:
         """Resolve a server that exists in configuration."""
         mock_settings.return_value.devops_servers = json.dumps(
             [
-                {"name": "dev", "host": "local", "username": "jgo"},
+                {"name": "dev", "host": "local", "username": "dev-user"},
                 {"name": "prod", "host": "local", "username": "deploy"},
             ]
         )
@@ -45,7 +45,7 @@ class TestResolveServer:
         """Return None for unknown server name."""
         mock_settings.return_value.devops_servers = json.dumps(
             [
-                {"name": "dev", "host": "local", "username": "jgo"},
+                {"name": "dev", "host": "local", "username": "dev-user"},
             ]
         )
 

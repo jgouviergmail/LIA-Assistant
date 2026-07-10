@@ -1,0 +1,18 @@
+# Local denylist of REAL infra / personal tokens that must never be committed to
+# this open-source repo (production host/IP, SSH username, personal email, private
+# internal identifiers).
+#
+# SETUP: copy this file to ".infra_denylist" (same directory) and replace the
+# samples below with YOUR real values — one token per line, "#" comments allowed.
+# ".infra_denylist" is git-ignored, so your real values never enter the repo.
+#
+# The pre-commit hook and tests/unit/test_no_infra_info_guard.py then block any of
+# these tokens (whole-word match) from appearing in tracked files. Whole-word means
+# a short username token is blocked as "user@host" or "/home/user/" but NOT inside
+# a longer legitimate identifier (e.g. a public repo-owner handle).
+#
+# The samples below are fake documentation values (RFC-5737 / .example) and are
+# safe to keep here; they are what an unconfigured setup would look like.
+203.0.113.7
+my-ssh-username
+me@personal-email.example

@@ -283,3 +283,7 @@ LIA Pics/
 
 # User-imported skills (runtime data, per-user content — never in the repo)
 data/skills/users/
+
+# Local denylist of real infra/personal tokens (open-source hygiene guard).
+# Real values live here per-machine; only .infra_denylist.example is committed.
+apps/api/tests/.infra_denylist
