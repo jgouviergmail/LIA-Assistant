@@ -288,6 +288,17 @@ tasks:
       - cmd: .venv/bin/pytest-watch
         platforms: [linux, darwin]
 
+  # File-size ratchet (test_file_size_ratchet_guard.py): caps can only go DOWN.
+  # Run after shrinking a frozen file so its cap follows it (current SLOC +2%).
+  ratchet:update:
+    desc: Lower file-size ratchet caps to current sizes (never raises, never adds)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python ../../scripts/audit/update_file_size_baseline.py
+        platforms: [windows]
+      - cmd: .venv/bin/python ../../scripts/audit/update_file_size_baseline.py
+        platforms: [linux, darwin]
+
   # ============================================================================
   # Database
   # ============================================================================

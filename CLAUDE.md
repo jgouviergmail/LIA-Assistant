@@ -237,6 +237,10 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - A docstring describing behavior the code does not have **is a bug**: fix the code or the doc in the same change — never leave the contradiction (audited examples: "uses asyncio.to_thread" without to_thread, "connection pool" on a single connection, "streaming check" that loads everything in RAM).
 - Dead code is deleted, not kept "for later": an unwired subsystem with settings/i18n/tests attached costs maintenance on every change and fakes coverage. Wire it or remove it — record the decision in a short ADR.
 
+### Size & structure
+
+- A logical file never grows: it stays under **600 logical SLOC** (tokenize + AST, no docstrings/comments/blanks — the `scripts/audit/measure_sloc.py` semantics), and pre-existing larger files are frozen at their audited size +2% in `apps/api/tests/unit/file_size_baseline.json` — they may only shrink (`task ratchet:update` lowers caps, never raises). Data modules (`core/i18n_*`, `core/config/`, `core/constants`, `domains/llm_config/constants`) are exempt. When a feature outgrows a file, extract a cohesive module — never bump the cap. Enforced in CI by the guard `apps/api/tests/unit/test_file_size_ratchet_guard.py`; doctrine in `docs/guides/GUIDE_DEVELOPPEMENT.md`.
+
 ## Key Patterns
 
 - **Connector abstraction**: Google, Apple, Microsoft APIs share a common connector pattern with provider resolver (`src/domains/connectors/`). Only one provider active per functional category (email, calendar, contacts, tasks). When touching a provider client, check the **other providers' behavior for the same operation** (cache invalidation, reply-all semantics, multi-valued field updates) — provider asymmetries are a recurring bug source; parity is the rule.

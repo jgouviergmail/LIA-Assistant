@@ -426,6 +426,37 @@ Si le silence masque un vrai signal, ce n'est ni `pass` ni `suppress` : c'est un
 `infrastructure/database/session.py` (métriques), `agents/api/sse_keepalive.py`
 (teardown multi-handler).
 
+#### Taille des fichiers (doctrine ratchet)
+
+**Un fichier logique ne grossit plus : on extrait.** Un garde CI
+(`apps/api/tests/unit/test_file_size_ratchet_guard.py`) fait échouer le build dès qu'un
+fichier de `src/` dépasse son plafond de SLOC logiques (tokenize + AST, hors
+docstrings/commentaires/lignes vides — la sémantique de `scripts/audit/measure_sloc.py`,
+partagée avec le protocole d'audit) :
+
+- **600 SLOC logiques** pour tout fichier, y compris tout nouveau fichier ;
+- les fichiers historiques au-dessus sont **gelés** à leur taille auditée +2 % dans
+  `apps/api/tests/unit/file_size_baseline.json` — ils peuvent décroître, jamais croître ;
+- les modules de données (`core/i18n_*`, `core/config/`, `core/constants`,
+  `domains/llm_config/constants`) sont exemptés : données déclaratives à complexité
+  ~nulle, dont le levier de remédiation est un changement de format, pas une
+  décomposition (mêmes exemptions que le scoring « god file » de l'audit).
+
+```bash
+# ✅ Après avoir fait maigrir un fichier gelé : abaisser son plafond
+task ratchet:update   # ne peut QUE baisser les plafonds (et purger les entrées mortes)
+
+# ❌ INTERDITS (le garde CI casse le build)
+# gonfler un fichier gelé « parce que la feature va là » → extraire un module cohérent
+# monter un plafond dans file_size_baseline.json sans justification explicite en PR
+```
+
+Contexte : l'audit 2026-07 a mesuré 41 fichiers ≥ 800 SLOC concentrant 27 % du code
+backend, et ADR-117 a fait grossir `stream_chat` de 335 → 412 SLOC sans rencontrer
+d'obstacle. Le ratchet est le mécanisme qui a déjà inversé ce type de dérive ici
+(couverture backend 43 → 45, seuils vitest verrouillés à 100 % sur les machines à
+états) — il s'applique désormais à la taille des fichiers.
+
 #### Type Hints (Obligatoire)
 
 ```python

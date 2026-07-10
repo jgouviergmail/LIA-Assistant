@@ -30,7 +30,10 @@ step is executable by a human reviewer. A new audit cycle is triggered by a sing
    [`scripts/audit/measure_sloc.py`](../../scripts/audit/measure_sloc.py) (tokenize + AST,
    docstrings/comments/blanks excluded). Raw line counts are never used for scoring.
    Data modules (i18n tables, configuration, constants — see the script's exemption list)
-   are reported separately from logic modules.
+   are reported separately from logic modules. File sizes are frozen by a CI ratchet
+   (`apps/api/tests/unit/test_file_size_ratchet_guard.py`, same SLOC semantics and
+   exemptions): each audit cycle runs `task ratchet:update` so the caps follow the
+   extractions — caps only go down, never up.
 6. **Register continuity.** Findings carry stable IDs across cycles (`R-…`, `R2-…`, `R3-…`).
    Each new cycle starts by re-verifying every open item of the previous register in the
    code before marking it resolved / partial / open. Resolved items cite their proof
