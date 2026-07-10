@@ -14,8 +14,8 @@
  * - tests: backend pytest (~11,100) + frontend vitest
  * - adrs: docs/architecture/ ADR files (numbered up to ADR-123)
  * - releases: CHANGELOG.md release entries
- * - auditScore/auditAreas: 360° technical audit at commit 182f3927 (v1.22.0,
- *   2026-07-09), 24 areas on the ISO/IEC 25010 grid. Full public report +
+ * - auditScore/auditAreas: 360° technical audit at commit 1b3a0ebc (v1.23.7,
+ *   2026-07-10), 24 areas on the ISO/IEC 25010 grid. Full public report +
  *   protocol: docs/audit/ (AUDIT_REPORT_URL below). The i18n key
  *   landing.proof.audit_value carries the locale-formatted display value and
  *   must be updated in the 6 locales whenever auditScore changes.
@@ -31,7 +31,7 @@ export const LANDING_STATS = {
   tests: 11000,
   adrs: 100,
   releases: 141,
-  auditScore: '8.4/10',
+  auditScore: '8.5/10',
   auditAreas: 24,
 } as const;
 

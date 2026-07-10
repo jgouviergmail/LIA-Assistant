@@ -858,7 +858,7 @@ auditiert und inventarisiert, nicht nur die deklarierten Pakete.
 
 ### 22.4. Das Audit ist öffentlich — und reproduzierbar
 
-Das in diesem Guide beschriebene Qualitätsniveau ist nicht selbst deklariert: ein vollständiges technisches 360°-Audit — **8,4/10 über 24 Bereiche** des ISO/IEC-25010-Rasters, offene Befunde inklusive — ist im Repository veröffentlicht ([vollständiger Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), zusammen mit dem [Audit-Protokoll](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md), das jeden Zyklus reproduzierbar macht: gepinnter Commit, Nachweisanforderungen pro Bereich, verankerte Bewertung und ein versioniertes Skript, das Größe in logischen SLOC misst. Der Bericht endet mit den exakten Befehlen, um die Messungen selbst zu reproduzieren.
+Das in diesem Guide beschriebene Qualitätsniveau ist nicht selbst deklariert: ein vollständiges technisches 360°-Audit — **8,5/10 über 24 Bereiche** des ISO/IEC-25010-Rasters, offene Befunde inklusive — ist im Repository veröffentlicht ([vollständiger Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), zusammen mit dem [Audit-Protokoll](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md), das jeden Zyklus reproduzierbar macht: gepinnter Commit, Nachweisanforderungen pro Bereich, verankerte Bewertung und ein versioniertes Skript, das Größe in logischen SLOC misst. Der Bericht endet mit den exakten Befehlen, um die Messungen selbst zu reproduzieren.
 
 ## 23. Übergreifende Engineering-Patterns
 

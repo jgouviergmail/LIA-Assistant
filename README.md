@@ -26,7 +26,7 @@
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.2.2-FF6F00?style=flat-square" alt="LangGraph"></a>
   <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.3.2-4B8BBE?style=flat-square" alt="LangChain"></a>
   <a href="#internationalization-i18n--6-languages"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
-  <a href="docs/audit/README.md"><img src="https://img.shields.io/badge/360%C2%B0%20audit-8.4%2F10-2E7D5B?style=flat-square" alt="360° technical audit: 8.4/10 — full public report"></a>
+  <a href="docs/audit/README.md"><img src="https://img.shields.io/badge/360%C2%B0%20audit-8.5%2F10-2E7D5B?style=flat-square" alt="360° technical audit: 8.5/10 — full public report"></a>
   <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
   <a href="https://deepwiki.com/jgouviergmail/LIA-Assistant"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
@@ -115,7 +115,7 @@ The result is measured, not proclaimed:
 | | | | |
 |---|---|---|---|
 | **31** functional domains | **420,000** lines of code (excl. tests) | **11,000+** automated tests | **100+** ADRs |
-| **130+** versions shipped | **6 languages**, parity enforced in CI | **394** Prometheus metrics | [**8.4/10** 360° technical audit](docs/audit/README.md) |
+| **130+** versions shipped | **6 languages**, parity enforced in CI | **394** Prometheus metrics | [**8.5/10** 360° technical audit](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 areas scored on the ISO/IEC 25010 grid, open findings included, with the protocol to reproduce it: [docs/audit/](docs/audit/README.md)
@@ -919,7 +919,7 @@ pytest --cov=src --cov-report=html -v
 | Frontend tests (vitest) | 169 |
 | Coverage target | 45% |
 | CI Workflows | 3 (CI, Security, Release) |
-| 360° technical audit | **8.4/10** across 24 areas — [full public report & protocol](docs/audit/README.md) |
+| 360° technical audit | **8.5/10** across 24 areas — [full public report & protocol](docs/audit/README.md) |
 
 ---
 

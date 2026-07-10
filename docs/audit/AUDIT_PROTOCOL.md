@@ -23,9 +23,12 @@ step is executable by a human reviewer. A new audit cycle is triggered by a sing
 3. **Counter-verification.** Every negative finding gets an explicit false-positive check
    (multi-line declarations, delegating wrappers, guards living elsewhere, intentional and
    documented behavior). Discarded candidates are worth mentioning in the internal report.
-4. **Execute, don't trust.** Test suites are run during the audit — unit and agents suites
-   at minimum, invoked the way CI invokes them (separate processes). Record exact
-   pass/skip/fail counts and durations.
+4. **Execute, don't trust — and cross the execution modes.** Test suites are run during the
+   audit: separate invocations (the CI way), a combined single-process run under parallel
+   scheduling (xdist), AND a combined strictly-sequential run. Record exact
+   pass/skip/fail counts per mode. Lesson learned (2026-07-10): parallel scheduling masked
+   an order-dependent isolation failure that sequential collection exposed — one mode is
+   never enough.
 5. **Logical SLOC only.** All size metrics come from
    [`scripts/audit/measure_sloc.py`](../../scripts/audit/measure_sloc.py) (tokenize + AST,
    docstrings/comments/blanks excluded). Raw line counts are never used for scoring.
@@ -112,8 +115,8 @@ Execute in this order — the figures rule is *constants first, then texts*:
 2. `apps/web/src/components/landing/constants.ts` — `auditScore`, `auditAreas`
    (single source of truth; update the provenance comment).
 3. `apps/web/locales/{en,fr,de,es,it,zh}/translation.json` —
-   `landing.proof.audit_value` (respect locale decimal separators: `8,4/10` for fr/de/es/it,
-   `8.4/10` for en/zh) and any other audit-related keys. The pre-commit hook enforces
+   `landing.proof.audit_value` (respect locale decimal separators: comma for fr/de/es/it,
+   dot for en/zh — e.g. `8,5/10` vs `8.5/10`) and any other audit-related keys. The pre-commit hook enforces
    6-locale key parity.
 4. `README.md` — four touchpoints: the audit badge in the header badge block, the figure in
    the "Built by an AI" table, the row in the Tests → Statistics table, the mention in the
@@ -126,7 +129,20 @@ Execute in this order — the figures rule is *constants first, then texts*:
    runs clean, every markdown link added resolves. No git actions — the human owns commits
    and releases.
 
-## 6. Cadence
+## 6. Widen or deepen — every cycle
+
+Re-measuring the same evidence eventually finds nothing. Each cycle must add at least one of:
+- **a new instrument** on an existing area (examples already in use: logical SLOC → cyclomatic
+  complexity; import lists → coupling/instability metrics; a11y signal counts → Lighthouse);
+- **a new exploratory area**, scored but kept out of the like-for-like average for one cycle
+  (entered the basket so far: portability/compatibility/functional suitability/usability at
+  cycle 2; FinOps and privacy engineering at cycle 3);
+- **a new probe** for an assumed-covered blind spot (example: client-side error telemetry,
+  which server-side observability scores never looked at).
+New instruments should be committed as scripts under `scripts/audit/` so the next cycle
+reproduces them (measure_sloc.py exists; coupling and complexity measurements are due).
+
+## 7. Cadence
 
 An audit cycle runs after each major remediation wave or feature release, and at most a few
 weeks apart while the register has open items. The history table in the public report is the

@@ -858,7 +858,7 @@ inventariato, non solo i pacchetti dichiarati.
 
 ### 22.4. L'audit è pubblico — e riproducibile
 
-Il livello di rigore descritto in questa guida non è autodichiarato: un audit tecnico a 360° completo — **8,4/10 su 24 perimetri** della griglia ISO/IEC 25010, rilievi aperti inclusi — è pubblicato nel repository ([rapporto completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), insieme al [protocollo di audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) che rende riproducibile ogni ciclo: commit fissato, requisiti di evidenza per perimetro, valutazione ancorata e uno script versionato che misura le dimensioni in SLOC logiche. Il rapporto si chiude con i comandi esatti per riprodurre le misurazioni da soli.
+Il livello di rigore descritto in questa guida non è autodichiarato: un audit tecnico a 360° completo — **8,5/10 su 24 perimetri** della griglia ISO/IEC 25010, rilievi aperti inclusi — è pubblicato nel repository ([rapporto completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), insieme al [protocollo di audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) che rende riproducibile ogni ciclo: commit fissato, requisiti di evidenza per perimetro, valutazione ancorata e uno script versionato che misura le dimensioni in SLOC logiche. Il rapporto si chiude con i comandi esatti per riprodurre le misurazioni da soli.
 
 ## 23. Pattern di ingegneria trasversali
 

@@ -13,7 +13,7 @@
 
 LIA is a complete multi-agent AI assistant — business connectors, voice, memory, six languages — designed, built and continuously operated in production, as a personal project.
 
-Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **8.4/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
+Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **8.5/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
 
 | Indicator | Value |
 | --- | --- |
@@ -23,7 +23,7 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Documented architecture decisions (ADR) | **100+** |
 | Versions shipped at a steady pace | **120+** |
 | Languages, parity checked automatically | **6** |
-| Technical audit across 24 areas | **8.4/10** |
+| Technical audit across 24 areas | **8.5/10** |
 
 Conviction from experience: AI-assisted development can be industrialized today. The limiting factor is not the tool — it is the management framework you give it.
 
@@ -69,7 +69,7 @@ A system flown on instruments:
 
 ## 6. The proof
 
-The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. Latest assessment: **8.4/10**, with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. Latest assessment: **8.5/10**, with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Confirmed strengths:**
 

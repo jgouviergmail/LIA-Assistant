@@ -857,7 +857,7 @@ not just the declared packages.
 
 ### 22.4. The audit is public — and reproducible
 
-The quality bar described in this guide is not self-declared: a complete 360° technical audit — **8.4/10 across 24 areas** on the ISO/IEC 25010 grid, open findings included — is published in the repository ([full report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), together with the [audit protocol](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) that makes every cycle reproducible: pinned commit, per-area evidence requirements, anchored scoring, and a committed script measuring size in logical SLOC. The report ends with the exact commands to reproduce the measurements yourself.
+The quality bar described in this guide is not self-declared: a complete 360° technical audit — **8.5/10 across 24 areas** on the ISO/IEC 25010 grid, open findings included — is published in the repository ([full report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), together with the [audit protocol](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) that makes every cycle reproducible: pinned commit, per-area evidence requirements, anchored scoring, and a committed script measuring size in logical SLOC. The report ends with the exact commands to reproduce the measurements yourself.
 
 ## 23. Cross-cutting engineering patterns
 

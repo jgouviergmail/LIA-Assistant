@@ -13,7 +13,7 @@
 
 LIA es un asistente de IA multiagente completo — conectores de negocio, voz, memoria, seis idiomas — diseñado, desarrollado y operado en producción de forma continua, como proyecto personal.
 
-La casi totalidad del código fue escrita por una IA, bajo dirección humana: un referencial de ingeniería escrito, controles automáticos bloqueantes, revisión sistemática, auditorías recurrentes. El resultado está medido: **8,4/10** en la auditoría técnica sobre 24 perímetros. El repositorio es open source; las conclusiones de la auditoría — fortalezas y debilidades — se asumen y se resumen en este documento.
+La casi totalidad del código fue escrita por una IA, bajo dirección humana: un referencial de ingeniería escrito, controles automáticos bloqueantes, revisión sistemática, auditorías recurrentes. El resultado está medido: **8,5/10** en la auditoría técnica sobre 24 perímetros. El repositorio es open source; las conclusiones de la auditoría — fortalezas y debilidades — se asumen y se resumen en este documento.
 
 | Indicador | Valor |
 | --- | --- |
@@ -23,7 +23,7 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Decisiones de arquitectura documentadas (ADR) | **100+** |
 | Versiones entregadas a ritmo regular | **120+** |
 | Idiomas, paridad verificada automáticamente | **6** |
-| Auditoría técnica sobre 24 perímetros | **8,4/10** |
+| Auditoría técnica sobre 24 perímetros | **8,5/10** |
 
 Convicción de experiencia: el desarrollo asistido por IA es industrializable hoy. El factor limitante no es la herramienta — es el marco de dirección que se le da.
 
@@ -69,7 +69,7 @@ Un sistema que se pilota con instrumentos:
 
 ## 6. La prueba
 
-El nivel anunciado en este documento resulta de una auditoría técnica completa: 24 perímetros calificados, cada hallazgo verificado en el código y contraverificado para eliminar los falsos positivos. La auditoría aplica el método del propio proyecto — conducida con herramientas de IA, en postura contradictoria, cada conclusión anclada en una prueba contraverificada. Última evaluación: **8,4/10**, con un perfil asumido. El informe completo — cuadro de calificaciones, método, hallazgos abiertos y el protocolo para reproducirlo — es público: [informe de auditoría completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+El nivel anunciado en este documento resulta de una auditoría técnica completa: 24 perímetros calificados, cada hallazgo verificado en el código y contraverificado para eliminar los falsos positivos. La auditoría aplica el método del propio proyecto — conducida con herramientas de IA, en postura contradictoria, cada conclusión anclada en una prueba contraverificada. Última evaluación: **8,5/10**, con un perfil asumido. El informe completo — cuadro de calificaciones, método, hallazgos abiertos y el protocolo para reproducirlo — es público: [informe de auditoría completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Puntos fuertes confirmados:**
 

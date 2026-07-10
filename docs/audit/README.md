@@ -1,7 +1,7 @@
 # LIA — Public Technical Audit Report
 
-> **Latest assessment: 8.4/10** — like-for-like against the July 7 baseline (8.0/10); **8.3/10 across the extended 24-area grid** mapped to ISO/IEC 25010.
-> Audited commit: `182f3927` (v1.22.0, 2026-07-09) · Method: adversarial, evidence-based, every finding verified in the code · Security is assessed separately (see [SECURITY.md](../../SECURITY.md)).
+> **Latest assessment: 8.5/10** — like-for-like on the historical 20 areas (trajectory 8.0 → 8.4 → 8.5); **8.4/10 across the extended 24-area grid** mapped to ISO/IEC 25010.
+> Audited commit: `1b3a0ebc` (v1.23.7, 2026-07-10) · Method: adversarial, evidence-based, every finding verified in the code · Security is assessed separately (see [SECURITY.md](../../SECURITY.md)).
 
 LIA's engineering claims are public, so their verification should be too. This report is the detailed backing for every quality figure shown on the [landing page](https://lia.jeyswork.com/), the [/story field report](https://lia.jeyswork.com/story) and the README. It is updated after each audit cycle — including the findings we have not fixed yet.
 
@@ -18,10 +18,10 @@ The method is as auditable as the code: the full audit protocol — scope, depth
 - **Auditor & posture.** The audit is conducted with AI tooling under human direction, in a deliberately adversarial posture — the same method that builds the product is used to attack it. Every negative finding is verified at file level and counter-checked to eliminate false positives before it is recorded; several candidate findings are discarded at that stage in each cycle.
 - **Evidence over declarations.** Test suites are *executed* during the audit, not trusted from CI history. Size metrics are measured in **logical SLOC** (tokenizer + AST, excluding docstrings, comments and blank lines), with data modules (i18n tables, configuration) distinguished from logic modules.
 - **Market frameworks.** Scoring follows the **ISO/IEC 25010** product-quality characteristics (security excluded — audited separately), structural quality is assessed against the **ISO/IEC 5055 (CISQ)** weakness categories, delivery performance against **DORA** metrics, and accessibility is sampled against **WCAG 2.1**.
-- **Nothing accepted from labels.** In the July 9 cycle, all 17 findings of the July 7 register were re-verified in the code before being marked resolved — none was accepted on the basis of a commit message.
+- **Nothing accepted from labels.** Every cycle re-verifies each finding of the previous register in the code before marking it resolved — never on the basis of a commit message (July 10 cycle: 16 items re-verified, 6 closed with proof).
 - **Figures are pinned to the audited commit.** The repository moves fast (multiple releases per week); running totals elsewhere (README statistics, landing counters) evolve with each release and may legitimately differ from the commit-pinned numbers in this report.
 
-## Scorecard — 24 areas (2026-07-09)
+## Scorecard — 24 areas (2026-07-10)
 
 | Area | Score | Evidence highlights |
 |---|---|---|
@@ -33,21 +33,21 @@ The method is as auditable as the code: the full audit protocol — scope, depth
 | CI/CD & delivery | 9.0 | SHA-pinned actions, real PostgreSQL/Redis services in CI, integration job, CodeQL/Trivy/SBOM chain active |
 | Configuration & dependencies | 8.5 | Lockfile with `--require-hashes` consumed by the production build, settings-driven everything (700+ documented variables) |
 | Genericity | 8.5 | Generic base classes across repositories/connectors/agents, registries with boot-time completeness asserts — the app refuses to start on a missing entry |
-| Extensibility | 8.5 | Adding an agent/tool/domain/language is a documented, checklist-driven path — demonstrated by 130+ releases without a core rewrite |
-| Robustness | 8.5 | Settings-driven timeouts on 100% of HTTP clients, circuit breakers at connector base classes, typed domain error contract (ADR-114), zero silent exception swallowing (guarded) |
+| Extensibility | 8.5 | Adding an agent/tool/domain/language is a documented, checklist-driven path — demonstrated by 140+ releases without a core rewrite |
+| Robustness | 9.0 | Settings-driven timeouts on 100% of HTTP clients, circuit breakers at connector base classes, typed domain error contract (ADR-114), zero silent exception swallowing (guarded), and hard-shutdown resilience of detached runs (stream safety-TTL, orphan-run detection with grace period, atomic listener accounting) |
 | Optimization | 8.5 | Multi-level caching with documented invalidation and kill-switches, token-count memoization on the hot reducer path, real code-splitting |
 | Patterns & practices | 8.5 | Engineering rules are written **and** enforced by blocking checks; deviations are counted, tracked and closed (3 rule classes closed since July 7) |
-| Tests | 8.5 | **9,913 backend tests passing when executed by the auditor at the audited commit** (unit + agents, run as CI runs them — see the reproduction note below); frontend state machines (reducers, SSE handlers, stores) locked at **100% coverage thresholds**; an SSE contract-symmetry test pins backend events to frontend handlers |
-| Documentation | 8.5 | 110 Architecture Decision Records, 130+ release changelog, 30+ operational runbooks, per-domain technical docs |
+| Tests | 8.5 | **10,066 backend tests passing when executed by the auditor at the audited commit — in a single pytest process** (5 of the 6 test-isolation anomalies found by the previous cycle are fixed; one order-dependent case remains under strictly sequential collection and is tracked in the worksites); frontend state machines (reducers, SSE handlers, stores) locked at **100% coverage thresholds**; an SSE contract-symmetry test pins backend events to frontend handlers |
+| Documentation | 8.5 | 116 Architecture Decision Records, 140+ release changelog, 30+ operational runbooks, per-domain technical docs |
 | Portability | 8.5 | Fully containerized, amd64+arm64 images, Windows dev / Linux ARM prod reconciled by design |
 | Architecture | 8.0 | Structured DDD (31 bounded contexts), central orchestration graph with factored domain agents, cross-worker cache invalidation, scheduler leader election |
-| Implementation | 8.0 | Median function size 12 SLOC, 93% function docstring coverage; a known set of oversized core functions is tracked for decomposition (see open worksites) |
-| Operability & observability | 8.0 | 20 provisioned dashboards, ~400 metrics, distributed tracing correlated with logs, PII-filtered structured logging, liveness/readiness probes (ADR-115) |
+| Implementation | 8.0 | Median function size 12 SLOC, 93% function docstring coverage; the two largest functions were decomposed this cycle (boot sequence: 768 → 89 lines; SSE core: −35%), the remaining oversized set is tracked under the CI size ratchet |
+| Operability & observability | 9.0 | **Live alert delivery**: a 13-alert vital core wired to Alertmanager e-mail, thresholds env-templated with descriptions bound to the same variables, every alert annotated with its runbook (ADR-119) — plus 20 dashboards, ~400 metrics, correlated tracing, PII-filtered logging, split probes (ADR-115) |
 | Scalability | 8.0 | LangGraph checkpoint/store connection pooling (ADR-111) removed the main concurrency bottleneck; detached background runs decouple work from client connections (ADR-117) |
 | Compatibility | 8.0 | Versioned API, SSE contract under symmetry test, MCP / CalDAV / IMAP / vCard interoperability |
 | Functional suitability | 8.0 | Broad feature surface under three test stages; known gaps are documented decisions, not surprises |
-| Performance | 7.0 | Resource efficiency is excellent; **time-to-first-token is the openly acknowledged product weak point** — now instrumented end-to-end, optimization program scheduled |
-| Maintainability | 7.0 | Healthy at the median; concentrated debt in a known list of oversized files — the remediation approach (characterization tests, then extraction) is defined |
+| Performance | 7.5 | Resource efficiency is excellent; time-to-first-token — the openly acknowledged product weak point — is now instrumented **and measurably improving**: the first two optimization lots shipped and validated (−1.1 s on every request from the router lot alone); the remaining lots are scoped in the committed latency plan |
+| Maintainability | 7.5 | Healthy at the median, and file growth is now **mechanically blocked**: a CI ratchet freezes every logical file's size (caps can only go down). The decomposition of the known oversized files has started (startup sequence extracted to modules, voice coordination extracted from the SSE core: −35%) |
 | Usability & accessibility | 7.0 | Solid baseline (ARIA labelling, reduced-motion, keyboard focus, 6-language parity enforced in CI); first formal WCAG pass scheduled |
 
 ## The proof is the loop, not the snapshot
@@ -67,6 +67,19 @@ Between the July 7 and July 9 audits — 48 hours — **10 of 17 open findings w
 | 193 empty exception handlers | All eliminated + AST guard added | — |
 | Documentation drift (compose comments, probes) | Corrected in the same wave | — |
 
+Between July 9 and July 10 — seven releases — the loop ran again: **six more findings closed, each with its proof**:
+
+| Finding (July 9) | Resolution | Reference |
+|---|---|---|
+| Real-time alert delivery disabled | 13-alert vital core wired to Alertmanager (env-templated thresholds, runbook-annotated), proven end-to-end | ADR-119 |
+| Hard-shutdown gap on detached runs | Stream safety-TTL during the run, orphan detection with grace period in the SSE relay, atomic listener accounting | v1.23.x |
+| Oversized boot sequence | Lifespan decomposed into 7 startup modules — 768 → 89 lines, ordering documented | ADR-123 |
+| No guard against file regrowth | CI size ratchet on logical SLOC — caps only ever go down | v1.23.x |
+| Last tool-policy gap (image generation, DevOps CLI) | Tool-layer rate limiting completed | v1.23.4 |
+| Test-suite isolation defect (found by the previous audit) | 5 of 6 anomalies fixed — the combined single-process run is green under parallel scheduling; one order-dependent residue tracked | v1.23.x |
+
+Two more moved substantially: the SSE core shrank by 35% (voice coordination extracted, ADR-122) and the first two latency lots shipped with measured gains (−1.1 s TTFT on every request).
+
 The July 9 re-audit also **found a new defect by executing the suites itself** (a test-isolation issue invisible to CI), which entered the register like any other finding. An audit that never finds anything new is not auditing.
 
 ## Open engineering worksites
@@ -75,22 +88,23 @@ Published deliberately — a quality claim without its known gaps is marketing, 
 
 | Worksite | Status |
 |---|---|
-| Real-time alert delivery (Alertmanager reactivation; dashboards and recording rules are live) | Top of the operations wave |
-| Hard-shutdown resilience of detached background runs (stream TTL, subscriber bail-out) | Scoped, small |
+| Latency: the remaining optimization lots (skill-turn streaming, validator robustness) | Next product wave — plan committed in the repo |
 | Retirement of the legacy streaming path once the detached path has production proof | Criteria being defined |
-| Decomposition of the two oversized core functions + CI size ratchet to stop regrowth | Method defined (characterization tests first) |
-| Time-to-first-token optimization program | Instrumented; measurement-first lot next |
+| Continued decomposition of the remaining oversized modules (under the CI size ratchet) | Ongoing — one extraction per release |
 | Connector HTTP client lifecycle (keep-alive reuse) | Design options under evaluation |
 | End-to-end browser smoke suite (chat, HITL, detached-run reattach) | Planned |
+| Reducing the agents-suite skips (deterministic fake-LLM tier) | Strategy validated |
+| Last order-dependent test-isolation case (sequential single-process collection) | 5 of 6 fixed; root cause pattern known |
+| Documentation freshness automation (announced counts vs actual — drifted twice in two cycles) | Priority small fix |
 | First formal WCAG 2.1 AA pass | Planned |
 | DORA completion: incident register for change-failure-rate and MTTR | Planned |
-| Test-suite isolation (single-process run of all suites) | Found by this audit; fix pattern known |
+| Recalibration of the legacy alert set (the vital core is live; the long tail is deliberately off until re-thresholded) | Scoped by ADR-119 |
 
 ## Delivery performance (DORA)
 
 | Metric | Measured | Level |
 |---|---|---|
-| Deployment frequency | 130+ releases in 10 months; 12 in the 48h remediation wave | Elite |
+| Deployment frequency | 141 releases in 10 months; 8 in the 24h following the last audit | Elite |
 | Lead time for changes | Under one day (tag-to-production same day) | Elite |
 | Change failure rate / MTTR | Not yet instrumented — incident register is an open worksite above | In progress |
 
@@ -114,13 +128,14 @@ cd apps/web && pnpm test -- --coverage
 # Migration-chain integrity, i18n parity, hygiene checks: see .github/workflows/ci.yml
 ```
 
-**Transparency note.** If you run the unit and agents suites in a *single* pytest process instead of two, you will currently see 6 test-isolation anomalies (tests that pass when the suites run separately, as CI does). This defect was found by the July 9 audit itself — by executing the suites rather than trusting CI history — and is tracked in the open worksites above. We could have hidden it by only documenting the split commands without comment; publishing it is the point of this report.
+**Transparency note.** The July 9 audit found 6 test-isolation anomalies when running the unit and agents suites in a *single* pytest process (they passed when run separately, as CI does). We published that defect instead of hiding it behind split commands — and five of the six were fixed within a day: as of the July 10 audit, the combined single-process run is green under parallel scheduling (10,066 tests, xdist); one order-dependent case still fails under strictly sequential collection and stays on the public worksite list until closed. One residual quirk remains: one performance test asserts an absolute wall-clock threshold and can flake on a saturated machine (it passes in 0.2 s on a quiet one); its migration to the repo's calibrated-baseline pattern is in the worksites.
 
 ## Audit history
 
 | Date | Scope | Score | Register |
 |---|---|---|---|
-| 2026-07-09 | 24 areas (ISO 25010 grid), commit `182f3927` | **8.4/10** like-for-like · 8.3/10 on 24 areas | 16 open items, prioritized in 4 waves |
+| 2026-07-10 | 24 areas, commit `1b3a0ebc` (v1.23.7) | **8.5/10** like-for-like · 8.4/10 on 24 areas | 12 open items — 6 of the previous 16 closed, 2 advanced |
+| 2026-07-09 | 24 areas (ISO 25010 grid), commit `182f3927` | 8.4/10 like-for-like · 8.3/10 on 24 areas | 16 open items, prioritized in 4 waves |
 | 2026-07-07 | 20 areas, commit `bbde28f1` | 8.0/10 | 17 items → 10 resolved within 48h |
 
 Audits recur after each major remediation wave. Scores can go down as well as up — that is the point of measuring.

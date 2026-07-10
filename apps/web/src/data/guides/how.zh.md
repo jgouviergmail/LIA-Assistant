@@ -855,7 +855,7 @@ ESLint + TypeScript check           CodeQL (Python + JS)
 
 ### 22.4. 审计公开且可复现
 
-本指南所描述的质量水准并非自我宣称：一份完整的360°技术审计——ISO/IEC 25010框架下**24个领域8.4/10**，包含未决事项——已发布在代码仓库中（[完整报告](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)），并附带使每个审计周期可复现的[审计协议](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md)：锚定提交、按领域的证据要求、有基准的评分，以及以逻辑SLOC度量规模的版本化脚本。报告最后给出可自行复现测量的确切命令。
+本指南所描述的质量水准并非自我宣称：一份完整的360°技术审计——ISO/IEC 25010框架下**24个领域8.5/10**，包含未决事项——已发布在代码仓库中（[完整报告](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)），并附带使每个审计周期可复现的[审计协议](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md)：锚定提交、按领域的证据要求、有基准的评分，以及以逻辑SLOC度量规模的版本化脚本。报告最后给出可自行复现测量的确切命令。
 
 ## 23. 横切工程模式
 

@@ -858,7 +858,7 @@ transitif complet est audité et inventorié, pas seulement les paquets déclar�
 
 ### 22.4. L'audit est public — et reproductible
 
-Le niveau d'exigence décrit dans ce guide n'est pas auto-déclaré : un audit technique 360° complet — **8,4/10 sur 24 périmètres** de la grille ISO/IEC 25010, constats ouverts compris — est publié dans le dépôt ([rapport complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), avec le [protocole d'audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) qui rend chaque cycle reproductible : commit épinglé, exigences de preuve par périmètre, notation ancrée, et un script versionné qui mesure la taille en SLOC logiques. Le rapport se termine par les commandes exactes pour reproduire les mesures vous-même.
+Le niveau d'exigence décrit dans ce guide n'est pas auto-déclaré : un audit technique 360° complet — **8,5/10 sur 24 périmètres** de la grille ISO/IEC 25010, constats ouverts compris — est publié dans le dépôt ([rapport complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), avec le [protocole d'audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) qui rend chaque cycle reproductible : commit épinglé, exigences de preuve par périmètre, notation ancrée, et un script versionné qui mesure la taille en SLOC logiques. Le rapport se termine par les commandes exactes pour reproduire les mesures vous-même.
 
 ## 23. Patterns d'ingénierie transversaux
 

@@ -3984,7 +3984,7 @@
           },
           "q7": {
             "question": "How was LIA built?",
-            "answer": "Nearly <strong>100% of LIA's code is written by an AI</strong>, under human direction: written engineering rules, blocking automated checks, a review cycle where the human decides, and recurring adversarial audits (latest assessment: 8.4/10 across 24 areas — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">full report</a>).<br><br>The full story — method, trade-offs, operations and what remains to be done — is on the <a href=\"/en/story\">Story page</a>, and the source code is open on <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
+            "answer": "Nearly <strong>100% of LIA's code is written by an AI</strong>, under human direction: written engineering rules, blocking automated checks, a review cycle where the human decides, and recurring adversarial audits (latest assessment: 8.5/10 across 24 areas — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">full report</a>).<br><br>The full story — method, trade-offs, operations and what remains to be done — is on the <a href=\"/en/story\">Story page</a>, and the source code is open on <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
           }
         }
       },
@@ -6079,8 +6079,8 @@
         "providers": "LLM providers",
         "voice_languages": "Voice languages"
       },
-      "audit_value": "8.4/10",
-      "audit_link_aria": "8.4/10 — 360° technical audit. View the full public audit report on GitHub.",
+      "audit_value": "8.5/10",
+      "audit_link_aria": "8.5/10 — 360° technical audit. View the full public audit report on GitHub.",
       "rex_teaser": "Nearly 100% of this code was written by an AI — directed, reviewed and audited by a human.",
       "rex_link": "Read the field report"
     },
@@ -6098,7 +6098,7 @@
           "label": "automated tests"
         },
         "audit": {
-          "value": "8.4/10",
+          "value": "8.5/10",
           "label": "technical audit across 24 areas"
         },
         "lines": {
@@ -6887,7 +6887,7 @@
   "story": {
     "meta": {
       "title": "Story — Directing an AI That Codes | LIA",
-      "description": "How LIA was built: ~100% AI-written code under human direction, 10,000+ tests, 100+ ADRs, an 8.4/10 technical audit. The complete field report."
+      "description": "How LIA was built: ~100% AI-written code under human direction, 10,000+ tests, 100+ ADRs, an 8.5/10 technical audit. The complete field report."
     },
     "breadcrumb": "Story",
     "hero": {

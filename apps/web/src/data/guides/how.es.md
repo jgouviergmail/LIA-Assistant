@@ -858,7 +858,7 @@ no solo los paquetes declarados.
 
 ### 22.4. La auditoría es pública — y reproducible
 
-El nivel de exigencia descrito en esta guía no es autodeclarado: una auditoría técnica 360° completa — **8,4/10 sobre 24 perímetros** de la matriz ISO/IEC 25010, hallazgos abiertos incluidos — está publicada en el repositorio ([informe completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), junto con el [protocolo de auditoría](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) que hace reproducible cada ciclo: commit fijado, requisitos de evidencia por perímetro, calificación anclada y un script versionado que mide el tamaño en SLOC lógicas. El informe termina con los comandos exactos para reproducir las mediciones usted mismo.
+El nivel de exigencia descrito en esta guía no es autodeclarado: una auditoría técnica 360° completa — **8,5/10 sobre 24 perímetros** de la matriz ISO/IEC 25010, hallazgos abiertos incluidos — está publicada en el repositorio ([informe completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), junto con el [protocolo de auditoría](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) que hace reproducible cada ciclo: commit fijado, requisitos de evidencia por perímetro, calificación anclada y un script versionado que mide el tamaño en SLOC lógicas. El informe termina con los comandos exactos para reproducir las mediciones usted mismo.
 
 ## 23. Patrones de ingeniería transversales
 
