@@ -292,8 +292,18 @@ if [ -d "infrastructure/logwatch" ]; then
         sudo apt-get install -y logwatch > /dev/null 2>&1
     fi
 
-    # Deploy configuration files
-    sudo cp infrastructure/logwatch/conf/logwatch.conf /etc/logwatch/conf/logwatch.conf
+    # Render logwatch.conf from template, substituting mail addresses from .env
+    # (keeps personal addresses out of the public repo — see .env LOGWATCH_*).
+    LOGWATCH_MAILTO=$(grep -E '^LOGWATCH_MAILTO=' .env | tail -1 | cut -d= -f2- | awk '{print $1}')
+    LOGWATCH_MAILFROM=$(grep -E '^LOGWATCH_MAILFROM=' .env | tail -1 | cut -d= -f2- | awk '{print $1}')
+    if [ -z "$LOGWATCH_MAILTO" ] || [ -z "$LOGWATCH_MAILFROM" ]; then
+        echo "  -> WARN: LOGWATCH_MAILTO/LOGWATCH_MAILFROM unset in .env — keeping existing logwatch.conf"
+    else
+        sed -e "s|\${LOGWATCH_MAILTO}|${LOGWATCH_MAILTO}|g" \
+            -e "s|\${LOGWATCH_MAILFROM}|${LOGWATCH_MAILFROM}|g" \
+            infrastructure/logwatch/conf/logwatch.conf.template \
+            | sudo tee /etc/logwatch/conf/logwatch.conf > /dev/null
+    fi
 
     # Deploy logfile overrides
     sudo mkdir -p /etc/logwatch/conf/logfiles

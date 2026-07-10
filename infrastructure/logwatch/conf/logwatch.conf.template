@@ -1,13 +1,16 @@
 # =============================================================================
 # Logwatch Configuration - LIA Production Server (RPi5)
-# Deployed automatically by deploy.sh
+# TEMPLATE — rendered to /etc/logwatch/conf/logwatch.conf at deploy time by
+# scripts/deploy/prepare-prod.ps1, substituting ${LOGWATCH_MAILTO} and
+# ${LOGWATCH_MAILFROM} from .env (keeps personal addresses out of the public
+# repo). Set both in your .env.prod — see .env.example / .env.prod.example.
 # =============================================================================
 
 # --- Output ---
 Output = mail
 Format = html
-MailTo = jgouvier@gmail.com
-MailFrom = lia_exploitation@jeyswork.com
+MailTo = ${LOGWATCH_MAILTO}
+MailFrom = ${LOGWATCH_MAILFROM}
 Subject = "LIA Prod - Rapport quotidien"
 
 # --- Detail ---

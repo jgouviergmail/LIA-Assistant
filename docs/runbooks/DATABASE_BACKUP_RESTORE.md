@@ -111,7 +111,7 @@ specific rows. Remove with `docker rm -f lia-restore-tmp`.
 > every object it contains. Stop the application first.
 
 ```bash
-cd /home/jgo/lia   # compose directory on the Pi (deploy target)
+cd /home/<user>/lia   # compose directory on the Pi (deploy target)
 
 # 1. Stop everything that writes to the DB (postgres itself stays up)
 docker compose -f docker-compose.prod.yml stop api web

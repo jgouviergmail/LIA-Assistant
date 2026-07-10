@@ -60,7 +60,7 @@ docker restart lia-postgres-backup-prod
 # Trigger a manual backup right away instead of waiting for the next cron:
 docker exec lia-postgres-backup-prod /backup.sh
 # Verify a fresh dump appeared:
-ls -lht /home/jgo/lia/backups/postgres/daily | head -3
+ls -lht /home/<user>/lia/backups/postgres/daily | head -3
 ```
 
 ### Verify restore capability (after any backup incident)
