@@ -65,7 +65,7 @@ if [ ! -f "$THRESHOLD_FILE" ]; then
     exit 1
 fi
 
-echo -e "${GREEN}[1/4] Loading thresholds from: ${THRESHOLD_FILE}${NC}"
+echo -e "${GREEN}[1/5] Loading thresholds from: ${THRESHOLD_FILE}${NC}"
 # Count thresholds
 THRESHOLD_COUNT=$(grep -c "^ALERT_" "$THRESHOLD_FILE" || true)
 echo "      Found ${THRESHOLD_COUNT} threshold variables"
@@ -80,6 +80,7 @@ fi
 # Check if templates exist
 ALERT_RULES_TEMPLATE="${SCRIPT_DIR}/alert_rules.yml.template"
 ALERTS_TEMPLATE="${SCRIPT_DIR}/alerts.yml.template"
+ALERTS_CORE_TEMPLATE="${SCRIPT_DIR}/alerts-core.yml.template"
 
 if [ ! -f "$ALERT_RULES_TEMPLATE" ]; then
     echo -e "${RED}ERROR: Template not found: ${ALERT_RULES_TEMPLATE}${NC}"
@@ -91,9 +92,19 @@ if [ ! -f "$ALERTS_TEMPLATE" ]; then
     exit 1
 fi
 
-echo -e "${GREEN}[2/4] Rendering alert_rules.yml${NC}"
-# Detect Python command (python3 on Linux/Mac, python on Windows)
-if command -v python3 &> /dev/null; then
+if [ ! -f "$ALERTS_CORE_TEMPLATE" ]; then
+    echo -e "${RED}ERROR: Template not found: ${ALERTS_CORE_TEMPLATE}${NC}"
+    exit 1
+fi
+
+# Detect Python command — prefer the repo venv (has jinja2/pyyaml/python-dotenv),
+# fall back to system python3/python.
+REPO_ROOT="${SCRIPT_DIR}/../../.."
+if [ -x "${REPO_ROOT}/apps/api/.venv/Scripts/python.exe" ]; then
+    PYTHON_CMD="${REPO_ROOT}/apps/api/.venv/Scripts/python.exe"
+elif [ -x "${REPO_ROOT}/apps/api/.venv/bin/python" ]; then
+    PYTHON_CMD="${REPO_ROOT}/apps/api/.venv/bin/python"
+elif command -v python3 &> /dev/null; then
     PYTHON_CMD=python3
 elif command -v python &> /dev/null; then
     PYTHON_CMD=python
@@ -102,7 +113,19 @@ else
     exit 1
 fi
 
-# Render alert_rules.yml
+echo -e "${GREEN}[2/5] Rendering alerts-core.yml (ADR-119 — the only rules loaded by Prometheus)${NC}"
+$PYTHON_CMD "${SCRIPT_DIR}/render_alerts.py" \
+    --env-file "$THRESHOLD_FILE" \
+    --template "$ALERTS_CORE_TEMPLATE" \
+    --output "${SCRIPT_DIR}/alerts-core.yml"
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}ERROR: Failed to render alerts-core.yml${NC}"
+    exit 1
+fi
+echo ""
+
+echo -e "${GREEN}[3/5] Rendering alert_rules.yml (legacy — not loaded, ADR-119)${NC}"
 $PYTHON_CMD "${SCRIPT_DIR}/render_alerts.py" \
     --env-file "$THRESHOLD_FILE" \
     --template "$ALERT_RULES_TEMPLATE" \
@@ -114,8 +137,7 @@ if [ $? -ne 0 ]; then
 fi
 echo ""
 
-echo -e "${GREEN}[3/4] Rendering alerts.yml${NC}"
-# Render alerts.yml
+echo -e "${GREEN}[4/5] Rendering alerts.yml (legacy — not loaded, ADR-119)${NC}"
 $PYTHON_CMD "${SCRIPT_DIR}/render_alerts.py" \
     --env-file "$THRESHOLD_FILE" \
     --template "$ALERTS_TEMPLATE" \
@@ -127,8 +149,17 @@ if [ $? -ne 0 ]; then
 fi
 echo ""
 
-echo -e "${GREEN}[4/4] Validating generated files${NC}"
+echo -e "${GREEN}[5/5] Validating generated files${NC}"
 # Check if files were created
+if [ -f "${SCRIPT_DIR}/alerts-core.yml" ]; then
+    ALERTS_CORE_LINES=$(wc -l < "${SCRIPT_DIR}/alerts-core.yml")
+    ALERTS_CORE_ALERTS=$(grep -c "alert:" "${SCRIPT_DIR}/alerts-core.yml" || true)
+    echo "      alerts-core.yml: ${ALERTS_CORE_LINES} lines, ${ALERTS_CORE_ALERTS} alerts (loaded by Prometheus)"
+else
+    echo -e "${RED}ERROR: alerts-core.yml was not generated${NC}"
+    exit 1
+fi
+
 if [ -f "${SCRIPT_DIR}/alert_rules.yml" ]; then
     ALERT_RULES_LINES=$(wc -l < "${SCRIPT_DIR}/alert_rules.yml")
     ALERT_RULES_ALERTS=$(grep -c "alert:" "${SCRIPT_DIR}/alert_rules.yml" || true)
@@ -153,8 +184,9 @@ echo -e "${GREEN}SUCCESS${NC} - Prometheus configuration prepared for ${ENVIRONM
 echo "================================================================================"
 echo ""
 echo "Files generated:"
-echo "  - ${SCRIPT_DIR}/alert_rules.yml (${ALERT_RULES_ALERTS} alerts)"
-echo "  - ${SCRIPT_DIR}/alerts.yml (${ALERTS_COUNT} alerts)"
+echo "  - ${SCRIPT_DIR}/alerts-core.yml (${ALERTS_CORE_ALERTS} alerts) — loaded by Prometheus (ADR-119)"
+echo "  - ${SCRIPT_DIR}/alert_rules.yml (${ALERT_RULES_ALERTS} alerts) — legacy, NOT loaded"
+echo "  - ${SCRIPT_DIR}/alerts.yml (${ALERTS_COUNT} alerts) — legacy, NOT loaded"
 echo ""
 echo "Next steps:"
 echo "  1. Review generated files"

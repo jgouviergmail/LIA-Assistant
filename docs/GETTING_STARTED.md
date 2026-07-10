@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-07-10
-**Compatibility**: LIA v1.23.1
+**Compatibility**: LIA v1.23.2
 
 ## Table of Contents
 
@@ -486,6 +486,7 @@ Dev environment (`docker-compose.dev.yml`): 17 services by default, plus 6 opt-i
 | **web** | 3000 | Next.js frontend (HTTPS) | https://localhost:3000 |
 | **prometheus** | 9090 | Metrics | http://localhost:9090 |
 | **alertmanager** | 9094 | Alert management | http://localhost:9094 |
+| **blackbox-exporter** | — | HTTP probes (backup healthcheck, public URL) | — |
 | **grafana** | 3001 | Dashboards | http://localhost:3001 |
 | **loki** | 3100 | Log aggregation | — |
 | **promtail** | 9080 | Log collection | — |
@@ -503,7 +504,7 @@ Dev environment (`docker-compose.dev.yml`): 17 services by default, plus 6 opt-i
 
 \* Opt-in `langfuse` compose profile — started only by `task dev:langfuse`.
 
-The production compose (`docker-compose.prod.yml`) runs a leaner 15-service stack: postgres, postgres-backup, redis, api, web, prometheus, grafana, loki, promtail, tempo, node-exporter, cadvisor, postgres-exporter, redis-exporter, portainer — no pgAdmin, no Langfuse stack, no Alertmanager.
+The production compose (`docker-compose.prod.yml`) runs a leaner 17-service stack: postgres, postgres-backup, redis, api, web, prometheus, alertmanager, blackbox-exporter, grafana, loki, promtail, tempo, node-exporter, cadvisor, postgres-exporter, redis-exporter, portainer — no pgAdmin, no Langfuse stack. Alertmanager delivers the 13-alert core by email (ADR-119, see [README_ALERTING.md](readme/README_ALERTING.md)).
 
 ### Service Verification
 

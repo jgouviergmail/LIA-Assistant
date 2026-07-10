@@ -430,9 +430,12 @@ After successful deployment:
 
 1. **Monitor for 24h**: Verify recording rules populate data correctly
 2. **Test Alerts**: Simulate conditions to trigger each alert
-3. **Configure AlertManager**: Set up PagerDuty routing for critical alerts (Phase 1.1)
-4. **Externalize Thresholds**: Move hardcoded thresholds to `.env.alerting` (Phase 1.2)
-5. **Create Runbooks**: Document response procedures for each alert (Phase 1.3)
+
+> Steps 3–5 of the original 2025-11 plan are superseded: thresholds are
+> externalized in `infrastructure/observability/prometheus/thresholds/{env}.env`,
+> runbooks live in `docs/runbooks/alerts/`, and the alerting chain (email-only
+> by default, PagerDuty optional) is documented in
+> [README_ALERTING.md](../readme/README_ALERTING.md) — see ADR-119.
 
 ---
 

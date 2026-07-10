@@ -4,7 +4,7 @@
 
 **Versione** : 3.7
 **Data** : 2026-07-10
-**Applicazione** : LIA v1.23.1
+**Applicazione** : LIA v1.23.2
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -319,6 +319,7 @@ LIA integra un'osservabilità di grado produzione:
 | **Tempo** | Tracce distribuite end-to-end |
 | **Loki** | Aggregazione di log strutturati |
 | **Langfuse** | Tracing specializzato delle chiamate LLM |
+| **Alertmanager** | Alert e-mail sui segnali vitali, runbook collegati |
 
 Ogni richiesta viene tracciata end-to-end, ogni chiamata LLM viene misurata, ogni errore è contestualizzato. Non è un monitoraggio aggiunto dopo — è una **decisione architetturale fondamentale** documentata negli Architecture Decision Records del progetto.
 

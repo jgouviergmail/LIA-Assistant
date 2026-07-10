@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.23.1</strong> — <strong>The audit goes public: a reproducible 360° protocol and the full report, wired everywhere.</strong> The quality figures LIA displays now have their public backing: <a href="docs/audit/README.md">docs/audit/</a> ships the complete technical audit report — <strong>8.4/10 across 24 areas</strong> on the ISO/IEC 25010 grid at pinned commit <code>182f3927</code> — with the scorecard, the finding→ADR→release remediation loop, the open worksites and the exact commands to reproduce every measurement (including a transparency note on a test-isolation quirk the audit itself uncovered). The audit is now an instrument, not an event: <code>AUDIT_PROTOCOL.md</code> freezes scope, depth, evidence requirements, scoring discipline and the 7-step publication pipeline, and <code>scripts/audit/measure_sloc.py</code> makes the size metrics reproducible (logical SLOC, never raw lines). The landing proof band's audit tile now opens the report (aria-labelled, 6 languages), and every published audit figure — README, landing, FAQ, /story, SEO descriptions, knowledge base — moved from the stale 8.0/20-areas to 8.4/24 in the same sweep (19 corrected spots). <strong>Verified:</strong> 452 frontend tests green under locked coverage thresholds, 6-locale key parity, TypeScript/ESLint clean, and the rendered landing checked live down to the clickable tile. — 10 July 2026.
+  <strong>Version 1.23.2</strong> — <strong>The alerting chain comes back to life: 13 vital alerts, email notifications, proven end-to-end (<a href="docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md">ADR-119</a>).</strong> Alerting had been silently off since January — ~71 rules and 22 runbooks dormant, incidents surfacing only in the next day's log digest. Production now runs a dedicated Alertmanager (email-only mode, RPi5-sized at 128M) fed by a fresh <strong>13-alert core</strong>: service/database/Redis down, disk, container OOM &amp; restart loops, 5xx rate with a low-traffic guard, SSE latency, plus a blackbox-exporter probing the nightly-backup healthcheck and the public URL end-to-end (tunnel + TLS-certificate expiry) — the real domain never enters the repo. Why a fresh core instead of re-enabling the old rules? The audit found the legacy thresholds <em>corrupted</em> (blind multipliers on percentages: production disk alert at 147% usage — unfireable by definition); they stay quarantined until recalibrated. Every alert links its runbook, thresholds live in per-environment .env files, and 17 <code>promtool</code> unit tests pin the notification texts to the firing expressions. <strong>Verified:</strong> Redis stopped in dev → <code>[CRITICAL]</code> email in the inbox in 3m30 → restart → <code>resolved</code> email; <code>promtool check config/rules</code> green, both compose files validated. — 10 July 2026.
 </p>
 
 ---
@@ -78,7 +78,7 @@
 | **Unpredictable LLM costs** | Real-time token tracking, budget alerts, 93% optimization |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
 | **Fragmented integrations** | Unified multi-domain orchestration (19+ agents + MCP + sub-agents) |
-| **Limited observability** | 394 Prometheus metrics, 22 Grafana dashboards, GeoIP analytics |
+| **Limited observability** | 394 Prometheus metrics, 22 Grafana dashboards, email alerting with runbooks, GeoIP analytics |
 | **Inconsistent performance** | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring |
 
 ### Primary Use Cases
@@ -326,6 +326,7 @@ ExecutionStep(
 - **Loki**: Structured JSON logs with PII filtering
 - **Tempo**: Distributed cross-service tracing
 - **Probes**: liveness (`GET /health`, always 200 while the process serves — what Docker healthchecks poll) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](./docs/architecture/ADR-115-Liveness-Readiness-Probes.md)
+- **Alerting**: a 13-alert vital core (service/DB/Redis down, disk, container OOM, 5xx rate, SSE latency, backup failure, public-endpoint & TLS-certificate probes, chain self-monitoring) evaluated by Prometheus and emailed by a dedicated Alertmanager — unit-tested with `promtool test rules`, every alert linking its runbook — [ADR-119](./docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md)
 
 ### Cost Tracking & Billing
 

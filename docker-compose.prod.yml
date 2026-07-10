@@ -271,25 +271,41 @@ services:
           memory: 128M
 
   # Prometheus
+  # Entrypoint wrapper (ADR-119): renders the blackbox public-probe file_sd
+  # target from BLACKBOX_PUBLIC_PROBE_URL (.env.prod) at startup, so the real
+  # public domain never lands in the committed config (open-source repo).
+  # Empty variable = zero probe targets.
   prometheus:
     image: prom/prometheus:v3.0.0
     container_name: lia-prometheus-prod
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    environment:
+      BLACKBOX_PUBLIC_PROBE_URL: ${BLACKBOX_PUBLIC_PROBE_URL:-}
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=7d'
-      - '--storage.tsdb.retention.size=2GB'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--web.enable-remote-write-receiver'  # Enable Tempo metrics-generator remote write
+      - |
+        if [ -n "$$BLACKBOX_PUBLIC_PROBE_URL" ]; then
+          printf -- "- targets:\n  - '%s'\n" "$$BLACKBOX_PUBLIC_PROBE_URL" > /etc/prometheus/file_sd/public_probe.yml
+        else
+          echo "[]" > /etc/prometheus/file_sd/public_probe.yml
+        fi
+        exec /bin/prometheus \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --storage.tsdb.retention.time=7d \
+          --storage.tsdb.retention.size=2GB \
+          --web.console.libraries=/usr/share/prometheus/console_libraries \
+          --web.console.templates=/usr/share/prometheus/consoles \
+          --web.enable-remote-write-receiver
+    tmpfs:
+      - /etc/prometheus/file_sd:mode=0777,size=1m
     ports:
       - "127.0.0.1:9090:9090"  # Loopback-only (audit A3)
     volumes:
       - ./infrastructure/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./infrastructure/observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - ./infrastructure/observability/prometheus/alerts-core.yml:/etc/prometheus/alerts-core.yml
       - ./infrastructure/observability/prometheus/recording_rules.yml:/etc/prometheus/recording_rules.yml
       - prometheus_data:/prometheus
     networks:
@@ -302,6 +318,76 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
+
+  # Alertmanager (ADR-119) — email notification chain for the 13-alert core.
+  # The entrypoint renders the config from ALERTMANAGER_* env vars (.env.prod):
+  # with SMTP set and Slack/PagerDuty empty it selects the email-only template.
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: lia-alertmanager-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: /docker-entrypoint.sh
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:${ALERTMANAGER_HOST_PORT:-9094}'
+    ports:
+      - "127.0.0.1:${ALERTMANAGER_HOST_PORT:-9094}:9093"  # Loopback-only (audit A3)
+    environment:
+      ALERTMANAGER_SMTP_FROM: ${ALERTMANAGER_SMTP_FROM:-}
+      ALERTMANAGER_SMTP_SMARTHOST: ${ALERTMANAGER_SMTP_SMARTHOST:-}
+      ALERTMANAGER_SMTP_AUTH_USERNAME: ${ALERTMANAGER_SMTP_AUTH_USERNAME:-}
+      ALERTMANAGER_SMTP_AUTH_PASSWORD: ${ALERTMANAGER_SMTP_AUTH_PASSWORD:-}
+      ALERTMANAGER_BACKEND_TEAM_EMAIL: ${ALERTMANAGER_BACKEND_TEAM_EMAIL:-}
+      ALERTMANAGER_FINANCE_TEAM_EMAIL: ${ALERTMANAGER_FINANCE_TEAM_EMAIL:-}
+      ALERTMANAGER_SECURITY_TEAM_EMAIL: ${ALERTMANAGER_SECURITY_TEAM_EMAIL:-}
+      ALERTMANAGER_ML_TEAM_EMAIL: ${ALERTMANAGER_ML_TEAM_EMAIL:-}
+      ALERTMANAGER_SLACK_WEBHOOK_CRITICAL: ${ALERTMANAGER_SLACK_WEBHOOK_CRITICAL:-}
+      ALERTMANAGER_SLACK_WEBHOOK_WARNING: ${ALERTMANAGER_SLACK_WEBHOOK_WARNING:-}
+      ALERTMANAGER_SLACK_WEBHOOK_SECURITY: ${ALERTMANAGER_SLACK_WEBHOOK_SECURITY:-}
+      ALERTMANAGER_PAGERDUTY_ROUTING_KEY: ${ALERTMANAGER_PAGERDUTY_ROUTING_KEY:-}
+    volumes:
+      - ./infrastructure/observability/alertmanager/docker-entrypoint.sh:/docker-entrypoint.sh:ro
+      - ./infrastructure/observability/alertmanager/alertmanager.yml.template:/etc/alertmanager/alertmanager.yml.template:ro
+      - ./infrastructure/observability/alertmanager/alertmanager-email-only.yml.template:/etc/alertmanager/alertmanager-email-only.yml.template:ro
+      - ./infrastructure/observability/alertmanager/templates:/etc/alertmanager/templates:ro
+      - alertmanager_data:/alertmanager
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+
+  # blackbox-exporter (ADR-119) — HTTP probes for BackupFailed (sidecar
+  # healthcheck webhook) and PublicEndpointDown/CertificateExpirySoon
+  # (end-to-end public URL through the cloudflared tunnel).
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: lia-blackbox-exporter-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - '--config.file=/etc/blackbox/blackbox.yml'
+    volumes:
+      - ./infrastructure/observability/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+        reservations:
+          cpus: '0.02'
+          memory: 16M
 
   # Grafana
   grafana:
@@ -519,6 +605,7 @@ volumes:
   postgres_data:
   redis_data:
   prometheus_data:
+  alertmanager_data:  # Alert state (silences, notification log) — ADR-119
   grafana_data:
   loki_data:
   tempo_data:  # Trace storage (7-day retention, auto-compacted)

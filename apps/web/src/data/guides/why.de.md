@@ -4,7 +4,7 @@
 
 **Version** : 3.7
 **Datum** : 2026-07-10
-**Anwendung** : LIA v1.23.1
+**Anwendung** : LIA v1.23.2
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -319,6 +319,7 @@ LIA bietet produktionsreife Observability:
 | **Tempo** | Verteilte End-to-End-Traces |
 | **Loki** | Aggregation strukturierter Logs |
 | **Langfuse** | Spezialisiertes Tracing von LLM-Aufrufen |
+| **Alertmanager** | E-Mail-Alerts bei vitalen Signalen, verknüpfte Runbooks |
 
 Jede Anfrage wird von Anfang bis Ende nachverfolgt, jeder LLM-Aufruf gemessen, jeder Fehler kontextualisiert. Das ist kein nachträglich hinzugefügtes Monitoring — es ist eine **grundlegende Architekturentscheidung**, die in den Architecture Decision Records des Projekts dokumentiert ist.
 

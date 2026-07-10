@@ -6,7 +6,7 @@
 
 **Version**: 2.8
 **Datum**: 2026-07-10
-**Application**: LIA v1.23.1
+**Application**: LIA v1.23.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -759,6 +759,7 @@ Autonomer ReAct-Agent (Playwright Chromium Headless). Redis-gesicherter Session 
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
 | Langfuse | LLM-spezifisches Tracing (Prompt-Versionen, Token-Nutzung) |
+| Alertmanager | Kern aus 13 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
 ### 20.2. Eingebettetes Debug-Panel
@@ -1053,4 +1054,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 100+ ADRs und des Changelogs (v1.0 bis v1.23.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 100+ ADRs und des Changelogs (v1.0 bis v1.23.2). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

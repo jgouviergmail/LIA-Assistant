@@ -13,18 +13,21 @@ storage:
   exemplars:
     max_exemplars: 100000  # Max exemplars stored per series
 
-# Configuration des règles d'alerting - DISABLED 2026-01-16
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets:
-#           - 'alertmanager:9093'
+# Alerting re-enabled 2026-07-10 (ADR-119) after the 2026-01-16 shutdown.
+# Only the 13-alert core is loaded; the legacy alerts.yml (60 alerts) stays
+# disabled until its thresholds are recalibrated (rendered values were
+# corrupted — percentages above 100, see ADR-119).
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - 'alertmanager:9093'
 
-# Chargement des recording rules uniquement (alerting désactivé)
 rule_files:
-  # - "alerts.yml"                # DISABLED - alerting rules
   - "recording_rules.yml"
-  # - "rules/*.yml"               # DISABLED - custom alert rules
+  - "alerts-core.yml"             # Minimal viable core (ADR-119)
+  # - "alerts.yml"                # DISABLED - legacy, recalibrate before enabling (ADR-119)
+  # - "rules/*.yml"               # DISABLED - legacy custom alert rules
 
 # Configuration du scraping des métriques
 scrape_configs:
@@ -86,6 +89,65 @@ scrape_configs:
         labels:
           service: 'node'
           instance: 'docker-host'
+
+  # ===== Alerting chain (ADR-119) =====
+
+  # Alertmanager self-monitoring — feeds the AlertmanagerDown meta-alert
+  - job_name: 'alertmanager'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['alertmanager:9093']
+        labels:
+          service: 'alertmanager'
+
+  # blackbox-exporter self-monitoring — feeds ObservabilityScrapeTargetMissing
+  - job_name: 'blackbox'
+    scrape_interval: 60s
+    static_configs:
+      - targets: ['blackbox-exporter:9115']
+        labels:
+          service: 'blackbox'
+
+  # Backup sidecar health probe — feeds the BackupFailed alert.
+  # The postgres-backup image bakes a healthcheck webhook on HEALTHCHECK_PORT
+  # (8080): non-200 = last pg_dump failed, probe failure = sidecar down.
+  - job_name: 'blackbox-backup'
+    scrape_interval: 60s
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ['http://postgres-backup:8080/']
+        labels:
+          service: 'backup'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 'blackbox-exporter:9115'
+
+  # End-to-end public URL probe — feeds PublicEndpointDown / CertificateExpirySoon.
+  # Targets come from a file_sd file rendered at container startup from
+  # BLACKBOX_PUBLIC_PROBE_URL (.env) — the real domain is never committed
+  # (open-source repo). Empty/missing variable = zero targets = probe disabled
+  # (development default).
+  - job_name: 'blackbox-public'
+    scrape_interval: 60s
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/file_sd/public_probe.yml
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 'blackbox-exporter:9115'
 
 # Note: storage retention is configured via command-line flags in docker-compose
 # --storage.tsdb.retention.time=15d

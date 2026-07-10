@@ -6,7 +6,7 @@
 
 **Versión**: 2.8
 **Fecha**: 2026-07-10
-**Aplicación**: LIA v1.23.1
+**Aplicación**: LIA v1.23.2
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -759,6 +759,7 @@ Diseño **fail-open**: los fallos de infraestructura no bloquean a los usuarios.
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
+| Alertmanager | Núcleo de 13 alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) |
 | structlog | Logging estructurado con PII filtering |
 
 ### 20.2. Debug Panel integrado
@@ -1053,4 +1054,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.23.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.23.2). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

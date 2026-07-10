@@ -192,7 +192,8 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | Service | Image | Role |
 |---------|-------|------|
 | **Prometheus** | `prom/prometheus:v3.0.0` | Metrics collection |
-| **Alertmanager** | `prom/alertmanager:v0.27.0` | Alert routing |
+| **Alertmanager** | `prom/alertmanager:v0.27.0` | Alert routing (13-alert core by email, ADR-119) |
+| **blackbox-exporter** | `prom/blackbox-exporter:v0.25.0` | HTTP probes (backup healthcheck, public URL/TLS) |
 | **Grafana** | `grafana/grafana:11.3.0` | Dashboards & visualization |
 | **Loki** | `grafana/loki:3.2.1` | Log aggregation |
 | **Promtail** | `grafana/promtail:3.2.1` | Log shipper |

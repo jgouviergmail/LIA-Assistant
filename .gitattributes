@@ -11,6 +11,11 @@
 # Force bash scripts to always use LF (Unix/Linux/Mac)
 *.sh text eol=lf
 
+# Container-mounted config templates (rendered by sed/Go templating inside
+# Linux containers — CRLF would corrupt the rendered config)
+*.template text eol=lf
+*.tmpl text eol=lf
+
 # Force Windows batch/cmd scripts to always use CRLF
 *.bat text eol=crlf
 *.cmd text eol=crlf

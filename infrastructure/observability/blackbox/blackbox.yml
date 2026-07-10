@@ -1,0 +1,13 @@
+# blackbox-exporter configuration — LIA (ADR-119)
+# One module is enough for the alerting core: plain HTTP(S) probe expecting 2xx.
+# Used by the 'blackbox-backup' (sidecar healthcheck webhook) and
+# 'blackbox-public' (end-to-end public URL, TLS metrics included) scrape jobs.
+modules:
+  http_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      preferred_ip_protocol: ip4
+      follow_redirects: true
+      # Default status acceptance is 2xx; TLS certificate metrics
+      # (probe_ssl_earliest_cert_expiry) are exported automatically on https.

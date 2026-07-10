@@ -2814,7 +2814,7 @@
         },
         "observability": {
           "title": "📊 生产级可观测性",
-          "description": "完整堆栈：Prometheus 指标（token、延迟、错误、成本）、22 个 Grafana 仪表板、Tempo 分布式追踪、Loki 集中日志，以及 Langfuse 集成用于 LLM 性能分析。可配置告警，按环境设置阈值。专用的存活探针（/health）与就绪探针（/ready），区分「进程在运行」与「PostgreSQL 和 Redis 确实可用」。"
+          "description": "完整堆栈：Prometheus 指标（token、延迟、错误、成本）、22 个 Grafana 仪表板、Tempo 分布式追踪、Loki 集中日志，以及 Langfuse 集成用于 LLM 性能分析。邮件告警已启用：13 项关键告警核心，按环境设置阈值，每条告警附带处置指南（runbook）。专用的存活探针（/health）与就绪探针（/ready），区分「进程在运行」与「PostgreSQL 和 Redis 确实可用」。"
         },
         "tools": {
           "title": "🔧 75+类型化工具",
@@ -2931,6 +2931,16 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_23_2": {
+          "title": "v1.23.2 — 🚨 LIA 现在会自我监护",
+          "date": "2026年7月",
+          "count": "3",
+          "items": {
+            "i1": "发生故障时（应用停止、数据库或 Redis 不可用、磁盘将满、备份失败、公网访问中断……），管理员现在会<strong>立即收到告警邮件</strong>——无需再等每日日志摘要才得知。",
+            "i2": "13 项关键健康检查持续运行，包括对公网 URL 的端到端探测和每日备份哨兵：如果昨夜的数据库备份失败，几分钟内即可知晓。",
+            "i3": "每封告警邮件都附带对应的分步处置指南（runbook），故障解除后还会收到确认邮件。"
+          }
+        },
         "v1_23_1": {
           "title": "v1.23.1 — 🔍 审计公开化",
           "date": "2026年7月",
@@ -5794,7 +5804,7 @@
     "tech": {
       "title": "技术底层",
       "subtitle": "为性能和可扩展性设计的架构",
-      "intro": "不是聊天机器人，而是一套编排系统。每个请求都经过语义路由、规划器和并行执行的智能体——端到端全程可观测，从Token到欧元。\n\n界面背后：贝叶斯计划学习、BM25+语义嵌入混合记忆、以PostgreSQL做检查点的LangGraph状态机。全部可自托管——小到一台树莓派。",
+      "intro": "不是聊天机器人，而是一套编排系统。每个请求都经过语义路由、规划器和并行执行的智能体——端到端全程可观测，从Token到欧元，关键信号异常时自动邮件告警。\n\n界面背后：贝叶斯计划学习、BM25+语义嵌入混合记忆、以PostgreSQL做检查点的LangGraph状态机。全部可自托管——小到一台树莓派。",
       "deep_dive_link": "完整技术深度解析",
       "langgraph": {
         "title": "LangGraph",
@@ -6261,8 +6271,8 @@
       },
       "observability": {
         "title": "394个Prometheus指标、22个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：394指标、Grafana仪表板和通过Langfuse的LLM追踪。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 394个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>20个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。20个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>22个Grafana仪表板</h2><p>LIA提供22个编号01至21的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser和health-metrics。每个仪表板提供按用户、时间段和环境可过滤的视图。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
+        "excerpt": "LIA提供企业级可观测性：394指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 394个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>20个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。20个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>22个Grafana仪表板</h2><p>LIA提供22个编号01至21的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser和health-metrics。每个仪表板提供按用户、时间段和环境可过滤的视图。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 13 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：55个提示作为代码管理",

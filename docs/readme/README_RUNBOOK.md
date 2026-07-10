@@ -197,8 +197,8 @@ All runbooks follow a consistent 15-section structure:
   - LLM Cost Monitoring: `http://localhost:3000/d/llm-costs`
 
 ### AlertManager
-- **URL**: `http://localhost:9093`
-- **Configuration**: `infrastructure/observability/alertmanager/alertmanager.yml`
+- **URL**: `http://localhost:9093` (host port 9094 in dev/prod compose)
+- **Configuration**: templates in `infrastructure/observability/alertmanager/`, rendered at container start from `ALERTMANAGER_*` env vars — see [README_ALERTING.md](README_ALERTING.md) (ADR-119)
 
 ---
 

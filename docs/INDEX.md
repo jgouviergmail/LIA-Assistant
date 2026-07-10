@@ -217,7 +217,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 20 dashboards Grafana | ✅ |
 | [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Guide observabilité quickstart | ✅ |
 | [README_GRAFANA_LANGFUSE.md](./readme/README_GRAFANA_LANGFUSE.md) | Intégration Grafana + Langfuse | ✅ |
-| [README_PROMETHEUS_ALERTMANAGER.md](./readme/README_PROMETHEUS_ALERTMANAGER.md) | Configuration AlertManager | ✅ |
+| [README_ALERTING.md](./readme/README_ALERTING.md) | Chaîne d'alerte (ADR-119) : Alertmanager e-mail, validation, troubleshooting | ✅ |
 | [README_PROMETHEUS_THRESHOLDS.md](./readme/README_PROMETHEUS_THRESHOLDS.md) | Seuils alertes par environnement | ✅ |
 
 ### CI/CD & Déploiement
@@ -279,12 +279,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-118 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-119 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-119 | Alerting Reactivation — réactivation de la chaîne d'alerte (éteinte 2026-01 sans ADR) : noyau de 13 alertes vitales évaluées par Prometheus → Alertmanager e-mail en prod, blackbox-exporter (backup + URL publique), seuils `ALERT_CORE_*` en .env, seuils legacy corrompus documentés, répertoire prometheus/ assaini | 2026-07 |
 | ADR-118 | Chat-Driven Skill Import — le skill-generator installe directement les skills générées (outil `import_user_skill`), pipeline d'import unique durci (S1 path traversal corrigé, conflits 409, gardes zip, install atomique avec rollback), dialogues multi-tours (`dialogue: true` + historique au runner) | 2026-07 |
 | ADR-117 | Background Chat Runs — génération détachée de la connexion HTTP (producteur + Redis Streams), reprise live, bouton stop cross-worker, archive-first, facturation honnête sur interruption | 2026-07 |
 | ADR-116 | Frontend Test Foundation — gate de couverture ratchet vitest (100 % verrouillé sur reducers/sse-handlers/stores), symétrie du contrat SSE exécutable, purge des types morts | 2026-07 |
@@ -370,6 +371,9 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [HighCPUUsage.md](./runbooks/alerts/HighCPUUsage.md) | Utilisation CPU élevée |
 | [HighMemoryUsage.md](./runbooks/alerts/HighMemoryUsage.md) | Utilisation mémoire élevée |
 | [DiskSpaceCritical.md](./runbooks/alerts/DiskSpaceCritical.md) | Espace disque critique |
+| [BackupFailed.md](./runbooks/alerts/BackupFailed.md) | Échec backup PostgreSQL (sidecar ADR-109) |
+| [PublicEndpointDown.md](./runbooks/alerts/PublicEndpointDown.md) | URL publique injoignable (tunnel/certificat) |
+| [AlertmanagerDown.md](./runbooks/alerts/AlertmanagerDown.md) | Chaîne de notification down (méta, ADR-119) |
 
 ### Alertes Base de Données
 
@@ -395,6 +399,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Runbook | Description |
 |---------|-------------|
+| [RedisDown.md](./runbooks/alerts/RedisDown.md) | Redis indisponible |
 | [RedisConnectionPoolExhaustion.md](./runbooks/alerts/RedisConnectionPoolExhaustion.md) | Pool Redis épuisé |
 | [RedisRateLimitHighHitRate.md](./runbooks/redis/RedisRateLimitHighHitRate.md) | Rate limit hits élevés |
 | [RedisRateLimitCheckLatencyHigh.md](./runbooks/redis/RedisRateLimitCheckLatencyHigh.md) | Latence rate limit |
@@ -427,8 +432,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | README | Description |
 |--------|-------------|
-| [README_ALERT_MANAGER2.md](./readme/README_ALERT_MANAGER2.md) | AlertManager avancé |
-| [README_ALERTING_SMTP.md](./readme/README_ALERTING_SMTP.md) | Configuration SMTP alertes |
+| [README_ALERTING.md](./readme/README_ALERTING.md) | Chaîne d'alerte : config e-mail, routing, tests |
 | [README_DOMAIN_AGENT_MIXINS.md](./readme/README_DOMAIN_AGENT_MIXINS.md) | Mixins agents domaine |
 | [README_LOAD_TESTING.md](./readme/README_LOAD_TESTING.md) | Tests de charge |
 | [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Stack observabilité |

@@ -49,7 +49,7 @@ groups:
             rate(hitl_clarification_fallback_total[5m])
             /
             rate(hitl_classification_method_total[5m])
-          ) > 0.30
+          ) > 0.3
         for: 10m
         labels:
           severity: warning
@@ -77,7 +77,7 @@ groups:
             rate(hitl_clarification_fallback_total[5m])
             /
             rate(hitl_classification_method_total[5m])
-          ) > 0.60
+          ) > 0.6
         for: 5m
         labels:
           severity: critical
@@ -96,13 +96,197 @@ groups:
             3. Consider rollback if recent deployment
             4. Enable fallback to rule-based classification
           dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+      # ======================================================================
+      # HITL EDIT QUALITY
+      # ======================================================================
+
+      - alert: HITLFullRewritesHigh
+        expr: |
+          (
+            sum(rate(hitl_edit_actions_total{edit_type="full_rewrite"}[1h]))
+            /
+            sum(rate(hitl_edit_actions_total[1h]))
+          ) > 0.45
+        for: 30m
+        labels:
+          severity: warning
+          component: agent_proposals
+          team: product
+        annotations:
+          summary: "Users doing full rewrites of agent proposals >30%"
+          description: |
+            {{ $value | humanizePercentage }} of HITL edits are full rewrites, indicating
+            agent proposals are significantly off-target.
+
+            Current full rewrite rate: {{ $value | humanizePercentage }}
+            Threshold: 30%
+
+            This suggests:
+            - Agent prompts need improvement
+            - Context extraction is poor
+            - Tool parameters are incorrectly inferred
+
+            Actions:
+            - Review recent full_rewrite examples in logs
+            - Analyze which agents/tools have highest rewrite rate
+            - Consider A/B testing improved prompts
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+      - alert: HITLEditRateIncreasing
+        expr: |
+          (
+            rate(hitl_edit_actions_total[1h])
+            /
+            rate(hitl_classification_method_total[1h])
+          ) > 0.6
+        for: 1h
+        labels:
+          severity: info
+          component: agent_proposals
+          team: product
+        annotations:
+          summary: "HITL edit rate increasing - potential quality degradation"
+          description: |
+            {{ $value | humanizePercentage }} of HITL interactions result in edits.
+            This may indicate declining proposal quality or changing user expectations.
+
+            Monitor trend over 24h and investigate if sustained.
+
+      # ======================================================================
+      # HITL REJECTION QUALITY
+      # ======================================================================
+
+      - alert: HITLExplicitRejectionsHigh
+        expr: |
+          (
+            sum(rate(hitl_rejection_type_total{rejection_type="explicit_no"}[1h]))
+            /
+            sum(rate(hitl_rejection_type_total[1h]))
+          ) > 0.3
+        for: 30m
+        labels:
+          severity: warning
+          component: agent_proposals
+          team: product
+        annotations:
+          summary: "Users explicitly rejecting agent proposals >20%"
+          description: |
+            {{ $value | humanizePercentage }} of rejections are explicit "no/annule/stop" responses.
+            This indicates agents are proposing unwanted or inappropriate actions.
+
+            Current explicit rejection rate: {{ $value | humanizePercentage }}
+            Threshold: 20%
+
+            Actions:
+            - Review explicit rejection examples by agent type
+            - Check if specific tools have high rejection rates
+            - Consider making proposals more conservative
+            - Review user feedback and reasons for rejection
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+      - alert: HITLRejectionRateSpike
+        expr: |
+          (
+            rate(hitl_rejection_type_total[5m])
+            /
+            rate(hitl_classification_method_total[5m])
+          ) > 0.75
+        for: 10m
+        labels:
+          severity: critical
+          component: agent_behavior
+          team: product
+          pagerduty: "true"
+        annotations:
+          summary: "HITL rejection rate spike >50% - investigate immediately"
+          description: |
+            Sudden spike in HITL rejections ({{ $value | humanizePercentage }}).
+            Possible causes:
+            - Recent agent deployment with bad behavior
+            - LLM model change causing different proposals
+            - Bug in tool argument construction
+
+            IMMEDIATE ACTIONS:
+            1. Check recent deployments (last 2h)
+            2. Review logs for error patterns
+            3. Consider rollback if correlated with deployment
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+      # ======================================================================
+      # HITL USER ENGAGEMENT
+      # ======================================================================
+
+      - alert: HITLUserResponseTimeSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(hitl_user_response_time_seconds_bucket[5m]))
+          ) > 450.0
+        for: 15m
+        labels:
+          severity: warning
+          component: user_experience
+          team: product
+        annotations:
+          summary: "HITL user response time p95 >5min - UX friction"
+          description: |
+            Users are taking {{ $value | humanizeDuration }} (p95) to respond to HITL interrupts.
+            This indicates potential UX friction or unclear prompts.
+
+            Current p95: {{ $value | humanizeDuration }}
+            Target: < 60s (engaged users)
+            Acceptable: < 300s
+
+            Investigate:
+            - Are HITL questions clear and concise?
+            - Is interrupt timing appropriate (not spammy)?
+            - Are users abandoning after HITL prompts?
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+      # ======================================================================
+      # HITL COMBINED METRICS
+      # ======================================================================
+
+      - alert: HITLQualityDegraded
+        expr: |
+          (
+            (rate(hitl_clarification_fallback_total[1h]) / rate(hitl_classification_method_total[1h])) > 0.22
+            and
+            (sum(rate(hitl_rejection_type_total{rejection_type="explicit_no"}[1h])) / sum(rate(hitl_rejection_type_total[1h]))) > 0.22
+          )
+        for: 1h
+        labels:
+          severity: warning
+          component: hitl_system
+          team: product
+        annotations:
+          summary: "Multiple HITL quality indicators degraded"
+          description: |
+            HITL system quality is degraded across multiple dimensions:
+            - High clarification fallback rate (>15%)
+            - High explicit rejection rate (>15%)
+
+            This suggests systemic issues with agent behavior or classifier quality.
+
+            Recommended actions:
+            1. Review recent changes to agents or classifier
+            2. Analyze user feedback patterns
+            3. Consider A/B test of previous agent version
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+  # ==========================================================================
+  # BUSINESS METRICS - Phase 3.2 Alerts (Uses Recording Rules)
+  # ==========================================================================
+  - name: business_metrics_alerts
+    interval: 30s
+    rules:
       # ======================================================================
       # CONVERSATION ABANDONMENT
       # ======================================================================
 
       - alert: HighConversationAbandonmentRate
         expr: |
-          business:abandonment_rate:5m_by_agent > 0.20
+          business:abandonment_rate:5m_by_agent > 0.2
         for: 10m
         labels:
           severity: warning
@@ -129,7 +313,7 @@ groups:
 
       - alert: CriticalConversationAbandonmentRate
         expr: |
-          business:abandonment_rate:5m_by_agent > 0.40
+          business:abandonment_rate:5m_by_agent > 0.4
         for: 5m
         labels:
           severity: critical
@@ -155,7 +339,7 @@ groups:
 
       - alert: LowToolSuccessRate
         expr: |
-          business:tool_success_rate:5m_by_tool < 0.80
+          business:tool_success_rate:5m_by_tool < 0.8
         for: 15m
         labels:
           severity: warning
@@ -185,7 +369,7 @@ groups:
 
       - alert: CriticalToolFailureRate
         expr: |
-          business:tool_success_rate:5m_by_tool < 0.50
+          business:tool_success_rate:5m_by_tool < 0.5
         for: 5m
         labels:
           severity: critical
@@ -206,6 +390,36 @@ groups:
           dashboard: "http://grafana:3000/d/agents-langgraph/04-agents-langgraph"
 
       # ======================================================================
+      # HITL APPROVAL RATE (Business Metrics)
+      # ======================================================================
+
+      - alert: LowHITLApprovalRate
+        expr: |
+          business:hitl_approval_rate:1h_by_agent < 0.5
+        for: 30m
+        labels:
+          severity: warning
+          component: agent_proposals
+          team: product
+        annotations:
+          summary: "Low HITL approval rate for {{ $labels.agent_type }} ({{ $value | humanizePercentage }})"
+          description: |
+            Agent {{ $labels.agent_type }} has HITL approval rate <50% for 30 minutes.
+            Users are rejecting or editing most proposals, indicating poor quality.
+
+            Current approval rate: {{ $value | humanizePercentage }}
+            Threshold: 50%
+
+            Approval rate = proposals accepted without changes / total HITL interactions.
+
+            Actions:
+            - Review dashboard for rejection/edit patterns
+            - Analyze which tools/actions have low approval
+            - Check if prompts need improvement
+            - Consider making proposals more conservative
+          dashboard: "http://grafana:3000/d/hitl-tool-approval/07-hitl-tool-approval"
+
+      # ======================================================================
       # TOKEN EFFICIENCY
       # ======================================================================
 
@@ -220,7 +434,7 @@ groups:
         annotations:
           summary: "High token efficiency ratio on {{ $labels.node_name }} ({{ $value }})"
           description: |
-            Node {{ $labels.node_name }} has token efficiency ratio >1.5 for 20 minutes.
+            Node {{ $labels.node_name }} has token efficiency ratio > 1.5 for 20 minutes.
             This indicates excessive verbosity and potential cost issues.
 
             Current ratio: {{ $value }} (tokens/message)
@@ -319,7 +533,7 @@ groups:
       # Alert 3: Large checkpoint size
       - alert: LargeCheckpointSize
         expr: |
-          histogram_quantile(0.95, sum(rate(checkpoint_size_bytes_bucket[5m])) by (le)) > 500000
+          histogram_quantile(0.95, sum(rate(checkpoint_size_bytes_bucket[5m])) by (le)) > 500000.0
         for: 10m
         labels:
           severity: warning
@@ -357,7 +571,7 @@ groups:
       - alert: CheckpointSaveFailures
         expr: |
           100 * (sum(rate(checkpoint_operations_total{operation="save",status="error"}[5m])) /
-          sum(rate(checkpoint_operations_total{operation="save"}[5m]))) > 5
+          sum(rate(checkpoint_operations_total{operation="save"}[5m]))) > 5.0
         for: 3m
         labels:
           severity: critical
@@ -365,9 +579,9 @@ groups:
           team: engineering
           pagerduty: "true"
         annotations:
-          summary: "Critical: Checkpoint save failure rate >5% ({{ $value | humanizePercentage }})"
+          summary: "Critical: Checkpoint save failure rate > 5.0% ({{ $value | humanizePercentage }})"
           description: |
-            Checkpoint save error rate is >5% for 3 minutes.
+            Checkpoint save error rate is > 5.0% for 3 minutes.
             This is a CRITICAL issue affecting conversation persistence.
 
             Current error rate: {{ $value | humanizePercentage }}

@@ -51,7 +51,8 @@ Observability is the ability to measure the internal states of a system by exami
 | **Grafana** | Visualization & dashboards | 20 dashboards, 354+ panels | N/A (queries only) | 3000 |
 | **Loki** | Log aggregation & storage | N/A (logs, not metrics) | 7 days | 3100 |
 | **Tempo** | Distributed tracing | Trace spans | 7 days | 3200 |
-| **AlertManager** | Alert routing & notifications | 57 alert rules | N/A (stateful) | 9093 |
+| **AlertManager** | Alert routing & notifications | 13-alert core loaded (ADR-119); legacy catalog quarantined | N/A (stateful) | 9093 |
+| **blackbox-exporter** | HTTP probes (backup healthcheck, public URL/TLS) | 2 probe jobs | N/A (stateless) | 9115 |
 
 ### Metrics Breakdown by Category
 
@@ -1585,6 +1586,16 @@ lia_connectors_by_type = Gauge(
 ---
 
 ## 🔔 Alerting
+
+> **Current state (ADR-119, 2026-07)**: Prometheus loads **only the 13-alert
+> core** (`alerts-core.yml`) and delivers by **email** through Alertmanager in
+> both dev and production — operational guide: [README_ALERTING.md](README_ALERTING.md).
+> The alert groups catalogued below are the **legacy 2025-11 design**: NOT
+> loaded, and their rendered thresholds are corrupted (recalibration required
+> before re-enabling any group — see
+> [README_PROMETHEUS_THRESHOLDS.md](README_PROMETHEUS_THRESHOLDS.md)).
+> Slack/PagerDuty channels mentioned below are optional and unset by default
+> (email-only mode).
 
 ### Alert Philosophy
 

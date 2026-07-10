@@ -4,7 +4,7 @@
 
 **Version**: 3.7
 **Date**: 2026-07-10
-**Application**: LIA v1.23.1
+**Application**: LIA v1.23.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -319,6 +319,7 @@ LIA ships with production-grade observability:
 | **Tempo** | End-to-end distributed tracing |
 | **Loki** | Structured log aggregation |
 | **Langfuse** | Specialized LLM call tracing |
+| **Alertmanager** | Email alerts on vital signals, linked runbooks |
 
 Every request is traced end-to-end, every LLM call is measured, every error is contextualized. This isn't monitoring bolted on as an afterthought — it's a **foundational architectural decision** documented across the project's Architecture Decision Records.
 

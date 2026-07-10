@@ -184,5 +184,7 @@ docker compose -f docker-compose.prod.yml up -d postgres   # fresh, empty PGDATA
    attachments, user skills) are not covered.
 3. **No PITR**: pg_dump snapshots only — recovery granularity is the schedule
    interval, not WAL-level.
-4. **No push alert on backup failure**: detection is via healthcheck/logs. The
-   image supports webhook hooks (`/hooks/00-webhook`) if alerting is wanted later.
+4. ~~**No push alert on backup failure**~~ — closed by ADR-119 (2026-07): the
+   `BackupFailed` alert probes the sidecar's healthcheck webhook via
+   blackbox-exporter and emails the administrator after 15 minutes of failure
+   (runbook: [BackupFailed.md](alerts/BackupFailed.md)).

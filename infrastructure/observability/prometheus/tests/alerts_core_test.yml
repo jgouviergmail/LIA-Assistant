@@ -1,0 +1,305 @@
+# Unit tests for the 13-alert core (ADR-119) — run with:
+#   docker run --rm --entrypoint promtool \
+#     -v "$(pwd)/infrastructure/observability/prometheus:/cfg" \
+#     prom/prometheus:v3.0.0 test rules /cfg/tests/alerts_core_test.yml
+#
+# Tests run against the PRODUCTION-rendered alerts-core.yml, so expected
+# values below must match thresholds/production.env (ALERT_CORE_* block).
+# exp_annotations are asserted on purpose: they pin the threshold values
+# INSIDE the human-readable descriptions to the values in the expressions —
+# the historical bug this core fixes (ADR-119) was exactly that drift.
+
+rule_files:
+  - ../alerts-core.yml
+
+evaluation_interval: 1m
+
+tests:
+  # ===== ServiceDown: API target gone =====
+  - interval: 1m
+    input_series:
+      - series: 'up{job="lia-api"}'
+        values: '0x5'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels:
+              job: lia-api
+              severity: critical
+              component: api
+              tier: core
+            exp_annotations:
+              summary: "LIA API is down"
+              description: "Prometheus cannot scrape the API metrics endpoint (api:9091) for 2 minutes. The application is very likely unreachable for users."
+              runbook: "docs/runbooks/alerts/ServiceDown.md"
+
+  # ===== DatabaseDown: exporter up but pg_up == 0 (DB itself down) =====
+  - interval: 1m
+    input_series:
+      - series: 'up{job="postgresql"}'
+        values: '1x5'
+      - series: 'pg_up{job="postgresql"}'
+        values: '0x5'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: DatabaseDown
+        exp_alerts:
+          - exp_labels:
+              job: postgresql
+              severity: critical
+              component: postgresql
+              tier: core
+            exp_annotations:
+              summary: "PostgreSQL is down"
+              description: "postgres-exporter is unreachable or reports pg_up == 0 for 2 minutes. Checkpoints, auth and all persistence are failing."
+              runbook: "docs/runbooks/alerts/DatabaseDown.md"
+
+  # ===== RedisDown fires; healthy Redis stays silent =====
+  - interval: 1m
+    input_series:
+      - series: 'up{job="redis"}'
+        values: '0x5'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: RedisDown
+        exp_alerts:
+          - exp_labels:
+              job: redis
+              severity: critical
+              component: redis
+              tier: core
+            exp_annotations:
+              summary: "Redis is down"
+              description: "redis-exporter is unreachable or reports redis_up == 0 for 2 minutes. Cache, rate limiting and background run streams are failing."
+              runbook: "docs/runbooks/alerts/RedisDown.md"
+  - interval: 1m
+    input_series:
+      - series: 'up{job="redis"}'
+        values: '1x5'
+      - series: 'redis_up{job="redis"}'
+        values: '1x5'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: RedisDown
+        exp_alerts: []
+
+  # ===== DiskSpaceCritical: 95% used > 90% threshold; 80% stays silent =====
+  - interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{fstype="ext4",mountpoint="/"}'
+        values: '5x8'
+      - series: 'node_filesystem_size_bytes{fstype="ext4",mountpoint="/"}'
+        values: '100x8'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: DiskSpaceCritical
+        exp_alerts:
+          - exp_labels:
+              fstype: ext4
+              mountpoint: /
+              severity: critical
+              component: storage
+              tier: core
+            exp_annotations:
+              summary: "Disk space critical on /"
+              description: "95% of / is used (threshold: 90%). Prometheus TSDB, PostgreSQL and backups share this disk."
+              runbook: "docs/runbooks/alerts/DiskSpaceCritical.md"
+  - interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{fstype="ext4",mountpoint="/"}'
+        values: '20x8'
+      - series: 'node_filesystem_size_bytes{fstype="ext4",mountpoint="/"}'
+        values: '100x8'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: DiskSpaceCritical
+        exp_alerts: []
+
+  # ===== ContainerMemoryNearLimit: 97% of compose limit =====
+  - interval: 1m
+    input_series:
+      - series: 'container_memory_usage_bytes{name="lia-api-prod"}'
+        values: '97x12'
+      - series: 'container_spec_memory_limit_bytes{name="lia-api-prod"}'
+        values: '100x12'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: ContainerMemoryNearLimit
+        exp_alerts:
+          - exp_labels:
+              name: lia-api-prod
+              severity: warning
+              component: container
+              tier: core
+            exp_annotations:
+              summary: "Container lia-api-prod near its memory limit"
+              description: "lia-api-prod uses 97% of its compose memory limit for 10 minutes (threshold: 95%). The kernel will OOM-kill it at 100%."
+              runbook: "docs/runbooks/alerts/HighMemoryUsage.md"
+
+  # ===== ContainerRestartLoop: 3 restarts within 30m =====
+  - interval: 1m
+    input_series:
+      - series: 'container_start_time_seconds{name="lia-api-prod"}'
+        values: '100x7 200x7 300x7 400x9'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: ContainerRestartLoop
+        exp_alerts:
+          - exp_labels:
+              name: lia-api-prod
+              severity: critical
+              component: container
+              tier: core
+            exp_annotations:
+              summary: "Container lia-api-prod is restart-looping"
+              description: "lia-api-prod restarted 3 times in 30 minutes (threshold: 3). Likely crash loop or OOM kill cycle."
+              runbook: "docs/runbooks/alerts/ContainerDown.md"
+
+  # ===== HighErrorRate: 50% 5xx at real volume fires… =====
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{status="500",endpoint="/api"}'
+        values: '0+30x8'
+      - series: 'http_requests_total{status="200",endpoint="/api"}'
+        values: '0+30x8'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: HighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              component: api
+              tier: core
+            exp_annotations:
+              summary: "High HTTP 5xx error rate"
+              description: "50% of requests returned 5xx over 5 minutes (threshold: 5.0%, evaluated only above 0.05 req/s to avoid low-traffic noise)."
+              runbook: "docs/runbooks/alerts/HighErrorRate.md"
+  # ===== …but 100% 5xx below the volume guard stays silent (min RPS) =====
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{status="500",endpoint="/api"}'
+        values: '0+1x8'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: HighErrorRate
+        exp_alerts: []
+
+  # ===== SSELatencyP95High: all traffic lands in the 60–120s bucket =====
+  - interval: 1m
+    input_series:
+      - series: 'sse_time_to_first_token_seconds_bucket{le="30"}'
+        values: '0x25'
+      - series: 'sse_time_to_first_token_seconds_bucket{le="60"}'
+        values: '0x25'
+      - series: 'sse_time_to_first_token_seconds_bucket{le="120"}'
+        values: '0+10x25'
+      - series: 'sse_time_to_first_token_seconds_bucket{le="+Inf"}'
+        values: '0+10x25'
+    alert_rule_test:
+      - eval_time: 22m
+        alertname: SSELatencyP95High
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: agents
+              tier: core
+            exp_annotations:
+              summary: "SSE time-to-first-token p95 degraded"
+              description: "TTFT p95 is 117s over 10 minutes (threshold: 60s — set above the measured production baseline; tighten it after the latency optimization work lands)."
+              runbook: "docs/runbooks/alerts/AgentsTTFTViolation.md"
+
+  # ===== BackupFailed: probe failing beyond the 15m grace =====
+  - interval: 1m
+    input_series:
+      - series: 'probe_success{job="blackbox-backup"}'
+        values: '0x18'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: BackupFailed
+        exp_alerts:
+          - exp_labels:
+              job: blackbox-backup
+              severity: critical
+              component: backup
+              tier: core
+            exp_annotations:
+              summary: "PostgreSQL backup sidecar unhealthy"
+              description: "The postgres-backup healthcheck webhook (HEALTHCHECK_PORT) has been failing for 15 minutes: the last scheduled pg_dump failed or the sidecar is down. Restore capability is at risk."
+              runbook: "docs/runbooks/alerts/BackupFailed.md"
+
+  # ===== PublicEndpointDown: end-to-end probe dead for 3m =====
+  - interval: 1m
+    input_series:
+      - series: 'probe_success{job="blackbox-public"}'
+        values: '0x6'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: PublicEndpointDown
+        exp_alerts:
+          - exp_labels:
+              job: blackbox-public
+              severity: critical
+              component: tunnel
+              tier: core
+            exp_annotations:
+              summary: "Public endpoint unreachable (tunnel down?)"
+              description: "The end-to-end probe of the public URL has failed for 3 minutes. Cloudflare edge, the cloudflared tunnel (host systemd) or the web frontend is down. Users cannot reach LIA."
+              runbook: "docs/runbooks/alerts/PublicEndpointDown.md"
+
+  # ===== CertificateExpirySoon: cert expiring in 10 days (< 14) =====
+  - interval: 1m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-public"}'
+        values: '864000x70'
+    alert_rule_test:
+      - eval_time: 65m
+        alertname: CertificateExpirySoon
+        exp_alerts:
+          - exp_labels:
+              job: blackbox-public
+              severity: warning
+              component: tunnel
+              tier: core
+            exp_annotations:
+              summary: "Public TLS certificate expires soon"
+              description: "The certificate served on the public URL expires in 9.955 days (threshold: 14). Cloudflare normally auto-renews edge certificates — a stuck renewal needs manual attention."
+              runbook: "docs/runbooks/alerts/PublicEndpointDown.md"
+
+  # ===== AlertmanagerDown (meta) =====
+  - interval: 1m
+    input_series:
+      - series: 'up{job="alertmanager"}'
+        values: '0x8'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: AlertmanagerDown
+        exp_alerts:
+          - exp_labels:
+              job: alertmanager
+              severity: critical
+              component: observability
+              tier: core
+            exp_annotations:
+              summary: "Alertmanager is down — notifications are NOT being delivered"
+              description: "Prometheus cannot scrape Alertmanager for 5 minutes. Alerts still evaluate but no email leaves the box. Visible in Prometheus UI and the logwatch daily digest only."
+              runbook: "docs/runbooks/alerts/AlertmanagerDown.md"
+
+  # ===== ObservabilityScrapeTargetMissing (meta): node exporter gone =====
+  - interval: 1m
+    input_series:
+      - series: 'up{job="node"}'
+        values: '0x12'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: ObservabilityScrapeTargetMissing
+        exp_alerts:
+          - exp_labels:
+              job: node
+              severity: warning
+              component: observability
+              tier: core
+            exp_annotations:
+              summary: "Scrape target node is down"
+              description: "The node exporter has been unreachable for 10 minutes. Resource and probe alerts relying on it are blind while it is down."
+              runbook: "docs/runbooks/alerts/ContainerDown.md"
