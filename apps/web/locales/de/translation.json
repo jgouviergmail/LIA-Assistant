@@ -2936,6 +2936,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_23_6": {
+          "title": "v1.23.6 — 🧱 Konsolidierter Sprachkern (Wartung)",
+          "date": "Juli 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎙️ Sprach-Engine konsolidiert</b> — die interne Mechanik, die LIAs Antworten spricht (progressive Sprachausgabe, Sprachkommentar nach Aktionen, Kostenzuordnung), wurde in eine eigenständige, unabhängig getestete Komponente reorganisiert. An dem, was Sie sehen oder hören, ändert sich nichts — aber jede Ereignissequenz von Chat und Stimme ist jetzt durch ein automatisiertes Sicherheitsnetz verriegelt, was künftige Weiterentwicklungen der Sprachfunktion deutlich sicherer macht.",
+            "i2": "<b>🛡️ Qualitätswächter & Self-Hosting (Admin)</b> — der Code lehnt jetzt übergroße Quelldateien ab (sie dürfen nur schrumpfen) und blockiert private Infrastrukturwerte, bevor sie committet werden; die tägliche Log-Zusammenfassung per E-Mail (Logwatch) wird nun über Umgebungsvariablen statt über eine von Hand editierte Konfigurationsdatei eingerichtet."
+          }
+        },
         "v1_23_5": {
           "title": "v1.23.5 — 🔒 Sicherere Produktionswartung (Admin)",
           "date": "Juli 2026",

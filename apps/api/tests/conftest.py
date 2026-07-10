@@ -296,32 +296,27 @@ def test_database_url_sync(postgres_container: PostgresContainer | None) -> str:
         pytest.skip("No database available for testing")
 
 
-@pytest.fixture(scope="session")
-def event_loop_policy():
-    """
-    Custom event loop policy for async tests.
+def pytest_asyncio_loop_factories(config, item):
+    """Provide the event-loop factory for async tests (pytest-asyncio >= 1.x hook).
 
-    On Windows, psycopg v3 requires SelectorEventLoop instead of ProactorEventLoop.
-    This fixture provides a policy that creates the correct loop type.
-
-    pytest-asyncio 0.21+ recommends using event_loop_policy instead of
-    redefining event_loop fixture.
+    On Windows, psycopg v3 requires SelectorEventLoop instead of
+    ProactorEventLoop. Replaces the former session-scoped
+    ``event_loop_policy`` fixture override, deprecated by pytest-asyncio
+    in favor of this hook. A SINGLE factory is returned so test IDs stay
+    unchanged (pytest >= 8.4 hides single-parametrization via HIDDEN_PARAM
+    — xdist distribution and -k selection are unaffected).
     """
     import selectors
     import sys
 
     if sys.platform == "win32":
 
-        class WindowsSelectorPolicy(asyncio.DefaultEventLoopPolicy):
-            """Windows policy using SelectorEventLoop for psycopg v3 compatibility."""
+        def _selector_loop() -> asyncio.AbstractEventLoop:
+            return asyncio.SelectorEventLoop(selectors.SelectSelector())
 
-            def new_event_loop(self):
-                selector = selectors.SelectSelector()
-                return asyncio.SelectorEventLoop(selector)
+        return {"selector": _selector_loop}
 
-        return WindowsSelectorPolicy()
-
-    return asyncio.DefaultEventLoopPolicy()
+    return {"asyncio": asyncio.new_event_loop}
 
 
 @pytest.fixture(scope="function")

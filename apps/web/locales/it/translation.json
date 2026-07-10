@@ -2938,6 +2938,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_23_6": {
+          "title": "v1.23.6 — 🧱 Nucleo vocale consolidato (manutenzione)",
+          "date": "Luglio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎙️ Motore vocale consolidato</b> — la meccanica interna che fa parlare LIA (voce progressiva, commento vocale dopo le azioni, attribuzione dei costi) è stata riorganizzata in un componente dedicato e testato in modo indipendente. Nulla cambia in ciò che vedi o senti — ma ogni sequenza di eventi della chat e della voce è ora bloccata da una rete di test automatizzata, rendendo molto più sicure le future evoluzioni vocali.",
+            "i2": "<b>🛡️ Presidi di qualità e self-hosting (admin)</b> — il codice ora rifiuta i file sorgente troppo grandi (possono solo ridursi) e blocca qualsiasi valore di infrastruttura privata prima che venga committato; l'e-mail giornaliera di riepilogo dei log (Logwatch) si configura ora tramite variabili d'ambiente invece di un file di configurazione modificato a mano."
+          }
+        },
         "v1_23_5": {
           "title": "v1.23.5 — 🔒 Manutenzione in produzione più sicura (admin)",
           "date": "Luglio 2026",

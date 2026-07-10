@@ -2946,6 +2946,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_23_6": {
+          "title": "v1.23.6 — 🧱 Sturdier voice core (maintenance)",
+          "date": "July 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎙️ Voice engine consolidated</b> — the internal machinery that speaks LIA's answers (progressive speech, voice-over after actions, cost attribution) has been reorganized into a dedicated, independently tested component. Nothing changes in what you see or hear — but every chat and voice event sequence is now locked by an automated safety net, making future voice evolutions much safer.",
+            "i2": "<b>🛡️ Quality guards & self-hosting (admin)</b> — the codebase now refuses oversized source files (they can only shrink) and blocks private infrastructure values before they are ever committed; the daily log-digest e-mail (Logwatch) is now configured through environment variables instead of a hand-edited config file."
+          }
+        },
         "v1_23_5": {
           "title": "v1.23.5 — 🔒 Safer production maintenance (admin)",
           "date": "July 2026",

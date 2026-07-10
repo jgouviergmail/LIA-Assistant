@@ -224,22 +224,18 @@ class TestRoutesCacheArrivalTime:
 class TestGoogleRoutesClientArrivalTime:
     """Tests for GoogleRoutesClient arrival_time handling."""
 
-    def test_departure_and_arrival_mutually_exclusive(self):
+    async def test_departure_and_arrival_mutually_exclusive(self):
         """Test that departure_time and arrival_time cannot both be set."""
         from src.domains.connectors.clients.google_routes_client import GoogleRoutesClient
 
         client = GoogleRoutesClient()
 
         with pytest.raises(ValueError, match="mutually exclusive"):
-            import asyncio
-
-            asyncio.get_event_loop().run_until_complete(
-                client.compute_route(
-                    origin="Paris",
-                    destination="Lyon",
-                    departure_time="2026-01-20T10:00:00Z",
-                    arrival_time="2026-01-20T14:00:00Z",
-                )
+            await client.compute_route(
+                origin="Paris",
+                destination="Lyon",
+                departure_time="2026-01-20T10:00:00Z",
+                arrival_time="2026-01-20T14:00:00Z",
             )
 
 

@@ -2957,6 +2957,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_23_6": {
+          "title": "v1.23.6 — 🧱 Cœur vocal consolidé (maintenance)",
+          "date": "Juillet 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎙️ Moteur vocal consolidé</b> — la mécanique interne qui fait parler LIA (voix progressive, commentaire vocal après les actions, attribution des coûts) a été réorganisée en un composant dédié et testé indépendamment. Rien ne change dans ce que vous voyez ou entendez — mais chaque séquence d'événements du chat et de la voix est désormais verrouillée par un filet de tests automatisé, rendant les évolutions vocales futures beaucoup plus sûres.",
+            "i2": "<b>🛡️ Garde-fous qualité & auto-hébergement (admin)</b> — le code refuse désormais les fichiers sources trop volumineux (ils ne peuvent que rétrécir) et bloque toute valeur d'infrastructure privée avant qu'elle ne soit committée ; l'e-mail quotidien de synthèse des logs (Logwatch) se configure maintenant par variables d'environnement au lieu d'un fichier de configuration édité à la main."
+          }
+        },
         "v1_23_5": {
           "title": "v1.23.5 — 🔒 Maintenance en production plus sûre (admin)",
           "date": "Juillet 2026",

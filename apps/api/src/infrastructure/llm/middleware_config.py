@@ -384,8 +384,8 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
 
         middleware = SummarizationMiddleware(
             model=summarization_llm,
-            max_tokens_before_summary=max_tokens,
-            messages_to_keep=settings.summarization_keep_messages,
+            trigger=("tokens", max_tokens),
+            keep=("messages", settings.summarization_keep_messages),
         )
 
         logger.info(
@@ -418,7 +418,7 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
             )
             return SummarizationMiddleware(
                 model=summarization_llm_fallback,
-                messages_to_keep=settings.summarization_keep_messages,
+                keep=("messages", settings.summarization_keep_messages),
             )
         except (TypeError, ImportError, ValueError, RuntimeError):
             return None

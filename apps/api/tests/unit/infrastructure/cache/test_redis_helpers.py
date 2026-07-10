@@ -32,7 +32,7 @@ from src.infrastructure.cache.redis_helpers import (
 def mock_redis():
     """Create mock Redis client for testing."""
     redis = MagicMock()
-    redis.setex = AsyncMock()
+    redis.set = AsyncMock()
     redis.get = AsyncMock(return_value=None)
     redis.delete = AsyncMock(return_value=1)
     redis.scan = AsyncMock(return_value=(0, []))
@@ -54,12 +54,12 @@ class TestCacheSetJson:
 
         await cache_set_json(mock_redis, "test:key", data, 300)
 
-        mock_redis.setex.assert_called_once()
-        call_args = mock_redis.setex.call_args
+        mock_redis.set.assert_called_once()
+        call_args = mock_redis.set.call_args
         assert call_args[0][0] == "test:key"
-        assert call_args[0][1] == 300
+        assert call_args.kwargs["ex"] == 300
         # Verify JSON structure
-        stored_data = json.loads(call_args[0][2])
+        stored_data = json.loads(call_args[0][1])
         assert stored_data["data"] == data
         assert "cached_at" in stored_data
 
@@ -70,9 +70,9 @@ class TestCacheSetJson:
 
         await cache_set_json(mock_redis, "test:list", data, 600)
 
-        mock_redis.setex.assert_called_once()
-        call_args = mock_redis.setex.call_args
-        stored_data = json.loads(call_args[0][2])
+        mock_redis.set.assert_called_once()
+        call_args = mock_redis.set.call_args
+        stored_data = json.loads(call_args[0][1])
         assert stored_data["data"] == data
 
     @pytest.mark.asyncio
@@ -82,8 +82,8 @@ class TestCacheSetJson:
 
         await cache_set_json(mock_redis, "test:key", data, 300, add_timestamp=False)
 
-        call_args = mock_redis.setex.call_args
-        stored_data = json.loads(call_args[0][2])
+        call_args = mock_redis.set.call_args
+        stored_data = json.loads(call_args[0][1])
         assert "cached_at" not in stored_data
         assert stored_data["data"] == data
 
@@ -94,8 +94,8 @@ class TestCacheSetJson:
 
         await cache_set_json(mock_redis, "test:key", data, 300)
 
-        call_args = mock_redis.setex.call_args
-        stored_data = json.loads(call_args[0][2])
+        call_args = mock_redis.set.call_args
+        stored_data = json.loads(call_args[0][1])
         assert "cached_at" in stored_data
         # Verify timestamp is valid ISO format
         timestamp = datetime.fromisoformat(stored_data["cached_at"])
@@ -108,8 +108,8 @@ class TestCacheSetJson:
 
         await cache_set_json(mock_redis, "test:unicode", data, 300)
 
-        call_args = mock_redis.setex.call_args
-        stored_data = json.loads(call_args[0][2])
+        call_args = mock_redis.set.call_args
+        stored_data = json.loads(call_args[0][1])
         assert stored_data["data"]["message"] == "Bonjour, café! 你好"
 
     @pytest.mark.asyncio
@@ -119,8 +119,8 @@ class TestCacheSetJson:
 
         await cache_set_json(mock_redis, "test:nested", data, 300)
 
-        call_args = mock_redis.setex.call_args
-        stored_data = json.loads(call_args[0][2])
+        call_args = mock_redis.set.call_args
+        stored_data = json.loads(call_args[0][1])
         assert stored_data["data"]["level1"]["level2"]["level3"][2]["level4"] == "value"
 
     @pytest.mark.asyncio
@@ -141,7 +141,7 @@ class TestCacheSetJson:
     @pytest.mark.asyncio
     async def test_set_json_propagates_redis_error(self, mock_redis):
         """Test that Redis errors are propagated."""
-        mock_redis.setex = AsyncMock(side_effect=Exception("Redis connection error"))
+        mock_redis.set = AsyncMock(side_effect=Exception("Redis connection error"))
 
         with pytest.raises(Exception) as exc_info:
             await cache_set_json(mock_redis, "test:key", {"data": "value"}, 300)
@@ -256,7 +256,7 @@ class TestCacheGetOrCompute:
     async def test_cache_miss_computes_and_caches(self, mock_redis):
         """Test cache miss computes data and caches it."""
         mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.setex = AsyncMock()
+        mock_redis.set = AsyncMock()
 
         compute_fn = AsyncMock(return_value={"result": "computed"})
 
@@ -265,14 +265,14 @@ class TestCacheGetOrCompute:
         assert result["from_cache"] is False
         assert result["data"] == {"result": "computed"}
         compute_fn.assert_called_once()
-        mock_redis.setex.assert_called_once()
+        mock_redis.set.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_force_refresh_bypasses_cache(self, mock_redis):
         """Test force_refresh=True bypasses cache."""
         cached_data = {"data": {"result": "cached"}, "cached_at": datetime.now(UTC).isoformat()}
         mock_redis.get = AsyncMock(return_value=json.dumps(cached_data))
-        mock_redis.setex = AsyncMock()
+        mock_redis.set = AsyncMock()
 
         compute_fn = AsyncMock(return_value={"result": "fresh"})
 
@@ -319,7 +319,7 @@ class TestCacheGetOrCompute:
     async def test_computed_data_has_fresh_timestamp(self, mock_redis):
         """Test computed data includes fresh timestamp."""
         mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.setex = AsyncMock()
+        mock_redis.set = AsyncMock()
 
         compute_fn = AsyncMock(return_value={"result": "computed"})
 
@@ -429,11 +429,11 @@ class TestCacheHelperIntegration:
         # Capture what was set
         stored_json = None
 
-        async def capture_setex(key, ttl, value):
+        async def capture_set(key, value, ex=None):
             nonlocal stored_json
             stored_json = value
 
-        mock_redis.setex = capture_setex
+        mock_redis.set = capture_set
 
         # Set data
         await cache_set_json(mock_redis, "test:users", original_data, 300)
@@ -451,35 +451,35 @@ class TestCacheHelperIntegration:
     @pytest.mark.asyncio
     async def test_empty_dict_storage(self, mock_redis):
         """Test storing and retrieving empty dict."""
-        mock_redis.setex = AsyncMock()
+        mock_redis.set = AsyncMock()
 
         await cache_set_json(mock_redis, "test:empty", {}, 300)
 
-        call_args = mock_redis.setex.call_args
-        stored_data = json.loads(call_args[0][2])
+        call_args = mock_redis.set.call_args
+        stored_data = json.loads(call_args[0][1])
         assert stored_data["data"] == {}
 
     @pytest.mark.asyncio
     async def test_empty_list_storage(self, mock_redis):
         """Test storing and retrieving empty list."""
-        mock_redis.setex = AsyncMock()
+        mock_redis.set = AsyncMock()
 
         await cache_set_json(mock_redis, "test:empty", [], 300)
 
-        call_args = mock_redis.setex.call_args
-        stored_data = json.loads(call_args[0][2])
+        call_args = mock_redis.set.call_args
+        stored_data = json.loads(call_args[0][1])
         assert stored_data["data"] == []
 
     @pytest.mark.asyncio
     async def test_null_values_in_dict(self, mock_redis):
         """Test dict with null values."""
         data = {"key": None, "nested": {"also_null": None}}
-        mock_redis.setex = AsyncMock()
+        mock_redis.set = AsyncMock()
 
         await cache_set_json(mock_redis, "test:nulls", data, 300)
 
-        call_args = mock_redis.setex.call_args
-        stored_data = json.loads(call_args[0][2])
+        call_args = mock_redis.set.call_args
+        stored_data = json.loads(call_args[0][1])
         assert stored_data["data"]["key"] is None
         assert stored_data["data"]["nested"]["also_null"] is None
 
@@ -493,12 +493,12 @@ class TestCacheHelperIntegration:
             "zero": 0,
             "big_int": 9999999999999999,
         }
-        mock_redis.setex = AsyncMock()
+        mock_redis.set = AsyncMock()
 
         await cache_set_json(mock_redis, "test:numbers", data, 300)
 
-        call_args = mock_redis.setex.call_args
-        stored_data = json.loads(call_args[0][2])
+        call_args = mock_redis.set.call_args
+        stored_data = json.loads(call_args[0][1])
 
         assert stored_data["data"]["integer"] == 42
         assert abs(stored_data["data"]["float"] - 3.14159) < 0.0001
@@ -510,12 +510,12 @@ class TestCacheHelperIntegration:
     async def test_boolean_values_preserved(self, mock_redis):
         """Test that boolean values are preserved."""
         data = {"true_val": True, "false_val": False}
-        mock_redis.setex = AsyncMock()
+        mock_redis.set = AsyncMock()
 
         await cache_set_json(mock_redis, "test:bools", data, 300)
 
-        call_args = mock_redis.setex.call_args
-        stored_data = json.loads(call_args[0][2])
+        call_args = mock_redis.set.call_args
+        stored_data = json.loads(call_args[0][1])
 
         assert stored_data["data"]["true_val"] is True
         assert stored_data["data"]["false_val"] is False

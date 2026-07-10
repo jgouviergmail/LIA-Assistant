@@ -1019,7 +1019,7 @@ class TestDistanceIntegration:
             return await calculate_distance(PARIS_LAT, PARIS_LON, EIFFEL_LAT, EIFFEL_LON)
 
         sync_result = calculate_distance_sync(PARIS_LAT, PARIS_LON, EIFFEL_LAT, EIFFEL_LON)
-        async_result = asyncio.get_event_loop().run_until_complete(get_async_result())
+        async_result = asyncio.run(get_async_result())
 
         assert sync_result.km == async_result.km
         assert sync_result.mode == async_result.mode

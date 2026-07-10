@@ -1,4 +1,4 @@
-"""Unit tests for the TTS text safety net in ``agents.api.service``.
+"""Unit tests for the TTS text safety net in the voice coordinator.
 
 Defense-in-depth (vector B): any path that feeds the TTS engine the raw
 assistant response (reference turns, post-LLM data cards, sync voice
@@ -11,11 +11,17 @@ The guard exists because :func:`html_to_text` ends with
 from ``"x < 5 and y > 3"``. So we only run the stripper when the content is
 *actually* HTML, detected via recognised element tags or the LLM's
 ``lia-response`` / ``<style>`` wrappers.
+
+The helpers live in the voice_stream_helpers module since the B2 voice
+extraction (ADR-122) — formerly in ``agents.api.service``.
 """
 
 import pytest
 
-from src.domains.agents.api.service import _looks_like_html, _sanitize_text_for_tts
+from src.domains.agents.services.streaming.voice_stream_helpers import (
+    _looks_like_html,
+    _sanitize_text_for_tts,
+)
 
 
 @pytest.mark.unit

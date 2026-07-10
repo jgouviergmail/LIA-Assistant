@@ -226,6 +226,12 @@ filterwarnings = [
     # leak in our code. Non-deterministic (GC attributes it to a random test), so it
     # cannot be fixed at a source site. Scoped to the transport-leak message + category.
     "ignore:unclosed transport:ResourceWarning",
+    # starlette.testclient (imported via fastapi.testclient in conftest) deprecates
+    # its httpx transport in favor of the httpx2 package. The real fix is a pinned
+    # dependency migration (requirements manifests + `task deps:lock`, ADR-112) —
+    # tracked as debt, not a test-code issue. Scoped to that exact deprecation
+    # (StarletteDeprecationWarning subclasses UserWarning, not DeprecationWarning).
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
 ]
 pythonpath = ["."]
 markers = [

@@ -474,17 +474,19 @@ or CSS. Two complementary mechanisms enforce this:
 2. **Defense in depth (agents SSE loop).** The synchronous TTS entry points
    (`stream_direct_tts` and the `stream_voice_comment` fallbacks) pass their
    text through `_sanitize_text_for_tts`
-   ([api/service.py](../../apps/api/src/domains/agents/api/service.py)), which
-   strips HTML via `html_to_text` **only when markup is actually present** — so
+   ([voice_stream_helpers.py](../../apps/api/src/domains/agents/services/streaming/voice_stream_helpers.py)),
+   which strips HTML via `html_to_text` **only when markup is actually present** — so
    reference turns or post-LLM data cards are never spoken as tags, while plain
    prose containing bare angle brackets (`x < 5 and y > 3`) is left untouched.
 
 Cleanup contract: every SSE generator exit path (HITL `GraphInterrupt`,
-top-level `except`, normal end) MUST call
-`AgentService._cleanup_chat_voice_pipeline(...)` to cancel the drain
-task, the streamer's pending TTS tasks, and the underlying voice service
-(closes the persistent httpx client). The helper is idempotent and safe
-to call when voice was never spun up.
+top-level `except`, normal end) MUST tear down the voice pipeline via the
+`VoiceStreamCoordinator` (ADR-122 — `cleanup_chat_pipeline()` /
+`cleanup()`, backed by `_cleanup_chat_voice_pipeline` in
+[voice_stream_helpers.py](../../apps/api/src/domains/agents/services/streaming/voice_stream_helpers.py))
+to cancel the drain task, the streamer's pending TTS tasks, and the
+underlying voice service (closes the persistent httpx client). The helper
+is idempotent and safe to call when voice was never spun up.
 
 ### Per-message TTS cost attribution (ADR-081)
 

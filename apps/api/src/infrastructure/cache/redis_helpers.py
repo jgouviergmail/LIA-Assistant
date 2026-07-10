@@ -94,11 +94,11 @@ async def cache_set_json(
         # Serialize to JSON string
         json_str = json.dumps(cache_data, ensure_ascii=False)
 
-        # Store in Redis
-        await redis_client.setex(
+        # Store in Redis (SET with EX — SETEX is deprecated by redis-py)
+        await redis_client.set(
             key,
-            ttl_seconds,
             json_str,
+            ex=ttl_seconds,
         )
 
         logger.debug(
