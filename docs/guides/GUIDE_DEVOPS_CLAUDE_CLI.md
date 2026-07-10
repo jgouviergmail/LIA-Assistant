@@ -124,6 +124,8 @@ This copy is also done automatically at each `task deploy:prod` run. Between dep
 | `DEVOPS_SSH_TIMEOUT` | `30` | SSH connection timeout (for SSH mode only) |
 | `DEVOPS_COMMAND_TIMEOUT` | `300` | Claude CLI execution timeout in seconds |
 | `DEVOPS_MAX_OUTPUT_CHARS` | `50000` | Max output chars before truncation |
+| `DEVOPS_RATE_LIMIT_CALLS` | `5` | Max `claude_server_task_tool` calls per user per window (anti-runaway: each call is a paid Claude CLI run + real server actions) |
+| `DEVOPS_RATE_LIMIT_WINDOW` | `600` | Rate limit window in seconds |
 | `DEVOPS_SERVERS` | `[]` | JSON array of server configurations |
 | `DOCKER_GID` | `999` | Host Docker group GID (auto-detected by deploy scripts via `stat -c '%g' /var/run/docker.sock`) |
 

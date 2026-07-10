@@ -147,6 +147,15 @@ Task Orchestrator → parallel_executor invokes edit_image tool
 |----------|---------|-------------|
 | `IMAGE_GENERATION_ENABLED` | `false` | Global feature flag |
 | `IMAGE_GENERATION_MAX_IMAGES_PER_REQUEST` | `1` | Max images per tool call (1-4) |
+| `IMAGE_GENERATION_RATE_LIMIT_CALLS` | `10` | Max tool calls per user per window (`generate_image` and `edit_image` tracked separately) |
+| `IMAGE_GENERATION_RATE_LIMIT_WINDOW` | `300` | Rate limit window in seconds |
+
+Both tools carry the standard `@track_tool_metrics` + `@rate_limit` decorators (per-user
+sliding window). The rate limit is a technical anti-runaway ceiling for a paid external
+API; it complements the usage-limits cost caps, which are per billing cycle and
+Redis-cached (a burst could overshoot them before they bite). When the limit is
+exceeded, the tool returns the standard `rate_limit_exceeded` JSON payload with
+`retry_after_seconds` instead of executing.
 
 ### User Preferences (per-user, Settings > Preferences)
 

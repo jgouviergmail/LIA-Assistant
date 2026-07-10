@@ -3880,6 +3880,15 @@ IMAGE_GENERATION_ENABLED_DEFAULT: bool = True
 # Generation constraints
 IMAGE_GENERATION_MAX_IMAGES_DEFAULT: int = 1
 
+# Tool-level rate limiting (per-user sliding window, @rate_limit decorator).
+# Anti-runaway ceiling for a paid external API: complements the usage_limits
+# cost caps, which are per billing cycle and Redis-cached (~30s TTL) — a burst
+# (runaway ReAct loop, prompt injection) could overshoot them before they bite.
+# 10 calls / 5 min per user never blocks normal chat usage (1-2 images per
+# message) while bounding a runaway loop.
+IMAGE_GENERATION_RATE_LIMIT_CALLS_DEFAULT: int = 10
+IMAGE_GENERATION_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 300
+
 # Valid parameter values (used by validators and tool input checks)
 IMAGE_GENERATION_VALID_QUALITIES: tuple[str, ...] = ("low", "medium", "high")
 IMAGE_GENERATION_VALID_SIZES: tuple[str, ...] = ("1024x1024", "1536x1024", "1024x1536")
@@ -3923,6 +3932,14 @@ DEVOPS_DEFAULT_COMMAND_TIMEOUT: int = 300
 DEVOPS_DEFAULT_MAX_OUTPUT_CHARS: int = 50000
 DEVOPS_CLAUDE_OUTPUT_FORMAT: str = "json"
 DEVOPS_DEFAULT_ALLOWED_TOOLS: tuple[str, ...] = ("Read", "Grep", "Glob", "Bash")
+
+# Tool-level rate limiting (per-user sliding window, @rate_limit decorator).
+# claude_server_task_tool is a paid external API call (Claude CLI tokens) plus
+# real actions on remote servers over SSH. Admin-only reduces exposure but not
+# runaway risk (a ReAct loop can chain calls). Each task runs up to ~120s
+# wall-clock, so 5 calls / 10 min cannot hinder normal sequential admin use.
+DEVOPS_RATE_LIMIT_CALLS_DEFAULT: int = 5
+DEVOPS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 600
 
 # ============================================================================
 # REACT AGENT (Execution Mode — ADR-070)

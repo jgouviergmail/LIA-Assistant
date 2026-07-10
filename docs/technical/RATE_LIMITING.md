@@ -400,6 +400,17 @@ OPENAI_API_RATE_LIMIT=500
 
 ## 🔌 Intégration
 
+### Deux couches complémentaires
+
+LIA applique le rate limiting à **deux niveaux distincts** :
+
+| Couche | Mécanisme | Portée | Clé |
+|--------|-----------|--------|-----|
+| **HTTP & clients connecteurs** | `RedisRateLimiter` (ce document) — sliding window distribué, scripts Lua atomiques | Endpoints API (auth, voice, health ingest, channels) et clients externes (`BaseGoogleClient`, `BaseAPIKeyClient`, `BaseAppleClient`, Hue) | `{scope}:{user_id}` dans Redis |
+| **Tools LangGraph** | Décorateur `@rate_limit` (`src/domains/agents/utils/rate_limiting.py`) — sliding window **in-memory**, par process | Chaque tool d'agent, seuils settings-driven via lambda | `(tool_name, user_id)` |
+
+La couche tool est la **politique systémique** (CLAUDE.md) : tout tool porte `@track_tool_metrics` **et** `@rate_limit`, en particulier les tools frappant des API payantes. Depuis v1.23.4, la couverture est complète : browser (read/write/expensive), web_fetch, context/local query, skills, MCP ReAct, **génération d'images** (`generate_image`/`edit_image`, 10 appels / 5 min par défaut — seul module qui n'avait aucune couche de protection, son client n'héritant pas de `BaseAPIKeyClient`) et **DevOps Claude CLI** (`claude_server_task_tool`, 5 appels / 10 min). En dépassement, le tool renvoie le payload standard `rate_limit_exceeded` (avec `retry_after_seconds`) **avant** l'appel payant et incrémente `agent_tool_rate_limit_hits_total`.
+
 ### BaseGoogleClient
 
 ```python

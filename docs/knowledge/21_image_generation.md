@@ -12,6 +12,9 @@ Go to **Settings > Preferences > AI Image Generation**. You can choose: **Qualit
 ## How much does image generation cost?
 Cost depends on the model, quality, and size. **gpt-image-1**: Low $0.011–$0.016, Medium $0.042–$0.063, High $0.167–$0.250. **gpt-image-1.5**: Low $0.009–$0.013, Medium $0.034–$0.050, High $0.133–$0.200. **gpt-image-1-mini**: Low $0.005–$0.006, Medium $0.011–$0.015, High $0.036–$0.052. All prices are per image in USD. Image generation costs are tracked and consolidated with text LLM costs in the debug panel and your usage summary.
 
+## Is there a limit to how many images I can generate?
+Two safeguards apply. Your account's **usage limits** (cost caps per billing cycle, set by the administrator) cover image generation costs like any other cost. On top of that, a **technical rate limit** protects against runaway loops: by default, 10 image generations (and 10 edits) per 5 minutes per user. Normal use is unaffected; if the limit is reached, the assistant tells you how long to wait before trying again. The administrator can tune both the threshold and the window via the IMAGE_GENERATION_RATE_LIMIT_CALLS and IMAGE_GENERATION_RATE_LIMIT_WINDOW environment variables.
+
 ## Is the image generation feature enabled by default?
 Yes, image generation is enabled by default for all users. The administrator can disable it globally via the IMAGE_GENERATION_ENABLED environment variable. Individual users can toggle it in Settings > Preferences.
 

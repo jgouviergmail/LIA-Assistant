@@ -22,6 +22,8 @@ from pydantic_settings import BaseSettings
 from src.core.constants import (
     IMAGE_GENERATION_ENABLED_DEFAULT,
     IMAGE_GENERATION_MAX_IMAGES_DEFAULT,
+    IMAGE_GENERATION_RATE_LIMIT_CALLS_DEFAULT,
+    IMAGE_GENERATION_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
     IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
 )
 
@@ -54,6 +56,29 @@ class ImageGenerationSettings(BaseSettings):
             "Maximum number of images a single tool call can generate. "
             "Higher values increase cost proportionally."
         ),
+    )
+
+    # ========================================================================
+    # Rate Limiting
+    # ========================================================================
+
+    image_generation_rate_limit_calls: int = Field(
+        default=IMAGE_GENERATION_RATE_LIMIT_CALLS_DEFAULT,
+        ge=1,
+        le=100,
+        description=(
+            "Max image tool calls (generate_image, edit_image — tracked "
+            "separately per tool) per user per window. Technical anti-runaway "
+            "ceiling for a paid external API; complements the usage_limits "
+            "cost caps which are per billing cycle and Redis-cached."
+        ),
+    )
+
+    image_generation_rate_limit_window: int = Field(
+        default=IMAGE_GENERATION_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+        ge=10,
+        le=3600,
+        description="Rate limit window (seconds) for image generation tools.",
     )
 
     # ========================================================================

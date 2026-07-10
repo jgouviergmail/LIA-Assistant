@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-07-10
-**Compatibility**: LIA v1.23.3
+**Compatibility**: LIA v1.23.4
 
 ## Table of Contents
 
@@ -1021,6 +1021,8 @@ See [VOICE_MODE.md](./technical/VOICE_MODE.md).
 IMAGE_GENERATION_ENABLED=true
 IMAGE_GENERATION_MAX_IMAGES_PER_REQUEST=1
 IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS=90.0
+IMAGE_GENERATION_RATE_LIMIT_CALLS=10      # Per-user anti-runaway ceiling (v1.23.4)
+IMAGE_GENERATION_RATE_LIMIT_WINDOW=300    # Sliding window in seconds
 
 ATTACHMENTS_ENABLED=true
 ATTACHMENTS_MAX_IMAGE_SIZE_MB=10

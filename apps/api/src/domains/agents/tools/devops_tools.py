@@ -21,6 +21,7 @@ from src.domains.agents.services.devops_ssh_service import DevOpsService
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
 from src.domains.agents.tools.tool_registry import registered_tool
+from src.domains.agents.utils.rate_limiting import rate_limit
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
@@ -101,6 +102,11 @@ def _get_available_servers() -> list[str]:
     agent_name=DEVOPS_AGENT_NAME,
     duration_metric=agent_tool_duration_seconds,
     counter_metric=agent_tool_invocations,
+)
+@rate_limit(
+    max_calls=lambda: get_settings().devops_rate_limit_calls,
+    window_seconds=lambda: get_settings().devops_rate_limit_window,
+    scope="user",
 )
 async def claude_server_task_tool(
     task: Annotated[str, "Natural language description of the task to perform on the server"],

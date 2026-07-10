@@ -29,7 +29,7 @@ export const LANDING_STATS = {
   uiLanguages: 6,
   tests: 11000,
   adrs: 100,
-  releases: 137,
+  releases: 138,
   auditScore: '8.4/10',
   auditAreas: 24,
 } as const;

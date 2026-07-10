@@ -33,9 +33,16 @@ from src.core.constants import (
     IMAGE_GENERATION_VALID_QUALITIES,
     IMAGE_GENERATION_VALID_SIZES,
 )
+from src.domains.agents.constants import AGENT_IMAGE
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tool_registry import registered_tool
+from src.domains.agents.utils.rate_limiting import rate_limit
+from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_agents import (
+    agent_tool_duration_seconds,
+    agent_tool_invocations,
+)
 
 logger = get_logger(__name__)
 
@@ -62,6 +69,17 @@ async def _write_image_file(image_bytes: bytes, relative_path: str) -> Path:
 
 
 @registered_tool
+@track_tool_metrics(
+    tool_name="generate_image",
+    agent_name=AGENT_IMAGE,
+    duration_metric=agent_tool_duration_seconds,
+    counter_metric=agent_tool_invocations,
+)
+@rate_limit(
+    max_calls=lambda: settings.image_generation_rate_limit_calls,
+    window_seconds=lambda: settings.image_generation_rate_limit_window,
+    scope="user",
+)
 async def generate_image(
     prompt: str,
     runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
@@ -312,6 +330,17 @@ async def generate_image(
 
 
 @registered_tool
+@track_tool_metrics(
+    tool_name="edit_image",
+    agent_name=AGENT_IMAGE,
+    duration_metric=agent_tool_duration_seconds,
+    counter_metric=agent_tool_invocations,
+)
+@rate_limit(
+    max_calls=lambda: settings.image_generation_rate_limit_calls,
+    window_seconds=lambda: settings.image_generation_rate_limit_window,
+    scope="user",
+)
 async def edit_image(
     prompt: str,
     source_attachment_id: str = "",
