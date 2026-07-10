@@ -36,7 +36,9 @@ class TestPrefetchRegistry:
     async def test_start_then_pop_returns_bundle_marked_prefetched(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        async def _fake_fetch(state: Any, config: Any, run_id: str) -> rc.ResponseContextBundle:
+        async def _fake_fetch(
+            state: Any, config: Any, run_id: str, **_kw: Any
+        ) -> rc.ResponseContextBundle:
             return _make_bundle(psyche_context="XML")
 
         monkeypatch.setattr(rc, "fetch_response_context", _fake_fetch)
@@ -53,7 +55,9 @@ class TestPrefetchRegistry:
         assert await rc.pop_response_context("never-started") is None
 
     async def test_pop_consumes_the_task(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        async def _fake_fetch(state: Any, config: Any, run_id: str) -> rc.ResponseContextBundle:
+        async def _fake_fetch(
+            state: Any, config: Any, run_id: str, **_kw: Any
+        ) -> rc.ResponseContextBundle:
             return _make_bundle()
 
         monkeypatch.setattr(rc, "fetch_response_context", _fake_fetch)
@@ -66,7 +70,9 @@ class TestPrefetchRegistry:
     async def test_start_is_idempotent_per_run_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
         calls: list[str] = []
 
-        async def _fake_fetch(state: Any, config: Any, run_id: str) -> rc.ResponseContextBundle:
+        async def _fake_fetch(
+            state: Any, config: Any, run_id: str, **_kw: Any
+        ) -> rc.ResponseContextBundle:
             calls.append(run_id)
             return _make_bundle()
 
@@ -98,7 +104,9 @@ class TestPrefetchRegistry:
     async def test_failed_fetch_returns_none_from_pop(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        async def _boom(state: Any, config: Any, run_id: str) -> rc.ResponseContextBundle:
+        async def _boom(
+            state: Any, config: Any, run_id: str, **_kw: Any
+        ) -> rc.ResponseContextBundle:
             raise RuntimeError("fetch exploded")
 
         monkeypatch.setattr(rc, "fetch_response_context", _boom)
@@ -109,7 +117,9 @@ class TestPrefetchRegistry:
         assert await rc.pop_response_context("run-1") is None
 
     async def test_pop_times_out_and_falls_back(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        async def _slow_fetch(state: Any, config: Any, run_id: str) -> rc.ResponseContextBundle:
+        async def _slow_fetch(
+            state: Any, config: Any, run_id: str, **_kw: Any
+        ) -> rc.ResponseContextBundle:
             await asyncio.sleep(30)
             return _make_bundle()
 
@@ -124,7 +134,9 @@ class TestPrefetchRegistry:
         assert await rc.pop_response_context("run-1") is None
 
     async def test_registry_bounded_with_eviction(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        async def _fake_fetch(state: Any, config: Any, run_id: str) -> rc.ResponseContextBundle:
+        async def _fake_fetch(
+            state: Any, config: Any, run_id: str, **_kw: Any
+        ) -> rc.ResponseContextBundle:
             await asyncio.sleep(30)  # keep tasks pending so they stay registered
             return _make_bundle()
 
@@ -160,6 +172,64 @@ class TestFetchResponseContextNeutral:
         assert bundle.psyche_context == ""
         assert bundle.user_msg_is_trivial is True
         assert bundle.user_message_embedding is None
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestSystemRagDeferral:
+    """Latency lot R2 — router-entry prefetch defers the QI-dependent system RAG.
+
+    `_inject_system_rag` reads `is_app_help_query` from query_intelligence,
+    which does not exist yet when the prefetch starts at router entry: the
+    bundle must flag the deferral so the response node resolves it inline
+    with the fresh, current-turn intelligence.
+    """
+
+    async def test_include_system_rag_false_sets_deferred_flag(self) -> None:
+        bundle = await rc.fetch_response_context(
+            {}, {"configurable": {}}, "run-x", include_system_rag=False
+        )
+
+        assert bundle.system_rag_deferred is True
+        assert bundle.app_knowledge_context == ""
+
+    async def test_default_keeps_system_rag_inline(self) -> None:
+        bundle = await rc.fetch_response_context({}, {"configurable": {}}, "run-x")
+
+        assert bundle.system_rag_deferred is False
+
+    async def test_start_prefetch_propagates_include_system_rag(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen: dict[str, Any] = {}
+
+        async def _fake_fetch(
+            state: Any, config: Any, run_id: str, include_system_rag: bool = True
+        ) -> rc.ResponseContextBundle:
+            seen["include_system_rag"] = include_system_rag
+            return _make_bundle()
+
+        monkeypatch.setattr(rc, "fetch_response_context", _fake_fetch)
+        monkeypatch.setattr(rc.settings, "response_context_prefetch_enabled", True, raising=False)
+
+        rc.start_response_context_prefetch({}, {}, "run-1", include_system_rag=False)
+        assert await rc.pop_response_context("run-1") is not None
+        assert seen["include_system_rag"] is False
+
+    async def test_fetch_app_knowledge_context_empty_when_not_app_help(self) -> None:
+        assert await rc.fetch_app_knowledge_context({}, "any question", "run-x") == ""
+
+    async def test_fetch_app_knowledge_context_marker_on_app_help(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # System RAG chunks disabled → the bare APP_HELP_QUERY marker is
+        # returned (get_response_prompt then loads the app identity prompt).
+        monkeypatch.setattr(rc.settings, "rag_spaces_system_enabled", False, raising=False)
+        state = {"query_intelligence": {"is_app_help_query": True}}
+
+        ctx = await rc.fetch_app_knowledge_context(state, "how do I use LIA?", "run-x")
+
+        assert ctx == "APP_HELP_QUERY"
 
 
 @pytest.mark.unit

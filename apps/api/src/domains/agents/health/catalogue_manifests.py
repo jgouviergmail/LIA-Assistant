@@ -57,6 +57,7 @@ _TIME_MIN_PARAM = ParameterSchema(
     type="string",
     required=False,
     description="Start of search window (ISO 8601).",
+    semantic_type="datetime",
 )
 
 _TIME_MAX_PARAM = ParameterSchema(
@@ -64,6 +65,7 @@ _TIME_MAX_PARAM = ParameterSchema(
     type="string",
     required=False,
     description="End of search window (ISO 8601).",
+    semantic_type="datetime",
 )
 
 _DAYS_PARAM = ParameterSchema(

@@ -1,125 +1,141 @@
 # Semantic Type System
 
-Système de typage sémantique complet pour LIA, inspiré de schema.org, RDF, SKOS et OWL.
+Complete semantic typing system for LIA, inspired by schema.org, RDF, SKOS and OWL.
 
-## 📋 Vue d'Ensemble
+## 📋 Overview
 
-Ce module remplace les patterns hardcodés d'expansion sémantique par un système structuré et exploitable basé sur un registry de types hiérarchiques.
+This module replaces hardcoded semantic-expansion patterns with a structured,
+queryable system built on a hierarchical type registry. It powers three
+runtime mechanisms:
 
-### Caractéristiques Principales
+1. **Domain expansion** — adding provider domains (contact, event, place) to
+   the planner catalogue when a referenced entity can supply a semantic type
+   required by the selected domains' tools;
+2. **Semantic linking** — cross-domain parameter hints (Jinja2 references)
+   injected into the planner and ReAct prompts;
+3. **Runtime parameter guard** — blocking tool calls that pass a person name
+   on an address/email-typed parameter (`param_guard.py`).
 
-- **96+ types sémantiques** catalogués et organisés hiérarchiquement
-- **Hiérarchie de types** avec subsomption transitive (DAG)
-- **Distance sémantique** Wu & Palmer (O(log n))
-- **Lookups rapides** O(1) par nom, catégorie, domaine, tool
-- **ISO-FONCTIONNEL**: Reproduit exactement le comportement actuel
+### Key Characteristics
+
+- **96+ semantic types** catalogued and organized hierarchically
+- **Type hierarchy** with transitive subsumption (DAG)
+- **Wu & Palmer semantic distance** (O(log n))
+- **Fast lookups** O(1) by name, category, domain, tool
+- **Singular domain vocabulary** throughout (contact, email, event, place,
+  route...), matching `DOMAIN_REGISTRY`
 
 ## 🏗️ Architecture
 
 ```
 semantic/
-├── __init__.py              # Exports publics
+├── __init__.py              # Public exports
 ├── semantic_type.py         # SemanticType dataclass + TypeCategory enum
-├── type_registry.py         # TypeRegistry avec hiérarchie et lookups
-├── core_types.py            # Catalogue des 96+ types
-└── expansion_service.py     # Service d'expansion ISO-FONCTIONNEL
+├── type_registry.py         # TypeRegistry with hierarchy and lookups
+├── core_types.py            # Catalogue of the 96+ types (ontology)
+├── expansion_service.py     # Domain expansion (iso-functional + evidence-driven)
+└── param_guard.py           # Runtime semantic parameter guard
 ```
 
 ## 🚀 Usage
 
-### Chargement du Registry
+### Loading the Registry
 
 ```python
 from src.domains.agents.semantic import get_registry, load_core_types
 
-# Récupérer le registry global
 registry = get_registry()
-
-# Charger les types core (fait automatiquement au démarrage)
-load_core_types(registry)
-
-# Stats
-print(registry.get_stats())
-# {
-#     "total_types": 96,
-#     "total_domains": 12,
-#     "hierarchy_nodes": 96,
-#     "hierarchy_edges": 85
-# }
+load_core_types(registry)  # done automatically at startup
 ```
 
-### Lookup de Types
+### Type Lookups
 
 ```python
-# Par nom
+# By name
 email_type = registry.get("email_address")
-print(email_type.source_domains)  # ["contacts", "emails", "calendar"]
+print(email_type.source_domains)  # ["contact", "email", "event"]
 
-# Par domaine
-contacts_types = registry.get_by_domain("contacts")
+# By domain (singular vocabulary)
+contact_types = registry.get_by_domain("contact")
 # {"email_address", "physical_address", "phone_number", "person_name", ...}
 
-# Par catégorie
+# By category
 from src.domains.agents.semantic import TypeCategory
 identity_types = registry.get_by_category(TypeCategory.IDENTITY)
 ```
 
-### Hiérarchie et Subsomption
+### Hierarchy and Subsumption
 
 ```python
-# Chemin hiérarchique
 path = registry.get_hierarchy_path("physical_address")
 # ["Thing", "Place", "PostalAddress", "physical_address"]
 
-# Vérifier subsomption
 registry.is_subtype_of("physical_address", "Place")  # True
 registry.is_subtype_of("physical_address", "Thing")  # True (transitive)
-
-# Sous-types
-subtypes = registry.get_subtypes("Place", recursive=True)
-# {"PostalAddress", "physical_address", "formatted_address", "GeoCoordinates", "coordinate", ...}
 ```
 
-### Distance Sémantique Wu & Palmer
+### Domain Expansion
 
-```python
-# Distance entre types similaires
-dist = registry.compute_distance_wu_palmer("email_address", "phone_number")
-# 0.67 (partagent parent ContactPoint)
-
-# Distance entre types identiques
-dist = registry.compute_distance_wu_palmer("email_address", "email_address")
-# 1.0
-
-# Distance entre types différents
-dist = registry.compute_distance_wu_palmer("email_address", "temperature")
-# 0.2 (très différents)
-```
-
-### Service d'Expansion
+Two modes, selected by `SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED`:
 
 ```python
 from src.domains.agents.semantic.expansion_service import get_expansion_service
 
 service = get_expansion_service()
 
-# Expansion ISO-FONCTIONNELLE
+# ISO-FUNCTIONAL (default): historical person→contact expansion.
+# has_person_reference is the union of the memory-resolver evidence
+# (extracted references, resolved mappings) and the analyzer LLM refs.
 result = await service.expand_domains_iso_functional(
-    domains=["routes"],
+    domains=["route"],
     has_person_reference=True,
     required_semantic_types={"physical_address"},
-    query="itinéraire chez mon frère"
+    query="itinéraire chez mon frère",
 )
-# Result: ["routes", "contacts"]
+# ["route", "contact"]
 
-# Validation
-validation = service.validate_expansion_logic()
-assert validation["valid"] == True
+# EVIDENCE-DRIVEN (flag ON): every referenced entity whose ontology
+# `properties` provide a required type adds its source domains (capped).
+# Context evidence only covers items from PREVIOUS assistant responses
+# (ordinal/demonstrative/pronoun): "comment aller à CE rendez-vous ?"
+# after an event was shown. A cold "mon RDV de demain" is handled by the
+# analyzer's direct domain detection, not by expansion.
+result = await service.expand_domains_evidence_driven(
+    domains=["route"],
+    evidence_entities={"CalendarEvent"},   # "comment aller à ce rendez-vous ?"
+    required_semantic_types={"physical_address"},
+    max_added_domains=3,
+)
+# ["route", "event"]
 ```
 
-## 📊 Types Sémantiques
+The entity anchoring is what prevents blind expansion: "quel temps demain ?"
+requires `physical_address` too, but with no referenced entity nothing is
+added. Evidence entities are derived in the query analyzer (STEP 3) from:
 
-### Catégories (8)
+- person references (memory resolver mappings/extraction, analyzer LLM) → `Contact`
+- context references to previous items (`ContextReferenceOutput.reference_domain`)
+  → `EVIDENCE_ENTITY_TYPE_BY_DOMAIN` (completeness asserted at boot,
+  `assert_evidence_entity_types_complete`, ADR-085 pattern)
+
+### Runtime Parameter Guard
+
+```python
+from src.domains.agents.semantic.param_guard import (
+    check_semantic_params,
+    collect_resolved_person_names,
+)
+
+names = collect_resolved_person_names({"mon frère": "Alexandre Gouvier"})
+violation = check_semantic_params("get_route_tool", {"destination": "Alexandre Gouvier"}, names)
+# violation.llm_message() → recoverable error guiding the LLM to fetch the
+# contact's address first. Wired in the parallel executor (pipeline) and
+# react_execute_tools_node (ReAct); fail-open by design.
+```
+
+## 📊 Semantic Types
+
+### Categories (8)
 
 1. **IDENTITY**: Person, Contact, email, phone, name
 2. **LOCATION**: Place, Address, Coordinates
@@ -130,114 +146,68 @@ assert validation["valid"] == True
 7. **STATUS**: task_status, traffic_condition, etc.
 8. **CATEGORY**: travel_mode, language_code, etc.
 
-### Hiérarchie Exemple
+### Entity types with `properties` (evidence-driven expansion)
+
+| Entity | Provides (properties) | source_domains |
+|---|---|---|
+| `Contact` | person_name, email_address, phone_number, physical_address | contact |
+| `CalendarEvent` | physical_address (location), event_start_datetime, email_address (attendees) | event |
+| `Place` | physical_address, phone_number, coordinate | place |
+| `EmailMessage` | email_address (sender), thread_id, message_id | email |
+
+### Manifest annotation coverage (ADR-121 back-fill, 2026-07)
+
+Parameters: **120/224 typed (53 %)** — outputs: **137/338 typed (40 %)** —
+**72/100 ontology types consumed** by at least one manifest. The remaining
+untyped fields are deliberate (booleans, counters, free text, containers
+whose leaves are typed). Rule for outputs: never annotate a path without
+verifying it against the real tool payload (Jinja references execute on it).
+
+### Hierarchy Example
 
 ```
 Thing (root)
 ├── Person
-│   └── Contact → fournit: email_address, phone_number, person_name, physical_address
-├── Place
+│   └── Contact → provides: email_address, phone_number, person_name, physical_address
+├── Place → provides: physical_address, phone_number, coordinate
 │   ├── PostalAddress
-│   │   ├── physical_address → contacts, places, calendar, routes
-│   │   └── formatted_address → places, routes
+│   │   ├── physical_address → contact, place, event, route
+│   │   └── formatted_address → place, route
 │   └── GeoCoordinates
-│       └── coordinate → places, routes
-├── Intangible
-│   ├── Identifier
-│   │   ├── event_id → calendar
-│   │   ├── contact_id → contacts
-│   │   └── file_id → drive
-│   └── QuantitativeValue
-│       ├── distance → routes, places
-│       └── temperature → weather
-└── CreativeWork
-    └── Text
-        ├── email_body → emails
-        └── markdown_text → agents, drive
+│       └── coordinate → place, route
+├── Event
+│   └── CalendarEvent → provides: physical_address, event_start_datetime, email_address
+└── Intangible
+    └── Identifier
+        ├── event_id → event
+        └── contact_id → contact
 ```
 
 ## 🧪 Tests
 
 ```bash
-# Tests unitaires
-pytest tests/unit/semantic/ -v
-
-# Tests d'intégration
-pytest tests/integration/test_semantic_expansion_iso.py -v
-
-# Tous les tests sémantiques
-pytest tests/unit/semantic/ tests/integration/test_semantic_expansion_iso.py -v
+pytest tests/unit/domains/agents/semantic/ tests/unit/semantic/ -v
 ```
 
-**Résultats actuels**: 23/23 tests passent ✅
+## 🔄 History
 
-## 📈 Performance
+- **2026-01**: registry + iso-functional expansion (exact reproduction of the
+  historical hardcoded person→contact behavior) + semantic linking.
+- **2026-07 (ADR-120)**: person-reference evidence made deterministic
+  (memory-resolver mappings and Phase 1 extracted references union the
+  analyzer LLM refs); evidence-driven expansion added under flag (replaces
+  the never-wired threshold-based `expand_domains_semantic`); runtime
+  parameter guard added (pipeline + ReAct).
+- **2026-07 (ADR-121)**: manifest annotation back-fill (~120 annotations,
+  15 files — the ontology had 73/99 types consumed by no manifest);
+  `EmailMessage` entity added as expansion evidence; `emails[].from`
+  promoted to top-level payload for Jinja addressability.
 
-- **Chargement registry**: ~100ms (au démarrage)
-- **Expansion**: <10ms (moyenne sur 10 itérations)
-- **Lookups**: O(1)
-- **Hiérarchie**: O(log n)
-- **Wu & Palmer**: O(log n)
+## 📚 References
 
-## 🔄 Migration depuis Ancien Code
-
-### Avant (Hardcodé)
-
-```python
-# Ancien code hardcodé
-if has_person_reference:
-    domains_to_add = set()
-    if "physical_address" in required_types:
-        domains_to_add.add("contacts")
-    if "email_address" in required_types:
-        domains_to_add.add("contacts")
-    return domains + list(domains_to_add)
-```
-
-### Après (Registry)
-
-```python
-# query_analyzer_service.py (v3.2)
-from src.domains.agents.semantic.expansion_service import get_expansion_service
-
-expansion_service = get_expansion_service()
-return await expansion_service.expand_domains_iso_functional(
-    domains=domains,
-    has_person_reference=has_person_reference,
-    required_semantic_types=required_type_names,
-    query=query
-)
-```
-
-**Résultat**: Comportement identique (ISO-FONCTIONNEL) ✅
-
-## 🎯 Roadmap
-
-### Phase 1 (Actuelle) ✅ COMPLÈTE
-- ✅ Registry de types hiérarchiques
-- ✅ 96+ types catalogués
-- ✅ Expansion ISO-FONCTIONNELLE
-- ✅ Tests complets (23/23)
-
-### Phase 2 (Futures)
-- [ ] Distance hybride (Wu&Palmer + Embeddings + Jaccard)
-- [ ] Reasoning engine (équivalence, disjonction)
-- [ ] Smart expansion (context-aware)
-- [ ] Feature flag activation progressive
-
-## 📚 Références
-
-- [schema.org](https://schema.org): Hiérarchie de classes
-- [RDF](https://www.w3.org/RDF/): Resource Description Framework
-- [SKOS](https://www.w3.org/2004/02/skos/): Simple Knowledge Organization System
-- [OWL](https://www.w3.org/OWL/): Web Ontology Language
-- [Wu & Palmer (1994)](https://aclanthology.org/P94-1019/): Semantic distance algorithm
-
-## 👥 Auteurs
-
-- **Implémenté par**: Claude Sonnet 4.5
-- **Date**: 2026-01-08
-- **Statut**: ✅ Production-ready
+- [schema.org](https://schema.org): class hierarchy
+- [RDF](https://www.w3.org/RDF/) / [SKOS](https://www.w3.org/2004/02/skos/) / [OWL](https://www.w3.org/OWL/)
+- [Wu & Palmer (1994)](https://aclanthology.org/P94-1019/): semantic distance algorithm
 
 ## 📄 License
 

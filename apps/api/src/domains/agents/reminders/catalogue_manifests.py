@@ -94,6 +94,7 @@ create_reminder_catalogue_manifest = ToolManifest(
                     kind="pattern", value=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$"
                 ),
             ],
+            semantic_type="trigger_datetime",
         ),
         ParameterSchema(
             name="relative_trigger",
@@ -294,6 +295,7 @@ cancel_reminder_catalogue_manifest = ToolManifest(
             name="reminder_identifier",
             type="string",
             required=True,
+            semantic_type="reminder_id",
             description=(
                 "Reminder ID (UUID) or natural reference "
                 "('next' for the next scheduled reminder)"

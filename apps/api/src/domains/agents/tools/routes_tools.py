@@ -19,6 +19,7 @@ API Reference:
 """
 
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from urllib.parse import quote
@@ -408,12 +409,26 @@ async def _resolve_origin(
     return None, _("Please specify a starting point or enable geolocation.")
 
 
+@dataclass(frozen=True)
+class _UnresolvedDestination:
+    """Marker: a non-address destination that Places could not resolve.
+
+    Returned instead of passing the raw string through to the Routes API,
+    which would geocode it arbitrarily (e.g. a person name matched to a
+    random location) and cache the wrong route. The tool converts this
+    marker into a recoverable error guiding the LLM to fetch the actual
+    address first (contact, calendar event) or ask the user.
+    """
+
+    query: str
+
+
 async def _resolve_destination(
     destination: str,
     runtime: ToolRuntime | None = None,
     origin_location: ResolvedLocation | dict[str, Any] | str | None = None,
     language: str = "fr",
-) -> str | dict[str, Any] | None:
+) -> str | dict[str, Any] | _UnresolvedDestination | None:
     """
     Resolve destination from various sources.
 
@@ -424,10 +439,14 @@ async def _resolve_destination(
     1. If destination is invalid (null, empty, None-like) -> return None
     2. If destination looks like an address (numbers, street words) -> pass-through
     3. If destination is a place name + user location available -> search via Places API
+    4. If the Places search ran and found NOTHING -> _UnresolvedDestination
+       (semantic contract: the destination param expects a physical_address;
+       an unresolvable token — typically a person name the plan failed to
+       resolve via contacts — must fail loudly, not be geocoded arbitrarily)
 
-    Future enhancement: Cross-domain resolution from:
-    - Contacts ("chez mon frère" -> contact's address)
-    - Calendar events ("mon RDV de 14h" -> event location)
+    Cross-domain note: the actual address of "chez mon frère" / "mon RDV de
+    14h" comes from contacts / calendar via semantic domain expansion; this
+    function is the runtime safety net when that resolution did not happen.
 
     Args:
         destination: Destination string
@@ -435,7 +454,9 @@ async def _resolve_destination(
         origin_location: Resolved origin for proximity-based search
 
     Returns:
-        Resolved destination (address string or lat/lon dict), or None if invalid
+        Resolved destination (address string or lat/lon dict), None if
+        invalid, or _UnresolvedDestination when the Places search came back
+        empty for a non-address destination.
     """
     # VALIDATION: Reject invalid destinations (null strings, empty, None-like)
     # This prevents Places API from hallucinating random locations
@@ -550,9 +571,15 @@ async def _resolve_destination(
                     "display_name": place_name,
                 }
 
-        logger.debug("destination_places_no_results", destination=destination)
+        if not places:
+            # The search ran with user-location bias and found nothing: the
+            # value is neither an address nor a findable place. Refuse it
+            # instead of letting the Routes API geocode it arbitrarily.
+            logger.debug("destination_places_no_results", destination=destination)
+            return _UnresolvedDestination(query=destination)
 
     except (ConnectionError, TimeoutError, ValueError, KeyError, OSError) as e:
+        # Best-effort: an API failure is not evidence the destination is bad.
         logger.warning(
             "destination_places_error",
             destination=destination,
@@ -1425,6 +1452,21 @@ async def get_route_tool(
             return UnifiedToolOutput.failure(
                 message=_("Invalid or missing destination."),
                 error_code="destination_invalid",
+            )
+
+        # Semantic contract (destination expects a physical_address): a
+        # non-address value the Places search could not find must not reach
+        # the Routes API — it would be geocoded arbitrarily and the wrong
+        # route cached. Recoverable: the LLM fetches the real address
+        # (contacts, calendar) or asks the user, then retries.
+        if isinstance(resolved_destination, _UnresolvedDestination):
+            return UnifiedToolOutput.failure(
+                message=_(
+                    "Destination '{destination}' is not a resolvable address or place. "
+                    "If it refers to a person, first fetch their address from contacts, "
+                    "then call this tool again with the exact address."
+                ).format(destination=resolved_destination.query),
+                error_code="destination_unresolved",
             )
 
         # Validate and clean waypoints

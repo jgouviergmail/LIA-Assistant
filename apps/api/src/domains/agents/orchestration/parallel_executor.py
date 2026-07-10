@@ -118,6 +118,10 @@ from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, Executi
 
 # 2026-01: Text compaction for token optimization (post-Jinja evaluation)
 from src.domains.agents.orchestration.text_compaction import compact_text_params
+from src.domains.agents.semantic.param_guard import (
+    check_semantic_params,
+    person_names_from_config,
+)
 from src.domains.agents.services.hitl.scope_detector import detect_for_each_scope
 from src.domains.agents.tools.common import ToolErrorCode
 
@@ -2636,6 +2640,38 @@ async def _execute_tool(
                 }
             )
         tool_name = canonical
+
+    # Runtime semantic contract guard (fail-open): a person name resolved for
+    # this turn must not reach an address/email-typed parameter — the API
+    # would geocode/send it arbitrarily and the wrong result may be cached.
+    # Recoverable error instead, so the planner/LLM fetches the real value.
+    guard_names = person_names_from_config(config)
+    if guard_names:
+        violation = check_semantic_params(tool_name, args, guard_names)
+        if violation is not None:
+            from src.infrastructure.observability.metrics_agents import (
+                semantic_param_guard_blocks_total,
+            )
+
+            semantic_param_guard_blocks_total.labels(
+                tool_name=tool_name,
+                semantic_type=violation.semantic_type,
+                execution_mode="pipeline",
+            ).inc()
+            # No PII at WARNING: the offending value is a person name.
+            logger.warning(
+                "semantic_param_guard_blocked",
+                tool_name=tool_name,
+                param_name=violation.param_name,
+                semantic_type=violation.semantic_type,
+            )
+            return ToolExecutionResult(
+                result={
+                    "success": False,
+                    "error": violation.llm_message(),
+                    FIELD_ERROR_CODE: ToolErrorCode.INVALID_PARAM_VALUE.value,
+                }
+            )
 
     # Build ToolRuntime and inject if needed (Session 22 - Helper #4)
     args = _build_tool_runtime(tool, args, config, store)

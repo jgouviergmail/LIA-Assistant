@@ -87,8 +87,8 @@ intelligence = await analyzer.analyze_full(
 3. LLM Analysis (single call)
          │ intent, domains, confidence, english_query
          v
-4. Semantic Domain Expansion (if person reference)
-         │ routes → routes + contacts (for address)
+4. Semantic Domain Expansion (if entity evidence — ADR-120)
+         │ route → route + contact (for address)
          v
 5. Chat Override (if conversation intent + high confidence)
          │ Clear domains → route to response
@@ -132,6 +132,19 @@ result.secondary_domains = [d for d in result.secondary_domains if d in availabl
 ```
 
 This prevents hallucinated or previously-seen-but-now-disabled domains from entering the pipeline regardless of what the LLM returns.
+
+#### Semantic Domain Expansion — evidence gate (STEP 3, ADR-120)
+
+The expansion trigger `has_person_reference` is the **union of three evidence sources** (most reliable first), not just the analyzer LLM's typed references:
+
+- **E1 `memory_mappings`**: the memory resolver resolved identity mappings ({"mon frère": "Alexandre"}) — person references by construction;
+- **E2 `memory_extraction`**: Phase 1 extracted relational references, preserved even when resolution found no memory fact (`MemoryResolution.references`);
+- **E3 `analyzer_llm`**: the analyzer LLM typed a resolved reference as person (historical, intermittent signal).
+
+The sources are surfaced in the debug panel (`intelligent_mechanisms["semantic_expansion"].person_evidence_sources`). Two expansion modes, selected by `SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED` (ships dark):
+
+- **OFF (default)**: iso-functional person→contact expansion (`expand_domains_iso_functional`);
+- **ON**: evidence-driven expansion (`expand_domains_evidence_driven`) — every referenced entity (person → `Contact`, context reference → `CalendarEvent`/`Place`) whose ontology `properties` provide a required semantic type adds its `source_domains`, capped by `SEMANTIC_EXPANSION_MAX_ADDED_DOMAINS` and counted by `semantic_expansion_total`.
 
 #### Post-expansion domain validation (`analyze_full()`)
 

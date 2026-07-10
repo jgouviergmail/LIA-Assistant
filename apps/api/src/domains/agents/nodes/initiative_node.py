@@ -808,6 +808,7 @@ async def initiative_node(
     from src.domains.agents.orchestration.parallel_executor import execute_plan_parallel
     from src.domains.agents.orchestration.schemas import ExecutionResult
     from src.domains.agents.orchestration.schemas import StepResult as LegacyStepResult
+    from src.domains.agents.semantic.param_guard import config_with_person_names
     from src.domains.agents.utils.state_cleanup import cleanup_dict_by_turn_id
 
     logger.info(
@@ -819,7 +820,8 @@ async def initiative_node(
     plan = _build_initiative_plan(validated_actions, config)
     par_result = await execute_plan_parallel(
         execution_plan=plan,
-        config=config,
+        # Semantic guard: person names travel via configurable (see param_guard)
+        config=config_with_person_names(config, state),
         run_id=f"initiative_{run_id}",
         initial_registry=state.get("registry"),
         turn_id=state.get(STATE_KEY_CURRENT_TURN_ID),

@@ -71,6 +71,52 @@ def mock_registry():
             source_domains=["event", "task"],
             used_in_tools=["create_event_tool"],
         ),
+        # Entity types (mirror the real ontology) — drive evidence-driven expansion
+        SemanticType(
+            name="Contact",
+            parent="Thing",
+            category=TypeCategory.IDENTITY,
+            properties={
+                "name": "person_name",
+                "email": "email_address",
+                "phone": "phone_number",
+                "address": "physical_address",
+            },
+            source_domains=["contact"],
+        ),
+        SemanticType(
+            name="CalendarEvent",
+            parent="Thing",
+            category=TypeCategory.TEMPORAL,
+            properties={
+                "location": "physical_address",
+                "start_datetime": "event_start_datetime",
+                "attendees": "email_address",
+            },
+            source_domains=["event"],
+        ),
+        SemanticType(
+            name="Place",
+            parent="Thing",
+            category=TypeCategory.LOCATION,
+            properties={
+                "address": "physical_address",
+                "phone": "phone_number",
+                "coordinates": "coordinate",
+            },
+            source_domains=["place"],
+        ),
+        SemanticType(
+            name="EmailMessage",
+            parent="Thing",
+            category=TypeCategory.CONTENT,
+            properties={
+                "sender": "email_address",
+                "thread": "thread_id",
+                "identifier": "message_id",
+            },
+            source_domains=["email"],
+        ),
     ]
 
     for type_def in types:
@@ -272,71 +318,147 @@ class TestValidateExpansionLogic:
         assert len(result["errors"]) > 0
 
 
-class TestExpandDomainsSemantic:
-    """Tests for expand_domains_semantic method."""
+class TestExpandDomainsEvidenceDriven:
+    """Tests for expand_domains_evidence_driven (replaces the never-wired
+    threshold-based expand_domains_semantic)."""
 
     @pytest.mark.asyncio
     async def test_returns_empty_for_empty_domains(self, expansion_service):
-        """Test that empty domains returns empty."""
-        result = await expansion_service.expand_domains_semantic(
-            primary_domains=[],
+        """Empty domains → nothing to expand."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=[],
+            evidence_entities={"Contact"},
             required_semantic_types={"email_address"},
-            threshold=0.5,
-            query="test",
+            max_added_domains=3,
         )
-
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_returns_original_for_empty_types(self, expansion_service):
-        """Test that original domains returned for empty types."""
-        result = await expansion_service.expand_domains_semantic(
-            primary_domains=["email"],
-            required_semantic_types=set(),
-            threshold=0.5,
-            query="test",
+    async def test_no_evidence_means_no_expansion(self, expansion_service):
+        """Entity anchoring: without a referenced entity nothing is added —
+        even when a required type has providers ('quel temps demain ?')."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["weather"],
+            evidence_entities=set(),
+            required_semantic_types={"physical_address"},
+            max_added_domains=3,
         )
-
-        assert result == ["email"]
+        assert result == ["weather"]
 
     @pytest.mark.asyncio
-    async def test_expands_all_providers(self, expansion_service):
-        """Test that all providers are added for semantic types."""
-        result = await expansion_service.expand_domains_semantic(
-            primary_domains=["route"],
+    async def test_person_evidence_adds_contact_like_iso_path(self, expansion_service):
+        """Person evidence + physical_address required → contact only
+        (identical outcome to the iso-functional path)."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["route"],
+            evidence_entities={"Contact"},
             required_semantic_types={"physical_address"},
-            threshold=0.5,
-            query="test",
+            max_added_domains=3,
         )
-
-        # physical_address is provided by contact, place, route
-        assert "contact" in result
-        assert "place" in result
+        assert result == ["route", "contact"]
 
     @pytest.mark.asyncio
-    async def test_threshold_1_disables_expansion(self, expansion_service):
-        """Test that threshold=1.0 disables expansion."""
-        result = await expansion_service.expand_domains_semantic(
-            primary_domains=["route"],
+    async def test_event_evidence_adds_calendar_domain(self, expansion_service):
+        """'comment aller à ce rendez-vous ?' (event shown in a previous turn)
+        → CalendarEvent provides physical_address (location) → event added."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["route"],
+            evidence_entities={"CalendarEvent"},
             required_semantic_types={"physical_address"},
-            threshold=1.0,  # Disables expansion
-            query="test",
+            max_added_domains=3,
         )
+        assert result == ["route", "event"]
 
-        assert result == ["route"]
+    @pytest.mark.asyncio
+    async def test_place_evidence_adds_place_domain(self, expansion_service):
+        """'comment aller au restaurant que tu m'as montré' (place shown in a
+        previous turn) → Place provides physical_address → place added."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["route"],
+            evidence_entities={"Place"},
+            required_semantic_types={"physical_address"},
+            max_added_domains=3,
+        )
+        assert result == ["route", "place"]
+
+    @pytest.mark.asyncio
+    async def test_email_evidence_adds_email_domain(self, expansion_service):
+        """'invite l'expéditeur de ce mail à la réunion' (email shown in a
+        previous turn) → EmailMessage provides email_address (sender) →
+        email domain added so the plan can fetch the sender's address."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["event"],
+            evidence_entities={"EmailMessage"},
+            required_semantic_types={"email_address"},
+            max_added_domains=3,
+        )
+        assert result == ["event", "email"]
+
+    @pytest.mark.asyncio
+    async def test_entity_without_matching_required_type_adds_nothing(self, expansion_service):
+        """A referenced place does not help a plan whose required types are
+        unrelated to what a Place provides (language_code)."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["wikipedia"],
+            evidence_entities={"Place"},
+            required_semantic_types={"language_code"},
+            max_added_domains=3,
+        )
+        assert result == ["wikipedia"]
+
+    @pytest.mark.asyncio
+    async def test_cap_limits_added_domains(self, expansion_service):
+        """The hard cap bounds catalogue growth deterministically."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["route"],
+            evidence_entities={"Contact", "CalendarEvent", "Place"},
+            required_semantic_types={"physical_address"},
+            max_added_domains=1,
+        )
+        # Sorted entity order: CalendarEvent first → event wins the single slot.
+        assert result == ["route", "event"]
 
     @pytest.mark.asyncio
     async def test_no_duplicate_domains(self, expansion_service):
-        """Test that domains are not duplicated."""
-        result = await expansion_service.expand_domains_semantic(
-            primary_domains=["contact"],
+        """A provider already selected is never duplicated."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["contact"],
+            evidence_entities={"Contact"},
             required_semantic_types={"email_address"},
-            threshold=0.5,
-            query="test",
+            max_added_domains=3,
+        )
+        assert result.count("contact") == 1
+
+
+class TestEvidenceEntityRegistry:
+    """Boot-time completeness assert for the evidence entity mapping (ADR-085)."""
+
+    def setup_method(self):
+        reset_expansion_service()
+
+    def teardown_method(self):
+        reset_expansion_service()
+
+    def test_real_ontology_passes_the_assert(self):
+        """The shipped ontology must satisfy the evidence mapping (fail = boot refusal)."""
+        from src.domains.agents.semantic.expansion_service import (
+            assert_evidence_entity_types_complete,
         )
 
-        # contact should appear only once even though it's a provider
-        assert result.count("contact") == 1
+        assert_evidence_entity_types_complete()  # Must not raise
+
+    def test_missing_entity_type_refuses_boot(self):
+        """A mapping entry without an ontology counterpart raises RuntimeError."""
+        from src.domains.agents.semantic import expansion_service as es
+
+        with (
+            patch.dict(
+                es.EVIDENCE_ENTITY_TYPE_BY_DOMAIN,
+                {"ghost": "GhostEntityType"},
+            ),
+            pytest.raises(RuntimeError, match="GhostEntityType"),
+        ):
+            es.assert_evidence_entity_types_complete()
 
 
 class TestGetPrimaryTypeForDomain:

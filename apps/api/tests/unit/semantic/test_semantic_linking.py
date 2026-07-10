@@ -2,11 +2,11 @@
 Tests Unitaires - Semantic Linking Service (Phase 2 - 2026-01)
 
 Tests for the semantic linking features:
-- expand_domains_semantic(): Generalized domain expansion
+- expand_domains_evidence_driven(): Evidence-driven domain expansion
 - generate_jinja2_suggestions(): Jinja2 reference generation
 - generate_linking_hints_for_plan(): Plan-level hint generation
 
-These tests validate the new semantic linking features that enable
+These tests validate the semantic linking features that enable
 cross-domain parameter linking based on semantic_type matching.
 """
 
@@ -46,76 +46,65 @@ def expansion_service(registry):
 @pytest.fixture
 def agent_registry():
     """
-    Initialize agent registry with tool manifests.
+    Initialize agent registry with the REAL tool manifests.
     Required for generate_jinja2_suggestions tests.
+
+    Note: the registry does NOT auto-load manifests — without an explicit
+    initialize_catalogue() every manifest lookup raises ToolManifestNotFound
+    and the suggestion engine silently returns [] (which made the historical
+    tests in this file pass against an empty registry).
     """
     from src.domains.agents.registry import get_global_registry, reset_global_registry
+    from src.domains.agents.registry.catalogue_loader import initialize_catalogue
 
     reset_global_registry()
     agent_reg = get_global_registry()
-
-    # Ensure the registry is properly initialized with manifests
-    # The registry auto-loads manifests when needed
+    initialize_catalogue(agent_reg)
     yield agent_reg
 
     reset_global_registry()
 
 
-class TestExpandDomainsSemantic:
-    """Tests for expand_domains_semantic() - Generalized expansion."""
+class TestExpandDomainsEvidenceDriven:
+    """Tests for expand_domains_evidence_driven() - evidence-anchored expansion."""
 
     @pytest.mark.asyncio
-    async def test_expands_all_providers_not_just_contacts(self, expansion_service):
-        """
-        Verify that expand_domains_semantic checks ALL providers,
-        not just "contacts" like the ISO-FUNCTIONAL version.
-        """
-        result = await expansion_service.expand_domains_semantic(
-            primary_domains=["emails"],
+    async def test_person_evidence_expands_to_contact(self, expansion_service):
+        """A person referenced this turn (Contact entity) provides
+        email_address → contact domain added for an email plan."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["email"],
+            evidence_entities={"Contact"},
             required_semantic_types={"email_address"},
-            threshold=0.0,  # Low threshold to include all providers
+            max_added_domains=3,
             query="test",
         )
 
-        # Should find contact as provider of email_address (singular domain name)
         assert "contact" in result
-        assert "email" in result or "emails" in result  # Original domain preserved
+        assert "email" in result  # Original domain preserved
 
     @pytest.mark.asyncio
-    async def test_threshold_filtering(self, expansion_service):
-        """
-        Verify that threshold parameter controls provider inclusion.
-
-        - threshold < 1.0: All providers in source_domains are added
-        - threshold = 1.0: No providers are added
-        """
-        # Low threshold - should include providers
-        result_low = await expansion_service.expand_domains_semantic(
-            primary_domains=["emails"],
+    async def test_no_evidence_no_expansion(self, expansion_service):
+        """Entity anchoring: a required type with providers is NOT enough —
+        without a referenced entity nothing is added."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["email"],
+            evidence_entities=set(),
             required_semantic_types={"email_address"},
-            threshold=0.5,
+            max_added_domains=3,
             query="test",
         )
 
-        # Threshold 1.0 - should include NO providers
-        result_max = await expansion_service.expand_domains_semantic(
-            primary_domains=["emails"],
-            required_semantic_types={"email_address"},
-            threshold=1.0,
-            query="test",
-        )
-
-        # Low threshold should have more domains than max threshold
-        assert len(result_low) > len(result_max)
-        assert result_max == ["emails"]  # Only original domain with threshold=1.0
+        assert result == ["email"]
 
     @pytest.mark.asyncio
     async def test_no_expansion_empty_domains(self, expansion_service):
         """Empty domains should stay empty."""
-        result = await expansion_service.expand_domains_semantic(
-            primary_domains=[],
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=[],
+            evidence_entities={"Contact"},
             required_semantic_types={"email_address"},
-            threshold=0.7,
+            max_added_domains=3,
             query="test",
         )
 
@@ -124,27 +113,29 @@ class TestExpandDomainsSemantic:
     @pytest.mark.asyncio
     async def test_no_expansion_empty_types(self, expansion_service):
         """Empty required types should not expand."""
-        result = await expansion_service.expand_domains_semantic(
-            primary_domains=["emails"],
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["email"],
+            evidence_entities={"Contact"},
             required_semantic_types=set(),
-            threshold=0.7,
+            max_added_domains=3,
             query="test",
         )
 
-        assert result == ["emails"]
+        assert result == ["email"]
 
     @pytest.mark.asyncio
-    async def test_unknown_type_graceful_handling(self, expansion_service):
-        """Unknown semantic type should not cause error."""
-        result = await expansion_service.expand_domains_semantic(
-            primary_domains=["emails"],
-            required_semantic_types={"unknown_fictional_type_xyz"},
-            threshold=0.7,
+    async def test_unknown_entity_graceful_handling(self, expansion_service):
+        """Unknown evidence entity should not cause error."""
+        result = await expansion_service.expand_domains_evidence_driven(
+            domains=["email"],
+            evidence_entities={"UnknownFictionalEntityXyz"},
+            required_semantic_types={"email_address"},
+            max_added_domains=3,
             query="test",
         )
 
         # Should return original domains without error
-        assert result == ["emails"]
+        assert result == ["email"]
 
 
 class TestGetPrimaryTypeForDomain:
@@ -199,6 +190,59 @@ class TestGenerateJinja2Suggestions:
         )
 
         assert len(result) <= 2
+
+
+class TestVitrineChains:
+    """Flagship cross-domain chains unlocked by the 2026-07 annotation back-fill.
+
+    Each test pins an end-user scenario: the Jinja2 suggestion engine must
+    propose the exact reference path from the provider step's output to the
+    consumer tool's parameter (exact semantic_type match on real manifests).
+    """
+
+    def test_event_attendees_feed_send_email_recipient(self, agent_registry):
+        """'écris un mail aux participants de ce rendez-vous' —
+        events[].attendees[].email (email_address) → send_email_tool.to."""
+        suggestions = generate_jinja2_suggestions(
+            target_tool="send_email_tool",
+            target_param="to",
+            available_step_ids=["get_events"],
+            step_tool_mapping={"get_events": "get_events_tool"},
+        )
+        assert "$steps.get_events.events[0].attendees[0].email" in suggestions
+
+    def test_email_sender_feeds_event_attendees(self, agent_registry):
+        """'invite l'expéditeur de ce mail à la réunion' —
+        emails[].from (email_address) → create_event_tool.attendees."""
+        suggestions = generate_jinja2_suggestions(
+            target_tool="create_event_tool",
+            target_param="attendees",
+            available_step_ids=["get_emails"],
+            step_tool_mapping={"get_emails": "get_emails_tool"},
+        )
+        assert "$steps.get_emails.emails[0].from" in suggestions
+
+    def test_route_destination_feeds_weather_location(self, agent_registry):
+        """'quel temps à destination ?' —
+        route.destination (physical_address) → get_weather_forecast_tool.location."""
+        suggestions = generate_jinja2_suggestions(
+            target_tool="get_weather_forecast_tool",
+            target_param="location",
+            available_step_ids=["get_route"],
+            step_tool_mapping={"get_route": "get_route_tool"},
+        )
+        assert "$steps.get_route.route.destination" in suggestions
+
+    def test_place_address_feeds_contact_update(self, agent_registry):
+        """'ajoute l'adresse de ce restaurant à ce contact' —
+        places[].address (physical_address) → update_contact_tool.address."""
+        suggestions = generate_jinja2_suggestions(
+            target_tool="update_contact_tool",
+            target_param="address",
+            available_step_ids=["get_places"],
+            step_tool_mapping={"get_places": "get_places_tool"},
+        )
+        assert "$steps.get_places.places[0].address" in suggestions
 
 
 class TestGenerateLinkingHintsForPlan:
@@ -265,10 +309,11 @@ class TestSemanticLinkingIntegration:
         assert "email_address" in contact_types
 
         # Step 2: Verify expansion would add contact for email domain
-        expanded = await expansion_service.expand_domains_semantic(
-            primary_domains=["email"],
+        expanded = await expansion_service.expand_domains_evidence_driven(
+            domains=["email"],
+            evidence_entities={"Contact"},
             required_semantic_types={"email_address"},
-            threshold=0.5,
+            max_added_domains=3,
             query="send email to Jean",
         )
         assert "contact" in expanded
@@ -288,10 +333,11 @@ class TestSemanticLinkingIntegration:
         assert "physical_address" in contact_types
 
         # Step 2: Verify expansion would add contact for route domain
-        expanded = await expansion_service.expand_domains_semantic(
-            primary_domains=["route"],
+        expanded = await expansion_service.expand_domains_evidence_driven(
+            domains=["route"],
+            evidence_entities={"Contact"},
             required_semantic_types={"physical_address"},
-            threshold=0.5,
+            max_added_domains=3,
             query="directions to Jean's house",
         )
         assert "contact" in expanded
@@ -303,7 +349,7 @@ class TestPerformanceSemantic:
     @pytest.mark.asyncio
     async def test_expansion_performance(self, expansion_service):
         """
-        Test performance of expand_domains_semantic.
+        Test performance of expand_domains_evidence_driven.
 
         Target: <50ms for typical queries.
         """
@@ -314,10 +360,11 @@ class TestPerformanceSemantic:
 
         for _ in range(iterations):
             start = time.perf_counter()
-            await expansion_service.expand_domains_semantic(
-                primary_domains=["emails", "calendar"],
+            await expansion_service.expand_domains_evidence_driven(
+                domains=["email", "event"],
+                evidence_entities={"Contact", "CalendarEvent"},
                 required_semantic_types={"email_address", "physical_address"},
-                threshold=0.7,
+                max_added_domains=3,
                 query="test performance",
             )
             duration_ms = (time.perf_counter() - start) * 1000

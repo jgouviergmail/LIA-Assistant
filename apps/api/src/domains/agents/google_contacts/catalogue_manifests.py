@@ -91,12 +91,14 @@ get_contacts_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Contact ID from $steps or CONTEXT for direct fetch.",
+            semantic_type="contact_id",
         ),
         ParameterSchema(
             name="resource_names",
             type="array",
             required=False,
             description="Multiple contact IDs from $steps or CONTEXT for batch fetch.",
+            semantic_type="contact_id",
         ),
         # Common options
         ParameterSchema(
@@ -116,7 +118,12 @@ get_contacts_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="contacts", type="array", description="List of contacts with full details"
         ),
-        OutputFieldSchema(path="contacts[].resource_name", type="string", description="Contact ID"),
+        OutputFieldSchema(
+            path="contacts[].resource_name",
+            type="string",
+            description="Contact ID",
+            semantic_type="contact_id",
+        ),
         OutputFieldSchema(
             path="contacts[].name",
             type="string",
@@ -157,9 +164,17 @@ get_contacts_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="contacts[].organizations", type="array", description="Organizations"
         ),
-        OutputFieldSchema(path="contacts[].birthdays", type="array", description="Birthdays"),
         OutputFieldSchema(
-            path="contacts[].biographies", type="array", description="Biographies/Notes"
+            path="contacts[].birthdays",
+            type="array",
+            description="Birthdays",
+            semantic_type="birthday",
+        ),
+        OutputFieldSchema(
+            path="contacts[].biographies",
+            type="array",
+            description="Biographies/Notes",
+            semantic_type="biography",
         ),
         OutputFieldSchema(path="total", type="integer", description="Total count"),
     ],
@@ -211,15 +226,35 @@ create_contact_catalogue_manifest = ToolManifest(
             required=True,
             description="Full Name",
             constraints=[ParameterConstraint(kind="min_length", value=1)],
+            semantic_type="person_name",
         ),
-        ParameterSchema(name="email", type="string", required=False, description="Email"),
-        ParameterSchema(name="phone", type="string", required=False, description="Phone"),
+        ParameterSchema(
+            name="email",
+            type="string",
+            required=False,
+            description="Email",
+            semantic_type="email_address",  # Guarded: a person name here is a plan bug
+        ),
+        ParameterSchema(
+            name="phone",
+            type="string",
+            required=False,
+            description="Phone",
+            semantic_type="phone_number",
+        ),
         ParameterSchema(name="organization", type="string", required=False, description="Company"),
         ParameterSchema(name="notes", type="string", required=False, description="Notes"),
     ],
     outputs=[
-        OutputFieldSchema(path="resource_name", type="string", description="Created ID"),
-        OutputFieldSchema(path="name", type="string", description="Name"),
+        OutputFieldSchema(
+            path="resource_name",
+            type="string",
+            description="Created ID",
+            semantic_type="contact_id",
+        ),
+        OutputFieldSchema(
+            path="name", type="string", description="Name", semantic_type="person_name"
+        ),
     ],
     cost=CostProfile(est_tokens_in=150, est_tokens_out=100, est_cost_usd=0.005, est_latency_ms=500),
     permissions=PermissionProfile(
@@ -260,10 +295,29 @@ update_contact_catalogue_manifest = ToolManifest(
             type="string",
             required=True,
             description="Contact ID from $steps or CONTEXT",
+            semantic_type="contact_id",
         ),
-        ParameterSchema(name="name", type="string", required=False, description="New Name"),
-        ParameterSchema(name="email", type="string", required=False, description="New Email"),
-        ParameterSchema(name="phone", type="string", required=False, description="New Phone"),
+        ParameterSchema(
+            name="name",
+            type="string",
+            required=False,
+            description="New Name",
+            semantic_type="person_name",
+        ),
+        ParameterSchema(
+            name="email",
+            type="string",
+            required=False,
+            description="New Email",
+            semantic_type="email_address",  # Guarded: a person name here is a plan bug
+        ),
+        ParameterSchema(
+            name="phone",
+            type="string",
+            required=False,
+            description="New Phone",
+            semantic_type="phone_number",
+        ),
         ParameterSchema(name="organization", type="string", required=False, description="New Org"),
         ParameterSchema(name="notes", type="string", required=False, description="New Notes"),
         ParameterSchema(
@@ -271,11 +325,16 @@ update_contact_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="New Address (e.g. '15 rue de la Paix, Paris 75001')",
+            semantic_type="physical_address",  # Guarded + linkable from places/events outputs
         ),
     ],
     outputs=[
-        OutputFieldSchema(path="resource_name", type="string", description="ID"),
-        OutputFieldSchema(path="name", type="string", description="Name"),
+        OutputFieldSchema(
+            path="resource_name", type="string", description="ID", semantic_type="contact_id"
+        ),
+        OutputFieldSchema(
+            path="name", type="string", description="Name", semantic_type="person_name"
+        ),
     ],
     cost=CostProfile(est_tokens_in=150, est_tokens_out=100, est_cost_usd=0.005, est_latency_ms=500),
     permissions=PermissionProfile(
@@ -315,11 +374,17 @@ delete_contact_catalogue_manifest = ToolManifest(
             type="string",
             required=True,
             description="Contact ID to delete (from $steps or CONTEXT)",
+            semantic_type="contact_id",
         ),
     ],
     outputs=[
         OutputFieldSchema(path="success", type="boolean", description="Success"),
-        OutputFieldSchema(path="resource_name", type="string", description="Deleted ID"),
+        OutputFieldSchema(
+            path="resource_name",
+            type="string",
+            description="Deleted ID",
+            semantic_type="contact_id",
+        ),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=50, est_cost_usd=0.003, est_latency_ms=400),
     permissions=PermissionProfile(

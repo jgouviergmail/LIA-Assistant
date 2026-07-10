@@ -114,6 +114,7 @@ get_events_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Start of search window (ISO format)",
+            semantic_type="datetime",
         ),
         ParameterSchema(
             name="time_max",
@@ -124,6 +125,7 @@ get_events_catalogue_manifest = ToolManifest(
             # temporal reference, so the tool's default window applies instead of
             # a planner-hallucinated narrow bound (e.g. "my next medical appts").
             search_role="range_end",
+            semantic_type="datetime",
         ),
         # ID mode parameters
         ParameterSchema(
@@ -131,12 +133,14 @@ get_events_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Single event ID for direct fetch.",
+            semantic_type="event_id",
         ),
         ParameterSchema(
             name="event_ids",
             type="array",
             required=False,
             description="Multiple event IDs for batch fetch.",
+            semantic_type="event_id",
         ),
         # Common options
         ParameterSchema(
@@ -181,6 +185,12 @@ get_events_catalogue_manifest = ToolManifest(
             semantic_type="physical_address",  # Cross-domain: can be used as routes.destination
         ),
         OutputFieldSchema(path="events[].attendees", type="array", description="Attendees list"),
+        OutputFieldSchema(
+            path="events[].attendees[].email",
+            type="string",
+            description="Attendee email address (Google API format)",
+            semantic_type="email_address",  # Cross-domain: "email the attendees of this meeting"
+        ),
         OutputFieldSchema(
             path="events[].conferenceData", type="object", nullable=True, description="Video link"
         ),
@@ -262,18 +272,21 @@ create_event_catalogue_manifest = ToolManifest(
             type="string",
             required=True,
             description="Start in LOCAL time (user timezone), ISO WITHOUT offset e.g. '2025-01-15T19:00:00'. NEVER convert to UTC.",
+            semantic_type="event_start_datetime",
         ),
         ParameterSchema(
             name="end_datetime",
             type="string",
             required=True,
             description="End in LOCAL time (user timezone), ISO WITHOUT offset e.g. '2025-01-15T20:00:00'. NEVER convert to UTC.",
+            semantic_type="datetime",
         ),
         ParameterSchema(
             name="timezone",
             type="string",
             required=False,
             description="IANA Timezone (e.g. 'Europe/Paris'). Ignored if dates have offsets.",
+            semantic_type="timezone",
         ),
         _CALENDAR_ID_PARAM,
         ParameterSchema(
@@ -354,6 +367,7 @@ update_event_catalogue_manifest = ToolManifest(
             required=True,
             description="ID to update",
             constraints=[ParameterConstraint(kind="min_length", value=1)],
+            semantic_type="event_id",
         ),
         ParameterSchema(name="summary", type="string", required=False, description="New title"),
         ParameterSchema(
@@ -361,18 +375,21 @@ update_event_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="New start in LOCAL time (user timezone), ISO WITHOUT offset. NEVER convert to UTC.",
+            semantic_type="event_start_datetime",
         ),
         ParameterSchema(
             name="end_datetime",
             type="string",
             required=False,
             description="New end in LOCAL time (user timezone), ISO WITHOUT offset. NEVER convert to UTC.",
+            semantic_type="datetime",
         ),
         ParameterSchema(
             name="timezone",
             type="string",
             required=False,
             description="New timezone (if shifting zones)",
+            semantic_type="timezone",
         ),
         ParameterSchema(
             name="description", type="string", required=False, description="New description"
@@ -441,12 +458,19 @@ delete_event_catalogue_manifest = ToolManifest(
         "remove calendar block",
     ],
     parameters=[
-        ParameterSchema(name="event_id", type="string", required=True, description="ID to delete"),
+        ParameterSchema(
+            name="event_id",
+            type="string",
+            required=True,
+            description="ID to delete",
+            semantic_type="event_id",
+        ),
         ParameterSchema(
             name="send_updates",
             type="string",
             required=False,
             description="'all' (def), 'externalOnly', 'none'",
+            semantic_type="send_updates_option",
         ),
         _CALENDAR_ID_PARAM,
     ],

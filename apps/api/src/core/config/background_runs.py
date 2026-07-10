@@ -22,7 +22,9 @@ from src.core.constants import (
     DEFAULT_BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS,
     DEFAULT_BACKGROUND_RUNS_HEARTBEAT_SECONDS,
     DEFAULT_BACKGROUND_RUNS_LISTENER_TTL_SECONDS,
+    DEFAULT_BACKGROUND_RUNS_ORPHAN_GRACE_SECONDS,
     DEFAULT_BACKGROUND_RUNS_STREAM_MAXLEN,
+    DEFAULT_BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS,
     DEFAULT_BACKGROUND_RUNS_STREAM_TTL_SECONDS,
     DEFAULT_BACKGROUND_RUNS_XREAD_BLOCK_MS,
     DEFAULT_SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS,
@@ -59,6 +61,21 @@ class BackgroundRunsSettings(BaseSettings):
             "EXPIRE applied to the run stream when the terminal marker is "
             "published. Bounds memory; must exceed the longest window during "
             "which a reload may still want the history (Lot 2 reattach)."
+        ),
+    )
+    background_runs_stream_safety_ttl_seconds: int = Field(
+        default=DEFAULT_BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS,
+        ge=600,
+        le=172_800,
+        description=(
+            "Safety EXPIRE armed at the FIRST chunk publication (EXPIRE NX "
+            "piggybacked on every XADD — zero extra round-trip, never "
+            "overwrites an existing TTL). Bounds the stream key lifetime when "
+            "the producer dies without a terminal marker (hard kill, OOM, "
+            "power loss). Must exceed the longest plausible run: a stream "
+            "outliving it expires mid-run and loses its replay backlog (the "
+            "next XADD re-creates the key and re-arms the TTL). publish_end "
+            "still overwrites it with the short post-terminal TTL."
         ),
     )
     background_runs_xread_block_ms: int = Field(
@@ -145,6 +162,20 @@ class BackgroundRunsSettings(BaseSettings):
             "producer already died (nothing left to cancel)."
         ),
     )
+    background_runs_orphan_grace_seconds: int = Field(
+        default=DEFAULT_BACKGROUND_RUNS_ORPHAN_GRACE_SECONDS,
+        ge=5,
+        le=300,
+        description=(
+            "Subscriber-side orphan grace period. The SSE relay exits with a "
+            "synthetic error chunk once the conversation's active-run lock "
+            "has been observed missing (or owned by another stream) for this "
+            "long AND no chunk was received over the same window — the "
+            "hard-kill escape hatch for subscribers on an orphaned stream. "
+            "A heartbeated lock always wins over chunk silence (long LLM "
+            "calls are silent but alive)."
+        ),
+    )
 
     @model_validator(mode="after")
     def _heartbeat_stays_under_half_the_lock_ttl(self) -> BackgroundRunsSettings:
@@ -160,5 +191,41 @@ class BackgroundRunsSettings(BaseSettings):
                 "BACKGROUND_RUNS_ACTIVE_TTL_SECONDS / 2 (got heartbeat="
                 f"{self.background_runs_heartbeat_seconds}, "
                 f"ttl={self.background_runs_active_ttl_seconds})"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _safety_ttl_covers_the_post_terminal_ttl(self) -> BackgroundRunsSettings:
+        """Refuse a mid-run safety TTL shorter than the post-terminal TTL.
+
+        The safety TTL protects a LIVE stream (armed at first publication);
+        the short TTL covers a FINISHED one. A safety TTL below the short TTL
+        would make a crashed run's stream vanish faster than a completed
+        one — incoherent, and a symptom of swapped values.
+        """
+        if self.background_runs_stream_safety_ttl_seconds < self.background_runs_stream_ttl_seconds:
+            raise ValueError(
+                "BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS must be >= "
+                "BACKGROUND_RUNS_STREAM_TTL_SECONDS (got safety="
+                f"{self.background_runs_stream_safety_ttl_seconds}, "
+                f"post_terminal={self.background_runs_stream_ttl_seconds})"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _orphan_grace_tolerates_one_missed_heartbeat(self) -> BackgroundRunsSettings:
+        """Refuse an orphan grace that a single missed heartbeat could trip.
+
+        The orphan exit is a last-resort escape hatch: it must only fire when
+        the producer is genuinely gone. Below 2x the heartbeat period, one
+        late beat plus probe jitter could push a HEALTHY silent run over the
+        threshold and surface a false error to the subscriber.
+        """
+        if self.background_runs_orphan_grace_seconds < 2 * self.background_runs_heartbeat_seconds:
+            raise ValueError(
+                "BACKGROUND_RUNS_ORPHAN_GRACE_SECONDS must be >= "
+                "2 * BACKGROUND_RUNS_HEARTBEAT_SECONDS (got grace="
+                f"{self.background_runs_orphan_grace_seconds}, "
+                f"heartbeat={self.background_runs_heartbeat_seconds})"
             )
         return self

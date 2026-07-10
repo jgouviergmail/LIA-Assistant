@@ -1118,6 +1118,18 @@ DEFAULT_BACKGROUND_RUNS_LISTENER_TTL_SECONDS = 30
 DEFAULT_BACKGROUND_RUNS_CANCEL_POLL_SECONDS = 1
 # Lot 3 — cancel-signal key TTL (self-cleans if the producer died first)
 DEFAULT_BACKGROUND_RUNS_CANCEL_TTL_SECONDS = 600
+# Hard-kill hardening (2026-07 audit) — safety TTL armed at the FIRST chunk
+# publication (EXPIRE NX piggybacked on XADD, zero extra round-trip): bounds the
+# stream key lifetime even when the producer dies without publishing the
+# terminal marker (kill -9, OOM, power loss — the AOF would otherwise persist a
+# TTL-less key across reboots). Must exceed the longest plausible run so a live
+# replay never expires mid-run; publish_end still overwrites with the short TTL.
+DEFAULT_BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS = 7200
+# Hard-kill hardening — subscriber-side orphan grace: the SSE relay exits with a
+# synthetic error once the conversation's active-run lock has been observed
+# missing (or owned by another stream) for this long WITH no chunk received.
+# Must be >= 2x the producer heartbeat so a single missed beat never triggers it.
+DEFAULT_BACKGROUND_RUNS_ORPHAN_GRACE_SECONDS = 20
 
 # Conversation message history pagination (GET /conversations/me/messages)
 # Keyset (scroll-up) pagination — see ConversationRepository.get_messages_with_token_summaries.
@@ -1896,7 +1908,15 @@ PLAN_PATTERN_MAX_SUGGESTIONS_DEFAULT = 3
 PLAN_PATTERN_SUGGESTION_TIMEOUT_MS_DEFAULT = 100  # Aligned from .env.prod
 PLAN_PATTERN_LOCAL_CACHE_TTL_S_DEFAULT = 1.0
 PLAN_PATTERN_REDIS_TTL_DAYS_DEFAULT = 30
-SEMANTIC_EXPANSION_THRESHOLD_DEFAULT = 0.7
+# Evidence-driven semantic expansion (2026-07): a referenced entity (person,
+# calendar event, place) whose ontology properties provide a semantic type
+# required by the selected domains adds the entity's source domains to the
+# planner catalogue. Ships dark (False): flip after the dev A/B on catalogue
+# growth; the iso-functional person→contact path remains the default.
+SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED_DEFAULT = False
+# Hard cap on domains added per turn by evidence-driven expansion (each added
+# domain grows the planner catalogue and prompt).
+SEMANTIC_EXPANSION_MAX_ADDED_DOMAINS_DEFAULT = 3
 SEMANTIC_LINKING_MAX_SUGGESTIONS_DEFAULT = 5
 ADAPTIVE_REPLANNING_MAX_ATTEMPTS_DEFAULT = 3
 ADAPTIVE_REPLANNING_EMPTY_THRESHOLD_DEFAULT = 0.8
@@ -2427,6 +2447,22 @@ FOR_EACH_STOP_FORCES_SEQUENTIAL_DEFAULT = True
 RESPONSE_CONTEXT_PREFETCH_ENABLED_DEFAULT = True
 RESPONSE_CONTEXT_PREFETCH_MAX_ENTRIES = 64  # In-flight task registry bound (leak guard)
 RESPONSE_CONTEXT_PREFETCH_AWAIT_TIMEOUT_SECONDS = 20  # Beyond this, fall back to inline fetch
+# Latency lot R2 (2026-07): also start the prefetch at ROUTER entry (earliest
+# point of the turn) so it overlaps the router LLM cascade — covers turns that
+# never traverse the initiative node (conversation in both modes, ReAct action
+# turns when INITIATIVE_REACT_ENABLED is off). The QI-dependent system-RAG
+# injection is deferred to the response node. Off → initiative-only prefetch.
+RESPONSE_CONTEXT_PREFETCH_AT_ROUTER_ENABLED_DEFAULT = True
+
+# Latency lot R3 (2026-07, ships dark — default True keeps the pivot): when
+# False, the dedicated semantic-pivot LLM call is skipped entirely (~-0.8 to
+# -1s + one LLM call per turn): the query analyzer receives the ORIGINAL query
+# and its own english_query output feeds the downstream English pattern
+# matching. Flip only after A/B-validating domain detection quality on
+# non-English input (scripts/perf/measure_ttft.py + query_intelligence_result
+# logs) — domain detection AND ReAct tool selection both consume the analyzer
+# domains.
+SEMANTIC_PIVOT_ENABLED_DEFAULT = True
 
 # ============================================================================
 # TODAY BRIEFING — per-widget content limits

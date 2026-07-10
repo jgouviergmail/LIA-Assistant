@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 2.8
+**Version**: 2.9
 **Datum**: 2026-07-10
-**Application**: LIA v1.23.2
+**Application**: LIA v1.23.3
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -446,7 +446,9 @@ Jedes `ToolManifest` besitzt mehrsprachige `semantic_keywords`. Die Anfrage wird
 
 ### 8.3. Semantische Expansion
 
-Der `expansion_service.py` reichert die Ergebnisse an, indem er benachbarte Domänen exploriert. Die Post-Expansion-Validierung (ADR-061, Layer 1) filtert vom Administrator deaktivierte Domänen — behebt einen Bug, bei dem das LLM oder die Expansion deaktivierte Domänen wieder einführen konnten.
+Der `expansion_service.py` fügt dem Planner-Katalog die Domänen hinzu, die eine fehlende Information liefern können. Der Auslöser ist **evidenzgesteuert**: Die Erkennung von Personenreferenzen ist die Vereinigung dreier Quellen — die Mappings des Memory-Resolvers (per Konstruktion Personenreferenzen), extrahierte relationale Referenzen selbst wenn die Auflösung keinen Fakt findet, und die typisierten Referenzen des Analyse-LLM. Eine referenzierte Entität (Person → `Contact`, Termin → `CalendarEvent`, Ort → `Place`, E-Mail → `EmailMessage`) bringt die Domänen ein, deren Ontologie-`properties` einen von den ausgewählten Tools benötigten Typ liefern — eine Verankerung, die jede blinde Expansion verhindert, mit konfigurierbarer Obergrenze und Vollständigkeitsprüfung des Mappings beim Start (ADR-120).
+
+Gespeist wird die Schicht von **tiefgehend annotierten** Manifesten (`semantic_type` auf Parametern und Outputs: Termin-Teilnehmer, E-Mail-Absender, Routenziel — ADR-121), die auch die domänenübergreifenden Jinja2-Verknüpfungsvorschläge und eine **Ausführungs-Schutzvorrichtung** antreiben: Ein Personenname kann niemals einen adress-/e-mail-typisierten Parameter erreichen — der Aufruf schlägt vor jeder API-Ausgabe mit einem behebbaren Fehler fehl, in beiden Ausführungsmodi. Die Post-Expansion-Validierung (ADR-061, Layer 1) filtert weiterhin vom Administrator deaktivierte Domänen.
 
 ---
 
@@ -1054,4 +1056,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 100+ ADRs und des Changelogs (v1.0 bis v1.23.2). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 100+ ADRs und des Changelogs (v1.0 bis v1.23.3). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

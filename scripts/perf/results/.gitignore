@@ -1,0 +1,4 @@
+# Raw measurement outputs are machine-local; the official before/after tables
+# live in docs/optim/LATENCY_PLAN.md.
+*
+!.gitignore

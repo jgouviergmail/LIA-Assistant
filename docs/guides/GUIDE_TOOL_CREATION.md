@@ -644,6 +644,15 @@ SEARCH_CONTACTS_MANIFEST = ToolManifest(
 )
 ```
 
+> **`semantic_type` obligatoire quand applicable (ADR-120/ADR-121)** : tout
+> paramètre ou output dont la valeur correspond à un type de l'ontologie
+> (`email_address`, `physical_address`, `event_id`, `datetime`, `contact_id`…)
+> doit porter `semantic_type=...`. C'est ce qui rend l'outil chaînable
+> (suggestions Jinja2 cross-domaine), protégé (garde runtime des paramètres)
+> et découvrable par l'expansion sémantique. Pour les **outputs**, ne jamais
+> annoter un path sans l'avoir vérifié contre le payload réel du tool — les
+> références Jinja s'exécutent dessus. Voir `docs/technical/AGENT_MANIFEST.md`.
+
 ### Semantic Keywords (ADR-048)
 
 Les `semantic_keywords` permettent la découverte sémantique des outils via OpenAI embeddings et max-pooling.

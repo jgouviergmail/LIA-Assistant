@@ -12,11 +12,13 @@ All INTELLIGENCE is in QueryAnalyzerService (unified service).
 This node is intentionally simple (~80 lines instead of legacy ~1430 lines).
 """
 
+import asyncio
 from contextlib import suppress
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
+from src.core.config import settings
 from src.core.constants import (
     STATE_KEY_INITIATIVE_ITERATION,
     STATE_KEY_INITIATIVE_RESULTS,
@@ -45,6 +47,7 @@ from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics import router_confidence_score
 from src.infrastructure.observability.metrics_agents import (
+    agent_node_duration_seconds,
     agent_node_executions_total,
     get_confidence_bucket,
     router_data_presumption_total,
@@ -62,7 +65,9 @@ STATE_KEY_QUERY_INTELLIGENCE = "query_intelligence"
 
 
 @trace_node("router_v3")
-@track_metrics(node_name="router_v3")
+# duration_metric only: success/error executions are counted manually inside the
+# node (agent_node_executions_total) — adding counter_metric here would double-count.
+@track_metrics(node_name="router_v3", duration_metric=agent_node_duration_seconds)
 async def router_node_v3(
     state: MessagesState,
     config: RunnableConfig,
@@ -112,32 +117,58 @@ async def router_node_v3(
         query_preview=query[:50] if query else "",
     )
 
-    # Semantic pivot: translate query to English for optimal domain detection
-    # Domain descriptions are in English (e.g., "Events, meetings, schedules, appointments")
-    # Without translation, LLM may fail to connect "rdv" → "appointments" → event domain
-    # SemanticPivotService is cached in Redis (TTL 5min) for performance
-    from src.domains.agents.services.semantic_pivot_service import translate_to_english
+    # Latency lot R2 (2026-07): start the response-context prefetch (memory,
+    # RAG, journal, portrait, psyche) at the earliest point of the turn so it
+    # overlaps the router's own LLM cascade. The QI-dependent system-RAG
+    # injection is deferred (query_intelligence does not exist yet) — the
+    # response node resolves it inline with the fresh intelligence. Keyed on
+    # the METADATA run_id: the same source initiative_node and response_node
+    # use, so the registry pop matches. When this flag is off, the
+    # initiative-node start (idempotent) keeps the historical behaviour.
+    if settings.response_context_prefetch_at_router_enabled:
+        from src.domains.agents.services.response_context import (
+            start_response_context_prefetch,
+        )
 
-    english_query_for_analysis = await translate_to_english(query, base_config=config)
+        _prefetch_run_id = (config.get("metadata") or {}).get(FIELD_RUN_ID, "unknown")
+        start_response_context_prefetch(state, config, _prefetch_run_id, include_system_rag=False)
 
-    logger.info(
-        "router_v3_semantic_pivot",
-        run_id=run_id,
-        original_query=query[:50] if query else "",
-        english_query=english_query_for_analysis[:50] if english_query_for_analysis else "",
-    )
+    # Semantic pivot: translate query to English for optimal domain detection.
+    # Domain descriptions are in English (e.g., "Events, meetings, schedules,
+    # appointments") — without translation the LLM may fail to connect
+    # "rdv" → "appointments" → event domain. Redis-cached (TTL 5min).
+    # Latency lot R1 (2026-07): launched as a concurrent task and awaited by
+    # analyze_full AFTER its memory-resolution phase (data-independent: memory
+    # embeds the ORIGINAL query). translate_to_english never raises — it falls
+    # back to the original query internally (result logged there as
+    # `semantic_pivot_translation`).
+    # Latency lot R3 (2026-07, ships dark): semantic_pivot_enabled=False skips
+    # the pivot call entirely — the analyzer receives the original query and
+    # its own english_query output feeds the downstream English matching.
+    english_query_task: asyncio.Task[str] | None = None
+    if settings.semantic_pivot_enabled:
+        from src.domains.agents.services.semantic_pivot_service import (
+            translate_to_english,
+        )
+
+        english_query_task = asyncio.create_task(
+            translate_to_english(query, base_config=config),
+            name=f"semantic_pivot_{run_id}",
+        )
 
     # Get QueryAnalyzerService and analyze with full intelligence
     # Memory facts retrieval is now internalized in analyze_full()
-    # Pass English query for better domain detection against English descriptions
-    # Also pass original_query for debug panel display (user's actual input in their language)
+    # The English query (better domain detection against English descriptions)
+    # is awaited inside analyze_full; original_query is preserved for the
+    # debug panel display (user's actual input in their language).
     analyzer_service = get_query_analyzer_service()
     intelligence = await analyzer_service.analyze_full(
-        query=english_query_for_analysis,
+        query=query,
         messages=messages,
         state=state,
         config=config,
         original_query=query,  # Preserve user's original query for debug panel
+        english_query_task=english_query_task,
     )
 
     # Log reasoning trace

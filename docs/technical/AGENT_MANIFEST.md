@@ -550,6 +550,17 @@ class ParameterSchema:
     schema: dict[str, Any] | None = None  # JSON Schema complet si nécessaire
 ```
 
+**`semantic_type` (ADR-120/ADR-121)** : tout paramètre ou output dont la valeur
+correspond à un type de l'ontologie (`semantic/core_types.py` — `email_address`,
+`physical_address`, `event_id`, `datetime`…) DOIT porter `semantic_type=...`.
+C'est ce qui alimente le linking Jinja2 cross-domaine, les sections
+semantic-dependencies des prompts planner/ReAct, le garde runtime des
+paramètres (`param_guard.py`) et l'expansion evidence-driven. Règle pour les
+**outputs** : ne jamais annoter un path sans l'avoir vérifié contre le payload
+réel du tool — les références Jinja s'exécutent dessus, un path faux est un
+échec silencieux de feature. Couverture mesurable via le script d'inventaire
+(voir ADR-121).
+
 **Contraintes supportées** :
 
 ```python

@@ -52,6 +52,7 @@ from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
+    agent_node_duration_seconds,
     agent_node_executions_total,
     planner_errors_total,
 )
@@ -64,7 +65,9 @@ STATE_KEY_PLANNING_RESULT = "planning_result"
 
 
 @trace_node("planner_v3")
-@track_metrics(node_name="planner_v3")
+# duration_metric only: success/error executions are counted manually inside the
+# node (agent_node_executions_total) — adding counter_metric here would double-count.
+@track_metrics(node_name="planner_v3", duration_metric=agent_node_duration_seconds)
 async def planner_node_v3(
     state: MessagesState,
     config: RunnableConfig,

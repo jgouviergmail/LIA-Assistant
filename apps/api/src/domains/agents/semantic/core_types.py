@@ -133,6 +133,16 @@ PLACE = SemanticType(
     description="Entities that have a somewhat fixed, physical extension",
     uri="http://schema.org/Place",
     labels={"en": "Place", "fr": "Lieu"},
+    # Entity type for the "place" domain (a Google Places result IS a
+    # schema.org Place). `properties` drive evidence-driven expansion: a
+    # referenced place can provide these semantic types.
+    properties={
+        "address": "physical_address",
+        "phone": "phone_number",
+        "coordinates": "coordinate",
+    },
+    source_domains=["place"],
+    used_in_tools=["get_places_tool"],
 )
 
 POSTAL_ADDRESS = SemanticType(
@@ -273,6 +283,14 @@ CALENDAR_EVENT = SemanticType(
     parent="Event",
     category=TypeCategory.TEMPORAL,
     description="Event in a calendar (meeting, appointment, etc.)",
+    # `properties` drive evidence-driven expansion: a referenced event can
+    # provide these semantic types (mirrors the calendar manifests' outputs:
+    # events[].location, events[].start.dateTime, attendees[].email).
+    properties={
+        "location": "physical_address",
+        "start_datetime": "event_start_datetime",
+        "attendees": "email_address",
+    },
     source_domains=["event"],
     used_in_tools=["create_event_tool", "update_event_tool", "get_events_tool"],
 )
@@ -735,6 +753,24 @@ CREATIVE_WORK = SemanticType(
     uri="http://schema.org/CreativeWork",
 )
 
+EMAIL_MESSAGE = SemanticType(
+    name="EmailMessage",
+    parent="CreativeWork",
+    category=TypeCategory.CONTENT,
+    description="An email message in the user's mailbox",
+    uri="http://schema.org/EmailMessage",
+    # Entity type for the "email" domain. `properties` drive evidence-driven
+    # expansion: a referenced email can provide these semantic types
+    # ("invite the sender of this email to the meeting").
+    properties={
+        "sender": "email_address",
+        "thread": "thread_id",
+        "identifier": "message_id",
+    },
+    source_domains=["email"],
+    used_in_tools=["get_emails_tool", "reply_email_tool", "forward_email_tool"],
+)
+
 TEXT = SemanticType(
     name="Text",
     parent="CreativeWork",
@@ -1110,6 +1146,7 @@ def load_core_types(registry: TypeRegistry) -> None:
 
     # Creative works and content
     registry.register(CREATIVE_WORK)
+    registry.register(EMAIL_MESSAGE)
     registry.register(TEXT)
     registry.register(URL)
     registry.register(MARKDOWN_TEXT)

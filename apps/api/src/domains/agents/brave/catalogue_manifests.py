@@ -55,6 +55,7 @@ brave_search_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Freshness: 'pd' (24h), 'pw' (7d), 'pm' (31d), 'py' (1y)",
+            semantic_type="recency_filter",
         ),
     ],
     outputs=[
@@ -138,6 +139,7 @@ brave_news_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Freshness: 'pd' (24h), 'pw' (7d), 'pm' (31d)",
+            semantic_type="recency_filter",
         ),
     ],
     outputs=[

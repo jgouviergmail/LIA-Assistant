@@ -77,12 +77,14 @@ get_tasks_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Single task ID for direct fetch.",
+            semantic_type="task_id",
         ),
         ParameterSchema(
             name="task_ids",
             type="array",
             required=False,
             description="Multiple task IDs for batch fetch.",
+            semantic_type="task_id",
         ),
         # Filter parameters
         ParameterSchema(
@@ -90,12 +92,14 @@ get_tasks_catalogue_manifest = ToolManifest(
             type="boolean",
             required=False,
             description="Filter: Finished only",
+            semantic_type="only_completed_filter",
         ),
         ParameterSchema(
             name="show_completed",
             type="boolean",
             required=False,
             description="Filter: All (Pending + Finished)",
+            semantic_type="show_completed_filter",
         ),
         # Common options
         ParameterSchema(
@@ -103,6 +107,7 @@ get_tasks_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Target list ID (def: default list)",
+            semantic_type="task_list_id",
         ),
         ParameterSchema(
             name="max_results",
@@ -190,10 +195,20 @@ create_task_catalogue_manifest = ToolManifest(
             description="Title",
             constraints=[ParameterConstraint(kind="min_length", value=1)],
         ),
-        ParameterSchema(name="due", type="string", required=False, description="Due date (ISO)"),
+        ParameterSchema(
+            name="due",
+            type="string",
+            required=False,
+            description="Due date (ISO)",
+            semantic_type="datetime",
+        ),
         ParameterSchema(name="notes", type="string", required=False, description="Description"),
         ParameterSchema(
-            name="task_list_id", type="string", required=False, description="Target list ID"
+            name="task_list_id",
+            type="string",
+            required=False,
+            description="Target list ID",
+            semantic_type="task_list_id",
         ),
     ],
     outputs=[
@@ -243,9 +258,19 @@ complete_task_catalogue_manifest = ToolManifest(
         "complete to-do item in task manager",
     ],
     parameters=[
-        ParameterSchema(name="task_id", type="string", required=True, description="Task ID"),
         ParameterSchema(
-            name="task_list_id", type="string", required=False, description="List ID (if known)"
+            name="task_id",
+            type="string",
+            required=True,
+            description="Task ID",
+            semantic_type="task_id",
+        ),
+        ParameterSchema(
+            name="task_list_id",
+            type="string",
+            required=False,
+            description="List ID (if known)",
+            semantic_type="task_list_id",
         ),
     ],
     outputs=[
@@ -291,14 +316,36 @@ update_task_catalogue_manifest = ToolManifest(
         "modify to-do item in task manager",
     ],
     parameters=[
-        ParameterSchema(name="task_id", type="string", required=True, description="Task ID"),
+        ParameterSchema(
+            name="task_id",
+            type="string",
+            required=True,
+            description="Task ID",
+            semantic_type="task_id",
+        ),
         ParameterSchema(name="title", type="string", required=False, description="New title"),
         ParameterSchema(name="notes", type="string", required=False, description="New notes"),
-        ParameterSchema(name="due", type="string", required=False, description="New due date"),
         ParameterSchema(
-            name="status", type="string", required=False, description="'needsAction' or 'completed'"
+            name="due",
+            type="string",
+            required=False,
+            description="New due date",
+            semantic_type="datetime",
         ),
-        ParameterSchema(name="task_list_id", type="string", required=False, description="List ID"),
+        ParameterSchema(
+            name="status",
+            type="string",
+            required=False,
+            description="'needsAction' or 'completed'",
+            semantic_type="task_status",
+        ),
+        ParameterSchema(
+            name="task_list_id",
+            type="string",
+            required=False,
+            description="List ID",
+            semantic_type="task_list_id",
+        ),
     ],
     outputs=[
         OutputFieldSchema(path="task_id", type="string", description="ID", semantic_type="task_id"),
@@ -343,8 +390,20 @@ delete_task_catalogue_manifest = ToolManifest(
         "cancel task and remove from list",
     ],
     parameters=[
-        ParameterSchema(name="task_id", type="string", required=True, description="ID to delete"),
-        ParameterSchema(name="task_list_id", type="string", required=False, description="List ID"),
+        ParameterSchema(
+            name="task_id",
+            type="string",
+            required=True,
+            description="ID to delete",
+            semantic_type="task_id",
+        ),
+        ParameterSchema(
+            name="task_list_id",
+            type="string",
+            required=False,
+            description="List ID",
+            semantic_type="task_list_id",
+        ),
     ],
     outputs=[
         OutputFieldSchema(path="success", type="boolean", description="Success"),

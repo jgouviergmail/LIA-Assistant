@@ -15,6 +15,7 @@ from redis.asyncio import Redis
 
 from src.core.config import settings
 from src.infrastructure.streaming.run_stream_broker import (
+    _LISTENER_INCR_LUA,
     active_run_key,
     get_active_run,
     has_listeners,
@@ -104,6 +105,82 @@ class TestListenerPresence:
             assert await has_listeners(redis_client, stream_id) is False
         finally:
             await redis_client.delete(listeners_key(stream_id))
+
+    async def test_incr_arms_ttl_atomically(self, redis_client) -> None:
+        """Hard-kill audit: the counter must NEVER exist without a TTL.
+
+        The old INCR-then-EXPIRE pair left a crash window producing an
+        immortal counter (has_listeners() true forever -> paid TTS for
+        nobody). The single Lua eval closes the window structurally: one
+        atomic script sets both the count and the TTL.
+        """
+        stream_id = f"s_{uuid.uuid4().hex[:8]}"
+        key = listeners_key(stream_id)
+        try:
+            assert await listener_incr(redis_client, stream_id) == 1
+            ttl = await redis_client.ttl(key)
+            assert 0 < ttl <= settings.background_runs_listener_ttl_seconds
+        finally:
+            await redis_client.delete(key)
+
+    async def test_incr_lua_script_sets_count_and_ttl_in_one_eval(self, redis_client) -> None:
+        """The Lua script itself is the atomicity proof: a single EVAL call
+        (executed atomically by Redis) leaves both the incremented count and
+        the armed TTL — there is no longer an 'between INCR and EXPIRE'
+        state to be interrupted in."""
+        key = f"test:listeners:{uuid.uuid4().hex[:8]}"
+        try:
+            result = await redis_client.eval(_LISTENER_INCR_LUA, 1, key, "30")
+            assert int(result) == 1
+            ttl = await redis_client.ttl(key)
+            assert 0 < ttl <= 30
+        finally:
+            await redis_client.delete(key)
+
+
+class TestStreamSafetyTTL:
+    """Hard-kill audit: the stream key must always carry a TTL.
+
+    Before, EXPIRE was armed at publish_end only — a producer dying without
+    its terminal marker (kill -9, OOM, power loss) leaked a TTL-less key
+    that the AOF persisted across reboots.
+    """
+
+    async def test_first_chunk_arms_safety_ttl(self, redis_client) -> None:
+        stream_id = f"s_{uuid.uuid4().hex[:8]}"
+        key = run_stream_key(stream_id)
+        try:
+            await publish_chunk(redis_client, stream_id, json.dumps({"i": 0}))
+            ttl = await redis_client.ttl(key)
+            assert 0 < ttl <= settings.background_runs_stream_safety_ttl_seconds
+        finally:
+            await redis_client.delete(key)
+
+    async def test_subsequent_chunks_do_not_rearm_ttl(self, redis_client) -> None:
+        """EXPIRE NX semantics: an existing TTL is never overwritten, so the
+        leak bound counts from stream CREATION, not from the last chunk."""
+        stream_id = f"s_{uuid.uuid4().hex[:8]}"
+        key = run_stream_key(stream_id)
+        try:
+            await publish_chunk(redis_client, stream_id, json.dumps({"i": 0}))
+            await redis_client.expire(key, 100)  # simulate an aged TTL
+            await publish_chunk(redis_client, stream_id, json.dumps({"i": 1}))
+            assert await redis_client.ttl(key) <= 100  # NX did not re-arm
+        finally:
+            await redis_client.delete(key)
+
+    async def test_end_marker_overwrites_with_short_ttl(self, redis_client) -> None:
+        """publish_end keeps its historical invariant: the short
+        post-terminal TTL replaces the safety TTL (no NX there)."""
+        stream_id = f"s_{uuid.uuid4().hex[:8]}"
+        key = run_stream_key(stream_id)
+        try:
+            await publish_chunk(redis_client, stream_id, json.dumps({"i": 0}))
+            await publish_end(redis_client, stream_id, "completed")
+            ttl = await redis_client.ttl(key)
+            assert 0 < ttl <= settings.background_runs_stream_ttl_seconds
+        finally:
+            await redis_client.delete(key)
 
 
 class TestReplayBoundary:

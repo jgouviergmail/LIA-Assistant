@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 2.8
+**Version** : 2.9
 **Date** : 2026-07-10
-**Application** : LIA v1.23.2
+**Application** : LIA v1.23.3
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -445,7 +445,9 @@ Chaque `ToolManifest` possède des `semantic_keywords` multilingues. La requête
 
 ### 8.3. Semantic Expansion
 
-Le `expansion_service.py` enrichit les résultats en explorant les domaines adjacents. La validation post-expansion (ADR-061, Layer 1) filtre les domaines désactivés par l'administrateur — corrigeant un bug où le LLM ou l'expansion pouvaient réintroduire des domaines qui avaient été désactivés.
+Le `expansion_service.py` ajoute au catalogue du planner les domaines capables de fournir une donnée manquante. Le déclencheur est **piloté par l'évidence** : la détection d'une référence personnelle est l'union de trois sources — les mappings du résolveur mémoire (références personnelles par construction), les références relationnelles extraites même quand la résolution ne trouve aucun fait, et les références typées par le LLM d'analyse. Une entité référencée (personne → `Contact`, rendez-vous → `CalendarEvent`, lieu → `Place`, e-mail → `EmailMessage`) apporte les domaines dont les `properties` de son type ontologique fournissent un type requis par les outils sélectionnés — ancrage qui empêche toute expansion aveugle, avec plafond configurable et complétude du mapping vérifiée au démarrage (ADR-120).
+
+La couche est alimentée par des manifests **profondément annotés** (`semantic_type` sur paramètres et outputs : participants d'un événement, expéditeur d'un e-mail, destination d'un trajet — ADR-121), qui nourrissent aussi les suggestions de liaison Jinja2 inter-domaines et un **garde d'exécution** : un nom de personne ne peut jamais atteindre un paramètre typé adresse/e-mail — l'appel échoue avant toute dépense API avec une erreur récupérable, dans les deux modes d'exécution. La validation post-expansion (ADR-061, Layer 1) filtre toujours les domaines désactivés par l'administrateur.
 
 ---
 
@@ -1094,4 +1096,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 100+ ADRs, et du changelog (v1.0 à v1.23.2). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 100+ ADRs, et du changelog (v1.0 à v1.23.3). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

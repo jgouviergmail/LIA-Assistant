@@ -4,9 +4,9 @@
 >
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
-**Versión**: 2.8
+**Versión**: 2.9
 **Fecha**: 2026-07-10
-**Aplicación**: LIA v1.23.2
+**Aplicación**: LIA v1.23.3
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -446,7 +446,9 @@ Cada `ToolManifest` posee `semantic_keywords` multilingües. La petición se tra
 
 ### 8.3. Semantic Expansion
 
-El `expansion_service.py` enriquece los resultados explorando los dominios adyacentes. La validación post-expansión (ADR-061, Layer 1) filtra los dominios desactivados por el administrador — corrigiendo un bug donde el LLM o la expansión podían reintroducir dominios que habían sido desactivados.
+El `expansion_service.py` añade al catálogo del planner los dominios capaces de proporcionar un dato que falta. El disparador está **guiado por la evidencia**: la detección de referencias personales es la unión de tres fuentes — los mappings del resolutor de memoria (referencias personales por construcción), las referencias relacionales extraídas incluso cuando la resolución no encuentra ningún hecho, y las referencias tipadas por el LLM de análisis. Una entidad referenciada (persona → `Contact`, cita → `CalendarEvent`, lugar → `Place`, correo → `EmailMessage`) aporta los dominios cuyas `properties` de su tipo ontológico proporcionan un tipo requerido por las herramientas seleccionadas — un anclaje que impide toda expansión ciega, con tope configurable y verificación de completitud del mapping al arranque (ADR-120).
+
+La capa se alimenta de manifiestos **profundamente anotados** (`semantic_type` en parámetros y outputs: participantes de un evento, remitente de un correo, destino de una ruta — ADR-121), que también nutren las sugerencias de enlace Jinja2 entre dominios y una **salvaguarda de ejecución**: un nombre de persona nunca puede llegar a un parámetro tipado dirección/correo — la llamada falla antes de cualquier gasto de API con un error recuperable, en ambos modos de ejecución. La validación post-expansión (ADR-061, Layer 1) sigue filtrando los dominios desactivados por el administrador.
 
 ---
 
@@ -1054,4 +1056,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.23.2). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 100+ ADRs y del changelog (v1.0 a v1.23.3). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

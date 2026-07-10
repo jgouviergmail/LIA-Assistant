@@ -201,12 +201,14 @@ get_places_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Single place ID for direct fetch.",
+            semantic_type="place_id",
         ),
         ParameterSchema(
             name="place_ids",
             type="array",
             required=False,
             description="Multiple place IDs for batch fetch.",
+            semantic_type="place_id",
         ),
         # Proximity mode parameter
         ParameterSchema(
@@ -214,6 +216,7 @@ get_places_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Type filter: restaurant, cafe, bar, hotel, pharmacy, etc.",
+            semantic_type="place_type",
         ),
         # Common options
         ParameterSchema(
@@ -229,6 +232,7 @@ get_places_catalogue_manifest = ToolManifest(
             name="radius_meters",
             type="integer",
             required=False,
+            semantic_type="radius_meters",
             description=(
                 "Maximum distance from location in meters (def: 1000m, max: 50000m). "
                 "Example: 'within 5 km' → 5000"
@@ -240,11 +244,13 @@ get_places_catalogue_manifest = ToolManifest(
             type="boolean",
             required=False,
             description="Filter to only open places",
+            semantic_type="open_now_filter",
         ),
         ParameterSchema(
             name="min_rating",
             type="number",
             required=False,
+            semantic_type="rating",
             description=(
                 f"Minimum rating filter ({PLACES_MIN_RATING_MIN}-{PLACES_MIN_RATING_MAX}). "
                 "Only returns places with rating >= this value. "
@@ -271,7 +277,12 @@ get_places_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="places", type="array", description="List of places with full details"
         ),
-        OutputFieldSchema(path="places[].place_id", type="string", description="Place ID"),
+        OutputFieldSchema(
+            path="places[].place_id",
+            type="string",
+            description="Place ID",
+            semantic_type="place_id",
+        ),
         OutputFieldSchema(path="places[].name", type="string", description="Name"),
         OutputFieldSchema(
             path="places[].address",
@@ -287,22 +298,42 @@ get_places_catalogue_manifest = ToolManifest(
             semantic_type="phone_number",
         ),
         OutputFieldSchema(
-            path="places[].website", type="string", nullable=True, description="Website URL"
+            path="places[].website",
+            type="string",
+            nullable=True,
+            description="Website URL",
+            semantic_type="website_url",
         ),
         OutputFieldSchema(
-            path="places[].rating", type="number", nullable=True, description="Rating"
+            path="places[].rating",
+            type="number",
+            nullable=True,
+            description="Rating",
+            semantic_type="rating",
         ),
         OutputFieldSchema(
-            path="places[].price_level", type="string", nullable=True, description="Price level"
+            path="places[].price_level",
+            type="string",
+            nullable=True,
+            description="Price level",
+            semantic_type="price_level",
         ),
         OutputFieldSchema(
             path="places[].opening_hours", type="object", nullable=True, description="Opening hours"
         ),
         OutputFieldSchema(
-            path="places[].reviews", type="array", nullable=True, description="Reviews"
+            path="places[].reviews",
+            type="array",
+            nullable=True,
+            description="Reviews",
+            semantic_type="review",
         ),
         OutputFieldSchema(
-            path="places[].distance_km", type="number", nullable=True, description="Distance (km)"
+            path="places[].distance_km",
+            type="number",
+            nullable=True,
+            description="Distance (km)",
+            semantic_type="distance",
         ),
         OutputFieldSchema(path="total", type="integer", description="Count"),
     ],
@@ -362,16 +393,25 @@ get_current_location_catalogue_manifest = ToolManifest(
             semantic_type="physical_address",  # Cross-domain: can be used as routes.destination
         ),
         OutputFieldSchema(
-            path="locations[].locality", type="string", nullable=True, description="City"
+            path="locations[].locality",
+            type="string",
+            nullable=True,
+            description="City",
+            semantic_type="locality",
         ),
         OutputFieldSchema(
-            path="locations[].country", type="string", nullable=True, description="Country"
+            path="locations[].country",
+            type="string",
+            nullable=True,
+            description="Country",
+            semantic_type="country_code",
         ),
         OutputFieldSchema(
             path="locations[].postal_code",
             type="string",
             nullable=True,
             description="Postal code",
+            semantic_type="postal_code",
         ),
         OutputFieldSchema(
             path="locations[].latitude",
@@ -385,7 +425,12 @@ get_current_location_catalogue_manifest = ToolManifest(
             description="Longitude",
             semantic_type="coordinate",  # Cross-domain: can be used for geo queries
         ),
-        OutputFieldSchema(path="locations[].source", type="string", description="Location source"),
+        OutputFieldSchema(
+            path="locations[].source",
+            type="string",
+            description="Location source",
+            semantic_type="location_source",
+        ),
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=200, est_cost_usd=0.002, est_latency_ms=400),
     permissions=PermissionProfile(

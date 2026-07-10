@@ -158,6 +158,13 @@ async def task_orchestrator_node(state: MessagesState, config: RunnableConfig) -
     """
     run_id = config.get(FIELD_METADATA, {}).get(FIELD_RUN_ID, "unknown")
 
+    # Runtime semantic guard: expose the turn's resolved person names to the
+    # parallel executor via configurable. Sourced from state (survives HITL
+    # resume) and inherited by every execute_plan_parallel call below.
+    from src.domains.agents.semantic.param_guard import config_with_person_names
+
+    config = config_with_person_names(config, state)
+
     logger.info(
         "task_orchestrator_started",
         run_id=run_id,

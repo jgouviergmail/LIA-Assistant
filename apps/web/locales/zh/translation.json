@@ -2742,7 +2742,7 @@
         },
         "semanticTypes": {
           "title": "📦 语义类型系统",
-          "description": "99 个语义类型按 DAG 层次结构组织（受 schema.org/RDF/SKOS 启发）。类别：Identity、Location、Temporal、ResourceID、Content、Measurement、Status。中央 TypeRegistry 支持 O(1) 查找、Wu & Palmer 距离计算、子类型验证。类型与工具的关联是编辑本体与工具清单 semantic_type 注解的并集（后者是随工具演进的鲜活来源，可抵御重命名，并覆盖 MCP 工具），并有 5 项由测试强制执行的完整性锁防止任何漂移（真实工具名、领域词汇、分类法与类型的一致性）。这些关联为 planner、主动倡议和 ReAct 模式提供支持（ADR-090）。"
+          "description": "100 个语义类型按 DAG 层次结构组织（受 schema.org/RDF/SKOS 启发）。类别：Identity、Location、Temporal、ResourceID、Content、Measurement、Status。中央 TypeRegistry 支持 O(1) 查找、Wu & Palmer 距离计算、子类型验证。类型与工具的关联是编辑本体与工具清单 semantic_type 注解的并集（后者是随工具演进的鲜活来源，可抵御重命名，并覆盖 MCP 工具），并有 5 项由测试强制执行的完整性锁防止任何漂移（真实工具名、领域词汇、分类法与类型的一致性）。这些关联为 planner、主动倡议和 ReAct 模式提供支持（ADR-090）。工具清单已深度注解（会议参与者、邮件发件人、路线目的地等），从而实现跨领域联动、执行防护栏（人名绝不会被用在需要地址或邮箱的地方），以及证据驱动的扩展：被引用的实体（人、会议、地点、邮件）会自动带入能提供缺失数据的工具（ADR-120、ADR-121）。"
         },
         "semanticValidation": {
           "title": "✅ 语义计划验证",
@@ -2931,6 +2931,18 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_23_3": {
+          "title": "v1.23.3 — ⚡ 更快，你的数据终于互联互通",
+          "date": "2026年7月",
+          "count": "5",
+          "items": {
+            "i1": "<b>⚡ 响应更快</b> — LIA 在所有请求上约<strong>提前 1 秒</strong>开始回答：内部准备步骤现在并行执行。",
+            "i2": "<b>🗺️ 「怎么去我哥哥家？」现在可靠了</b> — LIA 会在计算路线前系统地从你的联系人中获取地址。再也不会因为把人名误当作地址而导航到随机地点。",
+            "i3": "<b>🛡️ 每次行动前的防护栏</b> — 如果计划试图在需要地址或电子邮件的地方使用人名（路线、邀请、发送邮件），LIA 会在执行<em>之前</em>发现并先从你的联系人中获取真实信息。",
+            "i4": "<b>🔗 全新的自然联动</b> — 「给这个会议的参与者发邮件」「回复发件人」「我的目的地天气如何？」「把这家餐厅的地址加到这个联系人」：你的各项工具数据（日历、邮件、地点、路线）现在可以互联互通。",
+            "i5": "<b>🔌 更稳健的后台生成</b> — 如果服务器在回答中途重启，对话会在一分钟内显示明确的提示，而不是无限等待；即使在硬性崩溃后，内部流的清理也有保障。"
+          }
+        },
         "v1_23_2": {
           "title": "v1.23.2 — 🚨 LIA 现在会自我监护",
           "date": "2026年7月",
@@ -5808,7 +5820,7 @@
       "deep_dive_link": "完整技术深度解析",
       "langgraph": {
         "title": "LangGraph",
-        "description": "基于状态图的智能体编排、波次并行执行和贝叶斯计划模式学习。"
+        "description": "基于状态图的智能体编排、波次并行执行和贝叶斯计划模式学习。类型化语义层在执行防护栏的保护下将各领域数据互联。"
       },
       "llm_providers": {
         "title": "7家LLM供应商",
@@ -6317,7 +6329,7 @@
       "hallucination-defense": {
         "title": "幻觉防御：当 LLM 编造参数时",
         "excerpt": "LIA 在工具执行前检测并中和 LLM 幻觉参数，使用签名检查和规划器中的禁用工具列表。",
-        "body": "<h2>幽灵参数问题</h2><p>LLM 很有创造力 — 有时太有创造力。当规划器生成 ExecutionPlan 时，可能会编造目标工具签名中不存在的参数：<code>order</code>、<code>order_by</code>、<code>sort</code>、<code>limit</code>…这些幻觉参数导致静默的 <code>TypeError</code> 崩溃。</p><h2>基于签名的清理</h2><p>并行执行器在调用前通过 <code>inspect.signature()</code> 检查每个工具的 <strong>Python 签名</strong>。签名中未声明的任何参数都会被<strong>自动删除</strong>。</p><h2>规划器中的禁用工具</h2><p>规划器提示包含<strong>明确的禁用工具列表</strong>：<code>resolve_reference</code>、<code>get_context_list</code>、<code>get_context</code>、<code>resolve_context</code>、<code>lookup_reference</code>。这大幅减少了不必要的重新规划幻觉。</p><h2>简化的 HITL</h2><p>审批门现在以<strong>直通</strong>模式运行。人工验证集中在下游的<strong>上下文确认</strong>。</p><h2>干净的取消</h2><p>FOR_EACH 循环取消现在产生<strong>快速路径</strong>响应。</p><h2>纵深防御</h2><p>这些机制构成<strong>多层防御</strong>：提示指令减少幻觉、签名自省中和幽灵参数、上下文 HITL 处理关键操作。结果：更健壮的执行计划。</p>"
+        "body": "<h2>幽灵参数问题</h2><p>LLM 很有创造力 — 有时太有创造力。当规划器生成 ExecutionPlan 时，可能会编造目标工具签名中不存在的参数：<code>order</code>、<code>order_by</code>、<code>sort</code>、<code>limit</code>…这些幻觉参数导致静默的 <code>TypeError</code> 崩溃。</p><h2>基于签名的清理</h2><p>并行执行器在调用前通过 <code>inspect.signature()</code> 检查每个工具的 <strong>Python 签名</strong>。签名中未声明的任何参数都会被<strong>自动删除</strong>。</p><h2>规划器中的禁用工具</h2><p>规划器提示包含<strong>明确的禁用工具列表</strong>：<code>resolve_reference</code>、<code>get_context_list</code>、<code>get_context</code>、<code>resolve_context</code>、<code>lookup_reference</code>。这大幅减少了不必要的重新规划幻觉。</p><h2>简化的 HITL</h2><p>审批门现在以<strong>直通</strong>模式运行。人工验证集中在下游的<strong>上下文确认</strong>。</p><h2>干净的取消</h2><p>FOR_EACH 循环取消现在产生<strong>快速路径</strong>响应。</p><h2>语义参数防护栏</h2><p>还有一层保护在执行时生效：每个带有语义类型注解的工具参数（实际地址、电子邮箱……）都会在 API 调用前被检查。如果计划试图在此传入本轮已解析的<strong>人名</strong>——比如导航到「Alexandre Dupont」而不是他的地址——调用会在产生任何费用前被拦截，并返回可恢复的错误来引导模型：「先获取该联系人的地址」。防护栏由工具清单驱动（没有针对单个工具的硬编码规则），在两种执行模式下均生效，并采用<em>fail-open</em>设计：存疑时绝不干扰合法调用。</p><h2>纵深防御</h2><p>这些机制构成<strong>多层防御</strong>：提示指令减少幻觉、签名自省中和幽灵参数、上下文 HITL 处理关键操作。结果：更健壮的执行计划。</p>"
       },
       "embedding-calibration": {
         "title": "嵌入向量校准：8个阈值调优以实现语义精度",

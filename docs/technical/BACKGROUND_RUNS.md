@@ -47,7 +47,7 @@ SSE path flag OFF, scheduled actions executor, channels inbound handler).
 | Entry fields | Meaning |
 |---|---|
 | `{"d": <ChatStreamChunk JSON>}` | One chunk, relayed verbatim to SSE `data:` |
-| `{"end": "1", "status": s}` | Terminal marker; `s ∈ completed \| error \| killed` |
+| `{"end": "1", "status": s}` | Terminal marker; `s ∈ completed \| error \| killed \| cancelled` |
 
 - Stream key: `chat:run:{stream_id}` (`REDIS_KEY_RUN_STREAM_PREFIX`).
 - **Two identifiers, deliberately distinct**: `stream_id` (transport — the
@@ -58,10 +58,14 @@ SSE path flag OFF, scheduled actions executor, channels inbound handler).
   stream; reusing that stream would make a replay-from-0 subscriber stop at
   the stale marker and never see the resumption content (regression-guarded
   by `test_hitl_resumption_fresh_stream_avoids_stale_end_marker`).
-- The stream ALWAYS terminates — subscribers can never hang. On abnormal
-  producer death the marker is written under `asyncio.shield`.
-- `XADD` uses `MAXLEN ~` (`BACKGROUND_RUNS_STREAM_MAXLEN`); `EXPIRE` is
-  armed when the terminal marker is published
+- The stream ALWAYS terminates on every in-process exit path — the marker
+  is written under `asyncio.shield` on abnormal producer death. The
+  out-of-process death paths (hard kill) are covered by the subscriber-side
+  orphan exit and the safety TTL (see *Hard-kill hardening* below).
+- `XADD` uses `MAXLEN ~` (`BACKGROUND_RUNS_STREAM_MAXLEN`) and pipelines an
+  `EXPIRE NX` in the same round-trip, so the key carries the safety TTL
+  (`BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS`) from its first entry; the
+  terminal marker overwrites it with the short post-terminal TTL
   (`BACKGROUND_RUNS_STREAM_TTL_SECONDS`).
 - No new `ChatStreamChunk` type: the frontend SSE symmetry test is
   untouched.
@@ -114,7 +118,9 @@ with the lifespan drain, uvicorn waits (30/30). Wiring:
 |---|---|---|
 | `BACKGROUND_RUNS_ENABLED` | `false` | Master switch / instant rollback |
 | `BACKGROUND_RUNS_STREAM_MAXLEN` | `10000` | ~122 KB per 1000 token chunks (measured) |
-| `BACKGROUND_RUNS_STREAM_TTL_SECONDS` | `3600` | Bounds Redis memory; must cover the Lot 2 reattach window |
+| `BACKGROUND_RUNS_STREAM_TTL_SECONDS` | `3600` | Post-terminal EXPIRE; bounds Redis memory; must cover the Lot 2 reattach window |
+| `BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS` | `7200` | Mid-run EXPIRE NX armed at the first chunk (hard-kill leak bound); boot guard: ≥ `STREAM_TTL`; must exceed the longest run |
+| `BACKGROUND_RUNS_ORPHAN_GRACE_SECONDS` | `20` | Subscriber orphan exit window (lock missing AND chunk-silent); boot guard: ≥ 2× `HEARTBEAT` |
 | `BACKGROUND_RUNS_XREAD_BLOCK_MS` | `2000` | **Must stay well below `REDIS_SOCKET_TIMEOUT`×1000** — redis-py raises `TimeoutError` past it (POC-proven). Also the SSE keepalive cadence |
 | `BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS` | `45` | Drain + generic-task timeout must stay below `stop_grace_period` (90 s) with margin |
 | `SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS` | `15` | Generic fire-and-forget drain (memory/interest extraction…) |
@@ -207,11 +213,54 @@ Delivered 2026-07-09 (same ADR, same flag).
   via `Command(resume)` and never re-enter the router: pending approvals
   are unaffected.
 
+## Hard-kill hardening (2026-07 audit)
+
+The end-marker invariant only covers **in-process** exits (the producer's
+`except`/`finally` paths). A hard kill — `kill -9`, OOM-kill, power loss
+(plausible on the RPi5) — runs no `finally`; and since prod Redis is
+AOF-persisted, a leaked key even survives the reboot. Three guarantees
+close that path:
+
+1. **Stream safety TTL** — every chunk `XADD` pipelines an `EXPIRE NX`
+   (same round-trip, zero extra latency): the key carries
+   `BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS` from its first entry, and
+   NX never overwrites an existing TTL, so the leak bound counts from
+   stream *creation* (strictly tighter than a periodic re-arm, which would
+   count from producer death). `publish_end` still overwrites it with the
+   short post-terminal TTL. Self-repairing: if a pathological run outlives
+   the safety TTL, the next XADD re-creates the key and NX re-arms it.
+2. **Subscriber orphan exit** — the SSE relay (`stream_run_as_sse`)
+   declares the run orphaned once the conversation's active-run lock has
+   been observed missing (or owned by another stream) for a full
+   `BACKGROUND_RUNS_ORPHAN_GRACE_SECONDS` AND no chunk arrived over the
+   same window, then emits a synthetic `error` + `done` chunk pair (the
+   exact sequence of the endpoint's exception fallback — standard types,
+   contract untouched, `metadata.orphaned` for debuggability) and
+   terminates. **The heartbeated lock is the liveness truth, not chunk
+   silence**: a live-but-silent run (long LLM call) keeps its lock
+   refreshed and is never killed; probe failures (transient Redis hiccups)
+   are skipped, not treated as a missing lock. Worst-case exit latency
+   after a crash ≈ `ACTIVE_TTL` + 2× grace (~70 s prod). Log
+   `run_stream_orphan_exit`; metric
+   `sse_streaming_errors_total{error_type="orphaned_run"}`.
+3. **Atomic listener counter** — `listener_incr` runs INCR + EXPIRE as a
+   single Lua eval (same style as the floor-guarded decrement): the crash
+   window that could leave a TTL-less counter (→ `has_listeners()` true
+   forever → paid TTS synthesized for nobody) no longer exists.
+
+Accepted residual (documented, rare): if the lock expires while the
+producer still lives (extreme CPU contention — already surfaced by
+`active_run_lock_lost`) AND the run is chunk-silent beyond the grace, the
+subscriber exits with the synthetic error while the run completes in the
+background; archive-first puts the real response in history on reload.
+
 ## Known limits (by design)
 
 - **First-ever message edge**: when no conversation exists yet at POST
   time, there is no lock (and no partial finalizer) for that first run —
   it is created during the run; subsequent messages are fully covered.
+  The subscriber orphan exit is also disabled there (no lock to probe —
+  its absence would be the normal state, not a death certificate).
 - **409 optimistic bubble**: the rejected message's optimistic bubble stays
   visible until the next history reload reconciles it (rare multi-tab
   race; the input lock and auto-resume make it hard to hit).

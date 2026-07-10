@@ -82,6 +82,7 @@ unified_web_search_catalogue_manifest = ToolManifest(
             name="recency",
             type="string",
             required=False,
+            semantic_type="recency_filter",
             description=(
                 "Freshness filter. MUST be one of these exact values: "
                 "'day' (last 24h), 'week' (last 7 days), 'month' (last 30 days), "

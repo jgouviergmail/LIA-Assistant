@@ -93,6 +93,7 @@ fetch_web_page_catalogue_manifest = ToolManifest(
             type="string",
             description="Detected language (from HTML lang attribute)",
             nullable=True,
+            semantic_type="language_code",
         ),
         OutputFieldSchema(
             path="web_fetchs",

@@ -45,6 +45,21 @@ langgraph_graph_errors_total = Counter(
     # Different from agent_node_executions_total{status="error"} (node-level)
 )
 
+langgraph_stage_duration_seconds = Histogram(
+    "langgraph_stage_duration_seconds",
+    "Wall-clock duration of each graph stage (node) segmented by execution mode "
+    "and turn kind, measured between consecutive 'updates' stream events at the "
+    "SSE chokepoint — includes checkpoint writes and inter-node overhead, unlike "
+    "agent_node_duration_seconds which times the node body only",
+    ["stage", "execution_mode", "turn_kind"],
+    # stage: node name (compaction/router/planner/.../react_call_model/response)
+    # execution_mode: pipeline | react (ADR-070)
+    # turn_kind: conversation | action | hitl_resume | unknown
+    # Latency lot (2026-07): this is the "where do the seconds go" histogram —
+    # upper range sized for the RPi5 production reality (TTFT 16-57s).
+    buckets=[0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0, 120.0],
+)
+
 # ============================================================================
 # NODE TRANSITION METRICS
 # ============================================================================

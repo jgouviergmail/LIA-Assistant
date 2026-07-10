@@ -102,12 +102,14 @@ get_emails_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Single message ID for direct fetch (optional).",
+            semantic_type="message_id",
         ),
         ParameterSchema(
             name="message_ids",
             type="array",
             required=False,
             description="Multiple message IDs for batch fetch (optional).",
+            semantic_type="message_id",
         ),
         # Common options
         ParameterSchema(
@@ -137,7 +139,12 @@ get_emails_catalogue_manifest = ToolManifest(
             description="Thread ID",
             semantic_type="thread_id",
         ),
-        OutputFieldSchema(path="emails[].snippet", type="string", description="Preview snippet"),
+        OutputFieldSchema(
+            path="emails[].snippet",
+            type="string",
+            description="Preview snippet",
+            semantic_type="message_snippet",
+        ),
         OutputFieldSchema(
             path="emails[].labelIds",
             type="array",
@@ -145,9 +152,25 @@ get_emails_catalogue_manifest = ToolManifest(
             semantic_type="email_label",
         ),
         OutputFieldSchema(path="emails[].subject", type="string", description="Email subject line"),
+        OutputFieldSchema(
+            path="emails[].from",
+            type="string",
+            description="Sender (RFC 5322 name-addr, e.g. 'Jane <jane@x.com>')",
+            semantic_type="email_address",  # Cross-domain: "reply to/invite the sender"
+        ),
         OutputFieldSchema(path="emails[].headers", type="object", description="Email headers"),
-        OutputFieldSchema(path="emails[].body", type="string", description="Full email body"),
-        OutputFieldSchema(path="emails[].attachments", type="array", description="Attachment info"),
+        OutputFieldSchema(
+            path="emails[].body",
+            type="string",
+            description="Full email body",
+            semantic_type="email_body",
+        ),
+        OutputFieldSchema(
+            path="emails[].attachments",
+            type="array",
+            description="Attachment info",
+            semantic_type="attachment_info",
+        ),
         OutputFieldSchema(path="total", type="integer", description="Total count"),
     ],
     cost=CostProfile(
@@ -280,11 +303,19 @@ reply_email_catalogue_manifest = ToolManifest(
     ],
     parameters=[
         ParameterSchema(
-            name="message_id", type="string", required=True, description="Original Msg ID"
+            name="message_id",
+            type="string",
+            required=True,
+            description="Original Msg ID",
+            semantic_type="message_id",
         ),
         ParameterSchema(name="body", type="string", required=True, description="Reply content"),
         ParameterSchema(
-            name="reply_all", type="boolean", required=False, description="Reply All (def: false)"
+            name="reply_all",
+            type="boolean",
+            required=False,
+            description="Reply All (def: false)",
+            semantic_type="reply_all_flag",
         ),
     ],
     outputs=[
@@ -328,7 +359,11 @@ forward_email_catalogue_manifest = ToolManifest(
     ],
     parameters=[
         ParameterSchema(
-            name="message_id", type="string", required=True, description="Original Msg ID"
+            name="message_id",
+            type="string",
+            required=True,
+            description="Original Msg ID",
+            semantic_type="message_id",
         ),
         ParameterSchema(
             name="to",
@@ -390,7 +425,11 @@ delete_email_catalogue_manifest = ToolManifest(
     ],
     parameters=[
         ParameterSchema(
-            name="message_id", type="string", required=True, description="Msg ID to delete"
+            name="message_id",
+            type="string",
+            required=True,
+            description="Msg ID to delete",
+            semantic_type="message_id",
         ),
     ],
     outputs=[
@@ -453,6 +492,7 @@ list_labels_catalogue_manifest = ToolManifest(
             name="name_filter",
             type="string",
             required=False,
+            semantic_type="email_label",
             description="Filter labels by name (case-insensitive partial match). "
             "E.g., 'famille' matches 'Famille', 'Famille/Oncles'",
         ),
@@ -512,6 +552,7 @@ create_label_catalogue_manifest = ToolManifest(
             required=True,
             description="Label name. Use '/' for hierarchy (e.g., 'pro/capge/2024')",
             constraints=[ParameterConstraint(kind="min_length", value=1)],
+            semantic_type="email_label",
         ),
     ],
     outputs=[
@@ -558,12 +599,14 @@ update_label_catalogue_manifest = ToolManifest(
             type="string",
             required=True,
             description="Current label name or path",
+            semantic_type="email_label",
         ),
         ParameterSchema(
             name="new_name",
             type="string",
             required=True,
             description="New label name",
+            semantic_type="email_label",
         ),
     ],
     outputs=[
@@ -611,6 +654,7 @@ delete_label_catalogue_manifest = ToolManifest(
             type="string",
             required=True,
             description="Label name or path to delete",
+            semantic_type="email_label",
         ),
         ParameterSchema(
             name="children_only",
@@ -684,6 +728,7 @@ apply_labels_catalogue_manifest = ToolManifest(
             type="array",
             required=True,
             description="Label names to apply",
+            semantic_type="email_label",
         ),
         ParameterSchema(
             name="message_id",
@@ -697,6 +742,7 @@ apply_labels_catalogue_manifest = ToolManifest(
             type="array",
             required=False,
             description="Multiple message IDs for bulk operation",
+            semantic_type="message_id",
         ),
         ParameterSchema(
             name="auto_create",
@@ -748,6 +794,7 @@ remove_labels_catalogue_manifest = ToolManifest(
             type="array",
             required=True,
             description="Label names to remove",
+            semantic_type="email_label",
         ),
         ParameterSchema(
             name="message_id",
@@ -761,6 +808,7 @@ remove_labels_catalogue_manifest = ToolManifest(
             type="array",
             required=False,
             description="Multiple message IDs for bulk operation",
+            semantic_type="message_id",
         ),
     ],
     outputs=[

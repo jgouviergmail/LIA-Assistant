@@ -209,10 +209,17 @@
       "query_preview": "c'était quoi le premier rdv renvoyé ?",
       "timestamp": "2026-04-18T10:56:34.235954+00:00",
       "was_new": false
+    },
+    {
+      "tool": "get_context_state",
+      "domain": "reminder",
+      "query_preview": "Oui, confirme.",
+      "timestamp": "2026-07-10T04:03:42.970766+00:00",
+      "was_new": false
     }
   ],
   "stats": {
-    "total_detections": 28,
-    "last_updated": "2026-04-18T10:56:34.235973+00:00"
+    "total_detections": 29,
+    "last_updated": "2026-07-10T04:03:42.970781+00:00"
   }
 }

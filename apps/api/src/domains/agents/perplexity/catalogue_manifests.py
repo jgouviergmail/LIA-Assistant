@@ -56,6 +56,7 @@ perplexity_search_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="'day', 'week', 'month', 'year' (def: none)",
+            semantic_type="recency_filter",
         ),
         ParameterSchema(
             name="include_citations",

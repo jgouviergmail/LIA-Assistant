@@ -102,6 +102,48 @@ class SSEErrorMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def run_orphaned(language: SupportedLanguage = "fr") -> str:
+        """
+        Error message for an orphaned background run (ADR-117 hard-kill path).
+
+        Emitted by the SSE relay when the run's producer died without a
+        terminal marker (server crash, OOM, power loss): the conversation's
+        active-run lock vanished and no chunk arrived within the grace
+        period. The generation is genuinely gone — the user must retry.
+
+        Args:
+            language: Target language (fr/en/es/de/it/zh-CN)
+
+        Returns:
+            User-friendly error message for interrupted background runs
+        """
+        messages = {
+            "fr": (
+                "La génération a été interrompue de manière inattendue "
+                "(redémarrage du serveur). Veuillez réessayer."
+            ),
+            "en": (
+                "The response generation was unexpectedly interrupted "
+                "(server restart). Please try again."
+            ),
+            "es": (
+                "La generación de la respuesta se interrumpió de forma inesperada "
+                "(reinicio del servidor). Por favor, inténtelo de nuevo."
+            ),
+            "de": (
+                "Die Antwortgenerierung wurde unerwartet unterbrochen "
+                "(Serverneustart). Bitte versuchen Sie es erneut."
+            ),
+            "it": (
+                "La generazione della risposta è stata interrotta in modo imprevisto "
+                "(riavvio del server). Si prega di riprovare."
+            ),
+            "zh-CN": "回复生成意外中断（服务器重启）。请重试。",
+        }
+
+        return messages.get(language, messages["en"])
+
+    @staticmethod
     def _llm_provider_busy(language: SupportedLanguage = "fr") -> str:
         """
         User-friendly message when LLM provider is overloaded or rate-limited.

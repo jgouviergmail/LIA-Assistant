@@ -36,6 +36,7 @@ from src.infrastructure.observability.metrics_agents import (
     sse_tokens_generated_total,
 )
 from src.infrastructure.observability.metrics_langgraph import (
+    langgraph_stage_duration_seconds,
     langgraph_streaming_chunks_total,
 )
 
@@ -168,6 +169,7 @@ class StreamingService:
         user_message: str | None = None,
         user_id: str | None = None,
         debug_panel_enabled: bool = False,
+        is_hitl_resumption: bool = False,
     ):
         """
         Initialize StreamingService with optional HITL dependencies.
@@ -179,12 +181,20 @@ class StreamingService:
             user_message: Original user message for archiving
             user_id: User ID for interest extraction debug metrics
             debug_panel_enabled: Pre-computed flag for debug metrics emission
+            is_hitl_resumption: True when this stream resumes a pending HITL
+                interrupt. Stage-duration metrics are then labelled
+                turn_kind="hitl_resume": a resumed run re-enters the graph at
+                the interrupted node, so its stage timings would skew the
+                conversation/action distributions.
         """
         self.conv_service = conv_service
         self.hitl_store = hitl_store
         self.tracker = tracker
         self.user_message = user_message
         self.user_id = user_id
+        # Latency lot (2026-07): resumed HITL runs are labelled separately in
+        # langgraph_stage_duration_seconds (see _flush_stage_durations).
+        self.is_hitl_resumption = is_hitl_resumption
         # Flag to track if HITL interrupt occurred during streaming
         # Used by service.py to determine appropriate archiving metadata
         self.hitl_interrupt_detected = False
@@ -283,6 +293,14 @@ class StreamingService:
         response_content = ""
         intention_label = "unknown"  # Will be updated when router decision is received
 
+        # Latency lot (2026-07): per-stage wall-clock durations, measured as the
+        # delta between consecutive "updates" events (node completions). Buffered
+        # here and flushed at end of stream / HITL interrupt, once execution_mode
+        # and intention are known (they are not yet resolved when the first
+        # stages — compaction, router — complete).
+        stage_boundary = time.perf_counter()
+        stage_durations: list[tuple[str, float]] = []
+
         # Data Registry: Track registry IDs already sent to avoid duplicates
         sent_registry_ids: set[str] = set()
 
@@ -322,6 +340,10 @@ class StreamingService:
                             chunk, conversation_id, run_id
                         ):
                             yield (hitl_chunk, "")  # HITL chunks have no content
+                        # Latency lot (2026-07): flush the stages completed before
+                        # the interrupt (the interrupted node itself never emits an
+                        # "updates" event — its remainder is measured on resume).
+                        self._flush_stage_durations(stage_durations, state, intention_label, run_id)
                         return  # Exit generator after HITL
 
                     # NO HITL - process normally. Registry updates are NOT
@@ -397,6 +419,16 @@ class StreamingService:
                             run_id=run_id,
                         )
                         continue
+
+                    # Latency lot (2026-07): the delta since the previous node
+                    # completion is this stage's wall-clock cost (node body +
+                    # checkpoint write + scheduling). Multi-key chunks (parallel
+                    # nodes) share the same wall-clock delta by construction.
+                    _stage_now = time.perf_counter()
+                    for _stage_name in chunk:
+                        if _stage_name not in ("__start__", "__end__"):
+                            stage_durations.append((_stage_name, _stage_now - stage_boundary))
+                    stage_boundary = _stage_now
 
                     sse_chunks = self._process_updates_chunk(chunk, state)
 
@@ -558,6 +590,10 @@ class StreamingService:
                 token_count
             )
 
+            # Latency lot (2026-07): flush buffered per-stage durations now that
+            # execution_mode and intention are fully resolved.
+            self._flush_stage_durations(stage_durations, state, intention_label, run_id)
+
             logger.info(
                 "streaming_complete",
                 run_id=run_id,
@@ -586,6 +622,73 @@ class StreamingService:
                 error_type=type(e).__name__,
             )
             raise
+
+    def _flush_stage_durations(
+        self,
+        stage_durations: list[tuple[str, float]],
+        state: dict[Any, Any],
+        intention_label: str,
+        run_id: str,
+    ) -> None:
+        """Observe buffered per-stage durations with fully-resolved labels.
+
+        Durations are buffered during the stream because the labels are not
+        known when the first stages complete: execution_mode and the router
+        intention are only written to state by router_node. Flushing at end of
+        stream (or at HITL interrupt) labels every stage of the turn
+        consistently.
+
+        Also logs a single structured `graph_stage_durations` event (durations
+        only, no content — PII-safe at INFO) so the breakdown stays available
+        in Loki, which is the reliable latency source when Prometheus
+        histograms are unavailable (multi-worker deployments).
+
+        Args:
+            stage_durations: Buffered (stage_name, seconds) pairs, in order.
+            state: Latest accumulated state (source of execution_mode).
+            intention_label: Router intention ("conversation" / "action") or
+                "unknown" when the router did not complete.
+            run_id: Run identifier for the structured log line.
+        """
+        if not stage_durations:
+            return
+        try:
+            execution_mode = (state.get("execution_mode") if state else None) or "pipeline"
+            if self.is_hitl_resumption:
+                turn_kind = "hitl_resume"
+            elif intention_label in ("conversation", "action"):
+                turn_kind = intention_label
+            else:
+                turn_kind = "unknown"
+
+            # ReAct loop nodes (react_call_model / react_execute_tools) complete
+            # several times per turn: each pass is observed individually in the
+            # histogram, while the log line aggregates the total per stage.
+            aggregated_ms: dict[str, int] = {}
+            for stage, seconds in stage_durations:
+                langgraph_stage_duration_seconds.labels(
+                    stage=stage,
+                    execution_mode=execution_mode,
+                    turn_kind=turn_kind,
+                ).observe(seconds)
+                aggregated_ms[stage] = aggregated_ms.get(stage, 0) + int(seconds * 1000)
+
+            logger.info(
+                "graph_stage_durations",
+                run_id=run_id,
+                execution_mode=execution_mode,
+                turn_kind=turn_kind,
+                total_ms=int(sum(s for _, s in stage_durations) * 1000),
+                stages_ms=aggregated_ms,
+            )
+        except Exception as e:
+            # Metrics must never break streaming.
+            logger.debug(
+                "stage_duration_flush_failed",
+                run_id=run_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     async def _emit_debug_metrics(
         self, state: dict[Any, Any], run_id: str

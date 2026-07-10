@@ -553,6 +553,20 @@ class ToolOutputMixin:
                 )
                 email["subject"] = subject
 
+            # Promote sender to top-level for the same reason: semantic linking
+            # needs a Jinja-addressable emails[].from (RFC 5322 name-addr) so
+            # "reply to the sender" / "invite the sender" can be chained.
+            if "from" not in email:
+                sender = next(
+                    (
+                        h.get("value", "")
+                        for h in email.get("payload", {}).get("headers", [])
+                        if h.get("name", "").lower() == "from"
+                    ),
+                    "",
+                )
+                email["from"] = sender
+
             # Convert dates to user's timezone
             convert_email_dates_in_payload(email, user_timezone, locale)
 

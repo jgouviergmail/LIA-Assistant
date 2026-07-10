@@ -108,6 +108,7 @@ get_route_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Travel mode: DRIVE, WALK, BICYCLE, TRANSIT, TWO_WHEELER. Default: DRIVE.",
+            semantic_type="travel_mode",
         ),
         ParameterSchema(
             name="avoid_tolls",
@@ -135,6 +136,7 @@ get_route_catalogue_manifest = ToolManifest(
                 "Departure time in ISO 8601 format for traffic prediction. "
                 "Example: '2025-01-15T08:00:00Z'. Mutually exclusive with arrival_time."
             ),
+            semantic_type="datetime",
         ),
         ParameterSchema(
             name="arrival_time",
@@ -154,6 +156,7 @@ get_route_catalogue_manifest = ToolManifest(
             required=False,
             description="Intermediate stops (max 25). Example: ['Dijon', 'Mâcon'].",
             constraints=[ParameterConstraint(kind="maximum", value=25)],
+            semantic_type="physical_address",  # Guarded + parity with get_route_matrix
         ),
         ParameterSchema(
             name="optimize_waypoints",
@@ -164,21 +167,41 @@ get_route_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(path="route", type="object", description="Route information"),
-        OutputFieldSchema(path="route.origin", type="string", description="Origin address"),
         OutputFieldSchema(
-            path="route.destination", type="string", description="Destination address"
-        ),
-        OutputFieldSchema(path="route.travel_mode", type="string", description="Travel mode used"),
-        OutputFieldSchema(
-            path="route.distance_km", type="number", description="Distance in kilometers"
+            path="route.origin",
+            type="string",
+            description="Origin address",
+            semantic_type="physical_address",  # Cross-domain: weather/places at origin
         ),
         OutputFieldSchema(
-            path="route.duration_minutes", type="integer", description="Duration in minutes"
+            path="route.destination",
+            type="string",
+            description="Destination address",
+            semantic_type="physical_address",  # Cross-domain: "weather at destination"
+        ),
+        OutputFieldSchema(
+            path="route.travel_mode",
+            type="string",
+            description="Travel mode used",
+            semantic_type="travel_mode",
+        ),
+        OutputFieldSchema(
+            path="route.distance_km",
+            type="number",
+            description="Distance in kilometers",
+            semantic_type="distance",
+        ),
+        OutputFieldSchema(
+            path="route.duration_minutes",
+            type="integer",
+            description="Duration in minutes",
+            semantic_type="duration",
         ),
         OutputFieldSchema(
             path="route.duration_formatted",
             type="string",
             description="Human-readable duration (e.g., '2h 30min')",
+            semantic_type="formatted_time",
         ),
         OutputFieldSchema(
             path="route.duration_in_traffic_minutes",
@@ -191,15 +214,25 @@ get_route_catalogue_manifest = ToolManifest(
             type="string",
             nullable=True,
             description="Traffic level: NORMAL, LIGHT, MODERATE, HEAVY",
+            semantic_type="traffic_condition",
         ),
         OutputFieldSchema(
-            path="route.polyline", type="string", description="Encoded polyline for map display"
+            path="route.polyline",
+            type="string",
+            description="Encoded polyline for map display",
+            semantic_type="polyline",
         ),
         OutputFieldSchema(
-            path="route.steps", type="array", description="Turn-by-turn navigation steps"
+            path="route.steps",
+            type="array",
+            description="Turn-by-turn navigation steps",
+            semantic_type="navigation_steps",
         ),
         OutputFieldSchema(
-            path="route.maps_url", type="string", description="Google Maps URL for directions"
+            path="route.maps_url",
+            type="string",
+            description="Google Maps URL for directions",
+            semantic_type="google_maps_url",
         ),
         OutputFieldSchema(
             path="route.is_arrival_based",
@@ -211,24 +244,28 @@ get_route_catalogue_manifest = ToolManifest(
             type="string",
             nullable=True,
             description="Target arrival time (ISO 8601) when is_arrival_based=true",
+            semantic_type="datetime",
         ),
         OutputFieldSchema(
             path="route.target_arrival_formatted",
             type="string",
             nullable=True,
             description="Human-readable target arrival time",
+            semantic_type="formatted_time",
         ),
         OutputFieldSchema(
             path="route.suggested_departure_time",
             type="string",
             nullable=True,
             description="Suggested departure time (ISO 8601) to arrive on time",
+            semantic_type="datetime",
         ),
         OutputFieldSchema(
             path="route.suggested_departure_formatted",
             type="string",
             nullable=True,
             description="Human-readable suggested departure time",
+            semantic_type="formatted_time",
         ),
         OutputFieldSchema(
             path="alternatives_count", type="integer", description="Number of alternative routes"
@@ -321,12 +358,14 @@ get_route_matrix_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Travel mode: DRIVE, WALK, BICYCLE, TRANSIT. Default: DRIVE.",
+            semantic_type="travel_mode",
         ),
         ParameterSchema(
             name="departure_time",
             type="string",
             required=False,
             description="Departure time in ISO 8601 for traffic prediction.",
+            semantic_type="datetime",
         ),
     ],
     outputs=[
@@ -334,34 +373,57 @@ get_route_matrix_catalogue_manifest = ToolManifest(
             path="matrix",
             type="array",
             description="2D matrix of route data [origin_idx][dest_idx]",
+            semantic_type="route_matrix",
         ),
         OutputFieldSchema(
-            path="matrix[][].distance_km", type="number", description="Distance in km"
+            path="matrix[][].distance_km",
+            type="number",
+            description="Distance in km",
+            semantic_type="distance",
         ),
         OutputFieldSchema(
-            path="matrix[][].duration_minutes", type="integer", description="Duration in minutes"
+            path="matrix[][].duration_minutes",
+            type="integer",
+            description="Duration in minutes",
+            semantic_type="duration",
         ),
         OutputFieldSchema(
             path="matrix[][].duration_formatted",
             type="string",
             description="Human-readable duration",
+            semantic_type="formatted_time",
         ),
         OutputFieldSchema(
             path="matrix[][].condition",
             type="string",
             description="Route condition (OK, ROUTE_NOT_FOUND)",
+            semantic_type="route_condition",
         ),
-        OutputFieldSchema(path="origins", type="array", description="Origin list (for reference)"),
         OutputFieldSchema(
-            path="destinations", type="array", description="Destination list (for reference)"
+            path="origins",
+            type="array",
+            description="Origin list (for reference)",
+            semantic_type="physical_address",
+        ),
+        OutputFieldSchema(
+            path="destinations",
+            type="array",
+            description="Destination list (for reference)",
+            semantic_type="physical_address",
         ),
         OutputFieldSchema(
             path="optimal_order",
             type="array",
             nullable=True,
             description="Optimal destination order (indices) if single origin",
+            semantic_type="optimal_order",
         ),
-        OutputFieldSchema(path="travel_mode", type="string", description="Travel mode used"),
+        OutputFieldSchema(
+            path="travel_mode",
+            type="string",
+            description="Travel mode used",
+            semantic_type="travel_mode",
+        ),
     ],
     cost=CostProfile(
         est_tokens_in=200, est_tokens_out=800, est_cost_usd=0.010, est_latency_ms=1200

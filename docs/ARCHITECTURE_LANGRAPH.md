@@ -1138,7 +1138,17 @@ With `BACKGROUND_RUNS_ENABLED=true`, the `ChatStreamChunk` flow above no longer 
 ```
 agent_node_executions_total{node_name, status}
 agent_node_duration_seconds{node_name}
+langgraph_stage_duration_seconds{stage, execution_mode, turn_kind}
 ```
+
+`agent_node_duration_seconds` times the node body (decorator) — now including
+`router_v3`, `planner_v3` and the four `react_*` nodes (latency lot, 2026-07).
+`langgraph_stage_duration_seconds` times each stage wall-clock between
+consecutive LangGraph `updates` events (includes checkpoint writes), segmented
+by `execution_mode` (pipeline/react) and `turn_kind`
+(conversation/action/hitl_resume). Each turn also emits one
+`graph_stage_durations` structured log line (Loki source when Prometheus
+histograms are unavailable). See `docs/optim/LATENCY_PLAN.md`.
 
 ### Router
 

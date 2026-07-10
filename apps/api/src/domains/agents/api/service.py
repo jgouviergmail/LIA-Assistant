@@ -1223,6 +1223,7 @@ class AgentService(
                         user_message=user_message,
                         user_id=str(user_id),
                         debug_panel_enabled=debug_panel_for_user,
+                        is_hitl_resumption=is_hitl_resumption,
                     )
 
                     # Side-channel queue: generic mechanism for tools to emit SSE chunks

@@ -40,14 +40,37 @@ sse_streaming_duration_seconds = Histogram(
     "sse_streaming_duration_seconds",
     "Total SSE streaming duration (request to last token)",
     ["intention"],
-    buckets=[0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 15.0, 30.0],
+    # Upper range sized for the RPi5 production reality (28-66s totals measured
+    # 2026-06): without buckets above 30s every observation lands in +Inf and
+    # p95 becomes uncomputable.
+    buckets=[0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 15.0, 30.0, 45.0, 60.0, 90.0, 120.0, 180.0],
 )
 
 sse_time_to_first_token_seconds = Histogram(
     "sse_time_to_first_token_seconds",
     "Time to first token (TTFT) in SSE streaming",
     ["intention"],
-    buckets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0],
+    # Upper range sized for the RPi5 production reality (TTFT 16-57s measured
+    # 2026-06): the historical 5s cap put every observation in +Inf.
+    buckets=[
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.5,
+        2.0,
+        3.0,
+        5.0,
+        7.5,
+        10.0,
+        15.0,
+        20.0,
+        30.0,
+        45.0,
+        60.0,
+        90.0,
+    ],
 )
 
 sse_tokens_generated_total = Counter(
@@ -84,7 +107,10 @@ chat_background_runs_total = Counter(
 router_latency_seconds = Histogram(
     "router_latency_seconds",
     "Router decision latency (time to route)",
-    buckets=[0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0],
+    # router_v3 chains semantic pivot + memory resolution + query-analyzer LLM:
+    # measured p95 ~12s on RPi5 (2026-06) — the historical 2s cap put every
+    # observation in +Inf.
+    buckets=[0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 20.0, 30.0],
 )
 
 router_decisions_total = Counter(
@@ -155,7 +181,9 @@ agent_node_duration_seconds = Histogram(
     "agent_node_duration_seconds",
     "Agent node execution duration",
     [FIELD_NODE_NAME],
-    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0],
+    # response/initiative p95 measured 12-15s on RPi5 (2026-06), worst cases
+    # exceed 30s — extended so the tail stays quantifiable.
+    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0, 120.0],
 )
 
 # ============================================================================
@@ -1156,9 +1184,10 @@ semantic_validation_total = Counter(
 semantic_validation_duration_seconds = Histogram(
     "semantic_validation_duration_seconds",
     "Duration of semantic validation (includes LLM call)",
-    # Buckets optimized for fast validation
-    # Target: P95 < 2s, timeout at 1s
-    buckets=[0.1, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 3.0, 5.0],
+    # Buckets optimized for fast validation, extended to cover the configurable
+    # timeout (SEMANTIC_VALIDATION_TIMEOUT_SECONDS is 20s in dev/prod — the
+    # historical 5s cap hid every slow validation in +Inf).
+    buckets=[0.1, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0, 20.0, 30.0],
 )
 
 semantic_validation_timeout_total = Counter(
@@ -1325,4 +1354,22 @@ react_agent_hitl_interrupts_total = Counter(
     "react_agent_hitl_interrupts_total",
     "HITL interrupts triggered in ReAct mode",
     ["tool_name", "decision"],  # decision: approve, reject
+)
+
+# ============================================================================
+# SEMANTIC LAYER METRICS
+# ============================================================================
+
+semantic_param_guard_blocks_total = Counter(
+    "semantic_param_guard_blocks_total",
+    "Tool calls blocked by the runtime semantic parameter guard "
+    "(person name passed on an address/email-typed parameter)",
+    ["tool_name", "semantic_type", "execution_mode"],  # execution_mode: pipeline, react
+)
+
+semantic_expansion_total = Counter(
+    "semantic_expansion_total",
+    "Domains added by evidence-driven semantic expansion "
+    "(referenced entity provides a semantic type required by the selected domains)",
+    ["evidence_entity", "added_domain"],  # evidence_entity: Contact, CalendarEvent, Place
 )

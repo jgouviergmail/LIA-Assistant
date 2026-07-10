@@ -88,6 +88,7 @@ get_files_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="'name_only' (default): match file names. 'full_text': match name + file content.",
+            semantic_type="search_mode",
         ),
         # ID mode parameters
         ParameterSchema(
@@ -95,12 +96,14 @@ get_files_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Single file ID for direct fetch.",
+            semantic_type="file_id",
         ),
         ParameterSchema(
             name="file_ids",
             type="array",
             required=False,
             description="Multiple file IDs for batch fetch.",
+            semantic_type="file_id",
         ),
         # List mode parameter
         ParameterSchema(
@@ -108,6 +111,7 @@ get_files_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="Parent folder ID for list mode (def: root)",
+            semantic_type="folder_id",
         ),
         # Common options
         ParameterSchema(
@@ -124,12 +128,14 @@ get_files_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description="'files_only' (default), 'folders_only', or 'all'",
+            semantic_type="content_type_filter",
         ),
         ParameterSchema(
             name="mime_type",
             type="string",
             required=False,
             description="Filter by MIME type: 'application/pdf' (PDF), 'image/jpeg', 'application/vnd.google-apps.document' (Docs), 'application/vnd.google-apps.spreadsheet' (Sheets)",
+            semantic_type="file_mime_type",
         ),
         ParameterSchema(
             name="include_content",
@@ -153,7 +159,12 @@ get_files_catalogue_manifest = ToolManifest(
             description="MIME type",
             semantic_type="file_mime_type",
         ),
-        OutputFieldSchema(path="files[].size", type="string", description="File size"),
+        OutputFieldSchema(
+            path="files[].size",
+            type="string",
+            description="File size",
+            semantic_type="file_size",
+        ),
         OutputFieldSchema(
             path="files[].modifiedTime",
             type="string",
@@ -161,9 +172,18 @@ get_files_catalogue_manifest = ToolManifest(
             semantic_type="datetime",
         ),
         OutputFieldSchema(path="files[].owners", type="string", description="Owner names"),
-        OutputFieldSchema(path="files[].shared", type="boolean", description="Is shared"),
         OutputFieldSchema(
-            path="files[].content", type="string", nullable=True, description="Text content"
+            path="files[].shared",
+            type="boolean",
+            description="Is shared",
+            semantic_type="shared_status",
+        ),
+        OutputFieldSchema(
+            path="files[].content",
+            type="string",
+            nullable=True,
+            description="Text content",
+            semantic_type="file_content",
         ),
         OutputFieldSchema(path="total", type="integer", description="Count"),
     ],

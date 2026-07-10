@@ -33,6 +33,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import re
 from dataclasses import dataclass, field, replace
@@ -966,6 +967,7 @@ class QueryAnalyzerService:
         config: RunnableConfig,
         *,
         original_query: str | None = None,
+        english_query_task: asyncio.Task[str] | None = None,
     ) -> QueryIntelligence:
         """
         Complete analysis with routing decision.
@@ -973,7 +975,10 @@ class QueryAnalyzerService:
         Replaces QueryIntelligenceService.analyze().
 
         Flow:
-        1. Memory facts retrieval (internalized)
+        1. Memory facts retrieval (internalized) — overlapped with the
+           semantic-pivot translation when `english_query_task` is provided
+           (latency lot R1, 2026-07: the two are data-independent, memory
+           embeds the ORIGINAL query)
         2. LLM Analysis (single call)
         3. Semantic Domain Expansion (if person reference)
         4. Chat Override (if conversation intent)
@@ -987,12 +992,21 @@ class QueryAnalyzerService:
         - Context failure → continue without context
 
         Args:
-            query: User query text (English for domain detection via semantic pivot)
+            query: User query text. English (semantic pivot) when the caller
+                already awaited the translation; the ORIGINAL query when
+                `english_query_task` is provided — the awaited task result then
+                replaces it for every post-memory step, preserving the exact
+                historical semantics.
             messages: Conversation messages
             state: Agent state dict
             config: RunnableConfig for callbacks
             original_query: Original user query in their language (for debug panel display).
                           If not provided, defaults to `query`.
+            english_query_task: Optional in-flight semantic-pivot translation
+                task, awaited concurrently with the memory-resolution phase.
+                The task never raises (translate_to_english falls back to the
+                original query internally); it is cancelled best-effort if this
+                method fails before awaiting it.
 
         Returns:
             QueryIntelligence with full analysis and routing decision
@@ -1018,11 +1032,29 @@ class QueryAnalyzerService:
             # poor cosine similarity with Gemini gemini-embedding-001.
             # The English query is still used for domain detection downstream.
             memory_search_query = original_query if original_query else query
-            memory_facts, memory_resolved = await self.memory_resolver.retrieve_and_resolve(
-                query=memory_search_query,
-                user_id=user_id,
-                config=config,
-            )
+            if english_query_task is not None:
+                # Latency lot R1 (2026-07): overlap the semantic-pivot LLM call
+                # with the memory-resolution phase. Rebinding `query` to the
+                # awaited translation reproduces exactly the historical caller
+                # behaviour (router awaited the pivot, then passed it as
+                # `query`) for every step below.
+                memory_resolution, query = await asyncio.gather(
+                    self.memory_resolver.retrieve_and_resolve(
+                        query=memory_search_query,
+                        user_id=user_id,
+                        config=config,
+                    ),
+                    english_query_task,
+                )
+            else:
+                memory_resolution = await self.memory_resolver.retrieve_and_resolve(
+                    query=memory_search_query,
+                    user_id=user_id,
+                    config=config,
+                )
+            memory_facts = memory_resolution.facts
+            memory_resolved = memory_resolution.resolved
+            memory_extracted_references = memory_resolution.references
 
             # Extract resolved references and enriched query
             memory_resolved_refs: dict[str, str] = {}
@@ -1031,8 +1063,13 @@ class QueryAnalyzerService:
             if memory_resolved and memory_resolved.mappings:
                 memory_resolved_refs = memory_resolved.mappings
                 memory_enriched_query = memory_resolved.enriched_query
+                # No PII at INFO: mappings are resolved person names (DEBUG only).
                 logger.info(
                     "memory_reference_resolution_applied",
+                    mappings_count=len(memory_resolved_refs),
+                )
+                logger.debug(
+                    "memory_reference_resolution_mappings",
                     mappings=memory_resolved_refs,
                     enriched_query_preview=(
                         memory_enriched_query[:50] if memory_enriched_query else None
@@ -1058,6 +1095,15 @@ class QueryAnalyzerService:
                 user_location=user_location,
                 base_config=config,
             )
+
+            # Latency lot R3 (semantic_pivot_enabled=False): no pivot ran — the
+            # analyzer received the original query and produced its own English
+            # translation; feed it to the downstream English pattern-matching
+            # steps (FOR_EACH heuristics, context resolution, goal inference).
+            # No-op on the historical path where `query` already holds the
+            # awaited pivot output.
+            if english_query_task is None and analysis_result.english_query:
+                query = analysis_result.english_query
 
             # FIX 2026-02-06: Apply FOR_EACH heuristics post-processing
             # Enhance detection for implicit patterns the LLM may miss
@@ -1128,11 +1174,54 @@ class QueryAnalyzerService:
                 reasoning_trace.append(f"LLM resolved: {list(llm_refs.keys())}")
 
             # === STEP 3: Semantic Type Domain Expansion ===
-            has_person_reference = (
-                any(ref.get("type") == "person" for ref in analysis_result.resolved_references)
-                if analysis_result.resolved_references
-                else False
+            # Person-reference evidence, most reliable source first. The memory
+            # resolver pipeline targets relational references by construction
+            # ("mon frère", "le voisin"), so its outputs are deterministic
+            # evidence — unlike the analyzer LLM refs, which intermittently
+            # omit the person typing (recurring failure: contact expansion
+            # skipped → get_route receives a person name as destination).
+            person_evidence_sources: list[str] = []
+            if memory_resolved_refs:
+                # E1: resolution produced identity mappings for this turn.
+                person_evidence_sources.append("memory_mappings")
+            if memory_extracted_references:
+                # E2: extraction found relational references, kept even when
+                # resolution failed (person exists but no memory fact). May
+                # over-trigger on personal places ("mon travail") — benign:
+                # expansion still requires a matching required semantic type.
+                person_evidence_sources.append("memory_extraction")
+            if analysis_result.resolved_references and any(
+                ref.get("type") == "person" for ref in analysis_result.resolved_references
+            ):
+                # E3: analyzer LLM typed a resolved reference as person.
+                person_evidence_sources.append("analyzer_llm")
+
+            has_person_reference = bool(person_evidence_sources)
+            if person_evidence_sources:
+                logger.debug(
+                    "person_reference_evidence",
+                    sources=person_evidence_sources,
+                    extracted_count=len(memory_extracted_references),
+                    mappings_count=len(memory_resolved_refs),
+                )
+
+            # Typed evidence entities for evidence-driven expansion: a person
+            # reference materializes as Contact; a context reference to a
+            # previous item (event, place, contact) as that domain's entity.
+            from src.domains.agents.semantic.expansion_service import (
+                EVIDENCE_ENTITY_TYPE_BY_DOMAIN,
+                PERSON_EVIDENCE_ENTITY,
             )
+
+            evidence_entities: set[str] = set()
+            if has_person_reference:
+                evidence_entities.add(PERSON_EVIDENCE_ENTITY)
+            context_ref = analysis_result.context_reference
+            if context_ref and context_ref.has_reference and context_ref.reference_domain:
+                referenced_entity = EVIDENCE_ENTITY_TYPE_BY_DOMAIN.get(context_ref.reference_domain)
+                if referenced_entity:
+                    evidence_entities.add(referenced_entity)
+
             expansion_reasons: list[str] = []
             original_domains = list(domains)
 
@@ -1143,6 +1232,7 @@ class QueryAnalyzerService:
                     reasoning_trace=reasoning_trace,
                     all_scores=dict.fromkeys(domains, 0.8),
                     expansion_reasons=expansion_reasons,
+                    evidence_entities=evidence_entities,
                 )
                 if expanded_domains != domains:
                     # Validate expanded domains against available_domains to prevent
@@ -1166,6 +1256,8 @@ class QueryAnalyzerService:
                         "added_domains": [d for d in valid_expanded if d not in original_domains],
                         "reasons": expansion_reasons,
                         "has_person_reference": has_person_reference,
+                        "person_evidence_sources": person_evidence_sources,
+                        "evidence_entities": sorted(evidence_entities),
                     }
 
             # === STEP 4: Chat Override ===
@@ -1430,6 +1522,11 @@ class QueryAnalyzerService:
             )
 
         except Exception as e:
+            # Best-effort: don't leave the pivot task orphaned if this method
+            # failed before the gather awaited it (its own fallback semantics
+            # make cancellation safe — no caller consumes its result here).
+            if english_query_task is not None and not english_query_task.done():
+                english_query_task.cancel()
             # Use original_query for fallback (user's actual input, not English translation)
             fallback_query = original_query if original_query is not None else query
             logger.error(
@@ -1510,11 +1607,20 @@ class QueryAnalyzerService:
         reasoning_trace: list[str],
         all_scores: dict[str, float] | None = None,
         expansion_reasons: list[str] | None = None,
+        evidence_entities: set[str] | None = None,
     ) -> list[str]:
         """
         Expand domains based on semantic type requirements.
 
-        Example: "trajet chez mon frère" → routes + memory("mon frère") → add contacts
+        Example: "trajet chez mon frère" → route requires physical_address +
+        person evidence (memory resolver or analyzer LLM) → add contact.
+
+        Two modes (SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED):
+        - OFF (default): historical iso-functional person→contact expansion.
+        - ON: evidence-driven expansion — every referenced entity (person,
+          event, place) whose ontology properties provide a required type
+          adds its source domains (capped). For person-only evidence the
+          outcome is identical to the iso path (Contact → contact).
         """
         if not domains:
             return domains
@@ -1532,12 +1638,21 @@ class QueryAnalyzerService:
             required_type_names = set(required_types.keys())
             expansion_service = get_expansion_service()
 
-            expanded_domains = await expansion_service.expand_domains_iso_functional(
-                domains=domains,
-                has_person_reference=has_person_reference,
-                required_semantic_types=required_type_names,
-                query="",
-            )
+            if settings.semantic_expansion_evidence_driven_enabled:
+                expanded_domains = await expansion_service.expand_domains_evidence_driven(
+                    domains=domains,
+                    evidence_entities=evidence_entities or set(),
+                    required_semantic_types=required_type_names,
+                    max_added_domains=settings.semantic_expansion_max_added_domains,
+                    query="",
+                )
+            else:
+                expanded_domains = await expansion_service.expand_domains_iso_functional(
+                    domains=domains,
+                    has_person_reference=has_person_reference,
+                    required_semantic_types=required_type_names,
+                    query="",
+                )
 
             # Build reasons list for logging
             reasons = expansion_reasons if expansion_reasons is not None else []
@@ -1545,18 +1660,15 @@ class QueryAnalyzerService:
 
             if added_domains:
                 for added_domain in added_domains:
-                    provided_types = []
-                    for sem_type in required_type_names:
-                        providers = expansion_service.get_providers_for_type(sem_type)
-                        if added_domain in providers and sem_type in (
-                            "physical_address",
-                            "email_address",
-                        ):
-                            provided_types.append(sem_type)
-
+                    provided_types = sorted(
+                        sem_type
+                        for sem_type in required_type_names
+                        if added_domain in expansion_service.get_providers_for_type(sem_type)
+                    )
                     if provided_types:
                         reasons.append(
-                            f"{added_domain} (provides {', '.join(provided_types)} for person reference)"
+                            f"{added_domain} (provides {', '.join(provided_types)} "
+                            "for referenced entity)"
                         )
 
                 logger.info(

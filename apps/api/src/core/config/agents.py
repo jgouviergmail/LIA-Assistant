@@ -232,6 +232,7 @@ from src.core.constants import (
     REACT_AGENT_TIMEOUT_SECONDS_DEFAULT,
     REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT,
     REGISTRY_MAX_ITEMS_DEFAULT,
+    RESPONSE_CONTEXT_PREFETCH_AT_ROUTER_ENABLED_DEFAULT,
     RESPONSE_CONTEXT_PREFETCH_AWAIT_TIMEOUT_SECONDS,
     RESPONSE_CONTEXT_PREFETCH_ENABLED_DEFAULT,
     RESPONSE_CONTEXT_PREFETCH_MAX_ENTRIES,
@@ -252,11 +253,13 @@ from src.core.constants import (
     SEMANTIC_DOMAIN_HARD_THRESHOLD_DEFAULT,
     SEMANTIC_DOMAIN_MAX_DOMAINS_DEFAULT,
     SEMANTIC_DOMAIN_SOFT_THRESHOLD_DEFAULT,
-    SEMANTIC_EXPANSION_THRESHOLD_DEFAULT,
+    SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED_DEFAULT,
+    SEMANTIC_EXPANSION_MAX_ADDED_DOMAINS_DEFAULT,
     SEMANTIC_FALLBACK_THRESHOLD_DEFAULT,
     SEMANTIC_INTENT_FALLBACK_THRESHOLD_DEFAULT,
     SEMANTIC_INTENT_HIGH_THRESHOLD_DEFAULT,
     SEMANTIC_LINKING_MAX_SUGGESTIONS_DEFAULT,
+    SEMANTIC_PIVOT_ENABLED_DEFAULT,
     SEMANTIC_PIVOT_LLM_FREQUENCY_PENALTY_DEFAULT,
     SEMANTIC_PIVOT_LLM_MAX_TOKENS_DEFAULT,
     SEMANTIC_PIVOT_LLM_MODEL_DEFAULT,
@@ -813,15 +816,23 @@ class AgentsSettings(BaseSettings):
             "based on semantic_type matching in tool manifests."
         ),
     )
-    semantic_expansion_threshold: float = Field(
-        default=SEMANTIC_EXPANSION_THRESHOLD_DEFAULT,
-        ge=0.0,
-        le=1.0,
+    semantic_expansion_evidence_driven_enabled: bool = Field(
+        default=SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED_DEFAULT,
         description=(
-            "Toggle threshold for semantic domain expansion (0.0-1.0). "
-            "Values < 1.0: enable expansion (add providers from source_domains). "
-            "Value = 1.0: disable expansion (no providers added). "
-            "Default: 0.7 - enables expansion for cross-domain queries."
+            "Enable evidence-driven semantic domain expansion: when a referenced "
+            "entity (person, calendar event, place) provides — via its ontology "
+            "properties — a semantic type required by the selected domains' tools, "
+            "the entity's source domains are added to the planner catalogue. "
+            "When disabled, only the historical person→contact expansion applies."
+        ),
+    )
+    semantic_expansion_max_added_domains: int = Field(
+        default=SEMANTIC_EXPANSION_MAX_ADDED_DOMAINS_DEFAULT,
+        ge=0,
+        le=10,
+        description=(
+            "Hard cap on domains added per turn by evidence-driven semantic "
+            "expansion (each added domain grows the planner catalogue and prompt)."
         ),
     )
     semantic_linking_max_suggestions: int = Field(
@@ -2961,6 +2972,29 @@ class AgentsSettings(BaseSettings):
             "Prefetch the response node's user-context injections (memory, RAG, "
             "journal, portrait, psyche) from the initiative node, concurrently with "
             "its LLM evaluation. Disable to restore the fully serial behaviour."
+        ),
+    )
+    response_context_prefetch_at_router_enabled: bool = Field(
+        default=RESPONSE_CONTEXT_PREFETCH_AT_ROUTER_ENABLED_DEFAULT,
+        description=(
+            "Latency lot R2: also start the response-context prefetch at router "
+            "entry so it overlaps the router LLM cascade — covers turns that never "
+            "traverse the initiative node (conversation in both modes, ReAct "
+            "action turns when INITIATIVE_REACT_ENABLED is off). The QI-dependent "
+            "system-RAG injection is deferred to the response node. Requires "
+            "RESPONSE_CONTEXT_PREFETCH_ENABLED. Disable to restore the "
+            "initiative-only prefetch."
+        ),
+    )
+    semantic_pivot_enabled: bool = Field(
+        default=SEMANTIC_PIVOT_ENABLED_DEFAULT,
+        description=(
+            "Latency lot R3 (ships dark, default True = historical behaviour): "
+            "when False, skip the dedicated semantic-pivot LLM call — the query "
+            "analyzer receives the original query and its own english_query "
+            "output feeds the downstream English pattern matching (~-0.8 to -1s "
+            "and one fewer LLM call per turn). Flip only after A/B-validating "
+            "domain detection on non-English input."
         ),
     )
     response_context_prefetch_max_entries: int = Field(

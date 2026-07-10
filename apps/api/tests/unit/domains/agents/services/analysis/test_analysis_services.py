@@ -483,7 +483,7 @@ class TestMemoryResolver:
                 resolver, "_resolve_memory_references", new=AsyncMock(return_value=None)
             ) as mock_resolve,
         ):
-            facts, refs = await resolver.retrieve_and_resolve(
+            resolution = await resolver.retrieve_and_resolve(
                 query="what time is it",
                 user_id="user123",
                 config=config,
@@ -491,8 +491,9 @@ class TestMemoryResolver:
 
         mock_retrieve.assert_awaited_once()
         mock_resolve.assert_not_awaited()
-        assert facts == ["fact1", "fact2"]
-        assert refs is None
+        assert resolution.facts == ["fact1", "fact2"]
+        assert resolution.resolved is None
+        assert resolution.references == []
 
     @pytest.mark.asyncio
     async def test_with_reference_resolves_from_targeted_facts(self):
@@ -518,7 +519,7 @@ class TestMemoryResolver:
                 new=AsyncMock(return_value="RESOLVED"),
             ) as mock_resolve,
         ):
-            facts, refs = await resolver.retrieve_and_resolve(
+            resolution = await resolver.retrieve_and_resolve(
                 query="email ma femme",
                 user_id="user123",
                 config=config,
@@ -527,7 +528,9 @@ class TestMemoryResolver:
         mock_resolve.assert_awaited_once()
         # Resolution runs against the targeted facts, not the broad ones.
         assert mock_resolve.await_args.args[1] == ["Wife: Jane Smith"]
-        assert refs == "RESOLVED"
+        assert resolution.resolved == "RESOLVED"
+        # Phase 1 references are preserved as person-reference evidence.
+        assert resolution.references == ["ma femme"]
 
     @pytest.mark.asyncio
     async def test_with_reference_but_empty_targeted_falls_back_to_broad(self):
@@ -549,7 +552,7 @@ class TestMemoryResolver:
                 new=AsyncMock(return_value="RESOLVED"),
             ) as mock_resolve,
         ):
-            facts, refs = await resolver.retrieve_and_resolve(
+            resolution = await resolver.retrieve_and_resolve(
                 query="email ma femme",
                 user_id="user123",
                 config=config,
@@ -558,7 +561,8 @@ class TestMemoryResolver:
         mock_resolve.assert_awaited_once()
         # Fallback resolves against the broad facts.
         assert mock_resolve.await_args.args[1] == ["broad"]
-        assert refs == "RESOLVED"
+        assert resolution.resolved == "RESOLVED"
+        assert resolution.references == ["ma femme"]
 
     @pytest.mark.asyncio
     async def test_retrieve_and_resolve_no_facts_skips_resolution(self):
@@ -568,7 +572,7 @@ class TestMemoryResolver:
 
         with patch.object(resolver, "_retrieve_memory_facts", return_value=None) as mock_retrieve:
             with patch.object(resolver, "_resolve_memory_references") as mock_resolve:
-                facts, refs = await resolver.retrieve_and_resolve(
+                resolution = await resolver.retrieve_and_resolve(
                     query="test query",
                     user_id="user123",
                     config=config,
@@ -576,8 +580,8 @@ class TestMemoryResolver:
 
                 mock_retrieve.assert_called_once()
                 mock_resolve.assert_not_called()
-                assert facts is None
-                assert refs is None
+                assert resolution.facts is None
+                assert resolution.resolved is None
 
     @pytest.mark.asyncio
     async def test_retrieve_memory_facts_empty_query_returns_none(self):

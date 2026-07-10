@@ -6,6 +6,12 @@ ChatStreamChunk payloads in order, terminated by a broker-level end marker
 (an envelope field, NOT a ChatStreamChunk type — the SSE chunk contract is
 untouched). Producers XADD; subscribers XREAD with SHORT blocking windows.
 
+Hard-kill hardening (2026-07 audit): every chunk XADD pipelines an
+``EXPIRE NX`` so the stream key carries a safety TTL from its first entry —
+a producer dying without its terminal marker (kill -9, OOM, power loss) can
+no longer leak a TTL-less key. ``publish_end`` overwrites it with the short
+post-terminal TTL, and the listener counter arms its TTL atomically (Lua).
+
 CRITICAL (proven by the 2026-07 de-risking POC on redis-py 8.0.1): a
 blocking XREAD whose block window exceeds the client socket_timeout raises
 TimeoutError. :func:`subscribe` therefore polls with
@@ -37,7 +43,10 @@ _FIELD_CHUNK = "d"
 _FIELD_END = "end"
 _FIELD_STATUS = "status"
 
-TERMINAL_STATUSES = ("completed", "error", "killed")
+# Boy Scout fix (2026-07 audit): "cancelled" (Lot 3 user stop) was published
+# as a terminal status without appearing here — the tuple is documentation
+# (nothing validates against it), but a lying reference is a bug.
+TERMINAL_STATUSES = ("completed", "error", "killed", "cancelled")
 
 _XREAD_COUNT = 64
 
@@ -73,6 +82,16 @@ if v > 0 then
 else
     v = 0
 end
+redis.call('EXPIRE', KEYS[1], ARGV[1])
+return v
+"""
+
+# Atomic increment + TTL arm of the listener counter (2026-07 hard-kill audit):
+# INCR and EXPIRE as two separate calls left a crash window between them — a
+# counter without TTL never decays, so has_listeners() stays true forever and
+# voice synthesis (paid TTS) is wrongly triggered for absent listeners.
+_LISTENER_INCR_LUA = """
+local v = redis.call('INCR', KEYS[1])
 redis.call('EXPIRE', KEYS[1], ARGV[1])
 return v
 """
@@ -159,19 +178,31 @@ def decode_entry(fields: dict[str, str]) -> RunStreamEvent:
 async def publish_chunk(redis: Redis, run_id: str, chunk_json: str) -> None:
     """Append one serialized chunk to the run stream (capped MAXLEN).
 
+    Hard-kill hardening (2026-07 audit): every XADD is pipelined with an
+    ``EXPIRE NX`` (same round-trip) so the stream key carries the safety TTL
+    from its very first entry and re-arms itself if the key is ever
+    re-created. Without it, a producer dying before ``publish_end`` (kill
+    -9, OOM, power loss) left a TTL-less key that the AOF persisted across
+    reboots. NX never overwrites an existing TTL, so the short post-terminal
+    TTL armed by :func:`publish_end` stays authoritative.
+
     Args:
         redis: Redis client.
         run_id: Run identifier.
         chunk_json: The chunk serialized via ``ChatStreamChunk.model_dump_json()``.
     """
+    key = run_stream_key(run_id)
+    pipe = redis.pipeline(transaction=False)
     # cast: redis-py stubs type xadd's field dict with an invariant union key
     # type that rejects the (perfectly valid) dict[str, str].
-    await redis.xadd(
-        run_stream_key(run_id),
+    pipe.xadd(
+        key,
         cast(dict[Any, Any], encode_chunk_entry(chunk_json)),
         maxlen=settings.background_runs_stream_maxlen,
         approximate=True,
     )
+    pipe.expire(key, settings.background_runs_stream_safety_ttl_seconds, nx=True)
+    await pipe.execute()
 
 
 async def publish_end(redis: Redis, run_id: str, status: str) -> None:
@@ -183,14 +214,17 @@ async def publish_end(redis: Redis, run_id: str, status: str) -> None:
         status: One of :data:`TERMINAL_STATUSES`.
     """
     key = run_stream_key(run_id)
+    pipe = redis.pipeline(transaction=False)
     # cast: same redis-py stub invariance workaround as publish_chunk
-    await redis.xadd(
+    pipe.xadd(
         key,
         cast(dict[Any, Any], encode_end_entry(status)),
         maxlen=settings.background_runs_stream_maxlen,
         approximate=True,
     )
-    await redis.expire(key, settings.background_runs_stream_ttl_seconds)
+    # No NX: the short post-terminal TTL deliberately overwrites the safety TTL.
+    pipe.expire(key, settings.background_runs_stream_ttl_seconds)
+    await pipe.execute()
     logger.debug("run_stream_end_published", run_id=run_id, status=status)
 
 
@@ -348,11 +382,20 @@ async def get_active_run(redis: Redis, conversation_id: str) -> dict[str, str] |
 
 
 async def listener_incr(redis: Redis, stream_id: str) -> int:
-    """Register one subscriber on the stream (counter with TTL refresh)."""
-    key = listeners_key(stream_id)
-    count = int(await redis.incr(key))
-    await redis.expire(key, settings.background_runs_listener_ttl_seconds)
-    return count
+    """Register one subscriber on the stream (atomic counter + TTL arm).
+
+    Single Lua eval (same style as :data:`_LISTENER_DECR_LUA`): INCR and
+    EXPIRE as two separate calls left a crash window that produced a
+    TTL-less counter — permanently >0, so voice synthesis (paid TTS) was
+    wrongly triggered for absent listeners.
+    """
+    result = await redis.eval(
+        _LISTENER_INCR_LUA,
+        1,
+        listeners_key(stream_id),
+        str(settings.background_runs_listener_ttl_seconds),
+    )
+    return int(result)
 
 
 def cancel_key(stream_id: str) -> str:

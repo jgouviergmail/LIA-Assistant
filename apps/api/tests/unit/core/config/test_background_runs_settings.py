@@ -9,12 +9,22 @@ from src.core.config import settings
 from src.core.config.background_runs import BackgroundRunsSettings
 from src.core.constants import REDIS_KEY_RUN_STREAM_PREFIX
 
+# Every env var read by BackgroundRunsSettings — test_defaults asserts the
+# CODE defaults, so all of them must be scrubbed (a var asserted but not
+# isolated makes the test dependent on same-worker predecessors under xdist).
 _ENV_VARS = (
     "BACKGROUND_RUNS_ENABLED",
     "BACKGROUND_RUNS_STREAM_MAXLEN",
     "BACKGROUND_RUNS_STREAM_TTL_SECONDS",
+    "BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS",
     "BACKGROUND_RUNS_XREAD_BLOCK_MS",
     "BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS",
+    "BACKGROUND_RUNS_ACTIVE_TTL_SECONDS",
+    "BACKGROUND_RUNS_HEARTBEAT_SECONDS",
+    "BACKGROUND_RUNS_LISTENER_TTL_SECONDS",
+    "BACKGROUND_RUNS_CANCEL_POLL_SECONDS",
+    "BACKGROUND_RUNS_CANCEL_TTL_SECONDS",
+    "BACKGROUND_RUNS_ORPHAN_GRACE_SECONDS",
     "SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS",
 )
 
@@ -39,6 +49,9 @@ class TestBackgroundRunsSettings:
         # Lot 3 — cancellation signal
         assert s.background_runs_cancel_poll_seconds == 1
         assert s.background_runs_cancel_ttl_seconds == 600
+        # Hard-kill hardening (2026-07 audit)
+        assert s.background_runs_stream_safety_ttl_seconds == 7200
+        assert s.background_runs_orphan_grace_seconds == 20
 
     def test_heartbeat_stays_under_half_the_lock_ttl(self, monkeypatch):
         # A single missed beat must never expire a healthy run's lock.
@@ -81,3 +94,33 @@ class TestBackgroundRunsSettings:
                 background_runs_active_ttl_seconds=10,
                 background_runs_heartbeat_seconds=8,
             )
+
+    def test_safety_ttl_below_post_terminal_ttl_rejected(self):
+        # Boot-time guard: a crashed run's stream must never vanish faster
+        # than a completed one (swapped-values symptom).
+        with pytest.raises(ValidationError):
+            BackgroundRunsSettings(
+                background_runs_stream_ttl_seconds=7200,
+                background_runs_stream_safety_ttl_seconds=3600,
+            )
+        # Equality is the accepted floor.
+        s = BackgroundRunsSettings(
+            background_runs_stream_ttl_seconds=3600,
+            background_runs_stream_safety_ttl_seconds=3600,
+        )
+        assert s.background_runs_stream_safety_ttl_seconds == 3600
+
+    def test_orphan_grace_below_two_heartbeats_rejected(self):
+        # Boot-time guard: the orphan exit is a last-resort escape hatch —
+        # below 2x the heartbeat, one late beat could surface a false error
+        # on a healthy silent run.
+        with pytest.raises(ValidationError):
+            BackgroundRunsSettings(
+                background_runs_heartbeat_seconds=6,
+                background_runs_orphan_grace_seconds=11,
+            )
+        s = BackgroundRunsSettings(
+            background_runs_heartbeat_seconds=6,
+            background_runs_orphan_grace_seconds=12,
+        )
+        assert s.background_runs_orphan_grace_seconds == 12

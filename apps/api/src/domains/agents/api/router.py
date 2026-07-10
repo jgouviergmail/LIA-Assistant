@@ -10,6 +10,7 @@ import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import StreamingResponse
@@ -30,6 +31,7 @@ from src.core.field_names import (
     FIELD_RUN_ID,
     FIELD_STATUS,
 )
+from src.core.i18n import DEFAULT_LANGUAGE, Language
 from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_hitl import get_user_language
 from src.core.session_dependencies import get_current_active_session
@@ -50,6 +52,9 @@ from src.infrastructure.observability.metrics_agents import (
     e2e_request_duration_with_agents,
     sse_streaming_errors_total,
 )
+
+if TYPE_CHECKING:
+    from redis.asyncio import Redis
 
 logger = get_logger(__name__)
 
@@ -108,7 +113,58 @@ def get_agent_service() -> AgentService:
     return _agent_service
 
 
-async def stream_run_as_sse(stream_id: str) -> AsyncGenerator[str, None]:
+async def _probe_orphan(
+    redis: "Redis",
+    conversation_id: str,
+    stream_id: str,
+    lock_missing_since: float | None,
+    grace_seconds: float,
+) -> tuple[float | None, bool]:
+    """One orphan-detection probe (run on keepalives during chunk silence).
+
+    The conversation's heartbeated active-run lock is the source of truth
+    for producer liveness — NOT chunk silence (a long LLM call is silent but
+    alive). The run is declared orphaned only once the lock has been
+    observed missing (or owned by another stream) for a full grace period.
+
+    A probe failure is NOT evidence of a missing lock: the marker is left
+    untouched and the verdict stays False — same philosophy as the
+    producer's heartbeat and cancel watchers, which skip transient Redis
+    hiccups instead of acting on them.
+
+    Args:
+        redis: Redis client.
+        conversation_id: Conversation whose active-run lock to probe.
+        stream_id: The stream this subscriber follows (expected lock owner).
+        lock_missing_since: Monotonic timestamp of the first consecutive
+            missing/foreign observation, or None if the lock was owned by
+            this stream at the last probe.
+        grace_seconds: How long the lock must stay missing before the
+            orphan verdict.
+
+    Returns:
+        (updated ``lock_missing_since``, orphan verdict).
+    """
+    from src.infrastructure.streaming.run_stream_broker import get_active_run
+
+    try:
+        active = await get_active_run(redis, conversation_id)
+    except Exception as exc:  # noqa: BLE001 — transient Redis hiccup: skip this probe
+        logger.debug("run_stream_orphan_probe_failed", stream_id=stream_id, error=str(exc))
+        return lock_missing_since, False
+    if active is not None and active.get("stream_id") == stream_id:
+        return None, False  # lock alive and ours: the producer is heartbeating
+    now = time.monotonic()
+    if lock_missing_since is None:
+        return now, False
+    return lock_missing_since, (now - lock_missing_since) >= grace_seconds
+
+
+async def stream_run_as_sse(
+    stream_id: str,
+    conversation_id: str | None = None,
+    user_language: Language = DEFAULT_LANGUAGE,
+) -> AsyncGenerator[str, None]:
     """Subscribe to a run stream and format events as SSE lines.
 
     Transport-only (ADR-117): chunks are relayed verbatim (already-serialized
@@ -127,9 +183,24 @@ async def stream_run_as_sse(stream_id: str) -> AsyncGenerator[str, None]:
         lift their replay-mode side-effect suppression. Legacy clients
         ignore unknown SSE comments — the chunk contract is untouched.
 
+    Hard-kill hardening (2026-07 audit): a producer dying without its
+    terminal marker (kill -9, OOM, power loss — the end-marker invariant
+    only covers in-process exits) would leave this relay looping on
+    keepalives forever. Once the conversation's active-run lock has been
+    observed missing (or owned by another stream) for a full grace period
+    AND no chunk arrived over the same window, the relay emits a synthetic
+    ``error`` + ``done`` chunk pair (standard types — the exact sequence of
+    the endpoint's exception fallback) and terminates. With
+    ``conversation_id=None`` (no lock was ever acquired: e.g. first message
+    of a brand-new user) the detection is disabled — lock absence would be
+    the normal state, not a death certificate.
+
     Args:
         stream_id: Transport identifier (stream key suffix) — fresh per
             invocation, distinct from the billing run_id on HITL resumption.
+        conversation_id: Scope of the active-run lock used for orphan
+            detection; None disables the detection.
+        user_language: Language of the synthetic orphan error message.
 
     Yields:
         SSE-formatted lines (``data: ...`` frames and transport comments).
@@ -150,6 +221,9 @@ async def stream_run_as_sse(stream_id: str) -> AsyncGenerator[str, None]:
     touch_period = settings.background_runs_listener_ttl_seconds / 3
     last_touch = time.monotonic()
     replay_boundary_emitted = False
+    orphan_grace = settings.background_runs_orphan_grace_seconds
+    last_chunk_at = time.monotonic()
+    lock_missing_since: float | None = None
     try:
         async for event in subscribe(redis, stream_id):
             if time.monotonic() - last_touch > touch_period:
@@ -160,8 +234,45 @@ async def stream_run_as_sse(stream_id: str) -> AsyncGenerator[str, None]:
                 yield ": replay-end\n\n"
                 replay_boundary_emitted = True
             if event.kind == "keepalive":
+                if conversation_id is not None and time.monotonic() - last_chunk_at >= orphan_grace:
+                    lock_missing_since, is_orphan = await _probe_orphan(
+                        redis, conversation_id, stream_id, lock_missing_since, orphan_grace
+                    )
+                    if is_orphan:
+                        logger.warning(
+                            "run_stream_orphan_exit",
+                            stream_id=stream_id,
+                            conversation_id=conversation_id,
+                            grace_seconds=orphan_grace,
+                        )
+                        sse_streaming_errors_total.labels(
+                            error_type="orphaned_run",
+                            node_name="run_stream_relay",
+                        ).inc()
+                        # No replay-end fallback needed here: keepalives are
+                        # non-replay events, so the boundary was already
+                        # emitted before the first probe could ever run.
+                        error_chunk = {
+                            "type": "error",
+                            FIELD_CONTENT: SSEErrorMessages.run_orphaned(user_language),
+                            FIELD_METADATA: {FIELD_ERROR_TYPE: "orphaned_run"},
+                        }
+                        yield f"data: {json.dumps(error_chunk)}\n\n"
+                        done_chunk = {
+                            "type": "done",
+                            FIELD_CONTENT: "",
+                            FIELD_METADATA: {
+                                "error": True,
+                                "orphaned": True,
+                                **TokenSummaryDTO.zero().to_metadata(),
+                            },
+                        }
+                        yield f"data: {json.dumps(done_chunk)}\n\n"
+                        return
                 yield ": heartbeat\n\n"
             elif event.kind == "chunk":
+                last_chunk_at = time.monotonic()
+                lock_missing_since = None
                 if event.is_replay and '"voice_audio_chunk"' in event.payload:
                     # Stale audio is worthless and heavy (base64 MP3) — the
                     # substring pre-filter avoids parsing every replay chunk.
@@ -744,7 +855,11 @@ async def stream_chat(
                             ),
                             conversation_id=background_conversation_id,
                         )
-                        async for sse_line in stream_run_as_sse(stream_id):
+                        async for sse_line in stream_run_as_sse(
+                            stream_id,
+                            conversation_id=background_conversation_id,
+                            user_language=user_language,
+                        ):
                             yield sse_line
                     else:
                         async for item in iter_with_keepalive(
@@ -839,7 +954,11 @@ async def stream_chat(
                         ),
                         conversation_id=background_conversation_id,
                     )
-                    async for sse_line in stream_run_as_sse(stream_id):
+                    async for sse_line in stream_run_as_sse(
+                        stream_id,
+                        conversation_id=background_conversation_id,
+                        user_language=user_language,
+                    ):
                         yield sse_line
                 else:
                     async for item in iter_with_keepalive(
@@ -1102,9 +1221,17 @@ async def reattach_run_stream(
         stream_id=stream_id,
     )
 
+    user_language = get_user_language(
+        user_language=getattr(current_user, "language", None),
+    )
+
     async def reattach_generator() -> AsyncGenerator[str, None]:
         yield "retry: 5000\n\n"
-        async for sse_line in stream_run_as_sse(stream_id):
+        async for sse_line in stream_run_as_sse(
+            stream_id,
+            conversation_id=conversation_id,
+            user_language=user_language,
+        ):
             yield sse_line
 
     return StreamingResponse(

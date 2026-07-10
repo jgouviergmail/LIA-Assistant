@@ -92,6 +92,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [DATABASE_SCHEMA.md](./technical/DATABASE_SCHEMA.md) | Schema PostgreSQL complet, migrations Alembic | ✅ |
 | [STACK_TECHNIQUE.md](./technical/STACK_TECHNIQUE.md) | Référence complète versions technologies | ✅ |
 | [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) | ReAct execution mode — 4-node loop, pipeline vs ReAct, tools, HITL, skills | ✅ |
+| [LATENCY_PLAN.md](./optim/LATENCY_PLAN.md) | Latency/TTFT optimization lot — per-stage instrumentation (`langgraph_stage_duration_seconds`), reproducible protocol (`scripts/perf/measure_ttft.py`), quantified shortlist & before/after | 🚧 |
 | [BACKGROUND_RUNS.md](./technical/BACKGROUND_RUNS.md) | Exécution détachée du chat (ADR-117) — producteur + Redis Streams, archive-first, drain shutdown, flag `BACKGROUND_RUNS_ENABLED` | ✅ |
 
 ### Agents & Outils
@@ -279,12 +280,14 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-119 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-121 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-121 | Semantic Annotation Back-fill — rétro-annotation `semantic_type` de 15 manifests (~120 annotations, params 14→53 %, outputs 22→40 %, 72/100 types consommés), chaînages vitrine épinglés par tests (participants→mail, expéditeur→invités, destination→météo), promotion `emails[].from`, entité `EmailMessage` comme évidence d'expansion, fixture de tests linking réparée (registre vide) | 2026-07 |
+| ADR-120 | Semantic Evidence Expansion & Param Guard — déclencheur d'expansion sémantique rendu déterministe (évidence memory resolver ∪ analyzer), expansion evidence-driven ontology-based sous flag (entité référencée → domaines fournisseurs, cap + métrique), garde runtime manifest-driven (nom de personne sur paramètre adresse/e-mail bloqué avant l'appel API, pipeline + react), `get_route` refuse les destinations non résolues (fin du géocodage arbitraire mis en cache) | 2026-07 |
 | ADR-119 | Alerting Reactivation — réactivation de la chaîne d'alerte (éteinte 2026-01 sans ADR) : noyau de 13 alertes vitales évaluées par Prometheus → Alertmanager e-mail en prod, blackbox-exporter (backup + URL publique), seuils `ALERT_CORE_*` en .env, seuils legacy corrompus documentés, répertoire prometheus/ assaini | 2026-07 |
 | ADR-118 | Chat-Driven Skill Import — le skill-generator installe directement les skills générées (outil `import_user_skill`), pipeline d'import unique durci (S1 path traversal corrigé, conflits 409, gardes zip, install atomique avec rollback), dialogues multi-tours (`dialogue: true` + historique au runner) | 2026-07 |
 | ADR-117 | Background Chat Runs — génération détachée de la connexion HTTP (producteur + Redis Streams), reprise live, bouton stop cross-worker, archive-first, facturation honnête sur interruption | 2026-07 |

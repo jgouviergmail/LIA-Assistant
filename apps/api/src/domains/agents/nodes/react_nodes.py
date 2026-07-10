@@ -46,11 +46,13 @@ from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.metrics_agents import (
+    agent_node_duration_seconds,
     react_agent_duration_seconds,
     react_agent_executions_total,
     react_agent_hitl_interrupts_total,
     react_agent_iterations,
     react_agent_tools_called_total,
+    semantic_param_guard_blocks_total,
 )
 from src.infrastructure.observability.tracing import trace_node
 
@@ -265,7 +267,7 @@ def _extract_draft_info(raw_result: Any, tool_name: str) -> dict[str, Any] | Non
 
 
 @trace_node("react_setup")
-@track_metrics(node_name="react_setup")
+@track_metrics(node_name="react_setup", duration_metric=agent_node_duration_seconds)
 async def react_setup_node(
     state: MessagesState,
     config: RunnableConfig,
@@ -442,7 +444,7 @@ async def react_setup_node(
 
 
 @trace_node("react_call_model")
-@track_metrics(node_name="react_call_model")
+@track_metrics(node_name="react_call_model", duration_metric=agent_node_duration_seconds)
 async def react_call_model_node(
     state: MessagesState,
     config: RunnableConfig,
@@ -538,7 +540,7 @@ async def react_call_model_node(
 
 
 @trace_node("react_execute_tools")
-@track_metrics(node_name="react_execute_tools")
+@track_metrics(node_name="react_execute_tools", duration_metric=agent_node_duration_seconds)
 async def react_execute_tools_node(
     state: MessagesState,
     config: RunnableConfig,
@@ -582,8 +584,18 @@ async def react_execute_tools_node(
     # Pre-load ToolRuntime dependencies (outside loop for efficiency)
     from src.domains.agents.context.store import get_tool_context_store
     from src.domains.agents.orchestration.parallel_executor import _build_tool_runtime
+    from src.domains.agents.semantic.param_guard import (
+        check_semantic_params,
+        collect_resolved_person_names,
+    )
 
     store = await get_tool_context_store()
+
+    # Runtime semantic contract guard (parity with the parallel executor):
+    # person names resolved for this turn must not reach address/email-typed
+    # params — the API would geocode/send arbitrarily. Recoverable ToolMessage
+    # instead, so the ReAct loop fetches the real value and retries.
+    guard_person_names = collect_resolved_person_names(state.get("resolved_references"))
 
     new_messages: list[ToolMessage] = []
     collected_registry: dict[str, Any] = {}
@@ -597,6 +609,33 @@ async def react_execute_tools_node(
         # IDEMPOTENCE: skip if already executed
         if tc_id in existing_tool_msg_ids:
             continue
+
+        # Semantic guard BEFORE the HITL interrupt: never ask the user to
+        # approve a call that would be blocked anyway. Deterministic across
+        # interrupt re-executions (state mappings and args are stable).
+        if guard_person_names:
+            violation = check_semantic_params(tc_name, tc_args, guard_person_names)
+            if violation is not None:
+                semantic_param_guard_blocks_total.labels(
+                    tool_name=tc_name,
+                    semantic_type=violation.semantic_type,
+                    execution_mode="react",
+                ).inc()
+                # No PII at WARNING: the offending value is a person name.
+                logger.warning(
+                    "semantic_param_guard_blocked",
+                    tool_name=tc_name,
+                    param_name=violation.param_name,
+                    semantic_type=violation.semantic_type,
+                )
+                new_messages.append(
+                    ToolMessage(
+                        content=f"ERROR: {violation.llm_message()}",
+                        tool_call_id=tc_id,
+                        name=tc_name,
+                    )
+                )
+                continue
 
         # HITL for mutation tools (non-draft) — route through the SHARED
         # tool_confirmation contract, the SAME interaction the pipeline uses via
@@ -763,7 +802,7 @@ async def react_execute_tools_node(
 
 
 @trace_node("react_finalize")
-@track_metrics(node_name="react_finalize")
+@track_metrics(node_name="react_finalize", duration_metric=agent_node_duration_seconds)
 async def react_finalize_node(
     state: MessagesState,
     config: RunnableConfig,

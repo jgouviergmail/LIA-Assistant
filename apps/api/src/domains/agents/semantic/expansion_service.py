@@ -1,18 +1,22 @@
 """
 Semantic Expansion Service - ISO-FUNCTIONAL
 
-Semantic expansion service that reproduces EXACTLY the current
+Semantic expansion service that reproduces EXACTLY the historical
 hardcoded behavior, but via lookup in the type registry.
 
-Current behavior to reproduce (query_analyzer_service.py _expand_domains_for_semantic_types):
+Historical behavior reproduced (former hardcoded expansion in
+query_analyzer_service._expand_domains_for_semantic_types):
     if has_person_reference:
         if "physical_address" in required_types:
-            domains_to_add.add("contacts")
+            domains_to_add.add("contact")
         if "email_address" in required_types:
-            domains_to_add.add("contacts")
+            domains_to_add.add("contact")
 
 Phase 1 (ISO-FUNCTIONAL): Exact reproduction via registry
 Phase 2 (SMART): Intelligent expansion with reasoning (Step 2)
+
+Domain vocabulary is SINGULAR throughout (contact, place, event, route),
+matching DOMAIN_REGISTRY and the ontology's source_domains.
 """
 
 from typing import Any
@@ -41,13 +45,13 @@ class SemanticExpansionService:
         >>> service = SemanticExpansionService()
         >>> # Query: "directions to my brother's place"
         >>> result = await service.expand_domains_iso_functional(
-        ...     domains=["routes"],
+        ...     domains=["route"],
         ...     has_person_reference=True,
         ...     required_semantic_types={"physical_address"},
         ...     query="itinéraire chez mon frère"
         ... )
         >>> result
-        ["routes", "contacts"]  # Contacts added because it provides physical_address
+        ["route", "contact"]  # contact added because it provides physical_address
 
         >>> # Query: "recherche mes 2 prochains rdv"
         >>> result = await service.expand_domains_iso_functional(
@@ -90,21 +94,23 @@ class SemanticExpansionService:
         """
         ISO-FUNCTIONAL domain expansion.
 
-        Reproduces EXACTLY the current behavior:
+        Reproduces EXACTLY the historical behavior:
         ```python
         if has_person_reference:
             if "physical_address" in required_types:
-                domains_to_add.add("contacts")
+                domains_to_add.add("contact")
             if "email_address" in required_types:
-                domains_to_add.add("contacts")
+                domains_to_add.add("contact")
         ```
 
         But via registry lookup instead of hardcode.
 
         Args:
             domains: Domains already selected by the router
-            has_person_reference: True if the query contains a person reference
-                                  (detected by memory resolution)
+            has_person_reference: True if the turn carries a person reference —
+                union of the memory-resolver evidence (extracted relational
+                references, resolved mappings) and the analyzer LLM's
+                person-typed references, computed by the caller
             required_semantic_types: Semantic types required by the tools
                                     of the selected domains
             query: Original query (for logging)
@@ -115,36 +121,36 @@ class SemanticExpansionService:
         ISO-FUNCTIONAL behavior:
         - IF has_person_reference == False -> NO expansion
         - IF has_person_reference == True:
-            - For each required type, check if "contacts" provides it
-            - If so, add "contacts" only once
+            - For each required type, check if "contact" provides it
+            - If so, add "contact" only once
 
         Examples:
             >>> # Case 1: With person reference + physical_address required
             >>> await expand_domains_iso_functional(
-            ...     domains=["routes"],
+            ...     domains=["route"],
             ...     has_person_reference=True,
             ...     required_semantic_types={"physical_address"},
             ...     query="itinéraire chez mon frère"
             ... )
-            ["routes", "contacts"]
+            ["route", "contact"]
 
             >>> # Case 2: WITHOUT person reference (no expansion)
             >>> await expand_domains_iso_functional(
-            ...     domains=["calendar"],
+            ...     domains=["event"],
             ...     has_person_reference=False,
             ...     required_semantic_types={"physical_address"},
             ...     query="recherche mes 2 prochains rdv"
             ... )
-            ["calendar"]  # NO expansion
+            ["event"]  # NO expansion
 
             >>> # Case 3: With person reference + email_address required
             >>> await expand_domains_iso_functional(
-            ...     domains=["calendar"],
+            ...     domains=["event"],
             ...     has_person_reference=True,
             ...     required_semantic_types={"email_address"},
             ...     query="rdv avec mon frère"
             ... )
-            ["calendar", "contacts"]
+            ["event", "contact"]
         """
         # Validation
         if not domains:
@@ -232,9 +238,9 @@ class SemanticExpansionService:
 
         Example:
             >>> service.get_providers_for_type("physical_address")
-            ["contacts", "places", "calendar", "routes"]
+            ["contact", "place", "event", "route"]
             >>> service.get_providers_for_type("email_address")
-            ["contacts", "emails", "calendar"]
+            ["contact", "email", "event"]
         """
         type_def = self.registry.get(semantic_type)
 
@@ -259,7 +265,7 @@ class SemanticExpansionService:
             Set of type names provided by this domain
 
         Example:
-            >>> service.get_types_for_domain("contacts")
+            >>> service.get_types_for_domain("contact")
             {"email_address", "phone_number", "person_name", "physical_address", "contact_id"}
         """
         return self.registry.get_by_domain(domain)
@@ -315,101 +321,117 @@ class SemanticExpansionService:
             "registry_stats": self.registry.get_stats(),
         }
 
-    async def expand_domains_semantic(
+    async def expand_domains_evidence_driven(
         self,
-        primary_domains: list[str],
+        domains: list[str],
+        evidence_entities: set[str],
         required_semantic_types: set[str],
-        threshold: float = 0.7,
+        max_added_domains: int,
         query: str = "",
     ) -> list[str]:
         """
-        INTELLIGENT semantic domain expansion.
+        EVIDENCE-DRIVEN domain expansion (generalizes the person→contact case).
 
-        Unlike expand_domains_iso_functional(), this method:
-        - Checks ALL provider domains (not just "contacts")
-        - Adds providers that supply the required types (via source_domains)
+        For each evidence entity type (a person referenced this turn → Contact,
+        a referenced calendar event → CalendarEvent, a referenced place →
+        Place), when a semantic type REQUIRED by the selected domains' tools
+        appears in the entity's ontology ``properties``, the entity's
+        ``source_domains`` are added — the domain that materializes the
+        referenced entity can provide the missing value.
 
-        The threshold controls provider addition:
-        - threshold < 1.0: Adds all providers listed in the type's source_domains
-        - threshold = 1.0: Adds no provider (disables expansion)
-
-        Note: The threshold is a simple toggle (< 1.0 = on, = 1.0 = off).
-        A future evolution could use the Wu & Palmer distance for more
-        granular filtering based on semantic similarity.
+        The entity anchoring is what prevents blind expansion: "quel temps
+        demain ?" requires physical_address too, but with no referenced
+        entity nothing is added. Replaces the never-wired
+        ``expand_domains_semantic`` (threshold-based, expanded via the
+        required type's providers with no evidence anchor).
 
         Args:
-            primary_domains: Domains already selected by the router
+            domains: Domains already selected by the router
+            evidence_entities: Ontology entity-type names referenced this turn
+                (see EVIDENCE_ENTITY_TYPE_BY_DOMAIN and the caller's person
+                evidence), e.g. {"Contact", "CalendarEvent"}
             required_semantic_types: Semantic types required by the tools
-            threshold: Threshold for adding providers. < 1.0 = active, 1.0 = disabled
+                of the selected domains
+            max_added_domains: Hard cap on added domains (planner catalogue
+                and prompt grow with each domain)
             query: Original query (for logging)
 
         Returns:
-            List of domains (original + added providers)
+            List of domains (original + added providers, capped, deterministic
+            order: entities and providers iterated in sorted/ontology order)
 
         Example:
-            >>> service = SemanticExpansionService()
-            >>> # Query: "send email to Jean" (needs email_address)
-            >>> result = await service.expand_domains_semantic(
-            ...     primary_domains=["emails"],
-            ...     required_semantic_types={"email_address"},
-            ...     threshold=0.5,
-            ...     query="send email to Jean"
+            >>> # "comment aller chez mon frère ?" → route requires
+            >>> # physical_address; person evidence → Contact
+            >>> await service.expand_domains_evidence_driven(
+            ...     domains=["route"],
+            ...     evidence_entities={"Contact"},
+            ...     required_semantic_types={"physical_address"},
+            ...     max_added_domains=3,
             ... )
-            >>> "contacts" in result
-            True  # Contacts is listed in email_address.source_domains
+            ["route", "contact"]
         """
-        if not primary_domains:
-            logger.debug("semantic_expansion_no_domains", query=query)
-            return primary_domains
+        if not domains or not evidence_entities or not required_semantic_types:
+            return domains
 
-        if not required_semantic_types:
-            logger.debug("semantic_expansion_no_types", query=query, domains=primary_domains)
-            return primary_domains
-
-        expanded = set(primary_domains)
         added_domains: list[str] = []
 
-        for sem_type in required_semantic_types:
-            type_def = self.registry.get(sem_type)
-            if not type_def:
+        for entity_name in sorted(evidence_entities):
+            type_def = self.registry.get(entity_name)
+            if not type_def or not type_def.properties:
                 logger.debug(
-                    "semantic_expansion_type_not_found",
-                    semantic_type=sem_type,
-                    query=query,
+                    "evidence_expansion_entity_unusable",
+                    entity=entity_name,
+                    found=type_def is not None,
                 )
                 continue
 
-            # Check ALL providers (not just "contacts")
-            # If a provider is listed in source_domains, it provides this type
+            provided_types = set(type_def.properties.values())
+            matched_types = sorted(required_semantic_types & provided_types)
+            if not matched_types:
+                continue
+
             for provider in type_def.source_domains:
-                if provider in expanded:
+                if provider in domains or provider in added_domains:
                     continue
-
-                # Provider is listed → it provides the type
-                # Only threshold=1.0 would block it
-                if threshold < 1.0:
-                    expanded.add(provider)
-                    added_domains.append(provider)
-
-                    logger.info(
-                        "semantic_expansion_added",
-                        added_domain=provider,
-                        semantic_type=sem_type,
-                        threshold=threshold,
-                        query=query,
+                if len(added_domains) >= max_added_domains:
+                    logger.warning(
+                        "evidence_expansion_cap_reached",
+                        cap=max_added_domains,
+                        dropped_provider=provider,
+                        entity=entity_name,
                     )
+                    break
+                added_domains.append(provider)
 
+                from src.infrastructure.observability.metrics_agents import (
+                    semantic_expansion_total,
+                )
+
+                semantic_expansion_total.labels(
+                    evidence_entity=entity_name,
+                    added_domain=provider,
+                ).inc()
+                logger.info(
+                    "evidence_expansion_added",
+                    added_domain=provider,
+                    evidence_entity=entity_name,
+                    matched_types=matched_types,
+                    query=query,
+                )
+
+        expanded_domains = domains + added_domains
         if added_domains:
             logger.info(
-                "semantic_expansion_complete",
-                original_domains=primary_domains,
+                "evidence_expansion_applied",
+                original_domains=domains,
+                expanded_domains=expanded_domains,
                 added_domains=added_domains,
-                expanded_domains=list(expanded),
-                required_types=list(required_semantic_types),
+                evidence_entities=sorted(evidence_entities),
+                required_types=sorted(required_semantic_types),
                 query=query,
             )
-
-        return list(expanded)
+        return expanded_domains
 
     def _get_primary_type_for_domain(self, domain: str) -> str:
         """
@@ -438,6 +460,56 @@ class SemanticExpansionService:
             "reminder": "reminder_id",
         }
         return domain_primary_types.get(domain, "text")
+
+
+# =============================================================================
+# EVIDENCE ENTITY TYPES (evidence-driven expansion)
+# =============================================================================
+
+# Evidence domain (singular vocabulary, matching ContextReferenceOutput.
+# reference_domain and DOMAIN_REGISTRY) → ontology entity type whose
+# `properties` drive evidence-driven expansion. Extend HERE when a new
+# referenceable entity kind becomes expansion evidence; completeness of the
+# ontology side is asserted at boot (assert_evidence_entity_types_complete).
+EVIDENCE_ENTITY_TYPE_BY_DOMAIN: dict[str, str] = {
+    "contact": "Contact",
+    "event": "CalendarEvent",
+    "place": "Place",
+    "email": "EmailMessage",
+}
+
+# Entity type for person-reference evidence (memory resolver / analyzer LLM).
+PERSON_EVIDENCE_ENTITY = "Contact"
+
+
+def assert_evidence_entity_types_complete() -> None:
+    """Boot-time completeness assert for evidence-driven expansion (ADR-085).
+
+    Every entity type referenced by EVIDENCE_ENTITY_TYPE_BY_DOMAIN must exist
+    in the ontology with non-empty ``properties`` (what the entity provides)
+    and ``source_domains`` (which domain materializes it). A silently missing
+    entry would disable expansion for that evidence kind invisibly — the app
+    refuses to boot instead.
+
+    Raises:
+        RuntimeError: With the full list of inconsistencies found.
+    """
+    registry = get_expansion_service().registry
+    problems: list[str] = []
+    for domain, type_name in EVIDENCE_ENTITY_TYPE_BY_DOMAIN.items():
+        type_def = registry.get(type_name)
+        if type_def is None:
+            problems.append(f"evidence domain '{domain}': type '{type_name}' not in ontology")
+        elif not type_def.properties:
+            problems.append(f"evidence domain '{domain}': '{type_name}' has no properties")
+        elif not type_def.source_domains:
+            problems.append(f"evidence domain '{domain}': '{type_name}' has no source_domains")
+    if PERSON_EVIDENCE_ENTITY not in EVIDENCE_ENTITY_TYPE_BY_DOMAIN.values():
+        problems.append(
+            f"PERSON_EVIDENCE_ENTITY '{PERSON_EVIDENCE_ENTITY}' missing from evidence mapping"
+        )
+    if problems:
+        raise RuntimeError("Evidence entity registry incomplete: " + "; ".join(problems))
 
 
 # Singleton global service

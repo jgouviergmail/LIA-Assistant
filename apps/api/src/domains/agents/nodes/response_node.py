@@ -3524,6 +3524,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # call (services/response_context.py). Otherwise fetch inline — the
         # exact same code path as the historical in-node version.
         from src.domains.agents.services.response_context import (
+            fetch_app_knowledge_context,
             fetch_response_context,
             pop_response_context,
         )
@@ -3537,6 +3538,13 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         psychological_profile = context_bundle.psychological_profile
         rag_context = context_bundle.rag_context
         app_knowledge_context = context_bundle.app_knowledge_context
+        if context_bundle.system_rag_deferred:
+            # Latency lot R2: the router-entry prefetch could not evaluate the
+            # QI-dependent system-RAG injection (is_app_help_query unknown at
+            # router entry) — resolve it now with the current-turn intelligence.
+            app_knowledge_context = await fetch_app_knowledge_context(
+                state, last_user_message, run_id
+            )
         journal_context = context_bundle.journal_context
         user_model_block = context_bundle.user_model_block
         psyche_context = context_bundle.psyche_context

@@ -226,6 +226,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.error("draft_display_registry_incomplete", error=str(exc), exc_info=True)
         raise RuntimeError(f"Draft display registry incomplete: {exc}") from exc
 
+    # Validate evidence-driven expansion entity types (ADR-085 pattern:
+    # fail-fast if an evidence domain maps to an ontology type without the
+    # properties/source_domains that expansion relies on).
+    try:
+        from src.domains.agents.semantic.expansion_service import (
+            assert_evidence_entity_types_complete,
+        )
+
+        assert_evidence_entity_types_complete()
+    except RuntimeError as exc:
+        logger.error("evidence_entity_registry_incomplete", error=str(exc), exc_info=True)
+        raise
+
     # Log rate limiting configuration
     log_rate_limiting_status()
 

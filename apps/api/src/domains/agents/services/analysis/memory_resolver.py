@@ -25,6 +25,7 @@ Design Philosophy:
 """
 
 import asyncio
+from dataclasses import dataclass, field
 
 import structlog
 from langchain_core.messages import HumanMessage
@@ -54,6 +55,27 @@ class _ReferenceList(BaseModel):
     )
 
 
+@dataclass(frozen=True)
+class MemoryResolution:
+    """Outcome of the memory retrieval + reference resolution phase.
+
+    Attributes:
+        facts: Relevant memory facts from broad semantic search, or None on
+            error / no results. Injected into the planner context.
+        resolved: Resolved references (mappings like {"mon frère": "Jean"}),
+            or None when resolution was skipped or failed.
+        references: Relational references extracted in Phase 1 exactly as they
+            appear in the query (e.g. "mon frère", "le voisin"). Preserved even
+            when resolution finds no memory fact: a non-empty list is
+            deterministic evidence that the query references a person (or a
+            personal place) and is consumed by semantic domain expansion.
+    """
+
+    facts: list[str] | None
+    resolved: ResolvedReferences | None
+    references: list[str] = field(default_factory=list)
+
+
 class MemoryResolver:
     """
     Resolves memory facts and references for query analysis.
@@ -68,7 +90,7 @@ class MemoryResolver:
         query: str,
         user_id: str,
         config: RunnableConfig,
-    ) -> tuple[list[str] | None, ResolvedReferences | None]:
+    ) -> MemoryResolution:
         """
         Retrieve memory facts and resolve references.
 
@@ -82,9 +104,9 @@ class MemoryResolver:
             config: RunnableConfig for callback propagation
 
         Returns:
-            Tuple of (memory_facts, resolved_references)
-            - memory_facts: List of relevant memory facts or None on error
-            - resolved_references: Resolved references or None if no resolution
+            MemoryResolution with facts, resolved references, and the Phase 1
+            extracted references (kept even when resolution yields nothing, as
+            evidence for semantic domain expansion).
         """
         # Phase 1 + broad retrieval in parallel
         memory_facts, references = await asyncio.gather(
@@ -116,7 +138,11 @@ class MemoryResolver:
         # broad facts without a reference in the query is a wasted LLM call per
         # turn: the extraction step already determined there is nothing to resolve.
 
-        return memory_facts, resolved_references
+        return MemoryResolution(
+            facts=memory_facts,
+            resolved=resolved_references,
+            references=references,
+        )
 
     async def _extract_references(
         self,
@@ -379,6 +405,7 @@ def reset_memory_resolver() -> None:
 
 
 __all__ = [
+    "MemoryResolution",
     "MemoryResolver",
     "get_memory_resolver",
     "reset_memory_resolver",

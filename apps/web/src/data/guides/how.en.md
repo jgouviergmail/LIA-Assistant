@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 2.8
+**Version**: 2.9
 **Date**: 2026-07-10
-**Application**: LIA v1.23.2
+**Application**: LIA v1.23.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -446,7 +446,9 @@ Each `ToolManifest` has multilingual `semantic_keywords`. The query is transform
 
 ### 8.3. Semantic Expansion
 
-The `expansion_service.py` enriches results by exploring adjacent domains. Post-expansion validation (ADR-061, Layer 1) filters domains disabled by the administrator — fixing a bug where the LLM or expansion could reintroduce domains that had been disabled.
+The `expansion_service.py` adds to the planner catalogue the domains able to provide a missing piece of data. The trigger is **evidence-driven**: person-reference detection is the union of three sources — the memory resolver's mappings (person references by construction), relational references extracted even when resolution finds no fact, and the analysis LLM's typed references. A referenced entity (person → `Contact`, meeting → `CalendarEvent`, place → `Place`, email → `EmailMessage`) brings in the domains whose ontology-type `properties` provide a type required by the selected tools — an anchoring that prevents any blind expansion, with a configurable cap and boot-time completeness checks on the mapping (ADR-120).
+
+The layer is fed by **deeply annotated** manifests (`semantic_type` on parameters and outputs: event attendees, email sender, route destination — ADR-121), which also power cross-domain Jinja2 linking suggestions and an **execution guard**: a person's name can never reach an address/email-typed parameter — the call fails before any API spend with a recoverable error, in both execution modes. Post-expansion validation (ADR-061, Layer 1) still filters domains disabled by the administrator.
 
 ---
 
@@ -1082,4 +1084,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.23.2). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.23.3). All metrics, versions, and patterns cited are verifiable in the codebase.*

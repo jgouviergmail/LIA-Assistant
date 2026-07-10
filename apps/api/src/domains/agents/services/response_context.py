@@ -66,6 +66,10 @@ class ResponseContextBundle:
     user_msg_is_trivial: bool = True
     user_message_embedding: list[float] | None = None
     prefetched: bool = False
+    # Latency lot R2 (2026-07): True when the bundle was fetched before the
+    # query analyzer ran (router-entry prefetch) — the QI-dependent system-RAG
+    # injection was skipped and the response node must resolve it inline.
+    system_rag_deferred: bool = False
 
 
 def extract_last_user_message(state: MessagesState) -> str:
@@ -79,10 +83,76 @@ def extract_last_user_message(state: MessagesState) -> str:
     return ""
 
 
+async def fetch_app_knowledge_context(
+    state: MessagesState | dict[str, Any],
+    last_user_message: str,
+    run_id: str,
+) -> str:
+    """Resolve the system-RAG (App FAQ) context for app-help queries.
+
+    Reads ``is_app_help_query`` from the state's query_intelligence: when
+    True, always returns at least the ``APP_HELP_QUERY`` marker (so
+    ``get_response_prompt`` loads the app identity prompt), enriched with
+    system-RAG chunks when ``rag_spaces_system_enabled`` finds matches.
+
+    Standalone (latency lot R2, 2026-07): the router-entry prefetch cannot
+    evaluate this injection (query_intelligence does not exist yet at router
+    entry) — the response node calls this directly when the bundle carries
+    ``system_rag_deferred=True``.
+
+    Args:
+        state: Graph state (query_intelligence source, dict or object form).
+        last_user_message: Last human message text (system-RAG search query).
+        run_id: Current run identifier (logging correlation).
+
+    Returns:
+        The system-RAG prompt context, ``"APP_HELP_QUERY"`` marker, or ``""``.
+    """
+    is_app_help = get_qi_attr(cast("dict[str, Any]", state), "is_app_help_query", default=False)
+    if not is_app_help:
+        return ""
+    # Mark as app help so get_response_prompt() loads app_identity_prompt
+    context = "APP_HELP_QUERY"
+
+    # Optionally enrich with system RAG chunks (FAQ search results)
+    if getattr(settings, "rag_spaces_system_enabled", False) and last_user_message:
+        try:
+            from src.domains.rag_spaces.retrieval import (
+                retrieve_rag_context as _sys_retrieve,
+            )
+            from src.infrastructure.database.session import (
+                get_db_context as _sys_get_db,
+            )
+
+            async with _sys_get_db() as sys_db:
+                sys_result = await _sys_retrieve(
+                    user_id=None,
+                    query=last_user_message,
+                    db=sys_db,
+                    system_only=True,
+                )
+            if sys_result and sys_result.chunks:
+                context = sys_result.to_prompt_context()
+                logger.info(
+                    "system_rag_injection_completed",
+                    run_id=run_id,
+                    chunks_injected=len(sys_result.chunks),
+                )
+        except Exception as e:
+            logger.warning(
+                "system_rag_injection_failed",
+                run_id=run_id,
+                error=str(e),
+            )
+    return context
+
+
 async def fetch_response_context(
     state: MessagesState,
     config: RunnableConfig,
     run_id: str,
+    *,
+    include_system_rag: bool = True,
 ) -> ResponseContextBundle:
     """Fetch all user-context injections for the response prompt.
 
@@ -95,6 +165,11 @@ async def fetch_response_context(
         state: Current graph state (messages, query_intelligence, timezone).
         config: RunnableConfig carrying user/thread ids and feature flags.
         run_id: Current run identifier (logging correlation).
+        include_system_rag: False when called before the query analyzer ran
+            (router-entry prefetch, latency lot R2): the QI-dependent
+            system-RAG injection is skipped and the bundle is flagged
+            ``system_rag_deferred`` so the response node resolves it inline
+            via :func:`fetch_app_knowledge_context`.
 
     Returns:
         Fully resolved :class:`ResponseContextBundle` (``prefetched=False``;
@@ -273,45 +348,13 @@ async def fetch_response_context(
 
         When is_app_help_query=True, we ALWAYS inject the app identity prompt
         (describing LIA's capabilities). System RAG chunks are added on top
-        if available.
+        if available. Skipped (deferred to the response node) when the bundle
+        is prefetched before the query analyzer ran — see
+        :func:`fetch_app_knowledge_context`.
         """
-        is_app_help = get_qi_attr(cast("dict[str, Any]", state), "is_app_help_query", default=False)
-        if not is_app_help:
+        if not include_system_rag:
             return ""
-        # Mark as app help so get_response_prompt() loads app_identity_prompt
-        context = "APP_HELP_QUERY"
-
-        # Optionally enrich with system RAG chunks (FAQ search results)
-        if getattr(settings, "rag_spaces_system_enabled", False) and last_user_message:
-            try:
-                from src.domains.rag_spaces.retrieval import (
-                    retrieve_rag_context as _sys_retrieve,
-                )
-                from src.infrastructure.database.session import (
-                    get_db_context as _sys_get_db,
-                )
-
-                async with _sys_get_db() as sys_db:
-                    sys_result = await _sys_retrieve(
-                        user_id=None,
-                        query=last_user_message,
-                        db=sys_db,
-                        system_only=True,
-                    )
-                if sys_result and sys_result.chunks:
-                    context = sys_result.to_prompt_context()
-                    logger.info(
-                        "system_rag_injection_completed",
-                        run_id=run_id,
-                        chunks_injected=len(sys_result.chunks),
-                    )
-            except Exception as e:
-                logger.warning(
-                    "system_rag_injection_failed",
-                    run_id=run_id,
-                    error=str(e),
-                )
-        return context
+        return await fetch_app_knowledge_context(state, last_user_message, run_id)
 
     async def _inject_journal() -> tuple[str, dict[str, Any] | None, list[str]]:
         """Journal context injection (semantic relevance search, own DB session)."""
@@ -442,6 +485,7 @@ async def fetch_response_context(
         psyche_context=psyche_context,
         user_msg_is_trivial=user_msg_is_trivial,
         user_message_embedding=user_message_embedding,
+        system_rag_deferred=not include_system_rag,
     )
 
 
@@ -456,19 +500,25 @@ def start_response_context_prefetch(
     state: MessagesState,
     config: RunnableConfig,
     run_id: str,
+    *,
+    include_system_rag: bool = True,
 ) -> None:
     """Launch the response-context fetch as a background task for this run.
 
     Idempotent per ``run_id`` (initiative loop iterations reuse the first
-    task). Never raises — a failed launch simply means the response node
-    falls back to its inline fetch. Bounded registry: oldest entries are
-    cancelled and evicted beyond ``response_context_prefetch_max_entries``
-    (leak guard for runs that never reach the response node).
+    task; the initiative-node start is a no-op when the router already
+    started the prefetch — latency lot R2). Never raises — a failed launch
+    simply means the response node falls back to its inline fetch. Bounded
+    registry: oldest entries are cancelled and evicted beyond
+    ``response_context_prefetch_max_entries`` (leak guard for runs that
+    never reach the response node).
 
     Args:
         state: Current graph state.
         config: RunnableConfig carrying user/thread ids and feature flags.
         run_id: Current run identifier (registry key).
+        include_system_rag: False for the router-entry prefetch (query
+            intelligence not computed yet) — see :func:`fetch_response_context`.
     """
     if not settings.response_context_prefetch_enabled:
         return
@@ -476,7 +526,7 @@ def start_response_context_prefetch(
         return
     try:
         task = asyncio.create_task(
-            fetch_response_context(state, config, run_id),
+            fetch_response_context(state, config, run_id, include_system_rag=include_system_rag),
             name=f"response_context_prefetch_{run_id}",
         )
         _prefetch_tasks[run_id] = task

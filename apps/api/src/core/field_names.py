@@ -40,6 +40,10 @@ FIELD_TOOL_NAME = "tool_name"
 # actions) so response_node skips long-term memory / interest / journal / psyche
 # extraction. Only direct user inputs (web chat, channels, voice) feed those.
 FIELD_IS_AUTOMATED_SOURCE = "is_automated_source"
+# RunnableConfig.configurable: normalized person names resolved for the turn
+# (from memory reference resolution), consumed by the runtime semantic
+# parameter guard in the parallel executor.
+FIELD_RESOLVED_PERSON_NAMES = "resolved_person_names"
 
 # LLM & Tokens
 FIELD_TOKENS_IN = "tokens_in"

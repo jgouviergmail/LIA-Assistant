@@ -33,12 +33,14 @@ _UNIT_PARAM = ParameterSchema(
     type="string",
     required=False,
     description="'metric' (Celsius, def) or 'imperial' (Fahrenheit).",
+    semantic_type="unit_system",
 )
 _LANG_PARAM = ParameterSchema(
     name="language",
     type="string",
     required=False,
     description="Lang code (e.g. 'fr', 'en'). Def: 'fr'.",
+    semantic_type="language_code",
 )
 _DATE_PARAM = ParameterSchema(
     name="date",
@@ -49,7 +51,7 @@ _DATE_PARAM = ParameterSchema(
         "ISO date ('2026-01-22'), or ISO datetime from calendar events. "
         "For weather at a CALENDAR EVENT, use the event's start_datetime."
     ),
-    semantic_type="event_start_datetime",
+    semantic_type="event_start_datetime",  # Cross-domain: weather for a calendar event
 )
 
 # ============================================================================
@@ -78,12 +80,22 @@ get_current_weather_catalogue_manifest = ToolManifest(
     # Calendar event dates should route to get_weather_forecast_tool via semantic_type
     parameters=[_LOC_PARAM, _UNIT_PARAM, _LANG_PARAM],
     outputs=[
-        OutputFieldSchema(path="location", type="string", description="Location"),
-        OutputFieldSchema(path="temperature", type="number", description="Temp"),
-        OutputFieldSchema(path="feels_like", type="number", description="Feels like"),
-        OutputFieldSchema(path="humidity", type="integer", description="Humidity %"),
+        OutputFieldSchema(
+            path="location", type="string", description="Location", semantic_type="locality"
+        ),
+        OutputFieldSchema(
+            path="temperature", type="number", description="Temp", semantic_type="temperature"
+        ),
+        OutputFieldSchema(
+            path="feels_like", type="number", description="Feels like", semantic_type="temperature"
+        ),
+        OutputFieldSchema(
+            path="humidity", type="integer", description="Humidity %", semantic_type="humidity"
+        ),
         OutputFieldSchema(path="description", type="string", description="Condition"),
-        OutputFieldSchema(path="wind_speed", type="number", description="Wind"),
+        OutputFieldSchema(
+            path="wind_speed", type="number", description="Wind", semantic_type="wind_speed"
+        ),
         OutputFieldSchema(path="pressure", type="integer", description="Pressure hPa"),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=200, est_cost_usd=0.001, est_latency_ms=500),
@@ -143,13 +155,28 @@ get_weather_forecast_catalogue_manifest = ToolManifest(
         _LANG_PARAM,
     ],
     outputs=[
-        OutputFieldSchema(path="location", type="string", description="Location"),
+        OutputFieldSchema(
+            path="location", type="string", description="Location", semantic_type="locality"
+        ),
         OutputFieldSchema(path="forecast", type="array", description="Points"),
-        OutputFieldSchema(path="forecast[].datetime", type="string", description="UTC Time"),
-        OutputFieldSchema(path="forecast[].temperature", type="number", description="Temp"),
+        OutputFieldSchema(
+            path="forecast[].datetime",
+            type="string",
+            description="UTC Time",
+            semantic_type="datetime",
+        ),
+        OutputFieldSchema(
+            path="forecast[].temperature",
+            type="number",
+            description="Temp",
+            semantic_type="temperature",
+        ),
         OutputFieldSchema(path="forecast[].description", type="string", description="Condition"),
         OutputFieldSchema(
-            path="forecast[].precipitation_prob", type="number", description="Rain Prob"
+            path="forecast[].precipitation_prob",
+            type="number",
+            description="Rain Prob",
+            semantic_type="precipitation_probability",
         ),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=800, est_cost_usd=0.002, est_latency_ms=600),
@@ -200,10 +227,22 @@ get_hourly_forecast_catalogue_manifest = ToolManifest(
         _LANG_PARAM,
     ],
     outputs=[
-        OutputFieldSchema(path="location", type="string", description="Location"),
+        OutputFieldSchema(
+            path="location", type="string", description="Location", semantic_type="locality"
+        ),
         OutputFieldSchema(path="hourly", type="array", description="Data"),
-        OutputFieldSchema(path="hourly[].datetime", type="string", description="UTC Time"),
-        OutputFieldSchema(path="hourly[].temperature", type="number", description="Temp"),
+        OutputFieldSchema(
+            path="hourly[].datetime",
+            type="string",
+            description="UTC Time",
+            semantic_type="datetime",
+        ),
+        OutputFieldSchema(
+            path="hourly[].temperature",
+            type="number",
+            description="Temp",
+            semantic_type="temperature",
+        ),
         OutputFieldSchema(path="hourly[].description", type="string", description="Condition"),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=600, est_cost_usd=0.002, est_latency_ms=600),

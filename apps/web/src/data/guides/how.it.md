@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 2.8
+**Versione**: 2.9
 **Data**: 2026-07-10
-**Applicazione**: LIA v1.23.2
+**Applicazione**: LIA v1.23.3
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -446,7 +446,9 @@ Ogni `ToolManifest` possiede dei `semantic_keywords` multilingue. La richiesta v
 
 ### 8.3. Semantic Expansion
 
-L'`expansion_service.py` arricchisce i risultati esplorando i domini adiacenti. La validazione post-espansione (ADR-061, Layer 1) filtra i domini disattivati dall'amministratore — correggendo un bug in cui il LLM o l'espansione potevano reintrodurre domini che erano stati disattivati.
+L'`expansion_service.py` aggiunge al catalogo del planner i domini in grado di fornire un dato mancante. Il trigger è **guidato dall'evidenza**: il rilevamento dei riferimenti personali è l'unione di tre fonti — i mapping del resolver di memoria (riferimenti personali per costruzione), i riferimenti relazionali estratti anche quando la risoluzione non trova alcun fatto, e i riferimenti tipizzati dal LLM di analisi. Un'entità referenziata (persona → `Contact`, appuntamento → `CalendarEvent`, luogo → `Place`, e-mail → `EmailMessage`) porta i domini le cui `properties` del tipo ontologico forniscono un tipo richiesto dagli strumenti selezionati — un ancoraggio che impedisce ogni espansione cieca, con tetto configurabile e verifica di completezza del mapping all'avvio (ADR-120).
+
+Lo strato è alimentato da manifest **profondamente annotati** (`semantic_type` su parametri e output: partecipanti di un evento, mittente di un'e-mail, destinazione di un percorso — ADR-121), che nutrono anche i suggerimenti di collegamento Jinja2 tra domini e una **protezione all'esecuzione**: il nome di una persona non può mai raggiungere un parametro tipizzato indirizzo/e-mail — la chiamata fallisce prima di qualsiasi spesa API con un errore recuperabile, in entrambe le modalità di esecuzione. La validazione post-espansione (ADR-061, Layer 1) continua a filtrare i domini disattivati dall'amministratore.
 
 ---
 
@@ -1054,4 +1056,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.23.2). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), degli 100+ ADR e del changelog (da v1.0 a v1.23.3). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
