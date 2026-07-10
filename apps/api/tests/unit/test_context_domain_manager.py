@@ -27,6 +27,21 @@ def manager():
     return ToolContextManager()
 
 
+@pytest.fixture(autouse=True)
+def _restore_context_registry():
+    """Save/restore the global ContextTypeRegistry around every test in this module.
+
+    Several tests here ``clear()`` and re-register a minimal set of context types.
+    Without restoration this leaks an empty/partial registry to catalogue-validating
+    tests sharing the same pytest-xdist worker, causing an intermittent
+    ``Context type registration validation FAILED``. Mirrors the save/restore in
+    ``conftest.clean_context_registry``.
+    """
+    original_registry = ContextTypeRegistry._registry.copy()
+    yield
+    ContextTypeRegistry._registry = original_registry
+
+
 @pytest.fixture
 def setup_registry():
     """Setup test context types in registry."""
