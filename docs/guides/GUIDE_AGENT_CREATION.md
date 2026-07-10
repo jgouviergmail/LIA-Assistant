@@ -2038,7 +2038,7 @@ Contrairement aux agents statiques (contacts, email, calendar, etc.) qui sont de
 
 ### Creation dynamique via `registration.py`
 
-Le point d'entree est `register_mcp_tools()` dans `infrastructure/mcp/registration.py`. Au demarrage de l'application (`main.py` lifespan), le `MCPClientManager` se connecte aux serveurs MCP configures, decouvre leurs outils, puis appelle `register_mcp_tools()` :
+Le point d'entree est `register_mcp_tools()` dans `infrastructure/mcp/registration.py`. Au demarrage de l'application (lifespan → `startup/integrations.py::init_mcp`, ADR-123), le `MCPClientManager` se connecte aux serveurs MCP configures, decouvre leurs outils, puis appelle `register_mcp_tools()` :
 
 ```
 Startup → MCPClientManager.initialize()

@@ -2957,6 +2957,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_23_7": {
+          "title": "v1.23.7 — 🚀 Démarrage consolidé (maintenance)",
+          "date": "Juillet 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🚀 Séquence de démarrage réorganisée</b> — la mécanique interne qui initialise LIA au démarrage (caches, agents, intégrations, tâches planifiées, arrêt propre) a été réorganisée en modules dédiés, avec l'ordre de démarrage — critique — désormais documenté noir sur blanc. Rien ne change à l'usage : le démarrage a été vérifié strictement identique, événement par événement, avant/après. Les évolutions futures du démarrage sont beaucoup plus sûres.",
+            "i2": "<b>🛠️ Aucune action requise (admin)</b> — pas de nouvelle variable d'environnement, pas de migration ; les guides techniques (tâches de fond, MCP, caches) pointent désormais vers les nouveaux emplacements du code d'initialisation."
+          }
+        },
         "v1_23_6": {
           "title": "v1.23.6 — 🧱 Cœur vocal consolidé (maintenance)",
           "date": "Juillet 2026",

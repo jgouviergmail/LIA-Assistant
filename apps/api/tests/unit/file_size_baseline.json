@@ -57,7 +57,6 @@
     "domains/psyche/service.py": 961,
     "domains/users/service.py": 740,
     "infrastructure/llm/structured_output.py": 623,
-    "infrastructure/observability/metrics_agents.py": 839,
-    "main.py": 982
+    "infrastructure/observability/metrics_agents.py": 839
   }
 }

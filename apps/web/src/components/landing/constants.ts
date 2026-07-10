@@ -4,14 +4,15 @@
  * (animated counters + engineering proof) and JsonLd (SEO feature list).
  *
  * Verified against the codebase (2026-07):
- * - agents: 17 statically registered domain agents (main.py) + MCP iterative
- *   agent + sub-agents → "19+" is the defensible public claim
+ * - agents: 17 statically registered domain agents (infrastructure/startup/
+ *   agents.py, ADR-123) + MCP iterative agent + sub-agents → "19+" is the
+ *   defensible public claim
  * - tools: ToolManifest entries across src/domains/agents/{domain}/catalogue_manifests.py
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
  * - metrics: Prometheus metric definitions in infrastructure/observability/
  * - tests: backend pytest (~11,100) + frontend vitest
- * - adrs: docs/architecture/ ADR files (numbered up to ADR-122)
+ * - adrs: docs/architecture/ ADR files (numbered up to ADR-123)
  * - releases: CHANGELOG.md release entries
  * - auditScore/auditAreas: 360° technical audit at commit 182f3927 (v1.22.0,
  *   2026-07-09), 24 areas on the ISO/IEC 25010 grid. Full public report +
@@ -29,7 +30,7 @@ export const LANDING_STATS = {
   uiLanguages: 6,
   tests: 11000,
   adrs: 100,
-  releases: 140,
+  releases: 141,
   auditScore: '8.4/10',
   auditAreas: 24,
 } as const;

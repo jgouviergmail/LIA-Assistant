@@ -618,7 +618,13 @@
       "retry_button": "Retry",
       "retry_failed": "Unable to retrieve your position. Check that GPS is enabled.",
       "detection": {
-        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
+        "keywords": [
+          "nearby",
+          "vicinity",
+          "neighborhood",
+          "surroundings",
+          "area"
+        ],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -2946,6 +2952,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_23_7": {
+          "title": "v1.23.7 — 🚀 Tidier startup core (maintenance)",
+          "date": "July 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🚀 Startup sequence reorganized</b> — the internal machinery that initializes LIA at boot (caches, agents, integrations, scheduled jobs, graceful shutdown) has been reorganized into dedicated modules, with the — critical — boot order now documented in black and white. Nothing changes in daily use: the boot was verified strictly identical, event by event, before/after. Future startup evolutions are much safer.",
+            "i2": "<b>🛠️ No action required (admin)</b> — no new environment variable, no migration; the technical guides (background jobs, MCP, caches) now point to the new locations of the initialization code."
+          }
+        },
         "v1_23_6": {
           "title": "v1.23.6 — 🧱 Sturdier voice core (maintenance)",
           "date": "July 2026",

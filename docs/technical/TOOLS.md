@@ -1462,7 +1462,7 @@ Les tools natifs (Google, Weather, etc.) sont **compilés** dans le code source.
 
 **1. Admin MCP (`MCPToolAdapter`)** — Serveurs configurés en `.env` (globaux) :
 - Wrappent chaque tool MCP en `BaseTool` LangChain
-- Enregistrés dans `AgentRegistry` + `tool_registry` au démarrage (`main.py` lifespan)
+- Enregistrés dans `AgentRegistry` + `tool_registry` au démarrage (lifespan → `startup/integrations.py::init_mcp`, ADR-123)
 - Domain : `"mcp"` dans `TYPE_TO_DOMAIN_MAP`
 
 **2. Per-User MCP (`UserMCPToolAdapter`)** — Serveurs configurés par l'utilisateur en DB :

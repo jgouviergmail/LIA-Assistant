@@ -245,7 +245,7 @@ class MCPServerConfig(BaseModel):
 ### Cycle de vie au demarrage
 
 ```
-Startup (main.py lifespan):
+Startup (lifespan → startup/integrations.py::init_mcp, ADR-123):
   1. MCPSettings charge MCP_SERVERS_CONFIG / MCP_SERVERS_CONFIG_PATH
   2. _parse_server_configs() cree dict[str, MCPServerConfig]
   3. MCPClientManager.initialize() pour chaque serveur enabled :

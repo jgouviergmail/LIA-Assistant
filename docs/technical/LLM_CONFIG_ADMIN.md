@@ -198,7 +198,7 @@ Chaque PUT remplace **toute** la row d'override. Le frontend envoie l'état comp
 ### Lifecycle
 
 ```python
-# Startup (main.py lifespan)
+# Startup (lifespan → startup/caches.py::init_config_caches, ADR-123)
 await LLMConfigOverrideCache.load_from_db(db)
 
 # Admin modifie une config

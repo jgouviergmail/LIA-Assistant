@@ -37,12 +37,18 @@ from src.core.security.utils import create_password_reset_token, create_verifica
 # ============================================================================
 
 
-def test_scheduler_constants_imported_in_main():
-    """Test that main.py imports scheduler constants correctly."""
+def test_scheduler_constants_imported_in_startup_schedulers():
+    """Test that the scheduler registration module imports the centralized constants.
+
+    The job registration site moved from main.py to
+    src/infrastructure/startup/schedulers.py (ADR-123); the intent is
+    unchanged: the registration code must use the constants from
+    src.core.constants, not inlined values.
+    """
     # This is a static analysis test - verify imports exist
-    from src.main import CURRENCY_SYNC_HOUR as hour_import
-    from src.main import CURRENCY_SYNC_MINUTE as minute_import
-    from src.main import SCHEDULER_JOB_CURRENCY_SYNC as job_import
+    from src.infrastructure.startup.schedulers import CURRENCY_SYNC_HOUR as hour_import
+    from src.infrastructure.startup.schedulers import CURRENCY_SYNC_MINUTE as minute_import
+    from src.infrastructure.startup.schedulers import SCHEDULER_JOB_CURRENCY_SYNC as job_import
 
     assert hour_import == CURRENCY_SYNC_HOUR
     assert minute_import == CURRENCY_SYNC_MINUTE

@@ -597,7 +597,14 @@
       "retry_button": "Reintentar",
       "retry_failed": "No se pudo obtener tu posición. Verifica que el GPS esté activado.",
       "detection": {
-        "keywords": ["alrededores", "cercanias", "proximidad", "vecindario", "zona", "domicilio"],
+        "keywords": [
+          "alrededores",
+          "cercanias",
+          "proximidad",
+          "vecindario",
+          "zona",
+          "domicilio"
+        ],
         "patterns": [
           "cerca de (aqu[ií]|m[ií])",
           "a mi alrededor",
@@ -2936,6 +2943,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_23_7": {
+          "title": "v1.23.7 — 🚀 Arranque consolidado (mantenimiento)",
+          "date": "Julio de 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🚀 Secuencia de arranque reorganizada</b> — la mecánica interna que inicializa LIA al arrancar (cachés, agentes, integraciones, tareas programadas, apagado limpio) se ha reorganizado en módulos dedicados, con el orden de arranque — crítico — ahora documentado negro sobre blanco. Nada cambia en el uso diario: el arranque se verificó estrictamente idéntico, evento por evento, antes y después. Las futuras evoluciones del arranque son mucho más seguras.",
+            "i2": "<b>🛠️ No se requiere ninguna acción (admin)</b> — sin nuevas variables de entorno ni migraciones; las guías técnicas (tareas en segundo plano, MCP, cachés) apuntan ahora a las nuevas ubicaciones del código de inicialización."
+          }
+        },
         "v1_23_6": {
           "title": "v1.23.6 — 🧱 Núcleo de voz consolidado (mantenimiento)",
           "date": "Julio de 2026",

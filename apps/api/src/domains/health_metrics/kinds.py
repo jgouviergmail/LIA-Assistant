@@ -97,8 +97,9 @@ class HealthKindSpec:
             share ``(date_start, date_end)``.
         aggregation_method: How to aggregate within a time bucket for charts.
         baseline_kind: How to compute the user's per-day baseline.
-        agent_name: LangGraph agent identifier registered in
-            :func:`src.main.lifespan` (e.g. ``"steps_agent"``).
+        agent_name: LangGraph agent identifier registered at startup in
+            :func:`src.infrastructure.startup.agents.init_agent_registry`
+            (e.g. ``"steps_agent"``).
         display_i18n_key: i18next key resolving to the human-readable name
             in the Settings UI.
         legacy_response_fields: Names of the fields currently present on

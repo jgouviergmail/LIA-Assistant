@@ -172,8 +172,8 @@ They are NOT listed here. See section 12.
 
 | Env var | Field | Default | Range | Used in | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS` | `background_runs_drain_timeout_seconds` | 45 s | 5–300 | `main.py` lifespan / `agents/api/background_runner.py` | Max wait for in-flight chat producers on shutdown (ADR-117). Drain + generic-task timeouts must stay below the compose `stop_grace_period` (90 s) |
-| `SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS` | `shutdown_background_tasks_timeout_seconds` | 15 s | 1–120 | `main.py` lifespan / `infrastructure/async_utils.py` | Max wait for generic fire-and-forget tasks (memory/interest extraction, warmups) after chat producers are drained |
+| `BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS` | `background_runs_drain_timeout_seconds` | 45 s | 5–300 | `startup/shutdown.py` (ADR-123) / `agents/api/background_runner.py` | Max wait for in-flight chat producers on shutdown (ADR-117). Drain + generic-task timeouts must stay below the compose `stop_grace_period` (90 s) |
+| `SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS` | `shutdown_background_tasks_timeout_seconds` | 15 s | 1–120 | `startup/shutdown.py` (ADR-123) / `infrastructure/async_utils.py` | Max wait for generic fire-and-forget tasks (memory/interest extraction, warmups) after chat producers are drained |
 
 > *Remaining candidates flagged in audit V3 — Vague 6: PostgreSQL*
 > *`statement_timeout`, FastAPI lifespan startup wrap, MCP `session.close()`*

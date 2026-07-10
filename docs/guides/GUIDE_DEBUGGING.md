@@ -2109,7 +2109,7 @@ asyncio.run(run_heartbeat_notification())
 | `src.domains.scheduled_actions.service` | `service.py` | CRUD et gestion des actions |
 | `src.domains.scheduled_actions.repository` | `repository.py` | Persistance et queries DB |
 
-Le scheduler principal APScheduler est initialisé dans `main.py` (lifespan). Chaque job utilise un `SchedulerLock` Redis pour éviter les exécutions dupliquées avec plusieurs workers uvicorn.
+Le scheduler principal APScheduler est initialisé au démarrage dans `startup/schedulers.py::init_scheduler` (appelé par le lifespan de `main.py`, ADR-123). Chaque job utilise un `SchedulerLock` Redis pour éviter les exécutions dupliquées avec plusieurs workers uvicorn.
 
 ### Problèmes courants
 

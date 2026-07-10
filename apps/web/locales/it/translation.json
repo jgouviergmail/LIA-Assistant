@@ -597,7 +597,14 @@
       "retry_button": "Riprova",
       "retry_failed": "Impossibile recuperare la tua posizione. Verifica che il GPS sia attivato.",
       "detection": {
-        "keywords": ["vicinanze", "dintorni", "zona", "quartiere", "prossimita", "domicilio"],
+        "keywords": [
+          "vicinanze",
+          "dintorni",
+          "zona",
+          "quartiere",
+          "prossimita",
+          "domicilio"
+        ],
         "patterns": [
           "(nelle|in) vicinanz[ae]",
           "intorno a me",
@@ -2938,6 +2945,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_23_7": {
+          "title": "v1.23.7 — 🚀 Avvio consolidato (manutenzione)",
+          "date": "Luglio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🚀 Sequenza di avvio riorganizzata</b> — la meccanica interna che inizializza LIA all'avvio (cache, agenti, integrazioni, attività pianificate, arresto pulito) è stata riorganizzata in moduli dedicati, con l'ordine di avvio — critico — ora documentato nero su bianco. Nulla cambia nell'uso quotidiano: l'avvio è stato verificato strettamente identico, evento per evento, prima e dopo. Le future evoluzioni dell'avvio sono molto più sicure.",
+            "i2": "<b>🛠️ Nessuna azione richiesta (admin)</b> — nessuna nuova variabile d'ambiente, nessuna migrazione; le guide tecniche (attività in background, MCP, cache) puntano ora alle nuove posizioni del codice di inizializzazione."
+          }
+        },
         "v1_23_6": {
           "title": "v1.23.6 — 🧱 Nucleo vocale consolidato (manutenzione)",
           "date": "Luglio 2026",

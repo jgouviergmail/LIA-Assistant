@@ -597,7 +597,14 @@
       "retry_button": "Erneut versuchen",
       "retry_failed": "Ihre Position konnte nicht abgerufen werden. Überprüfen Sie, ob GPS aktiviert ist.",
       "detection": {
-        "keywords": ["nahe", "umgebung", "gegend", "nachbarschaft", "viertel", "zuhause"],
+        "keywords": [
+          "nahe",
+          "umgebung",
+          "gegend",
+          "nachbarschaft",
+          "viertel",
+          "zuhause"
+        ],
         "patterns": [
           "in der n[aä]he",
           "um mich herum",
@@ -2936,6 +2943,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_23_7": {
+          "title": "v1.23.7 — 🚀 Konsolidierter Start (Wartung)",
+          "date": "Juli 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🚀 Startsequenz neu organisiert</b> — die interne Mechanik, die LIA beim Start initialisiert (Caches, Agenten, Integrationen, geplante Aufgaben, sauberes Herunterfahren), wurde in dedizierte Module gegliedert; die — kritische — Startreihenfolge ist nun schwarz auf weiß dokumentiert. Im Alltag ändert sich nichts: Der Start wurde vor und nach der Umstellung Ereignis für Ereignis als strikt identisch verifiziert. Künftige Weiterentwicklungen des Starts sind damit deutlich sicherer.",
+            "i2": "<b>🛠️ Keine Aktion erforderlich (Admin)</b> — keine neue Umgebungsvariable, keine Migration; die technischen Leitfäden (Hintergrund-Jobs, MCP, Caches) verweisen nun auf die neuen Speicherorte des Initialisierungscodes."
+          }
+        },
         "v1_23_6": {
           "title": "v1.23.6 — 🧱 Konsolidierter Sprachkern (Wartung)",
           "date": "Juli 2026",

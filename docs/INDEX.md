@@ -280,12 +280,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-122 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-123 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-123 | Lifespan Startup Decomposition — extraction verbatim du 2e monolithe du backend (`main.py::lifespan`, ~780 SLOC, 23 étapes startup + 20 shutdown) vers `src/infrastructure/startup/` (7 modules par sous-système, une fonction typée par segment contigu), lifespan = séquence de ~25 appels dans l'ordre historique exact + commentaire de tête documentant les 8 dépendances d'ordre, mêmes événements structlog / try-except / flags, sémantique des objets partiels préservée, diff des logs de boot avant/après = 0 | 2026-07 |
 | ADR-122 | AgentService Stream Decomposition (B2) — extraction neutre de la coordination voix/TTS de `_stream_with_new_services` (1 135 SLOC, plus grosse fonction du backend) vers `VoiceStreamCoordinator` + `voice_stream_helpers` (interface typée, 11 variables d'état encapsulées), filet golden de 11 scénarios SSE vert à l'identique avant/après, `service.py` −35 % (1 585 → 1 031 SLOC), coutures suivantes : finalisation/archivage puis setup | 2026-07 |
 | ADR-121 | Semantic Annotation Back-fill — rétro-annotation `semantic_type` de 15 manifests (~120 annotations, params 14→53 %, outputs 22→40 %, 72/100 types consommés), chaînages vitrine épinglés par tests (participants→mail, expéditeur→invités, destination→météo), promotion `emails[].from`, entité `EmailMessage` comme évidence d'expansion, fixture de tests linking réparée (registre vide) | 2026-07 |
 | ADR-120 | Semantic Evidence Expansion & Param Guard — déclencheur d'expansion sémantique rendu déterministe (évidence memory resolver ∪ analyzer), expansion evidence-driven ontology-based sous flag (entité référencée → domaines fournisseurs, cap + métrique), garde runtime manifest-driven (nom de personne sur paramètre adresse/e-mail bloqué avant l'appel API, pipeline + react), `get_route` refuse les destinations non résolues (fin du géocodage arbitraire mis en cache) | 2026-07 |

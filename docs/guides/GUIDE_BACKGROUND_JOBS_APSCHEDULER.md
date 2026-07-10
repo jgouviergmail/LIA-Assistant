@@ -90,32 +90,28 @@ apscheduler = "3.10.4"
 
 ### Intégration FastAPI Lifespan
 
+Le `lifespan` de `main.py` reste l'unique point d'orchestration (ADR-123), mais le
+corps de l'étape scheduler vit dans `src/infrastructure/startup/schedulers.py` :
+
 ```python
-# apps/api/src/main.py
-from contextlib import asynccontextmanager
+# apps/api/src/main.py — single orchestration point (ADR-123)
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from src.infrastructure.startup import schedulers, shutdown
+
+scheduler = AsyncIOScheduler()  # module-level
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: startup and shutdown."""
-
-    # === STARTUP ===
-    scheduler = AsyncIOScheduler()
-
-    # Register jobs
-    register_all_jobs(scheduler)
-
-    # Start scheduler
-    scheduler.start()
-    logger.info("scheduler_started")
-
+    # ... other startup steps (registries, caches, agents, integrations) ...
+    leader_elector = await schedulers.init_scheduler(scheduler)
     yield  # APPLICATION RUNNING
+    await shutdown.shutdown_application(...)  # stops the scheduler via the elector
 
-    # === SHUTDOWN ===
-    scheduler.shutdown(wait=True)
-    logger.info("scheduler_stopped")
-
-app = FastAPI(lifespan=lifespan)
+# apps/api/src/infrastructure/startup/schedulers.py
+async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
+    # ... scheduler.add_job(...) for every background job ...
+    await leader_elector.start()  # scheduler.start() happens inside the elector
+    return leader_elector
 ```
 
 ---
@@ -274,28 +270,31 @@ async def my_background_job() -> dict:
     return stats
 ```
 
-### Étape 2: Enregistrer dans Lifespan
+### Étape 2: Enregistrer dans `startup/schedulers.py`
+
+Dans `init_scheduler()` (appelé par le lifespan de `main.py`, ADR-123), **avant**
+`await leader_elector.start()` — tous les jobs doivent être enregistrés avant le
+démarrage du scheduler :
 
 ```python
-# apps/api/src/main.py
+# apps/api/src/infrastructure/startup/schedulers.py
 from src.infrastructure.scheduler.my_job import my_background_job
 
-def register_all_jobs(scheduler: AsyncIOScheduler):
-    """Register all background jobs."""
-
-    # Existing jobs...
-
-    # Add your new job
+async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
+    ...
+    # Add your new job (inside the single try block, before leader_elector.start())
     scheduler.add_job(
         my_background_job,
         trigger="cron",
         hour=5,
         minute=30,
-        id="my_job",
+        id="my_job",  # use a SCHEDULER_JOB_* constant from src/core/constants.py
         name="My custom background job",
         replace_existing=True,
     )
     logger.info("my_job_scheduled", schedule="5:30 AM UTC")
+    ...
+    await leader_elector.start()
 ```
 
 ### Étape 3: Ajouter Métriques Prometheus
@@ -461,7 +460,7 @@ Avec `--workers N`, chaque worker démarre son propre APScheduler. Pour éviter 
 # apps/api/src/infrastructure/scheduler/leader_elector.py
 from src.infrastructure.scheduler.leader_elector import SchedulerLeaderElector
 
-# In main.py lifespan:
+# In startup/schedulers.py::init_scheduler (called from the main.py lifespan, ADR-123):
 leader_elector = SchedulerLeaderElector(redis, scheduler, on_elected=callback)
 # ... register all jobs with scheduler.add_job() ...
 await leader_elector.start()   # Non-blocking: try SETNX, background re-election if stale lock
@@ -750,7 +749,8 @@ async def test_concurrent_job_execution():
 
 ### Code Source
 
-- **Main Lifespan**: `apps/api/src/main.py`
+- **Main Lifespan** (orchestration): `apps/api/src/main.py`
+- **Job Registration** (ADR-123): `apps/api/src/infrastructure/startup/schedulers.py`
 - **Currency Sync**: `apps/api/src/infrastructure/scheduler/currency_sync.py`
 - **Memory Cleanup**: `apps/api/src/infrastructure/scheduler/memory_cleanup.py`
 - **Reminder Notification**: `apps/api/src/infrastructure/scheduler/reminder_notification.py`
