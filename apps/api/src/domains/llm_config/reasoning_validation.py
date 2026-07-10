@@ -4,8 +4,8 @@ Used by:
 - LLMConfigService.upsert_override (admin API write path)
 - bootstrap.validate_llm_defaults_against_matrix (boot-time fail-fast)
 
-Raises HTTPException(422) with structured ctx so the frontend can surface
-helpful "did you mean" hints in the error toast.
+Raises StructuredValidationError (422) with structured ctx so the frontend
+can surface helpful "did you mean" hints in the error toast.
 
 Philosophy A - raw truth: the UI exposes exactly what the API accepts; this
 function enforces that contract on the write path.
@@ -17,6 +17,7 @@ from typing import Any, Protocol
 
 from fastapi import HTTPException
 
+from src.core.exceptions import raise_structured_validation_error
 from src.core.reasoning_types import (
     ReasoningEffortBudget,
     ReasoningEffortEnum,
@@ -60,87 +61,75 @@ def validate_reasoning_effort(
             payload or boot-time default). May be ``None`` for non-reasoning models.
 
     Raises:
-        HTTPException: 422 with a structured ``detail`` dict carrying ``type``,
-            ``loc``, ``msg``, ``input`` and ``ctx`` so the frontend can surface
-            actionable error toasts (e.g. "did you mean?" hints).
+        StructuredValidationError: 422 with a structured ``detail`` dict
+            carrying ``type``, ``loc``, ``msg``, ``input`` and ``ctx`` so the
+            frontend can surface actionable error toasts (e.g. "did you
+            mean?" hints).
     """
     widget = caps.reasoning_widget
 
     if widget == "none":
         if value is not None:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "type": "reasoning_not_supported",
-                    "loc": ["body", "reasoning_effort"],
-                    "msg": (
-                        f"Model {caps.model_id} does not accept reasoning_effort. "
-                        "Set reasoning_effort to null."
-                    ),
-                    "input": _serialize(value),
-                    "ctx": {"model": caps.model_id, "widget": "none"},
-                },
+            raise_structured_validation_error(
+                error_type="reasoning_not_supported",
+                loc=["body", "reasoning_effort"],
+                msg=(
+                    f"Model {caps.model_id} does not accept reasoning_effort. "
+                    "Set reasoning_effort to null."
+                ),
+                input_value=_serialize(value),
+                ctx={"model": caps.model_id, "widget": "none"},
             )
         return
 
     if widget == "enum":
         if not isinstance(value, ReasoningEffortEnum):
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "type": "wrong_reasoning_effort_shape",
-                    "loc": ["body", "reasoning_effort"],
-                    "msg": (
-                        f"Model {caps.model_id} expects an enum value "
-                        '(shape: {"effort": "<string>"}).'
-                    ),
-                    "input": _serialize(value),
-                    "ctx": {
-                        "model": caps.model_id,
-                        "widget": "enum",
-                        "expected_shape": {"effort": "<str>"},
-                    },
+            raise_structured_validation_error(
+                error_type="wrong_reasoning_effort_shape",
+                loc=["body", "reasoning_effort"],
+                msg=(
+                    f"Model {caps.model_id} expects an enum value "
+                    '(shape: {"effort": "<string>"}).'
+                ),
+                input_value=_serialize(value),
+                ctx={
+                    "model": caps.model_id,
+                    "widget": "enum",
+                    "expected_shape": {"effort": "<str>"},
                 },
             )
         allowed = caps.reasoning_enum_values or []
         if value.effort not in allowed:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "type": "invalid_reasoning_effort",
-                    "loc": ["body", "reasoning_effort"],
-                    "msg": (
-                        f"Reasoning effort {value.effort!r} is not supported by "
-                        f"{caps.model_id}. Allowed values: {', '.join(allowed)}."
-                    ),
-                    "input": value.effort,
-                    "ctx": {
-                        "model": caps.model_id,
-                        "provided": value.effort,
-                        "allowed": list(allowed),
-                        "widget": "enum",
-                    },
+            raise_structured_validation_error(
+                error_type="invalid_reasoning_effort",
+                loc=["body", "reasoning_effort"],
+                msg=(
+                    f"Reasoning effort {value.effort!r} is not supported by "
+                    f"{caps.model_id}. Allowed values: {', '.join(allowed)}."
+                ),
+                input_value=value.effort,
+                ctx={
+                    "model": caps.model_id,
+                    "provided": value.effort,
+                    "allowed": list(allowed),
+                    "widget": "enum",
                 },
             )
         return
 
     if widget == "budget_int":
         if not isinstance(value, ReasoningEffortBudget):
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "type": "wrong_reasoning_effort_shape",
-                    "loc": ["body", "reasoning_effort"],
-                    "msg": (
-                        f"Model {caps.model_id} expects a numeric budget "
-                        '(shape: {"budget": <int>}).'
-                    ),
-                    "input": _serialize(value),
-                    "ctx": {
-                        "model": caps.model_id,
-                        "widget": "budget_int",
-                        "expected_shape": {"budget": "<int>"},
-                    },
+            raise_structured_validation_error(
+                error_type="wrong_reasoning_effort_shape",
+                loc=["body", "reasoning_effort"],
+                msg=(
+                    f"Model {caps.model_id} expects a numeric budget " '(shape: {"budget": <int>}).'
+                ),
+                input_value=_serialize(value),
+                ctx={
+                    "model": caps.model_id,
+                    "widget": "budget_int",
+                    "expected_shape": {"budget": "<int>"},
                 },
             )
         rng = _normalize_range(caps.reasoning_budget_range)
@@ -150,46 +139,40 @@ def validate_reasoning_effort(
         lo = rng.get("min", 0)
         hi = rng.get("max", 0)
         if not (lo <= value.budget <= hi):
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "type": "invalid_reasoning_budget",
-                    "loc": ["body", "reasoning_effort"],
-                    "msg": (
-                        f"Reasoning budget {value.budget} for {caps.model_id} is "
-                        f"out of range [{lo}, {hi}] and not a sentinel."
-                    ),
-                    "input": value.budget,
-                    "ctx": {
-                        "model": caps.model_id,
-                        "provided": value.budget,
-                        "range": {"min": lo, "max": hi},
-                        "sentinels": sorted(sentinels),
-                        "widget": "budget_int",
-                    },
+            raise_structured_validation_error(
+                error_type="invalid_reasoning_budget",
+                loc=["body", "reasoning_effort"],
+                msg=(
+                    f"Reasoning budget {value.budget} for {caps.model_id} is "
+                    f"out of range [{lo}, {hi}] and not a sentinel."
+                ),
+                input_value=value.budget,
+                ctx={
+                    "model": caps.model_id,
+                    "provided": value.budget,
+                    "range": {"min": lo, "max": hi},
+                    "sentinels": sorted(sentinels),
+                    "widget": "budget_int",
                 },
             )
         return
 
     if widget == "toggle_budget":
         if not isinstance(value, ReasoningEffortToggleBudget):
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "type": "wrong_reasoning_effort_shape",
-                    "loc": ["body", "reasoning_effort"],
-                    "msg": (
-                        f"Model {caps.model_id} expects a toggle+budget "
-                        '(shape: {"enabled": <bool>, "budget": <int|null>}).'
-                    ),
-                    "input": _serialize(value),
-                    "ctx": {
-                        "model": caps.model_id,
-                        "widget": "toggle_budget",
-                        "expected_shape": {
-                            "enabled": "<bool>",
-                            "budget": "<int|null>",
-                        },
+            raise_structured_validation_error(
+                error_type="wrong_reasoning_effort_shape",
+                loc=["body", "reasoning_effort"],
+                msg=(
+                    f"Model {caps.model_id} expects a toggle+budget "
+                    '(shape: {"enabled": <bool>, "budget": <int|null>}).'
+                ),
+                input_value=_serialize(value),
+                ctx={
+                    "model": caps.model_id,
+                    "widget": "toggle_budget",
+                    "expected_shape": {
+                        "enabled": "<bool>",
+                        "budget": "<int|null>",
                     },
                 },
             )
@@ -198,22 +181,19 @@ def validate_reasoning_effort(
             lo = rng.get("min", 0)
             hi = rng.get("max", 0)
             if not (lo <= value.budget <= hi):
-                raise HTTPException(
-                    status_code=422,
-                    detail={
-                        "type": "invalid_reasoning_budget",
-                        "loc": ["body", "reasoning_effort"],
-                        "msg": (
-                            f"Reasoning budget {value.budget} for {caps.model_id} "
-                            f"is out of range [{lo}, {hi}]."
-                        ),
-                        "input": value.budget,
-                        "ctx": {
-                            "model": caps.model_id,
-                            "provided": value.budget,
-                            "range": {"min": lo, "max": hi},
-                            "widget": "toggle_budget",
-                        },
+                raise_structured_validation_error(
+                    error_type="invalid_reasoning_budget",
+                    loc=["body", "reasoning_effort"],
+                    msg=(
+                        f"Reasoning budget {value.budget} for {caps.model_id} "
+                        f"is out of range [{lo}, {hi}]."
+                    ),
+                    input_value=value.budget,
+                    ctx={
+                        "model": caps.model_id,
+                        "provided": value.budget,
+                        "range": {"min": lo, "max": hi},
+                        "widget": "toggle_budget",
                     },
                 )
         return
@@ -268,7 +248,8 @@ def reasoning_effort_matches_widget(
         validate_reasoning_effort(caps, value)
         return True
     except (HTTPException, RuntimeError):
-        # HTTPException(422): documented "value invalid for this widget" outcome.
+        # HTTPException: StructuredValidationError(422) IS-A HTTPException —
+        # the documented "value invalid for this widget" outcome.
         # RuntimeError: validate_reasoning_effort's defensive guard for an
         # unknown reasoning_widget — treat as not-matching rather than letting
         # it propagate and crash the LLM-resolution path.

@@ -6,7 +6,7 @@
 
 **Version**: 2.9
 **Date**: 2026-07-10
-**Application**: LIA v1.23.7
+**Application**: LIA v1.23.8
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 394 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 100+ ADRs, ~11,000 pytest-collected tests across 572 files, native observability, 6-level HITL |
+| Production reliability | 100+ ADRs, ~11,400 pytest-collected tests across 586 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -71,7 +71,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~11,000 (collected by pytest across 572 test files) + 453 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~11,400 (collected by pytest across 586 test files) + 453 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 280+ |
 | ADRs (Architecture Decision Records) | 100+ |
@@ -881,7 +881,7 @@ The Data Registry (`InMemoryStore`) decouples tool results from message history.
 
 ### 23.3. Error Architecture
 
-All tools return `ToolResponse` (success) or `ToolErrorModel` (failure) with a `ToolErrorCode` enum (18+ types: INVALID_INPUT, RATE_LIMIT_EXCEEDED, TEMPLATE_EVALUATION_FAILED...) and a `recoverability` flag. On the API side, centralized exception raisers (`raise_user_not_found`, `raise_permission_denied`...) replace raw HTTPException everywhere — ensuring consistent error contracts.
+All tools return `ToolResponse` (success) or `ToolErrorModel` (failure) with a `ToolErrorCode` enum (18+ types: INVALID_INPUT, RATE_LIMIT_EXCEEDED, TEMPLATE_EVALUATION_FAILED...) and a `recoverability` flag. On the API side, centralized exception raisers (`raise_user_not_found`, `raise_permission_denied`...) replace raw HTTPException everywhere — zero raw `raise HTTPException` in the codebase, held by a CI guard and a contract-test net proving byte-identical responses — ensuring consistent error contracts, logged and measured (Prometheus) on every error path.
 
 ### 23.4. Prompt System
 
@@ -1078,10 +1078,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 100+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~11,000 tests across 572 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 100+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~11,400 tests across 586 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.23.7). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.23.8). All metrics, versions, and patterns cited are verifiable in the codebase.*

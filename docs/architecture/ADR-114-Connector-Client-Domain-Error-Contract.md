@@ -97,10 +97,11 @@ rule).
 - Existing `pytest.raises(HTTPException)` tests stay green by inheritance.
 - Out of scope, intentionally: the 35 raw raises in routers/services
   (`llm_config` ×14, `health_metrics` ×5, `heartbeat` ×3, `user_mcp` ×4, …)
-  — right layer, wrong idiom — are phase 2; the dead 401/429/403 handlers in
-  `error_handlers.py` are an S7 candidate; passing the user's language to
-  `connector_auth_invalid()` (clients don't know it — defaults to `fr`, as
-  before) is deferred.
+  — right layer, wrong idiom — are phase 2, **since completed by
+  [ADR-124](ADR-124-Router-Service-Error-Contract.md)** (0 raw raises left
+  repo-wide); the dead 401/429/403 handlers in `error_handlers.py` are an S7
+  candidate; passing the user's language to `connector_auth_invalid()`
+  (clients don't know it — defaults to `fr`, as before) is deferred.
 
 ## Verification
 

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.8] - 2026-07-10
+
+> The unified error taxonomy reaches the whole backend (ADR-124, phase 2 of ADR-114). The 33 remaining raw `raise HTTPException` sites in routers, services and validation modules — untyped, invisible to Prometheus, unlogged by the central mechanism — are migrated to the centralized raisers and `BaseAPIException` subclasses of `src/core/exceptions.py`, with the external API contract proven byte-identical *before* migration: every site was pinned by a contract test against its legacy behavior (status code, detail payload, headers), and the same assertions carried over green by inheritance. Review rule #18 ("centralized raisers only") now holds repo-wide: `grep "raise HTTPException" src/` returns **zero hits, no exemptions**. One deliberate, user-approved contract fix ships with it: inconsistent heartbeat settings now return a clear, localized 422 instead of a generic 500.
+
+### Added
+
+- **Contract test net for the router/service error edge** (`tests/unit/core/test_router_service_error_contract.py`, 47 tests — ADR-114 method). Per-site mapping pins written and green on the PRE-migration code, then strengthened to the typed exceptions; FastAPI edge parity renders each new class against its raw-`HTTPException` twin via `TestClient` (same status, same JSON, same headers, including `Retry-After` and `WWW-Authenticate: Bearer`); the HITL rate-limit path is exercised END-TO-END through the real SSE generator.
+- **New exception classes in the central taxonomy** — `StructuredValidationError` (422 with a Pydantic-style `type/loc/msg/input/ctx` detail dict, serving the 9 LLM-config validation sites), `UnprocessableEntityError` (422, plain detail), `PayloadTooLargeError` (413), `BadGatewayError` (502 — distinct from the 503 `ExternalServiceError`), `GoneError` (410, dict-capable detail for tombstone endpoints); `RateLimitError` and `ResourceConflictError` gain structured-dict details and response headers (the `ConnectorValidationError` pattern). Six thin raisers cover the remaining sites (`raise_bearer_auth_failed`, `raise_admin_mcp_server_not_found`, `raise_llm_type_not_found`, `raise_scheduled_action_already_executing`, `raise_run_in_progress`, `raise_invalid_webhook_signature`).
+- **CI non-recurrence guard** — the `code-hygiene` job gains a "raw HTTPException raises" grep check (warning for one release to absorb in-flight branches, then to be flipped to a hard error). Documented in `docs/technical/CI_CD.md`.
+
+### Changed
+
+- **`src/core/exceptions.py` restructured behind a façade (file-size ratchet arbitration)** — the module sat at 909/928 frozen logical SLOC with ~130 SLOC of additions to land. `BaseAPIException` moves to the internal `src/core/_exceptions_base.py` and the bounded-context families (memory store, interests, STT, WebSocket) to `src/core/exceptions_domains.py`; `src/core/exceptions.py` re-exports every name (explicit aliases), so **no consumer import changes anywhere**. Ratchet caps lowered, never to rise again: `core/exceptions.py` 928 → 848, `agents/api/router.py` 784 → 780.
+- **Every migrated error path now feeds the central observability** — automatic structured logging plus `http_errors_total` / client-server error classification metrics on each raise (previously invisible raw raises). Log events are additive; the API payloads are unchanged.
+- **HITL rate-limit site documented for what it really does** — the 429 raised inside the SSE `event_generator` has never reached the client as an HTTP 429: the generator converts it into an SSE `error` event (classified "transient") plus a `done` chunk. The site's misleading "Raise HTTP 429" comment is fixed, and the classification is proven identical for the legacy and typed exceptions across all 6 languages.
+
+### Fixed
+
+- **Inconsistent heartbeat settings now fail with a clear, localized 422** — the `heartbeat_min_per_day > heartbeat_max_per_day` guard used to be swallowed by the endpoint's `except Exception` and degraded into a generic 500 "Failed to update heartbeat settings". The 422 now reaches the client as intended, with the detail served in the user's language through `APIMessages` (6 languages, `zh` normalized via the canonical chokepoint; the English wording keeps the historical text).
+- **Stale claims in code and docs corrected** — the `ingest_router` comment justifying raw 401s by a raiser limitation that ADR-114 had already removed; the `i18n_api_messages` module docstring teaching the raw-raise anti-pattern; the code snippets in `GUIDE_TELEGRAM_INTEGRATION.md`, `NEW_CHANNEL_CHECKLIST.md` and `AUTHENTICATION.md` that still showed raw raises for since-migrated sites.
+
+### Tests
+
+- 47 contract tests (pin → typed mapping, edge parity, real-generator HITL path, per-language heartbeat 422 including the `zh`→`zh-CN` normalization); the new `APIMessages` table is auto-covered by the backend i18n parity AST guard. Full gates green: 9,143 unit tests, 138 integration tests, MyPy strict on the whole backend (867 files), Ruff/Black clean, file-size ratchet green with lowered caps, fresh Docker dev boot to healthy (`/health`, `/ready`, zero boot errors).
+
 ## [1.23.7] - 2026-07-10
 
 > The decomposition program reaches the backend's second monolith: application startup (ADR-123). A maintenance release — no user-facing feature change, no behavior change (verbatim extraction, boot log sequence byte-identical before/after), no DB migration. The `main.py` lifespan had grown to ~780 logical SLOC (1,133 raw lines) across 23 startup and 20 shutdown steps, with a boot order that is critical but was entirely implicit. Every step now lives in a typed function inside a new `src/infrastructure/startup/` package (one module per subsystem), and the lifespan becomes a readable ~25-call sequence in the exact historical order, headed by a comment documenting **why** that order is what it is. The lifespan remains the single orchestration point — the "Startup initialization" checklist is unchanged.

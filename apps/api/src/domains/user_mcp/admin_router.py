@@ -11,10 +11,11 @@ Created: 2026-03-03
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.dependencies import get_db
+from src.core.exceptions import raise_admin_mcp_server_not_found
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.models import User
 from src.domains.user_mcp.schemas import (
@@ -108,10 +109,7 @@ async def toggle_admin_server(
     # Validate server_key exists
     manager = get_mcp_client_manager()
     if not manager or server_key not in manager.discovered_tools:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Admin MCP server '{server_key}' not found",
-        )
+        raise_admin_mcp_server_not_found(server_key)
 
     disabled_servers: list[str] = list(getattr(user, "admin_mcp_disabled_servers", None) or [])
 
@@ -172,10 +170,7 @@ async def admin_app_proxy_call_tool(
 
     manager = get_mcp_client_manager()
     if not manager or server_key not in manager.discovered_tools:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Admin MCP server '{server_key}' not found",
-        )
+        raise_admin_mcp_server_not_found(server_key)
 
     try:
         result = await manager.call_tool(
@@ -220,10 +215,7 @@ async def admin_app_proxy_read_resource(
 
     manager = get_mcp_client_manager()
     if not manager or server_key not in manager.discovered_tools:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Admin MCP server '{server_key}' not found",
-        )
+        raise_admin_mcp_server_not_found(server_key)
 
     try:
         content = await manager.read_resource(

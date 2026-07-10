@@ -12,7 +12,7 @@
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
  * - metrics: Prometheus metric definitions in infrastructure/observability/
  * - tests: backend pytest (~11,100) + frontend vitest
- * - adrs: docs/architecture/ ADR files (numbered up to ADR-123)
+ * - adrs: docs/architecture/ ADR files (numbered up to ADR-124)
  * - releases: CHANGELOG.md release entries
  * - auditScore/auditAreas: 360° technical audit at commit 1b3a0ebc (v1.23.7,
  *   2026-07-10), 24 areas on the ISO/IEC 25010 grid. Full public report +
@@ -30,7 +30,7 @@ export const LANDING_STATS = {
   uiLanguages: 6,
   tests: 11000,
   adrs: 100,
-  releases: 141,
+  releases: 142,
   auditScore: '8.5/10',
   auditAreas: 24,
 } as const;

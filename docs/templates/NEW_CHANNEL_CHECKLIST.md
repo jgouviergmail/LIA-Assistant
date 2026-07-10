@@ -128,7 +128,9 @@ L'implementation Telegram sert de reference : `infrastructure/channels/telegram/
   async def votre_canal_webhook(request: Request):
       handler = VotreCanalWebhookHandler()
       if not await handler.validate_request(request):
-          raise HTTPException(403)
+          # Regle #18 (ADR-124) : jamais de raise HTTPException brut —
+          # raiser centralise de src/core/exceptions.py
+          raise_invalid_webhook_signature("votre_canal")
       # Retourner 200 immediatement, traiter en background
       asyncio.create_task(handler.handle_message(payload))
       return {"ok": True}

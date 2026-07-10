@@ -15,6 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.dependencies import get_db
+from src.core.exceptions import (
+    raise_internal_error,
+    raise_notification_not_found,
+    raise_unprocessable_entity,
+)
+from src.core.i18n import normalize_language
+from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.models import User
 from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
@@ -155,9 +162,8 @@ async def update_heartbeat_settings(
         min_val = update_data.get("heartbeat_min_per_day", user.heartbeat_min_per_day)
         max_val = update_data.get("heartbeat_max_per_day", user.heartbeat_max_per_day)
         if min_val > max_val:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="heartbeat_min_per_day must be <= heartbeat_max_per_day",
+            raise_unprocessable_entity(
+                APIMessages.heartbeat_min_max_invalid(normalize_language(user.language))
             )
 
         if update_data:
@@ -185,6 +191,10 @@ async def update_heartbeat_settings(
             available_sources=available_sources,
         )
 
+    except HTTPException:
+        # Let API errors (e.g. the 422 min>max guard) reach the client as-is
+        # instead of degrading them to a generic 500 (contract fix, ADR-124).
+        raise
     except Exception as e:
         await db.rollback()
         logger.error(
@@ -192,10 +202,7 @@ async def update_heartbeat_settings(
             user_id=str(user.id),
             error=str(e),
         )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update heartbeat settings",
-        ) from e
+        raise_internal_error("Failed to update heartbeat settings")
 
 
 # ---------------------------------------------------------------------------
@@ -251,10 +258,7 @@ async def submit_heartbeat_feedback(
     )
 
     if not updated:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification not found",
-        )
+        raise_notification_not_found(notification_id)
 
     await db.commit()
 

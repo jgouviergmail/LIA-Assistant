@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import (
+    GoneError,
     raise_external_service_connection_error,
     raise_external_service_fetch_error,
     raise_invalid_input,
@@ -267,10 +268,9 @@ async def refresh_token(
     For detailed migration guide, see: /docs#bff-authentication
 
     Raises:
-        HTTPException: Always raises 410 Gone with migration details
+        GoneError: Always raises 410 Gone with migration details
     """
-    raise HTTPException(
-        status_code=410,
+    raise GoneError(
         detail={
             "error": "endpoint_permanently_removed",
             "message": "Token refresh is no longer needed with BFF Pattern. "

@@ -2952,6 +2952,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_23_8": {
+          "title": "v1.23.8 — 🧰 Unified API errors (maintenance)",
+          "date": "July 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>✅ Clearer error for inconsistent proactive-notification settings</b> — setting a daily minimum higher than the daily maximum in the heartbeat settings used to fail with a generic 'internal error'. It now returns a clear validation message, displayed in your language.",
+            "i2": "<b>🛡️ Sturdier, fully supervised API errors (admin)</b> — every backend error now goes through LIA's central error mechanism: uniform responses, automatic structured logs and Prometheus metrics on each error path, with the API contract proven unchanged by a dedicated test net. A CI guard prevents regressions. No action required: no new environment variable, no migration."
+          }
+        },
         "v1_23_7": {
           "title": "v1.23.7 — 🚀 Tidier startup core (maintenance)",
           "date": "July 2026",

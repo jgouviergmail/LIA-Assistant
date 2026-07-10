@@ -1558,7 +1558,11 @@ async def proxy_places_photo(
     import httpx
     from fastapi import HTTPException
 
-    from src.core.exceptions import raise_configuration_missing, raise_permission_denied
+    from src.core.exceptions import (
+        raise_configuration_missing,
+        raise_invalid_input,
+        raise_permission_denied,
+    )
 
     # Validate photo_name format to prevent path manipulation on Google API
     places_photo_pattern = re.compile(r"^places/[^/]+/photos/[^/]+$")
@@ -1567,7 +1571,7 @@ async def proxy_places_photo(
             "places_photo_invalid_name",
             photo_name=photo_name[:80],
         )
-        raise HTTPException(status_code=400, detail="Invalid photo resource name format")
+        raise_invalid_input("Invalid photo resource name format")
 
     user_id = current_user.id
     service = ConnectorService(db)

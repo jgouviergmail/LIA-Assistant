@@ -13,12 +13,13 @@ Uses the existing RedisRateLimiter with sliding window algorithm.
 from collections.abc import Awaitable, Callable
 
 import structlog
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, Request
 
 from src.core.constants import (
     RATE_LIMIT_AUTH_LOGIN_PER_MINUTE,
     RATE_LIMIT_AUTH_REGISTER_PER_MINUTE,
 )
+from src.core.exceptions import raise_rate_limit_exceeded
 from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
 
 logger = structlog.get_logger(__name__)
@@ -73,7 +74,7 @@ def create_auth_rate_limiter(
         Rate limit dependency that checks Redis and raises 429 if exceeded.
 
         Raises:
-            HTTPException: 429 Too Many Requests if rate limit exceeded
+            RateLimitError: 429 Too Many Requests if rate limit exceeded
         """
         try:
             limiter = await get_rate_limiter()
@@ -94,8 +95,10 @@ def create_auth_rate_limiter(
                     max_calls=max_calls,
                     window_seconds=window_seconds,
                 )
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                raise_rate_limit_exceeded(
+                    limit=max_calls,
+                    window_seconds=window_seconds,
+                    retry_after=window_seconds,
                     detail={
                         "error": "rate_limit_exceeded",
                         "message": f"Too many {action} attempts. Please try again later.",

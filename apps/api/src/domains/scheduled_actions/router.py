@@ -6,11 +6,12 @@ Provides CRUD operations, toggle enable/disable, and immediate test execution.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
+from src.core.exceptions import raise_scheduled_action_already_executing
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.models import User
 from src.domains.scheduled_actions.models import (
@@ -226,10 +227,7 @@ async def execute_scheduled_action(
 
     # Guard: reject if already executing (scheduler or another manual trigger)
     if action.status == ScheduledActionStatus.EXECUTING.value:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Action is already executing",
-        )
+        raise_scheduled_action_already_executing(action.id)
 
     # Reserve status='executing' BEFORE fire-and-forget to prevent scheduler
     # from picking up the same action concurrently (it queries WHERE status='active').

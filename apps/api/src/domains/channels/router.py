@@ -15,12 +15,13 @@ import json
 from contextlib import suppress
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
+from src.core.exceptions import raise_invalid_webhook_signature
 from src.core.session_dependencies import get_current_active_session
 from src.core.user_display import resolve_user_display_name
 from src.domains.auth.models import User
@@ -190,7 +191,7 @@ async def telegram_webhook(request: Request) -> dict:
 
     handler = TelegramWebhookHandler()
     if not await handler.validate_signature(body, signature):
-        raise HTTPException(status_code=403, detail="Invalid webhook signature")
+        raise_invalid_webhook_signature("telegram")
 
     try:
         payload = json.loads(body)

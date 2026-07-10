@@ -327,6 +327,20 @@ jobs:
             fi
           fi
 
+      - name: Check for raw HTTPException raises (rule #18, ADR-124)
+        # Backend errors go through the centralized taxonomy in
+        # src/core/exceptions.py (raisers or BaseAPIException subclasses) —
+        # never a raw `raise HTTPException`. The whole tree was migrated to 0
+        # sites (ADR-114 clients, ADR-124 routers/services). No exemptions.
+        # Warning-only for one release to absorb in-flight branches; flip the
+        # echo to ::error + `exit 1` afterwards.
+        run: |
+          RAW_RAISES=$(grep -rn "raise HTTPException" apps/api/src/ || true)
+          if [ -n "$RAW_RAISES" ]; then
+            echo "::warning::Raw 'raise HTTPException' detected — use the centralized raisers/classes of src/core/exceptions.py (rule #18, ADR-124):"
+            echo "$RAW_RAISES"
+          fi
+
       - name: Check i18n keys sync
         run: |
           python -c "

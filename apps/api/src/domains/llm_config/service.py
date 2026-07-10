@@ -13,10 +13,10 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.exceptions import raise_structured_validation_error
 from src.core.security.utils import decrypt_data, encrypt_data
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_PROVIDERS, LLM_TYPES_REGISTRY
@@ -282,15 +282,12 @@ class LLMConfigService:
 
             caps = ModelCapabilitiesCache.get(update.model)
             if caps is None:
-                raise HTTPException(
-                    status_code=422,
-                    detail={
-                        "type": "unknown_model",
-                        "loc": ["body", "model"],
-                        "msg": f"Model {update.model!r} is not in the catalogue.",
-                        "input": update.model,
-                        "ctx": {"model": update.model},
-                    },
+                raise_structured_validation_error(
+                    error_type="unknown_model",
+                    loc=["body", "model"],
+                    msg=f"Model {update.model!r} is not in the catalogue.",
+                    input_value=update.model,
+                    ctx={"model": update.model},
                 )
             validate_reasoning_effort(caps, update.reasoning_effort)
 
@@ -330,21 +327,18 @@ class LLMConfigService:
             caps = ModelCapabilitiesCache.get(update.model)
             allowed = getattr(caps, "effort_values", None) if caps else None
             if not allowed or update.effort not in allowed:
-                raise HTTPException(
-                    status_code=422,
-                    detail={
-                        "type": "invalid_effort",
-                        "loc": ["body", "effort"],
-                        "msg": (
-                            f"Effort {update.effort!r} is not supported by "
-                            f"{update.model}. Allowed: {', '.join(allowed) if allowed else 'none'}."
-                        ),
-                        "input": update.effort,
-                        "ctx": {
-                            "model": update.model,
-                            "provided": update.effort,
-                            "allowed": list(allowed or []),
-                        },
+                raise_structured_validation_error(
+                    error_type="invalid_effort",
+                    loc=["body", "effort"],
+                    msg=(
+                        f"Effort {update.effort!r} is not supported by "
+                        f"{update.model}. Allowed: {', '.join(allowed) if allowed else 'none'}."
+                    ),
+                    input_value=update.effort,
+                    ctx={
+                        "model": update.model,
+                        "provided": update.effort,
+                        "allowed": list(allowed or []),
                     },
                 )
 

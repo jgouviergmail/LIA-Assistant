@@ -209,6 +209,7 @@ n'a pas pris de décision explicite (handler ou non-gestion documentée).
 | `.bak` files | Error | Detecte les fichiers backup oublies |
 | Sync Store calls | Error | `runtime.store.put()` au lieu de `store.aput()` = deadlock |
 | Redis setex | Warning | `setex()` sans `json.dumps()` = crash serialisation |
+| Raw HTTPException raises | Warning | `raise HTTPException` hors de la taxonomie centralisee `src/core/exceptions.py` (regle #18, ADR-124) — 0 site tolere ; bascule en Error prevue a la release suivante |
 | Python lockfiles sync | Error | `scripts/check_requirements_lock.py` — manifeste `requirements*.txt` modifie sans regenerer les lockfiles (`task deps:lock`), ou lock dev desynchronise du lock runtime (ADR-112) |
 | i18n keys sync | Error | Compare les cles EN vs de/es/fr/it/zh |
 | Alembic conflicts | Error | Detecte les heads multiples (parsing statique des revisions) |

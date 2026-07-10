@@ -20,147 +20,79 @@ Usage:
     if not verify_password(password, user.hashed_password):
         raise_invalid_credentials()
 
-ADR Reference: ADR-002 (Unified Error Handling)
+Structure (ADR-124, file-size ratchet):
+    - ``src.core._exceptions_base`` — ``BaseAPIException`` (internal module)
+    - ``src.core.exceptions_domains`` — domain-specific families (memory,
+      interests, STT, WebSocket)
+    - this module — generic taxonomy + raisers, and the façade re-exporting
+      every name above (consumers only ever import from here)
+
+ADR Reference: ADR-002 (Unified Error Handling), ADR-124 (rule #18 phase 2)
 """
 
 from typing import TYPE_CHECKING, Any, NoReturn
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import status
 
+from src.core._exceptions_base import BaseAPIException as BaseAPIException
+from src.core.exceptions_domains import (
+    HybridSearchError as HybridSearchError,
+)
+from src.core.exceptions_domains import (
+    InterestStoreError as InterestStoreError,
+)
+from src.core.exceptions_domains import (
+    MemoryStoreError as MemoryStoreError,
+)
+from src.core.exceptions_domains import (
+    STTAudioTooLongError as STTAudioTooLongError,
+)
+from src.core.exceptions_domains import (
+    STTError as STTError,
+)
+from src.core.exceptions_domains import (
+    STTModelNotFoundError as STTModelNotFoundError,
+)
+from src.core.exceptions_domains import (
+    WebSocketAuthError as WebSocketAuthError,
+)
+from src.core.exceptions_domains import (
+    WebSocketRateLimitError as WebSocketRateLimitError,
+)
+from src.core.exceptions_domains import (
+    raise_hybrid_search_error as raise_hybrid_search_error,
+)
+from src.core.exceptions_domains import (
+    raise_interest_store_error as raise_interest_store_error,
+)
+from src.core.exceptions_domains import (
+    raise_memory_store_error as raise_memory_store_error,
+)
+from src.core.exceptions_domains import (
+    raise_stt_audio_too_long as raise_stt_audio_too_long,
+)
+from src.core.exceptions_domains import (
+    raise_stt_error as raise_stt_error,
+)
+from src.core.exceptions_domains import (
+    raise_stt_model_not_found as raise_stt_model_not_found,
+)
+from src.core.exceptions_domains import (
+    raise_websocket_auth_error as raise_websocket_auth_error,
+)
+from src.core.exceptions_domains import (
+    raise_websocket_rate_limit as raise_websocket_rate_limit,
+)
 from src.core.field_names import FIELD_USER_ID
-from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
     from src.core.i18n_api_messages import SupportedLanguage
-
-logger = get_logger(__name__)
 
 
 # ============================================================================
 # Custom Exception Classes
 # ============================================================================
-
-
-class BaseAPIException(HTTPException):
-    """
-    Base exception class for all API exceptions.
-
-    Provides automatic structured logging, i18n support, and Prometheus metrics.
-    """
-
-    def __init__(
-        self,
-        status_code: int,
-        detail: str,
-        log_level: str = "warning",
-        log_event: str | None = None,
-        headers: dict[str, str] | None = None,
-        **log_context: Any,
-    ) -> None:
-        """
-        Initialize API exception with automatic logging and metrics.
-
-        Args:
-            status_code: HTTP status code
-            detail: Error message (user-facing)
-            log_level: Logging level (debug, info, warning, error, critical)
-            log_event: Structured log event name (defaults to detail)
-            headers: Optional HTTP response headers (e.g. Retry-After,
-                X-Requires-Reconnect) forwarded to the FastAPI response
-            **log_context: Additional context for structured logging
-        """
-        super().__init__(status_code=status_code, detail=detail, headers=headers)
-
-        # Automatic structured logging
-        log_method = getattr(logger, log_level, logger.warning)
-        log_method(log_event or detail.lower().replace(" ", "_"), **log_context)
-
-        # METRICS: Track HTTP errors by status code and exception type
-        from src.infrastructure.observability.metrics_errors import (
-            http_client_errors_total,
-            http_errors_total,
-            http_server_errors_total,
-        )
-
-        exception_type = self.__class__.__name__
-        endpoint = log_context.get("endpoint", "unknown")
-
-        # Track general HTTP errors
-        http_errors_total.labels(
-            status_code=str(status_code),
-            exception_type=exception_type,
-            endpoint=endpoint,
-        ).inc()
-
-        # Track specific client/server error categories
-        if 400 <= status_code < 500:
-            # Client errors (4xx)
-            error_type = self._classify_client_error(status_code, log_event)
-            http_client_errors_total.labels(error_type=error_type).inc()
-
-        elif 500 <= status_code < 600:
-            # Server errors (5xx)
-            error_type = self._classify_server_error(status_code, log_event)
-            http_server_errors_total.labels(error_type=error_type).inc()
-
-    @staticmethod
-    def _classify_client_error(status_code: int, log_event: str | None) -> str:
-        """
-        Classify 4xx client errors into standard categories for metrics.
-
-        Error taxonomy:
-        - authentication_failed: 401 Unauthorized
-        - authorization_failed: 403 Forbidden
-        - resource_not_found: 404 Not Found
-        - resource_conflict: 409 Conflict
-        - validation_failed: 400 Bad Request, 422 Unprocessable Entity
-        - rate_limit_exceeded: 429 Too Many Requests
-        """
-        if status_code == 401:
-            return "authentication_failed"
-        elif status_code == 403:
-            return "authorization_failed"
-        elif status_code == 404:
-            return "resource_not_found"
-        elif status_code == 409:
-            return "resource_conflict"
-        elif status_code == 429:
-            return "rate_limit_exceeded"
-        elif status_code in (400, 422):
-            return "validation_failed"
-        else:
-            return "client_error_other"
-
-    @staticmethod
-    def _classify_server_error(status_code: int, log_event: str | None) -> str:
-        """
-        Classify 5xx server errors into standard categories for metrics.
-
-        Error taxonomy:
-        - external_service_error: 503 Service Unavailable (OAuth, API calls)
-        - database_error: 500 with database context
-        - llm_service_error: 500 with LLM context
-        - timeout_error: 504 Gateway Timeout
-        - internal_server_error: 500 other
-        """
-        if status_code == 503:
-            # Check log_event for service type
-            if log_event and "service_error" in log_event:
-                return "external_service_error"
-            return "service_unavailable"
-        elif status_code == 504:
-            return "timeout_error"
-        elif status_code == 500:
-            # Infer from log_event
-            if log_event:
-                if "database" in log_event or "db" in log_event:
-                    return "database_error"
-                elif "llm" in log_event or "openai" in log_event or "anthropic" in log_event:
-                    return "llm_service_error"
-            return "internal_server_error"
-        else:
-            return "server_error_other"
 
 
 class AuthenticationError(BaseAPIException):
@@ -226,24 +158,33 @@ class ResourceNotFoundError(BaseAPIException):
 
 
 class ResourceConflictError(BaseAPIException):
-    """Resource conflict - duplicate or constraint violation."""
+    """Resource conflict - duplicate or constraint violation.
+
+    ``detail`` may be a structured dict when the edge exposes a
+    machine-readable payload (e.g. the active-run lock's
+    ``{"error": "run_in_progress", "active_run": ...}`` — ADR-117/124).
+    """
 
     def __init__(
         self,
         resource_type: str,
-        detail: str | None = None,
+        detail: str | dict[str, Any] | None = None,
         **log_context: Any,
     ) -> None:
-        detail = detail or f"{resource_type.capitalize()} already exists"
+        fallback_detail = f"{resource_type.capitalize()} already exists"
 
         super().__init__(
             status_code=status.HTTP_409_CONFLICT,
-            detail=detail,
+            detail=detail if isinstance(detail, str) else fallback_detail,
             log_level="warning",
             log_event=f"{resource_type}_conflict",
             resource_type=resource_type,
             **log_context,
         )
+        if isinstance(detail, dict):
+            # Keep the exact structured JSON body on the wire (same pattern
+            # as ConnectorValidationError: str for the base/logging, dict out).
+            self.detail = detail  # type: ignore[assignment]
 
 
 class ValidationError(BaseAPIException):
@@ -257,6 +198,126 @@ class ValidationError(BaseAPIException):
             log_event="validation_failed",
             **log_context,
         )
+
+
+class StructuredValidationError(BaseAPIException):
+    """422 with a Pydantic-style structured detail (type/loc/msg/input/ctx).
+
+    Mirrors FastAPI's ``RequestValidationError`` item shape so the frontend
+    can render actionable error toasts ("did you mean" hints). Used by the
+    admin LLM-config write path (reasoning matrix validation) and any
+    endpoint that must reject a field with machine-readable context.
+    """
+
+    def __init__(
+        self,
+        error_type: str,
+        loc: list[str],
+        msg: str,
+        input_value: Any,
+        ctx: dict[str, Any],
+        **log_context: Any,
+    ) -> None:
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=msg,
+            log_level="warning",
+            log_event="structured_validation_failed",
+            validation_type=error_type,
+            **log_context,
+        )
+        # Keep the exact structured JSON body on the wire (same pattern as
+        # ConnectorValidationError: str for the base/logging, dict out).
+        self.detail = {  # type: ignore[assignment]
+            "type": error_type,
+            "loc": loc,
+            "msg": msg,
+            "input": input_value,
+            "ctx": ctx,
+        }
+
+
+def raise_structured_validation_error(
+    error_type: str,
+    loc: list[str],
+    msg: str,
+    input_value: Any,
+    ctx: dict[str, Any],
+) -> NoReturn:
+    """
+    Raise 422 with a Pydantic-style structured detail dict.
+
+    Args:
+        error_type: Machine-readable error kind (e.g. "invalid_reasoning_effort")
+        loc: Field location path (e.g. ["body", "reasoning_effort"])
+        msg: Human-readable message
+        input_value: The rejected input, serialized for the payload
+        ctx: Machine-readable context for frontend hints
+
+    Raises:
+        StructuredValidationError: 422 Unprocessable Entity
+    """
+    raise StructuredValidationError(
+        error_type=error_type,
+        loc=loc,
+        msg=msg,
+        input_value=input_value,
+        ctx=ctx,
+    )
+
+
+class UnprocessableEntityError(BaseAPIException):
+    """422 - Semantically invalid input (plain-string detail)."""
+
+    def __init__(self, detail: str, **log_context: Any) -> None:
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=detail,
+            log_level="warning",
+            log_event="unprocessable_entity",
+            **log_context,
+        )
+
+
+def raise_unprocessable_entity(detail: str, **context: Any) -> NoReturn:
+    """
+    Raise 422 for semantically invalid input (plain-string detail).
+
+    Args:
+        detail: Specific validation error message
+        **context: Additional context for logging
+
+    Raises:
+        UnprocessableEntityError: 422 Unprocessable Entity
+    """
+    raise UnprocessableEntityError(detail=detail, **context)
+
+
+class PayloadTooLargeError(BaseAPIException):
+    """413 - Request payload exceeds a configured size limit."""
+
+    def __init__(self, detail: str, **log_context: Any) -> None:
+        super().__init__(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=detail,
+            log_level="warning",
+            log_event="payload_too_large",
+            **log_context,
+        )
+
+
+def raise_payload_too_large(detail: str, **context: Any) -> NoReturn:
+    """
+    Raise 413 when a request payload exceeds a configured size limit.
+
+    Args:
+        detail: Error message carrying the actual/allowed sizes
+        **context: Additional context for logging
+
+    Raises:
+        PayloadTooLargeError: 413 Request Entity Too Large
+    """
+    raise PayloadTooLargeError(detail=detail, **context)
 
 
 class MaxRetriesExceededError(Exception):
@@ -486,6 +547,27 @@ def raise_user_not_authenticated() -> NoReturn:
     raise AuthenticationError(detail="Authentication required")
 
 
+def raise_bearer_auth_failed(detail: str, **context: Any) -> NoReturn:
+    """
+    Raise 401 with the RFC 7235 ``WWW-Authenticate: Bearer`` challenge.
+
+    For token-based (non-session) edges — e.g. the health-metrics ingestion
+    Bearer tokens — where the client must be told which auth scheme to use.
+
+    Args:
+        detail: User-facing error message
+        **context: Additional context for logging
+
+    Raises:
+        AuthenticationError: 401 Unauthorized (+ WWW-Authenticate: Bearer)
+    """
+    raise AuthenticationError(
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+        **context,
+    )
+
+
 def raise_permission_denied(
     action: str | None = None,
     resource_type: str | None = None,
@@ -686,6 +768,43 @@ def raise_connector_already_exists(
     )
 
 
+def raise_scheduled_action_already_executing(action_id: UUID) -> NoReturn:
+    """
+    Raise 409 conflict when a scheduled action is already executing.
+
+    Args:
+        action_id: Scheduled action UUID
+
+    Raises:
+        ResourceConflictError: 409 Conflict
+    """
+    raise ResourceConflictError(
+        resource_type="scheduled_action",
+        detail="Action is already executing",
+        action_id=str(action_id),
+    )
+
+
+def raise_run_in_progress(active_run: dict[str, Any] | None) -> NoReturn:
+    """
+    Raise 409 for the per-conversation active-run lock (ADR-117).
+
+    One concurrent chat run per conversation: a second run attempt returns
+    the structured payload the frontend uses to offer live-resume.
+
+    Args:
+        active_run: Metadata of the run holding the lock (or None if it
+            vanished between the failed acquire and the lookup)
+
+    Raises:
+        ResourceConflictError: 409 Conflict with a structured detail dict
+    """
+    raise ResourceConflictError(
+        resource_type="chat_run",
+        detail={"error": "run_in_progress", "active_run": active_run},
+    )
+
+
 # ============================================================================
 # Helper Functions - Validation Errors
 # ============================================================================
@@ -843,35 +962,51 @@ def raise_not_found_or_unauthorized(
 
 
 class RateLimitError(BaseAPIException):
-    """429 Too Many Requests - Rate limit exceeded."""
+    """429 Too Many Requests - Rate limit exceeded.
+
+    ``detail`` may be a structured dict when the edge exposes a
+    machine-readable payload (e.g. ``{"error": "rate_limit_exceeded", ...}``)
+    and ``headers`` carries the RFC-standard ``Retry-After`` when the caller
+    sets it — both keep legacy raw-HTTPException contracts byte-identical
+    (ADR-124).
+    """
 
     def __init__(
         self,
         limit: int,
         window_seconds: int,
         retry_after: int,
-        detail: str | None = None,
+        detail: str | dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> None:
         self.limit = limit
         self.window_seconds = window_seconds
         self.retry_after = retry_after
 
+        fallback_detail = f"Rate limit exceeded: {limit} requests per {window_seconds}s"
         super().__init__(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=detail or f"Rate limit exceeded: {limit} requests per {window_seconds}s",
+            detail=detail if isinstance(detail, str) else fallback_detail,
             log_event="rate_limit_exceeded",
+            headers=headers,
             limit=limit,
             window_seconds=window_seconds,
             retry_after=retry_after,
             **kwargs,
         )
+        if isinstance(detail, dict):
+            # Keep the exact structured JSON body on the wire (same pattern
+            # as ConnectorValidationError: str for the base/logging, dict out).
+            self.detail = detail  # type: ignore[assignment]
 
 
 def raise_rate_limit_exceeded(
     limit: int,
     window_seconds: int,
     retry_after: int,
+    detail: str | dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> NoReturn:
     """
     Raise when rate limit is exceeded.
@@ -880,6 +1015,9 @@ def raise_rate_limit_exceeded(
         limit: Maximum number of requests allowed
         window_seconds: Time window in seconds
         retry_after: Seconds until rate limit resets
+        detail: Optional detail override — str, or dict for edges exposing a
+            structured payload (kept byte-identical on the wire)
+        headers: Optional response headers (e.g. ``{"Retry-After": "60"}``)
 
     Raises:
         RateLimitError: 429 Too Many Requests
@@ -888,6 +1026,8 @@ def raise_rate_limit_exceeded(
         limit=limit,
         window_seconds=window_seconds,
         retry_after=retry_after,
+        detail=detail,
+        headers=headers,
     )
 
 
@@ -1221,6 +1361,37 @@ def raise_reminder_not_found(reminder_id: UUID) -> NoReturn:
     )
 
 
+def raise_admin_mcp_server_not_found(server_key: str) -> NoReturn:
+    """
+    Raise 404 when an admin MCP server key is unknown.
+
+    Args:
+        server_key: The admin MCP server key looked up in the client manager
+
+    Raises:
+        ResourceNotFoundError: 404 Not Found
+    """
+    raise ResourceNotFoundError(
+        resource_type="admin_mcp_server",
+        detail=f"Admin MCP server '{server_key}' not found",
+        server_key=server_key,
+    )
+
+
+def raise_llm_type_not_found(detail: str) -> NoReturn:
+    """
+    Raise 404 when an LLM type is unknown to the registry.
+
+    Args:
+        detail: User-facing message (the service's ValueError text, forwarded
+            verbatim to keep the admin API contract)
+
+    Raises:
+        ResourceNotFoundError: 404 Not Found
+    """
+    raise ResourceNotFoundError(resource_type="llm_type", detail=detail)
+
+
 # ============================================================================
 # Validation Helpers
 # ============================================================================
@@ -1248,90 +1419,6 @@ def raise_invalid_connector_config(
         field=field,
         reason=reason,
     )
-
-
-# ============================================================================
-# Memory Store Errors
-# ============================================================================
-
-
-class MemoryStoreError(BaseAPIException):
-    """500 - Memory store operation error."""
-
-    def __init__(
-        self,
-        operation: str,
-        detail: str,
-        memory_id: str | None = None,
-        **kwargs: Any,
-    ) -> None:
-        self.operation = operation
-
-        log_context = {"operation": operation, **kwargs}
-        if memory_id:
-            log_context["memory_id"] = memory_id
-
-        super().__init__(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=detail,
-            log_level="error",
-            log_event="memory_store_error",
-            **log_context,
-        )
-
-
-def raise_memory_store_error(
-    operation: str,
-    detail: str,
-    memory_id: str | None = None,
-) -> NoReturn:
-    """
-    Raise when a memory store operation fails.
-
-    Args:
-        operation: Operation that failed (retrieve, create, update, delete, etc.)
-        detail: User-facing error message
-        memory_id: Optional memory ID involved
-
-    Raises:
-        MemoryStoreError: 500 Internal Server Error
-    """
-    raise MemoryStoreError(
-        operation=operation,
-        detail=detail,
-        memory_id=memory_id,
-    )
-
-
-class HybridSearchError(BaseAPIException):
-    """500 - Hybrid memory search operation error."""
-
-    def __init__(
-        self,
-        detail: str = "Hybrid search failed",
-        **log_context: Any,
-    ) -> None:
-        super().__init__(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=detail,
-            log_level="error",
-            log_event="hybrid_search_error",
-            **log_context,
-        )
-
-
-def raise_hybrid_search_error(detail: str, **context: Any) -> NoReturn:
-    """
-    Raise when hybrid memory search fails.
-
-    Args:
-        detail: Error detail message
-        **context: Additional context for logging
-
-    Raises:
-        HybridSearchError: 500 Internal Server Error
-    """
-    raise HybridSearchError(detail=detail, **context)
 
 
 # ============================================================================
@@ -1654,6 +1741,77 @@ def raise_user_id_mismatch() -> NoReturn:
     )
 
 
+def raise_invalid_webhook_signature(channel: str) -> NoReturn:
+    """
+    Raise 403 when an inbound webhook signature check fails.
+
+    Args:
+        channel: Channel whose webhook was rejected (e.g. "telegram")
+
+    Raises:
+        ForbiddenError: 403 Forbidden
+    """
+    raise ForbiddenError(
+        detail="Invalid webhook signature",
+        channel=channel,
+        reason="invalid_webhook_signature",
+    )
+
+
+class GoneError(BaseAPIException):
+    """410 - Resource or endpoint permanently removed.
+
+    Accepts a structured dict detail for tombstone endpoints that return
+    machine-readable migration guidance (e.g. the BFF ``/auth/refresh``
+    removal).
+    """
+
+    def __init__(self, detail: str | dict[str, Any], **log_context: Any) -> None:
+        super().__init__(
+            status_code=status.HTTP_410_GONE,
+            detail=detail if isinstance(detail, str) else "Endpoint permanently removed",
+            log_level="info",
+            log_event="endpoint_gone",
+            **log_context,
+        )
+        if isinstance(detail, dict):
+            # Keep the exact structured JSON body on the wire (same pattern
+            # as ConnectorValidationError: str for the base/logging, dict out).
+            self.detail = detail  # type: ignore[assignment]
+
+
+class BadGatewayError(BaseAPIException):
+    """502 - Upstream service returned an invalid response or is unreachable.
+
+    Distinct from ``ExternalServiceError`` (503, "try again later"): 502
+    signals that THIS service acted as a gateway and the upstream failed —
+    e.g. a user-configured MCP server that cannot complete an OAuth flow.
+    """
+
+    def __init__(self, detail: str, **log_context: Any) -> None:
+        super().__init__(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=detail,
+            log_level="error",
+            log_event="bad_gateway",
+            **log_context,
+        )
+
+
+def raise_bad_gateway(detail: str, **context: Any) -> NoReturn:
+    """
+    Raise 502 when an upstream dependency fails while acting as a gateway.
+
+    Args:
+        detail: User-facing error message
+        **context: Additional context for logging
+
+    Raises:
+        BadGatewayError: 502 Bad Gateway
+    """
+    raise BadGatewayError(detail=detail, **context)
+
+
 # ============================================================================
 # LLM Pricing Errors
 # ============================================================================
@@ -1730,258 +1888,6 @@ def raise_interest_already_exists(user_id: UUID, topic: str) -> NoReturn:
         detail="Interest with this topic already exists",
         user_id=str(user_id),
         topic=topic[:50],
-    )
-
-
-class InterestStoreError(BaseAPIException):
-    """500 - Interest store operation error."""
-
-    def __init__(
-        self,
-        operation: str,
-        detail: str,
-        interest_id: str | None = None,
-        **kwargs: Any,
-    ) -> None:
-        self.operation = operation
-
-        log_context = {"operation": operation, **kwargs}
-        if interest_id:
-            log_context["interest_id"] = interest_id
-
-        super().__init__(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=detail,
-            log_level="error",
-            log_event="interest_store_error",
-            **log_context,
-        )
-
-
-def raise_interest_store_error(
-    operation: str,
-    detail: str,
-    interest_id: str | None = None,
-) -> NoReturn:
-    """
-    Raise when an interest store operation fails.
-
-    Args:
-        operation: Operation that failed (list, create, update, delete, feedback)
-        detail: User-facing error message
-        interest_id: Optional interest ID involved
-
-    Raises:
-        InterestStoreError: 500 Internal Server Error
-    """
-    raise InterestStoreError(
-        operation=operation,
-        detail=detail,
-        interest_id=interest_id,
-    )
-
-
-# ============================================================================
-# Voice STT (Speech-to-Text) Errors
-# ============================================================================
-
-
-class STTError(BaseAPIException):
-    """500 - Speech-to-text transcription error."""
-
-    def __init__(
-        self,
-        detail: str = "Transcription failed",
-        operation: str = "transcribe",
-        **log_context: Any,
-    ) -> None:
-        super().__init__(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=detail,
-            log_level="error",
-            log_event="stt_error",
-            operation=operation,
-            **log_context,
-        )
-
-
-class STTModelNotFoundError(BaseAPIException):
-    """503 - STT model not found or not loaded."""
-
-    def __init__(
-        self,
-        model_path: str,
-        detail: str | None = None,
-        **log_context: Any,
-    ) -> None:
-        super().__init__(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=detail or f"STT model not found at {model_path}",
-            log_level="error",
-            log_event="stt_model_not_found",
-            model_path=model_path,
-            **log_context,
-        )
-
-
-class STTAudioTooLongError(BaseAPIException):
-    """400 - Audio duration exceeds maximum allowed."""
-
-    def __init__(
-        self,
-        duration_seconds: float,
-        max_seconds: int,
-        **log_context: Any,
-    ) -> None:
-        super().__init__(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Audio too long: {duration_seconds:.1f}s exceeds maximum {max_seconds}s",
-            log_level="warning",
-            log_event="stt_audio_too_long",
-            duration_seconds=duration_seconds,
-            max_seconds=max_seconds,
-            **log_context,
-        )
-
-
-def raise_stt_error(
-    detail: str,
-    operation: str = "transcribe",
-    **context: Any,
-) -> NoReturn:
-    """
-    Raise when STT transcription fails.
-
-    Args:
-        detail: Error detail message
-        operation: Operation that failed (transcribe, decode, etc.)
-        **context: Additional context for logging
-
-    Raises:
-        STTError: 500 Internal Server Error
-    """
-    raise STTError(detail=detail, operation=operation, **context)
-
-
-def raise_stt_model_not_found(model_path: str) -> NoReturn:
-    """
-    Raise when STT model is not found.
-
-    Args:
-        model_path: Path where model was expected
-
-    Raises:
-        STTModelNotFoundError: 503 Service Unavailable
-    """
-    raise STTModelNotFoundError(model_path=model_path)
-
-
-def raise_stt_audio_too_long(
-    duration_seconds: float,
-    max_seconds: int,
-) -> NoReturn:
-    """
-    Raise when audio exceeds maximum duration.
-
-    Args:
-        duration_seconds: Actual audio duration
-        max_seconds: Maximum allowed duration
-
-    Raises:
-        STTAudioTooLongError: 400 Bad Request
-    """
-    raise STTAudioTooLongError(
-        duration_seconds=duration_seconds,
-        max_seconds=max_seconds,
-    )
-
-
-# ============================================================================
-# WebSocket Authentication Errors
-# ============================================================================
-
-
-class WebSocketAuthError(BaseAPIException):
-    """401 - WebSocket authentication failed."""
-
-    def __init__(
-        self,
-        detail: str = "WebSocket authentication failed",
-        reason: str = "invalid_ticket",
-        **log_context: Any,
-    ) -> None:
-        super().__init__(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=detail,
-            log_level="warning",
-            log_event="websocket_auth_failed",
-            reason=reason,
-            **log_context,
-        )
-
-
-class WebSocketRateLimitError(BaseAPIException):
-    """429 - WebSocket connection rate limited."""
-
-    def __init__(
-        self,
-        user_id: str,
-        limit: int,
-        window_seconds: int,
-        **log_context: Any,
-    ) -> None:
-        super().__init__(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Rate limited: max {limit} connections per {window_seconds}s",
-            log_level="warning",
-            log_event="websocket_rate_limited",
-            user_id=user_id,
-            limit=limit,
-            window_seconds=window_seconds,
-            **log_context,
-        )
-
-
-def raise_websocket_auth_error(
-    reason: str = "invalid_ticket",
-    detail: str | None = None,
-) -> NoReturn:
-    """
-    Raise when WebSocket authentication fails.
-
-    Args:
-        reason: Reason for failure (invalid_ticket, expired, already_used)
-        detail: Optional custom detail message
-
-    Raises:
-        WebSocketAuthError: 401 Unauthorized
-    """
-    raise WebSocketAuthError(
-        detail=detail or "WebSocket authentication failed",
-        reason=reason,
-    )
-
-
-def raise_websocket_rate_limit(
-    user_id: str,
-    limit: int,
-    window_seconds: int,
-) -> NoReturn:
-    """
-    Raise when WebSocket connection is rate limited.
-
-    Args:
-        user_id: User who was rate limited
-        limit: Max connections allowed
-        window_seconds: Rate limit window
-
-    Raises:
-        WebSocketRateLimitError: 429 Too Many Requests
-    """
-    raise WebSocketRateLimitError(
-        user_id=user_id,
-        limit=limit,
-        window_seconds=window_seconds,
     )
 
 

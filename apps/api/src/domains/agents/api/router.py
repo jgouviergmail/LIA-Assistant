@@ -537,8 +537,7 @@ async def stream_chat(
     background_stream_id: str | None = None
     background_conversation_id: str | None = None
     if settings.background_runs_enabled:
-        from fastapi import HTTPException, status
-
+        from src.core.exceptions import raise_run_in_progress
         from src.infrastructure.cache import get_conversation_id_cached
         from src.infrastructure.cache.redis import get_redis_cache
         from src.infrastructure.streaming.run_stream_broker import (
@@ -564,13 +563,7 @@ async def stream_chat(
                     conversation_id=background_conversation_id,
                     active_stream_id=(active or {}).get("stream_id"),
                 )
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail={
-                        "error": "run_in_progress",
-                        "active_run": active,
-                    },
-                )
+                raise_run_in_progress(active)
     # === END ACTIVE-RUN LOCK ===
 
     logger.info(
@@ -719,8 +712,7 @@ async def stream_chat(
                     # SECURITY: Rate limit HITL responses to prevent spam/abuse
                     # Limit: 10 HITL responses per 60 seconds per user
                     # Prevents malicious users from overwhelming system with repeated approvals
-                    from fastapi import HTTPException, status
-
+                    from src.core.exceptions import raise_rate_limit_exceeded
                     from src.infrastructure.cache.redis import get_redis_cache
 
                     redis = await get_redis_cache()
@@ -758,9 +750,14 @@ async def stream_chat(
                                 violation_type="hitl_rate_limit_exceeded"
                             ).inc()
 
-                        # Raise HTTP 429 with Retry-After header
-                        raise HTTPException(
-                            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        # Raised mid-stream: the generator's `except Exception`
+                        # converts this into an SSE "error" event (classified
+                        # "transient" by SSEErrorMessages) + a "done" chunk —
+                        # it never reaches the client as an HTTP 429.
+                        raise_rate_limit_exceeded(
+                            limit=HITL_RATE_LIMIT_REQUESTS,
+                            window_seconds=HITL_RATE_LIMIT_WINDOW_SECONDS,
+                            retry_after=HITL_RATE_LIMIT_WINDOW_SECONDS,
                             detail={
                                 "error": "rate_limit_exceeded",
                                 "message": APIMessages.hitl_rate_limit_exceeded(),

@@ -2,8 +2,8 @@
   "_doc": "File-size ratchet baseline, enforced by tests/unit/test_file_size_ratchet_guard.py. Sizes are logical SLOC (tokenize + AST, no docstrings/comments/blanks) per scripts/audit/measure_sloc.py. Files listed under 'frozen' are grandfathered at their 2026-07 audited size +2% margin; every other file (including every NEW file) must stay under global_max_sloc. Caps only go DOWN: run `task ratchet:update` after shrinking a frozen file. Raising a cap or adding an entry requires explicit justification in PR review. Doctrine: docs/guides/GUIDE_DEVELOPPEMENT.md § 'Taille des fichiers (doctrine ratchet)'.",
   "global_max_sloc": 600,
   "frozen": {
-    "core/exceptions.py": 928,
-    "domains/agents/api/router.py": 784,
+    "core/exceptions.py": 848,
+    "domains/agents/api/router.py": 780,
     "domains/agents/api/service.py": 1052,
     "domains/agents/display/components/base.py": 962,
     "domains/agents/drafts/models.py": 803,

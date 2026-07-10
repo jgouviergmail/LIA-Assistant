@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +23,7 @@ from src.core.constants import (
     MCP_USER_OAUTH_REDIRECT_PATH,
 )
 from src.core.dependencies import get_db
-from src.core.exceptions import ValidationError
+from src.core.exceptions import ValidationError, raise_bad_gateway
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.models import User
 from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServer, UserMCPServerStatus
@@ -404,10 +404,11 @@ async def oauth_authorize(
                 server_id=str(server_id),
                 error=str(e),
             )
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Failed to initiate OAuth flow. The MCP server may be unreachable or misconfigured.",
-            ) from e
+            raise_bad_gateway(
+                "Failed to initiate OAuth flow. The MCP server may be unreachable "
+                "or misconfigured.",
+                server_id=str(server_id),
+            )
 
     # Cache OAuth metadata for future flows (avoids re-discovery)
     if metadata_cache:

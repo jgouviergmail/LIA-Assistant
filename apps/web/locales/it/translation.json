@@ -2945,6 +2945,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_23_8": {
+          "title": "v1.23.8 — 🧰 Errori API unificati (manutenzione)",
+          "date": "Luglio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>✅ Errore più chiaro per impostazioni incoerenti delle notifiche proattive</b> — impostare un minimo giornaliero superiore al massimo giornaliero nelle impostazioni dell'heartbeat falliva con un «errore interno» generico. Ora ricevete un messaggio di validazione chiaro, mostrato nella vostra lingua.",
+            "i2": "<b>🛡️ Errori API più robusti e completamente supervisionati (admin)</b> — tutti gli errori del backend passano ora dal meccanismo centrale di gestione errori di LIA: risposte uniformi, log strutturati e metriche Prometheus automatiche su ogni percorso di errore, con un contratto API dimostrato invariato da una rete di test dedicata. Una guardia CI previene le regressioni. Nessuna azione richiesta: nessuna nuova variabile d'ambiente, nessuna migrazione."
+          }
+        },
         "v1_23_7": {
           "title": "v1.23.7 — 🚀 Avvio consolidato (manutenzione)",
           "date": "Luglio 2026",

@@ -55,7 +55,7 @@ class TestBaseAPIException:
 
     @patch("src.infrastructure.observability.metrics_errors.http_client_errors_total")
     @patch("src.infrastructure.observability.metrics_errors.http_errors_total")
-    @patch("src.core.exceptions.logger")
+    @patch("src.core._exceptions_base.logger")
     def test_base_exception_401_logs_and_tracks_metrics(
         self, mock_logger, mock_http_errors, mock_client_errors
     ):
@@ -82,7 +82,7 @@ class TestBaseAPIException:
 
     @patch("src.infrastructure.observability.metrics_errors.http_server_errors_total")
     @patch("src.infrastructure.observability.metrics_errors.http_errors_total")
-    @patch("src.core.exceptions.logger")
+    @patch("src.core._exceptions_base.logger")
     def test_base_exception_503_tracks_server_error_metrics(
         self, mock_logger, mock_http_errors, mock_server_errors
     ):
@@ -179,7 +179,7 @@ class TestAuthenticationError:
 
     @patch("src.infrastructure.observability.metrics_errors.http_client_errors_total")
     @patch("src.infrastructure.observability.metrics_errors.http_errors_total")
-    @patch("src.core.exceptions.logger")
+    @patch("src.core._exceptions_base.logger")
     def test_authentication_error_defaults(self, mock_logger, mock_http_errors, mock_client_errors):
         """Test AuthenticationError with default message (Lines 163-170)."""
         exc = AuthenticationError()
@@ -232,7 +232,7 @@ class TestAuthorizationError:
 
     @patch("src.infrastructure.observability.metrics_errors.http_client_errors_total")
     @patch("src.infrastructure.observability.metrics_errors.http_errors_total")
-    @patch("src.core.exceptions.logger")
+    @patch("src.core._exceptions_base.logger")
     def test_authorization_error_defaults(self, mock_logger, mock_http_errors, mock_client_errors):
         """Test AuthorizationError with default message (Lines 176-187)."""
         exc = AuthorizationError()
@@ -307,7 +307,7 @@ class TestResourceNotFoundError:
 
     @patch("src.infrastructure.observability.metrics_errors.http_client_errors_total")
     @patch("src.infrastructure.observability.metrics_errors.http_errors_total")
-    @patch("src.core.exceptions.logger")
+    @patch("src.core._exceptions_base.logger")
     def test_resource_not_found_error_with_id(
         self, mock_logger, mock_http_errors, mock_client_errors
     ):
@@ -375,7 +375,7 @@ class TestResourceConflictError:
 
     @patch("src.infrastructure.observability.metrics_errors.http_client_errors_total")
     @patch("src.infrastructure.observability.metrics_errors.http_errors_total")
-    @patch("src.core.exceptions.logger")
+    @patch("src.core._exceptions_base.logger")
     def test_resource_conflict_error_default_detail(
         self, mock_logger, mock_http_errors, mock_client_errors
     ):
@@ -410,7 +410,7 @@ class TestValidationError:
 
     @patch("src.infrastructure.observability.metrics_errors.http_client_errors_total")
     @patch("src.infrastructure.observability.metrics_errors.http_errors_total")
-    @patch("src.core.exceptions.logger")
+    @patch("src.core._exceptions_base.logger")
     def test_validation_error(self, mock_logger, mock_http_errors, mock_client_errors):
         """Test ValidationError (Lines 238-245)."""
         exc = ValidationError("Invalid email format")
@@ -451,7 +451,7 @@ class TestExternalServiceError:
     @patch("src.infrastructure.observability.metrics_errors.external_service_errors_total")
     @patch("src.infrastructure.observability.metrics_errors.http_server_errors_total")
     @patch("src.infrastructure.observability.metrics_errors.http_errors_total")
-    @patch("src.core.exceptions.logger")
+    @patch("src.core._exceptions_base.logger")
     def test_external_service_error_with_timeout(
         self,
         mock_logger,

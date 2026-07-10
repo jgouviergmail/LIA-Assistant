@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -35,6 +35,12 @@ from src.core.constants import (
     HEALTH_METRICS_TOKEN_PREFIX,
 )
 from src.core.dependencies import get_db
+from src.core.exceptions import (
+    raise_bearer_auth_failed,
+    raise_invalid_input,
+    raise_payload_too_large,
+    raise_rate_limit_exceeded,
+)
 from src.domains.health_metrics.constants import (
     LOG_EVENT_PARSER_ERROR,
     LOG_EVENT_RATE_LIMIT_HIT,
@@ -107,32 +113,22 @@ async def _authenticate(
         SHA-256 hash of the supplied raw token, owned by an active account.
 
     Raises:
-        HTTPException: 401 with a ``WWW-Authenticate: Bearer`` challenge if the
-            header is absent, malformed, or if the token is unknown, revoked,
-            or belongs to a deactivated / deleted account (defense in depth).
+        AuthenticationError: 401 with a ``WWW-Authenticate: Bearer`` challenge
+            if the header is absent, malformed, or if the token is unknown,
+            revoked, or belongs to a deactivated / deleted account (defense in
+            depth).
     """
     raw = _extract_token_from_header(authorization)
     if raw is None:
         logger.warning(LOG_EVENT_TOKEN_REJECTED, reason="missing_or_malformed_header")
         health_metrics_auth_failures_total.labels(reason="missing_or_malformed_header").inc()
-        # Raw HTTPException kept on purpose: centralized raisers in
-        # src.core.exceptions do not propagate the WWW-Authenticate challenge
-        # header (RFC 7235 §3.1) to FastAPI's response.
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing or malformed ingestion token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise_bearer_auth_failed("Missing or malformed ingestion token.")
     service = HealthMetricsService(db)
     token = await service.authenticate_token(raw)
     if token is None:
         logger.warning(LOG_EVENT_TOKEN_REJECTED, reason="unknown_or_revoked")
         health_metrics_auth_failures_total.labels(reason="unknown_or_revoked").inc()
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid ingestion token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise_bearer_auth_failed("Invalid ingestion token.")
     return token
 
 
@@ -153,7 +149,7 @@ async def _rate_limit_by_token(
         The same token after the request has been counted in Redis.
 
     Raises:
-        HTTPException: 429 with a ``Retry-After`` header on rate-limit hit.
+        RateLimitError: 429 with a ``Retry-After`` header on rate-limit hit.
 
     Notes:
         Fails open on Redis errors to avoid dropping legitimate ingestion
@@ -183,8 +179,10 @@ async def _rate_limit_by_token(
             window_seconds=window_seconds,
         )
         health_metrics_rate_limit_hits_total.inc()
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        raise_rate_limit_exceeded(
+            limit=max_calls,
+            window_seconds=window_seconds,
+            retry_after=window_seconds,
             detail={
                 "error": "rate_limit_exceeded",
                 "message": "Too many ingestion requests. Please slow down.",
@@ -210,7 +208,8 @@ async def _parse_and_guard_body(request: Request) -> list[dict[str, Any]]:
         List of raw sample dicts ready for per-sample validation.
 
     Raises:
-        HTTPException: 400 on malformed body, 413 if the batch exceeds
+        ValidationError: 400 on malformed body.
+        PayloadTooLargeError: 413 if the batch exceeds
             :data:`settings.health_metrics_max_samples_per_request`.
     """
     raw_body = await request.body()
@@ -218,18 +217,12 @@ async def _parse_and_guard_body(request: Request) -> list[dict[str, Any]]:
         samples = parse_samples_body(raw_body)
     except HealthSamplesBodyParseError as exc:
         logger.warning(LOG_EVENT_PARSER_ERROR, reason=str(exc))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Malformed request body: {exc}",
-        ) from exc
+        raise_invalid_input(f"Malformed request body: {exc}")
 
     max_samples = settings.health_metrics_max_samples_per_request
     if len(samples) > max_samples:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=(
-                f"Batch too large: {len(samples)} samples " f"(max {max_samples} per request)."
-            ),
+        raise_payload_too_large(
+            f"Batch too large: {len(samples)} samples " f"(max {max_samples} per request)."
         )
     return samples
 

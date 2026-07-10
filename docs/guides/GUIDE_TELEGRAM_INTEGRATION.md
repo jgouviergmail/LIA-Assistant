@@ -336,7 +336,7 @@ async def telegram_webhook(request: Request) -> dict:
 
     handler = TelegramWebhookHandler()
     if not await handler.validate_signature(body, signature):
-        raise HTTPException(status_code=403, detail="Invalid webhook signature")
+        raise_invalid_webhook_signature("telegram")  # 403 — raiser centralise (regle #18, ADR-124)
 
     payload = json.loads(body)
 

@@ -7,10 +7,11 @@ All changes take effect immediately via in-memory cache invalidation.
 Created: 2026-03-08
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.dependencies import get_db
+from src.core.exceptions import raise_invalid_input, raise_llm_type_not_found
 from src.core.session_dependencies import get_current_superuser_session
 from src.domains.llm_config.schemas import (
     LLMConfigListResponse,
@@ -64,7 +65,7 @@ async def update_provider_key(
         service = LLMConfigService(db)
         await service.update_provider_key(provider, body.key, current_user.id, request)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise_invalid_input(str(e))
 
 
 @router.delete(
@@ -83,7 +84,7 @@ async def delete_provider_key(
         service = LLMConfigService(db)
         await service.delete_provider_key(provider, current_user.id, request)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise_invalid_input(str(e))
 
 
 # --- LLM Type Configs ---
@@ -119,7 +120,7 @@ async def get_type(
         service = LLMConfigService(db)
         return await service.get_config(llm_type)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+        raise_llm_type_not_found(str(e))
 
 
 @router.put(
@@ -139,7 +140,7 @@ async def update_type(
         service = LLMConfigService(db)
         return await service.update_config(llm_type, body, current_user.id, request)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise_invalid_input(str(e))
 
 
 @router.post(
@@ -158,7 +159,7 @@ async def reset_type(
         service = LLMConfigService(db)
         return await service.reset_config(llm_type, current_user.id, request)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise_invalid_input(str(e))
 
 
 # --- Metadata ---

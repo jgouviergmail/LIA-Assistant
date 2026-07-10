@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-07-10
-**Compatibility**: LIA v1.23.7
+**Compatibility**: LIA v1.23.8
 
 ## Table of Contents
 
