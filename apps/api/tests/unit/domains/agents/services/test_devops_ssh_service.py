@@ -128,9 +128,9 @@ class TestBuildShellCommand:
         self.service = DevOpsService()
         self.ssh_config: dict = {
             "name": "remote",
-            "host": "192.168.0.14",
+            "host": "192.0.2.10",
             "port": 2222,
-            "username": "jgo",
+            "username": "deploy",
             "working_directory": "~/lia-workspace",
             "allowed_claude_tools": ["Read", "Grep", "Glob"],
         }

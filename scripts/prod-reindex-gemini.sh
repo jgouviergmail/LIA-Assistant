@@ -3,13 +3,14 @@
 # v1.14.1 — Post-deployment reindex: OpenAI → Gemini embeddings
 #
 # Run this AFTER deploying v1.14.1 and running alembic upgrade head.
-# Reindexes all embeddings (memories, journals, interests) with Gemini
-# gemini-embedding-001 + dual-vector strategy (keyword_embedding).
+# Reindexes all embeddings (memories, journals, interests, RAG Spaces) with
+# Gemini gemini-embedding-001 + dual-vector strategy (keyword_embedding).
 #
-# RAG reindex is triggered separately via admin API (requires auth).
+# Everything runs in-container via `docker exec` — no HTTP call and no admin
+# session cookie is ever handled by this script.
 #
 # Usage:
-#   ssh jgo@192.168.0.14 -p 2222
+#   ssh <user>@<prod-host> -p 2222
 #   cd /path/to/LIA
 #   bash scripts/prod-reindex-gemini.sh
 #
@@ -70,11 +71,10 @@ echo "[4/6] Reindexing interests..."
 docker exec "${CONTAINER}" python "${SCRIPT}" --skip-store --skip-memories --skip-journals --batch-size 50
 echo ""
 
-# RAG reindex reminder
-echo "[5/6] RAG Spaces reindex..."
-echo "⚠️  RAG reindex requires admin API call. Run manually:"
-echo "   curl -X POST https://your-domain/api/v1/rag-spaces/admin/reindex \\"
-echo "     -H 'Cookie: session_id=YOUR_SESSION_COOKIE'"
+# Reindex RAG Spaces (user knowledge documents) — runs to completion in-container.
+# No HTTP call, no session cookie: we are already root-equivalent inside the box.
+echo "[5/6] Reindexing RAG Spaces..."
+docker exec "${CONTAINER}" python scripts/reindex_rag_spaces.py
 echo ""
 
 # Verify

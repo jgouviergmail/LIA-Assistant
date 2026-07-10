@@ -2946,6 +2946,14 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_23_5": {
+          "title": "v1.23.5 — 🔒 Safer production maintenance (admin)",
+          "date": "July 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔒 Safer maintenance operations (admin)</b> — the production reindexing script no longer asks the administrator to copy a session cookie into a terminal command; the operation now runs entirely inside the server. Your admin credentials no longer end up in the command history."
+          }
+        },
         "v1_23_4": {
           "title": "v1.23.4 — 🛡️ Cost guardrails for image generation",
           "date": "July 2026",

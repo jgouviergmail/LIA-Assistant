@@ -2957,6 +2957,14 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_23_5": {
+          "title": "v1.23.5 — 🔒 Maintenance en production plus sûre (admin)",
+          "date": "Juillet 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔒 Opérations de maintenance plus sûres (admin)</b> — le script de réindexation en production ne demande plus à l'administrateur de copier un cookie de session dans une commande de terminal ; l'opération s'exécute désormais entièrement à l'intérieur du serveur. Vos identifiants d'administration ne se retrouvent plus dans l'historique des commandes."
+          }
+        },
         "v1_23_4": {
           "title": "v1.23.4 — 🛡️ Garde-fous de coût pour la génération d'images",
           "date": "Juillet 2026",

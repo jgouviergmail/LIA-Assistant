@@ -40,7 +40,7 @@ blackbox-exporter probes the public URL end-to-end. The target is injected from 
 ### Cause 1: cloudflared tunnel down (High Likelihood — known recurring issue)
 The tunnel runs as a **host systemd service** (`/etc/cloudflared/config.yml`), not a container. Recurring disconnections were mitigated 2026-03 (HTTP/2 transport, WiFi powersave off, persistent journal) but remain the #1 suspect.
 ```bash
-ssh -p 2222 jgo@192.168.0.14
+ssh -p 2222 <user>@<prod-host>
 systemctl status cloudflared
 journalctl -u cloudflared --since "-30 min" --no-pager | tail -50
 ```

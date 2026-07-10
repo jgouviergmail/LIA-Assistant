@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.5] - 2026-07-10
+
+> Security-hygiene release: production maintenance stops handling credentials, and the repository stops shipping real server coordinates. The post-deploy reindex runbook (`scripts/prod-reindex-gemini.sh`) instructed the operator to paste a **superuser session cookie** into a `curl` command run over SSH on the prod box — a replayable admin bearer token that lands in `~/.bash_history` (and its backups), defeating the `HttpOnly` flag the cookie is deliberately set with, even though the same script already held root-level `docker exec` access three steps above. RAG Spaces reindexation now runs fully in-container through a new CLI, consistent with the sibling embedding reindex. In the same pass, the real production SSH coordinates (host, port, username) were scrubbed from five tracked files and aligned to the repo's existing `<user>@<prod-host>` placeholder convention.
+
+### Security
+
+- **Reindex runbook no longer transmits a session cookie** — `scripts/prod-reindex-gemini.sh` step 5 printed a `curl -X POST /rag-spaces/admin/reindex -H "Cookie: session_id=…"` instruction, training the operator to exfiltrate an `HttpOnly` superuser cookie from the browser into shell history on the production host — a full-admin bearer token, replayable and long-lived, with only `SameSite=Lax` as CSRF defense. It is replaced by an in-container `docker exec … python scripts/reindex_rag_spaces.py` call: no HTTP round-trip, no cookie, consistent with steps 2-4 which already reindex via `docker exec` (the operator is already root-equivalent inside the box). (CWE-522 / CWE-532 / CWE-214.)
+- **Real production SSH coordinates scrubbed from tracked files** — the host `192.168.0.14`, SSH port and username appeared verbatim in five tracked files (the reindex script header, the `PublicEndpointDown` and `COMPACTION_v2` runbooks, a DevOps SSH test fixture, and a historical CHANGELOG note). They are aligned to the `<user>@<prod-host>` placeholder convention already used by `infrastructure/README.md` and `docker-compose.prod.yml`; the test fixture moves to RFC-5737 documentation values (`192.0.2.10`). Recon-only exposure (an RFC-1918 address behind the Cloudflare tunnel, LAN port refused externally), removed for hygiene. (CWE-200.)
+
+### Added
+
+- **`scripts/reindex_rag_spaces.py`** — CLI companion to `reindex_embeddings.py` that re-embeds every user RAG document with the currently configured model, in-container, to completion. It is the operational equivalent of `POST /rag-spaces/admin/reindex` without the HTTP layer or a session cookie; loads provider API keys from the DB (as the sibling script does) before embedding.
+- **`run_in_background` flag on `start_reindexation`** — HTTP callers keep the detached fire-and-forget behaviour (default `True`); the CLI passes `False` so the process awaits `_reindex_all_documents` instead of exiting and killing the work mid-flight. Single source of truth for the setup/guard logic (Redis mutex, dimension `ALTER`, singleton reset) — no duplication.
+
+### Tests
+
+- 2 unit tests on the `run_in_background` branch: `False` awaits the reindex to completion and never detaches it; `True` (default) detaches via `safe_fire_and_forget` and never awaits inline. First direct coverage of `start_reindexation`. The DevOps SSH service fixture change is behaviour-neutral (assertions pin command structure, not the coordinates).
+
 ## [1.23.4] - 2026-07-10
 
 > Hardening release closing the last gap in the tool protection policy. A full inventory of the 47 tool modules found that the image generation tools — among the most expensive per-call paid APIs in the catalogue — were the **only** family carrying neither `@track_tool_metrics` nor `@rate_limit`, with no client-layer limiter either (`ImageGenerationClient` is a standalone ABC, unlike Perplexity/Brave whose connector clients embed a Redis rate limiter). Their only guards were the usage-limits cost caps — per billing cycle and Redis-cached (~30 s TTL), so a runaway ReAct loop or a prompt-injection burst could overshoot them before they bite. Both tools now carry the full standard decorator stack, and the DevOps Claude CLI tool (a paid Claude run **plus** real actions on a remote server over SSH) gains its own per-user ceiling. Every threshold is settings-driven — tunable in production without rebuild.
@@ -885,7 +903,7 @@ The chat markdown pipeline ran `rehype-raw` with **no sanitizer** — the docume
 - **No DB schema change, no Alembic migration.** No new env vars: the loopback binding + `forwarded-allow-ips="*"` pair is a deliberately non-configurable coupled invariant (documented in compose, Dockerfile and ADR-093). New frontend dependency: `rehype-sanitize@6`.
 - **Docs**: ADR-093 (+ index entries), `SECURITY.md` (threat matrix + proxy-chain/XSS section), `RATE_LIMITING.md` (per-IP keys effective), `ARCHITECTURE.md` (middleware section resynced to pure-ASGI), `STATE_AND_CHECKPOINT.md` (v1.3 chain, wired).
 - **Quality**: Ruff / Black / MyPy strict clean; backend **8518 unit tests green** (+17 new), frontend **118 green** (+18 new); middleware stack verified live in the container (headers, request-id, SSE); every commit passed the full pre-commit hook.
-- **Post-deploy validation (prod)**: app reachable via the tunnel; `curl 192.168.0.14:8000` from the LAN refused; real public IPs in logs and GeoIP dashboards.
+- **Post-deploy validation (prod)**: app reachable via the tunnel; `curl <prod-host>:8000` from the LAN refused; real public IPs in logs and GeoIP dashboards.
 
 ## [1.21.1] - 2026-07-02
 

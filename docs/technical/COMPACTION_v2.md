@@ -202,7 +202,7 @@ docker exec -i lia-postgres-dev \
   < scripts/admin/reset_user_checkpoints.sql
 
 # In prod (RPi5):
-ssh -p 2222 jgo@192.168.0.14
+ssh -p 2222 <user>@<prod-host>
 docker exec -i lia-postgres-prod \
   psql -U lia -d lia \
   -v thread_id="'<user-uuid>'" \

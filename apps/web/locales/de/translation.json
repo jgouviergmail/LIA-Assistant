@@ -2936,6 +2936,14 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_23_5": {
+          "title": "v1.23.5 — 🔒 Sicherere Produktionswartung (Admin)",
+          "date": "Juli 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔒 Sicherere Wartungsvorgänge (Admin)</b> — das Reindexierungsskript in der Produktion fordert den Administrator nicht mehr auf, ein Sitzungscookie in einen Terminalbefehl zu kopieren; der Vorgang läuft jetzt vollständig innerhalb des Servers. Ihre Admin-Anmeldedaten landen nicht mehr im Befehlsverlauf."
+          }
+        },
         "v1_23_4": {
           "title": "v1.23.4 — 🛡️ Kosten-Schutzplanken für die Bildgenerierung",
           "date": "Juli 2026",

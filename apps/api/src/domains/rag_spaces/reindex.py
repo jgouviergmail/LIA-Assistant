@@ -95,7 +95,7 @@ async def _alter_vector_dimensions_if_needed(db: AsyncSession, new_dims: int) ->
     logger.info("rag_reindex_vector_dimensions_altered", new_dims=new_dims)
 
 
-async def start_reindexation(db: AsyncSession) -> dict:
+async def start_reindexation(db: AsyncSession, *, run_in_background: bool = True) -> dict:
     """
     Start full reindexation of all RAG documents.
 
@@ -103,9 +103,18 @@ async def start_reindexation(db: AsyncSession) -> dict:
     2. Set Redis flag
     3. Delete all existing chunks
     4. Reset embedding singleton
-    5. Launch background re-processing for each document
+    5. Re-process each document
 
-    Returns summary dict for API response.
+    Args:
+        db: Async session used for the setup queries (document listing and
+            vector-column DDL). Per-document work opens its own sessions.
+        run_in_background: When True (HTTP callers), launch the re-processing as
+            a detached fire-and-forget task and return immediately. When False
+            (CLI/ops runners), await it to completion so the process stays alive
+            until every document is re-embedded.
+
+    Returns:
+        Summary dict for the API response.
     """
     redis = await _get_redis()
 
@@ -180,11 +189,15 @@ async def start_reindexation(db: AsyncSession) -> dict:
 
     rag_reindex_runs_total.labels(status="started").inc()
 
-    # Launch background reindexation
-    safe_fire_and_forget(
-        _reindex_all_documents(documents, model_to),
-        name="rag_reindex_all",
-    )
+    # Launch reindexation: detached for HTTP callers, awaited inline for CLI/ops
+    # runners so the invoking process does not exit and kill the work mid-flight.
+    if run_in_background:
+        safe_fire_and_forget(
+            _reindex_all_documents(documents, model_to),
+            name="rag_reindex_all",
+        )
+    else:
+        await _reindex_all_documents(documents, model_to)
 
     return {
         "message": f"Reindexation started for {total_docs} documents",

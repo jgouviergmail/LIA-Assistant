@@ -2938,6 +2938,14 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_23_5": {
+          "title": "v1.23.5 — 🔒 Manutenzione in produzione più sicura (admin)",
+          "date": "Luglio 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔒 Operazioni di manutenzione più sicure (admin)</b> — lo script di reindicizzazione in produzione non chiede più all'amministratore di copiare un cookie di sessione in un comando del terminale; l'operazione ora viene eseguita interamente all'interno del server. Le tue credenziali di amministratore non finiscono più nella cronologia dei comandi."
+          }
+        },
         "v1_23_4": {
           "title": "v1.23.4 — 🛡️ Barriere di costo per la generazione di immagini",
           "date": "Luglio 2026",
