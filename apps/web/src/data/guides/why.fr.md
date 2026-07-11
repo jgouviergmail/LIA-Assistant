@@ -280,7 +280,7 @@ Le **Psyche Engine** donne à LIA un état psychologique dynamique qui évolue �
 
 Vous ne parlez pas à un outil — vous interagissez avec une entité dont le vocabulaire se réchauffe quand elle est touchée, dont les phrases raccourcissent sous la tension, dont l'humour surgit quand l'échange est léger. Et elle ne le dit jamais — elle le **montre**.
 
-Cette vie intérieure a un visage : l'émoji d'humeur s'anime sur la réponse en cours, l'anneau coloré pulse quand l'humeur bascule, et les grands caps de votre relation sont célébrés d'un clin d'œil discret. Sa bulle s'illumine même de la couleur de son humeur pendant qu'elle écrit.
+Cette vie intérieure a un visage : l'émoji d'humeur s'anime sur la réponse en cours, l'anneau coloré pulse quand l'humeur bascule, et les grands caps de votre relation sont célébrés d'un clin d'œil discret.
 
 ### 7.3. Les carnets de bord
 

@@ -1179,20 +1179,6 @@
     animation: phase-fade 0.3s ease-out;
   }
 
-  /* --- Mood glow on the actively streaming bubble (ChatMessage .mood-glow) ---
-     Static color treatment (no motion): thin mood border + soft halo.
-     Double-class specificity: must beat the bubble's hover:border-primary/30
-     and shadow-md utilities; background-color stays in the transition list so
-     the hover background keeps its usual timing. */
-  .message-bubble.mood-glow {
-    border-color: var(--mood-color);
-    box-shadow: 0 0 18px -8px var(--mood-color);
-    transition:
-      border-color 0.6s ease,
-      box-shadow 0.6s ease,
-      background-color 0.15s ease;
-  }
-
   /* --- Rare emotion particles (AssistantAvatar burst) --- */
   @keyframes particle-up {
     0% {

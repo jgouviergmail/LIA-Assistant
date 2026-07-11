@@ -1,6 +1,6 @@
 # Design Spec — Wow-Effects Batch (6 items, shipped in v1.23.12)
 
-- **Status:** Implemented and shipped in v1.23.12 (v1.23.11 was released in between by a separate backend workstream, ADR-126).
+- **Status:** Implemented and shipped in v1.23.12 (v1.23.11 was released in between by a separate backend workstream, ADR-126). **Post-UAT amendment: W2 (mood glow) retired** — user judgment: "inutile et inesthétique"; code, CSS, tests and every showcase mention removed the same day (particles, cross-fade, weather, mockup and toast stay).
 - **Date:** 2026-07-11
 - **Feature flag:** none — same guardrails as the two previous batches: pure frontend,
   zero new dependency, hard fallbacks, every animation registered against

@@ -280,7 +280,7 @@ Die **Psyche Engine** verleiht LIA einen dynamischen psychologischen Zustand, de
 
 Sie sprechen nicht mit einem Werkzeug — Sie interagieren mit einer Entität, deren Sprache sich erwärmt, wenn sie berührt wird, deren Sätze sich unter Anspannung verkürzen, deren Humor aufblitzt, wenn der Austausch leicht ist. Und sie sagt es nie — sie **zeigt** es.
 
-Dieses Innenleben hat ein Gesicht: Das Stimmungs-Emoji animiert sich auf der aktuellen Antwort, der farbige Ring pulsiert, wenn die Stimmung kippt, und die Meilensteine Ihrer Beziehung werden mit einem dezenten Augenzwinkern gefeiert. Die Antwortblase leuchtet beim Schreiben sogar in der aktuellen Stimmungsfarbe.
+Dieses Innenleben hat ein Gesicht: Das Stimmungs-Emoji animiert sich auf der aktuellen Antwort, der farbige Ring pulsiert, wenn die Stimmung kippt, und die Meilensteine Ihrer Beziehung werden mit einem dezenten Augenzwinkern gefeiert.
 
 ### 7.3. Die Journale
 

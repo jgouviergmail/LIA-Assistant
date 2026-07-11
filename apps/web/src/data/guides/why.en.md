@@ -280,7 +280,7 @@ The **Psyche Engine** gives LIA a dynamic psychological state that evolves with 
 
 You're not talking to a tool — you're interacting with an entity whose vocabulary warms up when touched, whose sentences shorten under tension, whose humor emerges when the exchange is light. And it never says so — it **shows** it.
 
-This inner life has a face: the mood emoji animates on the current reply, the colored ring pulses when the mood shifts, and the milestones of your relationship are celebrated with a discreet wink. The reply bubble even glows with the current mood color while LIA writes.
+This inner life has a face: the mood emoji animates on the current reply, the colored ring pulses when the mood shifts, and the milestones of your relationship are celebrated with a discreet wink.
 
 ### 7.3. Personal journals
 

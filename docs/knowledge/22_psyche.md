@@ -20,7 +20,7 @@ A mood emoji replaces the classic LIA logo on assistant messages. The emoji and 
 
 On the current reply, the mood face is alive — a subtly animated emoji that breathes, smirks, or ponders with LIA's mood — while older messages keep their frozen snapshot. The "typing" animation also changes shape from one response to the next. Both respect your system's reduced-motion preference.
 
-The reply bubble itself glows with the current mood color while LIA writes — a thin border and soft halo that fade back to normal once the answer is done. And when a strong emotion takes hold (joy, tenderness, wonder, gratitude…), a few particles escape the avatar — once, and only for the strongest moments.
+And when a strong emotion takes hold (joy, tenderness, wonder, gratitude…), a few particles escape the avatar — once, and only for the strongest moments.
 
 ## Settings
 
