@@ -39,7 +39,7 @@ Scripts pour gestion des dashboards Grafana.
 |--------|-------------|-------|
 | `publish_grafana_dashboards.py` | Publie dashboards vers Grafana | `python scripts/grafana/publish_grafana_dashboards.py` |
 | `validate_dashboards.py` | Valide JSON dashboards | `python scripts/grafana/validate_dashboards.py` |
-| `analyze_dashboard.py` | Analyse structure dashboard | `python scripts/grafana/analyze_dashboard.py` |
+| `analyze_dashboards.py` | Analyse structure dashboard | `python scripts/grafana/analyze_dashboards.py` |
 
 **Prérequis** :
 - Grafana API accessible
@@ -62,6 +62,20 @@ Scripts pour validation et monitoring de l'observabilité.
 **Note** : Cache hits ne génèrent pas de traces Langfuse (by design).
 
 ---
+
+### 📏 `audit/` - Instruments d'Audit 360°
+
+**Localisation** : `scripts/audit/`
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `measure_sloc.py` | SLOC logiques par fichier (tokenize + AST) — sémantique du ratchet CI | `python scripts/audit/measure_sloc.py` |
+| `measure_cc.py` | Complexité cyclomatique par fonction (AST strict) | `python scripts/audit/measure_cc.py` |
+| `measure_coupling.py` | Couplage Ca/Ce/instabilité par domaine + cycles bidirectionnels (colonnes `_rt` runtime) | `python scripts/audit/measure_coupling.py` |
+| `doc_audit.py` | Dérive documentaire : liens relatifs cassés + chemins code obsolètes (classés LIVING/HISTORICAL/ROADMAP) — exit 1 si lien vivant cassé | `python scripts/audit/doc_audit.py` |
+| `update_file_size_baseline.py` | Recalcule la baseline du ratchet de taille de fichiers (ne peut que baisser) | `task ratchet:update` |
+
+> Protocole complet : [AUDIT_PROTOCOL.md](../audit/AUDIT_PROTOCOL.md)
 
 ### 🤖 `agents/` - Scripts Agents
 
@@ -258,13 +272,13 @@ Utilitaires génériques réutilisables par les scripts d'optimisation.
 ## 📖 Documentation
 
 ### Méthodologie Complète
-Voir [`/docs/optim/00_METHODOLOGY.md`](../docs/optim/00_METHODOLOGY.md)
+Voir `/docs/optim/00_METHODOLOGY.md`
 
 ### Rapports d'Analyse
-Tous dans [`/docs/optim/`](../docs/optim/)
+Tous dans [`/docs/optim/`](../optim/)
 
 ### Itérations
-Trackées dans [`/docs/optim/iterations/`](../docs/optim/iterations/)
+Trackées dans `/docs/optim/iterations/`
 
 ---
 

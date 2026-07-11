@@ -126,7 +126,9 @@ Execute in this order — the figures rule is *constants first, then texts*:
 6. `docs/INDEX.md` — verify the audit entry is present and current.
 7. **Validation before handing over:** i18n parity check (the CI script), TypeScript +
    ESLint + vitest run inside the `lia-web-dev` container, `python scripts/audit/measure_sloc.py`
-   runs clean, every markdown link added resolves. No git actions — the human owns commits
+   runs clean, and `python scripts/audit/doc_audit.py` reports **0 LIVING broken links**
+   (it exits non-zero otherwise; remaining LIVING stale code paths must all be deliberate
+   placeholders or annotated examples). No git actions — the human owns commits
    and releases.
 
 ## 6. Widen or deepen — every cycle
@@ -140,7 +142,9 @@ Re-measuring the same evidence eventually finds nothing. Each cycle must add at 
 - **a new probe** for an assumed-covered blind spot (example: client-side error telemetry,
   which server-side observability scores never looked at).
 New instruments should be committed as scripts under `scripts/audit/` so the next cycle
-reproduces them (measure_sloc.py, measure_cc.py and measure_coupling.py exist).
+reproduces them (measure_sloc.py, measure_cc.py, measure_coupling.py and doc_audit.py exist —
+the latter audits documentation drift: broken relative links and stale code-path references,
+classified LIVING/HISTORICAL/ROADMAP; introduced after the 2026-07-11 full docs realignment).
 Caveat: the cycle-3 CC figures came from an ad-hoc uncommitted counter —
 measure_cc.py (strict AST counting, ~6% below that scale, identical ranking) is the
 committed instrument from cycle 4 on; do not compare figures across instruments.
