@@ -47,6 +47,23 @@ export interface ChatMessageProps {
 
 type FeedbackType = 'thumbs_up' | 'thumbs_down' | 'block';
 
+/** Window (ms) within which a proactive notification counts as "just arrived". */
+const PROACTIVE_FRESH_WINDOW_MS = 10_000;
+
+/**
+ * A proactive notification "just arrived" when its timestamp is within a few
+ * seconds of now (either direction, to tolerate small clock skew). This tells a
+ * live push apart from a history-loaded row so the avatar only rings on real
+ * arrival, not on every page load (F4 — mirrors the milestone hydration guard).
+ */
+export function isFreshProactive(
+  timestampMs: number,
+  nowMs: number,
+  windowMs: number = PROACTIVE_FRESH_WINDOW_MS
+): boolean {
+  return Math.abs(nowMs - timestampMs) < windowMs;
+}
+
 /**
  * Feedback buttons for proactive interest notifications.
  * Only shown for messages with feedback_enabled and no prior feedback.
@@ -447,6 +464,20 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
     (message.metadata.type as string).startsWith('proactive_');
   const showFeedbackButtons =
     isProactiveInterest && Boolean(message.metadata?.feedback_enabled) && !feedbackSubmitted;
+  // F4: the avatar wobbles once when a proactive notification lands live — never
+  // on history rows. Captured in a mount effect (not in render) so the "now"
+  // read stays pure; a history-loaded row is already stale at mount.
+  const [proactiveRing, setProactiveRing] = useState(false);
+  useEffect(() => {
+    if (
+      (isProactiveInterest || isProactiveMessage) &&
+      isFreshProactive(message.timestamp.getTime(), Date.now())
+    ) {
+      setProactiveRing(true);
+    }
+    // Mount-only capture of "just arrived"; intentionally no dependencies.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Token data: for ALL proactive types, read from metadata (centrally injected by runner),
   // then fall back to message-level fields (from DB JOIN via run_id)
@@ -584,6 +615,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             tooltipLines={tooltipLines}
             animate={!metadataPsyche && !!psycheState}
             animateEmoji={isLatestAssistant}
+            ring={proactiveRing}
           />
         </div>
 

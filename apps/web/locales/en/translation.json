@@ -585,7 +585,8 @@
     },
     "empty_state": {
       "title": "Start a conversation",
-      "description": "Ask your first question to start a conversation with LIA."
+      "description": "Ask your first question to start a conversation with LIA.",
+      "night_note": "At night, LIA consolidates its memories. Write, and it wakes for you."
     },
     "loading_older_messages": "Loading older messages…",
     "tokens": {
@@ -2727,6 +2728,12 @@
       "title": "Reasoning"
     }
   },
+    "companion": {
+      "open_chat": "Open chat with LIA",
+      "minimize": "Minimize the companion",
+      "restore": "Show the LIA companion",
+      "aria_state": "LIA — {{count}} pending notification(s)"
+    },
   "faq": {
     "title": "Frequently Asked Questions",
     "subtitle": "Find answers to the most common questions about LIA",
@@ -2953,6 +2960,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_23_13": {
+          "title": "v1.23.13 — 🧸 LIA's floating companion",
+          "date": "July 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🧸 A companion that follows you</b> — a LIA mini-avatar now floats on the dashboard pages (except chat, where the full avatar already lives). It shows the current mood, starts \"thinking\" when LIA works in the background, and carries a badge when notifications are waiting. A click opens chat; you can minimize it to a small dot.",
+            "i2": "<b>🌅 A greeting that follows the hour</b> — on an empty conversation, LIA welcomes you with ☕ in the morning, 👋 during the day, 🌛 in the evening, and 😴 at night (while it tidies its memories).",
+            "i3": "<b>🔔 Notifications you can feel</b> — when a proactive notification arrives, LIA's avatar gives a little attention wobble at the very moment it appears.",
+            "i4": "<b>✨ Visible freshness on the dashboard</b> — after refreshing a card, a discreet \"updated ✨\" confirms the data was just refreshed."
+          }
+        },
         "v1_23_12": {
           "title": "v1.23.12 — ✨ Wow effects: the psyche takes shape",
           "date": "July 2026",
@@ -5841,7 +5859,7 @@
       },
       "psyche": {
         "title": "Living emotional intelligence",
-        "description": "LIA doesn't recite — it feels. 14 moods, 22 emotions, a relationship that deepens message after message. Its vocabulary warms when touched, sentences shorten under tension, humor surfaces when the exchange is light. And you can see it: LIA's mood face animates on the current reply."
+        "description": "LIA doesn't recite — it feels. 14 moods, 22 emotions, a relationship that deepens message after message. Its vocabulary warms when touched, sentences shorten under tension, humor surfaces when the exchange is light. And you can see it: LIA's mood face animates on the current reply. And it follows you: a floating companion keeps LIA present across the whole dashboard."
       },
       "mcp": {
         "title": "Extensible (MCP)",

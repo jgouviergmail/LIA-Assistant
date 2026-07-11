@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 
-import { ChatMessage, type ChatMessageProps } from '../ChatMessage';
+import { ChatMessage, type ChatMessageProps, isFreshProactive } from '../ChatMessage';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { usePsycheStore } from '@/stores/psycheStore';
 import type { Message } from '@/types/chat';
@@ -31,6 +31,24 @@ function renderMessage(props: Partial<ChatMessageProps> = {}) {
     </TooltipProvider>
   );
 }
+
+describe('isFreshProactive (F4 arrival guard)', () => {
+  const NOW = 1_000_000;
+
+  it('is fresh within the 10 s window (live push)', () => {
+    expect(isFreshProactive(NOW - 2_000, NOW)).toBe(true);
+    expect(isFreshProactive(NOW, NOW)).toBe(true);
+  });
+
+  it('tolerates small clock skew (slightly future timestamp)', () => {
+    expect(isFreshProactive(NOW + 3_000, NOW)).toBe(true);
+  });
+
+  it('is stale beyond the window (history-loaded row)', () => {
+    expect(isFreshProactive(NOW - 60_000, NOW)).toBe(false);
+    expect(isFreshProactive(NOW - 11_000, NOW)).toBe(false);
+  });
+});
 
 describe('ChatMessage — phase cross-fade (W5)', () => {
   beforeEach(() => {

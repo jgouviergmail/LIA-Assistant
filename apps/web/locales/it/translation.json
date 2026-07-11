@@ -564,7 +564,8 @@
     },
     "empty_state": {
       "title": "Inizia una conversazione",
-      "description": "Fai la tua prima domanda per iniziare una conversazione con LIA."
+      "description": "Fai la tua prima domanda per iniziare una conversazione con LIA.",
+      "night_note": "Di notte, LIA consolida i suoi ricordi. Scrivi e si sveglia per te."
     },
     "loading_older_messages": "Caricamento dei messaggi precedenti…",
     "tokens": {
@@ -2720,6 +2721,12 @@
       "title": "Ragionamento"
     }
   },
+    "companion": {
+      "open_chat": "Apri la chat con LIA",
+      "minimize": "Riduci il compagno",
+      "restore": "Mostra il compagno LIA",
+      "aria_state": "LIA — {{count}} notifiche in attesa"
+    },
   "faq": {
     "title": "Domande frequenti",
     "subtitle": "Trova risposte alle domande più comuni su LIA",
@@ -2946,6 +2953,17 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_23_13": {
+          "title": "v1.23.13 — 🧸 Il compagno fluttuante di LIA",
+          "date": "Luglio 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🧸 Un compagno che ti segue</b> — un mini-avatar di LIA ora fluttua sulle pagine della dashboard (tranne la chat, dove l'avatar completo è già presente). Mostra l'umore del momento, inizia a «pensare» quando LIA lavora in background e porta un badge quando ci sono notifiche in attesa. Un clic apre la chat; puoi ridurlo a un semplice punto.",
+            "i2": "<b>🌅 Un benvenuto secondo l'ora</b> — in una conversazione vuota, LIA ti accoglie con ☕ al mattino, 👋 di giorno, 🌛 la sera e 😴 la notte (mentre riordina i suoi ricordi).",
+            "i3": "<b>🔔 Notifiche che si fanno sentire</b> — quando arriva una notifica proattiva, l'avatar di LIA fa un piccolo scatto di attenzione nel momento stesso in cui appare.",
+            "i4": "<b>✨ Freschezza visibile sulla dashboard</b> — dopo aver aggiornato una scheda, un discreto «aggiornato ✨» conferma che il dato è appena stato rinfrescato."
+          }
+        },
         "v1_23_12": {
           "title": "v1.23.12 — ✨ Effetti wow: la psiche prende forma",
           "date": "Luglio 2026",
@@ -5763,7 +5781,7 @@
       },
       "psyche": {
         "title": "Intelligenza emotiva vivente",
-        "description": "LIA non recita — sente. 14 umori, 22 emozioni, una relazione che si approfondisce messaggio dopo messaggio. Il suo vocabolario si scalda quando viene toccata, le frasi si accorciano sotto tensione, l'umorismo emerge quando lo scambio è leggero. E si vede: il volto dell'umore di LIA si anima sulla risposta corrente."
+        "description": "LIA non recita — sente. 14 umori, 22 emozioni, una relazione che si approfondisce messaggio dopo messaggio. Il suo vocabolario si scalda quando viene toccata, le frasi si accorciano sotto tensione, l'umorismo emerge quando lo scambio è leggero. E si vede: il volto dell'umore di LIA si anima sulla risposta corrente. E ti segue: un compagno fluttuante tiene LIA presente in tutta la dashboard."
       },
       "mcp": {
         "title": "Estensibile (MCP)",

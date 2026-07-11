@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
@@ -69,6 +69,22 @@ export function BriefingCard<T extends SectionData>({
   centerContent = false,
 }: BriefingCardProps<T>) {
   const { t } = useTranslation();
+
+  // F5: light up the dormant "just updated ✨" badge on a completed refresh
+  // (isRefreshing true → false), for ~1.6 s. Hooks run before the early return
+  // below to respect the Rules of Hooks.
+  const [justRefreshed, setJustRefreshed] = useState(false);
+  const prevRefreshingRef = useRef(isRefreshing);
+  useEffect(() => {
+    const wasRefreshing = prevRefreshingRef.current;
+    prevRefreshingRef.current = isRefreshing;
+    if (wasRefreshing && !isRefreshing) {
+      setJustRefreshed(true);
+      const id = setTimeout(() => setJustRefreshed(false), 1600);
+      return () => clearTimeout(id);
+    }
+  }, [isRefreshing]);
+
   if (section.status === 'not_configured') return null;
 
   const isError = section.status === 'error';
@@ -132,7 +148,13 @@ export function BriefingCard<T extends SectionData>({
             <h3 className="text-sm font-semibold text-foreground tracking-tight truncate">
               {titleLabel}
             </h3>
-            {!isError && <UpdatedAtBadge generatedAt={section.generated_at} className="shrink-0" />}
+            {!isError && (
+              <UpdatedAtBadge
+                generatedAt={section.generated_at}
+                showJustUpdated={justRefreshed}
+                className="shrink-0"
+              />
+            )}
           </div>
           <button
             type="button"

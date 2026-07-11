@@ -109,6 +109,8 @@ The first step shows a random witty phrase for a touch of personality, while sub
 
 The display itself is alive: past steps dim while the current one gently pulses, a caret blinks at the end of the text while the answer streams, and the "typing" animation changes shape from one response to the next. If you switch to another tab while LIA works, the tab title alternates with "✦ LIA is writing…" so you know when to come back. All of it respects your system's reduced-motion preference.
 
+On an empty conversation, LIA greets you according to the time of day — ☕ in the morning, 👋 during the day, 🌛 in the evening, and 😴 at night while it consolidates its memories. And on the other dashboard pages, a small floating companion keeps LIA present: it rests as the current mood, starts "thinking" when a background run is working, and shows a badge when notifications are waiting — click it to jump back to the chat.
+
 ## How do I get better results with LIA?
 Here are the **best practices** for communicating with LIA:
 

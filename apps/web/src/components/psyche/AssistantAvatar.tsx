@@ -40,6 +40,8 @@ export interface AssistantAvatarProps {
   animate?: boolean;
   /** True only for the latest assistant message — gates the animated emoji (spec D-5). */
   animateEmoji?: boolean;
+  /** One-shot attention wobble when a proactive notification just arrived (F4). */
+  ring?: boolean;
 }
 
 /** Color a PAD percentage: green if positive, red if negative, gray if zero. */
@@ -108,6 +110,7 @@ export function AssistantAvatar({
   tooltipLines,
   animate,
   animateEmoji,
+  ring,
 }: AssistantAvatarProps) {
   const { t } = useTranslation();
   // Hover-wake (I1): history snapshots animate while hovered — transient,
@@ -153,7 +156,12 @@ export function AssistantAvatar({
   // Fallback: psyche disabled or no data — show classic "LIA" avatar
   if (!psycheState) {
     return (
-      <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md bg-gradient-to-br from-primary to-primary/80 text-primary-foreground ring-2 ring-primary/30 font-bold text-sm">
+      <div
+        className={cn(
+          'w-10 h-10 rounded-full flex items-center justify-center shadow-md bg-gradient-to-br from-primary to-primary/80 text-primary-foreground ring-2 ring-primary/30 font-bold text-sm',
+          ring && 'animate-bell-ring'
+        )}
+      >
         LIA
       </div>
     );
@@ -176,7 +184,7 @@ export function AssistantAvatar({
 
   return (
     <div
-      className="group relative"
+      className={cn('group relative', ring && 'animate-bell-ring')}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >

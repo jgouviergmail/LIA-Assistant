@@ -529,6 +529,10 @@ The avatar reads the psyche state from the Zustand store (fallback for messages 
 
 **Emotion particles.** A whitelisted strong emotion (intensity ≥ 0.8 — joy ✨, wonder/pride 🌟, tenderness ❤️, gratitude 💖, enthusiasm ⚡, frustration 💢) fires a one-shot 3-particle burst from the live avatar: change-only, never on mount or history rows, skipped under `prefers-reduced-motion`, particles `opacity: 0` at rest so a disabled animation leaves nothing frozen. (A mood-colored glow on the streaming bubble was tried in the same batch and retired after UAT — user judgment: visually not worth it.)
 
+**Proactive wobble.** When a proactive/reminder/subagent notification arrives **live** (freshness guard: message timestamp within ±10 s of now), the avatar plays a one-shot `lia-bell-ring` attention wobble; history-loaded rows never wobble.
+
+**Companion presence.** Off the chat page, the same mood avatar reappears as a floating companion (`components/companion/CompanionPresence.tsx`, mounted in the dashboard layout) — see [Frontend: Avatar & Settings UI](#frontend-avatar--settings-ui). It rests as the mood emoji, shows a `TypingIndicator` bubble while a background run is active (`GET /agents/runs/active` poll, ADR-117), and carries an unread-notification badge from a layout-level `useNotifications` subscription (disabled on chat, so exactly one connection is ever live). Reuses `AssistantAvatar` end to end; the `ring` prop drives the proactive wobble.
+
 Tooltip on hover (desktop) shows: Relationship stage, Mood label (with PAD percentages), active emotion with intensity.
 
 ### Settings UI

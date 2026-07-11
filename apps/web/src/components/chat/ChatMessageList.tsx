@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Message, BrowserScreenshotData } from '@/types/chat';
 import type { StreamPhase } from '@/types/chat-state';
 import { ChatMessage } from './ChatMessage';
@@ -28,6 +28,25 @@ export interface ChatMessageListProps {
   onLoadOlder?: () => void;
 }
 
+export interface TimeGreeting {
+  /** Emoji glyph for the empty-chat hero (AnimatedEmoji derives its codepoint). */
+  glyph: string;
+  /** Deep-night bucket — shows the truthful "LIA consolidates its memories" note. */
+  isNight: boolean;
+}
+
+/**
+ * Time-of-day greeting for the empty-chat state, in the user's local hours.
+ * Deep night (23:00–05:00) shows a resting LIA — grounded in the real nightly
+ * memory-consolidation jobs, stated without false precision.
+ */
+export function greetingForHour(hour: number): TimeGreeting {
+  if (hour >= 23 || hour < 5) return { glyph: '😴', isNight: true };
+  if (hour < 11) return { glyph: '☕', isNight: false }; // 05–10 morning
+  if (hour < 18) return { glyph: '👋', isNight: false }; // 11–17 day
+  return { glyph: '🌛', isNight: false }; // 18–22 evening
+}
+
 /**
  * Id of the last assistant message — only that row animates its psyche emoji
  * (older rows are static mood snapshots; keeps at most one looping WebP on
@@ -53,6 +72,13 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   onLoadOlder,
 }) => {
   const { t } = useTranslation();
+
+  // Client-only gate for the time-aware empty-chat greeting: the server SSRs
+  // this 'use client' page in UTC while the browser hydrates in the user's
+  // local timezone — computing the hour before mount would risk a hydration
+  // mismatch. Render the neutral day glyph until mounted, then the real hour.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Populate the Zustand store from server on mount (GET /psyche/state + /psyche/settings).
   // ChatMessage reads the store directly for fallback avatar data.
@@ -215,18 +241,32 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   }
 
   if (messages.length === 0) {
+    // Time-aware greeting (☕ morning · 👋 day · 🌛 evening · 😴 deep night) —
+    // AnimatedEmoji falls back to the static glyph on missing asset / reduced
+    // motion. Neutral day glyph until mounted (avoids the SSR hydration mismatch).
+    const greeting: TimeGreeting = mounted
+      ? greetingForHour(new Date().getHours())
+      : { glyph: '👋', isNight: false };
     return (
       <div className="flex flex-col items-center justify-center h-full text-center px-4">
-        {/* Animated 👋 greeting (micro-interactions batch I10) — static glyph
-            fallback on missing asset / reduced motion via AnimatedEmoji. */}
         <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20 backdrop-blur-sm animate-greet-float">
-          <AnimatedEmoji glyph="👋" animate imgClassName="w-11 h-11" spanClassName="text-4xl" />
+          <AnimatedEmoji
+            glyph={greeting.glyph}
+            animate
+            imgClassName="w-11 h-11"
+            spanClassName="text-4xl"
+          />
         </div>
         <div className="bg-card/60 backdrop-blur-md rounded-xl px-6 py-4 border border-border/20">
           <h2 className="text-xl font-semibold mb-2">{t('chat.empty_state.title')}</h2>
           <p className="text-sm text-muted-foreground max-w-md">
             {t('chat.empty_state.description')}
           </p>
+          {greeting.isNight && (
+            <p className="text-xs text-muted-foreground/70 italic mt-3 max-w-md">
+              {t('chat.empty_state.night_note')}
+            </p>
+          )}
         </div>
       </div>
     );

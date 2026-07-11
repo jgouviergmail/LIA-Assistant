@@ -585,7 +585,8 @@
     },
     "empty_state": {
       "title": "Commencer une conversation",
-      "description": "Posez votre première question pour commencer une conversation avec LIA."
+      "description": "Posez votre première question pour commencer une conversation avec LIA.",
+      "night_note": "La nuit, LIA consolide ses souvenirs. Écrivez, elle se réveille pour vous."
     },
     "loading_older_messages": "Chargement des messages plus anciens…",
     "tokens": {
@@ -2732,6 +2733,12 @@
       "title": "Raisonnement"
     }
   },
+    "companion": {
+      "open_chat": "Ouvrir le chat avec LIA",
+      "minimize": "Réduire le compagnon",
+      "restore": "Afficher le compagnon LIA",
+      "aria_state": "LIA — {{count}} notification(s) en attente"
+    },
   "faq": {
     "title": "Questions fréquentes",
     "subtitle": "Trouvez des réponses aux questions les plus courantes sur LIA",
@@ -2958,6 +2965,17 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_23_13": {
+          "title": "v1.23.13 — 🧸 Le compagnon flottant de LIA",
+          "date": "Juillet 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🧸 Un compagnon qui vous suit</b> — un mini-avatar de LIA flotte désormais sur les pages du tableau de bord (sauf le chat, où l'avatar complet est déjà là). Il affiche l'humeur du moment, se met à « réfléchir » quand LIA travaille en arrière-plan, et porte une pastille quand des notifications vous attendent. Un clic ouvre le chat ; vous pouvez le réduire à un simple point.",
+            "i2": "<b>🌅 Un accueil selon l'heure</b> — sur une conversation vide, LIA vous accueille avec ☕ le matin, 👋 la journée, 🌛 le soir et 😴 la nuit (quand elle range ses souvenirs).",
+            "i3": "<b>🔔 Les notifications se font sentir</b> — quand une notification proactive arrive, l'avatar de LIA a un petit sursaut d'attention à l'instant même où elle apparaît.",
+            "i4": "<b>✨ Fraîcheur visible sur le tableau de bord</b> — après avoir rafraîchi une carte, un discret « mis à jour ✨ » confirme que la donnée vient d'être actualisée."
+          }
+        },
         "v1_23_12": {
           "title": "v1.23.12 — ✨ Effets waouw : la psyché s'incarne",
           "date": "Juillet 2026",
@@ -5767,7 +5785,7 @@
       },
       "psyche": {
         "title": "Intelligence émotionnelle vivante",
-        "description": "LIA ne récite pas — elle ressent. 14 humeurs, 22 émotions, une relation qui s'approfondit message après message. Son vocabulaire se réchauffe quand elle est touchée, ses phrases raccourcissent sous la tension, son humour surgit quand l'échange est léger. Et tu la vois vivre : son visage d'humeur s'anime sur la réponse en cours."
+        "description": "LIA ne récite pas — elle ressent. 14 humeurs, 22 émotions, une relation qui s'approfondit message après message. Son vocabulaire se réchauffe quand elle est touchée, ses phrases raccourcissent sous la tension, son humour surgit quand l'échange est léger. Et tu la vois vivre : son visage d'humeur s'anime sur la réponse en cours. Et elle vous suit : un compagnon flottant garde LIA présente sur tout le tableau de bord."
       },
       "mcp": {
         "title": "Extensible (MCP)",

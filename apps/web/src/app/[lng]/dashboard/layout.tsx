@@ -15,6 +15,7 @@ import { LanguageSelector } from '@/components/LanguageSelector';
 import { PersonalitySelector } from '@/components/PersonalitySelector';
 import { ConnectorHealthAlert } from '@/components/connectors/ConnectorHealthAlert';
 import { OnboardingTutorial } from '@/components/onboarding';
+import { CompanionPresence } from '@/components/companion/CompanionPresence';
 import { BroadcastProvider } from '@/lib/broadcast';
 import { BroadcastModal } from '@/components/broadcast';
 import { useTranslation } from '@/i18n/client';
@@ -193,6 +194,9 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
             onComplete={handleOnboardingComplete}
           />
         )}
+
+        {/* Floating companion — follows across dashboard pages, hidden on chat */}
+        <CompanionPresence isAuthenticated={!!user} />
       </div>
     </BroadcastProvider>
   );

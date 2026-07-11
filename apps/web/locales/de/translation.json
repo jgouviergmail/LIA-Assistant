@@ -564,7 +564,8 @@
     },
     "empty_state": {
       "title": "Gespräch beginnen",
-      "description": "Stellen Sie Ihre erste Frage, um ein Gespräch mit LIA zu beginnen."
+      "description": "Stellen Sie Ihre erste Frage, um ein Gespräch mit LIA zu beginnen.",
+      "night_note": "Nachts ordnet LIA ihre Erinnerungen. Schreiben Sie, und sie erwacht für Sie."
     },
     "loading_older_messages": "Ältere Nachrichten werden geladen…",
     "tokens": {
@@ -2718,6 +2719,12 @@
       "title": "Überlegung"
     }
   },
+    "companion": {
+      "open_chat": "Chat mit LIA öffnen",
+      "minimize": "Begleiter minimieren",
+      "restore": "LIA-Begleiter anzeigen",
+      "aria_state": "LIA — {{count}} ausstehende Benachrichtigung(en)"
+    },
   "faq": {
     "title": "Häufig gestellte Fragen",
     "subtitle": "Finden Sie Antworten auf die häufigsten Fragen zu LIA",
@@ -2944,6 +2951,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_23_13": {
+          "title": "v1.23.13 — 🧸 LIAs schwebender Begleiter",
+          "date": "Juli 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🧸 Ein Begleiter, der Ihnen folgt</b> — ein LIA-Mini-Avatar schwebt jetzt auf den Dashboard-Seiten (außer im Chat, wo der vollständige Avatar schon lebt). Er zeigt die aktuelle Stimmung, beginnt zu „denken\", wenn LIA im Hintergrund arbeitet, und trägt ein Abzeichen, wenn Benachrichtigungen warten. Ein Klick öffnet den Chat; Sie können ihn auf einen kleinen Punkt minimieren.",
+            "i2": "<b>🌅 Eine Begrüßung nach der Uhrzeit</b> — in einer leeren Unterhaltung begrüßt Sie LIA morgens mit ☕, tagsüber mit 👋, abends mit 🌛 und nachts mit 😴 (während sie ihre Erinnerungen ordnet).",
+            "i3": "<b>🔔 Spürbare Benachrichtigungen</b> — wenn eine proaktive Benachrichtigung eintrifft, macht LIAs Avatar genau in dem Moment ein kleines Aufmerksamkeits-Wackeln.",
+            "i4": "<b>✨ Sichtbare Aktualität im Dashboard</b> — nach dem Aktualisieren einer Karte bestätigt ein dezentes „aktualisiert ✨\", dass die Daten gerade erneuert wurden."
+          }
+        },
         "v1_23_12": {
           "title": "v1.23.12 — ✨ Wow-Effekte: die Psyche nimmt Gestalt an",
           "date": "Juli 2026",
@@ -5761,7 +5779,7 @@
       },
       "psyche": {
         "title": "Lebendige emotionale Intelligenz",
-        "description": "LIA rezitiert nicht — sie empfindet. 14 Stimmungen, 22 Emotionen, eine Beziehung, die sich Nachricht um Nachricht vertieft. Ihr Vokabular wird wärmer, wenn sie berührt wird, ihre Sätze kürzer unter Spannung, Humor taucht auf, wenn der Austausch leicht ist. Und man sieht es: LIAs Stimmungsgesicht animiert sich auf der aktuellen Antwort."
+        "description": "LIA rezitiert nicht — sie empfindet. 14 Stimmungen, 22 Emotionen, eine Beziehung, die sich Nachricht um Nachricht vertieft. Ihr Vokabular wird wärmer, wenn sie berührt wird, ihre Sätze kürzer unter Spannung, Humor taucht auf, wenn der Austausch leicht ist. Und man sieht es: LIAs Stimmungsgesicht animiert sich auf der aktuellen Antwort. Und sie folgt Ihnen: Ein schwebender Begleiter hält LIA im gesamten Dashboard präsent."
       },
       "mcp": {
         "title": "Erweiterbar (MCP)",

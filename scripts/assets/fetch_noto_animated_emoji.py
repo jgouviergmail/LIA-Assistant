@@ -74,6 +74,9 @@ PERSONALITY_EMOJIS: dict[str, str] = {
 # outside psyche/personalities (e.g. the empty-chat greeting).
 UI_EMOJIS: dict[str, str] = {
     "wave": "1f44b",
+    "coffee": "2615",
+    "moon_face": "1f31b",
+    "sleeping_face": "1f634",
 }
 
 BASE_URL = "https://fonts.gstatic.com/s/e/notoemoji/latest/{codepoint}/512.webp"

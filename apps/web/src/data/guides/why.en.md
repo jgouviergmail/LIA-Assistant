@@ -4,7 +4,7 @@
 
 **Version**: 3.7
 **Date**: 2026-07-11
-**Application**: LIA v1.23.12
+**Application**: LIA v1.23.13
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -281,6 +281,8 @@ The **Psyche Engine** gives LIA a dynamic psychological state that evolves with 
 You're not talking to a tool — you're interacting with an entity whose vocabulary warms up when touched, whose sentences shorten under tension, whose humor emerges when the exchange is light. And it never says so — it **shows** it.
 
 This inner life has a face: the mood emoji animates on the current reply, the colored ring pulses when the mood shifts, and the milestones of your relationship are celebrated with a discreet wink.
+
+And this presence follows you: outside the chat, a floating companion keeps LIA at your side across the whole dashboard — at rest, at work, or carrying a notification.
 
 ### 7.3. Personal journals
 

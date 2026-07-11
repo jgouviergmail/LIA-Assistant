@@ -4,7 +4,7 @@
 
 **Version** : 3.7
 **Date** : 2026-07-11
-**Application** : LIA v1.23.12
+**Application** : LIA v1.23.13
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -281,6 +281,8 @@ Le **Psyche Engine** donne à LIA un état psychologique dynamique qui évolue �
 Vous ne parlez pas à un outil — vous interagissez avec une entité dont le vocabulaire se réchauffe quand elle est touchée, dont les phrases raccourcissent sous la tension, dont l'humour surgit quand l'échange est léger. Et elle ne le dit jamais — elle le **montre**.
 
 Cette vie intérieure a un visage : l'émoji d'humeur s'anime sur la réponse en cours, l'anneau coloré pulse quand l'humeur bascule, et les grands caps de votre relation sont célébrés d'un clin d'œil discret.
+
+Et cette présence vous suit : hors du chat, un compagnon flottant garde LIA à vos côtés sur tout le tableau de bord — au repos, au travail, ou porteur d'une notification.
 
 ### 7.3. Les carnets de bord
 

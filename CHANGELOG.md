@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.13] - 2026-07-11
+
+> Companion presence, embodiment micro-interactions, and a documentation realignment. LIA gains a **floating mini-avatar** that follows across the dashboard (everywhere except chat, where the real avatar already lives) — resting as the current mood, "thinking" while a background run is active, badged when notifications are unread, minimizable to a dot. Around it, three grounded touches make the interface feel alive without decoration: a **time-aware empty-chat greeting**, a **proactive-notification avatar wobble** (live arrival only, never on history), and a **"just updated ✨" freshness badge** on briefing cards. The mood-colored bubble glow shipped in v1.23.12 was **retired** on user judgment after UAT. The release also folds in an already-landed documentation realignment (236 broken doc links → 0) and two dev-hygiene items (a committed `doc_audit.py` drift instrument, an infra-denylist false-positive fix). Every animation degrades to the previous behavior on asset failure, hidden psyche visuals, and `prefers-reduced-motion`. A real SSE reconnect-storm bug (inline callback identity) was found by driving the app end-to-end in the dev container and fixed. No backend feature change, no DB migration, no new dependency.
+
+### Added
+
+- **Companion presence** (`components/companion/CompanionPresence.tsx`, mounted in the dashboard layout) — a floating LIA mini-avatar on every dashboard page **except chat** (hidden there, where it also disables its SSE + polling so exactly one notifications connection is ever active). Three grounded states: **rest** (mood `AnimatedEmoji`, gentle float; classic "LIA" badge when psyche is off), **working** (a small `TypingIndicator` bubble driven by a gentle `GET /agents/runs/active` poll — ADR-117), and a **notification** count badge fed by a layout-level `useNotifications` subscription with a one-shot attention wobble on live arrival. Click → chat (and clears the badge); minimize → a discreet restore dot (session-scoped, never permanently hidden). Pure reuse of `AssistantAvatar` / `TypingIndicator` / `useNotifications` / `fetchActiveRun`.
+- **Time-aware empty-chat greeting** — the hero emoji follows the user's local hour: ☕ morning (05–10), 👋 day (11–17), 🌛 evening (18–22), 😴 deep night (23–04), the last with a truthful "at night, LIA consolidates its memories" note grounded in the real nightly `memory_consolidation` / `memory_cleanup` jobs. Rendered through `AnimatedEmoji` (static-glyph fallback), behind a `mounted` gate that prevents any SSR hydration mismatch. New assets ☕/🌛/😴; one i18n key ×6.
+- **Proactive-notification avatar wobble** — when a proactive/reminder/subagent/scheduled notification arrives **live** (freshness guard on the message timestamp, ±10 s), the assistant avatar plays a one-shot `lia-bell-ring`; history-loaded rows never wobble.
+- **Briefing freshness badge** — the dormant `UpdatedAtBadge.showJustUpdated` ("mis à jour ✨") is now wired: a completed card refresh (`isRefreshing` true→false) lights it for ~1.6 s.
+- **`scripts/audit/doc_audit.py`** — committed documentation-drift instrument: broken relative links + stale code-path references across `docs/`, classified LIVING / HISTORICAL / ROADMAP, exiting non-zero on any LIVING broken link; wired into `AUDIT_PROTOCOL.md` as a mandatory pre-publication step.
+
+### Changed
+
+- **Full documentation & schema realignment against v1.23.12** — 236 broken relative links driven to 0 across `docs/`, stale code-path references corrected, Mermaid schemas re-synced with the code (103 files).
+
+### Removed
+
+- **Mood-colored glow on the streaming bubble** (v1.23.12 W2) — retired on user judgment after UAT ("inutile et inesthétique"). The `.mood-glow` rule, its `--mood-color` wiring in `ChatMessage`, the 3 tests, and every showcase mention across the 6 locales were removed; particles, mood ping, cross-fade, living weather, landing mockup and the animated milestone toast are untouched.
+
+### Fixed
+
+- **Companion notification SSE reconnect storm** — an inline `onNotification` callback changed identity every render, making `useNotifications` tear down and rebuild its `EventSource` continuously (~200 requests). Stabilized with `useCallback`; the badge also now clears when the user reaches chat by any route, not only by clicking the companion. (Found by driving the app end-to-end, not by unit tests.)
+- **Companion → chat navigation on clean (locale-less) URLs** — naive `pathname.split('/')[1]` locale extraction produced a malformed target; now reuses the layout's `getLanguageFromPath` / `buildLocalizedPath`, guarded by a regression test.
+- **Infra-denylist pre-commit false positives** — byte coincidences inside regenerated binary assets (Mermaid PNG renders) matched short denylist tokens and aborted legitimate commits; `grep -I` now skips binary files.
+
+### Tests
+
+- **+13 frontend tests** — `greetingForHour` buckets, `isFreshProactive` window, companion helpers (`isChatRoute`, `deriveCompanionState`, `companionChatHref` incl. the clean-URL regression). Full suite green: 523 tests / 50 files, ESLint + `tsc --noEmit` clean, i18n parity ×6, and the four frontend features runtime-verified in the dev container (greeting emoji + no hydration warning, briefing badge cycle, companion rest / hidden-on-chat / click / minimize).
+
 ## [1.23.12] - 2026-07-11
 
 > The wow batch — six targeted effects that push the living interface (v1.23.10) one notch further, selected for their delight-to-cost ratio. The psyche gains its strongest embodiment yet: the actively streaming bubble takes a thin border and soft halo **in LIA's current mood color**, and a whitelisted strong emotion (intensity ≥ 80 %) releases a one-shot burst of three particles from the avatar — rarity is the point. The moment LIA starts answering becomes cinematic (the execution steps cross-fade into the first tokens instead of being sharply replaced), the dormant weather keyframes finally come alive on the Today Briefing card, and the landing's hero conversation mockup is upgraded to product level — live breathing steps and a transient streaming caret, so visitors see the real thing. Same discipline as the parent batch: pure frontend, zero dependency, hard fallbacks, reduced-motion covered (with two cascade-level traps caught in self-review: CSS animation shorthands never share an element, and fill-mode animations are neutralized by duration, not `animation: none`).
