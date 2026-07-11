@@ -90,7 +90,9 @@ if [ -f "$INFRA_DENYLIST" ]; then
     STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
     INFRA_HITS=""
     if [ -s "$TOKENS_FILE" ] && [ -n "$STAGED_FILES" ]; then
-        INFRA_HITS=$(echo "$STAGED_FILES" | tr '\n' '\0' | xargs -0 grep -Fwn -f "$TOKENS_FILE" 2>/dev/null || true)
+        # -I: skip binary files — byte coincidences in compressed assets (PNG/SVG renders)
+        # are not leaks; mirrors test_no_infra_info_guard.py which scans text suffixes only.
+        INFRA_HITS=$(echo "$STAGED_FILES" | tr '\n' '\0' | xargs -0 grep -IFwn -f "$TOKENS_FILE" 2>/dev/null || true)
     fi
     rm -f "$TOKENS_FILE"
     if [ -n "$INFRA_HITS" ]; then
