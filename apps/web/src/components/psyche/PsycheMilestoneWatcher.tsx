@@ -15,6 +15,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
+import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { usePsycheStore } from '@/stores/psycheStore';
 import type { RelationshipStage } from '@/types/psyche';
 
@@ -38,7 +39,11 @@ export function PsycheMilestoneWatcher(): null {
     prevStageRef.current = stage;
     if (prev === null || prev === stage) return;
     if (STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(prev)) {
-      toast.success(t(`psyche.milestone.${stage}`), { icon: '✨', duration: 8000 });
+      toast.success(t(`psyche.milestone.${stage}`), {
+        // Animated ✨ (self-hosted 2728.webp) with the component's own static fallback.
+        icon: <AnimatedEmoji glyph="✨" animate imgClassName="w-5 h-5" spanClassName="text-base" />,
+        duration: 8000,
+      });
     }
   }, [stage, hydrated, enabled, t]);
 

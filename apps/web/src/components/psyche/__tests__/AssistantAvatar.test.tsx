@@ -84,6 +84,54 @@ describe('AssistantAvatar animated emoji', () => {
   });
 });
 
+describe('AssistantAvatar emotion particles (W3)', () => {
+  const strong = (emotion: string, intensity = 0.9) => ({
+    ...PSYCHE,
+    active_emotion: emotion,
+    emotion_intensity: intensity,
+  });
+
+  it('bursts 3 particles when a whitelisted strong emotion arrives', () => {
+    const { container, rerender } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={strong('tenderness')} animateEmoji />);
+    const particles = container.querySelectorAll('.animate-particle-up');
+    expect(particles).toHaveLength(3);
+    expect(particles[0].textContent).toBe('❤️');
+  });
+
+  it('never bursts on initial mount, even with a strong emotion', () => {
+    const { container } = render(
+      <AssistantAvatar psycheState={strong('tenderness')} animateEmoji />
+    );
+    expect(container.querySelector('.animate-particle-up')).toBeNull();
+  });
+
+  it('stays quiet below the intensity threshold', () => {
+    const { container, rerender } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={strong('tenderness', 0.5)} animateEmoji />);
+    expect(container.querySelector('.animate-particle-up')).toBeNull();
+  });
+
+  it('stays quiet for non-whitelisted emotions', () => {
+    const { container, rerender } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={strong('confusion')} animateEmoji />);
+    expect(container.querySelector('.animate-particle-up')).toBeNull();
+  });
+
+  it('stays quiet on history rows (animateEmoji false)', () => {
+    const { container, rerender } = render(<AssistantAvatar psycheState={PSYCHE} />);
+    rerender(<AssistantAvatar psycheState={strong('tenderness')} />);
+    expect(container.querySelector('.animate-particle-up')).toBeNull();
+  });
+
+  it('stays quiet under prefers-reduced-motion', () => {
+    mockReducedMotion(true);
+    const { container, rerender } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);
+    rerender(<AssistantAvatar psycheState={strong('tenderness')} animateEmoji />);
+    expect(container.querySelector('.animate-particle-up')).toBeNull();
+  });
+});
+
 describe('AssistantAvatar mood-ring ping (I6)', () => {
   it('never pings on initial mount', () => {
     const { container } = render(<AssistantAvatar psycheState={PSYCHE} animateEmoji />);

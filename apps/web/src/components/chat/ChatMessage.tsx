@@ -30,6 +30,7 @@ import { API_ENDPOINTS } from '@/lib/api-config';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { downloadImage } from '@/lib/utils/download-image';
 import { AssistantAvatar, type AvatarTooltipLine } from '@/components/psyche/AssistantAvatar';
+import { getMoodColor } from '@/lib/psyche-colors';
 import { usePsycheStore } from '@/stores/psycheStore';
 import type { PsycheStateSummary } from '@/types/psyche';
 import type { StreamPhase } from '@/types/chat-state';
@@ -403,6 +404,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
       ? 'progress-steps'
       : 'stream-caret'
     : '';
+  // One-shot cross-fade on the progress → answer flip: the markdown wrapper is
+  // keyed 'progress' during the steps phase and 'content' from the first real
+  // token onwards — exactly one remount per response, none at stream end.
+  const markdownKey = isActiveStream && props.streamPhase === 'progress' ? 'progress' : 'content';
+  const phaseFadeClass =
+    isActiveStream && props.streamPhase === 'answer' ? 'animate-phase-fade' : undefined;
   const { i18n, t } = useTranslation();
   const { user } = useAuth();
   const isSystem = message.role === 'system';
@@ -568,6 +575,14 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
       ]
     : undefined;
 
+  // Mood glow (W2): the actively streaming bubble takes a thin border + halo in
+  // the current mood color. Static color treatment — not motion — so it stays
+  // under reduced motion; gate closed or stream done → regular border.
+  const moodGlowStyle =
+    isActiveStream && psycheState
+      ? ({ '--mood-color': getMoodColor(psycheState.mood_label).hex } as React.CSSProperties)
+      : undefined;
+
   if (!isUser) {
     return (
       <div className="mb-4 animate-message-enter mobile:flex mobile:flex-row-reverse mobile:gap-3">
@@ -584,7 +599,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
         {/* Message bubble - Full width on mobile, flex-1 on tablet/desktop */}
         <div className="group flex flex-col w-full mobile:flex-1 items-end">
           <div
-            className={`relative message-bubble message-bubble-assistant px-4 py-3 rounded-xl shadow-md bg-card/70 backdrop-blur-md text-foreground rounded-tr-none border border-border/20 hover:shadow-lg hover:border-primary/30 hover:bg-card/80 mobile:rounded-tr-xl transition-colors ${streamClass}`}
+            className={`relative message-bubble message-bubble-assistant px-4 py-3 rounded-xl shadow-md bg-card/70 backdrop-blur-md text-foreground rounded-tr-none border border-border/20 hover:shadow-lg hover:border-primary/30 hover:bg-card/80 mobile:rounded-tr-xl transition-colors ${streamClass} ${moodGlowStyle ? 'mood-glow' : ''}`}
+            style={moodGlowStyle}
           >
             {/* Copy to clipboard button — always visible on mobile (no hover), hover-only on desktop */}
             <Tooltip>
@@ -616,7 +632,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             {message.browserScreenshot && (
               <BrowserScreenshotCard screenshot={message.browserScreenshot} />
             )}
-            <MarkdownContent content={message.content} isUser={false} />
+            <div key={markdownKey} className={phaseFadeClass}>
+              <MarkdownContent content={message.content} isUser={false} />
+            </div>
             {/* Feedback buttons for proactive interest notifications */}
             {showFeedbackButtons && (
               <InterestFeedbackButtons

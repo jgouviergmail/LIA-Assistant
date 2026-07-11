@@ -59,6 +59,21 @@ function intensityBarWidth(intensity: number): string {
   return 'w-3';
 }
 
+/**
+ * Rare-emotion particle burst (W3): only these emotions, at intensity ≥ 0.8,
+ * emit a one-shot 3-particle burst — the restraint is the point.
+ */
+const EMOTION_PARTICLES: Record<string, string> = {
+  joy: '✨',
+  wonder: '🌟',
+  tenderness: '❤️',
+  gratitude: '💖',
+  enthusiasm: '⚡',
+  pride: '🌟',
+  frustration: '💢',
+};
+const PARTICLE_INTENSITY_THRESHOLD = 0.8;
+
 /** Map emotion name to a simple color for the mini-bar. */
 const EMOTION_BAR_COLORS: Record<string, string> = {
   // Positive
@@ -112,6 +127,28 @@ export function AssistantAvatar({
       setPinging(true);
     }
   }, [moodLabel, animateEmoji]);
+  // Rare-emotion particle burst (W3): change-only (never on mount), whitelist +
+  // intensity gate, live avatar only, skipped entirely under reduced motion.
+  const [burstGlyph, setBurstGlyph] = useState<string | null>(null);
+  const prevEmotionRef = useRef<string | null>(null);
+  const activeEmotion = psycheState?.active_emotion ?? null;
+  const emotionIntensity = psycheState?.emotion_intensity ?? 0;
+  useEffect(() => {
+    const prev = prevEmotionRef.current;
+    prevEmotionRef.current = activeEmotion;
+    if (!animateEmoji || activeEmotion === null || prev === null || prev === activeEmotion) {
+      return;
+    }
+    const glyph = EMOTION_PARTICLES[activeEmotion];
+    if (!glyph || emotionIntensity < PARTICLE_INTENSITY_THRESHOLD) return;
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
+    }
+    setBurstGlyph(glyph);
+  }, [activeEmotion, emotionIntensity, animateEmoji]);
 
   // Fallback: psyche disabled or no data — show classic "LIA" avatar
   if (!psycheState) {
@@ -166,6 +203,28 @@ export function AssistantAvatar({
           spanClassName="text-xl leading-none"
         />
       </div>
+
+      {/* One-shot particle burst — cleared when the last (most delayed) particle ends */}
+      {burstGlyph && (
+        <span
+          className="pointer-events-none absolute inset-x-0 top-0 flex justify-center"
+          aria-hidden="true"
+        >
+          {[0, 1, 2].map(i => (
+            <span
+              key={i}
+              className="animate-particle-up absolute top-0 text-xs leading-none"
+              style={{
+                ['--particle-x' as string]: `${(i - 1) * 14}px`,
+                animationDelay: `${i * 120}ms`,
+              }}
+              onAnimationEnd={i === 2 ? () => setBurstGlyph(null) : undefined}
+            >
+              {burstGlyph}
+            </span>
+          ))}
+        </span>
+      )}
 
       {/* Rich tooltip on hover (desktop only) */}
       {(tooltipLines || psycheState) && (

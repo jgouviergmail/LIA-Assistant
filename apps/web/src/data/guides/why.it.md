@@ -4,7 +4,7 @@
 
 **Versione** : 3.7
 **Data** : 2026-07-11
-**Applicazione** : LIA v1.23.11
+**Applicazione** : LIA v1.23.12
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -280,7 +280,7 @@ Il **Psyche Engine** dà a LIA uno stato psicologico dinamico che evolve a ogni 
 
 Non stai parlando con uno strumento — interagisci con un'entità il cui vocabolario si scalda quando viene toccata, le cui frasi si accorciano sotto tensione, il cui umorismo emerge quando lo scambio è leggero. E non lo dice mai — lo **mostra**.
 
-Questa vita interiore ha un volto: l'emoji dell'umore si anima sulla risposta corrente, l'anello colorato pulsa quando l'umore cambia, e le tappe della tua relazione vengono celebrate con un discreto occhiolino.
+Questa vita interiore ha un volto: l'emoji dell'umore si anima sulla risposta corrente, l'anello colorato pulsa quando l'umore cambia, e le tappe della tua relazione vengono celebrate con un discreto occhiolino. La bolla di risposta brilla persino del colore dell'umore mentre LIA scrive.
 
 ### 7.3. I diari personali
 

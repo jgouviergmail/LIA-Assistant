@@ -1146,6 +1146,72 @@
       step-in 0.35s ease-out,
       step-breathe 2s ease-in-out 0.35s infinite;
   }
+  /* Standalone utilities for the same visuals outside .markdown-content
+     (landing ChatMockup steps). */
+  .animate-step-in {
+    animation: step-in 0.35s ease-out both;
+  }
+  .animate-step-breathe {
+    animation: step-breathe 2s ease-in-out infinite;
+  }
+  /* Delayed one-way dim: a step line fades to background once the next lands. */
+  @keyframes step-dim {
+    to {
+      opacity: 0.55;
+    }
+  }
+  .animate-step-dim {
+    animation: step-dim 0.4s ease forwards;
+  }
+
+  /* --- Progress → answer cross-fade (ChatMessage, one-shot on phase flip) --- */
+  @keyframes phase-fade {
+    from {
+      opacity: 0;
+      transform: translateY(2px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-phase-fade {
+    animation: phase-fade 0.3s ease-out;
+  }
+
+  /* --- Mood glow on the actively streaming bubble (ChatMessage .mood-glow) ---
+     Static color treatment (no motion): thin mood border + soft halo.
+     Double-class specificity: must beat the bubble's hover:border-primary/30
+     and shadow-md utilities; background-color stays in the transition list so
+     the hover background keeps its usual timing. */
+  .message-bubble.mood-glow {
+    border-color: var(--mood-color);
+    box-shadow: 0 0 18px -8px var(--mood-color);
+    transition:
+      border-color 0.6s ease,
+      box-shadow 0.6s ease,
+      background-color 0.15s ease;
+  }
+
+  /* --- Rare emotion particles (AssistantAvatar burst) --- */
+  @keyframes particle-up {
+    0% {
+      opacity: 0;
+      transform: translate(0, 0) scale(0.6);
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(var(--particle-x, 0px), -26px) scale(1);
+    }
+  }
+  .animate-particle-up {
+    /* Invisible at rest: if the animation is disabled, no frozen particle. */
+    opacity: 0;
+    animation: particle-up 1.1s ease-out both;
+  }
 
   /* --- Mood-ring ping (AssistantAvatar, one-shot on mood change) ---
      Scale + brightness only: the Tailwind ring is box-shadow based, so a
@@ -1237,6 +1303,16 @@
       opacity: 0;
     }
   }
+  /* Landing mockup: transient caret — 3 blinks then ends hidden ('both'). */
+  .mockup-caret {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: -0.15em;
+    background-color: currentColor;
+    animation: caret-blink 1s steps(1) 3 both;
+  }
   .stream-caret .markdown-content > p:last-of-type::after {
     content: '';
     display: inline-block;
@@ -1258,8 +1334,18 @@
     .animate-send-takeoff,
     .animate-greet-float,
     .badge-glimmer,
+    .animate-step-breathe,
+    .animate-phase-fade,
+    .animate-particle-up,
     .progress-steps .markdown-content em:last-of-type {
       animation: none !important;
+    }
+    /* step-in/step-dim are 'both'/'forwards' fill animations: killing them would
+       freeze lines invisible/undimmed mid-state — jump them to their end state. */
+    .animate-step-in,
+    .animate-step-dim {
+      animation-duration: 0s !important;
+      animation-delay: 0s !important;
     }
   }
 

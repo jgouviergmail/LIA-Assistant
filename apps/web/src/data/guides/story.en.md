@@ -4,7 +4,7 @@
 
 **Version**: 1.0
 **Date**: 2026-07-11
-**Application**: LIA v1.23.11
+**Application**: LIA v1.23.12
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -79,9 +79,9 @@ The level claimed in this document comes from a complete technical audit: 24 are
 
 **What remains to be done — known, planned:**
 
-- Real-time alerting chain and automated backups to bring up to the level of the rest.
-- Frontend test coverage to build — the backend concentrates most of it today.
-- Decomposition of the densest core components; removal of the main scaling bottleneck.
+- Backups: encryption and off-site copies — the daily automation itself is in production and verified.
+- Alerting: recalibrating the historical alert thresholds — the critical core is active and proven end to end, e-mail included.
+- Continuing the decomposition of the densest components, now driven by measurement (complexity, coupling) — the backend's main monoliths are done.
 
 The action plan is organized in waves, each with measurable exit criteria. That is how this project reports on itself: not a proclaimed level, a measured one — gaps included.
 

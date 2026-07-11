@@ -5557,6 +5557,32 @@ details.lia-collapsible > summary::marker {
   }
 }
 
+/* Living weather overlay (WeatherCard hero emoji) — decorative only.
+   Drops/flakes are opacity-0 at rest so the reduced-motion kill leaves
+   nothing frozen on screen; the rays ring degrades to a static halo. */
+.lia-weather-drop {
+  position: absolute;
+  top: -2px;
+  font-size: 8px;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  animation: lia-rain-drop 1.6s linear infinite;
+}
+
+.lia-weather-drop--snow {
+  animation-duration: 3.2s;
+}
+
+.lia-weather-rays {
+  position: absolute;
+  inset: -6px;
+  border: 1px dashed rgb(251 191 36 / 0.55);
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: lia-sun-rays 14s linear infinite;
+}
+
 /* Animation utility classes */
 .lia-animate-in {
   animation: lia-fade-in var(--lia-transition-normal) ease-out;

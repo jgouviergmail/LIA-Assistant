@@ -4,7 +4,7 @@
 
 **Version** : 1.0
 **Date** : 2026-07-11
-**Application** : LIA v1.23.11
+**Application** : LIA v1.23.12
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -79,9 +79,9 @@ Le niveau annoncé dans ce document résulte d'un audit technique complet : 24 p
 
 **Ce qu'il reste à faire — connu, planifié :**
 
-- Chaîne d'alerte temps réel et sauvegardes automatisées à remettre au niveau du reste.
-- Couverture de tests du frontend à construire — le backend en concentre aujourd'hui l'essentiel.
-- Décomposition des composants centraux les plus denses ; levée du principal frein de montée en charge.
+- Sauvegardes : chiffrement et copie hors site — l'automatisation quotidienne, elle, est en production et vérifiée.
+- Alertes : recalibrage des seuils du parc historique — le noyau critique est actif et prouvé de bout en bout, e-mail compris.
+- Poursuite de la décomposition des composants les plus denses, désormais pilotée par la mesure (complexité, couplage) — les principaux monolithes du backend sont traités.
 
 Le plan d'action est organisé en vagues, chacune avec des critères de sortie mesurables. C'est la façon de rendre compte de ce projet : pas un niveau proclamé, un niveau mesuré — écarts compris.
 

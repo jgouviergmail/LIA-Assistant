@@ -4,7 +4,7 @@
 
 **Version**: 1.0
 **Datum**: 2026-07-11
-**Anwendung**: LIA v1.23.11
+**Anwendung**: LIA v1.23.12
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -79,9 +79,9 @@ Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen techn
 
 **Was noch zu tun ist — bekannt, geplant:**
 
-- Echtzeit-Alarmkette und automatisierte Backups auf das Niveau des Rests bringen.
-- Frontend-Testabdeckung aufbauen — das Backend konzentriert heute das Wesentliche.
-- Zerlegung der dichtesten Kernkomponenten; Beseitigung des wichtigsten Skalierungsengpasses.
+- Backups: Verschlüsselung und externe Kopien — die tägliche Automatisierung selbst läuft produktiv und ist verifiziert.
+- Alarme: Neukalibrierung der historischen Schwellenwerte — der kritische Kern ist aktiv und Ende-zu-Ende nachgewiesen, E-Mail inklusive.
+- Fortsetzung der Zerlegung der dichtesten Komponenten, nun messgetrieben (Komplexität, Kopplung) — die wichtigsten Monolithen des Backends sind behandelt.
 
 Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriterien. So legt dieses Projekt Rechenschaft ab: kein proklamiertes Niveau, ein gemessenes — Lücken inklusive.
 

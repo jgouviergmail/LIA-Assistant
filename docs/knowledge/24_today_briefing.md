@@ -73,3 +73,5 @@ The vertical separator between the two values is aligned across both metrics so 
 ## Weather forecast — 5 days, localized
 
 Below the current conditions, a strip shows the next 5 days (today + 4) with weather icon and min/max. The day abbreviations (`lun`, `mar`, `mer`…) are computed locally in your browser using `Intl.DateTimeFormat` with your active language, so a French user sees `lun. mar. mer.`, an English user sees `Mon Tue Wed`, a Chinese user sees `周一 周二 周三`, etc.
+
+The card's hero emoji also lives with the real sky: rain drops fall on rainy conditions, snowflakes drift on snow, and a subtle sun halo rotates on clear days. It's purely decorative, and it follows your system's reduced-motion preference.

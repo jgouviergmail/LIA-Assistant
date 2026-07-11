@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'next/navigation';
 import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
+import { cn } from '@/lib/utils';
 import { BriefingCard } from '../BriefingCard';
 import type {
   CardSection,
@@ -29,6 +30,22 @@ const FORECAST_ALERT_ICON: Record<ForecastAlertKind, LucideIcon> = {
   snow: Snowflake,
   drizzle: CloudDrizzle,
 };
+
+type SkyAnimation = 'rain' | 'snow' | 'sun' | null;
+
+/**
+ * Map the OpenWeatherMap main condition code ('Clear', 'Rain', 'Snow', …) to
+ * the decorative hero animation. Unknown codes animate nothing.
+ */
+function skyAnimationFor(conditionCode: string): SkyAnimation {
+  const code = conditionCode.toLowerCase();
+  if (code.includes('rain') || code.includes('drizzle') || code.includes('thunder')) {
+    return 'rain';
+  }
+  if (code.includes('snow')) return 'snow';
+  if (code.includes('clear')) return 'sun';
+  return null;
+}
 
 interface WeatherCardProps {
   section: CardSection<WeatherData>;
@@ -60,6 +77,7 @@ export function WeatherCard({ section, isRefreshing, onRefresh, staggerIndex }: 
 
 function WeatherContent({ data }: { data: WeatherData }) {
   const { t } = useTranslation();
+  const sky = skyAnimationFor(data.condition_code);
   const tempLabel = t('dashboard.briefing.cards.weather.temp', {
     value: Math.round(data.temperature_c),
   });
@@ -80,10 +98,25 @@ function WeatherContent({ data }: { data: WeatherData }) {
 
   return (
     <div className="w-full flex flex-col items-center gap-2">
-      {/* Hero: emoji + current temp + min/max */}
+      {/* Hero: emoji + current temp + min/max — the emoji sky comes alive
+          (falling drops/flakes, rotating sun halo) based on condition_code */}
       <div className="flex items-baseline justify-center gap-2">
-        <span className="text-3xl leading-none" aria-hidden="true">
-          {data.icon_emoji}
+        <span className="relative inline-flex" aria-hidden="true">
+          {sky === 'sun' && <span className="lia-weather-rays" />}
+          <span className="text-3xl leading-none">{data.icon_emoji}</span>
+          {(sky === 'rain' || sky === 'snow') && (
+            <span className="absolute inset-0">
+              {[0, 1, 2].map(i => (
+                <span
+                  key={i}
+                  className={cn('lia-weather-drop', sky === 'snow' && 'lia-weather-drop--snow')}
+                  style={{ left: `${15 + i * 30}%`, animationDelay: `${i * 0.5}s` }}
+                >
+                  {sky === 'snow' ? '❄' : '💧'}
+                </span>
+              ))}
+            </span>
+          )}
         </span>
         <span className="text-3xl font-bold tabular-nums tracking-tight">{tempLabel}</span>
         {minMax && (

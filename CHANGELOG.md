@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.12] - 2026-07-11
+
+> The wow batch — six targeted effects that push the living interface (v1.23.10) one notch further, selected for their delight-to-cost ratio. The psyche gains its strongest embodiment yet: the actively streaming bubble takes a thin border and soft halo **in LIA's current mood color**, and a whitelisted strong emotion (intensity ≥ 80 %) releases a one-shot burst of three particles from the avatar — rarity is the point. The moment LIA starts answering becomes cinematic (the execution steps cross-fade into the first tokens instead of being sharply replaced), the dormant weather keyframes finally come alive on the Today Briefing card, and the landing's hero conversation mockup is upgraded to product level — live breathing steps and a transient streaming caret, so visitors see the real thing. Same discipline as the parent batch: pure frontend, zero dependency, hard fallbacks, reduced-motion covered (with two cascade-level traps caught in self-review: CSS animation shorthands never share an element, and fill-mode animations are neutralized by duration, not `animation: none`).
+
+### Added
+
+- **Mood glow (chat)** — the assistant bubble being streamed carries `border-color` + halo driven by a `--mood-color` CSS variable (resolved from the same psyche snapshot as the avatar); double-class specificity so the glow survives the bubble's own hover styles; background-color kept in the transition list to preserve hover timing. Psyche gate respected; regular border the instant the stream completes.
+- **Rare emotion particles (psyche)** — a change-only, never-on-mount burst of 3 rising particles when the live avatar's active emotion switches to a whitelisted one (✨ joy, 🌟 wonder/pride, ❤️ tenderness, 💖 gratitude, ⚡ enthusiasm, 💢 frustration) at intensity ≥ 0.8. History rows and reduced-motion never burst; particles are `opacity: 0` at rest so a disabled animation leaves nothing frozen.
+- **Progress → answer cross-fade (chat)** — the markdown wrapper of the active message is keyed on the reducer's `streaming.phase`: exactly one remount per response (none per token, none at stream end, none on history), playing a 300 ms fade when the first real tokens replace the execution steps.
+- **Living weather (Today Briefing)** — the dormant `lia-rain-drop` / `lia-sun-rays` keyframes are finally wired: falling 💧 on Rain/Drizzle/Thunderstorm, slower ❄ on Snow, a slow-rotating dashed amber halo on Clear — mapped defensively from `condition_code` (unknown codes animate nothing), decorative overlay only.
+- **Product-level landing mockup** — the hero conversation demo now shows real live steps (staggered entrance, past step dims when the next lands, current one breathes twice then settles) and a transient 3-blink streaming caret on the Markdown reply; 1 new i18n key ×6 (`landing.chat_mockup.step_analyze`). Nested spans because two CSS animation classes on one element override each other (`animation` is a single shorthand property).
+- **Animated milestone toast** — the relationship-milestone toast icon upgrades from static ✨ to the shared `AnimatedEmoji` (asset already self-hosted).
+
+### Tests
+
+- **+11 frontend tests** — mood-glow contract (active/inactive/gate-closed), cross-fade phase contract, and 6 particle-gating cases (whitelist, threshold, never-on-mount, history rows, reduced motion). Full suite green: 509 tests / 49 files, ESLint + `tsc --noEmit` clean, Prettier clean repo-wide on `src`, i18n parity ×6.
+
 ## [1.23.11] - 2026-07-11
 
 > The structural-decoupling release (ADR-126). Audit cycle 3's coupling metrics exposed a textbook Stable Dependencies violation: **auth** — the most depended-upon domain of the backend (26 afferent domains) — itself depended on 14 domains and sat in 11 of the 31 bidirectional import cycles. Three behavior-preserving lots later, the boundary is clean: **auth = identity & sessions (a leaf: 2 outgoing edges, 0 incoming, 0 cycles); users = the User aggregate, profile and account lifecycle (the coherent hub)**. Zero behavior change by construction — no endpoint, wire contract, transaction topology or structlog event touched; the full backend suites ran green at every lot boundary and the `User` class moved byte-identically (proven by blob comparison against HEAD).

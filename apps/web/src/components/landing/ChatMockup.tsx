@@ -208,7 +208,11 @@ function MarkdownReply({ t }: { t: (key: string) => string }) {
   ];
   return (
     <Bubble wide>
-      <span className="block text-sm mb-1.5">{t('landing.chat_mockup.s3_md_intro')}</span>
+      <span className="block text-sm mb-1.5">
+        {t('landing.chat_mockup.s3_md_intro')}
+        {/* Transient streaming caret: 3 blinks then gone, like the real product */}
+        <span className="mockup-caret" aria-hidden="true" />
+      </span>
       <ol className="space-y-1 text-sm">
         {places.map(({ name, rating, walk }, i) => (
           <li key={name} className="flex items-baseline gap-1.5">
@@ -289,11 +293,35 @@ export function ChatMockup() {
           </Bubble>
         );
       case 'planning':
-        return <Bubble key={i}>{t('landing.chat_mockup.lia_planning')}</Bubble>;
+        // Product-faithful live steps: line 1 slides in then dims when line 2
+        // lands; line 2 breathes until the HITL bubble arrives. Two animation
+        // classes never share an element (the `animation` shorthand would
+        // override) — hence the nested spans.
+        return (
+          <Bubble key={i}>
+            <span className="block space-y-0.5 text-xs italic text-muted-foreground">
+              <span className="block animate-step-in">
+                <span className="inline-block animate-step-dim" style={{ animationDelay: '650ms' }}>
+                  🧭 {t('landing.chat_mockup.step_analyze')}
+                </span>
+              </span>
+              <span className="block animate-step-in" style={{ animationDelay: '650ms' }}>
+                <span
+                  className="inline-block animate-step-breathe"
+                  // Two breaths then calm: the HITL bubble lands right after,
+                  // and a forever-breathing step would read as "still working".
+                  style={{ animationDelay: '1000ms', animationIterationCount: 2 }}
+                >
+                  📋 {t('landing.chat_mockup.lia_planning')}
+                </span>
+              </span>
+            </span>
+          </Bubble>
+        );
       case 'status':
         return (
           <Bubble key={i}>
-            <span className="italic text-muted-foreground">
+            <span className="inline-block italic text-muted-foreground animate-step-breathe">
               {t('landing.chat_mockup.s3_status')}
             </span>
           </Bubble>
