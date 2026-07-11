@@ -37,8 +37,9 @@ def run_failfast_validations() -> None:
     """Run the fail-fast boot validations (die at boot, not at first request).
 
     Validates, in order: LLM configuration completeness, ToolErrorCode enum
-    completeness, Draft Display Registry exhaustivity (ADR-085) and the
-    evidence-driven expansion entity types (ADR-085 pattern).
+    completeness, Draft Display Registry exhaustivity (ADR-085), Draft
+    Preview Renderer exhaustivity (ADR-085 pattern) and the evidence-driven
+    expansion entity types (ADR-085 pattern).
 
     Raises:
         RuntimeError: If any validation fails (the app must not boot).
@@ -66,6 +67,19 @@ def run_failfast_validations() -> None:
     except AssertionError as exc:
         logger.error("draft_display_registry_incomplete", error=str(exc), exc_info=True)
         raise RuntimeError(f"Draft display registry incomplete: {exc}") from exc
+
+    # Validate Draft Preview Renderer exhaustivity (ADR-085 pattern: fail-fast
+    # if a DraftType has been added without registering its detailed-preview
+    # renderer in the dispatch table).
+    try:
+        from src.domains.agents.drafts.preview_renderer import (
+            assert_preview_renderer_completeness,
+        )
+
+        assert_preview_renderer_completeness()
+    except AssertionError as exc:
+        logger.error("draft_preview_renderer_incomplete", error=str(exc), exc_info=True)
+        raise RuntimeError(f"Draft preview renderer registry incomplete: {exc}") from exc
 
     # Validate evidence-driven expansion entity types (ADR-085 pattern:
     # fail-fast if an evidence domain maps to an ontology type without the

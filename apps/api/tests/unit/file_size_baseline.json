@@ -6,7 +6,6 @@
     "domains/agents/api/router.py": 780,
     "domains/agents/api/service.py": 1052,
     "domains/agents/display/components/base.py": 962,
-    "domains/agents/drafts/models.py": 803,
     "domains/agents/drafts/service.py": 935,
     "domains/agents/emails/catalogue_manifests.py": 753,
     "domains/agents/nodes/hitl_dispatch_node.py": 756,

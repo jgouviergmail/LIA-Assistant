@@ -2952,6 +2952,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_23_9": {
+          "title": "v1.23.9 — 🧾 Confirmation cards made right (maintenance)",
+          "date": "July 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🌍 Confirmation previews fixed in all 6 languages</b> — three display defects in the confirmation cards are fixed: deleting a subject-less email showed the French '(sans objet)' whatever your language (now localized in each of the 6 languages); forwarding an email without an added message displayed the literal text 'None'; deleting an empty reminder showed a blank card (now a '?' consistent with the other deletions).",
+            "i2": "<b>🛡️ Card rendering consolidated (admin)</b> — the internal machinery building these previews was reorganized into a dedicated component, locked by a test net that pins the display character-for-character (61 cases, 16 draft types, 6 languages), and the application now refuses to start if a draft type has no registered renderer. No action required: no new environment variable, no migration."
+          }
+        },
         "v1_23_8": {
           "title": "v1.23.8 — 🧰 Unified API errors (maintenance)",
           "date": "July 2026",

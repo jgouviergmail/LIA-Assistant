@@ -432,7 +432,9 @@ Si le silence masque un vrai signal, ce n'est ni `pass` ni `suppress` : c'est un
 (`apps/api/tests/unit/test_file_size_ratchet_guard.py`) fait échouer le build dès qu'un
 fichier de `src/` dépasse son plafond de SLOC logiques (tokenize + AST, hors
 docstrings/commentaires/lignes vides — la sémantique de `scripts/audit/measure_sloc.py`,
-partagée avec le protocole d'audit) :
+partagée avec le protocole d'audit ; l'instrument jumeau pour la complexité cyclomatique
+par fonction est `scripts/audit/measure_cc.py`, utile pour cibler puis valider une
+décomposition — non câblé en CI) :
 
 - **600 SLOC logiques** pour tout fichier, y compris tout nouveau fichier ;
 - les fichiers historiques au-dessus sont **gelés** à leur taille auditée +2 % dans

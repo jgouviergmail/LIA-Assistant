@@ -2943,6 +2943,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_23_9": {
+          "title": "v1.23.9 — 🧾 Zuverlässigere Bestätigungskarten (Wartung)",
+          "date": "Juli 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🌍 Bestätigungsvorschauen in allen 6 Sprachen korrigiert</b> — drei Anzeigefehler der Bestätigungskarten sind behoben: Beim Löschen einer E-Mail ohne Betreff erschien das französische „(sans objet)“ unabhängig von Ihrer Sprache (jetzt in jeder der 6 Sprachen lokalisiert); beim Weiterleiten einer E-Mail ohne Begleittext erschien der wörtliche Text „None“; beim Löschen einer leeren Erinnerung blieb die Karte leer (jetzt ein „?“, konsistent mit den anderen Löschvorgängen).",
+            "i2": "<b>🛡️ Kartendarstellung konsolidiert (admin)</b> — die interne Mechanik, die diese Vorschauen erzeugt, wurde in eine dedizierte Komponente reorganisiert und durch ein Testnetz abgesichert, das die Anzeige zeichengenau festschreibt (61 Fälle, 16 Entwurfstypen, 6 Sprachen); zudem verweigert die Anwendung jetzt den Start, wenn für einen Entwurfstyp kein Renderer registriert ist. Keine Aktion erforderlich: keine neue Umgebungsvariable, keine Migration."
+          }
+        },
         "v1_23_8": {
           "title": "v1.23.8 — 🧰 Vereinheitlichte API-Fehler (Wartung)",
           "date": "Juli 2026",

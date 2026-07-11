@@ -1076,7 +1076,7 @@ def create_reminder_delete_draft(
 
 def create_email_delete_draft(
     message_id: str,
-    subject: str = "(sans objet)",
+    subject: str = "",
     from_addr: str = "",
     date: str = "",
     thread_id: str | None = None,
@@ -1089,7 +1089,8 @@ def create_email_delete_draft(
 
     Args:
         message_id: Message ID to delete
-        subject: Email subject for confirmation display
+        subject: Email subject for confirmation display (empty when the email
+            has none — localized fallback applied at render time)
         from_addr: Sender email for confirmation display
         date: Email date for confirmation display
         thread_id: Thread ID

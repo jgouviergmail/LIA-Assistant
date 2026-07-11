@@ -2943,6 +2943,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_23_9": {
+          "title": "v1.23.9 — 🧾 Tarjetas de confirmación fiables (mantenimiento)",
+          "date": "Julio de 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🌍 Vistas previas de confirmación corregidas en los 6 idiomas</b> — se corrigen tres defectos de visualización en las tarjetas de confirmación: eliminar un email sin asunto mostraba «(sans objet)» en francés fuera cual fuera tu idioma (ahora localizado en cada uno de los 6 idiomas); reenviar un email sin mensaje adicional mostraba el texto literal «None»; eliminar un recordatorio vacío mostraba una tarjeta en blanco (ahora un «?» coherente con las demás eliminaciones).",
+            "i2": "<b>🛡️ Renderizado de tarjetas consolidado (admin)</b> — la mecánica interna que construye estas vistas previas se reorganizó en un componente dedicado, bloqueada por una red de tests que fija la visualización carácter a carácter (61 casos, 16 tipos de borradores, 6 idiomas), y la aplicación ahora se niega a arrancar si un tipo de borrador no tiene renderizador registrado. No se requiere ninguna acción: ni nueva variable de entorno, ni migración."
+          }
+        },
         "v1_23_8": {
           "title": "v1.23.8 — 🧰 Errores de API unificados (mantenimiento)",
           "date": "Julio de 2026",

@@ -1639,6 +1639,7 @@ class OpenAICompletionTool(APIKeyConnectorTool[OpenAIClient]):
 | | `prompts/v1/fewshot/*.txt` | Few-shot examples (10 domaines) |
 | | `prompts/v1/prompt_loader.py` | Chargement dynamique prompts |
 | **Drafts** | `drafts/models.py` | Draft types & lifecycle |
+| | `drafts/preview_renderer.py` | Detailed-preview dispatch table (ADR-125) |
 | | `drafts/service.py` | create_*_draft functions |
 | **Streaming** | `services/streaming/service.py` | SSE formatting |
 | **HITL** | `services/hitl/registry.py` | Types interactions |

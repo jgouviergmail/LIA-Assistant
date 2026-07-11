@@ -2730,22 +2730,31 @@ elif decision == "EDIT":
 
 ### 17.3 Draft System
 
-**Fichier**: `src/domains/agents/drafts/models.py`
+**Fichiers**: `src/domains/agents/drafts/models.py` (types & lifecycle),
+`src/domains/agents/drafts/preview_renderer.py` (detailed-preview dispatch
+table — ADR-125, one renderer per `DraftType`, boot-time completeness assert),
+`src/domains/agents/drafts/display.py` (post-execution display registry —
+ADR-085)
 
 ```python
 class DraftType(str, Enum):
     """Types de drafts supportés."""
-    EMAIL = "EMAIL"
-    EVENT = "EVENT"
-    EVENT_UPDATE = "EVENT_UPDATE"
-    EVENT_DELETE = "EVENT_DELETE"
-    CONTACT = "CONTACT"
-    CONTACT_UPDATE = "CONTACT_UPDATE"
-    CONTACT_DELETE = "CONTACT_DELETE"
-    TASK = "TASK"
-    TASK_UPDATE = "TASK_UPDATE"
-    TASK_DELETE = "TASK_DELETE"
-    FILE_DELETE = "FILE_DELETE"
+    EMAIL = "email"
+    EMAIL_REPLY = "email_reply"
+    EMAIL_FORWARD = "email_forward"
+    EMAIL_DELETE = "email_delete"
+    EVENT = "event"
+    EVENT_UPDATE = "event_update"
+    EVENT_DELETE = "event_delete"
+    CONTACT = "contact"
+    CONTACT_UPDATE = "contact_update"
+    CONTACT_DELETE = "contact_delete"
+    TASK = "task"
+    TASK_UPDATE = "task_update"
+    TASK_DELETE = "task_delete"
+    FILE_DELETE = "file_delete"
+    LABEL_DELETE = "label_delete"
+    REMINDER_DELETE = "reminder_delete"
 
 class DraftStatus(str, Enum):
     """Lifecycle status."""

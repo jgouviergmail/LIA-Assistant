@@ -2945,6 +2945,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_23_9": {
+          "title": "v1.23.9 — 🧾 Schede di conferma affidabili (manutenzione)",
+          "date": "Luglio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🌍 Anteprime di conferma corrette nelle 6 lingue</b> — corretti tre difetti di visualizzazione delle schede di conferma: eliminare un'email senza oggetto mostrava «(sans objet)» in francese qualunque fosse la tua lingua (ora localizzato in ciascuna delle 6 lingue); inoltrare un'email senza messaggio aggiuntivo mostrava il testo letterale «None»; eliminare un promemoria vuoto mostrava una scheda vuota (ora un «?» coerente con le altre eliminazioni).",
+            "i2": "<b>🛡️ Rendering delle schede consolidato (admin)</b> — la meccanica interna che costruisce queste anteprime è stata riorganizzata in un componente dedicato, bloccata da una rete di test che fissa la visualizzazione carattere per carattere (61 casi, 16 tipi di bozze, 6 lingue), e l'applicazione ora rifiuta di avviarsi se un tipo di bozza non ha un renderer registrato. Nessuna azione richiesta: nessuna nuova variabile d'ambiente, nessuna migrazione."
+          }
+        },
         "v1_23_8": {
           "title": "v1.23.8 — 🧰 Errori API unificati (manutenzione)",
           "date": "Luglio 2026",

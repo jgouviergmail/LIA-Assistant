@@ -2957,6 +2957,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_23_9": {
+          "title": "v1.23.9 — 🧾 Cartes de confirmation fiabilisées (maintenance)",
+          "date": "Juillet 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🌍 Aperçus de confirmation corrigés dans les 6 langues</b> — trois défauts d'affichage des cartes de confirmation sont corrigés : la suppression d'un email sans objet affichait « (sans objet) » en français quelle que soit votre langue (désormais localisé dans chacune des 6 langues) ; le transfert d'un email sans message d'accompagnement affichait le texte littéral « None » ; la suppression d'un rappel vide affichait une carte blanche (désormais un « ? » cohérent avec les autres suppressions).",
+            "i2": "<b>🛡️ Rendu des cartes consolidé (admin)</b> — la mécanique interne qui construit ces aperçus a été réorganisée en composant dédié, verrouillée par un filet de tests reproduisant l'affichage au caractère près (61 cas, 16 types de brouillons, 6 langues), et l'application refuse désormais de démarrer si un type de brouillon n'a pas de rendu enregistré. Aucune action requise : ni nouvelle variable d'environnement, ni migration."
+          }
+        },
         "v1_23_8": {
           "title": "v1.23.8 — 🧰 Erreurs API unifiées (maintenance)",
           "date": "Juillet 2026",

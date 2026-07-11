@@ -280,12 +280,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-124 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-125 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-125 | Draft Preview Renderer Extraction — extraction n°2 de la série complexité (audit cycle 3) : `Draft.get_detailed_preview` (CC ≈ 93, cascade de 14 `elif`, logique de présentation dans un module models) vers `drafts/preview_renderer.py` en dispatch table + 3 helpers « modifié ✏️ / préservé », filet golden byte-identique vert à l'identique avant/après (cas mixtes anti-câblage-croisé, 16 DraftType, 6 langues), assert de complétude boot-time pattern ADR-085, `models.py` 803 → 579 SLOC (sort du registre des fichiers gelés), CC max 9 par fonction ; follow-up même livraison : 3 comportements épinglés corrigés (clé i18n `no_subject` ×6 langues assainissant 5 couches de français en dur, body `None` rendu vide, reminder vide → `?`) avec diff golden chirurgical, + instrument `scripts/audit/measure_cc.py` committé | 2026-07 |
 | ADR-124 | Router/Service Error Contract (règle #18 phase 2) — élimination des 33 `raise HTTPException` bruts restants (13 fichiers) vers la taxonomie centralisée `core/exceptions.py`, contrat byte-identique prouvé par 33 tests de pin écrits AVANT migration + parité edge des 8 nouvelles classes (`StructuredValidationError` 422 dict, `PayloadTooLargeError` 413, `BadGatewayError` 502, `GoneError` 410, …), façade `_exceptions_base`/`exceptions_domains` pour le ratchet (aucun import consommateur modifié), garde grep CI code-hygiene, fix approuvé du 422 heartbeat avalé en 500 | 2026-07 |
 | ADR-123 | Lifespan Startup Decomposition — extraction verbatim du 2e monolithe du backend (`main.py::lifespan`, ~780 SLOC, 23 étapes startup + 20 shutdown) vers `src/infrastructure/startup/` (7 modules par sous-système, une fonction typée par segment contigu), lifespan = séquence de ~25 appels dans l'ordre historique exact + commentaire de tête documentant les 8 dépendances d'ordre, mêmes événements structlog / try-except / flags, sémantique des objets partiels préservée, diff des logs de boot avant/après = 0 | 2026-07 |
 | ADR-122 | AgentService Stream Decomposition (B2) — extraction neutre de la coordination voix/TTS de `_stream_with_new_services` (1 135 SLOC, plus grosse fonction du backend) vers `VoiceStreamCoordinator` + `voice_stream_helpers` (interface typée, 11 variables d'état encapsulées), filet golden de 11 scénarios SSE vert à l'identique avant/après, `service.py` −35 % (1 585 → 1 031 SLOC), coutures suivantes : finalisation/archivage puis setup | 2026-07 |

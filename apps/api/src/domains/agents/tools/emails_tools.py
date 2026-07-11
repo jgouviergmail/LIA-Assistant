@@ -430,7 +430,13 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         if message_id or message_ids:
             # ID mode: direct fetch
             return await self._execute_by_ids(
-                client, user_id, message_id, message_ids, use_cache, user_timezone, locale
+                client,
+                user_id,
+                message_id,
+                message_ids,
+                use_cache,
+                user_timezone,
+                locale,
             )
         else:
             # Query mode: search + fetch details
@@ -1999,9 +2005,9 @@ async def send_email_tool(
         body_provided=bool(body),
         body_value=body[:50] if body else None,
         content_instruction_provided=bool(content_instruction),
-        content_instruction_value=content_instruction[:50] if content_instruction else None,
+        content_instruction_value=(content_instruction[:50] if content_instruction else None),
         runtime_provided=runtime is not None,
-        runtime_config_keys=list(runtime.config.keys()) if runtime and runtime.config else [],
+        runtime_config_keys=(list(runtime.config.keys()) if runtime and runtime.config else []),
         configurable_keys=(
             list(runtime.config.get("configurable", {}).keys())
             if runtime and runtime.config
@@ -2059,7 +2065,7 @@ async def send_email_tool(
                 recipient=to,
                 user_language=user_language,
                 existing_body=body if body and not subject else None,
-                config=runtime.config if runtime else None,  # Pass config for token tracking
+                config=(runtime.config if runtime else None),  # Pass config for token tracking
                 user_id=_email_user_id,
                 sender_name=_sender_name,
             )
@@ -2580,7 +2586,10 @@ class DeleteEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         headers = email.get("payload", {}).get("headers", [])
         header_dict = {h.get("name", "").lower(): h.get("value", "") for h in headers}
 
-        subject = header_dict.get("subject", "(sans objet)")
+        # Store the raw truth: "" when the email has no subject. The localized
+        # "(no subject)" fallback belongs to render time (preview_renderer),
+        # never to the stored draft content.
+        subject = header_dict.get("subject", "")
         from_addr = header_dict.get("from", "")
         date = header_dict.get("date", "")
 
@@ -2610,7 +2619,7 @@ class DeleteEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         # create_email_delete_draft returns UnifiedToolOutput directly
         return create_email_delete_draft(
             message_id=result["message_id"],
-            subject=result.get("subject", "(sans objet)"),
+            subject=result.get("subject", ""),
             from_addr=result.get("from", ""),
             date=result.get("date", ""),
             thread_id=result.get("thread_id"),
@@ -2787,7 +2796,8 @@ async def execute_email_delete_draft(
 
     await client.trash_email(draft_content["message_id"])
 
-    subject = draft_content.get("subject", "(sans objet)")
+    # Falsy subject → APIMessages renders its localized subject-less variant.
+    subject = draft_content.get("subject") or None
 
     logger.info(
         "email_delete_draft_executed",

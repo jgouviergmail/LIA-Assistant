@@ -37,7 +37,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.i18n_drafts import get_draft_preview_labels, get_draft_summary_label
+from src.core.i18n_drafts import get_draft_summary_label
 
 
 class DraftType(str, Enum):
@@ -218,7 +218,12 @@ class EmailDeleteDraftInput(BaseDraftInput):
 
     message_id: str = Field(..., description="Message ID to delete")
     subject: str = Field(
-        default="(sans objet)", description="Email subject for confirmation display"
+        default="",
+        description=(
+            "Email subject for confirmation display. Empty when the email has "
+            "none — the localized '(no subject)' fallback is applied at render "
+            "time (drafts/preview_renderer.py), never stored."
+        ),
     )
     from_addr: str = Field(default="", description="Sender email for confirmation display")
     date: str = Field(default="", description="Email date for confirmation display")
@@ -857,7 +862,9 @@ class Draft(BaseModel):
         Get a detailed preview of the draft for user confirmation.
 
         Shows full email content (to, cc, subject, body) for verification.
-        Used in HITL confirmation flow before execution.
+        Used in HITL confirmation flow before execution. Rendering is
+        delegated to the per-type dispatch table in
+        ``drafts/preview_renderer.py`` (extracted 2026-07, audit cycle 3).
 
         Args:
             user_language: Language for labels (fr, en, es, de, it, zh-CN)
@@ -866,283 +873,10 @@ class Draft(BaseModel):
         Returns:
             Detailed multi-line preview string with all relevant fields.
         """
-        from src.core.time_utils import format_datetime_for_display
+        # Local import: preview_renderer imports DraftType from this module.
+        from src.domains.agents.drafts.preview_renderer import render_detailed_preview
 
-        def format_dt(dt_str: str | None) -> str:
-            """Format an ISO datetime string for display."""
-            if not dt_str:
-                return ""
-            return format_datetime_for_display(
-                dt_str, user_timezone, user_language, include_time=True
-            )
-
-        lines: list[str] = []
-
-        # Get localized labels from centralized i18n
-        lbl = get_draft_preview_labels(user_language)
-
-        # Email drafts (send, reply, forward)
-        if self.type in (DraftType.EMAIL, DraftType.EMAIL_REPLY, DraftType.EMAIL_FORWARD):
-            to = self.content.get("to", "")
-            cc = self.content.get("cc", "")
-            bcc = self.content.get("bcc", "")
-            subject = self.content.get("subject", "")
-            body = self.content.get("body", "")
-
-            lines.append(f"<br/>**{lbl['to']}**: {to}")
-            if cc:
-                lines.append(f"<br/>**{lbl['cc']}**: {cc}")
-            if bcc:
-                lines.append(f"<br/>**{lbl['bcc']}**: {bcc}")
-            lines.append(f"<br/>**{lbl['subject']}**: {subject}")
-            lines.append(f"<br/>**{lbl['body']}**:<br/>{body}")
-
-            # For forwards, mention attachments if present
-            if self.type == DraftType.EMAIL_FORWARD:
-                attachments = self.content.get("attachments", [])
-                if attachments:
-                    att_names = [a.get("filename", a.get("name", "?")) for a in attachments]
-                    lines.append(f"<br/>**{lbl['attachments']}**: {', '.join(att_names)}")
-
-        # Email delete
-        elif self.type == DraftType.EMAIL_DELETE:
-            subject = self.content.get("subject", "(sans objet)")
-            from_addr = self.content.get("from", self.content.get("from_addr", "?"))
-            date_raw = self.content.get("date", "")
-            date = format_dt(date_raw) if date_raw else ""
-
-            lines.append(f"<br/>**{lbl['from']}**: {from_addr}")
-            lines.append(f"<br/>**{lbl['subject']}**: {subject}")
-            if date:
-                lines.append(f"<br/>**{lbl['date']}**: {date}")
-
-        # Reminder delete
-        elif self.type == DraftType.REMINDER_DELETE:
-            content = self.content.get("content", "")
-            trigger_at = self.content.get("trigger_at", "")
-            trigger_formatted = format_dt(trigger_at) if trigger_at else ""
-
-            if content:
-                lines.append(f"<br/>**{lbl['event']}**: {content}")
-            if trigger_formatted:
-                lines.append(f"<br/>**{lbl['date']}**: {trigger_formatted}")
-
-        # Event creation
-        elif self.type == DraftType.EVENT:
-            summary = self.content.get("summary", "")
-            start = format_dt(self.content.get("start_datetime", ""))
-            end = format_dt(self.content.get("end_datetime", ""))
-            location = self.content.get("location", "")
-            description = self.content.get("description", "")
-            attendees = self.content.get("attendees", [])
-
-            lines.append(f"<br/>**{lbl['event']}**: {summary}")
-            lines.append(f"<br/>**{lbl['start']}**: {start}")
-            lines.append(f"<br/>**{lbl['end']}**: {end}")
-            if location:
-                lines.append(f"<br/>**{lbl['location']}**: {location}")
-            if attendees:
-                lines.append(f"<br/>**{lbl['attendees']}**: {', '.join(attendees)}")
-            if description:
-                lines.append(f"<br/>**{lbl['body']}**<br/>{description}")
-
-        # Event update — show full resulting state with modified fields marked
-        elif self.type == DraftType.EVENT_UPDATE:
-            current = self.content.get("current_event", {})
-            summary = self.content.get("summary") or current.get("summary", "?")
-            lines.append(f"<br/>**{lbl['event']}**: {summary}")
-
-            # Start: modified or preserved from current
-            new_start = self.content.get("start_datetime")
-            cur_start = current.get("start", {}).get(
-                "dateTime", current.get("start", {}).get("date", "")
-            )
-            start_val = (
-                format_dt(new_start) if new_start else format_dt(cur_start) if cur_start else ""
-            )
-            if start_val:
-                mark = " ✏️" if new_start else ""
-                lines.append(f"<br/>**{lbl['start']}**: {start_val}{mark}")
-
-            # End: modified or preserved from current
-            new_end = self.content.get("end_datetime")
-            cur_end = current.get("end", {}).get("dateTime", current.get("end", {}).get("date", ""))
-            end_val = format_dt(new_end) if new_end else format_dt(cur_end) if cur_end else ""
-            if end_val:
-                mark = " ✏️" if new_end else ""
-                lines.append(f"<br/>**{lbl['end']}**: {end_val}{mark}")
-
-            # Location: modified or preserved
-            new_loc = self.content.get("location")
-            cur_loc = current.get("location", "")
-            loc_val = new_loc or cur_loc
-            if loc_val:
-                mark = " ✏️" if new_loc else ""
-                lines.append(f"<br/>**{lbl['location']}**: {loc_val}{mark}")
-
-            # Attendees: modified or preserved
-            new_att = self.content.get("attendees")
-            if new_att:
-                lines.append(f"<br/>**{lbl['attendees']}**: {', '.join(new_att)} ✏️")
-            elif current.get("attendees"):
-                cur_att = [a.get("email", a.get("displayName", "")) for a in current["attendees"]]
-                if cur_att:
-                    lines.append(f"<br/>**{lbl['attendees']}**: {', '.join(cur_att)}")
-
-        # Event delete
-        elif self.type == DraftType.EVENT_DELETE:
-            event = self.content.get("event", {})
-            summary = event.get("summary", "?")
-            start_raw = event.get("start", {}).get(
-                "dateTime", event.get("start", {}).get("date", "")
-            )
-            start = format_dt(start_raw) if start_raw else ""
-
-            lines.append(f"<br/>**{lbl['event']}**: {summary}")
-            if start:
-                lines.append(f"<br/>**{lbl['date']}**: {start}")
-
-        # Contact creation
-        elif self.type == DraftType.CONTACT:
-            name = self.content.get("name", "")
-            email = self.content.get("email", "")
-            phone = self.content.get("phone", "")
-            organization = self.content.get("organization", "")
-
-            lines.append(f"<br/>**{lbl['contact']}**: {name}")
-            if email:
-                lines.append(f"<br/>**{lbl['email']}**: {email}")
-            if phone:
-                lines.append(f"<br/>**{lbl['phone']}**: {phone}")
-            if organization:
-                lines.append(f"<br/>**{lbl['organization']}**: {organization}")
-
-        # Contact update — show full resulting state with modified fields marked
-        elif self.type == DraftType.CONTACT_UPDATE:
-            current = self.content.get("current_contact", {})
-            names = current.get("names", [])
-            cur_name = names[0].get("displayName", "?") if names else "?"
-            new_name = self.content.get("name")
-            name_val = new_name or cur_name
-            mark = " ✏️" if new_name else ""
-            lines.append(f"<br/>**{lbl['contact']}**: {name_val}{mark}")
-
-            # Email: modified or preserved
-            new_email = self.content.get("email")
-            cur_emails = current.get("emailAddresses", [])
-            cur_email = cur_emails[0].get("value", "") if cur_emails else ""
-            email_val = new_email or cur_email
-            if email_val:
-                mark = " ✏️" if new_email else ""
-                lines.append(f"<br/>**{lbl['email']}**: {email_val}{mark}")
-
-            # Phone: modified or preserved
-            new_phone = self.content.get("phone")
-            cur_phones = current.get("phoneNumbers", [])
-            cur_phone = cur_phones[0].get("value", "") if cur_phones else ""
-            phone_val = new_phone or cur_phone
-            if phone_val:
-                mark = " ✏️" if new_phone else ""
-                lines.append(f"<br/>**{lbl['phone']}**: {phone_val}{mark}")
-
-            # Organization: modified or preserved
-            new_org = self.content.get("organization")
-            cur_orgs = current.get("organizations", [])
-            cur_org = cur_orgs[0].get("name", "") if cur_orgs else ""
-            org_val = new_org or cur_org
-            if org_val:
-                mark = " ✏️" if new_org else ""
-                lines.append(f"<br/>**{lbl['organization']}**: {org_val}{mark}")
-
-        # Contact delete
-        elif self.type == DraftType.CONTACT_DELETE:
-            contact = self.content.get("contact", {})
-            names = contact.get("names", [])
-            name = names[0].get("displayName", "?") if names else "?"
-            emails = contact.get("emailAddresses", [])
-            email = emails[0].get("value", "") if emails else ""
-
-            lines.append(f"<br/>**{lbl['contact']}**: {name}")
-            if email:
-                lines.append(f"<br/>**{lbl['email']}**: {email}")
-
-        # Task creation
-        elif self.type == DraftType.TASK:
-            title = self.content.get("title", "")
-            notes = self.content.get("notes", "")
-            due_raw = self.content.get("due", "")
-            due = format_dt(due_raw) if due_raw else ""
-
-            lines.append(f"<br/>**{lbl['task']}**: {title}")
-            if due:
-                lines.append(f"<br/>**{lbl['due']}**: {due}")
-            if notes:
-                lines.append(f"<br/>**{lbl['body']}**:<br/>{notes}")
-
-        # Task update — show full resulting state with modified fields marked
-        elif self.type == DraftType.TASK_UPDATE:
-            current = self.content.get("current_task", {})
-            new_title = self.content.get("title")
-            cur_title = current.get("title", "?")
-            title_val = new_title or cur_title
-            mark = " ✏️" if new_title else ""
-            lines.append(f"<br/>**{lbl['task']}**: {title_val}{mark}")
-
-            # Due: modified or preserved
-            new_due = self.content.get("due")
-            cur_due = current.get("due", "")
-            due_val = format_dt(new_due) if new_due else format_dt(cur_due) if cur_due else ""
-            if due_val:
-                mark = " ✏️" if new_due else ""
-                lines.append(f"<br/>**{lbl['due']}**: {due_val}{mark}")
-
-            # Notes: modified or preserved
-            new_notes = self.content.get("notes")
-            cur_notes = current.get("notes", "")
-            notes_val = new_notes or cur_notes
-            if notes_val:
-                mark = " ✏️" if new_notes else ""
-                lines.append(f"<br/>**{lbl['body']}**: {notes_val}{mark}")
-
-        # Task delete
-        elif self.type == DraftType.TASK_DELETE:
-            title = self.content.get("title", "?")
-            lines.append(f"<br/>**{lbl['task']}**: {title}")
-
-        # File delete
-        elif self.type == DraftType.FILE_DELETE:
-            file_data = self.content.get("file", {})
-            name = file_data.get("name", "?")
-            mime_type = file_data.get("mimeType", "")
-
-            lines.append(f"<br/>**{lbl['file']}**: {name}")
-            if mime_type:
-                lines.append(f"<br/>**{lbl['type']}**: {mime_type}")
-
-        # Label delete
-        elif self.type == DraftType.LABEL_DELETE:
-            label_name = self.content.get("label_name", "?")
-            sublabels = self.content.get("sublabels", [])
-            children_only = self.content.get("children_only", False)
-
-            if children_only:
-                lines.append(f"<br/>**{lbl['label_parent']}**: {label_name}")
-                lines.append(f"<br/>**{lbl['sublabels_to_delete']}**: {len(sublabels)}")
-            else:
-                lines.append(f"<br/>**{lbl['label']}**: {label_name}")
-                if sublabels:
-                    lines.append(f"<br/>**{lbl['sublabels_included']}**: {len(sublabels)}")
-                    # Show first few sublabel names
-                    sublabel_names = [s.get("name", "?") for s in sublabels[:5]]
-                    if len(sublabels) > 5:
-                        sublabel_names.append(f"... (+{len(sublabels) - 5})")
-                    lines.append(f"<br/>  {', '.join(sublabel_names)}")
-
-        # Fallback
-        else:
-            return self.get_summary(user_language)
-
-        return "<br/>".join(lines)
+        return render_detailed_preview(self, user_language, user_timezone)
 
 
 class DraftActionRequest(BaseModel):
