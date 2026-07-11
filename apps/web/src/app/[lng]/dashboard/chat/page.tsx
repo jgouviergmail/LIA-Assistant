@@ -9,6 +9,8 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Message } from '@/types/chat';
 import { RegistryProvider } from '@/lib/registry-context';
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
+import { PsycheMilestoneWatcher } from '@/components/psyche/PsycheMilestoneWatcher';
+import { useLiveTabTitle } from '@/hooks/useLiveTabTitle';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ContextUsagePill } from '@/components/chat/ContextUsagePill';
 import { GeolocationPrompt } from '@/components/chat/GeolocationPrompt';
@@ -54,6 +56,8 @@ export default function ChatPage() {
   const {
     messages,
     isTyping,
+    activeStreamId, // Assistant message currently streaming (steps/caret styling)
+    streamPhase, // 'progress' (execution steps) vs 'answer' (real tokens)
     isConnected,
     apiAvailable,
     conversationTotals: sessionTotals, // Totals accumulated during the current session (SSE done chunks)
@@ -70,6 +74,10 @@ export default function ChatPage() {
     checkAndResumeActiveRun, // ADR-117 Lot 2: silent reattach to an in-flight run
     stopGeneration, // ADR-117 Lot 3: stop button (cancels the in-flight run)
   } = useChat({ debugPanelVisible: showDebugPanel });
+
+  // Blink the tab title while LIA works and the tab is in the background (I5)
+  useLiveTabTitle(isTyping);
+
   const {
     loadConversationPage,
     loadOlderMessages,
@@ -604,9 +612,13 @@ export default function ChatPage() {
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto chat-scrollbar">
             <RegistryProvider value={registry}>
+              {/* Headless: celebrates relationship-stage milestones (I7) */}
+              <PsycheMilestoneWatcher />
               <ChatMessageList
                 messages={displayedMessages}
                 isTyping={isTyping && !searchQuery}
+                activeStreamId={searchQuery ? null : activeStreamId}
+                streamPhase={streamPhase}
                 browserScreenshot={browserScreenshot}
                 // Scroll-up pagination — disabled while the user is searching
                 // (search filters client-side over already-loaded messages

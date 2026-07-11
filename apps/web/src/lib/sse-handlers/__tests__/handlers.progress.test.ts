@@ -149,7 +149,7 @@ describe('handleExecutionStep — generic accumulator', () => {
 
     expect(context.executionStepsRef.current).toEqual(['*📅 execution.steps.calendar_search*']);
     expect(dispatchedOfType(dispatch, 'STREAM_REPLACE')).toEqual([
-      { content: '*📅 execution.steps.calendar_search*' },
+      { content: '*📅 execution.steps.calendar_search*', phase: 'progress' },
     ]);
   });
 

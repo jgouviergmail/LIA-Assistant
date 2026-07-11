@@ -56,6 +56,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           currentMessageId: null,
           streamBuffer: '',
           sseStatus: 'disconnected',
+          phase: 'answer',
         },
         totals: {
           totalTokensIn: 0,
@@ -158,6 +159,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           currentMessageId: null,
           streamBuffer: '',
           sseStatus: 'disconnected',
+          phase: 'answer',
         },
       };
 
@@ -206,6 +208,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
             ...state.streaming,
             currentMessageId: action.payload.messageId,
             streamBuffer: state.messages[existingIndex].content,
+            phase: action.payload.phase ?? state.streaming.phase,
           },
         };
       }
@@ -225,6 +228,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           ...state.streaming,
           currentMessageId: action.payload.messageId,
           streamBuffer: initialContent,
+          phase: action.payload.phase ?? state.streaming.phase,
         },
       };
     }
@@ -289,6 +293,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           streaming: {
             ...state.streaming,
             streamBuffer: newContent, // Reset buffer to new content
+            phase: action.payload.phase ?? state.streaming.phase,
           },
         };
       }
@@ -439,6 +444,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           currentMessageId: null,
           streamBuffer: '',
           sseStatus: 'disconnected',
+          phase: 'answer',
         },
         browserScreenshot: null, // Clear overlay when stream completes
         contextUsage: nextContextUsage,

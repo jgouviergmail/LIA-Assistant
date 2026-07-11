@@ -542,6 +542,7 @@
       "reconnecting": "重新连接中..."
     },
     "assistant_typing": "助手正在输入...",
+    "tab_title_writing": "LIA 正在输入…",
     "message": {
       "you": "您",
       "assistant": "助手",
@@ -2905,7 +2906,7 @@
         },
         "psycheEngine": {
           "title": "🧠 Psyche引擎",
-          "description": "随每次交流动态演变的心理状态。情绪（22种情感）、能量、与用户的关系、人格特质（大五人格）。助手有机地调整其语调、词汇和行为——从不明说，而是展现。内置情感安全：强负面情感记忆自动触发保护模式。"
+          "description": "随每次交流动态演变的心理状态。情绪（22种情感）、能量、与用户的关系、人格特质（大五人格）。助手有机地调整其语调、词汇和行为——从不明说，而是展现。内置情感安全：强负面情感记忆自动触发保护模式。这种生命现在看得见：心情头像会在当前回复上动起来。"
         },
         "personalJournals": {
           "title": "📓 个人日记（分层意识）",
@@ -2938,6 +2939,18 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_23_10": {
+          "title": "v1.23.10 — ✨ 界面活起来了",
+          "date": "2026年7月",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎭 鲜活的心情头像</b> — 在当前回复上，LIA 的心情表情是真正的动态面孔；历史消息保留静态的心情快照，悬停时会苏醒。当 LIA 的心情变化时，彩色光环会脉动一次；关系里程碑（探索、亲密、稳定）会以一次性通知庆祝。",
+            "i2": "<b>🎪 动态人格表情</b> — 当前人格的表情在页头持续鲜活；在选择菜单中，悬停任一人格即可让它动起来。",
+            "i3": "<b>⚙️ 鲜活的执行进度</b> — LIA 工作时，已完成的步骤逐渐变淡，当前步骤轻轻呼吸；回答撰写中有光标闪烁；等待动画每次回复都会变换形态；发送按钮起飞；空会话由动态 👋 迎接你。",
+            "i4": "<b>🗂️ 鲜活的标签页</b> — 如果你在 LIA 工作时切换到其他标签页，标签标题会交替显示「✦ LIA 正在输入…」直到回答完成。",
+            "i5": "<b>♿ 尊重你的偏好</b> — 所有动画都会遵循系统「减少动态效果」设置（此时动画文件甚至不会下载），并遵循心理引擎的显示设置。"
+          }
+        },
         "v1_23_9": {
           "title": "v1.23.9 — 🧾 确认卡片修正（维护版）",
           "date": "2026年7月",
@@ -4019,7 +4032,7 @@
           },
           "q6": {
             "question": "如何引用对话中的元素？",
-            "answer": "LIA具有<strong>关联引用</strong>功能，允许您引用之前的结果：<br><br>• \"<em>给他发邮件</em>\"（引用前一个搜索找到的联系人）<br>• \"<em>在我的日历上添加这个会议</em>\"（引用提到的事件）<br>• \"<em>它的电话号码是多少？</em>\"（引用当前联系人）<br><br>LIA会保持<strong>上下文</strong>，理解\"他\"、\"她\"、\"这个\"指的是什么。如果不确定，它会请您澄清。"
+            "answer": "LIA具有<strong>关联引用</strong>功能，允许您引用之前的结果：<br><br>• \"<em>给他发邮件</em>\"（引用前一个搜索找到的联系人）<br>• \"<em>在我的日历上添加这个会议</em>\"（引用提到的事件）<br>• \"<em>它的电话号码是多少？</em>\"（引用当前联系人）<br><br>LIA会保持<strong>上下文</strong>，理解\"他\"、\"她\"、\"这个\"指的是什么。如果不确定，它会请您澄清。<br><br>这个显示本身是鲜活的：已完成的步骤逐渐变淡，当前步骤轻轻脉动，回答撰写时有光标闪烁，等待动画每次回复都会变换形态。如果你在 LIA 工作时切换标签页，标签标题会交替显示「✦ LIA 正在输入…」。一切都遵循系统的「减少动态效果」设置。"
           },
           "q7": {
             "question": "如果LIA不理解我的请求怎么办？",
@@ -5724,7 +5737,7 @@
       },
       "psyche": {
         "title": "鲜活的情感智能",
-        "description": "LIA不是在背诵——它在感受。14种情绪、22种情感、一段逐条消息加深的关系。当被触动时词汇变得温暖，紧张时句子变短，轻松时幽默浮现。"
+        "description": "LIA不是在背诵——它在感受。14种情绪、22种情感、一段逐条消息加深的关系。当被触动时词汇变得温暖，紧张时句子变短，轻松时幽默浮现。而且看得见：LIA 的心情面孔会在当前回复上动起来。"
       },
       "mcp": {
         "title": "可扩展 (MCP)",
@@ -6379,12 +6392,12 @@
       "psyche-engine": {
         "title": "Psyche Engine：LIA 的情感智能",
         "excerpt": "LIA 拥有一个模拟情感、情绪和人格特质的心理引擎。22种情感、5大人格特质和分级指令塑造每一个回复。",
-        "body": "<h2>完整的心理引擎</h2><p>Psyche Engine 是 LIA 的情感核心。受 Anthropic 「Emotion Concepts」研究启发，它模拟<strong>动态心理状态</strong>，随每次交互而演变。这不是角色扮演：而是一个参数化系统，切实影响助手的语气、措辞和行为。</p><h2>22种 PAD 验证的情感</h2><p>LIA 拥有 <strong>22种情感</strong>的调色板，每种都由 PAD 空间中的向量定义：喜悦、好奇、同理心、自豪、感激、俏皮、保护欲、释然、紧张、惊叹、决心等等。</p><h2>Big Five 人格特质</h2><p>五种基本特质调节基线行为：</p><ul><li><strong>开放性</strong> — 求知欲和创造力</li><li><strong>尽责性</strong> — 严谨和组织性</li><li><strong>外向性</strong> — 表达力和热情</li><li><strong>宜人性</strong> — 同理心和合作</li><li><strong>神经质</strong> — 情感敏感性和反应性</li></ul><p>这些特质会持久化存储，用户可在设置中调整。</p><h2>分级指令</h2><p>Psyche Engine 生成<strong>提示指令</strong>，其详细程度随情感强度调整。四个级别：<strong>compact</strong>、<strong>medium</strong>、<strong>rich</strong> 和 <strong>reinforced</strong>。</p><h2>宁静基线</h2><p>当没有活跃情感时，LIA 维持<strong>宁静基线</strong>：一种平静稳定的状态，防止助手显得情感空白。</p><h2>情感锚点</h2><p>锚定机制防止<strong>负面情感螺旋</strong>。当负面情感累积时，会注入一条接地指令。</p><h2>共鸣与多情感</h2><p>LIA 可以每条消息表达<strong>1到3种同时情感</strong>，权重递减（0.5、0.25）。<strong>情感共鸣</strong>在 [-1, +1] 轴上衡量用户与助手状态的对齐程度。</p><h2>158个单元测试</h2><p>Psyche Engine 拥有 <strong>158个单元测试</strong>覆盖，验证 PAD 向量、衰减函数、分级指令和反膨胀保护。</p>"
+        "body": "<h2>完整的心理引擎</h2><p>Psyche Engine 是 LIA 的情感核心。受 Anthropic 「Emotion Concepts」研究启发，它模拟<strong>动态心理状态</strong>，随每次交互而演变。这不是角色扮演：而是一个参数化系统，切实影响助手的语气、措辞和行为。</p><h2>22种 PAD 验证的情感</h2><p>LIA 拥有 <strong>22种情感</strong>的调色板，每种都由 PAD 空间中的向量定义：喜悦、好奇、同理心、自豪、感激、俏皮、保护欲、释然、紧张、惊叹、决心等等。</p><h2>Big Five 人格特质</h2><p>五种基本特质调节基线行为：</p><ul><li><strong>开放性</strong> — 求知欲和创造力</li><li><strong>尽责性</strong> — 严谨和组织性</li><li><strong>外向性</strong> — 表达力和热情</li><li><strong>宜人性</strong> — 同理心和合作</li><li><strong>神经质</strong> — 情感敏感性和反应性</li></ul><p>这些特质会持久化存储，用户可在设置中调整。</p><h2>分级指令</h2><p>Psyche Engine 生成<strong>提示指令</strong>，其详细程度随情感强度调整。四个级别：<strong>compact</strong>、<strong>medium</strong>、<strong>rich</strong> 和 <strong>reinforced</strong>。</p><h2>宁静基线</h2><p>当没有活跃情感时，LIA 维持<strong>宁静基线</strong>：一种平静稳定的状态，防止助手显得情感空白。</p><h2>情感锚点</h2><p>锚定机制防止<strong>负面情感螺旋</strong>。当负面情感累积时，会注入一条接地指令。</p><h2>共鸣与多情感</h2><p>LIA 可以每条消息表达<strong>1到3种同时情感</strong>，权重递减（0.5、0.25）。<strong>情感共鸣</strong>在 [-1, +1] 轴上衡量用户与助手状态的对齐程度。</p><h2>看得见的心理</h2><p>这种内在生命如今在聊天中可见：在当前回复上，心情表情是真正的动态面孔（自托管的 Noto Animated Emoji），当心情转变时彩色光环会脉动一次，关系里程碑会以低调的通知庆祝。历史消息保留冻结的心情快照——悬停时会苏醒。</p><h2>158个单元测试</h2><p>Psyche Engine 拥有 <strong>158个单元测试</strong>覆盖，验证 PAD 向量、衰减函数、分级指令和反膨胀保护。</p>"
       },
       "progressive-steps": {
         "title": "实时执行步骤：观看 LIA 工作过程",
         "excerpt": "LIA 在处理请求时逐步显示每个执行步骤 — 路由、规划、工具调用 — 实时呈现。",
-        "body": "<h2>透明度的实践</h2><p>当您向 LIA 发送复杂请求时，可能需要数秒才能收到回复。通过渐进式步骤显示，您可以<strong>实时了解</strong>：每个经过的节点、每个调用的工具都会即时显示。</p><h2>工作原理</h2><p>后端使用 LangGraph 的 <code>updates</code> 流模式检测每个图节点的完成。每一步都会向前端发送 SSE <code>execution_step</code> 事件，包含：</p><ul><li>工具或节点的 <strong>i18n 键</strong>（翻译成用户的语言）</li><li>ReAct 模式下的<strong>推理摘要</strong>（截断至120个字符）</li><li>目录中未列出工具的<strong>后备元数据</strong></li></ul><h2>前端显示</h2><p>步骤在界面中逐行累积显示，上限为同时可见 <strong>10个步骤</strong>。<strong>i18n 键去重</strong>机制防止相同步骤重复。</p><h2>Pipeline 和 ReAct</h2><p>在 <strong>Pipeline</strong> 模式下，步骤来自 ExecutionPlan。在 <strong>ReAct</strong> 模式下，每次工具调用都会生成一个步骤。</p><h2>覆盖63个工具</h2><p>目录中的所有 <strong>63个工具</strong>在6种语言中都有专用 i18n 键。</p><h2>不再有随机消息</h2><p>旧系统显示有趣但随机的等待短语。该系统已被完全替换为<strong>真实的上下文步骤</strong>。</p>"
+        "body": "<h2>透明度的实践</h2><p>当您向 LIA 发送复杂请求时，可能需要数秒才能收到回复。通过渐进式步骤显示，您可以<strong>实时了解</strong>：每个经过的节点、每个调用的工具都会即时显示。这个显示本身也是鲜活的：已完成的步骤逐渐变淡，当前步骤轻轻呼吸，回答撰写时还有光标闪烁。</p><h2>工作原理</h2><p>后端使用 LangGraph 的 <code>updates</code> 流模式检测每个图节点的完成。每一步都会向前端发送 SSE <code>execution_step</code> 事件，包含：</p><ul><li>工具或节点的 <strong>i18n 键</strong>（翻译成用户的语言）</li><li>ReAct 模式下的<strong>推理摘要</strong>（截断至120个字符）</li><li>目录中未列出工具的<strong>后备元数据</strong></li></ul><h2>前端显示</h2><p>步骤在界面中逐行累积显示，上限为同时可见 <strong>10个步骤</strong>。<strong>i18n 键去重</strong>机制防止相同步骤重复。</p><h2>Pipeline 和 ReAct</h2><p>在 <strong>Pipeline</strong> 模式下，步骤来自 ExecutionPlan。在 <strong>ReAct</strong> 模式下，每次工具调用都会生成一个步骤。</p><h2>覆盖63个工具</h2><p>目录中的所有 <strong>63个工具</strong>在6种语言中都有专用 i18n 键。</p><h2>不再有随机消息</h2><p>旧系统显示有趣但随机的等待短语。该系统已被完全替换为<strong>真实的上下文步骤</strong>。</p>"
       },
       "account-lifecycle": {
         "title": "账户生命周期：4种状态实现完整 GDPR 合规",
@@ -6889,6 +6902,11 @@
       "EXPLORATORY": "探索",
       "AFFECTIVE": "亲密",
       "STABLE": "稳定"
+    },
+    "milestone": {
+      "EXPLORATORY": "关系迈入新阶段：LIA 正在真正了解你。",
+      "AFFECTIVE": "你与 LIA 的联结更深了——真正的默契正在形成。",
+      "STABLE": "你与 LIA 的关系已经稳固而持久。"
     },
     "currentState": "当前状态"
   },

@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Message, BrowserScreenshotData } from '@/types/chat';
+import type { StreamPhase } from '@/types/chat-state';
 import { ChatMessage } from './ChatMessage';
 import { BrowserScreenshotOverlay } from './BrowserScreenshotOverlay';
 import { TypingIndicator } from './TypingIndicator';
+import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePsyche } from '@/hooks/usePsyche';
@@ -11,6 +13,10 @@ import { logger } from '@/lib/logger';
 export interface ChatMessageListProps {
   messages: Message[];
   isTyping?: boolean;
+  /** Id of the assistant message currently receiving stream updates (null when idle). */
+  activeStreamId?: string | null;
+  /** 'progress' (execution steps) vs 'answer' (real tokens) — drives step/caret styling. */
+  streamPhase?: StreamPhase;
   browserScreenshot?: BrowserScreenshotData | null;
   /** When true, the scroll-up sentinel is rendered and triggers ``onLoadOlder``
    *  as soon as it enters the viewport. */
@@ -22,9 +28,25 @@ export interface ChatMessageListProps {
   onLoadOlder?: () => void;
 }
 
+/**
+ * Id of the last assistant message — only that row animates its psyche emoji
+ * (older rows are static mood snapshots; keeps at most one looping WebP on
+ * screen, spec D-5).
+ */
+export function getLastAssistantMessageId(messages: Message[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'assistant') {
+      return messages[i].id;
+    }
+  }
+  return null;
+}
+
 export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   messages,
   isTyping = false,
+  activeStreamId = null,
+  streamPhase = 'answer',
   browserScreenshot,
   hasMoreOlder = false,
   isLoadingOlder = false,
@@ -195,8 +217,10 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   if (messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center px-4">
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20 backdrop-blur-sm">
-          <MessageSquare className="h-10 w-10 text-primary" />
+        {/* Animated 👋 greeting (micro-interactions batch I10) — static glyph
+            fallback on missing asset / reduced motion via AnimatedEmoji. */}
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20 backdrop-blur-sm animate-greet-float">
+          <AnimatedEmoji glyph="👋" animate imgClassName="w-11 h-11" spanClassName="text-4xl" />
         </div>
         <div className="bg-card/60 backdrop-blur-md rounded-xl px-6 py-4 border border-border/20">
           <h2 className="text-xl font-semibold mb-2">{t('chat.empty_state.title')}</h2>
@@ -207,6 +231,8 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       </div>
     );
   }
+
+  const lastAssistantId = getLastAssistantMessageId(messages);
 
   return (
     // pt-8 (32px) provides top padding; scroll-mt-8 on messages must match for proper scroll alignment
@@ -237,7 +263,13 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
             data-message-id={message.id}
             className="scroll-mt-8"
           >
-            <ChatMessage message={message} isUser={message.role === 'user'} />
+            <ChatMessage
+              message={message}
+              isUser={message.role === 'user'}
+              isLatestAssistant={message.id === lastAssistantId}
+              isActiveStream={message.id === activeStreamId}
+              streamPhase={streamPhase}
+            />
           </div>
         ))}
 

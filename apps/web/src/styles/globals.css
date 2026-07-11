@@ -1019,6 +1019,250 @@
     animation: chat-bubble-appear 0.4s ease-out both;
   }
 
+  /* --- Typing indicator variants (TypingIndicator.tsx) ---
+     Duration scales with psyche arousal via --lia-typing-factor (0.7–1.3, 1 = nominal). */
+  @keyframes typing-wave {
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.5;
+    }
+    30% {
+      transform: translateY(-4px);
+      opacity: 1;
+    }
+  }
+  .animate-typing-wave {
+    animation: typing-wave 1.2s ease-in-out infinite;
+  }
+
+  @keyframes typing-orbit {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .animate-typing-orbit {
+    animation: typing-orbit 1.6s linear infinite;
+  }
+
+  @keyframes typing-eq {
+    0%,
+    100% {
+      transform: scaleY(0.35);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
+  .animate-typing-eq {
+    animation: typing-eq 0.9s ease-in-out infinite;
+  }
+
+  @keyframes typing-sparkle {
+    0%,
+    100% {
+      transform: scale(0.7) rotate(0deg);
+      opacity: 0.4;
+    }
+    50% {
+      transform: scale(1.15) rotate(180deg);
+      opacity: 1;
+    }
+  }
+  .animate-typing-sparkle {
+    display: inline-block;
+    animation: typing-sparkle 1.4s ease-in-out infinite;
+  }
+
+  @keyframes typing-breathe {
+    0%,
+    100% {
+      transform: scale(0.6);
+      opacity: 0.4;
+    }
+    50% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+  }
+  .animate-typing-breathe {
+    animation: typing-breathe 1.6s ease-in-out infinite;
+  }
+
+  @keyframes typing-type {
+    0%,
+    15% {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    25%,
+    70% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    85%,
+    100% {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+  }
+  .animate-typing-type {
+    animation: typing-type 1.6s ease-in-out infinite;
+  }
+
+  /* --- Execution-steps progress styling (ChatMessage .progress-steps) ---
+     Older step lines dim; the current (last) one slides in and breathes. */
+  @keyframes step-in {
+    from {
+      opacity: 0;
+      transform: translateX(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  @keyframes step-breathe {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+  .progress-steps .markdown-content em {
+    opacity: 0.55;
+    transition: opacity 0.4s ease;
+  }
+  .progress-steps .markdown-content em:last-of-type {
+    display: inline-block;
+    opacity: 1;
+    animation:
+      step-in 0.35s ease-out,
+      step-breathe 2s ease-in-out 0.35s infinite;
+  }
+
+  /* --- Mood-ring ping (AssistantAvatar, one-shot on mood change) ---
+     Scale + brightness only: the Tailwind ring is box-shadow based, so a
+     box-shadow halo here would fight it. */
+  @keyframes mood-ping {
+    0% {
+      transform: scale(1);
+      filter: brightness(1);
+    }
+    35% {
+      transform: scale(1.15);
+      filter: brightness(1.25);
+    }
+    100% {
+      transform: scale(1);
+      filter: brightness(1);
+    }
+  }
+  .animate-mood-ping {
+    animation: mood-ping 0.9s ease-out;
+  }
+
+  /* --- Empty-chat greeting float (ChatMessageList) --- */
+  @keyframes greet-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+  .animate-greet-float {
+    animation: greet-float 3.5s ease-in-out infinite;
+  }
+
+  /* --- Send-button takeoff (ChatInput, one-shot on submit) --- */
+  @keyframes send-takeoff {
+    0% {
+      transform: translate(0, 0);
+      opacity: 1;
+    }
+    45% {
+      transform: translate(14px, -14px);
+      opacity: 0;
+    }
+    50% {
+      transform: translate(-10px, 10px);
+      opacity: 0;
+    }
+    100% {
+      transform: translate(0, 0);
+      opacity: 1;
+    }
+  }
+  .animate-send-takeoff {
+    animation: send-takeoff 0.5s ease-in;
+  }
+
+  /* --- Skill badge glimmer (ChatMessage ✦ badge) --- */
+  @keyframes badge-glimmer {
+    0% {
+      background-position: -80px 0;
+    }
+    100% {
+      background-position: 160px 0;
+    }
+  }
+  .badge-glimmer {
+    background-image: linear-gradient(
+      100deg,
+      transparent 20%,
+      rgb(34 211 238 / 0.25) 50%,
+      transparent 80%
+    );
+    background-size: 80px 100%;
+    background-repeat: no-repeat;
+    animation: badge-glimmer 3.5s ease-in-out infinite;
+  }
+
+  /* --- Streaming caret (ChatMessage .stream-caret, answer phase) --- */
+  @keyframes caret-blink {
+    0%,
+    49% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+  .stream-caret .markdown-content > p:last-of-type::after {
+    content: '';
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: -0.15em;
+    background-color: currentColor;
+    animation: caret-blink 1s steps(1) infinite;
+  }
+  /* Micro-interactions batch: the global reduced-motion kill-switch below is
+     an explicit class list — new animated classes must opt out here too.
+     (Typing variants swap to static dots via motion-reduce: DOM classes.) */
+  @media (prefers-reduced-motion: reduce) {
+    .stream-caret .markdown-content > p:last-of-type::after {
+      display: none;
+    }
+    .animate-mood-ping,
+    .animate-send-takeoff,
+    .animate-greet-float,
+    .badge-glimmer,
+    .progress-steps .markdown-content em:last-of-type {
+      animation: none !important;
+    }
+  }
+
   /* Staggered delays for cascade effect */
   .delay-100 {
     animation-delay: 100ms;

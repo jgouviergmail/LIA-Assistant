@@ -13,6 +13,7 @@ import {
   ChatAction,
   DebugMetricsEntry,
   ContextUsage,
+  StreamPhase,
 } from '@/types/chat-state';
 import {
   chatReducer,
@@ -58,6 +59,10 @@ import { DEBUG_PANEL_TOTAL_WIDTH_PX } from '@/lib/constants';
 export interface UseChatReturn {
   messages: Message[];
   isTyping: boolean;
+  /** Id of the assistant message currently receiving stream updates (null when idle). */
+  activeStreamId: string | null;
+  /** 'progress' while the active message shows execution steps, 'answer' on real tokens. */
+  streamPhase: StreamPhase;
   isConnected: boolean;
   apiAvailable: boolean;
   conversationTotals: ConversationTotals;
@@ -797,6 +802,8 @@ export const useChat = ({
   return {
     messages: state.messages,
     isTyping,
+    activeStreamId: state.status === 'streaming' ? state.streaming.currentMessageId : null,
+    streamPhase: state.streaming.phase,
     isConnected,
     apiAvailable: state.apiAvailable,
     conversationTotals: state.totals,

@@ -4,7 +4,7 @@
 
 **Version** : 3.7
 **Datum** : 2026-07-11
-**Anwendung** : LIA v1.23.9
+**Anwendung** : LIA v1.23.10
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -279,6 +279,8 @@ Die **Psyche Engine** verleiht LIA einen dynamischen psychologischen Zustand, de
 - **Motivationen**, die die Proaktivität des Assistenten beeinflussen
 
 Sie sprechen nicht mit einem Werkzeug — Sie interagieren mit einer Entität, deren Sprache sich erwärmt, wenn sie berührt wird, deren Sätze sich unter Anspannung verkürzen, deren Humor aufblitzt, wenn der Austausch leicht ist. Und sie sagt es nie — sie **zeigt** es.
+
+Dieses Innenleben hat ein Gesicht: Das Stimmungs-Emoji animiert sich auf der aktuellen Antwort, der farbige Ring pulsiert, wenn die Stimmung kippt, und die Meilensteine Ihrer Beziehung werden mit einem dezenten Augenzwinkern gefeiert.
 
 ### 7.3. Die Journale
 

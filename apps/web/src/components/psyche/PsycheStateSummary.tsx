@@ -10,9 +10,10 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
+import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { getMoodColor } from '@/lib/psyche-colors';
 import { usePsycheStore } from '@/stores/psycheStore';
 import apiClient from '@/lib/api-client';
@@ -30,6 +31,8 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
   const { t } = useTranslation(lng, 'translation');
   const { moodLabel, relationshipStage, enabled, fullState: state } = usePsycheStore();
   const isFirstRender = useRef(true);
+  // Hover-to-animate mood emoji (micro-interactions batch I8) — no permanent loop.
+  const [emojiHovered, setEmojiHovered] = useState(false);
 
   // Refetch state from API when refreshKey changes (skip initial mount)
   useEffect(() => {
@@ -57,7 +60,19 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
     <div className="rounded-lg border p-4 space-y-4">
       {/* ── Mood header ── */}
       <div className="flex items-center gap-3">
-        <span className="text-2xl">{moodConfig.icon}</span>
+        <span
+          className="flex h-8 w-8 items-center justify-center"
+          onMouseEnter={() => setEmojiHovered(true)}
+          onMouseLeave={() => setEmojiHovered(false)}
+        >
+          <AnimatedEmoji
+            glyph={moodConfig.icon}
+            codepoint={moodConfig.codepoint}
+            animate={emojiHovered}
+            imgClassName="w-8 h-8"
+            spanClassName="text-2xl"
+          />
+        </span>
         <div className="flex-1 min-w-0">
           <div className={cn('text-sm font-semibold capitalize', moodConfig.textClass)}>
             {t(`psyche.moods.${moodLabel}`, moodLabel)}

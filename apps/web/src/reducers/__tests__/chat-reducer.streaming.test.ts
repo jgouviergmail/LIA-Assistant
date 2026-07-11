@@ -27,7 +27,12 @@ function frozenState(overrides: Partial<ChatState> = {}): ChatState {
 function streamingState(messageId: string, buffer: string, messages: Message[]): ChatState {
   return frozenState({
     status: 'streaming',
-    streaming: { currentMessageId: messageId, streamBuffer: buffer, sseStatus: 'connected' },
+    streaming: {
+      currentMessageId: messageId,
+      streamBuffer: buffer,
+      sseStatus: 'connected',
+      phase: 'answer',
+    },
     messages,
   });
 }
@@ -288,7 +293,12 @@ describe('chatReducer — STREAM_DONE', () => {
     const secondState = deepFreeze({
       ...first,
       status: 'streaming' as const,
-      streaming: { currentMessageId: 'a-1', streamBuffer: '', sseStatus: 'connected' as const },
+      streaming: {
+        currentMessageId: 'a-1',
+        streamBuffer: '',
+        sseStatus: 'connected' as const,
+        phase: 'answer' as const,
+      },
     });
     const second = chatReducer(secondState, {
       type: 'STREAM_DONE',
@@ -319,7 +329,12 @@ describe('chatReducer — STREAM_DONE', () => {
   it('finalizes the stream: idle status, streaming reset, screenshot cleared', () => {
     const state = frozenState({
       status: 'streaming',
-      streaming: { currentMessageId: 'a-1', streamBuffer: 'x', sseStatus: 'connected' },
+      streaming: {
+        currentMessageId: 'a-1',
+        streamBuffer: 'x',
+        sseStatus: 'connected',
+        phase: 'answer',
+      },
       messages: [makeMessage('a-1')],
       browserScreenshot: { image_base64: 'b64', url: 'https://x', title: 't' },
     });
@@ -334,6 +349,7 @@ describe('chatReducer — STREAM_DONE', () => {
       currentMessageId: null,
       streamBuffer: '',
       sseStatus: 'disconnected',
+      phase: 'answer',
     });
     expect(next.browserScreenshot).toBeNull();
   });

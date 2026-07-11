@@ -71,7 +71,12 @@ describe('validateStreamToken', () => {
 
   it('reports an ERROR-severity inconsistency when the target message vanished', () => {
     const state = makeState({
-      streaming: { currentMessageId: 'ghost', streamBuffer: '', sseStatus: 'connected' },
+      streaming: {
+        currentMessageId: 'ghost',
+        streamBuffer: '',
+        sseStatus: 'connected',
+        phase: 'answer',
+      },
       messages: [makeMessage('other')],
     });
 
@@ -86,7 +91,12 @@ describe('validateStreamToken', () => {
 
   it('returns null when the stream target exists', () => {
     const state = makeState({
-      streaming: { currentMessageId: 'm-1', streamBuffer: '', sseStatus: 'connected' },
+      streaming: {
+        currentMessageId: 'm-1',
+        streamBuffer: '',
+        sseStatus: 'connected',
+        phase: 'answer',
+      },
       messages: [makeMessage('m-1')],
     });
 
@@ -126,7 +136,12 @@ describe('validateReducerAction', () => {
 
   it('returns an empty list for a STREAM_TOKEN targeting an existing stream', () => {
     const state = makeState({
-      streaming: { currentMessageId: 'm-1', streamBuffer: '', sseStatus: 'connected' },
+      streaming: {
+        currentMessageId: 'm-1',
+        streamBuffer: '',
+        sseStatus: 'connected',
+        phase: 'answer',
+      },
       messages: [makeMessage('m-1')],
     });
 

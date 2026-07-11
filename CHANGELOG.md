@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.10] - 2026-07-11
+
+> The living-interface release. LIA's frontend gains a coherent system of micro-interactions that makes the assistant feel alive without ever getting in the way: the Psyche Engine becomes *visible* (the mood avatar is now a real animated face on the current reply, the ring pulses when the mood shifts, relationship milestones are celebrated), the pipeline's execution steps breathe while they run, and a dozen small touches (random typing-indicator shapes, streaming caret, animated personality emojis in the header, a living tab title for background runs) replace static chrome with motion that carries meaning. Everything is pure frontend polish behind hard fallbacks — every animation degrades to the previous behavior on asset failure, when psyche visuals are hidden, and under `prefers-reduced-motion` (where animated assets are not even fetched). No backend change, no DB migration, no new dependency, no new setting.
+>
+> **Asset note:** animations use Google's Noto Animated Emoji (CC BY 4.0), self-hosted under `apps/web/public/animated-emoji/` (23 WebP, ~10 MB, attribution LICENSE included). The original 512px encodes are shipped unmodified: a 128px Pillow re-encode was tried and reverted because it flattened the variable per-frame timings and made the animations visibly choppy.
+
+### Added
+
+- **`AnimatedEmoji` shared component** (`components/ui/animated-emoji.tsx`) — renders a self-hosted animated Noto WebP for any emoji glyph with three hermetic fallbacks: static glyph when animation is not requested, per-codepoint error memory on missing/corrupt assets, and no render (no fetch) under `prefers-reduced-motion`. Codepoints are derived at runtime from the glyph itself (variation selectors included, e.g. ⚖️ → `2696-fe0f`), so DB-managed emojis need no frontend registry.
+- **Animated psyche avatar** — the mood smiley on the **latest assistant message only** is a live animated face; older messages keep their static mood snapshots (at most one permanent loop on screen) but **wake up while hovered**. Mood→codepoint mapping lives in `MOOD_COLORS` with an asset-completeness test (ADR-085 spirit: every mood must have its WebP on disk).
+- **Animated personality emojis (header)** — the current personality's emoji lives permanently in the header trigger; menu items animate on hover/focus only (one loop at a time, assets fetched on demand). Best-effort by design: the 4 seeded emojis without a Noto animated version (🌴 ⚛️ 🥟 💰) keep their static glyph, silently.
+- **Typing indicator variants** — 6 pure-CSS animations (wave, orbit, equalizer, sparkle ✦, breathe, typewriter), one picked at random per response; classic gray tint kept; static three dots under reduced motion (never a frozen shape).
+- **Live execution steps** — the progress lines ("📋 Preparing the action plan…") now have a visual hierarchy: past steps dim to 55 %, the current one slides in and breathes until the next arrives. Built on a new typed `streaming.phase` (`'progress' | 'answer'`) field in the chat reducer FSM, threaded through every SSE handler dispatch.
+- **Streaming caret** — a blinking caret marks the end of the text while answer tokens stream (answer phase only; hidden under reduced motion).
+- **Living tab title** — while a run streams and the tab is hidden, the title alternates with "✦ LIA is writing…" (6 languages) and restores exactly on done/visibility/unmount — the visible companion of ADR-117 background runs.
+- **Psyche made perceptible** — one-shot **mood-ring ping** (scale + brightness) when the live avatar's mood changes between replies; **relationship milestone toasts** (headless `PsycheMilestoneWatcher`: forward-only ORIENTATION → EXPLORATORY → AFFECTIVE → STABLE transitions, hydration-guarded so a page load never toasts, 6 languages).
+- **Micro-touches** — send-button takeoff on submit, slow glimmer on the active skill badge ✦, animated 👋 greeting on the empty chat, hover-animated mood emoji on the settings psyche card.
+- **`scripts/assets/fetch_noto_animated_emoji.py`** — one-shot fetcher for all animated assets: strict on the 14 mood codepoints (exit 1 on a missing one), best-effort on personality/UI emojis (`MISS` report, static glyph at runtime).
+
+### Changed
+
+- **`AssistantAvatar` refactored onto the shared `AnimatedEmoji`** (its inline img/fallback logic removed); `TypingIndicator` rewritten around the variant table; `ChatMessageList` computes the last assistant message id (`getLastAssistantMessageId`) to gate the single live animation.
+- **Reduced-motion coverage extended** — the project's kill-switch is an explicit class list, not a wildcard: every new animation class is registered there, and the typing indicator swaps to static dots via `motion-reduce:` DOM classes rather than freezing mid-shape.
+- **Briefing cards stagger** was evaluated and closed as a no-op: `BriefingCard` already ships `animate-in` entrances with a per-card `animationDelay` — documented in the batch spec instead of duplicating it.
+
+### Tests
+
+- **+45 frontend tests across 9 new/extended suites** — reducer `streaming.phase` transitions, `AnimatedEmoji` (derivation incl. variation selectors, override, error and reduced-motion fallbacks), `AssistantAvatar` (latest-only gating, hover-wake, mood ping incl. never-on-mount), `PersonalitySelector` trigger wiring, `getLastAssistantMessageId`, `PsycheMilestoneWatcher` (hydration guard, forward-only), `useLiveTabTitle` (fake timers, exact-restore), mood-asset completeness. Full frontend suite green (498 tests, 48 files), ESLint + `tsc --noEmit` clean, i18n parity across the 6 locales (4 new keys).
+
 ## [1.23.9] - 2026-07-11
 
 > The complexity-reduction series reaches its second target (ADR-125). The cycle-3 audit re-ranked decomposition candidates by **cyclomatic complexity** and pointed at `Draft.get_detailed_preview` — a CC ≈ 93, 14-branch `elif` cascade rendering the HITL confirmation previews from inside a **models** module (data structures + heavy presentation logic: a double fault). The renderer now lives in a dedicated presentation module as a dispatch table of small per-type functions (max CC 9), extracted under a byte-identical golden characterization net that passed unmodified after the cut — the ADR-122 method, replayed. Three long-standing preview fallback defects were then fixed in the same delivery as separate, reviewed changes: the hardcoded French "(sans objet)" shown to every non-French user on subject-less email deletions is now localized in all 6 languages, a forwarded email without an added message no longer renders the literal string "None", and an empty reminder deletion no longer produces a blank preview. No DB migration, no new environment variable.

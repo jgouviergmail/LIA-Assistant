@@ -324,13 +324,14 @@ export function handleRouterDecision(chunk: ChatStreamChunk, context: SSEHandler
       payload: {
         messageId: assistantMessageId,
         initialContent: fullContent,
+        phase: 'progress',
       },
     });
   } else {
     // Update existing progress message
     dispatch({
       type: 'STREAM_REPLACE',
-      payload: { content: fullContent },
+      payload: { content: fullContent, phase: 'progress' },
     });
   }
 }
@@ -476,7 +477,7 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
   if (progressMessageId) {
     dispatch({
       type: 'STREAM_REPLACE',
-      payload: { content: fullContent },
+      payload: { content: fullContent, phase: 'progress' },
     });
   } else {
     // Edge case: execution_step arrived before router_decision
@@ -486,6 +487,7 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
       payload: {
         messageId: assistantMessageId,
         initialContent: fullContent,
+        phase: 'progress',
       },
     });
   }
@@ -517,13 +519,16 @@ export function handleToken(chunk: ChatStreamChunk, context: SSEHandlerContext):
     // Progress message exists → replace with first token
     dispatch({
       type: 'STREAM_REPLACE',
-      payload: { content: chunk.content },
+      payload: { content: chunk.content, phase: 'answer' },
     });
     setNormalStreamInitialized(true);
     setProgressMessageId(null); // Progress phase complete
   } else if (!normalStreamInitialized) {
     // No progress message (backwards compatible) → create new message
-    dispatch({ type: 'STREAM_START', payload: { messageId: assistantMessageId } });
+    dispatch({
+      type: 'STREAM_START',
+      payload: { messageId: assistantMessageId, phase: 'answer' },
+    });
     setNormalStreamInitialized(true);
     // Accumulate first streaming token
     dispatch({ type: 'STREAM_TOKEN', payload: { token: chunk.content } });
@@ -563,7 +568,10 @@ export function handleContentReplacement(chunk: ChatStreamChunk, context: SSEHan
     executionStepsRef.current = [];
     context.emittedStepKeysRef.current = new Set();
     context.reasoningBufRef.current = '';
-    dispatch({ type: 'STREAM_START', payload: { messageId: assistantMessageId } });
+    dispatch({
+      type: 'STREAM_START',
+      payload: { messageId: assistantMessageId, phase: 'answer' },
+    });
     setNormalStreamInitialized(true);
     if (progressMessageId) {
       setProgressMessageId(null);
@@ -572,7 +580,7 @@ export function handleContentReplacement(chunk: ChatStreamChunk, context: SSEHan
 
   dispatch({
     type: 'STREAM_REPLACE',
-    payload: { content: chunk.content as string },
+    payload: { content: chunk.content as string, phase: 'answer' },
   });
 }
 
@@ -654,7 +662,7 @@ export function handleHitlInterruptMetadata(
     // Update existing progress message (router → planner → HITL)
     dispatch({
       type: 'STREAM_REPLACE',
-      payload: { content: hitlMessage },
+      payload: { content: hitlMessage, phase: 'progress' },
     });
   } else {
     // Fallback: create message if router/planner didn't fire (edge case)
@@ -664,6 +672,7 @@ export function handleHitlInterruptMetadata(
       payload: {
         messageId: messageId,
         initialContent: hitlMessage,
+        phase: 'progress',
       },
     });
   }
@@ -692,7 +701,7 @@ export function handleHitlQuestionToken(chunk: ChatStreamChunk, context: SSEHand
   // For first token, replace placeholder entirely
   // For subsequent tokens, just append
   if (isFirstToken) {
-    dispatch({ type: 'STREAM_REPLACE', payload: { content: token } });
+    dispatch({ type: 'STREAM_REPLACE', payload: { content: token, phase: 'answer' } });
   } else {
     dispatch({ type: 'STREAM_TOKEN', payload: { token } });
   }
@@ -823,7 +832,9 @@ export function handleHitlInterruptLegacy(
     generateFallbackHitlQuestion(legacyHitlMetadata.action_requests || [], t);
 
   const legacyMessageId = `hitl_${generateUUID()}`;
-  dispatch({ type: 'STREAM_START', payload: { messageId: legacyMessageId } });
+  // phase 'answer': the HITL question is content, not execution steps — the
+  // interrupt-metadata handler may have left the stream in the progress phase.
+  dispatch({ type: 'STREAM_START', payload: { messageId: legacyMessageId, phase: 'answer' } });
   dispatch({ type: 'STREAM_TOKEN', payload: { token: legacyQuestion } });
   dispatch({ type: 'STREAM_DONE', payload: { messageId: legacyMessageId } });
 }

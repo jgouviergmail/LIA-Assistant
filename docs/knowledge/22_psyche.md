@@ -18,6 +18,8 @@ The Psyche Engine gives LIA a dynamic psychological state that evolves with ever
 
 A mood emoji replaces the classic LIA logo on assistant messages. The emoji and colored ring reflect the current emotional state. Hover for a tooltip showing mood, active emotion, and relationship stage. Each message preserves its historical avatar — on page reload, you see the mood LIA had when it wrote that message.
 
+On the current reply, the mood face is alive — a subtly animated emoji that breathes, smirks, or ponders with LIA's mood — while older messages keep their frozen snapshot. The "typing" animation also changes shape from one response to the next. Both respect your system's reduced-motion preference.
+
 ## Settings
 
 Located in Settings > Psyche de LIA:

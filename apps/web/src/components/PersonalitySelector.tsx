@@ -7,6 +7,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sparkles } from 'lucide-react';
 import {
@@ -15,6 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { Button } from '@/components/ui/button';
 import { usePersonality } from '@/hooks/usePersonality';
 import { logger } from '@/lib/logger';
@@ -28,6 +30,10 @@ export function PersonalitySelector() {
   const { t } = useTranslation();
   const { personalities, currentPersonality, loading, updating, updatePersonality } =
     usePersonality();
+  // Animated emoji policy: the current personality in the header is always
+  // alive; menu items animate only while hovered/focused (one loop at a time,
+  // assets fetched on demand).
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const handlePersonalityChange = async (personalityId: string | null) => {
     if (personalityId === currentPersonality?.id) return;
@@ -64,7 +70,12 @@ export function PersonalitySelector() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-2 h-11" disabled={updating}>
-          <span className="text-base">{displayEmoji}</span>
+          <AnimatedEmoji
+            glyph={displayEmoji}
+            animate
+            imgClassName="w-5 h-5"
+            spanClassName="text-base"
+          />
           <span className="hidden sm:inline">{displayTitle}</span>
         </Button>
       </DropdownMenuTrigger>
@@ -73,9 +84,20 @@ export function PersonalitySelector() {
           <DropdownMenuItem
             key={personality.id}
             onClick={() => handlePersonalityChange(personality.id)}
+            onMouseEnter={() => setHoveredId(personality.id)}
+            onMouseLeave={() => setHoveredId(prev => (prev === personality.id ? null : prev))}
+            onFocus={() => setHoveredId(personality.id)}
+            onBlur={() => setHoveredId(prev => (prev === personality.id ? null : prev))}
             className={currentPersonality?.id === personality.id ? 'bg-accent' : ''}
           >
-            <span className="mr-2 text-base">{personality.emoji}</span>
+            <span className="mr-2 flex w-5 h-5 items-center justify-center">
+              <AnimatedEmoji
+                glyph={personality.emoji}
+                animate={hoveredId === personality.id}
+                imgClassName="w-5 h-5"
+                spanClassName="text-base"
+              />
+            </span>
             <div className="flex-1">
               <div className="font-medium">{personality.title}</div>
               <div className="text-xs text-muted-foreground line-clamp-1">

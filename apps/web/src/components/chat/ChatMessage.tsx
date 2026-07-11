@@ -32,10 +32,17 @@ import { downloadImage } from '@/lib/utils/download-image';
 import { AssistantAvatar, type AvatarTooltipLine } from '@/components/psyche/AssistantAvatar';
 import { usePsycheStore } from '@/stores/psycheStore';
 import type { PsycheStateSummary } from '@/types/psyche';
+import type { StreamPhase } from '@/types/chat-state';
 
 export interface ChatMessageProps {
   message: Message;
   isUser: boolean;
+  /** True only for the last assistant message — gates the animated psyche emoji (spec D-5). */
+  isLatestAssistant?: boolean;
+  /** True while this message is the active stream target (steps/caret styling). */
+  isActiveStream?: boolean;
+  /** 'progress' (execution steps) vs 'answer' (real tokens) — picks the styling. */
+  streamPhase?: StreamPhase;
 }
 
 type FeedbackType = 'thumbs_up' | 'thumbs_down' | 'block';
@@ -387,7 +394,15 @@ function MessageAttachments({ attachments }: { attachments: MessageAttachmentMet
  * ChatMessage component - Memoized to prevent unnecessary re-renders during streaming.
  * Issue #64: Without memo, images would flash on every token because React recreates the DOM.
  */
-export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
+  const { message, isUser, isLatestAssistant = false, isActiveStream = false } = props;
+  // Streaming styling on the active bubble only: dim/pulse the execution-step
+  // lines during the progress phase, blinking caret while the answer streams.
+  const streamClass = isActiveStream
+    ? props.streamPhase === 'progress'
+      ? 'progress-steps'
+      : 'stream-caret'
+    : '';
   const { i18n, t } = useTranslation();
   const { user } = useAuth();
   const isSystem = message.role === 'system';
@@ -562,12 +577,15 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
             psycheState={psycheState}
             tooltipLines={tooltipLines}
             animate={!metadataPsyche && !!psycheState}
+            animateEmoji={isLatestAssistant}
           />
         </div>
 
         {/* Message bubble - Full width on mobile, flex-1 on tablet/desktop */}
         <div className="group flex flex-col w-full mobile:flex-1 items-end">
-          <div className="relative message-bubble message-bubble-assistant px-4 py-3 rounded-xl shadow-md bg-card/70 backdrop-blur-md text-foreground rounded-tr-none border border-border/20 hover:shadow-lg hover:border-primary/30 hover:bg-card/80 mobile:rounded-tr-xl transition-colors">
+          <div
+            className={`relative message-bubble message-bubble-assistant px-4 py-3 rounded-xl shadow-md bg-card/70 backdrop-blur-md text-foreground rounded-tr-none border border-border/20 hover:shadow-lg hover:border-primary/30 hover:bg-card/80 mobile:rounded-tr-xl transition-colors ${streamClass}`}
+          >
             {/* Copy to clipboard button — always visible on mobile (no hover), hover-only on desktop */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -589,7 +607,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
             {/* Skill indicator — top of bubble, always visible when a skill is active */}
             {message.skillName && (
               <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-border/30">
-                <span className="text-[10px] px-1.5 py-0.5 rounded border bg-cyan-500/20 text-cyan-400 border-cyan-500/30 font-medium tracking-wide">
+                <span className="badge-glimmer text-[10px] px-1.5 py-0.5 rounded border bg-cyan-500/20 text-cyan-400 border-cyan-500/30 font-medium tracking-wide">
                   ✦ {message.skillName}
                 </span>
               </div>

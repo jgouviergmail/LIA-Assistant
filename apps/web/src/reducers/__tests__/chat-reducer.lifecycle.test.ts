@@ -83,7 +83,12 @@ describe('chatReducer — CLEAR_MESSAGES', () => {
     const state = frozenState({
       messages: [makeMessage('u-1'), makeMessage('a-1', 'assistant')],
       status: 'streaming',
-      streaming: { currentMessageId: 'a-1', streamBuffer: 'partial', sseStatus: 'connected' },
+      streaming: {
+        currentMessageId: 'a-1',
+        streamBuffer: 'partial',
+        sseStatus: 'connected',
+        phase: 'answer',
+      },
       totals: {
         totalTokensIn: 10,
         totalTokensOut: 20,
@@ -115,6 +120,7 @@ describe('chatReducer — CLEAR_MESSAGES', () => {
       currentMessageId: null,
       streamBuffer: '',
       sseStatus: 'disconnected',
+      phase: 'answer',
     });
     expect(next.totals).toEqual(initialChatState.totals);
     expect(next.registry).toEqual({});
@@ -155,6 +161,7 @@ describe('chatReducer — SET_MESSAGES', () => {
         currentMessageId: 'stream-1',
         streamBuffer: 'partial answer',
         sseStatus: 'connected',
+        phase: 'answer',
       },
       messages: [makeMessage('u-1'), streamingMsg],
     });
@@ -170,7 +177,12 @@ describe('chatReducer — SET_MESSAGES', () => {
     const streamingMsg = makeMessage('stream-1', 'assistant', 'partial');
     const state = frozenState({
       status: 'streaming',
-      streaming: { currentMessageId: 'stream-1', streamBuffer: 'partial', sseStatus: 'connected' },
+      streaming: {
+        currentMessageId: 'stream-1',
+        streamBuffer: 'partial',
+        sseStatus: 'connected',
+        phase: 'answer',
+      },
       messages: [streamingMsg],
     });
     const reloaded = [makeMessage('u-1'), makeMessage('stream-1', 'assistant', 'persisted')];
@@ -183,7 +195,12 @@ describe('chatReducer — SET_MESSAGES', () => {
   it('falls through to plain replacement when currentMessageId matches no message', () => {
     const state = frozenState({
       status: 'streaming',
-      streaming: { currentMessageId: 'ghost', streamBuffer: '', sseStatus: 'connected' },
+      streaming: {
+        currentMessageId: 'ghost',
+        streamBuffer: '',
+        sseStatus: 'connected',
+        phase: 'answer',
+      },
       messages: [makeMessage('u-1')],
     });
     const reloaded = [makeMessage('n-1')];

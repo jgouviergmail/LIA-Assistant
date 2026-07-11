@@ -23,6 +23,8 @@ export interface MoodColorConfig {
   hex: string;
   /** Emoji icon for the mood */
   icon: string;
+  /** Noto Animated Emoji codepoint for the animated avatar (self-hosted WebP, spec D-4). */
+  codepoint: string;
 }
 
 export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
@@ -32,6 +34,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-sky-700 dark:text-sky-300',
     hex: '#38bdf8',
     icon: '😌',
+    codepoint: '1f60c',
   },
   curious: {
     ringClass: 'ring-violet-400/70',
@@ -39,6 +42,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-violet-700 dark:text-violet-300',
     hex: '#a78bfa',
     icon: '🧐',
+    codepoint: '1f9d0',
   },
   energized: {
     ringClass: 'ring-amber-400/70',
@@ -46,6 +50,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-amber-700 dark:text-amber-300',
     hex: '#fbbf24',
     icon: '😁',
+    codepoint: '1f601',
   },
   playful: {
     ringClass: 'ring-pink-400/70',
@@ -53,6 +58,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-pink-700 dark:text-pink-300',
     hex: '#f472b6',
     icon: '😜',
+    codepoint: '1f61c',
   },
   reflective: {
     ringClass: 'ring-teal-400/70',
@@ -60,6 +66,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-teal-700 dark:text-teal-300',
     hex: '#2dd4bf',
     icon: '🤔',
+    codepoint: '1f914',
   },
   agitated: {
     ringClass: 'ring-orange-500/70',
@@ -67,6 +74,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-orange-700 dark:text-orange-300',
     hex: '#f97316',
     icon: '😟',
+    codepoint: '1f61f',
   },
   melancholic: {
     ringClass: 'ring-indigo-400/70',
@@ -74,6 +82,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-indigo-700 dark:text-indigo-300',
     hex: '#818cf8',
     icon: '😞',
+    codepoint: '1f61e',
   },
   neutral: {
     ringClass: 'ring-gray-400/50',
@@ -81,6 +90,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-gray-600 dark:text-gray-400',
     hex: '#9ca3af',
     icon: '😐',
+    codepoint: '1f610',
   },
   // --- Iteration 3 additions ---
   content: {
@@ -89,6 +99,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-emerald-700 dark:text-emerald-300',
     hex: '#34d399',
     icon: '😊',
+    codepoint: '1f60a',
   },
   determined: {
     ringClass: 'ring-red-500/70',
@@ -96,6 +107,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-red-700 dark:text-red-300',
     hex: '#ef4444',
     icon: '😤',
+    codepoint: '1f624',
   },
   defiant: {
     ringClass: 'ring-rose-500/70',
@@ -103,6 +115,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-rose-700 dark:text-rose-300',
     hex: '#f43f5e',
     icon: '😠',
+    codepoint: '1f620',
   },
   resigned: {
     ringClass: 'ring-slate-400/70',
@@ -110,6 +123,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-slate-600 dark:text-slate-400',
     hex: '#94a3b8',
     icon: '😔',
+    codepoint: '1f614',
   },
   overwhelmed: {
     ringClass: 'ring-purple-500/70',
@@ -117,6 +131,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-purple-700 dark:text-purple-300',
     hex: '#a855f7',
     icon: '😵',
+    codepoint: '1f635',
   },
   tender: {
     ringClass: 'ring-pink-500/70',
@@ -124,6 +139,7 @@ export const MOOD_COLORS: Record<MoodLabel, MoodColorConfig> = {
     textClass: 'text-pink-700 dark:text-pink-300',
     hex: '#ec4899',
     icon: '🥰',
+    codepoint: '1f970',
   },
 };
 

@@ -3,16 +3,24 @@
  *
  * Displays the mood smiley with colored ring at full avatar size.
  * Rich tooltip on hover shows psyche state: mood, emotions, drives.
- * Pure component (no hooks, no store) — receives all data via props.
- * Compatible with React.memo() on ChatMessage.
+ * On the latest assistant message (``animateEmoji``) the smiley is an
+ * animated, self-hosted Noto WebP rendered via ``AnimatedEmoji`` — static
+ * Unicode glyph everywhere else, on asset load failure, and under
+ * prefers-reduced-motion (spec D-5/D-6). History snapshots wake up while
+ * hovered (transient loop), and a mood change on the live avatar plays a
+ * one-shot ring ping (micro-interactions batch I1/I6).
+ * No store access — receives all data via props (local state covers hover
+ * and the ping). Compatible with React.memo() on ChatMessage.
  *
  * Phase: evolution — Psyche Engine v2
  * Created: 2026-04-01
  */
 
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { getMoodColor } from '@/lib/psyche-colors';
 import type { PsycheStateSummary } from '@/types/psyche';
 
@@ -30,6 +38,8 @@ export interface AssistantAvatarProps {
   tooltipLines?: AvatarTooltipLine[];
   /** Show a subtle pulse animation (first message, streaming). */
   animate?: boolean;
+  /** True only for the latest assistant message — gates the animated emoji (spec D-5). */
+  animateEmoji?: boolean;
 }
 
 /** Color a PAD percentage: green if positive, red if negative, gray if zero. */
@@ -78,8 +88,30 @@ const EMOTION_BAR_COLORS: Record<string, string> = {
   resolve: 'bg-slate-500',
 };
 
-export function AssistantAvatar({ psycheState, tooltipLines, animate }: AssistantAvatarProps) {
+export function AssistantAvatar({
+  psycheState,
+  tooltipLines,
+  animate,
+  animateEmoji,
+}: AssistantAvatarProps) {
   const { t } = useTranslation();
+  // Hover-wake (I1): history snapshots animate while hovered — transient,
+  // one loop at a time, the permanent loop stays exclusive to animateEmoji.
+  const [hovered, setHovered] = useState(false);
+  // Mood-ring ping (I6): one-shot animation when the live avatar's mood
+  // changes between renders. The ref starts at null so the initial mount
+  // (or a history row with its frozen snapshot) never pings.
+  const [pinging, setPinging] = useState(false);
+  const prevMoodRef = useRef<string | null>(null);
+  const moodLabel = psycheState?.mood_label ?? null;
+  useEffect(() => {
+    if (moodLabel === null) return;
+    const prev = prevMoodRef.current;
+    prevMoodRef.current = moodLabel;
+    if (prev !== null && prev !== moodLabel && animateEmoji) {
+      setPinging(true);
+    }
+  }, [moodLabel, animateEmoji]);
 
   // Fallback: psyche disabled or no data — show classic "LIA" avatar
   if (!psycheState) {
@@ -106,17 +138,33 @@ export function AssistantAvatar({ psycheState, tooltipLines, animate }: Assistan
   const showDrives = showCuriosity || showEngagement;
 
   return (
-    <div className="group relative">
+    <div
+      className="group relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div
         className={cn(
           'w-10 h-10 rounded-full flex items-center justify-center shadow-md ring-2',
           'motion-safe:transition-all motion-safe:duration-500',
           moodConfig.ringClass,
           moodConfig.bgClass,
-          animate && 'animate-pulse'
+          animate && 'animate-pulse',
+          pinging && 'animate-mood-ping'
         )}
+        onAnimationEnd={e => {
+          if (e.animationName === 'mood-ping') setPinging(false);
+        }}
       >
-        <span className="text-xl leading-none">{moodConfig.icon}</span>
+        {/* Animated only for the live message (spec D-5); AnimatedEmoji handles
+            reduced-motion and asset-failure fallbacks (spec D-6). */}
+        <AnimatedEmoji
+          glyph={moodConfig.icon}
+          codepoint={moodConfig.codepoint}
+          animate={animateEmoji || hovered}
+          imgClassName="w-6 h-6"
+          spanClassName="text-xl leading-none"
+        />
       </div>
 
       {/* Rich tooltip on hover (desktop only) */}

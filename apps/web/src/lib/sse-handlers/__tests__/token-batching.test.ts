@@ -113,7 +113,7 @@ describe('processSSEChunk — token batching', () => {
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith({
       type: 'STREAM_REPLACE',
-      payload: { content: 'Bonjour' },
+      payload: { content: 'Bonjour', phase: 'answer' },
     });
   });
 

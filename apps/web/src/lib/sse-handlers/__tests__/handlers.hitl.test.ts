@@ -65,7 +65,7 @@ describe('handleHitlInterruptMetadata', () => {
     expect(context.executionStepsRef.current).toEqual([]);
     expect(context.emittedStepKeysRef.current.size).toBe(0);
     expect(dispatchedOfType(dispatch, 'STREAM_REPLACE')).toEqual([
-      { content: 'hitl.validating_access' },
+      { content: 'hitl.validating_access', phase: 'progress' },
     ]);
   });
 
@@ -75,7 +75,7 @@ describe('handleHitlInterruptMetadata', () => {
     handleHitlInterruptMetadata(metadataChunk('hitl_msg_1'), context);
 
     expect(dispatchedOfType(dispatch, 'STREAM_START')).toEqual([
-      { messageId: 'hitl_msg_1', initialContent: 'hitl.validating_access' },
+      { messageId: 'hitl_msg_1', initialContent: 'hitl.validating_access', phase: 'progress' },
     ]);
     expect(state.progressMessageId).toBe('hitl_msg_1');
   });
@@ -99,7 +99,9 @@ describe('handleHitlQuestionToken', () => {
     handleHitlQuestionToken(questionTokenChunk('hitl_msg_1', 'Do '), context);
     handleHitlQuestionToken(questionTokenChunk('hitl_msg_1', 'you confirm?'), context);
 
-    expect(dispatchedOfType(dispatch, 'STREAM_REPLACE')).toEqual([{ content: 'Do ' }]);
+    expect(dispatchedOfType(dispatch, 'STREAM_REPLACE')).toEqual([
+      { content: 'Do ', phase: 'answer' },
+    ]);
     expect(dispatchedOfType(dispatch, 'STREAM_TOKEN')).toEqual([{ token: 'you confirm?' }]);
     expect(context.hitlQuestionBuffer.current.get('hitl_msg_1')).toBe('Do you confirm?');
   });

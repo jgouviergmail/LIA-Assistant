@@ -28,7 +28,9 @@ describe('handleToken', () => {
 
     handleToken(tokenChunk('Hello'), context);
 
-    expect(dispatchedOfType(dispatch, 'STREAM_REPLACE')).toEqual([{ content: 'Hello' }]);
+    expect(dispatchedOfType(dispatch, 'STREAM_REPLACE')).toEqual([
+      { content: 'Hello', phase: 'answer' },
+    ]);
     expect(context.executionStepsRef.current).toEqual([]);
     expect(context.emittedStepKeysRef.current.size).toBe(0);
     expect(context.reasoningBufRef.current).toBe('');
@@ -41,7 +43,9 @@ describe('handleToken', () => {
 
     handleToken(tokenChunk('Hi'), context);
 
-    expect(dispatchedOfType(dispatch, 'STREAM_START')).toEqual([{ messageId: 'assistant-1' }]);
+    expect(dispatchedOfType(dispatch, 'STREAM_START')).toEqual([
+      { messageId: 'assistant-1', phase: 'answer' },
+    ]);
     expect(dispatchedOfType(dispatch, 'STREAM_TOKEN')).toEqual([{ token: 'Hi' }]);
     expect(state.normalStreamInitialized).toBe(true);
   });
@@ -71,9 +75,11 @@ describe('handleContentReplacement', () => {
 
     handleContentReplacement(replacementChunk, context);
 
-    expect(dispatchedOfType(dispatch, 'STREAM_START')).toEqual([{ messageId: 'assistant-1' }]);
+    expect(dispatchedOfType(dispatch, 'STREAM_START')).toEqual([
+      { messageId: 'assistant-1', phase: 'answer' },
+    ]);
     expect(dispatchedOfType(dispatch, 'STREAM_REPLACE')).toEqual([
-      { content: '<div class="card">final html</div>' },
+      { content: '<div class="card">final html</div>', phase: 'answer' },
     ]);
     expect(context.executionStepsRef.current).toEqual([]);
     expect(context.reasoningBufRef.current).toBe('');

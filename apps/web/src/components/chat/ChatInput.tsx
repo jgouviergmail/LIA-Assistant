@@ -71,6 +71,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // wipes the input. Stays NULL for text-only typed messages and for local
   // (Sherpa) transcriptions.
   const [pendingSttMeta, setPendingSttMeta] = useState<SendSttMeta | null>(null);
+  // One-shot takeoff animation on the send icon (micro-interactions batch I3).
+  const [justSent, setJustSent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     attachments,
@@ -192,6 +194,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         readyMeta,
         pendingSttMeta ?? undefined
       );
+      setJustSent(true);
       setMessage('');
       setPendingSttMeta(null);
       onMessageChange?.('');
@@ -489,9 +492,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     <Mic className="h-4 w-4" />
                   ) : (
                     <Send
+                      onAnimationEnd={() => setJustSent(false)}
                       className={cn(
                         'h-4 w-4 transition-opacity',
-                        (disabled || isProcessing) && 'opacity-30'
+                        (disabled || isProcessing) && 'opacity-30',
+                        justSent && 'animate-send-takeoff'
                       )}
                     />
                   )}

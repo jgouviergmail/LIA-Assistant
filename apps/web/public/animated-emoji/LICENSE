@@ -1,0 +1,22 @@
+Noto Animated Emoji — attribution notice
+=========================================
+
+The animated WebP files in this directory are the "Noto Animated Emoji"
+artwork by Google, licensed under the Creative Commons Attribution 4.0
+International License (CC BY 4.0).
+
+- Artwork:   Noto Animated Emoji (c) Google
+- Project:   https://googlefonts.github.io/noto-emoji-animation/
+- License:   CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+- Source:    https://fonts.gstatic.com/s/e/notoemoji/latest/{codepoint}/512.webp
+- Fetched:   2026-07-11
+- Changes:   none — files are redistributed as served by the source
+             (a resize was tried and reverted: it degraded animation
+             fluidity). scripts/assets/fetch_noto_animated_emoji.py
+             regenerates this directory.
+
+Each file is named after the Unicode codepoint sequence of the emoji it
+animates, joined with '-' (e.g. 1f60a.webp = U+1F60A "smiling face with
+smiling eyes", 2696-fe0f.webp = balance scale). Consumers: the psyche mood
+avatar (mapping in apps/web/src/lib/psyche-colors.ts) and the personality
+selector (codepoints derived at runtime from the DB-managed emoji).

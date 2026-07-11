@@ -68,10 +68,18 @@ export interface ConversationTotals {
   totalGoogleApiRequests: number;
 }
 
+/**
+ * Content phase of the active stream: 'progress' while the message shows the
+ * accumulated execution steps (*📋 …* lines), 'answer' once real tokens
+ * replace them. Drives step styling and the streaming caret in ChatMessage.
+ */
+export type StreamPhase = 'progress' | 'answer';
+
 export interface StreamingMetadata {
   currentMessageId: string | null;
   streamBuffer: string;
   sseStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
+  phase: StreamPhase;
 }
 
 /**
@@ -161,9 +169,12 @@ export type ChatAction =
   | { type: 'SSE_ERROR'; payload: { error: string } }
 
   // Streaming events
-  | { type: 'STREAM_START'; payload: { messageId: string; initialContent?: string } }
+  | {
+      type: 'STREAM_START';
+      payload: { messageId: string; initialContent?: string; phase?: StreamPhase };
+    }
   | { type: 'STREAM_TOKEN'; payload: { token: string } }
-  | { type: 'STREAM_REPLACE'; payload: { content: string } }
+  | { type: 'STREAM_REPLACE'; payload: { content: string; phase?: StreamPhase } }
   | {
       type: 'STREAM_DONE';
       payload: {
@@ -279,6 +290,7 @@ export const initialChatState: ChatState = {
     currentMessageId: null,
     streamBuffer: '',
     sseStatus: 'disconnected',
+    phase: 'answer',
   },
   totals: {
     totalTokensIn: 0,

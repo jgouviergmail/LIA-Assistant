@@ -26,7 +26,12 @@ describe('chatReducer — SSE lifecycle', () => {
   it('SSE_CONNECTED updates sseStatus without touching the chat status', () => {
     const state = frozenState({
       status: 'sending',
-      streaming: { currentMessageId: null, streamBuffer: '', sseStatus: 'connecting' },
+      streaming: {
+        currentMessageId: null,
+        streamBuffer: '',
+        sseStatus: 'connecting',
+        phase: 'answer',
+      },
     });
 
     const next = chatReducer(state, { type: 'SSE_CONNECTED' });
@@ -38,7 +43,12 @@ describe('chatReducer — SSE lifecycle', () => {
   it('SSE_DISCONNECTED resets the streaming sub-state and returns to idle', () => {
     const state = frozenState({
       status: 'streaming',
-      streaming: { currentMessageId: 'm-1', streamBuffer: 'partial', sseStatus: 'connected' },
+      streaming: {
+        currentMessageId: 'm-1',
+        streamBuffer: 'partial',
+        sseStatus: 'connected',
+        phase: 'answer',
+      },
     });
 
     const next = chatReducer(state, { type: 'SSE_DISCONNECTED' });
@@ -48,13 +58,19 @@ describe('chatReducer — SSE lifecycle', () => {
       currentMessageId: null,
       streamBuffer: '',
       sseStatus: 'disconnected',
+      phase: 'answer',
     });
   });
 
   it('SSE_ERROR transitions to error state and appends an assistant error bubble', () => {
     const state = frozenState({
       status: 'sending',
-      streaming: { currentMessageId: null, streamBuffer: '', sseStatus: 'connecting' },
+      streaming: {
+        currentMessageId: null,
+        streamBuffer: '',
+        sseStatus: 'connecting',
+        phase: 'answer',
+      },
     });
 
     const next = chatReducer(state, {

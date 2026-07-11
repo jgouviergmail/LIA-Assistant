@@ -447,6 +447,16 @@ export function PersonalitySelector() {
 }
 ```
 
+**Émoticônes animées** : le sélecteur rend les emojis via le composant partagé
+[`AnimatedEmoji`](../../apps/web/src/components/ui/animated-emoji.tsx) (Noto Animated Emoji
+auto-hébergés dans `apps/web/public/animated-emoji/`, licence CC BY 4.0). La personnalité en
+cours est animée en continu dans le header ; les items du menu s'animent au survol/focus
+uniquement (une seule boucle à la fois, chargement à la demande). Le codepoint est dérivé à
+l'exécution depuis l'emoji stocké en base : un emoji sans version animée Noto (ex. 🌴, ⚛️,
+🥟, 💰) retombe silencieusement sur le glyphe statique — rien à maintenir côté frontend
+quand un admin change d'emoji. `prefers-reduced-motion` désactive toute animation (asset non
+téléchargé).
+
 ### Page Settings
 
 **Fichier**: [apps/web/src/components/settings/PersonalitySettings.tsx](../../apps/web/src/components/settings/PersonalitySettings.tsx)
