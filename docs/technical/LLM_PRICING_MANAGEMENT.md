@@ -67,7 +67,7 @@ graph TB
 
 ### Code Complet
 
-**Fichier source**: [apps/api/src/domains/llm/pricing_service.py](apps/api/src/domains/llm/pricing_service.py)
+**Fichier source**: [apps/api/src/domains/llm/pricing_service.py](../../apps/api/src/domains/llm/pricing_service.py)
 
 ```python
 from decimal import Decimal
@@ -314,7 +314,7 @@ CREATE TABLE llm_model_pricing (
 
 ### Seed Data (Exemples)
 
-**Fichier source**: [apps/api/alembic/versions/2025_11_05_1500-seed_openai_pricing.py](apps/api/alembic/versions/2025_11_05_1500-seed_openai_pricing.py)
+**Fichier source**: [apps/api/alembic/versions/2025_11_05_1500-seed_openai_pricing.py](../../apps/api/alembic/versions/2025_11_05_1500-seed_openai_pricing.py)
 
 ```python
 # OpenAI Models
@@ -419,7 +419,7 @@ currency_rates = [
 
 ### TokenExtractor
 
-**Fichier source**: [apps/api/src/infrastructure/observability/token_extractor.py](apps/api/src/infrastructure/observability/token_extractor.py)
+**Fichier source**: [apps/api/src/infrastructure/observability/token_extractor.py](../../apps/api/src/infrastructure/observability/token_extractor.py)
 
 ```python
 class TokenExtractor:

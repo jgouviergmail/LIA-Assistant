@@ -1,7 +1,7 @@
 # Architecture LangGraph - LIA
 
-**Version**: 6.0 (INTELLIPLANNER + INTELLIA v10.1 + SEMANTIC + REMINDERS + Architecture v3.5 + Sub-Agents + Browser Control + Journals + Philips Hue + Initiative Phase + MCP Iterative + Cross-Worker Cache Invalidation + v1.14.5 Fixes)
-**Date**: 2026-04-07
+**Version**: 6.1 (v6.0 + revue de cohérence 2026-07-11 : section HITL réalignée sur le contrat ADR-106/092, approval gate documenté pass-through)
+**Date**: 2026-07-11 (base 2026-04-07)
 **Status**: Production
 
 ---
@@ -843,7 +843,19 @@ class MessagesState(TypedDict):
 
 ## 6. HITL (Human-in-the-Loop)
 
-### 3 Niveaux d'Interaction
+> ⚠️ **Note (2026-07-11)** : le contrat actuel est le **contrat unifié ADR-106** —
+> un `action_requests` **typé** (`draft_critique`, `tool_confirmation`,
+> `for_each_confirmation`, `entity_disambiguation`, `plan_approval`, `clarification`),
+> partagé par le pipeline et ReAct, avec interrupts **replay-safe** (ADR-092 : un
+> interrupt par exécution de node, self-loop après EDIT, providers FOR_EACH
+> pré-exécutés une fois). Les « 3 niveaux » ci-dessous restent une bonne intuition
+> pédagogique mais : le **Niveau 2 est bypassé** (approval gate = pass-through
+> auto-approve, cf. §2.5) et il manque `for_each_confirmation` (node dédié
+> `for_each_confirm_node`) et `tool_confirmation` (gate pré-exécution ReAct).
+> Référence complète : [HITL.md](technical/HITL.md) et
+> [hitl-flow.mmd](architecture/hitl-flow.mmd).
+
+### 3 Niveaux d'Interaction (vue historique simplifiée)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -875,7 +887,8 @@ class MessagesState(TypedDict):
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │   Trigger: validation_result.requires_hitl = True                    │
-│   Node: approval_gate_node                                          │
+│   Node: approval_gate_node — ⚠️ BYPASSÉ depuis v1.14.5              │
+│   (auto-approve pass-through, cf. §2.5 — le HITL tool-level prime)  │
 │   Interaction: PlanApprovalInteraction                              │
 │                                                                      │
 │   Flux:                                                             │
@@ -903,7 +916,8 @@ class MessagesState(TypedDict):
 │   Interaction: DraftCritiqueInteraction                             │
 │                                                                      │
 │   Flux:                                                             │
-│   task_orchestrator → hitl_dispatch_node → response                 │
+│   task_orchestrator → hitl_dispatch_node → initiative → response    │
+│   (self-loop tant qu'un draft est pendant — ADR-092)                │
 │                           ↑                                         │
 │                      interrupt()                                    │
 │                      User: CONFIRM/EDIT/CANCEL                      │

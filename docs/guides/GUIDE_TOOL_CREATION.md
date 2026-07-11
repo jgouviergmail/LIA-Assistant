@@ -160,7 +160,7 @@ async def multiply_numbers(a: float, b: float) -> float:
 ### Étape 2 : Register Tool
 
 ```python
-# apps/api/src/domains/agents/registry.py
+# apps/api/src/domains/agents/registry/agent_registry.py
 from src.domains.agents.tools.calculator_tools import add_numbers, multiply_numbers
 
 # Register tools
@@ -372,7 +372,7 @@ class GetCurrentWeatherTool(ConnectorTool):
 #### 3. Register Tool
 
 ```python
-# apps/api/src/domains/agents/registry.py
+# apps/api/src/domains/agents/registry/agent_registry.py
 from src.domains.agents.tools.weather_tools import GetCurrentWeatherTool
 from src.domains.connectors.clients.openweathermap_client import OpenWeatherMapClient
 
@@ -588,7 +588,7 @@ class ToolManifest(BaseModel):
 ### Exemple Complet
 
 ```python
-# apps/api/src/domains/agents/tools/manifests/contacts_manifests.py
+# apps/api/src/domains/agents/google_contacts/catalogue_manifests.py
 from src.domains.agents.tools.schemas import (
     ToolManifest,
     ParameterSchema,
@@ -708,7 +708,7 @@ Les `semantic_keywords` permettent la découverte sémantique des outils via Ope
 #### Exemple Complet
 
 ```python
-# apps/api/src/domains/reminders/manifests.py
+# apps/api/src/domains/agents/reminders/catalogue_manifests.py
 
 CREATE_REMINDER_MANIFEST = ToolManifest(
     name="CREATE_REMINDER",
@@ -796,7 +796,7 @@ CREATE_REMINDER_MANIFEST = ToolManifest(
 ### Export pour Planner
 
 ```python
-# apps/api/src/domains/agents/catalogue.py
+# apps/api/src/domains/agents/registry/catalogue.py
 def export_manifests_for_planner(domain: str | None = None) -> str:
     """
     Export tool manifests pour Planner LLM prompt.
@@ -833,7 +833,7 @@ def export_manifests_for_planner(domain: str | None = None) -> str:
 **Usage dans Planner** :
 
 ```python
-# apps/api/src/domains/agents/nodes/planner.py
+# apps/api/src/domains/agents/nodes/planner_node_v3.py
 from src.domains.agents.catalogue import export_manifests_for_planner
 
 # Load filtered catalogue based on router detected domains
@@ -1543,7 +1543,6 @@ Ce mecanisme est particulierement important pour les outils MCP dont le `build_a
 | `infrastructure/mcp/utils.py` | `build_mcp_app_output()`, `is_app_only()`, `extract_app_meta()` |
 | `infrastructure/mcp/registration.py` | `register_mcp_tools()`, `build_mcp_tool_manifest()`, `json_schema_to_parameters()` |
 | `infrastructure/mcp/excalidraw/overrides.py` | `EXCALIDRAW_SPATIAL_SUFFIX`, constantes serveur |
-| `infrastructure/mcp/excalidraw/iterative_builder.py` | `build_from_intent()` — builder LLM iteratif (intent-only mode) |
 | `domains/agents/orchestration/parallel_executor.py` | `_coerce_args_to_schema()` |
 | `domains/agents/orchestration/type_coercion.py` | `coerce_string_to_list()`, `is_list_type()` |
 

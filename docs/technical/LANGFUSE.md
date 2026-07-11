@@ -401,7 +401,7 @@ def enrich_config_with_metadata(
 ### 2. Query API Langfuse
 
 ```python
-# scripts/validate_langfuse_integration.py (extrait)
+# scripts/monitoring/validate_langfuse_integration.py (extrait)
 
 async def get_recent_traces(self, limit: int = 10, hours: int = 24) -> list[dict]:
     """
@@ -510,9 +510,9 @@ Alignment Strategy:
 ### 3. Validation token alignment
 
 ```bash
-# scripts/validate_langfuse_integration.py
+# scripts/monitoring/validate_langfuse_integration.py
 
-python scripts/validate_langfuse_integration.py
+python scripts/monitoring/validate_langfuse_integration.py
 
 # Output example:
 # ================================================================================
@@ -597,7 +597,7 @@ LANGFUSE_FLUSH_BATCH_SIZE=50
 ### 2. Configuration Python
 
 ```python
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 
 class Settings(BaseSettings):
     """Application settings."""
@@ -642,7 +642,7 @@ class Settings(BaseSettings):
 
 ### 1. Script de validation
 
-Voir le code complet dans [scripts/validate_langfuse_integration.py](../../scripts/validate_langfuse_integration.py) (350 lignes).
+Voir le code complet dans [scripts/monitoring/validate_langfuse_integration.py](../../scripts/monitoring/validate_langfuse_integration.py) (350 lignes).
 
 Fonctionnalités :
 - Fetch recent traces (API call)
@@ -721,7 +721,7 @@ print(f'Public Key: {settings.langfuse_public_key[:10]}...')
 "
 
 # 2. Test credentials
-python scripts/validate_langfuse_integration.py
+python scripts/monitoring/validate_langfuse_integration.py
 
 # 3. Check logs for errors
 grep -i "langfuse" logs/app.log | tail -20
@@ -799,13 +799,13 @@ LANGFUSE_ASYNC=true
 
 ```bash
 # Validation Langfuse
-python scripts/validate_langfuse_integration.py
+python scripts/monitoring/validate_langfuse_integration.py
 
 # Export traces to CSV
-python scripts/export_langfuse_traces.py --start 2025-11-01 --end 2025-11-14
+python scripts/export_langfuse_traces.py --start 2025-11-01 --end 2025-11-14   # exemple (script non commité)
 
 # Cost analysis
-python scripts/analyze_langfuse_costs.py --user user_hash_a1b2c3d4
+python scripts/analyze_langfuse_costs.py   # exemple (script non commité) --user user_hash_a1b2c3d4
 ```
 
 ---

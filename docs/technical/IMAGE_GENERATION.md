@@ -124,7 +124,7 @@ Task Orchestrator → parallel_executor invokes edit_image tool
 | `src/core/config/__init__.py` | `ImageGenerationSettings` in MRO |
 | `src/core/constants.py` | `IMAGE_GENERATION_*` constants |
 | `src/core/field_names.py` | `FIELD_IMAGE_GENERATION_*` |
-| `src/domains/auth/models.py` | 4 user preference columns |
+| `src/domains/users/models.py` | 4 user preference columns |
 | `src/domains/chat/models.py` | Cost tracking columns (MessageTokenSummary + UserStatistics) |
 | `src/domains/chat/service.py` | `ImageGenerationRecord`, `record_image_generation_call()` |
 | `src/domains/chat/schemas.py` | `TokenSummaryDTO` includes image costs in consolidated `cost_eur` |

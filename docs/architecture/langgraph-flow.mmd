@@ -1,19 +1,18 @@
 graph TB
-    User[User Query] --> Router[router_node_v3]
+    User[User Query] --> Compaction[compaction_node<br/>F4: pass-through if no<br/>compaction needed]
+    Compaction --> Router[router_node_v3]
 
-    Router --> RouterDecision{Routing Decision<br/>Binary Classification}
+    Router --> RouterDecision{Routing Decision<br/>conversation / actionable<br/>/ ReAct mode}
 
     RouterDecision -->|"response"<br/>Conversational| ResponseNode[response_node]
+    RouterDecision -->|"react"<br/>ADR-070 user-toggled| ReactSetup[react_setup_node]
     RouterDecision -->|"planner"<br/>Actionable| SkillCheck{Skill Match?}
 
     SkillCheck -->|"Yes — deterministic<br/>SkillBypassStrategy"| TaskOrchestrator
     SkillCheck -->|"No"| PlannerNode[planner_node_v3]
 
-    PlannerNode --> SmartPlanner[SmartPlannerService<br/>Generate ExecutionPlan]
-    SmartPlanner --> PatternCheck{Pattern Learner<br/>Confidence ≥90%?}
-
-    PatternCheck -->|"Yes — Bypass<br/>Semantic Validation"| PlanReady
-    PatternCheck -->|No| PlanReady{Plan Analysis}
+    PlannerNode --> SmartPlanner[SmartPlannerService<br/>Generate ExecutionPlan<br/>PlanPatternLearner cache<br/>Bayesian, Redis]
+    SmartPlanner --> PlanReady{Plan Analysis}
 
     PlanReady -->|Empty Plan| ResponseNode
     PlanReady -->|Requires Validation| SemanticValidator[semantic_validator_node]
@@ -22,74 +21,80 @@ graph TB
     SemanticValidator --> ValidationCheck{Validation Result}
     ValidationCheck -->|Requires Clarification| Clarification[clarification_node<br/>HITL Interrupt]
     ValidationCheck -->|Needs Replan| PlannerNode
-    ValidationCheck -->|Max Iterations| ApprovalGate[approval_gate_node]
-    ValidationCheck -->|Valid| ApprovalGate
+    ValidationCheck -->|Valid / Max Iterations| ApprovalGate[approval_gate_node<br/>currently auto-approve<br/>pass-through — tool-level<br/>HITL supersedes]
 
-    Clarification --> UserClarifies{User<br/>Clarifies}
-    UserClarifies --> SemanticValidator
+    Clarification -->|User clarifies| SemanticValidator
 
-    ApprovalGate --> ApprovalDecision{User Decision}
-    ApprovalDecision -->|Approved| TaskOrchestrator
-    ApprovalDecision -->|Replan| PlannerNode
-    ApprovalDecision -->|"Rejected<br/>(has sub-agents)"| ReplanNoSA["Replan without<br/>sub-agents"]
-    ReplanNoSA -->|"exclude_sub_agent_tools"| PlannerNode
-    ApprovalDecision -->|Rejected| ResponseNode
+    ApprovalGate -->|Approved| TaskOrchestrator
+    ApprovalGate -->|Replan| PlannerNode
+    ApprovalGate -->|Rejected| ResponseNode
 
     TaskOrchestrator --> ExecutePlan[ParallelExecutor<br/>Wave-by-wave asyncio.gather]
-    ExecutePlan --> DraftCheck{Pending<br/>Draft/HITL?}
 
-    DraftCheck -->|Yes| HITLDispatch[hitl_dispatch_node<br/>Draft Critique / Modifier Review]
-    DraftCheck -->|No| ResponseFinal[response_node]
+    ExecutePlan -->|"Pending draft<br/>(requires_confirmation)"| HITLDispatch[hitl_dispatch_node<br/>Draft Critique / Modifier Review<br/>ADR-092: one interrupt per<br/>node execution, self-loop]
+    ExecutePlan -->|"FOR_EACH bulk mutation"| ForEachConfirm[for_each_confirm_node<br/>ADR-092: providers pre-executed<br/>once, approve resumes,<br/>edit self-loops]
 
-    HITLDispatch --> DraftDecision{User Decision}
-    DraftDecision -->|Confirm / Edit / Cancel| ResponseFinal
+    HITLDispatch -->|Draft still pending| HITLDispatch
+    HITLDispatch -->|Terminal decision| Initiative
+
+    ForEachConfirm -->|Edit — filtered list| ForEachConfirm
+    ForEachConfirm -->|Approved| TaskOrchestrator
+    ForEachConfirm -->|Cancelled| Initiative
 
     ExecutePlan --> DomainAgents
     ExecutePlan --> SubAgentDelegation
 
-    subgraph SubAgentDelegation["Sub-Agent Delegation (F6)"]
+    subgraph SubAgentDelegation["Sub-Agent Delegation (ADR-083)"]
         direction TB
-        DelegateTool["delegate_to_sub_agent_tool"] --> SubPipeline["Sub-Agent Pipeline<br/>Query Analysis → Planner<br/>→ Executor → Synthesis"]
-        SubPipeline --> SubResult["Consolidated Result<br/>→ Parent Tracker"]
+        DelegateTool["delegate_to_sub_agent_tool"] --> OneShot["One-shot expert LLM call<br/>persona + expertise written by<br/>the principal, all data inlined<br/>— no tools, no graph"]
     end
 
-    subgraph DomainAgents["17+ Domain Agents"]
+    subgraph DomainAgents["Graph Domain Agent Nodes"]
         direction LR
-        subgraph "Google / Apple / Microsoft"
-            ContactAgent[contacts]
+        subgraph OAuthAgents["OAuth (Google / Apple / Microsoft)"]
+            ContactAgent[contact]
             EmailAgent[email]
-            EventAgent[calendar]
-            FileAgent[drive]
-            TaskAgent[tasks]
+            EventAgent[event]
+            FileAgent[file]
+            TaskAgent[task]
         end
-        subgraph "Search & Knowledge"
+        subgraph APIKeyAgents["API Key"]
             WeatherAgent[weather]
             WikiAgent[wikipedia]
             PerplexityAgent[perplexity]
-            BraveAgent[brave]
-            WebSearchAgent[web_search]
-            WebFetchAgent[web_fetch]
+            PlaceAgent[place]
+            RouteAgent[route]
         end
-        subgraph "Utilities"
-            PlaceAgent[places]
-            RouteAgent[routes]
-            ReminderAgent[reminders]
-            ContextAgent[context]
-            QueryAgent[query]
-        end
-        subgraph "Dynamic"
-            MCPAgents["MCP Agents<br/>(admin + per-user)"]
+        subgraph SmartHome["Smart Home & Browser"]
+            HueAgent[hue]
+            BrowserAgent["browser (F7,<br/>conditional)"]
         end
     end
 
-    DomainAgents --> ResponseFinal
-    SubAgentDelegation --> ResponseFinal
+    DomainAgents --> Initiative[initiative_node<br/>ADR-062: post-execution evaluation,<br/>optional read-only actions,<br/>ADR-091: response-context prefetch]
+    SubAgentDelegation --> Initiative
 
-    ResponseNode --> UserResponse[AI Response to User]
+    Initiative -->|Re-evaluate after actions| Initiative
+    Initiative --> ResponseFinal[response_node]
+
+    subgraph ReactMode["ReAct Execution Mode (ADR-070)"]
+        direction TB
+        ReactSetup --> ReactCallModel[react_call_model_node]
+        ReactCallModel -->|Tool calls| ReactExecuteTools[react_execute_tools_node]
+        ReactExecuteTools -->|Loop back| ReactCallModel
+        ReactCallModel -->|Done| ReactFinalize[react_finalize_node]
+    end
+
+    ReactExecuteTools -->|"Draft requiring confirmation<br/>(shared HITL dispatch)"| HITLDispatch
+    ReactFinalize -->|"INITIATIVE_REACT_ENABLED"| Initiative
+    ReactFinalize --> ResponseFinal
+
+    ResponseNode --> UserResponse[AI Response to User<br/>SSE streaming]
     ResponseFinal --> UserResponse
 
     UserResponse --> End([END])
 
+    style Compaction fill:#f5f5f5
     style Router fill:#e1f5ff
     style SmartPlanner fill:#fff4e1
     style SemanticValidator fill:#e1ffe1
@@ -97,11 +102,11 @@ graph TB
     style ApprovalGate fill:#ffcccc
     style TaskOrchestrator fill:#e1ffe1
     style HITLDispatch fill:#ffe1e1
+    style ForEachConfirm fill:#ffe1e1
     style DomainAgents fill:#f0e1ff
-    style PatternCheck fill:#fff9e1
     style SkillCheck fill:#fff9e1
-    style MCPAgents fill:#f0e1ff
     style SubAgentDelegation fill:#e1fff5
     style DelegateTool fill:#e1fff5
-    style SubPipeline fill:#e1fff5
-    style ReplanNoSA fill:#ffe1e1
+    style OneShot fill:#e1fff5
+    style ReactMode fill:#e8f0fe
+    style Initiative fill:#fff4e1

@@ -555,6 +555,12 @@ semantic_keywords=[
 
 ### Étape 6 : Intent Anchors (CRITIQUE)
 
+> ⚠️ **Étape obsolète (2026-07-11)** : `INTENT_ANCHORS` et le `SemanticIntentDetector`
+> (détection d'intention par embeddings) **n'existent plus dans le code**. La détection
+> d'intention est portée par le **QueryAnalyzerService** (LLM-based) — il n'y a plus
+> d'anchors à maintenir lors de la création d'un agent. Cette étape est conservée à
+> titre historique ; passez directement à l'étape suivante.
+
 > **Si le type d'intent de votre tool n'existe pas**, vous devez l'ajouter dans `INTENT_ANCHORS`.
 
 **Fichier** : `apps/api/src/domains/agents/services/semantic_intent_detector.py`
@@ -2194,7 +2200,7 @@ Pour creer un nouveau type (au-dela de Heartbeat et Interests) :
 | Domain Taxonomy | `src/domains/agents/registry/domain_taxonomy.py` |
 | Catalogue Schemas | `src/domains/agents/registry/catalogue.py` |
 | Catalogue Loader | `src/domains/agents/registry/catalogue_loader.py` |
-| Intent Detector | `src/domains/agents/services/semantic_intent_detector.py` |
+| Query Analyzer (intent LLM) | `src/domains/agents/services/query_analyzer_service.py` |
 | Base Tools | `src/domains/agents/tools/base.py` |
 
 ### Exemples Concrets

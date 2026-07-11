@@ -1815,7 +1815,7 @@ class BaseAPIException(HTTPException):
 | A02 | Cryptographic Failures | ✅ | Bcrypt + Fernet + TLS 1.3 | Ce document |
 | A03 | Injection | ✅ | SQLAlchemy ORM + Pydantic | [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) |
 | A04 | Insecure Design | ✅ | Threat modeling + Defense in depth | Ce document |
-| A05 | Security Misconfiguration | ✅ | Secure defaults + env validation | [CONFIGURATION.md](CONFIGURATION.md) |
+| A05 | Security Misconfiguration | ✅ | Secure defaults + env validation | [CONFIGURATION.md](../guides/GUIDE_CONFIG_ARCHITECTURE.md) |
 | A06 | Vulnerable Components | ✅ | Dependabot + pip-audit sur lockfile (transitifs inclus) | [ADR-112](../architecture/ADR-112-Python-Dependency-Locking.md) |
 | A07 | Authentication Failures | ✅ | BFF Pattern + rate limiting | [AUTHENTICATION.md](AUTHENTICATION.md) |
 | A08 | Software/Data Integrity | ✅ | Lockfiles hash-vérifiés + SBOM + actions pinnées par SHA | [CI_CD.md](CI_CD.md) |
@@ -2014,7 +2014,7 @@ async def delete_user(self, user_id: UUID) -> None:
 ### 1. Environment Variables (12-Factor App)
 
 ```python
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 
 class Settings(BaseSettings):
     """
@@ -2382,7 +2382,7 @@ def test_password_constant_time_comparison():
 
 ```python
 # Vérifier la configuration du cookie
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 
 session_cookie_domain: str | None = Field(
     default=None,  # ✅ None = current domain only (recommended)

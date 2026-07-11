@@ -59,7 +59,7 @@
 **Likelihood**: **High** (cause #1 la plus fréquente)
 
 **Description**:
-Le pool de connexions PostgreSQL est saturé. Nouvelles requêtes ne peuvent pas obtenir de connexion, causant exceptions `TimeoutError` ou `PoolTimeout`. LIA utilise SQLAlchemy avec pool configuré dans `apps/api/src/infrastructure/database.py`.
+Le pool de connexions PostgreSQL est saturé. Nouvelles requêtes ne peuvent pas obtenir de connexion, causant exceptions `TimeoutError` ou `PoolTimeout`. LIA utilise SQLAlchemy avec pool configuré dans `apps/api/src/infrastructure/database/session.py`.
 
 **How to Verify**:
 ```bash
@@ -91,7 +91,7 @@ active_connections
 **Likelihood**: **High**
 
 **Description**:
-Anthropic Claude API (clé composant de LIA) retourne erreurs 500/503 ou timeouts. Agents ne peuvent pas générer réponses, causant exceptions non-catchées qui remontent comme erreurs HTTP 500. Vérifier `apps/api/src/infrastructure/llm/anthropic_client.py`.
+Anthropic Claude API (clé composant de LIA) retourne erreurs 500/503 ou timeouts. Agents ne peuvent pas générer réponses, causant exceptions non-catchées qui remontent comme erreurs HTTP 500. Vérifier `apps/api/src/infrastructure/llm/factory.py` et les adapters providers (`src/infrastructure/llm/providers/`).
 
 **How to Verify**:
 ```bash
@@ -402,7 +402,7 @@ docker-compose exec postgres psql -U lia -c "SELECT state, count(*) FROM pg_stat
 docker-compose exec postgres psql -U lia -c "SELECT pid, now() - query_start as duration, state, query FROM pg_stat_activity WHERE state != 'idle' AND datname='lia' ORDER BY duration DESC;"
 ```
 
-**Fix**: Augmenter pool size dans `apps/api/src/infrastructure/database.py`:
+**Fix**: Augmenter pool size dans `apps/api/src/infrastructure/database/session.py`:
 ```python
 # Avant
 engine = create_engine(database_url, pool_size=10, max_overflow=20)
@@ -725,14 +725,14 @@ Database connection pool (size: 10) was exhausted due to:
 ## 🔗 Additional Resources
 
 ### Documentation
-- [LIA Architecture Overview](../../architecture/OVERVIEW.md)
+- LIA Architecture Overview
 - [FastAPI Error Handling Guide](https://fastapi.tiangolo.com/tutorial/handling-errors/)
 - [SQLAlchemy Connection Pooling](https://docs.sqlalchemy.org/en/20/core/pooling.html)
 
 ### Code References
 - API Error Handlers: `apps/api/src/main.py` (exception handlers)
-- Database Config: `apps/api/src/infrastructure/database.py` (pool config)
-- LLM Client: `apps/api/src/infrastructure/llm/anthropic_client.py` (error handling)
+- Database Config: `apps/api/src/infrastructure/database/session.py` (pool config)
+- LLM Factory: `apps/api/src/infrastructure/llm/factory.py` (error handling via adapters providers)
 
 ### External Resources
 - [Google SRE Book - Handling Overload](https://sre.google/sre-book/handling-overload/)

@@ -1273,7 +1273,7 @@ tail -f logs/app.log | jq '.email, .password'
 ### 1. Métriques Prometheus
 
 ```python
-# apps/api/src/infrastructure/observability/metrics_security.py
+# proposition (non implémentée) — le filtrage PII réel vit dans src/infrastructure/observability/pii_filter.py
 
 from prometheus_client import Counter, Histogram
 
@@ -1301,7 +1301,7 @@ pii_filter_duration_seconds = Histogram(
 ### 2. Alertes Grafana
 
 ```yaml
-# infrastructure/observability/grafana/alerts/pii_security.yaml
+# proposition d'alerte (non déployée — noyau actif : ADR-119)
 
 groups:
   - name: pii_security

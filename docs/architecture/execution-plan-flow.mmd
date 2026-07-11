@@ -35,7 +35,7 @@ graph TB
     ForEachExpansion -->|"for_each_max=10"| ExpandSteps[Expand to 50 sub-steps]
     ExpandSteps --> HITLBulkCheck{Bulk Mutation<br/>HITL Required}
 
-    HITLBulkCheck --> HITLApproval[hitl_dispatch_node<br/>ForEachConfirmation]
+    HITLBulkCheck --> HITLApproval["for_each_confirm_node (ADR-092)<br/>providers pre-executed once,<br/>approve resumes with no re-fetch,<br/>edit self-loops with filtered list"]
 
     HITLApproval --> UserApproves{User<br/>Approves?}
     UserApproves -->|Yes| EmailExecution[Execute Email Sends<br/>asyncio.gather per wave]

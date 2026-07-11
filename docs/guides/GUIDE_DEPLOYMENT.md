@@ -321,7 +321,7 @@ NEXT_TELEMETRY_DISABLED=1
 **Script de validation** :
 
 ```python
-# scripts/validate_env.py
+# apps/api/scripts/validate_config.py
 import os
 import sys
 
@@ -362,7 +362,7 @@ if __name__ == "__main__":
 
 ```bash
 # Validate before deployment
-python scripts/validate_env.py
+python apps/api/scripts/validate_config.py
 ```
 
 ---
@@ -563,7 +563,7 @@ docker-compose ps
 docker-compose exec api alembic upgrade head
 
 # 6. Create initial admin user (optional)
-docker-compose exec api python scripts/create_admin.py
+docker-compose exec api python scripts/data/create_admin.py
 
 # 7. Access services
 # - Frontend: http://localhost:3000
@@ -1389,7 +1389,7 @@ aws_ecs_service_memory_utilization
 
 ```bash
 #!/bin/bash
-# scripts/smoke_test.sh
+# smoke test ad hoc (exemple, non commité)
 
 API_URL="https://api.yourdomain.com"
 

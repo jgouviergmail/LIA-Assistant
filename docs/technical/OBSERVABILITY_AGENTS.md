@@ -564,7 +564,7 @@ for pattern_type, pattern_list in FORBIDDEN_REASONING_PATTERNS.items():
         break
 ```
 
-**Dashboard** : `04-agents-langgraph.json` (Section 2 - Performance)
+**Dashboard** : `07-agents-pipeline.json` (Section 2 - Performance)
 
 #### 3. LLM Token Usage & Cost (4 métriques + 1 helper)
 
@@ -804,7 +804,7 @@ The `query` value itself is **not logged or labeled** (potential PII) — only t
 )
 ```
 
-**Dashboard** : `04-agents-langgraph.json` (Section 3.5 - Planner Performance & Retry Tracking)
+**Dashboard** : `07-agents-pipeline.json` (Section 3.5 - Planner Performance & Retry Tracking)
 
 #### 6. HITL (Human-in-the-Loop) Metrics (14 métriques)
 
@@ -1028,7 +1028,7 @@ gmail_results_count = Histogram(
 )
 ```
 
-**Dashboard** : `04-agents-langgraph.json` (Section Gmail).
+**Dashboard** : `07-agents-pipeline.json` (Section Gmail).
 
 #### 9. Voice/TTS Metrics (13 métriques) - NEW Phase 2025-12-24
 
@@ -2094,9 +2094,9 @@ def configure_logging() -> None:
 
 ## Dashboards Grafana
 
-### Liste des 15 Dashboards
+### Liste des Dashboards (15 historiques — 22 aujourd'hui)
 
-**Fichier** : `infrastructure/observability/grafana/dashboards/README.md`
+**Répertoire** : `infrastructure/observability/grafana/dashboards/` (le tableau ci-dessous précède les derniers ajouts)
 
 | ID | Nom | Panneaux | Objectif |
 |----|-----|----------|----------|
@@ -2843,7 +2843,7 @@ llm_cost_total{currency="USD"}  # ❌ No data
 **Objectif** : Ajouter observabilité complète au nouveau node `validation_node`.
 
 ```python
-# apps/api/src/domains/agents/nodes/validation_node.py
+# apps/api/src/domains/agents/nodes/semantic_validator_node.py
 
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.tracing import trace_node
@@ -3140,8 +3140,8 @@ POST /api/v1/agents/chat (500ms)
 - [ROUTER.md](./ROUTER.md) - Router Node et domain detection
 - [RESPONSE.md](./RESPONSE.md) - Response Node et anti-hallucination
 - [AGENTS.md](./AGENTS.md) - Architecture multi-agent (à générer)
-- [METRICS_REFERENCE.md](../monitoring/METRICS_REFERENCE.md) - Référence complète des métriques
-- [TOKEN_METRICS_REFERENCE.md](../monitoring/TOKEN_METRICS_REFERENCE.md) - Token tracking détaillé
+- [METRICS_REFERENCE.md](METRICS_REFERENCE.md) - Référence complète des métriques
+- [TOKEN_METRICS_REFERENCE.md](./TOKEN_TRACKING_AND_COUNTING.md) - Token tracking détaillé
 
 ### Fichiers Source
 

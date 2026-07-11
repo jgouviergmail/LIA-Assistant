@@ -315,7 +315,7 @@ async def router_node(state: MessagesState, config: RunnableConfig) -> dict[str,
 
 ### Domain Model
 
-**Fichier source**: [apps/api/src/domains/agents/domain_schemas.py](apps/api/src/domains/agents/domain_schemas.py)
+**Fichier source**: [apps/api/src/domains/agents/domain_schemas.py](../../apps/api/src/domains/agents/domain_schemas.py)
 
 ### NextNodeType
 
@@ -440,7 +440,7 @@ RouterOutput(
 
 ### Version Actuelle
 
-**Fichier**: [apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt](apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt)
+**Fichier**: [apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt](../../apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt)
 
 > **Note**: Le prompt v8 a été consolidé dans v1 (décembre 2025). Le versioning historique v8 est conservé dans le contenu du fichier.
 
@@ -1038,7 +1038,7 @@ def cache_llm_response(ttl_seconds: int = 300, enabled: bool = True):
 ### Configuration
 
 ```python
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 
 class Settings(BaseSettings):
     # LLM Caching
@@ -1131,7 +1131,7 @@ router_output = await _call_router_llm(
 
 ### Métriques Prometheus
 
-**Fichier**: [apps/api/src/infrastructure/observability/metrics_agents.py](apps/api/src/infrastructure/observability/metrics_agents.py)
+**Fichier**: [apps/api/src/infrastructure/observability/metrics_agents.py](../../apps/api/src/infrastructure/observability/metrics_agents.py)
 
 #### Métriques Router-Specific
 
@@ -1186,7 +1186,7 @@ agent_node_executions_total = Counter(
 
 ### Grafana Dashboards
 
-**Dashboard**: [infrastructure/observability/grafana/dashboards/04-agents-langgraph.json](infrastructure/observability/grafana/dashboards/04-agents-langgraph.json)
+**Dashboard**: [infrastructure/observability/grafana/dashboards/07-agents-pipeline.json](../../infrastructure/observability/grafana/dashboards/07-agents-pipeline.json)
 
 **Panels Router**:
 1. **Router Decisions** (rate by intention)
@@ -1455,7 +1455,7 @@ async def test_router_per_turn_state_cleanup():
 
 2. **Ajuster threshold**:
    ```python
-   # apps/api/src/core/config.py
+   # apps/api/src/core/config/
    router_confidence_threshold: float = 0.60  # Lower from 0.70
    ```
 
@@ -1494,7 +1494,7 @@ async def test_router_per_turn_state_cleanup():
 **Solutions**:
 1. **Vérifier cache enabled**:
    ```python
-   # apps/api/src/core/config.py
+   # apps/api/src/core/config/
    llm_cache_enabled: bool = True  # ✅ Must be True
    llm_cache_ttl_seconds: int = 300  # 5 minutes
    ```
@@ -1535,7 +1535,7 @@ async def test_router_per_turn_state_cleanup():
 ### Configuration Router
 
 ```python
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 
 class Settings(BaseSettings):
     # Router LLM
@@ -1626,14 +1626,14 @@ Voir [SEMANTIC_INTENT_DETECTION.md](SEMANTIC_INTENT_DETECTION.md) pour l'archite
 - [GRAPH_AND_AGENTS_ARCHITECTURE.md](GRAPH_AND_AGENTS_ARCHITECTURE.md) - LangGraph architecture
 
 **Code source**:
-- [router_node_v3.py](apps/api/src/domains/agents/nodes/router_node_v3.py) - Router node implementation
-- [domain_schemas.py](apps/api/src/domains/agents/domain_schemas.py) - RouterOutput schema
-- [router_system_prompt_template.txt](apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt) - Prompt actif (v8 consolidated to v1)
-- [message_windowing.py](apps/api/src/domains/agents/utils/message_windowing.py) - Message windowing utilities
+- [router_node_v3.py](../../apps/api/src/domains/agents/nodes/router_node_v3.py) - Router node implementation
+- [domain_schemas.py](../../apps/api/src/domains/agents/domain_schemas.py) - RouterOutput schema
+- [router_system_prompt_template.txt](../../apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt) - Prompt actif (v8 consolidated to v1)
+- [message_windowing.py](../../apps/api/src/domains/agents/utils/message_windowing.py) - Message windowing utilities
 
 **ADRs**:
-- [ADR-003: Multi-Domain Dynamic Filtering](docs/architecture/ADR-003-Multi-Domain-Dynamic-Filtering.md)
-- [ADR-004: Analytical Reasoning Patterns](docs/architecture/ADR-004-Analytical-Reasoning-Patterns.md)
+- [ADR-003: Multi-Domain Dynamic Filtering](../architecture/ADR_INDEX.md#adr-003-multi-domain-dynamic-filtering)
+- [ADR-004: Analytical Reasoning Patterns](../architecture/ADR_INDEX.md#adr-004-analytical-reasoning-patterns-planner-v5)
 
 **Bug Reports**:
 - #BUG-2025-11-13: Router Data Presumption (fixed in v8)

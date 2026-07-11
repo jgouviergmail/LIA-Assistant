@@ -1141,7 +1141,7 @@ pytest tests/integration/test_interests_api.py -v
 
 ## References
 
-- **Pattern** : `apps/api/src/domains/memory/memory_extractor.py`
+- **Pattern** : `apps/api/src/domains/agents/services/memory_extractor.py`
 - **ADR** : `docs/architecture/ADR-053-Interest-Learning-System.md`
 
 ---

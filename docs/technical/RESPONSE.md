@@ -102,7 +102,7 @@ graph TD
 
 ### Fichier Source
 
-**Fichier**: [apps/api/src/domains/agents/nodes/response_node.py](apps/api/src/domains/agents/nodes/response_node.py)
+**Fichier**: [apps/api/src/domains/agents/nodes/response_node.py](../../apps/api/src/domains/agents/nodes/response_node.py)
 
 **Longueur**: 993 lignes
 
@@ -334,7 +334,7 @@ if state.get("plan_bypassed_validation"):
 
 > **Note**: Le prompt v3 a été consolidé dans v1 (décembre 2025). Le versioning historique est conservé dans le contenu du fichier.
 
-**Fichier**: [apps/api/src/domains/agents/prompts/v1/response_system_prompt_base.txt](apps/api/src/domains/agents/prompts/v1/response_system_prompt_base.txt)
+**Fichier**: [apps/api/src/domains/agents/prompts/v1/response_system_prompt_base.txt](../../apps/api/src/domains/agents/prompts/v1/response_system_prompt_base.txt)
 
 **Version**: Consolidated v1 (historiquement v3.0 - optimisé caching)
 
@@ -1314,7 +1314,7 @@ Week: Productivity | Weekend: Casual tone
 
 ### Métriques Prometheus
 
-**Fichier**: [apps/api/src/infrastructure/observability/metrics_agents.py](apps/api/src/infrastructure/observability/metrics_agents.py)
+**Fichier**: [apps/api/src/infrastructure/observability/metrics_agents.py](../../apps/api/src/infrastructure/observability/metrics_agents.py)
 
 #### Métriques Génériques (via @track_metrics)
 
@@ -1360,7 +1360,7 @@ response_conversational_turns_total = Counter(
 
 ### Grafana Dashboards
 
-**Dashboard**: [infrastructure/observability/grafana/dashboards/04-agents-langgraph.json](infrastructure/observability/grafana/dashboards/04-agents-langgraph.json)
+**Dashboard**: [infrastructure/observability/grafana/dashboards/07-agents-pipeline.json](../../infrastructure/observability/grafana/dashboards/07-agents-pipeline.json)
 
 **Panels Response**:
 1. **Response Duration** (P50, P95, P99)
@@ -1402,7 +1402,7 @@ response_conversational_turns_total = Counter(
 
 ### Unit Tests
 
-**Fichier**: `apps/api/tests/domains/agents/nodes/test_response_node.py` (non trouvé dans codebase, à créer)
+**Fichier**: `apps/api/tests/agents/test_response_node.py` (non trouvé dans codebase, à créer)
 
 ```python
 import pytest
@@ -1750,7 +1750,7 @@ async def test_response_node_plan_rejection():
 | `RESPONSE_LLM_REASONING_EFFORT` | minimal | Effort raisonnement (o-series) |
 
 ```python
-# apps/api/src/core/config.py (code reference)
+# apps/api/src/core/config/ (code reference)
 
 class Settings(BaseSettings):
     response_llm_provider: str = "openai"
@@ -1768,10 +1768,10 @@ class Settings(BaseSettings):
 - [STATE_AND_CHECKPOINT.md](STATE_AND_CHECKPOINT.md) - MessagesState structure
 
 **Code source**:
-- [response_node.py](apps/api/src/domains/agents/nodes/response_node.py) - Response node implementation
-- [response_system_prompt_base.txt](apps/api/src/domains/agents/prompts/v1/response_system_prompt_base.txt) - Prompt actif (v1 consolidated)
-- [message_windowing.py](apps/api/src/domains/agents/utils/message_windowing.py) - Message windowing utilities
-- [message_filters.py](apps/api/src/domains/agents/utils/message_filters.py) - Message filtering utilities
+- [response_node.py](../../apps/api/src/domains/agents/nodes/response_node.py) - Response node implementation
+- [response_system_prompt_base.txt](../../apps/api/src/domains/agents/prompts/v1/response_system_prompt_base.txt) - Prompt actif (v1 consolidated)
+- [message_windowing.py](../../apps/api/src/domains/agents/utils/message_windowing.py) - Message windowing utilities
+- [message_filters.py](../../apps/api/src/domains/agents/utils/message_filters.py) - Message filtering utilities
 
 **ADRs**:
 - Aucun ADR spécifique au Response node (features intégrées progressivement)

@@ -2,10 +2,11 @@
 
 > **Catalogue complet des métriques Prometheus pour observabilité multi-couches**
 >
-> Version: 1.5
-> Date: 2026-06-03
-> Architecture: Prometheus + Grafana (20 dashboards, 354+ panels)
-> Total métriques: 545+ métriques (149 instrumentées + 390 recording rules)
+> Version: 1.6
+> Date: 2026-07-11
+> Architecture: Prometheus + Grafana (22 dashboards, 354+ panels)
+> Total métriques: **413 métriques instrumentées** (relevé code 2026-07-11) + recording rules Prometheus
+> Source de vérité : `src/infrastructure/observability/metrics_*.py` — ce catalogue détaille les familles principales (~120 métriques), voir « Couverture du catalogue »
 > Compliance: OpenTelemetry conventions, Google SRE best practices
 
 ---
@@ -117,6 +118,35 @@ agent_node_success_rate:5m              # Success rate 5min window
 llm_cost_per_request:1h                 # Average cost par requête 1h
 api:slo:availability:ratio_5m           # SLO availability 5min
 ```
+
+---
+
+## Couverture du catalogue
+
+> Relevé du 2026-07-11 : **413 métriques** définies dans le code, ~120 détaillées dans ce
+> document. Les familles suivantes ne sont **pas encore détaillées ici** — leur source de
+> vérité est leur module de définition :
+
+| Famille | Module |
+|---------|--------|
+| Adaptive replanner (`adaptive_replanner_*`) | `metrics_agents.py` |
+| Attachments (`attachments_*`) | `metrics_attachments.py` |
+| Briefing (`briefing_*`) | `metrics_briefing.py` |
+| Browser (`browser_*`) | `metrics_browser.py` |
+| Channels/Telegram (`channel_*`) | `metrics_channels.py` |
+| Compaction (`compaction_*`) | `metrics_compaction.py` |
+| Errors (`errors_*`, taxonomie) | `metrics_errors.py` |
+| Health metrics (`health_*`) | `metrics_health_metrics.py` |
+| Heartbeat (`heartbeat_*`) | `metrics_heartbeat.py` |
+| Journals (`journal_*`) | `metrics_journals.py` |
+| Langfuse (`langfuse_*`) | `metrics_langfuse.py` |
+| Lifetime gauges DB-backed | `lifetime_metrics.py` |
+| OAuth (`oauth_*`) | `metrics_oauth.py` |
+| Redis (`redis_*`) | `metrics_redis.py` |
+| Registry/checkpoints (`registry_*`) | `metrics_registry.py` |
+| Sub-agents (`subagent_*`) | `metrics_subagent.py` |
+| Usage limits (`usage_limit_*`) | `metrics_usage_limits.py` |
+| Voice (`voice_*`, `stt_*`, `tts_*`, `websocket_*`) | `metrics_voice.py` |
 
 ---
 
@@ -642,7 +672,7 @@ sum(rate(router_data_presumption_total[1h]))
 **Instrumentation:**
 
 ```python
-# apps/api/src/infrastructure/llm/decorators.py
+# schéma conceptuel — l'émission réelle passe par les callbacks LLM (src/infrastructure/llm/instrumentation.py)
 @track_llm_call
 async def ainvoke(self, messages, **kwargs):
     response = await self.llm.ainvoke(messages, **kwargs)
@@ -1079,7 +1109,7 @@ sum by (le) (rate(agent_messages_history_count_bucket[1h]))
 
 ## Google Contacts API
 
-### google_contacts_api_calls_total
+### contacts_api_calls_total
 
 **Type**: Counter
 **Description**: Total Google Contacts API calls
@@ -1096,12 +1126,12 @@ sum by (le) (rate(agent_messages_history_count_bucket[1h]))
 # apps/api/src/domains/connectors/clients/google_people_client.py
 try:
     response = await self._make_request(url)
-    google_contacts_api_calls.labels(
+    contacts_api_calls.labels(
         operation="search",
         status="success"
     ).inc()
 except GoogleAPIError:
-    google_contacts_api_calls.labels(
+    contacts_api_calls.labels(
         operation="search",
         status="error"
     ).inc()
@@ -1112,19 +1142,19 @@ except GoogleAPIError:
 
 ```promql
 # API success rate
-sum(rate(google_contacts_api_calls_total{status="success"}[5m])) /
-sum(rate(google_contacts_api_calls_total[5m]))
+sum(rate(contacts_api_calls_total{status="success"}[5m])) /
+sum(rate(contacts_api_calls_total[5m]))
 
 # Call rate by operation
-sum by (operation) (rate(google_contacts_api_calls_total[5m]))
+sum by (operation) (rate(contacts_api_calls_total[5m]))
 
 # Error rate
-sum(rate(google_contacts_api_calls_total{status="error"}[5m]))
+sum(rate(contacts_api_calls_total{status="error"}[5m]))
 ```
 
 ---
 
-### google_contacts_api_latency_seconds
+### contacts_api_latency_seconds
 
 **Type**: Histogram
 **Description**: Google Contacts API call latency
@@ -1134,7 +1164,7 @@ sum(rate(google_contacts_api_calls_total{status="error"}[5m]))
 **Instrumentation:**
 
 ```python
-with google_contacts_api_latency.labels(
+with contacts_api_latency.labels(
     operation="search"
 ).time():
     response = await self._make_request(url)
@@ -1145,7 +1175,7 @@ with google_contacts_api_latency.labels(
 ```promql
 # P95 latency by operation
 histogram_quantile(0.95,
-    sum by (operation, le) (rate(google_contacts_api_latency_seconds_bucket[5m]))
+    sum by (operation, le) (rate(contacts_api_latency_seconds_bucket[5m]))
 )
 
 # Connection pooling benefit (compare with/without pool)
@@ -1154,7 +1184,7 @@ histogram_quantile(0.95,
 
 ---
 
-### google_contacts_cache_hits_total / google_contacts_cache_misses_total
+### contacts_cache_hits_total / contacts_cache_misses_total
 
 **Type**: Counter
 **Description**: Google Contacts cache hits/misses
@@ -1173,10 +1203,10 @@ cache_key = f"contacts:search:{hash(query)}"
 cached = await redis.get(cache_key)
 
 if cached:
-    google_contacts_cache_hits.labels(cache_type="search").inc()
+    contacts_cache_hits.labels(cache_type="search").inc()
     return json.loads(cached)
 else:
-    google_contacts_cache_misses.labels(cache_type="search").inc()
+    contacts_cache_misses.labels(cache_type="search").inc()
     result = await self._search_contacts_api(query)
     await redis.setex(cache_key, 300, json.dumps(result))
     return result
@@ -1186,21 +1216,21 @@ else:
 
 ```promql
 # Cache hit rate (target: > 85%)
-sum(rate(google_contacts_cache_hits_total[5m])) /
-(sum(rate(google_contacts_cache_hits_total[5m])) +
- sum(rate(google_contacts_cache_misses_total[5m])))
+sum(rate(contacts_cache_hits_total[5m])) /
+(sum(rate(contacts_cache_hits_total[5m])) +
+ sum(rate(contacts_cache_misses_total[5m])))
 
 # Hit rate by cache type
-sum by (cache_type) (rate(google_contacts_cache_hits_total[5m])) /
-(sum by (cache_type) (rate(google_contacts_cache_hits_total[5m])) +
- sum by (cache_type) (rate(google_contacts_cache_misses_total[5m])))
+sum by (cache_type) (rate(contacts_cache_hits_total[5m])) /
+(sum by (cache_type) (rate(contacts_cache_hits_total[5m])) +
+ sum by (cache_type) (rate(contacts_cache_misses_total[5m])))
 ```
 
 **Dashboard**: 03-Business-Metrics, Panel: "Contacts Cache Hit Rate"
 
 ---
 
-### google_contacts_results_count
+### contacts_results_count
 
 **Type**: Histogram
 **Description**: Number of contacts returned per query
@@ -1211,7 +1241,7 @@ sum by (cache_type) (rate(google_contacts_cache_hits_total[5m])) /
 
 ```python
 results = await self.search_contacts(query)
-google_contacts_results_count.labels(
+contacts_results_count.labels(
     operation="search"
 ).observe(len(results))
 ```
@@ -1221,12 +1251,12 @@ google_contacts_results_count.labels(
 ```promql
 # P95 result count (detect large queries)
 histogram_quantile(0.95,
-    sum by (operation, le) (rate(google_contacts_results_count_bucket[5m]))
+    sum by (operation, le) (rate(contacts_results_count_bucket[5m]))
 )
 
 # Zero results rate (UX quality indicator)
-sum(rate(google_contacts_results_count_bucket{le="0"}[1h])) /
-sum(rate(google_contacts_results_count_count[1h]))
+sum(rate(contacts_results_count_bucket{le="0"}[1h])) /
+sum(rate(contacts_results_count_count[1h]))
 ```
 
 ---
@@ -1573,6 +1603,12 @@ if classification.confidence < 0.7:
 
 ## HITL Plan-Level
 
+> ⚠️ **Section historique (2026-07-11)** : les métriques `hitl_plan_*` ci-dessous ne sont
+> **plus définies dans le code** — le plan-level HITL a été retiré (approval gate =
+> pass-through auto-approve, stratégies/évaluateur supprimés en v1.21.16). Les métriques
+> HITL actives sont celles de la classification et des interactions tool-level
+> (voir `metrics_agents.py`).
+
 ### hitl_plan_approval_requests_total
 
 **Type**: Counter
@@ -1587,7 +1623,7 @@ if classification.confidence < 0.7:
 **Instrumentation:**
 
 ```python
-# apps/api/src/domains/agents/services/approval/evaluator.py
+# historique — ApprovalEvaluator supprimé en v1.21.16 (approval gate = pass-through auto-approve)
 evaluation = await approval_evaluator.evaluate(plan, state)
 
 if evaluation.requires_approval:
@@ -1923,7 +1959,7 @@ else:
 **Instrumentation:**
 
 ```python
-# apps/api/src/domains/agents/orchestration/step_executor_node.py
+# apps/api/src/domains/agents/orchestration/parallel_executor.py
 if step.type == "CONDITIONAL" and condition_failed:
     # Skip success branch, execute fallback
     for skipped_step_id in step.on_success:

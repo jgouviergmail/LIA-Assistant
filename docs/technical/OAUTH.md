@@ -198,7 +198,7 @@ return {"success": True, "connector_id": str(connector.id)}
 
 ### Code Complet
 
-**Fichier source**: [apps/api/src/core/oauth/flow_handler.py](apps/api/src/core/oauth/flow_handler.py)
+**Fichier source**: [apps/api/src/core/oauth/flow_handler.py](../../apps/api/src/core/oauth/flow_handler.py)
 
 ```python
 from datetime import UTC, datetime
@@ -664,7 +664,7 @@ additional_params = {
 
 ### Code Complet
 
-**Fichier source**: [apps/api/src/core/oauth/providers/google.py](apps/api/src/core/oauth/providers/google.py)
+**Fichier source**: [apps/api/src/core/oauth/providers/google.py](../../apps/api/src/core/oauth/providers/google.py)
 
 ```python
 from dataclasses import dataclass
@@ -910,7 +910,7 @@ sequenceDiagram
 **Step 1: Generate code_verifier**
 
 ```python
-# src/core/security.py
+# src/core/security/
 
 import secrets
 import base64
@@ -1044,7 +1044,7 @@ response = await client.post(
 **Generate state token**:
 
 ```python
-# src/core/security.py
+# src/core/security/
 
 def generate_state_token() -> str:
     """
@@ -1194,7 +1194,7 @@ CREATE INDEX idx_connectors_expires_at ON connectors(expires_at);
 **Implementation**:
 
 ```python
-# src/core/security.py
+# src/core/security/
 
 from cryptography.fernet import Fernet
 

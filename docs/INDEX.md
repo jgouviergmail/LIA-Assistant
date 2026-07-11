@@ -2,9 +2,9 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 7.10
-**Dernière mise à jour**: 2026-07-09
-**Statut**: Complète (190+ documents)
+**Version**: 7.11
+**Dernière mise à jour**: 2026-07-11
+**Statut**: Complète (320+ documents)
 
 ---
 
@@ -14,12 +14,12 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Métrique | Valeur |
 |----------|--------|
-| Documents totaux | 190+ |
-| Documents techniques | 50+ |
-| Guides pratiques | 15+ |
-| Runbooks | 35+ |
-| ADRs | 116 |
-| Skills Claude | 10 |
+| Documents totaux | 320+ |
+| Documents techniques | 80+ |
+| Guides pratiques | 20+ |
+| Runbooks | 40 |
+| ADRs | 119 (ADR-126 le plus récent) |
+| Fiches knowledge (RAG système) | 24 |
 
 ---
 
@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (110) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (119) |
 
 ### Pour les Product Managers
 
@@ -94,6 +94,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) | ReAct execution mode — 4-node loop, pipeline vs ReAct, tools, HITL, skills | ✅ |
 | [LATENCY_PLAN.md](./optim/LATENCY_PLAN.md) | Latency/TTFT optimization lot — per-stage instrumentation (`langgraph_stage_duration_seconds`), reproducible protocol (`scripts/perf/measure_ttft.py`), quantified shortlist & before/after | 🚧 |
 | [BACKGROUND_RUNS.md](./technical/BACKGROUND_RUNS.md) | Exécution détachée du chat (ADR-117) — producteur + Redis Streams, archive-first, drain shutdown, flag `BACKGROUND_RUNS_ENABLED` | ✅ |
+| [BRIEFING_DOMAIN.md](./technical/BRIEFING_DOMAIN.md) | Today Briefing — bounded context autonome sans LangGraph (ADR-077) : fetchers `asyncio.gather`, cache Redis par section, endpoints split cards/synthesis | ✅ |
+| [DEBUG_PANEL_ARCHITECTURE.md](./technical/DEBUG_PANEL_ARCHITECTURE.md) | Debug Panel — flow des métriques de scoring (domaines, outils, intents) pour le tuning des thresholds | ✅ |
 
 ### Agents & Outils
 
@@ -105,7 +107,9 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GOOGLE_CONTACTS_INTEGRATION.md](./technical/GOOGLE_CONTACTS_INTEGRATION.md) | Intégration Google Contacts | ✅ |
 | [EMAIL_FORMATTER.md](./technical/EMAIL_FORMATTER.md) | Formatage emails, templates | ✅ |
 | [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) | Patterns connecteurs OAuth/API Key | ✅ |
-| [CONNECTOR_PHILIPS_HUE.md](./connectors/CONNECTOR_PHILIPS_HUE.md) | Philips Hue smart lighting connector (local + remote) | ✅ |
+| [CONNECTOR_PHILIPS_HUE.md](./technical/CONNECTOR_PHILIPS_HUE.md) | Philips Hue smart lighting connector (local + remote) | ✅ |
+| [APPLE_ICLOUD_INTEGRATION.md](./technical/APPLE_ICLOUD_INTEGRATION.md) | Intégration Apple iCloud (Mail, Calendar, Contacts — app-specific password) | ✅ |
+| [GOOGLE_API.md](./technical/GOOGLE_API.md) | APIs Google utilisées — documentation et tarification (refacturation utilisateurs) | ✅ |
 | [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md) | Intégration Microsoft 365 (Outlook, Calendar, Contacts, To Do) | ✅ |
 | [VOICE.md](./technical/VOICE.md) | Voice/TTS catalogue-driven (Edge / OpenAI / ElevenLabs, ADR-081), per-message attribution, progressive sentence streaming (ADR-082) | ✅ |
 | [VOICE_MODE.md](./technical/VOICE_MODE.md) | STT (local Sherpa + remote ElevenLabs Scribe), Wake Word, Push-to-Talk, voice_stt_mode opt-in (v1.20.x) | ✅ |
@@ -119,7 +123,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) | Notifications proactives LLM-driven (Heartbeat) — evolution F5 | ✅ |
 | [HEALTH_METRICS.md](./technical/HEALTH_METRICS.md) | Health Metrics — iPhone Shortcuts ingestion, per-user tokens, charts, aggregation; assistant integrations (agents + Heartbeat + journal + memory) + `HEALTH_KINDS` registry (v1.17.2) | ✅ |
 | [LANDING_PAGE.md](./technical/LANDING_PAGE.md) | Architecture Landing Page — composants React, SEO, OpenGraph | ✅ |
-| [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (34 types, 8 providers) | ✅ |
+| [CARD_SYSTEM.md](./technical/CARD_SYSTEM.md) | Système de cartes HTML riches dans le chat (Design System v4) | ✅ |
+| [PERSONALITIES.md](./technical/PERSONALITIES.md) | Système de personnalités (seeds, traductions, sélection utilisateur) | ✅ |
+| [NOTIFICATIONS_FLOW.md](./technical/NOTIFICATIONS_FLOW.md) | Flux de notifications de bout en bout (SSE, FCM, Telegram) | ✅ |
+| [NANOBOT_INTEGRATION_ROADMAP.md](./technical/NANOBOT_INTEGRATION_ROADMAP.md) | Roadmap d'intégration (document de planification — chemins prévisionnels) | 📦 |
+| [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (54 types, 9 providers) | ✅ |
 | [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts, rich outputs (frames + images), runtime conventions, hardened import pipeline + chat-driven install + dialogue skills (ADR-118) | ✅ |
 
 ### Cost Tracking & Billing
@@ -129,6 +137,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [LLM_PRICING_MANAGEMENT.md](./technical/LLM_PRICING_MANAGEMENT.md) | Pricing LLM, token counting, exports | ✅ |
 | [LLM_PRICING_TEMPLATES.md](./technical/LLM_PRICING_TEMPLATES.md) | Reasoning shape templates dans l'admin Pricing — Template/Custom modes, snapshot semantics, fingerprint dédupliqué | ✅ |
 | [GOOGLE_API_TRACKING.md](./technical/GOOGLE_API_TRACKING.md) | Google Maps Platform tracking, pricing admin, consumption exports (admin + user v1.9.1) | ✅ |
+| [PROVIDER_COST_ADJUSTMENT.md](./technical/PROVIDER_COST_ADJUSTMENT.md) | Écart entre tracking interne des coûts et facturation provider réelle — investigation et recommandations | ✅ |
 
 ### LLM & Intelligence
 
@@ -144,8 +153,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ROUTER.md](./technical/ROUTER.md) | Router node, binary routing | ✅ |
 | [SMART_SERVICES.md](./technical/SMART_SERVICES.md) | QueryAnalyzer, SmartPlanner, SmartCatalogue | ✅ |
 | [SEMANTIC_ROUTER.md](./technical/SEMANTIC_ROUTER.md) | Semantic Tool Router, max-pooling | ✅ |
-| [SEMANTIC_INTENT_DETECTION.md](./technical/SEMANTIC_INTENT_DETECTION.md) | Semantic Intent Detection | ✅ |
-| [LOCAL_EMBEDDINGS.md](./technical/LOCAL_EMBEDDINGS.md) | OpenAI embeddings (migrated from E5) | ✅ |
+| [SEMANTIC_INTENT_DETECTION.md](./technical/SEMANTIC_INTENT_DETECTION.md) | Semantic Intent Detection (historique — remplacé par le QueryAnalyzer LLM) | 📦 |
+| [LOCAL_EMBEDDINGS.md](./technical/LOCAL_EMBEDDINGS.md) | Embeddings Gemini gemini-embedding-001 (ADR-069, historique E5 → OpenAI → Gemini) | ✅ |
 | [MULTI_DOMAIN_ARCHITECTURE.md](./technical/MULTI_DOMAIN_ARCHITECTURE.md) | Architecture multi-domaines | ✅ |
 | [LANGFUSE.md](./technical/LANGFUSE.md) | Langfuse integration | ✅ |
 
@@ -157,7 +166,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [MEMORY_RESOLUTION.md](./technical/MEMORY_RESOLUTION.md) | Résolution références, relations — architecture 3 phases (LLM extraction + recherche ciblée + résolution) | ✅ |
 | [INTERESTS.md](./technical/INTERESTS.md) | Système apprentissage centres d'intérêt | ✅ |
 | [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) | Actions planifiées récurrentes | ✅ |
-| [SUB_AGENTS.md](./technical/SUB_AGENTS.md) | Persistent specialized sub-agents (F6) | ✅ |
+| [SUB_AGENTS.md](./technical/SUB_AGENTS.md) | Sub-agents éphémères — délégation via `delegate_to_sub_agent_tool` (ADR-083, F6 legacy supprimé) | ✅ |
 | [HYBRID_SEARCH.md](./technical/HYBRID_SEARCH.md) | Recherche hybride BM25 + sémantique | ✅ |
 | [JOURNALS.md](./technical/JOURNALS.md) | Personal Journals — carnets de bord introspectifs, injection sémantique | ✅ |
 | [USAGE_LIMITS.md](./technical/USAGE_LIMITS.md) | Per-user usage limits — tokens, messages, cost quotas with 5-layer enforcement | ✅ |
@@ -215,7 +224,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 |----------|-------------|--------|
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack Prometheus/Grafana/Loki/Tempo | ✅ |
 | [METRICS_REFERENCE.md](./technical/METRICS_REFERENCE.md) | 500+ métriques documentées | ✅ |
-| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 20 dashboards Grafana | ✅ |
+| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 22 dashboards Grafana | ✅ |
 | [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Guide observabilité quickstart | ✅ |
 | [README_GRAFANA_LANGFUSE.md](./readme/README_GRAFANA_LANGFUSE.md) | Intégration Grafana + Langfuse | ✅ |
 | [README_ALERTING.md](./readme/README_ALERTING.md) | Chaîne d'alerte (ADR-119) : Alertmanager e-mail, validation, troubleshooting | ✅ |
@@ -345,11 +354,14 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 ### ADRs Fondamentaux
 
+Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inline dans
+[ADR_INDEX.md](./architecture/ADR_INDEX.md) (les fichiers dédiés commencent à ADR-007/ADR-009).
+
 | ADR | Titre |
 |-----|-------|
-| [ADR-001](./architecture/ADR-001-LangGraph-Multi-Agent-System.md) | LangGraph Multi-Agent System |
-| [ADR-003](./architecture/ADR-003-Human-in-the-Loop-Plan-Level.md) | Human-in-the-Loop Plan-Level |
-| [ADR-006](./architecture/ADR-006-Message-Windowing-Strategy.md) | Message Windowing Strategy |
+| [ADR-001](./architecture/ADR_INDEX.md#adr-001-langgraph-pour-orchestration-multi-agents) | LangGraph pour Orchestration Multi-Agents |
+| [ADR-002](./architecture/ADR_INDEX.md#adr-002-bff-pattern-pour-authentication) | BFF Pattern pour Authentication |
+| [ADR-008](./architecture/ADR_INDEX.md#adr-008-hitl-plan-level-approval-phase-8) | HITL Plan-Level Approval |
 | [ADR-009](./architecture/ADR-009-Config-Module-Split.md) | Config Module Split |
 | [ADR-037](./architecture/ADR-037-Semantic-Memory-Store.md) | Semantic Memory Store |
 
@@ -382,6 +394,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [BackupFailed.md](./runbooks/alerts/BackupFailed.md) | Échec backup PostgreSQL (sidecar ADR-109) |
 | [PublicEndpointDown.md](./runbooks/alerts/PublicEndpointDown.md) | URL publique injoignable (tunnel/certificat) |
 | [AlertmanagerDown.md](./runbooks/alerts/AlertmanagerDown.md) | Chaîne de notification down (méta, ADR-119) |
+| [PKCEValidationFailures.md](./runbooks/alerts/PKCEValidationFailures.md) | Échecs de validation PKCE (OAuth) |
 
 ### Alertes Base de Données
 
@@ -411,6 +424,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [RedisConnectionPoolExhaustion.md](./runbooks/alerts/RedisConnectionPoolExhaustion.md) | Pool Redis épuisé |
 | [RedisRateLimitHighHitRate.md](./runbooks/redis/RedisRateLimitHighHitRate.md) | Rate limit hits élevés |
 | [RedisRateLimitCheckLatencyHigh.md](./runbooks/redis/RedisRateLimitCheckLatencyHigh.md) | Latence rate limit |
+| [RedisRateLimitErrors.md](./runbooks/redis/RedisRateLimitErrors.md) | Erreurs rate limiter Redis |
 
 ### Runbooks LangGraph
 
@@ -422,6 +436,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [low-success-rate.md](./runbooks/langgraph/low-success-rate.md) | Taux succès faible |
 | [recursion-error.md](./runbooks/langgraph/recursion-error.md) | Erreurs récursion |
 | [state-size-critical.md](./runbooks/langgraph/state-size-critical.md) | Taille state critique |
+| [system-degraded.md](./runbooks/langgraph/system-degraded.md) | Dégradation système graphe |
 
 ---
 
@@ -460,38 +475,42 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 ### Backend (apps/api/)
 
+> Source de vérité : `apps/api/requirements.lock.txt` (ADR-112). Versions ci-dessous relevées au 2026-07-11.
+
 | Technologie | Version | Usage |
 |-------------|---------|-------|
 | Python | ≥3.12 | Runtime |
-| FastAPI | 0.135.3 | Framework API |
-| LangGraph | 1.1.6 | Orchestration multi-agents |
-| langchain-core | 1.2.28 | Core abstractions |
-| SQLAlchemy | 2.0.49 | ORM async |
+| FastAPI | 0.136.3 | Framework API |
+| LangGraph | 1.2.4 | Orchestration multi-agents |
+| langchain-core | 1.4.6 | Core abstractions |
+| SQLAlchemy | 2.0.50 | ORM async |
 | PostgreSQL | 16 + pgvector | Database + vector search |
-| Redis | 7.3.0 | Cache, sessions, rate limiting |
-| Pydantic | 2.12.5 | Validation données |
-| openai | 1.x | OpenAI text-embedding-3-small (1536 dims) |
-| Langfuse | 3.14.5 | LLM tracing |
-| Edge TTS | 6.1+ | Synthèse vocale (gratuit) |
+| redis (client Python) | 8.0.1 | Cache, sessions, rate limiting (serveur Redis 7.4) |
+| Pydantic | 2.13.4 | Validation données |
+| Gemini embeddings | gemini-embedding-001 | Embeddings (1536 dims, ADR-069) |
+| Langfuse | 4.7.1 | LLM tracing |
+| Edge TTS | 7.2.8 | Synthèse vocale (gratuit) |
 
 ### Frontend (apps/web/)
 
+> Source de vérité : `apps/web/package.json`. Versions ci-dessous relevées au 2026-07-11.
+
 | Technologie | Version | Usage |
 |-------------|---------|-------|
-| Next.js | 16.1.7 | Framework React |
-| React | 19.2.4 | UI Library |
-| TypeScript | 5.9.3 | Typage |
-| Tailwind CSS | 4.2.1 | Styling |
-| Radix UI | v2 | Composants UI |
-| TanStack Query | 5.90 | State management |
-| react-i18next | 16.5 | Internationalisation |
+| Next.js | 16.2.10 | Framework React |
+| React | 19.2.7 | UI Library |
+| TypeScript | 6.0.2 | Typage |
+| Tailwind CSS | 4.3.2 | Styling |
+| Radix UI | v1–v2 | Composants UI |
+| TanStack Query | 5.101 | State management |
+| react-i18next | 17.0 | Internationalisation |
 
 ### Observabilité
 
 | Technologie | Usage |
 |-------------|-------|
 | Prometheus | 500+ métriques |
-| Grafana | 20 dashboards |
+| Grafana | 22 dashboards |
 | Loki | Logs agrégés |
 | Tempo | Traces distribuées |
 | Langfuse | LLM observability |
@@ -499,13 +518,20 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 ### LLM Providers
 
-| Provider | Models | Usage |
-|----------|--------|-------|
-| OpenAI | GPT-4.1, GPT-4.1-mini | Principal |
-| Anthropic | Claude 3.5 | Alternatif |
-| DeepSeek | V3, Reasoner | Économique |
-| Perplexity | sonar-pro | Recherche web |
-| Google | Gemini 2.0 | Multimodal |
+Les modèles sont pilotés par le **catalogue LLM en base** (ADR-078, admin UI) — voir
+[LLM_PROVIDERS.md](./technical/LLM_PROVIDERS.md) et [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md).
+
+| Provider | Usage |
+|----------|-------|
+| OpenAI | Texte, TTS, images |
+| Anthropic | Texte |
+| Google (Gemini) | Texte, multimodal, embeddings |
+| DeepSeek | Économique (router, planner) |
+| Perplexity | Recherche web |
+| Qwen | Texte |
+| Ollama | Local |
+| ElevenLabs | TTS + STT remote (Scribe) |
+| Edge | TTS gratuit |
 
 ---
 
@@ -517,9 +543,9 @@ LIA/
 │   ├── api/                    # Backend FastAPI + LangGraph
 │   │   ├── src/
 │   │   │   ├── core/           # Configuration, security, middleware
-│   │   │   ├── domains/        # DDD: agents, auth, chat, connectors, google_api, etc.
-│   │   │   └── infrastructure/ # Database, cache, LLM, observability
-│   │   ├── tests/              # Tests pytest (~9,992 collected, 448 files)
+│   │   │   ├── domains/        # DDD: agents, auth, users, connectors, briefing, etc.
+│   │   │   └── infrastructure/ # Database, cache, LLM, MCP, startup, observability
+│   │   ├── tests/              # Tests pytest (~590 fichiers de tests)
 │   │   └── alembic/            # Migrations DB
 │   └── web/                    # Frontend Next.js
 │       ├── src/
@@ -529,16 +555,16 @@ LIA/
 │       │   └── lib/            # API client, utils
 │       └── locales/            # Traductions i18n (6 langues)
 ├── docs/                       # Documentation (ce répertoire)
-│   ├── technical/              # Docs techniques détaillées (50+)
-│   ├── guides/                 # Guides pratiques (15+)
-│   ├── architecture/           # ADRs (109)
-│   ├── runbooks/               # Procédures opérationnelles (34+)
-│   └── readme/                 # README spécialisés (15+)
-├── infrastructure/             # Docker, observabilité
-│   └── observability/          # Prometheus, Grafana, Loki, Tempo
-├── .claude/                    # Skills Claude (10)
-│   └── skills/                 # analyzing-bugs, developing-code, etc.
-└── PROD/                       # Configuration production
+│   ├── technical/              # Docs techniques détaillées (80+)
+│   ├── guides/                 # Guides pratiques (20+)
+│   ├── architecture/           # ADRs (119) + schémas Mermaid (.mmd)
+│   ├── knowledge/              # Fiches FAQ pour le RAG système (24)
+│   ├── runbooks/               # Procédures opérationnelles (40)
+│   ├── audit/                  # Audit technique 360° public + protocole
+│   └── readme/                 # README spécialisés (15)
+├── infrastructure/             # Docker, observabilité, cloudflared, claude-cli
+│   └── observability/          # Prometheus, Grafana, Loki, Tempo, Alertmanager
+└── scripts/                    # Déploiement, audit, i18n, perf, monitoring
 ```
 
 ---

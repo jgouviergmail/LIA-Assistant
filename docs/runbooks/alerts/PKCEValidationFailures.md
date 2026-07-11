@@ -264,7 +264,7 @@ async def google_authorize(request: Request):
 
 **Fix 1: Use database-backed session storage (instead of Redis)**
 
-**File**: `apps/api/src/infrastructure/auth/pkce_store.py`
+**File**: `apps/api/src/core/oauth/pkce_store.py` (create new — le flux PKCE actuel vit dans `src/core/oauth/flow_handler.py`)
 ```python
 from sqlalchemy import Column, String, DateTime, Text
 from src.infrastructure.database import Base
@@ -316,7 +316,7 @@ docker-compose exec api alembic upgrade head
 
 **Fix 2: Implement state uniqueness per session**
 
-**File**: `apps/api/src/domains/auth/oauth_flow_handler.py`
+**File**: `apps/api/src/core/oauth/flow_handler.py`
 ```python
 import secrets
 
@@ -384,7 +384,7 @@ def validate_pkce(state, code_verifier):
 
 **Fix 4: Implement automatic cleanup of expired states**
 
-**File**: `infrastructure/observability/scripts/cleanup_expired_pkce.sh`
+**File**: `infrastructure/observability/scripts/cleanup_expired_pkce.sh` (create new)
 ```bash
 #!/bin/bash
 # Cron job to clean expired PKCE states (if using database storage)

@@ -51,7 +51,7 @@ def test_llm_config():
 
 #### Fichiers Modifiés
 
-- ✅ `src/core/config.py` → `src/core/config/__init__.py` (composition)
+- ✅ `src/core/config/` → `src/core/config/__init__.py` (composition)
 - ✅ Ajouté : 7 modules (`security.py`, `database.py`, `observability.py`, etc.)
 - ✅ Tests : 5 → 17 tests (coverage 45% → 72%)
 
@@ -219,7 +219,7 @@ class MyClient(BaseGoogleClient):
 #### Dependency Injection
 
 ```python
-# src/api/v1/dependencies.py
+# src/core/dependencies.py
 from fastapi import Depends
 from src.infrastructure.rate_limiting.redis_limiter import RedisRateLimiter
 
@@ -291,7 +291,7 @@ GOOGLE_API_RATE_LIMIT=60
 
 ```bash
 # 1. Restore config.py backup
-git checkout HEAD~1 -- src/core/config.py
+git checkout HEAD~1 -- src/core/config/
 
 # 2. Remove config/ directory
 rm -rf src/core/config/
@@ -336,7 +336,7 @@ docker-compose restart api
 - **ADR-009** : [Config Module Split](../architecture/ADR-009-Config-Module-Split.md)
 - **ADR-010** : [Email Domain Renaming](../architecture/ADR-010-Email-Domain-Renaming.md)
 - **RATE_LIMITING.md** : [Rate Limiting Documentation](../technical/RATE_LIMITING.md)
-- **CONFIG_ARCHITECTURE.md** : [Configuration Architecture](./CONFIG_ARCHITECTURE.md)
+- **CONFIG_ARCHITECTURE.md** : [Configuration Architecture](./GUIDE_CONFIG_ARCHITECTURE.md)
 
 ---
 

@@ -314,7 +314,7 @@ docker-compose logs api | grep -A 20 "Slow request"
 ```
 # Warnings dans logs
 WARNING: Detected blocking call in async context
-  File "/app/src/domains/agents/nodes/router.py", line 123
+  File "/app/src/domains/agents/nodes/router_node_v3.py", line 123
     result = requests.get(url)  # Synchronous!
 
 # Checkpoint save lent
@@ -482,7 +482,7 @@ docker-compose exec postgres psql -U lia -c "\d+ conversations"
 **Use When**: LLM latency identifié comme cause, streaming pas activé.
 
 ```python
-# apps/api/src/infrastructure/llm/anthropic_client.py
+# exemple générique — la création des clients LLM vit dans src/infrastructure/llm/factory.py
 
 # Avant
 response = await client.messages.create(
@@ -514,7 +514,7 @@ async def stream_response(messages):
 **Use When**: Repeated queries/computations identifiées.
 
 ```python
-# apps/api/src/domains/agents/cache.py
+# exemple générique — cache LLM implémenté dans src/infrastructure/cache/llm_cache.py
 from functools import lru_cache
 import redis
 
@@ -759,7 +759,7 @@ sum(rate(http_request_duration_seconds_count{le="2"}[5m]))
 
 ## 📚 Related Runbooks
 
-- **[HighLatencyP95](./HighLatencyP95.md)** - Warning précurseur
+- **HighLatencyP95** - Warning précurseur
 - **[HighErrorRate](./HighErrorRate.md)** - Timeouts → errors
 - **[CriticalDatabaseConnections](./CriticalDatabaseConnections.md)** - DB slowness cause
 - **[LLMAPIFailureRateHigh](./LLMAPIFailureRateHigh.md)** - LLM latency cause
@@ -851,7 +851,7 @@ Escalader si:
 ### Code References
 - API Routes: `apps/api/src/main.py`
 - Database Queries: `apps/api/src/domains/*/models.py`
-- LLM Client: `apps/api/src/infrastructure/llm/anthropic_client.py`
+- LLM Factory: `apps/api/src/infrastructure/llm/factory.py`
 
 ### Tools
 - [py-spy](https://github.com/benfred/py-spy) - Python profiler

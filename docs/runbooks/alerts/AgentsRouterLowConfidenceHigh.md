@@ -632,7 +632,7 @@ class RouterNode:
 
 **Fix 4: Implement router performance monitoring and A/B testing**
 
-**File**: `apps/api/src/infrastructure/observability/metrics_router.py` (enhance)
+**File**: `apps/api/src/infrastructure/observability/metrics_agents.py` (enhance)
 
 ```python
 from prometheus_client import Histogram, Counter

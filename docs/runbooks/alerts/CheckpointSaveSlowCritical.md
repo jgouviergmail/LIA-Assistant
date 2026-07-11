@@ -253,7 +253,7 @@ await checkpointer.aput(state_to_save, config)
 
 **Fix 2: Implement checkpoint compression**
 
-**File**: `apps/api/src/infrastructure/database/checkpointer.py`
+**File**: `apps/api/src/domains/conversations/checkpointer.py`
 ```python
 import gzip
 import json
@@ -281,7 +281,7 @@ class CompressedPostgresSaver(PostgresSaver):
 
 **Fix 3: Move checkpoints to Redis (if appropriate)**
 
-**File**: `apps/api/src/core/config.py`
+**File**: `apps/api/src/core/config/`
 ```python
 # Use Redis for ephemeral checkpoints, PostgreSQL for long-term
 CHECKPOINT_BACKEND = "redis"  # "postgres" | "redis" | "hybrid"

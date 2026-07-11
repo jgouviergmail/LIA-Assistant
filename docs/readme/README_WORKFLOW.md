@@ -491,8 +491,6 @@ This directory contains GitHub Actions workflows for the LIA project. The workfl
 **Path filters:**
 - `apps/api/src/domains/agents/api/mixins/**`
 - `apps/api/tests/domains/agents/api/mixins/**`
-- `apps/api/tests/integration/test_mixins_integration.py`
-- `apps/api/tests/e2e/test_hitl_flows_e2e.py`
 
 #### Jobs
 

@@ -973,13 +973,13 @@ mock_tracker.get_summary_dto.return_value = TokenSummaryDTO(
 ### 11.1 Internal Documentation
 
 **Mixin Source Code:**
-- [graph_management.py](../../src/domains/agents/api/mixins/graph_management.py) - Graph initialization
-- [streaming.py](../../src/domains/agents/api/mixins/streaming.py) - Token enrichment
-- [README.md](../../src/domains/agents/api/mixins/README.md) - Mixin architecture
+- [graph_management.py](../../apps/api/src/domains/agents/api/mixins/graph_management.py) - Graph initialization
+- [streaming.py](../../apps/api/src/domains/agents/api/mixins/streaming.py) - Token enrichment
+- README.md - Mixin architecture
 
 **Service Documentation:**
-- [OrchestrationService](../../src/domains/agents/services/orchestration/service.py) - Graph execution
-- [StreamingService](../../src/domains/agents/services/streaming/service.py) - SSE formatting
+- [OrchestrationService](../../apps/api/src/domains/agents/services/orchestration/service.py) - Graph execution
+- [StreamingService](../../apps/api/src/domains/agents/services/streaming/service.py) - SSE formatting
 
 **Migration Docs:**
 - `PHASE_3.3_DAY5-6_MIGRATION_COMPLETE.md` - HITLOrchestrator extraction

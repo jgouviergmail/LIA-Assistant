@@ -351,7 +351,7 @@ class TokenTrackingCallback(BaseCallbackHandler):
 **Objectif** : Cache réponses LLM complètes pour queries identiques.
 
 ```python
-# apps/api/src/infrastructure/cache/cache_llm_response.py
+# apps/api/src/infrastructure/cache/llm_cache.py
 import hashlib
 import json
 from functools import wraps
@@ -574,7 +574,7 @@ async def get_conversations_with_messages(user_id: UUID) -> list[dict]:
 ### Connection Pooling
 
 ```python
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 class Settings(BaseSettings):
     """Database connection pool settings."""
 
@@ -676,7 +676,7 @@ class SearchContactsTool(ConnectorTool):
 **Cache key generation** :
 
 ```python
-# apps/api/src/infrastructure/cache/decorators.py
+# exemple de décorateur — implémentations réelles : src/infrastructure/cache/ (llm_cache.py, redis_helpers.py)
 def cache_result(ttl: int = 300):
     """Cache decorator for tool results."""
     def decorator(func):
@@ -725,7 +725,7 @@ CALENDAR_EVENTS_CACHE_TTL = 60  # 1 minute (events change frequently)
 ### Cache Hit Rate Analysis
 
 ```python
-# scripts/analyze_cache_hit_rate.py
+# script ad hoc (exemple, non commité)
 import asyncio
 from src.infrastructure.cache.redis import redis_client
 
@@ -762,7 +762,7 @@ asyncio.run(analyze_cache_hit_rate())
 ### HTTPx Connection Pooling
 
 ```python
-# apps/api/src/domains/connectors/clients/google_people.py
+# apps/api/src/domains/connectors/clients/google_people_client.py
 import httpx
 
 # ❌ BAD: Creating new client for each request
@@ -816,7 +816,7 @@ Savings: 35-90ms per request ✅
 ### Adaptive Rate Limiting
 
 ```python
-# apps/api/src/infrastructure/cache/rate_limiting.py
+# apps/api/src/infrastructure/rate_limiting/
 async def adaptive_rate_limit(
     key: str,
     max_calls: int,
@@ -1027,7 +1027,7 @@ async def list_conversations(
 ### cProfile
 
 ```python
-# scripts/profile_agent.py
+# script de profiling ad hoc (exemple, non commité)
 import cProfile
 import pstats
 import asyncio

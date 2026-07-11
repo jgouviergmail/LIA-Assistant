@@ -19,8 +19,8 @@
 > These sections remain for historical reference. The core Langfuse tracing,
 > prompt management, and cost tracking features are still active.
 >
-> See [GUIDE_AB_TESTING.md](./GUIDE_AB_TESTING.md) and
-> [GUIDE_EVALUATION_SCORES.md](./GUIDE_EVALUATION_SCORES.md) for archived documentation.
+> See GUIDE_AB_TESTING.md and
+> GUIDE_EVALUATION_SCORES.md for archived documentation.
 
 ---
 
@@ -136,7 +136,7 @@ LIA intègre Langfuse pour offrir une observabilité **production-grade** des LL
 
 **Status**: ✅ Production Ready
 **Coverage**: 83%
-**Guide**: [prompt-versioning.md](prompt-versioning.md)
+**Guide**: prompt-versioning.md
 
 Fonctionnalités:
 - ✅ Semantic versioning (v1, v2, v3, latest)
@@ -155,7 +155,7 @@ Fonctionnalités:
 
 **Status**: ✅ Production Ready
 **Coverage**: 98%
-**Guide**: [evaluators.md](evaluators.md)
+**Guide**: evaluators.md
 
 Fonctionnalités:
 - ✅ Relevance scoring (0.0-1.0) - Pertinence de la réponse
@@ -175,7 +175,7 @@ Fonctionnalités:
 
 **Status**: ✅ Production Ready
 **Coverage**: 95-97%
-**Guide**: [ab-testing.md](ab-testing.md)
+**Guide**: ab-testing.md
 
 Fonctionnalités:
 - ✅ Variant assignment (control, variant_a, variant_b)
@@ -195,7 +195,7 @@ Fonctionnalités:
 
 **Status**: ✅ Production Ready
 **Coverage**: 70-73%
-**Guide**: Intégré dans [dashboard.md](dashboard.md)
+**Guide**: Intégré dans dashboard.md
 
 Fonctionnalités:
 
@@ -225,7 +225,7 @@ Fonctionnalités:
 
 **Status**: ✅ Production Ready
 **Panels**: 24/24 (100%)
-**Guide**: [dashboard.md](dashboard.md)
+**Guide**: dashboard.md
 
 Dashboard 14: Langfuse LLM Observability
 
@@ -343,7 +343,7 @@ langfuse_ab_test_variant{experiment="prompt_test_001",variant="control"} 25.0
 prompts/
 ├── v1/
 │   ├── router_system_prompt_template.txt
-│   ├── planner_system_prompt.txt
+│   ├── smart_planner_prompt.txt
 │   ├── response_system_prompt_base.txt
 │   └── ... (26 prompts + 16 fewshot)
 └── prompt_loader.py                  # PromptLoader
@@ -354,7 +354,7 @@ prompts/
 2. Mettre à jour le header changelog dans le fichier
 3. Redémarrer l'API (hot reload détecte les changements)
 
-See [prompt-versioning.md](prompt-versioning.md) for details.
+See prompt-versioning.md for details.
 
 ---
 
@@ -386,7 +386,7 @@ pipeline = EvaluationPipeline(
 )
 ```
 
-See [evaluators.md](evaluators.md) for details.
+See evaluators.md for details.
 
 ---
 
@@ -418,7 +418,7 @@ assignment = manager.assign_variant(experiment, user_id="user_123")
 print(assignment.variant_name)  # "control" or "variant_a"
 ```
 
-See [ab-testing.md](ab-testing.md) for details.
+See ab-testing.md for details.
 
 ---
 
@@ -435,7 +435,7 @@ See [ab-testing.md](ab-testing.md) for details.
    - Best Practices (semantic versioning, changelog, testing, rollback)
    - Troubleshooting (version not tracked, cardinality explosion)
 
-2. **[GUIDE_EVALUATION_SCORES.md](./GUIDE_EVALUATION_SCORES.md)** (1140 lignes)
+2. **GUIDE_EVALUATION_SCORES.md** (1140 lignes)
    - Pourquoi évaluer la qualité LLM?
    - Types d'évaluation (Hallucination, Relevance, Quality)
    - Setup & Configuration (evaluators, Prometheus metrics)
@@ -444,7 +444,7 @@ See [ab-testing.md](ab-testing.md) for details.
    - Best Practices (sampling strategy, human-in-the-loop, caching)
    - Troubleshooting (scores always 0.5, high cost)
 
-3. **[GUIDE_AB_TESTING.md](./GUIDE_AB_TESTING.md)** (260 lignes)
+3. **GUIDE_AB_TESTING.md** (260 lignes)
    - A/B Testing dans contexte LLM
    - Quick Start (gpt-4.1-mini-mini vs Claude-3.5-Sonnet)
    - Metrics & Analysis (PromQL success rate, statistical significance)
@@ -534,7 +534,7 @@ See [ab-testing.md](ab-testing.md) for details.
 - Error Rate (percentage)
 - Cache Hit Rate (gauge)
 
-See [dashboard.md](dashboard.md) for detailed usage guide.
+See dashboard.md for detailed usage guide.
 
 ---
 
@@ -730,16 +730,16 @@ tail -f apps/api/logs/app.log | grep variant_assigned
 ### LIA Documentation
 
 - **Phase 3.1 Implementation**:
-  - [SESSION_10_PHASE_3_1_6_2_COMPLETE.md](../optim_monitoring/SESSION_10_PHASE_3_1_6_2_COMPLETE.md)
-  - [SESSION_10_PHASE_3_1_6_3_COMPLETE.md](../optim_monitoring/SESSION_10_PHASE_3_1_6_3_COMPLETE.md)
-  - [SESSION_11_COMPLETE.md](../optim_monitoring/SESSION_11_COMPLETE.md)
-  - [SESSION_12_COMPLETE.md](../optim_monitoring/SESSION_12_COMPLETE.md)
+  - SESSION_10_PHASE_3_1_6_2_COMPLETE.md
+  - SESSION_10_PHASE_3_1_6_3_COMPLETE.md
+  - SESSION_11_COMPLETE.md
+  - SESSION_12_COMPLETE.md
 
 - **Grafana Dashboard**:
-  - [14-langfuse-README.md](../../infrastructure/observability/grafana/dashboards/14-langfuse-README.md) (780 lines)
+  - 14-langfuse-README.md (780 lines)
 
 - **Tests**:
-  - [test_evaluation_pipeline.py](../../apps/api/tests/unit/infrastructure/llm/test_evaluation_pipeline.py) (22 tests, 98% coverage)
+  - test_evaluation_pipeline.py (22 tests, 98% coverage)
   - [test_instrumentation.py](../../apps/api/tests/unit/infrastructure/llm/test_instrumentation.py) (19 tests, 70% coverage)
 
 ### Community

@@ -604,7 +604,7 @@ async def planner_node(state: MessagesState, config: RunnableConfig) -> dict[str
 
 ### Domain-Specific Language
 
-**Fichier source**: [apps/api/src/domains/agents/orchestration/plan_schemas.py](apps/api/src/domains/agents/orchestration/plan_schemas.py)
+**Fichier source**: [apps/api/src/domains/agents/orchestration/plan_schemas.py](../../apps/api/src/domains/agents/orchestration/plan_schemas.py)
 
 Le DSL (Domain-Specific Language) définit le format structuré des plans d'exécution multi-agents.
 
@@ -1077,7 +1077,7 @@ async def _expand_for_each_step(
 
 ### PlanValidator Class
 
-**Fichier source**: [apps/api/src/domains/agents/orchestration/validator.py](apps/api/src/domains/agents/orchestration/validator.py)
+**Fichier source**: [apps/api/src/domains/agents/orchestration/validator.py](../../apps/api/src/domains/agents/orchestration/validator.py)
 
 Le **PlanValidator** effectue une validation exhaustive des plans avant exécution.
 
@@ -1825,7 +1825,7 @@ if tool_strategy != "full":
 ### Configuration
 
 ```python
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 
 class Settings(BaseSettings):
     # Domain Filtering
@@ -2065,7 +2065,7 @@ messages = windowed_messages
 
 ### Version Actuelle
 
-**Fichier**: [apps/api/src/domains/agents/prompts/v1/planner_system_prompt.txt](apps/api/src/domains/agents/prompts/v1/planner_system_prompt.txt)
+**Fichier**: [apps/api/src/domains/agents/prompts/v1/smart_planner_prompt.txt](../../apps/api/src/domains/agents/prompts/v1/smart_planner_prompt.txt)
 
 > **Note**: Le prompt v5 a été consolidé dans v1 (décembre 2025). Le versioning historique v5.1 est conservé dans le contenu du fichier.
 
@@ -2453,7 +2453,7 @@ Response Node Receives:
 
 ### Métriques Prometheus
 
-**Fichier**: [apps/api/src/infrastructure/observability/metrics_agents.py](apps/api/src/infrastructure/observability/metrics_agents.py)
+**Fichier**: [apps/api/src/infrastructure/observability/metrics_agents.py](../../apps/api/src/infrastructure/observability/metrics_agents.py)
 
 #### Métriques Planner-Specific
 
@@ -2543,7 +2543,7 @@ agent_node_executions_total = Counter(
 
 ### Grafana Dashboards
 
-**Dashboard**: [infrastructure/observability/grafana/dashboards/04-agents-langgraph.json](infrastructure/observability/grafana/dashboards/04-agents-langgraph.json)
+**Dashboard**: [infrastructure/observability/grafana/dashboards/07-agents-pipeline.json](../../infrastructure/observability/grafana/dashboards/07-agents-pipeline.json)
 
 **Panels Planner**:
 1. **Planner Plans Created** (rate)
@@ -2829,7 +2829,7 @@ async def test_planner_node_e2e_with_real_llm():
 
 3. **Considérer LLM plus rapide** (si qualité acceptable):
    ```python
-   # apps/api/src/core/config.py
+   # apps/api/src/core/config/
    planner_llm_model: str = "gpt-4.1-mini-mini"  # vs "gpt-4.1-mini"
    ```
 
@@ -2892,7 +2892,7 @@ async def test_planner_node_e2e_with_real_llm():
 **Solutions**:
 1. **Vérifier prompt planner** (Analytical Reasoning Patterns):
    ```python
-   # apps/api/src/domains/agents/prompts/v1/planner_system_prompt.txt
+   # apps/api/src/domains/agents/prompts/v1/smart_planner_prompt.txt
    # Contient les patterns de raisonnement analytique
    ```
 
@@ -3009,7 +3009,7 @@ grep "get_place_details_tool\|get_contact_details_tool" docker-logs.txt
 | `PLANNER_TIMEOUT_SECONDS` | 30 | Timeout LLM response |
 
 ```python
-# apps/api/src/core/config.py (code reference)
+# apps/api/src/core/config/ (code reference)
 
 class Settings(BaseSettings):
     planner_llm_provider: str = "openai"
@@ -3031,16 +3031,16 @@ class Settings(BaseSettings):
 - [GRAPH_AND_AGENTS_ARCHITECTURE.md](GRAPH_AND_AGENTS_ARCHITECTURE.md) - LangGraph architecture
 
 **Code source**:
-- [planner_node_v3.py](apps/api/src/domains/agents/nodes/planner_node_v3.py) - Planner node implementation
-- [plan_schemas.py](apps/api/src/domains/agents/orchestration/plan_schemas.py) - ExecutionPlan DSL
-- [validator.py](apps/api/src/domains/agents/orchestration/validator.py) - PlanValidator
-- [planner_system_prompt.txt](apps/api/src/domains/agents/prompts/v1/planner_system_prompt.txt) - Prompt actif (v5 consolidated to v1)
+- [planner_node_v3.py](../../apps/api/src/domains/agents/nodes/planner_node_v3.py) - Planner node implementation
+- [plan_schemas.py](../../apps/api/src/domains/agents/orchestration/plan_schemas.py) - ExecutionPlan DSL
+- [validator.py](../../apps/api/src/domains/agents/orchestration/validator.py) - PlanValidator
+- [smart_planner_prompt.txt](../../apps/api/src/domains/agents/prompts/v1/smart_planner_prompt.txt) - Prompt actif (v5 consolidated to v1)
 
 **ADRs**:
-- [ADR-003: Multi-Domain Dynamic Filtering](docs/architecture/ADR-003-Multi-Domain-Dynamic-Filtering.md)
-- [ADR-004: Analytical Reasoning Patterns](docs/architecture/ADR-004-Analytical-Reasoning-Patterns.md)
-- [ADR-005: Sequential Fallback Execution](docs/architecture/ADR-005-Sequential-Fallback-Execution.md)
-- [ADR-006: Prevent Unbounded List Operations](docs/architecture/ADR-006-Prevent-Unbounded-List-Operations.md)
+- [ADR-003: Multi-Domain Dynamic Filtering](../architecture/ADR_INDEX.md#adr-003-multi-domain-dynamic-filtering)
+- [ADR-004: Analytical Reasoning Patterns](../architecture/ADR_INDEX.md#adr-004-analytical-reasoning-patterns-planner-v5)
+- [ADR-005: Sequential Fallback Execution](../architecture/ADR_INDEX.md#adr-005-sequential-fallback-execution)
+- [ADR-006: Prevent Unbounded List Operations](../architecture/ADR_INDEX.md#adr-006-prevent-unbounded-list-operations)
 
 ---
 

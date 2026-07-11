@@ -31,7 +31,7 @@ grep -c "record: business:" recording_rules.yml
 ```bash
 # Validate all 3 dashboards
 cd infrastructure/observability/grafana/dashboards
-for f in 01-app-performance.json 04-agents-langgraph.json 05-llm-tokens-cost.json; do
+for f in 01-app-performance.json 07-agents-pipeline.json 05-llm-tokens-cost.json; do
   python -c "import json; json.load(open('$f', encoding='utf-8')); print('✅ VALID: $f')"
 done
 ```
@@ -148,7 +148,7 @@ export GRAFANA_PASSWORD='${YOUR_PASSWORD}'
 # Import each dashboard
 cd infrastructure/observability/grafana/dashboards
 
-for dashboard in 01-app-performance.json 04-agents-langgraph.json 05-llm-tokens-cost.json 03-business-metrics.json; do
+for dashboard in 01-app-performance.json 07-agents-pipeline.json 05-llm-tokens-cost.json 03-business-metrics.json; do
   echo "Importing $dashboard..."
   curl -X POST \
     -H "Content-Type: application/json" \
@@ -399,7 +399,7 @@ curl -s 'http://localhost:9090/api/v1/query?query=business:abandonment_rate:5m_b
 | `recording_rules.yml` | Recording Rules | ✅ Ready | `infrastructure/observability/prometheus/` |
 | `01-app-performance.json` | Dashboard | ✅ Ready | `infrastructure/observability/grafana/dashboards/` |
 | `03-business-metrics.json` | Dashboard | ✅ Ready | `infrastructure/observability/grafana/dashboards/` |
-| `04-agents-langgraph.json` | Dashboard | ✅ Ready (UTF-8 fixed) | `infrastructure/observability/grafana/dashboards/` |
+| `07-agents-pipeline.json` | Dashboard | ✅ Ready (UTF-8 fixed) | `infrastructure/observability/grafana/dashboards/` |
 | `05-llm-tokens-cost.json` | Dashboard | ✅ Ready | `infrastructure/observability/grafana/dashboards/` |
 | `alert_rules.yml` | Alerts | ✅ Ready | `infrastructure/observability/prometheus/` |
 

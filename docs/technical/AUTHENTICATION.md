@@ -1857,7 +1857,7 @@ graph LR
 **Cookie Security Configuration** :
 
 ```python
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 class Settings(BaseSettings):
     # Session cookie settings (BFF Pattern - OAuth 2.1 compliant)
     session_cookie_name: str = "lia_session"
@@ -2177,7 +2177,7 @@ class User(BaseModel):
 
 ### UserRepository Optimized Query
 
-**Localisation** : [`apps/api/src/domains/users/repository.py`](../../apps/api/src/domains/users/repository.py:100-120)
+**Localisation** : [`apps/api/src/domains/users/repository.py`](../../apps/api/src/domains/users/repository.py#L100)
 
 ```python
 async def get_user_minimal_for_session(self, user_id: UUID) -> User | None:
@@ -3095,7 +3095,7 @@ if not user:
 
 **Solution manuelle (cleanup script)** :
 ```python
-# scripts/cleanup_orphan_sessions.py
+# script ad hoc (exemple, non commité)
 import asyncio
 from src.infrastructure.cache.redis import get_redis_session
 

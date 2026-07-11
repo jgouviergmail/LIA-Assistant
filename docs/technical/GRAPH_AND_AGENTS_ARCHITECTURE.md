@@ -123,27 +123,39 @@ async def build_graph(
 
 ```mermaid
 graph TD
-    START([User Message]) --> ROUTER[Router Node v8]
+    START([User Message]) --> COMPACTION[Compaction Node<br/>F4 — pass-through si rien à compacter]
+    COMPACTION --> ROUTER[Router Node v3]
 
     ROUTER -->|conversation| RESPONSE[Response Node]
-    ROUTER -->|actionable, pipeline| PLANNER[Planner Node v5]
-    ROUTER -->|actionable, react| REACT_SETUP[ReAct Setup]
+    ROUTER -->|actionable, pipeline| PLANNER[Planner Node v3]
+    ROUTER -->|actionable, react — ADR-070| REACT_SETUP[ReAct Setup]
 
-    PLANNER --> VALIDATOR[Plan Validator]
-    VALIDATOR --> APPROVAL[Approval Gate HITL]
+    PLANNER -->|requires validation| VALIDATOR[Semantic Validator]
+    PLANNER -->|direct| ORCHESTRATOR
+    PLANNER -->|empty plan| RESPONSE
+    VALIDATOR -->|clarification| CLARIF[Clarification Node<br/>HITL interrupt]
+    CLARIF --> VALIDATOR
+    VALIDATOR -->|replan| PLANNER
+    VALIDATOR -->|valid| APPROVAL[Approval Gate<br/>pass-through auto-approve]
 
-    APPROVAL -->|approved| ORCHESTRATOR[Task Orchestrator]
-    APPROVAL -->|rejected| RESPONSE
+    APPROVAL --> ORCHESTRATOR[Task Orchestrator<br/>ParallelExecutor]
 
-    ORCHESTRATOR --> CONTACTS[Contacts Agent]
-    CONTACTS --> ORCHESTRATOR
-
-    ORCHESTRATOR --> RESPONSE
+    ORCHESTRATOR -->|pending draft| HITL[HITL Dispatch<br/>self-loop ADR-092]
+    ORCHESTRATOR -->|FOR_EACH bulk| FOREACH[FOR_EACH Confirm<br/>ADR-092]
+    FOREACH -->|approved| ORCHESTRATOR
+    ORCHESTRATOR -->|agent nodes| AGENTS[Domain Agent Nodes<br/>contact, email, event, file, task,<br/>weather, wikipedia, perplexity,<br/>place, route, hue, browser]
+    AGENTS --> INITIATIVE
+    HITL --> INITIATIVE[Initiative Node<br/>ADR-062 + prefetch ADR-091]
+    FOREACH -->|cancelled| INITIATIVE
+    ORCHESTRATOR --> INITIATIVE
+    INITIATIVE --> RESPONSE
 
     REACT_SETUP --> REACT_LLM[ReAct Call Model]
     REACT_LLM -->|tool_calls| REACT_TOOLS[ReAct Execute Tools]
     REACT_LLM -->|no tool_calls| REACT_FIN[ReAct Finalize]
     REACT_TOOLS --> REACT_LLM
+    REACT_TOOLS -->|draft prepared| HITL
+    REACT_FIN --> INITIATIVE
     REACT_FIN --> RESPONSE
 
     RESPONSE --> END([Stream to User])
@@ -164,11 +176,15 @@ graph TD
 ```python
 # apps/api/src/domains/agents/constants.py
 
-# Node names (used in graph construction)
+# Node names (used in graph construction) — extrait, source : constants.py
+NODE_COMPACTION = "compaction"
 NODE_ROUTER = "router"
 NODE_PLANNER = "planner"
-NODE_APPROVAL_GATE = "approval_gate"
+NODE_SEMANTIC_VALIDATOR = "semantic_validator"
+NODE_CLARIFICATION = "clarification"
+NODE_APPROVAL_GATE = "approval_gate"      # pass-through auto-approve
 NODE_TASK_ORCHESTRATOR = "task_orchestrator"
+NODE_HITL_DISPATCH = "hitl_dispatch"      # alias NODE_DRAFT_CRITIQUE
 NODE_RESPONSE = "response"
 
 # ReAct execution mode nodes (ADR-070)
@@ -177,9 +193,14 @@ NODE_REACT_CALL_MODEL = "react_call_model"
 NODE_REACT_EXECUTE_TOOLS = "react_execute_tools"
 NODE_REACT_FINALIZE = "react_finalize"
 
-# Agent names
-AGENT_CONTACTS = "contacts_agent"
+# Agent node names — v3.2 : vocabulaire domaine SINGULIER
+AGENT_CONTACT = "contact_agent"
+AGENT_EMAIL = "email_agent"
+AGENT_EVENT = "event_agent"    # ex-calendar_agent
+AGENT_FILE = "file_agent"      # ex-drive_agent
+AGENT_TASK = "task_agent"
 AGENT_HUE = "hue_agent"
+# + weather, wikipedia, perplexity, place, route, browser (conditionnel)
 
 # Special nodes
 END = "__end__"  # LangGraph built-in
@@ -941,6 +962,20 @@ Response: "Je n'ai pas trouvé de contact nommé Jean."
 
 ---
 
+### 6. Autres nodes (non détaillés ici)
+
+| Node | Rôle | Référence |
+|------|------|-----------|
+| `compaction_node` | Compaction intelligente du contexte en entrée de graphe (pass-through sinon) | [COMPACTION_v2.md](COMPACTION_v2.md) |
+| `semantic_validator_node` | Validation sémantique du plan, boucle clarification | [PLANNER.md](PLANNER.md) |
+| `clarification_node` | Interrupt HITL de clarification pré-exécution | [HITL.md](HITL.md) |
+| `hitl_dispatch_node` | Dispatch générique draft critique / modifier review — self-loop replay-safe | [HITL.md](HITL.md), ADR-092 |
+| `for_each_confirm_node` | Confirmation bulk FOR_EACH — providers pré-exécutés une fois | ADR-092 |
+| `initiative_node` | Évaluation post-exécution + actions read-only + prefetch du contexte réponse | ADR-062, ADR-091 |
+| `react_*` (4 nodes) | Boucle ReAct : setup → call_model ⇄ execute_tools → finalize | [REACT_EXECUTION_MODE.md](REACT_EXECUTION_MODE.md) |
+
+---
+
 ## 🔀 Routing & Flow
 
 ### Route Functions
@@ -1244,7 +1279,7 @@ class ToolContextManager:
 ### 1. Node Decorator (Metrics)
 
 ```python
-# apps/api/src/domains/agents/nodes/decorators.py
+# apps/api/src/infrastructure/observability/decorators.py
 
 def node_with_metrics(node_name: str):
     """

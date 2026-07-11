@@ -784,16 +784,16 @@ apps/api/src/
 |------------|---------|------|
 | Python | 3.12+ | Primary runtime |
 | FastAPI | 0.136.3 | REST API + SSE framework |
-| LangGraph | 1.2.2 | Multi-agent orchestration |
-| LangChain | 1.3.2 | LLM abstraction + tools |
+| LangGraph | 1.2.4 | Multi-agent orchestration |
+| LangChain | 1.3.9 | LLM abstraction + tools |
 | SQLAlchemy | 2.0.50 | Async ORM |
 | Alembic | 1.18.4 | Database migrations |
 | PostgreSQL | 16 + pgvector | Database + vector search |
 | Redis | 7.4.0 | Cache, sessions, rate limiting |
 | Pydantic | 2.13.4 | Validation + serialization |
 | structlog | latest | Structured JSON logging |
-| openai | 1.0+ | LLM provider |
-| Edge TTS | 6.1+ | Voice synthesis (free) |
+| openai | 2.x | LLM provider |
+| Edge TTS | 7.2+ | Voice synthesis (free) |
 | mcp | 1.9+ | Model Context Protocol SDK (Streamable HTTP) |
 | Docker | 24+ | Containerization (multi-arch amd64/arm64) |
 
@@ -802,12 +802,12 @@ apps/api/src/
 | Technology | Version | Role |
 |------------|---------|------|
 | Node.js | 24 LTS | JavaScript runtime |
-| Next.js | 16.2.7 | React framework |
-| React | 19.2.5 | UI library |
+| Next.js | 16.2.10 | React framework |
+| React | 19.2.7 | UI library |
 | TypeScript | 6.0.2 | Type safety |
-| TailwindCSS | 4.2.2 | Styling |
-| TanStack Query | 5.99.0 | Server state management |
-| react-i18next | 17.0.2 | i18n (6 languages) |
+| TailwindCSS | 4.3.2 | Styling |
+| TanStack Query | 5.101 | Server state management |
+| react-i18next | 17.0.8 | i18n (6 languages) |
 | Radix UI | latest | Accessible UI primitives |
 
 **Responsive Design**: Fully optimized for desktop, tablet, and smartphone. Adaptive layouts, touch-friendly interactions, and mobile-first components ensure a seamless experience on any device.

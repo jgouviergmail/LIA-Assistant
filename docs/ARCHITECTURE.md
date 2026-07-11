@@ -1,7 +1,7 @@
 # Architecture LIA
 
 > Architecture complète du système multi-agents avec LangGraph, observabilité enterprise et sécurité GDPR
-> **Version**: 6.5 (Architecture v3.5 + evolution Features: Web Fetch, MCP Per-User, MCP Admin Per-Server, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals — Stratified Consciousness (ADR-079), Philips Hue Smart Home) - 2026-05-06
+> **Version**: 7.0 (v6.5 + réalignement complet 2026-07 : Voice catalogue-driven ADR-081/082, Sub-Agents one-shot ADR-083, HITL replay-safe ADR-092/106, hardening sécurité ADR-093–099, Background Runs ADR-117, Alerting ADR-119, couche sémantique ADR-090/120/121, décompositions ADR-122/123/125, découplage auth/users ADR-126 — voir la section « Fonctionnalités v6.4 → v7.0 ») - 2026-07-11
 
 ## 📋 Table des Matières
 
@@ -39,6 +39,7 @@
   - [Sub-Agents](#sub-agents--persistent-specialized-agents-f6)
   - [Browser Control](#browser-control--web-automation-f7)
   - [Personal Journals](#personal-journals--carnets-de-bord-f8)
+- [Fonctionnalités v6.4 → v7.0](#-fonctionnalités-v64--v70-2026-05--2026-07)
 - [Références](#références)
 
 ---
@@ -64,14 +65,14 @@ LIA est une **plateforme d'assistant conversationnel entreprise** construite sur
 | **Lignes de Code** | 150,000+ |
 | **Fichiers** | 1,500+ |
 | **Modules Python** | 300+ |
-| **Tests** | ~9,992 (pytest collected, 448 files) |
+| **Tests** | ~590 fichiers pytest |
 | **Métriques Prometheus** | 500+ |
-| **Dashboards Grafana** | 18 |
+| **Dashboards Grafana** | 22 |
 | **API Endpoints** | 90+ |
-| **LLM Providers** | 7 |
+| **LLM Providers** | 9 (catalogue-driven, ADR-078) |
 | **Agents** | 18+ |
 | **Tools** | 60+ |
-| **Fichiers Prompts** | 45 |
+| **Fichiers Prompts** | 78 (`prompts/v1/`) |
 | **Langues i18n** | 6 |
 
 ---
@@ -168,8 +169,8 @@ Infrastructure Layer (Database, Cache, LLM)
                              │ HTTPS
                              │
 ┌────────────────────────────┴───────────────────────────────────────┐
-│                      CDN / Load Balancer                            │
-│                     (Cloudflare / AWS ALB)                          │
+│               Cloudflare Tunnel (cloudflared)                       │
+│      entrée publique unique — ports loopback-bound (ADR-093)        │
 └────────────────────┬───────────────────────┬───────────────────────┘
                      │                       │
         ┌────────────┴──────────┐   ┌───────┴────────────┐
@@ -182,7 +183,7 @@ Infrastructure Layer (Database, Cache, LLM)
         ┌──────────────────────────────────┼──────────────┐
         │                                  │              │
 ┌───────┴─────────┐  ┌──────────────┴─────┴───┐  ┌──────┴────────┐
-│  PostgreSQL 16  │  │      Redis 7            │  │ External APIs │
+│  PostgreSQL 16  │  │      Redis 7.4          │  │ External APIs │
 │  - User data    │  │  - Sessions (BFF)       │  │ - OpenAI      │
 │  - Conversations│  │  - Cache (tools)        │  │ - Anthropic   │
 │  - Checkpoints  │  │  - Locks (OAuth)        │  │ - Google APIs │
@@ -693,50 +694,36 @@ class BaseGoogleClient:
 
 ---
 
-### OpenAI Embeddings (ADR-049)
+### Embeddings Gemini (ADR-069)
 
-**Problème résolu** : Fournir des embeddings sémantiques de haute qualité pour la mémoire, le routing, et la recherche vectorielle.
+**Problème résolu** : Fournir des embeddings sémantiques de haute qualité multilingues pour la mémoire, le routing, et la recherche vectorielle. Les embeddings OpenAI présentaient un biais de langue (textes non reliés d'une même langue scorés 0.25–0.35).
 
-**Solution** : OpenAI `text-embedding-3-small` (1536 dims) via l'API OpenAI.
+**Solution** : Google `gemini-embedding-001` (1536 dims par défaut, configurable 768/1536/3072) avec task types asymétriques `RETRIEVAL_QUERY` / `RETRIEVAL_DOCUMENT` et stratégie dual-vector (`embedding` + `keyword_embedding`).
 
 #### Architecture
 
 ```python
-# src/infrastructure/llm/memory_embeddings.py
-class MemoryEmbeddings:
-    """
-    LangChain-compatible OpenAI embeddings.
-
-    Features:
-    - 1536 dimensions
-    - 100+ langues supportées
-    - Haute qualité sémantique
-    """
-
-    def __init__(self, model="text-embedding-3-small"):
-        self.client = OpenAI()
-        self.model = model
-
-    def embed_query(self, text: str) -> list[float]:
-        response = self.client.embeddings.create(input=text, model=self.model)
-        return response.data[0].embedding
+# src/infrastructure/llm/gemini_embeddings.py — client natif async
+# src/infrastructure/llm/memory_embeddings.py — service mémoire (Gemini)
+# Toujours utiliser les méthodes async (aembed_documents) sur un chemin async
 ```
 
 #### Performance
 
 | Métrique | Value |
 |----------|-------|
-| Model | OpenAI text-embedding-3-small |
-| Dimensions | 1536 |
+| Model | Google gemini-embedding-001 |
+| Dimensions | 1536 (défaut, configurable 768/1536/3072) |
+| Task types | RETRIEVAL_QUERY / RETRIEVAL_DOCUMENT |
 | Languages | 100+ |
-| Cost | $0.02/1M tokens |
 
 **Usages** :
 - Semantic Memory Store (mémoire long-terme)
 - Semantic Tool Router (sélection tools)
+- Interests, Journals, RAG Spaces
 - pgvector semantic search
 
-**Voir** : [ADR-049](./architecture/ADR-049-local-e5-embeddings.md) (superseded — now uses OpenAI text-embedding-3-small)
+**Historique** : E5 local (384d) → OpenAI text-embedding-3-small (v1.14.0) → Gemini (v1.14.1, [ADR-069](./architecture/ADR-069-Gemini-Embedding-Migration.md)). [ADR-049](./architecture/ADR-049-Local-E5-Embeddings.md) superseded.
 
 ---
 
@@ -798,7 +785,7 @@ score = max(
 #### Domain Taxonomy (11 domaines)
 
 ```python
-# src/domains/agents/domain_taxonomy.py
+# src/domains/agents/registry/domain_taxonomy.py
 DOMAINS = [
     "weather",      # Météo et prévisions
     "calendar",     # Événements et rendez-vous
@@ -816,9 +803,9 @@ DOMAINS = [
 
 **Bénéfices** :
 - ✅ **80-90% réduction tokens** : De 15K à 1.5-3K tokens/requête
-- ✅ **Zero i18n maintenance** : Embeddings multilingues natifs (OpenAI)
+- ✅ **Zero i18n maintenance** : Embeddings multilingues natifs (Gemini)
 - ✅ **+48% accuracy** : 0.90 vs 0.61 baseline
-- ✅ **Low API cost** : OpenAI text-embedding-3-small ($0.02/1M tokens)
+- ✅ **Low API cost** : gemini-embedding-001, cache d'embeddings de requête
 
 **Voir** : [SEMANTIC_ROUTER.md](./technical/SEMANTIC_ROUTER.md) | [ADR-048](./architecture/ADR-048-Semantic-Tool-Router.md)
 
@@ -1642,7 +1629,7 @@ def build_graph() -> CompiledStateGraph:
                                 └────────────────────────────────────┘
 ```
 
-Pour les détails complets, voir [GRAPH_AND_AGENTS_ARCHITECTURE.md](./GRAPH_AND_AGENTS_ARCHITECTURE.md)
+Pour les détails complets, voir [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md)
 
 ---
 
@@ -1778,7 +1765,7 @@ adaptive_replanner_recovery_success_total{strategy="broaden_search|alternative_s
 Pour les détails complets, voir:
 - [ARCHITECTURE_LANGRAPH.md - Section 13](./ARCHITECTURE_LANGRAPH.md#13-intelliplanner---orchestration-avancée)
 - [ARCHITECTURE_AGENT.md - Section 22](./ARCHITECTURE_AGENT.md#22-intelliplanner---orchestration-avancée)
-- [docs/INTELLIPLANNER/](./INTELLIPLANNER/)
+- [PLANNER.md](./technical/PLANNER.md)
 
 ---
 
@@ -1854,7 +1841,7 @@ class MessagesState(TypedDict):
     _schema_version: str  # "1.0" for migrations
 ```
 
-Pour les détails complets, voir [STATE_AND_CHECKPOINT.md](./STATE_AND_CHECKPOINT.md)
+Pour les détails complets, voir [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md)
 
 ---
 
@@ -1940,7 +1927,7 @@ Frontend                    Backend                 Redis
 - Automatic expiration (TTL in Redis)
 - Revocable (delete from Redis)
 
-Pour les détails complets, voir [OAUTH.md](./OAUTH.md) et [AUTHENTICATION.md](./AUTHENTICATION.md)
+Pour les détails complets, voir [OAUTH.md](./technical/OAUTH.md) et [AUTHENTICATION.md](./technical/AUTHENTICATION.md)
 
 ---
 
@@ -1993,7 +1980,7 @@ Application Code
 - **OAuth** (8) : Callbacks, PKCE validation, token exchange
 - **Business** (20+) : Conversations, user engagement, token efficiency
 
-Pour les détails complets, voir [OBSERVABILITY_AGENTS.md](./OBSERVABILITY_AGENTS.md)
+Pour les détails complets, voir [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md)
 
 ---
 
@@ -3548,7 +3535,7 @@ class BM25Index:
         scores = self._compute_bm25_scores(tokens)
         return self._top_k(scores, k)
 
-# src/domains/memories/search/hybrid_search.py
+# src/infrastructure/store/ (bm25_index.py + semantic_store.py)
 class HybridMemorySearch:
     """
     Combine BM25 + semantic search with RRF fusion.
@@ -3636,7 +3623,7 @@ async with TrackingContext(user_id, run_id) as tracker:
 
 ## 🆕 Fonctionnalités v6.2 (evolution)
 
-> Features issues de l'analyse et intégration du projet evolution. Voir [evolution_INTEGRATION_ROADMAP.md](./technical/evolution_INTEGRATION_ROADMAP.md) pour la roadmap complète.
+> Features issues de l'analyse et intégration du projet evolution. Voir [NANOBOT_INTEGRATION_ROADMAP.md](./technical/NANOBOT_INTEGRATION_ROADMAP.md) pour la roadmap complète.
 
 ### Web Fetch Tool (evolution F1)
 
@@ -3794,18 +3781,17 @@ async with TrackingContext(user_id, run_id) as tracker:
 
 ## 🆕 Fonctionnalités v6.3
 
-### Sub-Agents — Persistent Specialized Agents (F6)
+### Sub-Agents — Délégation éphémère (F6 → ADR-083)
 
-Système de délégation permettant à l'assistant principal de créer des sous-agents éphémères spécialisés pour des tâches complexes (recherche, analyse, synthèse).
+Système de délégation permettant à l'assistant principal de créer des experts éphémères pour des tâches complexes (recherche, analyse, synthèse).
 
-**Architecture** :
-- Domaine DDD complet `src/domains/sub_agents/` (models, repository, service, router, schemas)
-- Pipeline simplifié (query analysis → planner → parallel executor → LLM synthesis) — bypass du semantic validator, approval gate, et response node
-- 3 templates pré-définis (Research Assistant, Writing Assistant, Data Analyst)
-- Token guard-rails : budget par exécution, budget quotidien par utilisateur, auto-disable après échecs consécutifs
-- Feature flag : `SUB_AGENTS_ENABLED=true`
+**Architecture actuelle (ADR-083, 2026-05)** :
+- Chemin unique : `delegate_to_sub_agent_tool` — le principal rédige persona + expertise et inline toutes les données dans l'instruction
+- Exécution : boucle ReAct scopée sur `ReactSubAgentRunner` (tools read-only, budget d'itérations serré) / appel expert one-shot
+- Le plumbing F6 « persistent » historique (ORM `SubAgent`, `SubAgentExecutor`, API REST `/sub-agents`, templates utilisateur, budget Redis quotidien) a été **supprimé** en Phase 2 cleanup
+- Invisible pour l'utilisateur : le principal orchestre et présente les résultats
 
-> Voir [SUB_AGENTS.md](./technical/SUB_AGENTS.md) et [ADR-043](./architecture/ADR-043-Subgraph-Architecture.md) pour la documentation complète.
+> Voir [SUB_AGENTS.md](./technical/SUB_AGENTS.md) et [ADR-083](./architecture/ADR-083-Sub-Agent-Delegation-React.md) pour la documentation complète.
 
 ### Browser Control — Web Automation (F7)
 
@@ -3839,6 +3825,46 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 - Feature flag : `JOURNALS_ENABLED=false` (système) + toggle utilisateur dans Settings > Features.
 
 > Voir [JOURNALS.md](./technical/JOURNALS.md) et la chaîne ADR : [ADR-057](./architecture/ADR-057-Personal-Journals.md) → [ADR-064](./architecture/ADR-064-Journal-Analyst-Persona.md) → [ADR-069](./architecture/ADR-069-Gemini-Embedding-Migration.md) → [ADR-079](./architecture/ADR-079-Stratified-Journal-Consciousness.md).
+
+---
+
+## 🆕 Fonctionnalités v6.4 → v7.0 (2026-05 → 2026-07)
+
+> Synthèse des évolutions livrées après la v6.5 de ce document. Chaque ligne renvoie
+> vers l'ADR (décision) et la doc technique (fonctionnement). Ce tableau est la table
+> d'orientation — le détail ne vit pas ici.
+
+| Évolution | ADR | Documentation |
+|-----------|-----|---------------|
+| Voice TTS piloté par le catalogue LLM (Edge/OpenAI/ElevenLabs) + STT remote ElevenLabs Scribe | [ADR-081](./architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-080](./architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md) | [VOICE.md](./technical/VOICE.md), [VOICE_MODE.md](./technical/VOICE_MODE.md) |
+| Streaming TTS progressif par phrases (TTFA ÷5) | [ADR-082](./architecture/ADR-082-Progressive-Sentence-Streaming.md) | [VOICE.md](./technical/VOICE.md) |
+| Sub-agents : passage au one-shot expert (suppression du plumbing F6 persistant) | [ADR-083](./architecture/ADR-083-Sub-Agent-Delegation-React.md) | [SUB_AGENTS.md](./technical/SUB_AGENTS.md) |
+| Principe INDEXABLE vs SEMANTIC (garde anti-fuite de critères sémantiques) | [ADR-084](./architecture/ADR-084-Indexable-vs-Semantic-Criteria.md) | [PLANNER.md](./technical/PLANNER.md) |
+| Registre déclaratif d'affichage des drafts (assert de complétude au boot) | [ADR-085](./architecture/ADR-085-Draft-Display-Registry.md) | [HITL.md](./technical/HITL.md) |
+| Compaction v2 de l'historique de conversation | [ADR-086](./architecture/ADR-086-Conversation-History-Compaction-v2.md) | [COMPACTION_v2.md](./technical/COMPACTION_v2.md) |
+| Journal : écriture restraint-first + injection routée par niveau | [ADR-088](./architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md) | [JOURNALS.md](./technical/JOURNALS.md) |
+| Métriques Prometheus multi-worker (multiprocess) | [ADR-089](./architecture/ADR-089-Prometheus-Multiprocess-Metrics.md) | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) |
+| Couche sémantique : gouvernance, évidence déterministe, back-fill des annotations | [ADR-090](./architecture/ADR-090-Semantic-Layer-Governance.md), [ADR-120](./architecture/ADR-120-Semantic-Evidence-Expansion-And-Param-Guard.md), [ADR-121](./architecture/ADR-121-Semantic-Annotation-Backfill.md) | [AGENT_MANIFEST.md](./technical/AGENT_MANIFEST.md) |
+| Prefetch du contexte de réponse depuis le node initiative (latence) | [ADR-091](./architecture/ADR-091-Response-Context-Prefetch.md) | [LATENCY_PLAN.md](./optim/LATENCY_PLAN.md) |
+| HITL replay-safe : un interrupt par exécution de node, self-loops, FOR_EACH dédié | [ADR-092](./architecture/ADR-092-Replay-Safe-HITL-Interrupts.md), [ADR-106](./architecture/ADR-106-HITL-Contract-Coherence.md) | [HITL.md](./technical/HITL.md), [hitl-flow.mmd](./architecture/hitl-flow.mmd) |
+| Hardening sécurité : proxy de confiance + sanitize XSS, gardes systémiques, boundaries perf, concurrence/GDPR/sandbox, CSP stricte + widget airlock, suppression nginx mort | [ADR-093](./architecture/ADR-093-Security-Hardening-Proxy-XSS.md) → [ADR-099](./architecture/ADR-099-Remove-Dead-Nginx-Config.md) | [SECURITY.md](./technical/SECURITY.md), [PII_LOGGING_SECURITY.md](./technical/PII_LOGGING_SECURITY.md) |
+| Garde structured-output vs prompts « JSON only » (rescue net) | [ADR-100](./architecture/ADR-100-Structured-Output-Prompt-Conflict-Guard.md) | [LLM_PROVIDERS.md](./technical/LLM_PROVIDERS.md) |
+| Durcissement recherche calendrier + cap volumétrie centralisé | [ADR-101](./architecture/ADR-101-Calendar-Search-Hardening.md) | [PLANNER.md](./technical/PLANNER.md) |
+| Vocabulaire domaines single-source (axes singulier/result_key) | [ADR-102](./architecture/ADR-102-Domain-Vocabulary-Single-Source.md) | [AGENT_MANIFEST.md](./technical/AGENT_MANIFEST.md) |
+| i18n backend HITL 6 langues | [ADR-103](./architecture/ADR-103-HITL-Backend-i18n.md) | [HITL.md](./technical/HITL.md) |
+| Psyché : dé-saturation + expression incarnée | [ADR-104](./architecture/ADR-104-Psyche-De-Saturation.md), [ADR-105](./architecture/ADR-105-Psyche-Embodied-Expression.md) | [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) |
+| Remédiation code mort + adoption BaseAPIKeyClient | [ADR-107](./architecture/ADR-107-Dead-Code-Remediation-S7.md), [ADR-108](./architecture/ADR-108-BaseAPIKeyClient-Adoption.md) | [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) |
+| Backups PostgreSQL (sidecar pg_dump, restauration testée) | [ADR-109](./architecture/ADR-109-PostgreSQL-Backup-Strategy.md), [ADR-110](./architecture/ADR-110-Backup-Encryption-Options.md) | [DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BACKUP_RESTORE.md) |
+| Pools de connexions checkpointer & store LangGraph | [ADR-111](./architecture/ADR-111-LangGraph-Postgres-Connection-Pooling.md) | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) |
+| Lockfiles Python universels (uv, garde CI) | [ADR-112](./architecture/ADR-112-Python-Dependency-Locking.md) | [CI_CD.md](./technical/CI_CD.md) |
+| Réhabilitation suite de tests backend + fondation tests frontend | [ADR-113](./architecture/ADR-113-Backend-Test-Suite-Rehabilitation.md), [ADR-116](./architecture/ADR-116-Frontend-Test-Foundation.md) | [GUIDE_TESTING.md](./guides/GUIDE_TESTING.md) |
+| Contrats d'erreur : clients connecteurs puis routers/services (règle #18) | [ADR-114](./architecture/ADR-114-Connector-Client-Domain-Error-Contract.md), [ADR-124](./architecture/ADR-124-Router-Service-Error-Contract.md) | — |
+| Split liveness/readiness (`/health` vs `/ready`) | [ADR-115](./architecture/ADR-115-Liveness-Readiness-Probes.md) | [DEPLOYMENT_INSTRUCTIONS.md](./technical/DEPLOYMENT_INSTRUCTIONS.md) |
+| Background Chat Runs : producteur détaché + Redis Streams, reprise live, stop cross-worker | [ADR-117](./architecture/ADR-117-Background-Chat-Runs.md) | [BACKGROUND_RUNS.md](./technical/BACKGROUND_RUNS.md) |
+| Import de skills piloté par le chat (pipeline durci) | [ADR-118](./architecture/ADR-118-Chat-Driven-Skill-Import.md) | [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) |
+| Réactivation de l'alerting (13 alertes → Alertmanager e-mail) | [ADR-119](./architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md) | [README_ALERTING.md](./readme/README_ALERTING.md) |
+| Décompositions structurelles : stream voix, lifespan startup, preview renderer | [ADR-122](./architecture/ADR-122-AgentService-Stream-Decomposition-B2.md), [ADR-123](./architecture/ADR-123-Lifespan-Startup-Decomposition.md), [ADR-125](./architecture/ADR-125-Draft-Preview-Renderer-Extraction.md) | — |
+| Découplage auth/users : auth = identité/session (feuille), users = agrégat User | [ADR-126](./architecture/ADR-126-Auth-Users-Domain-Decoupling.md) | [AUTHENTICATION.md](./technical/AUTHENTICATION.md) |
 
 ---
 

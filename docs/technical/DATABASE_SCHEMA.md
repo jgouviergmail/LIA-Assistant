@@ -2,11 +2,11 @@
 
 > **Documentation technique complète du schéma de base de données PostgreSQL**
 >
-> **Version**: 1.7
-> **Date**: 2026-03-17
-> **Validated**: Structure vérifiée contre code actuel
+> **Version**: 1.8
+> **Date**: 2026-07-11
+> **Validated**: Diff complet tables documentées ↔ modèles ORM effectué le 2026-07-11 (voir « Tables complémentaires »)
 >
-> Architecture: PostgreSQL 15+ avec SQLAlchemy 2.0 ORM
+> Architecture: PostgreSQL 16 avec SQLAlchemy 2.0 ORM
 > Migration: Alembic avec versioning temporel
 > Compliance: GDPR, OWASP, Audit Trail immuable
 
@@ -67,7 +67,7 @@ Le schéma suit l'architecture Domain-Driven Design avec **13 domaines** (11 ave
 ├── personalities/  → personalities, personality_translations (2 tables)
 ├── user_mcp/       → user_mcp_servers (1 table MCP per-user) [NEW v6.2]
 ├── channels/       → user_channel_bindings (1 table multi-channel messaging) [NEW v6.2]
-├── sub_agents/     → sub_agents (1 table persistent sub-agents) [NEW v1.5]
+├── sub_agents/     → (table sub_agents SUPPRIMÉE — migration 2026-05-13, ADR-083)
 ├── skills/         → skills, user_skill_states (2 tables normalized skill registry) [NEW v1.5]
 ├── memories/       → (Langfuse semantic store, pas de table DB)
 └── voice/          → (Google Cloud TTS, pas de table DB)
@@ -322,7 +322,7 @@ CREATE INDEX ix_users_personality_id ON users(personality_id);
 **Modèle SQLAlchemy:**
 
 ```python
-# apps/api/src/domains/auth/models.py
+# apps/api/src/domains/users/models.py
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -1612,6 +1612,10 @@ ORDER BY created_at;
 
 **Audit trail pour approbations plan-level HITL (Phase 8).**
 
+> ⚠️ **Table vestigiale (2026-07)** : son writer (`ApprovalEvaluator`) a été supprimé en
+> v1.21.16 et l'`approval_gate_node` est un pass-through auto-approve — plus aucune
+> écriture applicative. La table subsiste en base (historique).
+
 ```sql
 CREATE TABLE plan_approvals (
     -- Primary Key
@@ -1663,7 +1667,7 @@ La table `plan_approvals` n'a pas de modèle SQLAlchemy explicite car elle est u
 **Insertion Exemple:**
 
 ```python
-# apps/api/src/domains/agents/services/approval/evaluator.py
+# historique — le writer ApprovalEvaluator a été supprimé en v1.21.16 ; la table plan_approvals subsiste
 async def record_approval_decision(
     plan_id: UUID,
     user_id: UUID,
@@ -2495,7 +2499,11 @@ class UserChannelBinding(BaseModel):
 
 ## Tables Sub-Agents (1) [NEW v1.5]
 
-### 23. sub_agents
+### 23. sub_agents — ⚠️ SUPPRIMÉE
+
+> ⚠️ **Table supprimée** par la migration `2026_05_13_0001-drop_sub_agents_table_and_parent_run_id.py`
+> (ADR-083 Phase 2 : la délégation est devenue éphémère, plus de sub-agents persistants).
+> Section conservée à titre historique.
 
 > Persistent specialized sub-agents owned by a user. The principal assistant can delegate tasks to a sub-agent via the `invoke_sub_agent` tool. Each sub-agent has its own LLM overrides, allowed/blocked tools, associated skills, and execution limits. V1 sub-agents are read-only (created by user or system templates).
 
@@ -2680,6 +2688,32 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 - Current usage comes from `user_statistics` table (LEFT JOIN at query time)
 
 **Migration:** `2026_03_21_0001-add_user_usage_limits.py`
+
+---
+
+## Tables complémentaires (présentes en base, non détaillées ci-dessus)
+
+> Diff effectué le 2026-07-11 entre les modèles ORM (`__tablename__`) et ce document.
+> Chaque table ci-dessous existe et est active ; le détail des colonnes vit dans le
+> fichier de modèle indiqué (source de vérité).
+
+| Table | Modèle | Rôle |
+|-------|--------|------|
+| `memories` | `src/domains/memories/models.py` | Mémoire long-terme (contenu chiffré, embeddings pgvector, catégorie, poids émotionnel) |
+| `journal_entries` | `src/domains/journals/models.py` | Carnets de bord introspectifs stratifiés L0–L3 (ADR-079/088) |
+| `psyche_states` / `psyche_history` | `src/domains/psyche/models.py` | État psychologique dynamique courant + snapshots historiques (ADR-068) |
+| `reminders` | `src/domains/reminders/models.py` | Rappels one-shot éphémères (ADR-051) |
+| `attachments` | `src/domains/attachments/models.py` | Pièces jointes chat (images/PDF) + analyse vision |
+| `rag_spaces` / `rag_documents` / `rag_chunks` / `rag_drive_sources` | `src/domains/rag_spaces/models.py` | Espaces de connaissances RAG, documents, chunks vectorisés, sync Drive (ADR-055/056) |
+| `health_samples` / `health_metric_tokens` | `src/domains/health_metrics/models.py` | Métriques santé (iPhone Shortcuts) + tokens d'ingestion par utilisateur (ADR-076) |
+| `heartbeat_notifications` | `src/domains/heartbeat/models.py` | Historique des notifications proactives Heartbeat |
+| `interest_notifications` | `src/domains/interests/models.py` | Historique des notifications d'intérêts |
+| `llm_config_overrides` / `provider_api_keys` | `src/domains/llm_config/models.py` | Overrides LLM par type + clés API providers chiffrées Fernet (ADR-078) |
+| `image_generation_pricing` | `src/domains/image_generation/models.py` | Tarification génération d'images (versionnée) |
+| `user_usage_limits` | `src/domains/usage_limits/models.py` | Quotas par utilisateur (tokens, messages, coût — ADR-060) |
+| `system_settings` | `src/domains/system_settings/models.py` | Réglages système clé/valeur (activation composants, ADR-061) |
+| `admin_broadcasts` / `user_broadcast_reads` | `src/domains/notifications/models.py` | Diffusions admin + accusés de lecture (traductions JSONB persistées) |
+| `user_fcm_tokens` | `src/domains/notifications/models.py` | Tokens FCM push par appareil |
 
 ---
 

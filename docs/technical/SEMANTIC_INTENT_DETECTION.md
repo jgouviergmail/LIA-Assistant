@@ -1,5 +1,12 @@
 # Semantic Intent Detection
 
+> ⚠️ **DOCUMENT HISTORIQUE (2026-07-11)** : le `SemanticIntentDetector` (classification
+> d'intention par embeddings) **n'existe plus dans le code**. La détection d'intention
+> est aujourd'hui portée par le **QueryAnalyzerService** (LLM-based, champ `intent`
+> action/conversation + heuristiques de mutation) — voir
+> [SMART_SERVICES.md](SMART_SERVICES.md). Seul le champ d'état `detected_intent`
+> subsiste comme vestige lu par `response_node`. Ce document décrit l'ancien système.
+>
 > **Technical Documentation** - Phase 7 Token Optimization
 >
 > Version: 1.1

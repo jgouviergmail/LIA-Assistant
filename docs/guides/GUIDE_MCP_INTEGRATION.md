@@ -790,7 +790,7 @@ def test_derive_collection_key():
 ### Tests Excalidraw
 
 Fichiers :
-- `apps/api/tests/unit/infrastructure/mcp/test_excalidraw_iterative_builder.py`
+- `apps/api/tests/unit/infrastructure/mcp/` (test_client_manager, test_registration, test_tool_adapter, …)
 
 ### Tests d'integration
 
@@ -912,7 +912,7 @@ async def test_user_mcp_call(mock_get_pool):
 ## References
 
 - **Documentation technique MCP** : `docs/technical/MCP_INTEGRATION.md`
-- **Roadmap evolution** : `docs/technical/evolution_INTEGRATION_ROADMAP.md`
+- **Roadmap evolution** : `docs/technical/NANOBOT_INTEGRATION_ROADMAP.md`
 - **Guide creation d'outils** : `docs/guides/GUIDE_TOOL_CREATION.md`
 - **Configuration** : `apps/api/src/core/config/mcp.py` (`MCPSettings`)
 - **MCP Protocol** : [Anthropic MCP Specification](https://modelcontextprotocol.io)

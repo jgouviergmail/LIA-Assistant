@@ -116,7 +116,7 @@ def calculate_cardinality(labels: dict) -> int:
 
 **Configuration**:
 ```python
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 class Settings(BaseSettings):
     # Sample rates by environment
     evaluation_sample_rate_dev: float = 1.0      # 100% (testing)
@@ -374,8 +374,8 @@ langfuse.trace(
 - [Langfuse Privacy & Security](https://langfuse.com/docs/data-security-privacy)
 - [GDPR Compliance Guide](https://gdpr.eu/)
 - [Guide Prompt Versioning](./GUIDE_PROMPT_VERSIONING.md)
-- [Guide Evaluation Scores](./GUIDE_EVALUATION_SCORES.md)
-- [Guide A/B Testing](./GUIDE_AB_TESTING.md)
+- Guide Evaluation Scores
+- Guide A/B Testing
 - [README Observability](../readme/README_OBSERVABILITY.md)
 
 ---

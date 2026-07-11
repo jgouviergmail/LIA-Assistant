@@ -30,7 +30,7 @@ Un **prompt** est le texte d'instructions fourni à un LLM (Large Language Model
 | Node | Version | Fichier | Rôle |
 |------|---------|---------|------|
 | **Router** | v1 | `v1/router_system_prompt_template.txt` | Classification intent + domain detection |
-| **Planner** | v1 | `v1/planner_system_prompt.txt` | Orchestration multi-agents |
+| **Planner** | v1 | `v1/smart_planner_prompt.txt` | Orchestration multi-agents |
 | **Response** | v1 | `v1/response_system_prompt_base.txt` | Génération réponse utilisateur |
 | **HITL Classifier** | v1 | `v1/hitl_classifier_prompt.txt` | Classification HITL |
 | **HITL Question Generator** | v1 | `v1/hitl_question_generator_prompt.txt` | Génération questions clarification |
@@ -44,7 +44,7 @@ apps/api/src/domains/agents/prompts/
 ├── prompt_loader.py                            # Loader utilitaire
 └── v1/                                         # Version actuelle (unique)
     ├── router_system_prompt_template.txt       # Router node
-    ├── planner_system_prompt.txt               # Planner node
+    ├── smart_planner_prompt.txt               # Planner node
     ├── response_system_prompt_base.txt         # Response node
     ├── semantic_validator_prompt.txt           # Semantic validator
     │
@@ -132,7 +132,7 @@ def load_prompt(filename: str, version: str = "v1") -> str:
 **Exemple - Router Node** :
 
 ```python
-# apps/api/src/domains/agents/nodes/router.py
+# apps/api/src/domains/agents/nodes/router_node_v3.py
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
@@ -197,7 +197,7 @@ Tu es un expert en synthèse de conversations.
 ### Étape 2 : Définir le JSON Schema
 
 ```python
-# src/domains/agents/schemas.py
+# src/domains/agents/domain_schemas.py
 from pydantic import BaseModel, Field
 
 class SummarizerOutput(BaseModel):
@@ -295,16 +295,16 @@ Note: [Notes optionnelles sur caching, optimisation, etc.]
 mkdir -p apps/api/src/domains/agents/prompts/v1
 
 # Créer fichier prompt
-touch apps/api/src/domains/agents/prompts/v1/summarizer_system_prompt.txt
+touch apps/api/src/domains/agents/prompts/v1/compaction_prompt.txt
 
 # Éditer avec votre prompt
-vim apps/api/src/domains/agents/prompts/v1/summarizer_system_prompt.txt
+vim apps/api/src/domains/agents/prompts/v1/compaction_prompt.txt
 ```
 
 ### Étape 5 : Implémenter le Node
 
 ```python
-# apps/api/src/domains/agents/nodes/summarizer.py
+# apps/api/src/domains/agents/nodes/compaction_node.py
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from src.domains.agents.prompts.prompt_loader import load_prompt
@@ -312,7 +312,7 @@ from src.domains.agents.schemas import SummarizerOutput
 from src.domains.agents.domain_schemas import MessagesState
 
 # Load prompt
-SUMMARIZER_SYSTEM_PROMPT = load_prompt("summarizer_system_prompt.txt", version="v1")
+SUMMARIZER_SYSTEM_PROMPT = load_prompt("compaction_prompt.txt", version="v1")
 
 # Create LLM
 summarizer_llm = ChatOpenAI(
@@ -446,7 +446,7 @@ vim apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt
 **4. Mettre à jour code** :
 
 ```python
-# apps/api/src/domains/agents/nodes/router.py
+# apps/api/src/domains/agents/nodes/router_node_v3.py
 
 # Avant (v7)
 ROUTER_SYSTEM_PROMPT = load_prompt("router_system_prompt.txt", version="v7")
@@ -478,7 +478,7 @@ async def test_router_v7_vs_v8_hallucination_fix():
 **6. Rollback strategy** :
 
 ```python
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):

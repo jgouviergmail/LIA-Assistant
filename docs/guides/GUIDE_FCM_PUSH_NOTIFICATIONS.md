@@ -134,7 +134,7 @@ class NotificationsSettings(BaseSettings):
 ### Étape 4 : Initialiser Firebase Admin SDK
 
 ```python
-# apps/api/src/infrastructure/notifications/firebase_init.py
+# apps/api/src/domains/notifications/service.py
 import firebase_admin
 from firebase_admin import credentials, messaging
 from pathlib import Path
@@ -236,7 +236,7 @@ def downgrade():
 ### API Endpoint
 
 ```python
-# apps/api/src/api/v1/notifications.py
+# apps/api/src/domains/notifications/router.py
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
@@ -799,8 +799,8 @@ Chaque utilisateur peut controler independamment :
 
 - **Models**: `apps/api/src/domains/notifications/models.py`
 - **Service**: `apps/api/src/domains/notifications/service.py`
-- **API Endpoints**: `apps/api/src/api/v1/notifications.py`
-- **Firebase Init**: `apps/api/src/infrastructure/notifications/firebase_init.py`
+- **API Endpoints**: `apps/api/src/domains/notifications/router.py`
+- **Firebase Init**: `apps/api/src/domains/notifications/service.py`
 - **Config**: `apps/api/src/core/config/notifications.py`
 
 ### Frontend Integration

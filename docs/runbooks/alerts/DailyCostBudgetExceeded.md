@@ -269,7 +269,7 @@ def build_context_window(messages: list, max_tokens: int = 4000) -> list:
 
 **Fix 2: Implement tiered model selection**
 
-**File**: `apps/api/src/domains/agents/services/model_selector.py`
+**File**: `apps/api/src/domains/llm_config/` — déjà couvert : le modèle par type LLM est piloté par le catalogue en base (ADR-078) ; snippet illustratif
 ```python
 from enum import Enum
 
@@ -295,7 +295,7 @@ model = select_model(TaskComplexity.SIMPLE)  # Router is simple classification
 
 **Fix 3: Implement user-level cost tracking and quotas**
 
-**File**: `apps/api/src/infrastructure/llm/cost_tracker.py`
+**File**: `apps/api/src/domains/usage_limits/` — déjà couvert : quotas coût/tokens par utilisateur (ADR-060) ; snippet illustratif
 ```python
 from sqlalchemy import Column, Integer, Float, String, Date
 from src.infrastructure.database import Base
@@ -343,7 +343,7 @@ async def track_user_cost(user_id: str, cost: float, tokens: int):
 
 **Fix 4: Implement prompt caching (Anthropic feature)**
 
-**File**: `apps/api/src/infrastructure/llm/client.py`
+**File**: `apps/api/src/infrastructure/llm/factory.py` (paramétrage provider centralisé)
 ```python
 from anthropic import Anthropic
 

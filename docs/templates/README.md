@@ -179,7 +179,7 @@ Utiliser **NEW_CHANNEL_CHECKLIST.md** pour ajouter un nouveau canal de messageri
 
 ### Documentation
 
-- **Phase 5 Analysis**: [docs/optim/PHASE_5_GENERALIZATION_ANALYSIS.md](../optim/PHASE_5_GENERALIZATION_ANALYSIS.md)
+- **Phase 5 Analysis**: docs/optim/PHASE_5_GENERALIZATION_ANALYSIS.md
   - Patterns identifiés
   - Architecture recommandée
   - Examples détaillés
@@ -204,7 +204,7 @@ Utiliser **NEW_CHANNEL_CHECKLIST.md** pour ajouter un nouveau canal de messageri
 
 ## ✅ Checklist Avant d'Utiliser
 
-- [ ] J'ai lu [PHASE_5_GENERALIZATION_ANALYSIS.md](../optim/PHASE_5_GENERALIZATION_ANALYSIS.md)
+- [ ] J'ai lu PHASE_5_GENERALIZATION_ANALYSIS.md
 - [ ] J'ai consulté [google_contacts_tools.py](../../apps/api/src/domains/agents/tools/google_contacts_tools.py) comme référence
 - [ ] J'ai la documentation API du service externe
 - [ ] J'ai identifié les OAuth scopes nécessaires
@@ -256,7 +256,7 @@ Utiliser **NEW_CHANNEL_CHECKLIST.md** pour ajouter un nouveau canal de messageri
 ### En Cas de Problème
 
 1. **Consulter la documentation**:
-   - [PHASE_5_GENERALIZATION_ANALYSIS.md](../optim/PHASE_5_GENERALIZATION_ANALYSIS.md)
+   - PHASE_5_GENERALIZATION_ANALYSIS.md
    - [ConnectorTool base class](../../apps/api/src/domains/agents/tools/base.py)
 
 2. **Référence complète**:

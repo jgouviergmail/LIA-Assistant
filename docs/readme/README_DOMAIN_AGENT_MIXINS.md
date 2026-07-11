@@ -50,7 +50,7 @@ Business logic extracted to autonomous services:
 - `_ensure_graph_built()`: Lazy initialization of LangGraph from AgentRegistry
 - Initializes the HITL classifier and question generator used by the run
 
-**Location**: [graph_management.py](graph_management.py)
+**Location**: [graph_management.py](../../apps/api/src/domains/agents/api/mixins/graph_management.py)
 
 ### StreamingMixin
 
@@ -59,7 +59,7 @@ Business logic extracted to autonomous services:
 **Methods**:
 - `buffer_and_enrich_resumption_chunks()`: Enriches SSE chunks with aggregated token metadata
 
-**Location**: [streaming.py](streaming.py)
+**Location**: [streaming.py](../../apps/api/src/domains/agents/api/mixins/streaming.py)
 
 ---
 
@@ -79,8 +79,8 @@ ADR-107; its live responsibilities are covered by `services/hitl/` and
 - ✅ Clear separation of concerns
 
 **Documentation**:
-- [PHASE_3.3_DAY5-6_MIGRATION_COMPLETE.md](../../../../../PHASE_3.3_DAY5-6_MIGRATION_COMPLETE.md)
-- [PHASE_3.3_DAY7_CLEANUP_COMPLETE.md](../../../../../PHASE_3.3_DAY7_CLEANUP_COMPLETE.md)
+- PHASE_3.3_DAY5-6_MIGRATION_COMPLETE.md
+- PHASE_3.3_DAY7_CLEANUP_COMPLETE.md
 
 ---
 
@@ -95,6 +95,6 @@ ADR-107; its live responsibilities are covered by `services/hitl/` and
 
 ## See Also
 
-- [OrchestrationService](../../services/orchestration/service.py) - Graph execution
-- [StreamingService](../../services/streaming/service.py) - SSE formatting
-- [ConversationOrchestrator](../../services/conversation_orchestrator.py) - Conversation lifecycle
+- [OrchestrationService](../../apps/api/src/domains/agents/services/orchestration/service.py) - Graph execution
+- [StreamingService](../../apps/api/src/domains/agents/services/streaming/service.py) - SSE formatting
+- [ConversationOrchestrator](../../apps/api/src/domains/agents/services/conversation_orchestrator.py) - Conversation lifecycle

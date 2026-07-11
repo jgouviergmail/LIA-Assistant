@@ -29,16 +29,16 @@ docker-compose -f docker-compose.dev.yml up -d api
 
 ```bash
 # Run with default settings (10 users, 100 requests)
-python scripts/load_test_hitl_streaming.py
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py
 
 # Run with custom load profile
-python scripts/load_test_hitl_streaming.py --users 50 --requests 500
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --users 50 --requests 500
 
 # Run for fixed duration (300 seconds)
-python scripts/load_test_hitl_streaming.py --duration 300
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --duration 300
 
 # Export results to JSON
-python scripts/load_test_hitl_streaming.py --output results.json
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --output results.json
 ```
 
 ## Load Testing Scenarios
@@ -48,7 +48,7 @@ python scripts/load_test_hitl_streaming.py --output results.json
 Verify basic functionality with minimal load.
 
 ```bash
-python scripts/load_test_hitl_streaming.py --users 1 --requests 10
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --users 1 --requests 10
 ```
 
 **Expected Results:**
@@ -61,7 +61,7 @@ python scripts/load_test_hitl_streaming.py --users 1 --requests 10
 Simulate typical production traffic with 10 concurrent users.
 
 ```bash
-python scripts/load_test_hitl_streaming.py --users 10 --requests 100 --output normal_load.json
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --users 10 --requests 100 --output normal_load.json
 ```
 
 **Expected Results:**
@@ -75,7 +75,7 @@ python scripts/load_test_hitl_streaming.py --users 10 --requests 100 --output no
 Test system limits with high concurrent load.
 
 ```bash
-python scripts/load_test_hitl_streaming.py --users 50 --requests 500 --output stress_test.json
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --users 50 --requests 500 --output stress_test.json
 ```
 
 **Expected Results:**
@@ -95,7 +95,7 @@ python scripts/load_test_hitl_streaming.py --users 50 --requests 500 --output st
 Run for extended duration to detect memory leaks and resource exhaustion.
 
 ```bash
-python scripts/load_test_hitl_streaming.py --users 20 --duration 3600 --output soak_test.json
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --users 20 --duration 3600 --output soak_test.json
 ```
 
 **Duration:** 1 hour (3600 seconds)
@@ -120,10 +120,10 @@ Simulate sudden traffic spike (e.g., viral event).
 
 ```bash
 # Baseline load
-python scripts/load_test_hitl_streaming.py --users 10 --duration 60 &
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --users 10 --duration 60 &
 
 # Wait 30s, then spike to 100 users
-sleep 30 && python scripts/load_test_hitl_streaming.py --users 100 --duration 30
+sleep 30 && python apps/api/scripts/benchmark/load_test_hitl_streaming.py --users 100 --duration 30
 ```
 
 **Expected Results:**
@@ -325,7 +325,7 @@ jobs:
 
       - name: Run load test
         run: |
-          python scripts/load_test_hitl_streaming.py \
+          python apps/api/scripts/benchmark/load_test_hitl_streaming.py \
             --users 10 \
             --requests 50 \
             --output load_test_results.json
@@ -354,9 +354,9 @@ Import load test results into Grafana for visualization:
 
 ```bash
 # Run load test and export to InfluxDB format
-python scripts/load_test_hitl_streaming.py --output results.json
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --output results.json
 
-# Convert to InfluxDB line protocol
+# Convert to InfluxDB line protocol (exemple — script non commité)
 python scripts/convert_to_influxdb.py results.json | \
   curl -XPOST 'http://localhost:8086/write?db=load_tests' --data-binary @-
 ```
@@ -367,12 +367,12 @@ python scripts/convert_to_influxdb.py results.json | \
 
 ```bash
 # Before making changes
-python scripts/load_test_hitl_streaming.py --output baseline.json
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --output baseline.json
 
 # After making changes
-python scripts/load_test_hitl_streaming.py --output after_changes.json
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --output after_changes.json
 
-# Compare results
+# Compare results (exemple — script non commité)
 python scripts/compare_load_tests.py baseline.json after_changes.json
 ```
 
@@ -400,7 +400,7 @@ Run load test with monitoring:
 
 ```bash
 # Terminal 1: Run load test
-python scripts/load_test_hitl_streaming.py --users 50 --duration 300
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py --users 50 --duration 300
 
 # Terminal 2: Monitor Docker stats
 docker stats lia-api-dev lia-redis-dev
@@ -415,7 +415,7 @@ Always test in staging before production:
 
 ```bash
 # Production-like load test in staging
-python scripts/load_test_hitl_streaming.py \
+python apps/api/scripts/benchmark/load_test_hitl_streaming.py \
   --base-url https://staging-api.lia.ai/api/v1 \
   --users 100 \
   --duration 600 \
@@ -424,7 +424,7 @@ python scripts/load_test_hitl_streaming.py \
 
 ## References
 
-- [HITL Streaming Architecture](../docs/agents/MESSAGE_WINDOWING_STRATEGY.md)
-- [Prometheus Metrics](../monitoring/prometheus/alerts/hitl_cache_alerts.yml)
-- [Grafana Dashboard](../monitoring/grafana/dashboards/llm_observability_v2.json)
-- [ADR 012: Message Windowing](../docs/adr/012-message-windowing-latency-optimization.md)
+- [HITL Streaming Architecture](../technical/MESSAGE_WINDOWING_STRATEGY.md)
+- [Prometheus Metrics](../../infrastructure/observability/prometheus/alerts/hitl_cache_alerts.yml)
+- Grafana Dashboard
+- ADR 012: Message Windowing

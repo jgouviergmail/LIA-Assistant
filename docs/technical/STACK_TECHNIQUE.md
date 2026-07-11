@@ -1,7 +1,7 @@
 # Stack Technique - Reference Complete
 
-> **Version**: 1.0
-> **Date**: 2026-01-12
+> **Version**: 2.0
+> **Date**: 2026-07-11
 > **Statut**: Reference officielle des versions
 
 ---
@@ -21,7 +21,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version Requise | Notes |
 |-------------|-----------------|-------|
-| **Node.js** | >=20.0.0 | LTS recommande |
+| **Node.js** | >=22.0.0 | LTS recommande |
 | **pnpm** | 10.x | Workspace monorepo |
 | **Python** | >=3.12 | async/await natif |
 
@@ -33,25 +33,25 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **Next.js** | 16.1.7 | Framework React SSR/SSG |
-| **React** | 19.2.4 | UI Library |
-| **TypeScript** | 5.9.3 | Type safety |
-| **Tailwind CSS** | 4.2.1 | Utility-first CSS |
+| **Next.js** | 16.2.10 | Framework React SSR/SSG |
+| **React** | 19.2.7 | UI Library |
+| **TypeScript** | 6.0.2 | Type safety |
+| **Tailwind CSS** | 4.3.2 | Utility-first CSS |
 
 ### State & Data
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **@tanstack/react-query** | 5.90.x | Server state management |
-| **Zod** | 4.3.x | Schema validation |
-| **react-hook-form** | 7.70.x | Form management |
+| **@tanstack/react-query** | 5.101.x | Server state management |
+| **Zod** | 4.4.x | Schema validation |
+| **react-hook-form** | 7.81.x | Form management |
 
 ### UI Components
 
 | Technologie | Version | Role |
 |-------------|---------|------|
 | **Radix UI** | 1.x-2.x | Accessible primitives |
-| **lucide-react** | 0.562.x | Icons |
+| **lucide-react** | 1.23.x | Icons |
 | **sonner** | 2.0.x | Toast notifications |
 | **next-themes** | 0.4.x | Dark mode |
 
@@ -59,8 +59,8 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **i18next** | 25.x | i18n framework |
-| **react-i18next** | 16.5.x | React bindings |
+| **i18next** | 26.x | i18n framework |
+| **react-i18next** | 17.0.x | React bindings |
 
 ### Dev Tools
 
@@ -77,17 +77,17 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **FastAPI** | 0.135.3 | Web framework async |
-| **Uvicorn** | 0.44.0 | ASGI server |
-| **Pydantic** | 2.12.5 | Data validation |
-| **pydantic-settings** | 2.10.x | Configuration |
+| **FastAPI** | 0.136.3 | Web framework async |
+| **Uvicorn** | 0.48.0 | ASGI server |
+| **Pydantic** | 2.13.4 | Data validation |
+| **pydantic-settings** | 2.14.x | Configuration |
 
 ### Base de Donnees
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **SQLAlchemy** | 2.0.49 | ORM async |
-| **Alembic** | 1.14.0 | Migrations |
+| **SQLAlchemy** | 2.0.50 | ORM async |
+| **Alembic** | 1.18.4 | Migrations |
 | **asyncpg** | 0.31.0 | PostgreSQL driver async |
 | **psycopg** | 3.3.x | PostgreSQL driver |
 | **psycopg-pool** | 3.3.x | Pool de connexions async (checkpointer & store LangGraph, ADR-111) |
@@ -97,50 +97,48 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **redis** (Python) | 7.3.0 | Redis client |
-| **cachetools** | 5.5.x | In-memory caching |
+| **redis** (Python) | 8.0.1 | Redis client |
 
 ### AI/ML Stack (LangChain Ecosystem)
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **langchain-core** | 1.2.28 | Core abstractions |
-| **langchain** | 1.2.15 | LLM framework |
-| **langgraph** | 1.1.6 | Agent orchestration |
-| **langgraph-checkpoint** | 4.0.1 | Checkpoint serialization |
-| **langgraph-checkpoint-postgres** | 3.0.4 | State persistence |
-| **langgraph-prebuilt** | 1.0.9 | Prebuilt agent components |
-| **langmem** | 0.0.30+ | Long-term memory |
+| **langchain-core** | 1.4.6 | Core abstractions |
+| **langchain** | 1.3.9 | LLM framework |
+| **langgraph** | 1.2.4 | Agent orchestration |
+| **langgraph-checkpoint** | 4.1.1 | Checkpoint serialization |
+| **langgraph-checkpoint-postgres** | 3.1.0 | State persistence |
+| **langgraph-prebuilt** | 1.1.0 | Prebuilt agent components |
 
 ### LLM Providers
 
 | Technologie | Version | Provider |
 |-------------|---------|----------|
-| **langchain-openai** | 1.1.11 | OpenAI GPT-4/5 |
-| **langchain-anthropic** | 1.3.5 | Claude |
-| **langchain-google-genai** | 4.2.1 | Gemini |
+| **langchain-openai** | 1.2.2 | OpenAI GPT-4/5 |
+| **langchain-anthropic** | 1.4.6 | Claude |
+| **langchain-google-genai** | 4.2.4 | Gemini |
 | **langchain-deepseek** | 1.0.1 | DeepSeek |
-| **openai** | 2.20.0 | OpenAI SDK |
-| **anthropic** | 0.89.0 | Claude SDK direct |
-| **tiktoken** | 0.8.x | Token counting |
+| **openai** | 2.40.0 | OpenAI SDK |
+| **anthropic** | 0.105.2 | Claude SDK direct |
+| **tiktoken** | 0.13.x | Token counting |
 
 ### Embeddings & ML
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **langchain-google-genai** | 4.2.1 | Google gemini-embedding-001 (3072 dims, RETRIEVAL task types) |
+| **langchain-google-genai** | 4.2.4 | Google gemini-embedding-001 (1536 dims par defaut, configurable 768/1536/3072, RETRIEVAL task types) |
 
 ### Observabilite
 
 | Technologie | Version | Role |
 |-------------|---------|------|
 | **structlog** | 25.x | Structured logging |
-| **prometheus-client** | 0.21.x | Metrics |
-| **langfuse** | 3.14.5 | LLM observability |
-| **opentelemetry-api** | 1.40.0 | Distributed tracing |
-| **opentelemetry-sdk** | 1.40.0 | Tracing SDK |
-| **opentelemetry-instrumentation-fastapi** | 0.61b0 | FastAPI auto-instrumentation |
-| **opentelemetry-exporter-otlp** | 1.40.0 | OTLP export |
+| **prometheus-client** | 0.25.x | Metrics |
+| **langfuse** | 4.7.1 | LLM observability |
+| **opentelemetry-api** | 1.42.1 | Distributed tracing |
+| **opentelemetry-sdk** | 1.42.1 | Tracing SDK |
+| **opentelemetry-instrumentation-fastapi** | 0.63b1 | FastAPI auto-instrumentation |
+| **opentelemetry-exporter-otlp** | 1.42.1 | OTLP export |
 
 ### Securite & Auth
 
@@ -148,7 +146,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 |-------------|---------|------|
 | **python-jose** | 3.5.0 | JWT handling |
 | **passlib** | 1.7.x | Password hashing |
-| **cryptography** | 44.x | Encryption |
+| **cryptography** | 48.x | Encryption |
 
 ### Utilitaires
 
@@ -157,23 +155,22 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | **httpx** | 0.28.x | HTTP client async |
 | **slowapi** | 0.1.x | Rate limiting |
 | **apscheduler** | 3.11.2 | Background jobs |
-| **edge-tts** | 7.2.7 | Text-to-Speech |
-| **firebase-admin** | 7.2.0 | Firebase integration |
-| **phonenumbers** | 8.13.x | Phone validation |
+| **edge-tts** | 7.2.8 | Text-to-Speech |
+| **firebase-admin** | 7.4.0 | Firebase integration |
 
 ### Dev Tools Python
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **black** | 24.x | Code formatter |
-| **ruff** | 0.15.6 | Fast linter |
-| **mypy** | 1.20.0 | Type checker |
-| **pytest** | 9.0.2 | Testing framework |
-| **pytest-asyncio** | 1.3.0 | Async test support |
-| **pytest-cov** | 7.0.0 | Coverage |
+| **black** | 26.x | Code formatter |
+| **ruff** | 0.15.15 | Fast linter |
+| **mypy** | 1.20.1 | Type checker |
+| **pytest** | 9.0.3 | Testing framework |
+| **pytest-asyncio** | 1.4.0 | Async test support |
+| **pytest-cov** | 7.1.0 | Coverage |
 | **pytest-mock** | 3.15.1 | Mocking |
 | **bandit** | 1.9.4 | Security linter |
-| **safety** | 3.7.0 | Dependency scanner |
+| **safety** | 3.8.1 | Dependency scanner |
 
 ---
 
@@ -222,7 +219,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 |---------|-------|------|
 | **pgAdmin** | `dpage/pgadmin4:9.9` | PostgreSQL admin UI |
 | **MinIO** | `minio/minio:latest` | S3-compatible storage |
-| **Portainer** | `portainer/portainer-ce:latest` | Container management |
+| **Portainer** | `portainer/portainer-ce:2.39.0` | Container management |
 
 ---
 
@@ -230,17 +227,17 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 ### Python & Redis
 
-> **Note**: La version Redis Python client (7.3.0) differe de l'image Docker (7.4-alpine).
-> Le client 7.3.0 est compatible avec Redis server 7.x.
+> **Note**: La version Redis Python client (8.0.1) differe de l'image Docker (7.4-alpine).
+> Le client 8.x est compatible avec Redis server 7.x.
 
 ### LangGraph & Checkpointing
 
-> **Important**: `langgraph-checkpoint-postgres` 3.0.2 requiert PostgreSQL 14+ avec support JSON.
+> **Important**: `langgraph-checkpoint-postgres` 3.1.0 requiert PostgreSQL 14+ avec support JSON.
 > Compatible avec pgvector 0.4.2+.
 
 ### Embeddings
 
-> Google `gemini-embedding-001` (3072 dims) is used for all semantic embeddings (memory, tool routing, interests, journals, RAG spaces) with RETRIEVAL task types and dual-vector search.
+> Google `gemini-embedding-001` (1536 dims par defaut) is used for all semantic embeddings (memory, tool routing, interests, journals, RAG spaces) with RETRIEVAL task types and dual-vector search.
 > Replaced OpenAI text-embedding-3-small in v1.14.1. See [ADR-069](../architecture/ADR-069-Gemini-Embedding-Migration.md).
 
 ---
@@ -251,7 +248,6 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Composant | Actuel | Cible | Impact |
 |-----------|--------|-------|--------|
-| **Alembic** | 1.14.0 | 1.18.0 | Bug fixes migrations |
 | **pgvector** | 0.4.2 | 0.8.1 | Performance HNSW |
 
 ### Priorite Moyenne

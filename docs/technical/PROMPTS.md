@@ -36,7 +36,7 @@ apps/api/src/domains/agents/prompts/
 ├── prompt_loader.py                            # Loader avancé avec caching + hash validation
 └── v1/
     ├── router_system_prompt_template.txt       # Router (version consolidée)
-    ├── planner_system_prompt.txt               # Planner (version consolidée)
+    ├── smart_planner_prompt.txt               # Planner (version consolidée)
     ├── response_system_prompt_base.txt         # Response base prompt
     │
     │   # DOMAIN AGENT PROMPTS (10)
@@ -104,7 +104,7 @@ apps/api/src/domains/agents/prompts/
 | Node/Service | Prompt | Description |
 |--------------|--------|-------------|
 | **Router** | router_system_prompt_template.txt | Binary routing + domain detection |
-| **Planner** | planner_system_prompt.txt | ExecutionPlan generation |
+| **Planner** | smart_planner_prompt.txt | ExecutionPlan generation |
 | **Response** | response_system_prompt_base.txt | Conversational response (placeholder: `{app_knowledge_context}`) |
 | **Contacts Agent** | contacts_agent_prompt.txt | Google Contacts domain |
 | **Emails Agent** | emails_agent_prompt.txt | Gmail domain |
@@ -784,7 +784,7 @@ prompt_version_usage_total.labels(node="router", version="v8").inc()
 ### Configuration
 
 ```python
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 
 class Settings(BaseSettings):
     # Prompt versions

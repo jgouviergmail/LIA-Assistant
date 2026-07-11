@@ -81,13 +81,13 @@ After changing embedding model or dimensions:
 
 ```bash
 # Memories + keywords
-python scripts/reindex_embeddings.py --only-memories
+python apps/api/scripts/reindex_embeddings.py --only-memories
 
 # Journals + keywords  
-python scripts/reindex_embeddings.py --only-journals
+python apps/api/scripts/reindex_embeddings.py --only-journals
 
 # Interests
-python scripts/reindex_embeddings.py --skip-store --skip-memories --skip-journals
+python apps/api/scripts/reindex_embeddings.py --skip-store --skip-memories --skip-journals
 
 # RAG (via admin API)
 curl -X POST /api/v1/rag-spaces/admin/reindex

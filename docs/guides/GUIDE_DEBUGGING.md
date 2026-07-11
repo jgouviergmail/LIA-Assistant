@@ -82,7 +82,7 @@ Ce guide fournit une approche systématique pour **déboguer et diagnostiquer** 
 ### Niveau de Logs
 
 ```python
-# src/core/config.py
+# src/core/config/
 class Settings(BaseSettings):
     log_level: str = Field(default="INFO")  # DEBUG, INFO, WARNING, ERROR
     log_level_uvicorn: str = Field(default="INFO")
@@ -495,7 +495,7 @@ class SearchContactsTool(ConnectorTool):
 **Diagnostic** :
 
 ```python
-# apps/api/src/domains/connectors/clients/google_people.py
+# apps/api/src/domains/connectors/clients/google_people_client.py
 logger = get_logger(__name__)
 
 class GooglePeopleClient:
@@ -547,7 +547,7 @@ class GooglePeopleClient:
 **Diagnostic** :
 
 ```python
-# apps/api/src/infrastructure/cache/rate_limiting.py
+# apps/api/src/infrastructure/rate_limiting/
 logger = get_logger(__name__)
 
 async def check_rate_limit(key: str, max_calls: int, period: int) -> bool:
@@ -944,7 +944,7 @@ class MessagesState(TypedDict):
 **Diagnostic** :
 
 ```python
-# apps/api/src/domains/agents/utils/state_diagnostics.py
+# outil de diagnostic ad hoc (exemple, non commité)
 import sys
 import json
 
@@ -1000,7 +1000,7 @@ async def router_node(state: MessagesState, config: RunnableConfig) -> dict[str,
 **Diagnostic** :
 
 ```python
-# apps/api/src/domains/auth/oauth/google.py
+# apps/api/src/core/oauth/providers/google.py
 logger = get_logger(__name__)
 
 async def handle_oauth_callback(code: str, state: str) -> dict:
@@ -1079,7 +1079,7 @@ async def handle_oauth_callback(code: str, state: str) -> dict:
 **Script debug** :
 
 ```python
-# scripts/debug_connector.py
+# script ad hoc (exemple, non commité — scripts existants : apps/api/scripts/debug/)
 from src.infrastructure.database.session import async_session_maker
 from src.domains.connectors.models import Connector
 from sqlalchemy import select
@@ -1407,7 +1407,7 @@ async def handle_hitl_response(
 ### Profiling avec cProfile
 
 ```python
-# scripts/profile_agent_execution.py
+# script de profiling ad hoc (exemple, non commité — voir aussi scripts/profiling/)
 import cProfile
 import pstats
 import asyncio
@@ -1452,7 +1452,7 @@ asyncio.run(profile_chat())
 ### Memory Profiling
 
 ```python
-# scripts/profile_memory.py
+# script ad hoc (exemple, non commité)
 from memory_profiler import profile
 import asyncio
 
@@ -2439,7 +2439,7 @@ docker exec lia-api-dev sh -c "cat /proc/net/tcp | grep ':1F40'"
 docker-compose logs promtail
 
 # Check Promtail config
-cat infrastructure/observability/promtail/config.yml
+cat infrastructure/observability/promtail/promtail-config.yml
 ```
 
 2. **Vérifier format logs** :
@@ -2475,7 +2475,7 @@ curl -G http://localhost:3100/loki/api/v1/query \
 ### Documentation Interne
 
 - [GRAPH_AND_AGENTS_ARCHITECTURE.md](../technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) : architecture agents
-- [OBSERVABILITY_AND_MONITORING.md](../technical/OBSERVABILITY_AND_MONITORING.md) : observabilité complète
+- [OBSERVABILITY_AGENTS.md](../technical/OBSERVABILITY_AGENTS.md) : observabilité complète
 - [MCP_INTEGRATION.md](../technical/MCP_INTEGRATION.md) : intégration MCP (admin + per-user + OAuth)
 - [CHANNELS_INTEGRATION.md](../technical/CHANNELS_INTEGRATION.md) : intégration multi-channel (Telegram)
 - [HEARTBEAT_AUTONOME.md](../technical/HEARTBEAT_AUTONOME.md) : heartbeat autonome (notifications proactives)

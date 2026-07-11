@@ -102,7 +102,7 @@ docker stats lia_api_1 --no-stream --format "table {{.Container}}\t{{.NetIO}}"
 
 **Option 1: Implement streaming error recovery**
 
-**File**: `apps/api/src/domains/agents/services/streaming_handler.py`
+**File**: `apps/api/src/domains/agents/services/streaming/` (proposition — service streaming existant à étendre)
 ```python
 async def stream_with_retry(messages):
     """Retry streaming on failure"""
@@ -129,7 +129,7 @@ async def stream_with_retry(messages):
 
 **Option 2: Increase client timeout**
 
-**File**: `apps/api/src/infrastructure/llm/client.py`
+**File**: `apps/api/src/infrastructure/llm/factory.py` (timeouts pilotés par settings — voir [TIMEOUT_REGISTRY.md](../../technical/TIMEOUT_REGISTRY.md))
 ```python
 client = Anthropic(
     api_key=settings.anthropic_api_key,

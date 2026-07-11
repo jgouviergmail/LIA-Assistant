@@ -477,9 +477,9 @@ async def search_contacts_tool(
 
         # 7. Track metrics
         contacts_queries_by_type.labels(query_type="search").inc()
-        google_contacts_api_calls.labels(operation="search", status="success").inc()
-        google_contacts_api_latency.labels(operation="search").observe(latency_ms / 1000)
-        google_contacts_results_count.labels(operation="search").observe(len(contacts))
+        contacts_api_calls.labels(operation="search", status="success").inc()
+        contacts_api_latency.labels(operation="search").observe(latency_ms / 1000)
+        contacts_results_count.labels(operation="search").observe(len(contacts))
 
         # 8. Return response
         output = SearchContactsOutput(
@@ -757,7 +757,7 @@ contacts = await search_contacts("john", fields=["names", "emailAddresses"])
 
 ### ContactsCache (Redis)
 
-**Localisation** : `apps/api/src/domains/agents/utils/contacts_cache.py`
+**Localisation** : `apps/api/src/infrastructure/cache/contacts_cache.py`
 
 **TTL par opération** :
 
@@ -1183,7 +1183,7 @@ async with GooglePeopleClient(user_id, credentials, connector_service) as client
 - `apps/api/src/domains/agents/google_contacts/common_mappings.py` (82 lignes)
 
 **Cache** :
-- `apps/api/src/domains/agents/utils/contacts_cache.py`
+- `apps/api/src/infrastructure/cache/contacts_cache.py`
 
 ### Références Externes
 

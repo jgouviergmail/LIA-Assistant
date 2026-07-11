@@ -68,15 +68,16 @@ graph TB
     end
 
     subgraph ProdSec["Production"]
-        NginxProxy["Nginx Reverse Proxy"] --> SSL["SSL/TLS"]
-        SSL --> HTTPS["HTTPS Only"]
-        HTTPS --> CSP["CSP + COEP<br/>credentialless"]
+        Cloudflared["Cloudflare Tunnel (cloudflared)<br/>single public entry (ADR-093)"] --> Loopback["Ports 8000/9091<br/>loopback-bound"]
+        Loopback --> HTTPS["HTTPS Only<br/>trusted proxy headers"]
+        HTTPS --> CSP["Strict CSP (ADR-098)<br/>next.config.ts + core/middleware.py<br/>widget airlock for MCP Apps"]
     end
 
-    subgraph PreCommit["Pre-commit Hooks"]
-        Hooks["Git Hooks"] --> SecretDetect["Secret Detection"]
-        Hooks --> BakDetect[".bak Detection"]
-        Hooks --> AsyncCheck["LangGraph Store<br/>Async Enforcement"]
+    subgraph PreCommit["Pre-commit Hooks (host)"]
+        Hooks["Git Hooks<br/>.github/hooks/"] --> SecretDetect["Secret Detection"]
+        Hooks --> LintChecks["ruff + black + mypy<br/>eslint + tsc"]
+        Hooks --> FastTests["Fast unit tests<br/>(AST guards: JSONB, empty-except,<br/>timezone, SLOC ratchet)"]
+        Hooks --> I18nParity["i18n key parity<br/>6 locales vs en"]
     end
 
     %% Cross-links
@@ -95,7 +96,7 @@ graph TB
     style CircuitBreaker fill:#ffe1e1
     style DistLock fill:#fff4e1
     style Trivy fill:#f0e1ff
-    style SSL fill:#fff9e1
+    style HTTPS fill:#fff9e1
     style CVE fill:#ffcccc
     style Fix fill:#ccffcc
     style SecretDetect fill:#ffcccc

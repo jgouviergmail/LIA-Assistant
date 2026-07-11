@@ -36,10 +36,10 @@ Depuis le container API :
 
 ```bash
 # Avec utilisateur de test (créé automatiquement)
-docker compose -f docker-compose.dev.yml exec api python scripts/run_benchmark.py --test-user
+docker compose -f docker-compose.dev.yml exec api python apps/api/scripts/benchmark/run_benchmark.py --test-user
 
 # Avec vos propres credentials
-docker compose -f docker-compose.dev.yml exec api python scripts/run_benchmark.py \
+docker compose -f docker-compose.dev.yml exec api python apps/api/scripts/benchmark/run_benchmark.py \
   --email votre@email.com \
   --password VotrePassword
 ```
@@ -165,7 +165,7 @@ diff mini.txt gpt4o.txt
 
 ### Modifier les Messages de Test
 
-Éditer `apps/api/scripts/benchmark_sse_streaming.py` :
+Éditer `apps/api/scripts/benchmark/benchmark_sse_streaming.py` :
 
 ```python
 TEST_MESSAGES = [
@@ -179,7 +179,7 @@ TEST_MESSAGES = [
 
 ### Ajuster les SLA Cibles
 
-Modifier les seuils dans `apps/api/scripts/run_benchmark.py` :
+Modifier les seuils dans `apps/api/scripts/benchmark/run_benchmark.py` :
 
 ```python
 # SLA Analysis
@@ -190,7 +190,7 @@ tokens_sla_met = sum(1 for m in successful_metrics if m.tokens_per_second > 20) 
 ### Tester Endpoint Différent
 
 ```bash
-docker compose -f docker-compose.dev.yml exec api python scripts/run_benchmark.py \
+docker compose -f docker-compose.dev.yml exec api python apps/api/scripts/benchmark/run_benchmark.py \
   --test-user \
   --api-url http://autre-api:8000
 ```
@@ -215,7 +215,7 @@ benchmark-performance:
     - name: Run benchmark
       run: |
         docker compose -f docker-compose.dev.yml exec -T api \
-          python scripts/run_benchmark.py --test-user > benchmark.txt
+          python apps/api/scripts/benchmark/run_benchmark.py --test-user > benchmark.txt
 
     - name: Check SLA
       run: |
@@ -274,8 +274,8 @@ Causes possibles :
 
 ## 📚 Ressources
 
-- [ADR-009: LangGraph Event Filtering](../../docs/adr/009-langgraph-event-filtering-strategy.md)
-- [PROMPTOPS Documentation](../../docs/PROMPTOPS.md)
+- ADR-009: LangGraph Event Filtering
+- PROMPTOPS Documentation
 - [OpenAI Performance Best Practices](https://platform.openai.com/docs/guides/production-best-practices/improving-latencies)
 
 ---

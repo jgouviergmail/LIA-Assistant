@@ -95,7 +95,7 @@ task db:create-admin                     # Create admin user for first-time setu
 - `apps/api/` — Python 3.12+ FastAPI backend (source in `src/`, tests in `tests/`)
 - `apps/web/` — Next.js 16 + React 19 + TypeScript frontend
 - `infrastructure/` — Docker, database seeds, observability config (Prometheus, Grafana)
-- `docs/` — 280+ documentation files, ADRs, guides, runbooks
+- `docs/` — 320+ documentation files, ADRs, guides, runbooks
 - `scripts/` — Deployment, analysis, and utility scripts
 
 ### Backend Architecture (DDD)

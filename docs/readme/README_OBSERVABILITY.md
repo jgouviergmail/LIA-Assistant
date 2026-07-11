@@ -609,7 +609,7 @@ topk(10, count by (__name__)({__name__=~".+"}))
 
 **Total**: 15 dashboards, 200+ panels
 
-For exhaustive panel-by-panel documentation, see: [Grafana Dashboards README](grafana/dashboards/README.md)
+For exhaustive panel-by-panel documentation, see: Grafana Dashboards README
 
 **New Dashboards (Phase 2-3)**:
 - **10** - Redis Rate Limiting (Phase 2.4)
@@ -1283,7 +1283,7 @@ overrides:
 
 **Purpose**: Handle alerts from Prometheus, deduplicate, group, and route to notification channels.
 
-For exhaustive documentation, see: [AlertManager README](prometheus/alertmanager/README.md)
+For exhaustive documentation, see: AlertManager README
 
 #### Alert Rules Summary
 
@@ -1341,7 +1341,7 @@ Default route → default-email
 
 **Total**: 180+ metrics across 9 categories
 
-For exhaustive metrics inventory with descriptions, see: [METRICS_INVENTORY_ANALYSIS.md](../docs/optim_monitoring/METRICS_INVENTORY_ANALYSIS.md)
+For exhaustive metrics inventory with descriptions, see: METRICS_INVENTORY_ANALYSIS.md
 
 #### Multi-worker aggregation (multiprocess)
 
@@ -1403,7 +1403,7 @@ hitl_edit_actions_total = Counter(
 
 #### 2. LLM Tokens & Cost (20+ metrics)
 
-**File**: `apps/api/src/infrastructure/observability/metrics_llm.py`
+**File**: `apps/api/src/infrastructure/observability/metrics.py`
 
 **Key Metrics**:
 ```python
@@ -1466,7 +1466,7 @@ hitl_rejection_type_total = Counter(
 
 #### 4. Conversations (15+ metrics)
 
-**File**: `apps/api/src/infrastructure/observability/metrics_conversations.py`
+**File**: `apps/api/src/infrastructure/observability/metrics_business.py`
 
 **Key Metrics**:
 ```python
@@ -2318,9 +2318,9 @@ curl -s 'http://localhost:9090/api/v1/query?query=count({__name__=~".%2B"})' | j
 
 ### LIA Documentation
 
-- [Grafana Dashboards README](grafana/dashboards/README.md) - Exhaustive panel documentation (2330 lines)
-- [AlertManager README](prometheus/alertmanager/README.md) - Alert rules & routing (2494 lines)
-- [Metrics Inventory Analysis](../docs/optim_monitoring/METRICS_INVENTORY_ANALYSIS.md) - Complete metrics catalog (1000+ lines)
+- Grafana Dashboards README - Exhaustive panel documentation (2330 lines)
+- AlertManager README - Alert rules & routing (2494 lines)
+- Metrics Inventory Analysis - Complete metrics catalog (1000+ lines)
 
 ### External Resources
 

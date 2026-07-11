@@ -23,11 +23,11 @@
 
 | Alert | Runbook | Severity | Composant |
 |-------|---------|----------|-----------|
-| `LangGraphRouterFallbackAbuse` | [router-fallback-abuse.md](./router-fallback-abuse.md) | Warning | langgraph |
-| `LangGraphStatePollution` | [state-pollution.md](./state-pollution.md) | Warning | langgraph |
-| `LangGraphSubGraphLowSuccessRate` | [subgraph-low-success.md](./subgraph-low-success.md) | Warning | langgraph |
-| `LangGraphReActLoopExcessiveIterations` | [react-loop-excessive.md](./react-loop-excessive.md) | Warning | langgraph |
-| `LangGraphStreamingErrors` | [streaming-errors.md](./streaming-errors.md) | Warning | langgraph |
+| `LangGraphRouterFallbackAbuse` | router-fallback-abuse.md | Warning | langgraph |
+| `LangGraphStatePollution` | state-pollution.md | Warning | langgraph |
+| `LangGraphSubGraphLowSuccessRate` | subgraph-low-success.md | Warning | langgraph |
+| `LangGraphReActLoopExcessiveIterations` | react-loop-excessive.md | Warning | langgraph |
+| `LangGraphStreamingErrors` | streaming-errors.md | Warning | langgraph |
 
 ---
 
@@ -36,16 +36,16 @@
 ### Par Priorité (P1-P5)
 
 - **P1 - Graph Execution**: [low-success-rate.md](./low-success-rate.md), [high-latency.md](./high-latency.md), [high-error-rate.md](./high-error-rate.md)
-- **P2 - Node Transitions**: [router-fallback-abuse.md](./router-fallback-abuse.md)
-- **P3 - State Management**: [state-size-critical.md](./state-size-critical.md), [state-pollution.md](./state-pollution.md)
-- **P4 - SubGraphs**: [subgraph-low-success.md](./subgraph-low-success.md), [react-loop-excessive.md](./react-loop-excessive.md)
-- **P5 - Streaming**: [streaming-errors.md](./streaming-errors.md)
+- **P2 - Node Transitions**: router-fallback-abuse.md
+- **P3 - State Management**: [state-size-critical.md](./state-size-critical.md), state-pollution.md
+- **P4 - SubGraphs**: subgraph-low-success.md, react-loop-excessive.md
+- **P5 - Streaming**: streaming-errors.md
 
 ### Par Symptôme
 
-- **Latence élevée**: [high-latency.md](./high-latency.md), [subgraph-high-latency.md](./subgraph-high-latency.md)
+- **Latence élevée**: [high-latency.md](./high-latency.md), subgraph-high-latency.md
 - **Erreurs fréquentes**: [high-error-rate.md](./high-error-rate.md), [recursion-error.md](./recursion-error.md)
-- **Performance dégradée**: [system-degraded.md](./system-degraded.md), [performance-degraded.md](./performance-degraded.md)
+- **Performance dégradée**: [system-degraded.md](./system-degraded.md), performance-degraded.md
 - **Problèmes mémoire**: [state-size-critical.md](./state-size-critical.md)
 
 ---
@@ -154,15 +154,15 @@ curl -s "http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,rate(l
 ## 📚 Documentation Connexe
 
 ### Architecture
-- [Phase 2.5 Complete Documentation](../../SESSION_5_PHASE_2_5_COMPLETE.md)
-- [LangGraph Architecture](../../../architecture/langgraph-framework.md)
+- Phase 2.5 Complete Documentation
+- LangGraph Architecture
 
 ### Métriques
-- [metrics_langgraph.py](../../../../apps/api/src/infrastructure/observability/metrics_langgraph.py)
+- [metrics_langgraph.py](../../../apps/api/src/infrastructure/observability/metrics_langgraph.py)
 
 ### Tests
-- [test_metrics_langgraph_execution.py](../../../../apps/api/tests/unit/infrastructure/observability/test_metrics_langgraph_execution.py)
-- [test_metrics_langgraph_subgraphs.py](../../../../apps/api/tests/unit/infrastructure/observability/test_metrics_langgraph_subgraphs.py)
+- [test_metrics_langgraph_execution.py](../../../apps/api/tests/unit/infrastructure/observability/test_metrics_langgraph.py)
+- [test_metrics_langgraph_subgraphs.py](../../../apps/api/tests/unit/infrastructure/observability/test_metrics_langgraph_subgraphs.py)
 
 ---
 

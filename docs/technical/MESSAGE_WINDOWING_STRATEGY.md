@@ -404,7 +404,7 @@ def get_response_windowed_messages(messages: list[BaseMessage]) -> list[BaseMess
 ### Configuration
 
 ```python
-# apps/api/src/core/config.py
+# apps/api/src/core/config/
 
 class Settings(BaseSettings):
     """Application settings."""

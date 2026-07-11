@@ -1,8 +1,8 @@
 # Architecture Diagrams
 
-> **Generated**: 2026-03-20
+> **Generated**: 2026-07-11 (PNG/SVG régénérés via `task docs:diagrams`)
 > **Status**: ✅ Validated against codebase
-> **Sources**: `apps/api/src/domains/agents/`
+> **Sources**: `apps/api/src/domains/agents/` — les fichiers `.mmd` sont la source de vérité
 
 ---
 
@@ -13,27 +13,26 @@
 
 **Fichier**: [langgraph-flow.mmd](langgraph-flow.mmd)
 
-**Description**: Architecture complète du flux LangGraph v3.2 avec:
-- Router binaire (actionable vs conversational)
+**Description**: Architecture complète du flux LangGraph avec:
+- Compaction node en entrée (F4, pass-through si rien à compacter)
+- Router ternaire (conversation / actionable / mode ReAct — ADR-070)
 - Smart Planner avec Pattern Learning (Bayesian Beta)
 - Semantic Validator + Clarification Loop
-- Approval Gate (HITL)
+- Approval Gate (plan_approval — actuellement pass-through auto-approve)
 - Task Orchestrator avec exécution parallèle (asyncio.gather)
-- 18+ Domain Agents (Contacts, Emails, Calendar, Tasks, Drive, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Fetch, Browser, MCP, Sub-Agents, Context, Query, Reminders)
-- HITL Dispatch pour Draft Critique
+- Nodes agents de domaine (contact, email, event, file, task, weather, wikipedia, perplexity, place, route, hue, browser conditionnel)
+- HITL Dispatch (draft critique, self-loop replay-safe ADR-092) + for_each_confirm node
+- Initiative node (ADR-062) + boucle ReAct 4 nodes (setup → call_model ⇄ execute_tools → finalize)
+- Délégation sub-agent one-shot (ADR-083)
 
 **Source Code**: [`apps/api/src/domains/agents/graph.py`](../../apps/api/src/domains/agents/graph.py)
 
-**Nodes Implémentés**:
-- `router_node_v3` (ligne 446)
-- `planner_node_v3` (ligne 447)
-- `semantic_validator_node` (ligne 449)
-- `clarification_node` (ligne 451)
-- `approval_gate_node` (ligne 452)
-- `task_orchestrator_node` (ligne 453)
-- `hitl_dispatch_node` (ligne 454)
-- 11+ agents de domaine (lignes 464-552+)
-- `response_node` (ligne 554)
+**Nodes Implémentés** (voir `build_graph()` dans `graph.py` — les numéros de ligne dérivent, ne pas s'y fier):
+`compaction_node`, `router_node_v3`, `planner_node_v3`, `semantic_validator_node`,
+`clarification_node`, `approval_gate_node`, `task_orchestrator_node`,
+`hitl_dispatch_node`, `for_each_confirm_node`, `initiative_node`,
+`react_setup/call_model/execute_tools/finalize`, 11–12 nodes agents de domaine,
+`response_node`
 
 ---
 
@@ -63,13 +62,13 @@
 
 **Fichier**: [hitl-flow.mmd](hitl-flow.mmd)
 
-**Description**: Flux complet Human-in-the-Loop avec:
-- Approval Gate (analyse du plan)
-- Draft Modifier (emails/events/contacts) with explicit recipient override (v1.11.4)
-- Destructive Confirmation (delete ≥3 items)
-- FOR_EACH Confirmation (bulk mutations)
-- Severity Levels (INFO, WARNING, CRITICAL)
-- User Decisions (Approve/Reject/Modify/Clarify)
+**Description**: Flux Human-in-the-Loop conforme au contrat unifié ADR-106 :
+- Deux mécanismes de déclenchement : output-driven (draft, post-exécution) et flag-driven (`hitl_required`, pré-exécution non-draft — gate ReAct `tool_confirmation`)
+- `action_requests` typé (draft_critique · tool_confirmation · for_each_confirmation · entity_disambiguation · plan_approval · clarification)
+- Plan approval = pass-through auto-approve (le tool-level HITL prime)
+- Interrupts replay-safe (ADR-092) : un interrupt par exécution de node, self-loop après EDIT, providers FOR_EACH pré-exécutés une seule fois
+- Classification LLM des réponses utilisateur (APPROVE/REJECT/EDIT/REPLAN/AMBIGUOUS)
+- Livraison multi-canal (SSE, Telegram inline keyboard, FCM)
 
 **Source Code**:
 - [`apps/api/src/domains/agents/nodes/approval_gate_node.py`](../../apps/api/src/domains/agents/nodes/approval_gate_node.py)
@@ -109,13 +108,13 @@
 **Fichier**: [system-architecture.mmd](system-architecture.mmd)
 
 **Description**: Architecture système globale avec:
-- **Frontend**: Next.js 16 + React 19 + TypeScript 5 + Tailwind 4
+- **Frontend**: Next.js 16 + React 19 + TypeScript 6 + Tailwind 4
 - **Backend**: FastAPI + Uvicorn (Python 3.12+)
-- **AI/ML**: LangGraph 1.0+ + LLM Providers (OpenAI, Anthropic, DeepSeek, Gemini)
-- **Data**: PostgreSQL 16 + pgvector, Redis 7
-- **External APIs**: Google (Gmail, Calendar, Contacts, Drive, Tasks, Places, Routes), OpenWeatherMap, Wikipedia, Perplexity
+- **AI/ML**: LangGraph 1.2 + LLM Providers catalogue-driven (OpenAI, Anthropic, Gemini, DeepSeek, Perplexity, Qwen, Ollama, ElevenLabs, Edge) + embeddings Gemini (ADR-069)
+- **Data**: PostgreSQL 16 + pgvector, Redis 7.4 (sessions, cache, patterns, Streams)
+- **External APIs**: Google (Gmail, Calendar, Contacts, Drive, Tasks, Places, Routes), Apple iCloud, Microsoft 365, OpenWeatherMap, Wikipedia, Perplexity, Brave
 - **Observability**: Prometheus, Grafana, Loki, Tempo, Langfuse, OpenTelemetry
-- **Deployment**: Docker Compose, Nginx, Raspberry Pi
+- **Deployment**: Docker Compose, Cloudflare Tunnel (ADR-093), Raspberry Pi 5
 
 **Source Code**: Configuration dans [`apps/api/src/core/config/`](../../apps/api/src/core/config/)
 
@@ -127,13 +126,13 @@
 **Fichier**: [security-architecture.mmd](security-architecture.mmd)
 
 **Description**: Architecture de sécurité complète avec:
-- **Authentication**: JWT + Redis Session Store + Session Rotation
-- **Authorization**: JTI Blacklist + Permission Check + Rate Limiting (SlowAPI)
-- **OAuth Security**: Google OAuth + Health Check (every 5 min) + FCM Push Notifications
-- **Secrets Management**: .env encrypted (SOPS) + Firebase/Google/LLM credentials
+- **Authentication**: BFF sessions (HTTP-only cookies) + Redis Session Store + Session Rotation (ADR-002)
+- **Authorization**: Session validation + Permission Check + Rate Limiting (SlowAPI + per-provider)
+- **OAuth Security**: Fernet encryption at rest + distributed refresh lock + Health Check scheduler + notifications SSE/FCM/Telegram
+- **Secrets Management**: .env encrypted (SOPS + Age) + Firebase/Google/LLM credentials
 - **Docker Security**: .dockerignore exclusions + Non-root user + Security patches (apt-get upgrade)
 - **Dependency Security**: hash-verified universal lockfiles (ADR-112) + pip-audit on the lockfile (transitives included) + Trivy image scan + CVE tracking
-- **Production Security**: Nginx + SSL/TLS + HTTPS + Firewall
+- **Production Security**: Cloudflare Tunnel (entrée publique unique, ADR-093) + ports loopback-bound + CSP stricte avec widget airlock (ADR-098)
 
 **Source Code**:
 - [`apps/api/src/domains/auth/`](../../apps/api/src/domains/auth/)
@@ -159,7 +158,7 @@ Cette commande utilise `@mermaid-js/mermaid-cli` pour convertir chaque `.mmd` en
 
 ## Validation Code
 
-Tous les diagrammes ont été validés contre le code source en date du **2026-01-29**.
+Tous les diagrammes ont été validés contre le code source en date du **2026-07-11**.
 
 **Commandes de vérification** :
 ```bash
@@ -187,5 +186,5 @@ ls apps/api/src/domains/agents/services/hitl/*.py
 
 ---
 
-**Dernière mise à jour**: 2026-01-29
-**Validé contre**: `apps/api/src/domains/agents/` (main branch)
+**Dernière mise à jour**: 2026-07-11
+**Validé contre**: `apps/api/src/domains/agents/` (main branch, v1.23.12)

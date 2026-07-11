@@ -296,7 +296,7 @@ git commit -m "feat(tools): add send_email_tool implementation"
 git add apps/api/src/domains/agents/tools/emails_tools.py
 git commit -m "feat(tools): add get_email_tool implementation"
 
-git add apps/api/tests/agents/tools/test_emails_tools.py
+git add apps/api/tests/unit/domains/agents/tools/test_emails_tools.py
 git commit -m "test(tools): add tests for Emails tools"
 
 # 4. Push feature branch
@@ -680,7 +680,7 @@ apps/api/tests/
 ### Écrire un Test Unitaire
 
 ```python
-# apps/api/tests/unit/test_message_windowing.py
+# apps/api/tests/agents/test_message_windowing.py
 
 import pytest
 from domains.agents.utils.message_windowing import (
@@ -737,7 +737,7 @@ def test_get_windowed_messages_parametrized(window_size, expected_count):
 ### Écrire un Test d'Intégration
 
 ```python
-# apps/api/tests/integration/test_oauth_callback.py
+# exemple de test d'intégration (fichier illustratif)
 
 import pytest
 from httpx import AsyncClient
@@ -1185,7 +1185,7 @@ jobs:
 ### Logs Structurés
 
 ```python
-# apps/api/src/infrastructure/observability/logging_config.py
+# apps/api/src/infrastructure/observability/logging.py
 
 import structlog
 

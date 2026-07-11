@@ -1,85 +1,79 @@
 graph TB
-    ExecutionPlan[ExecutionPlan Generated] --> ApprovalGate[approval_gate_node]
-
-    ApprovalGate --> Analyzer{Analyze Plan<br/>6 HITL Types}
-
-    Analyzer --> CheckPlan{Plan Approval<br/>Required?}
-    Analyzer --> CheckClarification{Clarification<br/>Needed?}
-    Analyzer --> CheckDestructive{Destructive<br/>Actions? ≥3 items}
-    Analyzer --> CheckForEach{FOR_EACH<br/>Bulk Mutation?}
-    Analyzer --> CheckDraft{Email/Event<br/>Draft?}
-    Analyzer --> CheckModifier{Modifier<br/>Review?}
-
-    CheckPlan -->|Yes| PlanApproval[Plan Approval<br/>Show plan summary]
-    CheckClarification -->|Yes| ClarificationService[Clarification<br/>Missing info detected]
-    CheckDestructive -->|Yes| DestructiveConfirm[DestructiveConfirmation<br/>Severity: CRITICAL]
-    CheckForEach -->|Yes| ForEachConfirm[ForEachConfirmation<br/>Severity: WARNING]
-    CheckDraft -->|Yes| DraftCritique[DraftCritique<br/>Email/Event preview]
-    CheckModifier -->|Yes| ModifierReview[ModifierReview<br/>Parameter changes]
-
-    CheckPlan -->|No| DirectExecution
-    CheckClarification -->|No| DirectExecution
-    CheckDestructive -->|No| DirectExecution
-    CheckForEach -->|No| DirectExecution
-    CheckDraft -->|No| DirectExecution
-    CheckModifier -->|No| DirectExecution
-
-    PlanApproval --> HITLDispatch
-    ClarificationService --> HITLDispatch
-    DestructiveConfirm --> HITLDispatch
-    ForEachConfirm --> HITLDispatch
-    DraftCritique --> HITLDispatch
-    ModifierReview --> HITLDispatch
-
-    HITLDispatch[hitl_dispatch_node<br/>GraphInterrupt]
-
-    HITLDispatch --> SeverityCheck{Severity Level}
-
-    SeverityCheck -->|INFO| UserNotification[User Notification<br/>Can Skip]
-    SeverityCheck -->|WARNING| UserConfirm[User Confirmation<br/>Required]
-    SeverityCheck -->|CRITICAL| UserMustReview[User Must Review<br/>& Approve]
-
-    UserNotification --> UserDecision
-    UserConfirm --> UserDecision
-    UserMustReview --> UserDecision
-
-    UserDecision{User Decision}
-
-    UserDecision -->|Approved| TaskExecution[task_orchestrator_node<br/>Execute Plan]
-    UserDecision -->|Rejected| SubAgentCheck{Plan has<br/>sub-agent steps?}
-    SubAgentCheck -->|Yes| ReplanNoSA["Auto-Replan<br/>exclude delegate_to_sub_agent_tool"]
-    SubAgentCheck -->|No| Cancelled[End: Cancelled]
-    ReplanNoSA --> Replanning
-    UserDecision -->|Modified / Edited| Replanning[Back to planner_node_v3]
-    UserDecision -->|Clarification Provided| Replanning
-
-    Replanning --> ApprovalGate
-
-    DirectExecution[Direct Execution<br/>No HITL Required] --> TaskExecution
-
-    TaskExecution --> ExecutionComplete[Execution Complete<br/>→ response_node]
-
-    subgraph "Multi-Channel Delivery"
+    subgraph Triggers["Two trigger mechanisms (ADR-106 unified contract)"]
         direction LR
-        WebSSE[Web SSE<br/>Always]
-        TelegramKB[Telegram<br/>Inline Keyboard]
-        FCMPush[FCM Push<br/>If enabled]
+        OutputDriven["Output-driven — post-execution<br/>tool returns requires_confirmation=True<br/>+ draft_type (email, event, *_delete, …)"]
+        FlagDriven["Flag-driven — pre-execution<br/>manifest.permissions.hitl_required=True<br/>NON-draft mutations only<br/>(invariant locked by test)"]
     end
 
-    HITLDispatch --> WebSSE
-    HITLDispatch --> TelegramKB
-    HITLDispatch --> FCMPush
+    subgraph PipelineMode["Pipeline mode"]
+        Orchestrator[task_orchestrator_node<br/>ParallelExecutor]
+        ApprovalGateP["approval_gate_node<br/>plan_approval — currently<br/>AUTO-APPROVE pass-through<br/>(tool-level HITL supersedes)"]
+        ClarificationP["clarification_node<br/>clarification — pre-execution<br/>(semantic validator loop)"]
+    end
 
-    style ApprovalGate fill:#ffe1e1
-    style DestructiveConfirm fill:#ffcccc
-    style ForEachConfirm fill:#ffcccc
-    style DraftCritique fill:#fff4e1
-    style ModifierReview fill:#fff4e1
-    style ClarificationService fill:#e1f5ff
-    style PlanApproval fill:#e1f5ff
+    subgraph ReactModeHITL["ReAct mode"]
+        ReactTools[react_execute_tools_node]
+        ToolConfirm["tool_confirmation interrupt<br/>pre-execution mutation gate<br/>(hitl_required=True, ADR-106)"]
+    end
+
+    OutputDriven --> Orchestrator
+    OutputDriven --> ReactTools
+    FlagDriven --> ReactTools
+    ReactTools --> ToolConfirm
+
+    Orchestrator -->|"Pending draft"| HITLDispatch["hitl_dispatch_node<br/>draft_critique / modifier review<br/>ADR-092: ONE interrupt per node<br/>execution — edit/replan/clarify<br/>persist then SELF-LOOP"]
+    ReactTools -->|"Draft prepared"| HITLDispatch
+
+    Orchestrator -->|"FOR_EACH bulk mutation"| ForEachConfirm["for_each_confirm_node<br/>for_each_confirmation<br/>ADR-092: providers pre-executed ONCE<br/>into for_each_hitl_ctx<br/>(guarded by plan_id + turn_id)"]
+
+    subgraph Interrupt["GraphInterrupt → typed action_requests"]
+        ActionRequests["action_requests (typed):<br/>draft_critique · tool_confirmation<br/>for_each_confirmation · entity_disambiguation<br/>plan_approval · clarification"]
+    end
+
+    HITLDispatch --> ActionRequests
+    ForEachConfirm --> ActionRequests
+    ToolConfirm --> ActionRequests
+    ClarificationP --> ActionRequests
+    ApprovalGateP -.->|"bypassed — no interrupt emitted"| ActionRequests
+
+    subgraph Delivery["Multi-Channel Delivery"]
+        direction LR
+        WebSSE["Web SSE<br/>Always"]
+        TelegramKB["Telegram<br/>Inline Keyboard"]
+        FCMPush["FCM Push<br/>If enabled"]
+    end
+
+    ActionRequests --> WebSSE
+    ActionRequests --> TelegramKB
+    ActionRequests --> FCMPush
+
+    Delivery --> UserResponse["User natural-language response"]
+    UserResponse --> Classifier["HitlResponseClassifier (LLM)<br/>versioned few-shots per action type"]
+
+    Classifier --> Decision{Decision}
+    Decision -->|APPROVE| Resume["Resume execution<br/>draft executed / FOR_EACH resumes<br/>orchestrator with NO re-fetch"]
+    Decision -->|REJECT| Rejected["Cancel — enriched localized<br/>message (HitlMessages, 6 languages)"]
+    Decision -->|EDIT| Edited["Persist modification, then self-loop:<br/>draft → modified draft checkpointed;<br/>FOR_EACH → item filter run once,<br/>cumulative indices"]
+    Decision -->|REPLAN| Replan["Back to planner_node_v3<br/>with reformulated intent"]
+    Decision -->|AMBIGUOUS| Clarify["Clarification question<br/>then re-interrupt"]
+
+    Edited --> ActionRequests
+    Clarify --> ActionRequests
+
+    Resume --> Response["initiative_node → response_node"]
+    Rejected --> Response
+
+    Invariant["ADR-092 invariant:<br/>what the user LAST SAW is<br/>exactly what executes —<br/>no LLM call ever replays"]
+
+    style OutputDriven fill:#e1f5ff
+    style FlagDriven fill:#fff4e1
+    style ApprovalGateP fill:#f5f5f5
     style HITLDispatch fill:#ffe1e1
-    style UserMustReview fill:#ff9999
-    style TaskExecution fill:#e1ffe1
-    style DirectExecution fill:#e1ffe1
-    style ReplanNoSA fill:#ffe1e1
-    style SubAgentCheck fill:#fff9e1
+    style ForEachConfirm fill:#ffe1e1
+    style ToolConfirm fill:#ffcccc
+    style ClarificationP fill:#e1f5ff
+    style ActionRequests fill:#f0e1ff
+    style Classifier fill:#fff9e1
+    style Resume fill:#e1ffe1
+    style Rejected fill:#ffcccc
+    style Invariant fill:#e1fff5

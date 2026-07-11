@@ -819,7 +819,7 @@ async def test_async_function_with_mock():
 
 ### 6.4 Key Unit Test Files
 
-#### [test_security.py](../unit/test_security.py) (238 lines)
+#### [test_security.py](../../apps/api/tests/unit/test_security.py) (238 lines)
 
 **Purpose:** Test security utilities (password hashing, encryption, OAuth)
 
@@ -858,7 +858,7 @@ class TestPasswordHashing:
         assert verify_password("WrongPassword", hashed) is False
 ```
 
-#### [test_i18n_patterns.py](../unit/core/test_i18n_patterns.py) (37 tests)
+#### [test_i18n_patterns.py](../../apps/api/tests/unit/core/test_i18n_patterns.py) (37 tests)
 
 **Purpose:** Test internationalization pattern matching and resolution
 
@@ -868,7 +868,7 @@ class TestPasswordHashing:
 - Multi-language support
 - Fallback mechanisms
 
-#### [test_base_google_client.py](../unit/connectors/test_base_google_client.py) (22 tests)
+#### [test_base_google_client.py](../../apps/api/tests/unit/connectors/test_base_google_client.py) (22 tests)
 
 **Purpose:** Test Google OAuth client base class
 
@@ -990,7 +990,7 @@ async def test_redis_caching():
 
 ### 7.3 Key Integration Test Files
 
-#### [test_auth.py](../integration/test_auth.py) (755 lines) ⭐⭐⭐
+#### [test_auth.py](../../apps/api/tests/integration/test_auth.py) (755 lines) ⭐⭐⭐
 
 **Most comprehensive integration test file**
 
@@ -1087,7 +1087,7 @@ class TestUserLogin:
         assert "Invalid credentials" in response.json()["detail"]
 ```
 
-#### [test_redis_limiter_integration.py](../integration/test_redis_limiter_integration.py)
+#### [test_redis_limiter_integration.py](../../apps/api/tests/integration/test_redis_limiter_integration.py)
 
 **Purpose:** Test rate limiting with Redis backend
 
@@ -1097,7 +1097,7 @@ class TestUserLogin:
 - Sliding window algorithm
 - Redis atomic operations (Lua scripts)
 
-#### [test_connectors.py](../integration/test_connectors.py)
+#### [test_connectors.py](../../apps/api/tests/integration/test_connectors.py)
 
 **Purpose:** Test connector lifecycle and OAuth integration
 
@@ -1128,7 +1128,7 @@ End-to-end tests validate **complete user workflows** from start to finish, test
 
 Currently, we have **limited E2E coverage** with only 1 file:
 
-#### [test_hitl_flows_e2e.py](../e2e/test_hitl_flows_e2e.py)
+#### test_hitl_flows_e2e.py
 
 **Purpose:** Test complete HITL (Human-in-the-Loop) workflows
 
@@ -1196,7 +1196,7 @@ async def test_complete_hitl_flow(authenticated_client, test_user):
 
 ## 9. Test Data & Fixtures
 
-### 9.1 Global Fixtures ([conftest.py](conftest.py) - 551 lines)
+### 9.1 Global Fixtures ([conftest.py](../../apps/api/tests/conftest.py) - 551 lines)
 
 #### 9.1.1 Database Fixtures
 
@@ -1514,7 +1514,7 @@ def extract_cookie_value(response, cookie_name: str) -> str:
 
 ### 9.2 Module-Specific Fixtures
 
-#### LLM Fixtures ([infrastructure/llm/conftest.py](infrastructure/llm/conftest.py) - 28 lines)
+#### LLM Fixtures (infrastructure/llm/conftest.py - 28 lines)
 
 ##### `mock_settings_class`
 ```python
@@ -1534,7 +1534,7 @@ def mock_settings_class():
 
 **Use Case:** LLM infrastructure tests without real API keys
 
-### 9.3 Test Data Factories ([fixtures/factories.py](fixtures/factories.py))
+### 9.3 Test Data Factories ([fixtures/factories.py](../../apps/api/tests/fixtures/factories.py))
 
 #### UserFactory
 
@@ -1733,11 +1733,11 @@ Test-to-Code Ratio: 1.7:1 (Good)
 
 ### 11.3 Well-Tested Modules (>80%)
 
-**1. src/core/security.py (~85%)**
+**1. src/core/security/ (~85%)**
 - ✅ Password hashing
 - ✅ Encryption/decryption
 - ✅ OAuth PKCE
-- Test file: [tests/unit/test_security.py](../unit/test_security.py)
+- Test file: [tests/unit/test_security.py](../../apps/api/tests/unit/test_security.py)
 
 **2. src/infrastructure/database/session.py (~85%)**
 - ✅ Session management
@@ -1747,7 +1747,7 @@ Test-to-Code Ratio: 1.7:1 (Good)
 **3. src/domains/auth/service.py (~80%)**
 - ✅ BFF Pattern auth
 - ✅ Session management
-- Test file: [tests/integration/test_auth.py](../integration/test_auth.py)
+- Test file: [tests/integration/test_auth.py](../../apps/api/tests/integration/test_auth.py)
 
 ### 11.4 Under-Tested Modules (<50%)
 
@@ -3169,7 +3169,7 @@ async def test_complete_voice_comment_flow(authenticated_client):
 ### 16.4 Project-Specific Resources
 
 **Internal Documentation:**
-- `apps/api/tests/README.md` - This document
+- `docs/readme/README_TESTS.md` - This document (anciennement `apps/api/tests/README.md`)
 - `apps/api/pyproject.toml` - Pytest configuration
 - `apps/api/tests/conftest.py` - Global fixtures
 - `.github/workflows/tests.yml` - CI/CD test workflow

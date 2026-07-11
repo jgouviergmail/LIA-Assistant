@@ -25,75 +25,75 @@ This directory contains operational runbooks for troubleshooting and resolving i
 
 | Alert Name | Severity | Component | Impact | Runbook |
 |------------|----------|-----------|--------|---------|
-| **HighErrorRate** | Critical | API | Users see 5xx errors | [HighErrorRate.md](./alerts/HighErrorRate.md) |
-| **CriticalDatabaseConnections** | Critical | Database | Pool exhaustion → outage | [CriticalDatabaseConnections.md](./alerts/CriticalDatabaseConnections.md) |
-| **LLMAPIFailureRateHigh** | Critical | LLM | Core functionality down | [LLMAPIFailureRateHigh.md](./alerts/LLMAPIFailureRateHigh.md) |
-| **CriticalLatencyP99** | Critical | API | Severe UX degradation | [CriticalLatencyP99.md](./alerts/CriticalLatencyP99.md) |
-| **DiskSpaceCritical** | Critical | Infrastructure | Imminent crash | [DiskSpaceCritical.md](./alerts/DiskSpaceCritical.md) |
-| **ContainerDown** | Critical | Infrastructure | Service component offline | [ContainerDown.md](./alerts/ContainerDown.md) |
-| **AgentsRouterLatencyHigh** | Warning | Agents | Delayed routing | [AgentsRouterLatencyHigh.md](./alerts/AgentsRouterLatencyHigh.md) |
-| **CheckpointSaveSlowCritical** | Warning | Agents | Slow state persistence | [CheckpointSaveSlowCritical.md](./alerts/CheckpointSaveSlowCritical.md) |
-| **PKCEValidationFailures** | Warning | Authentication | Auth failures | [PKCEValidationFailures.md](./alerts/PKCEValidationFailures.md) |
-| **DatabaseDown** | Critical | Database | Total outage | [DatabaseDown.md](./alerts/DatabaseDown.md) |
-| **ServiceDown** | Critical | API | Total outage | [ServiceDown.md](./alerts/ServiceDown.md) |
-| **DailyCostBudgetExceeded** | Warning | LLM | Budget overrun | [DailyCostBudgetExceeded.md](./alerts/DailyCostBudgetExceeded.md) |
-| **AgentsStreamingErrorRateHigh** | Warning | Agents | Streaming UX broken | [AgentsStreamingErrorRateHigh.md](./alerts/AgentsStreamingErrorRateHigh.md) |
-| **HighConversationResetRate** | Warning | Agents | Context loss | [HighConversationResetRate.md](./alerts/HighConversationResetRate.md) |
-| **HighDatabaseConnections** | Warning | Database | Preventive alert | [HighDatabaseConnections.md](./alerts/HighDatabaseConnections.md) |
+| **HighErrorRate** | Critical | API | Users see 5xx errors | [HighErrorRate.md](../runbooks/alerts/HighErrorRate.md) |
+| **CriticalDatabaseConnections** | Critical | Database | Pool exhaustion → outage | [CriticalDatabaseConnections.md](../runbooks/alerts/CriticalDatabaseConnections.md) |
+| **LLMAPIFailureRateHigh** | Critical | LLM | Core functionality down | [LLMAPIFailureRateHigh.md](../runbooks/alerts/LLMAPIFailureRateHigh.md) |
+| **CriticalLatencyP99** | Critical | API | Severe UX degradation | [CriticalLatencyP99.md](../runbooks/alerts/CriticalLatencyP99.md) |
+| **DiskSpaceCritical** | Critical | Infrastructure | Imminent crash | [DiskSpaceCritical.md](../runbooks/alerts/DiskSpaceCritical.md) |
+| **ContainerDown** | Critical | Infrastructure | Service component offline | [ContainerDown.md](../runbooks/alerts/ContainerDown.md) |
+| **AgentsRouterLatencyHigh** | Warning | Agents | Delayed routing | [AgentsRouterLatencyHigh.md](../runbooks/alerts/AgentsRouterLatencyHigh.md) |
+| **CheckpointSaveSlowCritical** | Warning | Agents | Slow state persistence | [CheckpointSaveSlowCritical.md](../runbooks/alerts/CheckpointSaveSlowCritical.md) |
+| **PKCEValidationFailures** | Warning | Authentication | Auth failures | [PKCEValidationFailures.md](../runbooks/alerts/PKCEValidationFailures.md) |
+| **DatabaseDown** | Critical | Database | Total outage | [DatabaseDown.md](../runbooks/alerts/DatabaseDown.md) |
+| **ServiceDown** | Critical | API | Total outage | [ServiceDown.md](../runbooks/alerts/ServiceDown.md) |
+| **DailyCostBudgetExceeded** | Warning | LLM | Budget overrun | [DailyCostBudgetExceeded.md](../runbooks/alerts/DailyCostBudgetExceeded.md) |
+| **AgentsStreamingErrorRateHigh** | Warning | Agents | Streaming UX broken | [AgentsStreamingErrorRateHigh.md](../runbooks/alerts/AgentsStreamingErrorRateHigh.md) |
+| **HighConversationResetRate** | Warning | Agents | Context loss | [HighConversationResetRate.md](../runbooks/alerts/HighConversationResetRate.md) |
+| **HighDatabaseConnections** | Warning | Database | Preventive alert | [HighDatabaseConnections.md](../runbooks/alerts/HighDatabaseConnections.md) |
 
 ---
 
 ## Runbooks by Component
 
 ### API (FastAPI)
-- [HighErrorRate.md](./alerts/HighErrorRate.md) - Error rate >3%
-- [CriticalLatencyP99.md](./alerts/CriticalLatencyP99.md) - P99 latency >1.5s
-- [ServiceDown.md](./alerts/ServiceDown.md) - API unreachable
+- [HighErrorRate.md](../runbooks/alerts/HighErrorRate.md) - Error rate >3%
+- [CriticalLatencyP99.md](../runbooks/alerts/CriticalLatencyP99.md) - P99 latency >1.5s
+- [ServiceDown.md](../runbooks/alerts/ServiceDown.md) - API unreachable
 
 ### Database (PostgreSQL)
-- [CriticalDatabaseConnections.md](./alerts/CriticalDatabaseConnections.md) - Pool >85%
-- [HighDatabaseConnections.md](./alerts/HighDatabaseConnections.md) - Pool >70%
-- [DatabaseDown.md](./alerts/DatabaseDown.md) - PostgreSQL unreachable
+- [CriticalDatabaseConnections.md](../runbooks/alerts/CriticalDatabaseConnections.md) - Pool >85%
+- [HighDatabaseConnections.md](../runbooks/alerts/HighDatabaseConnections.md) - Pool >70%
+- [DatabaseDown.md](../runbooks/alerts/DatabaseDown.md) - PostgreSQL unreachable
 
 ### LLM (Anthropic Claude)
-- [LLMAPIFailureRateHigh.md](./alerts/LLMAPIFailureRateHigh.md) - API failures >3%
-- [DailyCostBudgetExceeded.md](./alerts/DailyCostBudgetExceeded.md) - Budget overrun
+- [LLMAPIFailureRateHigh.md](../runbooks/alerts/LLMAPIFailureRateHigh.md) - API failures >3%
+- [DailyCostBudgetExceeded.md](../runbooks/alerts/DailyCostBudgetExceeded.md) - Budget overrun
 
 ### Agents (LangGraph)
-- [AgentsRouterLatencyHigh.md](./alerts/AgentsRouterLatencyHigh.md) - Router P95 >2s
-- [CheckpointSaveSlowCritical.md](./alerts/CheckpointSaveSlowCritical.md) - Checkpoint P95 >3s
-- [AgentsStreamingErrorRateHigh.md](./alerts/AgentsStreamingErrorRateHigh.md) - Streaming errors >3%
-- [HighConversationResetRate.md](./alerts/HighConversationResetRate.md) - Resets >10%
+- [AgentsRouterLatencyHigh.md](../runbooks/alerts/AgentsRouterLatencyHigh.md) - Router P95 >2s
+- [CheckpointSaveSlowCritical.md](../runbooks/alerts/CheckpointSaveSlowCritical.md) - Checkpoint P95 >3s
+- [AgentsStreamingErrorRateHigh.md](../runbooks/alerts/AgentsStreamingErrorRateHigh.md) - Streaming errors >3%
+- [HighConversationResetRate.md](../runbooks/alerts/HighConversationResetRate.md) - Resets >10%
 
 ### Authentication (OAuth/PKCE)
-- [PKCEValidationFailures.md](./alerts/PKCEValidationFailures.md) - PKCE failures >5%
+- [PKCEValidationFailures.md](../runbooks/alerts/PKCEValidationFailures.md) - PKCE failures >5%
 
 ### Infrastructure (Docker/System)
-- [DiskSpaceCritical.md](./alerts/DiskSpaceCritical.md) - Disk <10% free
-- [ContainerDown.md](./alerts/ContainerDown.md) - Container offline
+- [DiskSpaceCritical.md](../runbooks/alerts/DiskSpaceCritical.md) - Disk <10% free
+- [ContainerDown.md](../runbooks/alerts/ContainerDown.md) - Container offline
 
 ---
 
 ## Runbooks by Severity
 
 ### Critical (Immediate Action Required)
-1. [HighErrorRate.md](./alerts/HighErrorRate.md)
-2. [CriticalDatabaseConnections.md](./alerts/CriticalDatabaseConnections.md)
-3. [LLMAPIFailureRateHigh.md](./alerts/LLMAPIFailureRateHigh.md)
-4. [CriticalLatencyP99.md](./alerts/CriticalLatencyP99.md)
-5. [DiskSpaceCritical.md](./alerts/DiskSpaceCritical.md)
-6. [ContainerDown.md](./alerts/ContainerDown.md)
-7. [DatabaseDown.md](./alerts/DatabaseDown.md)
-8. [ServiceDown.md](./alerts/ServiceDown.md)
+1. [HighErrorRate.md](../runbooks/alerts/HighErrorRate.md)
+2. [CriticalDatabaseConnections.md](../runbooks/alerts/CriticalDatabaseConnections.md)
+3. [LLMAPIFailureRateHigh.md](../runbooks/alerts/LLMAPIFailureRateHigh.md)
+4. [CriticalLatencyP99.md](../runbooks/alerts/CriticalLatencyP99.md)
+5. [DiskSpaceCritical.md](../runbooks/alerts/DiskSpaceCritical.md)
+6. [ContainerDown.md](../runbooks/alerts/ContainerDown.md)
+7. [DatabaseDown.md](../runbooks/alerts/DatabaseDown.md)
+8. [ServiceDown.md](../runbooks/alerts/ServiceDown.md)
 
 ### Warning (Monitor and Plan)
-1. [AgentsRouterLatencyHigh.md](./alerts/AgentsRouterLatencyHigh.md)
-2. [CheckpointSaveSlowCritical.md](./alerts/CheckpointSaveSlowCritical.md)
-3. [PKCEValidationFailures.md](./alerts/PKCEValidationFailures.md)
-4. [DailyCostBudgetExceeded.md](./alerts/DailyCostBudgetExceeded.md)
-5. [AgentsStreamingErrorRateHigh.md](./alerts/AgentsStreamingErrorRateHigh.md)
-6. [HighConversationResetRate.md](./alerts/HighConversationResetRate.md)
-7. [HighDatabaseConnections.md](./alerts/HighDatabaseConnections.md)
+1. [AgentsRouterLatencyHigh.md](../runbooks/alerts/AgentsRouterLatencyHigh.md)
+2. [CheckpointSaveSlowCritical.md](../runbooks/alerts/CheckpointSaveSlowCritical.md)
+3. [PKCEValidationFailures.md](../runbooks/alerts/PKCEValidationFailures.md)
+4. [DailyCostBudgetExceeded.md](../runbooks/alerts/DailyCostBudgetExceeded.md)
+5. [AgentsStreamingErrorRateHigh.md](../runbooks/alerts/AgentsStreamingErrorRateHigh.md)
+6. [HighConversationResetRate.md](../runbooks/alerts/HighConversationResetRate.md)
+7. [HighDatabaseConnections.md](../runbooks/alerts/HighDatabaseConnections.md)
 
 ---
 
@@ -103,19 +103,19 @@ Automated diagnostic scripts are available in `../../infrastructure/observabilit
 
 | Script | Purpose | Runbook |
 |--------|---------|---------|
-| `diagnose_api_errors.sh` | API error diagnostics | [HighErrorRate.md](./alerts/HighErrorRate.md) |
-| `diagnose_api_latency.sh` | API latency analysis | [CriticalLatencyP99.md](./alerts/CriticalLatencyP99.md) |
-| `diagnose_db_connections.sh` | Database connection pool | [CriticalDatabaseConnections.md](./alerts/CriticalDatabaseConnections.md) |
-| `diagnose_llm_api.sh` | LLM API health | [LLMAPIFailureRateHigh.md](./alerts/LLMAPIFailureRateHigh.md) |
-| `diagnose_disk_space.sh` | Disk space analysis | [DiskSpaceCritical.md](./alerts/DiskSpaceCritical.md) |
-| `diagnose_container_health.sh` | Container status | [ContainerDown.md](./alerts/ContainerDown.md) |
-| `diagnose_agents_performance.sh` | Agent routing performance | [AgentsRouterLatencyHigh.md](./alerts/AgentsRouterLatencyHigh.md) |
-| `diagnose_checkpoint_performance.sh` | Checkpoint save latency | [CheckpointSaveSlowCritical.md](./alerts/CheckpointSaveSlowCritical.md) |
-| `diagnose_oauth_security.sh` | OAuth/PKCE validation | [PKCEValidationFailures.md](./alerts/PKCEValidationFailures.md) |
-| `diagnose_database_health.sh` | PostgreSQL health | [DatabaseDown.md](./alerts/DatabaseDown.md) |
-| `diagnose_service_health.sh` | API service health | [ServiceDown.md](./alerts/ServiceDown.md) |
-| `diagnose_llm_costs.sh` | LLM cost analysis | [DailyCostBudgetExceeded.md](./alerts/DailyCostBudgetExceeded.md) |
-| `diagnose_agents_streaming.sh` | Streaming error diagnostics | [AgentsStreamingErrorRateHigh.md](./alerts/AgentsStreamingErrorRateHigh.md) |
+| `diagnose_api_errors.sh` | API error diagnostics | [HighErrorRate.md](../runbooks/alerts/HighErrorRate.md) |
+| `diagnose_api_latency.sh` | API latency analysis | [CriticalLatencyP99.md](../runbooks/alerts/CriticalLatencyP99.md) |
+| `diagnose_db_connections.sh` | Database connection pool | [CriticalDatabaseConnections.md](../runbooks/alerts/CriticalDatabaseConnections.md) |
+| `diagnose_llm_api.sh` | LLM API health | [LLMAPIFailureRateHigh.md](../runbooks/alerts/LLMAPIFailureRateHigh.md) |
+| `diagnose_disk_space.sh` | Disk space analysis | [DiskSpaceCritical.md](../runbooks/alerts/DiskSpaceCritical.md) |
+| `diagnose_container_health.sh` | Container status | [ContainerDown.md](../runbooks/alerts/ContainerDown.md) |
+| `diagnose_agents_performance.sh` | Agent routing performance | [AgentsRouterLatencyHigh.md](../runbooks/alerts/AgentsRouterLatencyHigh.md) |
+| `diagnose_checkpoint_performance.sh` | Checkpoint save latency | [CheckpointSaveSlowCritical.md](../runbooks/alerts/CheckpointSaveSlowCritical.md) |
+| `diagnose_oauth_security.sh` | OAuth/PKCE validation | [PKCEValidationFailures.md](../runbooks/alerts/PKCEValidationFailures.md) |
+| `diagnose_database_health.sh` | PostgreSQL health | [DatabaseDown.md](../runbooks/alerts/DatabaseDown.md) |
+| `diagnose_service_health.sh` | API service health | [ServiceDown.md](../runbooks/alerts/ServiceDown.md) |
+| `diagnose_llm_costs.sh` | LLM cost analysis | [DailyCostBudgetExceeded.md](../runbooks/alerts/DailyCostBudgetExceeded.md) |
+| `diagnose_agents_streaming.sh` | Streaming error diagnostics | [AgentsStreamingErrorRateHigh.md](../runbooks/alerts/AgentsStreamingErrorRateHigh.md) |
 
 ### Usage
 
@@ -302,9 +302,9 @@ curl "http://localhost:9090/api/v1/query?query=[promql]"
 
 ### Internal Documentation
 - [Architecture Overview](../architecture/README.md)
-- [Database Schema](../database/schema.md)
-- [API Documentation](../api/README.md)
-- [Deployment Guide](../deployment/README.md)
+- [Database Schema](../technical/DATABASE_SCHEMA.md)
+- [API Documentation](../guides/GUIDE_API.md)
+- [Deployment Guide](../guides/GUIDE_DEPLOYMENT.md)
 
 ### External Links
 - [Prometheus Documentation](https://prometheus.io/docs/)
@@ -315,8 +315,8 @@ curl "http://localhost:9090/api/v1/query?query=[promql]"
 
 ### Incident Management
 - **Incident Channel**: #incidents (Slack)
-- **Post-Mortem Template**: [templates/post-mortem.md](../templates/post-mortem.md)
-- **Incident Reports**: [incidents/](../incidents/)
+- **Post-Mortem Template**: templates/post-mortem.md
+- **Incident Reports**: incidents/
 
 ---
 

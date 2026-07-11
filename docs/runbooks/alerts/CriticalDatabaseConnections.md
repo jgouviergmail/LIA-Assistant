@@ -64,7 +64,7 @@
 **Likelihood**: **High** (cause #1 la plus fréquente)
 
 **Description**:
-SQLAlchemy connection pool dans l'API est mal configuré (pool trop petit) ou épuisé par des connexions qui ne sont pas releasées correctement. Configuration pool dans `apps/api/src/infrastructure/database.py`. Par défaut SQLAlchemy: `pool_size=5, max_overflow=10` = max 15 connections.
+SQLAlchemy connection pool dans l'API est mal configuré (pool trop petit) ou épuisé par des connexions qui ne sont pas releasées correctement. Configuration pool dans `apps/api/src/infrastructure/database/session.py`. Par défaut SQLAlchemy: `pool_size=5, max_overflow=10` = max 15 connections.
 
 **How to Verify**:
 ```bash
@@ -437,7 +437,7 @@ LIMIT 15;
 docker inspect lia_api | jq '.[0].State.StartedAt'
 
 # Vérifier commits récents qui touchent DB queries
-git log --since="4 hours ago" --oneline -- apps/api/src/domains apps/api/src/infrastructure/database.py
+git log --since="4 hours ago" --oneline -- apps/api/src/domains apps/api/src/infrastructure/database/session.py
 
 # Chercher pattern dans logs API
 docker-compose logs api --since=1h | grep -i "sqlalchemy\|psycopg2" | grep -i "error" | tail -30
@@ -589,7 +589,7 @@ curl -i http://localhost:8000/api/health
 
 #### If Cause = Pool Configuration Too Small
 
-**Fix**: Augmenter pool size dans `apps/api/src/infrastructure/database.py`:
+**Fix**: Augmenter pool size dans `apps/api/src/infrastructure/database/session.py`:
 
 ```python
 # Avant
@@ -812,7 +812,7 @@ ORDER BY age_bucket;
 - **[HighErrorRate](./HighErrorRate.md)** - Souvent co-fire (DB errors → API errors)
 - **[HighDatabaseConnections](./HighDatabaseConnections.md)** - Warning précurseur (70% threshold)
 - **[DatabaseDown](./DatabaseDown.md)** - Escalation si mitigation échoue
-- **[SlowQueries](./SlowQueries.md)** - Cause fréquente de connection saturation
+- **SlowQueries** - Cause fréquente de connection saturation
 
 ---
 
@@ -946,7 +946,7 @@ Next Steps: [What you plan to do]
 - [PgBouncer - Lightweight Connection Pooler](https://www.pgbouncer.org/)
 
 ### Code References
-- Database Config: `apps/api/src/infrastructure/database.py`
+- Database Config: `apps/api/src/infrastructure/database/session.py`
 - Connection Pool Settings: Search `create_engine` ou `create_async_engine`
 - Checkpoint Save: `apps/api/src/domains/agents/graph.py`
 

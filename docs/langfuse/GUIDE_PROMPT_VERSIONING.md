@@ -238,7 +238,7 @@ LANGFUSE_HOST=https://cloud.langfuse.com
 LANGFUSE_ENABLE_PROMPT_VERSIONING=true
 ```
 
-**Fichier**: `apps/api/src/core/config.py`
+**Fichier**: `apps/api/src/core/config/`
 
 ```python
 from pydantic_settings import BaseSettings
@@ -675,7 +675,7 @@ Examples:
 
 ### 2. Changelog Maintenance
 
-**Fichier**: `apps/api/docs/prompts/CHANGELOG_router_system_v6.md`
+**Fichier**: exemple de changelog par prompt (processus proposé, non commité — les versions vivent en en-tête des fichiers `prompts/v1/*.txt`)
 
 ```markdown
 # Router System v6 - Changelog
@@ -725,7 +725,7 @@ langfuse.create_prompt(
 pytest tests/integration/test_router_v6_v3.py -v
 
 # 3. Run manual QA (50-100 real queries)
-python scripts/qa_prompt_version.py \
+python scripts/qa_prompt_version.py \   # exemple (script non commité)
     --prompt_id router_system_v6 \
     --version 3 \
     --queries data/qa_queries.json
@@ -764,7 +764,7 @@ prompt_data = langfuse.get_prompt(
 **Alert Rule**: `PrompVersionSuccessRateLow`
 
 ```yaml
-# infrastructure/observability/prometheus/alerts/langfuse_alerts.yml
+# exemple de règles d'alerte (non déployées — noyau actif : ADR-119)
 groups:
   - name: langfuse_prompt_versioning
     interval: 1m
@@ -937,8 +937,8 @@ except Exception as e:
 
 - [README Observability](../readme/README_OBSERVABILITY.md) - Metrics overview
 - [README Grafana Dashboards](../readme/README_GRAFANA_DASHBOARD.md) - Dashboard 14 details
-- [Langfuse Evaluation Scores Guide](./GUIDE_EVALUATION_SCORES.md) - Quality monitoring
-- [Langfuse A/B Testing Guide](./GUIDE_AB_TESTING.md) - Experiment framework
+- Langfuse Evaluation Scores Guide - Quality monitoring
+- Langfuse A/B Testing Guide - Experiment framework
 - [Langfuse Best Practices](./GUIDE_BEST_PRACTICES.md) - Production guidelines
 
 ### Code Examples
@@ -950,8 +950,8 @@ except Exception as e:
 
 ### Session Documents
 
-- [SESSION_10_COMPLETE.md](../optim_monitoring/SESSION_10_COMPLETE.md) - Phase 3.1 implementation
-- [SESSION_19_PHASE_4_2_COMPLETE.md](../optim_monitoring/SESSION_19_PHASE_4_2_COMPLETE.md) - Testing
+- SESSION_10_COMPLETE.md - Phase 3.1 implementation
+- SESSION_19_PHASE_4_2_COMPLETE.md - Testing
 
 ---
 
@@ -960,4 +960,4 @@ except Exception as e:
 **Created**: 2025-11-23
 **Phase**: 4.3 - Langfuse Documentation
 **Status**: ✅ Production Ready
-**Next**: [GUIDE_EVALUATION_SCORES.md](./GUIDE_EVALUATION_SCORES.md)
+**Next**: GUIDE_EVALUATION_SCORES.md

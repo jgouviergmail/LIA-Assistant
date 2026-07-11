@@ -163,7 +163,7 @@ redis_connection_pool_size_current
 **Resolution:**
 
 ```python
-# In apps/api/src/infrastructure/redis.py
+# In apps/api/src/infrastructure/cache/redis.py
 # Increase pool size
 redis_client = Redis(
     host=settings.REDIS_HOST,
@@ -248,7 +248,7 @@ kubectl rollout restart deployment/redis
 #### Option 2: Increase Connection Pool
 
 ```python
-# In apps/api/src/infrastructure/redis.py
+# In apps/api/src/infrastructure/cache/redis.py
 redis_client = Redis(
     host=settings.REDIS_HOST,
     port=settings.REDIS_PORT,

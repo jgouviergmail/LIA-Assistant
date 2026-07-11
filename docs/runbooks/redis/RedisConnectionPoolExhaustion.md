@@ -166,7 +166,7 @@ kubectl exec -it redis-0 -- redis-cli INFO commandstats
 **Quick fix - requires deployment:**
 
 ```python
-# In apps/api/src/infrastructure/redis.py
+# In apps/api/src/infrastructure/cache/redis.py
 from redis.asyncio import Redis, ConnectionPool
 
 # Current configuration
@@ -231,7 +231,7 @@ kubectl edit configmap redis-config
 1. **Implement Connection Pooling Best Practices**
 
 ```python
-# In apps/api/src/infrastructure/redis.py
+# In apps/api/src/infrastructure/cache/redis.py
 from redis.asyncio import Redis
 from contextlib import asynccontextmanager
 
@@ -444,7 +444,7 @@ rate(redis_connection_pool_timeouts_total[5m]) == 0
 
 ## References
 
-- **Code**: `apps/api/src/infrastructure/redis.py`
+- **Code**: `apps/api/src/infrastructure/cache/redis.py`
 - **Rate Limiter**: `apps/api/src/infrastructure/rate_limiting/redis_limiter.py`
 - **Metrics**: `apps/api/src/infrastructure/observability/metrics_redis.py`
 - **Dashboard**: Grafana → 10 - Redis Rate Limiting

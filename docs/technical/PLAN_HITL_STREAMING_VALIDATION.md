@@ -607,7 +607,7 @@ case 'HITL_REJECTION':
 ## 6.1 Nouvelles Métriques Prometheus
 
 ```python
-# Fichier: src/infrastructure/observability/metrics_hitl.py
+# Fichier: src/infrastructure/observability/metrics_agents.py
 
 # HITL Streaming
 hitl_question_ttft_seconds = Histogram(

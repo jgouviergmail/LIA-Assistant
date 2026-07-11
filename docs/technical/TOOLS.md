@@ -1414,7 +1414,7 @@ class WeatherAgentBuilder(BaseAgentBuilder):
 #### 5. Tester
 
 ```python
-# apps/api/tests/agents/tools/test_weather_tools.py
+# exemple de test (fichier illustratif — tests réels : apps/api/tests/unit/domains/agents/tools/)
 
 @pytest.mark.asyncio
 async def test_get_weather_tool(mock_weather_client):
@@ -1707,15 +1707,15 @@ client = httpx.AsyncClient(
 ### Fichiers Tools par Domaine
 - `apps/api/src/domains/agents/tools/google_contacts_tools.py` - Contacts (6 tools)
 - `apps/api/src/domains/agents/tools/emails_tools.py` - Emails (6 tools)
-- `apps/api/src/domains/agents/tools/google_calendar_tools.py` - Calendar (6 tools)
-- `apps/api/src/domains/agents/tools/google_drive_tools.py` - Drive (3 tools)
-- `apps/api/src/domains/agents/tools/google_tasks_tools.py` - Tasks (7 tools)
-- `apps/api/src/domains/agents/tools/google_places_tools.py` - Places (3 tools)
+- `apps/api/src/domains/agents/tools/calendar_tools.py` - Calendar (6 tools)
+- `apps/api/src/domains/agents/tools/drive_tools.py` - Drive (3 tools)
+- `apps/api/src/domains/agents/tools/tasks_tools.py` - Tasks (7 tools)
+- `apps/api/src/domains/agents/tools/places_tools.py` - Places (3 tools)
 - `apps/api/src/domains/agents/tools/weather_tools.py` - Weather (3 tools)
 - `apps/api/src/domains/agents/tools/wikipedia_tools.py` - Wikipedia (4 tools)
 - `apps/api/src/domains/agents/tools/perplexity_tools.py` - Perplexity (2 tools)
 - `apps/api/src/domains/agents/tools/context_tools.py` - Context (5 tools)
-- `apps/api/src/domains/agents/tools/query_tools.py` - Query (1 tool)
+- `apps/api/src/domains/agents/tools/local_query_tool.py` - Query (1 tool)
 
 ### LangChain Documentation
 - **Tools** : https://python.langchain.com/docs/modules/tools/

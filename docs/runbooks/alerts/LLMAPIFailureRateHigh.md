@@ -404,7 +404,7 @@ infrastructure/observability/scripts/diagnose_llm_api.sh
 **Use When**: Anthropic outage temporaire ou rate limits temporaires.
 
 ```python
-# apps/api/src/infrastructure/llm/anthropic_client.py
+# retries implémentés dans src/infrastructure/llm/invoke_helpers.py — snippet illustratif
 
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
@@ -471,7 +471,7 @@ except AnthropicAPIError:
 **Use When**: Rate limit dépassé identifié.
 
 ```python
-# apps/api/src/infrastructure/llm/rate_limiter.py
+# exemple — le rate limiting est implémenté dans src/infrastructure/rate_limiting/
 from aiolimiter import AsyncLimiter
 
 # Configure limiter basé sur tier
@@ -791,8 +791,8 @@ Escalader si:
 - [Error Codes](https://docs.anthropic.com/claude/reference/errors)
 
 ### Code References
-- LLM Client: `apps/api/src/infrastructure/llm/anthropic_client.py`
-- Retry Logic: `apps/api/src/infrastructure/llm/retry.py`
+- LLM Factory: `apps/api/src/infrastructure/llm/factory.py`
+- Retry Logic: `apps/api/src/infrastructure/llm/invoke_helpers.py`
 - Metrics: `apps/api/src/infrastructure/observability/metrics_agents.py`
 
 ### External Resources

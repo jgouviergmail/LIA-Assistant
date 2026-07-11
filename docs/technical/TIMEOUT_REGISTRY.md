@@ -245,10 +245,10 @@ them here so the next wave can pick them up explicitly.
 |---|-----|----------------|--------------|
 | C1 | `postgres_statement_timeout` | PostgreSQL session-level setting (asyncpg `server_settings`) | Requires a connection-string change + per-pool tuning; out of `.env` scope today. |
 | C2 | `app_startup_timeout_seconds` / `app_shutdown_timeout_seconds` | `main.py` lifespan context | No clean Pydantic surface yet; needs a small `LifecycleSettings` module. |
-| C3 | `mcp_session_close_timeout_seconds` | `infrastructure/mcp/client_pool.py` | Currently inlined; ADR-079 follow-up. |
+| C3 | `mcp_session_close_timeout_seconds` | `infrastructure/mcp/client_manager.py` | Currently inlined; ADR-079 follow-up. |
 | C4 | Sub-agent / browser / MCP nested-ReAct temporal guards | `subagent_runner.py`, `browser_react_loop.py`, `mcp_react_loop.py` | Inner-loop wall-clock caps (per-iteration) distinct from the outer step timeout. Warrants a dedicated nested-ReAct timeout family. |
-| C5 | Frontend chat SSE watchdog | `apps/web/src/hooks/useChatStream.ts` | A long-running SSE without a server keepalive currently waits indefinitely. Needs a client-side dead-stream detector tied to `SSE_CONFIG.HEARTBEAT_INTERVAL`. |
-| C6 | APScheduler per-job timeout | `infrastructure/scheduler/registry.py` | APScheduler natively supports `misfire_grace_time` but not a per-job hard timeout. Workaround would wrap the job callable in `asyncio.wait_for`. |
+| C5 | Frontend chat SSE watchdog | `apps/web/src/lib/api/chat.ts` / `useChat.ts` | A long-running SSE without a server keepalive currently waits indefinitely. Needs a client-side dead-stream detector tied to `SSE_CONFIG.HEARTBEAT_INTERVAL`. |
+| C6 | APScheduler per-job timeout | `infrastructure/startup/schedulers.py` | APScheduler natively supports `misfire_grace_time` but not a per-job hard timeout. Workaround would wrap the job callable in `asyncio.wait_for`. |
 | ~~C7~~ | ~~`parallel_execution_global_timeout_total{plan_outcome}` regression test~~ | `tests/unit/domains/agents/orchestration/test_parallel_executor_global_timeout.py` | **Resolved in v1.20.6**: 2 unit tests (`test_global_timeout_fires_immediately_with_zero_budget`, `test_global_timeout_does_not_fire_with_generous_budget`) cover both increment and no-false-positive paths. |
 
 ## Known conflicts

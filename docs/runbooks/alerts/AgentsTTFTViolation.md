@@ -510,7 +510,7 @@ asyncio.run(test())
 
 **Fix 2: Implement conversation context pruning**
 
-**File**: `apps/api/src/domains/conversations/services/context_manager.py`
+**File**: `apps/api/src/domains/agents/models.py` — déjà implémenté : reducer `add_messages_with_truncate` + compaction v2 ; snippet ci-dessous illustratif
 ```python
 from typing import List, Dict
 import tiktoken

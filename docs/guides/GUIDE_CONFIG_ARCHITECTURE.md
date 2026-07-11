@@ -14,7 +14,7 @@ La configuration de LIA utilise un **pattern de composition via multiple inherit
 ### Avant (Monolith)
 
 ```python
-# src/core/config.py - 1782 lignes ❌
+# src/core/config/ - 1782 lignes ❌
 class Settings(BaseSettings):
     # OAuth (150 lignes)
     oauth_client_id: str

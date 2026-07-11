@@ -966,10 +966,10 @@ Request:
 ## 12. Additional Resources
 
 ### Internal Documentation
-- [Infrastructure Overview](../../architecture/infrastructure.md)
-- [PostgreSQL Maintenance Guide](../../database/postgresql_maintenance.md)
-- [Docker Best Practices](../../docker/best_practices.md)
-- [Log Retention Policy](../../policies/log_retention.md)
+- Infrastructure Overview
+- PostgreSQL Maintenance Guide
+- Docker Best Practices
+- Log Retention Policy
 
 ### External Resources
 - [PostgreSQL WAL Configuration](https://www.postgresql.org/docs/current/wal-configuration.html)

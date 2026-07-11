@@ -517,7 +517,7 @@ docker inspect lia_api_1 | jq '.[0].HostConfig.NanoCpus'
 
 **If background jobs identified as cause**:
 
-**File**: `apps/api/src/infrastructure/scheduler.py`
+**File**: `apps/api/src/infrastructure/scheduler/`
 ```python
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -563,7 +563,7 @@ docker stats --no-stream lia_api_1
 
 **If external API retries causing high CPU**:
 
-**File**: `apps/api/src/infrastructure/llm/retry_handler.py`
+**File**: `apps/api/src/infrastructure/resilience/circuit_breaker.py` (implémenté)
 ```python
 from circuitbreaker import circuit
 
@@ -950,10 +950,10 @@ Request:
 ## 🔗 Additional Resources
 
 ### Internal Documentation
-- [Infrastructure Architecture](../../architecture/infrastructure.md)
-- [Performance Optimization Guide](../../performance/optimization.md)
-- [Docker Resource Limits](../../docker/resource_management.md)
-- [API Performance Best Practices](../../api/performance.md)
+- Infrastructure Architecture
+- Performance Optimization Guide
+- Docker Resource Limits
+- API Performance Best Practices
 
 ### External Resources
 - [Understanding Linux Load Average](https://www.brendangregg.com/blog/2017-08-08/linux-load-averages.html)

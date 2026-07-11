@@ -1128,7 +1128,7 @@ async def test_chat_api_authenticated(authenticated_client):
 **Code à tester** :
 
 ```python
-# src/domains/agents/registry.py
+# src/domains/agents/registry/agent_registry.py
 class AgentRegistry:
     """Centralized registry for agent management with lazy initialization."""
 
@@ -1956,10 +1956,10 @@ pytest --cov=src --cov-report=xml
 ---------- coverage: platform win32, python 3.12.0 -----------
 Name                                      Stmts   Miss  Cover   Missing
 -----------------------------------------------------------------------
-src/core/config.py                           45      2    96%   67-68
-src/core/security.py                         32      0   100%
-src/domains/agents/registry.py               78      5    94%   123-127
-src/domains/agents/services/hitl.py         156     12    92%   89-91, 145-152
+src/core/config/                           45      2    96%   67-68
+src/core/security/                         32      0   100%
+src/domains/agents/registry/agent_registry.py               78      5    94%   123-127
+src/domains/agents/services/hitl/         156     12    92%   89-91, 145-152
 -----------------------------------------------------------------------
 TOTAL                                       311     19    94%
 ```

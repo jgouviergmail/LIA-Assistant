@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.2** | 2026-05-29 | 20 dashboards, 345+ panels
+> **Version 4.3** | 2026-07-11 | 22 dashboards, 345+ panels
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Objectifs
 
-Les **20 dashboards Grafana** fournissent une observabilite complete pour :
+Les **22 dashboards Grafana** fournissent une observabilite complete pour :
 
 1. **Monitoring production** : Sante applicative, SLOs, performance HTTP, ressources infrastructure
 2. **Agent debugging** : Pipeline d'orchestration LangGraph, router, planner, outils, HITL
@@ -393,7 +393,7 @@ docker compose restart grafana
 - `apps/api/src/infrastructure/observability/metrics_agents.py`
 - `apps/api/src/infrastructure/observability/metrics_langgraph.py`
 - `apps/api/src/infrastructure/observability/metrics_database.py`
-- `apps/api/src/infrastructure/observability/middleware.py`
+- `apps/api/src/core/middleware.py`
 
 **Recording rules** : `infrastructure/observability/prometheus/recording_rules.yml`
 
@@ -411,4 +411,4 @@ docker compose restart grafana
 **Version** : 4.1
 **Date** : 2026-04-20
 **Auteur** : Equipe LIA
-**Statut** : Production (20 dashboards, 354+ panels)
+**Statut** : Production (22 dashboards, 354+ panels)

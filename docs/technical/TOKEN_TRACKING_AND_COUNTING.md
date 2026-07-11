@@ -1768,7 +1768,7 @@ async def generate_user_token_report(db: AsyncSession, user_id: UUID):
 
 ### Tests Unitaires - TokenExtractor
 
-**Fichier** : `apps/api/tests/infrastructure/observability/test_token_extractor.py`
+**Fichier** : `apps/api/tests/infrastructure/observability/test_token_extractor.py` (non trouvé dans codebase, à créer)
 
 ```python
 import pytest
@@ -1855,7 +1855,7 @@ class TestTokenExtractor:
 
 ### Tests Unitaires - Token Counting
 
-**Fichier** : `apps/api/tests/agents/test_token_utils.py`
+**Fichier** : `apps/api/tests/unit/domains/agents/utils/test_token_utils.py`
 
 ```python
 import pytest
@@ -2253,7 +2253,7 @@ pricing = result.scalar_one_or_none()
 
 if not pricing:
     print(f"❌ No pricing found for model: {normalized}")
-    print("Run: python scripts/check_pricing.py")
+    print("Run: python apps/api/scripts/check_pricing.py")
 else:
     print(f"""
     ✅ Pricing found:
@@ -2296,7 +2296,7 @@ curl -s http://localhost:9090/api/v1/query --data-urlencode 'query=rate(llm_cach
 curl -s http://localhost:9090/api/v1/query --data-urlencode 'query=sum(llm_tokens_consumed_total{token_type="prompt_tokens"})'
 
 # 3. Comparer avec Langfuse via script
-python scripts/validate_langfuse_integration.py
+python scripts/monitoring/validate_langfuse_integration.py
 ```
 
 **Résultat attendu** :
@@ -2421,7 +2421,7 @@ async def recalculate_user_statistics(db: AsyncSession, user_id: UUID):
 
 **Scripts** :
 - `apps/api/scripts/check_pricing.py` : Vérifier tarifs en DB
-- `apps/api/scripts/diagnose_tokens.py` : Diagnostiquer discrepancies
+- `apps/api/scripts/debug/diagnose_tokens.py` : Diagnostiquer discrepancies
 - `apps/api/scripts/validate_token_alignment.py` : Valider alignement Langfuse/Prometheus/PostgreSQL
 
 ### Références Externes

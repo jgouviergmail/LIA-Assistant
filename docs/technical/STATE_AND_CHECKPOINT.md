@@ -78,7 +78,7 @@ graph TB
 
 ### Schéma TypedDict
 
-**Fichier source**: [apps/api/src/domains/agents/models.py:130-195](apps/api/src/domains/agents/models.py#L130-L195)
+**Fichier source**: [apps/api/src/domains/agents/models.py:130-195](../../apps/api/src/domains/agents/models.py#L130-L195)
 
 ```python
 from typing import Annotated, Any
@@ -756,7 +756,7 @@ new_state["field"] = merged_value
 
 #### 1. **add_messages_with_truncate** (messages)
 
-**Fichier source**: [apps/api/src/domains/agents/models.py:22-128](apps/api/src/domains/agents/models.py#L22-L128)
+**Fichier source**: [apps/api/src/domains/agents/models.py:22-128](../../apps/api/src/domains/agents/models.py#L22-L128)
 
 **Signature**:
 ```python
@@ -1337,7 +1337,7 @@ result = await graph.ainvoke(
 
 ### Migration Functions
 
-**Fichier source**: [apps/api/src/domains/agents/models.py:416-506](apps/api/src/domains/agents/models.py#L416-L506)
+**Fichier source**: [apps/api/src/domains/agents/models.py:416-506](../../apps/api/src/domains/agents/models.py#L416-L506)
 
 #### **get_state_schema_version**
 
@@ -1420,7 +1420,7 @@ graph runs; fresh conversations are created directly at
 
 ### validate_state_consistency
 
-**Fichier source**: [apps/api/src/domains/agents/models.py:298-414](apps/api/src/domains/agents/models.py#L298-L414)
+**Fichier source**: [apps/api/src/domains/agents/models.py:298-414](../../apps/api/src/domains/agents/models.py#L298-L414)
 
 **Objectif**: Détecter corruption de state précoce
 
@@ -1773,8 +1773,8 @@ for msg in state["messages"]:
 
 - [LangGraph Documentation - State](https://langchain-ai.github.io/langgraph/concepts/state/)
 - [PostgresSaver API](https://langchain-ai.github.io/langgraph/reference/checkpoints/#langgraph.checkpoint.postgres.PostgresSaver)
-- [Code Source - models.py](apps/api/src/domains/agents/models.py)
-- [Code Source - graph.py](apps/api/src/domains/agents/graph.py)
+- [Code Source - models.py](../../apps/api/src/domains/agents/models.py)
+- [Code Source - graph.py](../../apps/api/src/domains/agents/graph.py)
 
 ### Exemples Complets
 

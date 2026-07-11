@@ -501,7 +501,7 @@ class BaseGoogleClient:
 ### Dependency Injection (FastAPI)
 
 ```python
-# src/api/v1/dependencies.py
+# src/core/dependencies.py
 from fastapi import Depends
 from redis.asyncio import Redis
 from src.infrastructure.rate_limiting.redis_limiter import RedisRateLimiter

@@ -305,16 +305,16 @@ These metrics need to be instrumented in Phase 3.1.6.3:
 ```python
 # Phase 3.1.2 - Prompt Versioning
 langfuse_prompt_version_usage{prompt_id, version}  # Counter
-# Increment in: src/domains/agents/prompts/registry.py::get_prompt()
+# Définie dans: src/infrastructure/observability/metrics_langfuse.py
 
 # Phase 3.1.3 - Evaluation Scores
 langfuse_evaluation_score{metric_name}  # Histogram
 langfuse_evaluation_score_bucket{metric_name, score_bucket, le}  # Histogram buckets
-# Collect in: src/domains/agents/evaluation/pipeline.py::evaluate()
+# Collect in: src/infrastructure/llm/evaluation_pipeline.py::evaluate()
 
 # Phase 3.1.4 - A/B Testing
 langfuse_ab_test_variant{experiment, variant}  # Counter
-# Increment in: src/domains/agents/ab_testing/variant_manager.py::assign_variant()
+# Définie dans: src/infrastructure/observability/metrics_langfuse.py
 
 # Phase 3.1.5.1 - Subgraph Tracing
 langfuse_trace_depth{depth_level}  # Histogram
@@ -345,7 +345,7 @@ langfuse_handoff_duration_seconds{source_agent, target_agent}  # Histogram
 # 4. Click "Import"
 
 # Option B: Provisioning (automated)
-cp infrastructure/observability/grafana/dashboards/14-langfuse-llm-observability.json \
+cp infrastructure/observability/grafana/dashboards/05-llm-tokens-cost.json \   # (dashboard Langfuse dédié retiré)
    /etc/grafana/provisioning/dashboards/
 ```
 
@@ -539,14 +539,14 @@ llm_call_duration = Histogram(
 ## 📚 References
 
 ### Related Documentation
-- [Session 10 - Phase 3.1.6 Complete](../../../docs/optim_monitoring/SESSION_10_PHASE_3_1_6_COMPLETE.md)
-- [Dashboard Design Document](../../../docs/optim_monitoring/SESSION_10_PHASE_3_1_6_DASHBOARD_DESIGN.md)
-- [Phase 3.1.2 - Prompt Versioning](../../../docs/optim_monitoring/SESSION_10_PHASE_3_1_2_COMPLETE.md)
-- [Phase 3.1.3 - Evaluation Scores](../../../docs/optim_monitoring/SESSION_10_PHASE_3_1_3_COMPLETE.md)
-- [Phase 3.1.4 - A/B Testing](../../../docs/optim_monitoring/SESSION_10_PHASE_3_1_4_COMPLETE.md)
-- [Phase 3.1.5.1 - Subgraph Tracing](../../../docs/optim_monitoring/SESSION_10_PHASE_3_1_5_1_COMPLETE.md)
-- [Phase 3.1.5.2 - Tool Call Tracing](../../../docs/optim_monitoring/SESSION_10_PHASE_3_1_5_2_COMPLETE.md)
-- [Phase 3.1.5.3 - Multi-Agent Tracing](../../../docs/optim_monitoring/SESSION_10_PHASE_3_1_5_3_COMPLETE.md)
+- Session 10 - Phase 3.1.6 Complete
+- Dashboard Design Document
+- Phase 3.1.2 - Prompt Versioning
+- Phase 3.1.3 - Evaluation Scores
+- Phase 3.1.4 - A/B Testing
+- Phase 3.1.5.1 - Subgraph Tracing
+- Phase 3.1.5.2 - Tool Call Tracing
+- Phase 3.1.5.3 - Multi-Agent Tracing
 
 ### External Resources
 - [Grafana Dashboard Best Practices](https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/best-practices/)

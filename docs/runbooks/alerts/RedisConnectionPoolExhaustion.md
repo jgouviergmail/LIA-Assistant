@@ -360,7 +360,7 @@ async def check_rate_limit(user_id: str):
     return result
 
 # AFTER (use singleton pool):
-# infrastructure/redis.py
+# src/infrastructure/cache/redis.py
 _redis_pool = None
 
 async def get_redis_pool():
@@ -415,7 +415,7 @@ watch -n 10 'curl -s "http://localhost:9090/api/v1/query?query=redis_connection_
 
 **Fix 2: Implement connection pool monitoring and auto-recovery**
 
-**File**: `apps/api/src/infrastructure/redis/pool_monitor.py` (create new)
+**File**: `apps/api/src/infrastructure/cache/redis.py` (create new)
 ```python
 import asyncio
 import logging
@@ -497,7 +497,7 @@ REDIS_SOCKET_KEEPALIVE_OPTIONS={
 }
 ```
 
-**File**: `apps/api/src/infrastructure/redis.py`
+**File**: `apps/api/src/infrastructure/cache/redis.py`
 ```python
 import aioredis
 from src.core.config import settings
@@ -554,7 +554,7 @@ histogram_quantile(0.95, redis_connection_acquire_duration_seconds_bucket)
 ## 📚 Related Runbooks
 
 - **[RedisDown.md](./RedisDown.md)** - Redis server unavailability
-- **[HighLatencyP95.md](./HighLatencyP95.md)** - Connection pool exhaustion causes latency
+- **HighLatencyP95.md** - Connection pool exhaustion causes latency
 - **[HighErrorRate.md](./HighErrorRate.md)** - Connection failures cause error rate spike
 
 ---

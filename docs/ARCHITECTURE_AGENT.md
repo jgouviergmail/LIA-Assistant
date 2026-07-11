@@ -1,7 +1,7 @@
 # Architecture des Agents - Guide d'Intégration
 
-> **Version**: 1.3.1 (INTELLIPLANNER + Architecture v3.5 + Sub-Agents + Browser Control + Journals + Philips Hue)
-> **Dernière mise à jour**: 2026-03-21
+> **Version**: 1.3.2 (v1.3.1 + revue de cohérence 2026-07-11 : chemins/prompts réalignés, sections few-shot marquées historiques)
+> **Dernière mise à jour**: 2026-07-11 (base 2026-03-21)
 > **Auteur**: Documentation générée à partir de l'implémentation réelle
 
 Ce document est le guide de référence exhaustif pour l'ajout d'un nouveau connecteur, d'un nouvel agent ou d'un nouveau tool dans LIA. Il est basé sur l'architecture réelle du système et les patterns établis.
@@ -1755,7 +1755,7 @@ apps/api/src/domains/agents/prompts/
 ├── v1/                           # Version courante des prompts
 │   ├── router_system_prompt.txt
 │   ├── router_system_prompt_template.txt
-│   ├── planner_system_prompt.txt
+│   ├── smart_planner_prompt.txt
 │   ├── response_system_prompt_base.txt
 │   ├── hitl_classifier_prompt.txt
 │   ├── hitl_question_generator_prompt.txt
@@ -1807,6 +1807,12 @@ versions = get_available_versions()     # ["v1"]  # Dossier unique consolidé
 - Fallback automatique si fichier manquant
 
 ### 12.3 Few-Shot Dynamique
+
+> ⚠️ **Sections 12.3–12.4 historiques (2026-07-11)** : `load_fewshot_examples` et le
+> répertoire `prompts/v1/fewshot/` **n'existent plus**. Les exemples few-shot vivent
+> désormais directement dans les fichiers de prompts versionnés (`prompts/v1/*.txt`,
+> ex. `hitl_classifier_examples.txt` découpé par action-type). Voir
+> [PROMPTS.md](technical/PROMPTS.md).
 
 Le système charge **uniquement** les exemples few-shot pertinents pour réduire la taille des prompts de ~80%.
 

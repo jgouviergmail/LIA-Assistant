@@ -16,7 +16,7 @@ graph TB
     end
 
     subgraph Core["Core Components"]
-        LLMFactory["LLM Factory<br/>37 Types · 6 Providers"]
+        LLMFactory["LLM Factory<br/>54 Types · 9 Providers"]
         LLMConfigCache["LLMConfigOverrideCache<br/>DB Override + Fernet Keys"]
         RedisCache["Redis Cache<br/>Beta Distribution"]
         ToolRegistry["Tool Registry<br/>ToolManifest"]
@@ -50,9 +50,8 @@ graph TB
     SmartCatalogueSvc --> ToolRegistry
     Orchestrator --> ProviderResolver
 
-    Orchestrator --> SubAgentExec["SubAgentExecutor<br/>Ephemeral Delegation"]
+    Orchestrator --> SubAgentExec["delegate_to_sub_agent_tool<br/>One-shot expert LLM call (ADR-083)<br/>persona + expertise + inlined data"]
     SubAgentExec --> LLMFactory
-    SubAgentExec --> SmartPlannerSvc
 
     Response -->|"Knowledge Enrichment"| LLMFactory
 

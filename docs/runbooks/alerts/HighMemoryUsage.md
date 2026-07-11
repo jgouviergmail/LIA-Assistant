@@ -599,7 +599,7 @@ echo "Before: $BEFORE, After: $AFTER"
 
 **Fix 1: Implement checkpoint pruning (if checkpoint bloat identified)**
 
-**File**: `apps/api/src/domains/conversations/services/checkpoint_service.py`
+**File**: `apps/api/src/domains/conversations/checkpointer.py`
 ```python
 from datetime import UTC, datetime, timedelta
 import logging
@@ -669,7 +669,7 @@ class CheckpointService:
         return trimmed_count
 ```
 
-**File**: `apps/api/src/infrastructure/scheduler.py` (add scheduled job)
+**File**: `apps/api/src/infrastructure/scheduler/` (add scheduled job)
 ```python
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from src.domains.conversations.services.checkpoint_service import CheckpointService
@@ -876,7 +876,7 @@ watch -n 30 'docker-compose exec redis redis-cli INFO stats | grep evicted_keys'
 
 **Fix 4: Implement proper connection pool management**
 
-**File**: `apps/api/src/infrastructure/database.py`
+**File**: `apps/api/src/infrastructure/database/session.py`
 ```python
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
@@ -922,7 +922,7 @@ async def get_db():
 
 **Add monitoring metric**:
 ```python
-# apps/api/src/infrastructure/observability/metrics_db.py
+# apps/api/src/infrastructure/observability/metrics_database.py
 from prometheus_client import Gauge
 
 db_connection_pool_size = Gauge(
@@ -1336,10 +1336,10 @@ Request:
 ## 🔗 Additional Resources
 
 ### Internal Documentation
-- [Infrastructure Architecture](../../architecture/infrastructure.md)
-- [Memory Management Best Practices](../../performance/memory.md)
-- [Checkpoint Architecture](../../architecture/checkpoints.md)
-- [Database Connection Pooling](../../database/connection_pooling.md)
+- Infrastructure Architecture
+- Memory Management Best Practices
+- Checkpoint Architecture
+- Database Connection Pooling
 
 ### External Resources
 - [Understanding Linux Memory](https://www.kernel.org/doc/html/latest/admin-guide/mm/concepts.html)

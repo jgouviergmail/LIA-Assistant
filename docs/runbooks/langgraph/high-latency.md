@@ -133,8 +133,8 @@ docker-compose restart api
 
 ## 📚 Related Runbooks
 
-- [subgraph-high-latency.md](./subgraph-high-latency.md) - Si SubGraphs lents
-- [performance-degraded.md](./performance-degraded.md) - Alert composite
+- subgraph-high-latency.md - Si SubGraphs lents
+- performance-degraded.md - Alert composite
 
 ---
 

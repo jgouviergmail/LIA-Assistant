@@ -79,6 +79,15 @@ ReAct** (`react_execute_tools_node` → `tool_confirmation`).
 
 ## 🏗️ Architecture 6 Couches
 
+> ⚠️ **Note de lecture (2026-07-11)** : ce schéma en couches est **partiellement
+> historique**. Les couches 3–4 (Approval Strategies, Approval Evaluator) et 6
+> (HITL Orchestrator) ont été **supprimées en v1.21.16** (voir les sections
+> « removed » plus bas), et la couche 5 (`approval_gate_node`) est aujourd'hui un
+> **pass-through auto-approve** — la confirmation est entièrement output-driven /
+> tool-level. Le contrat normatif actuel est la section
+> [« Contrat HITL unifié (ADR-106) »](#contrat-hitl-unifié-adr-106) ci-dessus et le
+> schéma [hitl-flow.mmd](../architecture/hitl-flow.mmd).
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ Layer 1: QUESTION GENERATION                                 │
@@ -766,8 +775,7 @@ hitl_edit_actions_total = Counter(...)
 - `apps/api/src/domains/agents/services/hitl/` (interactions, registry, resumption)
 
 ### Phase 8 Documents
-- `apps/api/docs/PHASE_8_COMPLETE_SUMMARY.md` - Résumé complet Phase 8
-- `apps/api/docs/HITL_PLAN_LEVEL_ARCHITECTURE.md` - Architecture détaillée
+- Documents Phase 8 historiques supprimés du repo — voir [ADR-008 dans ADR_INDEX.md](../architecture/ADR_INDEX.md#adr-008-hitl-plan-level-approval-phase-8)
 
 ---
 

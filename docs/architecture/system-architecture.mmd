@@ -1,22 +1,22 @@
 graph TB
     subgraph Frontend["Frontend Layer"]
-        WebApp["Next.js 16 + React 19<br/>TypeScript 5 + Tailwind 4"]
+        WebApp["Next.js 16 + React 19<br/>TypeScript 6 + Tailwind 4"]
         PWA["PWA + FCM Push"]
         I18n["i18n: 6 Languages"]
     end
 
     subgraph API["API Layer"]
-        FastAPI["FastAPI 0.128<br/>Python 3.12+"]
+        FastAPI["FastAPI 0.136<br/>Python 3.12+"]
         BFF["BFF Session Auth<br/>HTTP-only Cookies"]
-        SSE["SSE Streaming"]
+        SSE["SSE Streaming<br/>+ Background Runs (Redis Streams)"]
         WebSocket["WebSocket STT"]
     end
 
     subgraph AI["AI / ML Layer"]
-        LangGraph["LangGraph 1.1.6<br/>Agent Orchestration"]
-        LLMProviders["7 LLM Providers<br/>OpenAI, Anthropic, Gemini<br/>DeepSeek, Perplexity, Qwen, Ollama"]
-        Embeddings["OpenAI text-embedding-3-small<br/>Embeddings"]
-        Voice["Voice: Sherpa-onnx STT<br/>+ Edge/OpenAI/Gemini TTS"]
+        LangGraph["LangGraph 1.2<br/>Agent Orchestration"]
+        LLMProviders["LLM Providers (catalogue-driven)<br/>OpenAI, Anthropic, Gemini, DeepSeek<br/>Perplexity, Qwen, Ollama, ElevenLabs, Edge"]
+        Embeddings["Gemini gemini-embedding-001<br/>Embeddings (1536 dims, ADR-069)"]
+        Voice["Voice: Sherpa-onnx STT (local)<br/>+ ElevenLabs Scribe STT (remote, opt-in)<br/>+ Edge/OpenAI/ElevenLabs TTS (ADR-081)"]
     end
 
     subgraph Orchestration["Orchestration Layer"]
@@ -26,12 +26,12 @@ graph TB
         ParallelExecutor["ParallelExecutor"]
         HITL["HITL — 6 Types"]
         Skills["Skills System"]
-        SubAgents["Sub-Agent Executor<br/>Ephemeral Delegation"]
+        SubAgents["Sub-Agent Delegation<br/>One-shot expert LLM call (ADR-083)"]
     end
 
     subgraph Data["Data Layer"]
         PostgreSQL[("PostgreSQL 16<br/>+ pgvector")]
-        Redis[("Redis 7<br/>Sessions + Cache<br/>+ Patterns")]
+        Redis[("Redis 7.4<br/>Sessions + Cache + Patterns<br/>+ Streams (background runs)")]
     end
 
     subgraph Connectors["Connectors & Channels"]
@@ -56,14 +56,14 @@ graph TB
         Loki["Loki"] --> Grafana
         Tempo["Tempo"] --> Grafana
         OpenTelemetry["OpenTelemetry"]
-        Langfuse["Langfuse 3.x"]
+        Langfuse["Langfuse 4.x"]
         GeoIP["GeoIP DB-IP"]
     end
 
     subgraph Deploy["Deployment"]
         Docker["Docker Compose<br/>amd64 + arm64"]
         RaspberryPi["Raspberry Pi 5"]
-        Nginx["Nginx + SSL"]
+        Cloudflared["Cloudflare Tunnel<br/>single public entry (ADR-093)<br/>ports loopback-bound"]
         SOPS["SOPS + Age"]
     end
 
@@ -121,9 +121,9 @@ graph TB
     %% Deployment
     RaspberryPi --> Docker
     SOPS --> Docker
-    Docker --> Nginx
-    Nginx --> Frontend
-    Nginx --> FastAPI
+    Docker --> Cloudflared
+    Cloudflared --> Frontend
+    Cloudflared --> FastAPI
 
     style FastAPI fill:#e1f5ff
     style LangGraph fill:#fff4e1

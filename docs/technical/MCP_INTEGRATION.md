@@ -944,7 +944,7 @@ Runtime (tool with UI):
 | `McpAppWidget` | `apps/web/src/components/chat/` | React component rendering sandboxed iframe |
 | Widget airlock shell | `apps/web/public/widget-frame.html` | Same-origin document with its own permissive CSP hosting the widget HTML (ADR-098) |
 | JSON-RPC bridge | `McpAppWidget` | `postMessage` bridge between iframe and host |
-| Proxy endpoints | `domains/user_mcp/router.py` / `infrastructure/mcp/admin_router.py` | HTTP proxy for iframe-initiated MCP calls |
+| Proxy endpoints | `domains/user_mcp/router.py` / `domains/user_mcp/admin_router.py` | HTTP proxy for iframe-initiated MCP calls |
 
 **Widget rendering — the CSP airlock (ADR-098)**: the iframe does NOT use
 `srcDoc` (a `srcDoc` document inherits the strict app CSP, which blocks the
