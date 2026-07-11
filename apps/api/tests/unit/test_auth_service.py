@@ -1088,7 +1088,7 @@ class TestEdgeCases:
         mock_repository.get_by_email.return_value = None
 
         # Create user directly to avoid factory defaults
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         new_user = User(
             email=register_data.email,

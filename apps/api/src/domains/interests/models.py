@@ -19,7 +19,7 @@ from src.infrastructure.database.models import BaseModel, UUIDMixin
 from src.infrastructure.database.session import Base
 
 if TYPE_CHECKING:
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
 
 
 class InterestStatus(str, Enum):

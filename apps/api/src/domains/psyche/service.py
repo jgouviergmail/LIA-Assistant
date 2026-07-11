@@ -864,8 +864,8 @@ class PsycheService:
         Returns:
             Personality title string, or 'Default' if none set.
         """
-        from src.domains.auth.models import User
         from src.domains.personalities.models import Personality
+        from src.domains.users.models import User
 
         result = await self.db.execute(
             select(Personality.code)
@@ -905,7 +905,7 @@ class PsycheService:
         personality_name = await self._load_personality_name(user_id)
 
         # Load user language
-        from src.domains.auth.models import User as UserModel
+        from src.domains.users.models import User as UserModel
 
         user_result = await self.db.execute(
             select(UserModel.language).where(UserModel.id == user_id)
@@ -1125,8 +1125,8 @@ class PsycheService:
         Returns:
             Tuple of (PersonalityTraits, PADOverride or None).
         """
-        from src.domains.auth.models import User
         from src.domains.personalities.models import Personality
+        from src.domains.users.models import User
 
         result = await self.db.execute(
             select(Personality)
@@ -1171,7 +1171,7 @@ class PsycheService:
         Returns:
             Tuple of (sensitivity, stability) integers [0, 100].
         """
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         result = await self.db.execute(
             select(User.psyche_sensitivity, User.psyche_stability).where(User.id == user_id)
@@ -1358,7 +1358,7 @@ async def build_psyche_prompt_block(
 
         async with get_db_context() as db:
             # Check user preferences
-            from src.domains.auth.models import User
+            from src.domains.users.models import User
 
             result = await db.execute(
                 select(User.psyche_enabled, User.timezone).where(User.id == uid)

@@ -21,9 +21,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.repository import BaseRepository
-from src.domains.auth.models import User
 from src.domains.chat.models import UserStatistics
 from src.domains.usage_limits.models import UserUsageLimit
+from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 

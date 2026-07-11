@@ -62,9 +62,9 @@ async def _generate_narratives() -> dict[str, Any]:
     try:
         from sqlalchemy import select
 
-        from src.domains.auth.models import User
         from src.domains.psyche.models import PsycheState
         from src.domains.psyche.service import PsycheService
+        from src.domains.users.models import User
         from src.infrastructure.database.session import get_db_context
 
         async with get_db_context() as db:

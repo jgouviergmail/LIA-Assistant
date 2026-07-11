@@ -33,9 +33,9 @@ from src.core.constants import (
     USAGE_LIMIT_WS_TICKET_TTL_SECONDS_DEFAULT,
 )
 from src.core.session_dependencies import get_current_superuser_session
-from src.domains.auth.models import User
 from src.domains.usage_limits.schemas import WebSocketTicketResponse
 from src.domains.usage_limits.ticket_store import AdminUsageLimitTicketStore
+from src.domains.users.models import User
 from src.infrastructure.cache.redis import get_redis_cache
 
 logger = structlog.get_logger(__name__)

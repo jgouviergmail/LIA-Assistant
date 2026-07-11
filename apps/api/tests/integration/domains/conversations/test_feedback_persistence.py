@@ -32,7 +32,7 @@ pytestmark = pytest.mark.integration
 @pytest.fixture
 async def two_users(async_session: AsyncSession):
     """Create two independent users (used for cross-tenant isolation checks)."""
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
 
     user_a = User(
         email="user_a@test.local",

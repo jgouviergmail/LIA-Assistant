@@ -33,7 +33,7 @@ from uuid import UUID
 from sqlalchemy import select
 
 from src.core.config import settings
-from src.domains.auth.models import User
+from src.domains.users.models import User
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_journals import (

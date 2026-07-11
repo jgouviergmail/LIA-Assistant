@@ -91,20 +91,11 @@ class AuthService:
         user = await self.repository.create(user_data)
         await self.db.commit()
 
-        # Provision skill states for new user (all admin-enabled system skills)
-        from src.domains.skills.preference_service import SkillPreferenceService
+        # Provision cross-domain defaults (skills, usage limits) — lifecycle
+        # cascade owned by the users domain (ADR-126)
+        from src.domains.users.account_provisioning_service import AccountProvisioningService
 
-        skill_svc = SkillPreferenceService(self.db)
-        await skill_svc.ensure_user_skills(user.id)
-        await self.db.commit()
-
-        # Create default usage limits for new user
-        if getattr(settings, "usage_limits_enabled", False):
-            from src.domains.usage_limits.service import UsageLimitService
-
-            limit_svc = UsageLimitService(self.db)
-            await limit_svc.create_default_limits(user.id)
-            await self.db.commit()
+        await AccountProvisioningService(self.db).provision_new_user(user.id, commit_per_step=True)
 
         # Send verification email
         # Note: Admin notification is sent AFTER email verification (in verify_email method)
@@ -583,18 +574,12 @@ class AuthService:
         }
         user = await self.repository.create(user_data)
 
-        # Provision skill states for new user (all admin-enabled system skills)
-        from src.domains.skills.preference_service import SkillPreferenceService
+        # Provision cross-domain defaults (skills, usage limits) — lifecycle
+        # cascade owned by the users domain (ADR-126). No commit here: the
+        # OAuth callback commits once at the end.
+        from src.domains.users.account_provisioning_service import AccountProvisioningService
 
-        skill_svc = SkillPreferenceService(self.db)
-        await skill_svc.ensure_user_skills(user.id)
-
-        # Create default usage limits for new OAuth user
-        if getattr(settings, "usage_limits_enabled", False):
-            from src.domains.usage_limits.service import UsageLimitService
-
-            limit_svc = UsageLimitService(self.db)
-            await limit_svc.create_default_limits(user.id)
+        await AccountProvisioningService(self.db).provision_new_user(user.id, commit_per_step=False)
 
         # Track new user creation via OAuth
         oauth_user_creation_total.labels(provider="google").inc()

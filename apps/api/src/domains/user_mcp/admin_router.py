@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_admin_mcp_server_not_found
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.user_mcp.schemas import (
     AdminMCPServerResponse,
     AdminMCPToggleResponse,
@@ -27,6 +26,7 @@ from src.domains.user_mcp.schemas import (
     McpAppReadResourceRequest,
     McpAppReadResourceResponse,
 )
+from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 

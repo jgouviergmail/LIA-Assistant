@@ -433,7 +433,7 @@ class PersonalityService:
         Returns:
             Prompt instruction text (default if user has no preference)
         """
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         # Query user to get their personality_id
         result = await self.db.execute(select(User.personality_id).where(User.id == user_id))

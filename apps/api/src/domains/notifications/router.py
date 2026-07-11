@@ -22,7 +22,6 @@ from src.core.exceptions import (
     raise_test_endpoint_disabled,
 )
 from src.core.session_dependencies import get_current_active_session, get_current_superuser_session
-from src.domains.auth.models import User
 from src.domains.notifications.broadcast_service import BroadcastService
 from src.domains.notifications.schemas import (
     BroadcastMessageRequest,
@@ -36,6 +35,7 @@ from src.domains.notifications.schemas import (
     UserTokensResponse,
 )
 from src.domains.notifications.service import FCMNotificationService
+from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
 
 logger = structlog.get_logger(__name__)

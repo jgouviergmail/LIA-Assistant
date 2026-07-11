@@ -27,7 +27,6 @@ from src.core.field_names import (
     FIELD_TOTAL_TOKENS_IN,
     FIELD_TOTAL_TOKENS_OUT,
 )
-from src.domains.auth.models import User
 from src.domains.chat.models import MessageTokenSummary
 from src.domains.conversations.models import (
     Conversation,
@@ -35,6 +34,7 @@ from src.domains.conversations.models import (
     ConversationMessage,
 )
 from src.domains.conversations.service import ConversationService
+from src.domains.users.models import User
 
 # Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
 # Run manually with: pytest tests/integration/test_conversations_service.py -v

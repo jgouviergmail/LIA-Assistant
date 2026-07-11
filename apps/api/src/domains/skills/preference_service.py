@@ -230,8 +230,8 @@ class SkillPreferenceService:
         """
         from sqlalchemy import select as sa_select
 
-        from src.domains.auth.models import User
         from src.domains.skills.cache import SkillsCache
+        from src.domains.users.models import User
 
         result = SyncResult()
         cache_skills = SkillsCache.get_all()

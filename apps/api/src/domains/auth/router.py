@@ -30,7 +30,6 @@ from src.domains.auth.dependencies import (
     rate_limit_password_reset_request,
     rate_limit_register,
 )
-from src.domains.auth.models import User
 from src.domains.auth.schemas import (
     AuthResponseBFF,
     DebugPanelPreferenceRequest,
@@ -65,7 +64,8 @@ from src.domains.auth.schemas import (
     WeatherLocationPreferenceResponse,
 )
 from src.domains.auth.service import AuthService
-from src.domains.auth.user_location_service import UserLocationService
+from src.domains.users.models import User
+from src.domains.users.user_location_service import UserLocationService
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
 from src.infrastructure.observability.metrics import (
@@ -726,13 +726,13 @@ async def update_voice_preference(
 def _stt_remote_available() -> bool:
     """True iff an ElevenLabs API key is registered.
 
-    Read from the in-memory ``LLMConfigOverrideCache`` (no DB round-trip),
+    Read from the in-memory LLM config override cache (no DB round-trip),
     so the response can be flipped instantly after the admin saves the key.
     """
     from src.core.constants import ELEVENLABS_PROVIDER_NAME
-    from src.domains.llm_config.cache import LLMConfigOverrideCache
+    from src.core.llm_config_helper import get_provider_api_key
 
-    return bool(LLMConfigOverrideCache.get_api_key(ELEVENLABS_PROVIDER_NAME))
+    return bool(get_provider_api_key(ELEVENLABS_PROVIDER_NAME))
 
 
 @router.get(

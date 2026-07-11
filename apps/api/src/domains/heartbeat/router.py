@@ -23,7 +23,6 @@ from src.core.exceptions import (
 from src.core.i18n import normalize_language
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
 from src.domains.connectors.repository import ConnectorRepository
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
@@ -34,6 +33,7 @@ from src.domains.heartbeat.schemas import (
     HeartbeatSettingsResponse,
     HeartbeatSettingsUpdate,
 )
+from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)

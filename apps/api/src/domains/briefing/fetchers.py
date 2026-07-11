@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -31,11 +31,6 @@ from src.core.constants import (
     HEALTH_METRICS_USER_TOGGLE_ATTR,
 )
 from src.core.exceptions import MaxRetriesExceededError
-from src.domains.auth.models import User
-from src.domains.auth.user_location_service import (
-    NoLocationAvailableError,
-    UserLocationService,
-)
 from src.domains.briefing.constants import (
     BRIEFING_BIRTHDAY_PAGE_SIZE,
     BRIEFING_BIRTHDAY_PAGINATION_MAX_PAGES,
@@ -75,7 +70,14 @@ from src.domains.connectors.service import ConnectorService
 from src.domains.health_metrics.service import HealthMetricsService
 from src.domains.heartbeat.geocoding import resolve_city_name
 from src.domains.reminders.service import ReminderService
+from src.domains.users.user_location_service import (
+    NoLocationAvailableError,
+    UserLocationService,
+)
 from src.infrastructure.database.session import get_db_context
+
+if TYPE_CHECKING:
+    from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 

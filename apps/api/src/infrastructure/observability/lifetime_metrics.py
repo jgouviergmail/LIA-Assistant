@@ -60,9 +60,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.field_names import FIELD_NODE_NAME
-from src.domains.auth.models import User
 from src.domains.chat.models import TokenUsageLog
 from src.domains.conversations.models import Conversation, ConversationMessage
+from src.domains.users.models import User
 from src.infrastructure.database import get_db_context
 
 logger = structlog.get_logger(__name__)

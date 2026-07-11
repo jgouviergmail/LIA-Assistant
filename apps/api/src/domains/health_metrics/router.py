@@ -28,7 +28,6 @@ from src.core.constants import HEALTH_METRICS_KINDS
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.health_metrics.schemas import (
     HealthMetricAggregateResponse,
     HealthMetricDeleteResponse,
@@ -39,6 +38,7 @@ from src.domains.health_metrics.schemas import (
     HealthSampleRow,
 )
 from src.domains.health_metrics.service import HealthMetricsService
+from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)

@@ -146,7 +146,7 @@ async def _persist_compiled_portrait(
     try:
         from sqlalchemy import select
 
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
         from src.infrastructure.database import get_db_context
 
         async with get_db_context() as db:
@@ -638,7 +638,7 @@ async def consolidate_journals_for_user(
         async with get_db_context() as db:
             from sqlalchemy import select
 
-            from src.domains.auth.models import User
+            from src.domains.users.models import User
 
             user_result = await db.execute(select(User).where(User.id == user_id))
             user = user_result.scalar_one_or_none()

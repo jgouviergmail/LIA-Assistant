@@ -16,7 +16,6 @@ from src.core.session_dependencies import (
     get_current_active_session,
     get_current_superuser_session,
 )
-from src.domains.auth.models import User
 from src.domains.personalities.schemas import (
     PersonalityCreate,
     PersonalityListResponse,
@@ -28,6 +27,7 @@ from src.domains.personalities.schemas import (
     UserPersonalityUpdate,
 )
 from src.domains.personalities.service import PersonalityService
+from src.domains.users.models import User
 from src.domains.users.service import UserService
 
 logger = structlog.get_logger(__name__)

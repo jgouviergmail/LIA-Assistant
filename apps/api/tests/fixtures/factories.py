@@ -8,8 +8,8 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from src.core.security import encrypt_data, get_password_hash
-from src.domains.auth.models import User
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
+from src.domains.users.models import User
 
 
 class UserFactory:

@@ -18,7 +18,6 @@ run in parallel (SQLAlchemy AsyncSession is not concurrent-safe).
 from fastapi import APIRouter, Depends
 
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.briefing.schemas import (
     BriefingResponse,
     CardsResponse,
@@ -26,6 +25,7 @@ from src.domains.briefing.schemas import (
     SynthesisResponse,
 )
 from src.domains.briefing.service import BriefingService
+from src.domains.users.models import User
 
 router = APIRouter(prefix="/briefing", tags=["briefing"])
 

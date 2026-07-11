@@ -37,6 +37,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol, runtime_checkable
 
+from src.core.geo_utils import haversine_distance as _haversine_distance
 from src.domains.agents.utils.i18n_location import get_distance_reference
 
 
@@ -119,39 +120,6 @@ class DistanceCalculator(Protocol):
 # =============================================================================
 # HAVERSINE CALCULATOR (Default/Fallback)
 # =============================================================================
-
-# Earth's radius in kilometers (mean radius)
-EARTH_RADIUS_KM = 6371.0
-
-
-def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """
-    Calculate straight-line distance using the Haversine formula.
-
-    This gives the shortest distance over the earth's surface
-    (great-circle distance).
-
-    Args:
-        lat1, lon1: First point coordinates (degrees)
-        lat2, lon2: Second point coordinates (degrees)
-
-    Returns:
-        Distance in kilometers
-    """
-    # Convert to radians
-    lat1_rad = math.radians(lat1)
-    lat2_rad = math.radians(lat2)
-    delta_lat = math.radians(lat2 - lat1)
-    delta_lon = math.radians(lon2 - lon1)
-
-    # Haversine formula
-    a = (
-        math.sin(delta_lat / 2) ** 2
-        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
-    )
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-    return EARTH_RADIUS_KM * c
 
 
 def _format_distance(distance_km: float) -> str:

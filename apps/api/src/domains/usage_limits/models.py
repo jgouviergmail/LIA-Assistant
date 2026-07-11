@@ -22,7 +22,7 @@ from src.core.constants import USAGE_LIMIT_BLOCKED_REASON_MAX_LENGTH
 from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
 
 
 class UserUsageLimit(BaseModel):

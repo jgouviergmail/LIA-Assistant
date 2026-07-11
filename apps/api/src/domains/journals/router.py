@@ -32,7 +32,6 @@ from src.core.constants import (
 from src.core.dependencies import get_db
 from src.core.exceptions import ResourceNotFoundError, ValidationError
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.journals.models import JournalEntry, JournalEntrySource, JournalTheme
 from src.domains.journals.schemas import (
     JournalConsolidationResponse,
@@ -49,6 +48,7 @@ from src.domains.journals.schemas import (
     ThemeCount,
 )
 from src.domains.journals.service import JournalService
+from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)

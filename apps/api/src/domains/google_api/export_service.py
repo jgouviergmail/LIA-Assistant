@@ -15,10 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import raise_invalid_input
 from src.core.export_utils import create_csv_response
-from src.domains.auth.models import User as UserModel
 from src.domains.chat.models import TokenUsageLog
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.google_api.models import GoogleApiUsageLog
+from src.domains.users.models import User as UserModel
 
 
 def _parse_date_range(

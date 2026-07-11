@@ -18,7 +18,7 @@ from src.core.session_dependencies import (
     get_current_superuser_session,
 )
 from src.core.validators import get_common_timezones
-from src.domains.auth.models import User
+from src.domains.users.models import User
 from src.domains.users.schemas import (
     AccountDeletionRequest,
     AccountDeletionResponse,

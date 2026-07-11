@@ -64,11 +64,11 @@ import src.domains.skills.models  # noqa: F401 — UserSkillState mapper registr
 from src.core.config import Settings
 from src.core.dependencies import get_db
 from src.domains.agents.context.registry import ContextTypeRegistry
-from src.domains.auth.models import User
 from src.domains.notifications.models import (
     UserFCMToken,  # noqa: F401 - Required for User relationship
 )
 from src.domains.reminders.models import Reminder  # noqa: F401 - Required for User relationship
+from src.domains.users.models import User
 from src.infrastructure.database.session import Base
 from src.main import app
 

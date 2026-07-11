@@ -25,7 +25,7 @@ from src.domains.journals.constants import JOURNAL_EMBEDDING_DIMENSIONS
 from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
 
 
 class JournalTheme(str, Enum):

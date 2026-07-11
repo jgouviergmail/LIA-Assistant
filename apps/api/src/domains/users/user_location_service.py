@@ -24,9 +24,9 @@ from src.core.config import settings
 from src.core.constants import (
     LAST_KNOWN_LOCATION_UPDATE_THROTTLE_MINUTES,
 )
+from src.core.geo_utils import haversine_distance
 from src.core.security.utils import decrypt_data, encrypt_data
-from src.domains.agents.utils.distance import _haversine_distance
-from src.domains.auth.models import User
+from src.domains.users.models import User
 from src.infrastructure.observability.metrics_heartbeat import (
     user_location_put_total,
 )
@@ -275,7 +275,7 @@ class UserLocationService:
         if last_known is None or last_known.stale:
             return EffectiveLocation(lat=home_lat, lon=home_lon, source="home")
 
-        distance_km = _haversine_distance(last_known.lat, last_known.lon, home_lat, home_lon)
+        distance_km = haversine_distance(last_known.lat, last_known.lon, home_lat, home_lon)
         if distance_km < settings.last_known_location_min_distance_km:
             logger.debug(
                 "proactive_location_home_preferred_close",

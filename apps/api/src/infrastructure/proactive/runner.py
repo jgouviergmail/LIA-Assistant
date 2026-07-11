@@ -266,7 +266,7 @@ class ProactiveTaskRunner:
         Returns:
             List of User model instances
         """
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         # Build query for active users
         # Task-specific filtering (e.g., interests_enabled) is handled by eligibility checker

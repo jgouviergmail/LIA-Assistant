@@ -26,7 +26,7 @@ from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.domains.attachments.schemas import AttachmentUploadResponse
 from src.domains.attachments.service import AttachmentService
-from src.domains.auth.models import User
+from src.domains.users.models import User
 
 router = APIRouter(prefix="/attachments", tags=["Attachments"])
 

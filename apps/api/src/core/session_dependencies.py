@@ -35,7 +35,7 @@ from src.core.exceptions import (
     raise_user_not_authenticated,
     raise_user_not_verified,
 )
-from src.domains.auth.models import User
+from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore

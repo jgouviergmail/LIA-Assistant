@@ -35,7 +35,6 @@ from src.core.exceptions import (
 from src.core.i18n import Language, _, get_language_from_header
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session, get_current_superuser_session
-from src.domains.auth.models import User
 from src.domains.connectors.error_handlers import handle_oauth_callback_error_redirect
 from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
 from src.domains.connectors.preferences.schemas import PreferencesRequest
@@ -70,6 +69,7 @@ from src.domains.connectors.schemas import (
     TaskListResponse,
 )
 from src.domains.connectors.service import ConnectorService
+from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 

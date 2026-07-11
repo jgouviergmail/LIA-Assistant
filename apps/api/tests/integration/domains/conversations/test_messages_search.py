@@ -23,7 +23,7 @@ pytestmark = pytest.mark.integration
 @pytest.fixture
 async def user_with_messages(async_session: AsyncSession):
     """Create a user + conversation + 5 messages with varied content."""
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
 
     user = User(
         email="search_user@test.local",

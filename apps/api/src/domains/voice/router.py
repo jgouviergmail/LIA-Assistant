@@ -35,11 +35,11 @@ from src.core.constants import (
     WS_CLOSE_CODE_STT_PROVIDER_ERROR,
 )
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.chat.service import StatisticsService
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.domains.usage_limits.service import UsageLimitService
+from src.domains.users.models import User
 from src.domains.voice.stt import (
     STTProviderError,
     SttServiceProtocol,

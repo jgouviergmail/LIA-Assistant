@@ -14,13 +14,12 @@ import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 import structlog
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.domains.auth.models import User
 from src.domains.briefing.constants import (
     BRIEFING_CACHE_PREFIX,
     BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA,
@@ -65,6 +64,9 @@ from src.infrastructure.observability.metrics_briefing import (
     briefing_refresh_requests_total,
     briefing_section_status_total,
 )
+
+if TYPE_CHECKING:
+    from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 

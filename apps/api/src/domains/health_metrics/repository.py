@@ -356,7 +356,7 @@ class HealthMetricTokenRepository(BaseRepository[HealthMetricToken]):
         Returns:
             Active HealthMetricToken of an active, non-deleted owner, or None.
         """
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         stmt = (
             select(HealthMetricToken)

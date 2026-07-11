@@ -26,7 +26,6 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.auth.models import User
 from src.domains.journals.models import (
     JournalEntry,
     JournalEntryConfidence,
@@ -35,6 +34,7 @@ from src.domains.journals.models import (
 )
 from src.domains.journals.portrait_builder import build_journal_user_model_block
 from src.domains.journals.service import JournalService
+from src.domains.users.models import User
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 

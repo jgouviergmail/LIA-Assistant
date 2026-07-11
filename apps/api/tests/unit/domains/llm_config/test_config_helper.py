@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.core.llm_agent_config import LLMAgentConfig
-from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.llm_config_helper import get_llm_config_for_agent, get_provider_api_key
 from src.core.reasoning_types import ReasoningEffortToggleBudget
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_DEFAULTS
@@ -190,3 +190,21 @@ class TestEffectiveConfigReasoningReconciliation:
 
         assert isinstance(config.reasoning_effort, ReasoningEffortToggleBudget)
         assert config.reasoning_effort.enabled is False
+
+
+class TestGetProviderApiKey:
+    """Tests for the core facade over the provider API-key cache (ADR-126)."""
+
+    def setup_method(self) -> None:
+        """Reset cache before each test."""
+        LLMConfigOverrideCache.reset()
+
+    def test_returns_key_when_registered(self) -> None:
+        """Should return the decrypted key stored in the cache."""
+        LLMConfigOverrideCache._provider_keys = {"elevenlabs": "sk-test-key"}
+
+        assert get_provider_api_key("elevenlabs") == "sk-test-key"
+
+    def test_returns_none_when_absent(self) -> None:
+        """Should return None for providers without a registered key."""
+        assert get_provider_api_key("elevenlabs") is None

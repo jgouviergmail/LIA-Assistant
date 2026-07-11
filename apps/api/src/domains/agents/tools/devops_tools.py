@@ -48,7 +48,7 @@ async def _check_user_is_admin(user_id: str) -> bool:
         from src.infrastructure.database.session import get_db_context
 
         async with get_db_context() as db:
-            from src.domains.auth.models import User
+            from src.domains.users.models import User
 
             result = await db.get(User, UUID(str(user_id)))
             if result is None:

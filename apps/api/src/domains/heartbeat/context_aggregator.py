@@ -610,7 +610,7 @@ class ContextAggregator:
             return None
 
         # Resolve effective location via the Phase 3 cascade
-        from src.domains.auth.user_location_service import (
+        from src.domains.users.user_location_service import (
             NoLocationAvailableError,
             UserLocationService,
         )

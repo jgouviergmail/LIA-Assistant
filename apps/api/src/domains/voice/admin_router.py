@@ -27,8 +27,8 @@ from src.core.exceptions import (
     raise_invalid_input,
 )
 from src.core.session_dependencies import get_current_superuser_session
-from src.domains.auth.models import User
 from src.domains.llm_config.cache import LLMConfigOverrideCache
+from src.domains.users.models import User
 from src.domains.voice.voices_catalog import (
     ElevenLabsVoicesError,
     VoiceOption,

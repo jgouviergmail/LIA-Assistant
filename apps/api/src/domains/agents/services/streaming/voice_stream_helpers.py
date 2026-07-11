@@ -21,7 +21,7 @@ from src.domains.agents.api.schemas import ChatStreamChunk
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
     from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
     from src.domains.voice.service import VoiceCommentService
 

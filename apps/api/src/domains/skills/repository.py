@@ -202,7 +202,7 @@ class UserSkillStateRepository:
         Used when admin imports a new system skill.
         Returns the number of rows created.
         """
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         # Get all user IDs that don't already have a state for this skill
         existing_users = select(UserSkillState.user_id).where(UserSkillState.skill_id == skill_id)

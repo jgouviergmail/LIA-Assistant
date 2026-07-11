@@ -5,7 +5,7 @@ Integration tests for users CRUD operations.
 import pytest
 from httpx import AsyncClient
 
-from src.domains.auth.models import User
+from src.domains.users.models import User
 
 
 @pytest.mark.integration
@@ -208,7 +208,7 @@ class TestDeleteUser:
     ):
         """Test admin deleting a user."""
         from src.core.security import get_password_hash
-        from src.domains.auth.models import User as UserModel
+        from src.domains.users.models import User as UserModel
 
         client, _ = admin_client
 

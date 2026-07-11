@@ -15,7 +15,7 @@ from src.core.config import settings
 from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
 
 
 class Personality(BaseModel):

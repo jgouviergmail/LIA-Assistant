@@ -11,13 +11,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.auth.models import User
 from src.domains.conversations.models import (
     Conversation,
     ConversationAuditLog,
     ConversationMessage,
 )
 from src.domains.conversations.service import ConversationService
+from src.domains.users.models import User
 
 # Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
 # Run manually with: pytest tests/integration/test_conversation_service.py -v

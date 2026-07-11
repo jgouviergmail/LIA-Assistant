@@ -35,7 +35,7 @@ async def conversation_with_dated_messages(async_session: AsyncSession):
     (avoids the microsecond-collision risk when Postgres defaults run too
     close together inside a single test transaction).
     """
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
 
     user = User(
         email="pagination_user@test.local",

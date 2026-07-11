@@ -25,7 +25,6 @@ from src.core.session_dependencies import (
     get_current_active_session,
     get_current_superuser_session,
 )
-from src.domains.auth.models import User
 from src.domains.skills.exceptions import (
     raise_admin_skill_delete_forbidden,
     raise_admin_skill_only,
@@ -34,6 +33,7 @@ from src.domains.skills.exceptions import (
     raise_skill_translation_invalid,
     raise_skill_write_failed,
 )
+from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)

@@ -12,6 +12,7 @@ import hashlib
 import json
 from collections.abc import Iterator
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -22,7 +23,6 @@ from src.core.config import settings as app_settings
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.prompts.prompt_loader import load_prompt
-from src.domains.auth.models import User
 from src.domains.briefing.constants import (
     BRIEFING_GREETING_PROMPT_NAME,
     BRIEFING_GREETING_TARGET_PREFIX,
@@ -46,6 +46,9 @@ from src.infrastructure.observability.metrics_briefing import (
     briefing_llm_invocations_total,
 )
 from src.infrastructure.proactive.tracking import track_proactive_tokens
+
+if TYPE_CHECKING:
+    from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 

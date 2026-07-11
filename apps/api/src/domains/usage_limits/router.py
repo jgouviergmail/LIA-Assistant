@@ -22,7 +22,6 @@ from src.core.session_dependencies import (
     get_current_active_session,
     get_current_superuser_session,
 )
-from src.domains.auth.models import User
 from src.domains.usage_limits.schemas import (
     AdminUserUsageLimitListResponse,
     AdminUserUsageLimitResponse,
@@ -31,6 +30,7 @@ from src.domains.usage_limits.schemas import (
     UserUsageLimitResponse,
 )
 from src.domains.usage_limits.service import UsageLimitService
+from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
 
 logger = structlog.get_logger(__name__)

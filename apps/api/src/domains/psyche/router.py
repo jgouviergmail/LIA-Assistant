@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.psyche.engine import PsycheEngine
 from src.domains.psyche.schemas import (
     PsycheExpressionResponse,
@@ -28,6 +27,7 @@ from src.domains.psyche.schemas import (
     PsycheSummaryResponse,
 )
 from src.domains.psyche.service import PsycheService
+from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)

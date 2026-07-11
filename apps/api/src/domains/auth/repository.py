@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
-from src.domains.auth.models import User
+from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 

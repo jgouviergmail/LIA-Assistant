@@ -1,4 +1,4 @@
-"""Unit tests for domains/auth/user_location_service.py."""
+"""Unit tests for domains/users/user_location_service.py."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.domains.auth.user_location_service import (
+from src.domains.users.user_location_service import (
     EffectiveLocation,
     LastKnownLocation,
     NoLocationAvailableError,
@@ -89,7 +89,7 @@ def db() -> AsyncMock:
 @pytest.mark.unit
 async def test_update_encrypts_and_persists(db: AsyncMock):
     user = _make_user(opt_in=True)
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     enc_patch, dec_patch = _identity_crypto(module)
     with enc_patch, dec_patch:
         result = await UserLocationService(db).update_last_known_location(
@@ -120,7 +120,7 @@ async def test_update_forbidden_when_opt_out(db: AsyncMock):
 async def test_update_throttled_when_recent(db: AsyncMock):
     recent = datetime.now(UTC) - timedelta(minutes=5)
     user = _make_user(opt_in=True, last_known_updated_at=recent)
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     enc_patch, dec_patch = _identity_crypto(module)
     with enc_patch, dec_patch:
         result = await UserLocationService(db).update_last_known_location(
@@ -135,7 +135,7 @@ async def test_update_throttled_when_recent(db: AsyncMock):
 async def test_update_accepts_after_throttle_window(db: AsyncMock):
     old = datetime.now(UTC) - timedelta(minutes=45)
     user = _make_user(opt_in=True, last_known_updated_at=old)
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     enc_patch, dec_patch = _identity_crypto(module)
     with enc_patch, dec_patch:
         result = await UserLocationService(db).update_last_known_location(
@@ -148,7 +148,7 @@ async def test_update_accepts_after_throttle_window(db: AsyncMock):
 @pytest.mark.unit
 async def test_update_without_accuracy_omits_field(db: AsyncMock):
     user = _make_user(opt_in=True)
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     enc_patch, dec_patch = _identity_crypto(module)
     with enc_patch, dec_patch:
         await UserLocationService(db).update_last_known_location(
@@ -171,7 +171,7 @@ async def test_get_last_known_returns_fresh_decrypted(db: AsyncMock):
         last_known_updated_at=fresh,
     )
     settings_ns = _make_settings(ttl_hours=24)
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     _, dec_patch = _identity_crypto(module)
     with dec_patch, patch(f"{module}.settings", settings_ns):
         result = await UserLocationService(db).get_last_known_location(user)
@@ -198,7 +198,7 @@ async def test_get_last_known_marks_stale_when_past_ttl(db: AsyncMock):
         last_known_updated_at=old,
     )
     settings_ns = _make_settings(ttl_hours=24)
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     _, dec_patch = _identity_crypto(module)
     with dec_patch, patch(f"{module}.settings", settings_ns):
         result = await UserLocationService(db).get_last_known_location(user)
@@ -250,7 +250,7 @@ async def test_effective_prefers_last_known_when_eligible(db: AsyncMock):
         last_known_updated_at=fresh,
     )
     settings_ns = _make_settings(ttl_hours=24, min_distance_km=50.0)
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     _, dec_patch = _identity_crypto(module)
     with dec_patch, patch(f"{module}.settings", settings_ns):
         result = await UserLocationService(db).get_effective_location_for_proactive(user)
@@ -270,7 +270,7 @@ async def test_effective_falls_back_home_when_opt_out(db: AsyncMock):
         last_known_payload={"lat": 48.85, "lon": 2.35},
         last_known_updated_at=datetime.now(UTC),
     )
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     _, dec_patch = _identity_crypto(module)
     with dec_patch:
         result = await UserLocationService(db).get_effective_location_for_proactive(user)
@@ -290,7 +290,7 @@ async def test_effective_falls_back_home_when_stale(db: AsyncMock):
         last_known_updated_at=old,
     )
     settings_ns = _make_settings(ttl_hours=24)
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     _, dec_patch = _identity_crypto(module)
     with dec_patch, patch(f"{module}.settings", settings_ns):
         result = await UserLocationService(db).get_effective_location_for_proactive(user)
@@ -310,7 +310,7 @@ async def test_effective_falls_back_home_when_too_close(db: AsyncMock):
         last_known_updated_at=fresh,
     )
     settings_ns = _make_settings(ttl_hours=24, min_distance_km=50.0)
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     _, dec_patch = _identity_crypto(module)
     with dec_patch, patch(f"{module}.settings", settings_ns):
         result = await UserLocationService(db).get_effective_location_for_proactive(user)
@@ -322,7 +322,7 @@ async def test_effective_falls_back_home_when_too_close(db: AsyncMock):
 async def test_effective_falls_back_home_when_no_last_known(db: AsyncMock):
     user = _make_user(opt_in=True, home_lat=45.75, home_lon=4.85)
     settings_ns = _make_settings()
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     _, dec_patch = _identity_crypto(module)
     with dec_patch, patch(f"{module}.settings", settings_ns):
         result = await UserLocationService(db).get_effective_location_for_proactive(user)
@@ -332,7 +332,7 @@ async def test_effective_falls_back_home_when_no_last_known(db: AsyncMock):
 @pytest.mark.unit
 async def test_effective_raises_when_no_home(db: AsyncMock):
     user = _make_user(opt_in=True)  # no home set
-    module = "src.domains.auth.user_location_service"
+    module = "src.domains.users.user_location_service"
     _, dec_patch = _identity_crypto(module)
     with dec_patch:
         with pytest.raises(NoLocationAvailableError):

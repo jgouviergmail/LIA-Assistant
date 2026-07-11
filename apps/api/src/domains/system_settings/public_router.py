@@ -12,12 +12,12 @@ import structlog
 from fastapi import APIRouter, Depends
 
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.system_settings.schemas import DebugPanelStatusResponse
 from src.domains.system_settings.service import (
     get_debug_panel_enabled,
     get_debug_panel_user_access_enabled,
 )
+from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 

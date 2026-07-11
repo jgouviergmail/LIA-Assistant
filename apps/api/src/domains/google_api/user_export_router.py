@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.google_api.export_service import (
     export_consumption_summary_csv,
     export_google_api_usage_csv,
@@ -21,6 +20,7 @@ from src.domains.google_api.export_service import (
     export_token_usage_csv,
     export_tts_usage_csv,
 )
+from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 

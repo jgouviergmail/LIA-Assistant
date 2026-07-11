@@ -19,7 +19,6 @@ from src.core.session_dependencies import (
     get_current_active_session,
     get_current_superuser_session,
 )
-from src.domains.auth.models import User
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService, sync_folder_background
 from src.domains.rag_spaces.processing import process_document
 from src.domains.rag_spaces.reindex import get_reindex_status as _get_reindex_status
@@ -44,6 +43,7 @@ from src.domains.rag_spaces.schemas import (
     SystemSpaceStalenessResponse,
 )
 from src.domains.rag_spaces.service import RAGSpaceService
+from src.domains.users.models import User
 from src.infrastructure.async_utils import safe_fire_and_forget
 
 router = APIRouter(

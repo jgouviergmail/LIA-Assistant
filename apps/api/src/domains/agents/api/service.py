@@ -553,7 +553,7 @@ class AgentService(
         # never break the chat UX. Uses safe_fire_and_forget to keep a
         # strong reference (avoids GC while the task runs).
         if browser_context is not None and browser_context.geolocation is not None:
-            from src.domains.auth.user_location_service import (
+            from src.domains.users.user_location_service import (
                 update_user_location_fire_and_forget,
             )
             from src.infrastructure.async_utils import safe_fire_and_forget

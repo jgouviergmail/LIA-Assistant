@@ -59,7 +59,7 @@ async def reset_redis_singletons():
 @pytest.fixture
 def mock_authenticated_user():
     """Mock authenticated user for tests."""
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
 
     user = User(
         id=uuid.uuid4(),

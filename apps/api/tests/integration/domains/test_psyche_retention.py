@@ -16,10 +16,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.security import get_password_hash
-from src.domains.auth.models import User
 from src.domains.psyche.constants import SNAPSHOT_TYPE_MESSAGE
 from src.domains.psyche.models import PsycheHistory
 from src.domains.psyche.repository import PsycheStateRepository
+from src.domains.users.models import User
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 

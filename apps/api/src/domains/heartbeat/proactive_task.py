@@ -71,7 +71,7 @@ class HeartbeatProactiveTask:
             settings = get_settings()
 
             async with get_db_context() as db:
-                from src.domains.auth.models import User
+                from src.domains.users.models import User
 
                 user = await db.get(User, user_id)
                 if not user:

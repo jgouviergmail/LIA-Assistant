@@ -525,7 +525,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.auth.models import User
+from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 
@@ -1502,7 +1502,7 @@ from src.core.exceptions import (
     raise_user_not_authenticated,
     raise_user_not_verified,
 )
-from src.domains.auth.models import User
+from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
@@ -1747,7 +1747,7 @@ async def get_optional_session(
 ```python
 from fastapi import APIRouter, Depends
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
+from src.domains.users.models import User
 
 router = APIRouter()
 
@@ -2098,7 +2098,7 @@ class UserRegisterRequest(BaseModel):
 
 ### User Model
 
-**Localisation** : [`apps/api/src/domains/auth/models.py`](../../apps/api/src/domains/auth/models.py)
+**Localisation** : [`apps/api/src/domains/users/models.py`](../../apps/api/src/domains/users/models.py) (moved from the auth domain by ADR-126)
 
 ```python
 """

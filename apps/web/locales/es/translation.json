@@ -2944,6 +2944,14 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_23_11": {
+          "title": "v1.23.11 — 🧱 Cimientos reforzados",
+          "date": "Julio 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🧱 Renovación de la arquitectura interna</b> — el dominio de autenticación ahora se centra únicamente en la identidad y las sesiones, mientras que tu perfil y el ciclo de vida de la cuenta conviven en un mismo lugar. Nada cambia en la apariencia ni el comportamiento de LIA: mismas funciones, mismos datos, cimientos más sólidos para lo que viene."
+          }
+        },
         "v1_23_10": {
           "title": "v1.23.10 — ✨ La interfaz cobra vida",
           "date": "Julio 2026",

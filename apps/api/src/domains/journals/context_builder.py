@@ -131,7 +131,7 @@ async def build_journal_context(
         # Load user settings from DB (not available in node scope)
         from sqlalchemy import select
 
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()

@@ -10,7 +10,7 @@
 - Encrypted payload column: `users.last_known_location_encrypted` — Fernet JSON `{lat, lon, accuracy}`.
 - Freshness watermark: `users.last_known_location_updated_at` — UTC.
 - Migration: `last_known_loc_001` (Alembic).
-- Service: `src/domains/auth/user_location_service.py`.
+- Service: `src/domains/users/user_location_service.py`.
 - Reverse geocoding: `src/domains/heartbeat/geocoding.py` — cache key `heartbeat:geocode:{lat:.3f}:{lon:.3f}`, TTL 30 days.
 
 ## Configuration
@@ -60,9 +60,9 @@ WHERE id = '<user_uuid>';
 Or call the service in a shell:
 
 ```python
-from src.domains.auth.user_location_service import UserLocationService
+from src.domains.users.user_location_service import UserLocationService
 from src.infrastructure.database import get_db_context
-from src.domains.auth.models import User
+from src.domains.users.models import User
 
 async with get_db_context() as db:
     user = await db.get(User, user_id)

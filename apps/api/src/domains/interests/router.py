@@ -33,7 +33,6 @@ from src.core.exceptions import (
 from src.core.export_utils import create_csv_response
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.interests.helpers import generate_interest_embedding
 from src.domains.interests.models import InterestCategory, InterestStatus, UserInterest
 from src.domains.interests.repository import InterestRepository
@@ -48,6 +47,7 @@ from src.domains.interests.schemas import (
     InterestSettingsUpdate,
     InterestUpdate,
 )
+from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)

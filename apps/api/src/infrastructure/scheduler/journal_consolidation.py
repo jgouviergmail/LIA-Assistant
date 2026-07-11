@@ -104,8 +104,8 @@ async def process_journal_consolidation() -> dict[str, Any]:
             async with get_db_context() as db:
                 from sqlalchemy import and_, func, select
 
-                from src.domains.auth.models import User
                 from src.domains.journals.models import JournalEntry, JournalEntryStatus
+                from src.domains.users.models import User
 
                 # Calculate cooldown threshold
                 cooldown_threshold = datetime.now(UTC) - timedelta(

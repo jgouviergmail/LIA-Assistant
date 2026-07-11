@@ -24,10 +24,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.core.repository import BaseRepository
-from src.domains.auth.models import User
 from src.domains.chat.models import MessageTokenSummary, UserStatistics
 from src.domains.connectors.models import Connector, ConnectorStatus
-from src.domains.users.models import AdminAuditLog
+from src.domains.users.models import AdminAuditLog, User
 
 logger = structlog.get_logger(__name__)
 

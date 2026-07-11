@@ -159,6 +159,25 @@ def _reconcile_reasoning_effort(cfg: LLMAgentConfig) -> LLMAgentConfig:
     return cfg.model_copy(update={"reasoning_effort": None})
 
 
+def get_provider_api_key(provider: str) -> str | None:
+    """Get the decrypted API key registered for an LLM/TTS provider.
+
+    Thin core-level facade over the in-memory ``LLMConfigOverrideCache``
+    (sync read, no DB round-trip) so that domains can probe provider
+    availability without importing the ``llm_config`` domain directly
+    (coupling reduction, see ADR-126).
+
+    Args:
+        provider: Provider name (e.g. ``"elevenlabs"``, ``"openai"``).
+
+    Returns:
+        Decrypted API key string, or ``None`` if not configured.
+    """
+    from src.domains.llm_config.cache import LLMConfigOverrideCache
+
+    return LLMConfigOverrideCache.get_api_key(provider)
+
+
 def get_all_llm_configs(settings: Settings) -> dict[str, LLMAgentConfig]:
     """
     Get LLM configs for all registered agent types.

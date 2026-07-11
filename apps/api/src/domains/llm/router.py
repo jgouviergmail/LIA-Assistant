@@ -20,7 +20,6 @@ from src.core.field_names import FIELD_MODEL_NAME
 from src.core.i18n_api_messages import APIMessages
 from src.core.reasoning_types import ReasoningBudgetRange
 from src.core.session_dependencies import get_current_superuser_session
-from src.domains.auth.models import User
 from src.domains.llm.models import (
     CurrencyExchangeRate,
     LLMModel,
@@ -37,7 +36,7 @@ from src.domains.llm.schemas import (
     ReasoningTemplatesResponse,
 )
 from src.domains.llm.service import LLMModelService, UnknownReasoningTemplateError
-from src.domains.users.models import AdminAuditLog
+from src.domains.users.models import AdminAuditLog, User
 from src.infrastructure.cache.pricing_cache import PricingCacheService
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache

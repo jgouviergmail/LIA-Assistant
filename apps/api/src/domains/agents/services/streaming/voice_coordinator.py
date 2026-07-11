@@ -41,9 +41,9 @@ from src.domains.agents.services.streaming.voice_stream_helpers import (
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
-    from src.domains.auth.models import User
     from src.domains.chat.service import TrackingContext
     from src.domains.conversations.service import ConversationService
+    from src.domains.users.models import User
     from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
     from src.domains.voice.service import VoiceCommentService
 

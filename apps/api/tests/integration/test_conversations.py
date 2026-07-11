@@ -8,8 +8,8 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.auth.models import User
 from src.domains.conversations.models import Conversation, ConversationMessage
+from src.domains.users.models import User
 
 
 @pytest.mark.asyncio

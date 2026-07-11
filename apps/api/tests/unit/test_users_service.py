@@ -24,8 +24,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.auth.models import User
-from src.domains.users.models import AdminAuditLog
+from src.domains.users.models import AdminAuditLog, User
 from src.infrastructure.database.registry import import_all_models
 
 # Ensure all SQLAlchemy models are loaded so relationship() references resolve

@@ -23,7 +23,7 @@ from src.core.exceptions import (
 )
 from src.core.field_names import FIELD_IS_ACTIVE, FIELD_USER_ID
 from src.core.i18n import _
-from src.domains.auth.models import User
+from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
 from src.domains.users.schemas import (
     HomeLocationData,
@@ -574,7 +574,7 @@ class UserService:
         Raises:
             HTTPException: If user not found
         """
-        from src.domains.auth.user_location_service import UserLocationService
+        from src.domains.users.user_location_service import UserLocationService
 
         user = await self.repository.get_by_id(user_id)
 

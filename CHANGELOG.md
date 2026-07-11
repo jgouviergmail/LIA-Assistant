@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.11] - 2026-07-11
+
+> The structural-decoupling release (ADR-126). Audit cycle 3's coupling metrics exposed a textbook Stable Dependencies violation: **auth** — the most depended-upon domain of the backend (26 afferent domains) — itself depended on 14 domains and sat in 11 of the 31 bidirectional import cycles. Three behavior-preserving lots later, the boundary is clean: **auth = identity & sessions (a leaf: 2 outgoing edges, 0 incoming, 0 cycles); users = the User aggregate, profile and account lifecycle (the coherent hub)**. Zero behavior change by construction — no endpoint, wire contract, transaction topology or structlog event touched; the full backend suites ran green at every lot boundary and the `User` class moved byte-identically (proven by blob comparison against HEAD).
+
+### Added
+
+- **`scripts/audit/measure_coupling.py`** — the domain-coupling instrument (Ca/Ce/instability matrix + bidirectional-cycle list) is now committed, closing the audit-protocol "coupling measurement due" item. It reproduces the cycle-3 figures exactly (all-imports semantics, `TYPE_CHECKING` included) and adds runtime-only columns (`_rt`) — only runtime imports can produce circular-import failures, so the Stable Dependencies assessment reads those while the historical series stays comparable. `--detail <domain>` lists a domain's outgoing edges with exact `file:line` sites.
+- **`users/AccountProvisioningService`** — the creation-side counterpart of `AccountDeletionService`: provisions skill activation states and default usage limits for new accounts (registration + OAuth creation). The two historical call sites had different transaction topologies (registration commits per step, the OAuth callback commits once at the end), preserved exactly via an explicit `commit_per_step` flag.
+- **`src/core/geo_utils.py`** — `haversine_distance` promoted from the agents domain (pure math, no domain knowledge); the agents `distance` module keeps a compat alias, and the haversine test suite moved to `tests/unit/core/test_geo_utils.py`.
+- **`get_provider_api_key()`** in `core/llm_config_helper.py` — core-level probe for provider API-key availability (used by the voice-mode STT capability check), replacing a direct domain import of the LLM-config cache.
+
+### Changed
+
+- **`User` ORM model moved from `auth/models.py` to `users/models.py`** (its historical re-export home) — byte-identical class body, ~84 import sites plus tests migrated mechanically, transitional shim deleted, model registration untouched (`import_all_models()`); no DB change of any kind (the `users` table never moved, no Alembic migration).
+- **`user_location_service` moved from auth to users** (profile/location concern): the last-known-location cascade, its router endpoints' service and its unit tests now live in the users domain; the 4 external importers (agents chat geolocation, briefing weather, heartbeat proactive cascade, users home-deletion wipe) updated.
+- **Account provisioning extracted out of `AuthService`** — `register()` and the OAuth user-creation path now delegate to `AccountProvisioningService`; existing auth unit tests pass unmodified (lazy imports preserved the source-level patch targets).
+- Living docs updated to the new layout (`AUTHENTICATION.md`, `LAST_KNOWN_LOCATION` runbook, `GUIDE_TESTING.md`, audit protocol §6); historical ADRs left untouched (dated documents). New [ADR-126](docs/architecture/ADR-126-Auth-Users-Domain-Decoupling.md) documents the boundary, the measured before/after matrix and the accepted hub-cycle relocation trade-off.
+
+### Fixed
+
+- `auth/service.py` imported its own `User` model back through the users re-export (`auth → users → auth` indirection) — now imports it directly; the gratuitous `auth↔users` runtime cycle from that edge is gone.
+- Dead borrowed-private-symbol import (`_haversine_distance` from agents internals) eliminated — the historical cross-domain private-helper case flagged by the audit.
+
+### Metrics (measure_coupling.py, before → after)
+
+- Ce(auth): **14 → 2** (users, shared) · runtime: **6 → 2** — target ≤3 met on the audit's own instrument.
+- Ca(auth): **26 → 0** (sole remaining importer: `api/v1/routes.py`, outside the domain graph).
+- Cycles involving auth: **11 → 0**. Hub pairs relocate to the users domain (raw totals 31→32 all-imports, 24→31 runtime-only: the former typing-only auth cycles re-form as honestly-runtime users↔X pairs — accidental hub → coherent lifecycle hub, the full trade-off is documented in ADR-126); no cycle outside the users hub was created.
+
+### Tests
+
+- +12 unit tests: `AccountProvisioningService` (5 — both commit topologies, feature-flag gate, default safety), `get_provider_api_key` (2), haversine suite relocated to core (13 moved, 1 constant test). Full suites green at every lot boundary (~9,265 unit / 140 integration / 969 agents on the final run set), MyPy strict 0 errors on 870 files, Docker boot verified per lot.
+
 ## [1.23.10] - 2026-07-11
 
 > The living-interface release. LIA's frontend gains a coherent system of micro-interactions that makes the assistant feel alive without ever getting in the way: the Psyche Engine becomes *visible* (the mood avatar is now a real animated face on the current reply, the ring pulses when the mood shifts, relationship milestones are celebrated), the pipeline's execution steps breathe while they run, and a dozen small touches (random typing-indicator shapes, streaming caret, animated personality emojis in the header, a living tab title for background runs) replace static chrome with motion that carries meaning. Everything is pure frontend polish behind hard fallbacks — every animation degrades to the previous behavior on asset failure, when psyche visuals are hidden, and under `prefers-reduced-motion` (where animated assets are not even fetched). No backend change, no DB migration, no new dependency, no new setting.

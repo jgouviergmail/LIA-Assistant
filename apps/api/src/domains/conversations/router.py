@@ -27,7 +27,6 @@ from src.core.field_names import (
 )
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.conversations.schemas import (
     ConversationMessageResponse,
     ConversationMessagesResponse,
@@ -37,6 +36,7 @@ from src.domains.conversations.schemas import (
     ConversationTotalsResponse,
 )
 from src.domains.conversations.service import ConversationService
+from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)

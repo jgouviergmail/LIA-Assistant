@@ -25,7 +25,6 @@ from src.core.constants import (
 from src.core.dependencies import get_db
 from src.core.exceptions import ValidationError, raise_bad_gateway
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServer, UserMCPServerStatus
 from src.domains.user_mcp.schemas import (
     McpAppCallToolRequest,
@@ -42,6 +41,7 @@ from src.domains.user_mcp.schemas import (
     UserMCPTestConnectionResponse,
 )
 from src.domains.user_mcp.service import UserMCPServerService
+from src.domains.users.models import User
 from src.infrastructure.mcp.oauth_flow import MCPOAuthFlowHandler
 from src.infrastructure.observability.logging import get_logger
 

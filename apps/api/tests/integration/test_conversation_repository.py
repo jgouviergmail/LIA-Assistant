@@ -28,7 +28,7 @@ async def conversation_repo(async_session: AsyncSession):
 @pytest.fixture
 async def test_user(async_session: AsyncSession):
     """Fixture creating a test user."""
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
 
     user = User(
         email="test@example.com",

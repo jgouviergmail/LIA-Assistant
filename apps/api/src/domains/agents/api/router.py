@@ -45,8 +45,8 @@ from src.domains.agents.api.schemas import ChatRequest
 from src.domains.agents.api.service import AgentService
 from src.domains.agents.api.sse_keepalive import KeepalivePulse, iter_with_keepalive
 from src.domains.agents.utils import generate_run_id
-from src.domains.auth.models import User
 from src.domains.chat.schemas import TokenSummaryDTO
+from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     e2e_request_duration_with_agents,

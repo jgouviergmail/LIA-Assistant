@@ -148,7 +148,7 @@ async def _maybe_build_inner_state_section(user_id: str) -> str:
         from src.infrastructure.database.session import get_db_context
 
         async with get_db_context() as db:
-            from src.domains.auth.models import User
+            from src.domains.users.models import User
 
             user_result = await db.execute(
                 select(User.psyche_enabled).where(User.id == UUID(user_id))
@@ -625,7 +625,7 @@ async def _update_user_last_cost(
             cached_tokens=0,
         )
 
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         async with get_db_context() as db:
             from sqlalchemy import select
@@ -785,7 +785,7 @@ async def extract_journal_entry_background(
             # Load user's max_total_chars setting
             from sqlalchemy import select
 
-            from src.domains.auth.models import User
+            from src.domains.users.models import User
 
             user_result = await db.execute(select(User).where(User.id == UUID(user_id)))
             user = user_result.scalar_one_or_none()

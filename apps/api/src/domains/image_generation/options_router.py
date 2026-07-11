@@ -17,8 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.image_generation.options_cache import ImageOptionsCache
+from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 

@@ -285,7 +285,7 @@ class ConnectorRepository(BaseRepository[Connector]):
         Returns:
             List of active Connector objects using OAuth authentication.
         """
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         oauth_types = ConnectorType.get_oauth_types()
 
@@ -321,8 +321,8 @@ class ConnectorRepository(BaseRepository[Connector]):
         """
         from sqlalchemy import or_
 
-        from src.domains.auth.models import User
         from src.domains.usage_limits.models import UserUsageLimit
+        from src.domains.users.models import User
 
         oauth_types = ConnectorType.get_oauth_types()
 

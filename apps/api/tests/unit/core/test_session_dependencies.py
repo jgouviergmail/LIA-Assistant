@@ -37,7 +37,7 @@ from src.core.session_dependencies import (
     get_optional_session,
     get_session_store,
 )
-from src.domains.auth.models import User
+from src.domains.users.models import User
 from src.infrastructure.cache.session_store import UserSession
 
 

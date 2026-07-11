@@ -71,7 +71,7 @@ async def cleanup_unverified_accounts() -> dict[str, Any]:
         from sqlalchemy import delete, select
         from sqlalchemy.sql import func
 
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         # Calculate cutoff datetime
         cutoff = datetime.now(UTC) - timedelta(days=UNVERIFIED_ACCOUNT_CLEANUP_DAYS)

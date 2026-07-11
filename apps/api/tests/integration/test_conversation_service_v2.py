@@ -11,10 +11,10 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.auth.models import User
 from src.domains.chat.models import MessageTokenSummary
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.conversations.service import ConversationService
+from src.domains.users.models import User
 
 # Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
 # Run manually with: pytest tests/integration/test_conversation_service_v2.py -v

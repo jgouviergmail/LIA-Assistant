@@ -30,7 +30,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.exceptions import ResourceConflictError, raise_user_not_found
 from src.domains.attachments.models import Attachment
-from src.domains.auth.models import User
 from src.domains.channels.models import UserChannelBinding
 from src.domains.connectors.models import (
     Connector,
@@ -55,6 +54,7 @@ from src.domains.scheduled_actions.models import ScheduledAction
 from src.domains.skills.models import Skill, UserSkillState
 from src.domains.usage_limits.models import UserUsageLimit
 from src.domains.user_mcp.models import UserMCPServer
+from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:

@@ -13,7 +13,6 @@ from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_scheduled_action_already_executing
 from src.core.session_dependencies import get_current_active_session
-from src.domains.auth.models import User
 from src.domains.scheduled_actions.models import (
     ScheduledAction as ScheduledActionModel,
 )
@@ -27,6 +26,7 @@ from src.domains.scheduled_actions.schemas import (
     ScheduledActionUpdate,
 )
 from src.domains.scheduled_actions.service import ScheduledActionService
+from src.domains.users.models import User
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.observability.logging import get_logger
 

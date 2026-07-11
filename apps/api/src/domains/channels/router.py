@@ -24,7 +24,6 @@ from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_webhook_signature
 from src.core.session_dependencies import get_current_active_session
 from src.core.user_display import resolve_user_display_name
-from src.domains.auth.models import User
 from src.domains.channels.abstractions import ChannelInboundMessage
 from src.domains.channels.models import ChannelType
 from src.domains.channels.schemas import (
@@ -34,6 +33,7 @@ from src.domains.channels.schemas import (
     OTPGenerateResponse,
 )
 from src.domains.channels.service import ChannelService
+from src.domains.users.models import User
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.observability.logging import get_logger
 

@@ -121,7 +121,7 @@ async def generate_image(
     user_id = parse_user_id(user_id_raw)
 
     try:
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         async with get_db_context() as db:
             user = await db.get(User, user_id)
@@ -385,7 +385,7 @@ async def edit_image(
 
     # --- 3. Load user preferences ---
     try:
-        from src.domains.auth.models import User
+        from src.domains.users.models import User
 
         async with get_db_context() as db:
             user = await db.get(User, user_id)

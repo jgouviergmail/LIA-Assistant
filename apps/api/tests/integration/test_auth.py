@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.i18n_api_messages import APIMessages
-from src.domains.auth.models import User
+from src.domains.users.models import User
 from tests.conftest import assert_cookie_set, extract_cookie_value
 
 

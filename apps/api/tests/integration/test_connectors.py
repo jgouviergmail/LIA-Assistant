@@ -5,8 +5,8 @@ Integration tests for connectors (external services).
 import pytest
 from httpx import AsyncClient
 
-from src.domains.auth.models import User
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
+from src.domains.users.models import User
 
 
 @pytest.mark.integration

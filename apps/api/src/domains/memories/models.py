@@ -29,7 +29,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
 
 
 # Embedding dimensions: Gemini gemini-embedding-001

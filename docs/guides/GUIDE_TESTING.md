@@ -651,7 +651,7 @@ import uuid
 import pytest
 from src.domains.conversations.repository import ConversationRepository
 from src.domains.conversations.models import Conversation
-from src.domains.auth.models import User
+from src.domains.users.models import User
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -860,7 +860,7 @@ from src.domains.agents.api.service import AgentService
 @pytest.fixture
 def mock_authenticated_user():
     """Mock authenticated user for tests."""
-    from src.domains.auth.models import User
+    from src.domains.users.models import User
 
     user = User(
         id=uuid.uuid4(),

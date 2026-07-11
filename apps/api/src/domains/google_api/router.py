@@ -24,7 +24,6 @@ from src.core.exceptions import (
 )
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_superuser_session
-from src.domains.auth.models import User
 from src.domains.google_api.models import GoogleApiPricing
 from src.domains.google_api.schemas import (
     GoogleApiPricingCreate,
@@ -32,7 +31,7 @@ from src.domains.google_api.schemas import (
     GoogleApiPricingResponse,
     GoogleApiPricingUpdate,
 )
-from src.domains.users.models import AdminAuditLog
+from src.domains.users.models import AdminAuditLog, User
 
 logger = structlog.get_logger(__name__)
 

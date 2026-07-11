@@ -18,8 +18,8 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
-from src.domains.auth.models import User
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
+from src.domains.users.models import User
 
 # Requires a real database (external via TEST_DATABASE_URL or Testcontainers).
 

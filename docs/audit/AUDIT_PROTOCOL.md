@@ -140,10 +140,15 @@ Re-measuring the same evidence eventually finds nothing. Each cycle must add at 
 - **a new probe** for an assumed-covered blind spot (example: client-side error telemetry,
   which server-side observability scores never looked at).
 New instruments should be committed as scripts under `scripts/audit/` so the next cycle
-reproduces them (measure_sloc.py and measure_cc.py exist; the coupling measurement is
-due). Caveat: the cycle-3 CC figures came from an ad-hoc uncommitted counter —
+reproduces them (measure_sloc.py, measure_cc.py and measure_coupling.py exist).
+Caveat: the cycle-3 CC figures came from an ad-hoc uncommitted counter —
 measure_cc.py (strict AST counting, ~6% below that scale, identical ranking) is the
 committed instrument from cycle 4 on; do not compare figures across instruments.
+Coupling caveat: measure_coupling.py reproduces the cycle-3 Ca/Ce/I figures exactly
+(same all-imports semantics, `TYPE_CHECKING` included) and adds runtime-only columns
+(`_rt`); the Stable Dependencies assessment reads the runtime columns — only runtime
+edges can produce circular-import failures — while the all-imports figures keep the
+historical series comparable.
 
 ## 7. Cadence
 

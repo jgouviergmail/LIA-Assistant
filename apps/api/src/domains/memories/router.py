@@ -30,7 +30,6 @@ from src.core.export_utils import create_csv_response
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session
 from src.domains.agents.tools.memory_tools import get_memory_categories
-from src.domains.auth.models import User
 from src.domains.memories.models import Memory
 from src.domains.memories.repository import MemoryRepository
 from src.domains.memories.retention import RetentionConfig, classify_purge_risk
@@ -47,6 +46,7 @@ from src.domains.memories.schemas import (
     MemoryUpdate,
 )
 from src.domains.memories.service import MemoryService
+from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)

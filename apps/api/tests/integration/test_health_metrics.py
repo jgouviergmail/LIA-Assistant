@@ -23,9 +23,9 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.auth.models import User
 from src.domains.health_metrics.models import HealthMetricToken, HealthSample
 from src.domains.health_metrics.service import _hash_token
+from src.domains.users.models import User
 
 # =============================================================================
 # Helpers

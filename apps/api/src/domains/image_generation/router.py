@@ -18,7 +18,6 @@ from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_input, raise_pricing_not_found
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_superuser_session
-from src.domains.auth.models import User
 from src.domains.image_generation.models import ImageGenerationPricing
 from src.domains.image_generation.schemas import (
     ImagePricingCreate,
@@ -27,7 +26,7 @@ from src.domains.image_generation.schemas import (
     ImagePricingUpdate,
 )
 from src.domains.llm.models import LLMProviderEnum
-from src.domains.users.models import AdminAuditLog
+from src.domains.users.models import AdminAuditLog, User
 
 logger = structlog.get_logger(__name__)
 
