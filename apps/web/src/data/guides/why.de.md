@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 3.7
-**Datum** : 2026-07-11
-**Anwendung** : LIA v1.23.13
+**Datum** : 2026-07-13
+**Anwendung** : LIA v1.24.0
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -174,6 +174,14 @@ Die Übertragung wird durch ein **dediziertes Token** authentifiziert (beginnend
 Ein **„Assistent"-Schalter** (standardmäßig aus, *Opt-in*) erlaubt Ihnen, dem Assistenten zu gestatten, diese Messungen zu lesen und sachliche Fragen zu beantworten („Wie viele Schritte diese Woche?", „Meine durchschnittliche Herzfrequenz heute?", „Laufe ich weniger als üblich?"), proaktive Benachrichtigungen anzureichern, die Gesundheit + Wetter + Kalender kombinieren, sowie einen nicht-rohen biometrischen Kontext (Deltas, Trends) an seine Memories und internen Journale anzuheften. Ein einziger Schalter steuert diese vier Integrationen. Nie Diagnose — nur sachliche Zahlen, wobei sich die Baseline ehrlich qualifiziert („basierend auf nur N Tagen", solange die Historie unter 7 Tagen liegt).
 
 Drei Verwaltungsaktionen geben Ihnen die volle Kontrolle: alle Herzfrequenz-Messungen löschen, alle Schrittmessungen löschen oder alles entfernen. Kein physiologischer Rohwert wird jemals in den Server-Logs festgehalten — DSGVO-Konformität ist von Grund auf integriert.
+
+### 3.10. In Ihrem Namen anrufen
+
+LIA kann für Sie zum Hörer greifen. Bitten Sie sie, „die Werkstatt anzurufen, um zu prüfen, ob das Auto fertig ist" oder „Marie anzurufen und zu fragen, ob sie Dienstagabend Zeit hat", und LIA tätigt einen echten ausgehenden Anruf, führt das Gespräch auf Ihr Ziel hin und bringt eine schriftliche Zusammenfassung zurück — mit einer Folgeaktion per Fingertipp, wenn danach etwas zu tun ist (etwa den soeben vereinbarten Termin buchen).
+
+Sie bleiben stets eingebunden: Vor dem Wählen sagt Ihnen LIA genau, **wen** sie anruft und **warum**, und wartet auf Ihr Einverständnis. Die Zusammenfassung landet asynchron im Chat, sodass Sie während des Anrufs anderes erledigen können.
+
+Und es bleibt konstruktionsbedingt privat. Während eines Anrufs kann LIA nur mitteilen, ob Sie zu einem bestimmten Zeitpunkt frei oder gebucht sind — nie die Titel, Gäste oder Orte in Ihrem Kalender. Nichts wird aufgezeichnet, das Gespräch wird nie gespeichert, und nur eine kurze Zusammenfassung bleibt erhalten, bevor sie abläuft. Anrufe laufen über Ihren eigenen ElevenLabs-Connector, abgerechnet über Ihr Konto, und die Funktion ist nur vorhanden, wenn Ihr Administrator sie aktiviert hat.
 
 ---
 

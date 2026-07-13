@@ -35,6 +35,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Supprimé avec succès",
         "label_delete": "Label supprimé avec succès",
         "reminder_delete": "Rappel '{content}' supprimé",
+        "phone_call": "J'appelle {name} maintenant, je te fais un retour dès que j'ai la réponse.",
         "_default": "Action exécutée avec succès",
     },
     "en": {
@@ -54,6 +55,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Deleted successfully",
         "label_delete": "Label deleted successfully",
         "reminder_delete": "Reminder '{content}' deleted",
+        "phone_call": "I'm calling {name} now — I'll get back to you as soon as I have an answer.",
         "_default": "Action completed successfully",
     },
     "es": {
@@ -73,6 +75,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Eliminado con éxito",
         "label_delete": "Etiqueta eliminada con éxito",
         "reminder_delete": "Recordatorio '{content}' eliminado",
+        "phone_call": "Estoy llamando a {name} ahora; te aviso en cuanto tenga una respuesta.",
         "_default": "Acción ejecutada con éxito",
     },
     "de": {
@@ -92,6 +95,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Erfolgreich gelöscht",
         "label_delete": "Label erfolgreich gelöscht",
         "reminder_delete": "Erinnerung '{content}' gelöscht",
+        "phone_call": "Ich rufe {name} jetzt an und melde mich, sobald ich eine Antwort habe.",
         "_default": "Aktion erfolgreich ausgeführt",
     },
     "it": {
@@ -111,6 +115,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Eliminato con successo",
         "label_delete": "Etichetta eliminata con successo",
         "reminder_delete": "Promemoria '{content}' eliminato",
+        "phone_call": "Sto chiamando {name} adesso; ti aggiorno appena ho una risposta.",
         "_default": "Azione eseguita con successo",
     },
     "zh-CN": {
@@ -130,6 +135,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "删除成功",
         "label_delete": "标签删除成功",
         "reminder_delete": "提醒 '{content}' 已删除",
+        "phone_call": "我正在拨打{name}，一有答复我就告诉你。",
         "_default": "操作成功完成",
     },
 }
@@ -157,6 +163,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Suppression annulée",
         "label_delete": "Suppression annulée",
         "reminder_delete": "Suppression annulée",
+        "phone_call": "Appel annulé",
         "_default": "Action annulée",
     },
     "en": {
@@ -176,6 +183,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Deletion cancelled",
         "label_delete": "Deletion cancelled",
         "reminder_delete": "Deletion cancelled",
+        "phone_call": "Call cancelled",
         "_default": "Action cancelled",
     },
     "es": {
@@ -195,6 +203,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Eliminación cancelada",
         "label_delete": "Eliminación cancelada",
         "reminder_delete": "Eliminación cancelada",
+        "phone_call": "Llamada cancelada",
         "_default": "Acción cancelada",
     },
     "de": {
@@ -214,6 +223,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Löschung abgebrochen",
         "label_delete": "Löschung abgebrochen",
         "reminder_delete": "Löschung abgebrochen",
+        "phone_call": "Anruf abgebrochen",
         "_default": "Aktion abgebrochen",
     },
     "it": {
@@ -233,6 +243,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Eliminazione annullata",
         "label_delete": "Eliminazione annullata",
         "reminder_delete": "Eliminazione annullata",
+        "phone_call": "Chiamata annullata",
         "_default": "Azione annullata",
     },
     "zh-CN": {
@@ -252,6 +263,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "删除已取消",
         "label_delete": "删除已取消",
         "reminder_delete": "删除已取消",
+        "phone_call": "通话已取消",
         "_default": "操作已取消",
     },
 }
@@ -301,6 +313,8 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "file_delete": "Suppression fichier: {name}",
         # Label actions
         "label_delete": "Suppression label: {name}",
+        # Phone call action
+        "phone_call": "Appel à {name}: {objective}",
         # Draft header
         "draft_created": "📄 **Brouillon créé**: {title}",
         "action_required": "**Action requise**: confirmez, modifiez ou annulez.",
@@ -321,6 +335,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "task_delete": "Delete task: {title}",
         "file_delete": "Delete file: {name}",
         "label_delete": "Delete label: {name}",
+        "phone_call": "Call to {name}: {objective}",
         "draft_created": "📄 **Draft created**: {title}",
         "action_required": "**Action required**: confirm, edit, or cancel.",
     },
@@ -340,6 +355,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "task_delete": "Eliminación tarea: {title}",
         "file_delete": "Eliminación archivo: {name}",
         "label_delete": "Eliminar etiqueta: {name}",
+        "phone_call": "Llamada a {name}: {objective}",
         "draft_created": "📄 **Borrador creado**: {title}",
         "action_required": "**Acción requerida**: confirme, modifique o cancele.",
     },
@@ -359,6 +375,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "task_delete": "Aufgabe löschen: {title}",
         "file_delete": "Datei löschen: {name}",
         "label_delete": "Label löschen: {name}",
+        "phone_call": "Anruf an {name}: {objective}",
         "draft_created": "📄 **Entwurf erstellt**: {title}",
         "action_required": "**Aktion erforderlich**: bestätigen, bearbeiten oder abbrechen.",
     },
@@ -378,6 +395,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "task_delete": "Elimina attività: {title}",
         "file_delete": "Elimina file: {name}",
         "label_delete": "Elimina etichetta: {name}",
+        "phone_call": "Chiamata a {name}: {objective}",
         "draft_created": "📄 **Bozza creata**: {title}",
         "action_required": "**Azione richiesta**: conferma, modifica o annulla.",
     },
@@ -397,6 +415,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "task_delete": "删除任务: {title}",
         "file_delete": "删除文件: {name}",
         "label_delete": "删除标签: {name}",
+        "phone_call": "致电 {name}: {objective}",
         "draft_created": "📄 **草稿已创建**: {title}",
         "action_required": "**需要操作**: 确认、修改或取消。",
     },
@@ -437,6 +456,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "Label parent",
         "sublabels_to_delete": "Sous-labels à supprimer",
         "sublabels_included": "Sous-labels inclus",
+        "callee": "Correspondant",
+        "objective": "Objectif",
     },
     "en": {
         "to": "To",
@@ -466,6 +487,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "Parent label",
         "sublabels_to_delete": "Sub-labels to delete",
         "sublabels_included": "Sub-labels included",
+        "callee": "Callee",
+        "objective": "Objective",
     },
     "es": {
         "to": "Destinatario",
@@ -495,6 +518,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "Etiqueta padre",
         "sublabels_to_delete": "Subetiquetas a eliminar",
         "sublabels_included": "Subetiquetas incluidas",
+        "callee": "Interlocutor",
+        "objective": "Objetivo",
     },
     "de": {
         "to": "An",
@@ -524,6 +549,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "Übergeordnetes Label",
         "sublabels_to_delete": "Zu löschende Unterlabels",
         "sublabels_included": "Enthaltene Unterlabels",
+        "callee": "Angerufener",
+        "objective": "Ziel",
     },
     "it": {
         "to": "Destinatario",
@@ -553,6 +580,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "Etichetta padre",
         "sublabels_to_delete": "Sottoetichette da eliminare",
         "sublabels_included": "Sottoetichette incluse",
+        "callee": "Interlocutore",
+        "objective": "Obiettivo",
     },
     "zh-CN": {
         "to": "收件人",
@@ -582,6 +611,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "父标签",
         "sublabels_to_delete": "要删除的子标签",
         "sublabels_included": "包含的子标签",
+        "callee": "通话对象",
+        "objective": "目标",
     },
 }
 
@@ -834,6 +865,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "task": {"singular": "tâche", "plural": "tâches", "gender": "f"},
         "file": {"singular": "fichier", "plural": "fichiers", "gender": "m"},
         "label": {"singular": "label", "plural": "labels", "gender": "m"},
+        "call": {"singular": "appel", "plural": "appels", "gender": "m"},
     },
     "en": {
         "reminder": {"singular": "reminder", "plural": "reminders"},
@@ -843,6 +875,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "task": {"singular": "task", "plural": "tasks"},
         "file": {"singular": "file", "plural": "files"},
         "label": {"singular": "label", "plural": "labels"},
+        "call": {"singular": "call", "plural": "calls"},
     },
     "es": {
         "reminder": {
@@ -856,6 +889,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "task": {"singular": "tarea", "plural": "tareas", "gender": "f"},
         "file": {"singular": "archivo", "plural": "archivos", "gender": "m"},
         "label": {"singular": "etiqueta", "plural": "etiquetas", "gender": "f"},
+        "call": {"singular": "llamada", "plural": "llamadas", "gender": "f"},
     },
     "de": {
         "reminder": {"singular": "Erinnerung", "plural": "Erinnerungen"},
@@ -865,6 +899,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "task": {"singular": "Aufgabe", "plural": "Aufgaben"},
         "file": {"singular": "Datei", "plural": "Dateien"},
         "label": {"singular": "Label", "plural": "Labels"},
+        "call": {"singular": "Anruf", "plural": "Anrufe"},
     },
     "it": {
         # Italian: "promemoria", "email", "attività", "file" are invariant for number.
@@ -875,6 +910,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "task": {"singular": "attività", "plural": "attività", "gender": "f"},
         "file": {"singular": "file", "plural": "file", "gender": "m"},
         "label": {"singular": "etichetta", "plural": "etichette", "gender": "f"},
+        "call": {"singular": "chiamata", "plural": "chiamate", "gender": "f"},
     },
     "zh-CN": {
         # Chinese has no grammatical number; both forms hold the same string.
@@ -885,6 +921,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "task": {"singular": "任务", "plural": "任务"},
         "file": {"singular": "文件", "plural": "文件"},
         "label": {"singular": "标签", "plural": "标签"},
+        "call": {"singular": "通话", "plural": "通话"},
     },
 }
 
@@ -918,12 +955,19 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
             "f_sing": "modifiée",
             "f_plur": "modifiées",
         },
+        "placed": {
+            "m_sing": "passé",
+            "m_plur": "passés",
+            "f_sing": "passée",
+            "f_plur": "passées",
+        },
     },
     "en": {
         "sent": "sent",
         "deleted": "deleted",
         "created": "created",
         "updated": "updated",
+        "placed": "placed",
     },
     "es": {
         "sent": {
@@ -950,12 +994,19 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
             "f_sing": "actualizada",
             "f_plur": "actualizadas",
         },
+        "placed": {
+            "m_sing": "realizado",
+            "m_plur": "realizados",
+            "f_sing": "realizada",
+            "f_plur": "realizadas",
+        },
     },
     "de": {
         "sent": "gesendet",
         "deleted": "gelöscht",
         "created": "erstellt",
         "updated": "aktualisiert",
+        "placed": "getätigt",
     },
     "it": {
         "sent": {
@@ -982,12 +1033,19 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
             "f_sing": "modificata",
             "f_plur": "modificate",
         },
+        "placed": {
+            "m_sing": "effettuato",
+            "m_plur": "effettuati",
+            "f_sing": "effettuata",
+            "f_plur": "effettuate",
+        },
     },
     "zh-CN": {
         "sent": "已发送",
         "deleted": "已删除",
         "created": "已创建",
         "updated": "已更新",
+        "placed": "已拨打",
     },
 }
 

@@ -61,6 +61,7 @@ import {
   ImageIcon,
   History,
   Sunrise,
+  PhoneCall,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -234,6 +235,7 @@ function highlightTextContent(text: string, normalizedQuery: string): string {
 }
 
 const changelogVersionKeys = [
+  'v1_24_0',
   'v1_23_13',
   'v1_23_12',
   'v1_23_11',
@@ -364,6 +366,7 @@ const featureIcons = {
   reactMode: Zap,
   proactiveInitiative: Compass,
   todayBriefing: Sunrise,
+  telephony: PhoneCall,
 };
 
 const featureKeys = [
@@ -403,6 +406,7 @@ const featureKeys = [
   'reactMode',
   'proactiveInitiative',
   'todayBriefing',
+  'telephony',
 ];
 
 export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FAQContentProps) {

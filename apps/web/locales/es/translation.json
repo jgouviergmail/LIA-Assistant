@@ -1000,6 +1000,36 @@
         "bridge_unreachable": "Puente inalcanzable. Verifica la conexión de red.",
         "connect_remote": "Conectar vía Philips Hue",
         "test_connection": "Probar conexión"
+      },
+      "connected_telephony": "Telefonía conectada",
+      "available_telephony": "Telefonía disponible",
+      "telephony": {
+        "label": "Llamadas con agente (ElevenLabs)",
+        "description": "Deja que LIA haga llamadas en tu nombre y te informe",
+        "billing_notice": "Las llamadas se facturan en tus propias cuentas de ElevenLabs y telefonía.",
+        "step_key": "Pega tu clave de API de ElevenLabs",
+        "key_placeholder": "Clave de API de ElevenLabs",
+        "validate_key": "Validar clave",
+        "invalid_key": "Esta clave de API no es válida.",
+        "no_numbers": "No hay ningún número disponible en tu espacio de ElevenLabs. Importa uno primero.",
+        "step_number": "Elige el número desde el que llamar",
+        "step_webhook": "Configura el webhook posterior a la llamada",
+        "webhook_instructions": "En tu espacio de ElevenLabs, crea un webhook posterior a la llamada que apunte a esta URL y pega su secreto de firma abajo.",
+        "copy_url": "Copiar URL",
+        "secret_placeholder": "Secreto de firma del webhook",
+        "activate": "Activar telefonía",
+        "activated": "Telefonía activada. LIA ya puede hacer llamadas en tu nombre.",
+        "no_calls": "Aún no hay llamadas.",
+        "recent_calls": "Llamadas recientes",
+        "call_status": {
+          "dialing": "Marcando",
+          "in_progress": "En curso",
+          "completed": "Completada",
+          "no_answer": "Sin respuesta",
+          "voicemail": "Buzón de voz",
+          "failed": "Fallida",
+          "cancelled": "Cancelada"
+        }
       }
     },
     "user": {
@@ -1567,6 +1597,7 @@
           "image_generation": "Generación de imágenes por IA a partir de descripciones de texto (gpt-image-1, etc.)",
           "psyche_summary": "Psyche Summary",
           "briefing": "Genera el saludo y la síntesis del panel principal (Today)",
+          "telephony_synthesis": "Síntesis posterior a la llamada para llamadas con agente (resumen + propuesta)",
           "voice_transcription": "Reconocimiento de voz del modo vocal (Sherpa local o ElevenLabs Scribe remoto)",
           "voice_tts": "Síntesis de voz del asistente (Edge / OpenAI / ElevenLabs)"
         },
@@ -2940,6 +2971,10 @@
           "title": "🎯 Iniciativa Proactiva",
           "description": "Tras completar la solicitud principal, el asistente evalúa si los resultados revelan conexiones cross-dominio relevantes. Ejemplo: el clima anuncia lluvia el sábado → consulta el calendario para actividades al aire libre. En modo Pipeline, un nodo dedicado ejecuta la evaluación LLM tras la respuesta. En modo ReAct, el agente también verifica durante su propio razonamiento (el paso CROSS-CHECK) y —cuando está habilitado— el mismo nodo de iniciativa se ejecuta ahora tras el bucle, de modo que ambos modos obtienen el enriquecimiento proactivo. La evaluación recibe candidatos de conexión precalculados desde el registro de tipos semánticos (qué datos de este turno pueden alimentar qué herramientas adyacentes — ADR-090), y prepara en paralelo el contexto de la respuesta final (memoria, RAG, diario, psique) para reducir la latencia (ADR-091)."
         },
+        "telephony": {
+          "title": "📞 Telefonía agéntica",
+          "description": "LIA puede realizar llamadas salientes mediante un Agente de ElevenLabs orientado a objetivos, impulsado por tu <b>propio conector por usuario</b> (tus credenciales — sin medición por parte de LIA). La protección de datos se aplica <b>por capacidad, no por prompt</b>: el agente de llamada expone una única herramienta de disponibilidad de solo lectura que devuelve solo franjas libre/ocupado — nunca títulos, asistentes, lugares ni contenido. No se graba nada y la transcripción nunca se conserva; al terminar la llamada, un <b>webhook firmado propio de cada usuario</b> lanza una síntesis LLM sin herramientas reinyectada de forma asíncrona en el chat como un resumen breve y efímero, con una acción de seguimiento en un toque. Tú confirmas cada llamada antes de marcar (borrador HITL) y todo el subsistema está protegido por un feature flag (ADR-127)."
+        },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
           "description": "La página de inicio del panel es un briefing diario: saludo LLM personalizado + síntesis de 2-3 frases sobre una cuadrícula de 6 tarjetas (clima enriquecido, agenda, correos no leídos, cumpleaños, recordatorios, salud). Arquitectura pura: sin cadena LangGraph, asyncio.gather paralelo, caché Redis por sección con TTL adaptado (clima 1 h, agenda 10 min, correos 5 min…). Endpoints separados (/briefing/cards rápido + /briefing/synthesis LLM-bound) para renderizado progresivo. Tokens y coste en EUR de cada llamada LLM expuestos en la interfaz junto al marcador de tiempo y rastreados en las estadísticas de uso vía track_proactive_tokens (tokens en caché correctamente restados)."
@@ -2951,6 +2986,17 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_24_0": {
+          "title": "v1.24.0 — 📞 LIA llama en tu nombre",
+          "date": "julio de 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>📞 LIA puede llamar por ti</b> — pídele a LIA que telefonee a un contacto (\"llama a Marie y pregúntale si está libre el martes\"). Mantiene la conversación en tu nombre y luego te informa en el chat con un resumen y, cuando tiene sentido, una propuesta con un clic.",
+            "i2": "<b>✅ Mantienes el control</b> — LIA siempre te muestra a quién va a llamar y por qué, y espera tu confirmación antes de marcar. El resumen vuelve solo, sin bloquear tu conversación.",
+            "i3": "<b>🔒 Privado por diseño</b> — durante la llamada LIA solo puede compartir tu disponibilidad (libre/ocupado), nunca los títulos, invitados o lugares de tus reuniones. Las llamadas nunca se graban y la conversación completa nunca se guarda — solo un breve resumen que caduca.",
+            "i4": "<b>🔌 Tu propia línea</b> — la telefonía es un conector por usuario en Preferencias → Mis conectores: conecta tu propio número y clave de ElevenLabs. Las llamadas se facturan en tus propias cuentas."
+          }
+        },
         "v1_23_13": {
           "title": "v1.23.13 — 🧸 El acompañante flotante de LIA",
           "date": "Julio 2026",
@@ -4183,7 +4229,7 @@
       "connectors": {
         "title": "Conectores",
         "description": "Integraciones y conexiones externas",
-        "count": "14",
+        "count": "17",
         "questions": {
           "q1": {
             "question": "¿Qué es un conector?",
@@ -4240,6 +4286,18 @@
           "q14": {
             "question": "¿Cómo conecto Philips Hue?",
             "answer": "Philips Hue utiliza una <strong>autenticación híbrida</strong> (press-link local u OAuth2 remoto):<br><br><strong>🏠 Modo local (recomendado — misma red):</strong><br>1. Ve a <strong>Configuración > Hogar inteligente > Philips Hue</strong><br>2. Haz clic en <strong>Conexión local</strong><br>3. Haz clic en <strong>Buscar puentes</strong><br>4. Selecciona tu puente<br>5. <strong>Presiona el botón físico</strong> del puente Hue<br>6. Haz clic en <strong>Emparejar</strong> en 30 segundos<br>7. LIA valida la conectividad y activa el conector<br><br><strong>💡 Lo que puedes hacer:</strong><br>• \"Enciende las luces del salón\"<br>• \"Atenúa el dormitorio al 30%\"<br>• \"Pon la cocina en azul\"<br>• \"Activa el modo película\""
+          },
+          "q15": {
+            "question": "¿Puede LIA hacer llamadas por mí?",
+            "answer": "Sí. LIA puede realizar una llamada saliente real por ti — por ejemplo «<em>llama a la panadería y pregunta si tienen un pastel para el sábado</em>» o «<em>llama a Marie para saber si está libre el martes por la noche</em>».<br><br><strong>Cómo funciona:</strong><br>1. Pides a LIA que llame a alguien<br>2. LIA te muestra <strong>a quién</strong> va a llamar y <strong>por qué</strong>, y espera tu confirmación<br>3. LIA mantiene la conversación hacia tu objetivo<br>4. Un resumen escrito vuelve al chat, con una acción de seguimiento en un toque cuando es útil (p. ej. crear el evento que se acaba de acordar)<br><br><strong>💡</strong> El resumen llega de forma asíncrona — puedes seguir chateando mientras se realiza la llamada."
+          },
+          "q16": {
+            "question": "¿Qué necesito para activar las llamadas telefónicas?",
+            "answer": "Las llamadas usan tu <strong>propio conector de ElevenLabs</strong> (tus credenciales), configurado en <strong>Ajustes &gt; Conectores</strong>:<br><br>1. Crea una cuenta de ElevenLabs y un agente de voz<br>2. Añade tu clave API y los identificadores de agente / número en LIA<br>3. LIA valida la conexión<br><br><strong>💡 Facturación:</strong> las llamadas se cobran en <strong>tu propia cuenta de ElevenLabs</strong> — LIA no añade ningún recargo ni realiza medición propia. La función está disponible cuando tu administrador la ha activado."
+          },
+          "q17": {
+            "question": "¿Es privado? ¿Puede LIA ver mi calendario o grabar la llamada?",
+            "answer": "La privacidad se aplica <strong>por diseño</strong>, no por instrucciones:<br><br>• <strong>🔒 Solo lectura, solo libre/ocupado</strong> — durante una llamada LIA puede comprobar si estás libre u ocupado en un momento dado, pero <strong>nunca</strong> revela los títulos de tus eventos, participantes, lugares ni ningún contenido.<br>• <strong>🚫 Sin grabación</strong> — la llamada no se graba.<br>• <strong>🗑️ Sin transcripción almacenada</strong> — la conversación completa nunca se guarda; solo se conserva un breve resumen, y caduca automáticamente.<br>• <strong>✅ Mantienes el control</strong> — tú confirmas cada llamada antes de que se realice."
           }
         }
       },
@@ -5757,6 +5815,10 @@
         "title": "Centros de interés",
         "description": "Sigue los temas que te apasionan (tech, deporte, finanzas, salud...). LIA busca automáticamente contenido relevante y te lo envía como notificaciones."
       },
+      "telephony": {
+        "title": "LIA llama por ti",
+        "description": "Pide a LIA que haga una llamada telefónica real por ti — contactar a alguien, hacer una pregunta rápida, comprobar un hueco. Tú apruebas a quién llama y por qué antes de marcar; LIA mantiene la conversación y luego deja un resumen escrito en el chat, con una acción de seguimiento en un toque cuando es útil."
+      },
       "reminders_scheduling": {
         "title": "Recordatorios y automatizaciones",
         "description": "Programa recordatorios en lenguaje natural (\"Recuérdame mañana a las 9 llamar a María\"). Planifica acciones recurrentes automáticas (resumen de emails del lunes, clima matutino...)."
@@ -5961,6 +6023,10 @@
       "stack": {
         "title": "Stack moderno",
         "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript estricto en el frontend, Python async en el backend."
+      },
+      "telephony": {
+        "title": "Telefonía agéntica",
+        "description": "Llamadas de voz salientes gestionadas por un agente orientado a objetivos, a través de tu propio conector de ElevenLabs. La protección de datos se aplica por capacidad, no por prompt: el agente de llamada solo puede leer tu disponibilidad libre/ocupado — nunca títulos, asistentes ni contenido. Sin grabación, la transcripción nunca se almacena; solo un resumen breve y efímero se reinyecta de forma asíncrona mediante un webhook firmado propio de cada usuario."
       },
       "rich_skills": {
         "title": "Skills con frames e imágenes",
@@ -6339,7 +6405,7 @@
       "llm-providers": {
         "title": "Multi-proveedor IA: elige el modelo adecuado para cada tarea",
         "excerpt": "LIA soporta numerosos proveedores de modelos de lenguaje y permite configurar un modelo diferente para cada tipo de tarea.",
-        "body": "<h2>Múltiples proveedores, un solo asistente</h2><p>LIA integra nativamente <strong>múltiples proveedores de LLM</strong>: proveedores de modelos en la nube, modelos de razonamiento avanzado y soluciones de despliegue local. Cada proveedor es gestionado por un adaptador dedicado en la factory LLM.</p><h2>54 tipos de LLM configurables individualmente</h2><p>LIA define <strong>más de 50 tipos de LLM</strong> configurables por separado: router, response, planner, cada agente de dominio y más. Para cada tipo, puedes definir: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> y <code>reasoning_effort</code>.</p><p>Por ejemplo:</p><ul><li>Un modelo rápido y económico para el <strong>enrutamiento</strong></li><li>Un modelo potente para la <strong>planificación</strong></li><li>Un modelo creativo para las <strong>respuestas</strong></li><li>Un modelo local para la <strong>confidencialidad</strong></li></ul><h2>Cadena de resolución de configuración</h2><p>La configuración de cada LLM sigue una <strong>cadena de resolución de 3 niveles</strong>: Admin UI (almacenada en base de datos) → Variables de entorno → Valores por defecto del código. Un caché <code>LLMConfigOverrideCache</code> proporciona búsquedas en O(1) sin consulta a la base de datos en tiempo de ejecución. Las modificaciones a través de la interfaz de administración toman <strong>efecto inmediato</strong> gracias a la invalidación del caché.</p><h2>La factory LLM multi-proveedor</h2><p>Un solo punto de entrada para todos los proveedores:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Ejemplos de uso\nrouter_llm = get_llm(\"router\")        # modelo rápido configurado\nplanner_llm = get_llm(\"planner\")      # modelo potente configurado\nresponse_llm = get_llm(\"response\")    # modelo creativo configurado</code></pre><h2>Seguridad de las claves API</h2><p>Las claves API de los proveedores están <strong>cifradas con Fernet</strong> (AES-128 CBC + HMAC) antes de su almacenamiento en base de datos. Ninguna clave se expone jamás en texto claro en los logs o las respuestas API.</p><h2>Modelos de razonamiento</h2><p>LIA soporta los modelos de razonamiento avanzado con 5 niveles de <code>reasoning_effort</code>: <code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code> y <code>xhigh</code>. Esto permite activar el razonamiento profundo únicamente donde es necesario, optimizando la relación costo/rendimiento.</p><h2>Despliegue 100% local</h2><p>Para máxima confidencialidad, LIA puede funcionar completamente en local mediante proveedores de modelos locales. Ningún dato abandona tu infraestructura. Basta con apuntar las variables de configuración a tu instancia local.</p>"
+        "body": "<h2>Múltiples proveedores, un solo asistente</h2><p>LIA integra nativamente <strong>múltiples proveedores de LLM</strong>: proveedores de modelos en la nube, modelos de razonamiento avanzado y soluciones de despliegue local. Cada proveedor es gestionado por un adaptador dedicado en la factory LLM.</p><h2>55 tipos de LLM configurables individualmente</h2><p>LIA define <strong>más de 50 tipos de LLM</strong> configurables por separado: router, response, planner, cada agente de dominio y más. Para cada tipo, puedes definir: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> y <code>reasoning_effort</code>.</p><p>Por ejemplo:</p><ul><li>Un modelo rápido y económico para el <strong>enrutamiento</strong></li><li>Un modelo potente para la <strong>planificación</strong></li><li>Un modelo creativo para las <strong>respuestas</strong></li><li>Un modelo local para la <strong>confidencialidad</strong></li></ul><h2>Cadena de resolución de configuración</h2><p>La configuración de cada LLM sigue una <strong>cadena de resolución de 3 niveles</strong>: Admin UI (almacenada en base de datos) → Variables de entorno → Valores por defecto del código. Un caché <code>LLMConfigOverrideCache</code> proporciona búsquedas en O(1) sin consulta a la base de datos en tiempo de ejecución. Las modificaciones a través de la interfaz de administración toman <strong>efecto inmediato</strong> gracias a la invalidación del caché.</p><h2>La factory LLM multi-proveedor</h2><p>Un solo punto de entrada para todos los proveedores:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Ejemplos de uso\nrouter_llm = get_llm(\"router\")        # modelo rápido configurado\nplanner_llm = get_llm(\"planner\")      # modelo potente configurado\nresponse_llm = get_llm(\"response\")    # modelo creativo configurado</code></pre><h2>Seguridad de las claves API</h2><p>Las claves API de los proveedores están <strong>cifradas con Fernet</strong> (AES-128 CBC + HMAC) antes de su almacenamiento en base de datos. Ninguna clave se expone jamás en texto claro en los logs o las respuestas API.</p><h2>Modelos de razonamiento</h2><p>LIA soporta los modelos de razonamiento avanzado con 5 niveles de <code>reasoning_effort</code>: <code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code> y <code>xhigh</code>. Esto permite activar el razonamiento profundo únicamente donde es necesario, optimizando la relación costo/rendimiento.</p><h2>Despliegue 100% local</h2><p>Para máxima confidencialidad, LIA puede funcionar completamente en local mediante proveedores de modelos locales. Ningún dato abandona tu infraestructura. Basta con apuntar las variables de configuración a tu instancia local.</p>"
       },
       "google-workspace": {
         "title": "Integración Google Workspace: Gmail, Calendar, Contacts, Drive, Tasks",

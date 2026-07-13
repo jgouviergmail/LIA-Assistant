@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión** : 3.7
-**Fecha** : 2026-07-11
-**Aplicación** : LIA v1.23.13
+**Fecha** : 2026-07-13
+**Aplicación** : LIA v1.24.0
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -174,6 +174,14 @@ El envío se autentica mediante un **token dedicado** (que empieza por `hm_…`)
 Un **interruptor «Asistente»** (desactivado por defecto, *opt-in*) te permite, si lo deseas, autorizar al asistente a leer estas mediciones para responder factualmente a tus preguntas («¿Cuántos pasos esta semana?», «¿Mi frecuencia cardíaca media hoy?», «¿Camino menos de lo habitual?»), enriquecer las notificaciones proactivas que combinan salud + meteo + calendario, y adjuntar un contexto biométrico no bruto (deltas, tendencias) a sus memorias y diarios internos. Un único interruptor gobierna estas cuatro integraciones. Nunca diagnóstico — solo cifras factuales, con la línea base cualificada honestamente («basada en solo N días» mientras el historial sea inferior a 7 días).
 
 Tres acciones de gestión te dan un control total: eliminar todas las mediciones de frecuencia cardíaca, eliminar todas las mediciones de pasos, o borrarlo todo. Ningún valor fisiológico bruto se conserva jamás en los logs del servidor — la conformidad con el RGPD está integrada por diseño.
+
+### 3.10. Llamar en tu nombre
+
+LIA puede coger el teléfono por ti. Pídele que «llame al taller para comprobar si el coche está listo» o que «llame a Marie para saber si está libre el martes por la noche», y LIA realiza una llamada saliente real, mantiene la conversación hacia tu objetivo y te trae un resumen escrito — con una acción de seguimiento en un toque cuando queda algo por hacer (reservar el hueco que se acaba de acordar, por ejemplo).
+
+Siempre mantienes el control: antes de marcar, LIA te dice exactamente **a quién** va a llamar y **por qué**, y espera tu visto bueno. El resumen aparece en el chat de forma asíncrona, así que puedes seguir haciendo otras cosas mientras se realiza la llamada.
+
+Y sigue siendo privado por construcción. Durante una llamada LIA solo puede indicar si estás libre u ocupado en un momento dado — nunca los títulos, invitados ni lugares de tu calendario. No se graba nada, la conversación nunca se almacena y solo se conserva un breve resumen antes de que caduque. Las llamadas pasan por tu propio conector de ElevenLabs, facturadas en tu cuenta, y la función solo está disponible si tu administrador la ha activado.
 
 ---
 

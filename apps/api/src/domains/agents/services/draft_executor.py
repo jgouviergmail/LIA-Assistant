@@ -130,6 +130,10 @@ def _ensure_executors_registered() -> None:
             execute_task_update_draft,
         )
 
+        # Telephony executor (per-user connector; import is flag-independent — a
+        # confirmed phone_call draft must always resolve to an executor)
+        from src.domains.agents.tools.telephony_tools import execute_phone_call_draft
+
         # Register all executors
         # Email
         register_executor(DraftType.EMAIL.value, execute_email_draft)
@@ -160,6 +164,9 @@ def _ensure_executors_registered() -> None:
 
         # Reminders
         register_executor(DraftType.REMINDER_DELETE.value, execute_reminder_delete_draft)
+
+        # Telephony
+        register_executor(DraftType.PHONE_CALL.value, execute_phone_call_draft)
 
         logger.info(
             "draft_executors_initialized",

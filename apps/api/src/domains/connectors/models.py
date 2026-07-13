@@ -59,6 +59,9 @@ class ConnectorType(str, enum.Enum):
     # Smart Home
     PHILIPS_HUE = "philips_hue"
 
+    # Telephony (API Key - per-user ElevenLabs account for agentic outbound calls)
+    ELEVENLABS_TELEPHONY = "elevenlabs_telephony"
+
     # Legacy (deprecated - use GOOGLE_GMAIL instead)
     GMAIL = "gmail"
 
@@ -220,6 +223,9 @@ CONNECTOR_FUNCTIONAL_CATEGORIES: dict[str, frozenset[ConnectorType]] = {
     ),
     "tasks": frozenset({ConnectorType.GOOGLE_TASKS, ConnectorType.MICROSOFT_TASKS}),
     "smart_home": frozenset({ConnectorType.PHILIPS_HUE}),
+    # Single-member category today: gives telephony its own UI grouping and leaves
+    # room for alternative providers later. No mutual-exclusivity effect while alone.
+    "telephony": frozenset({ConnectorType.ELEVENLABS_TELEPHONY}),
 }
 
 # Display names for functional categories (used in error messages).
@@ -229,6 +235,7 @@ CATEGORY_DISPLAY_NAMES: dict[str, str] = {
     "contacts": "Contacts",
     "tasks": "Tasks",
     "smart_home": "Smart Home",
+    "telephony": "Telephony",
 }
 
 
@@ -303,6 +310,7 @@ CONNECTOR_DISPLAY_NAMES: dict[ConnectorType, str] = {
     ConnectorType.BRAVE_SEARCH: "Brave Search",
     ConnectorType.BROWSER: "Browser",
     ConnectorType.PHILIPS_HUE: "Philips Hue",
+    ConnectorType.ELEVENLABS_TELEPHONY: "Telephony",
     ConnectorType.GMAIL: "Gmail",  # Legacy
     ConnectorType.SLACK: "Slack",
     ConnectorType.NOTION: "Notion",

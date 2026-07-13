@@ -26,6 +26,7 @@ import {
   APPLE_CONNECTOR_TYPES,
   MICROSOFT_CONNECTOR_TYPES,
   HUE_CONNECTOR_TYPES,
+  TELEPHONY_CONNECTOR_TYPES,
   APPLE_CONNECTORS_METADATA,
   MICROSOFT_CONNECTORS_METADATA,
   API_KEY_CONNECTOR_TYPES,
@@ -52,6 +53,8 @@ import {
 } from './connectors';
 import { AppleCredentialForm } from './connectors/AppleCredentialForm';
 import { HueBridgePairingForm } from './connectors/HueBridgePairingForm';
+import { TelephonyConnectorForm } from './connectors/TelephonyConnectorForm';
+import { TelephonyCallHistory } from './connectors/TelephonyCallHistory';
 import { CONNECTOR_LABELS, type ConnectorType } from '@/constants/connectors';
 import type { BaseSettingsProps } from '@/types/settings';
 
@@ -333,6 +336,15 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
   );
 
   const [showHuePairing, setShowHuePairing] = useState(false);
+
+  const connectedTelephonyConnectors = connectors.filter(
+    c =>
+      TELEPHONY_CONNECTOR_TYPES.includes(
+        c.connector_type.toLowerCase() as (typeof TELEPHONY_CONNECTOR_TYPES)[number]
+      ) && isConnectorActive(c)
+  );
+
+  const [showTelephonyWizard, setShowTelephonyWizard] = useState(false);
 
   const connectedMicrosoftConnectors = connectors.filter(
     c =>
@@ -848,6 +860,71 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                       refetch();
                     }}
                     onCancel={() => setShowHuePairing(false)}
+                  />
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* Connected Telephony (agentic calls) */}
+          {connectedTelephonyConnectors.length > 0 && (
+            <AccordionItem value="connected-telephony" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
+                <span className="flex items-center gap-2">
+                  <span>📞</span>
+                  {t('settings.connectors.connected_telephony')}
+                  <span className="text-muted-foreground text-sm">
+                    ({connectedTelephonyConnectors.length})
+                  </span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3">
+                  {connectedTelephonyConnectors.map(connector => (
+                    <ConnectedConnectorCard
+                      key={connector.id}
+                      connector={connector}
+                      lng={lng}
+                      t={t}
+                      deleteLoading={false}
+                      onDisconnect={() => {
+                        // Telephony-specific: also deletes the LIA ElevenLabs agent.
+                        apiClient.delete('/telephony/connector').then(() => refetch());
+                      }}
+                    />
+                  ))}
+                  <TelephonyCallHistory lng={lng} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* Available Telephony */}
+          {connectedTelephonyConnectors.length === 0 && (
+            <AccordionItem value="available-telephony" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
+                <span className="flex items-center gap-2">
+                  <span>📞</span>
+                  {t('settings.connectors.available_telephony')}
+                  <span className="text-muted-foreground text-sm">(1)</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                {!showTelephonyWizard ? (
+                  <AvailableConnectorCard
+                    connectorType="elevenlabs_telephony"
+                    label={t('settings.connectors.telephony.label')}
+                    description={t('settings.connectors.telephony.description')}
+                    onConnect={() => setShowTelephonyWizard(true)}
+                  />
+                ) : (
+                  <TelephonyConnectorForm
+                    lng={lng}
+                    onSuccess={() => {
+                      setShowTelephonyWizard(false);
+                      refetch();
+                    }}
+                    onCancel={() => setShowTelephonyWizard(false)}
                   />
                 )}
               </AccordionContent>

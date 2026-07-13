@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 2.9
-**Date** : 2026-07-11
-**Application** : LIA v1.23.13
+**Date** : 2026-07-13
+**Application** : LIA v1.24.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -589,7 +589,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 Le `get_llm()` résout la configuration effective via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instancie le modèle, et applique les adaptateurs spécifiques.
 
-### 12.2. 54 types de configuration LLM
+### 12.2. 55 types de configuration LLM
 
 Chaque nœud du pipeline est configurable indépendamment via l'Admin UI — sans redéploiement :
 
@@ -633,6 +633,14 @@ Chaque provider retourne des données dans son propre format. Des normalizers d�
 ### 13.3. Patterns réutilisables
 
 `BaseOAuthClient` (template method avec 3 hooks), `BaseGoogleClient` (pagination via pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, rate limiting Redis distribué, refresh token avec double-check pattern et Redis locking contre le thundering herd.
+
+### 13.4. Téléphonie agentique (ADR-127)
+
+LIA peut passer un appel sortant à la place de l'utilisateur, mener une conversation orientée objectif, puis réinjecter un résumé écrit dans le chat. Contrairement aux connecteurs lecture/écriture ci-dessus, le connecteur de téléphonie pilote un **agent vocal tiers** (ElevenLabs Agents) sur le réseau téléphonique, configuré par utilisateur (identifiants personnels) — LIA n'effectue aucune facturation de son côté.
+
+**Protection des données par capacité, pas par prompt.** L'agent d'appel ne dispose que d'un unique outil de disponibilité en lecture seule renvoyant les créneaux libre/occupé ; il ne peut jamais lire les titres, participants, lieux ou contenus des événements. La garantie est structurelle — l'outil n'expose tout simplement pas ces données — et non une instruction de prompt dont le modèle pourrait être détourné.
+
+**Chemin de retour.** L'appel n'est jamais enregistré et la transcription n'est jamais conservée. À la fin de l'appel, un webhook signé HMAC propre à chaque utilisateur déclenche une synthèse LLM sans outils produisant un résumé court et éphémère, réinjecté de façon asynchrone dans la conversation (le même canal d'exécution détachée que l'ADR-117) avec un brouillon de suivi optionnel en un geste. Chaque appel est soumis à une confirmation HITL avant la composition, et l'ensemble du sous-système est protégé par un feature flag.
 
 ---
 
@@ -1096,4 +1104,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 100+ ADRs, et du changelog (v1.0 à v1.23.13). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 100+ ADRs, et du changelog (v1.0 à v1.24.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

@@ -412,6 +412,25 @@ def _render_label_delete(
     return lines
 
 
+def _render_phone_call(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[str]:
+    """Render an outbound phone-call preview (callee, phone, objective)."""
+    # "?" callee fallback matches the other types when the name is missing;
+    # the phone/objective rows are omitted when empty, like optional fields
+    # elsewhere. No datetime: a call is placed immediately on confirmation.
+    callee = content.get("callee_name") or "?"
+    phone = content.get("callee_phone", "")
+    objective = content.get("objective", "")
+
+    lines = [f"<br/>**{lbl['callee']}**: {callee}"]
+    if phone:
+        lines.append(f"<br/>**{lbl['phone']}**: {phone}")
+    if objective:
+        lines.append(f"<br/>**{lbl['objective']}**: {objective}")
+    return lines
+
+
 # =============================================================================
 # REGISTRY
 # =============================================================================
@@ -435,6 +454,7 @@ _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
     DraftType.FILE_DELETE: _render_file_delete,
     DraftType.LABEL_DELETE: _render_label_delete,
     DraftType.REMINDER_DELETE: _render_reminder_delete,
+    DraftType.PHONE_CALL: _render_phone_call,
 }
 
 

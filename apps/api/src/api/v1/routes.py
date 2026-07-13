@@ -98,6 +98,10 @@ if getattr(settings, "usage_limits_enabled", False):
 
     api_router.include_router(usage_limits_router)
     api_router.include_router(usage_limits_ws_router)
+if getattr(settings, "telephony_enabled", False):
+    from src.domains.telephony.router import router as telephony_router
+
+    api_router.include_router(telephony_router)
 api_router.include_router(voice_router)
 api_router.include_router(voice_admin_router)
 api_router.include_router(user_export_router)

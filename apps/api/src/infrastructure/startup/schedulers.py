@@ -36,6 +36,8 @@ from src.core.constants import (
     SCHEDULER_JOB_PSYCHE_DREAM_CYCLE,
     SCHEDULER_JOB_REMINDER_NOTIFICATION,
     SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
+    SCHEDULER_JOB_TELEPHONY_RETENTION_REAPER,
+    SCHEDULER_JOB_TELEPHONY_STALE_REAPER,
     SCHEDULER_JOB_TOKEN_REFRESH,
     SCHEDULER_JOB_UNVERIFIED_CLEANUP,
     SCHEDULER_JOB_USER_MCP_EVICTION,
@@ -333,6 +335,41 @@ async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElecto
             logger.info(
                 "journal_consolidation_job_scheduled",
                 interval_hours=settings.journal_consolidation_interval_hours,
+            )
+
+        # Schedule telephony reapers (agentic calls — spec P4.3)
+        # - stale-call reaper (interval): frees phantom in-flight calls with no webhook.
+        # - retention reaper (daily cron): clears summary/structured_data past TTL (D-8).
+        if getattr(settings, "telephony_enabled", False):
+            from src.domains.telephony.reapers import (
+                telephony_retention_reaper,
+                telephony_stale_call_reaper,
+            )
+
+            scheduler.add_job(
+                telephony_stale_call_reaper,
+                trigger="interval",
+                minutes=settings.telephony_stale_reaper_interval_minutes,
+                id=SCHEDULER_JOB_TELEPHONY_STALE_REAPER,
+                name="Telephony stale-call recovery",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=60,
+            )
+            scheduler.add_job(
+                telephony_retention_reaper,
+                trigger="cron",
+                hour=4,
+                minute=30,
+                id=SCHEDULER_JOB_TELEPHONY_RETENTION_REAPER,
+                name="Telephony call retention purge",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=600,
+            )
+            logger.info(
+                "telephony_reapers_scheduled",
+                stale_interval_minutes=settings.telephony_stale_reaper_interval_minutes,
             )
 
         # Schedule psyche weekly narrative (Psyche Engine — self-reflection)

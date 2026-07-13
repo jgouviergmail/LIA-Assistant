@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 3.7
-**Date**: 2026-07-11
-**Application**: LIA v1.23.13
+**Date**: 2026-07-13
+**Application**: LIA v1.24.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -174,6 +174,14 @@ Ingestion is authenticated by a **dedicated token** (starting with `hm_…`) tha
 An **"Assistant" toggle** (off by default, *opt-in*) lets you, if you wish, authorize the assistant to read these measurements and answer factual questions ("How many steps this week?", "My average heart rate today?", "Am I walking less than usual?"), enrich proactive notifications that combine health + weather + calendar, and attach a non-raw biometric context (deltas, trends) to its memories and internal journals. A single switch governs these four integrations. Never diagnostic — only factual figures, with a baseline that qualifies itself honestly ("based on only N days" while history is under 7 days).
 
 Three management actions give you full control: delete all heart-rate samples, delete all step samples, or wipe everything. No raw physiological value is ever kept in server logs — GDPR compliance is built in by design.
+
+### 3.10. Calling on your behalf
+
+LIA can pick up the phone for you. Ask it to "call the garage to check if the car is ready" or "call Marie and ask if she's free Tuesday evening", and LIA places a real outbound call, holds the conversation toward your goal, and brings back a written summary — with a one-tap follow-up when there's something to do next (booking the slot it just agreed, for instance).
+
+You are always in the loop: before dialing, LIA tells you exactly **who** it will call and **why**, and waits for your go-ahead. The summary lands in the chat asynchronously, so you can keep doing other things while the call happens.
+
+And it stays private by construction. During a call LIA can only tell whether you're free or busy at a given time — never the titles, guests or places on your calendar. Nothing is recorded, the conversation is never stored, and only a short summary is kept before it expires. Phone calls run through your own ElevenLabs connector, billed on your account, and the feature is there only if your administrator turned it on.
 
 ---
 

@@ -52,6 +52,7 @@ from .rag_spaces import RAGSpacesSettings
 from .scheduler import SchedulerSettings
 from .security import SecuritySettings
 from .skills import SkillsSettings
+from .telephony import TelephonySettings
 from .usage_limits import UsageLimitsSettings
 from .voice import VoiceSettings
 
@@ -106,6 +107,7 @@ class Settings(
     SchedulerSettings,
     LocksSettings,
     BackgroundRunsSettings,
+    TelephonySettings,
     BaseSettings,
 ):
     """

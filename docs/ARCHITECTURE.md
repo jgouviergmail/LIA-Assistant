@@ -3865,6 +3865,7 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 | Réactivation de l'alerting (13 alertes → Alertmanager e-mail) | [ADR-119](./architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md) | [README_ALERTING.md](./readme/README_ALERTING.md) |
 | Décompositions structurelles : stream voix, lifespan startup, preview renderer | [ADR-122](./architecture/ADR-122-AgentService-Stream-Decomposition-B2.md), [ADR-123](./architecture/ADR-123-Lifespan-Startup-Decomposition.md), [ADR-125](./architecture/ADR-125-Draft-Preview-Renderer-Extraction.md) | — |
 | Découplage auth/users : auth = identité/session (feuille), users = agrégat User | [ADR-126](./architecture/ADR-126-Auth-Users-Domain-Decoupling.md) | [AUTHENTICATION.md](./technical/AUTHENTICATION.md) |
+| Téléphonie agentique : appels sortants pilotés par agent, protection par capacité (libre/occupé, jamais le contenu), aucun enregistrement, synthèse asynchrone réinjectée via webhook signé par utilisateur | [ADR-127](./architecture/ADR-127-Agentic-Telephony.md) | [TELEPHONY.md](./technical/TELEPHONY.md) |
 
 ---
 

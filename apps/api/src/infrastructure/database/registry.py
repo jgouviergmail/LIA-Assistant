@@ -46,6 +46,7 @@ def import_all_models() -> None:
 
     # ADR-083 Phase 2 cleanup: sub_agents.models removed (table dropped).
     import src.domains.system_settings.models  # noqa: F401
+    import src.domains.telephony.models  # noqa: F401
     import src.domains.usage_limits.models  # noqa: F401
     import src.domains.user_mcp.models  # noqa: F401
     import src.domains.users.models  # noqa: F401

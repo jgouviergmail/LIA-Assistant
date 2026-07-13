@@ -34,6 +34,7 @@ import {
   Heart,
   Activity,
   Sunrise,
+  PhoneCall,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -139,6 +140,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
       { key: 'proactive', icon: BellRing },
       { key: 'interests', icon: Star },
       { key: 'reminders_scheduling', icon: CalendarClock },
+      { key: 'telephony', icon: PhoneCall },
       { key: 'skills', icon: Blocks },
       { key: 'health_metrics', icon: Activity },
     ],

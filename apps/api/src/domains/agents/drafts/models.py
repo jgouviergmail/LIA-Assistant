@@ -64,6 +64,7 @@ class DraftType(str, Enum):
     FILE_DELETE = "file_delete"  # Drive file delete draft (delete_file)
     LABEL_DELETE = "label_delete"  # Gmail label delete draft (delete_label)
     REMINDER_DELETE = "reminder_delete"  # Reminder delete draft (cancel_reminder)
+    PHONE_CALL = "phone_call"  # Outbound agentic phone-call draft (place_phone_call)
 
 
 class DraftStatus(str, Enum):
@@ -414,6 +415,24 @@ class ReminderDeleteDraftInput(BaseDraftInput):
     reminder_id: str = Field(..., description="Reminder UUID to cancel")
     content: str = Field(default="", description="Reminder content for confirmation display")
     trigger_at: str = Field(default="", description="Trigger datetime for confirmation display")
+
+
+class PhoneCallDraftInput(BaseDraftInput):
+    """Input for an outbound agentic phone-call draft.
+
+    Deferred for user confirmation before LIA actually places the call. The
+    callee's number is already resolved at this point (never re-resolved at
+    execution). ``date_window`` is a free-text availability hint (e.g. "cette
+    semaine", "mardi après-midi") that the executor projects to a fetch window.
+    """
+
+    callee_name: str = Field(..., description="Display name of the person to call")
+    callee_phone: str = Field(..., description="Resolved E.164 phone number of the callee")
+    objective: str = Field(..., description="What LIA must accomplish on the call")
+    date_window: str | None = Field(
+        default=None,
+        description="Optional free-text window for availability pre-fetch (e.g. 'this week').",
+    )
 
 
 class ContactDeleteDraftInput(BaseDraftInput):
@@ -849,6 +868,14 @@ class Draft(BaseModel):
                 "label_delete",
                 user_language,
                 name=self.content.get("label_name", "?"),
+            )
+
+        elif self.type == DraftType.PHONE_CALL:
+            return "<br/>" + get_draft_summary_label(
+                "phone_call",
+                user_language,
+                name=self.content.get("callee_name", "?"),
+                objective=self.content.get("objective", "?"),
             )
 
         return f"Draft ({self.type.value})"

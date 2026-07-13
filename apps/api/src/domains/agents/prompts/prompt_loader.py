@@ -160,6 +160,9 @@ PromptName = Literal[
     # Today Dashboard — Briefing (greeting + synthesis)
     "briefing_greeting_prompt",
     "briefing_synthesis_prompt",
+    # Agentic telephony — post-call return synthesis + the ElevenLabs agent guardrail prompt
+    "telephony_synthesis_prompt",
+    "telephony_agent_system_prompt",
     # Voice comment (TTS post-response narrative aside)
     "voice_comment_prompt",
     # Future prompts:

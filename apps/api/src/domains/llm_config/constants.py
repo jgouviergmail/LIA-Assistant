@@ -376,6 +376,14 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=[],
         power_tier=POWER_TIER_LOW,
     ),
+    "telephony_synthesis": LLMTypeMetadata(
+        llm_type="telephony_synthesis",
+        display_name="Telephony Return Synthesis",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.telephony_synthesis",
+        required_capabilities=[],
+        power_tier=POWER_TIER_LOW,
+    ),
     # --- Specialized ---
     "voice_comment": LLMTypeMetadata(
         llm_type="voice_comment",
@@ -933,6 +941,18 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=500,
+        timeout_seconds=20.0,
+    ),
+    # Telephony return synthesis: a single tool-less call summarizing a finished
+    # call + proposing a follow-up. Low temperature (factual), short output.
+    "telephony_synthesis": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-nano",
+        temperature=0.4,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=600,
         timeout_seconds=20.0,
     ),
     "broadcast_translator": LLMAgentConfig(

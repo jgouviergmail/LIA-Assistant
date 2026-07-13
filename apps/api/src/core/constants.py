@@ -448,6 +448,27 @@ SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES = 10
 SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES = 5
 SCHEDULED_ACTIONS_BATCH_SIZE = 50
 
+# ============================================================================
+# TELEPHONY (agentic outbound calls)
+# ============================================================================
+# Deployment-wide knobs for the telephony feature. Per-user ElevenLabs
+# key/agent/number live in the ELEVENLABS_TELEPHONY connector (encrypted),
+# never here. See docs/superpowers/specs/2026-07-07-telephony-agentic-calls-design.md
+TELEPHONY_RINGING_TIMEOUT_SECONDS_DEFAULT = 30
+TELEPHONY_PREFETCH_WINDOW_DAYS_DEFAULT = 10
+TELEPHONY_MAX_CALL_DURATION_SECONDS_DEFAULT = 600
+TELEPHONY_CALL_RETENTION_DAYS_DEFAULT = 30
+TELEPHONY_STALE_CALL_TIMEOUT_MINUTES_DEFAULT = 15
+TELEPHONY_RATE_LIMIT_PER_HOUR_DEFAULT = 10
+# Post-call webhook HMAC replay window: reject signatures whose timestamp is
+# older than this (strict, like Stripe's construct_event tolerance).
+TELEPHONY_WEBHOOK_TOLERANCE_SECONDS_DEFAULT = 1800
+# Stale-call reaper cadence (interval minutes) — sweeps dialing/in_progress calls
+# with no terminal webhook. Retention reaper runs daily (cron), no interval knob.
+TELEPHONY_STALE_REAPER_INTERVAL_MINUTES_DEFAULT = 5
+SCHEDULER_JOB_TELEPHONY_STALE_REAPER = "telephony_stale_call_reaper"
+SCHEDULER_JOB_TELEPHONY_RETENTION_REAPER = "telephony_retention_reaper"
+
 # Proactive OAuth Token Refresh Configuration
 # Background job refreshes tokens BEFORE they expire to prevent disconnections
 # when users return after periods of inactivity.

@@ -9,6 +9,7 @@ import {
   Layers,
   Blocks,
   ShieldCheck,
+  PhoneCall,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -52,6 +53,11 @@ const TECH_ITEMS = [
     key: 'hitl',
     icon: ShieldCheck,
     iconBg: 'bg-gradient-to-br from-orange-500/15 to-red-500/15',
+  },
+  {
+    key: 'telephony',
+    icon: PhoneCall,
+    iconBg: 'bg-gradient-to-br from-teal-500/15 to-emerald-500/15',
   },
 ];
 

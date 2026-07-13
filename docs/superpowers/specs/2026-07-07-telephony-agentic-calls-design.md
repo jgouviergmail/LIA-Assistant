@@ -1,7 +1,7 @@
 # Design Spec — Agentic Telephony (Outbound Calls)
 
-- **Status:** Draft design spec (pre-implementation), **v4 — post second expert review**. NOT committed to git; awaiting user review.
-- **Date:** 2026-07-07 · Revisions: v2 (expert review F1–F16), v3 (per-user connector), **v4 (second review N-1…N-16 + no-cost-counting decision)**. See §16.
+- **Status:** Draft design spec (pre-implementation), **v5 — post validation/integrability review**. NOT committed to git; awaiting user review.
+- **Date:** 2026-07-07 · Revisions: v2 (expert review F1–F16), v3 (per-user connector), v4 (second review N-1…N-16 + no-cost decision), **v5 (integrability review V-1…V-7: draft pattern)**. See §16.
 - **Feature flag:** `TELEPHONY_ENABLED`
 
 > Language note: English, to match the rest of `docs/`. Code identifiers verbatim.
@@ -63,8 +63,20 @@ meter them (D-9).
   activation **cannot** reuse the plain `/api-key/activate` route; the custom-flow
   precedent is **Philips Hue** (`HueBridgePairingForm.tsx`, `useHueConnect.ts`,
   dedicated endpoints) (N-2).
-- **`APIKeyConnectorTool` base class** (read): credentials→client→execute flow —
-  `place_phone_call` inherits it (N-7).
+- **HITL confirm = DRAFT pattern (V-1, verified)**: `hitl_required=True` only drives
+  ReAct's pre-execution interrupt (deliberately `False` on all mutating tools;
+  unrendered "silent hang" for draft tools — `test_hitl_required_consistency.py`);
+  pipeline `approval_gate` is auto-approved. The rendered/tested path is
+  `create_event`-style: tool → `StandardToolOutput(requires_confirmation=True)` →
+  `LIAToolNode` → `draft_critique` → `draft_executor`. `DraftType` (16 values,
+  "extensible") + `DRAFT_DISPLAY_REGISTRY` + `assert_registry_completeness` (boot,
+  ADR-085). → `place_phone_call` adds `DraftType.PHONE_CALL`.
+- **`APIKeyConnectorTool` is a poor fit (V-2, verified via `perplexity_tools.py`)**:
+  it is single-connector query→format; the tool orchestrates connector-check +
+  contacts resolution + draft. Model it on `create_event_tool` instead.
+- **No calendar `freebusy` (V-3, verified)**: `google_calendar_client` has no
+  free/busy read → `availability.py` reads `list_events` and projects server-side
+  to free/busy (holds full events transiently, returns only free/busy).
 - **STT cost chokepoint is `ChatRepository.add_stt_usage` on `UserStatistics`**
   (read; Python read-modify-write, not the atomic UPSERT) — recorded for accuracy;
   **not imitated** since D-9 removes telephony cost metering (N-1).
@@ -107,7 +119,6 @@ rebrand of Conversational AI 2.0):**
   (confirm on the first vertical-slice call).
 - Max-call-duration + voicemail-detection config field names inside
   `conversation_config`/`platform_settings` (create-agent body details).
-- Calendar connector `freebusy`-style read.
 
 **Known v1 limitations (accepted):** pre-fetch availability only for objectives with
 a determinable date window (G2); structured extraction relies on the D-2 synthesis.
@@ -145,20 +156,24 @@ Self-contained domain (`channels/`/`briefing/` pattern). Two async flows:
 ```
 FLOW A — Initiate (synchronous to the user, non-blocking on the call)
   User (chat): "call Marie: OK restaurant Saturday noon? where?"
-    └─ tool place_phone_call  (APIKeyConnectorTool, connector_type=ELEVENLABS_TELEPHONY)
-         ├─ base class loads the CALLER's connector credentials; absent/inactive →
-         │   friendly "activate telephony in Mes Connecteurs"
-         ├─ resolve contact → phone (search_contacts → phoneNumbers; ambiguity → HITL)
-         ├─ HITL destructive-confirm (manifest hitl_required=True)  ── reject → no row, no call
-         │                                                          └─ approve ↓
-         ├─ pre-fetch minimized availability over the objective's date window   [F9]
-         ├─ TelephonyService.initiate_call():
-         │     • create PhoneCall row (status=dialing) under the unique-active guard  [F12]
-         │     • ElevenLabs outbound-call via the user's key/agent/number
-         │        (dynamic_variables={call_id, objective, callee_name, user_name,
-         │                            availability_summary, language, recording_disclosure})
-         │     • persist elevenlabs_conversation_id
-         └─ return immediately: ToolResponse(status="call_initiated")
+    └─ tool place_phone_call  (DRAFT-producing tool, like create_event — V-1)
+         ├─ verify caller's ELEVENLABS_TELEPHONY connector active; else guide to activate
+         ├─ resolve contact → phone (search_contacts → phoneNumbers; ambiguity → HITL clarify)
+         └─ return StandardToolOutput(requires_confirmation=True, draft_type="phone_call",
+              _draft_content={callee_name, callee_phone, objective, date_window})
+                ↓ LIAToolNode → pending_draft_critique → draft_critique node
+         ├─ preview "📞 Appeler Marie au 06.. — Objectif: …"  ── cancel → no row, no call
+         │                                                     ── edit → change objective/number
+         │                                                     └─ confirm ↓
+         └─ draft_executor (PHONE_CALL branch):
+              ├─ pre-fetch minimized availability over the objective's date window   [F9]
+              ├─ TelephonyService.initiate_call():
+              │     • create PhoneCall row (status=dialing) under the unique-active guard  [F12]
+              │     • ElevenLabs outbound-call via the user's key/agent/number
+              │        (dynamic_variables={call_id, objective, callee_name, user_name,
+              │                            availability_summary, recording_disclosure})
+              │     • persist elevenlabs_conversation_id
+              └─ turn ends non-blocking ("call initiated")
 
 FLOW B — Return (D-2 bounded synthesis — NO agent turn, NO tools)
   Call ends → ElevenLabs POST post_call_transcription (workspace-level webhook)
@@ -192,7 +207,7 @@ FLOW B — Return (D-2 bounded synthesis — NO agent turn, NO tools)
 | `webhook_handler.py` | Foreign-event filter, per-user HMAC verify, synthesis, dispatch. Idempotent. |
 | `router.py` | `POST /telephony/webhook`, `GET /telephony/calls`, `POST /telephony/connector/*` (activation steps). Feature-flag guarded. |
 | `core/config/telephony.py` | `TelephonySettings` (flag, caps, rate limits, prefetch window, retention TTL, timeouts — no per-user creds). |
-| `agents/tools/telephony_tools.py` | `place_phone_call` (inherits `APIKeyConnectorTool`, N-7). |
+| `agents/tools/telephony_tools.py` | `place_phone_call` — **draft-producing tool** modeled on `create_event_tool` (V-2); emits a `PHONE_CALL` draft. |
 
 ### 4.2 Per-user connector (`ELEVENLABS_TELEPHONY`)
 
@@ -231,8 +246,9 @@ the user's account (ignore failures — it is the user's workspace); any in-flig
 `ConnectorGlobalConfig` like every connector.
 
 **Retrieval:** `get_api_key_credentials(user_id, ELEVENLABS_TELEPHONY)` +
-`connector_metadata` — done by the `APIKeyConnectorTool` base for the tool path, and
-explicitly by the webhook handler.
+`connector_metadata` — called explicitly by `draft_executor`/`TelephonyService` at
+call time and by the webhook handler. The tool only *checks* the connector is active
+when building the draft; the API key is needed at call time, not at draft time (V-2).
 
 ---
 
@@ -247,7 +263,7 @@ SQLAlchemy 2.0, `UUIDMixin`+`TimestampMixin`; registered in the 3 places + migra
 | `callee_phone` | `str` (encrypted) | PII — encrypted, never at INFO. |
 | `objective` | `str` | The per-call goal. |
 | `objective_window_start/_end` | `DateTime(tz)`, nullable | Pre-fetch window (null ⇒ open-ended, no pre-fetch). |
-| `status` | `str` enum | `dialing → in_progress → completed | no_answer | voicemail | failed | cancelled`. Row created at `dialing` after HITL approval; reject ⇒ no row (F13). |
+| `status` | `str` enum | `dialing → in_progress → completed | no_answer | voicemail | failed | cancelled`. **Two-object lifecycle (V-7):** a `PHONE_CALL` *draft* (DraftStatus PENDING→CONFIRMED) precedes the row; the `PhoneCall` row is created at `dialing` **when `draft_executor` runs on confirm**. Cancel/edit-then-cancel ⇒ draft CANCELLED, no `PhoneCall` row (F13). |
 | `elevenlabs_conversation_id` | `str`, nullable, unique(partial) | Reconciliation fallback. |
 | `call_seconds` | `Numeric(12,2)`, nullable | Duration from the webhook — **factual metadata only, never costed** (D-9). |
 | `summary` | `str`, nullable | From synthesis. **No raw transcript/audio stored** (D-8). |
@@ -292,8 +308,10 @@ the agent when the user's language changes. Pre-fetch + initiation run only afte
 HITL approval (F9).
 
 ### 6.3 Availability pre-fetch
-Busy intervals over the objective's window via the calendar connector, **projected to
-free/busy only** (server-side), injected as `{{availability_summary}}`.
+Busy intervals over the objective's window via the calendar connector — **verified
+(V-3): no `freebusy` read exists, so `availability.py` reads `list_events` and
+projects server-side to free/busy** (holds full events transiently, returns only
+free/busy) — injected as `{{availability_summary}}`.
 Window-bounded ⇒ inherent minimization. `date_window` is **agent-supplied and
 required when the objective implies a deadline** (no silent no-op — F8a); open-ended
 objectives get no in-call availability (G2), times reconciled post-call.
@@ -320,23 +338,47 @@ Native system tool (leave localized message or hang up) → `status=voicemail`,
 
 ---
 
-## 7. The Tool — `place_phone_call`
+## 7. The Tool — `place_phone_call` (DRAFT pattern, like `create_event`)
 
-- **Base class:** `APIKeyConnectorTool` with
-  `connector_type=ConnectorType.ELEVENLABS_TELEPHONY` (N-7) — credentials loading,
-  "not activated" error, error handling come from the base (~30 lines of business
-  logic).
+**Corrected in v5 (V-1):** the confirm is **not** `hitl_required=True` (that flag
+only drives ReAct's pre-execution interrupt and is deliberately `False` on every
+mutating tool — for draft tools it is "redundant AND currently unrendered (silent
+hang)", enforced by `test_hitl_required_consistency.py`; and pipeline
+`approval_gate` is auto-approved). LIA's canonical "confirm/preview/edit before an
+irreversible action" is the **draft pattern** (`create_event` produces a draft →
+`draft_critique` → `draft_executor`). `place_phone_call` follows it exactly.
+
+- **Model on `create_event_tool`** (a draft-producing tool, `operation="create_draft"`),
+  **not** `APIKeyConnectorTool` (V-2: that base is single-connector query→format;
+  this tool orchestrates the telephony connector check + contacts resolution).
 - **Params:** `contact`, `objective`, `date_window` (required when the objective
   implies a deadline — F8a), optional `context`.
-- **HITL:** manifest `hitl_required=True` → tool-level **destructive-confirm** in
-  both pipeline and ReAct modes; classifier falls to `ACTION_TYPE_GENERIC` for this
-  tool name (acceptable); a dedicated phone-call confirm template is added to
-  `HitlMessages` (6 languages) (N-8). Reject → no row, no call (F13).
-- **Flow:** resolve contact→phone (ambiguity → HITL clarification; prefer mobile) →
-  confirm → pre-fetch (F9) → `initiate_call()` (row at `dialing`, unique-active
-  guard F12) → immediate `call_initiated`.
+- **Behavior:** verify the caller's `ELEVENLABS_TELEPHONY` connector is active
+  (else guidance to activate it) → resolve `contact → phone` (`search_contacts` →
+  `phoneNumbers`; ambiguity → existing HITL clarification; prefer mobile) → return
+  `StandardToolOutput(requires_confirmation=True)` with `_draft_content =
+  {callee_name, callee_phone, objective, date_window}` and `draft_type="phone_call"`.
+- **HITL flow (verified mechanism):** `LIAToolNode` detects `requires_confirmation`
+  → `pending_draft_critique` → `draft_critique` node renders the preview from
+  `DRAFT_DISPLAY_REGISTRY[PHONE_CALL]` ("📞 Appeler Marie au 06.. — Objectif : …")
+  → user **confirms / edits / cancels**. Edit (change objective or number) and
+  cancel come **for free** from the draft machinery (`DraftStatus` PENDING→MODIFIED→
+  CONFIRMED / CANCELLED). Cancel ⇒ no `PhoneCall` row, no call (F13). The draft
+  preview showing the **resolved number** is what makes this correct (the number is
+  known before the confirm — impossible with `hitl_required`).
+- **Execution on confirm:** `draft_executor` runs the `PHONE_CALL` branch →
+  pre-fetch availability (F9) → `TelephonyService.initiate_call()` (creates the
+  `PhoneCall` row at `dialing` under the unique-active guard F12) → the call is
+  initiated; the turn ends non-blocking.
+- **New registrations required (draft pattern):** `DraftType.PHONE_CALL` in
+  `drafts/models.py`; a `DRAFT_DISPLAY_REGISTRY[PHONE_CALL]` entry
+  (`assert_registry_completeness` refuses to boot without it — ADR-085) + `noun`/
+  `verb_past` + preview-label i18n keys ×6 (call/appel, placed/passé); the
+  `PHONE_CALL` execution branch in `draft_executor`.
 - **Policy:** `@track_tool_metrics` + `@rate_limit`; registry + catalogue + manifest
-  (`data_classification="SENSITIVE"`); `ToolErrorModel`/`ToolErrorCode` on failure.
+  (`data_classification="SENSITIVE"`, **`hitl_required=False`** — the draft flow
+  gates it, per the calendar-manifest invariant); `ToolErrorModel`/`ToolErrorCode`
+  on failure.
 
 ---
 
@@ -408,17 +450,21 @@ stays agnostic behind `agent_phone_number_id` (D-3).
 
 1. **Config**: `TelephonySettings` in the MRO; `TELEPHONY_ENABLED`; `.env*` updated.
 2. **Constants** centralized; parameterizable via settings.
-3. **Models**: `PhoneCall` registered in the 3 places; Alembic migration (single
-   head) incl. the unique partial index. (`ConnectorType` addition is **code-only**,
-   no migration — N-5.)
+3. **Models**: `PhoneCall` registered in the 3 places — `alembic/env.py`,
+   `registry.py::import_all_models`, `startup/registries.py::import_domain_models`
+   (ADR-123, V-6); Alembic migration (single head) incl. the unique partial index.
+   (`ConnectorType` addition is **code-only**, no migration — N-5.)
 4. **Router**: `/telephony/webhook`, `/telephony/calls`, `/telephony/connector/*`
    behind `telephony_enabled`.
-5. **Startup**: stale-call reaper + retention reaper in `main.py` lifespan
-   (flag-guarded).
-6. **Prompts**: `synthesize_return` + agent prompt strings in versioned `prompts/v1/`
-   + LIA i18n (no inline French).
-7. **LangGraph**: tool registered + catalogue + manifest (+ `HitlMessages` confirm
-   template — N-8).
+5. **Startup**: stale-call reaper + retention reaper registered in
+   `startup/schedulers.py::init_scheduler` (V-6, not raw `main.py`), flag-guarded.
+   The `DRAFT_DISPLAY_REGISTRY` completeness assert already runs at boot.
+6. **Prompts**: `synthesize_return` in versioned `prompts/v1/` + its name in the
+   `PromptName` Literal (V-4); agent prompt strings + LIA i18n (no inline French).
+7. **LangGraph + drafts**: tool registered + catalogue + manifest
+   (`hitl_required=False`); **`DraftType.PHONE_CALL` + `DRAFT_DISPLAY_REGISTRY` entry
+   + `draft_executor` branch** (V-1) with draft noun/verb/label i18n ×6; a new
+   **`telephony_synthesis` LLM type** in `core/config/agents.py` (V-4).
 8. **Frontend**: telephony connector card + **multi-step activation wizard**
    (`TelephonyConnectorForm`, Hue precedent) in `UserConnectorsSection`;
    `ConnectorIcon` + `constants/connectors.ts`; `useTelephony` hook + call history.
@@ -471,8 +517,13 @@ stays agnostic behind `agent_phone_number_id` (D-3).
   kill-switch.
 - **No cost metering (D-9)**: completing a call adds **nothing** to
   `UserStatistics` cost columns; synthesis tokens ARE tracked.
-- HITL reject path (F16); concurrency (F12); call language (F8b); retention (D-8);
-  i18n parity (incl. `phone_call` title); feature-flag off → routes/tool absent.
+- **Draft flow (V-1)**: tool emits `requires_confirmation`; `draft_critique` preview
+  shows the **resolved number**; confirm → `draft_executor` creates the row + places
+  the call; edit changes objective/number; cancel ⇒ no row/no call;
+  `DRAFT_DISPLAY_REGISTRY[PHONE_CALL]` present (boot assert).
+- HITL cancel path (F16); concurrency (F12); call language (F8b); retention (D-8);
+  i18n parity (incl. `phone_call` title + draft noun/verb); feature-flag off →
+  routes/tool absent.
 
 ---
 
@@ -483,7 +534,6 @@ stays agnostic behind `agent_phone_number_id` (D-3).
   guided manual step in the activation wizard) (N-4a).
 - Listing the workspace's imported phone numbers via API (activation step 2).
 - `max_call_duration` field; `conversation_config_override.language` support.
-- Calendar connector `freebusy`-style read.
 - (v2) Webhook-tool `response_timeout` for the live gateway.
 
 ---
@@ -515,7 +565,18 @@ stays agnostic behind `agent_phone_number_id` (D-3).
 
 ## 16. Revision Log
 
-**v4 — second expert review (this revision):**
+**v5 — validation review / integrability (this revision):**
+
+| Finding | Sev. | Resolution | Where |
+|---------|------|------------|-------|
+| **V-1** HITL mechanism wrong: `hitl_required=True` is ReAct-only + unrendered for draft tools ("silent hang"); pipeline `approval_gate` auto-approved | 🟠 | Adopt the **draft pattern** (`DraftType.PHONE_CALL` + `DRAFT_DISPLAY_REGISTRY` + `draft_critique` + `draft_executor`) like `create_event`. Fixes resolved-number-in-preview; adds edit/cancel free. | §2.1, §4, §5, §7, §11, §13 |
+| **V-2** `APIKeyConnectorTool` poor fit (single-connector query→format) | 🟠 | Model the tool on `create_event_tool` (draft producer), not the API-key base. | §2.1, §7 |
+| **V-3** No calendar `freebusy` (verified) | 🟡 | `availability.py` uses `list_events` + server-side projection (holds events transiently, returns only free/busy). | §2.1, §6.3, §14 |
+| **V-4** Synthesis LLM type + `PromptName` not wired | 🟡 | New `telephony_synthesis` type in `core/config/agents.py` + `PromptName` entry. | §11 |
+| **V-6** Model/scheduler registration named loosely | 🟡 | Corrected to `startup/registries.py::import_domain_models` + `startup/schedulers.py::init_scheduler` (ADR-123). | §11 |
+| **V-7** Draft-vs-PhoneCall two-object lifecycle | 🟡 | Clarified: draft (PENDING→CONFIRMED) precedes the row (created by executor). | §5, §7 |
+
+**v4 — second expert review:**
 
 | Finding | Sev. | Resolution | Where |
 |---------|------|------------|-------|

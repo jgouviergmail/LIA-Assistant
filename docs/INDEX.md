@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 40 |
-| ADRs | 119 (ADR-126 le plus récent) |
+| ADRs | 120 (ADR-127 le plus récent) |
 | Fiches knowledge (RAG système) | 24 |
 
 ---
@@ -42,7 +42,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (119) |
+| [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (120) |
 
 ### Pour les Product Managers
 
@@ -127,7 +128,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PERSONALITIES.md](./technical/PERSONALITIES.md) | Système de personnalités (seeds, traductions, sélection utilisateur) | ✅ |
 | [NOTIFICATIONS_FLOW.md](./technical/NOTIFICATIONS_FLOW.md) | Flux de notifications de bout en bout (SSE, FCM, Telegram) | ✅ |
 | [NANOBOT_INTEGRATION_ROADMAP.md](./technical/NANOBOT_INTEGRATION_ROADMAP.md) | Roadmap d'intégration (document de planification — chemins prévisionnels) | 📦 |
-| [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (54 types, 9 providers) | ✅ |
+| [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (55 types, 9 providers) | ✅ |
 | [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts, rich outputs (frames + images), runtime conventions, hardened import pipeline + chat-driven install + dialogue skills (ADR-118) | ✅ |
 
 ### Cost Tracking & Billing

@@ -806,6 +806,16 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         registry.register_agent_manifest(DEVOPS_AGENT_MANIFEST)
         registry.register_tool_manifest(claude_server_task_catalogue_manifest)
 
+    # Telephony: agentic outbound calls (per-user connector, feature-flagged)
+    if getattr(_get_settings(), "telephony_enabled", False):
+        from src.domains.agents.telephony.catalogue_manifests import (
+            TELEPHONY_AGENT_MANIFEST,
+            place_phone_call_catalogue_manifest,
+        )
+
+        registry.register_agent_manifest(TELEPHONY_AGENT_MANIFEST)
+        registry.register_tool_manifest(place_phone_call_catalogue_manifest)
+
     # Dynamic counting from registry (no more hardcoded values)
     registered_agents = list(registry._agent_manifests.keys())
     registered_tools = list(registry._tool_manifests.keys())

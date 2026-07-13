@@ -309,6 +309,7 @@ class TestFunctionalCategoriesCompleteness:
             "contacts",
             "tasks",
             "smart_home",
+            "telephony",
         }
 
     @pytest.mark.unit

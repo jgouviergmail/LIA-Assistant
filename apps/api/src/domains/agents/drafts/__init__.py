@@ -60,6 +60,7 @@ from src.domains.agents.drafts.models import (
     EventUpdateDraftInput,
     FileDeleteDraftInput,
     LabelDeleteDraftInput,
+    PhoneCallDraftInput,
     ReminderDeleteDraftInput,
     TaskDeleteDraftInput,
     TaskDraftInput,
@@ -110,6 +111,7 @@ __all__ = [
     "TaskDeleteDraftInput",
     "FileDeleteDraftInput",
     "LabelDeleteDraftInput",
+    "PhoneCallDraftInput",
     "ReminderDeleteDraftInput",
     # Models - Request/Result
     "DraftActionRequest",

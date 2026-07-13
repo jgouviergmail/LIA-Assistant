@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 2.9
-**Date**: 2026-07-11
-**Application**: LIA v1.23.13
+**Date**: 2026-07-13
+**Application**: LIA v1.24.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -590,7 +590,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` resolves the effective configuration via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instantiates the model, and applies specific adapters.
 
-### 12.2. 54 LLM configuration types
+### 12.2. 55 LLM configuration types
 
 Each pipeline node is independently configurable via the Admin UI — without redeployment:
 
@@ -634,6 +634,14 @@ Each provider returns data in its own format. Dedicated normalizers (`calendar_n
 ### 13.3. Reusable patterns
 
 `BaseOAuthClient` (template method with 3 hooks), `BaseGoogleClient` (pagination via pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, distributed Redis rate limiting, refresh token with double-check pattern and Redis locking against thundering herd.
+
+### 13.4. Agentic telephony (ADR-127)
+
+LIA can place an outbound phone call on the user's behalf, hold a goal-directed conversation, and reinject a written summary back into the chat. Unlike the read/write connectors above, the telephony connector drives a **third-party voice agent** (ElevenLabs Agents) over the phone network, configured per user (bring-your-own credentials) — LIA performs no cost metering of its own.
+
+**Data protection by capability, not by prompt.** The call agent is provisioned with a single read-only availability tool that resolves free/busy slots only; it can never read event titles, attendees, locations or content. The guarantee is structural — the tool simply does not expose that data — rather than a prompt instruction the model could be talked out of.
+
+**Return path.** The call is never recorded and the transcript is never persisted. When the call ends, a per-user HMAC-signed webhook triggers a tool-less LLM synthesis that produces a short, expiring summary, reinjected asynchronously into the conversation (the same detached-run channel as ADR-117) with an optional one-tap follow-up draft. Every call is gated by a HITL confirmation before dialing, and the whole subsystem sits behind a feature flag.
 
 ---
 
@@ -1084,4 +1092,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.23.13). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 100+ ADRs, and the changelog (v1.0 to v1.24.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

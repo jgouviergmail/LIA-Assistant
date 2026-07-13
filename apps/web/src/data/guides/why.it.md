@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versione** : 3.7
-**Data** : 2026-07-11
-**Applicazione** : LIA v1.23.13
+**Data** : 2026-07-13
+**Applicazione** : LIA v1.24.0
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -174,6 +174,14 @@ L'invio è autenticato da un **token dedicato** (che inizia con `hm_…`) che ge
 Un **interruttore «Assistente»** (disattivato per default, *opt-in*) ti consente, se lo desideri, di autorizzare l'assistente a leggere queste misurazioni per rispondere fattualmente alle tue domande («Quanti passi questa settimana?», «La mia frequenza cardiaca media oggi?», «Cammino meno del solito?»), arricchire le notifiche proattive che combinano salute + meteo + calendario, e allegare un contesto biometrico non grezzo (delta, tendenze) alle sue memorie e ai suoi diari interni. Un unico interruttore governa queste quattro integrazioni. Mai diagnosi — solo cifre fattuali, con la baseline che si qualifica onestamente («basata su soli N giorni» finché lo storico è sotto i 7 giorni).
 
 Tre azioni di gestione ti danno il pieno controllo: eliminare tutte le misurazioni di frequenza cardiaca, eliminare tutte le misurazioni dei passi, o cancellare tutto. Nessun valore fisiologico grezzo viene mai conservato nei log del server — la conformità GDPR è integrata fin dalla progettazione.
+
+### 3.10. Chiamare al posto tuo
+
+LIA può alzare la cornetta per te. Chiedile di «chiamare l'officina per verificare se l'auto è pronta» o di «chiamare Marie per sapere se è libera martedì sera», e LIA effettua una vera chiamata in uscita, conduce la conversazione verso il tuo obiettivo e ti riporta un riepilogo scritto — con un'azione di follow-up in un tocco quando resta qualcosa da fare (prenotare la fascia appena concordata, per esempio).
+
+Mantieni sempre il controllo: prima di comporre il numero, LIA ti dice esattamente **chi** chiamerà e **perché**, e attende il tuo via libera. Il riepilogo arriva nella chat in modo asincrono, così puoi fare altro mentre la chiamata è in corso.
+
+E resta riservato per costruzione. Durante una chiamata LIA può solo indicare se sei libero o occupato in un dato momento — mai i titoli, gli invitati o i luoghi del tuo calendario. Nulla viene registrato, la conversazione non viene mai conservata e si mantiene solo un breve riepilogo prima che scada. Le chiamate passano dal tuo connettore ElevenLabs personale, addebitate sul tuo account, e la funzione è presente solo se il tuo amministratore l'ha attivata.
 
 ---
 

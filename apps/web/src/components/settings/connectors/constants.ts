@@ -39,6 +39,8 @@ export const MICROSOFT_CONNECTOR_TYPES = [
 
 export const HUE_CONNECTOR_TYPES = ['philips_hue'] as const;
 
+export const TELEPHONY_CONNECTOR_TYPES = ['elevenlabs_telephony'] as const;
+
 // Gmail types (new + legacy) for checking if Gmail is connected
 export const GMAIL_TYPES = ['google_gmail', 'gmail'] as const;
 
@@ -148,6 +150,8 @@ export const CONNECTOR_ICONS: Record<string, ConnectorIconConfig> = {
   browser: { icon: Globe, emoji: '🌐', color: 'blue' },
   // Smart Home
   philips_hue: { emoji: '💡', color: 'yellow' },
+  // Telephony (agentic outbound calls)
+  elevenlabs_telephony: { emoji: '📞', color: 'indigo' },
 };
 
 // Uniform background class for all connector icons
@@ -365,5 +369,14 @@ export const HUE_CONNECTORS_METADATA = [
     type: 'philips_hue',
     labelKey: 'settings.connectors.hue.label',
     descriptionKey: 'settings.connectors.hue.description',
+  },
+] as const;
+
+// Telephony (agentic outbound calls) metadata
+export const TELEPHONY_CONNECTORS_METADATA = [
+  {
+    type: 'elevenlabs_telephony',
+    labelKey: 'settings.connectors.telephony.label',
+    descriptionKey: 'settings.connectors.telephony.description',
   },
 ] as const;

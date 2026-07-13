@@ -611,6 +611,23 @@ CASES: tuple[PreviewCase, ...] = (
         DraftType.LABEL_DELETE,
         {"label_id": "l4", "label_name": "perso"},
     ),
+    # -------------------------------------------------------------- Phone call
+    PreviewCase(
+        "phone_call_full_fr",
+        DraftType.PHONE_CALL,
+        {
+            "callee_name": "Paul Martin",
+            "callee_phone": "+33612345678",
+            "objective": "Vérifier sa disponibilité mardi après-midi",
+        },
+    ),
+    # Minimal: callee only — phone and objective rows are omitted.
+    PreviewCase(
+        "phone_call_minimal_en",
+        DraftType.PHONE_CALL,
+        {"callee_name": "John Smith"},
+        language="en",
+    ),
 )
 
 
@@ -680,6 +697,8 @@ EXPECTED: dict[str, str] = {
     "label_delete_five_sublabels_fr": "<br/>**Label**: pro/projets<br/><br/>**Sous-labels inclus**: 5<br/><br/>  pro/projets/p1, pro/projets/p2, pro/projets/p3, pro/projets/p4, pro/projets/p5",
     "label_delete_few_sublabels_en": "<br/>**Label**: personal<br/><br/>**Sub-labels included**: 2<br/><br/>  personal/travel, ?",
     "label_delete_no_sublabels_fr": "<br/>**Label**: perso",
+    "phone_call_full_fr": "<br/>**Correspondant**: Paul Martin<br/><br/>**Téléphone**: +33612345678<br/><br/>**Objectif**: Vérifier sa disponibilité mardi après-midi",
+    "phone_call_minimal_en": "<br/>**Callee**: John Smith",
 }
 
 

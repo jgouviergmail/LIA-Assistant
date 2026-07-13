@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 3.7
-**Date** : 2026-07-11
-**Application** : LIA v1.23.13
+**Date** : 2026-07-13
+**Application** : LIA v1.24.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -174,6 +174,14 @@ L'envoi est authentifié par un **jeton dédié** (commençant par `hm_…`) que
 Un **interrupteur « Assistant »** (désactivé par défaut, *opt-in*) permet, si vous le souhaitez, d'autoriser l'assistant à lire ces mesures pour répondre factuellement à vos questions (« Combien de pas cette semaine ? », « Ma fréquence cardiaque moyenne aujourd'hui ? », « Ai-je marché moins que d'habitude ? »), enrichir les notifications proactives qui croisent santé + météo + agenda, et ajouter un contexte biométrique non-brut (deltas, tendances) à ses mémoires et journaux internes. Un seul interrupteur gouverne ces quatre intégrations. Jamais de diagnostic — uniquement des chiffres factuels, avec la baseline qualifiée honnêtement (« basée sur seulement N jours » tant qu'on a moins de 7 jours d'historique).
 
 Trois actions de gestion vous donnent un contrôle total : supprimer toutes les mesures de fréquence cardiaque, supprimer toutes les mesures de pas, ou tout effacer. Aucune valeur physiologique brute n'est jamais conservée dans les journaux du serveur — la conformité RGPD est intégrée par construction.
+
+### 3.10. Appeler à votre place
+
+LIA peut décrocher le téléphone pour vous. Demandez-lui d'« appeler le garage pour savoir si la voiture est prête » ou d'« appeler Marie pour savoir si elle est libre mardi soir », et LIA passe un vrai appel sortant, mène la conversation vers votre objectif et vous rapporte un résumé écrit — avec une action de suivi en un geste quand il reste quelque chose à faire (réserver le créneau qui vient d'être convenu, par exemple).
+
+Vous gardez toujours la main : avant de composer, LIA vous indique précisément **qui** elle va appeler et **pourquoi**, et attend votre feu vert. Le résumé arrive dans le chat de façon asynchrone, vous pouvez donc faire autre chose pendant l'appel.
+
+Et cela reste confidentiel par construction. Pendant un appel, LIA peut seulement indiquer si vous êtes libre ou occupé à un moment donné — jamais les titres, invités ou lieux de votre agenda. Rien n'est enregistré, la conversation n'est jamais conservée, et seul un résumé court est gardé avant d'expirer. Les appels passent par votre propre connecteur ElevenLabs, facturés sur votre compte, et la fonctionnalité n'est là que si votre administrateur l'a activée.
 
 ---
 

@@ -313,6 +313,19 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         noun_key="reminder",
         verb_past_key="deleted",
     ),
+    # -------------------------------------------------------------- Telephony
+    DraftType.PHONE_CALL: DraftDisplayConfig(
+        emoji="\U0001f4de",  # 📞
+        item_label_fields=("callee_name",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("callee_name", "\U0001f4de", "callee"),
+            DraftDisplayField("callee_phone", "\U0001f4f1", "phone"),
+            DraftDisplayField("objective", "\U0001f3af", "objective"),
+        ),
+        noun_key="call",
+        verb_past_key="placed",
+    ),
 }
 
 
