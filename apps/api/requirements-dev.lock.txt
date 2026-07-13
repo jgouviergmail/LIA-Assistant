@@ -4497,9 +4497,9 @@ types-passlib==1.7.7.20260211 \
     --hash=sha256:af73afffe1ce94c95c7f6072bd261572c29845de74fdffa3a265fc7634bca056 \
     --hash=sha256:c0f1ad440c513a6c07f333b28249530686056fd54a7b3ac6128ae31fd46305d3
     # via -r requirements-dev.txt
-types-pyasn1==0.6.0.20250914 \
-    --hash=sha256:236102553b76c938953037b7ae93d11d395d9413b7f2f8083d3b19d740f7eda6 \
-    --hash=sha256:68ffeef3c28e1ed120b8b81a242f238f137543e68d466d84a97edcf3e4203b5b
+types-pyasn1==0.6.0.20260408 \
+    --hash=sha256:32dc90927adbe504fd2eee83ae30cf5ef934e5db0d1d94886071fed47eb50c8c \
+    --hash=sha256:ee7fbd98bce61193c5d4f8f7812fa53cddc5b8cc5ceb9fcda6eea539947c6d6b
     # via types-python-jose
 types-python-jose==3.5.0.20260408 \
     --hash=sha256:3f8dccdc327bfffea7a81084ea1cea722fa499f13c1d04f7978b491dd36e0cf1 \
