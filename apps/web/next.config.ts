@@ -70,6 +70,18 @@ const nextConfig: NextConfig = {
     // Increase proxy body size limit for RAG document uploads (default: 10MB)
     // Must match RAG_SPACES_MAX_FILE_SIZE_MB (20MB) + overhead for multipart encoding
     proxyClientMaxBodySize: '25mb',
+    // qemu-emulated cross-arch Docker builds (the arm64 image built on the
+    // amd64 CI runner) flakily kill Next's parallel build workers with SIGILL
+    // ("qemu: uncaught target signal 4"). Dockerfile.prod sets
+    // NEXT_BUILD_CPUS=1 ONLY under emulation: a single build worker, plus a
+    // retry margin for pages whose generation attempt was killed. Native
+    // builds (env absent) keep Next's default parallelism.
+    ...(process.env.NEXT_BUILD_CPUS
+      ? {
+          cpus: Number(process.env.NEXT_BUILD_CPUS),
+          staticGenerationRetryCount: 3,
+        }
+      : {}),
   },
 
   // Environment variables.

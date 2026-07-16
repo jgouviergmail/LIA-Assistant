@@ -97,7 +97,18 @@ ENV NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID
 ENV NEXT_PUBLIC_FIREBASE_VAPID_KEY=$NEXT_PUBLIC_FIREBASE_VAPID_KEY
 
 WORKDIR /monorepo/apps/web
-RUN pnpm run build
+# qemu-emulated cross-arch builds (e.g. the arm64 image on the amd64 CI runner)
+# flakily kill Next.js parallel build workers with SIGILL. Serialize the build
+# workers under emulation only (see next.config.ts NEXT_BUILD_CPUS) — native
+# builds keep full parallelism. TARGETARCH/BUILDARCH are buildx built-ins.
+ARG TARGETARCH
+ARG BUILDARCH
+RUN if [ -n "$TARGETARCH" ] && [ -n "$BUILDARCH" ] && [ "$TARGETARCH" != "$BUILDARCH" ]; then \
+      echo "cross-arch build ($BUILDARCH -> $TARGETARCH): serializing Next build workers"; \
+      NEXT_BUILD_CPUS=1 pnpm run build; \
+    else \
+      pnpm run build; \
+    fi
 
 # ============================================================================
 # Stage 3: Production runtime

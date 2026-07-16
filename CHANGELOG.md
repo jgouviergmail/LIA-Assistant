@@ -78,6 +78,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (a commented-out tone rule reinstated), version tag `(v1.17.2)` and `10h`
   francism removed from `heartbeat_decision`, garbled sentence-limit rule in
   `voice_comment` rephrased.
+- **Release CI: qemu SIGILL on the arm64 web build** — the cross-arch Docker
+  build (arm64 image emulated on the amd64 runner) flakily killed Next.js
+  parallel static-generation workers (`qemu: uncaught target signal 4`),
+  failing the release twice. Structural fix: `Dockerfile.prod` sets
+  `NEXT_BUILD_CPUS=1` under emulation only (buildx `TARGETARCH != BUILDARCH`),
+  which `next.config.ts` maps to a single build worker +
+  `staticGenerationRetryCount: 3`; native builds keep full parallelism.
 
 ### Tests
 
