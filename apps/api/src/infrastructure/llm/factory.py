@@ -451,10 +451,14 @@ def get_llm(
                         {"type": "text", "text": dynamic_part},
                     ]
                 else:
-                    # No marker: cache entire system (best effort for small prompts)
-                    payload["system"] = [
-                        {"type": "text", "text": system, "cache_control": cache_ctrl}
-                    ]
+                    # No marker: leave the system prompt untouched (NO cache_control).
+                    # Without the marker we cannot know whether the prompt embeds
+                    # per-request dynamic content (datetime, user data). Best-effort
+                    # caching such a prompt pays the 125% cache-write premium on
+                    # every call and never hits. Fully static prompts opt in by
+                    # ENDING with the marker (static prefix = whole prompt); see
+                    # compaction_prompt.txt / semantic_validator_prompt.txt.
+                    pass
             elif isinstance(system, list):
                 # Already structured as blocks: add cache_control to last block
                 for block in reversed(system):

@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 2.9
+**Version**: 3.0
 **Datum**: 2026-07-16
-**Application**: LIA v1.25.2
+**Application**: LIA v1.25.3
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -152,7 +152,7 @@ apps/api/src/
 │   │   ├── registry/             # AgentRegistry, domain_taxonomy, Catalogue
 │   │   ├── semantic/             # Semantic Router, Expansion Service
 │   │   ├── middleware/           # Memory Injection, Personality Injection
-│   │   ├── prompts/v1/           # 57 versionierte .txt-Prompt-Dateien
+│   │   ├── prompts/v1/           # 78 versionierte .txt-Prompt-Dateien
 │   │   ├── graphs/               # 15 Agent-Builder (einer pro Domäne)
 │   │   ├── context/              # Context Store (Data Registry), Decorators
 │   │   └── models.py             # MessagesState (TypedDict + Custom Reducer)
@@ -611,6 +611,10 @@ Die Tabelle `llm_models` trägt den vollständigen Katalog: Provider, klassische
 
 Das Tarifierungs-LLM-Admin-Formular bietet einen **DB-abgeleiteten dynamischen Template-Mechanismus**: Der Dienst `LLMModelService.list_templates()` gruppiert aktive Zeilen nach ihrem 4-Feld-Reasoning-Fingerprint und gibt einen deterministischen Repräsentanten pro Gruppe zurück (~15 eindeutige Formen heute). Ein neues Reasoning-Modell hinzuzufügen läuft darauf hinaus, „Form von einem solchen vorhandenen Modell kopieren" zu wählen; die 4 Form-Felder werden zum Erstellungszeitpunkt als Snapshot kopiert. **Custom**-Modus für Disruptionen verfügbar; jedes Custom-Modell mit neuartigem Fingerprint wird automatisch zum Template für nachfolgende Einträge. `kind` (chat / image / audio / …), die vier Sampling-Caps und der Tooltip-i18n-Schlüssel werden pro Modell gespeichert, unabhängig vom Template. Siehe `docs/technical/LLM_PRICING_TEMPLATES.md`.
 
+### 12.5. Provider-agnostisches Prompt-Caching
+
+Jeder Provider berechnet weniger (und antwortet schneller), wenn der Anfang eines Prompts über Anfragen hinweg byte-identisch ist — aber jeder mit eigenem Mechanismus: Anthropics `cache_control`-Blöcke, OpenAIs `prompt_cache_key`-Routing, implizite Präfix-Caches bei DeepSeek/Qwen/Gemini. LIA trennt die Verantwortlichkeiten: Jeder versionierte System-Prompt stellt seinen statischen Inhalt (Rolle, Regeln, Beispiele, Ausgabeformat) an den Anfang, dann einen kanonischen Marker `--- DYNAMIC CONTEXT ---`, dann alle anfragespezifischen Inhalte (Datum, Anfrage, Kontext, Tool-Katalog). Die Templates bleiben modellneutral; die Infrastrukturschicht übersetzt den Marker in den Dialekt jedes Providers — den `cache_control`-Split für Anthropic, den Cache-Routing-Schlüssel für OpenAI, gar nichts für die impliziten Caches, die vom stabilen Präfix direkt profitieren. Der Planner-Prompt — der teuerste der Pipeline — bietet so ein zu ~77 % byte-stabiles, cachebares Präfix zwischen zwei beliebigen Anfragen. Shrink-only-CI-Guards verriegeln die Konvention: Jeder dynamische Prompt muss den Marker tragen, kein Platzhalter darf ihm ohne begründete Ausnahme vorausgehen, und die Byte-Stabilität des Planner-Präfixes wird bei jedem Build geprüft.
+
 ---
 
 ## 13. Konnektoren: Multi-Provider-Abstraktion
@@ -894,7 +898,7 @@ Alle Tools geben `ToolResponse` (Erfolg) oder `ToolErrorModel` (Fehler) mit eine
 
 ### 23.4. Prompt-System
 
-57 versionierte `.txt`-Dateien in `src/domains/agents/prompts/v1/`, geladen über `load_prompt()` mit LRU-Cache (32 Einträge). Versionen konfigurierbar über Umgebungsvariablen.
+78 versionierte `.txt`-Dateien in `src/domains/agents/prompts/v1/`, geladen über `load_prompt()` mit LRU-Cache (32 Einträge). Versionen konfigurierbar über Umgebungsvariablen.
 
 ### 23.5. Zentralisierte Komponentenaktivierung (ADR-061)
 
@@ -1064,4 +1068,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 120+ ADRs und des Changelogs (v1.0 bis v1.25.2). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 120+ ADRs und des Changelogs (v1.0 bis v1.25.3). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

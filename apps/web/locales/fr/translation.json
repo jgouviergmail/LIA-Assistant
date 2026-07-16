@@ -3006,14 +3006,24 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_3": {
+          "title": "v1.25.3 — 🧠 Des confirmations plus fines, des coûts IA optimisés",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>✅ Des confirmations qui te comprennent mieux</b> — quand LIA te demande de confirmer une action, ta réponse (« oui », « non annule », « envoie plutôt à Marie ») est désormais classée avec tous ses exemples restaurés — un bug silencieux les empêchait d'atteindre l'IA. Les modifications et annulations sont reconnues plus fiablement.",
+            "i2": "<b>🎭 Des questions de confirmation à la voix de ton assistante</b> — les demandes d'approbation suivent désormais la personnalité que tu as choisie (douce, professionnelle, joueuse…) au lieu d'un registre sarcastique imposé.",
+            "i3": "<b>💰 Des appels IA moins chers et plus rapides</b> — la partie fixe de chaque instruction interne est désormais structurée pour être mise en cache par les fournisseurs : moins de tokens facturés et une latence réduite sur les requêtes répétées, quel que soit le modèle de chaque fonction."
+          }
+        },
         "v1_25_2": {
           "title": "v1.25.2 — 🎬 La page d’accueil publique, réinventée",
           "date": "Juillet 2026",
           "count": "3",
           "items": {
             "i1": "<b>🎬 Une démo qui montre le vrai produit</b> — l’animation d’accueil devient une miniature fidèle de l’application : quatre scènes réelles (orchestration avec votre accord, initiative météo×agenda menée au bout, véritable appel téléphonique, mini-app créée dans le chat), et pendant que LIA « réfléchit », une vitre révèle les coulisses de l’orchestration avec le compteur de coût en direct.",
-            "i2": "<b>📖 Un récit en 5 chapitres, zéro information perdue</b> — la page raconte désormais ce qui rend LIA différente (« Elle fait, vraiment. », « Rien ne part sans toi. »…), chaque chapitre s’ouvrant par une bulle de LIA ; toutes les fiches détaillées restent disponibles dans des catalogues dépliables, et un garde-fou automatique interdit d’en perdre une seule.",
-            "i3": "<b>🔍 La transparence mise en avant</b> — une section « Elle n’a rien à cacher » (coût au centime, audit public 8,3/10, open source) et « Une journée avec elle » : quatre journées types à onglets (indépendant, famille, développeur, administrateur) pour se projeter."
+            "i2": "<b>📖 Un récit en 5 chapitres, zéro information perdue</b> — la page raconte désormais ce qui rend LIA différente (« LIA fait, vraiment. », « Rien ne part sans toi. »…), chaque chapitre s’ouvrant par une bulle de LIA ; toutes les fiches détaillées restent disponibles dans des catalogues dépliables, et un garde-fou automatique interdit d’en perdre une seule.",
+            "i3": "<b>🔍 La transparence mise en avant</b> — une section « LIA n’a rien à cacher » (coût au centime, audit public 8,3/10, open source) et « Une journée avec LIA » : quatre journées types à onglets (indépendant, famille, développeur, administrateur) pour se projeter."
           }
         },
         "v1_25_1": {
@@ -6035,7 +6045,7 @@
     },
     "use_cases": {
       "title": "Des demandes réelles, pas des démos.",
-      "subtitle": "Une phrase suffit — elle découpe, active les bons spécialistes en parallèle, et demande ton accord quand c’est sensible.",
+      "subtitle": "Une phrase suffit — LIA découpe, active les bons spécialistes en parallèle, et demande ton accord quand c’est sensible.",
       "intro": "Chaque exemple ci-dessous est une vraie requête utilisateur, telle quelle.",
       "example1": {
         "query": "Trouve les 3 meilleurs cafés proches de ma position et qui sont ouverts maintenant et donne moi les itinéraires pour y aller à pied",
@@ -6180,7 +6190,7 @@
     },
     "cta": {
       "bubble": "Ton agenda et moi, on a déjà des choses à se dire.",
-      "title": "Elle est prête. Et un peu impatiente.",
+      "title": "LIA est prête. Et un peu impatiente.",
       "subtitle": "Un assistant qui agit, qui te connaît, qui anticipe — et qui demande toujours avant.",
       "button": "Créer mon compte",
       "note_beta": "Bêta gratuite, exploitée en production 24/7. Honnêteté jusqu’au bout : des abonnements viendront.",
@@ -6226,11 +6236,11 @@
     "chapters": {
       "eyebrow": "CHAPITRE",
       "backstage_label": "En coulisses",
-      "catalog_label": "Tout ce qu'elle sait faire ici",
+      "catalog_label": "Tout ce que LIA sait faire ici",
       "how_prefix": "Sous le capot :",
       "c1": {
         "bubble": "« Préviens ma femme et décale mon rdv » — c’est une phrase, pas deux applis.",
-        "title": "Elle fait, vraiment.",
+        "title": "LIA fait, vraiment.",
         "sub": "Pas des suggestions, pas des brouillons à recopier : des actions menées au bout, dans ta vraie vie.",
         "b1_t": "Une phrase, plusieurs spécialistes.",
         "b1_d": "Contacts, agenda, email travaillent en parallèle — tu n'as pas besoin de savoir lesquels.",
@@ -6254,7 +6264,7 @@
       },
       "c2": {
         "bubble": "Bonjour. Ton agenda est chargé, ton café refroidit. Je m’occupe du reste.",
-        "title": "Elle te connaît.",
+        "title": "LIA te connaît.",
         "sub": "Un assistant qui oublie tout entre deux phrases n’assiste personne.",
         "b1_t": "Redis-le une fois. Jamais deux.",
         "b1_d": "« Ma femme », « mon resto du vendredi », « jamais de réunion le mercredi » : dit une fois, retenu pour de bon.",
@@ -6276,7 +6286,7 @@
       },
       "c3": {
         "bubble": "Pluie à 7 h. Footing à 7 h 30. Tu vois le problème ? Moi oui — et j’ai la solution.",
-        "title": "Elle remarque avant toi.",
+        "title": "LIA remarque avant toi.",
         "sub": "La différence entre répondre et assister, c’est de ne pas attendre la question.",
         "b1_t": "Elle croise ce que tu ne croises pas.",
         "b1_d": "Pluie prévue × sortie planifiée, mail reçu × conflit d’agenda : elle relie les points et propose l’action.",
@@ -6316,7 +6326,7 @@
       },
       "c5": {
         "bubble": "Il me manquait une compétence il y a dix secondes. Plus maintenant.",
-        "title": "Elle grandit avec toi.",
+        "title": "LIA grandit avec toi.",
         "sub": "Les autres assistants ont une liste de fonctions. Elle, elle a une marge de progression — et c’est toi qui la dessines.",
         "b1_t": "Une compétence qui manque ? Décris-la.",
         "b1_d": "Elle crée la skill, l’installe, et l’affiche en mini-app dans le chat — cartes, boutons, dashboards.",
@@ -6333,7 +6343,7 @@
     },
     "basics": {
       "title": "Et tout le reste, évidemment.",
-      "sub": "Emails, agenda, contacts, tâches, fichiers — Google, Apple ou Microsoft, au choix. Ça, tout le monde le promet. Elle le fait aussi, sans en faire un argument.",
+      "sub": "Emails, agenda, contacts, tâches, fichiers — Google, Apple ou Microsoft, au choix. Ça, tout le monde le promet. LIA le fait aussi, sans en faire un argument.",
       "detail_label": "Le détail des indispensables",
       "detail_hint": "9 capacités détaillées",
       "chip_emails": "Emails",
@@ -6351,7 +6361,7 @@
       "chip_themes": "Thèmes & mode sombre"
     },
     "transparency": {
-      "title": "Elle n’a rien à cacher.",
+      "title": "LIA n’a rien à cacher.",
       "sub": "La confiance ne se déclare pas, elle se vérifie. Tout est public : le prix, le code, la note.",
       "cost_prefix": "Chaque message :",
       "cost_note": "— le vrai compteur, affiché sous chaque réponse dans l’application —",
@@ -6370,7 +6380,7 @@
       "cta": "Essayer, en toute connaissance"
     },
     "day": {
-      "title": "Une journée avec elle.",
+      "title": "Une journée avec LIA.",
       "tabs_label": "Choisis un profil",
       "tab_freelance": "Indépendant",
       "tab_family": "Famille",
@@ -6418,7 +6428,7 @@
       }
     },
     "gallery": {
-      "title": "Elle, en vrai.",
+      "title": "LIA, en vrai.",
       "sub": "Captures réelles de l’application et présentation complète — rien de maquillé.",
       "tabs_label": "Choisir une vue",
       "tab_screens": "Captures d’écran",
@@ -6737,9 +6747,9 @@
         "body": "<h2>Les trois piliers de l'observabilité</h2><p>LIA implémente les trois piliers de l'observabilité moderne :</p><ul><li><strong>Métriques</strong> — 394 métriques Prometheus couvrant HTTP, agents, tokens, coûts, OAuth et performance</li><li><strong>Logs</strong> — Journalisation structurée JSON via structlog, centralisée dans Loki avec filtrage PII</li><li><strong>Traces</strong> — Tracing distribué via OpenTelemetry (Tempo) et tracing LLM via Langfuse</li></ul><h2>20 fichiers de métriques spécialisés</h2><p>Chaque domaine possède son propre fichier de métriques déclaratif. Les 20 modules couvrent : HTTP, agents (SSE/router/LLM/HITL/planner), base de données, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, erreurs, sous-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métriques santé et limites d'usage. Chaque fichier définit des Counter, Histogram et Gauge Prometheus adaptés au domaine.</p><h2>Définition des métriques Prometheus</h2><p>Chaque domaine définit ses métriques de manière déclarative :</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>22 dashboards Grafana</h2><p>LIA fournit 22 tableaux de bord Grafana numérotés de 01 à 21 : app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser et health-metrics. Chaque dashboard offre des vues filtrables par utilisateur, par période et par environnement.</p><h2>KPIs cibles extraits du code</h2><p>LIA surveille des indicateurs précis définis dans le code source : TTFT (Time To First Token) du streaming, latence du routeur entre 0.1 et 2 secondes, durée d'exécution des outils agents entre 0.1 et 10 secondes, confiance routeur p50 &gt; 0.8, coût LLM par requête &lt; 0.05€, taux d'erreur HTTP 5xx &lt; 1%.</p><h2>Alertes e-mail avec runbooks</h2><p>La supervision ne s'arrête pas aux tableaux de bord : un noyau de 13 alertes vitales — API, PostgreSQL ou Redis indisponibles, disque, mémoire des conteneurs, taux d'erreurs 5xx, latence de streaming, échec de la sauvegarde quotidienne, URL publique injoignable, certificat TLS proche de l'expiration — est évalué en continu par Prometheus et notifié par e-mail via Alertmanager. Chaque alerte référence son runbook (procédure de résolution pas à pas), les seuils sont paramétrés par environnement dans des fichiers .env, et des tests unitaires promtool garantissent que les seuils affichés dans les notifications correspondent exactement aux expressions de déclenchement. Une sonde blackbox teste même la chaîne complète de bout en bout, du edge Cloudflare au frontend, exactement comme un utilisateur.</p><h2>Langfuse : tracing LLM dédié</h2><p>L'intégration Langfuse dispose de 8 métriques dédiées pour tracer chaque appel LLM : tokens consommés (entrée/sortie/cache), temps de réponse, modèle utilisé, coût estimé et contexte de la requête. Cela permet d'identifier les prompts inefficaces, de comparer les modèles LLM entre eux et d'optimiser la consommation de tokens sur la durée.</p><h2>DevOps Claude CLI : diagnostic en langage naturel (v1.13.0)</h2><p>Dernière évolution de la stack observabilité : les administrateurs peuvent désormais diagnostiquer les serveurs directement depuis la conversation LIA. En demandant simplement « Regarde les logs pour voir si tout fonctionne », Claude Code CLI — installé dans le container API Docker — inspecte de manière autonome les logs, vérifie la santé des containers, analyse l'utilisation des ressources et rapporte ses conclusions. Sessions persistantes pour les investigations multi-tours, permissions configurables par environnement (prod en lecture seule, dev en accès complet), et streaming temps réel des étapes d'investigation via SSE.</p>"
       },
       "prompt-engineering": {
-        "title": "Système de prompts versionnés : 55 prompts gérés comme du code",
-        "excerpt": "LIA gère ses 55 prompts comme du code source : versionnés, cachés, validés par hash et chargés dynamiquement pour chaque composant du système.",
-        "body": "<h2>Des prompts gérés comme du code</h2><p>LIA utilise un <strong>système de prompts versionnés</strong> où chaque prompt est un fichier texte stocké dans <code>src/domains/agents/prompts/v1/</code>. Cette approche offre versioning, revue de code et traçabilité.</p><h2>55 prompts spécialisés par catégorie</h2><p>Le système comprend 55 fichiers de prompts répartis en catégories :</p><ul><li><strong>Core (4)</strong> — router, planner, response, compaction</li><li><strong>Agents domaine (16)</strong> — brave, browser, calendar, contacts, drive, emails, perplexity, places, query, routes, tasks, weather, web_fetch, web_search, wikipedia</li><li><strong>HITL (4)</strong> — classifier, draft_critique, plan_approval, question_generator</li><li><strong>Services intelligents (2)</strong> — query_analyzer, smart_planner</li><li><strong>Mémoire (2)</strong> — extraction, reference_resolution</li><li><strong>Heartbeat (2)</strong> — decision, message</li><li><strong>Journals (2)</strong> — introspection, consolidation</li><li><strong>Skills (1)</strong> — description_translation</li><li><strong>Identité (2)</strong> — app_identity, default_personality</li></ul><h2>Chargement intelligent et détection dynamique</h2><p>Les prompts sont chargés via <code>load_prompt()</code> et <code>load_prompt_with_fallback()</code> qui permet une migration graduelle entre versions. Le système détecte dynamiquement les versions disponibles en scannant le filesystem pour les répertoires correspondant au pattern <code>v[0-9]+</code>. Le cache LRU avec validation par hash SHA256 détecte les modifications. Les versions sont configurables via variables d'environnement (ex : <code>ROUTER_PROMPT_VERSION=v1</code>).</p><h2>Le chargeur de prompts en pratique</h2><p>Le système utilise un cache LRU et une validation par hash SHA256 :</p><pre><code class=\"language-python\">@lru_cache(maxsize=32)\ndef load_prompt(\n    name: PromptName,\n    version: PromptVersion = \"v1\",\n    validate_hash: bool = False,\n    expected_hash: str | None = None,\n) -&gt; str:\n    prompt_file = PROMPTS_DIR / version / f\"{name}.txt\"\n    content = prompt_file.read_text(encoding=\"utf-8\")\n\n    if validate_hash and expected_hash:\n        actual_hash = hashlib.sha256(\n            content.encode(\"utf-8\")\n        ).hexdigest()\n        if actual_hash != expected_hash:\n            raise PromptIntegrityError(...)\n\n    return content</code></pre><h2>Prompt injection : principes de sécurité</h2><p>Les contenus externes injectés dans les prompts (emails, pages web) sont encapsulés dans des balises de sécurité pour prévenir les attaques par injection de prompt. Les prompts sont aussi conçus pour être robustes face aux tentatives de manipulation.</p>"
+        "title": "Système de prompts versionnés : 78 prompts gérés comme du code",
+        "excerpt": "LIA gère ses 78 prompts comme du code source : versionnés, cachés, validés par hash et chargés dynamiquement pour chaque composant du système.",
+        "body": "<h2>Des prompts gérés comme du code</h2><p>LIA utilise un <strong>système de prompts versionnés</strong> où chaque prompt est un fichier texte stocké dans <code>src/domains/agents/prompts/v1/</code>. Cette approche offre versioning, revue de code et traçabilité.</p><h2>78 prompts spécialisés par catégorie</h2><p>Le système comprend 78 fichiers de prompts répartis en catégories :</p><ul><li><strong>Cœur du pipeline</strong> — query_analyzer (routage), smart_planner, response, semantic_validator, semantic_pivot, compaction</li><li><strong>Agents domaine (17)</strong> — brave, browser, calendar, contacts, drive, emails, health, hue, perplexity, places, query, routes, tasks, weather, web_fetch, web_search, wikipedia</li><li><strong>Boucles ReAct</strong> — react_agent, subagent_react, skill_react, mcp_react</li><li><strong>HITL</strong> — classifier (avec exemples par type d'action), draft_critique, plan_approval, question_generator, draft_modifier</li><li><strong>Mémoire &amp; psyché</strong> — extraction, résolution de références, directives comportementales, auto-évaluation et incarnation de la psyché</li><li><strong>Proactivité</strong> — heartbeat decision/message, initiative, intérêts, rappels</li><li><strong>Journaux &amp; briefing</strong> — introspection, consolidation, salutation et synthèse quotidiennes</li><li><strong>Identité &amp; traductions</strong> — app_identity, default_personality, traduction broadcast/skill/personnalité</li></ul><h2>Chargement intelligent et détection dynamique</h2><p>Les prompts sont chargés via <code>load_prompt()</code> et <code>load_prompt_with_fallback()</code> qui permet une migration graduelle entre versions. Le système détecte dynamiquement les versions disponibles en scannant le filesystem pour les répertoires correspondant au pattern <code>v[0-9]+</code>. Le cache LRU avec validation par hash SHA256 détecte les modifications. Les versions sont configurables via variables d'environnement (ex : <code>ROUTER_PROMPT_VERSION=v1</code>).</p><h2>Le chargeur de prompts en pratique</h2><p>Le système utilise un cache LRU et une validation par hash SHA256 :</p><pre><code class=\"language-python\">@lru_cache(maxsize=32)\ndef load_prompt(\n    name: PromptName,\n    version: PromptVersion = \"v1\",\n    validate_hash: bool = False,\n    expected_hash: str | None = None,\n) -&gt; str:\n    prompt_file = PROMPTS_DIR / version / f\"{name}.txt\"\n    content = prompt_file.read_text(encoding=\"utf-8\")\n\n    if validate_hash and expected_hash:\n        actual_hash = hashlib.sha256(\n            content.encode(\"utf-8\")\n        ).hexdigest()\n        if actual_hash != expected_hash:\n            raise PromptIntegrityError(...)\n\n    return content</code></pre><h2>Prompt caching provider-agnostique</h2><p>Chaque prompt système dynamique sépare son préfixe statique (rôle, règles, exemples, format de sortie) du contenu par-requête avec un marqueur canonique <code>--- DYNAMIC CONTEXT ---</code>. Les templates restent neutres vis-à-vis du modèle : la couche infrastructure traduit cette convention unique dans le dialecte de cache de chaque provider — blocs <code>cache_control</code> d'Anthropic, routage <code>prompt_cache_key</code> d'OpenAI, caches implicites de préfixe ailleurs — réduisant tokens facturés et latence sur les requêtes répétées. Le planner, prompt le plus coûteux du pipeline, expose un préfixe cacheable byte-stable d'environ 77 %, et des gardes CI shrink-only (marqueur obligatoire, aucun placeholder avant lui, stabilité byte vérifiée) empêchent la convention de régresser.</p><h2>Prompt injection : principes de sécurité</h2><p>Les contenus externes injectés dans les prompts (emails, pages web) sont encapsulés dans des balises de sécurité pour prévenir les attaques par injection de prompt. Les prompts sont aussi conçus pour être robustes face aux tentatives de manipulation.</p>"
       },
       "smart-services": {
         "title": "Smart Services : apprentissage de patterns et optimisation de tokens",

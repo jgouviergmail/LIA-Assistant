@@ -422,8 +422,12 @@ class HitlResponseClassifier:
                 response=response,
                 current_datetime=current_datetime,
             )
-            # Replace examples placeholder
-            system_prompt = system_prompt.replace("{{EXAMPLES_PLACEHOLDER}}", examples)
+            # Inject the action-type examples AFTER .format(): the example blocks
+            # contain single braces ({"query": "paul"}) that would crash .format().
+            # The [[...]] sentinel is brace-free so it survives .format() unchanged
+            # (the legacy {{...}} sentinel was de-escaped to {...} by .format(),
+            # so the replace never matched and examples were silently dropped).
+            system_prompt = system_prompt.replace("[[EXAMPLES_PLACEHOLDER]]", examples)
         except FileNotFoundError:
             # Fallback to legacy function if prompt file not found
             logger.warning(

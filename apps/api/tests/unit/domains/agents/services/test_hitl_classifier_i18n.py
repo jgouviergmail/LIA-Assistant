@@ -145,3 +145,48 @@ def test_classifier_example_sections_cover_all_action_types() -> None:
     assert not missing, f"classifier example sections missing: {sorted(missing)}"
     for key in expected:
         assert sections[key].strip(), f"section '{key}' is empty"
+
+
+# ============================================================================
+# Prompt assembly — the examples must actually reach the final prompt.
+#
+# Regression guard for a silent bug: the template used a {{...}} sentinel that
+# .format() de-escaped to {...} BEFORE the .replace() ran, so the replace never
+# matched and the classifier ran without its few-shot examples (the LLM saw the
+# literal placeholder instead). These tests build the REAL prompt (no mocked
+# load_prompt) and assert the injection end-to-end.
+# ============================================================================
+
+
+def test_examples_are_injected_into_final_prompt() -> None:
+    """The final system prompt contains the action-type examples, not a placeholder."""
+    context = [{"name": "search_contacts", "args": {"query": "jean"}}]
+    messages = _classifier()._build_prompt("oui", context)
+    assert len(messages) == 1
+    content = str(messages[0].content)
+    # Distinctive fragment of the 'recherche' example section
+    assert '"no search paul" → EDIT' in content, "search examples were not injected"
+    # No placeholder variant may survive in the prompt sent to the LLM
+    assert "EXAMPLES_PLACEHOLDER" not in content, "placeholder leaked into the final prompt"
+
+
+def test_examples_injected_for_default_action_type() -> None:
+    """Unlisted action types fall back to the 'default' example section."""
+    context = [{"name": "some_exotic_tool", "args": {}}]
+    messages = _classifier()._build_prompt("ok", context)
+    content = str(messages[0].content)
+    assert '"no [new_value]" → EDIT' in content, "default examples were not injected"
+    assert "EXAMPLES_PLACEHOLDER" not in content
+
+
+def test_prompt_template_uses_brace_free_sentinel() -> None:
+    """The template must keep the [[...]] sentinel (brace forms break on .format()).
+
+    A {{...}} sentinel is de-escaped by .format() before the .replace() runs and
+    silently drops the examples; a bare {...} sentinel would raise KeyError.
+    """
+    from src.domains.agents.prompts import load_prompt
+
+    template = load_prompt("hitl_classifier_prompt")
+    assert "[[EXAMPLES_PLACEHOLDER]]" in template
+    assert "{{EXAMPLES_PLACEHOLDER}}" not in template

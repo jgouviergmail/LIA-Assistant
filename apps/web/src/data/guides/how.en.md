@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 2.9
+**Version**: 3.0
 **Date**: 2026-07-16
-**Application**: LIA v1.25.2
+**Application**: LIA v1.25.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -152,7 +152,7 @@ apps/api/src/
 │   │   ├── registry/             # AgentRegistry, domain_taxonomy, catalogue
 │   │   ├── semantic/             # Semantic router, expansion service
 │   │   ├── middleware/           # Memory injection, personality injection
-│   │   ├── prompts/v1/           # 57 versioned .txt prompt files
+│   │   ├── prompts/v1/           # 78 versioned .txt prompt files
 │   │   ├── graphs/               # 15 agent builders (one per domain)
 │   │   ├── context/              # Context store (Data Registry), decorators
 │   │   └── models.py             # MessagesState (TypedDict + custom reducer)
@@ -611,6 +611,10 @@ The `llm_models` table carries the full catalogue: provider, classic functional 
 
 The Pricing LLM admin form exposes a **DB-derived dynamic templates mechanism**: the `LLMModelService.list_templates()` service groups active rows by their 4-field reasoning fingerprint and returns one deterministic representative per group (~15 unique shapes today). Adding a new reasoning model boils down to picking "copy shape from such existing model"; the 4 shape fields are snapshot-copied at creation time. **Custom** mode is available for disruptions; any Custom model with a novel fingerprint automatically becomes a template for subsequent additions. `kind` (chat / image / audio / …), the four sampling caps and the tooltip i18n key remain saved per model, independent of the template. See `docs/technical/LLM_PRICING_TEMPLATES.md`.
 
+### 12.5. Provider-agnostic prompt caching
+
+Every provider bills less (and answers faster) when the beginning of a prompt is byte-identical across requests — but each with its own mechanism: Anthropic's `cache_control` blocks, OpenAI's `prompt_cache_key` routing, implicit prefix caches on DeepSeek/Qwen/Gemini. LIA separates the concerns: every versioned system prompt places its static content (role, rules, examples, output format) first, then a canonical `--- DYNAMIC CONTEXT ---` marker, then all per-request content (datetime, query, context, tool catalogue). Templates stay model-neutral; the infrastructure layer translates the marker into each provider's dialect — the `cache_control` split for Anthropic, the cache-routing key for OpenAI, nothing at all for the implicit caches, which benefit from the stable prefix as-is. The planner prompt — the pipeline's most expensive — exposes a ~77% byte-stable cacheable prefix across any two requests. Shrink-only CI guards lock the convention: every dynamic prompt must carry the marker, no placeholder may precede it without a justified exception, and the planner prefix's byte stability is asserted on every build.
+
 ---
 
 ## 13. Connectors: multi-provider abstraction
@@ -893,7 +897,7 @@ All tools return `ToolResponse` (success) or `ToolErrorModel` (failure) with a `
 
 ### 23.4. Prompt System
 
-57 versioned `.txt` files in `src/domains/agents/prompts/v1/`, loaded via `load_prompt()` with LRU cache (32 entries). Versions configurable via environment variables.
+78 versioned `.txt` files in `src/domains/agents/prompts/v1/`, loaded via `load_prompt()` with LRU cache (32 entries). Versions configurable via environment variables.
 
 ### 23.5. Centralized Component Activation (ADR-061)
 
@@ -1092,4 +1096,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.2). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.3). All metrics, versions, and patterns cited are verifiable in the codebase.*

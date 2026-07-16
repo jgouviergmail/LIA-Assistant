@@ -354,7 +354,7 @@ async def semantic_validator_node(state: State) -> State:
 ### 4. Prompts (Placeholder)
 
 ```txt
-# smart_planner_prompt.txt / smart_planner_multi_domain_prompt.txt
+# smart_planner_prompt.txt (unified single + multi-domain)
 
 {learned_patterns}
 

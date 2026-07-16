@@ -33,6 +33,8 @@ Input: "Latest developments on X"
 Action: `perplexity_search_tool`
 </Strategies>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Inputs:
 {context_instructions}

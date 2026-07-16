@@ -342,10 +342,10 @@ langfuse_ab_test_variant{experiment="prompt_test_001",variant="control"} 25.0
 ```
 prompts/
 ├── v1/
-│   ├── router_system_prompt_template.txt
+│   ├── query_analyzer_prompt.txt
 │   ├── smart_planner_prompt.txt
 │   ├── response_system_prompt_base.txt
-│   └── ... (26 prompts + 16 fewshot)
+│   └── ... (78 prompts versionnés)
 └── prompt_loader.py                  # PromptLoader
 ```
 

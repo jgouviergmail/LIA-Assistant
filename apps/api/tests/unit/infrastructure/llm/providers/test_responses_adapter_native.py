@@ -44,6 +44,26 @@ class TestStaticPrefix:
     def test_no_marker_returns_full_trimmed(self) -> None:
         assert _extract_static_prefix("  just static  ") == "just static"
 
+    def test_literal_tag_mentions_do_not_cut_the_prefix(self) -> None:
+        """A static instruction MENTIONING a tag must not truncate the prefix.
+
+        Regression guard: legacy marker list included "<TemporalContext>", so
+        response_system_prompt_base (which references that tag in a static rule
+        at ~12% of the file) had its cache prefix cut there instead of at the
+        canonical marker at ~74%.
+        """
+        from src.core.constants import DYNAMIC_CONTEXT_MARKER
+
+        content = (
+            "Static rule: verify facts against <TemporalContext> below.\n"
+            "More static rules referencing <UserRequest> and ## DYNAMIC CONTEXT.\n"
+            f"{DYNAMIC_CONTEXT_MARKER}\nvolatile"
+        )
+        prefix = _extract_static_prefix(content)
+        assert "<TemporalContext>" in prefix
+        assert "<UserRequest>" in prefix
+        assert "volatile" not in prefix
+
     def test_capped_length(self) -> None:
         big = "x" * 20000
         assert len(_extract_static_prefix(big)) == 8192

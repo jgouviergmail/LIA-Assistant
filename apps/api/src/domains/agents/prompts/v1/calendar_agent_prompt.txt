@@ -41,6 +41,8 @@ Input: "Cancel the 2nd"
 Action: `resolve_reference` -> `delete_event_tool` (AFTER confirmation)
 </Strategies>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Inputs:
 {context_instructions}

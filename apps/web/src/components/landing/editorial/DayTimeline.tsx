@@ -5,7 +5,7 @@ import { FadeInOnScroll } from '../FadeInOnScroll';
 import { Tabs } from './Tabs';
 
 /**
- * "A day with her." — replaces the four persona cards with four complete
+ * "A day with LIA." — replaces the four persona cards with four complete
  * hour-by-hour days, one per profile (tabs). Richer than the cards it
  * replaces (16 lived scenes instead of 4 paragraphs) and every scene maps to
  * a shipped feature.

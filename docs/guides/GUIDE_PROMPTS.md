@@ -29,7 +29,7 @@ Un **prompt** est le texte d'instructions fourni à un LLM (Large Language Model
 
 | Node | Version | Fichier | Rôle |
 |------|---------|---------|------|
-| **Router** | v1 | `v1/router_system_prompt_template.txt` | Classification intent + domain detection |
+| **Router (QueryAnalyzer)** | v1 | `v1/query_analyzer_prompt.txt` | Classification intent + domain detection + résolution de références |
 | **Planner** | v1 | `v1/smart_planner_prompt.txt` | Orchestration multi-agents |
 | **Response** | v1 | `v1/response_system_prompt_base.txt` | Génération réponse utilisateur |
 | **HITL Classifier** | v1 | `v1/hitl_classifier_prompt.txt` | Classification HITL |
@@ -43,7 +43,7 @@ Un **prompt** est le texte d'instructions fourni à un LLM (Large Language Model
 apps/api/src/domains/agents/prompts/
 ├── prompt_loader.py                            # Loader utilitaire
 └── v1/                                         # Version actuelle (unique)
-    ├── router_system_prompt_template.txt       # Router node
+    ├── query_analyzer_prompt.txt               # Routing (QueryAnalyzerService)
     ├── smart_planner_prompt.txt               # Planner node
     ├── response_system_prompt_base.txt         # Response node
     ├── semantic_validator_prompt.txt           # Semantic validator
@@ -411,11 +411,11 @@ async def test_summarizer_identifies_key_actions():
 
 ### Process de Versionning
 
-**Exemple - Modification du Router prompt** :
+**Exemple - Modification du prompt de routing (QueryAnalyzer)** :
 
 ```bash
 # 1. Éditer le prompt dans le dossier consolidé v1
-vim apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt
+vim apps/api/src/domains/agents/prompts/v1/query_analyzer_prompt.txt
 
 # Note: Tous les prompts sont désormais consolidés dans le dossier v1.
 # Le versioning se fait via le header changelog dans chaque fichier.
@@ -532,6 +532,25 @@ ROUTER_SYSTEM_PROMPT = load_prompt(
 ---
 
 ## ⚡ Optimisation
+
+### 0. Prompt Caching — règle structurelle OBLIGATOIRE
+
+Avant toute autre optimisation : tout system prompt qui embarque du contenu
+par-requête (datetime, requête, contexte, catalogue) DOIT placer son contenu
+statique en tête et son contenu dynamique en queue, séparés par le marqueur
+canonique `--- DYNAMIC CONTEXT (all variable data below) ---`
+(`DYNAMIC_CONTEXT_MARKER` dans `core/constants.py`). Les providers cachent par
+préfixe exact : un placeholder dynamique placé tôt invalide le cache de tout ce
+qui suit, à chaque requête, chez tous les providers.
+
+La convention est provider-agnostique (la couche infra gère les spécificités —
+split `cache_control` Anthropic, `prompt_cache_key` OpenAI, prefix caching
+implicite DeepSeek/Qwen/Gemini) et verrouillée par les gardes CI de
+`tests/unit/domains/agents/prompts/test_prompt_cache_hygiene.py` : ajoutez tout
+nouveau prompt system dynamique à `MARKER_REQUIRED`, et justifiez toute
+exception pré-marqueur dans `ALLOWED_BEFORE_MARKER` (valeurs stables par
+utilisateur ou par déploiement uniquement). Doctrine complète :
+[PROMPTS.md § Prompt Caching](../technical/PROMPTS.md).
 
 ### 1. Token Reduction
 

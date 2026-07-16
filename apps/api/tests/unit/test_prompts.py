@@ -52,6 +52,46 @@ class TestPeriodOfDay:
         assert get_period_of_day(4) == "Nuit"
 
 
+class TestLanguageNormalization:
+    """Locale variants must resolve through the central normalize_language chokepoint.
+
+    Regression guard: the module used an ad-hoc normalization
+    (``language[:2] if ... != "zh-CN"``) that silently fell back to FRENCH for a
+    frontend-style bare "zh" (the i18n tables are keyed on the backend-canonical
+    "zh-CN"). All language-keyed lookups must accept any raw locale.
+    """
+
+    def test_period_of_day_accepts_frontend_style_zh(self):
+        assert get_period_of_day(8, "zh") == get_period_of_day(8, "zh-CN")
+        assert get_period_of_day(8, "zh") == "上午"
+
+    def test_period_of_day_accepts_regional_locale(self):
+        assert get_period_of_day(8, "fr-FR") == "Matin"
+        assert get_period_of_day(8, "en_US") == "Morning"
+
+    def test_season_accepts_frontend_style_zh(self):
+        assert get_season(1, "zh") == get_season(1, "zh-CN")
+        assert get_season(1, "zh") == "冬季"
+
+    def test_datetime_context_accepts_frontend_style_zh(self):
+        context = get_current_datetime_context("Europe/Paris", "zh")
+        # Chinese date format uses 年 (year) — the ad-hoc fallback produced French
+        assert "年" in context
+
+    def test_hitl_fallback_messages_accept_frontend_style_zh(self):
+        from src.domains.agents.prompts import (
+            get_hitl_clarification_generic_message,
+            get_hitl_classification_fallback_message,
+        )
+
+        assert get_hitl_classification_fallback_message(
+            "zh"
+        ) == get_hitl_classification_fallback_message("zh-CN")
+        assert get_hitl_clarification_generic_message(
+            "zh"
+        ) == get_hitl_clarification_generic_message("zh-CN")
+
+
 class TestSeason:
     """Test get_season function."""
 

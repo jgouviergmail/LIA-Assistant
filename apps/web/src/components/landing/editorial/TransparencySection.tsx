@@ -6,7 +6,7 @@ import { FadeInOnScroll } from '../FadeInOnScroll';
 import { AUDIT_REPORT_URL } from '../constants';
 
 /**
- * "She has nothing to hide." — the trust positioning no competitor can copy:
+ * "LIA has nothing to hide." — the trust positioning no competitor can copy:
  * per-message cost shown as a brand motif, the public audit score, open
  * source, and the AI-written/human-directed story. Replaces the former
  * numbers section (engineering tiles moved to Under the hood) and absorbs

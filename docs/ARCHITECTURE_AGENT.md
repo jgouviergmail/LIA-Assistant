@@ -1753,14 +1753,13 @@ Le système utilise des prompts versionnés avec chargement dynamique de few-sho
 apps/api/src/domains/agents/prompts/
 ├── prompt_loader.py              # Chargeur avec cache LRU
 ├── v1/                           # Version courante des prompts
-│   ├── router_system_prompt.txt
-│   ├── router_system_prompt_template.txt
+│   ├── query_analyzer_prompt.txt     # Routing (QueryAnalyzerService)
 │   ├── smart_planner_prompt.txt
 │   ├── response_system_prompt_base.txt
 │   ├── hitl_classifier_prompt.txt
 │   ├── hitl_question_generator_prompt.txt
 │   ├── {domain}_agent_prompt.txt     # Prompts par agent
-│   └── fewshot/                      # Exemples few-shot par domaine
+│   └── hitl_classifier_examples.txt  # Few-shot sectionnés par action-type
 │       ├── contacts_search.txt
 │       ├── contacts_details.txt
 │       ├── emails_search.txt

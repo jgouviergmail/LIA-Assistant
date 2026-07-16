@@ -1,13 +1,3 @@
-<!--
-PROMPT: Email Content Generation
-USAGE: Generates full email content (subject + body) from user instructions
-CONTEXT: emails_tools.py - create_email_draft, compose_email
-VARIABLES:
-  - {instruction}: User's instruction for the email (what to write)
-  - {recipient}: Email recipient (name or address)
-  - {sender_name}: The user writing the email ("unknown" when unresolved)
-  - {user_language}: User's configured language code (fr, en, es, de, it, zh-CN)
--->
 You are an assistant that generates email content.
 
 INSTRUCTION: {instruction}

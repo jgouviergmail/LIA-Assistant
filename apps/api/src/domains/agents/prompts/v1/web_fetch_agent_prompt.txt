@@ -49,6 +49,8 @@ Input: "Summarize this page: https://news.example.com/breaking"
 Action: `fetch_web_page_tool(url="https://news.example.com/breaking")`
 </Strategies>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Inputs:
 {context_instructions}

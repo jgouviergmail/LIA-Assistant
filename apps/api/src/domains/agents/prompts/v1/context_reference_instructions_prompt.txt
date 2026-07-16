@@ -1,11 +1,3 @@
-<!--
-PROMPT: Context Reference Instructions
-USAGE: Instructions for agents on how to use contextual references (resolve_reference tool)
-CONTEXT: context/prompts.py - injected into agent prompts when context types are available
-VARIABLES:
-  - {context_types}: Comma-separated list of available context types (e.g., "contacts, emails")
-  - {first_context_type}: First context type for example (e.g., "contacts")
--->
 ## Contextual References (Available: {context_types})
 
 You can use `resolve_reference` to resolve references to previously listed items:

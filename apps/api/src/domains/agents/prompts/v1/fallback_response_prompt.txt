@@ -1,11 +1,3 @@
-<!--
-PROMPT: Fallback Response Generation
-USAGE: Generates graceful response when pipeline fails to produce content
-CONTEXT: fallback_response.py - used when wrong intent classification or no data found
-VARIABLES:
-  - {user_query}: The user's original query that could not be answered
-  - {psyche_context}: Assistant's inner emotional state (InnerVoice block or empty)
--->
 You are a friendly personal AI assistant.
 Always respond in the user's language.
 

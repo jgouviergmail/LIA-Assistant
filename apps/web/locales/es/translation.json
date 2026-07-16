@@ -2985,14 +2985,24 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_25_3": {
+          "title": "v1.25.3 — 🧠 Confirmaciones más precisas, costes de IA optimizados",
+          "date": "Julio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>✅ Confirmaciones que te entienden mejor</b> — cuando LIA te pide confirmar una acción, tu respuesta («sí», «no, cancela», «mejor envíalo a Marie») ahora se clasifica con todos sus ejemplos restaurados — un fallo silencioso impedía que llegaran a la IA. Las modificaciones y cancelaciones se reconocen con más fiabilidad.",
+            "i2": "<b>🎭 Preguntas de confirmación con la voz de tu asistente</b> — las peticiones de aprobación siguen ahora la personalidad que elegiste (amable, profesional, divertida…) en lugar de un registro sarcástico fijo.",
+            "i3": "<b>💰 Llamadas de IA más baratas y rápidas</b> — la parte fija de cada instrucción interna está ahora estructurada para que los proveedores puedan cachearla: menos tokens facturados y menor latencia en peticiones repetidas, sea cual sea el modelo de cada función."
+          }
+        },
         "v1_25_2": {
           "title": "v1.25.2 — 🎬 La página de inicio pública, reinventada",
           "date": "Julio 2026",
           "count": "3",
           "items": {
             "i1": "<b>🎬 Una demo que muestra el producto real</b> — la animación de inicio se convierte en una miniatura fiel de la aplicación: cuatro escenas reales (orquestación con tu aprobación, una iniciativa tiempo×agenda llevada a término, una llamada telefónica genuina, una mini-app creada en el chat); mientras LIA «piensa», un panel de cristal revela la orquestación entre bastidores con el contador de coste en directo.",
-            "i2": "<b>📖 Un relato en 5 capítulos, sin perder información</b> — la página cuenta ahora lo que hace diferente a LIA («Ella lo hace. De verdad.» · «Nada sale sin ti.»…), cada capítulo abierto por una burbuja de chat de la propia LIA; todas las fichas detalladas siguen disponibles en catálogos desplegables, protegidas por un guardián automático de cero pérdidas.",
-            "i3": "<b>🔍 La transparencia en primer plano</b> — una sección «No tiene nada que ocultar» (coste al céntimo, auditoría pública 8,3/10, open source) y «Un día con ella»: cuatro jornadas tipo con pestañas (autónomo, familia, desarrollador, administrador)."
+            "i2": "<b>📖 Un relato en 5 capítulos, sin perder información</b> — la página cuenta ahora lo que hace diferente a LIA («LIA lo hace. De verdad.» · «Nada sale sin ti.»…), cada capítulo abierto por una burbuja de chat de la propia LIA; todas las fichas detalladas siguen disponibles en catálogos desplegables, protegidas por un guardián automático de cero pérdidas.",
+            "i3": "<b>🔍 La transparencia en primer plano</b> — una sección «LIA no tiene nada que ocultar» (coste al céntimo, auditoría pública 8,3/10, open source) y «Un día con LIA»: cuatro jornadas tipo con pestañas (autónomo, familia, desarrollador, administrador)."
           }
         },
         "v1_25_1": {
@@ -6022,7 +6032,7 @@
     },
     "use_cases": {
       "title": "Peticiones reales, no demos.",
-      "subtitle": "Basta una frase — la descompone, activa a los especialistas adecuados en paralelo y pide tu aprobación cuando es sensible.",
+      "subtitle": "Basta una frase — LIA la descompone, activa a los especialistas adecuados en paralelo y pide tu aprobación cuando es sensible.",
       "intro": "Cada ejemplo de abajo es una petición real de usuario, tal cual.",
       "example1": {
         "query": "Encuentra las 3 mejores cafeterías cerca de mi posición que estén abiertas ahora y dame las rutas para ir a pie",
@@ -6167,7 +6177,7 @@
     },
     "cta": {
       "bubble": "Tu agenda y yo ya tenemos cosas de que hablar.",
-      "title": "Está lista. Y algo impaciente.",
+      "title": "LIA está lista. Y algo impaciente.",
       "subtitle": "Un asistente que actúa, que te conoce, que anticipa — y que siempre pregunta antes.",
       "button": "Crear mi cuenta",
       "note_beta": "Beta gratuita, en producción 24/7. Honestidad hasta el final: llegarán las suscripciones.",
@@ -6213,11 +6223,11 @@
     "chapters": {
       "eyebrow": "CAPÍTULO",
       "backstage_label": "Entre bastidores",
-      "catalog_label": "Todo lo que sabe hacer aquí",
+      "catalog_label": "Todo lo que LIA sabe hacer aquí",
       "how_prefix": "Bajo el capó:",
       "c1": {
         "bubble": "«Avisa a mi mujer y aplaza mi cita» — es una frase, no dos aplicaciones.",
-        "title": "Ella lo hace. De verdad.",
+        "title": "LIA lo hace. De verdad.",
         "sub": "Ni sugerencias ni borradores para copiar: acciones llevadas hasta el final, en tu vida real.",
         "b1_t": "Una frase, varios especialistas.",
         "b1_d": "Contactos, agenda y correo trabajan en paralelo — nunca necesitas saber cuáles.",
@@ -6241,7 +6251,7 @@
       },
       "c2": {
         "bubble": "Buenos días. Tu agenda está llena y tu café se enfría. Del resto me ocupo yo.",
-        "title": "Ella te conoce.",
+        "title": "LIA te conoce.",
         "sub": "Un asistente que lo olvida todo entre dos frases no asiste a nadie.",
         "b1_t": "Dilo una vez. Nunca dos.",
         "b1_d": "«Mi mujer», «mi restaurante de los viernes», «nada de reuniones los miércoles»: dicho una vez, recordado para siempre.",
@@ -6263,7 +6273,7 @@
       },
       "c3": {
         "bubble": "Lluvia a las 7. Carrera a las 7:30. ¿Ves el problema? Yo sí — y tengo la solución.",
-        "title": "Ella lo nota antes que tú.",
+        "title": "LIA lo nota antes que tú.",
         "sub": "La diferencia entre responder y asistir es no esperar a la pregunta.",
         "b1_t": "Cruza lo que tú no cruzas.",
         "b1_d": "Lluvia prevista × salida planificada, correo recibido × conflicto de agenda: une los puntos y propone la acción.",
@@ -6303,7 +6313,7 @@
       },
       "c5": {
         "bubble": "Hace diez segundos me faltaba una habilidad. Ya no.",
-        "title": "Ella crece contigo.",
+        "title": "LIA crece contigo.",
         "sub": "Los demás asistentes tienen una lista de funciones. Ella tiene margen de crecimiento — y lo dibujas tú.",
         "b1_t": "¿Falta una capacidad? Descríbela.",
         "b1_d": "Crea la skill, la instala y la muestra como mini-app en el chat — tarjetas, botones, dashboards.",
@@ -6320,7 +6330,7 @@
     },
     "basics": {
       "title": "Y todo lo demás, por supuesto.",
-      "sub": "Correo, agenda, contactos, tareas, archivos — Google, Apple o Microsoft, a tu elección. Eso lo promete todo el mundo. Ella también lo hace, sin convertirlo en argumento.",
+      "sub": "Correo, agenda, contactos, tareas, archivos — Google, Apple o Microsoft, a tu elección. Eso lo promete todo el mundo. LIA también lo hace, sin convertirlo en argumento.",
       "detail_label": "Los básicos, en detalle",
       "detail_hint": "9 capacidades en detalle",
       "chip_emails": "Correo",
@@ -6338,7 +6348,7 @@
       "chip_themes": "Temas y modo oscuro"
     },
     "transparency": {
-      "title": "No tiene nada que ocultar.",
+      "title": "LIA no tiene nada que ocultar.",
       "sub": "La confianza no se declara: se verifica. Todo es público: el precio, el código, la nota.",
       "cost_prefix": "Cada mensaje:",
       "cost_note": "— el contador real, visible bajo cada respuesta en la aplicación —",
@@ -6357,7 +6367,7 @@
       "cta": "Probarla, sabiéndolo todo"
     },
     "day": {
-      "title": "Un día con ella.",
+      "title": "Un día con LIA.",
       "tabs_label": "Elige un perfil",
       "tab_freelance": "Autónomo",
       "tab_family": "Familia",
@@ -6405,7 +6415,7 @@
       }
     },
     "gallery": {
-      "title": "Ella, de verdad.",
+      "title": "LIA, de verdad.",
       "sub": "Capturas reales de la aplicación y la presentación completa — nada maquillado.",
       "tabs_label": "Elegir una vista",
       "tab_screens": "Capturas de pantalla",
@@ -6724,9 +6734,9 @@
         "body": "<h2>Los tres pilares de la observabilidad</h2><p>LIA implementa los tres pilares de la observabilidad moderna:</p><ul><li><strong>Métricas</strong> — 394 métricas Prometheus que cubren HTTP, agentes, tokens, costos, OAuth y rendimiento</li><li><strong>Logs</strong> — Registro estructurado JSON mediante structlog, centralizado en Loki con filtrado de PII</li><li><strong>Trazas</strong> — Trazado distribuido mediante OpenTelemetry (Tempo) y trazado LLM mediante Langfuse</li></ul><h2>20 archivos de métricas especializados</h2><p>Cada dominio posee su propio archivo de métricas declarativo. Los 20 módulos cubren: HTTP, agents (SSE/router/LLM/HITL/planner), base de datos, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errores, sub-agentes, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métricas de salud y límites de uso. Cada archivo define Counter, Histogram y Gauge Prometheus adaptados al dominio.</p><h2>Definición de métricas Prometheus</h2><p>Cada dominio define sus métricas de manera declarativa:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>22 dashboards Grafana</h2><p>LIA proporciona 22 paneles de control Grafana numerados del 01 al 21: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser y health-metrics. Cada dashboard ofrece vistas filtrables por usuario, por período y por entorno.</p><h2>KPIs objetivo extraídos del código</h2><p>LIA monitoriza indicadores precisos definidos en el código fuente: TTFT (Time To First Token) del streaming, latencia del router entre 0.1 y 2 segundos, duración de ejecución de las herramientas de agentes entre 0.1 y 10 segundos, confianza del router p50 &gt; 0.8, costo LLM por solicitud &lt; 0.05€, tasa de error HTTP 5xx &lt; 1%.</p><h2>Alertas por correo con runbooks</h2><p>La supervisión no se detiene en los dashboards: un núcleo de 13 alertas vitales — API, PostgreSQL o Redis caídos, disco, memoria de contenedores, tasa de errores 5xx, latencia de streaming, copia de seguridad nocturna fallida, URL pública inaccesible, certificado TLS próximo a expirar — es evaluado continuamente por Prometheus y notificado por correo mediante Alertmanager. Cada alerta referencia su runbook (procedimiento de resolución paso a paso), los umbrales se configuran por entorno en archivos .env, y tests unitarios de promtool garantizan que los umbrales mostrados en las notificaciones coinciden exactamente con las expresiones de disparo. Una sonda blackbox prueba incluso la cadena completa de extremo a extremo, del edge de Cloudflare al frontend, exactamente como un usuario.</p><h2>Langfuse: trazado LLM dedicado</h2><p>La integración con Langfuse dispone de 8 métricas dedicadas para trazar cada llamada LLM: tokens consumidos (entrada/salida/caché), tiempo de respuesta, modelo utilizado, costo estimado y contexto de la solicitud. Esto permite identificar los prompts ineficientes, comparar los modelos LLM entre sí y optimizar el consumo de tokens a largo plazo.</p><h2>DevOps Claude CLI: Diagnóstico en lenguaje natural (v1.13.0)</h2><p>Última evolución del stack de observabilidad: los administradores ahora pueden diagnosticar servidores directamente desde la conversación de LIA. Claude Code CLI — instalado en el contenedor API Docker — inspecciona de forma autónoma los logs, verifica la salud de los contenedores y analiza el uso de recursos. Sesiones persistentes, permisos configurables por entorno y streaming en tiempo real de los pasos de investigación via SSE.</p>"
       },
       "prompt-engineering": {
-        "title": "Sistema de prompts versionados: 55 prompts gestionados como código",
-        "excerpt": "LIA gestiona sus 55 prompts como código fuente: versionados, cacheados y validados por hash.",
-        "body": "<h2>Prompts gestionados como código</h2><p>LIA utiliza un <strong>sistema de prompts versionados</strong> donde cada prompt es un archivo de texto almacenado en <code>src/domains/agents/prompts/v1/</code>. Este enfoque ofrece versionado, revisión de código y trazabilidad.</p><h2>55 prompts especializados por categoría</h2><p>El sistema comprende 55 archivos de prompts repartidos en categorías:</p><ul><li><strong>Core (4)</strong> — router, planner, response, compaction</li><li><strong>Agentes de dominio (16)</strong> — brave, browser, calendar, contacts, drive, emails, perplexity, places, query, routes, tasks, weather, web_fetch, web_search, wikipedia</li><li><strong>HITL (4)</strong> — classifier, draft_critique, plan_approval, question_generator</li><li><strong>Servicios inteligentes (2)</strong> — query_analyzer, smart_planner</li><li><strong>Memoria (2)</strong> — extraction, reference_resolution</li><li><strong>Heartbeat (2)</strong> — decision, message</li><li><strong>Journals (2)</strong> — introspection, consolidation</li><li><strong>Skills (1)</strong> — description_translation</li><li><strong>Identidad (2)</strong> — app_identity, default_personality</li></ul><h2>Carga inteligente y detección dinámica</h2><p>Los prompts se cargan mediante <code>load_prompt()</code> y <code>load_prompt_with_fallback()</code> que permite una migración gradual entre versiones. El sistema detecta dinámicamente las versiones disponibles escaneando el sistema de archivos en busca de directorios que coincidan con el patrón <code>v[0-9]+</code>. El caché LRU con validación por hash SHA256 detecta las modificaciones. Las versiones son configurables mediante variables de entorno (ej.: <code>ROUTER_PROMPT_VERSION=v1</code>).</p><h2>El cargador de prompts en la práctica</h2><p>El sistema utiliza un caché LRU y una validación por hash SHA256:</p><pre><code class=\"language-python\">@lru_cache(maxsize=32)\ndef load_prompt(\n    name: PromptName,\n    version: PromptVersion = \"v1\",\n    validate_hash: bool = False,\n    expected_hash: str | None = None,\n) -&gt; str:\n    prompt_file = PROMPTS_DIR / version / f\"{name}.txt\"\n    content = prompt_file.read_text(encoding=\"utf-8\")\n\n    if validate_hash and expected_hash:\n        actual_hash = hashlib.sha256(\n            content.encode(\"utf-8\")\n        ).hexdigest()\n        if actual_hash != expected_hash:\n            raise PromptIntegrityError(...)\n\n    return content</code></pre><h2>Inyección de prompt: principios de seguridad</h2><p>Los contenidos externos inyectados en los prompts (emails, páginas web) se encapsulan en etiquetas de seguridad para prevenir los ataques por inyección de prompt. Los prompts también están diseñados para ser robustos frente a intentos de manipulación.</p>"
+        "title": "Sistema de prompts versionados: 78 prompts gestionados como código",
+        "excerpt": "LIA gestiona sus 78 prompts como código fuente: versionados, cacheados y validados por hash.",
+        "body": "<h2>Prompts gestionados como código</h2><p>LIA utiliza un <strong>sistema de prompts versionados</strong> donde cada prompt es un archivo de texto almacenado en <code>src/domains/agents/prompts/v1/</code>. Este enfoque ofrece versionado, revisión de código y trazabilidad.</p><h2>78 prompts especializados por categoría</h2><p>El sistema comprende 78 archivos de prompts repartidos en categorías:</p><ul><li><strong>Núcleo del pipeline</strong> — query_analyzer (enrutado), smart_planner, response, semantic_validator, semantic_pivot, compaction</li><li><strong>Agentes de dominio (17)</strong> — brave, browser, calendar, contacts, drive, emails, health, hue, perplexity, places, query, routes, tasks, weather, web_fetch, web_search, wikipedia</li><li><strong>Bucles ReAct</strong> — react_agent, subagent_react, skill_react, mcp_react</li><li><strong>HITL</strong> — classifier (con ejemplos por tipo de acción), draft_critique, plan_approval, question_generator, draft_modifier</li><li><strong>Memoria &amp; psique</strong> — extracción, resolución de referencias, directivas de comportamiento, autoinforme y encarnación de la psique</li><li><strong>Proactividad</strong> — heartbeat decision/message, initiative, intereses, recordatorios</li><li><strong>Diarios &amp; briefing</strong> — introspección, consolidación, saludo y síntesis diarios</li><li><strong>Identidad &amp; traducciones</strong> — app_identity, default_personality, traducción broadcast/skill/personalidad</li></ul><h2>Carga inteligente y detección dinámica</h2><p>Los prompts se cargan mediante <code>load_prompt()</code> y <code>load_prompt_with_fallback()</code> que permite una migración gradual entre versiones. El sistema detecta dinámicamente las versiones disponibles escaneando el sistema de archivos en busca de directorios que coincidan con el patrón <code>v[0-9]+</code>. El caché LRU con validación por hash SHA256 detecta las modificaciones. Las versiones son configurables mediante variables de entorno (ej.: <code>ROUTER_PROMPT_VERSION=v1</code>).</p><h2>El cargador de prompts en la práctica</h2><p>El sistema utiliza un caché LRU y una validación por hash SHA256:</p><pre><code class=\"language-python\">@lru_cache(maxsize=32)\ndef load_prompt(\n    name: PromptName,\n    version: PromptVersion = \"v1\",\n    validate_hash: bool = False,\n    expected_hash: str | None = None,\n) -&gt; str:\n    prompt_file = PROMPTS_DIR / version / f\"{name}.txt\"\n    content = prompt_file.read_text(encoding=\"utf-8\")\n\n    if validate_hash and expected_hash:\n        actual_hash = hashlib.sha256(\n            content.encode(\"utf-8\")\n        ).hexdigest()\n        if actual_hash != expected_hash:\n            raise PromptIntegrityError(...)\n\n    return content</code></pre><h2>Prompt caching agnóstico del proveedor</h2><p>Cada prompt de sistema dinámico separa su prefijo estático (rol, reglas, ejemplos, formato de salida) del contenido por petición con un marcador canónico <code>--- DYNAMIC CONTEXT ---</code>. Las plantillas permanecen neutrales respecto al modelo: la capa de infraestructura traduce esta única convención al dialecto de caché de cada proveedor — bloques <code>cache_control</code> de Anthropic, enrutado <code>prompt_cache_key</code> de OpenAI, cachés implícitas de prefijo en los demás — reduciendo tokens facturados y latencia en peticiones repetidas. El planner, el prompt más costoso del pipeline, expone un prefijo cacheable byte-estable de ~77 %, y guardas CI shrink-only (marcador obligatorio, ningún placeholder antes, estabilidad byte verificada) impiden que la convención retroceda.</p><h2>Inyección de prompt: principios de seguridad</h2><p>Los contenidos externos inyectados en los prompts (emails, páginas web) se encapsulan en etiquetas de seguridad para prevenir los ataques por inyección de prompt. Los prompts también están diseñados para ser robustos frente a intentos de manipulación.</p>"
       },
       "smart-services": {
         "title": "Smart Services: Aprendizaje de patrones y optimización de tokens",

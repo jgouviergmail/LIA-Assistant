@@ -78,14 +78,7 @@ JSON array only. No markdown, no comments. Use ONLY UUIDs from EXISTING MEMORIES
    Message: *"En fait j'ai changé, je suis chez Meta maintenant."*
    → `[{{"action":"update","memory_id":"abc-123","content":"Je travaille chez Meta","emotional_weight":0}}]`
 
-## CURRENT DATE AND TIME
-{current_datetime}
-
-## KNOWN RELATIONSHIPS
-{known_relationships}
-
-## HEALTH CONTEXT (optional — ignore if absent)
-{health_context}
+## HEALTH CONTEXT RULES
 
 When health context is present AND a memory you create carries a significant
 emotional weight (|emotional_weight| >= 3), you MAY emit a
@@ -94,7 +87,7 @@ object summarizing the relevant biometric signals ONLY (baseline deltas,
 trends, events). NEVER copy raw sensor values. Example::
 
     {{
-      "captured_at": "{current_datetime}",
+      "captured_at": "2026-04-12T09:30:00+02:00",
       "window_days": 7,
       "source": "health_metrics",
       "signals": {{"steps": {{"baseline_delta_pct": -42.0, "trend": "falling", "days_observed": 4}}}},
@@ -102,6 +95,17 @@ trends, events). NEVER copy raw sensor values. Example::
     }}
 
 Leave ``context_biometric`` omitted otherwise.
+
+--- DYNAMIC CONTEXT (all variable data below) ---
+
+## CURRENT DATE AND TIME
+{current_datetime}
+
+## KNOWN RELATIONSHIPS
+{known_relationships}
+
+## HEALTH CONTEXT (optional — ignore if absent)
+{health_context}
 
 ## EXCHANGE TO ANALYZE
 {conversation}

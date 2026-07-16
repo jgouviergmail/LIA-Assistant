@@ -7,7 +7,7 @@ import { PresentationSection } from '../PresentationSection';
 import { Tabs } from './Tabs';
 
 /**
- * "See her for real." — the 12 app screenshots and the 15-slide deck merged
+ * "See LIA for real." — the 12 app screenshots and the 15-slide deck merged
  * into one tabbed gallery (two sections become one, contents untouched).
  */
 export function GallerySection() {

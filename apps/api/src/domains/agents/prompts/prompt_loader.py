@@ -64,15 +64,14 @@ _AVAILABLE_VERSIONS = _get_available_versions()
 # After fix: Automatically includes all versions found in filesystem
 PromptVersion = str  # Accept any version string, validated at runtime
 
-# Prompt name type alias
+# Prompt name type alias.
+# Kept in sync with the actual v1/*.txt files by the completeness test
+# tests/unit/domains/agents/prompts/test_prompt_name_literal_sync.py —
+# an entry without a file (or a file without an entry) fails CI.
 PromptName = Literal[
-    "router_system_prompt",
     "response_system_prompt_base",
     "response_directive_plan_rejection",
-    "response_directive_conversational",
     "response_directive_draft_cancelled",
-    "contacts_agent_prompt",
-    "planner_system_prompt",
     "hitl_classifier_prompt",
     "hitl_classifier_examples",
     "reminder_prompt",
@@ -94,9 +93,18 @@ PromptName = Literal[
     "interest_extraction_prompt",
     "interest_content_prompt",
     "interest_llm_reflection_prompt",
-    # Agent prompts
+    # Domain agent prompts
     "brave_agent_prompt",
+    "calendar_agent_prompt",
+    "contacts_agent_prompt",
+    "drive_agent_prompt",
+    "emails_agent_prompt",
+    "places_agent_prompt",
+    "query_agent_prompt",
+    "routes_agent_prompt",
+    "tasks_agent_prompt",
     "weather_agent_prompt",
+    "web_fetch_agent_prompt",
     "perplexity_agent_prompt",
     "wikipedia_agent_prompt",
     "web_search_agent_prompt",
@@ -141,9 +149,17 @@ PromptName = Literal[
     "memory_extraction_personality_addon",
     "memory_reference_extraction_prompt",
     "memory_reference_resolution_prompt",
-    # Smart Planner (multi-domain, reference resolution)
+    # Memory injection scaffolding (psychological-profile behavioral directives).
+    # The danger directive's header is a SENTINEL matched literally by
+    # response_system_prompt_base.txt — kept in sync by a dedicated test.
+    "memory_danger_directive",
+    "memory_normal_directive",
+    # Pipeline intelligence (analysis, planning, validation)
+    "query_analyzer_prompt",
     "smart_planner_prompt",
-    "smart_planner_multi_domain_prompt",
+    "for_each_directive_prompt",
+    "semantic_validator_prompt",
+    "semantic_pivot_prompt",
     # Psyche Engine (self-report, summary, narrative, usage directive)
     "psyche_self_report_instruction",
     "psyche_summary_prompt",
@@ -164,9 +180,6 @@ PromptName = Literal[
     # loaded via telephony.prompts.loader) to break the agents↔telephony cycle (T2).
     # Voice comment (TTS post-response narrative aside)
     "voice_comment_prompt",
-    # Future prompts:
-    # "emails_agent_prompt",
-    # "calendar_agent_prompt",
 ]
 
 

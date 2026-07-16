@@ -67,11 +67,15 @@ def is_responses_api_eligible(model: str) -> bool:
 
 
 def _extract_static_prefix(content: str) -> str:
-    """Extract the static (cacheable) prefix of a prompt, before dynamic markers.
+    """Extract the static (cacheable) prefix of a prompt, before the dynamic marker.
 
-    Everything before the first dynamic-content marker is treated as static and
-    cacheable. Mirrors the historical ResponsesLLM behaviour so the cache key is
-    unchanged across the migration.
+    Everything before the SINGLE canonical ``DYNAMIC_CONTEXT_MARKER`` is treated
+    as static and cacheable. The marker is the one convention shared with the
+    Anthropic ``cache_control`` split in ``factory.py`` — provider adapters must
+    agree on where "static" ends, or the same prompt caches differently per
+    provider. Legacy alternative markers (``## DYNAMIC CONTEXT``,
+    ``<TemporalContext>``, …) were dropped: matching them cut the prefix at mere
+    literal MENTIONS of those tags inside static instructions.
 
     Args:
         content: Full system-message content.
@@ -81,20 +85,8 @@ def _extract_static_prefix(content: str) -> str:
     """
     from src.core.constants import DYNAMIC_CONTEXT_MARKER
 
-    dynamic_markers = [
-        DYNAMIC_CONTEXT_MARKER,
-        "## DYNAMIC CONTEXT",
-        "## INPUT CONTEXT (Dynamic",
-        "<TemporalContext>",
-        "<UserRequest>",
-    ]
-    earliest_pos = len(content)
-    for marker in dynamic_markers:
-        pos = content.find(marker)
-        if pos != -1 and pos < earliest_pos:
-            earliest_pos = pos
-
-    static_prefix = content[:earliest_pos].strip()
+    marker_pos = content.find(DYNAMIC_CONTEXT_MARKER)
+    static_prefix = content[:marker_pos].strip() if marker_pos != -1 else content.strip()
     if len(static_prefix) > _MAX_PREFIX_LENGTH:
         static_prefix = static_prefix[:_MAX_PREFIX_LENGTH]
     return static_prefix

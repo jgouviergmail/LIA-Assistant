@@ -2,9 +2,9 @@
 
 > **Documentation complète du système de prompts LLM - Architecture centralisée v1**
 >
-> Version: 2.2
-> Date: 2026-04-08
-> Updated: 3-phase memory resolution, unified planner prompt, token optimizations
+> Version: 2.3
+> Date: 2026-07-16
+> Updated: prompt-cache convention (DYNAMIC CONTEXT marker), PromptName↔files sync guard, orphan cleanup
 
 ---
 
@@ -14,10 +14,9 @@
 2. [Architecture Prompts](#architecture-prompts)
 3. [Prompt Loader Avancé](#prompt-loader-avancé)
 4. [Domain Agent Prompts](#domain-agent-prompts)
-5. [Hierarchical Planning Prompts](#hierarchical-planning-prompts)
-6. [Few-Shot System](#few-shot-system)
-7. [Voice & Memory Prompts](#voice--memory-prompts)
-8. [Best Practices](#best-practices)
+5. [Prompt Caching — la convention DYNAMIC CONTEXT](#-prompt-caching--la-convention-dynamic-context)
+6. [Voice & Memory Prompts](#voice--memory-prompts)
+7. [Best Practices](#best-practices)
 
 ---
 
@@ -28,82 +27,33 @@
 > **Note importante** : Les versions v2-v8 ont été consolidées dans v1 en décembre 2025.
 > Le versioning historique des prompts est maintenant intégré dans le contenu des fichiers.
 
-### Fichiers Prompts (46 total)
+### Fichiers Prompts (78 fichiers, source de vérité vivante)
 
-```
-apps/api/src/domains/agents/prompts/
-├── __init__.py
-├── prompt_loader.py                            # Loader avancé avec caching + hash validation
-└── v1/
-    ├── router_system_prompt_template.txt       # Router (version consolidée)
-    ├── smart_planner_prompt.txt               # Planner (version consolidée)
-    ├── response_system_prompt_base.txt         # Response base prompt
-    │
-    │   # DOMAIN AGENT PROMPTS (10)
-    ├── contacts_agent_prompt.txt               # Google Contacts
-    ├── emails_agent_prompt.txt                 # Gmail
-    ├── calendar_agent_prompt.txt               # Google Calendar
-    ├── tasks_agent_prompt.txt                  # Google Tasks
-    ├── drive_agent_prompt.txt                  # Google Drive
-    ├── places_agent_prompt.txt                 # Google Places
-    ├── weather_agent_prompt.txt                # OpenWeatherMap
-    ├── wikipedia_agent_prompt.txt              # Wikipedia API
-    ├── perplexity_agent_prompt.txt             # Perplexity AI Search
-    ├── query_agent_prompt.txt                  # Generic query agent
-    │
-    │   # HITL PROMPTS (4)
-    ├── hitl_classifier_prompt.txt              # User response classification
-    ├── hitl_question_generator_prompt.txt      # Question generation
-    ├── hitl_plan_approval_question_prompt.txt  # Plan approval questions
-    ├── hitl_draft_critique_prompt.txt          # Draft review (email, etc.)
-    │
-    │   # HIERARCHICAL PLANNING (3)
-    ├── hierarchical_stage1_routing_prompt.txt  # Stage 1: High-level routing
-    ├── hierarchical_stage2_subplanning_prompt.txt  # Stage 2: Subplan generation
-    ├── hierarchical_stage3_composition_prompt.txt  # Stage 3: Plan composition
-    │
-    │   # SMART SERVICES (3) - Architecture v3
-    ├── query_analyzer_prompt.txt               # QueryAnalyzerService LLM analysis
-    ├── smart_planner_prompt.txt                # SmartPlannerService (unified single + multi-domain)
-    ├── smart_planner_multi_domain_prompt.txt   # [DEPRECATED] Backward-compat, delegates to smart_planner_prompt
-    ├── app_identity_prompt.txt                 # App self-knowledge identity prompt (~200 tokens), loaded conditionally when is_app_help_query=True. Includes admin-boundary directive (v1.9.2): instructs LLM to never mention admin-only features to regular users.
-    │
-    │   # SEMANTIC & MEMORY (4)
-    ├── semantic_validator_prompt.txt           # Plan semantic validation
-    ├── semantic_pivot_prompt.txt               # Semantic pivot detection
-    ├── memory_extraction_prompt.txt            # Long-term memory extraction
-    ├── memory_extraction_personality_addon.txt # Personality traits extraction
-    ├── memory_reference_resolution_prompt.txt  # Reference resolution (qui est "mon père"?)
-    ├── memory_reference_extraction_prompt.txt  # Phase 1: extract personal references for resolution
-    │
-    │   # VOICE (1)
-    ├── voice_comment_prompt.txt                # Voice comment generation
-    │
-    │   # FEW-SHOT EXAMPLES (16)
-    └── fewshot/
-        ├── contacts_search.txt
-        ├── contacts_details.txt
-        ├── emails_search.txt
-        ├── emails_details.txt
-        ├── calendar_search.txt
-        ├── calendar_details.txt
-        ├── tasks_search.txt
-        ├── tasks_details.txt
-        ├── drive_search.txt
-        ├── drive_details.txt
-        ├── places_search.txt
-        ├── places_details.txt
-        ├── places_location.txt
-        ├── weather_search.txt
-        ├── wikipedia_search.txt
-        └── perplexity_search.txt
-```
+Tous les prompts vivent dans `apps/api/src/domains/agents/prompts/v1/*.txt`
+(plus `apps/api/src/domains/telephony/prompts/v1/` pour la téléphonie, chargée
+par son propre loader). La liste exhaustive n'est plus dupliquée ici : la
+source de vérité est le Literal `PromptName` dans `prompt_loader.py`, maintenu
+en synchronisation bidirectionnelle avec les fichiers par le test CI
+`tests/unit/domains/agents/prompts/test_prompt_name_literal_sync.py`
+(une entrée sans fichier ou un fichier sans entrée fait échouer la CI).
 
+Grandes familles :
+
+| Famille | Exemples | Notes |
+|---------|----------|-------|
+| Pipeline core | `query_analyzer_prompt`, `smart_planner_prompt`, `response_system_prompt_base`, `semantic_validator_prompt`, `compaction_prompt` | Routing = QueryAnalyzer (l'ancien `router_system_prompt_template` a été supprimé, orphelin depuis l'optim R1) |
+| Boucles ReAct | `react_agent_prompt`, `subagent_react_prompt`, `skill_react_agent_prompt`, `mcp_react_agent_prompt` | ADR-070 / ADR-083 |
+| Agents domaine | `emails_agent_prompt`, `calendar_agent_prompt`, `browser_agent_prompt`, … (17) | Structure standard `<Role>/<StrictLogic>/<Strategies>/<Context>` |
+| HITL | `hitl_classifier_prompt` (+ `hitl_classifier_examples`), `hitl_question_generator_prompt`, `hitl_plan_approval_question_prompt`, `hitl_draft_critique_prompt` (+ fallback), `draft_modifier_prompt` | Les few-shot du classificateur sont sectionnés par action-type dans `hitl_classifier_examples.txt` et injectés via la sentinelle `[[EXAMPLES_PLACEHOLDER]]` (APRÈS `.format()` — les exemples contiennent des accolades) |
+| Mémoire & psyché | `memory_extraction_prompt`, `memory_reference_*`, `memory_danger_directive`/`memory_normal_directive` (scaffolding d'injection du profil), `psyche_*` | Le header de `memory_danger_directive` est une sentinelle matchée littéralement par `response_system_prompt_base` — verrouillé par `test_memory_directive_sentinel.py` |
+| Proactif & background | `heartbeat_*`, `initiative_prompt`, `interest_*`, `journal_*`, `briefing_*`, `reminder_prompt`, `voice_comment_prompt` | |
+| Directives injectées | `html_response_directive`, `psyche_usage_directive*`, `response_directive_*`, `skill_contract_prefix_prompt`, `initiative_suggestion_directive`, `proactive_findings_directive` | Fragments appendés à d'autres system prompts, pas des prompts autonomes |
+| Traductions & divers | `broadcast_translation_prompt`, `personality_translation_prompt`, `skill_description_translation_prompt`, `mcp_description_prompt`, `app_identity_prompt`, `default_personality_prompt`, `fallback_response_prompt` | |
 ### Prompts Actifs par Node
 
 | Node/Service | Prompt | Description |
 |--------------|--------|-------------|
-| **Router** | router_system_prompt_template.txt | Binary routing + domain detection |
+| **Router (QueryAnalyzer)** | query_analyzer_prompt.txt | Intent routing + domain detection + reference resolution |
 | **Planner** | smart_planner_prompt.txt | ExecutionPlan generation |
 | **Response** | response_system_prompt_base.txt | Conversational response (placeholder: `{app_knowledge_context}`) |
 | **Contacts Agent** | contacts_agent_prompt.txt | Google Contacts domain |
@@ -168,17 +118,17 @@ def load_prompt(
 ### Usage dans Nodes
 
 ```python
-# router_node_v3.py
+# query_analyzer_service.py (le routing vit dans QueryAnalyzerService)
 from src.domains.agents.prompts.prompt_loader import load_prompt
 
-router_prompt = load_prompt("router_system_prompt_template")
+analyzer_prompt = load_prompt("query_analyzer_prompt")
 
-async def router_node(state: MessagesState) -> dict:
-    """Router node with consolidated prompt."""
-    llm_structured = llm.with_structured_output(RouterOutput)
+async def analyze_full(state: MessagesState) -> dict:
+    """Unified routing analysis with structured output."""
+    llm_structured = llm.with_structured_output(QueryIntelligence)
 
     messages = [
-        SystemMessage(content=router_prompt),
+        SystemMessage(content=analyzer_prompt),
         *state["messages"]
     ]
 
@@ -245,126 +195,48 @@ Tu es un agent spécialisé pour le domaine {DOMAIN}.
 
 ---
 
-## 📊 Hierarchical Planning Prompts
+## ⚡ Prompt Caching — la convention `DYNAMIC CONTEXT`
 
-### Architecture 3 Stages
+Tous les providers utilisés (OpenAI, Anthropic, DeepSeek, Qwen, Gemini) cachent
+les prompts par **préfixe exact** : le moindre octet variable (datetime, requête,
+catalogue filtré) invalide tout ce qui le suit. La convention du repo est
+**provider-agnostique** — les templates déclarent la frontière, la couche infra
+gère les spécificités de chaque provider :
 
-Le système de planification hiérarchique utilise 3 prompts distincts :
+1. **Dans le template** : tout le contenu statique (rôle, règles, exemples,
+   format de sortie) vient EN PREMIER ; le marqueur
+   `--- DYNAMIC CONTEXT (all variable data below) ---` sépare ; tout le contenu
+   par-requête (datetime, requête, contexte, catalogue, données) vient APRÈS.
+   Le marqueur canonique est `DYNAMIC_CONTEXT_MARKER` (`core/constants.py`).
+2. **Anthropic** (`infrastructure/llm/factory.py`) : split au marqueur en deux
+   blocs system, `cache_control: ephemeral` sur le bloc statique uniquement.
+   Sans marqueur, AUCUN `cache_control` n'est posé (un prompt dynamique non
+   marqué paierait l'écriture cache à 125 % à chaque appel sans jamais de hit).
+   Un prompt 100 % statique opte en TERMINANT par le marqueur
+   (ex. `compaction_prompt.txt`, `semantic_validator_prompt.txt`).
+3. **OpenAI** (`infrastructure/llm/providers/responses_adapter.py`) :
+   `prompt_cache_key` dérivée du préfixe avant le marqueur (routage du cache) ;
+   le préfixe stable maximise le hit du prefix caching automatique.
+4. **DeepSeek / Qwen / Gemini** : prefix caching implicite — le préfixe stable
+   suffit, aucun code spécifique.
 
-```mermaid
-graph LR
-    A[User Query] --> B[Stage 1: Routing]
-    B --> C[Stage 2: Subplanning]
-    C --> D[Stage 3: Composition]
-    D --> E[ExecutionPlan]
-```
+Exceptions assumées (fragmentation par valeur stable) : les blocs d'identité
+peuvent précéder le marqueur quand leur valeur est stable pour un même
+utilisateur (`{personnalite}`, `{expertise}`, `{server_name}`) ou invariante
+par déploiement (`{result_keys_list}`, `{max_actions}`). La table
+`ALLOWED_BEFORE_MARKER` du test de garde documente chaque exception.
 
-### Stage 1: Routing (`hierarchical_stage1_routing_prompt.txt`)
+**Gardes CI** (`tests/unit/domains/agents/prompts/test_prompt_cache_hygiene.py`) :
+- `MARKER_REQUIRED` : tout system prompt dynamique doit porter le marqueur
+  (liste shrink-only) ;
+- aucun placeholder actif avant le marqueur hors exceptions justifiées ;
+- le préfixe statique du planner est byte-identique entre deux requêtes.
 
-```
-Analyse la requête utilisateur et détermine:
-1. Domaines impliqués (contacts, emails, calendar...)
-2. Complexité (simple/multi-step)
-3. Dépendances inter-domaines
-```
-
-### Stage 2: Subplanning (`hierarchical_stage2_subplanning_prompt.txt`)
-
-```
-Pour chaque domaine identifié, génère un sous-plan:
-1. Tools nécessaires
-2. Paramètres
-3. Dépendances internes
-```
-
-### Stage 3: Composition (`hierarchical_stage3_composition_prompt.txt`)
-
-```
-Compose les sous-plans en ExecutionPlan final:
-1. Ordonne les étapes
-2. Assigne parallel_groups
-3. Valide les dépendances cross-domain
-```
-
----
-
-## 🎯 Few-Shot System
-
-### Architecture Dynamique
-
-Le système few-shot charge **uniquement les exemples pertinents** pour la requête courante, réduisant les tokens de ~80%.
-
-**Fichier** : `prompt_loader.py` - fonctions `load_fewshot_examples()`
-
-```python
-# Mapping domain → file prefix
-DOMAIN_FILE_MAP = {
-    "contacts": "contacts",
-    "emails": "emails",
-    "calendar": "calendar",
-    "tasks": "tasks",
-    "places": "places",
-    "drive": "drive",
-    "weather": "weather",
-    "wikipedia": "wikipedia",
-    "perplexity": "perplexity",
-}
-
-# Mapping operation → file suffix
-OPERATION_FILE_MAP = {
-    "search": "search",
-    "list": "search",
-    "details": "details",
-    "location": "location",
-}
-
-@lru_cache(maxsize=64)
-def _load_fewshot_file(domain: str, operation: str, version: str = "v1") -> str | None:
-    """Load fewshot example with caching."""
-    fewshot_file = PROMPTS_DIR / version / "fewshot" / f"{domain}_{operation}.txt"
-    if fewshot_file.exists():
-        return fewshot_file.read_text(encoding="utf-8")
-    return None
-
-def load_fewshot_examples(domain_operations: list[tuple[str, str]]) -> str:
-    """
-    Load and concatenate fewshot examples for specified domains.
-
-    Args:
-        domain_operations: [("contacts", "search"), ("emails", "details")]
-
-    Returns:
-        Concatenated examples string
-    """
-```
-
-### Exemples Few-Shot Disponibles
-
-| Fichier | Domaine | Opération | Tokens |
-|---------|---------|-----------|--------|
-| contacts_search.txt | contacts | search | ~500 |
-| contacts_details.txt | contacts | details | ~400 |
-| emails_search.txt | emails | search | ~600 |
-| emails_details.txt | emails | details | ~500 |
-| calendar_search.txt | calendar | search | ~400 |
-| tasks_search.txt | tasks | search | ~350 |
-| drive_search.txt | drive | search | ~450 |
-| places_search.txt | places | search | ~550 |
-| places_location.txt | places | location | ~300 |
-| weather_search.txt | weather | search | ~400 |
-| wikipedia_search.txt | wikipedia | search | ~450 |
-| perplexity_search.txt | perplexity | search | ~500 |
-
-### Bénéfices Performance
-
-| Scénario | Avant (tous) | Après (dynamique) | Réduction |
-|----------|--------------|-------------------|-----------|
-| Single domain | ~5K tokens | ~500 tokens | **90%** |
-| Dual domain | ~5K tokens | ~1K tokens | **80%** |
-| Triple domain | ~5K tokens | ~1.5K tokens | **70%** |
+Few-shot réels restants : `hitl_classifier_examples.txt` (sectionné par
+action-type via `=== <key> ===`, injecté par `.replace()` de la sentinelle
+`[[EXAMPLES_PLACEHOLDER]]` APRÈS le `.format()` du template).
 
 ---
-
 ## 🎙️ Voice & Memory Prompts
 
 ### Voice Comment Prompt

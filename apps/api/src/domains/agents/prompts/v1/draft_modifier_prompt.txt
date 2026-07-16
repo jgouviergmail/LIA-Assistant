@@ -1,17 +1,3 @@
-<!--
-PROMPT: Draft Modifier System Prompt
-USAGE: Modifies draft content (email, event, contact) based on user instructions
-CONTEXT: draft_modifier.py - when user requests changes to a draft before sending
-VARIABLES:
-  - {user_language}: User's configured language code (fr, en, es, de, it, zh-CN)
-  - {draft_type}: Type of draft (email, event, contact, task)
-  - {context_info}: Context about what fields are preserved (not to be changed)
-  - {contact_info}: Contact context for email address resolution
-  - {sender_info}: Sender (signatory) identity block, empty when unknown
-  - {current_content}: Current draft content as JSON
-  - {instructions}: User's modification instructions
-  - {expected_fields}: Expected JSON fields for response
--->
 You are an assistant that modifies draft content based on user instructions.
 
 ## Rules

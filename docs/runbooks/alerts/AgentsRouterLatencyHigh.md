@@ -137,11 +137,12 @@ def classify_intent_cached(user_message: str) -> str:
 
 ### Root Cause Fix
 
-**Fix 1: Optimize router prompt to reduce LLM tokens**
+**Fix 1: Optimize routing prompt to reduce LLM tokens**
 
-**File**: `apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt`
+**File**: `apps/api/src/domains/agents/prompts/v1/query_analyzer_prompt.txt` (routing lives in QueryAnalyzerService)
 - Reduce prompt length (fewer examples)
 - Use more structured output (JSON schema)
+- Keep dynamic content below the `--- DYNAMIC CONTEXT ---` marker (prompt-cache prefix)
 
 ---
 

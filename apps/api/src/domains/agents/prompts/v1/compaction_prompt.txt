@@ -29,3 +29,7 @@ You are a conversation summarizer. Your task is to create a concise summary of a
 ### Pending / Open Items
 - [Anything still unresolved or in progress]
 ```
+
+--- DYNAMIC CONTEXT (all variable data below) ---
+
+The conversation to summarize follows in the next message.

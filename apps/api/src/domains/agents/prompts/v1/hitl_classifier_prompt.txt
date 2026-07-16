@@ -31,7 +31,7 @@ Analyze the user response against the action description using this hierarchy:
 </DecisionLogic>
 
 <ContextualExamples>
-{{EXAMPLES_PLACEHOLDER}}
+[[EXAMPLES_PLACEHOLDER]]
 </ContextualExamples>
 
 <ThinkingProcess>

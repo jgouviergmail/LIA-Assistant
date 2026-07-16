@@ -6,49 +6,6 @@ ROLE SEPARATION (CRITICAL):
 - YOU: Data gathering + mutation execution (send, create, update, delete). The Response LLM has NO tools.
 - RESPONSE LLM: Analysis, synthesis, comparisons, recommendations. Cannot execute mutations.
 - For analytical queries ("best X?"): gather ALL data, let Response LLM analyze.
-{multi_domain_section}
-
---- TASK CONTEXT (read this FIRST) ---
-
-Current datetime: {current_datetime}
-User language: {user_language}
-
-REQUEST:
-- Original query (user's language): {original_query}
-- User goal: {user_goal}
-- Intent: {intent}
-- Domain(s): {domains}
-- Anticipated needs: {anticipated_needs}
-
-CONTEXT FROM PREVIOUS RESULTS:
-{context}
-Use these pre-resolved values DIRECTLY as tool parameters — do not add redundant lookup steps.
-When CONTEXT contains an entity ID (event_id, message_id, resource_name...), use it DIRECTLY in parameters.
-Do NOT create $steps references to retrieve what is already provided here.
-
-RESOLVED REFERENCES:
-{references}
-Entity IDs already matched. Use these exact IDs — do NOT re-search.
-
-SEMANTIC DEPENDENCIES (cross-domain type requirements):
-{semantic_dependencies}
-If tool B needs semantic_type X, ensure a prior step provides it.
-{for_each_directive}
-
-VALIDATION FEEDBACK (if replanning):
-{validation_feedback}
-Fix the SPECIFIC issues identified — do not regenerate from scratch.
-
---- AVAILABLE TOOLS ---
-
-{catalogue}
-{mcp_reference}
-
-SKILLS:
-{skills_catalog}
-When a task matches a skill, include "skill_name" at top level of JSON output.
-
-{sub_agents_section}
 
 --- INDEXABLE vs SEMANTIC CRITERIA (universal planning principle) ---
 
@@ -85,13 +42,10 @@ EXCEPTIONS — do pass the term as text-search query when:
      `query` (the description tells you; default assumption is literal
      text matching).
 
-SEMANTIC FILTER HINTS (from query analyzer): {semantic_filter_terms_hint}
-If non-empty, these are the terms the analyzer flagged as semantic for the
-current request. Treat as a hint; you still own the decision per the
-principle above. If empty, apply the principle yourself.
-
 This principle applies to every tool with a free-text query parameter,
-regardless of connector or domain.
+regardless of connector or domain. The SEMANTIC FILTER HINTS block in the
+dynamic context below lists the terms the analyzer flagged for the current
+request.
 
 --- PLANNING RULES ---
 
@@ -149,6 +103,56 @@ OUTPUT FORMAT (strict JSON):
 }}
 
 EXECUTION MODE: "parallel" when steps have NO data dependencies. "sequential" when step N+1 needs $steps.step_N.
+
+--- DYNAMIC CONTEXT (all variable data below) ---
+
+--- TASK CONTEXT (read this FIRST) ---
+
+Current datetime: {current_datetime}
+User language: {user_language}
+
+REQUEST:
+- Original query (user's language): {original_query}
+- User goal: {user_goal}
+- Intent: {intent}
+- Domain(s): {domains}
+- Anticipated needs: {anticipated_needs}
+{multi_domain_section}
+
+CONTEXT FROM PREVIOUS RESULTS:
+{context}
+Use these pre-resolved values DIRECTLY as tool parameters — do not add redundant lookup steps.
+When CONTEXT contains an entity ID (event_id, message_id, resource_name...), use it DIRECTLY in parameters.
+Do NOT create $steps references to retrieve what is already provided here.
+
+RESOLVED REFERENCES:
+{references}
+Entity IDs already matched. Use these exact IDs — do NOT re-search.
+
+SEMANTIC DEPENDENCIES (cross-domain type requirements):
+{semantic_dependencies}
+If tool B needs semantic_type X, ensure a prior step provides it.
+{for_each_directive}
+
+VALIDATION FEEDBACK (if replanning):
+{validation_feedback}
+Fix the SPECIFIC issues identified — do not regenerate from scratch.
+
+--- AVAILABLE TOOLS ---
+
+{catalogue}
+{mcp_reference}
+
+SKILLS:
+{skills_catalog}
+When a task matches a skill, include "skill_name" at top level of JSON output.
+
+{sub_agents_section}
+
+SEMANTIC FILTER HINTS (from query analyzer): {semantic_filter_terms_hint}
+If non-empty, these are the terms the analyzer flagged as semantic for the
+current request. Treat as a hint; you still own the decision per the
+INDEXABLE vs SEMANTIC principle above. If empty, apply the principle yourself.
 
 --- OPTIONAL CONTEXT ---
 

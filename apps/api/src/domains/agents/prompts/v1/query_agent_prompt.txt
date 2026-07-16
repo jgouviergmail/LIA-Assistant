@@ -42,6 +42,8 @@ Input: "Duplicate contacts"
 Action: `local_query_engine_tool` with similarity
 </Strategies>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Inputs:
 {context_instructions}

@@ -26,6 +26,8 @@ Always respond in the user's language.
 - If you encounter an unrecoverable error after 2 retries, explain what went wrong
 </StrictLogic>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Date: {current_datetime}
 </Context>

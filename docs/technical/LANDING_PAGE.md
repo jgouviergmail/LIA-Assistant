@@ -60,8 +60,8 @@ Tout vit dans `apps/web/src/components/landing/`, la couche editoriale dans `lan
 | `CatalogDisclosure` | Client | Depliant accessible (bouton natif, `aria-expanded`, contenu DOM replie via `grid-template-rows`, `inert` replie). |
 | `ScrollStage` | Client | Declencheur one-shot : les keyframes fill-both des vignettes restent `animation-play-state: paused` jusqu'a l'arrivee au scroll (delais geles par pause → choregraphie au moment de la revelation). Reduced-motion : durees a zero → etat final instantane. |
 | `BasicsBand` | Server | « Et tout le reste, evidemment. » — commodites en chips APRES les chapitres (le pic d'attention post-hero n'est jamais depense sur les basiques) + son propre catalogue depliable (9 fiches commodites). |
-| `TransparencySection` | Server | « Elle n'a rien a cacher. » (ancre `#transparency`) : compteur de cout reel en motif de marque, 4 preuves (cout / audit public / open source / REX), ligne beta honnete, **CTA intermediaire** au pic de confiance. |
-| `DayTimeline` | Client | « Une journee avec elle. » — 4 profils en onglets × 4 scenes horodatees (remplace les personas, plus riche : 16 scenes). |
+| `TransparencySection` | Server | « LIA n'a rien a cacher. » (ancre `#transparency`) : compteur de cout reel en motif de marque, 4 preuves (cout / audit public / open source / REX), ligne beta honnete, **CTA intermediaire** au pic de confiance. |
+| `DayTimeline` | Client | « Une journee avec LIA. » — 4 profils en onglets × 4 scenes horodatees (remplace les personas, plus riche : 16 scenes). |
 | `GallerySection` | Client | Galerie a onglets fusionnant captures (12) et presentation (15 slides) — 2 sections → 1, contenus intacts. |
 | `ChapterRail` | Client | Rail fixe desktop (xl+) : 01-05 + ◈ transparence, scroll-spy, vraie `<nav>` de liens ancres (clavier + SR). |
 | `Tabs` | Client | Onglets WAI-ARIA generiques (roving tabindex, fleches, Home/End, panneaux `hidden` mais dans le DOM). |

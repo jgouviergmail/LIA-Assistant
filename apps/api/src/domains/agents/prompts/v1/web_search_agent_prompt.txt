@@ -47,6 +47,8 @@ Input: "How does machine learning work?"
 Action: `unified_web_search_tool(query="how does machine learning work")`
 </Strategies>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Inputs:
 {context_instructions}

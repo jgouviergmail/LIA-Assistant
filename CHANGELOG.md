@@ -5,9 +5,91 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.3] - 2026-07-16
+
+> **The prompt layer gets a full engineering pass.** A senior-level review of all 84 versioned prompts (directives, robustness, LLM cache management) followed by a four-batch remediation. The headline fix: the HITL classifier's few-shot examples were **never reaching the LLM** — the `{{...}}` sentinel was de-escaped by `.format()` before the `.replace()` ran, so every approve/reject/edit classification shipped with a literal placeholder instead of ~2,800 tokens of action-type examples; a brace-free `[[...]]` sentinel plus real-file oracle tests close the class for good. The structural work: a **provider-agnostic prompt-cache convention** — static content first, one canonical `--- DYNAMIC CONTEXT ---` marker, per-request content after — generalized to 34 system prompts and enforced by shrink-only CI guards. The planner (the pipeline's most expensive prompt) goes from ~3% to **77% byte-stable cacheable prefix**; the infra layer owns provider specifics (Anthropic `cache_control` split, OpenAI `prompt_cache_key`, implicit prefix caches), so models can be swapped per prompt with no template change. Governance closes the rest: two orphaned prompts deleted, the `PromptName` Literal now bidirectionally synced to the files by CI, the emotional-safety directive extracted to versioned files with a sentinel-coupling lock, and HITL confirmation questions now follow the user's **personality** instead of a hardcoded sarcastic register.
+
+### Added
+
+- **Prompt-cache convention (provider-agnostic)** — every dynamic system prompt
+  separates its static prefix from per-request content with the canonical
+  `DYNAMIC_CONTEXT_MARKER`; templates stay model-neutral while the infra layer
+  handles provider specifics. Reorganized accordingly: `smart_planner_prompt`
+  (static rules first, 77% stable prefix, byte-identical across requests),
+  the 4 ReAct prompts, all 17 domain-agent prompts, `memory_extraction`
+  (runs on every user message), `interest_extraction`, `heartbeat` ×2,
+  `initiative`; fully-static prompts (`compaction`, `semantic_validator`)
+  opt in via a terminal marker.
+- **CI guards for the prompt layer** (`tests/unit/domains/agents/prompts/`) —
+  `test_prompt_cache_hygiene` (shrink-only `MARKER_REQUIRED` list, no active
+  placeholder before the marker outside justified `ALLOWED_BEFORE_MARKER`
+  exceptions, planner prefix byte-stability), `test_prompt_name_literal_sync`
+  (Literal ↔ files, both directions), `test_memory_directive_sentinel`
+  (emotional-safety literal coupling can no longer drift silently).
+- **`memory_danger_directive` / `memory_normal_directive`** — the psychological
+  -profile behavioral directives move from inline Python constants to versioned
+  prompt files, per the prompts-in-files rule.
+
+### Changed
+
+- **Anthropic caching fallback inverted** (`factory.py`) — a system prompt
+  without the marker no longer gets best-effort `cache_control` (it paid the
+  125% cache-write premium on every call without ever hitting); OpenAI
+  `prompt_cache_key` extraction (`responses_adapter.py`) now recognizes ONLY
+  the canonical marker (literal tag mentions like `<TemporalContext>` in
+  static rules no longer truncate the prefix at 12%).
+- **HITL confirmation voice follows the personality** — `hitl_question_generator`
+  and `hitl_plan_approval_question` derive their register from the injected
+  personality (light/witty default preserved) instead of hardcoded
+  "cynical genius / Bored/Sarcastic" tones; examples explicitly labeled as
+  structure + default tone.
+- **Language directives use human-readable names** ("French" instead of "fr")
+  in the planner and ReAct prompts, matching the response prompt; language-keyed
+  lookups in `prompts/__init__.py` now route through the central
+  `normalize_language` chokepoint (a frontend-style bare `zh` no longer falls
+  back to French).
+- **Prompt hygiene** — 9 HTML doc-comment headers stripped from prompt files
+  (dead tokens on every call); `PromptName` Literal resynced (3 ghosts removed,
+  13 real files added); prompt docs realigned (`PROMPTS.md` caching doctrine,
+  `GUIDE_PROMPTS.md` structural rule, `ROUTER.md`, `SMART_SERVICES.md`,
+  `ARCHITECTURE_AGENT.md`, langfuse README, RouterLatency runbook);
+  `CLAUDE.md` zh/zh-CN layer rule corrected (backend-canonical `zh-CN`,
+  frontend `zh`, single chokepoint).
+
+### Fixed
+
+- **HITL classifier few-shot examples never injected** — `.format()` de-escaped
+  the `{{EXAMPLES_PLACEHOLDER}}` sentinel before the `.replace()` ran, so the
+  replace never matched: the classifier ran without its action-type examples
+  and the LLM saw a literal placeholder. Brace-free `[[EXAMPLES_PLACEHOLDER]]`
+  sentinel (replaced after `.format()`, as the examples contain single braces)
+  + end-to-end oracle tests on the real files.
+- **Two orphaned prompts deleted** (~3,500 tokens of dead weight) —
+  `router_system_prompt_template.txt` (routing merged into QueryAnalyzer at
+  the R1 latency optimization) and `smart_planner_multi_domain_prompt.txt`
+  (superseded by the unified planner prompt), plus the call-free
+  `get_smart_planner_multi_domain_prompt()` wrapper.
+- **Flaky performance test** — `test_massive_history_truncation_performance`
+  failed cold in isolation (one-off tiktoken BPE load counted inside the
+  100ms budget) while passing after warm neighbors; an explicit warm-up call
+  outside the measured window makes it deterministic (pre-existing defect,
+  proven on HEAD).
+- **Prompt copy defects** — duplicate rule numbering in `briefing_greeting`
+  (a commented-out tone rule reinstated), version tag `(v1.17.2)` and `10h`
+  francism removed from `heartbeat_decision`, garbled sentence-limit rule in
+  `voice_comment` rephrased.
+
+### Tests
+
+- Backend: **10,232 fast unit + 971 agents tests green**; 14 new guard tests
+  (cache hygiene, Literal sync, memory sentinel, HITL injection oracles,
+  language normalization); full Docker boot + healthcheck verified; assembly
+  proof: 78 prompts loaded, 31 restructured templates formatted with their
+  exact call-site keys.
+
 ## [1.25.2] - 2026-07-16
 
-> **The landing page now speaks the product's language.** Two-stage public-site overhaul, shipped with an executable zero-information-loss contract. First the hero: the old generic chat window becomes a **faithful miniature of the real app** (real user-left/assistant-right layout, live conversation token/€ bar, a request that visibly types itself in, Send morphing into Stop mid-stream) cycling through **four true acts** — parallel orchestration held by the HITL approval gate, a cross-domain proactive initiative carried through to the rescheduled event, a real **agentic phone call** (approval first, live call, written summary card), and a **skill mini-app forged in chat** from a voice request; while LIA "thinks", a glass pane reveals the **orchestration backstage** (an honest styling of the real debug panel / SSE execution steps) with live token/€ counting — pacing tuned for reading (glass 7–8.5 s, every note ≥ 4.5 s). Then the page: the 35-card features wall gives way to a **five-chapter narrative opened by LIA's own chat bubbles** (*She gets it done · She knows you · She notices before you · Nothing leaves without you · She grows with you*), each chapter carrying 3–4 benefits, a discreet "under the hood" line, a visual that **decomposes the hero animation** (backstage vignettes staged on scroll — never duplicating its four acts), and an **expandable catalog preserving every detailed feature card** (SEO-safe: collapsed content stays in the DOM). Commodities condense into one confident band ("And everything else, obviously."), trust gets a dedicated section (*She has nothing to hide*: per-message cost to the cent as a brand motif, the public 8.3/10 audit, open source, the AI-written/human-directed story) with a mid-page CTA at peak trust, the four personas become **four tabbed day-in-the-life timelines** (16 lived scenes), screenshots + the 15-slide deck merge into one tabbed gallery, and the engineering numbers move to "Under the hood" where their audience lives. Fully **transcreated in 6 languages** (never literally translated), WAI-ARIA tabs/disclosures, chapter scroll-spy rail, reduced-motion faithful.
+> **The landing page now speaks the product's language.** Two-stage public-site overhaul, shipped with an executable zero-information-loss contract. First the hero: the old generic chat window becomes a **faithful miniature of the real app** (real user-left/assistant-right layout, live conversation token/€ bar, a request that visibly types itself in, Send morphing into Stop mid-stream) cycling through **four true acts** — parallel orchestration held by the HITL approval gate, a cross-domain proactive initiative carried through to the rescheduled event, a real **agentic phone call** (approval first, live call, written summary card), and a **skill mini-app forged in chat** from a voice request; while LIA "thinks", a glass pane reveals the **orchestration backstage** (an honest styling of the real debug panel / SSE execution steps) with live token/€ counting — pacing tuned for reading (glass 7–8.5 s, every note ≥ 4.5 s). Then the page: the 35-card features wall gives way to a **five-chapter narrative opened by LIA's own chat bubbles** (*LIA gets it done · LIA knows you · LIA notices before you · Nothing leaves without you · LIA grows with you*), each chapter carrying 3–4 benefits, a discreet "under the hood" line, a visual that **decomposes the hero animation** (backstage vignettes staged on scroll — never duplicating its four acts), and an **expandable catalog preserving every detailed feature card** (SEO-safe: collapsed content stays in the DOM). Commodities condense into one confident band ("And everything else, obviously."), trust gets a dedicated section (*LIA has nothing to hide*: per-message cost to the cent as a brand motif, the public 8.3/10 audit, open source, the AI-written/human-directed story) with a mid-page CTA at peak trust, the four personas become **four tabbed day-in-the-life timelines** (16 lived scenes), screenshots + the 15-slide deck merge into one tabbed gallery, and the engineering numbers move to "Under the hood" where their audience lives. Fully **transcreated in 6 languages** (never literally translated), WAI-ARIA tabs/disclosures, chapter scroll-spy rail, reduced-motion faithful.
 
 ### Added
 

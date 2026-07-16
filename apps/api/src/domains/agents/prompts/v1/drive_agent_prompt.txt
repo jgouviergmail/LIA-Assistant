@@ -39,6 +39,8 @@ Input: "Files in Project folder"
 Action: `get_files_tool(folder_id="...")`
 </Strategies>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Inputs:
 {context_instructions}

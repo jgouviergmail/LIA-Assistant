@@ -37,6 +37,8 @@ Input: "Mark the 2nd as done"
 Action: `resolve_reference` -> `complete_task_tool` (AFTER confirmation)
 </Strategies>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Inputs:
 {context_instructions}

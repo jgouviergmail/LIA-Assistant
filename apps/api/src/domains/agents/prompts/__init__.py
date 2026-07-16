@@ -1,18 +1,19 @@
 """
 Agent system prompts with versioned loading.
 
-This module provides backward-compatible access to versioned prompts stored in files.
-All prompts are now version-controlled for A/B testing, rollbacks, and governance.
+All prompt text lives in versioned files under ``prompts/{version}/*.txt``
+(loaded via ``load_prompt``); this module holds the formatting functions that
+inject runtime context into those templates, plus the temporal-context and
+language helpers they share. The ``PromptName`` Literal in ``prompt_loader``
+is kept in sync with the actual files by a CI completeness test.
 
-Migration status:
-- Router prompt: Migrated to {version}/router_system_prompt.txt (ROUTER_PROMPT_VERSION)
-- Response prompt: Migrated to {version}/response_system_prompt_base.txt (RESPONSE_PROMPT_VERSION)
-- Contacts agent prompt: Migrated to {version}/contacts_agent_prompt.txt (CONTACTS_AGENT_PROMPT_VERSION)
-- HITL classifier prompt: Migrated to {version}/hitl_classifier_prompt.txt (HITL_CLASSIFIER_PROMPT_VERSION)
-- Planner prompt: Migrated to {version}/planner_system_prompt.txt (PLANNER_PROMPT_VERSION)
+Prompt versions are configurable via environment variables (e.g.
+``RESPONSE_PROMPT_VERSION``); default is v1 for all prompts.
 
-All versions are configurable via environment variables in .env or .env.example.
-Default version: v1 for all prompts.
+Cache convention: templates separate their static prefix from per-request
+dynamic content with ``DYNAMIC_CONTEXT_MARKER`` ("--- DYNAMIC CONTEXT");
+provider adapters split on it (Anthropic cache_control, OpenAI
+prompt_cache_key). Guarded by tests/unit/domains/agents/prompts/.
 
 Compliance: LangGraph v1.0 + LangChain v1.0 best practices
 """
@@ -24,6 +25,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import normalize_language
 from src.core.i18n_types import LANGUAGE_NAMES
 from src.domains.agents.prompts.prompt_loader import (
     PromptIntegrityError,
@@ -117,12 +119,12 @@ def get_period_of_day(hour: int, language: str = "fr") -> str:
 
     Args:
         hour: Hour in 24h format (0-23).
-        language: Language code (fr, en, es, de, it, zh-CN).
+        language: Language code or raw locale (normalized via the central chokepoint).
 
     Returns:
         Period name in the specified language.
     """
-    lang = language[:2] if len(language) > 2 and language != "zh-CN" else language
+    lang = normalize_language(language)
     periods = _PERIOD_OF_DAY.get(lang, _PERIOD_OF_DAY["fr"])
 
     if 5 <= hour < 12:
@@ -150,7 +152,7 @@ _SEASONS = {
 
 def get_season(month: int, language: str = "fr") -> str:
     """Get season name based on month (Northern Hemisphere)."""
-    lang = language[:2] if len(language) > 2 and language != "zh-CN" else language
+    lang = normalize_language(language)
     seasons = _SEASONS.get(lang, _SEASONS["fr"])
 
     if month in [12, 1, 2]:
@@ -291,7 +293,7 @@ def get_current_datetime_context(
     - Weekend indicator
     """
     try:
-        lang = language[:2] if len(language) > 2 and language != "zh-CN" else language
+        lang = normalize_language(language)
         if lang not in _DAY_NAMES:
             lang = "fr"
 
@@ -439,8 +441,10 @@ def get_response_prompt(
         anticipated_needs_str = "(aucun besoin anticipé)"
 
     # Convert language code to human-readable name for LLM comprehension
-    # e.g., "zh-CN" → "Simplified Chinese", "fr" → "French"
-    user_language_name = LANGUAGE_NAMES.get(user_language, user_language)
+    # e.g., "zh-CN" → "Simplified Chinese", "fr" → "French". Normalize first so
+    # frontend-style locales ("zh", "fr-FR") resolve instead of leaking raw codes.
+    normalized_language = normalize_language(user_language)
+    user_language_name = LANGUAGE_NAMES.get(normalized_language, user_language)
 
     logger.info(
         "response_prompt_language_conversion",
@@ -738,7 +742,9 @@ def get_smart_planner_prompt(
         context=context or "(no context)",
         references=references or "(no resolved references)",
         current_datetime=get_current_datetime_context(user_timezone, user_language),
-        user_language=user_language,
+        # Human-readable name ("French") — clearer language directive for the
+        # LLM than a raw code ("fr"); same convention as get_response_prompt.
+        user_language=LANGUAGE_NAMES.get(normalize_language(user_language), user_language),
         validation_feedback=validation_feedback or "",
         semantic_dependencies=semantic_dependencies or _get_semantic_deps_fallback(),
         learned_patterns=learned_patterns,
@@ -751,57 +757,6 @@ def get_smart_planner_prompt(
         multi_domain_section=multi_domain_section,
         primary_domain=primary_domain or domains.split(",")[0].strip() if domains else "",
         semantic_filter_terms_hint=semantic_filter_terms_hint,
-    )
-
-
-# Backward compatibility alias
-def get_smart_planner_multi_domain_prompt(
-    domains: str,
-    primary_domain: str,
-    intent: str,
-    user_goal: str,
-    anticipated_needs: str,
-    catalogue: str,
-    original_query: str,
-    context: str = "",
-    references: str = "",
-    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    user_language: str = settings.default_language,
-    validation_feedback: str | None = None,
-    semantic_dependencies: str = "",
-    learned_patterns: str = "",
-    mcp_reference: str = "",
-    for_each_detected: bool = False,
-    for_each_collection_key: str | None = None,
-    cardinality_magnitude: int | None = None,
-    skills_catalog: str = "",
-    sub_agents_section: str = "",
-    journal_context: str = "",
-) -> str:
-    """Backward-compatible wrapper — delegates to unified get_smart_planner_prompt."""
-    return get_smart_planner_prompt(
-        user_goal=user_goal,
-        intent=intent,
-        domains=domains,
-        anticipated_needs=anticipated_needs,
-        catalogue=catalogue,
-        original_query=original_query,
-        context=context,
-        references=references,
-        user_timezone=user_timezone,
-        user_language=user_language,
-        validation_feedback=validation_feedback,
-        semantic_dependencies=semantic_dependencies,
-        learned_patterns=learned_patterns,
-        mcp_reference=mcp_reference,
-        for_each_detected=for_each_detected,
-        for_each_collection_key=for_each_collection_key,
-        cardinality_magnitude=cardinality_magnitude,
-        skills_catalog=skills_catalog,
-        sub_agents_section=sub_agents_section,
-        journal_context=journal_context,
-        primary_domain=primary_domain,
-        is_multi_domain=True,
     )
 
 
@@ -857,7 +812,7 @@ _HITL_CLARIFICATION_GENERIC_MESSAGES = {
 
 def get_hitl_classification_fallback_message(language: str = "fr") -> str:
     """Get HITL classification fallback message in user's language."""
-    lang = language[:2] if len(language) > 2 and language != "zh-CN" else language
+    lang = normalize_language(language)
     return _HITL_CLASSIFICATION_FALLBACK_MESSAGES.get(
         lang, _HITL_CLASSIFICATION_FALLBACK_MESSAGES["fr"]
     )
@@ -865,7 +820,7 @@ def get_hitl_classification_fallback_message(language: str = "fr") -> str:
 
 def get_hitl_clarification_generic_message(language: str = "fr") -> str:
     """Get HITL clarification generic message in user's language."""
-    lang = language[:2] if len(language) > 2 and language != "zh-CN" else language
+    lang = normalize_language(language)
     return _HITL_CLARIFICATION_GENERIC_MESSAGES.get(
         lang, _HITL_CLARIFICATION_GENERIC_MESSAGES["fr"]
     )
@@ -964,7 +919,6 @@ __all__ = [
     # Prompt builders
     "get_response_prompt",
     "get_smart_planner_prompt",
-    "get_smart_planner_multi_domain_prompt",
     "build_schema_reference_guide",
     "get_hitl_classifier_prompt",
     # HITL messages

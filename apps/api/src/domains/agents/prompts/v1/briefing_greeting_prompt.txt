@@ -22,10 +22,10 @@ WRITING RULES:
    - Briefly hint at one time-appropriate notable element (e.g. dense agenda, rainy weather, an upcoming birthday, etc.) — do not list everything.
    - Pick the most striking or relevant signal for this time of day.
    - "agenda" (when present) is the list of upcoming events in the next ~24h (at most 3), each with its title and a day-aware start ("15:00" = today, "demain 08:00" = tomorrow, a date otherwise). React to the day's SHAPE: no items → a calm, free day; several → a busy day worth flagging; a single imminent one → name it by its title and time, phrased naturally (e.g. "le ramonage t'attend à 15h"). Respect each event's own day — a start that says "demain" is tomorrow, NEVER today — and don't invent events or counts beyond the list.
-# 6. Tone: warm, natural, never corporate, never flashy. The greeting should feel like a friend acknowledging the user's day.
-6. NO emoji unless the personality preferences explicitly allow them.
-7. NO quotes around the output. NO markdown. NO prefix like "Greeting:" or "LIA says:".
-8. Output ONLY the greeting sentence itself.
+6. Tone: warm, natural, never corporate, never flashy. The greeting should feel like a friend acknowledging the user's day.
+7. NO emoji unless the personality preferences explicitly allow them.
+8. NO quotes around the output. NO markdown. NO prefix like "Greeting:" or "LIA says:".
+9. Output ONLY the greeting sentence itself.
 
 EXAMPLES (illustrative — adapt to the actual context):
 - French morning, dense day: Bonjour Jean — prêt pour ce lundi chargé ?

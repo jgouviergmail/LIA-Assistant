@@ -31,6 +31,7 @@ from langgraph.types import interrupt
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n_types import get_language_name
 from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
@@ -186,7 +187,9 @@ def _build_system_prompt(state: MessagesState) -> str:
         personnalite=personality,
         current_datetime=get_prompt_datetime_formatted(),
         user_timezone=user_tz,
-        user_language=user_lang,
+        # Human-readable name ("French") — clearer language directive for the
+        # LLM than a raw code ("fr"); same convention as get_response_prompt.
+        user_language=get_language_name(user_lang),
         semantic_dependencies=semantic_deps,
     )
 

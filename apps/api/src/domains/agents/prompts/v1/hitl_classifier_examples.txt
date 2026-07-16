@@ -1,7 +1,8 @@
 <!--
 PROMPT: HITL Classifier — few-shot examples (language-neutral)
 USAGE: hitl_classifier.py::_get_contextual_examples — injected into
-  {{EXAMPLES_PLACEHOLDER}} of hitl_classifier_prompt.txt.
+  [[EXAMPLES_PLACEHOLDER]] of hitl_classifier_prompt.txt (brace-free sentinel,
+  replaced AFTER .format() because these examples contain single braces).
 CONTEXT: Examples are in English so the classifier is NOT biased toward any
   single user language. The user's actual response may be in ANY language
   (German, Spanish, Italian, Chinese, French, …): classify by the INTENT

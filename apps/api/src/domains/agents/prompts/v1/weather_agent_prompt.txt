@@ -38,6 +38,8 @@ Input: "Forecast for the week"
 Action: `get_weather_forecast_tool`
 </Strategies>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Inputs:
 {context_instructions}

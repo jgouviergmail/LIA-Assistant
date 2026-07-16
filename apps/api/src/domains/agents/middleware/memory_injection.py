@@ -36,6 +36,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from src.core.config import settings
+from src.domains.agents.prompts import load_prompt
 from src.domains.memories.emotional_state import EmotionalState, compute_emotional_state
 from src.domains.memories.models import Memory
 from src.infrastructure.async_utils import safe_fire_and_forget
@@ -58,42 +59,11 @@ Tu dois répondre en disant "Tu t'es marié en 2008" ou "Vous vous êtes marié 
 {behavioral_directive}
 """
 
-# Behavioral directive when emotional state is DANGER (sensitivity memories present)
-DANGER_DIRECTIVE = """## ⛔ DIRECTIVE DE SÉCURITÉ ÉMOTIONNELLE (PRIORITÉ ABSOLUE)
-
-Des souvenirs marqués **[TRAUMA/DOULEUR]** ou **[NÉGATIF]** sont actifs dans ce contexte.
-Les instructions marquées **⚠ OBLIGATION :** dans les zones sensibles ci-dessus sont des ORDRES, pas des suggestions.
-
-**INTERDICTIONS ABSOLUES** — violation = faute grave :
-1. **JAMAIS** de blague, ironie, sarcasme ou humour noir touchant de près ou de loin un sujet TRAUMA/NÉGATIF
-2. **JAMAIS** de référence désinvolte, légère ou banalisante à un sujet de zone sensible
-3. **JAMAIS** de minimisation ("ce n'est pas si grave", "ça va aller") d'un souvenir négatif
-4. **JAMAIS** de projection ou de comparaison avec d'autres situations ("d'autres ont vécu pire")
-
-**COMPORTEMENT REQUIS** quand un sujet sensible est activé ou proche du contexte :
-- Adopte un ton **respectueux, sobre et empathique**
-- Si le sujet sensible n'est pas directement abordé par l'utilisateur, **ne le mentionne pas**
-- Si l'utilisateur l'aborde : **accueille avec bienveillance**, sans relancer ni approfondir sauf si demandé
-- En cas de doute sur le ton approprié : **choisis toujours la prudence**
-
-Ces informations constituent le "sous-texte" de ton interaction, pas le sujet principal.
-
-1. **Tâche technique** (code, recherche, calcul) → Ignore les émotions, garde le style de communication
-2. **Tâche conversationnelle** → Personnalise avec respect, **en évitant tout sujet sensible**
-3. **Ne force jamais** l'utilisation d'une mémoire si elle n'est pas pertinente au contexte immédiat
-
-Les instructions de chaque souvenir (marquées ⚠ OBLIGATION) t'indiquent précisément ce que tu DOIS et NE DOIS PAS faire."""
-
-# Behavioral directive for normal states (NEUTRAL / COMFORT)
-NORMAL_DIRECTIVE = """## DIRECTIVE PRIORITAIRE
-
-Ces informations constituent le "sous-texte" de ton interaction, pas le sujet principal.
-
-1. **Tâche technique** (code, recherche, calcul) → Ignore les émotions, garde le style de communication
-2. **Tâche conversationnelle** → Utilise ces leviers pour créer du lien et personnaliser
-3. **Ne force jamais** l'utilisation d'une mémoire si elle n'est pas pertinente au contexte immédiat
-
-Les nuances d'usage t'indiquent COMMENT exploiter chaque information quand c'est approprié."""
+# Behavioral directives (DANGER vs NEUTRAL/COMFORT emotional state) are
+# versioned prompt files: memory_danger_directive.txt / memory_normal_directive.txt.
+# The danger directive's header is a SENTINEL matched literally by
+# response_system_prompt_base.txt ("DIRECTIVE DE SÉCURITÉ ÉMOTIONNELLE") —
+# a dedicated test keeps the two files in sync.
 
 # Section templates by category with priority ordering
 SECTION_TEMPLATES = {
@@ -281,9 +251,10 @@ async def build_psychological_profile(
                 return None, EmotionalState.NEUTRAL, None
 
             # Select behavioral directive based on emotional state
-            behavioral_directive = (
-                DANGER_DIRECTIVE if emotional_state == EmotionalState.DANGER else NORMAL_DIRECTIVE
-            )
+            if emotional_state == EmotionalState.DANGER:
+                behavioral_directive = load_prompt("memory_danger_directive")
+            else:
+                behavioral_directive = load_prompt("memory_normal_directive")
 
             profile_text = PSYCHOLOGICAL_PROFILE_TEMPLATE.format(
                 profile_sections="\n\n".join(sections),

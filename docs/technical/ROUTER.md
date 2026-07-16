@@ -440,9 +440,10 @@ RouterOutput(
 
 ### Version Actuelle
 
-**Fichier**: [apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt](../../apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt)
+**Fichier**: [apps/api/src/domains/agents/prompts/v1/query_analyzer_prompt.txt](../../apps/api/src/domains/agents/prompts/v1/query_analyzer_prompt.txt)
 
-> **Note**: Le prompt v8 a été consolidé dans v1 (décembre 2025). Le versioning historique v8 est conservé dans le contenu du fichier.
+> **Note**: Le routing vit dans `QueryAnalyzerService` (analyse unifiée, optim R1). L'ancien
+> `router_system_prompt_template.txt`, devenu orphelin après cette fusion, a été supprimé (2026-07).
 
 **Version**: v8.0 (consolidated to v1) - Anti-Hallucination Hardening (2025-11-13)
 
@@ -1628,7 +1629,7 @@ Voir [SEMANTIC_INTENT_DETECTION.md](SEMANTIC_INTENT_DETECTION.md) pour l'archite
 **Code source**:
 - [router_node_v3.py](../../apps/api/src/domains/agents/nodes/router_node_v3.py) - Router node implementation
 - [domain_schemas.py](../../apps/api/src/domains/agents/domain_schemas.py) - RouterOutput schema
-- [router_system_prompt_template.txt](../../apps/api/src/domains/agents/prompts/v1/router_system_prompt_template.txt) - Prompt actif (v8 consolidated to v1)
+- [query_analyzer_prompt.txt](../../apps/api/src/domains/agents/prompts/v1/query_analyzer_prompt.txt) - Prompt actif (routing unifié via QueryAnalyzerService)
 - [message_windowing.py](../../apps/api/src/domains/agents/utils/message_windowing.py) - Message windowing utilities
 
 **ADRs**:

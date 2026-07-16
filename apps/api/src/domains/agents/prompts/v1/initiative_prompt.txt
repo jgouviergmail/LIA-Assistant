@@ -45,6 +45,8 @@ For suggestions: if you spot something that would need a WRITE action
 (create event, send reply), phrase it as a helpful question.
 </DecisionLogic>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <UserContext purpose="decision-filter">
 Use this context to evaluate whether a cross-domain check is personally relevant to THIS user. Only propose actions that connect to known habits, interests, or circumstances below.
 

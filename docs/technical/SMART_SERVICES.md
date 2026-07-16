@@ -362,8 +362,7 @@ Public prompt functions:
 
 | Function | Description |
 |----------|-------------|
-| `get_smart_planner_prompt(is_multi_domain, primary_domain, semantic_filter_terms)` | Unified prompt function with `is_multi_domain` and `primary_domain` params, plus the `semantic_filter_terms` hint forwarded from the query analyzer (ADR-084) |
-| `get_smart_planner_multi_domain_prompt()` | Backward-compatible wrapper, calls `get_smart_planner_prompt(is_multi_domain=True)` |
+| `get_smart_planner_prompt(is_multi_domain, primary_domain, semantic_filter_terms)` | Unified prompt function with `is_multi_domain` and `primary_domain` params, plus the `semantic_filter_terms` hint forwarded from the query analyzer (ADR-084). The former `get_smart_planner_multi_domain_prompt()` wrapper (call-free) was removed in 2026-07. |
 
 ### Indexable vs Semantic Criteria (ADR-084, v1.20.6)
 

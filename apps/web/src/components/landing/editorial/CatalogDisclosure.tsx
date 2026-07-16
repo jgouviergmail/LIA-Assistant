@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
  */
 
 export interface CatalogDisclosureProps {
-  /** Translated summary label, e.g. "Everything she can do here". */
+  /** Translated summary label, e.g. "Everything LIA can do here". */
   summary: string;
   /** Translated hint after the summary (item count / content list). */
   hint?: string;

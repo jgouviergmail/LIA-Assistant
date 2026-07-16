@@ -137,6 +137,8 @@ General TRANSACTIONAL/FORM pattern:
    -> stop at the login / payment / final-validation step -> report the summary
 </Examples>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 {context_instructions}
 

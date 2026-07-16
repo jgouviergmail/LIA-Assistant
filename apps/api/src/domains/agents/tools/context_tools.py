@@ -36,6 +36,14 @@ Example Flow:
     → Tool: resolve_reference(reference="2ème", domain="contacts")
     → Resolves to Marie Martin
     → Returns: {"success": True, "item": {...}, "confidence": 1.0}
+
+Scope note (do NOT "fix" the apparent contradiction with the planner prompt):
+    ``resolve_reference`` / ``get_context_list`` are REAL tools for domain
+    agents (per-domain graph/ReAct execution, where the store holds the
+    previous results). The smart-planner prompt lists the same names as
+    FORBIDDEN because they do not exist in the ExecutionPlan DSL: at plan
+    level, references are pre-resolved into CONTEXT/$steps by the pipeline.
+    Both statements are correct in their own execution context.
 """
 
 from typing import Annotated

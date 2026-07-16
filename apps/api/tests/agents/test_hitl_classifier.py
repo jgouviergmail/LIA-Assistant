@@ -421,7 +421,7 @@ class TestPromptBuilding:
         mock_settings.return_value = settings_mock
 
         # Mock prompt template
-        mock_load_prompt.return_value = "Classification for {action_type}: {action_desc}\nResponse: {response}\n{{EXAMPLES_PLACEHOLDER}}"
+        mock_load_prompt.return_value = "Classification for {action_type}: {action_desc}\nResponse: {response}\n[[EXAMPLES_PLACEHOLDER]]"
 
         context = [{"name": "search_contacts", "args": {"query": "John"}}]
         messages = classifier._build_prompt("oui", context)

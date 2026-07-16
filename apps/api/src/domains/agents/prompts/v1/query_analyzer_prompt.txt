@@ -56,7 +56,7 @@ reference_domain uses domain names from AVAILABLE DOMAINS (singular): contact, e
 - **is_mutation_intent**: true if user intends to CREATE, UPDATE, DELETE, or SEND data.
 - **has_cardinality_risk**: true if intent targets a SET ("all my…", "each…", "the entire…").
 - **for_each_detected**: true when user expects DISTINCT per-item results (not aggregated). Test: "Would the answer require N separate results or 1 combined?" → N separate = true.
-- **for_each_collection_key**: "contacts", "events", "places", "emails", "tasks", or "files".
+- **for_each_collection_key**: "contacts", "events", "places", "emails", "tasks", or "files" (plural result-collection keys — distinct from the singular domain names used elsewhere).
 - **cardinality_magnitude**: null (unspecified), 999 (explicit "all"), or N (explicit number).
 
 ## KNOWLEDGE & APP HELP

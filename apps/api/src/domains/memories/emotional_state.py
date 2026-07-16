@@ -11,7 +11,7 @@ Algorithm:
 
 Used by:
 - build_psychological_profile() in memory_injection.py
-  -> Drives DANGER_DIRECTIVE vs NORMAL_DIRECTIVE selection
+  -> Drives memory_danger_directive vs memory_normal_directive prompt selection
   -> Visual feedback in UI (colored indicator)
 
 Phase: v1.14.0 — Memory migration to PostgreSQL custom

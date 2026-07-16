@@ -4,9 +4,9 @@
 >
 > 面向架构师、工程师和技术专家的技术展示文档。
 
-**版本**：2.9
+**版本**：3.0
 **日期**：2026-07-16
-**应用**：LIA v1.25.2
+**应用**：LIA v1.25.3
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -152,7 +152,7 @@ apps/api/src/
 │   │   ├── registry/             # AgentRegistry、domain_taxonomy、catalogue
 │   │   ├── semantic/             # 语义路由器、扩展服务
 │   │   ├── middleware/           # 记忆注入、人格注入
-│   │   ├── prompts/v1/           # 57 个版本化 .txt 提示文件
+│   │   ├── prompts/v1/           # 78 个版本化 .txt 提示文件
 │   │   ├── graphs/               # 15 个智能体构建器（每个领域一个）
 │   │   ├── context/              # Context store（Data Registry）、装饰器
 │   │   └── models.py             # MessagesState（TypedDict + 自定义 reducer）
@@ -611,6 +611,10 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 LLM 定价管理员表单暴露**从数据库派生的动态模板机制**：`LLMModelService.list_templates()` 服务按其 4 字段推理指纹分组活动行，并为每组返回一个确定性代表（今天约 15 种唯一形态）。添加新的推理模型归结为选择"从某个现有模型复制形态"；4 个形态字段在创建时被快照复制。**Custom** 模式可用于颠覆性场景；任何具有新颖指纹的 Custom 模型自动成为后续添加的模板。`kind`（chat / image / audio / …）、四个采样限制和工具提示 i18n 键按模型保存，独立于模板。请参阅 `docs/technical/LLM_PRICING_TEMPLATES.md`。
 
+### 12.5. 与供应商无关的提示词缓存
+
+当提示词开头在多次请求间逐字节一致时，所有供应商都会降低计费（并加快响应）——但各家机制不同：Anthropic 的 `cache_control` 块、OpenAI 的 `prompt_cache_key` 路由、DeepSeek/Qwen/Gemini 的隐式前缀缓存。LIA 将职责分离：每个版本化系统提示词先放静态内容（角色、规则、示例、输出格式），随后是规范标记 `--- DYNAMIC CONTEXT ---`，之后才是所有按请求变化的内容（日期、查询、上下文、工具目录）。模板保持模型中立；基础设施层把该标记翻译成各供应商的方言——为 Anthropic 做 `cache_control` 切分，为 OpenAI 生成缓存路由键，隐式缓存则直接受益于稳定前缀，无需任何代码。作为流水线中最昂贵的提示词，planner 在任意两次请求之间暴露约 77% 逐字节稳定的可缓存前缀。只减不增的 CI 守卫锁定这一约定：所有动态提示词必须携带该标记，任何占位符不得在无充分理由的情况下出现在标记之前，planner 前缀的字节稳定性在每次构建时都会被断言。
+
 ---
 
 ## 13. 连接器：多供应商抽象
@@ -891,7 +895,7 @@ Data Registry（`InMemoryStore`）将工具结果与消息历史解耦。结果�
 
 ### 23.4. 提示系统
 
-`src/domains/agents/prompts/v1/` 中有 57 个版本化的 `.txt` 文件，通过 `load_prompt()` 加载，带 LRU 缓存（32 条目）。版本可通过环境变量配置。
+`src/domains/agents/prompts/v1/` 中有 78 个版本化的 `.txt` 文件，通过 `load_prompt()` 加载，带 LRU 缓存（32 条目）。版本可通过环境变量配置。
 
 ### 23.5. 集中组件激活（ADR-061）
 
@@ -1061,4 +1065,4 @@ LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个�
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、123 篇 ADR 及变更日志（v1.0 至 v1.25.2）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、123 篇 ADR 及变更日志（v1.0 至 v1.25.3）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

@@ -42,6 +42,8 @@ Input: "Latest news on X"
 Action: `brave_news_tool` with freshness='pd'
 </Strategies>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Inputs:
 {context_instructions}

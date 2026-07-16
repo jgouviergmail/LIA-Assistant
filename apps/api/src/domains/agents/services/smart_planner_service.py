@@ -76,8 +76,8 @@ class SmartPlannerService:
     def __init__(self) -> None:
         self.catalogue_service = get_smart_catalogue_service()
         # Prompts are built at call-time with context (V3 architecture)
-        # - get_smart_planner_prompt() and get_smart_planner_multi_domain_prompt()
-        #   are formatting functions that load AND format in one step
+        # - get_smart_planner_prompt() (unified single + multi-domain via
+        #   is_multi_domain=True) loads AND formats in one step
 
         # Strategy Pattern: Planning strategies ordered by priority
         # Strategies are tried in order until one can handle the request

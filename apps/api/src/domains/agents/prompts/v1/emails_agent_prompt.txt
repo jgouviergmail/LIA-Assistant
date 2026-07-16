@@ -49,6 +49,8 @@ Input: "Send an email to Sophie"
 Action: `send_email_tool` (AFTER complete HITL cycle)
 </Strategies>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Inputs:
 {context_instructions}

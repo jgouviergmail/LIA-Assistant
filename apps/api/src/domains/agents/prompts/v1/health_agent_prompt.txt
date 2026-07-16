@@ -82,6 +82,8 @@ Input: "Anything unusual this week?"
 Action: `detect_health_changes_tool(window_days=7)`
 </Strategies>
 
+--- DYNAMIC CONTEXT (all variable data below) ---
+
 <Context>
 Inputs:
 {context_instructions}

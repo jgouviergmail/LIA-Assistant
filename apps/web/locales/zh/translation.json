@@ -2980,14 +2980,24 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_3": {
+          "title": "v1.25.3 — 🧠 更精准的确认，更优的 AI 成本",
+          "date": "2026年7月",
+          "count": "3",
+          "items": {
+            "i1": "<b>✅ 更懂你的确认回复</b> —— 当 LIA 请你确认某个操作时，你的回复（「是」「不，取消」「还是发给 Marie 吧」）现在会连同完整示例一起分类——此前一个隐蔽的缺陷使这些示例从未真正传给 AI。修改与取消的识别更加可靠。",
+            "i2": "<b>🎭 确认问题贴合你选择的个性</b> —— 审批问题现在遵循你为助手选择的个性（温和、专业、俏皮……），不再是固定的讽刺语气。",
+            "i3": "<b>💰 更省钱、更快速的 AI 调用</b> —— 每条内部指令的固定部分现已按可缓存结构组织，供应商可以直接缓存：重复请求计费 token 更少、延迟更低，且与各功能所用模型无关。"
+          }
+        },
         "v1_25_2": {
           "title": "v1.25.2 — 🎬 全新的公开主页",
           "date": "2026年7月",
           "count": "3",
           "items": {
             "i1": "<b>🎬 展示真实产品的演示</b> —— 主页动画成为应用的忠实缩影：四个真实场景（经你批准的编排、贯彻到底的天气×日程主动建议、一通真实电话、聊天中创建的迷你应用）；当 LIA「思考」时，玻璃面板揭示幕后编排，并实时显示成本计数。",
-            "i2": "<b>📖 五章叙事，信息零丢失</b> —— 页面如今讲述 LIA 的与众不同（「她真的会做事。」「未经你同意，什么都不会发出。」…），每章由 LIA 自己的聊天气泡开场；所有功能详情卡片仍在可展开目录中完整保留，并由自动零丢失守卫保护。",
-            "i3": "<b>🔍 透明度居于核心</b> —— 新增「她没什么可隐瞒的」板块（精确到分的成本、公开的 8.3/10 审计、开源），以及「与她的一天」：四种可切换的典型一天（自由职业者、家庭、开发者、管理员）。"
+            "i2": "<b>📖 五章叙事，信息零丢失</b> —— 页面如今讲述 LIA 的与众不同（「LIA 真的会做事。」「未经你同意，什么都不会发出。」…），每章由 LIA 自己的聊天气泡开场；所有功能详情卡片仍在可展开目录中完整保留，并由自动零丢失守卫保护。",
+            "i3": "<b>🔍 透明度居于核心</b> —— 新增「LIA 没什么可隐瞒的」板块（精确到分的成本、公开的 8.3/10 审计、开源），以及「与 LIA 的一天」：四种可切换的典型一天（自由职业者、家庭、开发者、管理员）。"
           }
         },
         "v1_25_1": {
@@ -6017,7 +6027,7 @@
     },
     "use_cases": {
       "title": "真实的请求，不是演示。",
-      "subtitle": "一句话就够——她拆解任务、并行调度合适的专家，遇到敏感操作先征求你的同意。",
+      "subtitle": "一句话就够——LIA 拆解任务、并行调度合适的专家，遇到敏感操作先征求你的同意。",
       "intro": "下面每个例子都是用户的真实请求，原文照录。",
       "example1": {
         "query": "找到附近3家最好的、现在营业的咖啡馆，并给我步行路线",
@@ -6162,7 +6172,7 @@
     },
     "cta": {
       "bubble": "你的日程和我，已经有话要聊了。",
-      "title": "她准备好了。还有点等不及。",
+      "title": "LIA 准备好了。还有点等不及。",
       "subtitle": "一个会行动、了解你、能预判的助手——而且永远先问过你。",
       "button": "创建我的账户",
       "note_beta": "免费公测，7×24 小时生产运行。坦诚到底：将来会推出订阅。",
@@ -6208,11 +6218,11 @@
     "chapters": {
       "eyebrow": "章节",
       "backstage_label": "幕后",
-      "catalog_label": "她在这里能做的一切",
+      "catalog_label": "LIA 在这里能做的一切",
       "how_prefix": "幕后机制：",
       "c1": {
         "bubble": "「通知我妻子，并推迟我的会议」——这是一句话，不是两个应用。",
-        "title": "她真的会做事。",
+        "title": "LIA 真的会做事。",
         "sub": "不是建议，不是要你照抄的草稿：是在你的真实生活中办到底的行动。",
         "b1_t": "一句话，多位专家。",
         "b1_d": "联系人、日历、邮件并行工作——你不需要知道是哪些。",
@@ -6236,7 +6246,7 @@
       },
       "c2": {
         "bubble": "早上好。你的日程排满了，咖啡也快凉了。剩下的交给我。",
-        "title": "她了解你。",
+        "title": "LIA 了解你。",
         "sub": "一个说完两句话就忘光的助手，帮不了任何人。",
         "b1_t": "说一次。绝不用说第二次。",
         "b1_d": "「我妻子」「我周五常去的餐厅」「周三不开会」：说过一次，永远记得。",
@@ -6258,7 +6268,7 @@
       },
       "c3": {
         "bubble": "7 点下雨。7 点半晨跑。看出问题了吗？我看出来了——而且有办法。",
-        "title": "她比你先发现。",
+        "title": "LIA 比你先发现。",
         "sub": "回答和辅助的区别，在于不等问题出现。",
         "b1_t": "她交叉你没交叉的信息。",
         "b1_d": "预报的雨 × 计划的跑步，新邮件 × 日程冲突：她把点连起来，并提出行动。",
@@ -6298,7 +6308,7 @@
       },
       "c5": {
         "bubble": "十秒钟前我还缺一项技能。现在不缺了。",
-        "title": "她与你一起成长。",
+        "title": "LIA 与你一起成长。",
         "sub": "别的助手有一张功能清单。她有成长空间——而且由你来画。",
         "b1_t": "缺一项能力？描述它。",
         "b1_d": "她编写技能、安装它，并在聊天中以迷你应用呈现——卡片、按钮、仪表盘。",
@@ -6315,7 +6325,7 @@
     },
     "basics": {
       "title": "其余一切，当然也有。",
-      "sub": "邮件、日历、联系人、任务、文件——Google、Apple 或 Microsoft，随你选。这些人人都承诺。她也都做到，只是不拿来当卖点。",
+      "sub": "邮件、日历、联系人、任务、文件——Google、Apple 或 Microsoft，随你选。这些人人都承诺。LIA 也都做到，只是不拿来当卖点。",
       "detail_label": "基础能力详情",
       "detail_hint": "9 项能力详情",
       "chip_emails": "邮件",
@@ -6333,7 +6343,7 @@
       "chip_themes": "主题与深色模式"
     },
     "transparency": {
-      "title": "她没什么可隐瞒的。",
+      "title": "LIA 没什么可隐瞒的。",
       "sub": "信任不是靠宣称，而是靠验证。一切公开：价格、代码、评分。",
       "cost_prefix": "每条消息：",
       "cost_note": "——真实计数器，应用中每条回复下都能看到——",
@@ -6352,7 +6362,7 @@
       "cta": "知情地试用"
     },
     "day": {
-      "title": "与她的一天。",
+      "title": "与 LIA 的一天。",
       "tabs_label": "选择一个画像",
       "tab_freelance": "自由职业者",
       "tab_family": "家庭",
@@ -6400,7 +6410,7 @@
       }
     },
     "gallery": {
-      "title": "她的真实模样。",
+      "title": "LIA 的真实模样。",
       "sub": "应用的真实截图与完整演示——没有任何摆拍。",
       "tabs_label": "选择视图",
       "tab_screens": "应用截图",
@@ -6719,9 +6729,9 @@
         "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 394个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>20个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。20个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>22个Grafana仪表板</h2><p>LIA提供22个编号01至21的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser和health-metrics。每个仪表板提供按用户、时间段和环境可过滤的视图。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 13 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
       },
       "prompt-engineering": {
-        "title": "版本化提示系统：55个提示作为代码管理",
-        "excerpt": "LIA像源代码一样管理55个提示：版本化、缓存和哈希验证。",
-        "body": "<h2>提示作为代码管理</h2><p>LIA使用<strong>版本化提示系统</strong>，每个提示是存储在<code>src/domains/agents/prompts/v1/</code>中的文本文件。这种方法提供版本控制、代码审查和可追溯性。</p><h2>55个按类别的专业提示</h2><p>系统包含55个按类别分布的提示文件：</p><ul><li><strong>核心（4）</strong> — router、planner、response、compaction</li><li><strong>领域智能体（16）</strong> — brave、browser、calendar、contacts、drive、emails、perplexity、places、query、routes、tasks、weather、web_fetch、web_search、wikipedia</li><li><strong>HITL（4）</strong> — classifier、draft_critique、plan_approval、question_generator</li><li><strong>智能服务（2）</strong> — query_analyzer、smart_planner</li><li><strong>记忆（2）</strong> — extraction、reference_resolution</li><li><strong>Heartbeat（2）</strong> — decision、message</li><li><strong>日志（2）</strong> — introspection、consolidation</li><li><strong>技能（1）</strong> — description_translation</li><li><strong>身份（2）</strong> — app_identity、default_personality</li></ul><h2>智能加载与动态检测</h2><p>提示通过<code>load_prompt()</code>和<code>load_prompt_with_fallback()</code>加载，后者支持版本间的渐进迁移。系统通过扫描文件系统中匹配<code>v[0-9]+</code>模式的目录来动态检测可用版本。带SHA256哈希验证的LRU缓存检测修改。版本可通过环境变量配置（如：<code>ROUTER_PROMPT_VERSION=v1</code>）。</p><h2>提示加载器实践</h2><p>系统使用LRU缓存和SHA256哈希验证：</p><pre><code class=\"language-python\">@lru_cache(maxsize=32)\ndef load_prompt(\n    name: PromptName,\n    version: PromptVersion = \"v1\",\n    validate_hash: bool = False,\n    expected_hash: str | None = None,\n) -&gt; str:\n    prompt_file = PROMPTS_DIR / version / f\"{name}.txt\"\n    content = prompt_file.read_text(encoding=\"utf-8\")\n\n    if validate_hash and expected_hash:\n        actual_hash = hashlib.sha256(\n            content.encode(\"utf-8\")\n        ).hexdigest()\n        if actual_hash != expected_hash:\n            raise PromptIntegrityError(...)\n\n    return content</code></pre><h2>提示注入：安全原则</h2><p>注入提示中的外部内容（邮件、网页）封装在安全标签中，以防止提示注入攻击。提示也被设计为能够抵御操纵尝试。</p>"
+        "title": "版本化提示系统：78个提示作为代码管理",
+        "excerpt": "LIA像源代码一样管理78个提示：版本化、缓存和哈希验证。",
+        "body": "<h2>提示作为代码管理</h2><p>LIA使用<strong>版本化提示系统</strong>，每个提示是存储在<code>src/domains/agents/prompts/v1/</code>中的文本文件。这种方法提供版本控制、代码审查和可追溯性。</p><h2>78个按类别的专业提示</h2><p>系统包含78个按类别分布的提示文件：</p><ul><li><strong>流水线核心</strong> — query_analyzer（路由）、smart_planner、response、semantic_validator、semantic_pivot、compaction</li><li><strong>领域智能体（17）</strong> — brave、browser、calendar、contacts、drive、emails、health、hue、perplexity、places、query、routes、tasks、weather、web_fetch、web_search、wikipedia</li><li><strong>ReAct 循环</strong> — react_agent、subagent_react、skill_react、mcp_react</li><li><strong>HITL</strong> — classifier（含按操作类型的示例）、draft_critique、plan_approval、question_generator、draft_modifier</li><li><strong>记忆与心理</strong> — 提取、引用解析、行为指令、心理自评与体现</li><li><strong>主动性</strong> — heartbeat decision/message、initiative、兴趣、提醒</li><li><strong>日志与简报</strong> — 内省、整合、每日问候与综述</li><li><strong>身份与翻译</strong> — app_identity、default_personality、广播/技能/个性翻译</li></ul><h2>智能加载与动态检测</h2><p>提示通过<code>load_prompt()</code>和<code>load_prompt_with_fallback()</code>加载，后者支持版本间的渐进迁移。系统通过扫描文件系统中匹配<code>v[0-9]+</code>模式的目录来动态检测可用版本。带SHA256哈希验证的LRU缓存检测修改。版本可通过环境变量配置（如：<code>ROUTER_PROMPT_VERSION=v1</code>）。</p><h2>提示加载器实践</h2><p>系统使用LRU缓存和SHA256哈希验证：</p><pre><code class=\"language-python\">@lru_cache(maxsize=32)\ndef load_prompt(\n    name: PromptName,\n    version: PromptVersion = \"v1\",\n    validate_hash: bool = False,\n    expected_hash: str | None = None,\n) -&gt; str:\n    prompt_file = PROMPTS_DIR / version / f\"{name}.txt\"\n    content = prompt_file.read_text(encoding=\"utf-8\")\n\n    if validate_hash and expected_hash:\n        actual_hash = hashlib.sha256(\n            content.encode(\"utf-8\")\n        ).hexdigest()\n        if actual_hash != expected_hash:\n            raise PromptIntegrityError(...)\n\n    return content</code></pre><h2>与供应商无关的提示词缓存</h2><p>每个动态系统提示词都用规范标记 <code>--- DYNAMIC CONTEXT ---</code> 将静态前缀（角色、规则、示例、输出格式）与按请求变化的内容分开。模板保持模型中立：基础设施层把这一约定翻译成各供应商的缓存方言——Anthropic 的 <code>cache_control</code> 块、OpenAI 的 <code>prompt_cache_key</code> 路由、其他供应商的隐式前缀缓存——从而在重复请求中减少计费 token 并降低延迟。作为流水线中最昂贵的提示词，planner 暴露约 77% 逐字节稳定的可缓存前缀，只减不增的 CI 守卫（标记必需、标记前不得有占位符、字节稳定性受断言保护）确保这一约定不会倒退。</p><h2>提示注入：安全原则</h2><p>注入提示中的外部内容（邮件、网页）封装在安全标签中，以防止提示注入攻击。提示也被设计为能够抵御操纵尝试。</p>"
       },
       "smart-services": {
         "title": "智能服务：模式学习和令牌优化",
