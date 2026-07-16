@@ -27,12 +27,14 @@ import hashlib
 
 from src.infrastructure.observability.pii_filter import (
     add_pii_filter,
+    fingerprint_secret,
     mask_credit_card,
     mask_phone,
     pseudonymize_email,
     redact_value,
     sanitize_dict,
     sanitize_string,
+    sanitize_url_query,
 )
 
 
@@ -853,3 +855,153 @@ class TestContentFieldNetHardening:
             {"event": "attachment_image_load_failed", "original_filename": "IRM cerveau.png"},
         )
         assert warn_result["original_filename"] == "[REDACTED]"
+
+
+class TestSec012CredentialRedaction:
+    """SEC-012: single-use auth credentials — OAuth state, PKCE, reset and
+    verification links — must never reach the logs, while high-entropy state
+    stays *correlatable* and short application-state strings stay readable.
+
+    Confirmed pre-fix leak sites (all logging single-use credentials):
+    - core/oauth/flow_handler.py — ``state=`` (6 sites, INFO/WARNING/ERROR)
+    - domains/connectors/service.py — ``state=`` (~28 sites)
+    - domains/auth/service.py — ``verification_url=`` / ``reset_url=`` (INFO;
+      the URL query carries the single-use token)
+
+    Criterion: the raw secret is absent from the rendered log, correlation is
+    preserved (same state → same fingerprint), and a plain LangGraph/app
+    ``state`` is left untouched (no observability regression).
+    """
+
+    # A realistic opaque OAuth state (shape of ``secrets.token_urlsafe(32)`` =
+    # 43 URL-safe-base64 chars). Not a real secret.
+    OAUTH_STATE = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-aBcDeF"
+
+    def test_fingerprint_secret_is_stable_and_non_reversible(self):
+        """fingerprint_secret: same input → same tag, never contains the raw."""
+        fp1 = fingerprint_secret(self.OAUTH_STATE)
+        fp2 = fingerprint_secret(self.OAUTH_STATE)
+
+        assert fp1 == fp2  # deterministic → correlatable
+        assert fp1.startswith("fp_")
+        assert self.OAUTH_STATE not in fp1  # non-reversible
+        assert fingerprint_secret("other-high-entropy-value-000000000") != fp1
+
+    def test_oauth_state_field_is_fingerprinted_at_info(self):
+        """An opaque ``state`` is fingerprinted (not raw, not fully redacted)."""
+        result = add_pii_filter(
+            None,
+            "info",
+            {"event": "oauth_flow_initiated", "provider": "google", "state": self.OAUTH_STATE},
+        )
+
+        assert result["state"] == fingerprint_secret(self.OAUTH_STATE)
+        assert self.OAUTH_STATE not in str(result)
+        # Correlation metadata survives.
+        assert result["provider"] == "google"
+
+    def test_oauth_state_fingerprint_survives_all_levels(self):
+        """flow_handler logs state at INFO/WARNING/ERROR — all must fingerprint."""
+        for level in ("info", "warning", "error", "critical"):
+            result = add_pii_filter(
+                None, level, {"event": "oauth_invalid_state", "state": self.OAUTH_STATE}
+            )
+            assert result["state"] == fingerprint_secret(self.OAUTH_STATE), level
+            assert self.OAUTH_STATE not in str(result)
+
+    def test_short_application_state_is_preserved(self):
+        """A LangGraph/app ``state`` label (short, not token-shaped) stays raw —
+        no observability regression (invoke_helpers.py, agents/api/service.py)."""
+        for value in ("running", "pending_approval", "completed", "awaiting_hitl"):
+            result = add_pii_filter(None, "info", {"event": "node_transition", "state": value})
+            assert result["state"] == value, f"app state {value!r} must stay readable"
+
+    def test_langgraph_state_dict_is_not_fingerprinted(self):
+        """A ``state`` whose value is a dict (LangGraph MessagesState) is recursed
+        into, never fingerprinted (fingerprint only applies to opaque strings)."""
+        result = add_pii_filter(
+            None,
+            "debug",
+            {"event": "graph_step", "state": {"phase": "router", "iteration": 3}},
+        )
+        assert result["state"] == {"phase": "router", "iteration": 3}
+
+    def test_verification_and_reset_url_tokens_are_stripped(self):
+        """A logged verification/reset URL keeps its structure but loses the
+        single-use token in its query string."""
+        event = {
+            "event": "email_link_built",
+            "verification_url": "https://app.example.com/verify?token=SENTINEL_TOKEN_VALUE&lang=fr",
+            "reset_url": "https://app.example.com/reset?token=SENTINEL_RESET_VALUE",
+        }
+        # Log these under non-content field names at DEBUG so only the URL
+        # query-string net applies (INFO would redact by content-field name).
+        result = add_pii_filter(None, "debug", event)
+
+        assert "SENTINEL_TOKEN_VALUE" not in str(result)
+        assert "SENTINEL_RESET_VALUE" not in str(result)
+        # Structure + non-sensitive params preserved for debugging.
+        assert "token=[REDACTED]" in result["verification_url"]
+        assert "lang=fr" in result["verification_url"]
+
+    def test_sanitize_url_query_masks_only_sensitive_params(self):
+        """sanitize_url_query: masks sensitive param VALUES, keeps names + others."""
+        cleaned = sanitize_url_query("https://x/cb?code=abc123&state=def456&lang=fr&page=2")
+        assert "code=[REDACTED]" in cleaned
+        assert "state=[REDACTED]" in cleaned
+        assert "lang=fr" in cleaned
+        assert "page=2" in cleaned
+        assert "abc123" not in cleaned
+        assert "def456" not in cleaned
+
+    def test_sanitize_url_query_ignores_free_text_code(self):
+        """A free-text ``code=200`` (no ?/& boundary) is NOT masked — the net is
+        anchored on real query parameters to avoid observability false positives."""
+        assert sanitize_url_query("http response code=200 ok") == "http response code=200 ok"
+
+    def test_pkce_and_oauth_credential_fields_are_redacted(self):
+        """PKCE verifier/challenge, client secret, id_token, auth code → redacted."""
+        event = {
+            "event": "oauth_token_exchange",
+            "code_verifier": "SENTINEL_VERIFIER",
+            "code_challenge": "SENTINEL_CHALLENGE",
+            "client_secret": "SENTINEL_CLIENT_SECRET",
+            "id_token": "SENTINEL_ID_TOKEN",
+            "authorization_code": "SENTINEL_AUTH_CODE",
+        }
+        result = add_pii_filter(None, "info", event)
+
+        for key in event:
+            if key == "event":
+                continue
+            assert result[key] == "[REDACTED]", key
+        for sentinel in (
+            "SENTINEL_VERIFIER",
+            "SENTINEL_CHALLENGE",
+            "SENTINEL_CLIENT_SECRET",
+            "SENTINEL_ID_TOKEN",
+            "SENTINEL_AUTH_CODE",
+        ):
+            assert sentinel not in str(result)
+
+    def test_end_to_end_oauth_init_log_leaks_no_secret(self):
+        """Full oauth_flow_initiated-style record: no raw secret anywhere, and
+        the flow stays correlatable via the state fingerprint + provider."""
+        event = {
+            "event": "oauth_flow_initiated",
+            "provider": "google",
+            "state": self.OAUTH_STATE,
+            "authorization_url": (
+                "https://accounts.google.com/o/oauth2/auth"
+                f"?client_id=x&state={self.OAUTH_STATE}&code_challenge=SENTINEL_CHALLENGE"
+            ),
+        }
+        # authorization_url is not a content field → survives to the URL net.
+        result = add_pii_filter(None, "debug", event)
+
+        rendered = str(result)
+        assert self.OAUTH_STATE not in rendered
+        assert "SENTINEL_CHALLENGE" not in rendered
+        # Correlation preserved.
+        assert result["state"] == fingerprint_secret(self.OAUTH_STATE)
+        assert result["provider"] == "google"

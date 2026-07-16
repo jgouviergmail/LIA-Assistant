@@ -117,6 +117,37 @@ export function buildAppCsp(isDev: boolean, apiUrl: string | undefined): string 
 }
 
 /**
+ * Default HSTS `max-age` in seconds — a conservative 1-day starting point.
+ *
+ * SEC-025 rolls HSTS out gradually: a browser remembers the HTTPS pin for
+ * `max-age` seconds, so a long value is hard to walk back. Start short, confirm
+ * the whole public surface is durably HTTPS, then raise `HSTS_MAX_AGE` toward
+ * two years (63072000) in production without a rebuild.
+ *
+ * `includeSubDomains` and `preload` are intentionally NOT emitted: both are
+ * near-irreversible (the preload list is slow to leave, and the pin covers
+ * every subdomain) and must not be enabled before a full subdomain inventory
+ * proves each one is durably HTTPS — deliberately out of scope here (see the
+ * cookie-scoping work, SEC-004).
+ */
+export const DEFAULT_HSTS_MAX_AGE = 86_400;
+
+/**
+ * Build the `Strict-Transport-Security` header value (SEC-025).
+ *
+ * @param maxAgeSeconds - Desired `max-age`; a non-finite or non-positive value
+ *   falls back to {@link DEFAULT_HSTS_MAX_AGE}.
+ * @returns e.g. `max-age=86400` — no `includeSubDomains`, no `preload`.
+ */
+export function buildHsts(maxAgeSeconds: number = DEFAULT_HSTS_MAX_AGE): string {
+  const maxAge =
+    Number.isFinite(maxAgeSeconds) && maxAgeSeconds > 0
+      ? Math.floor(maxAgeSeconds)
+      : DEFAULT_HSTS_MAX_AGE;
+  return `max-age=${maxAge}`;
+}
+
+/**
  * Build the widget-frame ("CSP airlock") Content-Security-Policy.
  *
  * Philosophy: restore the pre-CSP environment for third-party widgets —

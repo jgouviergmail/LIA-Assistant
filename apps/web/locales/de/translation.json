@@ -2985,6 +2985,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_1": {
+          "title": "v1.25.1 — 🔒 Sicherheitshärtung",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🔒 Ihre sensiblen Links bleiben privat</b> — Bestätigungs- und Passwort-Zurücksetzungs-Links sowie die darin enthaltenen Token werden nicht mehr in die Protokolle geschrieben. Ein zentraler Filter schwärzt Anmeldedaten überall und bildet für Anmelde-Token einen Fingerabdruck, sodass Aktivität nachvollziehbar bleibt, ohne je ein Geheimnis preiszugeben.",
+            "i2": "<b>🛡️ Ein zuverlässiger Weg, ein Sicherheitsproblem zu melden</b> — LIA veröffentlicht jetzt eine standardkonforme security.txt-Datei und eine aktualisierte Sicherheitsrichtlinie, die Schwachstellenmeldungen privat über GitHub Security Advisories leitet.",
+            "i3": "<b>🔐 Stärkerer Transport und Geheimnisse</b> — die Website erzwingt jetzt HTTPS Strict Transport Security (HSTS), und Produktions-Geheimnisdateien werden beim Deployment auf reinen Eigentümerzugriff beschränkt."
+          }
+        },
         "v1_25_0": {
           "title": "v1.25.0 — 🛡️ Audit V11: überarbeitetes Referenzmodell, sauberer denn je",
           "date": "Juli 2026",
@@ -4238,7 +4248,7 @@
       "connectors": {
         "title": "Konnektoren",
         "description": "Integrationen und externe Verbindungen",
-        "count": "17",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "Was ist ein Konnektor?",
@@ -4295,18 +4305,57 @@
           "q14": {
             "question": "Wie verbinde ich Philips Hue?",
             "answer": "Philips Hue verwendet eine <strong>hybride Authentifizierung</strong> (lokales Press-Link oder Remote-OAuth2):<br><br><strong>🏠 Lokaler Modus (empfohlen):</strong><br>1. Gehen Sie zu <strong>Einstellungen > Smart Home > Philips Hue</strong><br>2. Klicken Sie auf <strong>Lokale Verbindung</strong><br>3. Klicken Sie auf <strong>Bridges suchen</strong><br>4. Wählen Sie Ihre Bridge<br>5. <strong>Drücken Sie den physischen Knopf</strong> auf der Hue Bridge<br>6. Klicken Sie innerhalb von 30 Sekunden auf <strong>Koppeln</strong><br>7. LIA validiert die Konnektivität und aktiviert den Connector<br><br><strong>💡 Was Sie tun können:</strong><br>Wohnzimmerlichter einschalten, Schlafzimmer dimmen, Filmmodus aktivieren."
+          }
+        }
+      },
+      "telephony": {
+        "title": "Telefonanrufe",
+        "description": "LIA kann echte Telefonanrufe in Ihrem Namen tätigen. Vollständige Einrichtungsanleitung (Twilio + ElevenLabs) und täglicher Gebrauch.",
+        "count": "11",
+        "questions": {
+          "q1": {
+            "question": "Was kann LIA am Telefon tun?",
+            "answer": "LIA kann einen <strong>echten ausgehenden Anruf</strong> für Sie tätigen, das von Ihnen gesetzte Ziel verfolgen und Ihnen im Chat Bericht erstatten.<br><br><strong>Beispiele:</strong><br>• „<em>Ruf die Bäckerei an und frag, ob sie für Samstag einen Kuchen haben</em>\"<br>• „<em>Ruf die Werkstatt an, um zu prüfen, ob das Auto fertig ist</em>\"<br>• „<em>Ruf Marie an und frag, ob sie Dienstagabend Zeit hat</em>\"<br><br>Während des Anrufs stellt sich LIA als Assistent vor, der in Ihrem Namen anruft, führt ein natürliches Gespräch auf Ihr Ziel hin, legt dann auf und schreibt Ihnen eine Zusammenfassung — mit einer Folgeaktion per Fingertipp, wenn es sinnvoll ist (zum Beispiel den soeben vereinbarten Termin anlegen).<br><br><strong>💡 Gut zu wissen:</strong> LIA tätigt nur <strong>ausgehende</strong> Anrufe — sie nimmt niemals Ihre eingehenden Anrufe entgegen."
           },
-          "q15": {
-            "question": "Kann LIA für mich telefonieren?",
-            "answer": "Ja. LIA kann in Ihrem Namen einen echten ausgehenden Anruf tätigen — zum Beispiel „<em>Ruf die Bäckerei an und frag, ob sie für Samstag einen Kuchen haben</em>\" oder „<em>Ruf Marie an, um zu klären, ob sie Dienstagabend Zeit hat</em>\".<br><br><strong>So funktioniert es:</strong><br>1. Sie bitten LIA, jemanden anzurufen<br>2. LIA zeigt Ihnen, <strong>wen</strong> sie anruft und <strong>warum</strong>, und wartet auf Ihre Bestätigung<br>3. LIA führt das Gespräch auf Ihr Ziel hin<br>4. Eine schriftliche Zusammenfassung kommt in den Chat zurück, mit einer Folgeaktion per Fingertipp, wenn sinnvoll (z. B. den soeben vereinbarten Termin anlegen)<br><br><strong>💡</strong> Die Zusammenfassung kommt asynchron — Sie können weiter chatten, während der Anruf läuft."
+          "q2": {
+            "question": "Wie läuft ein Anruf ab, Schritt für Schritt?",
+            "answer": "<strong>1. Sie fragen im Chat</strong><br>„<em>Ruf die Praxis von Dr. Martin an und bitte um einen Termin diese Woche</em>\"<br><br><strong>2. LIA bittet um Ihre Bestätigung</strong><br>Bevor irgendetwas gewählt wird, zeigt Ihnen LIA eine Bestätigungskarte: <strong>wen</strong> sie anruft, <strong>welche Nummer</strong> und <strong>warum</strong>. Ohne Ihre ausdrückliche Zustimmung passiert nichts.<br><br><strong>3. Der Anruf findet statt</strong><br>LIAs Sprachagent führt den Anruf von Ihrer Nummer aus und arbeitet auf das Ziel hin. Sie können währenddessen weiter mit LIA chatten — oder die App schließen.<br><br><strong>4. Die Zusammenfassung kommt in den Chat</strong><br>Eine schriftliche Zusammenfassung wird asynchron zugestellt, mit einer vorgeschlagenen Folgeaktion, wenn noch etwas zu tun ist. Jeder Anruf erscheint auch in Ihrer Anrufhistorie (<strong>Einstellungen > Connectors > Telefonie</strong>)."
           },
-          "q16": {
-            "question": "Was brauche ich, um Anrufe zu aktivieren?",
-            "answer": "Anrufe nutzen Ihren <strong>eigenen ElevenLabs-Connector</strong> (eigene Zugangsdaten), eingerichtet unter <strong>Einstellungen &gt; Connectors</strong>:<br><br>1. Erstellen Sie ein ElevenLabs-Konto und einen Sprach-Agenten<br>2. Fügen Sie Ihren API-Schlüssel und die Agent- / Rufnummern-Kennungen in LIA hinzu<br>3. LIA prüft die Verbindung<br><br><strong>💡 Abrechnung:</strong> Anrufe werden über <strong>Ihr eigenes ElevenLabs-Konto</strong> abgerechnet — LIA erhebt keinen Aufschlag und misst nichts selbst. Die Funktion ist verfügbar, sobald Ihr Administrator sie aktiviert hat."
+          "q3": {
+            "question": "Was brauche ich, bevor ich anfange?",
+            "answer": "Anrufe nutzen <strong>Ihre eigenen Konten</strong> bei zwei externen Diensten — LIA berechnet nichts zusätzlich:<br><br><strong>1. 📞 Ein Twilio-Konto</strong> — stellt die <strong>Telefonnummer</strong> bereit, von der aus LIA anruft (Nummernmiete + Minutenpreise).<br><br><strong>2. 🎙️ Ein ElevenLabs-Konto</strong> — stellt den <strong>Sprachagenten</strong> bereit, der während des Anrufs spricht (erfordert Zugang zur Agents-Plattform; Gesprächsminuten verbrauchen die Credits Ihres Tarifs).<br><br><strong>3. ✅ Die von Ihrem Administrator aktivierte Funktion</strong> — wenn Sie in <strong>Einstellungen > Connectors</strong> keinen Block <strong>Telefonie</strong> sehen, bitten Sie Ihren Administrator, sie zu aktivieren.<br><br>Die vollständige Einrichtung dauert etwa <strong>15 Minuten</strong> (plus eventuelle Prüffristen für eine deutsche/französische Nummer) und folgt 4 Schritten, die in den nächsten Fragen im Detail erklärt werden:<br>1. Eine Telefonnummer besorgen (Twilio)<br>2. ElevenLabs vorbereiten (API-Schlüssel + Nummernimport)<br>3. Den Rückmeldungs-Webhook konfigurieren<br>4. Den Connector in LIA aktivieren"
           },
-          "q17": {
-            "question": "Ist das privat? Kann LIA meinen Kalender sehen oder das Gespräch aufzeichnen?",
-            "answer": "Der Datenschutz wird <strong>durch Design</strong> erzwungen, nicht durch Anweisungen:<br><br>• <strong>🔒 Nur lesend, nur Frei/Gebucht</strong> — während eines Anrufs kann LIA prüfen, ob Sie zu einem bestimmten Zeitpunkt frei oder gebucht sind, gibt aber <strong>nie</strong> Titel, Teilnehmer, Orte oder Inhalte preis.<br>• <strong>🚫 Keine Aufzeichnung</strong> — der Anruf wird nicht aufgezeichnet.<br>• <strong>🗑️ Kein gespeichertes Transkript</strong> — das vollständige Gespräch wird nie gespeichert; nur eine kurze Zusammenfassung bleibt erhalten und läuft automatisch ab.<br>• <strong>✅ Sie behalten die Kontrolle</strong> — jeder Anruf wird von Ihnen bestätigt, bevor er getätigt wird."
+          "q4": {
+            "question": "Schritt 1 — Eine Telefonnummer besorgen (Twilio)",
+            "answer": "Twilio ist der Anbieter, der die Nummer bereitstellt, von der aus LIA anruft.<br><br><strong>1. Konto erstellen</strong><br>Registrieren Sie sich auf <strong>twilio.com</strong> und wechseln Sie zu einem kostenpflichtigen Konto (die Testversion ruft nur verifizierte Nummern an).<br><br><strong>2. 🇪🇺 Für eine europäische Nummer: Regulatory Bundle einreichen</strong><br>Die Regulierung (z. B. in Frankreich und Deutschland) verlangt einen Identitätsnachweis und einen Adressnachweis: <strong>Phone Numbers > Regulatory Compliance > Bundles</strong>. Die menschliche Prüfung dauert bis zu ~3 Werktage.<br>• Am einfachsten: eine <strong>Festnetz- oder nationale Nummer</strong><br>• Vermeiden Sie Mobilnummern: zusätzliche Anforderungen und 1–2 Wochen Bereitstellungszeit<br><br><strong>3. Nummer kaufen</strong><br><strong>Phone Numbers > Buy a Number</strong> — achten Sie darauf, dass die Fähigkeit <strong>Voice</strong> angehakt ist.<br><br><strong>4. Zugangsdaten notieren</strong><br>Kopieren Sie im Dashboard der Twilio-Konsole die <strong>Account SID</strong> und das <strong>Auth Token</strong> — Sie brauchen beide im nächsten Schritt.<br><br><strong>💡 Nur zum Testen?</strong> Eine US-Nummer ist sofort und ohne Regulierungsunterlagen erhältlich."
+          },
+          "q5": {
+            "question": "Schritt 2 — ElevenLabs vorbereiten (API-Schlüssel + Nummer)",
+            "answer": "ElevenLabs stellt den Sprachagenten bereit, der während des Anrufs spricht.<br><br><strong>1. Tarif prüfen</strong><br>Sie benötigen einen Tarif mit Zugang zur <strong>Agents-Plattform</strong>. Gesprächsminuten verbrauchen Ihre ElevenLabs-Credits (zusätzlich zu den Minutenkosten von Twilio).<br><br><strong>2. API-Schlüssel erstellen</strong><br>Profil (unten links) > <strong>API Keys</strong> > Schlüssel erstellen. Wenn Sie seine Berechtigungen einschränken, braucht er mindestens <strong>Lese-/Schreibzugriff auf die Agents-Plattform</strong> (LIA erstellt ihren Agenten, listet Ihre Nummern und löst ausgehende Anrufe aus). Ein uneingeschränkter Schlüssel funktioniert für den Anfang — Sie können ihn nach dem ersten erfolgreichen Anruf einschränken.<br><br><strong>3. Twilio-Nummer importieren</strong><br><strong>Agents Platform > Phone Numbers > Import from Twilio</strong>: Geben Sie die Nummer im internationalen Format ein (z. B. <em>+4915112345678</em>), die <strong>Account SID</strong>, das <strong>Auth Token</strong> und ein Label.<br><br><strong>⚠️ Zwei wichtige Punkte:</strong><br>• Verwenden Sie den <strong>nativen Twilio-Import</strong>, keinen SIP-Trunk — LIA löst Anrufe über die Twilio-Integration von ElevenLabs aus.<br>• <strong>Erstellen Sie keinen Agenten selbst</strong>: LIA provisioniert bei der Aktivierung des Connectors automatisch ihren eigenen abgesicherten Agenten (er erscheint in Ihrem Workspace als „<em>LIA telephony — Ihr Name</em>\")."
+          },
+          "q6": {
+            "question": "Schritt 3 — Den Rückmeldungs-Webhook konfigurieren",
+            "answer": "Der Webhook ist der Kanal, über den der Anrufbericht in Ihren Chat zurückkommt. Ohne ihn gehen Anrufe hinaus, aber es kommt nie eine Zusammenfassung zurück.<br><br><strong>1. Webhook-Einstellungen öffnen</strong><br>Öffnen Sie in den <strong>Workspace-Einstellungen der Agents-Plattform</strong> von ElevenLabs den Abschnitt <strong>Webhooks</strong> (nur ein Workspace-Admin kann das).<br><br><strong>2. Post-Call-Webhook erstellen</strong><br>• Ereignistyp: <strong>post_call_transcription</strong> (nur Transkription)<br>• URL: die Adresse, die LIA Ihnen in Schritt 3 ihres Assistenten anzeigt, mit Kopier-Button — sie hat die Form <em>https://ihre-lia-domain/api/v1/telephony/webhook</em><br>• Authentifizierung: <strong>HMAC</strong><br><br><strong>3. Signatur-Secret kopieren</strong><br>ElevenLabs generiert beim Erstellen des Webhooks ein <strong>Signatur-Secret</strong> — kopieren Sie es sofort, Sie fügen es im nächsten Schritt in LIA ein.<br><br><strong>🔒 Lassen Sie „Send audio data\" deaktiviert</strong>: LIA empfängt und speichert niemals Audio — das ist eine konstruktive Garantie."
+          },
+          "q7": {
+            "question": "Schritt 4 — Den Connector in LIA aktivieren",
+            "answer": "Jetzt läuft alles in LIA zusammen, über einen Assistenten mit 3 Schritten.<br><br>Gehen Sie zu <strong>Einstellungen > Connectors > Telefonie</strong> und klicken Sie auf <strong>Verbinden</strong>. Ein Hinweis erinnert Sie daran, dass Anrufe über Ihre eigenen ElevenLabs-/Twilio-Konten abgerechnet werden.<br><br><strong>Schritt 1 — API-Schlüssel</strong><br>Fügen Sie Ihren ElevenLabs-API-Schlüssel ein und klicken Sie auf <strong>Validieren</strong>. LIA prüft den Schlüssel und listet die Nummern Ihres Workspaces. („Keine Nummern\" bedeutet, dass der Twilio-Import aus Schritt 2 fehlt.)<br><br><strong>Schritt 2 — Nummer</strong><br>Wählen Sie die Nummer, von der aus LIA anrufen soll.<br><br><strong>Schritt 3 — Webhook</strong><br>Kopieren Sie die angezeigte Webhook-URL (falls Sie sie in ElevenLabs noch nicht konfiguriert haben, tun Sie es jetzt — siehe vorherige Frage), fügen Sie das <strong>Signatur-Secret</strong> ein und klicken Sie auf <strong>Aktivieren</strong>.<br><br>LIA erstellt dann ihren abgesicherten Agenten in Ihrem ElevenLabs-Workspace und der Connector wird <strong>aktiv</strong>. Sie können jetzt anrufen! 🎉"
+          },
+          "q8": {
+            "question": "Wie tätige ich meinen ersten Anruf?",
+            "answer": "<strong>💡 Empfohlener erster Test:</strong> Lassen Sie LIA <strong>Ihr eigenes Handy</strong> anrufen — Sie erleben den Anruf von der anderen Seite.<br><br><strong>1.</strong> Im Chat: „<em>Ruf +4915112345678 an und frag, ob das Paket angekommen ist</em>\"<br><br><strong>2.</strong> LIA zeigt die Bestätigungskarte (Angerufener, Nummer, Ziel) — <strong>bestätigen Sie</strong>.<br><br><strong>3.</strong> Ihr Telefon klingelt: Der Agent stellt sich als Assistent vor, der in Ihrem Namen anruft, stellt seine Frage und legt auf.<br><br><strong>4.</strong> Die Zusammenfassung erscheint wenige Augenblicke später im Chat — asynchron, Sie können währenddessen chatten.<br><br>Sie können auch einen <strong>Kontakt beim Namen</strong> nennen („<em>ruf Marie an…</em>\"): LIA sucht die Nummer in Ihren Kontakten und fragt nach, wenn mehrere passen. Die Anrufhistorie finden Sie unter <strong>Einstellungen > Connectors > Telefonie</strong>."
+          },
+          "q9": {
+            "question": "Ist das privat? Kann LIA meinen Kalender preisgeben oder das Gespräch aufzeichnen?",
+            "answer": "Der Datenschutz wird <strong>durch das Design</strong> erzwungen, nicht durch Anweisungen:<br><br>• <strong>🔒 Nur lesend, nur Frei/Gebucht</strong> — während eines Anrufs kann LIA prüfen, ob Sie zu einem bestimmten Zeitpunkt frei oder gebucht sind, gibt aber <strong>nie</strong> Titel, Teilnehmer, Orte oder Inhalte Ihrer Termine preis. Der Anruf-Agent hat auf diese Daten schlicht keinen Zugriff.<br>• <strong>🚫 Keine Aufzeichnung</strong> — der Anruf wird nicht aufgezeichnet.<br>• <strong>🗑️ Kein gespeichertes Transkript</strong> — das vollständige Gespräch wird nie gespeichert; nur eine kurze Zusammenfassung bleibt erhalten und läuft automatisch ab (standardmäßig 30 Tage).<br>• <strong>📢 Transparente Vorstellung</strong> — der Agent stellt sich immer als Assistent vor, der in Ihrem Namen anruft; er gibt sich nie als Sie aus.<br>• <strong>✅ Sie behalten die Kontrolle</strong> — jeder Anruf wird von Ihnen bestätigt, bevor er getätigt wird."
+          },
+          "q10": {
+            "question": "Was kostet das?",
+            "answer": "LIA berechnet <strong>selbst nichts</strong> — die Kosten fallen auf Ihren beiden externen Konten an:<br><br><strong>📞 Twilio</strong><br>• Nummernmiete: ~1–15 €/Monat je nach Typ<br>• Ausgehende Minuten: Minutenpreis je nach Ziel<br><br><strong>🎙️ ElevenLabs</strong><br>• Agenten-Gesprächsminuten, abgezogen von den Credits Ihres Tarifs<br><br><strong>🤖 LIA</strong><br>• Kein Aufschlag, keine Marge — nur die kleine LLM-Synthese Ihrer Zusammenfassung erscheint in Ihren LIA-Verbrauchsstatistiken.<br><br><strong>🛡️ Eingebaute Schutzmechanismen gegen Überraschungen:</strong><br>• Nur ein aktiver Anruf gleichzeitig<br>• Stündliche Anrufobergrenze pro Benutzer (standardmäßig 10/Stunde)<br>• Harte Obergrenze der Anrufdauer (standardmäßig 10 Minuten)"
+          },
+          "q11": {
+            "question": "Es funktioniert nicht — was soll ich prüfen?",
+            "answer": "<strong>„Ungültiger Schlüssel\" in Schritt 1</strong><br>→ Der Schlüssel ist falsch kopiert oder hat nicht die nötigen Berechtigungen (Zugriff auf die Agents-Plattform erforderlich).<br><br><strong>„Keine Nummern\" nach der Schlüsselvalidierung</strong><br>→ Ihre Nummer ist nicht in den ElevenLabs-<strong>Agents</strong>-Workspace importiert oder wurde als SIP-Trunk statt über die native Twilio-Integration importiert.<br><br><strong>Der Anruf geht hinaus, aber keine Zusammenfassung kommt zurück</strong><br>→ Das Problem liegt beim Webhook: URL öffentlich nicht erreichbar, falsches Signatur-Secret oder falscher Ereignistyp (es muss <strong>post_call_transcription</strong> sein).<br><br><strong>„Ein Anruf läuft bereits\"</strong><br>→ Nur ein aktiver Anruf gleichzeitig, per Design. Ein hängender Anruf wird nach ~15 Minuten automatisch bereinigt.<br><br><strong>Anrufe werden nach mehreren in Folge abgelehnt</strong><br>→ Sie haben die stündliche Obergrenze erreicht (standardmäßig 10 Anrufe/Stunde).<br><br><strong>Immer noch blockiert?</strong> Fragen Sie Ihren Administrator: Die Server-Logs geben genau an, welche Webhook-Ereignisse empfangen und warum welche ignoriert wurden."
           }
         }
       },

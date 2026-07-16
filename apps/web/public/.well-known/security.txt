@@ -1,0 +1,10 @@
+# LIA — Security contact and coordinated disclosure policy
+# Format: RFC 9116 — https://www.rfc-editor.org/rfc/rfc9116
+#
+# Report a vulnerability privately through GitHub Security Advisories (link
+# below). Do NOT open a public issue for security reports.
+
+Contact: https://github.com/jgouviergmail/LIA-Assistant/security/advisories/new
+Expires: 2027-07-16T00:00:00.000Z
+Preferred-Languages: en, fr
+Policy: https://github.com/jgouviergmail/LIA-Assistant/blob/main/SECURITY.md

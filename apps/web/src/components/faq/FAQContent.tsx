@@ -62,6 +62,7 @@ import {
   History,
   Sunrise,
   PhoneCall,
+  Gauge,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -84,6 +85,7 @@ const sectionIcons = {
   chat: MessageSquare,
   settings: Settings,
   connectors: Globe,
+  telephony: PhoneCall,
   tool_examples_services: Mail,
   tool_examples_external: Cloud,
   rappels: Bell,
@@ -96,6 +98,8 @@ const sectionIcons = {
   rag_spaces: Library,
   image_generation: ImageIcon,
   journals: BookOpen,
+  health_metrics: HeartPulse,
+  usage_limits: Gauge,
   privacy: Shield,
   other: HelpCircle,
 };
@@ -105,6 +109,7 @@ const sections = [
   'chat',
   'settings',
   'connectors',
+  'telephony',
   'tool_examples_services',
   'tool_examples_external',
   'rappels',
@@ -117,6 +122,8 @@ const sections = [
   'rag_spaces',
   'image_generation',
   'journals',
+  'health_metrics',
+  'usage_limits',
   'privacy',
   'other',
 ];
@@ -235,6 +242,7 @@ function highlightTextContent(text: string, normalizedQuery: string): string {
 }
 
 const changelogVersionKeys = [
+  'v1_25_1',
   'v1_25_0',
   'v1_24_0',
   'v1_23_13',

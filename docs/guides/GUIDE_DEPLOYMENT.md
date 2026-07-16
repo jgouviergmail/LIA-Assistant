@@ -1288,6 +1288,37 @@ def downgrade():
 
 ## Secrets Management
 
+### Permissions du fichier `.env` en production (SEC-013)
+
+Le `.env` de production contient **tous** les secrets applicatifs et
+d'intégration. Il doit rester lisible par son seul propriétaire.
+
+Le script de déploiement (`scripts/deploy/deploy-prod.ps1`, étape 8.5) applique
+automatiquement, **après** avoir finalisé le `.env` distant et **avant** le
+`docker compose up`, un durcissement idempotent et non bloquant :
+
+- `.env` → `0600` (lecture/écriture propriétaire uniquement) ;
+- répertoire de déploiement → `0700` ;
+- `~/.claude/.credentials.json` → `0600`, `~/.claude` → `0700`.
+
+Le démon Docker s'exécute en `root` et lit toujours les bind mounts ; `docker
+compose` s'exécute sous le propriétaire et traverse son propre répertoire
+`0700` — ces permissions ne cassent donc aucun accès légitime.
+
+**Vérification / correction manuelle** (sur le serveur, si un `.env` a été posé
+hors du script) :
+
+```bash
+# Doit afficher 600 pour le .env et 700 pour le répertoire
+stat -c '%a %n' ~/<deploy-dir>/.env ~/<deploy-dir>
+# Correction si nécessaire
+chmod 600 ~/<deploy-dir>/.env && chmod 700 ~/<deploy-dir>
+```
+
+> Après la fermeture de tout chemin d'accès élargi aux secrets (p. ex. retrait
+> du socket Docker de l'API), prévoir une **rotation** des secrets qui ont pu
+> être exposés. La rotation est hors périmètre du durcissement de permissions.
+
 ### AWS Secrets Manager
 
 **Créer secrets** :

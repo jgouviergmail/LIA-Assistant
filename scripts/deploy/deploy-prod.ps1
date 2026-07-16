@@ -516,6 +516,32 @@ scp $SshOptionsStr -P $SshPort "$LocalCreds" ${SshUser}@${SshHost}:~/.claude/.cr
 }
 
 # ============================================================================
+# Etape 8.5: Durcissement des permissions des secrets (SEC-013)
+# ============================================================================
+# The remote .env holds every application/integration secret. rsync pushes it
+# with permissive bits, and Etape 8 just appended DOCKER_GID (the last write to
+# it), so harden NOW — after the .env is final and BEFORE `docker compose up`.
+# Target: .env = 0600 (owner rw only) inside a 0700 directory, plus the Claude
+# CLI credentials. The Docker daemon runs as root and still reads the bind
+# mounts; `docker compose` runs as the owner and traverses its own 0700 dir —
+# so 0600/0700 breaks nothing. Idempotent and non-fatal: a permission tweak
+# must never abort a deploy.
+Write-Step "Durcissement des permissions des secrets (SEC-013)..."
+
+if (-not $DryRun) {
+    $hardenCmd = "chmod 700 ~/$RemoteDir 2>/dev/null; [ -f ~/$RemoteDir/.env ] && chmod 600 ~/$RemoteDir/.env; [ -d ~/.claude ] && chmod 700 ~/.claude; [ -f ~/.claude/.credentials.json ] && chmod 600 ~/.claude/.credentials.json; echo PERMS_HARDENED"
+    $hardenSsh = "ssh -p $SshPort $SshOptionsStr $sshTarget `"$hardenCmd`""
+    $hardenResult = Invoke-WithRetry -Command $hardenSsh -OperationName "Harden secret permissions" -MaxAttempts 2
+    if ($hardenResult -match "PERMS_HARDENED") {
+        Write-Success "Permissions secrets durcies (.env 0600, dossier 0700)"
+    } else {
+        Write-Warning "Durcissement des permissions non confirme (deploiement poursuivi)"
+    }
+} else {
+    Write-Info "[DRY RUN] ssh chmod 700 ~/$RemoteDir ; chmod 600 ~/$RemoteDir/.env ; chmod 700 ~/.claude ; chmod 600 ~/.claude/.credentials.json"
+}
+
+# ============================================================================
 # Etape 9: Execution du script de deploiement sur le serveur
 # ============================================================================
 Write-Step "Execution du deploiement sur le serveur..."

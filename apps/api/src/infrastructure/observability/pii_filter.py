@@ -10,6 +10,10 @@ Features:
 - Credit card number detection and masking
 - SSN, passport, driver license detection
 - Generic token/secret detection
+- OAuth state fingerprinting (correlatable, non-reversible) and PKCE/code
+  redaction (SEC-012)
+- URL query-string credential stripping — verification/reset/OAuth links
+  (SEC-012)
 - Configurable field-based filtering
 - Hybrid approach: field-based + pattern-based detection
 
@@ -53,6 +57,7 @@ SENSITIVE_FIELD_NAMES = {
     "access_token",
     "refresh_token",
     "auth_token",
+    "id_token",
     "bearer",
     "authorization",
     "cookie",
@@ -65,7 +70,58 @@ SENSITIVE_FIELD_NAMES = {
     "cvv",
     "ssn",
     "social_security",
+    # OAuth / PKCE credentials (SEC-012): single-use codes and verifiers are
+    # as sensitive as long-lived tokens. `oauth_state`/`state` are handled
+    # separately (fingerprinted, not redacted) so init↔callback correlation
+    # survives — see `_STATE_FIELD_NAMES` and `fingerprint_secret`.
+    "code_verifier",
+    "code_challenge",
+    "client_secret",
+    "authorization_code",
+    "auth_code",
+    "oauth_state",
 }
+
+# Field names carrying an opaque OAuth state / CSRF token. Unlike the fields
+# above, these are *fingerprinted* (one-way HMAC-like digest) rather than fully
+# redacted, so an OAuth flow can still be correlated across the initiation and
+# callback log lines without exposing the single-use secret (SEC-012). The
+# fingerprint only applies when the value actually LOOKS like an opaque token
+# (see `_looks_like_opaque_token`) — a plain `state="running"` LangGraph/app
+# state string is left untouched to preserve observability.
+_STATE_FIELD_NAMES = {
+    "state",
+}
+
+# Query-string parameter names whose VALUE must be stripped from any logged URL
+# (SEC-012). A verification/reset link (`.../verify?token=<secret>`) or an OAuth
+# redirect embeds single-use credentials in the query; the field name of the log
+# key (`verification_url`, `auth_url`, …) is not sensitive, but the value is. The
+# match is anchored on a `?`/`&` boundary so only real query parameters are hit —
+# a free-text `code=200` is never touched.
+_SENSITIVE_QUERY_PARAMS = (
+    "token",
+    "access_token",
+    "refresh_token",
+    "id_token",
+    "code",
+    "code_verifier",
+    "code_challenge",
+    "secret",
+    "client_secret",
+    "password",
+    "passwd",
+    "pwd",
+    "api_key",
+    "apikey",
+    "state",
+    "sig",
+    "signature",
+    "session",
+    "sessionid",
+    "jwt",
+    "authorization",
+)
 
 # PII field names that should be pseudonymized (not fully redacted)
 PII_FIELD_NAMES = {
@@ -239,6 +295,22 @@ TOKEN_PATTERN = re.compile(
     r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"
 )
 
+# URL query-string secret pattern (SEC-012). Matches a sensitive parameter and
+# its value on a `?`/`&` boundary, e.g. ``?token=abc`` or ``&code=xyz``. Only the
+# VALUE is replaced (group 2); the parameter name is kept so the log still shows
+# which link was involved. Anchoring on `[?&]` prevents false positives on
+# free-text ``code=200``-style content that is not a query parameter.
+_URL_QUERY_SECRET_PATTERN = re.compile(
+    r"([?&](?:" + "|".join(_SENSITIVE_QUERY_PARAMS) + r")=)([^&\s#\"']+)",
+    re.IGNORECASE,
+)
+
+# Opaque-token shape (SEC-012): a single URL-safe-base64 / hex run of >= 20 chars
+# with no separators. Matches OAuth state (`secrets.token_urlsafe(32)` → 43
+# chars) and similar high-entropy secrets, while sparing short application state
+# strings like ``running`` / ``pending_approval`` (< 20 chars).
+_OPAQUE_TOKEN_PATTERN = re.compile(r"\A[A-Za-z0-9_-]{20,}\Z")
+
 
 def pseudonymize_email(email: str) -> str:
     """
@@ -316,6 +388,67 @@ def redact_value(value: Any) -> str:
     return "[REDACTED]"
 
 
+def fingerprint_secret(value: str) -> str:
+    """Return a non-reversible correlation fingerprint of a high-entropy secret.
+
+    Used for opaque OAuth ``state`` / CSRF tokens (SEC-012): the raw value must
+    never reach the logs, but the initiation and callback log lines still need a
+    shared key to be correlated. A truncated SHA-256 digest gives that shared
+    key without exposing the secret. This is only safe for HIGH-ENTROPY values
+    (e.g. ``secrets.token_urlsafe(32)`` = 256 bits) — a weak/guessable token
+    could be brute-forced from its digest, so callers must not fingerprint
+    low-entropy secrets (redact those instead).
+
+    Args:
+        value: The high-entropy secret to fingerprint.
+
+    Returns:
+        A short, stable, non-reversible tag of the form ``fp_<12 hex chars>``.
+
+    Example:
+        >>> fingerprint_secret("s" * 43).startswith("fp_")
+        True
+    """
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+    return f"fp_{digest}"
+
+
+def _looks_like_opaque_token(value: str) -> bool:
+    """Whether a string looks like an opaque high-entropy token (SEC-012).
+
+    Guards the ``state`` fingerprinting so that only real OAuth/CSRF tokens are
+    touched and short application-state strings are preserved for observability.
+
+    Args:
+        value: Candidate string.
+
+    Returns:
+        True if the value is a single URL-safe-base64/hex run of >= 20 chars.
+    """
+    return bool(_OPAQUE_TOKEN_PATTERN.match(value))
+
+
+def sanitize_url_query(text: str) -> str:
+    """Strip the values of sensitive query parameters from any URL in ``text``.
+
+    Neutralizes single-use credentials embedded in logged links — e.g. an email
+    verification/reset URL (``.../verify?token=<secret>``) or an OAuth redirect
+    (``...?code=<secret>&state=<secret>``). The parameter NAME is preserved so
+    the log stays useful; only the value becomes ``[REDACTED]`` (SEC-012).
+
+    Args:
+        text: Free-text log value that may contain one or more URLs.
+
+    Returns:
+        The text with sensitive query-parameter values redacted.
+
+    Example:
+        >>> sanitize_url_query("https://app/verify?token=abc123&lang=fr")
+        'https://app/verify?token=[REDACTED]&lang=fr'
+    """
+    return _URL_QUERY_SECRET_PATTERN.sub(r"\1[REDACTED]", text)
+
+
 def sanitize_string(text: str) -> str:
     """
     Sanitize a string by detecting and redacting PII patterns.
@@ -333,6 +466,10 @@ def sanitize_string(text: str) -> str:
         >>> sanitize_string("Contact user@example.com or call +1-555-123-4567")
         "Contact email_hash_a1b2c3d4e5f6g7h8 or call ***-***-4567"
     """
+    # Strip single-use credentials embedded in URL query strings (SEC-012):
+    # verification/reset links and OAuth redirects carry `?token=`/`?code=`.
+    text = sanitize_url_query(text)
+
     # Replace emails with pseudonymized hashes
     text = EMAIL_PATTERN.sub(lambda m: pseudonymize_email(m.group(0)), text)
 
@@ -386,6 +523,18 @@ def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict
         # Check if field name is sensitive (case-insensitive)
         if key_lower in SENSITIVE_FIELD_NAMES:
             sanitized[key] = redact_value(value)
+            continue
+
+        # OAuth `state` / CSRF token: fingerprint (not redact) so init↔callback
+        # log lines stay correlatable, but ONLY when the value looks like an
+        # opaque high-entropy token — a plain LangGraph/app `state` string
+        # (dict, or short label like "running") is left untouched (SEC-012).
+        if (
+            key_lower in _STATE_FIELD_NAMES
+            and isinstance(value, str)
+            and _looks_like_opaque_token(value)
+        ):
+            sanitized[key] = fingerprint_secret(value)
             continue
 
         # Content-bearing fields are redacted at INFO and above (C7 policy:
@@ -470,9 +619,11 @@ def add_pii_filter(logger: Any, method_name: str, event_dict: dict[str, Any]) ->
 __all__ = [
     "CONTENT_FIELD_NAMES",
     "add_pii_filter",
+    "fingerprint_secret",
     "mask_credit_card",
     "mask_phone",
     "pseudonymize_email",
     "sanitize_dict",
     "sanitize_string",
+    "sanitize_url_query",
 ]

@@ -1,8 +1,8 @@
 # PII_LOGGING_SECURITY.md
 
 **Documentation Technique - LIA**
-**Version**: 1.1
-**Dernière mise à jour**: 2026-07-07
+**Version**: 1.2
+**Dernière mise à jour**: 2026-07-16
 **Statut**: ✅ Production-Ready
 
 ---
@@ -311,6 +311,39 @@ construction ne sont pas affectés. Les rares sites logger publics loggent déj�
 contenu public qui a besoin de la valeur brute à INFO doit l'émettre à `DEBUG`
 (filet désactivé) ou logger une longueur/booléen. Tests :
 `test_pii_filter.py::TestContentFieldNetHardening`.
+
+
+### 2ter. Credentials OAuth / liens signés — jamais en clair (SEC-012, audit 2026-07-13)
+
+L'audit de sécurité du 2026-07-13 a relevé que des credentials à usage unique
+fuyaient encore dans les logs, sous des formes que les jeux de champs ci-dessus
+ne couvraient pas :
+
+- le **state OAuth** (CSRF) logué brut sur ~34 sites (`core/oauth/flow_handler.py`,
+  `domains/connectors/service.py`) ;
+- les **URL de vérification / réinitialisation** loguées entières
+  (`domains/auth/service.py`), leur token à usage unique dans la query string ;
+- le **`state`** est aussi un nom de champ ambigu — il porte parfois l'état
+  applicatif LangGraph (non sensible), donc une rédaction inconditionnelle
+  casserait l'observabilité.
+
+Réponse — le filtre PII central devient couvrant, sans toucher les sites d'appel :
+
+| Cas | Traitement | Détail |
+|-----|-----------|--------|
+| `state` **token-like** (≥ 20 car. base64url, ex. `token_urlsafe(32)`) | **Fingerprint** `fp_<sha256[:12]>` | Non réversible, mais **corrélable** (init ↔ callback) sans exposer le secret. Un `state` court (« running ») ou un dict LangGraph est laissé intact. |
+| Valeur d'un query-param sensible dans **toute URL loguée** (`?token=`, `&code=`, `state`, `code_verifier`, `client_secret`, …) | **Masquage de la valeur** (`token=[REDACTED]`), nom du paramètre conservé | Ancré sur une frontière `?`/`&` → un `code=200` en texte libre n'est jamais touché. |
+| Champs PKCE / OAuth non ambigus : `code_verifier`, `code_challenge`, `client_secret`, `authorization_code`, `auth_code`, `oauth_state`, `id_token` | **`[REDACTED]`** (ajoutés à `SENSITIVE_FIELD_NAMES`) | — |
+
+Défense en profondeur complémentaire : `auth/service.py` ne passe plus les URLs
+signées de vérification/reset au logger (même masquées par le filtre).
+
+C'est un **filet systémique** : les 34 sites `state=` sont couverts sans être
+modifiés, et toute future URL signée loguée est neutralisée automatiquement.
+Helpers : `fingerprint_secret()`, `sanitize_url_query()`. Tests :
+`tests/unit/infrastructure/observability/test_pii_filter.py::TestSec012CredentialRedaction`
+(fingerprint corrélable, state applicatif préservé, masquage URL, redaction PKCE,
+sentinelle absente de bout en bout).
 
 
 ### 3. Regex Patterns (Industry Standards)

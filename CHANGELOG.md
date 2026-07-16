@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.1] - 2026-07-16
+
+> **Security hardening — audit Lot 1 remediation, transparent and zero-regression.** First wave of fixes from an independent security audit conducted on 2026-07-13. Every finding was verified against the real code before remediation (no material false positive); **no feature was removed** — each fix is a pure reinforcement shipped with tests and an executable anti-recurrence guard. Verified: Ruff + Black + MyPy strict + tsc + ESLint clean, 10,188 backend unit + 1,278 vitest + 27/27 hermetic deploy tests green, disclosure endpoint served live.
+
+### Security
+
+- **SEC-012 — credentials no longer reach the logs.** The central structlog PII
+  filter now pseudonymizes opaque OAuth `state`/CSRF tokens (correlatable, non
+  reversible), strips the values of sensitive URL query parameters
+  (`?token=`/`?code=`/…) from any logged link, and redacts PKCE/`client_secret`/
+  `id_token` fields — covering all ~34 `state=` log sites systemically. The
+  verification/reset email logs also stop passing the signed URL (defense in
+  depth). Guard: behavioral tests in `test_pii_filter.py`.
+- **SEC-017 — RAG upload route-escape closed.** `apps/web/.../rag-upload/[spaceId]`
+  rejects any non-UUID `spaceId` with `400` before reading the body or building
+  the upstream URL, so an encoded `..%2f…` can no longer retarget another
+  backend route. Guard: `route.test.ts` (no upstream request on rejection).
+- **SEC-022 — version drift removed.** The root endpoint and OpenAPI schema now
+  advertise the release version (`settings.app_version`) distinctly from the
+  stable `/v1` API-contract constant, instead of a single confusing `1.0.0`.
+  Guard: `test_version_consistency_guard.py`.
+- **SEC-023 — working disclosure channel.** Added an RFC 9116
+  `/.well-known/security.txt` and rewrote `SECURITY.md` to correct the supported
+  versions (`1.x`), route reports to GitHub Security Advisories, and drop
+  unverified control claims. Guard: `test_security_disclosure_guard.py`
+  (future `Expires`, no dead domain / fictitious versions).
+- **SEC-025 — HSTS on the frontend.** The public HTTPS responses now carry
+  `Strict-Transport-Security` in production (env-tunable `HSTS_MAX_AGE`, starting
+  short, without `includeSubDomains`/`preload`). Guard: `csp.test.ts`.
+- **SEC-013 — production `.env` permissions hardened.** The deploy driver enforces
+  `0600` on the remote `.env` inside a `0700` directory (plus the Claude CLI
+  credentials) right before `docker compose up`. Guard: hermetic Pester test in
+  `deploy-prod.Tests.ps1`.
+
 ## [1.25.0] - 2026-07-16
 
 > **Audit V11 — fully revised framework, register cleared, and a test/CI foundation hardened at the root.** The technical audit moved to a **normalized framework**: 24 areas mapped to **ISO/IEC 25010:2023**, evaluated under **ISO/IEC 25040:2024** (architecture per ISO/IEC/IEEE 42010:2022, test processes per ISO/IEC/IEEE 29119-2:2021, structural quality per ISO/IEC 5055:2021, accessibility controlled against **WCAG 2.2 AA**), each score backed by **at least three executed evidence points**, a dedicated counter-analysis of false positives/negatives, and a plain arithmetic mean — **8.3/10 (199/240)**, security explicitly out of scope. Scores are **not comparable** with the pre-revision grid (8.5/10): the framework got stricter, and this very release closed **every previously-open major and minor finding** — the register now holds **7 moderate worksites (AC-001…AC-007), 0 major, 0 minor**, each published with evidence, closure criteria, effort and a ready-to-run resolution prompt. Full standalone report versioned at `docs/audit/AUDIT_CODEBASE_2026-07-16_CONSOLIDE_V11.html`; public summary and revised protocol in `docs/audit/`.

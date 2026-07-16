@@ -12,9 +12,11 @@ import { describe, it, expect } from 'vitest';
 
 import {
   APP_HEADERS_SOURCE,
+  DEFAULT_HSTS_MAX_AGE,
   WIDGET_FRAME_PATH,
   buildAppCsp,
   buildConnectSrc,
+  buildHsts,
   buildWidgetFrameCsp,
 } from '../csp';
 
@@ -136,5 +138,33 @@ describe('headers routing (app policy vs airlock)', () => {
 
   it('serves the shell from the public root', () => {
     expect(WIDGET_FRAME_PATH).toBe('/widget-frame.html');
+  });
+});
+
+describe('buildHsts (SEC-025)', () => {
+  it('emits a max-age with the requested value', () => {
+    expect(buildHsts(31536000)).toBe('max-age=31536000');
+  });
+
+  it('never emits includeSubDomains or preload (near-irreversible — out of scope)', () => {
+    const value = buildHsts(63072000);
+    expect(value).not.toContain('includeSubDomains');
+    expect(value).not.toContain('preload');
+  });
+
+  it('falls back to the conservative default for invalid/absent max-age', () => {
+    // Number(undefined) === NaN, Number('') === 0 — both must fall back.
+    expect(buildHsts(Number(undefined))).toBe(`max-age=${DEFAULT_HSTS_MAX_AGE}`);
+    expect(buildHsts(0)).toBe(`max-age=${DEFAULT_HSTS_MAX_AGE}`);
+    expect(buildHsts(-1)).toBe(`max-age=${DEFAULT_HSTS_MAX_AGE}`);
+    expect(buildHsts()).toBe(`max-age=${DEFAULT_HSTS_MAX_AGE}`);
+  });
+
+  it('floors fractional values to an integer max-age', () => {
+    expect(buildHsts(100.9)).toBe('max-age=100');
+  });
+
+  it('keeps a conservative default (<= 1 day) so rollout starts short', () => {
+    expect(DEFAULT_HSTS_MAX_AGE).toBeLessThanOrEqual(86_400);
   });
 });

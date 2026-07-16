@@ -2,9 +2,10 @@
 
 > Security policy and vulnerability reporting procedures for LIA
 
-**Version**: 1.0
-**Date**: 2026-02-03
-**Last Updated**: 2026-02-03
+**Version**: 1.1
+**Date**: 2026-07-16
+**Last Updated**: 2026-07-16
+**Next review**: 2027-01-31
 
 ---
 
@@ -14,7 +15,7 @@
 - [Reporting a Vulnerability](#reporting-a-vulnerability)
 - [Security Measures](#security-measures)
 - [Security Best Practices](#security-best-practices)
-- [Compliance](#compliance)
+- [Standards Mapping](#standards-mapping)
 - [Security Updates](#security-updates)
 - [Contact](#contact)
 
@@ -22,295 +23,200 @@
 
 ## Supported Versions
 
-We provide security updates for the following versions:
+LIA follows semantic versioning on a single `1.x` line. Security fixes land on
+the latest release; there is no long-term-support branch for older minors.
 
 | Version | Supported | Notes |
 |---------|-----------|-------|
-| 6.x.x | :white_check_mark: | Current release, full support |
-| 5.5.x | :white_check_mark: | Security patches only |
-| 5.x.x | :x: | No longer supported |
-| < 5.0 | :x: | No longer supported |
+| Latest `1.x` release | :white_check_mark: | Actively maintained — apply security fixes here |
+| Older `1.x` releases | :warning: | Best effort — please upgrade to the latest release |
+| `< 1.0` | :x: | Pre-release, unsupported |
 
-**Recommendation**: Always use the latest version for the best security posture.
+**Recommendation**: always run the latest release for the best security posture.
 
 ---
 
 ## Reporting a Vulnerability
 
-### Do NOT Report Publicly
+### Do NOT report publicly
 
-> **IMPORTANT**: Do NOT create public GitHub Issues for security vulnerabilities.
+> **IMPORTANT**: do NOT create a public GitHub issue for a security
+> vulnerability. Public disclosure before a fix is available puts users at risk.
 
-Public disclosure before a fix is available can put users at risk. Please follow the private disclosure process below.
+### Private disclosure process
 
-### Private Disclosure Process
+**Step 1 — Report privately.** Use GitHub's private vulnerability reporting:
 
-**Step 1: Contact Us**
+- **[Report a vulnerability](https://github.com/jgouviergmail/LIA-Assistant/security/advisories/new)**
+  (Repository → **Security** → **Report a vulnerability**)
 
-Send an email to **security@lia-assistant.dev** with:
+A machine-readable contact is published at
+[`/.well-known/security.txt`](apps/web/public/.well-known/security.txt) (RFC 9116).
+
+Please include, where possible:
 
 | Information | Description |
 |-------------|-------------|
-| **Subject** | Brief description (e.g., "SQL Injection in /api/v1/users") |
-| **Description** | Detailed description of the vulnerability |
-| **Steps to Reproduce** | Clear reproduction steps |
-| **Impact** | Potential impact (data exposure, privilege escalation, etc.) |
-| **Affected Versions** | Which versions are affected |
-| **Suggested Fix** | Optional: your suggested remediation |
-| **Your Contact** | How to reach you for follow-up |
+| **Summary** | Short description (e.g. "IDOR in `/api/v1/...`") |
+| **Details** | What the issue is and why it is a problem |
+| **Reproduction** | Clear, minimal steps |
+| **Impact** | Data exposure, privilege escalation, DoS, … |
+| **Affected version** | Release/commit you tested |
+| **Suggested fix** | Optional |
 
-**Step 2: Acknowledgment**
+**Step 2 — Acknowledgment.** We aim to acknowledge a report within **7 days**.
 
-We will acknowledge receipt within **48 hours**.
+**Step 3 — Assessment & fix.** We triage by severity (CVSS), develop a fix, and
+coordinate a disclosure timeline with you. Complex issues may take longer; we
+will keep you informed.
 
-**Step 3: Investigation**
+**Step 4 — Resolution.** Once fixed, a security advisory is published, a CVE is
+requested when applicable, and credit is given if desired.
 
-We will investigate and keep you informed of progress:
+> Timelines are best-effort commitments from a small maintainer team, not a
+> contractual SLA.
 
-| Timeline | Action |
-|----------|--------|
-| 48 hours | Acknowledgment |
-| 7 days | Initial assessment |
-| 30 days | Patch development |
-| 45 days | Public disclosure (coordinated) |
+### In scope
 
-**Step 4: Resolution**
+Authentication/authorization bypass, session handling, injection (SQL, command,
+etc.), SSRF, sensitive-data exposure (including secrets in logs), cryptographic
+misuse, insecure defaults, prompt-injection / agent-tool abuse, and known-CVE
+dependencies.
 
-Once fixed:
-- Security advisory published
-- CVE assigned (if applicable)
-- Credit given (if desired)
-- Patch released
+### Out of scope
 
-### Bug Bounty
-
-Currently, we do not have a formal bug bounty program. However, we recognize security researchers in our security advisories and CHANGELOG when appropriate.
-
-### What We Consider Security Issues
-
-| Category | Examples |
-|----------|----------|
-| **Authentication** | Bypass, session hijacking, credential exposure |
-| **Authorization** | Privilege escalation, IDOR, access control bypass |
-| **Injection** | SQL, NoSQL, command, LDAP, XPath injection |
-| **Data Exposure** | PII leaks, sensitive data in logs, unencrypted storage |
-| **Cryptographic** | Weak algorithms, key exposure, improper implementation |
-| **Configuration** | Insecure defaults, debug mode in production |
-| **Dependencies** | Known CVEs in third-party packages |
-
-### What We Do NOT Consider Security Issues
-
-| Category | Reason |
-|----------|--------|
-| Rate limiting bypasses on non-critical endpoints | Expected behavior |
-| Missing security headers (unless exploitable) | Best practice, not vulnerability |
-| Self-XSS | Requires attacker-controlled victim actions |
-| Social engineering | Not a technical vulnerability |
-| Physical attacks | Out of scope |
-| DoS on development endpoints | Expected behavior |
+Self-XSS requiring attacker-controlled victim actions, social engineering,
+physical attacks, DoS against development-only endpoints, and best-practice
+hardening findings with no demonstrated impact.
 
 ---
 
 ## Security Measures
 
-### Authentication & Authorization
+The controls below are implemented in the codebase and configuration. This list
+is descriptive, not a guarantee of completeness — see
+[Standards Mapping](#standards-mapping).
+
+### Authentication & authorization
 
 | Measure | Implementation |
 |---------|----------------|
-| **OAuth 2.1** | PKCE (S256) mandatory for all OAuth flows |
-| **BFF Pattern** | HTTP-only cookies, no tokens in localStorage |
-| **Session Management** | Redis-backed, 24h TTL, server-side validation |
-| **Password Storage** | bcrypt with 12 rounds |
-| **JWT** | RS256 signing, short expiry (15min access, 7d refresh) |
+| **OAuth 2.1** | PKCE (S256) required on OAuth flows; `state` (CSRF) validated single-use |
+| **BFF pattern** | Server-side sessions; auth cookie is `HttpOnly` + `Secure`, never in `localStorage` |
+| **Sessions** | Redis-backed, server-side validation, rotation on login |
+| **Passwords** | Hashed with bcrypt; strength validation on set/reset |
+| **Verification / reset tokens** | Single-use (JTI), Redis-blacklisted after use, short TTL |
+| **Ownership checks** | Resource access is authorized per-owner across API routes |
 
-### Data Protection
-
-| Measure | Implementation |
-|---------|----------------|
-| **Encryption at Rest** | Fernet encryption for OAuth credentials |
-| **Encryption in Transit** | TLS 1.3 mandatory |
-| **PII Filtering** | Automatic PII detection and masking in logs |
-| **Data Minimization** | Only collect necessary data |
-| **GDPR Compliance** | Full data export and deletion capabilities |
-
-### API Security
+### Data protection
 
 | Measure | Implementation |
 |---------|----------------|
-| **Rate Limiting** | Redis-based sliding window (60 req/min default) |
-| **Input Validation** | Pydantic v2 with strict mode |
-| **Output Encoding** | Automatic JSON encoding |
-| **CORS** | Whitelist-based origin validation |
-| **CSRF Protection** | SameSite=Lax cookies |
+| **Encryption at rest** | Fernet encryption for connector/OAuth credentials and selected sensitive fields |
+| **Encryption in transit** | TLS 1.2/1.3 only (1.0/1.1 rejected) at the public edge |
+| **Log hygiene** | Central structured-log PII filter: email pseudonymization, secret/token redaction, OAuth `state` fingerprinting, URL query-credential stripping |
+| **Data-subject rights** | Data export and cascade erasure (account lifecycle) |
 
-### Infrastructure Security
-
-| Measure | Implementation |
-|---------|----------------|
-| **Container Security** | Non-root users, read-only filesystems |
-| **Secrets Management** | Environment variables, never in code |
-| **Dependency Scanning** | Automated via pip-audit, safety, trivy |
-| **Code Scanning** | CodeQL, bandit, Ruff security rules |
-| **Network Security** | Internal networks, minimal port exposure |
-
-### LLM-Specific Security
+### API & application
 
 | Measure | Implementation |
 |---------|----------------|
-| **Prompt Injection** | Input sanitization, output validation |
-| **Token Tracking** | Per-user attribution, budget controls |
-| **HITL Controls** | Human approval for high-risk operations |
-| **Data Privacy** | No user data sent to LLM training |
-| **API Key Security** | Encrypted storage, masked logging |
+| **Rate limiting** | Redis-based limits on authentication and other sensitive endpoints |
+| **Input validation** | Pydantic v2 (backend) and Zod (frontend), strict schemas |
+| **Output handling** | Markdown sanitization (`rehypeSanitize`), JSON-LD escaping |
+| **Security headers** | CSP, `nosniff`, COOP/COEP, frame protections, HSTS |
+| **CORS** | Allowlist-based origin validation |
+| **Widget isolation** | Third-party MCP-App widgets run in a sandboxed, opaque-origin iframe |
+
+### LLM / agent security
+
+| Measure | Implementation |
+|---------|----------------|
+| **HITL controls** | Human approval interrupts for sensitive/destructive tool calls |
+| **Semantic validation** | Plan/argument validation before execution |
+| **Bounded agency** | Loop/token/time limits; read-only, allowlisted sub-agents |
+| **Token attribution** | Per-user usage tracking and budgets |
+
+### Supply chain & CI
+
+| Measure | Implementation |
+|---------|----------------|
+| **Dependency scanning** | `pip-audit`, `pnpm audit`, Trivy |
+| **Code scanning** | CodeQL, Bandit, Ruff security rules, Semgrep |
+| **Secret scanning** | Gitleaks |
+| **Pinned actions** | GitHub Actions pinned by commit SHA |
+| **SBOM** | Generated in CI |
 
 ---
 
 ## Security Best Practices
 
-### For Contributors
+### For contributors
 
 | Practice | Description |
 |----------|-------------|
-| **No Secrets in Code** | Use `.env`, never commit credentials |
-| **Input Validation** | Always validate user input with Pydantic/Zod |
-| **Parameterized Queries** | Use SQLAlchemy ORM, never raw SQL |
-| **Secure Dependencies** | Check CVEs before adding dependencies |
-| **Code Review** | Security-focused review for auth/data handling |
+| **No secrets in code** | Use `.env`; never commit real credentials |
+| **Validate input** | Pydantic (backend) / Zod (frontend) |
+| **No raw SQL** | Use the SQLAlchemy ORM / parameterized queries |
+| **No secrets in logs** | Rely on the central PII filter; never log tokens, `state`, or signed URLs |
+| **Vet dependencies** | Check advisories before adding a dependency |
 
-### For Operators
+### For operators
 
 | Practice | Description |
 |----------|-------------|
-| **Environment Variables** | Use `.env.prod` with real secrets |
-| **HTTPS Only** | Terminate TLS at load balancer |
-| **Firewall Rules** | Restrict database/Redis access |
-| **Regular Updates** | Apply security patches promptly |
-| **Monitoring** | Enable alerting for suspicious activity |
-
-### Security Checklist
-
-Before deployment:
-
-- [ ] All secrets in environment variables
-- [ ] HTTPS enabled with valid certificate
-- [ ] Database not exposed to internet
-- [ ] Redis password protected
-- [ ] Rate limiting enabled
-- [ ] PII filtering enabled in logs
-- [ ] Monitoring and alerting configured
-- [ ] Backup strategy implemented
-- [ ] Incident response plan documented
+| **Restrict `.env`** | Owner-only permissions (`0600`) on secret files |
+| **HTTPS only** | Terminate TLS at the edge; enable HSTS |
+| **Isolate data stores** | Never expose PostgreSQL/Redis to the internet |
+| **Patch promptly** | Apply OS and dependency security updates |
+| **Monitor** | Enable alerting on suspicious activity |
 
 ---
 
-## Compliance
+## Standards Mapping
 
-### OWASP Top 10 2024
+LIA's controls are mapped to the **OWASP Top 10**, **OWASP ASVS**, and the
+**OWASP GenAI / LLM** guidance, and are reviewed through periodic internal
+security audits (see [`docs/audit/`](docs/audit/)). This mapping is a working
+reference to guide hardening — it is **not** a certification, an attestation, or
+a claim of complete mitigation. Findings from each audit are tracked and
+remediated on a risk-prioritized basis.
 
-| Vulnerability | Mitigation Status |
-|---------------|-------------------|
-| A01 - Broken Access Control | :white_check_mark: Authorization checks on all endpoints |
-| A02 - Cryptographic Failures | :white_check_mark: TLS 1.3, Fernet, bcrypt |
-| A03 - Injection | :white_check_mark: SQLAlchemy ORM, Pydantic validation |
-| A04 - Insecure Design | :white_check_mark: BFF Pattern, HITL approval flows |
-| A05 - Security Misconfiguration | :white_check_mark: Secure defaults, .env template |
-| A06 - Vulnerable Components | :white_check_mark: Automated scanning (Dependabot, pip-audit) |
-| A07 - Auth Failures | :white_check_mark: OAuth 2.1 PKCE, session timeout |
-| A08 - Software Integrity | :white_check_mark: SBOM generation, signed commits |
-| A09 - Logging Failures | :white_check_mark: Structured logging with PII filter |
-| A10 - SSRF | :white_check_mark: URL validation, no user-controlled requests |
-
-### GDPR
-
-| Requirement | Implementation |
-|-------------|----------------|
-| Right to Access | Data export endpoint |
-| Right to Erasure | GDPR deletion cascade |
-| Data Minimization | Only necessary fields collected |
-| Purpose Limitation | Clear data usage policies |
-| Consent | Explicit opt-in for data collection |
-| Breach Notification | Incident response procedures |
-
-### SOC 2 (Preparation)
-
-We are implementing controls towards SOC 2 Type II compliance:
-
-- Security policies documented
-- Access controls enforced
-- Audit logging enabled
-- Incident response procedures
-- Change management process
+Data-subject rights relevant to GDPR (access/export and erasure) are supported
+through the account-lifecycle features.
 
 ---
 
 ## Security Updates
 
-### Notification Channels
+Security advisories are published via the repository's **Security** tab and
+referenced in release notes and the `CHANGELOG`. Severity guides urgency:
 
-Security updates are announced via:
+| Severity (CVSS) | Target |
+|-----------------|--------|
+| Critical (≥ 9.0) | Fast-tracked patch release |
+| High (7.0–8.9) | Prioritized, typically within days |
+| Medium (4.0–6.9) | Next scheduled release |
+| Low (< 4.0) | Best effort |
 
-| Channel | URL/Contact |
-|---------|-------------|
-| GitHub Security Advisories | Repository Security tab |
-| Release Notes | GitHub Releases |
-| Email (critical) | Registered users |
-
-### Update Frequency
-
-| Type | Frequency |
-|------|-----------|
-| Critical (CVSS ≥ 9.0) | Immediate patch release |
-| High (CVSS 7.0-8.9) | Within 7 days |
-| Medium (CVSS 4.0-6.9) | Next scheduled release |
-| Low (CVSS < 4.0) | Best effort |
-
-### Dependency Updates
-
-We regularly update dependencies:
-
-| Tool | Frequency |
-|------|-----------|
-| Dependabot | Daily PR checks |
-| pip-audit | Weekly scans |
-| Trivy | On each build |
-| npm audit | On each build |
+Dependencies are monitored continuously (Dependabot) and scanned in CI.
 
 ---
 
 ## Contact
 
-### Security Team
+Report vulnerabilities through **[GitHub Security Advisories](https://github.com/jgouviergmail/LIA-Assistant/security/advisories/new)**
+(the machine-readable entry point is [`/.well-known/security.txt`](apps/web/public/.well-known/security.txt)).
 
-| Contact | Usage |
-|---------|-------|
-| **security@lia-assistant.dev** | Report vulnerabilities |
-| **conduct@lia-assistant.dev** | Code of conduct issues |
-| **contact@lia-assistant.dev** | General inquiries |
-
-### Encrypted Communications
-
-If you need to communicate sensitive details about a vulnerability, please mention it in your initial report and we will establish a secure communication channel.
-
-### Response Times
-
-| Priority | Response Time |
-|----------|---------------|
-| Critical | < 4 hours |
-| High | < 24 hours |
-| Medium | < 48 hours |
-| Low | < 7 days |
+For sensitive details, mention it in your initial report and we will agree on a
+secure channel.
 
 ---
 
 ## Acknowledgments
 
-We thank the security researchers who have helped improve LIA's security:
-
-| Researcher | Date | Issue |
-|------------|------|-------|
-| *Your name could be here* | — | — |
-
-Want to be listed? Report a valid security vulnerability!
+We thank the security researchers who help improve LIA. Report a valid
+vulnerability to be credited (with your consent) in the advisory.
 
 ---
 
@@ -318,14 +224,11 @@ Want to be listed? Report a valid security vulnerability!
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **1.1** | 2026-07-16 | Corrected supported versions to the `1.x` line; moved reporting to GitHub Security Advisories; added RFC 9116 `security.txt`; removed unverified control claims; reframed the OWASP matrix as a non-certifying standards mapping |
 | **1.0** | 2026-02-03 | Initial security policy |
 
 ---
 
 <p align="center">
   <strong>LIA</strong> — Security is a priority, not an afterthought
-</p>
-
-<p align="center">
-  Report issues: security@lia-assistant.dev
 </p>

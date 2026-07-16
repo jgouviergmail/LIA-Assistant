@@ -4,6 +4,7 @@ import {
   APP_HEADERS_SOURCE,
   WIDGET_FRAME_PATH,
   buildAppCsp,
+  buildHsts,
   buildWidgetFrameCsp,
 } from './src/lib/csp';
 
@@ -34,6 +35,12 @@ const allowedDevOrigins = [
 // change is covered by non-regression tests (two CSP regressions shipped
 // blind before this: voice worklets and the interactive-map embed).
 const isDev = process.env.NODE_ENV === 'development';
+
+// SEC-025: HSTS max-age (seconds), env-tunable so it can be ramped up in
+// production without a rebuild. Invalid/absent → conservative default in
+// buildHsts(). Only emitted in production (see headers() below) — pinning
+// localhost to HTTPS-only would break local HTTP dev.
+const hstsMaxAge = Number(process.env.HSTS_MAX_AGE);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -91,6 +98,12 @@ const nextConfig: NextConfig = {
         // on one response would enforce their intersection.
         source: APP_HEADERS_SOURCE,
         headers: [
+          // SEC-025: HSTS on the frontend (the public HTTPS response lacked it;
+          // the API already sends it). Production only — see hstsMaxAge above.
+          // Starts with a short max-age and NO includeSubDomains/preload.
+          ...(isDev
+            ? []
+            : [{ key: 'Strict-Transport-Security', value: buildHsts(hstsMaxAge) }]),
           {
             key: 'X-DNS-Prefetch-Control',
             value: 'on'

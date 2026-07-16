@@ -408,6 +408,18 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         $shimLog | Should -Match "rsync .*-avz.*--partial"
         $shimLog | Should -Match ([regex]::Escape("chmod +x deploy.sh && ./deploy.sh"))
     }
+
+    It "hardens the remote secret permissions before deploy (SEC-013)" {
+        # Step 8.5 chmods the finalized .env to 0600 inside a 0700 dir over ssh,
+        # AFTER the DOCKER_GID write (step 8) and BEFORE ./deploy.sh (step 9).
+        $shimLog | Should -Match ([regex]::Escape("chmod 600"))
+        $shimLog | Should -Match "\.env"
+        $shimLog | Should -Match "PERMS_HARDENED"
+        $iHarden = $shimLog.IndexOf("PERMS_HARDENED")
+        $iDeploy = $shimLog.IndexOf("chmod +x deploy.sh")
+        $iHarden | Should -BeGreaterThan 0
+        $iDeploy | Should -BeGreaterThan $iHarden
+    }
 }
 
 # ============================================================================

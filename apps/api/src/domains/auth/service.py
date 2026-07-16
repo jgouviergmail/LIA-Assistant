@@ -638,10 +638,12 @@ class AuthService:
         )
 
         if sent:
+            # SEC-012: never log the verification URL — it carries the single-use
+            # token in its query string. The central PII filter also strips it as
+            # a safety net; not passing it here is defense in depth.
             logger.info(
                 "verification_email_sent",
                 email=email,
-                verification_url=verification_url,
             )
         else:
             logger.error(
@@ -667,10 +669,12 @@ class AuthService:
         )
 
         if sent:
+            # SEC-012: never log the reset URL — it carries the single-use token
+            # in its query string (central PII filter also strips it; this is
+            # defense in depth).
             logger.info(
                 "password_reset_email_sent",
                 email=email,
-                reset_url=reset_url,
             )
         else:
             logger.error(

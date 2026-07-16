@@ -2980,6 +2980,16 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_1": {
+          "title": "v1.25.1 — 🔒 安全加固",
+          "date": "2026年7月",
+          "count": "3",
+          "items": {
+            "i1": "<b>🔒 您的敏感链接保持私密</b> — 验证链接和密码重置链接及其携带的令牌不再写入日志。中央过滤器会在各处屏蔽凭据，并对登录令牌生成指纹，从而在不暴露任何机密的情况下仍可追踪活动。",
+            "i2": "<b>🛡️ 可信的安全问题上报渠道</b> — LIA 现已发布标准的 security.txt 文件和更新后的安全策略，通过 GitHub Security Advisories 私密地处理漏洞报告。",
+            "i3": "<b>🔐 更强的传输与密钥保护</b> — 网站现在强制启用 HTTPS 严格传输安全（HSTS），生产环境的密钥文件在部署时被限制为仅所有者可访问。"
+          }
+        },
         "v1_25_0": {
           "title": "v1.25.0 — 🛡️ V11审计：全面修订的评估框架，比以往更干净",
           "date": "2026年7月",
@@ -4233,7 +4243,7 @@
       "connectors": {
         "title": "连接器",
         "description": "集成和外部连接",
-        "count": "17",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "什么是连接器？",
@@ -4290,18 +4300,57 @@
           "q14": {
             "question": "如何连接Philips Hue？",
             "answer": "Philips Hue使用<strong>混合认证</strong>（本地按键配对或远程OAuth2）：<br><br><strong>🏠 本地模式（推荐 — 同一网络）：</strong><br>1. 前往 <strong>设置 > 智能家居 > Philips Hue</strong><br>2. 点击 <strong>本地连接</strong><br>3. 点击 <strong>搜索网桥</strong><br>4. 选择您的网桥<br>5. <strong>按下</strong>Hue网桥上的物理按钮<br>6. 在30秒内点击 <strong>配对</strong><br>7. LIA验证连接并激活连接器<br><br><strong>💡 您可以做什么：</strong><br>• \"打开客厅的灯\"<br>• \"将卧室调暗到30%\"<br>• \"将厨房灯设为蓝色\"<br>• \"激活电影模式\""
+          }
+        }
+      },
+      "telephony": {
+        "title": "电话呼叫",
+        "description": "LIA 可以代你拨打真实的电话。完整配置指南（Twilio + ElevenLabs）与日常使用。",
+        "count": "11",
+        "questions": {
+          "q1": {
+            "question": "LIA 在电话里能做什么？",
+            "answer": "LIA 可以代你拨打一通<strong>真实的外呼电话</strong>，围绕你设定的目标推进，并在聊天中向你汇报。<br><br><strong>示例：</strong><br>• 「<em>打电话给面包店，问问周六有没有蛋糕</em>」<br>• 「<em>打电话给修车行，确认车修好了没有</em>」<br>• 「<em>打电话给 Marie，问她周二晚上是否有空</em>」<br><br>通话中，LIA 会自我介绍为代你致电的助手，围绕你的目标进行自然对话，然后挂断并给你写一份小结 —— 在合适时附带一键后续操作（例如创建刚刚约定的日程）。<br><br><strong>💡 提示：</strong>LIA 只拨打<strong>外呼</strong>电话 —— 绝不会接听你的来电。"
           },
-          "q15": {
-            "question": "LIA 可以替我打电话吗？",
-            "answer": "可以。LIA 能代你拨打一通真实的外呼电话 —— 例如「<em>打电话给面包店，问问周六有没有蛋糕</em>」或「<em>打电话给 Marie，看看她周二晚上是否有空</em>」。<br><br><strong>工作方式：</strong><br>1. 你让 LIA 打给某人<br>2. LIA 会告诉你它将<strong>打给谁</strong>、<strong>为什么</strong>，并等待你的确认<br>3. LIA 围绕你的目标进行通话<br>4. 一份书面小结返回到聊天中，并在合适时提供一键后续操作（例如创建刚刚约定的日程）<br><br><strong>💡</strong> 小结是异步返回的 —— 通话进行时你可以继续聊天。"
+          "q2": {
+            "question": "一通电话是如何进行的？",
+            "answer": "<strong>1. 你在聊天中提出</strong><br>「<em>打电话给 Martin 医生的诊所，约这周的一个号</em>」<br><br><strong>2. LIA 请求你的确认</strong><br>在拨任何号码之前，LIA 会向你展示一张确认卡片：<strong>打给谁</strong>、<strong>哪个号码</strong>、<strong>为什么</strong>。没有你的明确同意，什么都不会发生。<br><br><strong>3. 通话进行</strong><br>LIA 的语音智能体从你的号码拨出电话，并朝着目标推进。在此期间你可以继续和 LIA 聊天 —— 甚至关闭应用。<br><br><strong>4. 小结回到聊天中</strong><br>一份书面小结会异步送达，如果接下来还有事情要做，还会附带建议的后续操作。每通电话也会出现在你的通话历史中（<strong>设置 > 连接器 > 电话</strong>）。"
           },
-          "q16": {
-            "question": "启用电话功能需要什么？",
-            "answer": "电话功能使用你<strong>自己的 ElevenLabs 连接器</strong>（自带凭证），在<strong>设置 &gt; 连接器</strong>中配置：<br><br>1. 创建一个 ElevenLabs 账户和一个语音智能体<br>2. 在 LIA 中填入你的 API 密钥以及智能体 / 号码标识<br>3. LIA 验证连接<br><br><strong>💡 计费：</strong>通话在<strong>你自己的 ElevenLabs 账户</strong>上计费 —— LIA 不加收任何费用，也不做自己的计量。当管理员启用该功能后即可使用。"
+          "q3": {
+            "question": "开始之前我需要什么？",
+            "answer": "电话功能使用你在两个外部服务上的<strong>自有账户</strong> —— LIA 自身不收取任何费用：<br><br><strong>1. 📞 一个 Twilio 账户</strong> —— 提供 LIA 用来拨打的<strong>电话号码</strong>（号码月租 + 按分钟计费）。<br><br><strong>2. 🎙️ 一个 ElevenLabs 账户</strong> —— 提供通话中说话的<strong>语音智能体</strong>（需要 Agents 平台权限；通话分钟消耗你套餐的额度）。<br><br><strong>3. ✅ 管理员已启用该功能</strong> —— 如果你在<strong>设置 > 连接器</strong>中看不到<strong>电话</strong>模块，请让管理员启用它。<br><br>完整配置大约需要 <strong>15 分钟</strong>（法国号码可能还需等待审核），共 4 步，后面的问题逐一详解：<br>1. 获取电话号码（Twilio）<br>2. 准备 ElevenLabs（API 密钥 + 导入号码）<br>3. 配置回传 Webhook<br>4. 在 LIA 中激活连接器"
           },
-          "q17": {
-            "question": "这是否保密？LIA 会看到我的日程或录音吗？",
-            "answer": "隐私保护是<strong>设计层面</strong>保障的，而非依赖指令：<br><br>• <strong>🔒 只读，仅空闲/忙碌</strong> —— 通话中 LIA 可以确认你在某个时间是否有空，但<strong>绝不</strong>透露你日程的标题、参与者、地点或任何内容。<br>• <strong>🚫 不录音</strong> —— 通话不会被录音。<br>• <strong>🗑️ 不留存转写</strong> —— 完整对话从不保存；只保留一份简短小结，且会自动过期。<br>• <strong>✅ 你始终掌控</strong> —— 每通电话在拨出前都由你确认。"
+          "q4": {
+            "question": "第 1 步 —— 获取电话号码（Twilio）",
+            "answer": "Twilio 是提供 LIA 拨出号码的运营商。<br><br><strong>1. 创建账户</strong><br>在 <strong>twilio.com</strong> 注册并升级为付费账户（免费试用只能拨打已验证的号码）。<br><br><strong>2. 🇪🇺 欧洲号码：需提交 Regulatory Bundle</strong><br>监管要求（例如法国）提供身份证件和地址证明：<strong>Phone Numbers > Regulatory Compliance > Bundles</strong>。人工审核最多约 3 个工作日。<br>• 最简单：<strong>固定电话或全国性号码</strong><br>• 避免移动号码：要求更多，且需 1–2 周开通时间<br><br><strong>3. 购买号码</strong><br><strong>Phone Numbers > Buy a Number</strong> —— 确认勾选了 <strong>Voice</strong> 能力。<br><br><strong>4. 记录你的凭证</strong><br>在 Twilio 控制台首页复制 <strong>Account SID</strong> 和 <strong>Auth Token</strong> —— 下一步会用到。<br><br><strong>💡 只是想先试试？</strong>美国号码即买即用，无需监管材料。"
+          },
+          "q5": {
+            "question": "第 2 步 —— 准备 ElevenLabs（API 密钥 + 号码）",
+            "answer": "ElevenLabs 提供通话中说话的语音智能体。<br><br><strong>1. 检查套餐</strong><br>你需要一个包含 <strong>Agents 平台</strong>权限的套餐。通话分钟会消耗你的 ElevenLabs 额度（在 Twilio 的分钟费之外）。<br><br><strong>2. 创建 API 密钥</strong><br>个人资料（左下角）> <strong>API Keys</strong> > 创建密钥。如果要限制权限，至少需要 <strong>Agents 平台的读/写权限</strong>（LIA 需要创建智能体、列出你的号码并发起外呼）。刚开始用不受限的密钥即可 —— 第一通电话成功后再收紧。<br><br><strong>3. 导入你的 Twilio 号码</strong><br><strong>Agents Platform > Phone Numbers > Import from Twilio</strong>：填入国际格式的号码（如 <em>+8613812345678</em>）、<strong>Account SID</strong>、<strong>Auth Token</strong> 和一个标签。<br><br><strong>⚠️ 两个要点：</strong><br>• 使用<strong>原生 Twilio 导入</strong>，不要用 SIP 中继 —— LIA 通过 ElevenLabs 的 Twilio 集成发起呼叫。<br>• <strong>不要自己创建智能体</strong>：激活连接器时 LIA 会自动创建自己的受保护智能体（它会以「<em>LIA telephony — 你的名字</em>」出现在你的工作区中）。"
+          },
+          "q6": {
+            "question": "第 3 步 —— 配置回传 Webhook",
+            "answer": "Webhook 是通话报告回到聊天中的通道。没有它，电话打得出去，但小结永远回不来。<br><br><strong>1. 打开 Webhook 设置</strong><br>在 ElevenLabs 的 <strong>Agents 工作区设置</strong>中，打开 <strong>Webhooks</strong> 部分（只有工作区管理员可以操作）。<br><br><strong>2. 创建通话后 Webhook</strong><br>• 事件类型：<strong>post_call_transcription</strong>（仅转写）<br>• URL：LIA 在向导第 3 步显示给你的地址（带复制按钮）—— 形如 <em>https://你的-lia-域名/api/v1/telephony/webhook</em><br>• 认证方式：<strong>HMAC</strong><br><br><strong>3. 复制签名密钥</strong><br>创建 Webhook 时 ElevenLabs 会生成一个<strong>签名密钥</strong> —— 立即复制，下一步要粘贴到 LIA 中。<br><br><strong>🔒 保持「Send audio data」关闭</strong>：LIA 从不接收也不保存任何音频 —— 这是设计层面的保证。"
+          },
+          "q7": {
+            "question": "第 4 步 —— 在 LIA 中激活连接器",
+            "answer": "现在一切在 LIA 中汇合，通过一个 3 步向导完成。<br><br>进入<strong>设置 > 连接器 > 电话</strong>，点击<strong>连接</strong>。页面会提醒你：通话费用记在你自己的 ElevenLabs/Twilio 账户上。<br><br><strong>第 1 步 —— API 密钥</strong><br>粘贴你的 ElevenLabs API 密钥并点击<strong>验证</strong>。LIA 校验密钥并列出你工作区中的号码。（「没有号码」说明第 2 步的 Twilio 导入还没完成。）<br><br><strong>第 2 步 —— 号码</strong><br>选择 LIA 拨出时使用的号码。<br><br><strong>第 3 步 —— Webhook</strong><br>复制显示的 Webhook URL（如果还没在 ElevenLabs 中配置，现在就去配置 —— 见上一个问题），粘贴<strong>签名密钥</strong>，然后点击<strong>激活</strong>。<br><br>LIA 随即在你的 ElevenLabs 工作区中创建它的受保护智能体，连接器变为<strong>已激活</strong>。可以打电话了！🎉"
+          },
+          "q8": {
+            "question": "如何拨打我的第一通电话？",
+            "answer": "<strong>💡 推荐的首次测试：</strong>让 LIA 打给<strong>你自己的手机</strong> —— 你可以从另一端体验这通电话。<br><br><strong>1.</strong> 在聊天中：「<em>打电话给 +8613812345678，问问包裹到了没有</em>」<br><br><strong>2.</strong> LIA 显示确认卡片（对象、号码、目标）—— <strong>确认</strong>。<br><br><strong>3.</strong> 你的手机响了：智能体自我介绍为代你致电的助手，提出问题，然后挂断。<br><br><strong>4.</strong> 片刻后小结出现在聊天中 —— 异步送达，期间你可以继续聊天。<br><br>你也可以<strong>用姓名指定联系人</strong>（「<em>打电话给 Marie……</em>」）：LIA 会在你的联系人中查找号码，如有多个匹配会请你确认。通话历史在<strong>设置 > 连接器 > 电话</strong>中。"
+          },
+          "q9": {
+            "question": "这是否保密？LIA 会泄露我的日程或录音吗？",
+            "answer": "隐私保护是<strong>设计层面</strong>保障的，而非依赖指令：<br><br>• <strong>🔒 只读，仅空闲/忙碌</strong> —— 通话中 LIA 可以确认你在某个时间是否有空，但<strong>绝不</strong>透露你日程的标题、参与者、地点或任何内容。通话智能体根本无法访问这些数据。<br>• <strong>🚫 不录音</strong> —— 通话不会被录音。<br>• <strong>🗑️ 不留存转写</strong> —— 完整对话从不保存；只保留一份简短小结，且会自动过期（默认 30 天）。<br>• <strong>📢 公开透明</strong> —— 智能体始终自我介绍为代你致电的助手；绝不冒充你本人。<br>• <strong>✅ 你始终掌控</strong> —— 每通电话在拨出前都由你确认。"
+          },
+          "q10": {
+            "question": "费用是多少？",
+            "answer": "LIA <strong>自身不收取任何费用</strong> —— 费用产生在你的两个外部账户上：<br><br><strong>📞 Twilio</strong><br>• 号码月租：约 1–15 欧元/月，视类型而定<br>• 外呼分钟：按目的地的分钟费率计费<br><br><strong>🎙️ ElevenLabs</strong><br>• 语音智能体的通话分钟，从你套餐的额度中扣除<br><br><strong>🤖 LIA</strong><br>• 不加价、不抽成 —— 只有生成小结的少量 LLM 消耗会出现在你的 LIA 用量统计中。<br><br><strong>🛡️ 防意外的内置护栏：</strong><br>• 同一时间只允许一通活跃通话<br>• 每用户每小时呼叫上限（默认 10 通/小时）<br>• 通话时长硬上限（默认 10 分钟）"
+          },
+          "q11": {
+            "question": "不好用 —— 该检查什么？",
+            "answer": "<strong>第 1 步提示「密钥无效」</strong><br>→ 密钥复制有误，或权限不足（需要 Agents 平台权限）。<br><br><strong>密钥验证后提示「没有号码」</strong><br>→ 你的号码没有导入 ElevenLabs 的 <strong>Agents</strong> 工作区，或者是以 SIP 中继而非原生 Twilio 集成导入的。<br><br><strong>电话打出去了，但小结没有回来</strong><br>→ 问题出在 Webhook：URL 无法从公网访问、签名密钥错误，或事件类型不对（必须是 <strong>post_call_transcription</strong>）。<br><br><strong>「已有一通电话在进行中」</strong><br>→ 设计上同一时间只允许一通活跃通话。卡住的通话约 15 分钟后会被自动清理。<br><br><strong>连续几通之后被拒绝</strong><br>→ 你达到了每小时上限（默认 10 通/小时）。<br><br><strong>还是不行？</strong>请联系你的管理员：服务器日志会准确记录收到了哪些 Webhook 事件，以及被忽略的原因。"
           }
         }
       },

@@ -20,18 +20,37 @@ const API_URL_SERVER = process.env.API_URL_SERVER || 'https://api:8000';
 const isDev = process.env.NODE_ENV !== 'production';
 const httpsAgent = new https.Agent({ rejectUnauthorized: !isDev });
 
+/**
+ * Strict RFC 4122 UUID matcher (any version).
+ *
+ * SEC-017: `spaceId` is interpolated into the upstream URL, and WHATWG URL
+ * parsing resolves `..` segments — so an encoded value like `..%2f..%2fauth`
+ * could retarget a *different* backend route (route escape). Pinning the segment
+ * to a strict UUID shape (no slash, backslash, dot-segment, query, fragment or
+ * control char can pass) closes that class entirely before any work happens.
+ */
+const SPACE_ID_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ spaceId: string }> }
 ) {
   const { spaceId } = await params;
 
+  // SEC-017: reject a non-UUID spaceId up front — before reading the body or
+  // building the upstream URL — so it can never escape to another route.
+  if (!SPACE_ID_UUID_RE.test(spaceId)) {
+    return NextResponse.json({ detail: 'Invalid space id' }, { status: 400 });
+  }
+
   // Forward the request body as-is (multipart/form-data)
   const body = await request.arrayBuffer();
   const contentType = request.headers.get('content-type') || '';
   const cookie = request.headers.get('cookie') || '';
 
-  const targetUrl = `${API_URL_SERVER}/api/v1/rag-spaces/${spaceId}/documents`;
+  // spaceId is a validated UUID; encodeURIComponent is defense in depth so the
+  // segment can never widen the path even if the guard above is ever loosened.
+  const targetUrl = `${API_URL_SERVER}/api/v1/rag-spaces/${encodeURIComponent(spaceId)}/documents`;
   const isHttps = targetUrl.startsWith('https');
 
   try {

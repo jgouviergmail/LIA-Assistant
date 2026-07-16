@@ -204,7 +204,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title="LIA API",
     description="AI Companion Platform Backend API",
-    version=API_VERSION,  # PHASE 2.1: Use constant instead of hardcoded value
+    # SEC-022: OpenAPI/docs advertise the RELEASE version of the running
+    # artifact (env APP_VERSION, e.g. "1.24.0"), not the "/v1" API-contract
+    # constant. The contract version stays available on the /api/v1 endpoints.
+    version=settings.app_version,
     docs_url="/docs" if not settings.is_production else None,
     redoc_url="/redoc" if not settings.is_production else None,
     openapi_url="/openapi.json" if not settings.is_production else None,
@@ -283,10 +286,18 @@ app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], include_in_sche
 # Root endpoint
 @app.get("/", include_in_schema=False)
 async def root() -> dict[str, str | None]:
-    """Root endpoint with API information."""
+    """Root endpoint with API information.
+
+    SEC-022: exposes the RELEASE version of the running artifact
+    (``app_version``, env APP_VERSION) distinctly from the stable ``/v1``
+    API-contract version (``api_version``). Before this, a single
+    ``version`` field returned the "1.0.0" contract constant and read as the
+    application version, contradicting the 1.24.0 build manifests.
+    """
     return {
         "name": "LIA API",
-        "version": API_VERSION,
+        "app_version": settings.app_version,
+        "api_version": API_VERSION,
         FIELD_STATUS: "operational",
         "environment": settings.environment,
         "docs": "/docs" if not settings.is_production else None,

@@ -2995,6 +2995,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_1": {
+          "title": "v1.25.1 — 🔒 Security hardening",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🔒 Your sensitive links stay private</b> — verification and password-reset links, and the tokens they carry, are never written to the logs anymore. A central filter redacts credentials everywhere and fingerprints sign-in tokens, so activity can still be traced without ever exposing a secret.",
+            "i2": "<b>🛡️ A trusted way to report a security issue</b> — LIA now publishes a standard security.txt file and an updated security policy that routes vulnerability reports privately through GitHub Security Advisories.",
+            "i3": "<b>🔐 Stronger transport and secrets</b> — the site now enforces HTTPS strict transport (HSTS), and production secret files are locked down to owner-only access during deployment."
+          }
+        },
         "v1_25_0": {
           "title": "v1.25.0 — 🛡️ Audit V11: revised framework, cleaner than ever",
           "date": "July 2026",
@@ -4248,7 +4258,7 @@
       "connectors": {
         "title": "Connectors",
         "description": "Integrations and external connections",
-        "count": "17",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "What is a connector?",
@@ -4305,18 +4315,57 @@
           "q14": {
             "question": "How do I connect Philips Hue?",
             "answer": "Philips Hue uses <strong>hybrid authentication</strong> (local press-link or remote OAuth2):<br><br><strong>🏠 Local mode (recommended — same network):</strong><br>1. Go to <strong>Settings > Smart Home > Philips Hue</strong><br>2. Click <strong>Local connection</strong><br>3. Click <strong>Search for bridges</strong><br>4. Select your bridge<br>5. <strong>Press the physical button</strong> on top of your Hue Bridge<br>6. Click <strong>Pair</strong> within 30 seconds<br>7. LIA validates connectivity and activates the connector<br><br><strong>🌐 Remote mode (different network):</strong><br>1. Configure Hue Remote API credentials on the server<br>2. Click <strong>Remote connection</strong><br>3. Authorize LIA via Philips OAuth2<br><br><strong>💡 What you can do:</strong><br>• \"Turn on the living room lights\"<br>• \"Dim the bedroom to 30%\"<br>• \"Set the kitchen light to blue\"<br>• \"Activate the movie scene\"<br>• \"What lights are currently on?\"<br>• \"Turn off everything\"<br><br><strong>⚡ 6 tools available:</strong><br>List lights, control a light (on/off, brightness, color), list rooms, control a room, list scenes, activate a scene."
+          }
+        }
+      },
+      "telephony": {
+        "title": "Phone Calls",
+        "description": "LIA can place real phone calls on your behalf. Complete setup guide (Twilio + ElevenLabs) and everyday use.",
+        "count": "11",
+        "questions": {
+          "q1": {
+            "question": "What can LIA do on the phone?",
+            "answer": "LIA can place a <strong>real outbound phone call</strong> for you, pursue the goal you set, and report back in the chat.<br><br><strong>Examples:</strong><br>• \"<em>Call the bakery and ask if they have a cake for Saturday</em>\"<br>• \"<em>Call the garage to check if the car is ready</em>\"<br>• \"<em>Call Marie and ask if she's free Tuesday evening</em>\"<br><br>During the call, LIA introduces itself as an assistant calling on your behalf, holds a natural conversation toward your objective, then hangs up and writes you a summary — with a one-tap follow-up action when relevant (for example, creating the event that was just agreed).<br><br><strong>💡 Good to know:</strong> LIA only places <strong>outgoing</strong> calls — it never answers your incoming calls."
           },
-          "q15": {
-            "question": "Can LIA make phone calls for me?",
-            "answer": "Yes. LIA can place a real outbound call on your behalf — for example \"<em>call the bakery and ask if they have a cake for Saturday</em>\" or \"<em>call Marie to check if she's free Tuesday evening</em>\".<br><br><strong>How it works:</strong><br>1. You ask LIA to call someone<br>2. LIA shows you <strong>who</strong> it will call and <strong>why</strong>, and waits for your confirmation<br>3. LIA holds the conversation toward your goal<br>4. A written summary comes back into the chat, with a one-tap follow-up when useful (e.g. create the event it just agreed)<br><br><strong>💡</strong> The summary arrives asynchronously — you can keep chatting while the call happens."
+          "q2": {
+            "question": "How does a call work, step by step?",
+            "answer": "<strong>1. You ask in the chat</strong><br>\"<em>Call Dr. Martin's office and ask for an appointment this week</em>\"<br><br><strong>2. LIA asks for your confirmation</strong><br>Before dialing anything, LIA shows you a confirmation card: <strong>who</strong> it will call, <strong>which number</strong>, and <strong>why</strong>. Nothing happens without your explicit approval.<br><br><strong>3. The call takes place</strong><br>LIA's voice agent makes the call from your number and works toward the objective. You can keep chatting with LIA — or close the app — in the meantime.<br><br><strong>4. The summary arrives in the chat</strong><br>A written summary is delivered asynchronously, with a suggested follow-up action when there is something to do next. Every call also appears in your call history (<strong>Settings > Connectors > Telephony</strong>)."
           },
-          "q16": {
-            "question": "What do I need to enable phone calls?",
-            "answer": "Phone calls use your <strong>own ElevenLabs connector</strong> (bring-your-own credentials), set up in <strong>Settings &gt; Connectors</strong>:<br><br>1. Create an ElevenLabs account and a voice agent<br>2. Add your API key and agent / phone identifiers in LIA<br>3. LIA validates the connection<br><br><strong>💡 Billing:</strong> calls are billed on <strong>your own ElevenLabs account</strong> — LIA adds no surcharge and does no metering of its own. The feature is available once your administrator has enabled it."
+          "q3": {
+            "question": "What do I need before starting?",
+            "answer": "Phone calls use <strong>your own accounts</strong> with two external services — LIA adds no charge of its own:<br><br><strong>1. 📞 A Twilio account</strong> — provides the <strong>phone number</strong> LIA calls from (number rental + per-minute pricing).<br><br><strong>2. 🎙️ An ElevenLabs account</strong> — provides the <strong>voice agent</strong> that speaks during the call (requires access to the Agents platform; call minutes consume your plan's credits).<br><br><strong>3. ✅ The feature enabled by your administrator</strong> — if you don't see a <strong>Telephony</strong> block in <strong>Settings > Connectors</strong>, ask your administrator to enable it.<br><br>The full setup takes about <strong>15 minutes</strong> (plus possible validation delays for a French number) and follows 4 steps, each detailed in the next questions:<br>1. Get a phone number (Twilio)<br>2. Prepare ElevenLabs (API key + number import)<br>3. Configure the return webhook<br>4. Activate the connector in LIA"
           },
-          "q17": {
-            "question": "Is it private? Can LIA see my calendar or record the call?",
-            "answer": "Privacy is enforced <strong>by design</strong>, not by instructions:<br><br>• <strong>🔒 Read-only, free/busy only</strong> — during a call LIA can check whether you're free or busy at a given time, but <strong>never</strong> reveals your event titles, participants, locations or any content.<br>• <strong>🚫 No recording</strong> — the call is not recorded.<br>• <strong>🗑️ No stored transcript</strong> — the full conversation is never saved; only a short summary is kept, and it expires automatically.<br>• <strong>✅ You stay in control</strong> — every call is confirmed by you before it is placed."
+          "q4": {
+            "question": "Step 1 — Get a phone number (Twilio)",
+            "answer": "Twilio is the operator that provides the number LIA calls from.<br><br><strong>1. Create the account</strong><br>Sign up at <strong>twilio.com</strong> and upgrade to a paid account (the free trial only calls verified numbers).<br><br><strong>2. 🇫🇷 For a French number: submit a Regulatory Bundle</strong><br>French regulation requires an identity document and a proof of address: <strong>Phone Numbers > Regulatory Compliance > Bundles</strong>. Human validation takes up to ~3 business days.<br>• Easiest: a <strong>local number (01–05)</strong> or <strong>national number (09)</strong><br>• Avoid mobile numbers (06/07): extra requirements and 1–2 weeks of provisioning<br><br><strong>3. Buy the number</strong><br><strong>Phone Numbers > Buy a Number</strong> — make sure the <strong>Voice</strong> capability is checked.<br><br><strong>4. Note your credentials</strong><br>On the Twilio Console dashboard, copy the <strong>Account SID</strong> and the <strong>Auth Token</strong> — you will need them in the next step.<br><br><strong>💡 Just testing?</strong> A US number can be bought instantly, with no regulatory bundle."
+          },
+          "q5": {
+            "question": "Step 2 — Prepare ElevenLabs (API key + number)",
+            "answer": "ElevenLabs provides the voice agent that speaks during the call.<br><br><strong>1. Check your plan</strong><br>You need a plan with access to the <strong>Agents platform</strong>. Call minutes consume your ElevenLabs credits (on top of Twilio's per-minute cost).<br><br><strong>2. Create an API key</strong><br>Profile (bottom left) > <strong>API Keys</strong> > create a key. If you restrict its permissions, it needs at least <strong>read/write access to the Agents platform</strong> (LIA creates its agent, lists your numbers, and triggers outbound calls). A full-access key works fine to start — you can restrict it after your first successful call.<br><br><strong>3. Import your Twilio number</strong><br><strong>Agents Platform > Phone Numbers > Import from Twilio</strong>: enter the number in international format (e.g. <em>+33612345678</em>), the <strong>Account SID</strong>, the <strong>Auth Token</strong>, and a label.<br><br><strong>⚠️ Two important points:</strong><br>• Use the <strong>native Twilio import</strong>, not a SIP trunk — LIA triggers calls through ElevenLabs' Twilio integration.<br>• <strong>Do not create an agent yourself</strong>: LIA automatically provisions its own secured agent when you activate the connector (it will appear in your workspace as \"<em>LIA telephony — your name</em>\")."
+          },
+          "q6": {
+            "question": "Step 3 — Configure the return webhook",
+            "answer": "The webhook is the channel through which the call report comes back into your chat. Without it, calls go out but no summary ever returns.<br><br><strong>1. Open the webhooks settings</strong><br>In the ElevenLabs <strong>Agents workspace settings</strong>, open the <strong>Webhooks</strong> section (only a workspace admin can do this).<br><br><strong>2. Create a post-call webhook</strong><br>• Event type: <strong>post_call_transcription</strong> (transcription only)<br>• URL: the address LIA shows you at step 3 of its wizard, with a copy button — it looks like <em>https://your-lia-domain/api/v1/telephony/webhook</em><br>• Authentication: <strong>HMAC</strong><br><br><strong>3. Copy the signing secret</strong><br>ElevenLabs generates a <strong>signing secret</strong> when the webhook is created — copy it immediately, you will paste it into LIA in the next step.<br><br><strong>🔒 Leave \"Send audio data\" disabled</strong>: LIA never receives nor stores any audio — that is a design guarantee."
+          },
+          "q7": {
+            "question": "Step 4 — Activate the connector in LIA",
+            "answer": "Everything now comes together in LIA, in a 3-step wizard.<br><br>Go to <strong>Settings > Connectors > Telephony</strong> and click <strong>Connect</strong>. A notice reminds you that calls are billed on your own ElevenLabs/Twilio accounts.<br><br><strong>Step 1 — API key</strong><br>Paste your ElevenLabs API key and click <strong>Validate</strong>. LIA checks the key and lists the phone numbers of your workspace. (\"No numbers\" means the Twilio import from Step 2 is missing.)<br><br><strong>Step 2 — Number</strong><br>Pick the number LIA will call from.<br><br><strong>Step 3 — Webhook</strong><br>Copy the displayed webhook URL (if you haven't configured it in ElevenLabs yet, do it now — see the previous question), paste the <strong>signing secret</strong>, and click <strong>Activate</strong>.<br><br>LIA then creates its secured agent in your ElevenLabs workspace and the connector goes <strong>active</strong>. You're ready to call! 🎉"
+          },
+          "q8": {
+            "question": "How do I place my first call?",
+            "answer": "<strong>💡 Recommended first test:</strong> have LIA call <strong>your own mobile</strong> — you'll experience a call from the other side.<br><br><strong>1.</strong> In the chat: \"<em>Call +336XXXXXXXX and ask whether the package has arrived</em>\"<br><br><strong>2.</strong> LIA shows the confirmation card (callee, number, objective) — <strong>confirm</strong>.<br><br><strong>3.</strong> Your phone rings: the agent introduces itself as an assistant calling on your behalf, asks its question, and hangs up.<br><br><strong>4.</strong> The summary appears in the chat a few moments later — asynchronously, so you can chat in the meantime.<br><br>You can also target a <strong>contact by name</strong> (\"<em>call Marie…</em>\"): LIA looks up the number in your contacts and asks you to disambiguate if several match. The call history lives in <strong>Settings > Connectors > Telephony</strong>."
+          },
+          "q9": {
+            "question": "Is it private? Can LIA reveal my calendar or record the call?",
+            "answer": "Privacy is enforced <strong>by design</strong>, not by instructions:<br><br>• <strong>🔒 Read-only, free/busy only</strong> — during a call LIA can check whether you're free or busy at a given time, but <strong>never</strong> reveals your event titles, participants, locations or any content. The call agent simply has no access to that data.<br>• <strong>🚫 No recording</strong> — the call is not recorded.<br>• <strong>🗑️ No stored transcript</strong> — the full conversation is never saved; only a short summary is kept, and it expires automatically (30 days by default).<br>• <strong>📢 Transparent disclosure</strong> — the agent always introduces itself as an assistant calling on your behalf; it never pretends to be you.<br>• <strong>✅ You stay in control</strong> — every call is confirmed by you before it is placed."
+          },
+          "q10": {
+            "question": "How much does it cost?",
+            "answer": "LIA adds <strong>no charge of its own</strong> — costs go to your two external accounts:<br><br><strong>📞 Twilio</strong><br>• Number rental: ~1–15 €/month depending on the type<br>• Outbound minutes: per-minute rate based on the destination<br><br><strong>🎙️ ElevenLabs</strong><br>• Agent call minutes, taken from your plan's credits<br><br><strong>🤖 LIA</strong><br>• No surcharge, no markup — only the small LLM synthesis of your summary appears in your LIA usage statistics.<br><br><strong>🛡️ Built-in guardrails against surprises:</strong><br>• One active call at a time<br>• Hourly call cap per user (10/hour by default)<br>• Hard cap on call duration (10 minutes by default)"
+          },
+          "q11": {
+            "question": "It doesn't work — what should I check?",
+            "answer": "<strong>\"Invalid key\" at step 1</strong><br>→ The key is mistyped or lacks permissions (Agents platform access required).<br><br><strong>\"No numbers\" after validating the key</strong><br>→ Your number isn't imported into the ElevenLabs <strong>Agents</strong> workspace, or was imported as a SIP trunk instead of the native Twilio integration.<br><br><strong>The call goes out but no summary comes back</strong><br>→ The webhook is the issue: URL not publicly reachable, wrong signing secret, or wrong event type (it must be <strong>post_call_transcription</strong>).<br><br><strong>\"A call is already in progress\"</strong><br>→ Only one active call at a time, by design. A stuck call is automatically cleaned up after ~15 minutes.<br><br><strong>Calls refused after several in a row</strong><br>→ You've hit the hourly cap (10 calls/hour by default).<br><br><strong>Still stuck?</strong> Ask your administrator: the server logs state precisely which webhook events were received and why any were ignored."
           }
         }
       },
