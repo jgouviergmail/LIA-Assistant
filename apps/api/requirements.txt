@@ -106,7 +106,7 @@ langchain-google-genai==4.2.4  # Gemini models
 anthropic==0.105.2  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
 
 # MCP (Model Context Protocol) — evolution F2
-mcp>=1.20.0,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps support). Requires starlette>=0.27
+mcp>=1.28.1,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps support). Requires starlette>=0.27
 
 # Browser Automation — Interactive web browsing (evolution F7)
 playwright==1.60.0  # Headless Chromium for web interaction via accessibility tree
