@@ -1315,6 +1315,113 @@
     background-color: currentColor;
     animation: caret-blink 1s steps(1) infinite;
   }
+  /* --- Landing hero mockup: backstage glass pane & figures (mockup/) ---
+     The glass reveal, figure chips, connector flow, input typing and token
+     tick are all transform/opacity (plus SVG stroke-dashoffset) only. */
+  @keyframes glass-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  .animate-glass-in {
+    animation: glass-in 0.35s ease-out both;
+  }
+  /* Word-by-word input typing: each word pops in after its stagger delay. */
+  @keyframes word-in {
+    to {
+      opacity: 1;
+    }
+  }
+  .animate-word-in {
+    opacity: 0;
+    animation: word-in 0.05s steps(1) both;
+  }
+  @keyframes chip-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  .animate-chip-pop {
+    animation: chip-pop 0.3s ease-out both;
+  }
+  /* Connector fan: fade in, then dashes march along the path (token flow).
+     Paths are pathLength-normalized to 1; -0.23 = two full dash cycles. */
+  @keyframes fan-flow {
+    to {
+      stroke-dashoffset: -0.23;
+    }
+  }
+  .animate-fan-draw {
+    animation:
+      glass-in 0.4s ease-out both,
+      fan-flow 1.4s linear infinite;
+  }
+  @keyframes wire-draw {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+  .animate-wire-draw {
+    animation: wire-draw 0.45s ease-out both;
+  }
+  /* The HITL gate holding the flow: a quiet waiting pulse. */
+  @keyframes gate-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.04);
+    }
+  }
+  .animate-gate-pulse {
+    animation:
+      chip-pop 0.3s ease-out both,
+      gate-pulse 1.6s ease-in-out 0.3s infinite;
+  }
+  /* One-shot emphasis when the conversation cost counter updates. */
+  @keyframes token-tick {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    35% {
+      transform: scale(1.25);
+    }
+  }
+  .animate-token-tick {
+    display: inline-block;
+    animation: token-tick 0.5s ease-out;
+  }
+  /* The hydration glass that just got logged (skill widget, act 4). */
+  @keyframes drop-fill {
+    0% {
+      opacity: 0.3;
+      transform: scale(0.5);
+    }
+    60% {
+      transform: scale(1.2);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  .animate-drop-fill {
+    animation: drop-fill 0.45s ease-out both;
+  }
+
   /* Micro-interactions batch: the global reduced-motion kill-switch below is
      an explicit class list — new animated classes must opt out here too.
      (Typing variants swap to static dots via motion-reduce: DOM classes.) */
@@ -1330,15 +1437,25 @@
     .animate-step-breathe,
     .animate-phase-fade,
     .animate-particle-up,
+    .animate-gate-pulse,
+    .animate-token-tick,
     .progress-steps .markdown-content em:last-of-type {
       animation: none !important;
     }
     /* step-in/step-dim are 'both'/'forwards' fill animations: killing them would
-       freeze lines invisible/undimmed mid-state — jump them to their end state. */
+       freeze lines invisible/undimmed mid-state — jump them to their end state.
+       Same for the landing-mockup 'both' fills (glass, words, chips, wires…). */
     .animate-step-in,
-    .animate-step-dim {
+    .animate-step-dim,
+    .animate-glass-in,
+    .animate-word-in,
+    .animate-chip-pop,
+    .animate-fan-draw,
+    .animate-wire-draw,
+    .animate-drop-fill {
       animation-duration: 0s !important;
       animation-delay: 0s !important;
+      animation-iteration-count: 1 !important;
     }
   }
 
