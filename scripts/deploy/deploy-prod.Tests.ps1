@@ -504,6 +504,28 @@ Describe "deploy-prod.ps1 SOPS encryption (shimmed)" {
 }
 
 # ============================================================================
+# Windows PowerShell 5.1 compatibility (static) — `task deploy:prod` invokes
+# the driver through powershell.exe 5.1, while THIS suite runs under pwsh 7+.
+# PS6+-only constructs therefore pass every hermetic test here yet crash in
+# real use (seen live: 3-positional-argument Join-Path — -AdditionalChildPath
+# does not exist in 5.1 — broke step 8 of a prod deploy). Guard statically.
+# ============================================================================
+Describe "deploy scripts Windows PowerShell 5.1 compatibility (static)" {
+    It "uses no 3-positional-argument Join-Path (PS6+-only -AdditionalChildPath)" {
+        $scripts = Get-ChildItem $RepoDeployDir -Filter *.ps1 |
+            Where-Object Name -notlike "*.Tests.ps1"
+        foreach ($script in $scripts) {
+            $src = Get-Content $script.FullName -Raw
+            # Two whitespace-separated quoted literals after Join-Path on one
+            # line = a third positional argument. [ \t]+ (not \s+) so the gap
+            # between the literals cannot silently span a line break on -Raw.
+            $src | Should -Not -Match 'Join-Path\s+[^\r\n]*"[^"]*"[ \t]+"[^"]*"' `
+                -Because "$($script.Name) must run under Windows PowerShell 5.1 (task deploy:prod)"
+        }
+    }
+}
+
+# ============================================================================
 # Wiring: the GENERATED deploy.sh executed under bash with docker/curl shims —
 # green readiness, red readiness with rollback, and unrecoverable failure.
 # This is the "one system" proof: prepare-prod's heredoc + shipped gate lib.

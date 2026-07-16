@@ -494,7 +494,10 @@ ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "grep -q DOCKER_GID ~/${Rem
     # branch (audit F008 hermetic tests) does not crash Join-Path on an empty
     # path. The Windows behavior is byte-identical (USERPROFILE always set).
     $userHome = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($env:HOME) { $env:HOME } else { $null }
-    $LocalCreds = if ($userHome) { Join-Path $userHome ".claude" ".credentials.json" } else { $null }
+    # Nested Join-Path on purpose: the 3-argument form (-AdditionalChildPath)
+    # requires PowerShell 6+, and `task deploy:prod` runs under Windows
+    # PowerShell 5.1 where it is a positional-parameter error.
+    $LocalCreds = if ($userHome) { Join-Path (Join-Path $userHome ".claude") ".credentials.json" } else { $null }
     if ($LocalCreds -and (Test-Path $LocalCreds)) {
         Invoke-WithRetry -OperationName "Create remote .claude directory" -Command @"
 ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "mkdir -p ~/.claude"
