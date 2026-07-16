@@ -20,6 +20,11 @@
  * - Validates `event.source === iframeRef.current?.contentWindow`
  * - Only `https://` URLs are accepted by `ui/open-link`
  * - The iframe sandbox (applied by SkillAppWidget) omits `allow-same-origin`
+ *
+ * Structure (audit F011): the supported methods live in the module-level
+ * `_METHOD_HANDLERS` decision table, so the effect's message listener stays a
+ * thin guard/dispatch/respond pipeline. Behavior is pinned by the
+ * characterization suite in `__tests__/useSkillAppBridge.test.tsx`.
  */
 
 import { useEffect, type RefObject } from 'react';
@@ -27,6 +32,167 @@ import type { SkillAppBridgeMessage, SkillAppRegistryPayload } from '@/types/ski
 import { APP_VERSION } from '@/lib/version';
 
 export const SKILL_APPS_PROTOCOL_VERSION = '2026-04-18';
+
+/** Dependencies a skill-bridge handler needs (owned by the mounting effect). */
+interface SkillBridgeContext {
+  iframeRef: RefObject<HTMLIFrameElement | null>;
+  payload: SkillAppRegistryPayload;
+}
+
+type SkillMethodHandler = (
+  msg: SkillAppBridgeMessage,
+  ctx: SkillBridgeContext
+) => SkillAppBridgeMessage | null;
+
+/** JSON-RPC 2.0: only messages carrying an `id` are requests expecting a response. */
+function _isRequest(msg: SkillAppBridgeMessage): boolean {
+  return msg.id !== undefined && msg.id !== null;
+}
+
+/** Empty-result acknowledgement for requests; silence for notifications. */
+function _ack(msg: SkillAppBridgeMessage): SkillAppBridgeMessage | null {
+  return _isRequest(msg) ? { jsonrpc: '2.0', id: msg.id, result: {} } : null;
+}
+
+/** ui/initialize — minimal capabilities (openLinks only): skill frames cannot
+ * invoke backend tools or read arbitrary resources. */
+function _handleInitialize(
+  msg: SkillAppBridgeMessage,
+  ctx: SkillBridgeContext
+): SkillAppBridgeMessage {
+  const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  const iframe = ctx.iframeRef.current;
+  return {
+    jsonrpc: '2.0',
+    id: msg.id,
+    result: {
+      protocolVersion: SKILL_APPS_PROTOCOL_VERSION,
+      hostInfo: { name: 'LIA', version: APP_VERSION },
+      hostCapabilities: {
+        openLinks: {},
+      },
+      hostContext: {
+        skill: {
+          name: ctx.payload.skill_name,
+          isSystem: ctx.payload.is_system_skill,
+        },
+        theme,
+        containerDimensions: {
+          maxWidth: iframe?.clientWidth || undefined,
+          maxHeight: iframe?.clientHeight || Math.round(window.innerHeight * 0.8),
+        },
+        locale: document.documentElement.lang || 'fr',
+        platform: 'web',
+      },
+    },
+  };
+}
+
+/** Popup-blocked fallback: inject a clickable link banner above the iframe. */
+function _injectLinkBanner(iframeRef: RefObject<HTMLIFrameElement | null>, url: string): void {
+  const container = iframeRef.current?.parentElement;
+  if (!container) return;
+  container.querySelector('.lia-skill-app-widget__link-banner')?.remove();
+  const banner = document.createElement('div');
+  banner.className = 'lia-skill-app-widget__link-banner';
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  try {
+    link.textContent = `Open: ${new URL(url).hostname}`;
+  } catch {
+    link.textContent = 'Open link';
+  }
+  link.addEventListener('click', () => {
+    setTimeout(() => banner.remove(), 200);
+  });
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.className = 'lia-skill-app-widget__link-close';
+  closeBtn.addEventListener('click', e => {
+    e.preventDefault();
+    banner.remove();
+  });
+  banner.appendChild(link);
+  banner.appendChild(closeBtn);
+  container.insertBefore(banner, iframeRef.current);
+}
+
+/** ui/open-link / ui/open — open https URLs (banner fallback on popup block). */
+function _handleOpenLink(
+  msg: SkillAppBridgeMessage,
+  ctx: SkillBridgeContext
+): SkillAppBridgeMessage | null {
+  const params = msg.params as { url?: string } | undefined;
+  if (typeof params?.url === 'string' && params.url.startsWith('https://')) {
+    const opened = window.open(params.url, '_blank', 'noopener');
+    if (!opened) {
+      _injectLinkBanner(ctx.iframeRef, params.url);
+    }
+  }
+  return _ack(msg);
+}
+
+/** ui/notifications/size-changed — clamp the iframe height to [80, 80% vh] and
+ * release the initial aspect-ratio placeholder. Notification: no response. */
+function _handleSizeChanged(msg: SkillAppBridgeMessage, ctx: SkillBridgeContext): null {
+  const sizeParams = msg.params as { height?: number; width?: number } | undefined;
+  const iframe = ctx.iframeRef.current;
+  if (iframe && typeof sizeParams?.height === 'number' && isFinite(sizeParams.height)) {
+    const maxH = window.innerHeight * 0.8;
+    const clamped = Math.max(80, Math.min(sizeParams.height, maxH));
+    iframe.style.height = `${clamped}px`;
+    // Release the initial aspect-ratio placeholder so the explicit height takes
+    // full effect without fighting the CSS rule.
+    iframe.style.aspectRatio = 'auto';
+  }
+  return null;
+}
+
+/** notifications/message — forward MCP logging to the console. No response. */
+function _handleLogMessage(msg: SkillAppBridgeMessage): null {
+  const logParams = msg.params as { level?: string; logger?: string; text?: string } | undefined;
+  const logMsg = `[Skill App${
+    logParams?.logger ? `: ${logParams.logger}` : ''
+  }] ${String(logParams?.text ?? '')}`;
+  if (logParams?.level === 'error') console.error(logMsg);
+  else if (logParams?.level === 'warning') console.warn(logMsg);
+  else console.debug(logMsg);
+  return null;
+}
+
+/** ping — always answered. */
+function _handlePing(msg: SkillAppBridgeMessage): SkillAppBridgeMessage {
+  return { jsonrpc: '2.0', id: msg.id, result: {} };
+}
+
+/** Unknown method (tools/call, resources/read, ui/download-file, …): skill
+ * frames are sandboxed. -32601 for requests; notifications are ignored. */
+function _handleUnknownMethod(msg: SkillAppBridgeMessage): SkillAppBridgeMessage | null {
+  if (!_isRequest(msg)) return null;
+  return {
+    jsonrpc: '2.0',
+    id: msg.id,
+    error: { code: -32601, message: 'Method not found' },
+  };
+}
+
+/** ui/notifications/initialized — notification, nothing to deliver (skill
+ * frames receive data at render time via URL query params or inline HTML). */
+function _handleInitialized(): null {
+  return null;
+}
+
+const _METHOD_HANDLERS: Record<string, SkillMethodHandler> = {
+  'ui/initialize': _handleInitialize,
+  'ui/notifications/initialized': _handleInitialized,
+  'ui/open-link': _handleOpenLink,
+  'ui/open': _handleOpenLink,
+  'ui/notifications/size-changed': _handleSizeChanged,
+  'notifications/message': _handleLogMessage,
+  ping: _handlePing,
+};
 
 export function useSkillAppBridge(
   iframeRef: RefObject<HTMLIFrameElement | null>,
@@ -44,146 +210,18 @@ export function useSkillAppBridge(
       const msg = event.data as SkillAppBridgeMessage;
       if (msg?.jsonrpc !== '2.0' || !msg.method) return;
 
-      const isRequest = msg.id !== undefined && msg.id !== null;
       let response: SkillAppBridgeMessage | null = null;
-
       try {
-        switch (msg.method) {
-          case 'ui/initialize': {
-            const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-            const iframe = iframeRef.current;
-            response = {
-              jsonrpc: '2.0',
-              id: msg.id,
-              result: {
-                protocolVersion: SKILL_APPS_PROTOCOL_VERSION,
-                hostInfo: { name: 'LIA', version: APP_VERSION },
-                // Intentionally minimal capabilities — skill frames cannot
-                // invoke backend tools or read arbitrary resources.
-                hostCapabilities: {
-                  openLinks: {},
-                },
-                hostContext: {
-                  skill: {
-                    name: payload.skill_name,
-                    isSystem: payload.is_system_skill,
-                  },
-                  theme,
-                  containerDimensions: {
-                    maxWidth: iframe?.clientWidth || undefined,
-                    maxHeight: iframe?.clientHeight || Math.round(window.innerHeight * 0.8),
-                  },
-                  locale: document.documentElement.lang || 'fr',
-                  platform: 'web',
-                },
-              },
-            };
-            break;
-          }
-
-          case 'ui/notifications/initialized': {
-            // Notification — no payload delivery needed (skill frames receive
-            // data at render time via URL query params or inline HTML).
-            return;
-          }
-
-          case 'ui/open-link':
-          case 'ui/open': {
-            const params = msg.params as { url?: string } | undefined;
-            if (typeof params?.url === 'string' && params.url.startsWith('https://')) {
-              const opened = window.open(params.url, '_blank', 'noopener');
-              if (!opened) {
-                // Popup blocker — inject a clickable banner fallback
-                const container = iframeRef.current?.parentElement;
-                if (container) {
-                  container.querySelector('.lia-skill-app-widget__link-banner')?.remove();
-                  const banner = document.createElement('div');
-                  banner.className = 'lia-skill-app-widget__link-banner';
-                  const link = document.createElement('a');
-                  link.href = params.url;
-                  link.target = '_blank';
-                  link.rel = 'noopener';
-                  try {
-                    link.textContent = `Open: ${new URL(params.url).hostname}`;
-                  } catch {
-                    link.textContent = 'Open link';
-                  }
-                  link.addEventListener('click', () => {
-                    setTimeout(() => banner.remove(), 200);
-                  });
-                  const closeBtn = document.createElement('button');
-                  closeBtn.textContent = '\u00d7';
-                  closeBtn.className = 'lia-skill-app-widget__link-close';
-                  closeBtn.addEventListener('click', e => {
-                    e.preventDefault();
-                    banner.remove();
-                  });
-                  banner.appendChild(link);
-                  banner.appendChild(closeBtn);
-                  container.insertBefore(banner, iframeRef.current);
-                }
-              }
-            }
-            if (isRequest) {
-              response = { jsonrpc: '2.0', id: msg.id, result: {} };
-            }
-            break;
-          }
-
-          case 'ui/notifications/size-changed': {
-            const sizeParams = msg.params as { height?: number; width?: number } | undefined;
-            const iframe = iframeRef.current;
-            if (iframe && typeof sizeParams?.height === 'number' && isFinite(sizeParams.height)) {
-              const maxH = window.innerHeight * 0.8;
-              const clamped = Math.max(80, Math.min(sizeParams.height, maxH));
-              iframe.style.height = `${clamped}px`;
-              // Release the initial aspect-ratio placeholder so the explicit
-              // height takes full effect without fighting the CSS rule.
-              iframe.style.aspectRatio = 'auto';
-            }
-            return;
-          }
-
-          case 'notifications/message': {
-            const logParams = msg.params as
-              | { level?: string; logger?: string; text?: string }
-              | undefined;
-            const logMsg = `[Skill App${
-              logParams?.logger ? `: ${logParams.logger}` : ''
-            }] ${String(logParams?.text ?? '')}`;
-            if (logParams?.level === 'error') console.error(logMsg);
-            else if (logParams?.level === 'warning') console.warn(logMsg);
-            else console.debug(logMsg);
-            return;
-          }
-
-          case 'ping':
-            response = { jsonrpc: '2.0', id: msg.id, result: {} };
-            break;
-
-          default: {
-            // Explicitly refuse tools/call, resources/read, ui/download-file
-            // — skill frames are sandboxed and cannot invoke backend tools.
-            if (isRequest) {
-              response = {
-                jsonrpc: '2.0',
-                id: msg.id,
-                error: { code: -32601, message: 'Method not found' },
-              };
-            }
-            break;
-          }
-        }
+        const methodHandler = _METHOD_HANDLERS[msg.method] ?? _handleUnknownMethod;
+        response = methodHandler(msg, { iframeRef, payload });
       } catch (err) {
-        if (isRequest) {
-          response = {
-            jsonrpc: '2.0',
-            id: msg.id,
-            error: { code: -32000, message: String(err) },
-          };
-        } else {
-          return;
-        }
+        // Only send error responses for requests, never for notifications.
+        if (!_isRequest(msg)) return;
+        response = {
+          jsonrpc: '2.0',
+          id: msg.id,
+          error: { code: -32000, message: String(err) },
+        };
       }
 
       if (mounted && response) {

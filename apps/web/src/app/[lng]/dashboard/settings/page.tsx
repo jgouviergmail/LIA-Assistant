@@ -476,7 +476,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       )}
 
       {/* Version */}
-      <p className="text-xs text-muted-foreground/50 text-center pt-4">v{APP_VERSION}</p>
+      <p className="text-xs text-muted-foreground text-center pt-4">v{APP_VERSION}</p>
     </div>
   );
 }

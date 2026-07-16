@@ -94,6 +94,16 @@ def run_failfast_validations() -> None:
         logger.error("evidence_entity_registry_incomplete", error=str(exc), exc_info=True)
         raise
 
+    # Enforce the PostgreSQL connection budget (F004): fail-fast in production,
+    # warn in development. The shipped prod profile fits (168 ≤ 195 usable), so an
+    # overcommit in production is a genuinely mis-sized deployment — booting it
+    # would intermittently exhaust the server, so we refuse to start instead.
+    from src.core.config import settings
+    from src.infrastructure.database.connection_budget import enforce_connection_budget
+
+    for warning in enforce_connection_budget(settings):
+        logger.warning("db_connection_budget_overcommit", detail=warning)
+
 
 def init_tool_schemas() -> None:
     """Register tool schemas (Phase 2.1 - Issue #32).

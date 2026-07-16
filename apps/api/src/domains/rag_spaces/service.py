@@ -434,7 +434,10 @@ class RAGSpaceService:
                     "original_filename": original_filename,
                     "file_size": file_size,
                     "content_type": content_type,
-                    "status": RAGDocumentStatus.PROCESSING,
+                    # Durable-job (audit F001): created PENDING; the fire-and-forget
+                    # process_document claims it (PENDING -> PROCESSING + lease). A
+                    # crash before/after the claim leaves a recoverable row.
+                    "status": RAGDocumentStatus.PENDING,
                 }
             )
             await self.db.commit()

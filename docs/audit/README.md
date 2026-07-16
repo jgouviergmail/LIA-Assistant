@@ -1,145 +1,142 @@
 # LIA — Public Technical Audit Report
 
-> **Latest assessment: 8.5/10** — like-for-like on the historical 20 areas (trajectory 8.0 → 8.4 → 8.5); **8.4/10 across the extended 24-area grid** mapped to ISO/IEC 25010.
-> Audited commit: `1b3a0ebc` (v1.23.7, 2026-07-10) · Method: adversarial, evidence-based, every finding verified in the code · Security is assessed separately (see [SECURITY.md](../../SECURITY.md)).
+> **Latest assessment: 8.3/10** (199/240) across **24 normalized areas** — snapshot of 2026-07-16, released as **v1.25.0**.
+> Full standalone report: [AUDIT_CODEBASE_2026-07-16_CONSOLIDE_V11.html](./AUDIT_CODEBASE_2026-07-16_CONSOLIDE_V11.html) · Method: evidence-based with systematic counter-proofs, every score backed by at least three executed evidence points · **Security is explicitly and entirely out of scope** (covered separately — see [SECURITY.md](../../SECURITY.md)).
+>
+> ⚠️ **The grading framework was fully revised in this cycle** (normalized 24-area grid, anchored scale, arithmetic mean, counter-analysis stage). Scores are **not comparable like-for-like** with pre-revision cycles (8.5/10 on the historical grid): the framework got stricter, not the codebase worse — this cycle closed every previously-open major and minor finding.
 
-LIA's engineering claims are public, so their verification should be too. This report is the detailed backing for every quality figure shown on the [landing page](https://lia.jeyswork.com/), the [/story field report](https://lia.jeyswork.com/story) and the README. It is updated after each audit cycle — including the findings we have not fixed yet.
+LIA's engineering claims are public, so their verification should be too. This report is the summary backing for every quality figure shown on the [landing page](https://lia.jeyswork.com/), the [/story field report](https://lia.jeyswork.com/story) and the README; the complete, self-contained report (scorecard, evidence register, counter-analysis, worksite prompts, annexes) is versioned next to this file. It is updated after each audit cycle — including the findings we have not fixed yet.
 
 ---
 
 ## Why we publish this
 
-Most projects claim quality; few make the claim falsifiable. This repository is open source, its audit reports are published with their open findings, and the sections below include the exact commands to reproduce the core measurements yourself. The score matters less than the loop that produces it: **audit → prioritized remediation → re-audit**, with every fix landing as a versioned release backed by an Architecture Decision Record.
+Most projects claim quality; few make the claim falsifiable. This repository is open source, its audit reports are published with their open worksites, and the sections below include the exact commands to reproduce the core measurements yourself. The score matters less than the loop that produces it: **audit → prioritized remediation → re-audit**, with every fix landing as a versioned release backed by an Architecture Decision Record.
 
-The method is as auditable as the code: the full audit protocol — scope, depth, evidence requirements, scoring discipline, publication pipeline — is versioned in [AUDIT_PROTOCOL.md](./AUDIT_PROTOCOL.md), and the size metrics come from a committed measurement script ([`scripts/audit/measure_sloc.py`](../../scripts/audit/measure_sloc.py)).
+The method is as auditable as the code: the full audit protocol — scope, referentials, evidence requirements, scoring discipline, publication pipeline — is versioned in [AUDIT_PROTOCOL.md](./AUDIT_PROTOCOL.md), and the structural metrics come from committed measurement scripts ([`scripts/audit/`](../../scripts/audit/)).
 
-## Method
+## Scope, referentials and method (V11 framework)
 
-- **Auditor & posture.** The audit is conducted with AI tooling under human direction, in a deliberately adversarial posture — the same method that builds the product is used to attack it. Every negative finding is verified at file level and counter-checked to eliminate false positives before it is recorded; several candidate findings are discarded at that stage in each cycle.
-- **Evidence over declarations.** Test suites are *executed* during the audit, not trusted from CI history. Size metrics are measured in **logical SLOC** (tokenizer + AST, excluding docstrings, comments and blank lines), with data modules (i18n tables, configuration) distinguished from logic modules.
-- **Market frameworks.** Scoring follows the **ISO/IEC 25010** product-quality characteristics (security excluded — audited separately), structural quality is assessed against the **ISO/IEC 5055 (CISQ)** weakness categories, delivery performance against **DORA** metrics, and accessibility is sampled against **WCAG 2.1**.
-- **Nothing accepted from labels.** Every cycle re-verifies each finding of the previous register in the code before marking it resolved — never on the basis of a commit message (July 10 cycle: 16 items re-verified, 6 closed with proof).
-- **Figures are pinned to the audited commit.** The repository moves fast (multiple releases per week); running totals elsewhere (README statistics, landing counters) evolve with each release and may legitimately differ from the commit-pinned numbers in this report.
+- **Object.** The working tree visible at the cut-off (2026-07-16 09:36 CEST, released as v1.25.0): `apps/api`, `apps/web`, `infrastructure`, `scripts`, `docs`, Taskfile, manifests, lockfiles, Dockerfiles, Compose and CI workflows. **Absolute exclusion:** any security analysis — vulnerabilities, secrets, authn/authz, cryptography, hardening, SAST/DAST, vulnerable dependencies, threat modeling, intrusion testing. No score, finding or prompt takes security into account.
+- **Referentials.** Product quality: **ISO/IEC 25010:2023** and **ISO/IEC 25040:2024** (security characteristic neutralized). Architecture: **ISO/IEC/IEEE 42010:2022**. Test processes: **ISO/IEC/IEEE 29119-2:2021**; automated structural quality: **ISO/IEC 5055:2021**. Interaction: **WCAG 2.2 level AA** as the accessibility control grid, complemented by WAI-ARIA practices — no claim of full conformity is made. The audit is an internal assessment aligned on industrial referentials; it is **not** an accredited certification, a guarantee of absence of defects, or a WCAG conformity attestation.
+- **Process.** Inventory (bounded contexts, files, functions, tests, migrations, workflows, docs) → static controls (Ruff, Black, MyPy strict, ESLint, clean TypeScript, i18n parity, doc links, cycles, complexity, size, baselined debts) → dynamic controls (backend suites, PostgreSQL/Redis integration, migrations, Vitest with coverage, Playwright/axe, hermetic deployment, production Docker builds) → **counter-proofs** (reactivating skipped tests, Windows execution under SelectorEventLoop, standalone Next.js build, dev-style vs production-artifact distinction, durable-RAG path inspection).
+- **Qualification rule.** No finding rests solely on a comment, a green baseline, a skipped test, an exit code or a historical observation. A dedicated counter-analysis stage documents discarded false positives and corrected false negatives.
+- **Scoring.** 24 independent scores in 0.5 steps, each backed by **at least three evidence points**; the global score is their plain arithmetic mean (199 ÷ 24 = 8.29 → **8.3/10**). Finding levels: *major* (assurance or an essential user quality significantly compromised), *moderate* (substantial but bounded debt), *minor* (localized, no confirmed functional impact). Effort scale E1 (< half a day) to E5 (> 3 weeks).
 
-## Scorecard — 24 areas (2026-07-10)
+## Scorecard — 24 normalized areas (2026-07-16)
 
-| Area | Score | Evidence highlights |
-|---|---|---|
-| Infrastructure | 9.0 | Resource-capped compose with measured limits, automated PostgreSQL backups with **tested restore drill** (ADR-109), reproducible Python builds with hash pinning (ADR-112), multi-arch images |
-| Data & persistence | 9.0 | 100% of foreign keys carry `ondelete`, single-head migration chain enforced in CI, server-side atomic upserts, `FOR UPDATE SKIP LOCKED` consumers |
-| Design | 9.0 | Dual execution modes (deterministic pipeline vs autonomous agent, 4–8× token spread), 6-level human-in-the-loop with replay-safe contract, new subsystems de-risked by POC before build (ADR-117) |
-| Reliability | 9.0 | Test suite rehabilitated end-to-end (ADR-113), integration stage gated in CI, connection-pool gain proven by a committed benchmark |
-| Quality tooling | 9.0 | Strict typing on both languages, 4 custom AST guards (JSONB mutation, naive datetimes, empty except blocks, cap constants), double coverage ratchet (backend gate + frontend thresholds) |
-| CI/CD & delivery | 9.0 | SHA-pinned actions, real PostgreSQL/Redis services in CI, integration job, CodeQL/Trivy/SBOM chain active |
-| Configuration & dependencies | 8.5 | Lockfile with `--require-hashes` consumed by the production build, settings-driven everything (700+ documented variables) |
-| Genericity | 8.5 | Generic base classes across repositories/connectors/agents, registries with boot-time completeness asserts — the app refuses to start on a missing entry |
-| Extensibility | 8.5 | Adding an agent/tool/domain/language is a documented, checklist-driven path — demonstrated by 140+ releases without a core rewrite |
-| Robustness | 9.0 | Settings-driven timeouts on 100% of HTTP clients, circuit breakers at connector base classes, typed domain error contract (ADR-114), zero silent exception swallowing (guarded), and hard-shutdown resilience of detached runs (stream safety-TTL, orphan-run detection with grace period, atomic listener accounting) |
-| Optimization | 8.5 | Multi-level caching with documented invalidation and kill-switches, token-count memoization on the hot reducer path, real code-splitting |
-| Patterns & practices | 8.5 | Engineering rules are written **and** enforced by blocking checks; deviations are counted, tracked and closed (3 rule classes closed since July 7) |
-| Tests | 8.5 | **10,066 backend tests passing when executed by the auditor at the audited commit — in a single pytest process** (5 of the 6 test-isolation anomalies found by the previous cycle are fixed; one order-dependent case remains under strictly sequential collection and is tracked in the worksites); frontend state machines (reducers, SSE handlers, stores) locked at **100% coverage thresholds**; an SSE contract-symmetry test pins backend events to frontend handlers |
-| Documentation | 8.5 | 116 Architecture Decision Records, 140+ release changelog, 30+ operational runbooks, per-domain technical docs |
-| Portability | 8.5 | Fully containerized, amd64+arm64 images, Windows dev / Linux ARM prod reconciled by design |
-| Architecture | 8.0 | Structured DDD (31 bounded contexts), central orchestration graph with factored domain agents, cross-worker cache invalidation, scheduler leader election |
-| Implementation | 8.0 | Median function size 12 SLOC, 93% function docstring coverage; the two largest functions were decomposed this cycle (boot sequence: 768 → 89 lines; SSE core: −35%), the remaining oversized set is tracked under the CI size ratchet |
-| Operability & observability | 9.0 | **Live alert delivery**: a 13-alert vital core wired to Alertmanager e-mail, thresholds env-templated with descriptions bound to the same variables, every alert annotated with its runbook (ADR-119) — plus 20 dashboards, ~400 metrics, correlated tracing, PII-filtered logging, split probes (ADR-115) |
-| Scalability | 8.0 | LangGraph checkpoint/store connection pooling (ADR-111) removed the main concurrency bottleneck; detached background runs decouple work from client connections (ADR-117) |
-| Compatibility | 8.0 | Versioned API, SSE contract under symmetry test, MCP / CalDAV / IMAP / vCard interoperability |
-| Functional suitability | 8.0 | Broad feature surface under three test stages; known gaps are documented decisions, not surprises |
-| Performance | 7.5 | Resource efficiency is excellent; time-to-first-token — the openly acknowledged product weak point — is now instrumented **and measurably improving**: the first two optimization lots shipped and validated (−1.1 s on every request from the router lot alone); the remaining lots are scoped in the committed latency plan |
-| Maintainability | 7.5 | Healthy at the median, and file growth is now **mechanically blocked**: a CI ratchet freezes every logical file's size (caps can only go down). The decomposition of the known oversized files has started (startup sequence extracted to modules, voice coordination extracted from the SSE core: −35%) |
-| Usability & accessibility | 7.0 | Solid baseline (ARIA labelling, reduced-motion, keyboard focus, 6-language parity enforced in CI); first formal WCAG pass scheduled |
+| # | Area | Score | Evidence highlights |
+|---|------|-------|---------------------|
+| 1 | Infrastructure | 8.5 | Production API and Web images built during the audit; Compose topology, readiness, backup/restore documented; deployment harness green incl. 25/25 PowerShell scenarios |
+| 2 | Data & persistence | 8.5 | Alembic replays from an empty database (single head, zero drift); 579 main integrations pass against real PostgreSQL/Redis; durable transactional RAG jobs — read continuity during global reindex still incomplete |
+| 3 | Configuration & dependencies | 8.5 | Lockfiles consumed by reproducible builds; modular settings, feature flags, env examples; Testcontainers works on Windows without manual override |
+| 4 | Architecture | 7.5 | 32 bounded contexts with explicit assembly; pipeline / ReAct / read-only aggregation separated; **31 runtime import cycles** and several strongly-coupled hubs |
+| 5 | Application design | 8.5 | Multi-level HITL contracts, bounded LangGraph state, error taxonomies, partial degradation, leases/reapers/durable jobs |
+| 6 | Genericity | 8.0 | BaseRepository, validation mixins, abstract clients, LLM factories, connector resolvers, boot-time registry completeness asserts |
+| 7 | Extensibility | 8.5 | Agent/tool guides and integration checklists; versioned prompts and feature flags; 6-language parity enforced automatically |
+| 8 | Implementation | 7.5 | Ruff/Black/MyPy/ESLint/TypeScript green over 6,145 analyzed backend functions; **347 functions at CC≥15** and 165 above 100 SLOC |
+| 9 | Maintainability | 7.0 | Size/complexity/coupling ratchets in place; 40 backend files at ≥800 SLOC; max hotspot 692 SLOC; max frontend complexity 74 |
+| 10 | Quality tooling | 9.0 | Static, AST and documentation gates automated; cycle/complexity/MyPy/React/size/coverage ratchets; lint, migrations, integration, E2E, deploy and builds all runnable locally |
+| 11 | Patterns & practices | 8.0 | Structured logging and centralized tool contracts; consistent DDD, Pydantic v2, SQLAlchemy v2; **91 MyPy exemption pairs** keep zones outside strict guarantee |
+| 12 | Robustness | 8.5 | Timeouts, retries, partial errors and fallbacks covered; migration rollback and job recovery tested; strict suites with zero ResourceWarning or pool leak |
+| 13 | Reliability | 8.5 | 10,148 fast unit + 972 agents tests pass; 582 selected integration tests pass; RAG reindex still temporarily interrupts user search |
+| 14 | Performance | 7.5 | TTFT, durations and costs instrumented; caches, single-flight and dedicated streaming paths; no full load campaign executed |
+| 15 | Optimization | 8.0 | Multi-level caches and concurrent aggregations; economical pipeline mode and in-memory pricing; structural hotspots still limit reasoned optimization |
+| 16 | Scalability | 8.5 | PostgreSQL/Redis pools and separated concurrent sessions; 20 concurrent LangGraph invocations and 20 concurrent store cycles pass on Windows; no full capacity campaign |
+| 17 | Operability & observability | 8.5 | 2 valid Prometheus rule files, 22 structurally-valid Grafana dashboards, structured logs, probes, business metrics, runbooks |
+| 18 | CI/CD & delivery | 9.0 | Production images built from locks; hermetic E2E and migrations wired into the gates; delivery, readiness and rollback covered by the harnesses |
+| 19 | Tests & assurance | 8.5 | 11,967 backend tests collected with controlled taxonomy/allowlist; 1,222 frontend tests and 17 Chromium E2E pass; frontend coverage at **35.4%** with 255 instrumented files at zero |
+| 20 | Documentation | 8.5 | 0 broken links and 0 stale paths in living documentation; rich index, ADRs, guides, runbooks; historical (non-blocking) debt isolated |
+| 21 | Portability | 8.5 | Windows development and Linux images both validated; Playwright in the official glibc image; Testcontainers and concurrent psycopg pools pass under Windows SelectorEventLoop |
+| 22 | Compatibility | 8.0 | API versioning and SSE symmetry tests; MCP, CalDAV, IMAP, structured vCard interop; browser validation limited to Chromium |
+| 23 | Functional suitability | 8.5 | Broad feature surface, explicitly wired domains; builds, unit, agents, integration, E2E and migrations all pass; real external providers not exercised |
+| 24 | Usability & accessibility | 9.0 | 0 static jsx-a11y violations and strict 6-language parity; 17/17 E2E incl. axe, keyboard, 320 px mobile, zoom and dark mode against a standalone build |
 
 ## The proof is the loop, not the snapshot
 
-Between the July 7 and July 9 audits — 48 hours — **10 of 17 open findings were resolved, each shipped as a versioned release with its own ADR**, then re-verified in the code by the follow-up audit:
+Between the previous cycle (V10, 2026-07-15) and this one — a single remediation wave, shipped as v1.25.0 — **every previously-open major and minor finding was closed and re-verified by executed counter-proof**:
 
-| Finding (July 7) | Resolution | ADR |
-|---|---|---|
-| No versioned database backups | Scheduled backups + rotation + tested restore drill | ADR-109 |
-| LangGraph single-connection bottleneck | Connection pooling, sized against a documented budget, gain benchmarked | ADR-111 |
-| No Python lockfile | Hash-pinned reproducible builds | ADR-112 |
-| Test-suite quarantine & missing integration gate | Suite rehabilitation, integration CI job, coverage ratchet raised | ADR-113 |
-| Raw HTTP exceptions in connector clients | Typed domain error contract, API contract byte-identical | ADR-114 |
-| Dead liveness contract | Separate liveness/readiness probes | ADR-115 |
-| Near-absent frontend tests | Test foundation: state machines at 100% locked thresholds, SSE symmetry test | ADR-116 |
-| Naive datetimes (9 sites) | All fixed + CI guard extended to prevent recurrence | — |
-| 193 empty exception handlers | All eliminated + AST guard added | — |
-| Documentation drift (compose comments, probes) | Corrected in the same wave | — |
-
-Between July 9 and July 10 — seven releases — the loop ran again: **six more findings closed, each with its proof**:
-
-| Finding (July 9) | Resolution | Reference |
-|---|---|---|
-| Real-time alert delivery disabled | 13-alert vital core wired to Alertmanager (env-templated thresholds, runbook-annotated), proven end-to-end | ADR-119 |
-| Hard-shutdown gap on detached runs | Stream safety-TTL during the run, orphan detection with grace period in the SSE relay, atomic listener accounting | v1.23.x |
-| Oversized boot sequence | Lifespan decomposed into 7 startup modules — 768 → 89 lines, ordering documented | ADR-123 |
-| No guard against file regrowth | CI size ratchet on logical SLOC — caps only ever go down | v1.23.x |
-| Last tool-policy gap (image generation, DevOps CLI) | Tool-layer rate limiting completed | v1.23.4 |
-| Test-suite isolation defect (found by the previous audit) | 5 of 6 anomalies fixed — the combined single-process run is green under parallel scheduling; one order-dependent residue tracked | v1.23.x |
-
-Two more moved substantially: the SSE core shrank by 35% (voice coordination extracted, ADR-122) and the first two latency lots shipped with measured gains (−1.1 s TTFT on every request).
-
-The July 9 re-audit also **found a new defect by executing the suites itself** (a test-isolation issue invisible to CI), which entered the register like any other finding. An audit that never finds anything new is not auditing.
-
-## Open engineering worksites
-
-Published deliberately — a quality claim without its known gaps is marketing, not engineering. All of these items are visible in the open-source repository; this table only adds their prioritization.
-
-| Worksite | Status |
+| Finding (previous register) | Resolution — all verifiable in this repository |
 |---|---|
-| Latency: the remaining optimization lots (skill-turn streaming, validator robustness) | Next product wave — plan committed in the repo |
-| Retirement of the legacy streaming path once the detached path has production proof | Criteria being defined |
-| Continued decomposition of the remaining oversized modules (under the CI size ratchet) | Ongoing — one extraction per release |
-| Connector HTTP client lifecycle (keep-alive reuse) | Design options under evaluation |
-| End-to-end browser smoke suite (chat, HITL, detached-run reattach) | Planned |
-| Reducing the agents-suite skips (deterministic fake-LLM tier) | Strategy validated |
-| Last order-dependent test-isolation case (sequential single-process collection) | 5 of 6 fixed; root cause pattern known |
-| Documentation freshness automation (announced counts vs actual — drifted twice in two cycles) | Priority small fix |
-| First formal WCAG 2.1 AA pass | Planned |
-| DORA completion: incident register for change-failure-rate and MTTR | Planned |
-| Recalibration of the legacy alert set (the vital core is live; the long tail is deliberately off until re-thresholded) | Scoped by ADR-119 |
+| Windows integration bootstrap broken (testcontainers, 420+ silent skips) | Root cause: a transitive wheel clobbering `urllib3`; editor opt-out encoded on all 4 install surfaces + preflight + namespace guard — full PostgreSQL integration campaign now runs on Windows |
+| Integration fixtures leaking to the developer database | Process-wide redirection (settings, global engine, LangGraph checkpointer/store pools) + a guard that fails loudly on any dev-DB connection while Testcontainers is active |
+| Whole-run freeze at checkpointer init | Root cause: `CREATE INDEX CONCURRENTLY` migrations deadlocking against the per-test transaction — LangGraph tables now provisioned once per session; regression pinned by a bounded test proven red/green |
+| Launcher-dependent test verdicts (12 failures under `task`, green under pytest) | Root cause: the task runner exported the entire developer `.env` into test processes — scrubbed before `.env.test` loads; contract proven red under simulated contamination |
+| E2E harness instability (dev-server 500s, corrupted webpack cache) + phantom dark-mode WCAG violations | Proof runs moved to the production standalone server (managed CI web server fixed for `output: standalone`); the "dark contrast defect" was an unstyled-page artifact — palette proven clean, **17/17 E2E including dark mode**; a guard now aborts any scan on an unstyled page |
+| Production build broken on a fresh install | An undeclared transitive import (`hast-util-sanitize`) replaced by the official `rehype-sanitize` re-export |
+| 15 obsolete permanent skips (checkpointer, conversations, PKCE, pool concurrency, LLM config) | All reactivated: assertions realigned on current contracts (PKCE authorization URL, page-scoped `total_count`, reset-without-soft-delete, invocation-boundary metrics callbacks) — **the main integration phase now passes with zero skips** |
+
+The counter-analysis stage works both ways: this cycle *discarded* false positives (the deployment path presumed broken from a read-only inspection; the dark-mode contrast defect) **and** corrected false negatives (skipped PostgreSQL tests reactivated into a full Windows campaign; ratchet-green debts re-counted at their absolute values).
+
+## Open worksites — 7 moderate, 0 major, 0 minor
+
+Published deliberately — a quality claim without its known gaps is marketing, not engineering. Each worksite in the [full report](./AUDIT_CODEBASE_2026-07-16_CONSOLIDE_V11.html) carries its evidence, closure criteria, effort estimate and a ready-to-run resolution prompt.
+
+| # | Worksite | Level · Effort |
+|---|---|---|
+| AC-001 | RAG reindexation temporarily suspends user search globally (durability is done; read continuity on a stable generation during rebuild is not) | Moderate · E4 |
+| AC-002 | Frontend coverage is shallow and concentrated (35.4% statements; 255 of 425 instrumented files at zero) | Moderate · E4 |
+| AC-003 | Backend hotspots combine volume and complexity (347 functions CC≥15, max 89; 40 files ≥800 SLOC) | Moderate · E5 |
+| AC-004 | 31 runtime import cycles remain tolerated by the baseline | Moderate · E4 |
+| AC-005 | 91 MyPy exemption pairs bound the typing guarantee | Moderate · E3 |
+| AC-006 | Frontend complexity concentrated in 59 functions (max CC 74) | Moderate · E4 |
+| AC-007 | 34 strict-React deviations remain baselined | Moderate · E3 |
+
+**Recommended sequencing** (risk × dependencies × effort): 0–30 days — AC-002, AC-007, start AC-005; 30–90 days — AC-001, AC-006, first AC-003 batches; 90–180 days — AC-003 program, AC-004, MyPy continuation. Continuous: load campaigns, Firefox/WebKit/assistive-technology matrix, DORA series, provider tests on a controlled environment.
 
 ## Delivery performance (DORA)
 
 | Metric | Measured | Level |
 |---|---|---|
-| Deployment frequency | 141 releases in 10 months; 8 in the 24h following the last audit | Elite |
+| Deployment frequency | 149 releases in 10 months | Elite |
 | Lead time for changes | Under one day (tag-to-production same day) | Elite |
-| Change failure rate / MTTR | Not yet instrumented — incident register is an open worksite above | In progress |
+| Change failure rate / MTTR | Not instrumented — no historical series exists, so the audit does not score these as if observed | Open worksite |
 
 ## Reproduce it yourself
 
 ```bash
-# Backend suites (the numbers in this report were produced by running these,
-# as separate invocations — the same way CI runs them)
-cd apps/api
-pytest tests/unit   -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --no-cov
-pytest tests/agents -m "not slow and not e2e and not benchmark and not multiprocess" --no-cov
-pytest tests/integration          # requires PostgreSQL + Redis (docker compose dev)
+# Static gates and ratchets
+task lint
+cd apps/web && pnpm exec tsc --noEmit --incremental false
 
-# The custom AST guards that make the engineering rules non-negotiable
-pytest tests/unit/test_jsonb_mutation_guard.py tests/unit/test_no_hardcoded_timezone_guard.py \
-       tests/unit/test_no_empty_except_guard.py tests/unit/test_max_items_cap_guard.py -v
+# Backend suites (the exhaustive suite is deliberately excluded by repo policy)
+task test:backend:unit:fast
+task test:backend:agents
+task test:backend:integration     # PostgreSQL/Redis via Testcontainers — works on Windows
 
-# Frontend suites and locked coverage thresholds
-cd apps/web && pnpm test -- --coverage
+# Migrations: empty-DB replay, single head, downgrade/upgrade, drift check
+task db:migrate:replay-check
 
-# Migration-chain integrity, i18n parity, hygiene checks: see .github/workflows/ci.yml
+# Frontend
+cd apps/web && pnpm test:coverage
+
+# E2E (hermetic, official Playwright image, standalone production build)
+# see apps/web/e2e/README.md
+
+# Delivery + production images
+task test:deploy
+task build
+
+# Structural measurements (committed instruments)
+apps/api/.venv/Scripts/python scripts/audit/measure_sloc.py apps/api/src
+apps/api/.venv/Scripts/python scripts/audit/measure_cc.py --check-ratchet
+apps/api/.venv/Scripts/python scripts/audit/measure_coupling.py --check-cycles
+apps/api/.venv/Scripts/python scripts/audit/measure_mypy_debt.py --check
 ```
 
-**Transparency note.** The July 9 audit found 6 test-isolation anomalies when running the unit and agents suites in a *single* pytest process (they passed when run separately, as CI does). We published that defect instead of hiding it behind split commands — and five of the six were fixed within a day: as of the July 10 audit, the combined single-process run is green under parallel scheduling (10,066 tests, xdist); one order-dependent case still fails under strictly sequential collection and stays on the public worksite list until closed. One residual quirk remains: one performance test asserts an absolute wall-clock threshold and can flake on a saturated machine (it passes in 0.2 s on a quiet one); its migration to the repo's calibrated-baseline pattern is in the worksites.
+**Interpretation caution** (from the report's own annexes): results describe the audited snapshot, not a permanent property of all versions; "conformant" means "conformant to the executed control", not universal conformity to an entire standard; no real LLM/OAuth/email providers were called; no sustained load test was run; browsers were Chromium-only; coverage measures execution, not assertion quality; and the total absence of security findings means nothing about security, which is out of scope by design.
 
 ## Audit history
 
-| Date | Scope | Score | Register |
+| Date | Framework | Score | Register |
 |---|---|---|---|
-| 2026-07-10 | 24 areas, commit `1b3a0ebc` (v1.23.7) | **8.5/10** like-for-like · 8.4/10 on 24 areas | 12 open items — 6 of the previous 16 closed, 2 advanced |
-| 2026-07-09 | 24 areas (ISO 25010 grid), commit `182f3927` | 8.4/10 like-for-like · 8.3/10 on 24 areas | 16 open items, prioritized in 4 waves |
-| 2026-07-07 | 20 areas, commit `bbde28f1` | 8.0/10 | 17 items → 10 resolved within 48h |
+| **2026-07-16** | **V11 — normalized 24-area grid, revised method** (report: [HTML](./AUDIT_CODEBASE_2026-07-16_CONSOLIDE_V11.html)) | **8.3/10** (199/240) | **7 moderate worksites — 0 major, 0 minor**; all previously-open majors/minors closed with executed proof |
+| 2026-07-10 | Historical grid (20 areas + 4 exploratory) | 8.5/10 like-for-like · 8.4/10 on 24 areas | 12 open items — 6 of the previous 16 closed, 2 advanced |
+| 2026-07-09 | Historical grid | 8.4/10 like-for-like · 8.3/10 on 24 areas | 16 open items, prioritized in 4 waves |
+| 2026-07-07 | Historical grid (20 areas) | 8.0/10 | 17 items → 10 resolved within 48h |
 
-Audits recur after each major remediation wave. Scores can go down as well as up — that is the point of measuring.
+Scores across framework revisions are not directly comparable; within a framework they can go down as well as up — that is the point of measuring. Audits recur after each major remediation wave.
 
 ---
 
-*Conducted with AI tooling under human direction, in an adversarial posture; every conclusion anchored in evidence that this repository lets you check. Security is deliberately out of scope here and covered by a separate assessment (see [SECURITY.md](../../SECURITY.md)).*
+*An internal audit aligned on industrial referentials (ISO/IEC 25010:2023, 25040:2024, 42010:2022, 29119-2:2021, 5055:2021; WCAG 2.2 AA as a control grid), conducted with AI tooling under human direction, every conclusion anchored in executed evidence that this repository lets you check. It is neither an accredited certification nor a guarantee of absence of defects. Security is deliberately out of scope here and covered by a separate assessment (see [SECURITY.md](../../SECURITY.md)).*

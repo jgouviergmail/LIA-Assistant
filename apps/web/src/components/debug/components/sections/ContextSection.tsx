@@ -85,7 +85,7 @@ export const ContextSection = React.memo(function ContextSection({ data }: Conte
                     className="flex items-center gap-2 text-xs p-1.5 bg-muted/50 rounded border border-border/50"
                   >
                     <span className="text-primary font-medium">{key}</span>
-                    <span className="text-muted-foreground/50">→</span>
+                    <span className="text-muted-foreground">→</span>
                     <span className="font-mono text-[11px] text-foreground/80 truncate">
                       {value}
                     </span>

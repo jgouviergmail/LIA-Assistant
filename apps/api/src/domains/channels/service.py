@@ -89,7 +89,7 @@ class ChannelService:
             "user_id": str(user_id),
             "channel_type": channel_type.value,
         }
-        await redis.setex(key, otp_ttl, json.dumps(data))
+        await redis.set(key, json.dumps(data), ex=otp_ttl)
 
         channel_otp_generated_total.labels(channel_type=channel_type.value).inc()
 

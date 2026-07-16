@@ -249,7 +249,7 @@ async def stream_notifications(
             await pubsub.subscribe(channel)
 
             # Track SSE connection in Redis for OAuth health check deduplication
-            await redis.setex(sse_key, sse_ttl, "1")
+            await redis.set(sse_key, "1", ex=sse_ttl)
 
             logger.info(
                 "sse_client_connected",

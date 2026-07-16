@@ -158,6 +158,16 @@ class APIKeyValidationResponse(BaseModel):
     """Response schema for API key validation."""
 
     is_valid: bool = Field(..., description="Whether the API key is valid")
+    functionally_verified: bool = Field(
+        False,
+        description=(
+            "True when a real authenticated call to the provider confirmed the key "
+            "(audit F034); False when only the format was checked because no "
+            "functional verifier exists for this connector type. A valid-but-"
+            "unverified key is usable but unconfirmed against the provider — the UI "
+            "must present it distinctly, never as a verified connection."
+        ),
+    )
     message: str = Field(..., description="Validation result message")
     masked_key: str = Field(..., description="Masked version of the key for display")
     expires_at: datetime | None = Field(None, description="Key expiration if detected")

@@ -1847,7 +1847,7 @@ EXEMPLES DE FORMATAGE (Few-Shot)
 
 ### 12.4 Structure d'un Fichier Few-Shot
 
-**Fichier**: `src/domains/agents/prompts/v1/fewshot/contacts_search.txt`
+**Fichier** *(exemple)*: `src/domains/agents/prompts/v1/fewshot/contacts_search.txt`
 
 ```text
 ### Exemple: Liste de contacts
@@ -3884,7 +3884,17 @@ def format_registry_response(self, result: dict[str, Any]) -> StandardToolOutput
 
 #### Concept
 
-Le replanner détecte les échecs d'exécution et décide de la stratégie de récupération.
+> **⚠️ Advisory only (audit F017 / D4).** The `AdaptiveRePlanner` **computes and
+> emits** a recovery decision as an *observability signal* (Prometheus counters +
+> structured logs), but **automatic recovery is not wired**: `RETRY_SAME` and
+> `REPLAN_MODIFIED` are logged (`replan_retry_not_wired` /
+> `replan_modified_not_wired`) and the failed-step results simply flow to the
+> response node, which surfaces the failure. Re-execution would require an edge
+> back to `planner_node` that does not exist. Treat this section as the analysis
+> engine's contract, **not** an automatic-recovery loop.
+
+Le replanner détecte les échecs d'exécution et décide d'une stratégie de
+récupération **à titre indicatif** (émise comme signal, non exécutée).
 
 ```
 Execute Plan
@@ -3893,9 +3903,9 @@ Analyze Results
     ↓
 Detect Trigger (empty_results? failure? timeout?)
     ↓ [trigger found]
-Decide Action (proceed? retry? escalate?)
+Decide Action (proceed? retry? escalate?)  — emitted as a signal
     ↓
-Execute Decision
+Log decision + surface the failure to response_node  (no re-execution)
 ```
 
 #### Intégration dans task_orchestrator_node.py
@@ -3936,21 +3946,20 @@ async def task_orchestrator_node(state, config):
     replanner = AdaptiveRePlanner()
     result = replanner.analyze_and_decide(context)
 
+    # ADVISORY: the decision is recorded (metrics + logs) but NOT acted upon.
+    # Every branch below converges on surfacing the results to response_node;
+    # RETRY_SAME / REPLAN_MODIFIED are logged as "*_not_wired". The illustrative
+    # recovery calls (retry_execution / regenerate_plan / …) are NOT implemented.
     match result.decision:
-        case RePlanDecision.PROCEED:
-            return proceed_to_response(state, results)
-
         case RePlanDecision.RETRY_SAME:
-            return retry_execution(state, plan)
-
+            logger.info("replan_retry_not_wired", decision="retry_same")
         case RePlanDecision.REPLAN_MODIFIED:
-            return regenerate_plan(state, result.recovery_strategy)
+            logger.info("replan_modified_not_wired")
+        # PROCEED / ESCALATE_USER / ABORT: no dedicated wiring either — the
+        # failed-step results flow to response_node, which renders the outcome.
 
-        case RePlanDecision.ESCALATE_USER:
-            return ask_user_clarification(state, result.user_message)
-
-        case RePlanDecision.ABORT:
-            return abort_with_message(state, result.user_message)
+    # In all cases: surface the (possibly failed) results, no re-execution.
+    return proceed_to_response(state, results)
 ```
 
 #### Configuration
@@ -4044,9 +4053,9 @@ adaptive_replanner_recovery_success_total = Counter(
 | | `orchestration/schemas.py` | `StepResult` export pour orchestration |
 | | `orchestration/jinja_evaluator.py` | `JinjaEvaluator` pour évaluation templates |
 | | `orchestration/query_engine/models.py` | Source "steps" dans `validate_source()` |
-| **Phase E** | `orchestration/adaptive_replanner.py` | `AdaptiveRePlanner` service complet (~900 lignes) |
+| **Phase E** _(advisory — no auto-recovery, F017)_ | `orchestration/adaptive_replanner.py` | `AdaptiveRePlanner` analysis engine (~900 lignes) — emits decisions as signals |
 | | `orchestration/__init__.py` | Exports publics (enums, dataclasses, fonctions) |
-| | `nodes/task_orchestrator_node.py` | Point d'intégration post-exécution |
+| | `nodes/task_orchestrator_node.py` | Point d'intégration post-exécution — logs the decision, does **not** re-execute |
 | | `core/config/agents.py` | Configuration `adaptive_replanning_*` |
 | | `core/config/advanced.py` | Configuration `jinja_max_recursion_depth` |
 | **Tests** | `tests/agents/orchestration/test_adaptive_replanner.py` | Tests unitaires replanner |

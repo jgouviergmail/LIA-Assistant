@@ -405,6 +405,111 @@ class TestDetectAndNormalizeContactsResultDataRegistry:
         assert result.data_source == "api"  # Not "data_registry"
 
 
+class TestDetectAndNormalizeContactsResultMergeCharacterization:
+    """Golden characterization of the field-by-field intelligent merge (audit F015).
+
+    These tests pin the EXACT current behavior of the per-field richness ladder
+    (None / list / dict / str / type-mismatch fallback) and its headline
+    order-independence invariant (ROOT CAUSE FIX #2025-11-13) BEFORE the merge
+    logic is extracted into helpers. They characterize behavior — they do not
+    prescribe it — so any behavior drift during decomposition fails loudly here.
+    """
+
+    @staticmethod
+    def _merge_two(first: dict, second: dict) -> dict:
+        """Merge two same-resource_name contacts and return the single result."""
+        result = _detect_and_normalize_contacts_result(
+            [{"contacts": [first]}, {"contacts": [second]}]
+        )
+        assert result is not None
+        assert result.total_count == 1  # same resource_name → deduplicated
+        return result.contacts[0]
+
+    def test_new_none_keeps_existing_value(self):
+        """existing non-None + new None → existing is kept (branch: new is None)."""
+        merged = self._merge_two(
+            {"resource_name": "c1", "phone": "+33612345678"},
+            {"resource_name": "c1", "phone": None},
+        )
+        assert merged["phone"] == "+33612345678"
+
+    def test_both_none_yields_none(self):
+        """existing None + new None → None (branch: existing is None, new also None)."""
+        merged = self._merge_two(
+            {"resource_name": "c1", "phone": None},
+            {"resource_name": "c1", "phone": None},
+        )
+        assert merged["phone"] is None
+
+    def test_equal_length_lists_keep_existing(self):
+        """Two lists of equal length → existing is kept for stability."""
+        merged = self._merge_two(
+            {"resource_name": "c1", "tags": ["a"]},
+            {"resource_name": "c1", "tags": ["b"]},
+        )
+        assert merged["tags"] == ["a"]
+
+    def test_equal_size_dicts_keep_existing(self):
+        """Two dicts with equal key count → existing is kept for stability."""
+        merged = self._merge_two(
+            {"resource_name": "c1", "metadata": {"x": 1}},
+            {"resource_name": "c1", "metadata": {"y": 2}},
+        )
+        assert merged["metadata"] == {"x": 1}
+
+    def test_equal_length_strings_keep_existing(self):
+        """Two non-empty strings of equal length → existing is kept for stability."""
+        merged = self._merge_two(
+            {"resource_name": "c1", "note": "abc"},
+            {"resource_name": "c1", "note": "xyz"},
+        )
+        assert merged["note"] == "abc"
+
+    def test_type_mismatch_keeps_existing_when_present(self):
+        """Different types (neither None) → existing is kept (fallback branch)."""
+        merged = self._merge_two(
+            {"resource_name": "c1", "value": 5},
+            {"resource_name": "c1", "value": "text"},
+        )
+        assert merged["value"] == 5
+
+    def test_merge_is_order_independent_for_all_field_types(self):
+        """The richer value wins regardless of processing order (ROOT CAUSE FIX).
+
+        A full contact merged with a minimal one must yield the full values for
+        every field type — list, dict, string — whichever order they arrive in.
+        """
+        full = {
+            "resource_name": "c1",
+            "name": "Jean",
+            "relations": ["spouse: Jane"],
+            "phones": ["+33612345678", "+33698765432"],
+            "note": "A long descriptive note",
+            "metadata": {"a": 1, "b": 2},
+        }
+        minimal = {
+            "resource_name": "c1",
+            "name": "Jean",
+            "relations": [],
+            "phones": [],
+            "note": "",
+            "metadata": {},
+        }
+        expected = {
+            "relations": ["spouse: Jane"],
+            "phones": ["+33612345678", "+33698765432"],
+            "note": "A long descriptive note",
+            "metadata": {"a": 1, "b": 2},
+        }
+
+        full_then_minimal = self._merge_two(full, minimal)
+        minimal_then_full = self._merge_two(minimal, full)
+
+        for field, value in expected.items():
+            assert full_then_minimal[field] == value, f"{field} (full→minimal)"
+            assert minimal_then_full[field] == value, f"{field} (minimal→full)"
+
+
 # ============================================================================
 # Tests for _detect_and_normalize_emails_result
 # ============================================================================

@@ -97,7 +97,7 @@ export async function HeroSection({ lng }: HeroSectionProps) {
             <p className="text-base mobile:text-lg font-semibold text-foreground/90 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-3 whitespace-pre-line">
               {t('landing.hero.subtitle_top')}
             </p>
-            <p className="text-sm mobile:text-base text-foreground/70 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-8">
+            <p className="text-sm mobile:text-base text-foreground/80 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-8">
               {t('landing.hero.subtitle_line1')}
               <br />
               {t('landing.hero.subtitle_line2')}

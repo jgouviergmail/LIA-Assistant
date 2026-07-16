@@ -158,7 +158,14 @@ def _resolve_dns_sync(hostname: str) -> list[str]:
     Raises socket.gaierror on DNS failure.
     """
     results = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
-    return list({result[4][0] for result in results})
+    # sockaddr[0] is typed str | int (typeshed widens for non-IP families); for
+    # AF_INET/AF_INET6 it is always the IP string — keep only those.
+    ips: set[str] = set()
+    for result in results:
+        host = result[4][0]
+        if isinstance(host, str):
+            ips.add(host)
+    return list(ips)
 
 
 async def validate_url(url: str) -> UrlValidationResult:

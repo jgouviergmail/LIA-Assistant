@@ -28,7 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, REDIS_KEY_PSYCHE_STATE_PREFIX
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.domains.psyche.constants import (
     PSYCHE_SCHEMA_VERSION,
     RELATIONSHIP_STAGES,
@@ -146,15 +146,12 @@ class PsycheService:
         Returns:
             PsycheState (existing or newly created).
         """
-        # Try Redis cache first
-        cached = await self._load_from_cache(user_id)
-        if cached:
-            return cached
-
-        # Try DB
+        # Load from DB (created lazily below on first access). A former Redis
+        # "cache" was removed here (F035): its read path returned None
+        # unconditionally, so it never avoided a DB query — it only added two
+        # round-trips per call. The state is a single indexed lookup by user_id.
         state = await self.repo.get_by_user_id(user_id)
         if state:
-            await self._save_to_cache(user_id, state)
             return state
 
         # Create default — load personality traits
@@ -182,7 +179,6 @@ class PsycheService:
         state.mood_quadrant_since = datetime.now(UTC)
 
         state = await self.repo.create(state)
-        await self._save_to_cache(user_id, state)
 
         logger.info(
             "psyche_state_initialized",
@@ -223,7 +219,6 @@ class PsycheService:
         state.mood_dominance = baseline.dominance
 
         await self.repo.update(state)
-        await self._invalidate_cache(user_id)
 
         logger.info(
             "psyche_traits_synced_from_personality",
@@ -374,7 +369,6 @@ class PsycheService:
 
         # Persist decayed state
         await self.repo.update(state)
-        await self._save_to_cache(user_id, state)
 
         # Build the psyche injection. Default: the embodied voice (ADR-105 A-E) — the
         # engine assembles the dynamic block, the versioned frame template holds the
@@ -623,7 +617,6 @@ class PsycheService:
 
         # Persist
         await self.repo.update(state)
-        await self._save_to_cache(user_id, state)
 
         # Create history snapshot for evolution tracking (graphiques)
         if settings.psyche_history_snapshot_enabled:
@@ -989,7 +982,6 @@ class PsycheService:
         """
         if level == RESET_LEVEL_PURGE:
             await self.repo.delete_for_user(user_id)
-            await self._invalidate_cache(user_id)
             logger.info("psyche_state_purged", user_id=str(user_id))
             return
 
@@ -1027,7 +1019,6 @@ class PsycheService:
             state.narrative_identity = None
 
         await self.repo.update(state)
-        await self._save_to_cache(user_id, state)
 
         # Record a reset snapshot so the history chart can show a visual marker
         from src.domains.psyche.constants import (
@@ -1095,7 +1086,6 @@ class PsycheService:
             Total records deleted.
         """
         count = await self.repo.delete_for_user(user_id)
-        await self._invalidate_cache(user_id)
         return count
 
     # =========================================================================
@@ -1180,76 +1170,6 @@ class PsycheService:
         if row:
             return (row[0] or 70, row[1] or 60)
         return (70, 60)
-
-    async def _load_from_cache(self, user_id: UUID) -> PsycheState | None:
-        """Load psyche state from Redis cache.
-
-        Args:
-            user_id: User UUID.
-
-        Returns:
-            PsycheState or None if cache miss or Redis unavailable.
-        """
-        try:
-            from src.infrastructure.cache.redis import get_redis_cache as get_redis
-
-            redis = await get_redis()
-            if not redis:
-                return None
-
-            key = f"{REDIS_KEY_PSYCHE_STATE_PREFIX}{user_id}"
-            data = await redis.get(key)
-            if not data:
-                return None
-
-            # Cache stores the DB record ID, not full object — just use as "exists" check
-            # Full object caching would require serialization/deserialization of SQLAlchemy model
-            # For v1, cache is a simple existence check that saves the DB query
-            # TODO: Implement full JSON serialization for cache in v2
-            return None  # v1: always read from DB, cache only for TTL tracking
-        except Exception:
-            return None
-
-    async def _save_to_cache(self, user_id: UUID, state: PsycheState) -> None:
-        """Save psyche state to Redis cache.
-
-        Args:
-            user_id: User UUID.
-            state: PsycheState to cache.
-        """
-        try:
-            from src.infrastructure.cache.redis import get_redis_cache as get_redis
-
-            redis = await get_redis()
-            if not redis:
-                return
-
-            key = f"{REDIS_KEY_PSYCHE_STATE_PREFIX}{user_id}"
-            # v1: Store minimal marker (existence + updated_at)
-            # Full serialization deferred to v2
-            await redis.set(
-                key,
-                state.updated_at.isoformat() if state.updated_at else "init",
-                ex=settings.psyche_cache_ttl_seconds,
-            )
-        except Exception as e:
-            logger.debug("psyche_cache_save_failed", user_id=str(user_id), error=str(e))
-
-    async def _invalidate_cache(self, user_id: UUID) -> None:
-        """Invalidate Redis cache for a user's psyche state.
-
-        Args:
-            user_id: User UUID.
-        """
-        try:
-            from src.infrastructure.cache.redis import get_redis_cache as get_redis
-
-            redis = await get_redis()
-            if redis:
-                key = f"{REDIS_KEY_PSYCHE_STATE_PREFIX}{user_id}"
-                await redis.delete(key)
-        except Exception as e:
-            logger.debug("psyche_cache_invalidate_failed", user_id=str(user_id), error=str(e))
 
 
 # =============================================================================

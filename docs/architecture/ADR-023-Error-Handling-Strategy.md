@@ -3,7 +3,7 @@
 **Status**: ✅ IMPLEMENTED (2025-12-21)
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Production-grade error handling with i18n
-**Related**: [ADR-002](ADR-002-Unified-Error-Handling.md), [ADR-108](ADR-108-BaseAPIKeyClient-Adoption.md), [ADR-114](ADR-114-Connector-Client-Domain-Error-Contract.md)
+**Related**: ADR-002 (Unified Error Handling — foundational, not migrated to an ADR file), [ADR-108](ADR-108-BaseAPIKeyClient-Adoption.md), [ADR-114](ADR-114-Connector-Client-Domain-Error-Contract.md)
 
 ---
 

@@ -51,7 +51,7 @@ export async function SecuritySection({ lng }: SecuritySectionProps) {
               </p>
               <Link
                 href={buildLocalizedPath('/privacy', lng as Language)}
-                className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors mt-3"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/90 transition-colors mt-3"
               >
                 {t('landing.security.privacy_link')} →
               </Link>

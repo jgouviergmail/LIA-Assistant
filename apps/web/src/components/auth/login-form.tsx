@@ -77,12 +77,17 @@ export function LoginForm() {
               id="remember-me"
               name="remember-me"
               type="checkbox"
+              // aria-labelledby: the htmlFor/id association below is real, but
+              // static analysis cannot resolve it across elements (F012) — the
+              // explicit reference makes the accessible name verifiable.
+              aria-labelledby="remember-me-label"
               checked={rememberMe}
               onChange={e => setRememberMe(e.target.checked)}
               disabled={isLoading}
               className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
             />
             <label
+              id="remember-me-label"
               htmlFor="remember-me"
               className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
             >
@@ -91,7 +96,7 @@ export function LoginForm() {
           </div>
           <Link
             href="/forgot-password"
-            className="block text-sm text-primary hover:text-primary/80 transition-colors"
+            className="block text-sm text-primary hover:text-primary/90 transition-colors"
           >
             {t('auth.forgot_password_link')}
           </Link>

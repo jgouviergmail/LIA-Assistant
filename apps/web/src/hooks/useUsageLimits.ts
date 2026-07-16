@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { apiClient, ApiError } from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import { useStaleGuard } from '@/hooks/useStaleGuard';
 import type { UserUsageLimitResponse } from '@/types/usage-limits';
 
 const POLLING_INTERVAL_MS = 60_000; // 60 seconds
@@ -32,14 +33,21 @@ export function useUsageLimits(): UseUsageLimitsReturn {
   const [isLoading, setIsLoading] = useState(true);
   const featureDisabledRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Staleness guard (audit F037): a slow poll response must never win over a
+  // newer one, nor commit state after unmount — shared, tested helper.
+  const guard = useStaleGuard();
 
   const fetchLimits = useCallback(async () => {
     if (featureDisabledRef.current) return;
 
+    const isStale = guard.begin();
+
     try {
       const response = await apiClient.get<UserUsageLimitResponse>('/usage-limits/me');
+      if (isStale()) return;
       setLimits(response);
     } catch (err) {
+      if (isStale()) return;
       if (err instanceof ApiError && err.status === 404) {
         // Feature disabled (router not registered) — stop polling
         featureDisabledRef.current = true;
@@ -58,9 +66,13 @@ export function useUsageLimits(): UseUsageLimitsReturn {
         component: 'useUsageLimits',
       });
     } finally {
-      setIsLoading(false);
+      // Only the current request may clear loading — an older poll finishing
+      // first must not cut a newer one's loading state (audit F037).
+      if (!isStale()) {
+        setIsLoading(false);
+      }
     }
-  }, []); // No dependencies — uses refs for mutable state
+  }, [guard]);
 
   // Initial fetch + polling
   useEffect(() => {

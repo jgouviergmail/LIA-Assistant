@@ -6,6 +6,7 @@ import {
   Trash2,
   Plus,
   Ban,
+  MoreVertical,
   Clock,
   Pencil,
   Download,
@@ -533,8 +534,13 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   <AccordionContent>
                     <div className="space-y-2">
                       {categoryInterests.map(interest => (
+                        // role="presentation": the tap-anywhere onClick is a
+                        // pointer-only convenience duplicating the dedicated
+                        // mobile actions button (audit F012/F045); the card
+                        // carries no semantics (it contains interactive children).
                         <div
                           key={interest.id}
+                          role="presentation"
                           className="group flex items-center gap-3 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors cursor-pointer lg:cursor-default"
                           onClick={() => {
                             if (window.innerWidth < 1024) {
@@ -599,6 +605,23 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
+
+                          {/* Mobile actions button (audit F012/F045): the
+                              desktop buttons above are hidden below lg and the
+                              tap-anywhere card click is pointer-only — this is
+                              the keyboard/AT path to the actions popup. */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="lg:hidden shrink-0 self-center"
+                            aria-label={t('common.actions')}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setMobileActionInterest(interest);
+                            }}
+                          >
+                            <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                          </Button>
                         </div>
                       ))}
                     </div>

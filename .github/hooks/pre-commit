@@ -73,7 +73,7 @@ fi
 # 1. Check for secrets in staged files
 echo ""
 print_info "Checking for secrets..."
-if git diff --cached --name-only | xargs grep -i "password\s*=\s*['\"]" 2>/dev/null | grep -v -E "(.env.example|tests/|TESTING.md|README.md|docs/|docker-entrypoint.sh)" | grep -v '\$2b\$12\$PLACEHOLDER'; then
+if git diff --cached --name-only | xargs grep -i "password\s*=\s*['\"]" 2>/dev/null | grep -v -E "(.env.example|tests/|__tests__/|\.test\.|TESTING.md|README.md|docs/|docker-entrypoint.sh)" | grep -v '\$2b\$12\$PLACEHOLDER'; then
     print_error "Potential secrets found in staged files!"
     FAILED=1
 else
@@ -232,65 +232,14 @@ if [ -n "$I18N_FILES" ]; then
     echo ""
     print_info "Checking i18n keys sync..."
 
-    REFERENCE_LANG="en"
-    LOCALES_DIR="apps/web/locales"
-    I18N_FAILED=0
-
-    if [ -f "$LOCALES_DIR/$REFERENCE_LANG/translation.json" ]; then
-        for lang_dir in "$LOCALES_DIR"/*/; do
-            lang=$(basename "$lang_dir")
-            [ "$lang" = "$REFERENCE_LANG" ] && continue
-            target_file="$lang_dir/translation.json"
-            [ ! -f "$target_file" ] && continue
-
-            # Compare keys using Python (handles nested JSON)
-            DIFF_OUTPUT=$(python -c "
-import json, sys
-
-def get_keys(d, prefix=''):
-    keys = set()
-    for k, v in d.items():
-        full = f'{prefix}.{k}' if prefix else k
-        if isinstance(v, dict):
-            keys |= get_keys(v, full)
-        else:
-            keys.add(full)
-    return keys
-
-with open('$LOCALES_DIR/$REFERENCE_LANG/translation.json', encoding='utf-8') as f:
-    ref = get_keys(json.load(f))
-with open('$target_file', encoding='utf-8') as f:
-    tgt = get_keys(json.load(f))
-
-missing = sorted(ref - tgt)
-extra = sorted(tgt - ref)
-if missing:
-    print(f'MISSING in $lang ({len(missing)}):')
-    for k in missing[:10]:
-        print(f'  - {k}')
-    if len(missing) > 10:
-        print(f'  ... and {len(missing) - 10} more')
-if extra:
-    print(f'EXTRA in $lang ({len(extra)}):')
-    for k in extra[:10]:
-        print(f'  - {k}')
-    if len(extra) > 10:
-        print(f'  ... and {len(extra) - 10} more')
-if missing or extra:
-    sys.exit(1)
-" 2>&1) || I18N_FAILED=1
-
-            if [ -n "$DIFF_OUTPUT" ]; then
-                echo "$DIFF_OUTPUT"
-            fi
-        done
-
-        if [ "$I18N_FAILED" -eq 1 ]; then
-            print_error "i18n keys are out of sync with '$REFERENCE_LANG'"
-            FAILED=1
-        else
-            print_success "i18n keys are in sync"
-        fi
+    # Single source of truth: scripts/i18n/validate_translations.py (F027).
+    # Runs full parity across all 6 languages (en reference), regardless of
+    # which locale file was staged — deterministic exit code.
+    if python scripts/i18n/validate_translations.py; then
+        print_success "i18n keys are in sync"
+    else
+        print_error "i18n keys are out of sync with 'en'"
+        FAILED=1
     fi
 else
     print_info "No i18n files staged, skipping i18n sync check"

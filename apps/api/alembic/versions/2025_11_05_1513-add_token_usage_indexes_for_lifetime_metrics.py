@@ -69,7 +69,14 @@ References:
     - Phase 1.2: DB-Backed Gauges Implementation Plan
 """
 
+import logging
+
 from alembic import op
+
+# Migrations must never fail because of their console output: emojis/non-ASCII in
+# print() raise UnicodeEncodeError under a CP1252 Windows console (audit F047).
+# Use the Alembic logger with ASCII-only messages instead.
+logger = logging.getLogger("alembic.runtime.migration")
 
 # Revision identifiers
 revision = "token_usage_indexes_lifetime"
@@ -123,13 +130,11 @@ def upgrade():
     # Optimizes: SUM(tokens), SUM(cost) without table access (index-only scan)
     # Use case: Lifetime total queries (all data, no time filter)
     # Benefit: No table I/O → 2-3x faster for covering queries
-    op.execute(
-        """
+    op.execute("""
         CREATE INDEX ix_token_usage_logs_model_node_covering
         ON token_usage_logs (model_name, node_name)
         INCLUDE (prompt_tokens, completion_tokens, cached_tokens, cost_eur, created_at)
-        """
-    )
+        """)
 
     # ========================================================================
     # Update PostgreSQL statistics for query planner
@@ -137,11 +142,10 @@ def upgrade():
     # Ensures planner uses new indexes immediately
     op.execute("ANALYZE token_usage_logs")
 
-    print("✅ Token usage indexes created successfully")
-    print("   - Composite index: ix_token_usage_logs_lifetime_aggregation")
-    print("   - Created_at index: ix_token_usage_logs_created_at")
-    print("   - Covering index: ix_token_usage_logs_model_node_covering")
-    print("   - Statistics updated: ANALYZE completed")
+    logger.info(
+        "Token usage indexes created: lifetime_aggregation, created_at, "
+        "model_node_covering; ANALYZE completed"
+    )
 
 
 def downgrade():
@@ -171,4 +175,4 @@ def downgrade():
     # Update statistics after index removal
     op.execute("ANALYZE token_usage_logs")
 
-    print("✅ Token usage indexes removed successfully")
+    logger.info("Token usage indexes removed successfully")

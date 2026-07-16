@@ -366,7 +366,7 @@ async def mark_token_used(jti: str, token_type: str = "unknown") -> None:
 
     redis = await get_redis_session()
     key = f"{JTI_BLACKLIST_REDIS_PREFIX}{jti}"
-    await redis.setex(key, JTI_BLACKLIST_TTL_SECONDS, "1")
+    await redis.set(key, "1", ex=JTI_BLACKLIST_TTL_SECONDS)
 
     logger.info(
         "token_jti_blacklisted",

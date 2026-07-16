@@ -610,7 +610,7 @@ class ChannelType(StrEnum):
 Creer `infrastructure/channels/discord/sender.py` implementant `BaseChannelSender` :
 
 ```python
-# apps/api/src/infrastructure/channels/discord/sender.py
+# apps/api/src/infrastructure/channels/discord/sender.py  (exemple — canal Discord illustratif)
 from src.domains.channels.abstractions import BaseChannelSender, ChannelOutboundMessage
 
 class DiscordSender(BaseChannelSender):

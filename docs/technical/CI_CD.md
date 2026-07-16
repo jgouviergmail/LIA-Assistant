@@ -6,6 +6,7 @@
 - `.github/workflows/ci.yml` — Pipeline CI principale
 - `.github/workflows/security.yml` — Scans de securite (CodeQL, Trivy, SBOM)
 - `.github/workflows/release.yml` — Build Docker + GitHub Release
+- `.github/workflows/a11y-matrix.yml` — Matrice navigateurs hebdomadaire (AC-002) : rejoue la suite E2E/axe sur Chromium, Firefox et WebKit (`E2E_ALL_BROWSERS=1`), rapports archives 30 jours
 - `.github/hooks/pre-commit` — Hook Git pre-commit local
 - `.github/dependabot.yml` — Mises a jour automatiques des dependances
 
@@ -93,7 +94,8 @@ git commit --no-verify
 
 ```
 lint-backend ──> test-backend
-             └─> test-backend-integration
+             ├─> test-backend-integration
+             └─> migration-replay
 lint-frontend ─> test-frontend
 code-hygiene (independant)
 docker-build (independant)
@@ -101,6 +103,8 @@ secret-scan (independant)
 ```
 
 `test-backend` et `test-frontend` attendent que leur lint respectif passe avant de s'executer. Les autres jobs sont independants et tournent en parallele.
+
+**`migration-replay`** (F007) rejoue toute la chaine Alembic (`alembic upgrade head`) sur une base PostgreSQL **vide** (service `pgvector`, extensions `vector`/`uuid-ossp`/`pg_trgm` creees), verifie qu'elle atteint le head unique, puis fait un cycle downgrade/upgrade de la derniere revision. Le job unitaire construit son schema via `create_all()` et ne rejoue jamais les migrations : seule une execution from-scratch attrape une migration non rejouable (disaster recovery, nouvelle region). En local : `task db:migrate:replay-check` (base jetable dans le PostgreSQL dev). Le script partage : `scripts/db/check_migrations_replay.sh`.
 
 ### Concurrence
 
@@ -251,11 +255,21 @@ Build smoke test (pas de push) avec cache GitHub Actions :
 
 | Job | Description |
 |-----|-------------|
+| **Require green CI** | **Gate (F008)** : bloque la release si `ci.yml` n'a pas conclu `success` pour le SHA taggue. `build-and-push` et `generate-sbom` en dependent. |
 | Build & Push | Images Docker multi-arch (`amd64` + `arm64`) vers `ghcr.io` |
 | Generate SBOM | CycloneDX pour le backend, depuis `requirements.lock.txt` (transitifs inclus) |
 | Create Release | GitHub Release avec changelog + images Docker + SBOM |
 
 Tags semver : `v1.2.3` genere les tags Docker `1.2.3`, `1.2`, `1`, `latest`.
+
+**Deploiement (F008)** — strategie choisie = **build local sur le Pi avec provenance equivalente** (pas d'images GHCR par digest ; le pipeline Windows→Pi build localement). Elle est rendue tracable + reversible :
+
+- **Provenance injectee** : `prepare-prod.ps1` capture `APP_VERSION` (package.json), `GIT_COMMIT_SHA` (`git rev-parse HEAD`) et `BUILD_DATE` au moment du prepare, les ecrit dans `provenance.env` (embarque au bundle) ; `docker-compose.prod.yml` les passe en **build args** (api) → `Dockerfile.prod` les fige en ENV → exposes a `/api/v1/health` et dans la resource OTel/Langfuse (F030).
+- **Manifeste de release** : a la reussite readiness, `release-manifest.json` est ecrit (version, commit, build date, IDs d'images api/web, timestamp), l'ancien rotant en `.previous` — l'artefact effectivement execute est prouvable.
+- **Rollback operationnel** (plus seulement textuel) : les services `api`/`web` ont un **tag d'image explicite** (`lia-api:local` / `lia-web:local`) ; avant le build, `capture_rollback_point` sauve l'image courante en `:__rollback` ; si `/ready` echoue apres deploiement, `run_readiness_gate` **restaure automatiquement l'image precedente** (`up --force-recreate --no-build`) et **revalide `/ready`**, puis sort non-zero (deploiement echoue mais service restaure), ou signale une intervention manuelle si le rollback echoue aussi.
+- **Logique testee** : `scripts/deploy/lib/deploy_readiness_gate.sh` (source par le `deploy.sh` genere) + tests hermetiques `scripts/deploy/lib/test_deploy_readiness_gate.sh` (succes / readiness rouge → rollback → revalide / rollback impossible). **A valider par un smoke deploiement reel sur le Pi** (le rollback docker ne peut etre exerce que la).
+
+Garde statique : `apps/api/tests/unit/test_release_workflow_gate_guard.py` (le gate ne peut pas etre retire silencieusement).
 
 ---
 

@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:,">
+  <title>LIA — Audit consolidé aveugle · 13 juillet 2026</title>
+  <style>
+    :root{
+      --paper:#f3f6f9;--panel:#fff;--ink:#172231;--muted:#5c6979;--line:#d8e0e9;
+      --accent:#0e5681;--accent-soft:#e4eef5;--critical:#972f2a;--critical-bg:#fae9e7;
+      --major:#a34d22;--major-bg:#faecdf;--moderate:#806413;--moderate-bg:#f7f0d7;
+      --minor:#326786;--minor-bg:#e6f0f6;--good:#227049;--good-bg:#e2f2e9;
+      --code:#13202e;--code-ink:#d8e4ef;--shadow:0 8px 24px rgba(24,39,55,.06)
+    }
+    @media(prefers-color-scheme:dark){:root{
+      --paper:#11171e;--panel:#18212a;--ink:#dce5ee;--muted:#94a2b2;--line:#2a3744;
+      --accent:#6aadd3;--accent-soft:#1a3040;--critical:#ef9189;--critical-bg:#3a211f;
+      --major:#e39d70;--major-bg:#38261a;--moderate:#d8bd64;--moderate-bg:#302a16;
+      --minor:#83b7d5;--minor-bg:#1b2e3a;--good:#70c89c;--good-bg:#173224;
+      --code:#0b121a;--code-ink:#cdd9e6;--shadow:none
+    }}
+    :root[data-theme="light"]{
+      --paper:#f3f6f9;--panel:#fff;--ink:#172231;--muted:#5c6979;--line:#d8e0e9;
+      --accent:#0e5681;--accent-soft:#e4eef5;--critical:#972f2a;--critical-bg:#fae9e7;
+      --major:#a34d22;--major-bg:#faecdf;--moderate:#806413;--moderate-bg:#f7f0d7;
+      --minor:#326786;--minor-bg:#e6f0f6;--good:#227049;--good-bg:#e2f2e9;
+      --code:#13202e;--code-ink:#d8e4ef;--shadow:0 8px 24px rgba(24,39,55,.06)
+    }
+    :root[data-theme="dark"]{
+      --paper:#11171e;--panel:#18212a;--ink:#dce5ee;--muted:#94a2b2;--line:#2a3744;
+      --accent:#6aadd3;--accent-soft:#1a3040;--critical:#ef9189;--critical-bg:#3a211f;
+      --major:#e39d70;--major-bg:#38261a;--moderate:#d8bd64;--moderate-bg:#302a16;
+      --minor:#83b7d5;--minor-bg:#1b2e3a;--good:#70c89c;--good-bg:#173224;
+      --code:#0b121a;--code-ink:#cdd9e6;--shadow:none
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+    body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+    .wrap{max-width:1160px;margin:auto;padding:2rem 1.25rem 5rem}
+    h1,h2,h3,h4{font-family:Charter,Georgia,serif;line-height:1.22;text-wrap:balance}
+    h1{font-size:clamp(1.8rem,4vw,2.65rem);margin:.2rem 0 .65rem}
+    h2{font-size:1.55rem;margin:3rem 0 .9rem;padding-top:1rem;border-top:2px solid var(--line)}
+    h3{font-size:1.22rem;margin:1.8rem 0 .7rem}
+    h4{font-size:1.02rem;margin:.2rem 0}
+    p{max-width:86ch;margin:.55rem 0}
+    a{color:var(--accent)}
+    :focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+    code{font: .86em ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--accent-soft);padding:.08em .34em;border-radius:4px;overflow-wrap:anywhere}
+    .eyebrow{font-size:.73rem;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);font-weight:800}
+    .meta{display:flex;flex-wrap:wrap;gap:.35rem 1.35rem;margin:.8rem 0 1.35rem;padding:0;list-style:none;color:var(--muted);font-size:.85rem}
+    .meta strong{color:var(--ink)}
+    .theme{position:fixed;right:1rem;top:1rem;z-index:5;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:.42rem .7rem;cursor:pointer;box-shadow:var(--shadow)}
+    .hero{display:grid;grid-template-columns:auto 1fr;gap:1.35rem;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--moderate);border-radius:12px;padding:1.15rem 1.3rem;box-shadow:var(--shadow)}
+    .score{font:700 3.35rem/1 Charter,Georgia,serif;color:var(--moderate);font-variant-numeric:tabular-nums;white-space:nowrap}
+    .score small{font:700 1rem/1 -apple-system,"Segoe UI",sans-serif;color:var(--muted)}
+    .score-label{text-align:center;color:var(--muted);font-size:.76rem}
+    .hero p{margin:0}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;margin:1rem 0}
+    .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.7rem .85rem}
+    .stat b{display:block;font:700 1.35rem Charter,Georgia,serif}
+    .stat span{font-size:.78rem;color:var(--muted)}
+    .toc{columns:2;column-gap:2rem;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.2rem;margin:1.5rem 0;box-shadow:var(--shadow)}
+    .toc a{display:block;padding:.12rem 0;font-size:.88rem}
+    .callout{border-left:5px solid var(--major);background:var(--major-bg);border-radius:0 9px 9px 0;padding:.8rem 1rem;margin:1rem 0;max-width:92ch}
+    .callout.good{border-color:var(--good);background:var(--good-bg)}
+    .callout.info{border-color:var(--minor);background:var(--minor-bg)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin:1rem 0}
+    .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.8rem 1rem;box-shadow:var(--shadow)}
+    ul{margin:.4rem 0;padding-left:1.25rem}
+    li{margin:.25rem 0;max-width:90ch}
+    .tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:var(--shadow)}
+    table{width:100%;border-collapse:collapse;font-size:.84rem}
+    th{text-align:left;text-transform:uppercase;letter-spacing:.045em;font-size:.69rem;color:var(--muted);background:var(--accent-soft);padding:.55rem .62rem;border-bottom:2px solid var(--line)}
+    td{padding:.49rem .62rem;border-bottom:1px solid var(--line);vertical-align:top}
+    tr:last-child td{border-bottom:0}
+    .num{white-space:nowrap;font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-weight:700}
+    .up{color:var(--good)}.same{color:var(--muted)}.low{color:var(--critical)}
+    .chip{display:inline-block;border-radius:4px;padding:.1em .5em;font-size:.68rem;font-weight:800;white-space:nowrap}
+    .corrected{color:var(--good);background:var(--good-bg)}
+    .partial{color:var(--moderate);background:var(--moderate-bg)}
+    .open{color:var(--critical);background:var(--critical-bg)}
+    .replaced{color:var(--minor);background:var(--minor-bg)}
+    .major{color:var(--major);background:var(--major-bg)}
+    .moderate{color:var(--moderate);background:var(--moderate-bg)}
+    .minor{color:var(--minor);background:var(--minor-bg)}
+    .finding{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--moderate);border-radius:10px;padding:.9rem 1.05rem;margin:.85rem 0;box-shadow:var(--shadow)}
+    .finding[data-sev="major"]{border-left-color:var(--major)}
+    .finding[data-sev="critical"]{border-left-color:var(--critical)}
+    .finding[data-sev="minor"]{border-left-color:var(--minor)}
+    .fh{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap}
+    .fid{color:var(--muted);font-size:.72rem;font-weight:800;letter-spacing:.04em}
+    .kv{display:grid;grid-template-columns:7.5rem 1fr;gap:.12rem .7rem;margin:.45rem 0;font-size:.85rem}
+    .kv dt{font-weight:800;color:var(--muted)}.kv dd{margin:0}
+    details{border:1px solid var(--line);border-radius:8px;background:var(--paper);margin-top:.6rem}
+    summary{cursor:pointer;padding:.5rem .7rem;color:var(--accent);font-weight:800;font-size:.84rem}
+    details[open] summary{border-bottom:1px solid var(--line)}
+    pre{margin:0;padding:.85rem 1rem;background:var(--code);color:var(--code-ink);font:.76rem/1.52 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:0 0 8px 8px}
+    .small{font-size:.8rem;color:var(--muted)}
+    footer{margin-top:3rem;padding-top:1rem;border-top:2px solid var(--line);color:var(--muted);font-size:.8rem}
+    @media(max-width:760px){
+      .hero{grid-template-columns:1fr}.score-label{text-align:left}.stats{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.toc{columns:1}.theme{position:static;float:right}.kv{grid-template-columns:1fr}
+    }
+    @media print{
+      .theme{display:none}body{background:#fff;color:#111}.wrap{max-width:none;padding:0}.finding,.box,.tw,.hero{box-shadow:none}details{break-inside:avoid}details>summary{display:none}details>pre{display:block}
+    }
+  </style>
+</head>
+<body>
+<button class="theme" type="button" aria-label="Basculer le thème" onclick="toggleTheme()">◐ Thème</button>
+<main class="wrap">
+  <p class="eyebrow">Audit normalisé consolidé — passe aveugle indépendante — périmètre sécurité exclu</p>
+  <h1>LIA — Réaudit intégral du 13 juillet 2026</h1>
+  <ul class="meta">
+    <li>Snapshot : <strong>état de travail local au 2026-07-13</strong>, corrections stagées incluses mais non identifiées</li>
+    <li>Indépendance : <strong>aucune commande Git</strong>, aucune liste préalable des corrections</li>
+    <li>Périmètre : <strong>24 axes de qualité</strong>, backend, frontend, données, CI/CD, documentation et accessibilité</li>
+    <li>Version applicative observée : <strong>1.24.0</strong></li>
+  </ul>
+
+  <section class="hero" aria-label="Verdict global">
+    <div>
+      <div class="score">6,7<small>/10</small></div>
+      <div class="score-label">note globale à poids égal</div>
+    </div>
+    <p><strong>Le snapshot s’est objectivement amélioré de 0,3 point par rapport au consolidé du 12 juillet.</strong>
+      Les corrections les plus substantielles sont réelles : migrations à nouveau rejouables depuis zéro, scheduler principal,
+      fermeture TTS, annulation embedding, verrou Psyche, faux succès Places, date civile, qualité documentaire de base,
+      contexte de build web, compatibilité Python et cycle téléphonie. La promotion reste toutefois prématurée :
+      le gate backend n’est pas vert, la reconstruction Alembic ne garantit pas l’équivalence modèles↔schéma, des succès
+      RAG et téléphonie peuvent encore être mensongers, 53 cas pytest échappent aux jobs CI, et le frontend conserve
+      une couverture faible ainsi que des non-conformités d’accessibilité vérifiées.</p>
+  </section>
+
+  <div class="stats" role="group" aria-label="Synthèse des verdicts historiques">
+    <div class="stat"><b class="up">14/41</b><span>constats historiques corrigés</span></div>
+    <div class="stat"><b>21/41</b><span>partiels ou remplacés</span></div>
+    <div class="stat"><b class="low">6/41</b><span>historiques encore ouverts</span></div>
+    <div class="stat"><b class="low">4</b><span>faux négatifs nouveaux</span></div>
+  </div>
+
+  <nav class="toc" aria-label="Sommaire">
+    <a href="#verdict">1. Verdict exécutif</a>
+    <a href="#method">2. Référentiel, méthode et réserves</a>
+    <a href="#executions">3. Preuves d’exécution</a>
+    <a href="#scorecard">4. Notes des 24 périmètres</a>
+    <a href="#matrix">5. Revalidation des 41 constats</a>
+    <a href="#new">6. Faux négatifs nouveaux</a>
+    <a href="#register">7. Registre des points à traiter et prompts IA</a>
+    <a href="#closed">8. Corrections clôturées</a>
+    <a href="#roadmap">9. Priorisation</a>
+    <a href="#conclusion">10. Conclusion d’audit</a>
+  </nav>
+
+  <h2 id="verdict">1. Verdict exécutif</h2>
+  <div class="grid">
+    <section class="box">
+      <h3>Progrès démontrés</h3>
+      <ul>
+        <li>La chaîne Alembic atteint réellement l’unique head <code>423c346b3f03</code> sur une base PostgreSQL vierge.</li>
+        <li>La CI couvre maintenant les trois racines de tests, les migrations, la couverture frontend, Python 3.13, les cycles, la complexité, le typage, l’i18n et l’observabilité structurelle.</li>
+        <li>Les défauts scheduler, TTS, embedding, Psyche, Places, date d’export, build web et cycle agents↔telephony ont des corrections et tests cohérents.</li>
+        <li>La release est bloquée sans CI verte et le déploiement vérifie désormais la readiness.</li>
+      </ul>
+    </section>
+    <section class="box">
+      <h3>Réserves bloquantes</h3>
+      <ul>
+        <li>Le contrôle backend courant échoue sur Ruff/Black ; la suite rapide parallèle a produit cinq échecs non reproductibles isolément.</li>
+        <li>Les workflows RAG et téléphonie restent process-local et peuvent perdre ou masquer un échec après changement d’état.</li>
+        <li><code>alembic check</code> échoue sur de nombreux écarts ; le job de replay l’omet explicitement.</li>
+        <li>Le budget maximal de connexions est de 288 pour 195 slots utilisables.</li>
+        <li>La couverture frontend reste proche de 13 %, sans E2E navigateur ni campagne WCAG formelle.</li>
+      </ul>
+    </section>
+  </div>
+  <div class="callout info">
+    <strong>Contre-analyse du déploiement.</strong> Le succès mensuel de <code>task deploy:prod</code> sous Windows est pleinement
+    compatible avec la preuve actuelle : le chemin Windows utilise bien PowerShell et fonctionne. Le défaut résiduel vise
+    uniquement la branche Unix/macOS officiellement publiée, dont l’étape finale appelle encore <code>cmd /c</code>, ainsi que
+    le mode <code>-DryRun</code> qui exécute encore des opérations distantes. Le présent audit ne réintroduit donc pas
+    l’ancien faux diagnostic sur un script standalone qui n’est plus la voie réelle.
+  </div>
+
+  <h2 id="method">2. Référentiel, méthode et réserves</h2>
+  <p>L’évaluation est structurée par le modèle qualité produit de
+    <a href="https://www.iso.org/standard/78176.html">l’ISO/IEC 25010:2023</a>, les faiblesses structurelles de
+    <a href="https://www.iso.org/standard/80623.html">l’ISO/IEC 5055:2021</a>, la description d’architecture de
+    <a href="https://www.iso.org/standard/74393.html">l’ISO/IEC/IEEE 42010:2022</a>, les processus de test de
+    <a href="https://www.iso.org/standard/79428.html">l’ISO/IEC/IEEE 29119-2:2021</a>, et
+    <a href="https://www.w3.org/TR/WCAG22/">WCAG 2.2</a>, également publié comme
+    <a href="https://www.iso.org/standard/91029.html">ISO/IEC 40500:2025</a>. La sécurité est explicitement hors périmètre :
+    aucun constat, test ou score de ce domaine n’entre dans cette note.</p>
+  <div class="grid">
+    <section class="box">
+      <h3>Procédure aveugle</h3>
+      <ul>
+        <li>Lecture intégrale du rapport consolidé précédent, puis vérification sur le snapshot actuel par symbole et flot de contrôle.</li>
+        <li>Aucune consultation de l’index Git, d’un diff ou de l’identité des fichiers stagés.</li>
+        <li>Triangulation code + configuration + tests + comportement réel ; un commentaire ou un test de caractérisation n’est jamais une preuve suffisante.</li>
+        <li>Recherche systématique de faux positifs, puis recherche de faux négatifs autour des corrections.</li>
+      </ul>
+    </section>
+    <section class="box">
+      <h3>Barème</h3>
+      <ul>
+        <li><strong>9–10 :</strong> maîtrise industrielle démontrée, dette marginale.</li>
+        <li><strong>7–8,9 :</strong> solide, contrôlé, réserves non bloquantes.</li>
+        <li><strong>5–6,9 :</strong> fonctionnel mais dette ou assurance insuffisante.</li>
+        <li><strong>&lt;5 :</strong> risque structurel ou fonctionnel incompatible avec une assurance élevée.</li>
+      </ul>
+      <p class="small">La note globale est la moyenne arithmétique des 24 périmètres. Les ratchets qui figent une dette ne valent pas résorption de cette dette.</p>
+    </section>
+  </div>
+  <p><strong>Réserves :</strong> pas d’appel à un fournisseur externe réel, pas de charge multi-worker prolongée, pas de
+    déploiement sur la production, pas de test lecteur d’écran ou navigateur réel. L’audit statique WCAG ne constitue
+    donc pas une certification de conformité. Les numéros de ligne sont ceux du snapshot observé et peuvent dériver.</p>
+
+  <h2 id="executions">3. Preuves d’exécution</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Contrôle</th><th>Résultat observé</th><th>Interprétation impartiale</th></tr></thead>
+    <tbody>
+      <tr><td><code>task lint:frontend</code></td><td><span class="chip corrected">Succès</span> ESLint + TypeScript</td><td>Gate frontend vert sur le snapshot.</td></tr>
+      <tr><td><code>task test:frontend</code></td><td><span class="chip corrected">538/538</span> dans 53 fichiers</td><td>Bonne stabilité des surfaces couvertes, mais portée insuffisante.</td></tr>
+      <tr><td>Vitest avec couverture</td><td>12,88 % statements · 10,77 % branches · 9,67 % fonctions · 13,15 % lignes</td><td>Seuils globaux bas atteints ; plusieurs écrans risqués restent à 0 %.</td></tr>
+      <tr><td><code>task lint:backend</code></td><td><span class="chip open">Échec</span> 2 UP037 Ruff</td><td>Les lignes 51 et 64 de <code>connection_budget.py</code> conservent des annotations citées inutiles.</td></tr>
+      <tr><td>Black backend</td><td><span class="chip open">Échec</span> 6 fichiers à reformater</td><td>Le snapshot stagé ne satisfait pas le formatteur obligatoire.</td></tr>
+      <tr><td>MyPy strict</td><td><span class="chip corrected">Succès</span> 892 fichiers</td><td>Pas d’erreur visible hors exemptions ; 481 couples module/code restent neutralisés.</td></tr>
+      <tr><td><code>task test:backend:unit:fast</code></td><td><span class="chip open">9 859 passés · 5 échecs · 67 skips</span></td><td>Les 5 échecs concernent le middleware de logs ; le fichier seul passe 10/10, ce qui prouve une isolation/ordre de suite non déterministe plutôt qu’un défaut HTTP démontré.</td></tr>
+      <tr><td><code>task test:backend:agents</code></td><td>971 passés · 213 skips, puis exit 1 sur seuil de couverture</td><td>Aucun échec fonctionnel ; la commande Task diverge du job CI qui utilise <code>--no-cov</code>.</td></tr>
+      <tr><td>Tests backend ciblés</td><td><span class="chip corrected">114 passés · 1 skip</span></td><td>Corrections fonctionnelles largement corroborées ; les probes de concurrence ajoutent deux contre-exemples.</td></tr>
+      <tr><td>Guards d’audit ciblés</td><td><span class="chip corrected">49/49</span></td><td>Gouvernance active, mais plusieurs guards agrégés admettent des substitutions.</td></tr>
+      <tr><td>Alembic sur base vierge</td><td><span class="chip corrected">upgrade head atteint 423c346b3f03</span></td><td>F007 replay est corrigé. La reconstruction est prouvée.</td></tr>
+      <tr><td><code>alembic check</code> après replay</td><td><span class="chip open">Échec</span> avec nombreuses opérations proposées</td><td>La parité ORM↔schéma n’est pas établie et est explicitement exclue du gate actuel.</td></tr>
+      <tr><td>Complexité backend</td><td>351 fonctions CC≥15 · maximum 89</td><td>Ratchet vert, dette majeure inchangée.</td></tr>
+      <tr><td>Complexité frontend</td><td>78 fonctions CC≥15 · maximum 96</td><td>Un seuil universel à 96 ne prévient pas un nouveau hotspot à 95.</td></tr>
+      <tr><td>Couplage</td><td>31 cycles runtime, ratchet 31/31</td><td>Cycle telephony corrigé ; dette globale seulement figée.</td></tr>
+      <tr><td>Documentation</td><td>0 lien LIVING cassé · 39 chemins LIVING stale</td><td>Liens corrigés ; dérive de contenu encore substantielle et non bloquante.</td></tr>
+      <tr><td>i18n</td><td><span class="chip corrected">6 langues synchronisées</span></td><td>Le validateur récursif et le wiring CI sont effectifs.</td></tr>
+      <tr><td>Observabilité statique</td><td>2 fichiers de règles · 22 dashboards valides</td><td>Structure vérifiée ; le test fonctionnel des alertes présent dans le dépôt n’est pas exécuté.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="scorecard">4. Notes des 24 périmètres</h2>
+  <div class="tw"><table>
+    <thead><tr><th>#</th><th>Périmètre</th><th>12/07</th><th>13/07</th><th>Évolution et justification</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Infrastructure</td><td class="num">7,5</td><td class="num up">7,6</td><td>Build web corrigé ; branche Unix du déploiement et rollback encore incomplets.</td></tr>
+      <tr><td>2</td><td>Données &amp; persistance</td><td class="num">6,5</td><td class="num up">6,8</td><td>Replay Alembic corrigé ; durabilité RAG/T1 et drift ORM↔schéma persistent.</td></tr>
+      <tr><td>3</td><td>Configuration &amp; dépendances</td><td class="num">7,5</td><td class="num same">7,5</td><td>Contrats solides ; budget DB maximal toujours incohérent.</td></tr>
+      <tr><td>4</td><td>Architecture</td><td class="num">7,0</td><td class="num up">7,1</td><td>Cycle telephony supprimé, 31 cycles runtime subsistent.</td></tr>
+      <tr><td>5</td><td>Design</td><td class="num">7,0</td><td class="num same">7,0</td><td>Replanner encore advisory ; composants accessibles non systématisés.</td></tr>
+      <tr><td>6</td><td>Généricité</td><td class="num">7,0</td><td class="num same">7,0</td><td>Bases et abstractions utiles ; duplication de tableaux/dialogues.</td></tr>
+      <tr><td>7</td><td>Extensibilité</td><td class="num">7,0</td><td class="num up">7,2</td><td>Lock de sync skills distribué ; coût O(users×skills) restant.</td></tr>
+      <tr><td>8</td><td>Implémentation</td><td class="num">6,0</td><td class="num up">6,5</td><td>Plusieurs défauts runtime fermés ; gate Ruff/Black rouge et succès résiduels mensongers.</td></tr>
+      <tr><td>9</td><td>Maintenabilité</td><td class="num">6,5</td><td class="num same">6,5</td><td>Ratchets présents ; hotspots et fichiers géants inchangés.</td></tr>
+      <tr><td>10</td><td>Outillage qualité</td><td class="num">6,5</td><td class="num up">6,6</td><td>Couverture de guards élargie ; agrégats substituables et commandes non alignées.</td></tr>
+      <tr><td>11</td><td>Patterns &amp; pratiques</td><td class="num">6,5</td><td class="num up">6,8</td><td>No-op supprimés, ressources corrigées ; tâches process-local restantes.</td></tr>
+      <tr><td>12</td><td>Robustesse</td><td class="num">5,5</td><td class="num up">6,0</td><td>TTS/embedding corrigés ; annulation cache, polling et états RAG/T1 restent fragiles.</td></tr>
+      <tr><td>13</td><td>Fiabilité</td><td class="num">5,5</td><td class="num up">6,1</td><td>Scheduler, migration et Psyche corrigés ; durabilité et suites non déterministes.</td></tr>
+      <tr><td>14</td><td>Performance</td><td class="num">6,5</td><td class="num up">6,7</td><td>Single-flight amélioré mais annulable ; hotspots et sync skills.</td></tr>
+      <tr><td>15</td><td>Optimisation</td><td class="num">6,5</td><td class="num up">6,9</td><td>Pseudo-cache retiré et métriques cache corrigées ; replanner sans effet.</td></tr>
+      <tr><td>16</td><td>Scalabilité</td><td class="num">6,5</td><td class="num up">6,6</td><td>Facteur workers supprimé sur la sync ; overcommit DB conservé.</td></tr>
+      <tr><td>17</td><td>Opérabilité &amp; observabilité</td><td class="num">7,0</td><td class="num up">7,3</td><td>Validateurs reliés à la CI ; alertes fonctionnelles et provenance runtime incomplètes.</td></tr>
+      <tr><td>18</td><td>CI/CD &amp; livraison</td><td class="num">5,0</td><td class="num up">6,2</td><td>Replay, release gate, readiness, frontend et Python ajoutés ; 53 cas manquent, gate courant rouge, digests/rollback absents.</td></tr>
+      <tr><td>19</td><td>Tests</td><td class="num">5,5</td><td class="num up">5,7</td><td>Taxonomie améliorée ; couverture frontend, skips et isolation parallèle faibles.</td></tr>
+      <tr><td>20</td><td>Documentation</td><td class="num">6,5</td><td class="num low">6,3</td><td>Liens corrigés, mais 39 chemins stale et plusieurs commandes/normes obsolètes.</td></tr>
+      <tr><td>21</td><td>Portabilité</td><td class="num">6,0</td><td class="num up">6,5</td><td>Scripts CWD et build corrigés ; étape finale Unix encore Windows-only.</td></tr>
+      <tr><td>22</td><td>Compatibilité</td><td class="num">7,0</td><td class="num up">7,4</td><td>Python borné et 3.13 testé ; aucun E2E multi-navigateur.</td></tr>
+      <tr><td>23</td><td>Adéquation fonctionnelle</td><td class="num">6,0</td><td class="num up">6,4</td><td>Places/date corrigés ; connecteurs, RAG et replanner encore partiels.</td></tr>
+      <tr><td>24</td><td>Utilisabilité &amp; accessibilité</td><td class="num">5,0</td><td class="num same">5,0</td><td>Quelques composants corrigés, mais défauts clavier/noms/cibles et absence de campagne formelle.</td></tr>
+    </tbody>
+    <tfoot><tr><th colspan="3">Moyenne à poids égal</th><th class="num">6,7/10</th><th>Valeur non arrondie : 6,65.</th></tr></tfoot>
+  </table></div>
+
+  <h2 id="matrix">5. Revalidation des 41 constats historiques</h2>
+  <p><span class="chip corrected">Corrigé</span> exige code + contrôle cohérent.
+    <span class="chip partial">Partiel</span> signifie que la cause ou une fenêtre de défaillance subsiste.
+    <span class="chip replaced">Remplacé</span> clôt l’allégation ancienne et conserve le défaut réel actuel.
+    <span class="chip open">Ouvert</span> ne dispose pas d’une correction suffisante.</p>
+  <div class="tw"><table>
+    <thead><tr><th>ID</th><th>Verdict 13/07</th><th>Contre-vérification synthétique</th></tr></thead>
+    <tbody>
+      <tr><td class="num">001</td><td><span class="chip partial">Partiel</span></td><td>Heartbeat et attente Drive ajoutés ; tâches non durables, reindex destructif et erreurs <code>process_document</code> absorbées avant comptage.</td></tr>
+      <tr><td class="num">002</td><td><span class="chip partial">Partiel</span></td><td>Frontières cache corrigées ; annuler l’initiateur retire le single-flight avant la fin du producteur et permet un second appel.</td></tr>
+      <tr><td class="num">003</td><td><span class="chip corrected">Corrigé</span></td><td>Le job 60 s n’utilise plus le verrou à TTL ; leader, <code>max_instances=1</code> et <code>SKIP LOCKED</code>.</td></tr>
+      <tr><td class="num">004</td><td><span class="chip open">Ouvert</span></td><td>Warning seulement : burst prod 288 pour 195 connexions utilisables ; le test documente l’overcommit.</td></tr>
+      <tr><td class="num">005</td><td><span class="chip corrected">Corrigé</span></td><td>Fermeture TTS en <code>finally</code>, helper idempotent, tests succès et erreur.</td></tr>
+      <tr><td class="num">006</td><td><span class="chip partial">Partiel</span></td><td>0 fichier hors racines CI, mais filtres/markers laissent 53 cas non exécutés : 42 unit, 4 agents, 7 integration.</td></tr>
+      <tr><td class="num">007</td><td><span class="chip corrected">Corrigé</span></td><td>Migration gardée, job CI base vierge, replay complet réel et head unique. L’équivalence de schéma est traitée séparément en F042.</td></tr>
+      <tr><td class="num">008</td><td><span class="chip partial">Partiel</span></td><td>CI verte et readiness désormais requises ; tags mutables, build local Pi, provenance et rollback opérationnel restent incomplets.</td></tr>
+      <tr><td class="num">009</td><td><span class="chip partial">Partiel</span></td><td>Ratchet CI vert mais 31 cycles runtime figés.</td></tr>
+      <tr><td class="num">010</td><td><span class="chip open">Ouvert</span></td><td>538 tests verts mais ~13 % de couverture et plusieurs surfaces métier à 0 %.</td></tr>
+      <tr><td class="num">011</td><td><span class="chip partial">Partiel</span></td><td>Seuil ESLint CC96 ; 78 fonctions ≥15 et quatre fichiers &gt;1 300 lignes sans ratchet fin.</td></tr>
+      <tr><td class="num">012</td><td><span class="chip open">Ouvert</span></td><td>47 violations statiques baseline, plus contrôles custom non détectés.</td></tr>
+      <tr><td class="num">013</td><td><span class="chip open">Ouvert</span></td><td>En-têtes triables non clavier et faux modals encore présents sur plusieurs écrans admin.</td></tr>
+      <tr><td class="num">014</td><td><span class="chip replaced">Remplacé</span></td><td>URL <code>undefined</code> réfutée ; autocomplete courant sujet aux réponses obsolètes et sans sémantique combobox.</td></tr>
+      <tr><td class="num">015</td><td><span class="chip partial">Partiel</span></td><td>Ratchets ajoutés ; 351 fonctions CC≥15, max 89, 41 fichiers ≥800 SLOC.</td></tr>
+      <tr><td class="num">016</td><td><span class="chip corrected">Corrigé</span></td><td>La Task productrice possède write/cleanup et chaque waiter utilise <code>asyncio.shield</code>.</td></tr>
+      <tr><td class="num">017</td><td><span class="chip partial">Partiel</span></td><td>Le code principal reconnaît le mode advisory ; aucune ré-exécution, état absent et métriques de succès trompeuses.</td></tr>
+      <tr><td class="num">018</td><td><span class="chip partial">Partiel</span></td><td>Lock distribué inter-workers ; traitement O(users×skills) sans test startup/concurrence.</td></tr>
+      <tr><td class="num">019</td><td><span class="chip partial">Partiel</span></td><td>16 skips permanents allowlistés ; le guard ignore les <code>pytest.skip()</code> runtime, dont trois inconditionnels.</td></tr>
+      <tr><td class="num">020</td><td><span class="chip partial">Partiel</span></td><td>Ratchet 481/481 ; 31 overrides, 864 erreurs supprimées informatives et règles strictes neutralisées.</td></tr>
+      <tr><td class="num">021</td><td><span class="chip replaced">Remplacé</span></td><td>Le « 96 any » est réfuté ; dette réelle : 34 violations React 19 avec règles désactivées et baseline agrégée.</td></tr>
+      <tr><td class="num">022</td><td><span class="chip partial">Partiel</span></td><td>Make majoritairement shim Task ; commande agents différente de la CI, implémentations Make-only et aucune parité testée.</td></tr>
+      <tr><td class="num">023</td><td><span class="chip corrected">Corrigé</span></td><td>Trois scripts ancrés sur <code>__file__</code>, testés depuis trois CWD.</td></tr>
+      <tr><td class="num">024</td><td><span class="chip corrected">Corrigé</span></td><td>0 lien LIVING cassé ; les 7 restants sont historiques et contrôlés.</td></tr>
+      <tr><td class="num">025</td><td><span class="chip partial">Partiel</span></td><td>Validation structurelle et recording rules ; alertes live et leur fichier de test promtool ne sont pas exécutés fonctionnellement.</td></tr>
+      <tr><td class="num">026</td><td><span class="chip corrected">Corrigé</span></td><td>Symboles no-op et métriques placeholder retirés ; scan AST propre hors abstractions légitimes.</td></tr>
+      <tr><td class="num">027</td><td><span class="chip corrected">Corrigé</span></td><td>Validation récursive JSON/parité des six langues reliée à Task, CI et pre-commit.</td></tr>
+      <tr><td class="num">028</td><td><span class="chip partial">Partiel</span></td><td>Perf relative corrigée ; frontières DB encore mal isolées et tests HITL placés/sélectionnés de façon incohérente.</td></tr>
+      <tr><td class="num">029</td><td><span class="chip partial">Partiel</span></td><td>39 chemins LIVING stale et contradictions actives sur couverture, WCAG et objectifs de test.</td></tr>
+      <tr><td class="num">030</td><td><span class="chip replaced">Remplacé</span></td><td>Manifests alignés à 1.24.0 ; runtime OTel encore 0.1.0 et aucune identité SHA/digest/build fiable.</td></tr>
+      <tr><td class="num">031</td><td><span class="chip open">Ouvert</span></td><td>Aucun E2E navigateur, axe, campagne lecteur d’écran, zoom/reflow ou contraste formel.</td></tr>
+      <tr><td class="num">032</td><td><span class="chip corrected">Corrigé</span></td><td>Contrôle de <code>lock.acquired</code> et garde AST systémique.</td></tr>
+      <tr><td class="num">033</td><td><span class="chip corrected">Corrigé</span></td><td>Absence de critères Places propagée en échec métier.</td></tr>
+      <tr><td class="num">034</td><td><span class="chip partial">Partiel</span></td><td>Activation validée, mais seul OpenWeatherMap possède un verifier fonctionnel ; les autres types passent sur format.</td></tr>
+      <tr><td class="num">035</td><td><span class="chip corrected">Corrigé</span></td><td>Pseudo-cache supprimé ; lecture DB directe. Docstrings mineures à nettoyer.</td></tr>
+      <tr><td class="num">036</td><td><span class="chip corrected">Corrigé</span></td><td>Date civile locale, tests sur trois TZ et garde AST.</td></tr>
+      <tr><td class="num">037</td><td><span class="chip partial">Partiel</span></td><td>Guard request-id incomplet dans <code>useUserStatistics</code>, <code>useAPIHealth</code> non protégé, 0 % couverture.</td></tr>
+      <tr><td class="num">038</td><td><span class="chip partial">Partiel</span></td><td>Carrousel inline amélioré ; deux autres carrousels gardent focus masqué et cibles 8 px.</td></tr>
+      <tr><td class="num">039</td><td><span class="chip corrected">Corrigé</span></td><td><code>build:web</code> utilise correctement la racine monorepo.</td></tr>
+      <tr><td class="num">040</td><td><span class="chip open">Ouvert</span></td><td>Windows opérationnel ; étape finale Unix/macOS appelle encore <code>cmd /c</code> et dry-run exécute des opérations distantes.</td></tr>
+      <tr><td class="num">041</td><td><span class="chip corrected">Corrigé</span></td><td>Python borné ≥3.12,&lt;3.14 et chaque mineure supportée est contrôlée en CI.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="new">6. Faux négatifs nouveaux établis</h2>
+  <div class="callout">
+    Ces points n’étaient pas des variantes sémantiques des constats antérieurs : chacun possède une contre-preuve spécifique.
+    Ils sont numérotés F042 à F045 et inclus dans le registre de remédiation.
+  </div>
+  <div class="grid">
+    <section class="box"><h3>F042 — équivalence Alembic absente</h3><p>Le replay atteint head, mais <code>alembic check</code> échoue immédiatement avec un volume important d’opérations proposées. Le script documente explicitement l’omission de cette propriété.</p></section>
+    <section class="box"><h3>F043 — gate backend non déterministe et rouge</h3><p>Ruff et Black échouent. La suite rapide parallèle échoue sur cinq tests de middleware qui passent 10/10 isolément : l’état global ou l’environnement n’est pas correctement isolé.</p></section>
+    <section class="box"><h3>F044 — ratchets substituables</h3><p>Les guards accessibilité et React ne figent qu’un total. Corriger une violation puis en introduire une nouvelle ailleurs conserve 47 ou 34 et laisse la CI verte.</p></section>
+    <section class="box"><h3>F045 — interactions custom hors filet statique</h3><p>Le carrousel écoute les flèches au niveau document, chaque instance réagit sans focus ; la carte Hero est souris-only et des champs téléphonie n’ont qu’un placeholder.</p></section>
+  </div>
+  <div class="callout info">
+    <strong>Deux autres fenêtres sont rattachées à leur constat parent :</strong> F001 compte comme réussis des documents dont
+    <code>process_document</code> a absorbé l’exception ; T1 peut marquer l’appel terminé avant une notification qui échoue,
+    puis neutraliser le retry à cause de cet état terminal.
+  </div>
+
+  <h2 id="register">7. Registre des points à traiter et prompts de résolution IA</h2>
+  <p>Chaque point actif possède ci-dessous un prompt autonome destiné à une IA de coding. Les prompts imposent la recherche
+    de cause racine, la conformité aux patterns du dépôt et une preuve de non-régression. Ils n’autorisent aucune action Git.</p>
+
+  <h3>Priorité P0/P1 — exactitude, durabilité et gates</h3>
+
+  <article class="finding" data-sev="critical" id="r001">
+    <div class="fh"><h4>F001 — Workflows RAG non durables et succès mensongers</h4><span class="fid">MAJEUR · DONNÉES/FIABILITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd><code>processing.py:386-423,515-536</code>, <code>drive_sync.py:684-716</code>, <code>reindex.py:76-98,201-270</code>.</dd><dt>Risque</dt><dd>Perte au crash, chunks supprimés avant reconstruction, source marquée COMPLETED malgré erreurs absorbées.</dd></dl>
+    <details><summary>Prompt IA de résolution — F001</summary><pre>Corrige F001 dans le domaine RAG sans contournement. Modélise upload, Drive sync et reindex comme jobs persistés, idempotents et reprenables, avec états explicites pending/running/failed/completed et heartbeat. Remplace le contrat ambigu de process_document par un résultat typé succès/échec ou une exception non absorbée. N’autorise COMPLETED que si tous les documents ont réellement réussi. Rends le reindex non destructif par génération/version puis bascule atomique. Réutilise repositories, sessions et logging structuré existants. Ajoute des tests : crash/reprise, erreur document absorbée, succès partiel, double lancement, annulation, et invariants de statut/chunks. Mets à jour la documentation active.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r004">
+    <div class="fh"><h4>F004 — Budget de connexions DB supérieur à la capacité</h4><span class="fid">MAJEUR · CONFIGURATION/SCALABILITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd><code>connection_budget.py</code>, <code>registries.py:97-105</code>, <code>.env.prod.example:146-158</code> : 288 &gt; 195.</dd><dt>Risque</dt><dd>Épuisement de connexions sous burst multi-worker ; le warning n’empêche rien.</dd></dl>
+    <details><summary>Prompt IA de résolution — F004</summary><pre>Rends l’invariant de budget DB réellement contraignant. Calcule le pire cas avec nombre de workers, pools, overflows, connexions réservées et services auxiliaires. Choisis des valeurs prod cohérentes ou dérive automatiquement les pools depuis un budget global. En environnement production, refuse le démarrage si le maximum théorique dépasse la capacité utilisable ; garde un message structuré et actionnable. Ne durcis pas artificiellement les tests : teste exactement les profils .env supportés, les limites, le cas égal et le dépassement. Centralise les constantes et documente le calcul dans la documentation d’exploitation.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r006">
+    <div class="fh"><h4>F006 — 53 cas pytest encore hors CI</h4><span class="fid">MAJEUR · TESTS/CI</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>42 unit, 4 agents, 7 integration exclus par les expressions de markers malgré un baseline de chemins vide.</dd><dt>Risque</dt><dd>Le guard de taxonomie donne une assurance fausse : un fichier bien placé peut ne jamais tourner.</dd></dl>
+    <details><summary>Prompt IA de résolution — F006</summary><pre>Étends le garde de taxonomie pour raisonner sur les tests collectés et les expressions réelles de chaque job CI, pas seulement sur les chemins. Produis la liste canonique des nodeids collectés et prouve que leur union est exhaustive, avec allowlist explicite, motivée et shrink-only pour les catégories volontairement hors PR. Corrige les markers des 53 cas actuels et aligne Taskfile et ci.yml. Ajoute des tests du garde montrant qu’un test dans une bonne racine mais exclu par marker fait échouer la CI. Garde les suites rapides proportionnées et documente où tourne chaque catégorie.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="critical" id="r010">
+    <div class="fh"><h4>F010 — Couverture frontend insuffisante</h4><span class="fid">MAJEUR · TESTS</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>12,88/10,77/9,67/13,15 ; écrans admin, Journals, export, SkillGuideModal et bridge MCP à 0 %.</dd><dt>Risque</dt><dd>Les zones les plus complexes évoluent sans filet comportemental.</dd></dl>
+    <details><summary>Prompt IA de résolution — F010</summary><pre>Augmente la couverture frontend par risque, sans tests triviaux. Commence par ConsumptionExportSection, JournalsSettings, AdminLLMConfigSection, AdminLLMPricingSection, SkillGuideModal et useMcpAppBridge. Teste états chargement/erreur/succès, concurrence de requêtes, interactions clavier, mutations, invalidation de cache et rendu i18n. Utilise Testing Library et les helpers existants. Ajoute des seuils par fichier ou groupe métier, puis relève progressivement les seuils globaux sans les baisser. Le résultat doit faire passer pnpm test:coverage et documenter les seuils réels ; ne revendique pas 80 % tant que cette valeur n’est pas atteinte.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="critical" id="r012">
+    <div class="fh"><h4>F012 — Contrôles sans nom ou association accessible</h4><span class="fid">MAJEUR · WCAG 1.3.1/3.3.2/4.1.2</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>47 violations baseline ; Journals, Notifications, Usage Limits et champs téléphonie concernés.</dd><dt>Risque</dt><dd>Contrôles non identifiables ou mal annoncés par les technologies d’assistance.</dd></dl>
+    <details><summary>Prompt IA de résolution — F012</summary><pre>Corrige toutes les associations label/contrôle et tous les boutons icône identifiés. Utilise htmlFor/id ou aria-labelledby de façon stable, un nom accessible traduit pour chaque action, et conserve les descriptions/erreurs liées par aria-describedby. Traite aussi les composants custom et les champs secrets de TelephonyConnectorForm, qui échappent au lint. Ajoute des tests Testing Library avec getByRole/getByLabelText sur chaque surface corrigée. Remplace le ratchet total par un inventaire non substituable. Vérifie les six langues et ne modifie pas la présentation visuelle sans nécessité.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="critical" id="r013">
+    <div class="fh"><h4>F013 — Tri non clavier et faux dialogues</h4><span class="fid">MAJEUR · WCAG 2.1.1/2.4.3/2.4.7/4.1.2</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd><code>th onClick</code> sur cinq tables ; overlays admin sans Dialog ; aucun test focus/Escape.</dd><dt>Risque</dt><dd>Fonctions inaccessibles au clavier, focus non contenu ou perdu.</dd></dl>
+    <details><summary>Prompt IA de résolution — F013</summary><pre>Crée ou réutilise un composant SortableHeader contenant un vrai button, avec aria-sort, focus visible, activation Entrée/Espace et nom traduit. Migre toutes les tables concernées. Remplace les overlays ad hoc par le Dialog Radix partagé : titre/description, focus initial, trap, retour du focus et fermeture Escape. Ajoute des tests clavier et focus pour chaque pattern, pas seulement des snapshots. Vérifie que les événements souris restent compatibles et qu’aucune logique de tri n’est dupliquée.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r031">
+    <div class="fh"><h4>F031 — Absence d’E2E navigateur et de campagne WCAG</h4><span class="fid">MAJEUR · ASSURANCE QUALITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Aucun Playwright/Cypress/axe, workflow navigateur ou protocole NVDA/VoiceOver.</dd><dt>Risque</dt><dd>Les propriétés focus, annonce, reflow, contraste et intégration réelle ne sont pas démontrées.</dd></dl>
+    <details><summary>Prompt IA de résolution — F031</summary><pre>Introduis une couche E2E Playwright cohérente avec Next.js 16 et l’API de test. Couvre au minimum authentification simulée, chat SSE, paramètres, Journals, export, connecteurs et parcours admin critique. Ajoute axe sur chaque page stable, tests clavier, focus, zoom/reflow et multi-moteur Chromium/Firefox/WebKit. Formalise une campagne manuelle NVDA et VoiceOver avec critères WCAG 2.2 AA et conservation des preuves. Branche un sous-ensemble déterministe en CI et la campagne complète périodiquement. Documente les données de test et élimine toute dépendance à la production.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="critical" id="r042">
+    <div class="fh"><h4>F042 — Parité ORM↔migrations non garantie</h4><span class="fid">MAJEUR · DONNÉES/ÉVOLUTIVITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Après replay à head, <code>alembic check</code> échoue avec de nombreuses modifications de colonnes, index, contraintes, defaults et commentaires.</dd><dt>Risque</dt><dd>Un schéma reconstruit peut différer de celui attendu par les modèles ; autogénérations futures bruyantes ou dangereuses.</dd></dl>
+    <details><summary>Prompt IA de résolution — F042</summary><pre>Sur une base PostgreSQL vierge jetable, rejoue toutes les migrations puis exécute alembic check. Classe chaque diff : dérive réelle à corriger par migration, divergence volontaire à représenter dans les modèles, ou bruit dialecte à filtrer précisément. N’ajoute pas un filtre global qui masquerait de nouvelles dérives. Résous d’abord plan_approvals puis index, contraintes, defaults, types et commentaires. Ajoute un job CI distinct du replay qui exige zéro diff inattendu, avec allowlist structurée, motivée et shrink-only si une exception temporaire est indispensable. Prouve upgrade head, alembic check, downgrade/upgrade final et head unique.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="critical" id="r043">
+    <div class="fh"><h4>F043 — Snapshot backend non promouvable et suite non isolée</h4><span class="fid">MAJEUR · GATE QUALITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>2 erreurs Ruff, 6 fichiers Black ; 5 échecs middleware en parallèle mais 10/10 isolés.</dd><dt>Risque</dt><dd>Gate rouge et tests sensibles à l’ordre, au worker ou à l’environnement.</dd></dl>
+    <details><summary>Prompt IA de résolution — F043</summary><pre>Rends le snapshot entièrement vert sans désactiver de règle. Corrige UP037 et applique Black uniquement aux six fichiers concernés. Reproduis les cinq échecs de test_logging_middleware sous pytest-xdist avec répétitions et ordre aléatoire. Identifie l’état global partagé : settings, patch de module, variables d’environnement, logger ou middleware initialisé hors durée du patch. Isole chaque test avec monkeypatch/context manager et restaure tout état après test. Les assertions de defaults doivent neutraliser .env plutôt que supposer son absence. Critères : fichier seul vert, suite rapide -n auto verte sur au moins trois exécutions, Ruff/Black/MyPy verts et aucun assouplissement de configuration.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="critical" id="rt1">
+    <div class="fh"><h4>T1 — Téléphonie process-local et perte après état terminal</h4><span class="fid">MAJEUR · FIABILITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Webhook lancé par <code>safe_fire_and_forget</code> ; statut terminal écrit avant notification ; retry court-circuité.</dd><dt>Risque</dt><dd>Hard crash ou panne transitoire : appel terminé en base mais notification jamais livrée.</dd></dl>
+    <details><summary>Prompt IA de résolution — T1</summary><pre>Remplace la Task process-local du webhook de synthèse par un workflow durable ou une outbox transactionnelle. Sépare les états synthèse prête, notification pending, delivered et failed. La transition terminale métier ne doit pas empêcher la redélivrance. Implémente idempotency key, lease/heartbeat, retries bornés avec backoff et worker de récupération au démarrage. Commit le payload/outbox atomiquement, puis marque delivered seulement après succès du dispatcher. Ajoute des tests de crash à chaque frontière, panne avant/après commit, doublon webhook, notification transitoirement indisponible et redémarrage de process. Conserve logging et métriques exactes.</pre></details>
+  </article>
+
+  <h3>Priorité P2 — maîtrise de dette, exactitude et accessibilité</h3>
+
+  <article class="finding" data-sev="major" id="r002">
+    <div class="fh"><h4>F002 — Single-flight LLM supprimé trop tôt sur annulation</h4><span class="fid">MODÉRÉ · CONCURRENCE/PERFORMANCE</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Après annulation initiateur : map=0 alors que producteur actif ; un troisième caller déclenche un deuxième producteur.</dd><dt>Risque</dt><dd>Stampede et double coût sous annulation client.</dd></dl>
+    <details><summary>Prompt IA de résolution — F002</summary><pre>Transfère la propriété du cleanup single-flight à la Task productrice, jamais au caller initiateur. Conserve l’entrée tant que le producteur n’est pas terminé, shield les waiters sans masquer les exceptions, et supprime exactement une fois via callback ou finally du producteur avec contrôle d’identité. Teste initiateur annulé, joiner annulé, tous waiters annulés, caller tardif avant fin, erreur producteur et nouveau cycle après fin. Le probe doit démontrer un seul appel producteur et une map vide uniquement après terminaison. Préserve les métriques hit/miss/write et le contrat Redis.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r008">
+    <div class="fh"><h4>F008 — Livraison non immuable et rollback non opératoire</h4><span class="fid">MODÉRÉ · CI/CD</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Release conditionnée et readiness présentes ; images taguées, Pi reconstruit localement, rollback seulement textuel.</dd><dt>Risque</dt><dd>Artefact effectivement exécuté non prouvable, retour arrière lent ou ambigu.</dd></dl>
+    <details><summary>Prompt IA de résolution — F008</summary><pre>Choisis et implémente une stratégie de livraison unique et traçable. Publie les images multi-arch puis déploie par digest, ou formalise le build local avec provenance équivalente ; évite le mélange actuel. Enregistre version, SHA, digest/build ID dans le manifeste de release et expose-les à /version et aux traces. Avant déploiement, capture le manifeste précédent ; en cas d’échec readiness, rollback automatique vers les digests précédents et revalide. Ajoute un dry-run hermétique et des tests de workflow/script simulant succès, readiness rouge et rollback. Mets à jour CI_CD.md.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r009">
+    <div class="fh"><h4>F009 — 31 cycles d’import runtime figés</h4><span class="fid">MODÉRÉ · ARCHITECTURE</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd><code>measure_coupling.py --check-cycles</code> passe à 31/31 ; suppression de T2 seulement.</dd><dt>Risque</dt><dd>Initialisation fragile, frontières DDD affaiblies, changements à large rayon.</dd></dl>
+    <details><summary>Prompt IA de résolution — F009</summary><pre>Analyse les 31 cycles runtime par composantes fortement connexes. Classe hub accepté, import différé de compatibilité et violation de frontière. Priorise les cycles hors hubs documentés, puis casse-les par ports/protocoles, événements, déplacement de types ou injection de dépendance ; n’ajoute pas de nouveaux imports locaux uniquement pour masquer la mesure. Pour chaque lot, ajoute un test d’import en process frais et baisse le baseline exact. Mets à jour les ADR lorsque la direction de dépendance change. Critère : aucun nouveau cycle et réduction mesurable à chaque PR.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r011">
+    <div class="fh"><h4>F011 — Hotspots frontend non réellement bornés</h4><span class="fid">MODÉRÉ · MAINTENABILITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>CC max 96, 78 fonctions ≥15, quatre fichiers &gt;1 300 lignes ; une nouvelle fonction CC95 passe.</dd><dt>Risque</dt><dd>Dette substituable et régressions difficiles à tester.</dd></dl>
+    <details><summary>Prompt IA de résolution — F011</summary><pre>Ajoute un ratchet frontend par fingerprint fonction/fichier plutôt qu’un plafond global à 96. Mesure nombre de fonctions ≥15, maximum par fonction et taille logique par fichier. Refactorise progressivement useMcpAppBridge, AdminLLMConfigSection, ChatMessage, AdminLLMPricingSection et JournalsSettings en hooks/services/composants à responsabilité unique, sans modification fonctionnelle. Ajoute des tests de caractérisation avant extraction. Le baseline doit être shrink-only et empêcher toute nouvelle fonction complexe même sous le maximum historique. Documente les exceptions temporaires avec propriétaire et cible.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r014">
+    <div class="fh"><h4>F014 — Autocomplete export concurrent et non combobox</h4><span class="fid">MODÉRÉ · ROBUSTESSE/WCAG</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Réponses obsolètes acceptées ; aucun rôle combobox/listbox/option ni navigation clavier ; 0 % couverture.</dd><dt>Risque</dt><dd>Résultats incohérents et sélection inaccessible.</dd></dl>
+    <details><summary>Prompt IA de résolution — F014</summary><pre>Corrige ConsumptionExportSection avec AbortController ou request-id strict : seule la dernière requête peut modifier options, erreur et loading, y compris dans finally. Implémente le pattern ARIA combobox complet : combobox, listbox, option, aria-expanded, aria-controls, aria-activedescendant, flèches, Entrée, Échap et focus visible. Réutilise un composant partagé si présent. Ajoute des tests avec réponses inversées, démontage, requête vide, clavier et annonce des options. Conserve le fallback URL déjà correct et ne réintroduis pas l’ancien faux positif.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r015">
+    <div class="fh"><h4>F015 — Hotspots backend massifs</h4><span class="fid">MODÉRÉ · ISO 5055/MAINTENABILITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>351 fonctions CC≥15, max 89, 168 fonctions &gt;100 SLOC, <code>response_node.py</code> 2 483 SLOC.</dd><dt>Risque</dt><dd>Compréhensibilité, testabilité et modification sûre limitées.</dd></dl>
+    <details><summary>Prompt IA de résolution — F015</summary><pre>Planifie une réduction incrémentale des hotspots backend sans big bang. Commence par _stream_with_new_services, task_orchestrator_node, planner_node_v3 et response_node. Écris des tests de caractérisation des branches et contrats, puis extrais des objets de politique, étapes de pipeline et fonctions pures typées. Préserve LangGraph state, streaming SSE, métriques et exceptions. Le ratchet doit suivre chaque fonction et le nombre total de CC≥15, pas seulement max global. Exige une baisse mesurée par lot et refuse tout nouveau hotspot. Docstrings Google, MyPy strict, Ruff et Black obligatoires.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r017">
+    <div class="fh"><h4>F017 — Replanner advisory présenté et mesuré comme recovery</h4><span class="fid">MODÉRÉ · EXACTITUDE FONCTIONNELLE</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Aucune décision ne ré-exécute ; <code>replan_attempt</code> absent du state ; métriques attempts/success incrémentées sans action.</dd><dt>Risque</dt><dd>Fonction annoncée non fournie et observabilité factuellement fausse.</dd></dl>
+    <details><summary>Prompt IA de résolution — F017</summary><pre>Décide explicitement entre deux contrats. Option A : implémente la récupération réelle dans LangGraph, ajoute l’état persisté replan_attempt, transitions bornées, budgets, idempotence et tests E2E prouvant une nouvelle exécution réussie/abandonnée. Option B : conserve un conseiller pur, renomme config, docs et métriques en decision/advice et supprime toute revendication de retry/success. Dans les deux cas, n’incrémente success qu’après effet observé. Aligne agents.py, MessagesState, les deux documents d’architecture, dashboards et tests. Aucun mode hybride ambigu.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r018">
+    <div class="fh"><h4>F018 — Sync skills O(users×skills)</h4><span class="fid">MODÉRÉ · EXTENSIBILITÉ/PERFORMANCE</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Lock distribué acquis ; boucle utilisateurs puis requête/inserts/savepoints par skill.</dd><dt>Risque</dt><dd>Temps de démarrage croissant et contention base avec le volume.</dd></dl>
+    <details><summary>Prompt IA de résolution — F018</summary><pre>Mesure le coût réel du sync skills puis remplace la boucle N×M par des opérations ensemblistes idempotentes : upsert bulk, jointures/anti-jointures et pagination des utilisateurs. Garde le lock distribué mais limite sa durée et expose durée, lignes créées/mises à jour et erreurs. Si possible, versionne le catalogue pour ne traiter que les deltas. Ajoute des tests concurrence deux workers, relance idempotente, catalogue vide, milliers d’utilisateurs simulés et rollback partiel. Évite un AsyncSession partagé entre tâches concurrentes.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r019">
+    <div class="fh"><h4>F019 — Skips permanents et angle mort runtime</h4><span class="fid">MODÉRÉ · TESTS</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>16 skips allowlistés ; trois <code>pytest.skip()</code> inconditionnels dans le corps ne sont pas détectés.</dd><dt>Risque</dt><dd>Dette de test invisible et croissance silencieuse.</dd></dl>
+    <details><summary>Prompt IA de résolution — F019</summary><pre>Étends le scanner aux appels pytest.skip dans le corps. Distingue statiquement conditions runtime légitimes et appels inconditionnels ; si l’analyse est ambiguë, impose un marker/annotation explicite. Ajoute les trois skips actuels à l’inventaire, puis restaure ou supprime les tests morts par catégorie. Le baseline reste shrink-only avec reason, owner et issue/échéance. Ajoute des tests du scanner pour décorateur, module-level, appel conditionnel et appel inconditionnel. Le nombre de skips rapporté par chaque job doit être publié.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r020">
+    <div class="fh"><h4>F020 — Dette MyPy neutralisée</h4><span class="fid">MODÉRÉ · TYPAGE</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>481 couples module/code, 31 overrides, 864 erreurs supprimées informatives.</dd><dt>Risque</dt><dd>Le succès MyPy ne couvre pas uniformément les zones complexes.</dd></dl>
+    <details><summary>Prompt IA de résolution — F020</summary><pre>Génère un inventaire priorisé des 481 exemptions par domaine, code MyPy et criticité. Active d’abord disallow_untyped_decorators là où possible, puis supprime les disable_error_code larges au profit de corrections locales typées. Traite les modules runtime les plus couplés avant les tests. Le garde doit suivre à la fois couples module/code et nombre d’erreurs supprimées, avec fingerprints non substituables. N’ajoute pas de cast Any ou ignore générique pour faire baisser le compteur. Chaque lot doit passer MyPy strict, Ruff, tests ciblés et réduire le baseline.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r021">
+    <div class="fh"><h4>F021 — Dette React 19 masquée par règles désactivées</h4><span class="fid">MODÉRÉ · FRONTEND</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>32 <code>set-state-in-effect</code> et 2 <code>immutability</code>, règles désactivées, total agrégé.</dd><dt>Risque</dt><dd>Effets redondants, rendus supplémentaires et nouvelles violations substituables.</dd></dl>
+    <details><summary>Prompt IA de résolution — F021</summary><pre>Remplace le baseline React agrégé par fingerprints règle+fichier+site. Corrige d’abord les violations immutability, puis les set-state-in-effect en dérivant l’état pendant le rendu, en initialisant correctement ou en déplaçant l’effet vers l’événement/la source externe. N’applique pas mécaniquement des désactivations locales. Réactive progressivement les règles eslint-plugin-react-hooks et ajoute des tests de comportement pour les composants touchés. Critères : aucune nouvelle empreinte, compteur strictement décroissant et lint/typecheck/tests verts.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r022">
+    <div class="fh"><h4>F022 — Contrats Task/CI/Make divergents</h4><span class="fid">MODÉRÉ · OUTILLAGE</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd><code>test:backend:agents</code> omet markers et <code>--no-cov</code> ; exit 1 après 971 tests fonctionnels verts.</dd><dt>Risque</dt><dd>Commande développeur faussement rouge et suites locales différentes de la CI.</dd></dl>
+    <details><summary>Prompt IA de résolution — F022</summary><pre>Définis les sélections pytest une seule fois ou génère Task et CI depuis un contrat partagé. Aligne test:backend:agents avec le job CI, notamment markers, --no-cov et tb, puis sépare explicitement le gate de couverture global. Transforme les cibles Make restantes en shims Task ou documente la seule implémentation canonique. Ajoute un guard qui compare les commandes/expressions effectives et un collect-only qui vérifie leur ensemble de nodeids. Mets à jour les guides de test avec les commandes réellement validées.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r025">
+    <div class="fh"><h4>F025 — Validation des alertes incomplète</h4><span class="fid">MODÉRÉ · OBSERVABILITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd><code>alerts_core_test.yml</code> existe mais <code>promtool test rules</code> n’est jamais exécuté ; alerts live seulement structurées.</dd><dt>Risque</dt><dd>Expressions valides en apparence mais alertes fonctionnellement erronées.</dd></dl>
+    <details><summary>Prompt IA de résolution — F025</summary><pre>Rends les alertes live validables après rendu de template, puis exécute promtool check rules et promtool test rules sur alerts_core_test.yml en CI. Ajoute des cas d’activation et de non-activation pour chaque alerte critique, vérifie labels/annotations et liens de runbook. Contrôle également que les métriques référencées sont émises ou produites par recording rules. Étends validate_observability.py sans se limiter à l’équilibrage de parenthèses. Le job doit échouer sur template invalide, expression inconnue, test d’alerte rouge ou runbook absent.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r028">
+    <div class="fh"><h4>F028 — Frontières de tests et isolation DB incohérentes</h4><span class="fid">MODÉRÉ · TESTABILITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Tests dits unitaires patchent un helper mais le chemin réel ouvre encore une session ; 13 tests integration sous agents sont collectés par la CI agents.</dd><dt>Risque</dt><dd>Classification trompeuse, dépendances implicites et temps/flakiness.</dd></dl>
+    <details><summary>Prompt IA de résolution — F028</summary><pre>Répare les frontières de test selon le comportement réel. Pour context_resolution_service, injecte une fabrique/session ou mocke la frontière get_tcm_session explicitement ; un test unitaire ne doit pas atteindre PostgreSQL. Déplace ou marque correctement les 13 tests HITL integration et aligne les expressions CI/Task. Conserve le benchmark relatif, avec échauffement et ratio robuste. Ajoute un guard empêchant les imports/connexions DB dans les unités désignées et documente les fixtures par niveau unit/integration/e2e.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r029">
+    <div class="fh"><h4>F029 — Documentation active en dérive</h4><span class="fid">MODÉRÉ · DOCUMENTATION</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>39 chemins LIVING stale ; commande coverage inopérante, WCAG 2.1 et objectif ≥80 % non conformes au réel.</dd><dt>Risque</dt><dd>Opérations et développement guidés par des instructions contradictoires.</dd></dl>
+    <details><summary>Prompt IA de résolution — F029</summary><pre>Corrige les 39 chemins stale LIVING en vérifiant chaque cible par symbole. Remplace partout pnpm test -- --coverage par pnpm test:coverage, mets le référentiel à WCAG 2.2/ISO 40500:2025 et distingue objectif futur de seuil actuel mesuré. Synchronise README audit, AUDIT_PROTOCOL, GUIDE_TESTING, GUIDE_DEPLOYMENT, index et docs d’architecture concernés. Fais échouer doc_audit sur un nouveau chemin stale LIVING, avec baseline shrink-only pour les 39 existants jusqu’à résorption. Ajoute des tests de commandes documentées en dry-run/collect-only lorsque possible.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r030">
+    <div class="fh"><h4>F030 — Provenance runtime non identifiable</h4><span class="fid">MODÉRÉ · OPÉRABILITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Manifests 1.24.0 ; OTel expose 0.1.0 et Langfuse seulement development/production, sans SHA/digest/build ID.</dd><dt>Risque</dt><dd>Impossible de rattacher précisément un comportement à l’artefact exécuté.</dd></dl>
+    <details><summary>Prompt IA de résolution — F030</summary><pre>Crée une source unique de BuildInfo injectée au build : version, commit SHA, build ID, date et digest lorsque disponible. Expose-la dans l’endpoint version/health approprié, les ressources OTel, Langfuse, logs startup et métadonnées frontend. Ne conserve aucun 0.1.0 hardcodé. Ajoute des guards vérifiant la cohérence des manifests et que les artefacts prod reçoivent une provenance non vide. Documente le comportement dev local et le fallback explicite unknown, sans le présenter comme version réelle.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r034">
+    <div class="fh"><h4>F034 — Activation connecteur sur validation de format</h4><span class="fid">MODÉRÉ · EXACTITUDE</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Seul OpenWeatherMap possède un verifier ; types sans verifier retournent True puis ACTIVE.</dd><dt>Risque</dt><dd>Interface annonçant un connecteur fonctionnel sans preuve fournisseur.</dd></dl>
+    <details><summary>Prompt IA de résolution — F034</summary><pre>Remplace le fallback True par un état explicite non vérifié ou exige un verifier fonctionnel par type avant ACTIVE. Implémente les probes minimaux, bornés et sans effet de bord pour chaque API key connector supporté, avec timeout et erreurs typées. Corrige le test au nom trompeur pour appeler réellement le flux d’activation. Teste clé invalide, timeout, verifier absent, succès et conservation de l’ancien état. L’UI doit distinguer configured, verifying, active et verification_failed.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r037">
+    <div class="fh"><h4>F037 — Courses dans les hooks de polling</h4><span class="fid">MODÉRÉ · ROBUSTESSE FRONTEND</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd><code>useUserStatistics</code> n’invalide pas tous les finally/user null ; <code>useAPIHealth</code> sans guard ; 0 % couverture.</dd><dt>Risque</dt><dd>Ancienne réponse écrasant un nouvel utilisateur ou arrêtant son loading.</dd></dl>
+    <details><summary>Prompt IA de résolution — F037</summary><pre>Uniformise les hooks de polling autour d’un helper testé utilisant AbortController ou request-id monotone. Chaque mutation data/error/loading, y compris finally, doit vérifier qu’elle appartient à la requête courante et que le composant est monté. Invalide immédiatement l’id lorsque user devient null ou que les paramètres changent. Applique le pattern à useUserStatistics et useAPIHealth, puis vérifie useUsageLimits. Ajoute tests réponses inversées, démontage, changement utilisateur, rejet ancien, interval overlap et nettoyage timers.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r038">
+    <div class="fh"><h4>F038 — Carrousels secondaires non conformes</h4><span class="fid">MODÉRÉ · WCAG 2.4.7/2.5.8</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Flèches visibles seulement au hover et points 8×8 dans ScreenshotsSection/PresentationSection ; 0 % couverture.</dd><dt>Risque</dt><dd>Contrôles invisibles au focus et cibles trop petites.</dd></dl>
+    <details><summary>Prompt IA de résolution — F038</summary><pre>Aligne ScreenshotsSection et PresentationSection sur le carrousel inline corrigé : cibles d’au moins 24×24 CSS px ou exception d’espacement prouvée, focus visible indépendant du hover, vrais boutons nommés, état courant annoncé et navigation clavier locale. Ajoute des tests de rôle, focus, flèches, début/fin et taille de classe/style. Vérifie reflow et mode réduit. Mutualise un composant Carousel accessible pour éviter trois implémentations divergentes.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r040">
+    <div class="fh"><h4>F040 — Branche Unix du déploiement et dry-run</h4><span class="fid">MAJEUR · PORTABILITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Task appelle <code>pwsh</code> sur Unix, helper retry choisit <code>sh</code>, mais l’étape finale reste <code>cmd /c</code>. Dry-run exécute SSH/SCP avant le guard final.</dd><dt>Risque</dt><dd>Chemin Unix publié non exécutable ; dry-run non hermétique.</dd></dl>
+    <details><summary>Prompt IA de résolution — F040</summary><pre>Conserve le chemin Windows qui fonctionne et corrige uniquement la portabilité réelle. Fais passer l’exécution SSH finale par le même helper cross-platform que les autres commandes, sans cmd /c inconditionnel. Réorganise le script pour que -DryRun n’ouvre aucune connexion, ne chiffre/copier aucun secret et n’écrive ni localement ni à distance ; il doit seulement valider les prérequis non mutateurs et afficher un plan redigé. Ajoute des tests Pester ou probes injectant les exécutables, simulant Windows/Linux/macOS, dry-run et échecs. Vérifie task --dry et une exécution hermétique dans un conteneur pwsh Unix. Ne modifie pas le workflow Windows validé.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r044">
+    <div class="fh"><h4>F044 — Ratchets agrégés substituables</h4><span class="fid">MODÉRÉ · OUTILLAGE QUALITÉ</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Les guards a11y et React ne comparent que 47 et 34 au total.</dd><dt>Risque</dt><dd>Une correction peut financer une nouvelle régression ailleurs sans échec CI.</dd></dl>
+    <details><summary>Prompt IA de résolution — F044</summary><pre>Remplace les baselines scalaires a11y et React par une liste triée de fingerprints stables incluant règle, fichier et identité de nœud/fonction ; évite la seule ligne si elle rend le baseline trop volatil. Le guard doit échouer sur toute nouvelle empreinte même si le total baisse, accepter une suppression et signaler les entrées stale. Ajoute des tests prouvant substitution, déplacement mécanique et disparition. Prévois un outil explicite de mise à jour avec justification, sans mise à jour automatique en CI.</pre></details>
+  </article>
+
+  <article class="finding" data-sev="major" id="r045">
+    <div class="fh"><h4>F045 — Interactions custom hors couverture statique</h4><span class="fid">MAJEUR · ACCESSIBILITÉ/ROBUSTESSE</span></div>
+    <dl class="kv"><dt>Preuve</dt><dd>Listener Arrow global par carrousel, HeroLiaCard souris-only, champs téléphonie placeholder-only.</dd><dt>Risque</dt><dd>Plusieurs carrousels bougent ensemble ; fonctionnalités et champs inaccessibles au clavier/lecteur d’écran.</dd></dl>
+    <details><summary>Prompt IA de résolution — F045</summary><pre>Supprime l’écoute clavier sur document dans inline-place-carousel : attache-la au conteneur focusable ou aux boutons et ne réagis que lorsque l’instance détient le focus. Transforme HeroLiaCard en vrai button ou ajoute un contrôle nommé distinct avec activation clavier. Donne des labels traduits aux champs téléphonie, sans compter le placeholder comme nom. Ajoute tests avec deux carrousels montés prouvant qu’un seul réagit, tests Tab/Entrée/Espace et getByLabelText. Étends le lint/guard aux composants custom connus ou complète-le par axe/E2E.</pre></details>
+  </article>
+
+  <h2 id="closed">8. Corrections clôturées avec preuve</h2>
+  <div class="tw"><table>
+    <thead><tr><th>ID</th><th>Correction retenue</th><th>Preuve de clôture</th></tr></thead>
+    <tbody>
+      <tr><td>003</td><td>Cadence scheduler principal</td><td>Architecture leader + verrouillage ligne, 2 tests ciblés.</td></tr>
+      <tr><td>005</td><td>Fermeture clients TTS</td><td><code>finally</code> et helper idempotent, 5 tests.</td></tr>
+      <tr><td>007</td><td>Replay migrations depuis zéro</td><td>Base vierge réelle jusqu’au head unique ; cycle final présent dans le gate.</td></tr>
+      <tr><td>016</td><td>Annulation embedding partagé</td><td>Ownership producteur + shield, 7 tests de concurrence.</td></tr>
+      <tr><td>023</td><td>Scripts d’audit indépendants du CWD</td><td>Subprocess depuis racine, apps/api et répertoire tiers.</td></tr>
+      <tr><td>024</td><td>Liens ADR actifs</td><td>0 lien LIVING cassé.</td></tr>
+      <tr><td>026</td><td>APIs/métriques no-op</td><td>Symboles retirés et scan AST.</td></tr>
+      <tr><td>027</td><td>Validation i18n</td><td>Six langues, récursif, relié aux gates.</td></tr>
+      <tr><td>032</td><td>Verrou Psyche</td><td><code>.acquired</code> vérifié et garde systémique.</td></tr>
+      <tr><td>033</td><td>Faux succès Places sans critère</td><td>Échec métier propagé, tests dédiés.</td></tr>
+      <tr><td>035</td><td>Pseudo-cache Psyche</td><td>Round-trip Redis supprimé.</td></tr>
+      <tr><td>036</td><td>Date civile export</td><td>Helper local, 7 tests dans trois TZ et garde AST.</td></tr>
+      <tr><td>039</td><td>Contexte build web</td><td>Racine monorepo cohérente avec Dockerfile/CI.</td></tr>
+      <tr><td>041</td><td>Contrat Python</td><td>≥3.12,&lt;3.14 et jobs couvrant les mineures.</td></tr>
+      <tr><td>T2</td><td>Cycle agents↔telephony</td><td>Loader prompt local ; aucun cycle mesuré entre domaines.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small">Clôturé ne signifie pas que le domaine entier est exempt de dette : par exemple F007 ferme la rejouabilité, tandis que F042 traite séparément l’équivalence modèle↔schéma.</p>
+
+  <h2 id="roadmap">9. Priorisation recommandée</h2>
+  <div class="grid">
+    <section class="box"><h3>Avant toute promotion du snapshot</h3><ol>
+      <li>F043 : remettre Ruff/Black et la suite rapide parallèle au vert.</li>
+      <li>F001 et T1 : supprimer les états terminalement mensongers et garantir la reprise.</li>
+      <li>F042 : qualifier puis réduire le drift Alembic ; instaurer un gate.</li>
+      <li>F004 : rendre le budget de connexions cohérent et bloquant.</li>
+      <li>F006/F022 : garantir l’union exhaustive des tests et la parité Task/CI.</li>
+    </ol></section>
+    <section class="box"><h3>Cycle qualité suivant</h3><ol>
+      <li>F010/F031 : couverture par risque et E2E navigateur/WCAG.</li>
+      <li>F012/F013/F038/F045 : système de composants accessibles et tests clavier.</li>
+      <li>F002/F037 : invariants d’annulation et de requête courante.</li>
+      <li>F011/F015/F020/F021/F044 : ratchets non substituables et réduction effective.</li>
+      <li>F008/F025/F029/F030/F040 : provenance, alertes, docs et portabilité.</li>
+    </ol></section>
+  </div>
+
+  <h2 id="conclusion">10. Conclusion d’audit</h2>
+  <div class="callout good">
+    <strong>Conclusion impartiale :</strong> les corrections stagées ne sont ni cosmétiques ni surévaluées. Elles ferment
+    quinze points en comptant T2, dont plusieurs risques d’exécution importants. La hausse de 6,4 à 6,7 est justifiée.
+  </div>
+  <div class="callout">
+    <strong>Conclusion exigeante :</strong> le snapshot actuel ne mérite pas encore une qualification « prêt à promouvoir »,
+    car ses gates backend sont rouges et plusieurs propriétés critiques ne sont pas garanties par les tests verts :
+    durabilité, exactitude des états terminaux, équivalence du schéma, exhaustivité CI et accessibilité réelle.
+    Les baselines actuelles sont utiles pour empêcher l’aggravation, mais elles ne doivent pas être confondues avec une
+    conformité industrielle acquise.
+  </div>
+
+  <footer>
+    Rapport créé le 13 juillet 2026. Source antérieure conservée :
+    <code>docs/audit/AUDIT_CODEBASE_2026-07-12_CONSOLIDE.html</code>.
+    Cette version décrit exclusivement le snapshot local observé pendant la passe aveugle et n’utilise aucune donnée Git.
+  </footer>
+</main>
+<script>
+  function toggleTheme(){
+    var root=document.documentElement;
+    var current=root.getAttribute("data-theme");
+    var next=current==="dark"?"light":"dark";
+    root.setAttribute("data-theme",next);
+    try{localStorage.setItem("lia-audit-theme",next)}catch(e){}
+  }
+  try{
+    var saved=localStorage.getItem("lia-audit-theme");
+    if(saved==="dark"||saved==="light"){document.documentElement.setAttribute("data-theme",saved)}
+  }catch(e){}
+</script>
+</body>
+</html>

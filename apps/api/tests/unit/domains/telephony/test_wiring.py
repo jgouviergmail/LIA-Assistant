@@ -31,6 +31,7 @@ def test_telephony_routes_mounted() -> None:
     import src.domains.telephony.return_synthesis  # noqa: F401 — get_llm + dispatcher chain
     from src.api.v1.routes import api_router
     from src.domains.telephony.reapers import (  # noqa: F401
+        telephony_notification_reaper,
         telephony_retention_reaper,
         telephony_stale_call_reaper,
     )
@@ -38,3 +39,16 @@ def test_telephony_routes_mounted() -> None:
     paths = {getattr(route, "path", "") for route in api_router.routes}
     assert any(p.endswith("/telephony/webhook") for p in paths)
     assert any(p.endswith("/telephony/calls") for p in paths)
+
+
+def test_notification_reaper_is_wired_into_the_scheduler() -> None:
+    """The T1 return-notification reaper must be registered when telephony is enabled
+    (a durable outbox with no drain worker would silently never recover)."""
+    import inspect
+
+    from src.core.constants import SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER
+    from src.infrastructure.startup import schedulers
+
+    source = inspect.getsource(schedulers)
+    assert "telephony_notification_reaper" in source
+    assert SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER in source

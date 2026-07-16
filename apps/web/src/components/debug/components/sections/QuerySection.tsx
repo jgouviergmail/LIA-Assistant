@@ -42,7 +42,7 @@ export const QuerySection = React.memo(function QuerySection({ data }: QuerySect
 
             {/* Original query */}
             <div>
-              <div className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mb-0.5">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">
                 Requête originale
               </div>
               <div className="p-2 bg-muted/50 rounded text-xs border border-border/50">
@@ -52,12 +52,12 @@ export const QuerySection = React.memo(function QuerySection({ data }: QuerySect
 
             {/* Transformation arrow */}
             <div className="flex items-center justify-center">
-              <span className="text-muted-foreground/50 text-xs">↓ traduction</span>
+              <span className="text-muted-foreground text-xs">↓ traduction</span>
             </div>
 
             {/* English query */}
             <div>
-              <div className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mb-0.5">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">
                 Requête anglaise (traitement)
               </div>
               <div className="p-2 bg-muted/50 rounded text-xs border border-border/50">
@@ -69,10 +69,10 @@ export const QuerySection = React.memo(function QuerySection({ data }: QuerySect
             {data.english_enriched_query && (
               <>
                 <div className="flex items-center justify-center">
-                  <span className="text-muted-foreground/50 text-xs">↓ enrichissement</span>
+                  <span className="text-muted-foreground text-xs">↓ enrichissement</span>
                 </div>
                 <div>
-                  <div className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mb-0.5">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">
                     Requête enrichie
                   </div>
                   <div className="p-2 bg-primary/10 rounded text-xs font-medium border border-primary/20">

@@ -314,7 +314,7 @@ class ValidatedRuntimeConfig(NamedTuple):
 
 
 def validate_runtime_config(
-    runtime: ToolRuntime,
+    runtime: ToolRuntime | None,
     tool_name: str,
 ) -> "UnifiedToolOutput | ValidatedRuntimeConfig":
     """

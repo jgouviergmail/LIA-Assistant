@@ -10,7 +10,7 @@ Created: 2026-01-16
 import enum
 import uuid
 
-from sqlalchemy import Enum, ForeignKey, String, Text
+from sqlalchemy import Enum, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infrastructure.database.models import BaseModel
@@ -64,10 +64,8 @@ class SystemSetting(BaseModel):
     __tablename__ = "system_settings"
 
     key: Mapped[SystemSettingKey] = mapped_column(
-        Enum(SystemSettingKey, native_enum=False),
-        unique=True,
+        Enum(SystemSettingKey, native_enum=False, length=50),
         nullable=False,
-        index=True,
     )
 
     value: Mapped[str] = mapped_column(
@@ -87,6 +85,9 @@ class SystemSetting(BaseModel):
         Text,
         nullable=True,
     )
+
+    # Unique key (enforced by the constraint; its backing index serves lookups).
+    __table_args__ = (UniqueConstraint("key", name="uq_system_settings_key"),)
 
     def __repr__(self) -> str:
         return f"<SystemSetting(key={self.key.value}, value={self.value})>"

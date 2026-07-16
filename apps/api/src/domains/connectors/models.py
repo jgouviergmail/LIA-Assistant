@@ -8,7 +8,7 @@ import uuid
 from contextlib import suppress
 from typing import Any
 
-from sqlalchemy import Enum, ForeignKey, Text
+from sqlalchemy import Enum, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -384,6 +384,7 @@ class Connector(BaseModel):
         Enum(ConnectorStatus, native_enum=False),
         nullable=False,
         default=ConnectorStatus.ACTIVE,
+        index=True,
     )
 
     # OAuth scopes granted by user (stored as JSON array)
@@ -485,10 +486,8 @@ class ConnectorGlobalConfig(BaseModel):
     __tablename__ = "connector_global_config"
 
     connector_type: Mapped[ConnectorType] = mapped_column(
-        Enum(ConnectorType, native_enum=False),
-        unique=True,
+        Enum(ConnectorType, native_enum=False, length=50),
         nullable=False,
-        index=True,
     )
     is_enabled: Mapped[bool] = mapped_column(
         nullable=False,
@@ -496,6 +495,12 @@ class ConnectorGlobalConfig(BaseModel):
         server_default="true",
     )
     disabled_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # One row per connector type (enforced by the constraint; its backing unique
+    # index also serves connector_type lookups).
+    __table_args__ = (
+        UniqueConstraint("connector_type", name="uq_connector_global_config_connector_type"),
+    )
 
     def __repr__(self) -> str:
         return f"<ConnectorGlobalConfig(type={self.connector_type}, enabled={self.is_enabled})>"

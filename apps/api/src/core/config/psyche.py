@@ -22,7 +22,6 @@ from src.core.constants import (
     PSYCHE_AD_RELAXATION_DEFAULT,
     PSYCHE_APPRAISAL_SENSITIVITY_DEFAULT,
     PSYCHE_BASELINE_DAMPING_DEFAULT,
-    PSYCHE_CACHE_TTL_SECONDS_DEFAULT,
     PSYCHE_CIRCADIAN_AMPLITUDE_DEFAULT,
     PSYCHE_EMBODIED_INJECTION_DEFAULT,
     PSYCHE_EMOTION_DECAY_RATE_DEFAULT,
@@ -183,15 +182,4 @@ class PsycheSettings(BaseSettings):
             "Bayesian prior weight for self-efficacy updates. "
             "Higher values = slower change (more conservative)."
         ),
-    )
-
-    # ========================================================================
-    # Caching
-    # ========================================================================
-
-    psyche_cache_ttl_seconds: int = Field(
-        default=PSYCHE_CACHE_TTL_SECONDS_DEFAULT,
-        ge=60,
-        le=3600,
-        description="Redis cache TTL for psyche state (seconds).",
     )

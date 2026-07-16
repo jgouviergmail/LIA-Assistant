@@ -1,5 +1,10 @@
-import { defaultSchema } from 'hast-util-sanitize';
-import type { Options } from 'rehype-sanitize';
+// `defaultSchema` comes from rehype-sanitize's OFFICIAL re-export (of its
+// hast-util-sanitize dependency). Never import from 'hast-util-sanitize'
+// directly: it is a transitive, undeclared dependency — a fresh
+// `pnpm install --frozen-lockfile` does not expose it to the app and
+// `next build` fails with "Module not found" (only hoisted local
+// node_modules masked this).
+import { defaultSchema, type Options } from 'rehype-sanitize';
 
 type AttrEntry = string | [string, ...Array<string | number | boolean | RegExp | null | undefined>];
 

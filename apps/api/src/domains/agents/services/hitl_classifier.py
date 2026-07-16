@@ -21,7 +21,7 @@ Usage:
 import json
 from contextlib import suppress
 from functools import lru_cache
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import SystemMessage
@@ -51,6 +51,9 @@ from src.domains.agents.services.hitl.validator import HitlValidator
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output
 from src.infrastructure.observability.logging import get_logger
+
+if TYPE_CHECKING:
+    from src.domains.agents.graphs.base_agent_builder import LLMConfig
 
 logger = get_logger(__name__)
 
@@ -156,7 +159,7 @@ class HitlResponseClassifier:
             presence_penalty: Presence penalty parameter (None = use settings).
         """
         # Build config_override dict (only include non-None parameters)
-        config_override = {}
+        config_override: LLMConfig = {}
         if model is not None:
             config_override["model"] = model
         if temperature is not None:
@@ -242,7 +245,9 @@ class HitlResponseClassifier:
 
             # Merge token tracker if provided (for accurate cost tracking)
             if tracker:
-                existing_callbacks = config.get("callbacks", [])
+                existing_callbacks = config.get("callbacks") or []
+                if not isinstance(existing_callbacks, list):
+                    existing_callbacks = []
                 config["callbacks"] = existing_callbacks + [tracker]
 
             # Call LLM with structured output (provider-agnostic via helper)

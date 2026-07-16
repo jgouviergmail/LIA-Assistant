@@ -2446,7 +2446,7 @@ Source: `apps/api/src/infrastructure/observability/metrics_rag_spaces.py`
 |----------|------|--------|-------------|
 | `rag_spaces_active_count` | Gauge | — | Current active RAG spaces |
 | `rag_spaces_total_count` | Gauge | — | Total RAG spaces |
-| `rag_documents_total_count` | Gauge | `status` (processing/ready/error/reindexing) | Total RAG documents by status |
+| `rag_documents_total_count` | Gauge | `status` (pending/processing/ready/error; reindexing = legacy, no longer written) | Total RAG documents by status |
 
 ### Reindex
 
@@ -2454,6 +2454,7 @@ Source: `apps/api/src/infrastructure/observability/metrics_rag_spaces.py`
 |----------|------|--------|-------------|
 | `rag_reindex_runs_total` | Counter | `status` (started/completed/failed) | Reindex runs |
 | `rag_reindex_documents_total` | Counter | `status` (success/error) | Documents reindexed |
+| `rag_jobs_recovered_total` | Counter | `job_type` (document/sync), `outcome` (requeued/failed) | Durable RAG jobs recovered by the reaper after a crash (audit F001, ADR-129) |
 
 ### System Indexation & Retrieval
 

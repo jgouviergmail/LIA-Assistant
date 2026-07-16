@@ -67,7 +67,11 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   if (!isOpen) return null;
 
   return (
+    // role="presentation": the backdrop click is a pointer-only convenience —
+    // keyboard users close via Escape (document listener above) or the named
+    // close button (audit F012/F045). The backdrop itself is decorative.
     <div
+      role="presentation"
       className={cn(
         'fixed inset-0 z-50 flex items-center justify-center',
         'bg-background/95 backdrop-blur-md',
@@ -103,7 +107,13 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
 
         {/* Close button */}
         <button
-          onClick={onClose}
+          onClick={e => {
+            // Stop propagation so the click does not also reach the backdrop's
+            // onClick (which is onClose too) and fire onClose twice — matches
+            // the download button and the image container guards.
+            e.stopPropagation();
+            onClose();
+          }}
           className={cn(
             'p-2 rounded-full',
             'bg-background/80 hover:bg-background',
@@ -117,8 +127,12 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         </button>
       </div>
 
-      {/* Image container - 3x larger than original */}
+      {/* Image container - 3x larger than original.
+          role="presentation": the click handler is pure event plumbing
+          (stopPropagation so clicking the image never closes the lightbox) —
+          not an interaction. */}
       <div
+        role="presentation"
         className={cn('relative max-w-7xl max-h-[90vh] p-4', 'animate-in zoom-in-95 duration-300')}
         onClick={e => e.stopPropagation()}
       >

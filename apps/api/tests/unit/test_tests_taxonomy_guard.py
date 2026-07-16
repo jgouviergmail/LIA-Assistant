@@ -6,15 +6,24 @@ only targets ``tests/unit``, ``tests/agents`` and ``tests/integration``.
 Configuration, LLM cache, providers, circuit breaker and streaming can
 therefore regress without blocking delivery.
 
-This guard freezes the current out-of-root set as a **shrink-only baseline**:
+This guard uses a **shrink-only baseline**:
 
 * any NEW ``test_*.py`` created outside the executed roots fails immediately
   (including in new domains such as ``telephony``);
 * the baseline may only shrink — when a file is reclassified into an executed
   root, the guard tells you to remove it from the baseline.
 
-It deliberately does NOT force reclassifying the existing 27 today (that is the
-separate LIA-2026-006 remediation). Its job is to stop the leak from growing.
+**The 27 hors-CI files were reclassified (F006 remediation, 2026-07-13): 26
+moved under ``tests/unit`` and one testcontainers suite to ``tests/integration``.
+The baseline is now empty — zero out-of-root test files are tolerated.** The
+guard's job going forward is to keep it that way.
+
+This guard only proves a file lives under a CI-executed root. A well-placed file
+can still be entirely deselected by a job's marker expression (``slow`` / ``e2e``
+/ ``benchmark`` / ``multiprocess`` / ``integration``) and run in NO job — that
+complementary blind spot (audit F006) is closed by the marker-coverage gate
+``scripts/audit/check_test_marker_coverage.py`` (+ its allowlist and the fast
+logic test ``tests/unit/test_marker_coverage_guard.py``).
 
 CWD-independent by construction (paths resolved from ``__file__``), unlike the
 audit measurement scripts flagged by LIA-2026-023.

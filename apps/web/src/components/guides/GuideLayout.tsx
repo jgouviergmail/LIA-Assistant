@@ -54,6 +54,16 @@ interface GuideTableProps {
   rows: string[][];
 }
 
+/** Plain text of a repo-compiled HTML cell — used as its accessible name so
+ * static analysis can verify the label the rendered markup already provides
+ * (F012: dangerouslySetInnerHTML content is invisible to the linter). */
+function cellPlainText(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function GuideTable({ headers, rows }: GuideTableProps) {
   return (
     <div className="overflow-x-auto my-4">
@@ -74,6 +84,7 @@ export function GuideTable({ headers, rows }: GuideTableProps) {
                 <td
                   key={j}
                   className="py-2 px-3 text-muted-foreground"
+                  aria-label={cellPlainText(cell)}
                   dangerouslySetInnerHTML={{ __html: cell }}
                 />
               ))}

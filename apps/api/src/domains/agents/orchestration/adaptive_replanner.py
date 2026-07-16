@@ -1,9 +1,18 @@
 """
-Adaptive Re-Planner - Intelligent recovery from execution failures.
+Adaptive Re-Planner - ADVISORY post-execution failure analysis.
 
-INTELLIPLANNER Phase E: Post-execution analysis and re-planning decisions.
+INTELLIPLANNER Phase E: Post-execution analysis and re-planning *advice*.
 
-This module provides intelligent re-planning when plan execution encounters issues:
+IMPORTANT — advisory only (ADR-128): this module analyses ``completed_steps``
+after a plan runs and computes a recovery *decision* (RETRY_SAME / REPLAN_MODIFIED
+/ ESCALATE / ABORT / PROCEED), but the orchestrator does NOT act on it — no retry
+or replan is executed and ``replan_attempt`` never advances past 0. Wiring true
+automatic recovery is a tracked feature (task_orchestrator_node ``TODO(D4)``).
+Until then the decision is a logged/observed assessment, not a promise of a
+re-execution. The ``max_attempts`` bound is retained as a tested safety guard for
+that future loop, not an active retry state (see ADR-128).
+
+This module analyses these failure patterns:
 - Empty results (tools returned nothing)
 - Partial failures (some steps failed)
 - Semantic mismatch (results don't match user intent)
@@ -11,20 +20,20 @@ This module provides intelligent re-planning when plan execution encounters issu
 
 Architecture:
     - Analyzes completed_steps after parallel execution
-    - Detects failure patterns that may benefit from re-planning
-    - Makes data-driven decisions about recovery strategies
-    - Integrates with existing SemanticValidator for intent checking
+    - Detects failure patterns that may warrant re-planning
+    - Makes rule-based decisions ABOUT what recovery would look like
     - No LLM calls by default (rule-based decisions for speed)
 
 Design Goals:
-    - Enable autonomous recovery from transient failures
-    - Maintain user trust through transparent re-planning
-    - Limit re-planning attempts to prevent infinite loops
+    - Surface actionable failure patterns (observability + a future recovery loop)
+    - Transparent, explainable assessments
+    - Bounded analysis (max_attempts) so a future recovery loop cannot spin
     - Production-ready with metrics and logging
 
 Integration:
-    Called from task_orchestrator_node.py after execute_plan_parallel()
-    returns. If re-planning is needed, can regenerate plan via planner_node.
+    Called from task_orchestrator_node.py after execute_plan_parallel() returns.
+    The returned decision is logged and (for ESCALATE_USER / ABORT) can surface a
+    message; it does NOT currently branch control flow (TODO D4).
 
 References:
     - semantic_validator.py: Reuses validation patterns
@@ -35,7 +44,6 @@ Created: 2025-12-03 (INTELLIPLANNER Phase E)
 """
 
 import time
-from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -418,7 +426,10 @@ class AdaptiveRePlanner:
             failed_step_id=failed_step_id,
         )
 
-        # Track metrics
+        # Track metrics — only what is genuinely observed. The advisory decision
+        # is NOT acted upon (no retry/replan runs, see task_orchestrator TODO D4),
+        # so there is no honest "attempts" or "recovery success" to count (audit
+        # F017): those two metrics were removed.
         from src.infrastructure.observability.metrics_agents import (
             adaptive_replanner_decisions_total,
             adaptive_replanner_triggers_total,
@@ -426,20 +437,6 @@ class AdaptiveRePlanner:
 
         adaptive_replanner_triggers_total.labels(trigger=trigger.value).inc()
         adaptive_replanner_decisions_total.labels(decision=decision.value).inc()
-
-        # Dashboard 07: track attempts + recovery success — non-critical
-        with suppress(Exception):
-            from src.infrastructure.observability.metrics_agents import (
-                adaptive_replanner_attempts_total,
-                adaptive_replanner_recovery_success_total,
-            )
-
-            adaptive_replanner_attempts_total.labels(
-                attempt_number=str(context.replan_attempt)
-            ).inc()
-            # Recovery success = non-GIVE_UP decision leading to continued execution
-            if decision.value not in ("give_up", "abort", "fail"):
-                adaptive_replanner_recovery_success_total.labels(strategy=strategy.value).inc()
 
         return self._create_result(
             decision=decision,

@@ -148,6 +148,9 @@ class AdminBroadcast(BaseModel):
         cascade="all, delete-orphan",
     )
 
+    # Recent-broadcasts listing (ordered by created_at).
+    __table_args__ = (Index("ix_admin_broadcasts_created_at", "created_at"),)
+
     def __repr__(self) -> str:
         return (
             f"<AdminBroadcast(id={self.id}, sent_by={self.sent_by}, created_at={self.created_at})>"

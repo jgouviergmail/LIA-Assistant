@@ -1800,6 +1800,23 @@ class APIMessages:
         }
         return messages.get(language, messages["en"])
 
+    @staticmethod
+    def places_search_criteria_required(language: SupportedLanguage = "fr") -> str:
+        """Places - no search criteria (query / type / location / id) supplied."""
+        messages = {
+            "fr": "Veuillez préciser votre recherche : un terme, un type de lieu, "
+            "une localisation ou un identifiant de lieu.",
+            "en": "Please specify a search: a query, a place type, a location, " "or a place ID.",
+            "es": "Especifique una búsqueda: un término, un tipo de lugar, "
+            "una ubicación o un ID de lugar.",
+            "de": "Bitte geben Sie eine Suche an: einen Suchbegriff, einen Ortstyp, "
+            "einen Standort oder eine Orts-ID.",
+            "it": "Specifica una ricerca: un termine, un tipo di luogo, "
+            "una posizione o un ID luogo.",
+            "zh-CN": "请指定搜索内容：查询词、地点类型、位置或地点 ID。",
+        }
+        return messages.get(language, messages["en"])
+
     # =========================================================================
     # CONNECTOR ERROR MESSAGES
     # =========================================================================

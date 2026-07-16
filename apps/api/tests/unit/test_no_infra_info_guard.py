@@ -33,7 +33,9 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+from tests._repo_paths import repo_root_or_skip
+
+REPO_ROOT = repo_root_or_skip()
 DENYLIST_FILE = Path(__file__).resolve().parents[1] / ".infra_denylist"
 
 # Text extensions where infra/personal info could plausibly hide. Binary assets

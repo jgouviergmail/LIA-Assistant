@@ -436,6 +436,9 @@ SCHEDULER_JOB_REMINDER_NOTIFICATION = "reminder_notification"
 SCHEDULER_JOB_UNVERIFIED_CLEANUP = "unverified_account_cleanup"
 SCHEDULER_JOB_TOKEN_REFRESH = "token_refresh"
 SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR = "scheduled_action_executor"
+# Boot-time skills disk→DB sync — gated by a distributed lock so only one
+# worker performs the O(users×skills) write per deploy, not every worker (F018).
+SCHEDULER_JOB_SKILLS_DB_SYNC = "skills_db_sync"
 
 # Scheduled Actions Configuration
 SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS = 60
@@ -466,8 +469,29 @@ TELEPHONY_WEBHOOK_TOLERANCE_SECONDS_DEFAULT = 1800
 # Stale-call reaper cadence (interval minutes) — sweeps dialing/in_progress calls
 # with no terminal webhook. Retention reaper runs daily (cron), no interval knob.
 TELEPHONY_STALE_REAPER_INTERVAL_MINUTES_DEFAULT = 5
+# Post-call return delivery: bounded retries of the idempotent
+# process_completed_call so a transient failure before mark_completed does not
+# lose the return (T1). The delay is applied between attempts.
+TELEPHONY_RETURN_MAX_ATTEMPTS_DEFAULT = 3
+TELEPHONY_RETURN_RETRY_DELAY_SECONDS_DEFAULT = 5
+# Return-notification durability (T1). The notification reaper re-dispatches
+# PENDING return notifications a crash left undelivered. The grace window keeps it
+# from racing the live in-process dispatch of a just-completed call (which finishes
+# in seconds); max attempts bound the retries before the row is marked FAILED.
+TELEPHONY_NOTIFICATION_GRACE_SECONDS_DEFAULT = 120
+TELEPHONY_NOTIFICATION_REAPER_INTERVAL_MINUTES_DEFAULT = 2
+TELEPHONY_NOTIFICATION_MAX_ATTEMPTS_DEFAULT = 5
+# Pre-synthesis return inbox durability (T1 approach A). The webhook (transcript)
+# is persisted ENCRYPTED before the 200; the return reaper re-runs synthesis for
+# RECEIVED rows a crash stranded, past a grace window (avoid racing the live
+# fire-and-forget) and up to a max-age (then give up + purge the transcript, D-8).
+TELEPHONY_RETURN_GRACE_SECONDS_DEFAULT = 120
+TELEPHONY_RETURN_MAX_AGE_MINUTES_DEFAULT = 60
+TELEPHONY_RETURN_REAPER_INTERVAL_MINUTES_DEFAULT = 3
 SCHEDULER_JOB_TELEPHONY_STALE_REAPER = "telephony_stale_call_reaper"
 SCHEDULER_JOB_TELEPHONY_RETENTION_REAPER = "telephony_retention_reaper"
+SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER = "telephony_notification_reaper"
+SCHEDULER_JOB_TELEPHONY_RETURN_REAPER = "telephony_return_reaper"
 
 # Proactive OAuth Token Refresh Configuration
 # Background job refreshes tokens BEFORE they expire to prevent disconnections
@@ -592,6 +616,7 @@ SSE_HEARTBEAT_INTERVAL_DEFAULT = 15  # seconds
 DATABASE_POOL_SIZE_DEFAULT = 30  # Persistent connections (was 20)
 DATABASE_MAX_OVERFLOW_DEFAULT = 30  # Burst capacity for peak load (was 20)
 DATABASE_POOL_TIMEOUT_DEFAULT = 30  # Seconds to wait for connection (SQLAlchemy default)
+DATABASE_CONNECT_TIMEOUT_DEFAULT = 30  # Seconds libpq waits to ESTABLISH one connection
 DATABASE_POOL_RECYCLE_DEFAULT = 1800  # Recycle connections every 30min (avoid stale connections)
 
 # LangGraph PostgreSQL connection pools (ADR-111 — checkpointer & store scalability)
@@ -618,6 +643,16 @@ LANGGRAPH_CHECKPOINT_POOL_MIN_SIZE_DEFAULT = 1  # Parity with former 1 connectio
 LANGGRAPH_CHECKPOINT_POOL_MAX_SIZE_DEFAULT = 8  # Checkpoint concurrency ceiling per worker
 LANGGRAPH_STORE_POOL_MIN_SIZE_DEFAULT = 1  # Parity with former 1 connection/worker
 LANGGRAPH_STORE_POOL_MAX_SIZE_DEFAULT = 4  # Store batches are sequential (AsyncBatchedBaseStore)
+
+# Connection-budget invariant (F004). The worst-case burst
+#   workers x (pool_size + max_overflow + checkpoint_max + store_max) + reserved
+# must fit under PostgreSQL max_connections, else peak load exhausts the server
+# and refuses connections. Enforced at startup by enforce_connection_budget():
+# fail-fast in production, warn in development. The shipped prod profile fits
+# (4 workers -> burst 168 <= 195 usable, right-sized in .env.prod.example).
+DATABASE_MAX_CONNECTIONS_DEFAULT = 200  # PostgreSQL server max_connections (prod RPi5)
+DATABASE_RESERVED_CONNECTIONS_DEFAULT = 5  # superuser (3) + postgres-exporter (~2)
+WEB_CONCURRENCY_DEFAULT = 1  # uvicorn worker processes; prod sets 4 (env WEB_CONCURRENCY)
 
 # Redis database indices (0-15 available)
 REDIS_SESSION_DB = 1  # Session storage
@@ -678,6 +713,13 @@ HTTP_LOG_EXCLUDE_PATHS_DEFAULT = ["/metrics", "/health", "/ready"]  # Exclude no
 
 # OpenTelemetry
 OTEL_SERVICE_NAME_DEFAULT = "lia-api"
+
+# Build provenance (audit F030). Overridden at build/deploy via env so a running
+# artifact is precisely identifiable; the dev defaults make the "not injected"
+# state obvious rather than a misleading fixed version.
+APP_VERSION_DEFAULT = "0.0.0-dev"  # env APP_VERSION (release version)
+GIT_COMMIT_SHA_DEFAULT = "unknown"  # env GIT_COMMIT_SHA / GITHUB_SHA
+BUILD_DATE_DEFAULT = "unknown"  # env BUILD_DATE (ISO 8601 build timestamp)
 
 # ============================================================================
 # RATE LIMITING
@@ -872,6 +914,9 @@ HTTP_TIMEOUT_BRAVE_SEARCH = 5.0  # Brave Search API (per request)
 # of CURRENCY_API_TIMEOUT_SECONDS_DEFAULT. The currency client reads
 # settings.currency_api_timeout_seconds (advanced.py).
 HTTP_TIMEOUT_EXTERNAL_API = 5.0  # Generic external API calls (fallback)
+# Timeout for the functional API-key verification performed at connector
+# activation (audit F034): a real authenticated call gates the ACTIVE status.
+CONNECTOR_API_KEY_VERIFY_TIMEOUT_SECONDS_DEFAULT = 10.0
 
 # Connector operations
 HTTP_TIMEOUT_CONNECTOR_STANDARD = 15.0  # Standard connector operations
@@ -3366,6 +3411,24 @@ RAG_SPACES_STORAGE_PATH_DEFAULT = "/app/data/rag_uploads"
 RAG_SPACES_MAX_FILE_SIZE_MB_DEFAULT = 20
 RAG_SPACES_MAX_SPACES_PER_USER_DEFAULT = 10
 RAG_SPACES_MAX_DOCS_PER_SPACE_DEFAULT = 100
+# Reindex distributed-lock TTL (audit F001). Short and RENEWED after each
+# document (heartbeat), so a live reindex holds the lock indefinitely while a
+# hard crash frees it within this window — instead of the old fixed 6h wait.
+# Must exceed the worst-case single-document re-embed time.
+RAG_REINDEX_LOCK_TTL_SECONDS_DEFAULT = 1800
+
+# Durable-job substrate (audit F001): entity-as-job lease/heartbeat/retry +
+# recovery reaper for upload processing and Drive sync. INVARIANT enforced in
+# config: heartbeat interval < lease TTL (the lease must be renewed before it
+# expires, else the reaper would requeue a live job).
+RAG_JOB_LEASE_TTL_SECONDS_DEFAULT = 300
+RAG_JOB_HEARTBEAT_INTERVAL_SECONDS_DEFAULT = 60
+RAG_JOB_MAX_ATTEMPTS_DEFAULT = 3
+RAG_JOB_REAPER_INTERVAL_SECONDS_DEFAULT = 120
+RAG_JOB_REAPER_GRACE_SECONDS_DEFAULT = 60
+RAG_JOB_REAPER_BATCH_SIZE_DEFAULT = 25
+RAG_JOB_REAPER_CONCURRENCY_DEFAULT = 4
+SCHEDULER_JOB_RAG_JOB_REAPER = "rag_job_reaper"
 
 # Chunking
 RAG_SPACES_CHUNK_SIZE_DEFAULT = 1000
@@ -3826,8 +3889,9 @@ PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT_DEFAULT: float = 5.0  # Bayesian prior weight
 # than this many days are purged after each new snapshot. 0 = keep forever.
 PSYCHE_HISTORY_RETENTION_DAYS_DEFAULT: int = 90
 
-# Caching
-PSYCHE_CACHE_TTL_SECONDS_DEFAULT: int = 300  # Redis TTL (seconds)
+# Redis key prefix retained only for best-effort cleanup of legacy psyche-state
+# markers on account deletion. The pseudo-cache that wrote them was removed
+# (F035): its read path always returned None, so it never avoided a DB query.
 REDIS_KEY_PSYCHE_STATE_PREFIX: str = "psyche:state:"
 
 # Scheduler

@@ -29,13 +29,14 @@ from src.infrastructure.observability.metrics_langgraph import (
     langgraph_state_updates_total,
 )
 
-# Skip entire module - State metrics not implemented in nodes yet
-# The langgraph_state_updates_total and langgraph_state_size_bytes metrics
-# are defined but not recorded by nodes. Tests are skipped until implementation.
-pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.skip(reason="State metrics not implemented in nodes"),
-]
+# F006: the blanket module skip + `integration` marker were BOTH wrong. These
+# tests use only in-process mocks (no Redis/DB), so `integration` excluded them from
+# every job (run nowhere). And state-metrics instrumentation IS live in
+# response_node (5×) and task_orchestrator_node (7×) — the "not implemented" reason
+# was stale for those. The module now runs in the unit job; only the two nodes that
+# genuinely do not emit these metrics yet (router, planner) and one response-node
+# error-path test that predates current error handling keep a TARGETED, accurately-
+# reasoned skip below (shrink these as those nodes are instrumented).
 
 
 @pytest.fixture(autouse=True)
@@ -47,6 +48,11 @@ def reset_metrics():
     yield
 
 
+@pytest.mark.skip(
+    reason="router_node does not emit langgraph_state metrics yet, and this test "
+    "invokes a real LLM path (needs full mocking) — F006: un-skip when router is "
+    "instrumented like response_node/task_orchestrator_node."
+)
 class TestRouterNodeStateMetrics:
     """Test state tracking for router_node."""
 
@@ -102,6 +108,11 @@ class TestRouterNodeStateMetrics:
         assert len(router_size_samples) > 0, "Router should track state size"
 
 
+@pytest.mark.skip(
+    reason="planner_node_v3 does not emit langgraph_state metrics yet, and this test "
+    "invokes a real LLM path (needs full mocking) — F006: un-skip when planner is "
+    "instrumented like response_node/task_orchestrator_node."
+)
 class TestPlannerNodeStateMetrics:
     """Test state tracking for planner_node."""
 
@@ -291,6 +302,11 @@ class TestResponseNodeStateMetrics:
         tracked_keys = {s.labels.get("key") for s in response_samples}
         assert STATE_KEY_MESSAGES in tracked_keys
 
+    @pytest.mark.skip(
+        reason="response_node now re-raises on get_llm failure instead of tracking "
+        "state on the exception path; this test predates that error-handling change "
+        "and needs reworking against the current contract (F006)."
+    )
     @pytest.mark.asyncio
     async def test_tracks_state_updates_on_exception(self):
         """Verify response_node tracks state on exception path."""

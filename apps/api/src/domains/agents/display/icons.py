@@ -36,6 +36,7 @@ class Icons:
     EMAIL = "mail"
     PHONE = "phone"
     CHAT = "chat"
+    FORUM = "forum"  # email thread / multi-message conversation
     FORWARD = "forward"
     REPLY = "reply"
     ARCHIVE = "archive"

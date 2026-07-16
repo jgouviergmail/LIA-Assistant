@@ -58,11 +58,16 @@ proactive-notification machinery, with the following load-bearing decisions
   prompt, structured output) producing a factual `summary` + a first-person
   `proposal_text`, delivered via `NotificationDispatcher`. The agent has no
   domain tools on the return path.
-- **D-8 — No recording, transcript never persisted.** `call_recording_enabled=false`
-  at the vendor API. Only the `summary` + a minimized typed `StructuredCallData`
-  (agreed / proposed_datetime / location / notes) are stored; the raw transcript
-  is used for synthesis then discarded. A daily retention reaper clears
-  `summary`/`structured_data` past their TTL.
+- **D-8 — No recording, transcript never persisted (relaxed for durability, 2026-07-14).**
+  `call_recording_enabled=false` at the vendor API. Only the `summary` + a minimized
+  typed `StructuredCallData` (agreed / proposed_datetime / location / notes) are
+  stored; the raw transcript is used for synthesis then discarded. A daily retention
+  reaper clears `summary`/`structured_data` past their TTL. **T1 approach A** relaxes
+  the "never at rest" rule narrowly: the post-call webhook (which carries the
+  transcript) is persisted **Fernet-encrypted** as a pre-synthesis inbox row and
+  **purged the instant synthesis succeeds** — so the transcript rests, encrypted,
+  only for the brief synthesis window, in exchange for crash-recoverable returns
+  (product-owner approved).
 - **D-9 — No LIA-side cost metering.** Vendor minutes are the user's own cost;
   `call_seconds` is stored as factual metadata, never converted to money. (The
   LIA-side synthesis LLM call *is* tracked like every other proactive call — see
@@ -96,6 +101,25 @@ proactive-notification machinery, with the following load-bearing decisions
   `spike:` in the code and must be confirmed against a real ElevenLabs + Twilio
   account before go-live. All external-payload reads are defensive (a shape
   drift degrades gracefully, never crashes).
+- **Durable return notification (T1 follow-up, 2026-07-14).** The initial design
+  delivered the post-call return from a process-local task with retries + graceful
+  drain, so a *hard* crash between the call-result commit and the notification
+  dispatch lost the return. Closed with a transactional outbox: `mark_completed`
+  arms `notification_status = PENDING` + a minimal payload in the same atomic
+  transition; a single-instance `telephony_notification_reaper` re-dispatches
+  PENDING rows from their payload (grace-windowed, bounded retries → FAILED), and
+  DELIVERED is set only after the dispatcher succeeds. Loss is eliminated; a rare
+  mid-dispatch-crash duplicate is preferred over a lost return. See
+  `docs/technical/TELEPHONY.md` § Return durability.
+- **Pre-synthesis return inbox (T1 approach A, 2026-07-14).** The outbox above only
+  protected the window *after* synthesis; a crash *during* synthesis still lost the
+  return (the vendor delivers the webhook once). The webhook handler now persists an
+  encrypted `RECEIVED` inbox row (`return_status`/`return_webhook_encrypted`/
+  `return_received_at`) and commits **before the 200**; `telephony_return_reaper`
+  re-runs the idempotent synthesis for stranded rows (grace-windowed, gives up +
+  purges past max-age), `mark_completed` closes the inbox to SYNTHESIZED and purges
+  the transcript, and the stale-call reaper excludes `RECEIVED` rows. This required
+  relaxing D-8 (transcript encrypted at rest for the synthesis window only).
 
 ## Alternatives considered
 

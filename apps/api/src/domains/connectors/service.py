@@ -109,7 +109,7 @@ class ConnectorService:
         )
 
         # Cache for 5 minutes
-        await redis.setex(cache_key, 300, response.model_dump_json())
+        await redis.set(cache_key, response.model_dump_json(), ex=300)
 
         return response
 
@@ -2410,11 +2410,18 @@ class ConnectorService:
         encrypted_credentials = encrypt_data(credentials.model_dump_json())
 
         # Build metadata
+        from src.domains.connectors.api_key_verifiers import API_KEY_FUNCTIONAL_VERIFIERS
+
         connector_metadata = metadata or {}
         connector_metadata["auth_type"] = "api_key"
         connector_metadata["key_name"] = key_name
         connector_metadata["has_secret"] = bool(api_secret)
         connector_metadata["activated_at"] = datetime.now(UTC).isoformat()
+        # F034: honestly record whether the key was FUNCTIONALLY verified (a real
+        # authenticated probe ran in validate_api_key) or only format-checked. The
+        # connector is ACTIVE and usable either way, but the UI must not imply a
+        # verification that never happened for a type without a functional verifier.
+        connector_metadata["functionally_verified"] = connector_type in API_KEY_FUNCTIONAL_VERIFIERS
 
         # Check if connector already exists
         existing = await self.repository.get_by_user_and_type(user_id, connector_type)
@@ -2471,8 +2478,12 @@ class ConnectorService:
         """
         Validate an API key before activation.
 
-        This method can be overridden by service-specific validators.
-        Default implementation just checks key format.
+        Runs a cheap format check, then — when a functional verifier is
+        registered for the connector type — a real authenticated call under a
+        timeout (audit F034), so a key that is well-formed but wrong/revoked is
+        rejected here instead of activating a connector that only fails on first
+        use. Types without a verifier return on the format check alone, and the
+        message says so explicitly (no silent claim of verification).
 
         Args:
             connector_type: Type of connector
@@ -2482,19 +2493,44 @@ class ConnectorService:
         Returns:
             Tuple of (is_valid, message)
         """
-        # Basic validation
+        import asyncio
+
+        from src.domains.connectors.api_key_verifiers import API_KEY_FUNCTIONAL_VERIFIERS
+        from src.infrastructure.observability.metrics import (
+            connector_api_key_verification_total,
+        )
+
+        # Format checks (cheap, no network).
         if not api_key or len(api_key) < 8:
             return False, "API key must be at least 8 characters"
-
-        # Check for placeholder values
         placeholder_patterns = ["your_", "api_key_here", "xxx", "placeholder"]
         if any(pattern in api_key.lower() for pattern in placeholder_patterns):
             return False, "Please enter a valid API key"
 
-        # TODO: Add service-specific validation (e.g., make test API call)
-        # This would be implemented per connector type
-
-        return True, "API key format is valid"
+        # Functional verification (F034/F051): for types WITH a verifier, a real
+        # authenticated call gates ACTIVE (a failing probe returns is_valid=False
+        # and the route refuses to activate). Types WITHOUT a verifier activate on
+        # the format check alone (functionally_verified=False), so ACTIVE means
+        # "usable", not "provider-authenticated" — the distinction the UI surfaces.
+        verifier = API_KEY_FUNCTIONAL_VERIFIERS.get(connector_type)
+        if verifier is None:
+            connector_api_key_verification_total.labels(
+                connector_type=connector_type.value, result="format_only"
+            ).inc()
+            return True, "API key format is valid (no functional verifier for this type)"
+        try:
+            async with asyncio.timeout(settings.connector_api_key_verify_timeout_seconds):
+                is_valid, message = await verifier(api_key, api_secret)
+            connector_api_key_verification_total.labels(
+                connector_type=connector_type.value,
+                result="verified" if is_valid else "rejected",
+            ).inc()
+            return is_valid, message
+        except TimeoutError:
+            connector_api_key_verification_total.labels(
+                connector_type=connector_type.value, result="timeout"
+            ).inc()
+            return False, "API key verification timed out"
 
     async def get_api_key_credentials(
         self, user_id: UUID, connector_type: ConnectorType

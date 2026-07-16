@@ -30,6 +30,24 @@ logger = structlog.get_logger(__name__)
 T = TypeVar("T")
 
 
+def _as_str(value: object) -> str:
+    """Return an API field as a string, tolerating missing/non-string values.
+
+    Connector responses are untyped JSON (``dict[str, Any]``); name/ID fields
+    are strings in practice but MyPy sees ``Any``. Narrowing here keeps the
+    strategy methods honestly typed without ``cast``.
+    """
+    return value if isinstance(value, str) else ""
+
+
+def _extract_items(response: object) -> list[dict[str, Any]]:
+    """Extract the ``items`` list from a list-style API response, shape-tolerant."""
+    items = response.get("items", []) if isinstance(response, dict) else []
+    if not isinstance(items, list):
+        return []
+    return [item for item in items if isinstance(item, dict)]
+
+
 @dataclass(frozen=True)
 class ResolvedItem:
     """Result of name resolution."""
@@ -69,15 +87,15 @@ class GoogleCalendarNameResolver(NameResolverStrategy[Any]):
     async def fetch_items(self, client: Any) -> list[dict[str, Any]]:
         """Fetch calendar list from Google Calendar API."""
         response = await client.list_calendars(max_results=100)
-        return response.get("items", [])
+        return _extract_items(response)
 
     def get_item_name(self, item: dict[str, Any]) -> str:
         """Calendar name is in 'summary' field."""
-        return item.get("summary", "")
+        return _as_str(item.get("summary"))
 
     def get_item_id(self, item: dict[str, Any]) -> str:
         """Calendar ID is in 'id' field."""
-        return item.get("id", "")
+        return _as_str(item.get("id"))
 
 
 class AppleCalendarNameResolver(NameResolverStrategy[Any]):
@@ -86,15 +104,15 @@ class AppleCalendarNameResolver(NameResolverStrategy[Any]):
     async def fetch_items(self, client: Any) -> list[dict[str, Any]]:
         """Fetch calendar list from CalDAV (same interface as Google)."""
         response = await client.list_calendars(max_results=100)
-        return response.get("items", [])
+        return _extract_items(response)
 
     def get_item_name(self, item: dict[str, Any]) -> str:
         """Calendar name is in 'summary' field (normalized format)."""
-        return item.get("summary", "")
+        return _as_str(item.get("summary"))
 
     def get_item_id(self, item: dict[str, Any]) -> str:
         """Calendar ID is in 'id' field (CalDAV URL)."""
-        return item.get("id", "")
+        return _as_str(item.get("id"))
 
 
 class GoogleTasksListNameResolver(NameResolverStrategy[Any]):
@@ -103,15 +121,15 @@ class GoogleTasksListNameResolver(NameResolverStrategy[Any]):
     async def fetch_items(self, client: Any) -> list[dict[str, Any]]:
         """Fetch task lists from Google Tasks API."""
         response = await client.list_task_lists(max_results=100)
-        return response.get("items", [])
+        return _extract_items(response)
 
     def get_item_name(self, item: dict[str, Any]) -> str:
         """Task list name is in 'title' field."""
-        return item.get("title", "")
+        return _as_str(item.get("title"))
 
     def get_item_id(self, item: dict[str, Any]) -> str:
         """Task list ID is in 'id' field."""
-        return item.get("id", "")
+        return _as_str(item.get("id"))
 
 
 class MicrosoftCalendarNameResolver(NameResolverStrategy[Any]):
@@ -120,15 +138,15 @@ class MicrosoftCalendarNameResolver(NameResolverStrategy[Any]):
     async def fetch_items(self, client: Any) -> list[dict[str, Any]]:
         """Fetch calendar list from Microsoft Graph API (normalized format)."""
         response = await client.list_calendars(max_results=100)
-        return response.get("items", [])
+        return _extract_items(response)
 
     def get_item_name(self, item: dict[str, Any]) -> str:
         """Calendar name is in 'summary' field (normalized from Microsoft)."""
-        return item.get("summary", "")
+        return _as_str(item.get("summary"))
 
     def get_item_id(self, item: dict[str, Any]) -> str:
         """Calendar ID is in 'id' field."""
-        return item.get("id", "")
+        return _as_str(item.get("id"))
 
 
 class MicrosoftTasksListNameResolver(NameResolverStrategy[Any]):
@@ -137,15 +155,15 @@ class MicrosoftTasksListNameResolver(NameResolverStrategy[Any]):
     async def fetch_items(self, client: Any) -> list[dict[str, Any]]:
         """Fetch task lists from Microsoft To Do API (normalized format)."""
         response = await client.list_task_lists(max_results=100)
-        return response.get("items", [])
+        return _extract_items(response)
 
     def get_item_name(self, item: dict[str, Any]) -> str:
         """Task list name is in 'title' field (normalized from Microsoft)."""
-        return item.get("title", "")
+        return _as_str(item.get("title"))
 
     def get_item_id(self, item: dict[str, Any]) -> str:
         """Task list ID is in 'id' field."""
-        return item.get("id", "")
+        return _as_str(item.get("id"))
 
 
 class PreferenceNameResolver:

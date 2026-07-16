@@ -77,7 +77,7 @@ function HealthMetricRow({ item }: { item: HealthSummaryItem }) {
           {todayLabel}
           <span className="ml-1 text-xs font-normal text-muted-foreground">{unitLabel}</span>
         </span>
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
           {t('dashboard.briefing.cards.health.today')}
         </span>
       </div>
@@ -91,7 +91,7 @@ function HealthMetricRow({ item }: { item: HealthSummaryItem }) {
           {windowLabel}
           <span className="ml-1 text-xs font-normal text-muted-foreground">{unitLabel}</span>
         </span>
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
           {t('dashboard.briefing.cards.health.avg_window', { window: item.window_days })}
         </span>
       </div>

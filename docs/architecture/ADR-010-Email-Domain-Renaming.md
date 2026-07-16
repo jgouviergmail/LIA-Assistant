@@ -624,7 +624,7 @@ gh pr create --title "Rename gmail domain to emails (ADR-010)" \
 
 ## Related Decisions
 
-- [ADR-003: Multi-Domain Dynamic Filtering](../archive/architecture/ADR-003-Multi-Domain-Dynamic-Filtering.md) - Uses domain names for filtering
+- ADR-003: Multi-Domain Dynamic Filtering (foundational, not migrated to an ADR file) - Uses domain names for filtering
 - [ADR-009: Config Module Split](ADR-009-Config-Module-Split.md) - Updated `ConnectorsSettings` with email config
 - **Future ADR**: Multi-Provider Email Support (BaseEmailClient implementation)
 

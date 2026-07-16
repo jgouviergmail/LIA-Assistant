@@ -418,7 +418,7 @@ export function ChatMockup() {
             <div className="w-2.5 h-2.5 rounded-full bg-green-400/70" />
           </div>
           <span className="text-xs text-muted-foreground ml-2 font-medium">LIA</span>
-          <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground/80 border border-border/50 rounded-full px-2 py-0.5">
+          <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground border border-border/50 rounded-full px-2 py-0.5">
             <ChipIcon className="w-3 h-3 text-primary" />
             {t(`landing.chat_mockup.chip_${scenario.chip}`)}
           </span>

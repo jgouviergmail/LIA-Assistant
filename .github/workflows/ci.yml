@@ -9,6 +9,13 @@ on:
 permissions:
   contents: read
 
+env:
+  # Build the urllib3 fork (urllib3-future, transitive via caldav -> niquests)
+  # from sdist so it does NOT clobber the genuine urllib3 package. Must pair
+  # with `--no-binary urllib3-future` on every lockfile install. See
+  # apps/api/requirements.txt.
+  URLLIB3_NO_OVERRIDE: "1"
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -36,7 +43,7 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           pip install --upgrade pip
-          pip install --require-hashes -r requirements-dev.lock.txt
+          pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
 
       - name: Ruff check
         run: |
@@ -52,6 +59,15 @@ jobs:
         run: |
           source .venv/bin/activate
           mypy src/ --config-file=pyproject.toml
+
+      - name: MyPy exemption ratchet (F020, shrink-only)
+        # Freezes the disable_error_code exemption surface as (module, code)
+        # pairs and fails on any NEW exemption. Pure pyproject.toml parse — no
+        # MyPy run, deterministic across host/CI. Baseline lowers only via
+        # `measure_mypy_debt.py --update` after exemptions are removed.
+        run: |
+          source .venv/bin/activate
+          python ../../scripts/audit/measure_mypy_debt.py --check
 
   lint-frontend:
     name: Lint Frontend
@@ -77,9 +93,94 @@ jobs:
         working-directory: ./apps/web
         run: pnpm lint
 
+      - name: Accessibility ratchet (jsx-a11y, shrink-only)
+        # F012/F013/F021: freezes the ~50 existing a11y violations so the debt
+        # cannot grow while the admin screens are remediated. New violations fail.
+        working-directory: ./apps/web
+        run: pnpm a11y:ratchet
+
+      - name: React 19 strict-mode ratchet (shrink-only)
+        # F021: freezes the 34 react-hooks/set-state-in-effect + immutability
+        # violations so no new ones creep in while the components are fixed.
+        working-directory: ./apps/web
+        run: pnpm react-hooks:ratchet
+
+      - name: Frontend complexity ratchet (per-function/file, shrink-only)
+        # F011: freezes the 71 functions >= CC 15, the worst function (96) and a
+        # per-file fingerprint, so a new complex function fails even below the
+        # global eslint ceiling. Decompose to lower it; --update never raises it.
+        working-directory: ./apps/web
+        run: pnpm cc:ratchet
+
       - name: TypeScript type-check
         working-directory: ./apps/web
         run: pnpm exec tsc --noEmit
+
+  e2e-frontend:
+    # F031: hermetic Playwright + axe smoke. Runs in the official Playwright
+    # image (glibc) — the Alpine dev container cannot run Playwright's bundled
+    # browsers, which is why the suite is an isolated package (apps/web/e2e,
+    # outside the pnpm workspace). Every spec intercepts /api/v1/** and serves
+    # fixed payloads, so NO backend/LLM/paid provider is contacted; Playwright
+    # builds + serves the app itself (E2E_MANAGED_SERVER). Chromium-only PR
+    # smoke for speed; the SAME suite replays weekly on Firefox/WebKit via
+    # a11y-matrix.yml (AC-002), and the manual NVDA/VoiceOver campaign is
+    # docs/a11y/AT_CAMPAIGN.md. See apps/web/e2e/README.md.
+    name: E2E + a11y smoke (Playwright)
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-jammy
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install app dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install E2E dependencies (reproducible)
+        # F054: npm ci against the COMMITTED package-lock.json (exact pinned
+        # versions) — it fails if package.json and the lock diverge, which is
+        # the lock-drift guard. Never `npm install` here.
+        working-directory: ./apps/web/e2e
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck E2E suite
+        working-directory: ./apps/web/e2e
+        run: npm run typecheck
+
+      - name: Run E2E + a11y smoke
+        working-directory: ./apps/web/e2e
+        env:
+          CI: "true"
+          # Managed server: Playwright runs `next build`, copies .next/static
+          # and public/ into the standalone tree, then serves it with
+          # `node .next/standalone/apps/web/server.js` (HTTP) — the app builds
+          # with `output: standalone`, with which `next start` does not work.
+          # No dev container, no backend.
+          E2E_MANAGED_SERVER: "1"
+          # 127.0.0.1, not localhost: the standalone server binds IPv4-only
+          # (HOSTNAME=0.0.0.0) and `localhost` may resolve to ::1 first.
+          E2E_BASE_URL: http://127.0.0.1:3000
+          # Relative API URLs so browser traffic stays same-origin (intercepted).
+          NEXT_PUBLIC_API_URL: ""
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: apps/web/e2e/playwright-report
+          retention-days: 7
 
   test-backend:
     name: Test Backend
@@ -137,7 +238,7 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           pip install --upgrade pip
-          pip install --require-hashes -r requirements-dev.lock.txt
+          pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
 
       - name: Run fast unit tests with coverage
         run: |
@@ -161,6 +262,16 @@ jobs:
             --tb=short \
             -m "not slow and not e2e and not benchmark and not multiprocess" \
             --no-cov
+
+      # F006: the path-level taxonomy guard proves test FILES live under a
+      # CI-executed root, but a file can still be fully deselected by a job's
+      # marker expression. This gate collects every nodeid + its markers and
+      # fails if any test runs in NO job and is not in the justified,
+      # shrink-only allowlist (apps/api/tests/marker_coverage_allowlist.json).
+      - name: Marker-coverage gate (F006 — no test runs in zero jobs)
+        run: |
+          source .venv/bin/activate
+          python ../../scripts/audit/check_test_marker_coverage.py
 
       - name: Upload coverage
         if: always()
@@ -212,6 +323,10 @@ jobs:
       # override (see tests/conftest.py::_detect_environment) — it routes the
       # fixtures to the service container instead of Testcontainers.
       TEST_DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test_db
+      # F019: this job provisions PostgreSQL as a service — it PROMISES a DB, so an
+      # unreachable DB / Testcontainers error must FAIL the job, not silently skip
+      # whole DB test groups (conftest.py::_db_unavailable honours this flag).
+      LIA_REQUIRE_DB: "1"
       REDIS_URL: redis://localhost:6379
       REDIS_PASSWORD: ""
       SECRET_KEY: test-secret-key-minimum-32-characters-long-for-testing
@@ -233,7 +348,7 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           pip install --upgrade pip
-          pip install --require-hashes -r requirements-dev.lock.txt
+          pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
 
       # Integration suite — wired into CI 2026-07 after the audit found it ran
       # in NO job (and had silently rotted, like the agents suite before it).
@@ -248,6 +363,87 @@ jobs:
             --tb=short \
             -m "not e2e and not benchmark and not multiprocess" \
             --no-cov
+          # F006: integration-marked tests that physically live under tests/unit
+          # or tests/agents (functional DB/Redis tests co-located with unit ones)
+          # would otherwise run in NO PR job. This services-equipped job is their
+          # deterministic home — the marker-coverage guard mirrors this collection.
+          pytest tests/unit/ tests/agents/ \
+            -v \
+            --tb=short \
+            -m "integration and not e2e and not benchmark and not multiprocess" \
+            --no-cov
+
+  migration-replay:
+    name: Migration Replay (from scratch)
+    runs-on: ubuntu-latest
+    needs: lint-backend
+    defaults:
+      run:
+        working-directory: ./apps/api
+
+    services:
+      # An EMPTY database on purpose. The unit job builds its schema via
+      # create_all() and NEVER runs the migrations, so only a from-scratch
+      # `alembic upgrade head` on a virgin database catches a non-replayable
+      # migration (F007 — the landmine that failed at the 71st migration on a
+      # DELETE from a LangGraph runtime table absent on a fresh database).
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # alembic/env.py imports the full settings; DATABASE_URL (an env var) takes
+      # precedence over the .env copied below, routing alembic to the service.
+      DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test_db
+      REDIS_URL: redis://localhost:6379
+      REDIS_PASSWORD: ""
+      SECRET_KEY: test-secret-key-minimum-32-characters-long-for-testing
+      FERNET_KEY: ${{ secrets.TEST_FERNET_KEY }}
+      ENVIRONMENT: test
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/api/requirements-dev.lock.txt
+
+      - name: Create venv and install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
+
+      - name: Create required PostgreSQL extensions (parity with postgres-init.sql)
+        env:
+          PGPASSWORD: test
+        run: |
+          psql -h localhost -U test -d test_db -v ON_ERROR_STOP=1 \
+            -c 'CREATE EXTENSION IF NOT EXISTS vector;' \
+            -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' \
+            -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm;'
+
+      - name: Provide a full settings env for alembic (.env; DATABASE_URL overridden above)
+        run: cp .env.test .env
+
+      - name: Replay the migration chain from an empty database (F007)
+        run: |
+          source .venv/bin/activate
+          bash ../../scripts/db/check_migrations_replay.sh
 
   test-frontend:
     name: Test Frontend
@@ -342,43 +538,49 @@ jobs:
           fi
 
       - name: Check i18n keys sync
-        run: |
-          python -c "
-          import json, sys, pathlib
+        # Single source of truth: scripts/i18n/validate_translations.py (F027).
+        # Fails on any missing language, invalid JSON, or key drift (missing/extra).
+        run: python scripts/i18n/validate_translations.py
 
-          def get_keys(d, prefix=''):
-              keys = set()
-              for k, v in d.items():
-                  full = f'{prefix}.{k}' if prefix else k
-                  if isinstance(v, dict):
-                      keys |= get_keys(v, full)
-                  else:
-                      keys.add(full)
-              return keys
+      - name: Deploy readiness-gate / rollback tests (F008)
+        # Hermetic tests of the prod deploy readiness gate: success, red
+        # readiness → automatic rollback → revalidation, and unrecoverable
+        # failure. No Docker/network (all indirections mocked).
+        run: bash scripts/deploy/lib/test_deploy_readiness_gate.sh
 
-          locales = pathlib.Path('apps/web/locales')
-          ref_lang = 'en'
-          ref_keys = get_keys(json.loads((locales / ref_lang / 'translation.json').read_text(encoding='utf-8')))
+      - name: Deploy driver Pester tests (F008)
+        # Hermetic Pester suite for the WHOLE deploy system as one wired unit:
+        # driver deploy-prod.ps1 (param validation, DryRun, retry/backoff,
+        # crash-safe SOPS encrypt), bundle built by prepare-prod.ps1 (code
+        # copied, sensitive files scrubbed, LF-only bash artifacts, provenance
+        # SHA), and the GENERATED deploy.sh executed under bash against the
+        # shipped readiness-gate lib (green / red→rollback / rollback failure,
+        # provenance identity landing in release-manifest.json). Every external
+        # tool (ssh/scp/rsync/sops/docker/curl) is a PATH shim — no network, no
+        # Docker, no production contact. This Linux run covers the `sh -c`
+        # branch of Invoke-WithRetry; Windows dev machines cover `cmd /c`.
+        shell: pwsh
+        run: ./scripts/deploy/run-deploy-driver-tests.ps1
 
-          failed = False
-          for lang_dir in sorted(locales.iterdir()):
-              if not lang_dir.is_dir() or lang_dir.name == ref_lang:
-                  continue
-              target = lang_dir / 'translation.json'
-              if not target.exists():
-                  continue
-              tgt_keys = get_keys(json.loads(target.read_text(encoding='utf-8')))
-              missing = sorted(ref_keys - tgt_keys)
-              extra = sorted(tgt_keys - ref_keys)
-              if missing:
-                  print(f'::error::MISSING in {lang_dir.name} ({len(missing)} keys): {missing[:5]}')
-                  failed = True
-              if extra:
-                  print(f'::warning::EXTRA in {lang_dir.name} ({len(extra)} keys): {extra[:5]}')
-          if failed:
-              sys.exit(1)
-          print('All i18n keys are in sync')
-          "
+      - name: Documentation drift audit (F024)
+        # Fails on any LIVING broken relative link, including ADR→ADR links
+        # inside an actively-indexed ADR (escalated from HISTORICAL). With
+        # --fail-on-stale it also fails on any LIVING doc referencing a code
+        # path (*.py:line) that no longer exists — unless the reference is an
+        # illustrative placeholder or annotated (example/obsolete/proposed).
+        # HISTORICAL/ROADMAP stale paths and deleted session docs stay tolerated.
+        run: python scripts/audit/doc_audit.py --fail-on-stale
+
+      - name: Domain import-cycle ratchet (F009, shrink-only)
+        # Freezes the 31 runtime bidirectional import cycles; a NEW cycle fails.
+        # Baseline lowers only via `measure_coupling.py --update-cycles` after a
+        # cycle is broken (ports/Protocol/events/injection).
+        run: python scripts/audit/measure_coupling.py --check-cycles
+
+      - name: Cyclomatic-complexity ratchet (F011/F015, shrink-only)
+        # Freezes two monotone caps: count of functions >= CC 15 and the single
+        # worst function. A new hotspot fails; decompose instead of raising caps.
+        run: python scripts/audit/measure_cc.py --check-ratchet
 
       - name: Check Python lockfiles are in sync with manifests
         run: |
@@ -482,6 +684,93 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  python-compat:
+    name: Python 3.13 Compatibility (F041)
+    runs-on: ubuntu-latest
+    needs: lint-backend
+    defaults:
+      run:
+        working-directory: ./apps/api
+    env:
+      SECRET_KEY: test-secret-key-minimum-32-characters-long-for-testing
+      FERNET_KEY: ${{ secrets.TEST_FERNET_KEY }}
+      ENVIRONMENT: test
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      # Proves the upper half of the bounded requires-python contract
+      # (">=3.12,<3.14"): 3.12 is covered by test-backend, 3.13 is what
+      # developer hosts run. Fast unit subset only — no DB/Redis/coverage.
+      - name: Set up Python 3.13
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: apps/api/requirements-dev.lock.txt
+
+      - name: Create venv and install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
+
+      - name: Run fast unit tests on Python 3.13
+        run: |
+          source .venv/bin/activate
+          pytest tests/unit/ -q --no-cov -p no:cacheprovider \
+            -m "not integration and not slow and not e2e and not benchmark and not multiprocess"
+
+  observability:
+    name: Observability Config
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Structural validation (dashboards + live rules, F025)
+        # Deterministic, server-free: valid JSON/YAML, required dashboard keys,
+        # unique uids, non-empty panel queries, balanced PromQL brackets.
+        run: python scripts/observability/validate_observability.py
+
+      - name: Install promtool
+        run: |
+          VER=2.53.2
+          curl -fsSL -o promtool.tar.gz \
+            "https://github.com/prometheus/prometheus/releases/download/v${VER}/prometheus-${VER}.linux-amd64.tar.gz"
+          tar xzf promtool.tar.gz
+          echo "$PWD/prometheus-${VER}.linux-amd64" >> "$GITHUB_PATH"
+
+      - name: promtool check live rules (deep PromQL, F025)
+        # Every rule file loaded by prometheus.yml is deep-checked, not just the
+        # recording rules: recording_rules.yml (86 recording rules) AND
+        # alerts-core.yml (the live core alerts — pure Prometheus templating
+        # {{ $value }}/{{ $labels }}, no Jinja, so promtool parses it directly).
+        # The legacy alerts.yml.template (Jinja, DISABLED in prometheus.yml) is
+        # rendered at deploy time and stays covered structurally above.
+        run: |
+          promtool check rules \
+            infrastructure/observability/prometheus/recording_rules.yml \
+            infrastructure/observability/prometheus/alerts-core.yml
+
+      - name: promtool test alert rules (functional, F025)
+        # Unit-tests the core alerts against synthetic series: firing/not-firing,
+        # labels, annotations and runbook links. A red expression, a divergent
+        # annotation or a broken threshold fails the build — closing the gap
+        # where a valid test file existed but never ran in CI.
+        run: |
+          promtool test rules \
+            infrastructure/observability/prometheus/tests/alerts_core_test.yml
 
   secret-scan:
     name: Secret Scan

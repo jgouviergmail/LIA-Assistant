@@ -1,0 +1,589 @@
+# ============================================================================
+# Hermetic Pester (v5) tests for the prod deploy driver (audit F008).
+#
+# Proves the WHOLE deploy system — driver (deploy-prod.ps1), bundle builder
+# (prepare-prod.ps1), generated deploy.sh and the shipped readiness-gate
+# library — as ONE wired system, without ever contacting a network, Docker or
+# production:
+#
+#   - every external tool (ssh/scp/rsync/sops, and docker/curl for the bash
+#     side) is a PATH shim that logs its invocation to a file;
+#   - the driver runs against a throwaway sandbox project in $TestDrive (its
+#     own git repo, so provenance SHAs are real and deterministic);
+#   - the sandbox copies NEVER load the developer's deploy.local.ps1 overrides
+#     (running the repo script directly would — that file rewrites $SshHost
+#     AFTER param binding);
+#   - the generated PROD/deploy.sh is then executed under bash with docker/curl
+#     shims to prove the readiness-gate wiring end-to-end (green, red→rollback,
+#     rollback failure), including the provenance identity landing in the
+#     release manifest.
+#
+# Platform coverage (audit: "Windows, pwsh Unix"): the same suite runs on
+# Windows dev machines (Invoke-WithRetry `cmd /c` branch) and on the Linux CI
+# runner (`sh -c` branch). Requires Pester >= 5:
+#   Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser -Force
+# Run:  pwsh -Command "Invoke-Pester -Path scripts/deploy -Output Detailed"
+# ============================================================================
+#Requires -Version 7.0
+
+BeforeAll {
+    $script:RepoDeployDir = $PSScriptRoot
+
+    # --- bash discovery (wiring tests) --------------------------------------
+    # On Windows, prefer Git Bash explicitly (cygpath available); `bash` from
+    # PATH may resolve to WSL, whose /mnt/... path mapping differs.
+    $script:BashExe = $null
+    if ($IsWindows) {
+        foreach ($candidate in @(
+                (Join-Path $env:ProgramFiles "Git\bin\bash.exe"),
+                (Join-Path $env:ProgramFiles "Git\usr\bin\bash.exe"))) {
+            if (Test-Path $candidate) { $script:BashExe = $candidate; break }
+        }
+    } else {
+        $script:BashExe = "bash"
+    }
+
+    function ConvertTo-BashPath([string]$Path) {
+        if (-not $IsWindows) { return $Path }
+        $fwd = $Path -replace '\\', '/'
+        (& $script:BashExe -c "cygpath -u '$fwd'").Trim()
+    }
+
+    # --- sandbox project ------------------------------------------------------
+    function New-DeploySandbox([string]$Root) {
+        $proj = Join-Path $Root "proj"
+        New-Item -ItemType Directory -Path (Join-Path $proj "scripts/deploy/lib") -Force | Out-Null
+        Copy-Item (Join-Path $RepoDeployDir "deploy-prod.ps1") (Join-Path $proj "scripts/deploy/")
+        Copy-Item (Join-Path $RepoDeployDir "prepare-prod.ps1") (Join-Path $proj "scripts/deploy/")
+        Copy-Item (Join-Path $RepoDeployDir "lib/deploy_readiness_gate.sh") (Join-Path $proj "scripts/deploy/lib/")
+        # NOTE: deploy.local.ps1 deliberately NOT copied — hermetic defaults.
+
+        Set-Content (Join-Path $proj "package.json") '{"version": "9.9.9-test"}'
+        Set-Content (Join-Path $proj "docker-compose.prod.yml") "services: {}"
+        Set-Content (Join-Path $proj ".sops.yaml") "creation_rules: []"
+        Set-Content (Join-Path $proj ".env.prod") "POSTGRES_BACKUP_HOST_DIR=./backups/postgres`nSENTINEL_ENV=1"
+        New-Item -ItemType Directory (Join-Path $proj "keys") -Force | Out-Null
+        Set-Content (Join-Path $proj "keys/age-key-prod.txt") "AGE-SECRET-KEY-FAKE-PROD"
+        Set-Content (Join-Path $proj "keys/age-key-dev.txt") "AGE-SECRET-KEY-FAKE-DEV"
+        New-Item -ItemType Directory (Join-Path $proj "apps/api/src") -Force | Out-Null
+        Set-Content (Join-Path $proj "apps/api/src/main.py") "# API_SENTINEL"
+        Set-Content (Join-Path $proj "apps/api/Dockerfile.prod") "FROM scratch"
+        Set-Content (Join-Path $proj "apps/api/docker-entrypoint.sh") "#!/bin/sh"
+        Set-Content (Join-Path $proj "apps/api/requirements.txt") "fastapi"
+        New-Item -ItemType Directory (Join-Path $proj "apps/web/src") -Force | Out-Null
+        Set-Content (Join-Path $proj "apps/web/src/page.tsx") "// WEB_SENTINEL"
+        Set-Content (Join-Path $proj "apps/web/Dockerfile.prod") "FROM scratch"
+        Set-Content (Join-Path $proj "apps/web/package.json") '{"version": "9.9.9-test"}'
+
+        # Real git repo → prepare-prod's `git rev-parse HEAD` yields a
+        # deterministic, assertable provenance SHA. autocrlf off: silence
+        # LF/CRLF warnings on the sandbox files.
+        & git -C $proj init -q
+        & git -C $proj config core.autocrlf false
+        & git -C $proj add -A 2>$null
+        & git -C $proj -c user.email=t@test -c user.name=t commit -qm "sandbox" | Out-Null
+        $proj
+    }
+
+    function Get-SandboxSha([string]$Proj) { (& git -C $Proj rev-parse HEAD).Trim() }
+
+    # --- PATH shims -----------------------------------------------------------
+    # Each tool gets a Windows .bat AND a POSIX sh shim; both append their
+    # invocation to $env:SHIM_LOG. ssh is scriptable via SSH_MODE:
+    #   ok (default) | fail_twice (RETRY_COUNTER) | always_fail | fail_deploy
+    function New-ShimSet([string]$Root) {
+        $bin = Join-Path $Root "bin"
+        New-Item -ItemType Directory $bin -Force | Out-Null
+
+        # NOTE: no EnableDelayedExpansion here — it eats `!` characters from the
+        # logged command line (the cleanup step's `.[!.]*` glob), truncating the
+        # shim log. goto-based flow avoids parenthesized blocks entirely.
+        $sshBat = @'
+@echo off
+echo ssh %* >> "%SHIM_LOG%"
+if "%SSH_MODE%"=="always_fail" exit /b 9
+if "%SSH_MODE%"=="fail_deploy" goto :faildeploy
+if "%SSH_MODE%"=="fail_twice" goto :failtwice
+goto :ok
+:faildeploy
+echo %* | findstr /C:"deploy.sh" >nul && exit /b 5
+goto :ok
+:failtwice
+set N=0
+if exist "%RETRY_COUNTER%" set /p N=<"%RETRY_COUNTER%"
+set /a N=N+1
+(echo %N%)>"%RETRY_COUNTER%"
+if %N% LSS 3 exit /b 7
+:ok
+echo BACKUP_CREATED
+exit /b 0
+'@
+        $sshSh = @'
+#!/bin/sh
+echo "ssh $@" >> "$SHIM_LOG"
+[ "$SSH_MODE" = "always_fail" ] && exit 9
+if [ "$SSH_MODE" = "fail_deploy" ]; then
+  case "$*" in *deploy.sh*) exit 5 ;; esac
+fi
+if [ "$SSH_MODE" = "fail_twice" ]; then
+  N=0; [ -f "$RETRY_COUNTER" ] && N=$(cat "$RETRY_COUNTER")
+  N=$((N+1)); echo $N > "$RETRY_COUNTER"
+  [ $N -lt 3 ] && exit 7
+fi
+echo BACKUP_CREATED
+exit 0
+'@
+        $logOnlyBat = @'
+@echo off
+echo {TOOL} %* >> "%SHIM_LOG%"
+exit /b 0
+'@
+        $logOnlySh = @'
+#!/bin/sh
+echo "{TOOL} $@" >> "$SHIM_LOG"
+exit 0
+'@
+        $sopsBat = @'
+@echo off
+echo sops %* >> "%SHIM_LOG%"
+echo FAKE=encrypted_by_shim
+exit /b 0
+'@
+        $sopsSh = @'
+#!/bin/sh
+echo "sops $@" >> "$SHIM_LOG"
+echo FAKE=encrypted_by_shim
+exit 0
+'@
+        $utf8 = New-Object System.Text.UTF8Encoding($false)
+        [IO.File]::WriteAllText((Join-Path $bin "ssh.bat"), $sshBat, $utf8)
+        [IO.File]::WriteAllText((Join-Path $bin "ssh"), ($sshSh -replace "`r`n", "`n"), $utf8)
+        foreach ($tool in "scp", "rsync") {
+            [IO.File]::WriteAllText((Join-Path $bin "$tool.bat"), ($logOnlyBat -replace '\{TOOL\}', $tool), $utf8)
+            [IO.File]::WriteAllText((Join-Path $bin $tool), (($logOnlySh -replace '\{TOOL\}', $tool) -replace "`r`n", "`n"), $utf8)
+        }
+        [IO.File]::WriteAllText((Join-Path $bin "sops.bat"), $sopsBat, $utf8)
+        [IO.File]::WriteAllText((Join-Path $bin "sops"), ($sopsSh -replace "`r`n", "`n"), $utf8)
+        if (-not $IsWindows) { & chmod +x (Join-Path $bin "ssh") (Join-Path $bin "scp") (Join-Path $bin "rsync") (Join-Path $bin "sops") }
+        $bin
+    }
+
+    # docker/curl/sudo sh shims for executing the GENERATED deploy.sh under
+    # bash. docker is scripted via HAS_ROLLBACK; curl via CURL_MODE
+    # (green | red | red_then_green + CURL_FAILS/CURL_COUNTER).
+    function New-BashShimSet([string]$Root) {
+        $bin = Join-Path $Root "bash-bin"
+        New-Item -ItemType Directory $bin -Force | Out-Null
+        $docker = @'
+#!/bin/sh
+echo "docker $*" >> "$SHIM_LOG"
+if [ "$1" = "image" ] && [ "$2" = "inspect" ]; then
+  case "$*" in
+    *--format*) echo "sha256:fakeimageid"; exit 0 ;;
+    *__rollback*) [ "$HAS_ROLLBACK" = "1" ] && exit 0 || exit 1 ;;
+    *) exit 0 ;;
+  esac
+fi
+exit 0
+'@
+        $curl = @'
+#!/bin/sh
+echo "curl $*" >> "$SHIM_LOG"
+case "$CURL_MODE" in
+  green) exit 0 ;;
+  red) exit 1 ;;
+  red_then_green)
+    N=0; [ -f "$CURL_COUNTER" ] && N=$(cat "$CURL_COUNTER")
+    N=$((N+1)); echo $N > "$CURL_COUNTER"
+    [ $N -le "${CURL_FAILS:-2}" ] && exit 1
+    exit 0 ;;
+esac
+exit 0
+'@
+        $sudo = @'
+#!/bin/sh
+echo "sudo $*" >> "$SHIM_LOG"
+exit 0
+'@
+        $utf8 = New-Object System.Text.UTF8Encoding($false)
+        [IO.File]::WriteAllText((Join-Path $bin "docker"), ($docker -replace "`r`n", "`n"), $utf8)
+        [IO.File]::WriteAllText((Join-Path $bin "curl"), ($curl -replace "`r`n", "`n"), $utf8)
+        [IO.File]::WriteAllText((Join-Path $bin "sudo"), ($sudo -replace "`r`n", "`n"), $utf8)
+        if (-not $IsWindows) { & chmod +x (Join-Path $bin "docker") (Join-Path $bin "curl") (Join-Path $bin "sudo") }
+        $bin
+    }
+
+    # --- driver invocation (child pwsh: the script calls `exit`) --------------
+    function Invoke-DeployProd {
+        param(
+            [string]$Proj,
+            [string]$ShimBin,
+            [string[]]$Arguments = @(),
+            [hashtable]$EnvOverrides = @{}
+        )
+        $scriptPath = Join-Path $Proj "scripts/deploy/deploy-prod.ps1"
+        $saved = @{}
+        foreach ($k in @("PATH", "USERPROFILE", "HOME", "SHIM_LOG", "SSH_MODE", "RETRY_COUNTER")) {
+            $saved[$k] = [Environment]::GetEnvironmentVariable($k)
+        }
+        try {
+            if ($ShimBin) {
+                $env:PATH = "$ShimBin$([IO.Path]::PathSeparator)$($env:PATH)"
+            }
+            # Hermetic home: step 8 must never see the developer's real
+            # ~/.claude/.credentials.json.
+            $env:USERPROFILE = $Proj
+            $env:HOME = $Proj
+            foreach ($k in $EnvOverrides.Keys) {
+                [Environment]::SetEnvironmentVariable($k, $EnvOverrides[$k])
+            }
+            Push-Location $Proj
+            $output = & pwsh -NoProfile -File $scriptPath @Arguments 2>&1 | Out-String
+            [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = $output }
+        } finally {
+            Pop-Location
+            foreach ($k in $saved.Keys) {
+                [Environment]::SetEnvironmentVariable($k, $saved[$k])
+            }
+            foreach ($k in $EnvOverrides.Keys) {
+                if (-not $saved.ContainsKey($k)) {
+                    [Environment]::SetEnvironmentVariable($k, $null)
+                }
+            }
+        }
+    }
+
+    function Test-HasCrlf([string]$File) {
+        ([IO.File]::ReadAllBytes($File) -contains [byte]13)
+    }
+}
+
+# ============================================================================
+# Parameter validation — the driver refuses unsafe inputs before doing anything
+# ============================================================================
+Describe "deploy-prod.ps1 parameter validation" {
+    BeforeAll {
+        $proj = New-DeploySandbox $TestDrive
+        $bin = New-ShimSet $TestDrive
+        $log = Join-Path $TestDrive "shim-validation.log"
+    }
+
+    It "rejects an empty SshHost (exit 1)" {
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin -Arguments @("-SshHost", "", "-DryRun") `
+            -EnvOverrides @{ SHIM_LOG = $log }
+        $r.ExitCode | Should -Be 1
+        $r.Output | Should -Match "SshHost"
+    }
+
+    It "rejects an out-of-range SshPort (exit 1)" {
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin -Arguments @("-SshPort", "0", "-DryRun") `
+            -EnvOverrides @{ SHIM_LOG = $log }
+        $r.ExitCode | Should -Be 1
+        $r.Output | Should -Match "SshPort invalide"
+    }
+
+    It "rejects an SshUser containing shell metacharacters (exit 1)" {
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin -Arguments @("-SshUser", "evil;user", "-DryRun") `
+            -EnvOverrides @{ SHIM_LOG = $log }
+        $r.ExitCode | Should -Be 1
+        $r.Output | Should -Match "SshUser invalide"
+    }
+}
+
+# ============================================================================
+# DryRun — a simulation must not mutate ANYTHING, locally or remotely
+# ============================================================================
+Describe "deploy-prod.ps1 -DryRun" {
+    BeforeAll {
+        $proj = New-DeploySandbox $TestDrive
+        $bin = New-ShimSet $TestDrive
+        $log = Join-Path $TestDrive "shim-dryrun.log"
+        # Pre-created PROD with sensitive content: DryRun must leave it intact.
+        New-Item -ItemType Directory (Join-Path $proj "PROD/keys") -Force | Out-Null
+        Set-Content (Join-Path $proj "PROD/keys/sentinel.txt") "MUST_SURVIVE"
+        Set-Content (Join-Path $proj "PROD/.env.prod") "MUST_SURVIVE=1"
+        $script:r = Invoke-DeployProd -Proj $proj -ShimBin $bin -Arguments @("-DryRun") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "ok" }
+    }
+
+    It "exits 0 and announces the simulation for every step" {
+        $r.ExitCode | Should -Be 0
+        $r.Output | Should -Match "DRY RUN"
+        $r.Output | Should -Match "\[DRY RUN\] sops --encrypt"
+        $r.Output | Should -Match "\[DRY RUN\] ssh"
+    }
+
+    It "never invokes ssh/scp/rsync/sops (shim log stays empty)" {
+        (Test-Path $log) | Should -BeFalse
+    }
+
+    It "leaves the pre-existing PROD dir (including keys) untouched" {
+        (Join-Path $proj "PROD/keys/sentinel.txt") | Should -Exist
+        (Join-Path $proj "PROD/.env.prod") | Should -Exist
+    }
+
+    It "creates no encrypted files" {
+        (Join-Path $proj ".env.prod.encrypted") | Should -Not -Exist
+        (Join-Path $proj ".env.encrypted") | Should -Not -Exist
+    }
+}
+
+# ============================================================================
+# Hermetic real run, stopped at the remote-deploy step — the local bundle and
+# the ssh/scp/rsync sequence are then inspectable (PROD not yet deleted)
+# ============================================================================
+Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fails)" {
+    BeforeAll {
+        $proj = New-DeploySandbox $TestDrive
+        $bin = New-ShimSet $TestDrive
+        $log = Join-Path $TestDrive "shim-bundle.log"
+        $script:sha = Get-SandboxSha $proj
+        # SSH_MODE=fail_deploy: every remote op succeeds EXCEPT the final
+        # `./deploy.sh` execution → the driver exits 1 at step 9 and the local
+        # PROD bundle survives for inspection.
+        $script:r = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0", "-MaxRetries", "1") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "fail_deploy" }
+        $script:prod = Join-Path $proj "PROD"
+        $script:shimLog = if (Test-Path $log) { Get-Content $log -Raw } else { "" }
+    }
+
+    It "fails at the remote deploy step (proof the exit code propagates)" {
+        $r.ExitCode | Should -Not -Be 0
+        $r.Output | Should -Match "Echec du deploiement"
+    }
+
+    It "actually copied the code bundle (API + web sentinels present)" {
+        (Join-Path $prod "apps/api/src/main.py") | Should -Exist
+        (Join-Path $prod "apps/web/src/page.tsx") | Should -Exist
+        (Join-Path $prod "apps/api/Dockerfile.prod") | Should -Exist
+        (Join-Path $prod "docker-compose.prod.yml") | Should -Exist
+    }
+
+    It "generated deploy.sh with the readiness-gate wiring in the right order" {
+        $deploySh = Get-Content (Join-Path $prod "deploy.sh") -Raw
+        $deploySh | Should -Match '\[ -f "provenance\.env" \] && \. \./provenance\.env'
+        $deploySh | Should -Match '\[ -f "deploy_readiness_gate\.sh" \] && \. \./deploy_readiness_gate\.sh'
+        $iCapture = $deploySh.IndexOf("capture_rollback_point")
+        $iBuild = $deploySh.IndexOf("docker compose -f docker-compose.prod.yml build")
+        $iUp = $deploySh.IndexOf("up -d --force-recreate --wait")
+        $iGate = $deploySh.IndexOf("run_readiness_gate")
+        $iCapture | Should -BeGreaterThan 0
+        $iBuild | Should -BeGreaterThan $iCapture
+        $iUp | Should -BeGreaterThan $iBuild
+        $iGate | Should -BeGreaterThan $iUp
+    }
+
+    It "kept the heredoc literal (bash dollar-constructs not expanded by PowerShell)" {
+        $deploySh = Get-Content (Join-Path $prod "deploy.sh") -Raw
+        $deploySh | Should -Match ([regex]::Escape('BACKUP_DIR=$(grep -E '))
+        $deploySh | Should -Match ([regex]::Escape('${LOGWATCH_MAILTO}'))
+    }
+
+    It "shipped LF-only bash artifacts (deploy.sh, gate lib, provenance.env)" {
+        Test-HasCrlf (Join-Path $prod "deploy.sh") | Should -BeFalse
+        Test-HasCrlf (Join-Path $prod "deploy_readiness_gate.sh") | Should -BeFalse
+        Test-HasCrlf (Join-Path $prod "provenance.env") | Should -BeFalse
+    }
+
+    It "recorded the sandbox commit SHA and version in provenance.env" {
+        $prov = Get-Content (Join-Path $prod "provenance.env") -Raw
+        $prov | Should -Match "GIT_COMMIT_SHA=$sha"
+        $prov | Should -Match "APP_VERSION=9.9.9-test"
+    }
+
+    It "scrubbed the sensitive files from the bundle (keys, .sops.yaml)" {
+        (Join-Path $prod "keys") | Should -Not -Exist
+        (Join-Path $prod ".sops.yaml") | Should -Not -Exist
+    }
+
+    It "renamed .env.prod to .env inside the bundle" {
+        (Join-Path $prod ".env") | Should -Exist
+        (Join-Path $prod ".env.prod") | Should -Not -Exist
+    }
+
+    It "drove the remote sequence: backup, cleanup, transfer, then deploy" {
+        $shimLog | Should -Match "lia-backups"
+        $shimLog | Should -Match "sudo rm -rf"
+        $shimLog | Should -Match "rsync .*-avz.*--partial"
+        $shimLog | Should -Match ([regex]::Escape("chmod +x deploy.sh && ./deploy.sh"))
+    }
+}
+
+# ============================================================================
+# Happy path end-to-end + step-8 home portability (pwsh/Unix)
+# ============================================================================
+Describe "deploy-prod.ps1 full happy path (hermetic)" {
+    BeforeAll {
+        $proj = New-DeploySandbox $TestDrive
+        $bin = New-ShimSet $TestDrive
+        $log = Join-Path $TestDrive "shim-happy.log"
+        $script:proj = $proj
+        $script:r = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "ok" }
+    }
+
+    It "exits 0 and reports success" {
+        $r.ExitCode | Should -Be 0
+        $r.Output | Should -Match "DEPLOIEMENT TERMINE AVEC SUCCES"
+    }
+
+    It "removes the local PROD bundle after a successful deploy" {
+        (Join-Path $proj "PROD") | Should -Not -Exist
+    }
+
+    It "survives an unset USERPROFILE (pwsh/Unix home fallback, step 8)" {
+        # Simulates the Linux pwsh environment where USERPROFILE does not
+        # exist: the driver must fall back to HOME instead of crashing on
+        # Join-Path with an empty path.
+        $proj2 = New-DeploySandbox (Join-Path $TestDrive "nohome")
+        $log2 = Join-Path $TestDrive "shim-nohome.log"
+        $saved = $env:USERPROFILE
+        try {
+            $r2 = Invoke-DeployProd -Proj $proj2 -ShimBin $bin `
+                -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0") `
+                -EnvOverrides @{ SHIM_LOG = $log2; SSH_MODE = "ok"; USERPROFILE = "" }
+            $r2.ExitCode | Should -Be 0
+        } finally {
+            $env:USERPROFILE = $saved
+        }
+    }
+}
+
+# ============================================================================
+# Retry with exponential backoff
+# ============================================================================
+Describe "deploy-prod.ps1 retry behavior" {
+    BeforeAll {
+        $bin = New-ShimSet $TestDrive
+    }
+
+    It "retries a transient ssh failure and succeeds on the 3rd attempt" {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "retry-ok")
+        $log = Join-Path $TestDrive "shim-retry.log"
+        $counter = Join-Path $TestDrive "retry-counter.txt"
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0", "-MaxRetries", "3") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "fail_twice"; RETRY_COUNTER = $counter }
+        $r.ExitCode | Should -Be 0
+        $r.Output | Should -Match "Tentative 3/3"
+    }
+
+    It "gives up after MaxRetries and exits non-zero" {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "retry-fail")
+        $log = Join-Path $TestDrive "shim-retry-fail.log"
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0", "-MaxRetries", "2") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "always_fail" }
+        $r.ExitCode | Should -Not -Be 0
+        $r.Output | Should -Match "echoue apres 2 tentatives"
+    }
+}
+
+# ============================================================================
+# Encrypt path — crash-safe: the developer's secrets file is never mutated
+# ============================================================================
+Describe "deploy-prod.ps1 SOPS encryption (shimmed)" {
+    It "encrypts via a temp copy and leaves the source .env.prod byte-identical" {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "encrypt")
+        $bin = New-ShimSet $TestDrive
+        $log = Join-Path $TestDrive "shim-encrypt.log"
+        $envProd = Join-Path $proj ".env.prod"
+        $before = Get-Content $envProd -Raw
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-RetryDelaySeconds", "0") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "ok" }
+        $r.ExitCode | Should -Be 0
+        # .env.prod is copied into PROD then renamed — but the SOURCE remains.
+        (Get-Content $envProd -Raw) | Should -Be $before
+        (Join-Path $proj ".env.prod.encrypted") | Should -Exist
+        (Get-Content (Join-Path $proj ".env.prod.encrypted") -Raw) | Should -Match "encrypted_by_shim"
+        (Join-Path $proj ".env.prod.sops.tmp") | Should -Not -Exist
+    }
+}
+
+# ============================================================================
+# Wiring: the GENERATED deploy.sh executed under bash with docker/curl shims —
+# green readiness, red readiness with rollback, and unrecoverable failure.
+# This is the "one system" proof: prepare-prod's heredoc + shipped gate lib.
+# ============================================================================
+# NOTE: no "<->" in the Describe name — Pester 6 fails parsing such names
+# ("The term '$-' is not recognized").
+Describe "generated deploy.sh to readiness-gate wiring (bash)" {
+    BeforeAll {
+        if (-not $script:BashExe -or -not (Get-Command $script:BashExe -ErrorAction SilentlyContinue)) {
+            Set-ItResult -Skipped -Because "no usable bash on this machine"
+        }
+        $proj = New-DeploySandbox $TestDrive
+        $bashBin = New-BashShimSet $TestDrive
+        # Build the bundle directly (prepare-prod) — the driver tests above
+        # already prove the driver invokes it.
+        Push-Location $proj
+        try {
+            & pwsh -NoProfile -File (Join-Path $proj "scripts/deploy/prepare-prod.ps1") -Clean | Out-Null
+        } finally {
+            Pop-Location
+        }
+        $script:prod = Join-Path $proj "PROD"
+        # The driver normally renames .env.prod -> .env (step 4); do it here.
+        if (Test-Path (Join-Path $prod ".env.prod")) {
+            Move-Item (Join-Path $prod ".env.prod") (Join-Path $prod ".env") -Force
+        }
+        $script:sha = Get-SandboxSha $proj
+        $script:prodPosix = ConvertTo-BashPath $prod
+        $script:binPosix = ConvertTo-BashPath $bashBin
+        & $script:BashExe -c "chmod +x '$binPosix'/* '$prodPosix/deploy.sh' 2>/dev/null || true"
+    }
+
+    # Runs PROD/deploy.sh hermetically; returns @{ ExitCode; Output; ShimLog }.
+    # (Defined here, not in the top BeforeAll, because it captures $prodPosix.)
+    BeforeEach {
+        $script:runDeploySh = {
+            param([string]$Mode, [string]$HasRollback, [string]$LogName)
+            $log = Join-Path $TestDrive $LogName
+            $logPosix = ConvertTo-BashPath $log
+            $counter = ConvertTo-BashPath (Join-Path $TestDrive "$LogName.curlcount")
+            $cmd = "cd '$prodPosix' && export PATH='$binPosix':`$PATH SHIM_LOG='$logPosix' " +
+            "READY_RETRIES=1 READY_SLEEP=0 CURL_MODE=$Mode CURL_FAILS=2 CURL_COUNTER='$counter' " +
+            "HAS_ROLLBACK=$HasRollback && bash ./deploy.sh"
+            $out = & $script:BashExe -c $cmd 2>&1 | Out-String
+            @{
+                ExitCode = $LASTEXITCODE
+                Output   = $out
+                ShimLog  = if (Test-Path $log) { Get-Content $log -Raw } else { "" }
+            }
+        }
+    }
+
+    It "green readiness: exit 0, manifest carries the provenance identity" {
+        $r = & $runDeploySh "green" "1" "wiring-green.log"
+        $r.ExitCode | Should -Be 0
+        $r.Output | Should -Match "API prete"
+        $r.ShimLog | Should -Match "docker compose -f docker-compose.prod.yml build"
+        $r.ShimLog | Should -Match "up -d --force-recreate --wait"
+        $manifest = Get-Content (Join-Path $prod "release-manifest.json") -Raw
+        $manifest | Should -Match """git_commit_sha"": ""$sha"""
+        $manifest | Should -Match '"app_version": "9.9.9-test"'
+        $manifest | Should -Match '"status": "deployed"'
+        # rollback never triggered on the green path
+        $r.ShimLog | Should -Not -Match "docker tag lia-api:__rollback"
+    }
+
+    It "red readiness: automatic rollback to the previous image, exit 1" {
+        Remove-Item (Join-Path $prod "release-manifest.json") -ErrorAction SilentlyContinue
+        $r = & $runDeploySh "red_then_green" "1" "wiring-red.log"
+        $r.ExitCode | Should -Be 1
+        $r.Output | Should -Match "Rollback reussi"
+        $r.ShimLog | Should -Match "docker tag lia-api:__rollback lia-api:local"
+        (Join-Path $prod "release-manifest.json") | Should -Not -Exist
+    }
+
+    It "red readiness + no rollback point: critical failure, exit 1" {
+        Remove-Item (Join-Path $prod "release-manifest.json") -ErrorAction SilentlyContinue
+        $r = & $runDeploySh "red" "0" "wiring-critical.log"
+        $r.ExitCode | Should -Be 1
+        $r.Output | Should -Match "ERREUR CRITIQUE"
+        (Join-Path $prod "release-manifest.json") | Should -Not -Exist
+    }
+}

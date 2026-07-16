@@ -6,7 +6,16 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, Numeric, String
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.field_names import FIELD_NODE_NAME
@@ -54,6 +63,22 @@ class TokenUsageLog(BaseModel):
     __table_args__ = (
         Index("ix_token_usage_logs_user_created", "user_id", "created_at"),
         Index("ix_token_usage_logs_node_name", FIELD_NODE_NAME),
+        # Lifetime-metrics aggregation (group by model_name, node_name over a
+        # date range) and standalone created_at range scans, both stored with
+        # created_at DESC (recent data is hit most). A covering INCLUDE variant
+        # (ix_token_usage_logs_model_node_covering) is owned by the migration.
+        # These DESC-ordered indexes are excluded from autogenerate comparison in
+        # schema_drift (reflection can't be matched to postgresql_ops).
+        Index(
+            "ix_token_usage_logs_lifetime_aggregation",
+            "model_name",
+            FIELD_NODE_NAME,
+            "created_at",
+            postgresql_ops={"created_at": "DESC"},
+        ),
+        Index(
+            "ix_token_usage_logs_created_at", "created_at", postgresql_ops={"created_at": "DESC"}
+        ),
     )
 
 
@@ -82,7 +107,7 @@ class MessageTokenSummary(BaseModel):
 
     user_id: Mapped[UUID] = mapped_column(index=True)
     session_id: Mapped[str] = mapped_column(String(255), index=True)
-    run_id: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    run_id: Mapped[str] = mapped_column(String(255))
     conversation_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("conversations.id", ondelete="SET NULL"),
         nullable=True,
@@ -107,7 +132,11 @@ class MessageTokenSummary(BaseModel):
         Numeric(10, 6), default=Decimal("0.0")
     )
 
-    __table_args__ = (Index("ix_message_token_summary_user_created", "user_id", "created_at"),)
+    __table_args__ = (
+        # Unique run_id (enforced by the constraint; its backing index serves lookups).
+        UniqueConstraint("run_id", name="message_token_summary_run_id_key"),
+        Index("ix_message_token_summary_user_created", "user_id", "created_at"),
+    )
 
 
 class UserStatistics(BaseModel):
@@ -140,7 +169,7 @@ class UserStatistics(BaseModel):
 
     __tablename__ = "user_statistics"
 
-    user_id: Mapped[UUID] = mapped_column(unique=True, index=True)
+    user_id: Mapped[UUID] = mapped_column()
 
     # Lifetime totals
     total_prompt_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
@@ -211,6 +240,10 @@ class UserStatistics(BaseModel):
         onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
+
+    # One statistics row per user (enforced by the constraint; its backing unique
+    # index also serves user_id lookups).
+    __table_args__ = (UniqueConstraint("user_id", name="user_statistics_user_id_key"),)
 
     def reset_cycle(self, cycle_start: datetime) -> None:
         """Start a new billing cycle: zero EVERY ``cycle_*`` counter.

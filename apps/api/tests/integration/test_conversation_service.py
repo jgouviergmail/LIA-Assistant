@@ -305,13 +305,6 @@ async def test_increment_conversation_stats_accumulates(
 # ============================================================================
 
 
-@pytest.mark.skip(
-    reason="INFRASTRUCTURE: reset_conversation tries to DELETE from checkpoint tables "
-    "(checkpoints, checkpoint_writes) which don't exist in test database. "
-    "LangGraph creates these tables automatically at runtime but they're not in Alembic migrations. "
-    "Need to either: 1) Create checkpoint tables in test setup, 2) Mock the checkpoint purge, "
-    "or 3) Use SAVEPOINT in reset_conversation to isolate checkpoint deletion failure."
-)
 @pytest.mark.asyncio
 async def test_reset_conversation(
     async_session: AsyncSession,
@@ -357,9 +350,6 @@ async def test_reset_conversation(
     assert len(messages) == 0
 
 
-@pytest.mark.skip(
-    reason="INFRASTRUCTURE: Same issue as test_reset_conversation - checkpoint tables missing"
-)
 @pytest.mark.asyncio
 async def test_reset_conversation_creates_audit_log(
     async_session: AsyncSession,

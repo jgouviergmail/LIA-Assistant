@@ -343,6 +343,13 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
+                      {/* sr-only column label (F012): the cell's real text (the
+                          personality title) is all expressions, which static
+                          analysis cannot treat as a label; the header context
+                          also helps linear screen-reader navigation. */}
+                      <span className="sr-only">
+                        {t('settings.admin.personalities.table.personality')}
+                      </span>
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">{personality.emoji}</span>
                         <div>

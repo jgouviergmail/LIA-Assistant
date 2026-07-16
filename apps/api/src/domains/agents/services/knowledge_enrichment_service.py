@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
@@ -47,6 +48,11 @@ if TYPE_CHECKING:
     from src.domains.connectors.schemas import APIKeyCredentials
 
 logger = get_logger(__name__)
+
+# Redis DI seam — same contract as PlanPatternLearner.RedisProvider: the client
+# is resolved on demand and never cached on the instance, so close_redis() is
+# honoured and tests can inject a mock (AC-010).
+RedisProvider = Callable[[], Awaitable[Any]]
 
 # Type alias for Brave Search endpoints
 BraveSearchEndpoint = Literal["web", "news"]
@@ -112,22 +118,23 @@ class KnowledgeEnrichmentService:
         garantissant la sérialisation des accès DB concurrent.
     """
 
-    def __init__(self) -> None:
-        """Initialize service (Redis lazy-loaded)."""
-        self._redis: Any = None
+    def __init__(self, redis_provider: RedisProvider | None = None) -> None:
+        """Initialize service (Redis resolved lazily via the provider seam)."""
+        # None => fetch the process-wide client fresh on each call (never
+        # cached, so close_redis() is honoured — AC-010). Tests inject a mock.
+        self._redis_provider = redis_provider
         # Per-user per-language clients (user_id:language → client)
         self._clients: dict[str, BraveSearchClient] = {}
 
     async def _ensure_redis(self) -> Any:
-        """Lazy-load Redis client."""
-        if self._redis is not None:
-            return self._redis
-
+        """Resolve the Redis client via the provider (never cached — AC-010)."""
         try:
+            if self._redis_provider is not None:
+                return await self._redis_provider()
+
             from src.infrastructure.cache.redis import get_redis_cache
 
-            self._redis = await get_redis_cache()
-            return self._redis
+            return await get_redis_cache()
         except Exception as e:
             logger.debug(
                 "knowledge_enrichment_redis_unavailable",

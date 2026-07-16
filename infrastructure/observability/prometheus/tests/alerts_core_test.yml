@@ -1,9 +1,11 @@
-# Unit tests for the 13-alert core (ADR-119) — run with:
+# Unit tests for the 13-alert core (ADR-119). Run in CI (F025, job
+# "observability") and locally with the SAME promtool version the CI installs
+# (Prometheus v2.53.2) so results never diverge across environments:
 #   docker run --rm --entrypoint promtool \
 #     -v "$(pwd)/infrastructure/observability/prometheus:/cfg" \
-#     prom/prometheus:v3.0.0 test rules /cfg/tests/alerts_core_test.yml
+#     prom/prometheus:v2.53.2 test rules /cfg/tests/alerts_core_test.yml
 #
-# Tests run against the PRODUCTION-rendered alerts-core.yml, so expected
+# Tests run against the live alerts-core.yml, so expected
 # values below must match thresholds/production.env (ALERT_CORE_* block).
 # exp_annotations are asserted on purpose: they pin the threshold values
 # INSIDE the human-readable descriptions to the values in the expressions —

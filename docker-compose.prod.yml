@@ -121,9 +121,18 @@ services:
 
   # Backend API
   api:
+    # Explicit image tag (F008): deterministic name so a failed deploy can be
+    # rolled back to the previously-built image without a rebuild.
+    image: lia-api:local
     build:
       context: ./apps/api
       dockerfile: Dockerfile.prod
+      # Build provenance (F030) — the deploy sets these from git so the artifact
+      # carries its own version/commit/date.
+      args:
+        APP_VERSION: ${APP_VERSION:-0.0.0-dev}
+        GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
     container_name: lia-api-prod
     restart: unless-stopped
     # ADR-117: lifespan shutdown drains in-flight chat runs (45s) + generic
@@ -199,6 +208,8 @@ services:
 
   # Frontend Web
   web:
+    # Explicit image tag (F008) for rollback parity with the api service.
+    image: lia-web:local
     build:
       context: .
       dockerfile: apps/web/Dockerfile.prod

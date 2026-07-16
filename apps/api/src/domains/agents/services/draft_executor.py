@@ -766,9 +766,13 @@ async def _execute_confirmed_draft(
     # LOT 6 FIX: LangGraph may not preserve metadata through node execution,
     # but configurable is always passed. Try configurable first, then metadata.
     user_id_str = config.get("configurable", {}).get(FIELD_USER_ID)
+    # RunnableConfig.get() with a non-literal key (FIELD_METADATA) collapses to
+    # ``object``; narrow to a dict once so the fallback + logging type-check.
+    raw_metadata = config.get(FIELD_METADATA, {})
+    metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
     if not user_id_str:
         # Fallback to metadata (older path, may not work in all cases)
-        user_id_str = config.get(FIELD_METADATA, {}).get("user_id")
+        user_id_str = metadata.get("user_id")
     if not user_id_str:
         error_msg = "user_id not found in config (checked configurable and metadata)"
         logger.error(
@@ -776,7 +780,7 @@ async def _execute_confirmed_draft(
             run_id=run_id,
             draft_id=draft_id,
             configurable_keys=list(config.get("configurable", {}).keys()),
-            metadata_keys=list(config.get(FIELD_METADATA, {}).keys()),
+            metadata_keys=list(metadata.keys()),
         )
         registry_drafts_executed_total.labels(
             draft_type=draft_type,

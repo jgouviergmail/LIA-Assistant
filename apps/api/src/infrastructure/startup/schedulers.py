@@ -14,6 +14,7 @@ constants.
 """
 
 import os
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import structlog
@@ -34,9 +35,12 @@ from src.core.constants import (
     SCHEDULER_JOB_MEMORY_CONSOLIDATION,
     SCHEDULER_JOB_OAUTH_HEALTH,
     SCHEDULER_JOB_PSYCHE_DREAM_CYCLE,
+    SCHEDULER_JOB_RAG_JOB_REAPER,
     SCHEDULER_JOB_REMINDER_NOTIFICATION,
     SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
+    SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER,
     SCHEDULER_JOB_TELEPHONY_RETENTION_REAPER,
+    SCHEDULER_JOB_TELEPHONY_RETURN_REAPER,
     SCHEDULER_JOB_TELEPHONY_STALE_REAPER,
     SCHEDULER_JOB_TOKEN_REFRESH,
     SCHEDULER_JOB_UNVERIFIED_CLEANUP,
@@ -339,10 +343,14 @@ async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElecto
 
         # Schedule telephony reapers (agentic calls — spec P4.3)
         # - stale-call reaper (interval): frees phantom in-flight calls with no webhook.
+        # - notification reaper (interval): re-dispatches return notifications a crash
+        #   left PENDING (T1 durability).
         # - retention reaper (daily cron): clears summary/structured_data past TTL (D-8).
         if getattr(settings, "telephony_enabled", False):
             from src.domains.telephony.reapers import (
+                telephony_notification_reaper,
                 telephony_retention_reaper,
+                telephony_return_reaper,
                 telephony_stale_call_reaper,
             )
 
@@ -352,6 +360,26 @@ async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElecto
                 minutes=settings.telephony_stale_reaper_interval_minutes,
                 id=SCHEDULER_JOB_TELEPHONY_STALE_REAPER,
                 name="Telephony stale-call recovery",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=60,
+            )
+            scheduler.add_job(
+                telephony_notification_reaper,
+                trigger="interval",
+                minutes=settings.telephony_notification_reaper_interval_minutes,
+                id=SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER,
+                name="Telephony return-notification recovery",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=60,
+            )
+            scheduler.add_job(
+                telephony_return_reaper,
+                trigger="interval",
+                minutes=settings.telephony_return_reaper_interval_minutes,
+                id=SCHEDULER_JOB_TELEPHONY_RETURN_REAPER,
+                name="Telephony pre-synthesis return recovery",
                 replace_existing=True,
                 max_instances=1,
                 misfire_grace_time=60,
@@ -370,6 +398,30 @@ async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElecto
             logger.info(
                 "telephony_reapers_scheduled",
                 stale_interval_minutes=settings.telephony_stale_reaper_interval_minutes,
+                notification_interval_minutes=settings.telephony_notification_reaper_interval_minutes,
+            )
+
+        # RAG durable-job recovery (audit F001): requeue upload/processing jobs a
+        # crash stranded (stuck PROCESSING / orphaned PENDING). An immediate first
+        # run at boot (on the elected leader) satisfies "recovery worker at
+        # startup", then it runs periodically.
+        if getattr(settings, "rag_spaces_enabled", False):
+            from src.domains.rag_spaces.reapers import rag_job_reaper
+
+            scheduler.add_job(
+                rag_job_reaper,
+                trigger="interval",
+                seconds=settings.rag_job_reaper_interval_seconds,
+                id=SCHEDULER_JOB_RAG_JOB_REAPER,
+                name="RAG durable-job recovery",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=60,
+                next_run_time=datetime.now(UTC),
+            )
+            logger.info(
+                "rag_job_reaper_scheduled",
+                interval_seconds=settings.rag_job_reaper_interval_seconds,
             )
 
         # Schedule psyche weekly narrative (Psyche Engine — self-reflection)

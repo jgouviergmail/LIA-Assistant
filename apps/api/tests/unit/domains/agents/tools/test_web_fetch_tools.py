@@ -470,7 +470,6 @@ def _make_httpx_mocks(mock_response: MagicMock) -> MagicMock:
     return mock_client_cm
 
 
-@pytest.mark.slow
 class TestFetchWebPageTool:
     """Integration-style tests for the full fetch_web_page_tool.
 

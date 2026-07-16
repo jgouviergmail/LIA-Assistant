@@ -68,7 +68,7 @@ export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
         </div>
       ) : servers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <Plug className="h-10 w-10 text-muted-foreground/50 mb-3" />
+          <Plug className="h-10 w-10 text-muted-foreground mb-3" />
           <p className="text-sm text-muted-foreground">{t('settings.admin_mcp.no_servers')}</p>
         </div>
       ) : (

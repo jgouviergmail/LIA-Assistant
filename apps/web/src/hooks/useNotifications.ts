@@ -92,6 +92,110 @@ export interface UseNotificationsReturn {
   unreadCount: number;
 }
 
+/** Type-specific side-effect callbacks a notification can trigger. */
+export interface NotificationRouteHandlers {
+  onReminder?: (content: string, reminderId: string) => void;
+  onProactiveNotification?: (
+    content: string,
+    targetId: string,
+    metadata?: Record<string, unknown>
+  ) => void;
+  onScheduledAction?: (content: string, actionId: string, title: string) => void;
+  onSubagentResult?: (
+    content: string,
+    targetId: string,
+    metadata?: Record<string, unknown>
+  ) => void;
+  onOAuthWarning?: (notification: Notification) => void;
+  onOAuthCritical?: (notification: Notification) => void;
+}
+
+type NotificationRoute = (notification: Notification, h: NotificationRouteHandlers) => void;
+
+/** Exact-type routes (proactive_* is prefix-matched separately in
+ * routeNotification). Each guards on the entity id it needs. */
+const NOTIFICATION_ROUTES: Record<string, NotificationRoute> = {
+  reminder: (n, h) => {
+    if (n.reminder_id) h.onReminder?.(n.content, n.reminder_id);
+  },
+  scheduled_action: (n, h) => {
+    if (n.action_id) {
+      const title = (n.metadata?.title as string) || n.action_id;
+      h.onScheduledAction?.(n.content, n.action_id, title);
+    }
+  },
+  subagent_result: (n, h) => {
+    if (n.target_id) h.onSubagentResult?.(n.content, n.target_id, n.metadata);
+  },
+  oauth_health_warning: (n, h) => h.onOAuthWarning?.(n),
+  oauth_health_critical: (n, h) => h.onOAuthCritical?.(n),
+};
+
+/** Dispatch a notification to its type-specific handler (audit F011). Extracted
+ * so ``addNotification`` stays a thin store-update + route call.
+ * admin_broadcast is intentionally NOT routed — BroadcastProvider owns its own
+ * SSE/FCM listeners. */
+export function routeNotification(notification: Notification, h: NotificationRouteHandlers): void {
+  // proactive_* is a family (interest, heartbeat, …) matched by prefix.
+  if ((notification.type as string).startsWith('proactive_') && notification.target_id) {
+    h.onProactiveNotification?.(
+      notification.content,
+      notification.target_id,
+      notification.metadata
+    );
+    return;
+  }
+  NOTIFICATION_ROUTES[notification.type]?.(notification, h);
+}
+
+/** Rebuild proactive/scheduled metadata from the flat FCM data fields. */
+function buildFcmMetadata(
+  fcmType: NotificationType | undefined,
+  d: Record<string, string>
+): Record<string, unknown> | undefined {
+  if (fcmType && (fcmType as string).startsWith('proactive_')) {
+    return {
+      type: fcmType,
+      target_id: d.target_id,
+      feedback_enabled: d.feedback_enabled === 'true',
+    };
+  }
+  if (fcmType === 'scheduled_action') {
+    return { type: 'scheduled_action', action_id: d.action_id, title: d.title };
+  }
+  return undefined;
+}
+
+/** Reconstruct a Notification from a flat FCM foreground payload (audit F011).
+ * FCM sends flat ``data`` fields (not nested); the stable id resolves to the
+ * first present entity id (falling back to a timestamped synthetic id). */
+export function buildNotificationFromFcm(payload: MessagePayload): Notification {
+  const d = (payload.data ?? {}) as Record<string, string>;
+  const fcmType = d.type as NotificationType | undefined;
+  return {
+    id:
+      d.reminder_id ||
+      d.target_id ||
+      d.action_id ||
+      d.connector_id ||
+      d.broadcast_id ||
+      `fcm-${Date.now()}`,
+    type: fcmType || 'system',
+    content: payload.notification?.body || d.body || d.message || '',
+    reminder_id: d.reminder_id,
+    target_id: d.target_id,
+    action_id: d.action_id,
+    connector_id: d.connector_id,
+    connector_type: d.connector_type,
+    display_name: d.display_name,
+    authorize_url: d.authorize_url,
+    broadcast_id: d.broadcast_id,
+    metadata: buildFcmMetadata(fcmType, d),
+    timestamp: new Date(),
+    read: false,
+  };
+}
+
 /**
  * Hook for real-time notifications.
  *
@@ -145,27 +249,15 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
 
       onNotification?.(notification);
 
-      // Handle specific notification types
-      if (notification.type === 'reminder' && notification.reminder_id) {
-        onReminder?.(notification.content, notification.reminder_id);
-      } else if ((notification.type as string).startsWith('proactive_') && notification.target_id) {
-        // Generic proactive handler: covers interest, heartbeat, and future types
-        onProactiveNotification?.(
-          notification.content,
-          notification.target_id,
-          notification.metadata
-        );
-      } else if (notification.type === 'scheduled_action' && notification.action_id) {
-        const actionTitle = (notification.metadata?.title as string) || notification.action_id;
-        onScheduledAction?.(notification.content, notification.action_id, actionTitle);
-      } else if (notification.type === 'subagent_result' && notification.target_id) {
-        onSubagentResult?.(notification.content, notification.target_id, notification.metadata);
-      } else if (notification.type === 'oauth_health_warning') {
-        onOAuthWarning?.(notification);
-      } else if (notification.type === 'oauth_health_critical') {
-        onOAuthCritical?.(notification);
-      }
-      // Note: admin_broadcast is handled separately by BroadcastProvider (has its own SSE/FCM listeners)
+      // Type-specific side effects (admin_broadcast handled by BroadcastProvider).
+      routeNotification(notification, {
+        onReminder,
+        onProactiveNotification,
+        onScheduledAction,
+        onSubagentResult,
+        onOAuthWarning,
+        onOAuthCritical,
+      });
     },
     [
       onNotification,
@@ -345,48 +437,8 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         title: payload.notification?.title,
       });
 
-      // Build metadata from FCM data fields for proactive notifications
-      // FCM sends flat data (not nested), so we reconstruct metadata here
-      const fcmType = payload.data?.type as NotificationType | undefined;
-      const fcmMetadata: Record<string, unknown> | undefined =
-        fcmType && (fcmType as string).startsWith('proactive_')
-          ? {
-              type: fcmType,
-              target_id: payload.data?.target_id,
-              feedback_enabled: payload.data?.feedback_enabled === 'true',
-            }
-          : fcmType === 'scheduled_action'
-            ? {
-                type: 'scheduled_action',
-                action_id: payload.data?.action_id,
-                title: payload.data?.title,
-              }
-            : undefined;
-
-      const notification: Notification = {
-        id:
-          payload.data?.reminder_id ||
-          payload.data?.target_id ||
-          payload.data?.action_id ||
-          payload.data?.connector_id ||
-          payload.data?.broadcast_id ||
-          `fcm-${Date.now()}`,
-        type: fcmType || 'system',
-        content: payload.notification?.body || payload.data?.body || payload.data?.message || '',
-        reminder_id: payload.data?.reminder_id,
-        target_id: payload.data?.target_id,
-        action_id: payload.data?.action_id,
-        connector_id: payload.data?.connector_id,
-        connector_type: payload.data?.connector_type,
-        display_name: payload.data?.display_name,
-        authorize_url: payload.data?.authorize_url,
-        broadcast_id: payload.data?.broadcast_id,
-        metadata: fcmMetadata,
-        timestamp: new Date(),
-        read: false,
-      };
-
-      addNotification(notification);
+      // FCM sends flat data (not nested) — rebuild the Notification shape.
+      addNotification(buildNotificationFromFcm(payload));
     });
 
     return () => {

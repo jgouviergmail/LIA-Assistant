@@ -263,7 +263,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
             {t('chat.empty_state.description')}
           </p>
           {greeting.isNight && (
-            <p className="text-xs text-muted-foreground/70 italic mt-3 max-w-md">
+            <p className="text-xs text-muted-foreground italic mt-3 max-w-md">
               {t('chat.empty_state.night_note')}
             </p>
           )}

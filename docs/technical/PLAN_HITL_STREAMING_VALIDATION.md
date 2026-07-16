@@ -519,7 +519,7 @@ async def clarification_node(
 4. **Undo** - Historique des modifications
 
 ```python
-# Fichier: src/domains/agents/orchestration/plan_editor.py
+# Fichier: src/domains/agents/orchestration/plan_editor.py  (proposé)
 
 class EnhancedPlanEditor(PlanEditor):
     """PlanEditor avec validations avancées."""
@@ -771,7 +771,7 @@ TOTAL: 13-14h
 ## 8.1 Feature Flags
 
 ```python
-# Fichier: src/core/config/features.py
+# Fichier: src/core/config/features.py  (proposé)
 
 class FeatureFlags:
     # Phase 1

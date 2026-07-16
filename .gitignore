@@ -63,6 +63,7 @@ apps/*/pnpm-lock.yaml
 
 # Next.js build output
 .next/
+.next-e2e/
 out/
 
 # TypeScript build info

@@ -74,7 +74,16 @@ function Invoke-WithRetry {
         $prevErrorAction = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
-            $result = cmd /c $Command 2>&1
+            # Run the ssh/scp/rsync command string through the platform shell so
+            # the Linux/macOS Task branch (pwsh) works too — the old `cmd /c` is
+            # Windows-only (audit F040). `$IsWindows` is $null on Windows
+            # PowerShell 5.1, which only ever runs on Windows, so treat that as
+            # Windows and keep the original path byte-identical.
+            if (($null -eq $IsWindows) -or $IsWindows) {
+                $result = cmd /c $Command 2>&1
+            } else {
+                $result = sh -c $Command 2>&1
+            }
             $exitCode = $LASTEXITCODE
         } finally {
             $ErrorActionPreference = $prevErrorAction
@@ -101,6 +110,37 @@ function Invoke-WithRetry {
         Start-Sleep -Seconds $delay
         $delay = [Math]::Min($delay * 2, 60)  # Backoff exponentiel, max 60s
         $attempt++
+    }
+}
+
+function Invoke-SopsEncryptDotenv {
+    # Encrypt a dotenv file with SOPS WITHOUT mutating the original secrets file.
+    # SOPS dotenv does not support inline comments, so the comments are stripped
+    # into a TEMP copy that is encrypted and then removed. The real .env is never
+    # touched, so a crash mid-encrypt cannot leave the developer's secrets file
+    # truncated (the previous in-place strip/restore was not crash-safe).
+    param(
+        [Parameter(Mandatory)] [string]$SourceEnv,
+        [Parameter(Mandatory)] [string]$OutputEnc,
+        [Parameter(Mandatory)] [string]$AgeKeyFile
+    )
+    $env:SOPS_AGE_KEY_FILE = $AgeKeyFile
+    $tmp = "$SourceEnv.sops.tmp"
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $cleanLines = Get-Content $SourceEnv | ForEach-Object {
+        if ($_ -match '^[A-Za-z_]') { $_ -replace '\s+#\s.*$', '' } else { $_ }
+    }
+    [IO.File]::WriteAllText($tmp, ($cleanLines -join "`n") + "`n", $utf8NoBom)
+    try {
+        $result = sops --encrypt --input-type dotenv --output-type dotenv $tmp 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $result | Out-File -FilePath $OutputEnc -Encoding utf8
+            return $true
+        }
+        Write-Err "Echec du chiffrement: $result"
+        return $false
+    } finally {
+        Remove-Item -Force $tmp -ErrorAction SilentlyContinue
     }
 }
 
@@ -159,25 +199,9 @@ if (-not $SkipEncrypt) {
     if (Test-Path $envProd) {
         Write-Info "Chiffrement de .env.prod..."
         if (-not $DryRun) {
-            $env:SOPS_AGE_KEY_FILE = $KeysProd
-            # SOPS dotenv does not support inline comments — strip them in place,
-            # encrypt, then restore the original file
-            $envProdBackup = "$envProd.bak"
-            Copy-Item $envProd $envProdBackup -Force
-            $cleanLines = Get-Content $envProd | ForEach-Object {
-                if ($_ -match '^[A-Za-z_]') {
-                    $_ -replace '\s+#\s.*$', ''
-                } else { $_ }
-            }
-            $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-            [IO.File]::WriteAllText($envProd, ($cleanLines -join "`n") + "`n", $utf8NoBom)
-            $result = sops --encrypt --input-type dotenv --output-type dotenv $envProd 2>&1
-            Move-Item -Force $envProdBackup $envProd
-            if ($LASTEXITCODE -eq 0) {
-                $result | Out-File -FilePath $envProdEnc -Encoding utf8
+            if (Invoke-SopsEncryptDotenv -SourceEnv $envProd -OutputEnc $envProdEnc -AgeKeyFile $KeysProd) {
                 Write-Success ".env.prod.encrypted cree"
             } else {
-                Write-Err "Echec du chiffrement: $result"
                 exit 1
             }
         } else {
@@ -193,25 +217,9 @@ if (-not $SkipEncrypt) {
     if (Test-Path $envDev) {
         Write-Info "Chiffrement de .env (dev)..."
         if (-not $DryRun) {
-            $env:SOPS_AGE_KEY_FILE = $KeysDev
-            # SOPS dotenv does not support inline comments — strip them in place,
-            # encrypt, then restore the original file
-            $envDevBackup = "$envDev.bak"
-            Copy-Item $envDev $envDevBackup -Force
-            $cleanLines = Get-Content $envDev | ForEach-Object {
-                if ($_ -match '^[A-Za-z_]') {
-                    $_ -replace '\s+#\s.*$', ''
-                } else { $_ }
-            }
-            $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-            [IO.File]::WriteAllText($envDev, ($cleanLines -join "`n") + "`n", $utf8NoBom)
-            $result = sops --encrypt --input-type dotenv --output-type dotenv $envDev 2>&1
-            Move-Item -Force $envDevBackup $envDev
-            if ($LASTEXITCODE -eq 0) {
-                $result | Out-File -FilePath $envDevEnc -Encoding utf8
+            if (Invoke-SopsEncryptDotenv -SourceEnv $envDev -OutputEnc $envDevEnc -AgeKeyFile $KeysDev) {
                 Write-Success ".env.encrypted cree"
             } else {
-                Write-Err "Echec du chiffrement: $result"
                 exit 1
             }
         } else {
@@ -466,25 +474,36 @@ if (-not $DryRun) {
 # Must run BEFORE deploy.sh because docker compose up reads DOCKER_GID from .env
 Write-Step "Setting up DevOps prerequisites on remote server..."
 
-# Ensure DOCKER_GID is set in remote .env (required for Docker socket access)
-Invoke-WithRetry -OperationName "Set DOCKER_GID" -Command @"
+# These are real remote mutations (write remote .env, create ~/.claude, copy
+# credentials), so they MUST respect -DryRun — otherwise a "simulation" run
+# still changes the server (audit F040/DryRun).
+if (-not $DryRun) {
+    # Ensure DOCKER_GID is set in remote .env (required for Docker socket access)
+    Invoke-WithRetry -OperationName "Set DOCKER_GID" -Command @"
 ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "grep -q DOCKER_GID ~/${RemoteDir}/.env 2>/dev/null || echo DOCKER_GID=`$(stat -c '%g' /var/run/docker.sock) >> ~/${RemoteDir}/.env && echo DOCKER_GID set"
 "@
 
-# Deploy Claude CLI credentials (same auth as dev — same Anthropic account)
-$LocalCreds = Join-Path $env:USERPROFILE ".claude\.credentials.json"
-if (Test-Path $LocalCreds) {
-    Invoke-WithRetry -OperationName "Create remote .claude directory" -Command @"
+    # Deploy Claude CLI credentials (same auth as dev — same Anthropic account)
+    # $env:USERPROFILE is Windows-only: fall back to $HOME so the pwsh/Unix
+    # branch (audit F008 hermetic tests) does not crash Join-Path on an empty
+    # path. The Windows behavior is byte-identical (USERPROFILE always set).
+    $userHome = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($env:HOME) { $env:HOME } else { $null }
+    $LocalCreds = if ($userHome) { Join-Path $userHome ".claude" ".credentials.json" } else { $null }
+    if ($LocalCreds -and (Test-Path $LocalCreds)) {
+        Invoke-WithRetry -OperationName "Create remote .claude directory" -Command @"
 ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "mkdir -p ~/.claude"
 "@
 
-    Invoke-WithRetry -OperationName "Copy Claude CLI credentials" -Command @"
+        Invoke-WithRetry -OperationName "Copy Claude CLI credentials" -Command @"
 scp $SshOptionsStr -P $SshPort "$LocalCreds" ${SshUser}@${SshHost}:~/.claude/.credentials.json
 "@
 
-    Write-Success "Claude CLI credentials deployed"
+        Write-Success "Claude CLI credentials deployed"
+    } else {
+        Write-Warning "No local Claude CLI credentials. Run 'claude auth login' locally first."
+    }
 } else {
-    Write-Warning "No local Claude CLI credentials. Run 'claude auth login' locally first."
+    Write-Info "[DRY RUN] ssh set DOCKER_GID in remote .env; ssh mkdir ~/.claude; scp Claude CLI credentials"
 }
 
 # ============================================================================
@@ -499,7 +518,13 @@ Write-Info "Commande: $deployCmd"
 if (-not $DryRun) {
     $fullDeployCmd = "ssh -p $SshPort $SshOptionsStr $sshTarget `"$deployCmd`""
     Write-Info "Execution: $fullDeployCmd"
-    cmd /c $fullDeployCmd
+    # Cross-platform shell (F040): cmd /c is Windows-only. $IsWindows is $null on
+    # Windows PowerShell 5.1 (Windows-only), so that path stays byte-identical.
+    if (($null -eq $IsWindows) -or $IsWindows) {
+        cmd /c $fullDeployCmd
+    } else {
+        sh -c $fullDeployCmd
+    }
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Echec du deploiement (exit code: $LASTEXITCODE)"
         exit 1

@@ -180,9 +180,9 @@ class CallbackFactory:
         os.environ["LANGFUSE_SECRET_KEY"] = self.settings.langfuse_secret_key
         os.environ["LANGFUSE_HOST"] = self.settings.langfuse_host
 
-        # Optional configuration
-        if self.settings.langfuse_release:
-            os.environ["LANGFUSE_RELEASE"] = self.settings.langfuse_release
+        # Release tag: explicit override, else build provenance (F030).
+        release = self.settings.langfuse_release or self.settings.build_release
+        os.environ["LANGFUSE_RELEASE"] = release
 
         if self.settings.langfuse_sample_rate is not None:
             os.environ["LANGFUSE_SAMPLE_RATE"] = str(self.settings.langfuse_sample_rate)
@@ -197,7 +197,7 @@ class CallbackFactory:
         logger.info(
             "langfuse_config_exported",
             host=self.settings.langfuse_host,
-            release=self.settings.langfuse_release,
+            release=release,
             sample_rate=self.settings.langfuse_sample_rate,
             flush_interval=self.settings.langfuse_flush_interval,
             debug=os.environ.get("LANGFUSE_DEBUG"),

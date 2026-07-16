@@ -50,8 +50,13 @@ class TestGetCheckpointerPoolFactory:
                 "src.domains.conversations.checkpointer.InstrumentedAsyncPostgresSaver"
             ) as mock_saver_cls,
             patch("src.domains.conversations.checkpointer.settings") as mock_settings,
+            # URL + connection kwargs resolve through the shared helper
+            # (src/infrastructure/database/psycopg_pool_config.py) — patch ITS
+            # settings so the end-to-end contract stays: settings → pool URL.
+            patch("src.infrastructure.database.psycopg_pool_config.settings") as mock_url_settings,
         ):
-            mock_settings.database_url = "postgresql+asyncpg://user:pass@localhost/db"
+            mock_url_settings.database_url = "postgresql+asyncpg://user:pass@localhost/db"
+            mock_url_settings.database_connect_timeout = 30
             mock_settings.langgraph_checkpoint_pool_min_size = 2
             mock_settings.langgraph_checkpoint_pool_max_size = 7
             mock_settings.database_pool_timeout = 30
@@ -79,6 +84,8 @@ class TestGetCheckpointerPoolFactory:
             assert conn_kwargs["autocommit"] is True
             assert conn_kwargs["prepare_threshold"] == 0
             assert "row_factory" in conn_kwargs
+            # libpq bound on connection ESTABLISHMENT (anti-wedge on blackholes)
+            assert conn_kwargs["connect_timeout"] == mock_url_settings.database_connect_timeout
             # Deferred explicit open (async constructor open is deprecated)
             assert mock_pool_cls.call_args.kwargs["open"] is False
             mock_pool.open.assert_awaited_once_with(

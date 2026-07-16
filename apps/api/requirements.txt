@@ -1,3 +1,15 @@
+# urllib3-future (transitive: caldav -> niquests) ships a wheel that CLOBBERS
+# the genuine urllib3/ package plus a .pth that re-clobbers it at every
+# interpreter start, breaking anything that subclasses urllib3 internals
+# (docker-py/testcontainers on Windows: "NpipeHTTPConnectionPool._get_conn()
+# got an unexpected keyword argument 'heb_timeout'"). Building it from sdist
+# with URLLIB3_NO_OVERRIDE=1 in the environment is the maintainer-documented
+# opt-out: both namespaces then coexist (urllib3 genuine, urllib3_future fork)
+# and niquests falls back to urllib3_future automatically. Every installer of
+# the lockfiles must therefore export URLLIB3_NO_OVERRIDE=1 (Taskfile setup,
+# Dockerfiles, CI). Guard: tests/unit/test_urllib3_namespace_guard.py.
+--no-binary urllib3-future
+
 # Core Framework
 fastapi==0.136.3
 uvicorn[standard]==0.48.0
@@ -108,7 +120,7 @@ python-telegram-bot>=21.0  # Telegram Bot API (async, v21+)
 pydub>=0.25.1  # Audio format conversion for voice messages (OGG→PCM, requires ffmpeg)
 
 # Apple iCloud Connectors — Email (IMAP), Calendar (CalDAV), Contacts (CardDAV)
-caldav[async]>=3.0.1  # CalDAV client with async support (caldav.aio)
+caldav>=3.0.1  # CalDAV client with async support (caldav.aio; the 2.x [async] extra was folded into the base package)
 imap-tools>=1.7.0  # IMAP email client (synchronous, wrapped via asyncio.to_thread)
 vobject>=0.9.8  # vCard/vCalendar parser (iCloud uses vCard 3.0)
 

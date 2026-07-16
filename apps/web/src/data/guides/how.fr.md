@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 2.9
-**Date** : 2026-07-13
-**Application** : LIA v1.24.0
+**Date** : 2026-07-16
+**Application** : LIA v1.25.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 394 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 100+ ADRs, ~11 400 tests collectés par pytest sur 586 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 120+ ADRs, ~11 900 tests collectés par pytest sur 670 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -71,10 +71,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~11 400 (collectés par pytest sur 586 fichiers de test) + 453 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~11 900 (collectés par pytest sur 670 fichiers de test) + 1 222 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 280+ |
-| ADRs (Architecture Decision Records) | 100+ |
+| ADRs (Architecture Decision Records) | 120+ |
 | Métriques Prometheus | 394 définitions |
 | Dashboards Grafana | 22 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -866,7 +866,7 @@ transitif complet est audité et inventorié, pas seulement les paquets déclar�
 
 ### 22.4. L'audit est public — et reproductible
 
-Le niveau d'exigence décrit dans ce guide n'est pas auto-déclaré : un audit technique 360° complet — **8,5/10 sur 24 périmètres** de la grille ISO/IEC 25010, constats ouverts compris — est publié dans le dépôt ([rapport complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), avec le [protocole d'audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) qui rend chaque cycle reproductible : commit épinglé, exigences de preuve par périmètre, notation ancrée, et un script versionné qui mesure la taille en SLOC logiques. Le rapport se termine par les commandes exactes pour reproduire les mesures vous-même.
+Le niveau d'exigence décrit dans ce guide n'est pas auto-déclaré : un audit technique 360° complet — **8,3/10 sur 24 périmètres normalisés** de la grille ISO/IEC 25010, constats ouverts compris — est publié dans le dépôt ([rapport complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), avec le [protocole d'audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) qui rend chaque cycle reproductible : commit épinglé, exigences de preuve par périmètre, notation ancrée, et un script versionné qui mesure la taille en SLOC logiques. Le rapport se termine par les commandes exactes pour reproduire les mesures vous-même.
 
 ## 23. Patterns d'ingénierie transversaux
 
@@ -1008,7 +1008,7 @@ LIA accepte les ingestions d'événements externes (mesures iPhone Apple Health,
 
 ## 24. Architecture des décisions (ADR)
 
-100+ ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+120+ ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1098,10 +1098,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 100+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~11 400 tests sur 586 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 120+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~11 900 tests sur 670 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 100+ ADRs, et du changelog (v1.0 à v1.24.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 120+ ADRs, et du changelog (v1.0 à v1.25.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

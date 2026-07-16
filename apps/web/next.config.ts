@@ -40,6 +40,13 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
 
+  // E2E: let a production build/serve coexist with the running dev server in
+  // the same bind-mounted tree. The hermetic E2E suite builds with
+  // NEXT_DIST_DIR=.next-e2e and serves it on a separate port while `next dev`
+  // keeps using `.next` untouched (see apps/web/e2e/README.md). Unset
+  // (default) everywhere else, including the production Docker image.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
+
   // Production build configuration for Docker
   output: 'standalone',
 
@@ -58,9 +65,15 @@ const nextConfig: NextConfig = {
     proxyClientMaxBodySize: '25mb',
   },
 
-  // Environment variables
+  // Environment variables.
+  // `??`, NOT `||`: an EXPLICIT empty string means "same-origin relative
+  // /api/v1 URLs through the BFF proxy" (hermetic E2E/CI builds set
+  // NEXT_PUBLIC_API_URL=""). `||` silently rewrote it to the dev fallback and
+  // every browser call went cross-origin, missing the route mocks. Only a
+  // truly ABSENT variable gets the dev fallback. This block is inlined into
+  // the client bundle, so it is the root of what every consumer reads.
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000',
   },
 
   // Enable WASM async for Sherpa-onnx KWS

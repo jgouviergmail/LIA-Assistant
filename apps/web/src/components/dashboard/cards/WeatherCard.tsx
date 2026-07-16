@@ -128,7 +128,7 @@ function WeatherContent({ data }: { data: WeatherData }) {
       <p className="text-sm text-muted-foreground capitalize leading-snug">
         {data.description}
         {data.location_city && (
-          <span className="text-muted-foreground/70"> · {data.location_city}</span>
+          <span className="text-muted-foreground"> · {data.location_city}</span>
         )}
       </p>
 
@@ -197,7 +197,7 @@ function DailyForecastStrip({ days }: { days: DailyForecastItem[] }) {
             className="flex flex-col items-center gap-0.5 text-center"
             title={`${day.date_iso} · ${day.condition_code}`}
           >
-            <span className="text-[10px] font-medium uppercase text-muted-foreground/80 tracking-wide">
+            <span className="text-[10px] font-medium uppercase text-muted-foreground tracking-wide">
               {localized}
             </span>
             <span className="text-base leading-none" aria-hidden="true">
@@ -205,7 +205,7 @@ function DailyForecastStrip({ days }: { days: DailyForecastItem[] }) {
             </span>
             <span className="text-[10px] tabular-nums leading-tight">
               <span className="font-semibold text-foreground">{Math.round(day.temp_max_c)}°</span>
-              <span className="text-muted-foreground/70"> / {Math.round(day.temp_min_c)}°</span>
+              <span className="text-muted-foreground"> / {Math.round(day.temp_min_c)}°</span>
             </span>
           </li>
         );

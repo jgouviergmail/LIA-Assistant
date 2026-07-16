@@ -613,7 +613,6 @@ Psyche Engine v2 introduces 8 enhancements that deepen emotional realism:
 | `PSYCHE_CIRCADIAN_AMPLITUDE` | `0.08` | Circadian pleasure modulation |
 | `PSYCHE_RELATIONSHIP_WARMTH_DECAY_RATE` | `0.02` | Warmth decay per hour of absence |
 | `PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT` | `5.0` | Bayesian prior weight for self-efficacy |
-| `PSYCHE_CACHE_TTL_SECONDS` | `300` | Redis cache TTL |
 | `PSYCHE_HISTORY_SNAPSHOT_ENABLED` | `true` | Record snapshots after each message |
 | `PSYCHE_HISTORY_RETENTION_DAYS` | `90` | Rolling retention window; snapshots older are purged on write per user (`0` = keep forever) |
 

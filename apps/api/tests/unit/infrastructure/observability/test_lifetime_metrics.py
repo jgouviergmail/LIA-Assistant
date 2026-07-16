@@ -599,25 +599,8 @@ class TestLifetimeMetricsRealWorldScenarios:
 
         # Alert should fire: LifetimeMetricsUpdateSlow
 
-
-# ============================================================================
-# Integration Tests (require database)
-# ============================================================================
-
-
-@pytest.mark.integration
-class TestLifetimeMetricsIntegration:
-    """Integration tests with real database (mark: integration)."""
-
-    @pytest.mark.asyncio
-    async def test_full_lifecycle_with_real_db(self):
-        """Test full lifecycle with real database."""
-        # This test would require real DB fixture
-        # Marked as integration to skip in unit tests
-        pytest.skip("Integration test - requires real database")
-
-    @pytest.mark.asyncio
-    async def test_index_performance_validation(self):
-        """Test index performance (<50ms SLO)."""
-        # This test would validate ix_token_usage_logs_lifetime_aggregation index
-        pytest.skip("Integration test - requires real database with indexes")
+        # NOTE (audit F006): two `TestLifetimeMetricsIntegration` placeholders that
+        # only ever called `pytest.skip(...)` were removed here — dead skip-only
+        # tests provide no coverage and were the sole reason two nodeids sat in the
+        # marker-coverage allowlist. Real DB-backed lifetime-metrics coverage, when
+        # added, belongs under tests/integration/ so the integration PR job runs it.

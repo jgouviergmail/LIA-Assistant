@@ -11,6 +11,11 @@
 # Force bash scripts to always use LF (Unix/Linux/Mac)
 *.sh text eol=lf
 
+# Git hooks are extensionless bash scripts — without an explicit eol they fall
+# back to `text=auto` and core.autocrlf=true rewrites them to CRLF on Windows
+# checkouts, which breaks bash on Linux.
+.github/hooks/* text eol=lf
+
 # Container-mounted config templates (rendered by sed/Go templating inside
 # Linux containers — CRLF would corrupt the rendered config)
 *.template text eol=lf

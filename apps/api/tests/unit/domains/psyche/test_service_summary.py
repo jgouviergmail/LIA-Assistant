@@ -83,7 +83,6 @@ def _make_service_with_mocked_repo(user_id: UUID, state: MagicMock) -> Any:
     service._load_personality_traits_and_override = AsyncMock(
         return_value=(PersonalityTraits(), None),
     )
-    service._save_to_cache = AsyncMock()
     service.repo = MagicMock()
     service.repo.update = AsyncMock()
     service.repo.create_snapshot = AsyncMock()

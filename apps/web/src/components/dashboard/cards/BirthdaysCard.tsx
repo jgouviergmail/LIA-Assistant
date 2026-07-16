@@ -42,7 +42,7 @@ function BirthdaysContent({ data }: { data: BirthdaysData }) {
           <span className="text-foreground/90 truncate font-medium">
             {birthday.contact_name}
             {birthday.age_at_next !== null && (
-              <span className="text-muted-foreground/70 font-normal ml-1">
+              <span className="text-muted-foreground font-normal ml-1">
                 ({birthday.age_at_next})
               </span>
             )}

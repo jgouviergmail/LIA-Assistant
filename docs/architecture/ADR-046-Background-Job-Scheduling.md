@@ -742,7 +742,7 @@ background_job_errors_total.labels(job_name="currency_sync").inc()
 ## Related Decisions
 
 - [ADR-039: Cost Optimization & Token Management](ADR-039-Cost-Optimization-Token-Management.md) - Token tracking for reminders
-- [ADR-045: Memory System](ADR-045-Memory-System.md) - Memory cleanup algorithm
+- Memory system ADRs ([ADR-013](ADR-013-LangMem-Long-Term-Memory.md), [ADR-037](ADR-037-Semantic-Memory-Store.md), [ADR-066](ADR-066-Memory-PostgreSQL-Migration.md)) - Memory cleanup algorithm
 - [ADR-051: Reminder & Notification System](ADR-051-Reminder-Notification-System.md) - Full reminder system details
 
 ---

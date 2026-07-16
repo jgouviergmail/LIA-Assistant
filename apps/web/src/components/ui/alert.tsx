@@ -69,7 +69,7 @@ export function Alert({
   const variantStyles = {
     success: 'bg-success/10 border-success/30 text-success shadow-sm',
     error: 'bg-destructive/10 border-destructive/30 text-destructive shadow-sm',
-    warning: 'bg-warning/10 border-warning/30 text-warning-foreground shadow-sm',
+    warning: 'bg-warning/10 border-warning/30 text-warning shadow-sm',
     info: 'bg-primary/10 border-primary/30 text-primary shadow-sm',
   };
 
@@ -98,7 +98,7 @@ export function Alert({
                 'inline-flex rounded-md p-1.5 transition-all duration-200 hover:scale-110',
                 variant === 'success' && 'text-success hover:bg-success/20',
                 variant === 'error' && 'text-destructive hover:bg-destructive/20',
-                variant === 'warning' && 'text-warning-foreground hover:bg-warning/20',
+                variant === 'warning' && 'text-warning hover:bg-warning/20',
                 variant === 'info' && 'text-primary hover:bg-primary/20'
               )}
               aria-label="Dismiss notification"

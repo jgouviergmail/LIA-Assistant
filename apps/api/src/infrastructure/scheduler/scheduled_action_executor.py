@@ -32,7 +32,6 @@ from src.core.constants import (
     SCHEDULED_ACTIONS_MAX_RETRIES,
     SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
     SCHEDULED_ACTIONS_SESSION_PREFIX,
-    SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
 )
 from src.core.user_display import resolve_user_display_name
 
@@ -367,11 +366,18 @@ async def process_scheduled_actions() -> dict[str, Any]:
     Scheduler job: process all due scheduled actions.
 
     Runs every 60s via APScheduler. Pattern:
-    1. SchedulerLock (Redis SETNX) for multi-worker safety
-    2. Recover stale 'executing' actions (crash recovery)
-    3. Get and lock due actions (FOR UPDATE SKIP LOCKED)
-    4. Execute each action sequentially
-    5. Track metrics
+    1. Recover stale 'executing' actions (crash recovery)
+    2. Get and lock due actions (FOR UPDATE SKIP LOCKED)
+    3. Execute each action sequentially
+    4. Track metrics
+
+    Single execution is guaranteed WITHOUT a Redis SchedulerLock (F003): the
+    scheduler runs on a single leader-elected worker (``SchedulerLeaderElector``),
+    APScheduler caps this job at ``max_instances=1``, and step 2 uses FOR UPDATE
+    SKIP LOCKED + an atomic transition to 'executing' — so even a transient
+    two-scheduler failover window cannot double-process an action. A Redis lock
+    here was worse than redundant: retained for its full TTL (300s), it throttled
+    this 60s job to one run per five minutes.
 
     Returns:
         Stats dict with processed, success, failed counts.
@@ -389,77 +395,66 @@ async def process_scheduled_actions() -> dict[str, Any]:
 
     try:
         from src.domains.scheduled_actions.repository import ScheduledActionRepository
-        from src.infrastructure.cache.redis import get_redis_cache
         from src.infrastructure.database.session import get_db_context
-        from src.infrastructure.locks.scheduler_lock import SchedulerLock
 
-        redis = await get_redis_cache()
-        async with SchedulerLock(redis, SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR) as lock:
-            if not lock.acquired:
-                logger.debug(
-                    "scheduled_action_executor_skipped_lock_busy",
-                    job_id=SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
-                )
+        async with get_db_context() as db:
+            repo = ScheduledActionRepository(db)
+
+            # 1. Recovery: reset stale 'executing' actions
+            recovered = await repo.recover_stale_executing(
+                timeout_minutes=settings.scheduled_actions_stale_timeout_minutes
+            )
+            stats["recovered"] = recovered
+
+            # 2. Get and lock due actions (FOR UPDATE SKIP LOCKED)
+            actions = await repo.get_and_lock_due_actions(limit=SCHEDULED_ACTIONS_BATCH_SIZE)
+
+            if not actions:
+                await db.commit()
+                duration = time.perf_counter() - start_time
+                background_job_duration_seconds.labels(job_name=job_name).observe(duration)
                 return stats
 
-            async with get_db_context() as db:
-                repo = ScheduledActionRepository(db)
+            # Extract identifiers before commit (ORM objects expire after commit)
+            action_refs = [(action.id, action.user_id) for action in actions]
 
-                # 1. Recovery: reset stale 'executing' actions
-                recovered = await repo.recover_stale_executing(
-                    timeout_minutes=settings.scheduled_actions_stale_timeout_minutes
-                )
-                stats["recovered"] = recovered
+            # CRITICAL: Commit status='executing' transition to release FOR UPDATE locks.
+            # execute_single_action opens its own session - without this commit it would
+            # deadlock trying to UPDATE rows still locked by this transaction.
+            # If the process crashes after this commit, recover_stale_executing will
+            # reset stale 'executing' actions on the next scheduler cycle.
+            await db.commit()
 
-                # 2. Get and lock due actions (FOR UPDATE SKIP LOCKED)
-                actions = await repo.get_and_lock_due_actions(limit=SCHEDULED_ACTIONS_BATCH_SIZE)
+            logger.info(
+                "scheduled_action_batch_started",
+                count=len(action_refs),
+            )
 
-                if not actions:
-                    await db.commit()
-                    duration = time.perf_counter() - start_time
-                    background_job_duration_seconds.labels(job_name=job_name).observe(duration)
-                    return stats
+            # 3. Process each action sequentially
+            # Each call opens its own DB session and handles success/failure marking
+            for action_id, action_user_id in action_refs:
+                stats["processed"] += 1
 
-                # Extract identifiers before commit (ORM objects expire after commit)
-                action_refs = [(action.id, action.user_id) for action in actions]
+                try:
+                    response = await execute_single_action(
+                        action_id=action_id,
+                        user_id=action_user_id,
+                    )
+                    if response:
+                        stats["success"] += 1
+                    else:
+                        stats["skipped"] += 1
 
-                # CRITICAL: Commit status='executing' transition to release FOR UPDATE locks.
-                # execute_single_action opens its own session - without this commit it would
-                # deadlock trying to UPDATE rows still locked by this transaction.
-                # If the process crashes after this commit, recover_stale_executing will
-                # reset stale 'executing' actions on the next scheduler cycle.
-                await db.commit()
-
-                logger.info(
-                    "scheduled_action_batch_started",
-                    count=len(action_refs),
-                )
-
-                # 3. Process each action sequentially
-                # Each call opens its own DB session and handles success/failure marking
-                for action_id, action_user_id in action_refs:
-                    stats["processed"] += 1
-
-                    try:
-                        response = await execute_single_action(
-                            action_id=action_id,
-                            user_id=action_user_id,
-                        )
-                        if response:
-                            stats["success"] += 1
-                        else:
-                            stats["skipped"] += 1
-
-                    except Exception as e:
-                        stats["failed"] += 1
-                        logger.error(
-                            "scheduled_action_process_error",
-                            action_id=str(action_id),
-                            error=str(e),
-                        )
-                        # execute_single_action handles its own failure marking.
-                        # If it raises unexpectedly, the action stays in 'executing'
-                        # and will be recovered by recover_stale_executing.
+                except Exception as e:
+                    stats["failed"] += 1
+                    logger.error(
+                        "scheduled_action_process_error",
+                        action_id=str(action_id),
+                        error=str(e),
+                    )
+                    # execute_single_action handles its own failure marking.
+                    # If it raises unexpectedly, the action stays in 'executing'
+                    # and will be recovered by recover_stale_executing.
 
         # Track duration
         duration = time.perf_counter() - start_time

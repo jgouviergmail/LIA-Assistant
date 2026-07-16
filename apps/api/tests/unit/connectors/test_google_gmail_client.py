@@ -374,50 +374,11 @@ async def test_refresh_token_lock_contention(user_id, expired_credentials, mock_
         assert token == "refreshed_by_other_process"
 
 
-# ============================================================================
-# RATE LIMITING TESTS
-# ============================================================================
-
-
-@pytest.mark.skip(reason="Rate limiting moved to Redis - see test_redis_limiter.py")
-@pytest.mark.asyncio
-async def test_rate_limit_throttle(gmail_client):
-    """Test rate limiting throttles requests."""
-    # First request - no throttle
-    start = asyncio.get_event_loop().time()
-    await gmail_client._rate_limit()
-    first_elapsed = asyncio.get_event_loop().time() - start
-    assert first_elapsed < 0.01  # Should be instant
-
-    # Second request immediately after - should throttle
-    start = asyncio.get_event_loop().time()
-    await gmail_client._rate_limit()
-    second_elapsed = asyncio.get_event_loop().time() - start
-
-    # Should wait ~0.1 seconds (1/10 per second rate limit)
-    assert second_elapsed >= 0.08  # Allow some tolerance
-
-
-@pytest.mark.skip(reason="Rate limiting moved to Redis - see test_redis_limiter.py")
-@pytest.mark.asyncio
-@pytest.mark.integration  # Requires Redis connection
-async def test_rate_limit_no_throttle_after_interval(gmail_client):
-    """Test no throttling after interval passes.
-
-    Note: This test requires Redis to be running. It's marked as integration
-    because it tests the actual Redis rate limiter behavior, not just the
-    Gmail client logic.
-    """
-    await gmail_client._rate_limit()
-
-    # Wait for rate limit interval to pass
-    await asyncio.sleep(0.11)  # Slightly more than 0.1 second interval
-
-    # Should not throttle
-    start = asyncio.get_event_loop().time()
-    await gmail_client._rate_limit()
-    elapsed = asyncio.get_event_loop().time() - start
-    assert elapsed < 0.01
+# NOTE (audit F006): the two client-side "RATE LIMITING TESTS"
+# (test_rate_limit_throttle / test_rate_limit_no_throttle_after_interval) were
+# removed here — dead, unconditionally @pytest.mark.skip'd because rate limiting
+# moved to Redis. That behaviour is covered by
+# tests/integration/test_redis_limiter_integration.py.
 
 
 # ============================================================================
@@ -609,7 +570,7 @@ async def test_search_emails_success(gmail_client):
 
             mock_redis = AsyncMock()
             mock_redis.get = AsyncMock(return_value=None)  # No cache
-            mock_redis.setex = AsyncMock()
+            mock_redis.set = AsyncMock()
             mock_cache.return_value = mock_redis
 
             # Execute
@@ -623,7 +584,7 @@ async def test_search_emails_success(gmail_client):
             assert result["from_cache"] is False
 
             # Verify cache was set (3 times: 2 individual messages + 1 search result)
-            assert mock_redis.setex.call_count == 3
+            assert mock_redis.set.call_count == 3
 
 
 @pytest.mark.asyncio
@@ -677,7 +638,7 @@ async def test_get_message_success(gmail_client):
 
             mock_redis = AsyncMock()
             mock_redis.get = AsyncMock(return_value=None)
-            mock_redis.setex = AsyncMock()
+            mock_redis.set = AsyncMock()
             mock_cache.return_value = mock_redis
 
             result = await gmail_client.get_message("msg123", format=GMAIL_FORMAT_FULL)
@@ -934,7 +895,7 @@ async def test_search_emails_fetches_metadata_concurrently(gmail_client):
         ) as mock_cache:
             mock_redis = AsyncMock()
             mock_redis.get = AsyncMock(return_value=None)
-            mock_redis.setex = AsyncMock()
+            mock_redis.set = AsyncMock()
             mock_cache.return_value = mock_redis
 
             loop = asyncio.get_running_loop()
@@ -972,7 +933,7 @@ async def test_search_emails_skips_failed_fetches(gmail_client):
         ) as mock_cache:
             mock_redis = AsyncMock()
             mock_redis.get = AsyncMock(return_value=None)
-            mock_redis.setex = AsyncMock()
+            mock_redis.set = AsyncMock()
             mock_cache.return_value = mock_redis
 
             result = await gmail_client.search_emails(query="test", max_results=10)

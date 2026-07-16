@@ -8,10 +8,11 @@ and published in the public report (docs/audit/README.md): raw line counts
 overstate code size by ~40% in this repository because of its documentation
 density, so they are never used for scoring.
 
-Usage (from apps/api/):
-    python ../../scripts/audit/measure_sloc.py [SRC_DIR]
+Usage (from any directory):
+    python scripts/audit/measure_sloc.py [SRC_DIR]
 
-Defaults to ./src. Standard library only — no dependencies.
+Defaults to apps/api/src, resolved from this file's location so the script is
+CWD-independent (F023). Standard library only — no dependencies.
 """
 
 from __future__ import annotations
@@ -32,6 +33,10 @@ DATA_MODULE_PREFIXES: tuple[str, ...] = (
     "core/constants",
     "domains/llm_config/constants",
 )
+
+# Default target resolved from this file (scripts/audit/ -> repo root -> src),
+# so the script works identically from any working directory (F023).
+DEFAULT_SRC_DIR: Path = Path(__file__).resolve().parents[2] / "apps" / "api" / "src"
 
 FILE_THRESHOLDS = (800, 1000)
 FUNCTION_THRESHOLDS = (100, 200)
@@ -102,7 +107,7 @@ def is_data_module(relative_path: str) -> bool:
     return any(prefix in normalized for prefix in DATA_MODULE_PREFIXES)
 
 
-def main(src_dir: str = "src") -> int:
+def main(src_dir: str | Path = DEFAULT_SRC_DIR) -> int:
     """Measure and print the audit size metrics for ``src_dir``."""
     root = Path(src_dir)
     if not root.is_dir():
@@ -174,4 +179,4 @@ def main(src_dir: str = "src") -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "src"))
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SRC_DIR))

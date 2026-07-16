@@ -1,7 +1,17 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Plug, Unplug, Plus, Trash2, Pencil, Zap, Sparkles, AlertTriangle } from 'lucide-react';
+import {
+  Plug,
+  Unplug,
+  Plus,
+  Trash2,
+  Pencil,
+  Zap,
+  Sparkles,
+  AlertTriangle,
+  MoreVertical,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -716,7 +726,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
       {/* Empty state */}
       {!loading && servers.length === 0 && (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <Plug className="h-10 w-10 text-muted-foreground/50 mb-3" />
+          <Plug className="h-10 w-10 text-muted-foreground mb-3" />
           <p className="text-sm text-muted-foreground">{t('settings.mcp.empty')}</p>
         </div>
       )}
@@ -724,8 +734,13 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
       {/* Server list */}
       <div className="space-y-3">
         {servers.map(server => (
+          // role="presentation": the tap-anywhere onClick is a pointer-only
+          // convenience duplicating the dedicated mobile actions button
+          // (audit F012/F045); the card carries no semantics (it contains
+          // interactive children).
           <div
             key={server.id}
+            role="presentation"
             className="rounded-lg border bg-card p-4 space-y-1.5 group cursor-pointer lg:cursor-default"
             onClick={() => {
               if (window.innerWidth < 1024) setMobileActionServer(server);
@@ -778,6 +793,21 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
+              {/* Mobile actions button (audit F012/F045): the desktop buttons
+                  above are hidden below lg and the tap-anywhere card click is
+                  pointer-only — this is the keyboard/AT path to the popup. */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden shrink-0"
+                aria-label={t('common.actions')}
+                onClick={e => {
+                  e.stopPropagation();
+                  setMobileActionServer(server);
+                }}
+              >
+                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+              </Button>
               <Switch
                 checked={server.is_enabled}
                 onCheckedChange={() => handleToggle(server)}

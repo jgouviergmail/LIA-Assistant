@@ -31,14 +31,14 @@ export function formatNumber(value: number, locale: Language = fallbackLng): str
  * Format an amount in euros with locale-appropriate formatting.
  *
  * @param value Amount in euros
- * @param decimals Number of decimal places (default: 4)
+ * @param decimals Number of decimal places (default: 2)
  * @param locale Language code for formatting (default: 'fr')
- * @returns Formatted string (e.g., "0,0042 €" for fr, "€0.0042" for en)
+ * @returns Formatted string (e.g., "2,45 €" for fr, "€2.45" for en)
  *
  * @example
- * formatEuro(0.0042) // "0,0042 €" (French)
+ * formatEuro(2.45) // "2,45 €" (French, default 2 decimals)
+ * formatEuro(0.0042, 4) // "0,0042 €" (French)
  * formatEuro(2.45, 2, 'en') // "€2.45" (English)
- * formatEuro(2.45, 2) // "2,45 €" (French)
  */
 export function formatEuro(
   value: number,

@@ -1706,7 +1706,7 @@ class AgentRegistry:
                 continue
 
             for tool_name in agent_def.tool_names:
-                manifest = self._tools.get(tool_name)
+                manifest = self._tool_manifests.get(tool_name)
                 if not manifest:
                     continue
 
@@ -1737,7 +1737,7 @@ class AgentRegistry:
 
         for domain_name, agent_def in self._agents.items():
             for tool_name in agent_def.tool_names:
-                manifest = self._tools.get(tool_name)
+                manifest = self._tool_manifests.get(tool_name)
                 if not manifest:
                     continue
 

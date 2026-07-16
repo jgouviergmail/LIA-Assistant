@@ -98,15 +98,24 @@ async def get_redis_session() -> aioredis.Redis:
 
 
 async def close_redis() -> None:
-    """Close all Redis connections."""
+    """Close all Redis connections and reset the singletons.
+
+    The globals are reset to ``None`` so a later ``get_redis_cache()`` builds a
+    fresh client instead of returning a closed one (audit F028: test suites
+    close the clients on the event loop that created them — a stale closed
+    singleton would otherwise leak into the next loop, and a GC'd live one
+    emits ResourceWarnings/"Event loop is closed" at interpreter shutdown).
+    """
     global _redis_cache, _redis_session
 
     if _redis_cache:
-        await _redis_cache.close()
+        await _redis_cache.aclose()
+        _redis_cache = None
         logger.info("redis_cache_closed")
 
     if _redis_session:
-        await _redis_session.close()
+        await _redis_session.aclose()
+        _redis_session = None
         logger.info("redis_session_closed")
 
 
@@ -183,7 +192,7 @@ class SessionService:
         key = f"{REDIS_KEY_OAUTH_STATE_PREFIX}{state}"
         import json
 
-        await self.redis.setex(key, expire_minutes * 60, json.dumps(data))
+        await self.redis.set(key, json.dumps(data), ex=expire_minutes * 60)
 
     async def get_oauth_state(self, state: str) -> dict[str, str] | None:
         """

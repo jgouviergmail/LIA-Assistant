@@ -267,7 +267,7 @@ Unit tests (backend):
   including 2 new (Task 1.5): RemoveMessage emitted iff consolidated;
   RemoveMessage NOT emitted on truncation fallback; and 2 new (Task 2.2):
   compaction_start/done events emitted.
-- `apps/api/tests/services/test_streaming_service.py` — 4 new tests
+- `apps/api/tests/unit/services/test_streaming_service.py` — 4 new tests
   `TestProcessCustomChunk`: well-formed forward, non-dict rejection,
   missing metadata, root-vs-metadata precedence.
 - `apps/api/tests/unit/agents/api/test_sse_keepalive.py` — 8 tests for the

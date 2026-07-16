@@ -8,7 +8,17 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,9 +60,7 @@ class Conversation(BaseModel):
 
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        unique=True,
         nullable=False,
-        index=True,
     )
     title: Mapped[str | None] = mapped_column(String(500), nullable=True)
     message_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -69,7 +77,15 @@ class Conversation(BaseModel):
         order_by="ConversationMessage.created_at.desc()",
     )
 
-    __table_args__ = (Index("ix_conversations_user_created", "user_id", "created_at"),)
+    __table_args__ = (
+        # One conversation per user (business rule); the constraint's backing
+        # unique index also serves user_id lookups, so no separate index.
+        UniqueConstraint("user_id", name="uq_conversations_user_id"),
+        Index("ix_conversations_user_created", "user_id", "created_at"),
+        # DAU/WAU observability range scans (group-by-user after a date filter).
+        Index("ix_conversations_created_at", "created_at"),
+        Index("ix_conversations_updated_at", "updated_at"),
+    )
 
     def __repr__(self) -> str:
         return (
@@ -194,12 +210,14 @@ class ConversationAuditLog(Base, UUIDMixin):
     message_count_at_action: Mapped[int | None] = mapped_column(Integer, nullable=True)
     audit_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
-    # Timestamp - only created_at (audit logs are immutable)
+    # Timestamp - only created_at (audit logs are immutable). Per-user history
+    # is served by the (user_id, created_at) composite below; no standalone
+    # created_at index exists in the schema, so this column carries no
+    # index=True (a created_at-only scan is not an access pattern here).
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         nullable=False,
-        index=True,
     )
 
     __table_args__ = (Index("ix_conversation_audit_log_user_created", "user_id", "created_at"),)

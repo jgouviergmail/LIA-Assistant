@@ -386,18 +386,26 @@ _shared_limiter: RedisRateLimiter | None = None
 async def get_rate_limiter() -> RedisRateLimiter:
     """Get the shared RedisRateLimiter singleton (backed by the cache Redis).
 
+    Self-healing on client lifecycle (AC-010): the limiter caches the Redis
+    client for its Lua-script SHA optimization, but after ``close_redis()``
+    resets the process client, a stale wrapper would make redis-py lazily
+    reconnect into an ORPHANED pool nobody ever closes (the leaked
+    Connection/StreamWriter the audit saw after the pytest summary). Rebuild
+    the wrapper whenever the underlying client instance changed; while the
+    client is stable (the whole process lifetime in production) the instance —
+    and its cached script SHA — is reused as before.
+
     Returns:
         The process-wide RedisRateLimiter instance.
     """
     global _shared_limiter
 
-    if _shared_limiter is None:
-        from src.infrastructure.cache.redis import get_redis_cache
+    from src.infrastructure.cache.redis import get_redis_cache
 
-        redis = await get_redis_cache()
-        # Re-check after the await: two concurrent first callers could both
-        # reach this point — keep the first assignment (benign either way).
-        if _shared_limiter is None:
-            _shared_limiter = RedisRateLimiter(redis)
+    redis = await get_redis_cache()
+    if _shared_limiter is None or _shared_limiter.redis is not redis:
+        # Two concurrent first callers may both build one — benign either way
+        # (the loser's instance is dropped before ever caching a SHA).
+        _shared_limiter = RedisRateLimiter(redis)
 
     return _shared_limiter

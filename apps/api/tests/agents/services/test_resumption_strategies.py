@@ -73,6 +73,23 @@ def approval_decision():
     )
 
 
+def _configure_graph_state(graph: MagicMock) -> MagicMock:
+    """Give a spec'd graph mock a realistic ``aget_state`` snapshot.
+
+    ``resolve_user_language`` reads ``(await graph.aget_state(...)).values.get(...)``.
+    Left unconfigured, a ``MagicMock(spec=CompiledStateGraph)`` returns an
+    ``AsyncMock`` from ``aget_state``, whose ``.values.get(...)`` yields a *coroutine*
+    (AsyncMock treats every child call as async) that nobody awaits — surfacing as a
+    ``RuntimeWarning: coroutine ... was never awaited`` at GC (F028). The real
+    ``StateSnapshot.values`` is a plain dict, so we mirror that here: ``.values`` is a
+    real dict and ``.get`` stays synchronous.
+    """
+    snapshot = MagicMock()
+    snapshot.values = {"user_language": "fr", "user_timezone": "Europe/Paris"}
+    graph.aget_state = AsyncMock(return_value=snapshot)
+    return graph
+
+
 @pytest.fixture
 def mock_graph():
     """Mock CompiledStateGraph."""
@@ -86,7 +103,7 @@ def mock_graph():
             yield ("messages", chunk)
 
     graph.astream = mock_astream
-    return graph
+    return _configure_graph_state(graph)
 
 
 # ============================================================================
@@ -715,7 +732,7 @@ async def test_resumption_handles_graph_error(
     conversational_strategy, approval_decision, mock_tracker, mock_db_context
 ):
     """Test that resumption handles graph errors gracefully."""
-    error_graph = MagicMock(spec=CompiledStateGraph)
+    error_graph = _configure_graph_state(MagicMock(spec=CompiledStateGraph))
 
     async def mock_astream_error(*args, **kwargs):
         raise RuntimeError("Graph execution failed")
@@ -785,7 +802,7 @@ async def test_resumption_records_error_metrics(
     conversational_strategy, approval_decision, mock_tracker, mock_db_context
 ):
     """Test that resumption records Prometheus metrics on error."""
-    error_graph = MagicMock(spec=CompiledStateGraph)
+    error_graph = _configure_graph_state(MagicMock(spec=CompiledStateGraph))
 
     async def mock_astream_error(*args, **kwargs):
         raise RuntimeError("Graph failed")

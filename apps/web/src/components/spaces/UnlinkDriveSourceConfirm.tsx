@@ -64,11 +64,15 @@ export function UnlinkDriveSourceConfirm({
         <label className="flex items-center gap-2 text-sm cursor-pointer select-none px-1">
           <input
             type="checkbox"
+            // aria-labelledby: the wrapping <label> already names this control
+            // implicitly (valid per WCAG); the explicit reference makes the
+            // name visible to static analysis too (F012).
+            aria-labelledby="unlink-delete-docs-label"
             checked={deleteDocuments}
             onChange={e => setDeleteDocuments(e.target.checked)}
             className="rounded border-input h-4 w-4 accent-destructive"
           />
-          <span>{t('spaces.drive.unlink_delete_docs')}</span>
+          <span id="unlink-delete-docs-label">{t('spaces.drive.unlink_delete_docs')}</span>
         </label>
 
         <AlertDialogFooter>

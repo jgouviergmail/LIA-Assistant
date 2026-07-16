@@ -12,6 +12,7 @@ Created: 2026-03-17
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 import uuid as uuid_mod
 from datetime import UTC, datetime
@@ -33,6 +34,7 @@ from src.core.exceptions import BaseAPIException
 from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
+from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
 from src.domains.rag_spaces.models import (
     RAGDocumentSourceType,
     RAGDocumentStatus,
@@ -47,7 +49,6 @@ from src.domains.rag_spaces.repository import (
     RAGSpaceRepository,
 )
 from src.domains.rag_spaces.service import raise_space_not_found
-from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_rag_spaces import (
@@ -58,6 +59,9 @@ from src.infrastructure.observability.metrics_rag_spaces import (
 )
 
 logger = get_logger(__name__)
+
+# Per-process worker identity for the durable sync lease (audit F001).
+_DRIVE_WORKER_ID = f"rag-sync-{os.getpid()}"
 
 
 # ============================================================================
@@ -333,10 +337,23 @@ class RAGDriveSyncService:
         result = await self.db.execute(
             text(
                 "UPDATE rag_drive_sources "
-                "SET sync_status = :syncing, error_message = NULL "
+                "SET sync_status = :syncing, error_message = NULL, "
+                # Durable-job lease (audit F001): a live sync holds it via the
+                # heartbeat; a crash frees it for the reaper within the TTL. This
+                # is the USER-initiated path (the reaper re-leases via
+                # reclaim_or_fail_source instead), so each acquisition is a FRESH
+                # run — attempts is set to 1, not incremented, so manual re-syncs
+                # never consume the crash-recovery retry budget.
+                "lease_expires_at = now() + (:ttl * interval '1 second'), "
+                "heartbeat_at = now(), attempts = 1, worker_id = :wid "
                 "WHERE id = :id AND sync_status != :syncing"
             ),
-            {"syncing": RAGDriveSyncStatus.SYNCING, "id": str(source_id)},
+            {
+                "syncing": RAGDriveSyncStatus.SYNCING,
+                "id": str(source_id),
+                "ttl": settings.rag_job_lease_ttl_seconds,
+                "wid": _DRIVE_WORKER_ID,
+            },
         )
         await self.db.commit()
         return (getattr(result, "rowcount", 0) or 0) > 0
@@ -509,14 +526,18 @@ async def sync_folder_background(
                     or f.get("mimeType", "") in RAG_DRIVE_REGULAR_FILE_MAP
                 ]
 
-                # Process each file
-                synced = 0
+                # Process each file. `synced` is computed AFTER the embedding
+                # oracle (F053); the loop only tracks skips and download failures.
                 skipped = 0
                 failed = 0
                 docs_to_process: list[dict] = []
                 seen_file_ids: set[str] = set()
+                jobs = RAGJobsRepository(db)
 
                 for drive_file in supported_files:
+                    # Renew the source lease before each (slow) file download so a
+                    # live sync is never reclaimed by the reaper mid-flight.
+                    await jobs.heartbeat_source(source_id, settings.rag_job_lease_ttl_seconds)
                     file_id = drive_file["id"]
                     seen_file_ids.add(file_id)
                     mime_type = drive_file.get("mimeType", "")
@@ -607,7 +628,14 @@ async def sync_folder_background(
                                 modified_time.replace("Z", "+00:00")
                             )
 
-                        # Create RAGDocument
+                        # Create RAGDocument as PENDING (audit F001 residual):
+                        # a PROCESSING row without a lease is indistinguishable
+                        # from a crashed job, so the reaper could requeue it
+                        # while this sync is still processing it (double
+                        # owner, duplicated chunks). PENDING documents flow
+                        # through the same atomic claim as uploads
+                        # (process_document: PENDING -> PROCESSING + lease),
+                        # so exactly one worker ever owns the embedding.
                         document = await doc_repo.create(
                             {
                                 "space_id": space_id,
@@ -616,7 +644,7 @@ async def sync_folder_background(
                                 "original_filename": original_name,
                                 "file_size": file_size,
                                 "content_type": content_type,
-                                "status": RAGDocumentStatus.PROCESSING,
+                                "status": RAGDocumentStatus.PENDING,
                                 "source_type": RAGDocumentSourceType.DRIVE,
                                 "drive_source_id": source_id,
                                 "drive_file_id": file_id,
@@ -625,7 +653,10 @@ async def sync_folder_background(
                         )
                         await db.commit()
 
-                        # Queue for processing
+                        # Queue for processing. NOT counted as synced yet: a
+                        # downloaded file is not a synced file until its
+                        # embedding succeeded (audit F053) — the success
+                        # counter and metric move after the processing oracle.
                         docs_to_process.append(
                             {
                                 "document_id": document.id,
@@ -636,9 +667,6 @@ async def sync_folder_background(
                                 "content_type": content_type,
                             }
                         )
-
-                        synced += 1
-                        rag_drive_sync_files_total.labels(result="synced").inc()
 
                     except Exception:
                         failed += 1
@@ -678,17 +706,47 @@ async def sync_folder_background(
                 # Launch processing with throttle
                 sem = asyncio.Semaphore(5)
 
-                async def bounded_process(**kwargs: object) -> None:
+                async def bounded_process(**kwargs: object) -> bool:
                     async with sem:
-                        await process_document(**kwargs)  # type: ignore[arg-type]
+                        return await process_document(**kwargs)  # type: ignore[arg-type]
 
-                for doc_args in docs_to_process:
-                    safe_fire_and_forget(
-                        bounded_process(**doc_args),
-                        name=f"rag_drive_{doc_args['document_id']}",
-                    )
+                # Await all document processing BEFORE declaring the sync
+                # complete. This coroutine is already a detached background task,
+                # so awaiting blocks nothing user-facing — but it stops the
+                # source from claiming COMPLETED while its documents are still
+                # embedding (audit F001, "premature COMPLETED"). Each
+                # process_document opens its own DB session, so concurrent
+                # execution under the semaphore is session-safe.
+                process_results = await asyncio.gather(
+                    *(bounded_process(**doc_args) for doc_args in docs_to_process),
+                    return_exceptions=True,
+                )
+                # Count AFTER the processing oracle (audit F053): the
+                # result="synced" series and the synced counter only move once
+                # process_document returned True. process_document swallows its
+                # own exceptions and returns False on failure (it never
+                # re-raises), so a failed document surfaces as
+                # `proc_result is not True`; a gather exception (defensive,
+                # return_exceptions=True) lands on the same branch. Each
+                # downloaded document increments exactly one of the two series
+                # here — download failures were already counted result="failed"
+                # in the per-file loop and never reach this point.
+                synced = 0
+                embed_failed = 0
+                for index, proc_result in enumerate(process_results):
+                    if proc_result is True:
+                        synced += 1
+                        rag_drive_sync_files_total.labels(result="synced").inc()
+                    else:
+                        embed_failed += 1
+                        rag_drive_sync_files_total.labels(result="failed").inc()
+                        logger.error(
+                            "rag_drive_document_processing_failed",
+                            document_id=str(docs_to_process[index]["document_id"]),
+                            error=str(proc_result),
+                        )
 
-                # Update source status
+                # Update source status — now truthful: all documents processed.
                 await source_repo.update(
                     source,
                     {
@@ -697,6 +755,11 @@ async def sync_folder_background(
                         "file_count": len(supported_files),
                         "synced_file_count": synced,
                         "error_message": None,
+                        # Durable-job completion: release the lease + reset retries.
+                        "lease_expires_at": None,
+                        "worker_id": None,
+                        "attempts": 0,
+                        "heartbeat_at": None,
                     },
                 )
                 await db.commit()
@@ -705,12 +768,17 @@ async def sync_folder_background(
                 rag_drive_sync_runs_total.labels(status="completed").inc()
                 rag_drive_sync_duration_seconds.observe(duration)
 
+                # Same counters as persisted on RAGDriveSource (audit F053):
+                # synced == synced_file_count; failures are split by cause so
+                # the log can never claim more successes than the base records.
                 logger.info(
                     "rag_drive_sync_complete",
                     source_id=str(source_id),
+                    downloaded=len(docs_to_process),
                     synced=synced,
+                    failed_download=failed,
+                    failed_embedding=embed_failed,
                     skipped=skipped,
-                    failed=failed,
                     removed=len(removed_ids),
                     duration=round(duration, 2),
                 )

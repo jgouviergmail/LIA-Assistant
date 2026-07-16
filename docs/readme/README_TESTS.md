@@ -1514,7 +1514,7 @@ def extract_cookie_value(response, cookie_name: str) -> str:
 
 ### 9.2 Module-Specific Fixtures
 
-#### LLM Fixtures (infrastructure/llm/conftest.py - 28 lines)
+#### LLM Fixtures (tests/unit/infrastructure/llm/conftest.py - 28 lines)
 
 ##### `mock_settings_class`
 ```python

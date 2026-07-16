@@ -65,6 +65,16 @@ Extract the voice/TTS coordination verbatim into two new modules under
   `cleanup(log_close_failure=)` (nominal path logs a close failure; the
   generator's `except` path lets it propagate into `contextlib.suppress`,
   preserving the old skip-remaining-cleanup semantics).
+  - **Follow-up (F005, 2026-07 audit):** the PATH 2A/2B direct-TTS and
+    sync-fallback `VoiceCommentService` locals created inside `finalize()` are
+    now closed in a `try/finally` (`_close_voice_service_safely`) on success,
+    exception, cancellation and early generator `aclose`. The pre-extraction
+    code leaked them — `cleanup()`/`cleanup_chat_pipeline()` only cover the chat
+    and parallel services — so their OpenAI/ElevenLabs httpx clients were
+    retained until process restart (the default Edge provider closes as a
+    no-op). Closure is idempotent and never masks the primary error or the SSE
+    contract; the two `closed is False` characterizations were inverted to
+    `closed is True`.
 - **`voice_stream_helpers.py`** — the stateless primitives, moved verbatim:
   `ListenerProbe`, TTS text sanitization (`_looks_like_html`,
   `_sanitize_text_for_tts`, `_sanitize_and_truncate_for_tts`),

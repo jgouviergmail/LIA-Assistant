@@ -290,7 +290,7 @@ async def _maybe_notify(
 
     # Set cooldown key with TTL
     cooldown_seconds = settings.oauth_health_critical_cooldown_hours * 3600
-    await redis.setex(notified_key, cooldown_seconds, "1")
+    await redis.set(notified_key, "1", ex=cooldown_seconds)
 
     logger.info(
         "oauth_health_notification_sent",

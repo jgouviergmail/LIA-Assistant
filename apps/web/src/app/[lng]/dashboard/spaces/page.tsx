@@ -114,7 +114,7 @@ export default function SpacesPage() {
           </div>
         ) : spaces.length === 0 ? (
           <div className="rounded-lg border border-dashed p-12 text-center">
-            <Library className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <Library className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">{t('spaces.empty_title')}</h3>
             <p className="text-sm text-muted-foreground mb-4">{t('spaces.empty_description')}</p>
             <Button onClick={() => setCreateOpen(true)}>

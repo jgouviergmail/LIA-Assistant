@@ -26,7 +26,7 @@
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.2.2-FF6F00?style=flat-square" alt="LangGraph"></a>
   <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.3.2-4B8BBE?style=flat-square" alt="LangChain"></a>
   <a href="#internationalization-i18n--6-languages"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
-  <a href="docs/audit/README.md"><img src="https://img.shields.io/badge/360%C2%B0%20audit-8.5%2F10-2E7D5B?style=flat-square" alt="360° technical audit: 8.5/10 — full public report"></a>
+  <a href="docs/audit/README.md"><img src="https://img.shields.io/badge/360%C2%B0%20audit-8.3%2F10-2E7D5B?style=flat-square" alt="360° technical audit: 8.3/10 on the normalized 24-area grid — full public report"></a>
   <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
   <a href="https://deepwiki.com/jgouviergmail/LIA-Assistant"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.24.0</strong> — <strong>Agentic telephony: LIA places phone calls on your behalf.</strong> A new per-user connector (<em>Preferences → My Connectors</em>) lets LIA phone a contact for you — check a friend's availability, pass along a message — hold a goal-directed, <strong>read-only</strong> conversation, then report back <strong>asynchronously</strong> in the chat with a summary and, when it makes sense, a one-click follow-up. Bring your own ElevenLabs number and key (calls are billed on your own accounts); LIA provisions a guardrailed agent that may only ever share <strong>free/busy availability</strong> — never meeting titles, attendees or locations — because that is all it is ever given (defense by capability, not by prompt). You confirm the call (HITL draft) before it dials; the raw transcript is never stored, only a minimized summary that expires. Under the hood: draft/HITL reuse (ADR-127), a crash-safe dial (the call row is committed before dialing so the post-call webhook can always reconcile), per-user HMAC webhook verification, one tool-less LLM call for the return summary (tokens tracked like every other proactive call), and all telephony strings centralized across 6 languages. Feature-flagged (off by default, BYO ElevenLabs); docs + <a href="docs/architecture/ADR-127-Agentic-Telephony.md">ADR-127</a> + <a href="docs/technical/TELEPHONY.md">TELEPHONY.md</a>. <strong>Verified:</strong> the telephony suite green — 100+ backend unit tests + 8 integration tests on real PostgreSQL, file-size ratchet + black/ruff/mypy clean, frontend <code>tsc --noEmit</code> + ESLint clean, i18n parity across the 6 locales, dev container boots healthy. — 13 July 2026.
+  <strong>Version 1.25.0</strong> — <strong>Audit V11: fully revised framework, every major/minor finding closed, and a test/CI foundation hardened end-to-end.</strong> The technical audit moved to a normalized framework — 24 areas mapped to ISO/IEC 25010:2023, evaluated under ISO/IEC 25040:2024 with systematic counter-proofs, scored as a plain arithmetic mean: <strong>8.3/10 (199/240)</strong> with <strong>7 moderate worksites, 0 major, 0 minor</strong> (<a href="docs/audit/README.md">public report</a> + <a href="docs/audit/AUDIT_CODEBASE_2026-07-16_CONSOLIDE_V11.html">full standalone report</a>). This release ships the remediation wave that closed the register: Windows integration bootstrap repaired at the root (a transitive wheel clobbering <code>urllib3</code> — opt-out encoded on all 4 install surfaces, namespace guard, actionable preflight); integration fixtures made process-coherent (settings, global engine and LangGraph pools all redirected to the test database, with a loud guard against any developer-DB leak); a whole-run freeze traced to <code>CREATE INDEX CONCURRENTLY</code> deadlocking against per-test transactions (LangGraph tables now provisioned once per session, regression pinned red/green); launcher-dependent test verdicts eliminated (the task runner leaked the developer <code>.env</code> into test processes — scrubbed with a proven contract); the E2E suite stabilized on a production standalone server (<strong>17/17 Chromium including dark mode</strong> — the reported dark-contrast defect was an unstyled-page artifact, palette proven clean, guard added); a fresh-install production build fixed (undeclared transitive import replaced by the official <code>rehype-sanitize</code> re-export); and <strong>15 obsolete permanent skips reactivated</strong> — the main integration phase now passes <strong>579/579 with zero skips</strong> on Windows/Testcontainers. <strong>Verified:</strong> lint + MyPy strict + tsc clean, ~10,150 fast unit + 972 agents + 579 integration (0 skip) + 1,222 vitest + 17/17 E2E, migrations replay from empty, production images built. — 16 July 2026.
 
 </p>
 
@@ -116,11 +116,11 @@ The result is measured, not proclaimed:
 
 | | | | |
 |---|---|---|---|
-| **31** functional domains | **420,000** lines of code (excl. tests) | **11,000+** automated tests | **100+** ADRs |
-| **130+** versions shipped | **6 languages**, parity enforced in CI | **394** Prometheus metrics | [**8.5/10** 360° technical audit](docs/audit/README.md) |
+| **32** functional domains | **420,000** lines of code (excl. tests) | **11,900+** automated tests | **120+** ADRs |
+| **149** versions shipped | **6 languages**, parity enforced in CI | **394** Prometheus metrics | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
-- **The audit itself** — 24 areas scored on the ISO/IEC 25010 grid, open findings included, with the protocol to reproduce it: [docs/audit/](docs/audit/README.md)
+- **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
 
 ---
 
@@ -916,12 +916,12 @@ pytest --cov=src --cov-report=html -v
 
 | Metric | Value |
 |--------|-------|
-| Total tests | ~10,140 (pytest collected, 555 test files) |
-| Backend breakdown | unit ~8,800 · agents ~1,160 · integration ~240 |
-| Frontend tests (vitest) | 169 |
-| Coverage target | 45% |
+| Total backend tests | ~11,970 (pytest collected, 670 test files) |
+| Backend breakdown | unit fast ~10,150 · agents ~970 · integration ~580 (zero skips) |
+| Frontend tests (vitest) | 1,222 (+ 17 hermetic Playwright E2E incl. axe/dark/zoom) |
+| Coverage target | 45% backend (ratchet) · frontend thresholds locked per category |
 | CI Workflows | 3 (CI, Security, Release) |
-| 360° technical audit | **8.5/10** across 24 areas — [full public report & protocol](docs/audit/README.md) |
+| Technical audit | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md) |
 
 ---
 
@@ -990,8 +990,9 @@ ESLint + TypeScript check       ────────────────
 
 > These figures measure the infrastructure. The full perceived response time depends on the
 > LLM call cascade (seconds to tens of seconds depending on request complexity and hardware) —
-> this is the main optimization programme in progress, measured in production and identified
-> as the top product finding of the [July 2026 360° technical audit](docs/audit/README.md).
+> this is the main optimization programme in progress, measured in production. The
+> [July 2026 technical audit](docs/audit/README.md) scores Performance 7.5/10: instrumentation
+> and caching are in place, but no sustained load campaign has been executed yet.
 
 ### Implemented Optimizations
 

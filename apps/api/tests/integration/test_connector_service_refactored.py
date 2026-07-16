@@ -64,7 +64,7 @@ class TestHandleOAuthConnectorCallbackGeneric:
         mock_redis = AsyncMock()
         mock_redis.delete = AsyncMock(return_value=True)
         mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
         with patch("src.infrastructure.cache.redis.get_redis_cache", return_value=mock_redis):
             yield mock_redis
 
@@ -392,7 +392,7 @@ class TestHandleGmailCallback:
         mock_redis = AsyncMock()
         mock_redis.delete = AsyncMock(return_value=True)
         mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
         with patch("src.infrastructure.cache.redis.get_redis_cache", return_value=mock_redis):
             yield mock_redis
 
@@ -493,7 +493,7 @@ class TestHandleGoogleContactsCallback:
         mock_redis = AsyncMock()
         mock_redis.delete = AsyncMock(return_value=True)
         mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
         with patch("src.infrastructure.cache.redis.get_redis_cache", return_value=mock_redis):
             yield mock_redis
 

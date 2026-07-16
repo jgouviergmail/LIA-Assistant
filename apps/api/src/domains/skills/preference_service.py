@@ -9,6 +9,7 @@ scripts, resources, technical metadata). This service manages display metadata
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
@@ -228,10 +229,8 @@ class SkillPreferenceService:
         On first run after migration, reads _legacy_disabled_skills to preserve
         user preferences from the old disabled_skills JSONB column.
         """
-        from sqlalchemy import select as sa_select
 
         from src.domains.skills.cache import SkillsCache
-        from src.domains.users.models import User
 
         result = SyncResult()
         cache_skills = SkillsCache.get_all()
@@ -286,10 +285,13 @@ class SkillPreferenceService:
                     self.db.add(skill)
                     result.updated.append(name)
 
-        # 4. Ensure all users have states for admin-enabled system skills
-        user_ids_result = await self.db.execute(sa_select(User.id))
-        for (uid,) in user_ids_result:
-            await self.state_repo.ensure_states_for_user(uid)
+        # 4. Ensure all users have states for admin-enabled system skills — one
+        # set-based bulk upsert over the users × system-skills cross join instead
+        # of an O(users × skills) per-user savepoint loop (audit F018). Timed and
+        # counted so the cost is observable regardless of user/skill volume.
+        _states_start = time.perf_counter()
+        states_provisioned = await self.state_repo.ensure_states_for_all_system_skills()
+        states_provision_ms = round((time.perf_counter() - _states_start) * 1000, 1)
 
         # 5. Migrate legacy disabled_skills preferences (one-time, post-migration)
         await self._apply_legacy_disabled_skills()
@@ -299,6 +301,8 @@ class SkillPreferenceService:
             created=len(result.created),
             removed=len(result.removed),
             updated=len(result.updated),
+            states_provisioned=states_provisioned,
+            states_provision_ms=states_provision_ms,
         )
         return result
 

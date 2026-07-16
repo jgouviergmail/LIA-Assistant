@@ -30,12 +30,16 @@ from typing import cast
 
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from psycopg import AsyncConnection
-from psycopg.rows import DictRow, dict_row
+from psycopg.rows import DictRow
 from psycopg_pool import AsyncConnectionPool
 
 from src.core.config import settings
 from src.domains.conversations.instrumented_checkpointer import (
     InstrumentedAsyncPostgresSaver,
+)
+from src.infrastructure.database.psycopg_pool_config import (
+    psycopg_pool_kwargs,
+    resolve_psycopg_url,
 )
 from src.infrastructure.observability.logging import get_logger
 
@@ -121,17 +125,11 @@ async def get_checkpointer() -> InstrumentedAsyncPostgresSaver:
             pool_max_size=settings.langgraph_checkpoint_pool_max_size,
         )
 
-        # Convert asyncpg URL to psycopg3 URL
-        # asyncpg format: postgresql+asyncpg://user:pass@host/db
-        # psycopg3 format: postgresql://user:pass@host/db
-        # Convert MultiHostUrl to string first
-        database_url_str = str(settings.database_url)
-        psycopg_url = database_url_str.replace("postgresql+asyncpg://", "postgresql://")
-
         # Connection pool shared by all graph executions of this worker (ADR-111).
-        # Connection kwargs are identical to the former single AsyncConnection and
-        # to upstream AsyncPostgresSaver.from_conn_string: autocommit=True (setup
-        # migrations), prepare_threshold=0 and dict_row (required by the saver).
+        # URL and connection kwargs come from the shared psycopg_pool_config
+        # helper: saver-required kwargs (autocommit for setup migrations,
+        # prepare_threshold=0, dict_row) plus connect_timeout, bounding the
+        # establishment of each connection with a policy we control.
         # check= validates connections on checkout (parity with SQLAlchemy
         # pool_pre_ping=True): a connection killed while idle (PG restart) is
         # replaced instead of failing the checkpoint operation.
@@ -141,14 +139,10 @@ async def get_checkpointer() -> InstrumentedAsyncPostgresSaver:
         pool = cast(
             AsyncConnectionPool[AsyncConnection[DictRow]],
             AsyncConnectionPool(
-                psycopg_url,
+                resolve_psycopg_url(),
                 min_size=settings.langgraph_checkpoint_pool_min_size,
                 max_size=settings.langgraph_checkpoint_pool_max_size,
-                kwargs={
-                    "autocommit": True,
-                    "prepare_threshold": 0,
-                    "row_factory": dict_row,
-                },
+                kwargs=psycopg_pool_kwargs(),
                 check=AsyncConnectionPool.check_connection,
                 open=False,
             ),

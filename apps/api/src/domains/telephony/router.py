@@ -7,12 +7,16 @@ endpoints are added in Phase 4.
 
 from __future__ import annotations
 
+import json
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_webhook_signature
+from src.core.security.utils import encrypt_data
 from src.core.session_dependencies import get_current_active_session
 from src.core.user_display import resolve_user_display_name
 from src.domains.telephony.connector import TelephonyConnectorService
@@ -127,10 +131,21 @@ async def telephony_webhook(
 
     if auth.outcome is WebhookOutcome.OK and auth.call is not None and auth.payload is not None:
         # Deferred import: keep the LLM/notification stack out of router import.
-        from src.domains.telephony.return_synthesis import process_completed_call
+        from src.domains.telephony.return_synthesis import deliver_return_with_retry
 
+        # T1 approach A: persist the ENCRYPTED webhook (it carries the transcript) as
+        # a RECEIVED inbox row and COMMIT before responding 200. The vendor delivers
+        # the webhook only once, so if the fire-and-forget synthesis below crashes,
+        # the return reaper replays it from this durable, encrypted payload. The
+        # transcript is purged the instant synthesis succeeds (mark_completed) — it
+        # only rests on disk, encrypted, for the synthesis window (D-8).
+        await TelephonyRepository(db).persist_return_inbox(
+            auth.call.id,
+            encrypted_payload=encrypt_data(json.dumps(auth.payload)),
+            received_at=datetime.now(UTC),
+        )
         safe_fire_and_forget(
-            process_completed_call(auth.call.id, auth.payload), name="telephony_return"
+            deliver_return_with_retry(auth.call.id, auth.payload), name="telephony_return"
         )
         return {"ok": True}
 

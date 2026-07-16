@@ -166,6 +166,13 @@ connector_token_refresh_total = Counter(
     ["connector_type", "status"],  # status: success, failure
 )
 
+connector_api_key_verification_total = Counter(
+    "connector_api_key_verification_total",
+    "API-key connector functional verifications before activation (audit F034)",
+    # result: verified | rejected | timeout | format_only (no functional verifier)
+    ["connector_type", "result"],
+)
+
 # NOTE: Generic repository metrics removed (never instrumented, too high cardinality risk)
 # Use domain-specific metrics instead (e.g., conversation_repository_queries_total in conversations)
 # Database-level monitoring should use external tools (pg_stat_statements, pganalyze)

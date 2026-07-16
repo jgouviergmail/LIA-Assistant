@@ -14,8 +14,29 @@ import pytest
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 
-from src.domains.telephony.models import PhoneCall, PhoneCallOutcome, PhoneCallStatus
+from src.domains.telephony.models import (
+    NotificationStatus,
+    PhoneCall,
+    PhoneCallOutcome,
+    PhoneCallStatus,
+)
 from src.domains.telephony.repository import TelephonyRepository
+
+
+def _complete(repo, call_id, **overrides):
+    """mark_completed with the T1 notification args defaulted for terseness."""
+    kwargs = {
+        "status": PhoneCallStatus.COMPLETED,
+        "call_seconds": Decimal("42"),
+        "summary": "recap",
+        "structured_data": {"agreed": True},
+        "outcome": PhoneCallOutcome.OBJECTIVE_MET,
+        "completed_at": datetime.now(UTC),
+        "notification_content": "She is free Tuesday.",
+        "notification_title": "Call back",
+    }
+    kwargs.update(overrides)
+    return repo.mark_completed(call_id, **kwargs)
 
 
 def _call_data(user_id, **overrides):
@@ -81,15 +102,7 @@ async def test_mark_completed_is_exactly_once(async_session, test_user):
     repo = TelephonyRepository(async_session)
     call = await repo.create(_call_data(test_user.id))
 
-    won = await repo.mark_completed(
-        call.id,
-        status=PhoneCallStatus.COMPLETED,
-        call_seconds=Decimal("42"),
-        summary="She is free Tuesday.",
-        structured_data={"agreed": True},
-        outcome=PhoneCallOutcome.OBJECTIVE_MET,
-        completed_at=datetime.now(UTC),
-    )
+    won = await _complete(repo, call.id, summary="She is free Tuesday.")
     assert won is True  # rowcount>0 → the .in_(_ACTIVE_STATUSES) predicate matched
 
     await async_session.refresh(call)
@@ -97,20 +110,103 @@ async def test_mark_completed_is_exactly_once(async_session, test_user):
     assert call.summary == "She is free Tuesday."
     assert call.structured_data == {"agreed": True}
     assert call.outcome == PhoneCallOutcome.OBJECTIVE_MET
+    # T1: the return is armed as a PENDING outbox record in the SAME transition.
+    assert call.notification_status == NotificationStatus.PENDING
+    assert call.notification_payload == {"content": "She is free Tuesday.", "title": "Call back"}
+    assert call.notification_attempts == 0
 
     # A duplicated webhook loses the race — the row is already terminal.
-    lost = await repo.mark_completed(
-        call.id,
-        status=PhoneCallStatus.COMPLETED,
-        call_seconds=None,
-        summary="DUPLICATE",
-        structured_data={},
-        outcome=None,
-        completed_at=datetime.now(UTC),
-    )
+    lost = await _complete(repo, call.id, summary="DUPLICATE", notification_content="DUP")
     assert lost is False
     await async_session.refresh(call)
     assert call.summary == "She is free Tuesday."  # not overwritten
+    assert call.notification_payload == {"content": "She is free Tuesday.", "title": "Call back"}
+
+
+@pytest.mark.integration
+async def test_mark_notification_delivered_is_idempotent(async_session, test_user):
+    """PENDING → DELIVERED once; a second call (or on a non-PENDING row) is a no-op."""
+    repo = TelephonyRepository(async_session)
+    call = await repo.create(_call_data(test_user.id))
+    await _complete(repo, call.id)
+
+    await repo.mark_notification_delivered(call.id)
+    await async_session.refresh(call)
+    assert call.notification_status == NotificationStatus.DELIVERED
+
+    # Idempotent: delivering an already-DELIVERED row does not error or regress it.
+    await repo.mark_notification_delivered(call.id)
+    await async_session.refresh(call)
+    assert call.notification_status == NotificationStatus.DELIVERED
+
+
+@pytest.mark.integration
+async def test_record_notification_failure_bounds_retries(async_session, test_user):
+    """Each failure increments attempts; the row flips to FAILED at the cap."""
+    repo = TelephonyRepository(async_session)
+    call = await repo.create(_call_data(test_user.id))
+    await _complete(repo, call.id)
+
+    # First two failures stay PENDING (still retryable), the third reaches the cap.
+    await repo.record_notification_failure(call.id, max_attempts=3)
+    await async_session.refresh(call)
+    assert call.notification_status == NotificationStatus.PENDING
+    assert call.notification_attempts == 1
+
+    await repo.record_notification_failure(call.id, max_attempts=3)
+    await repo.record_notification_failure(call.id, max_attempts=3)
+    await async_session.refresh(call)
+    assert call.notification_attempts == 3
+    assert call.notification_status == NotificationStatus.FAILED
+
+    # A FAILED row is terminal: further failures do not increment (guarded on PENDING).
+    await repo.record_notification_failure(call.id, max_attempts=3)
+    await async_session.refresh(call)
+    assert call.notification_attempts == 3
+
+
+@pytest.mark.integration
+async def test_fetch_recoverable_respects_grace_attempts_and_status(async_session, test_user):
+    """Only PENDING rows past the grace cutoff and under the attempt cap are returned."""
+    repo = TelephonyRepository(async_session)
+    now = datetime.now(UTC)
+
+    # Each call must be DIALING then completed via mark_completed (which arms PENDING
+    # and frees the one-active-per-user slot, F12) before the next is created.
+    # (a) PENDING, completed long ago, under cap → recoverable.
+    old = await repo.create(_call_data(test_user.id, objective="old"))
+    await _complete(repo, old.id)
+    # (b) PENDING but just completed (inside grace) → NOT yet recoverable.
+    fresh = await repo.create(_call_data(test_user.id, objective="fresh"))
+    await _complete(repo, fresh.id)
+    # (c) old PENDING but attempts already at cap → excluded.
+    capped = await repo.create(_call_data(test_user.id, objective="capped"))
+    await _complete(repo, capped.id)
+
+    await async_session.execute(
+        update(PhoneCall)
+        .where(PhoneCall.id == old.id)
+        .values(completed_at=now - timedelta(minutes=10))
+    )
+    await async_session.execute(
+        update(PhoneCall)
+        .where(PhoneCall.id == fresh.id)
+        .values(completed_at=now - timedelta(seconds=5))
+    )
+    await async_session.execute(
+        update(PhoneCall)
+        .where(PhoneCall.id == capped.id)
+        .values(completed_at=now - timedelta(minutes=10), notification_attempts=5)
+    )
+    await async_session.commit()
+
+    rows = await repo.fetch_recoverable_notifications(
+        cutoff=now - timedelta(seconds=120), max_attempts=5, limit=50
+    )
+    ids = {c.id for c in rows}
+    assert old.id in ids  # (a) recoverable
+    assert fresh.id not in ids  # (b) inside grace
+    assert capped.id not in ids  # (c) attempt cap reached
 
 
 @pytest.mark.integration

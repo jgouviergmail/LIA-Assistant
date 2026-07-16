@@ -55,7 +55,7 @@ export const RoutingSection = React.memo(function RoutingSection({ data }: Routi
           <div className="p-2 bg-muted/30 rounded text-xs text-muted-foreground">
             {(data.reasoning_trace ?? []).map((step, i) => (
               <span key={i}>
-                {i > 0 && <span className="mx-1 text-muted-foreground/50">→</span>}
+                {i > 0 && <span className="mx-1 text-muted-foreground">→</span>}
                 <span>{step}</span>
               </span>
             ))}

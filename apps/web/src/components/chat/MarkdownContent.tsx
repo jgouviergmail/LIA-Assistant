@@ -60,6 +60,9 @@ const StableGalleryImage = memo(
     // Check if already loaded from cache (instant display)
     const alreadyLoaded = isImageLoaded(src);
     const [loaded, setLoaded] = useState(alreadyLoaded);
+    // Context subscription bypasses the custom comparator below, so the
+    // accessible name still refreshes on a language switch.
+    const { t } = useTranslation();
 
     const handleLoad = () => {
       markImageLoaded(src);
@@ -67,18 +70,26 @@ const StableGalleryImage = memo(
     };
 
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- External dynamic URL (Google Contacts photos), needs onLoad callback for cache
-      <img
-        src={proxyGoogleImageUrl(src) || src}
-        alt={alt}
-        className="contact-photo"
-        style={{
-          // Only keep opacity for loading animation - all other styles handled by CSS class
-          opacity: loaded ? 1 : 0,
-        }}
-        onLoad={handleLoad}
+      // Opening the lightbox is a real action: native <button> around the
+      // image — Enter/Space and focus come from the platform (audit F013).
+      <button
+        type="button"
         onClick={onClick}
-      />
+        aria-label={t('common.expand_image')}
+        className="inline-block align-top p-0 border-0 bg-transparent cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- External dynamic URL (Google Contacts photos), needs onLoad callback for cache */}
+        <img
+          src={proxyGoogleImageUrl(src) || src}
+          alt={alt}
+          className="contact-photo"
+          style={{
+            // Only keep opacity for loading animation - all other styles handled by CSS class
+            opacity: loaded ? 1 : 0,
+          }}
+          onLoad={handleLoad}
+        />
+      </button>
     );
   },
   (prevProps, nextProps) => {
@@ -258,6 +269,7 @@ const PlacePhotoWrapper = ({
 const MarkdownImage = memo(
   ({ src: srcProp, alt, className }: React.ImgHTMLAttributes<HTMLImageElement>) => {
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+    const { t } = useTranslation();
     // Normalize src to string (React 19 types allow Blob)
     const src = typeof srcProp === 'string' ? srcProp : undefined;
     // Use global cache to check if image already loaded
@@ -332,20 +344,27 @@ const MarkdownImage = memo(
     if (isPlacePhoto) {
       return (
         <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt={alt || 'Photo du lieu'}
-            className="place-photo"
-            style={{
-              opacity: loaded ? 1 : 0,
-              transition: loaded
-                ? 'transform 0.2s ease, box-shadow 0.2s ease'
-                : 'opacity 0.15s ease-in',
-            }}
-            onLoad={handleLoad}
+          {/* Real action -> native button around the image (audit F013). */}
+          <button
+            type="button"
             onClick={() => setIsLightboxOpen(true)}
-          />
+            aria-label={t('common.expand_image')}
+            className="inline-block align-top p-0 border-0 bg-transparent cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt={alt || 'Photo du lieu'}
+              className="place-photo"
+              style={{
+                opacity: loaded ? 1 : 0,
+                transition: loaded
+                  ? 'transform 0.2s ease, box-shadow 0.2s ease'
+                  : 'opacity 0.15s ease-in',
+              }}
+              onLoad={handleLoad}
+            />
+          </button>
           {typeof document !== 'undefined' &&
             createPortal(
               <ImageLightbox
@@ -373,17 +392,24 @@ const MarkdownImage = memo(
             }}
             className="flex justify-center my-4 w-full"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={proxiedSrc}
-              alt={alt || 'Photo de profil'}
-              className="contact-photo"
-              style={{
-                opacity: loaded ? 1 : 0,
-              }}
-              onLoad={handleLoad}
+            {/* Real action -> native button around the image (audit F013). */}
+            <button
+              type="button"
               onClick={() => setIsLightboxOpen(true)}
-            />
+              aria-label={t('common.expand_image')}
+              className="inline-block align-top p-0 border-0 bg-transparent cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={proxiedSrc}
+                alt={alt || 'Photo de profil'}
+                className="contact-photo"
+                style={{
+                  opacity: loaded ? 1 : 0,
+                }}
+                onLoad={handleLoad}
+              />
+            </button>
           </span>
           {typeof document !== 'undefined' &&
             createPortal(
@@ -627,7 +653,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
                           'underline decoration-primary/40 hover:decoration-primary transition-colors',
                           isUser
                             ? 'text-primary-foreground hover:text-primary-foreground/90'
-                            : 'text-primary hover:text-primary/80'
+                            : 'text-primary hover:text-primary/90'
                         )
                   }
                   {...props}

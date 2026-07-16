@@ -35,7 +35,10 @@
  *
  * IMPORTANT: In production, NEXT_PUBLIC_API_URL must be set correctly.
  */
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// `??`, not `||`: an explicit empty string is the hermetic/same-origin
+// contract (relative /api/v1 URLs via the BFF proxy) and must be preserved;
+// only a truly absent variable falls back to the dev API origin.
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 
 /**
  * API version prefix.

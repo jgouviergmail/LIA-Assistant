@@ -1,0 +1,20 @@
+{
+  "name": "lia-web-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Hermetic end-to-end + accessibility smoke suite for the LIA web app (audit F031). Isolated from the app's workspace on purpose: Playwright ships glibc browser binaries that do not run in the Alpine dev container, so this package installs and runs inside the official Playwright image (CI + local proof), never in the app node_modules.",
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test smoke",
+    "test:a11y": "playwright test a11y",
+    "typecheck": "tsc --noEmit",
+    "report": "playwright show-report",
+    "codegen": "playwright codegen http://localhost:3000/en/login"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
+    "@playwright/test": "1.60.0",
+    "@types/node": "22.19.11",
+    "typescript": "5.9.3"
+  }
+}

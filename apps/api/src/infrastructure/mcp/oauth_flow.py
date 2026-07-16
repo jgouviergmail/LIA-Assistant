@@ -547,7 +547,7 @@ class MCPOAuthFlowHandler:
 
         redis = await get_redis_session()
         key = f"{MCP_USER_OAUTH_STATE_REDIS_PREFIX}{state}"
-        await redis.setex(key, MCP_USER_OAUTH_STATE_TTL_SECONDS, json.dumps(data))
+        await redis.set(key, json.dumps(data), ex=MCP_USER_OAUTH_STATE_TTL_SECONDS)
 
     @staticmethod
     async def _consume_state(state: str) -> dict[str, Any] | None:

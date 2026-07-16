@@ -114,3 +114,109 @@ async def test_embed_failure_is_not_cached():
 
     assert retry == [0.9]
     assert mock_embeddings.aembed_query.await_count == 2
+
+
+# --------------------------------------------------------------------------- #
+# F016: a local cancellation must NOT destroy the shared single-flight embed.
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_initiator_cancellation_does_not_kill_shared_task():
+    """Cancelling the caller that STARTED the embed must not cancel it for joiners."""
+    release = asyncio.Event()
+
+    async def _slow_embed(query: str) -> list[float]:
+        await release.wait()
+        return [0.7] * 4
+
+    mock_embeddings = AsyncMock()
+    mock_embeddings.aembed_query.side_effect = _slow_embed
+
+    with patch(
+        "src.domains.rag_spaces.embedding.get_rag_embeddings",
+        return_value=mock_embeddings,
+    ):
+        initiator = asyncio.create_task(embed_rag_query_cached("same q"))
+        await asyncio.sleep(0)  # initiator creates the shared task, awaits it
+        joiner = asyncio.create_task(embed_rag_query_cached("same q"))
+        await asyncio.sleep(0)  # joiner joins the shared task
+        initiator.cancel()
+        await asyncio.sleep(0)  # process the cancellation
+        release.set()
+
+        result = await joiner  # must still resolve — the shared task survived
+
+    assert result == [0.7] * 4
+    with pytest.raises(asyncio.CancelledError):
+        await initiator
+    assert mock_embeddings.aembed_query.await_count == 1
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_joiner_cancellation_does_not_kill_initiator():
+    """Cancelling a JOINER must not cancel the shared embed for the initiator."""
+    release = asyncio.Event()
+
+    async def _slow_embed(query: str) -> list[float]:
+        await release.wait()
+        return [0.3] * 4
+
+    mock_embeddings = AsyncMock()
+    mock_embeddings.aembed_query.side_effect = _slow_embed
+
+    with patch(
+        "src.domains.rag_spaces.embedding.get_rag_embeddings",
+        return_value=mock_embeddings,
+    ):
+        initiator = asyncio.create_task(embed_rag_query_cached("q2"))
+        await asyncio.sleep(0)
+        joiner = asyncio.create_task(embed_rag_query_cached("q2"))
+        await asyncio.sleep(0)
+        joiner.cancel()
+        await asyncio.sleep(0)
+        release.set()
+
+        result = await initiator  # initiator must still resolve
+
+    assert result == [0.3] * 4
+    with pytest.raises(asyncio.CancelledError):
+        await joiner
+    assert mock_embeddings.aembed_query.await_count == 1
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_shared_task_completes_and_caches_even_if_all_waiters_cancel():
+    """Policy: an abandoned shared embed still completes and populates the cache."""
+    release = asyncio.Event()
+
+    async def _slow_embed(query: str) -> list[float]:
+        await release.wait()
+        return [0.42] * 4
+
+    mock_embeddings = AsyncMock()
+    mock_embeddings.aembed_query.side_effect = _slow_embed
+
+    with patch(
+        "src.domains.rag_spaces.embedding.get_rag_embeddings",
+        return_value=mock_embeddings,
+    ):
+        initiator = asyncio.create_task(embed_rag_query_cached("q3"))
+        await asyncio.sleep(0)
+        initiator.cancel()
+        await asyncio.sleep(0)
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await initiator
+        # Let the shielded task finish + cache.
+        for _ in range(5):
+            await asyncio.sleep(0)
+
+        # Next identical query hits the cache — no second embed.
+        result = await embed_rag_query_cached("q3")
+
+    assert result == [0.42] * 4
+    assert mock_embeddings.aembed_query.await_count == 1

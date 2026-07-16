@@ -96,7 +96,7 @@ const WIDGET_OPTIONS: readonly ReasoningWidgetName[] = [
   'toggle_budget',
 ] as const;
 
-interface LLMModelPricing {
+export interface LLMModelPricing {
   id: string;
   // Catalogue (from llm_models via JOIN)
   provider: LLMProviderName;
@@ -140,6 +140,40 @@ interface LLMPricingListResponse {
 // formatEnumValuesCsv, fingerprintMatches, buildReasoningSamplingPayload
 // and the ModelPricingFormData type are imported from
 // admin-llm-pricing-helpers — that file is unit-tested independently.
+
+type SortColumn = 'model_name' | 'input_unit_price' | 'output_unit_price';
+
+/** A sortable table header cell (audit F011): click-to-sort + aria-sort +
+ * active-direction arrow. Extracted so the three identical sort columns don't
+ * inflate the section component's complexity. */
+function SortableHeader({
+  column,
+  label,
+  sortBy,
+  sortOrder,
+  onSort,
+}: {
+  column: SortColumn;
+  label: string;
+  sortBy: SortColumn;
+  sortOrder: 'asc' | 'desc';
+  onSort: (column: SortColumn) => void;
+}) {
+  const active = sortBy === column;
+  return (
+    <th
+      className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
+      onClick={() => onSort(column)}
+      aria-sort={active ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+      role="columnheader"
+    >
+      <div className="flex items-center space-x-1">
+        <span>{label}</span>
+        {active && <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
+      </div>
+    </th>
+  );
+}
 
 export default function AdminLLMPricingSection({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
@@ -484,75 +518,39 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         <table className="min-w-full divide-y divide-border" role="table">
           <thead className="bg-muted/50">
             <tr>
-              <th
-                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
-                onClick={() => handleSort('model_name')}
-                aria-sort={
-                  sortBy === 'model_name'
-                    ? sortOrder === 'asc'
-                      ? 'ascending'
-                      : 'descending'
-                    : 'none'
-                }
-                role="columnheader"
-              >
-                <div className="flex items-center space-x-1">
-                  <span>{t('settings.admin.llm.table.model_name')}</span>
-                  {sortBy === 'model_name' && (
-                    <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </div>
-              </th>
+              <SortableHeader
+                column="model_name"
+                label={t('settings.admin.llm.table.model_name')}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
                 role="columnheader"
               >
                 {t('settings.admin.llm.table.provider')}
               </th>
-              <th
-                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
-                onClick={() => handleSort('input_unit_price')}
-                aria-sort={
-                  sortBy === 'input_unit_price'
-                    ? sortOrder === 'asc'
-                      ? 'ascending'
-                      : 'descending'
-                    : 'none'
-                }
-                role="columnheader"
-              >
-                <div className="flex items-center space-x-1">
-                  <span>{t('settings.admin.llm.table.input_price')}</span>
-                  {sortBy === 'input_unit_price' && (
-                    <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </div>
-              </th>
+              <SortableHeader
+                column="input_unit_price"
+                label={t('settings.admin.llm.table.input_price')}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
                 role="columnheader"
               >
                 {t('settings.admin.llm.table.cached_input_price')}
               </th>
-              <th
-                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
-                onClick={() => handleSort('output_unit_price')}
-                aria-sort={
-                  sortBy === 'output_unit_price'
-                    ? sortOrder === 'asc'
-                      ? 'ascending'
-                      : 'descending'
-                    : 'none'
-                }
-                role="columnheader"
-              >
-                <div className="flex items-center space-x-1">
-                  <span>{t('settings.admin.llm.table.output_price')}</span>
-                  {sortBy === 'output_unit_price' && (
-                    <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </div>
-              </th>
+              <SortableHeader
+                column="output_unit_price"
+                label={t('settings.admin.llm.table.output_price')}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
                 role="columnheader"
@@ -668,44 +666,598 @@ interface ModelPricingModalProps {
   onSubmit: (data: ModelPricingFormData) => void;
 }
 
-function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalProps) {
+/** Shared props for the pricing-modal form sections (audit F011). */
+interface PricingSectionProps {
+  formData: ModelPricingFormData;
+  setFormData: React.Dispatch<React.SetStateAction<ModelPricingFormData>>;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}
+
+/** Section 1 — provider (immutable in edit) + model name. */
+function PricingModelFields({
+  formData,
+  setFormData,
+  isEdit,
+  t,
+}: PricingSectionProps & { isEdit: boolean }) {
+  return (
+    <fieldset className="border border-border rounded-lg p-4 space-y-3">
+      <legend className="px-2 text-sm font-semibold text-foreground">
+        {t('settings.admin.llm.modal.section_model')}
+      </legend>
+
+      <div>
+        <label htmlFor="provider" className="block text-sm font-medium text-foreground mb-1">
+          {t('settings.admin.llm.modal.provider_label')}
+        </label>
+        <select
+          id="provider"
+          value={formData.provider}
+          onChange={e => setFormData({ ...formData, provider: e.target.value as LLMProviderName })}
+          disabled={isEdit}
+          required
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {PROVIDER_OPTIONS.map(p => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        {isEdit && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {t('settings.admin.llm.modal.provider_immutable_hint')}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="model-name" className="block text-sm font-medium text-foreground mb-1">
+          {t('settings.admin.llm.modal.model_name_label')}
+        </label>
+        <Input
+          id="model-name"
+          type="text"
+          value={formData.model_name}
+          onChange={e => setFormData({ ...formData, model_name: e.target.value })}
+          placeholder={t('settings.admin.llm.modal.model_name_placeholder')}
+          pattern="^[A-Za-z0-9._\-/:]+$"
+          title={t('settings.admin.llm.modal.model_name_pattern_hint')}
+          required
+        />
+      </div>
+    </fieldset>
+  );
+}
+
+/** Section 2 — token caps + capability toggles. */
+function PricingCapabilityFields({ formData, setFormData, t }: PricingSectionProps) {
+  return (
+    <fieldset className="border border-border rounded-lg p-4 space-y-3">
+      <legend className="px-2 text-sm font-semibold text-foreground">
+        {t('settings.admin.llm.modal.section_capabilities')}
+      </legend>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label htmlFor="max-input" className="block text-sm font-medium text-foreground mb-1">
+            {t('settings.admin.llm.modal.max_input_tokens_label')}
+          </label>
+          <Input
+            id="max-input"
+            type="number"
+            min="1"
+            required
+            value={formData.max_input_tokens}
+            onChange={e =>
+              setFormData({ ...formData, max_input_tokens: parseInt(e.target.value, 10) || 0 })
+            }
+          />
+        </div>
+        <div>
+          <label htmlFor="max-output" className="block text-sm font-medium text-foreground mb-1">
+            {t('settings.admin.llm.modal.max_output_tokens_label')}
+          </label>
+          <Input
+            id="max-output"
+            type="number"
+            min="0"
+            required
+            value={formData.max_output_tokens}
+            onChange={e =>
+              setFormData({ ...formData, max_output_tokens: parseInt(e.target.value, 10) || 0 })
+            }
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2 pt-1">
+        {CAPABILITY_BOOL_FIELDS.map(field => (
+          <div key={field} className="flex items-center justify-between gap-3">
+            <label htmlFor={field} className="text-sm text-foreground cursor-pointer">
+              {t(`settings.admin.llm.modal.${field}_label`)}
+            </label>
+            <Switch
+              id={field}
+              checked={formData[field]}
+              onCheckedChange={v => setFormData({ ...formData, [field]: v })}
+            />
+          </div>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+const SAMPLING_CAP_FIELDS = [
+  ['supports_temperature', 'Accepts temperature'],
+  ['supports_top_p', 'Accepts top_p'],
+  ['supports_frequency_penalty', 'Accepts frequency_penalty'],
+  ['supports_presence_penalty', 'Accepts presence_penalty'],
+] as const;
+
+/** Custom reasoning shape editor (widget + enum CSV / budget grid). Rendered
+ * only when the model is a reasoning model in Custom (non-template) mode. */
+function PricingCustomReasoningShape({
+  formData,
+  setFormData,
+}: Pick<PricingSectionProps, 'formData' | 'setFormData'>) {
+  const isBudget =
+    formData.reasoning_widget === 'budget_int' || formData.reasoning_widget === 'toggle_budget';
+  const setBudget = (patch: Partial<typeof formData.reasoning_budget_range>) =>
+    setFormData({
+      ...formData,
+      reasoning_budget_range: { ...formData.reasoning_budget_range, ...patch },
+    });
+
+  return (
+    <div className="space-y-3 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/20 px-3 py-3">
+      <p className="text-xs text-amber-700 dark:text-amber-400">
+        Custom reasoning shape — pick a template above instead when the new model follows an
+        existing reasoning API contract.
+      </p>
+
+      <div>
+        <label
+          htmlFor="reasoning-widget"
+          className="block text-sm font-medium text-foreground mb-1"
+        >
+          Reasoning widget
+        </label>
+        <select
+          id="reasoning-widget"
+          value={formData.reasoning_widget}
+          onChange={e =>
+            setFormData({ ...formData, reasoning_widget: e.target.value as ReasoningWidgetName })
+          }
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {WIDGET_OPTIONS.map(w => (
+            <option key={w} value={w}>
+              {w}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {formData.reasoning_widget === 'enum' && (
+        <div>
+          <label
+            htmlFor="reasoning-enum-values"
+            className="block text-sm font-medium text-foreground mb-1"
+          >
+            Enum values (comma-separated)
+          </label>
+          <Input
+            id="reasoning-enum-values"
+            type="text"
+            value={formData.reasoning_enum_values_csv}
+            onChange={e => setFormData({ ...formData, reasoning_enum_values_csv: e.target.value })}
+            placeholder="minimal, low, medium, high"
+          />
+        </div>
+      )}
+
+      {isBudget && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="budget-min" className="block text-sm font-medium text-foreground mb-1">
+              Budget min
+            </label>
+            <Input
+              id="budget-min"
+              type="number"
+              min="0"
+              value={formData.reasoning_budget_range.min}
+              onChange={e => setBudget({ min: parseInt(e.target.value, 10) || 0 })}
+            />
+          </div>
+          <div>
+            <label htmlFor="budget-max" className="block text-sm font-medium text-foreground mb-1">
+              Budget max
+            </label>
+            <Input
+              id="budget-max"
+              type="number"
+              min="0"
+              value={formData.reasoning_budget_range.max}
+              onChange={e => setBudget({ max: parseInt(e.target.value, 10) || 0 })}
+            />
+          </div>
+          <div>
+            <label htmlFor="budget-off" className="block text-sm font-medium text-foreground mb-1">
+              Off sentinel
+            </label>
+            <Input
+              id="budget-off"
+              type="number"
+              value={formData.reasoning_budget_range.off_sentinel ?? ''}
+              onChange={e =>
+                setBudget({
+                  off_sentinel: e.target.value === '' ? null : parseInt(e.target.value, 10),
+                })
+              }
+              placeholder="(none)"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="budget-dynamic"
+              className="block text-sm font-medium text-foreground mb-1"
+            >
+              Dynamic sentinel
+            </label>
+            <Input
+              id="budget-dynamic"
+              type="number"
+              value={formData.reasoning_budget_range.dynamic_sentinel ?? ''}
+              onChange={e =>
+                setBudget({
+                  dynamic_sentinel: e.target.value === '' ? null : parseInt(e.target.value, 10),
+                })
+              }
+              placeholder="(none)"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Snapshot of the reasoning shape copied from the selected template. */
+function PricingTemplateSnapshot({ template }: { template: ReasoningTemplate }) {
+  return (
+    <div className="mt-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground space-y-1">
+      <div>
+        <span className="font-medium text-foreground">Widget:</span>{' '}
+        <code className="font-mono">{template.reasoning_widget}</code>
+        {template.reasoning_enum_values && (
+          <>
+            {' '}
+            [<code className="font-mono">{template.reasoning_enum_values.join(' / ')}</code>]
+          </>
+        )}
+        {template.reasoning_budget_range && (
+          <>
+            {' '}
+            range {template.reasoning_budget_range.min}..{template.reasoning_budget_range.max}
+          </>
+        )}
+      </div>
+      <p className="pt-1 italic">
+        Snapshot copied at create time — future edits to{' '}
+        <code className="font-mono">{template.template_model_name}</code> do not propagate.
+      </p>
+    </div>
+  );
+}
+
+/** Section 3 — kind, sampling caps, reasoning shape (template or custom).
+ * Intentionally English-only (superuser technical surface) → no ``t``. */
+function PricingReasoningFields({
+  formData,
+  setFormData,
+  templatesLoading,
+  reasoningTemplates,
+  isCustomMode,
+  selectedTemplate,
+}: Omit<PricingSectionProps, 't'> & {
+  templatesLoading: boolean;
+  reasoningTemplates: ReasoningTemplate[];
+  isCustomMode: boolean;
+  selectedTemplate: ReasoningTemplate | undefined;
+}) {
+  return (
+    <fieldset className="border border-border rounded-lg p-4 space-y-3">
+      <legend className="px-2 text-sm font-semibold text-foreground">
+        Reasoning &amp; sampling
+      </legend>
+
+      <div>
+        <label htmlFor="kind" className="block text-sm font-medium text-foreground mb-1">
+          Kind
+        </label>
+        <select
+          id="kind"
+          value={formData.kind}
+          onChange={e => {
+            const nextKind = e.target.value as LLMModelKindName;
+            setFormData(prev => ({
+              ...prev,
+              kind: nextKind,
+              // Re-align pricing_unit with the new kind (audio/tts →
+              // per_audio_hour, else per_1m_tokens). Editable afterwards.
+              pricing_unit: defaultPricingUnitForKind(nextKind),
+            }));
+          }}
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {KIND_OPTIONS.map(k => (
+            <option key={k} value={k}>
+              {k}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-2 pt-1">
+        <p className="text-xs text-muted-foreground">
+          Which sampling parameters does this model&apos;s API accept?
+        </p>
+        {SAMPLING_CAP_FIELDS.map(([field, label]) => (
+          <div key={field} className="flex items-center justify-between gap-3">
+            <label htmlFor={field} className="text-sm text-foreground cursor-pointer">
+              {label}
+            </label>
+            <Switch
+              id={field}
+              checked={formData[field]}
+              onCheckedChange={v => setFormData({ ...formData, [field]: v })}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="border-t border-border pt-3">
+        <div className="flex items-center justify-between gap-3">
+          <label
+            htmlFor="is-reasoning-model"
+            className="text-sm font-medium text-foreground cursor-pointer"
+          >
+            Is reasoning model
+          </label>
+          <Switch
+            id="is-reasoning-model"
+            checked={formData.is_reasoning_model}
+            onCheckedChange={v =>
+              setFormData(prev => ({
+                ...prev,
+                is_reasoning_model: v,
+                reasoning_template: v ? prev.reasoning_template : CUSTOM_TEMPLATE_VALUE,
+                reasoning_widget: v ? prev.reasoning_widget : 'none',
+              }))
+            }
+          />
+        </div>
+      </div>
+
+      {formData.is_reasoning_model && (
+        <div>
+          <label
+            htmlFor="reasoning-template"
+            className="block text-sm font-medium text-foreground mb-1"
+          >
+            Copy reasoning shape from
+          </label>
+          <select
+            id="reasoning-template"
+            value={formData.reasoning_template}
+            onChange={e => setFormData({ ...formData, reasoning_template: e.target.value })}
+            disabled={templatesLoading}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+          >
+            <option value={CUSTOM_TEMPLATE_VALUE}>Custom (advanced)</option>
+            {reasoningTemplates.map(tpl => (
+              <option key={tpl.template_model_name} value={tpl.template_model_name}>
+                {tpl.description}
+              </option>
+            ))}
+          </select>
+          {!isCustomMode && selectedTemplate && (
+            <PricingTemplateSnapshot template={selectedTemplate} />
+          )}
+        </div>
+      )}
+
+      {formData.is_reasoning_model && isCustomMode && (
+        <PricingCustomReasoningShape formData={formData} setFormData={setFormData} />
+      )}
+
+      <div className="border-t border-border pt-3">
+        <label
+          htmlFor="reasoning-doc-key"
+          className="block text-sm font-medium text-foreground mb-1"
+        >
+          Reasoning tooltip i18n key (optional)
+        </label>
+        <Input
+          id="reasoning-doc-key"
+          type="text"
+          value={formData.reasoning_doc_i18n_key}
+          onChange={e => setFormData({ ...formData, reasoning_doc_i18n_key: e.target.value })}
+          placeholder="e.g. openai_o_series_effort"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Saved per model regardless of the reasoning template chosen.
+        </p>
+      </div>
+    </fieldset>
+  );
+}
+
+/** Section 4 — pricing unit + input/cached/output prices. */
+function PricingFields({ formData, setFormData, t }: PricingSectionProps) {
+  const unitShort = t(`settings.admin.llm.modal.pricing_unit_short_${formData.pricing_unit}`);
+  return (
+    <fieldset className="border border-border rounded-lg p-4 space-y-3">
+      <legend className="px-2 text-sm font-semibold text-foreground">
+        {t('settings.admin.llm.modal.section_pricing')}
+      </legend>
+
+      <div>
+        <label htmlFor="pricing-unit" className="block text-sm font-medium text-foreground mb-1">
+          {t('settings.admin.llm.modal.pricing_unit_label')}
+        </label>
+        <select
+          id="pricing-unit"
+          value={formData.pricing_unit}
+          onChange={e =>
+            setFormData({ ...formData, pricing_unit: e.target.value as PricingUnitName })
+          }
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {PRICING_UNIT_OPTIONS.map(u => (
+            <option key={u} value={u}>
+              {t(`settings.admin.llm.modal.pricing_unit_${u}`)}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground mt-1">
+          {t('settings.admin.llm.modal.pricing_unit_hint')}
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="input-price" className="block text-sm font-medium text-foreground mb-1">
+          {t('settings.admin.llm.modal.input_price_label')}{' '}
+          <span className="text-xs text-muted-foreground font-normal">({unitShort})</span>
+        </label>
+        <Input
+          id="input-price"
+          type="number"
+          step="0.000001"
+          min="0"
+          required
+          value={formData.input_unit_price}
+          onChange={e => setFormData({ ...formData, input_unit_price: e.target.value })}
+          placeholder={t('settings.admin.llm.modal.input_price_placeholder')}
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="cached-input-price"
+          className="block text-sm font-medium text-foreground mb-1"
+        >
+          {t('settings.admin.llm.modal.cached_input_label')}{' '}
+          <span className="text-xs text-muted-foreground font-normal">({unitShort})</span>
+        </label>
+        <Input
+          id="cached-input-price"
+          type="number"
+          step="0.000001"
+          min="0"
+          value={formData.cached_input_unit_price ?? ''}
+          onChange={e => setFormData({ ...formData, cached_input_unit_price: e.target.value })}
+          placeholder={t('settings.admin.llm.modal.cached_input_placeholder')}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="output-price" className="block text-sm font-medium text-foreground mb-1">
+          {t('settings.admin.llm.modal.output_price_label')}{' '}
+          <span className="text-xs text-muted-foreground font-normal">({unitShort})</span>
+        </label>
+        <Input
+          id="output-price"
+          type="number"
+          step="0.000001"
+          min="0"
+          required
+          value={formData.output_unit_price}
+          onChange={e => setFormData({ ...formData, output_unit_price: e.target.value })}
+          placeholder={t('settings.admin.llm.modal.output_price_placeholder')}
+        />
+      </div>
+    </fieldset>
+  );
+}
+
+/** Add-mode form defaults (extracted so the modal's initializer stays flat). */
+const DEFAULT_PRICING_FORM: ModelPricingFormData = {
+  provider: 'openai',
+  model_name: '',
+  max_input_tokens: 8192,
+  max_output_tokens: 4096,
+  supports_tools: true,
+  supports_structured_output: true,
+  supports_strict_mode: false,
+  supports_streaming: true,
+  supports_vision: false,
+  reasoning_template: CUSTOM_TEMPLATE_VALUE,
+  kind: 'chat',
+  is_reasoning_model: false,
+  reasoning_widget: 'none',
+  reasoning_enum_values_csv: formatEnumValuesCsv(undefined),
+  reasoning_budget_range: EMPTY_BUDGET_RANGE,
+  reasoning_doc_i18n_key: '',
+  supports_temperature: true,
+  supports_top_p: true,
+  supports_frequency_penalty: true,
+  supports_presence_penalty: true,
+  pricing_unit: defaultPricingUnitForKind('chat'),
+  input_unit_price: '',
+  cached_input_unit_price: '',
+  output_unit_price: '',
+};
+
+/** Edit-mode form seeded from the existing catalogue row. reasoning_template
+ * starts Custom and is auto-selected by fingerprint once templates load. */
+function pricingFormFromModel(model: LLMModelPricing): ModelPricingFormData {
+  return {
+    provider: model.provider,
+    model_name: model.model_name,
+    max_input_tokens: model.max_input_tokens,
+    max_output_tokens: model.max_output_tokens,
+    supports_tools: model.supports_tools,
+    supports_structured_output: model.supports_structured_output,
+    supports_strict_mode: model.supports_strict_mode,
+    supports_streaming: model.supports_streaming,
+    supports_vision: model.supports_vision,
+    reasoning_template: CUSTOM_TEMPLATE_VALUE,
+    kind: model.kind,
+    is_reasoning_model: model.is_reasoning_model,
+    reasoning_widget: model.reasoning_widget,
+    reasoning_enum_values_csv: formatEnumValuesCsv(model.reasoning_enum_values),
+    reasoning_budget_range: model.reasoning_budget_range ?? EMPTY_BUDGET_RANGE,
+    reasoning_doc_i18n_key: model.reasoning_doc_i18n_key ?? '',
+    supports_temperature: model.supports_temperature,
+    supports_top_p: model.supports_top_p,
+    supports_frequency_penalty: model.supports_frequency_penalty,
+    supports_presence_penalty: model.supports_presence_penalty,
+    pricing_unit:
+      (model.pricing_unit as PricingUnitName | undefined) ?? defaultPricingUnitForKind(model.kind),
+    input_unit_price: model.input_unit_price,
+    cached_input_unit_price: model.cached_input_unit_price ?? '',
+    output_unit_price: model.output_unit_price,
+  };
+}
+
+function buildInitialPricingFormData(model: LLMModelPricing | null): ModelPricingFormData {
+  return model ? pricingFormFromModel(model) : { ...DEFAULT_PRICING_FORM };
+}
+
+export function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalProps) {
   const { t } = useTranslation(lng, 'translation');
   const isEdit = model !== null;
 
   const [templates, setTemplates] = useState<ReasoningTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
 
-  const [formData, setFormData] = useState<ModelPricingFormData>({
-    provider: model?.provider ?? 'openai',
-    model_name: model?.model_name ?? '',
-    max_input_tokens: model?.max_input_tokens ?? 8192,
-    max_output_tokens: model?.max_output_tokens ?? 4096,
-    supports_tools: model?.supports_tools ?? true,
-    supports_structured_output: model?.supports_structured_output ?? true,
-    supports_strict_mode: model?.supports_strict_mode ?? false,
-    supports_streaming: model?.supports_streaming ?? true,
-    supports_vision: model?.supports_vision ?? false,
-    // Edit mode: preselect the template whose fingerprint matches the current
-    // row. Falls back to Custom if no match (or if creating). The lookup runs
-    // once templates are loaded — see the effect below.
-    reasoning_template: CUSTOM_TEMPLATE_VALUE,
-    kind: model?.kind ?? 'chat',
-    is_reasoning_model: model?.is_reasoning_model ?? false,
-    reasoning_widget: model?.reasoning_widget ?? 'none',
-    reasoning_enum_values_csv: formatEnumValuesCsv(model?.reasoning_enum_values),
-    reasoning_budget_range: model?.reasoning_budget_range ?? EMPTY_BUDGET_RANGE,
-    reasoning_doc_i18n_key: model?.reasoning_doc_i18n_key ?? '',
-    supports_temperature: model?.supports_temperature ?? true,
-    supports_top_p: model?.supports_top_p ?? true,
-    supports_frequency_penalty: model?.supports_frequency_penalty ?? true,
-    supports_presence_penalty: model?.supports_presence_penalty ?? true,
-    pricing_unit:
-      (model?.pricing_unit as PricingUnitName | undefined) ??
-      defaultPricingUnitForKind(model?.kind ?? 'chat'),
-    input_unit_price: model?.input_unit_price ?? '',
-    cached_input_unit_price: model?.cached_input_unit_price ?? '',
-    output_unit_price: model?.output_unit_price ?? '',
-  });
+  const [formData, setFormData] = useState<ModelPricingFormData>(() =>
+    buildInitialPricingFormData(model)
+  );
 
   // Fetch the dedup'd template list once; auto-select the matching one in
   // edit mode by fingerprint comparison.
@@ -719,7 +1271,7 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
         // model — non-reasoning rows have widget='none' and no shape to copy.
         if (model?.is_reasoning_model) {
           const match = list
-            .filter(t => t.is_reasoning_model)
+            .filter(tpl => tpl.is_reasoning_model)
             .find(tpl => fingerprintMatches(tpl, model));
           if (match) {
             setFormData(prev => ({ ...prev, reasoning_template: match.template_model_name }));
@@ -741,9 +1293,8 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
   }, [model?.model_name]);
 
   const isCustomMode = formData.reasoning_template === CUSTOM_TEMPLATE_VALUE;
-  // Templates are only relevant when the model is a reasoning model. Filter
-  // out the "no reasoning" group from the Select to avoid an obvious mismatch.
-  const reasoningTemplates = templates.filter(t => t.is_reasoning_model);
+  // Templates are only relevant when the model is a reasoning model.
+  const reasoningTemplates = templates.filter(tpl => tpl.is_reasoning_model);
   const selectedTemplate = reasoningTemplates.find(
     tpl => tpl.template_model_name === formData.reasoning_template
   );
@@ -771,560 +1322,17 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
         </h3>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Section 1 — Modèle */}
-          <fieldset className="border border-border rounded-lg p-4 space-y-3">
-            <legend className="px-2 text-sm font-semibold text-foreground">
-              {t('settings.admin.llm.modal.section_model')}
-            </legend>
-
-            <div>
-              <label htmlFor="provider" className="block text-sm font-medium text-foreground mb-1">
-                {t('settings.admin.llm.modal.provider_label')}
-              </label>
-              <select
-                id="provider"
-                value={formData.provider}
-                onChange={e =>
-                  setFormData({ ...formData, provider: e.target.value as LLMProviderName })
-                }
-                disabled={isEdit}
-                required
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {PROVIDER_OPTIONS.map(p => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-              {isEdit && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('settings.admin.llm.modal.provider_immutable_hint')}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="model-name"
-                className="block text-sm font-medium text-foreground mb-1"
-              >
-                {t('settings.admin.llm.modal.model_name_label')}
-              </label>
-              <Input
-                id="model-name"
-                type="text"
-                value={formData.model_name}
-                onChange={e => setFormData({ ...formData, model_name: e.target.value })}
-                placeholder={t('settings.admin.llm.modal.model_name_placeholder')}
-                pattern="^[A-Za-z0-9._\-/:]+$"
-                title={t('settings.admin.llm.modal.model_name_pattern_hint')}
-                required
-              />
-            </div>
-          </fieldset>
-
-          {/* Section 2 — Capacités */}
-          <fieldset className="border border-border rounded-lg p-4 space-y-3">
-            <legend className="px-2 text-sm font-semibold text-foreground">
-              {t('settings.admin.llm.modal.section_capabilities')}
-            </legend>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor="max-input"
-                  className="block text-sm font-medium text-foreground mb-1"
-                >
-                  {t('settings.admin.llm.modal.max_input_tokens_label')}
-                </label>
-                <Input
-                  id="max-input"
-                  type="number"
-                  min="1"
-                  required
-                  value={formData.max_input_tokens}
-                  onChange={e =>
-                    setFormData({
-                      ...formData,
-                      max_input_tokens: parseInt(e.target.value, 10) || 0,
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="max-output"
-                  className="block text-sm font-medium text-foreground mb-1"
-                >
-                  {t('settings.admin.llm.modal.max_output_tokens_label')}
-                </label>
-                <Input
-                  id="max-output"
-                  type="number"
-                  min="0"
-                  required
-                  value={formData.max_output_tokens}
-                  onChange={e =>
-                    setFormData({
-                      ...formData,
-                      max_output_tokens: parseInt(e.target.value, 10) || 0,
-                    })
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-1">
-              {CAPABILITY_BOOL_FIELDS.map(field => (
-                <div key={field} className="flex items-center justify-between gap-3">
-                  <label htmlFor={field} className="text-sm text-foreground cursor-pointer">
-                    {t(`settings.admin.llm.modal.${field}_label`)}
-                  </label>
-                  <Switch
-                    id={field}
-                    checked={formData[field]}
-                    onCheckedChange={v => setFormData({ ...formData, [field]: v })}
-                  />
-                </div>
-              ))}
-            </div>
-          </fieldset>
-
-          {/*
-            Section 3 — Kind + sampling caps + reasoning shape.
-
-            i18n note: this section is intentionally English-only. The
-            pricing admin form is a superuser-only technical surface (LLM
-            catalogue management) — translating widget / enum_values /
-            budget_range / template descriptions would inflate every
-            locale file with provider-specific strings that are not user
-            facing. The rest of the app remains fully i18n'd via
-            useTranslation(); only this fieldset's labels are inline
-            English literals. See docs/technical/LLM_PRICING_TEMPLATES.md.
-          */}
-          <fieldset className="border border-border rounded-lg p-4 space-y-3">
-            <legend className="px-2 text-sm font-semibold text-foreground">
-              Reasoning &amp; sampling
-            </legend>
-
-            <div>
-              <label htmlFor="kind" className="block text-sm font-medium text-foreground mb-1">
-                Kind
-              </label>
-              <select
-                id="kind"
-                value={formData.kind}
-                onChange={e => {
-                  const nextKind = e.target.value as LLMModelKindName;
-                  setFormData(prev => ({
-                    ...prev,
-                    kind: nextKind,
-                    // Re-align pricing_unit with the new kind so audio/tts rows
-                    // default to per_audio_hour and chat rows back to
-                    // per_1m_tokens. The admin can still override afterwards
-                    // — this only sets the suggested default.
-                    pricing_unit: defaultPricingUnitForKind(nextKind),
-                  }));
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {KIND_OPTIONS.map(k => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Sampling caps — always saved per model, independent of the reasoning template. */}
-            <div className="space-y-2 pt-1">
-              <p className="text-xs text-muted-foreground">
-                Which sampling parameters does this model&apos;s API accept?
-              </p>
-              {(
-                [
-                  ['supports_temperature', 'Accepts temperature'],
-                  ['supports_top_p', 'Accepts top_p'],
-                  ['supports_frequency_penalty', 'Accepts frequency_penalty'],
-                  ['supports_presence_penalty', 'Accepts presence_penalty'],
-                ] as const
-              ).map(([field, label]) => (
-                <div key={field} className="flex items-center justify-between gap-3">
-                  <label htmlFor={field} className="text-sm text-foreground cursor-pointer">
-                    {label}
-                  </label>
-                  <Switch
-                    id={field}
-                    checked={formData[field]}
-                    onCheckedChange={v => setFormData({ ...formData, [field]: v })}
-                  />
-                </div>
-              ))}
-            </div>
-
-            {/* Reasoning toggle — gates the template selector + Custom block below. */}
-            <div className="border-t border-border pt-3">
-              <div className="flex items-center justify-between gap-3">
-                <label
-                  htmlFor="is-reasoning-model"
-                  className="text-sm font-medium text-foreground cursor-pointer"
-                >
-                  Is reasoning model
-                </label>
-                <Switch
-                  id="is-reasoning-model"
-                  checked={formData.is_reasoning_model}
-                  onCheckedChange={v =>
-                    setFormData(prev => ({
-                      ...prev,
-                      is_reasoning_model: v,
-                      // Toggle off ⇒ reset shape to a non-reasoning state and
-                      // clear any pending template choice.
-                      reasoning_template: v ? prev.reasoning_template : CUSTOM_TEMPLATE_VALUE,
-                      reasoning_widget: v ? prev.reasoning_widget : 'none',
-                    }))
-                  }
-                />
-              </div>
-            </div>
-
-            {formData.is_reasoning_model && (
-              <div>
-                <label
-                  htmlFor="reasoning-template"
-                  className="block text-sm font-medium text-foreground mb-1"
-                >
-                  Copy reasoning shape from
-                </label>
-                <select
-                  id="reasoning-template"
-                  value={formData.reasoning_template}
-                  onChange={e => setFormData({ ...formData, reasoning_template: e.target.value })}
-                  disabled={templatesLoading}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                >
-                  <option value={CUSTOM_TEMPLATE_VALUE}>Custom (advanced)</option>
-                  {reasoningTemplates.map(tpl => (
-                    <option key={tpl.template_model_name} value={tpl.template_model_name}>
-                      {tpl.description}
-                    </option>
-                  ))}
-                </select>
-                {!isCustomMode && selectedTemplate && (
-                  <div className="mt-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground space-y-1">
-                    <div>
-                      <span className="font-medium text-foreground">Widget:</span>{' '}
-                      <code className="font-mono">{selectedTemplate.reasoning_widget}</code>
-                      {selectedTemplate.reasoning_enum_values && (
-                        <>
-                          {' '}
-                          [
-                          <code className="font-mono">
-                            {selectedTemplate.reasoning_enum_values.join(' / ')}
-                          </code>
-                          ]
-                        </>
-                      )}
-                      {selectedTemplate.reasoning_budget_range && (
-                        <>
-                          {' '}
-                          range {selectedTemplate.reasoning_budget_range.min}..
-                          {selectedTemplate.reasoning_budget_range.max}
-                        </>
-                      )}
-                    </div>
-                    <p className="pt-1 italic">
-                      Snapshot copied at create time — future edits to{' '}
-                      <code className="font-mono">{selectedTemplate.template_model_name}</code> do
-                      not propagate.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {formData.is_reasoning_model && isCustomMode && (
-              <div className="space-y-3 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/20 px-3 py-3">
-                <p className="text-xs text-amber-700 dark:text-amber-400">
-                  Custom reasoning shape — pick a template above instead when the new model follows
-                  an existing reasoning API contract.
-                </p>
-
-                <div>
-                  <label
-                    htmlFor="reasoning-widget"
-                    className="block text-sm font-medium text-foreground mb-1"
-                  >
-                    Reasoning widget
-                  </label>
-                  <select
-                    id="reasoning-widget"
-                    value={formData.reasoning_widget}
-                    onChange={e =>
-                      setFormData({
-                        ...formData,
-                        reasoning_widget: e.target.value as ReasoningWidgetName,
-                      })
-                    }
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    {WIDGET_OPTIONS.map(w => (
-                      <option key={w} value={w}>
-                        {w}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {formData.reasoning_widget === 'enum' && (
-                  <div>
-                    <label
-                      htmlFor="reasoning-enum-values"
-                      className="block text-sm font-medium text-foreground mb-1"
-                    >
-                      Enum values (comma-separated)
-                    </label>
-                    <Input
-                      id="reasoning-enum-values"
-                      type="text"
-                      value={formData.reasoning_enum_values_csv}
-                      onChange={e =>
-                        setFormData({ ...formData, reasoning_enum_values_csv: e.target.value })
-                      }
-                      placeholder="minimal, low, medium, high"
-                    />
-                  </div>
-                )}
-
-                {(formData.reasoning_widget === 'budget_int' ||
-                  formData.reasoning_widget === 'toggle_budget') && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label
-                        htmlFor="budget-min"
-                        className="block text-sm font-medium text-foreground mb-1"
-                      >
-                        Budget min
-                      </label>
-                      <Input
-                        id="budget-min"
-                        type="number"
-                        min="0"
-                        value={formData.reasoning_budget_range.min}
-                        onChange={e =>
-                          setFormData({
-                            ...formData,
-                            reasoning_budget_range: {
-                              ...formData.reasoning_budget_range,
-                              min: parseInt(e.target.value, 10) || 0,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="budget-max"
-                        className="block text-sm font-medium text-foreground mb-1"
-                      >
-                        Budget max
-                      </label>
-                      <Input
-                        id="budget-max"
-                        type="number"
-                        min="0"
-                        value={formData.reasoning_budget_range.max}
-                        onChange={e =>
-                          setFormData({
-                            ...formData,
-                            reasoning_budget_range: {
-                              ...formData.reasoning_budget_range,
-                              max: parseInt(e.target.value, 10) || 0,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="budget-off"
-                        className="block text-sm font-medium text-foreground mb-1"
-                      >
-                        Off sentinel
-                      </label>
-                      <Input
-                        id="budget-off"
-                        type="number"
-                        value={formData.reasoning_budget_range.off_sentinel ?? ''}
-                        onChange={e =>
-                          setFormData({
-                            ...formData,
-                            reasoning_budget_range: {
-                              ...formData.reasoning_budget_range,
-                              off_sentinel:
-                                e.target.value === '' ? null : parseInt(e.target.value, 10),
-                            },
-                          })
-                        }
-                        placeholder="(none)"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="budget-dynamic"
-                        className="block text-sm font-medium text-foreground mb-1"
-                      >
-                        Dynamic sentinel
-                      </label>
-                      <Input
-                        id="budget-dynamic"
-                        type="number"
-                        value={formData.reasoning_budget_range.dynamic_sentinel ?? ''}
-                        onChange={e =>
-                          setFormData({
-                            ...formData,
-                            reasoning_budget_range: {
-                              ...formData.reasoning_budget_range,
-                              dynamic_sentinel:
-                                e.target.value === '' ? null : parseInt(e.target.value, 10),
-                            },
-                          })
-                        }
-                        placeholder="(none)"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Doc i18n key — independent of the template, optional. */}
-            <div className="border-t border-border pt-3">
-              <label
-                htmlFor="reasoning-doc-key"
-                className="block text-sm font-medium text-foreground mb-1"
-              >
-                Reasoning tooltip i18n key (optional)
-              </label>
-              <Input
-                id="reasoning-doc-key"
-                type="text"
-                value={formData.reasoning_doc_i18n_key}
-                onChange={e => setFormData({ ...formData, reasoning_doc_i18n_key: e.target.value })}
-                placeholder="e.g. openai_o_series_effort"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Saved per model regardless of the reasoning template chosen.
-              </p>
-            </div>
-          </fieldset>
-
-          {/* Section 4 — Tarification */}
-          <fieldset className="border border-border rounded-lg p-4 space-y-3">
-            <legend className="px-2 text-sm font-semibold text-foreground">
-              {t('settings.admin.llm.modal.section_pricing')}
-            </legend>
-
-            <div>
-              <label
-                htmlFor="pricing-unit"
-                className="block text-sm font-medium text-foreground mb-1"
-              >
-                {t('settings.admin.llm.modal.pricing_unit_label')}
-              </label>
-              <select
-                id="pricing-unit"
-                value={formData.pricing_unit}
-                onChange={e =>
-                  setFormData({
-                    ...formData,
-                    pricing_unit: e.target.value as PricingUnitName,
-                  })
-                }
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {PRICING_UNIT_OPTIONS.map(u => (
-                  <option key={u} value={u}>
-                    {t(`settings.admin.llm.modal.pricing_unit_${u}`)}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground mt-1">
-                {t('settings.admin.llm.modal.pricing_unit_hint')}
-              </p>
-            </div>
-
-            <div>
-              <label
-                htmlFor="input-price"
-                className="block text-sm font-medium text-foreground mb-1"
-              >
-                {t('settings.admin.llm.modal.input_price_label')}{' '}
-                <span className="text-xs text-muted-foreground font-normal">
-                  ({t(`settings.admin.llm.modal.pricing_unit_short_${formData.pricing_unit}`)})
-                </span>
-              </label>
-              <Input
-                id="input-price"
-                type="number"
-                step="0.000001"
-                min="0"
-                required
-                value={formData.input_unit_price}
-                onChange={e => setFormData({ ...formData, input_unit_price: e.target.value })}
-                placeholder={t('settings.admin.llm.modal.input_price_placeholder')}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="cached-input-price"
-                className="block text-sm font-medium text-foreground mb-1"
-              >
-                {t('settings.admin.llm.modal.cached_input_label')}{' '}
-                <span className="text-xs text-muted-foreground font-normal">
-                  ({t(`settings.admin.llm.modal.pricing_unit_short_${formData.pricing_unit}`)})
-                </span>
-              </label>
-              <Input
-                id="cached-input-price"
-                type="number"
-                step="0.000001"
-                min="0"
-                value={formData.cached_input_unit_price ?? ''}
-                onChange={e =>
-                  setFormData({
-                    ...formData,
-                    cached_input_unit_price: e.target.value,
-                  })
-                }
-                placeholder={t('settings.admin.llm.modal.cached_input_placeholder')}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="output-price"
-                className="block text-sm font-medium text-foreground mb-1"
-              >
-                {t('settings.admin.llm.modal.output_price_label')}{' '}
-                <span className="text-xs text-muted-foreground font-normal">
-                  ({t(`settings.admin.llm.modal.pricing_unit_short_${formData.pricing_unit}`)})
-                </span>
-              </label>
-              <Input
-                id="output-price"
-                type="number"
-                step="0.000001"
-                min="0"
-                required
-                value={formData.output_unit_price}
-                onChange={e => setFormData({ ...formData, output_unit_price: e.target.value })}
-                placeholder={t('settings.admin.llm.modal.output_price_placeholder')}
-              />
-            </div>
-          </fieldset>
+          <PricingModelFields formData={formData} setFormData={setFormData} isEdit={isEdit} t={t} />
+          <PricingCapabilityFields formData={formData} setFormData={setFormData} t={t} />
+          <PricingReasoningFields
+            formData={formData}
+            setFormData={setFormData}
+            templatesLoading={templatesLoading}
+            reasoningTemplates={reasoningTemplates}
+            isCustomMode={isCustomMode}
+            selectedTemplate={selectedTemplate}
+          />
+          <PricingFields formData={formData} setFormData={setFormData} t={t} />
 
           <div className="flex space-x-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">

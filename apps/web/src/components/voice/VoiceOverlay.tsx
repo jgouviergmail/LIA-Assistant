@@ -115,30 +115,28 @@ export function VoiceOverlay({
   const isClickable = state === 'listening' || state === 'recording';
 
   return (
+    // Non-interactive container (audit F013): the previous conditional
+    // role="button" on this div was both invisible to static analysis AND an
+    // invalid interactive nesting (it contained the close button). The
+    // tap-to-speak/stop action is now a REAL button overlay, a SIBLING of the
+    // close button — native Enter/Space, single activation, visible focus.
     <div
       className={cn(
         'relative flex flex-col items-center justify-center',
         'py-8 px-4',
         'bg-card rounded-lg border',
-        isClickable && 'cursor-pointer',
         className
       )}
-      onClick={isClickable ? handleClick : undefined}
-      role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      onKeyDown={
-        isClickable
-          ? e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleClick();
-              }
-            }
-          : undefined
-      }
-      aria-label={getInstruction()}
     >
-      {/* Close button */}
+      {isClickable && (
+        <button
+          type="button"
+          onClick={handleClick}
+          aria-label={getInstruction()}
+          className="absolute inset-0 z-[5] cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        />
+      )}
+      {/* Close button — above the action overlay (z-10), never nested in it */}
       <Button
         type="button"
         variant="ghost"
@@ -147,7 +145,7 @@ export function VoiceOverlay({
           e.stopPropagation();
           onDisable();
         }}
-        className="absolute top-2 right-2 h-8 w-8"
+        className="absolute top-2 right-2 h-8 w-8 z-10"
         aria-label={t('chat.voice_mode.disable')}
       >
         <X className="h-4 w-4" />

@@ -673,10 +673,10 @@ class GoogleGmailClient(BaseGoogleClient):
                 **result,
                 FIELD_CACHED_AT: datetime.now(UTC).isoformat(),
             }
-            await redis_client.setex(
+            await redis_client.set(
                 cache_key,
-                settings.emails_cache_search_ttl_seconds,
                 json.dumps(cache_data),  # Serialize dict to JSON string for Redis
+                ex=settings.emails_cache_search_ttl_seconds,
             )
 
         return {
@@ -754,10 +754,10 @@ class GoogleGmailClient(BaseGoogleClient):
                 **response,
                 FIELD_CACHED_AT: datetime.now(UTC).isoformat(),
             }
-            await redis_client.setex(
+            await redis_client.set(
                 cache_key,
-                settings.emails_cache_details_ttl_seconds,
                 json.dumps(cache_data),  # Serialize dict to JSON string for Redis
+                ex=settings.emails_cache_details_ttl_seconds,
             )
 
         return {
@@ -1276,10 +1276,10 @@ class GoogleGmailClient(BaseGoogleClient):
         # Cache result (labels rarely change)
         if use_cache:
             redis_client = await get_redis_cache()
-            await redis_client.setex(
+            await redis_client.set(
                 cache_key,
-                GMAIL_LABELS_CACHE_TTL,
                 json.dumps(labels_mapping),
+                ex=GMAIL_LABELS_CACHE_TTL,
             )
 
         return labels_mapping
@@ -1554,10 +1554,10 @@ class GoogleGmailClient(BaseGoogleClient):
         # Cache result
         if use_cache:
             redis_client = await get_redis_cache()
-            await redis_client.setex(
+            await redis_client.set(
                 cache_key,
-                GMAIL_LABELS_CACHE_TTL,
                 json.dumps(labels),
+                ex=GMAIL_LABELS_CACHE_TTL,
             )
 
         return labels

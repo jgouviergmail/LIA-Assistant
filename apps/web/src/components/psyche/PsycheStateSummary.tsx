@@ -60,7 +60,9 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
     <div className="rounded-lg border p-4 space-y-4">
       {/* ── Mood header ── */}
       <div className="flex items-center gap-3">
+        {/* role="presentation": hover only animates the emoji (decorative). */}
         <span
+          role="presentation"
           className="flex h-8 w-8 items-center justify-center"
           onMouseEnter={() => setEmojiHovered(true)}
           onMouseLeave={() => setEmojiHovered(false)}
@@ -158,7 +160,7 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
               })}
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground/50 italic">
+          <span className="text-xs text-muted-foreground italic">
             {t('psyche.noActiveEmotion', 'None')}
           </span>
         )}
@@ -207,7 +209,7 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
         )}
 
         {state && (
-          <div className="text-[10px] text-muted-foreground/60 text-right">
+          <div className="text-[10px] text-muted-foreground text-right">
             {state.relationship_interaction_count} {t('psyche.interactions', 'interactions')}
           </div>
         )}
@@ -296,13 +298,13 @@ function PadBar({
     <div className="space-y-0.5">
       <div className="flex items-center justify-between text-[10px]">
         <span className="font-medium text-muted-foreground">{label}</span>
-        <span className="font-mono text-muted-foreground/70">
+        <span className="font-mono text-muted-foreground">
           {value >= 0 ? '+' : ''}
           {value.toFixed(2)}
         </span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="w-14 text-[9px] text-right text-muted-foreground/50 truncate">
+        <span className="w-14 text-[9px] text-right text-muted-foreground truncate">
           {negLabel}
         </span>
         <div className="flex-1 h-2 rounded-full bg-muted relative overflow-hidden">
@@ -321,7 +323,7 @@ function PadBar({
             }}
           />
         </div>
-        <span className="w-14 text-[9px] text-muted-foreground/50 truncate">{posLabel}</span>
+        <span className="w-14 text-[9px] text-muted-foreground truncate">{posLabel}</span>
       </div>
     </div>
   );

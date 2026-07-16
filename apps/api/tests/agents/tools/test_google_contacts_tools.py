@@ -108,7 +108,10 @@ def create_mock_runtime(
 
     return ToolRuntime(
         state={},
-        context={},
+        # ContextT resolves to None for unparametrized tools: passing {} trips
+        # PydanticSerializationUnexpectedValue when LangChain serializes the
+        # runtime during args validation (audit F028, warnings-as-errors).
+        context=None,
         config={"configurable": configurable},
         stream_writer=MagicMock(),
         tool_call_id="test_call_id",

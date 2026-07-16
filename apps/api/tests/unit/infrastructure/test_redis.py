@@ -250,9 +250,13 @@ class TestCloseRedis:
         # Lines 74-80 executed: Close both clients
         await close_redis()
 
-        # Verify both clients closed
-        mock_cache.close.assert_called_once()
-        mock_session.close.assert_called_once()
+        # Verify both clients closed (aclose = non-deprecated API) and the
+        # singletons reset so a later get_redis_cache() builds a fresh client
+        # instead of returning a closed one (audit F028).
+        mock_cache.aclose.assert_called_once()
+        mock_session.aclose.assert_called_once()
+        assert redis_module._redis_cache is None
+        assert redis_module._redis_session is None
 
         # Verify logging
         assert mock_logger.info.call_count == 2
@@ -274,8 +278,9 @@ class TestCloseRedis:
         # Line 74: Cache is None, only session closed
         await close_redis()
 
-        # Verify only session closed
-        mock_session.close.assert_called_once()
+        # Verify only session closed (and reset)
+        mock_session.aclose.assert_called_once()
+        assert redis_module._redis_session is None
         mock_logger.info.assert_called_once_with("redis_session_closed")
 
     @pytest.mark.asyncio
@@ -292,8 +297,9 @@ class TestCloseRedis:
         # Line 78: Session is None, only cache closed
         await close_redis()
 
-        # Verify only cache closed
-        mock_cache.close.assert_called_once()
+        # Verify only cache closed (and reset)
+        mock_cache.aclose.assert_called_once()
+        assert redis_module._redis_cache is None
         mock_logger.info.assert_called_once_with("redis_cache_closed")
 
     @pytest.mark.asyncio
@@ -522,13 +528,13 @@ class TestSessionService:
         # Lines 151-156 executed: Store with JSON serialization
         await service.store_oauth_state("state_abc123", state_data, expire_minutes=5)
 
-        # Verify setex called with JSON
+        # Verify SET called with JSON and ex= TTL
         import json
 
         expected_json = json.dumps(state_data)
         expected_seconds = 5 * 60
-        mock_redis.setex.assert_called_once_with(
-            "oauth_state:state_abc123", expected_seconds, expected_json
+        mock_redis.set.assert_called_once_with(
+            "oauth_state:state_abc123", expected_json, ex=expected_seconds
         )
 
     @pytest.mark.asyncio
@@ -543,8 +549,7 @@ class TestSessionService:
 
         # Verify 10 minutes in seconds
         expected_seconds = 10 * 60
-        call_args = mock_redis.setex.call_args[0]
-        assert call_args[1] == expected_seconds
+        assert mock_redis.set.call_args.kwargs["ex"] == expected_seconds
 
     @pytest.mark.asyncio
     @patch("src.infrastructure.cache.redis.REDIS_KEY_OAUTH_STATE_PREFIX", "oauth_state:")

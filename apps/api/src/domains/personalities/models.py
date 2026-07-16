@@ -7,7 +7,7 @@ Defines Personality and PersonalityTranslation entities with their relationships
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -43,7 +43,7 @@ class Personality(BaseModel):
         Boolean, default=False, nullable=False, server_default="false"
     )
     is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False, server_default="true", index=True
+        Boolean, default=True, nullable=False, server_default="true"
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
     prompt_instruction: Mapped[str] = mapped_column(Text, nullable=False)
@@ -87,6 +87,11 @@ class Personality(BaseModel):
         back_populates="personality",
         foreign_keys="User.personality_id",
     )
+
+    # Composite index for the active-personalities listing (filter is_active,
+    # order by sort_order). It covers is_active lookups via its leftmost column,
+    # so no separate single-column index on is_active is needed.
+    __table_args__ = (Index("ix_personalities_active_sort", "is_active", "sort_order"),)
 
     def __repr__(self) -> str:
         return f"<Personality(id={self.id}, code={self.code}, emoji={self.emoji})>"
@@ -134,7 +139,6 @@ class PersonalityTranslation(BaseModel):
         UUID(as_uuid=True),
         ForeignKey("personalities.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     language_code: Mapped[str] = mapped_column(String(10), nullable=False)
     title: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -148,6 +152,10 @@ class PersonalityTranslation(BaseModel):
 
     __table_args__ = (
         UniqueConstraint("personality_id", "language_code", name="uq_personality_translation_lang"),
+        # Lookup index leading with personality_id — covers FK-side joins and
+        # per-personality translation fetches without a separate single-column
+        # index on personality_id.
+        Index("ix_personality_translations_lookup", "personality_id", "language_code"),
     )
 
     def __repr__(self) -> str:

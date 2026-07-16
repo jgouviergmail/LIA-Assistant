@@ -77,12 +77,12 @@ export async function BlogPreviewSection({ lng }: BlogPreviewSectionProps) {
           <div className="text-center">
             <Link
               href={blogPath}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors group"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/90 transition-colors group"
             >
               {t('landing.blog_preview.view_all')}
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
             </Link>
-            <span className="mx-3 text-muted-foreground/40">·</span>
+            <span className="mx-3 text-muted-foreground">·</span>
             <Link
               href={buildLocalizedPath('/faq', lng as Language)}
               className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"

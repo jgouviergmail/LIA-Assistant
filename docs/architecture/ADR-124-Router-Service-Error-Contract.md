@@ -2,7 +2,7 @@
 
 **Status**: ✅ IMPLEMENTED (2026-07-10)
 **Author**: Claude Code (Fable 5)
-**Related**: [ADR-002](ADR-002-Unified-Error-Handling.md) (BaseAPIException taxonomy), [ADR-114](ADR-114-Connector-Client-Domain-Error-Contract.md) (phase 1 — connector client layer), [ADR-117](ADR-117-Background-Chat-Runs.md) (active-run lock 409)
+**Related**: ADR-002 (BaseAPIException taxonomy — foundational, not migrated to an ADR file), [ADR-114](ADR-114-Connector-Client-Domain-Error-Contract.md) (phase 1 — connector client layer), [ADR-117](ADR-117-Background-Chat-Runs.md) (active-run lock 409)
 
 ## Context
 

@@ -92,7 +92,7 @@ async def mock_redis_cache():
     """Mock Redis cache for unit tests that don't require real Redis."""
     mock_redis = AsyncMock()
     mock_redis.get = AsyncMock(return_value=None)  # Cache miss by default
-    mock_redis.setex = AsyncMock(return_value=True)
+    mock_redis.set = AsyncMock(return_value=True)
     mock_redis.delete = AsyncMock(return_value=True)
     return mock_redis
 

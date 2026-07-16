@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Cpu,
@@ -49,7 +49,25 @@ import type {
 } from '@/types/llm-config';
 import { LLM_CATEGORIES_ORDER } from '@/types/llm-config';
 import { ReasoningWidget } from './llm-config/ReasoningWidget';
-import { coerceReasoningEffortForModel } from './llm-config/reasoningHelpers';
+import {
+  DEFAULT_ELEVENLABS_VOICE_SETTINGS,
+  ELEVENLABS_OUTPUT_FORMATS,
+  OPENAI_RESPONSE_FORMATS,
+  buildConfigUpdate,
+  computeAvailableModels,
+  findModelCapabilities,
+  formAfterModelChange,
+  formAfterProviderChange,
+  formFromConfig,
+  isAnthropicThinkingActive,
+  isFieldModified,
+  parseProviderConfig,
+  resolveTtsProvider,
+  samplingVisibility,
+  type SamplingVisibility,
+  type TTSProviderConfig,
+  type TtsProvider,
+} from './llm-config/configDialogHelpers';
 
 // --- Reasoning Effort Helpers ---
 
@@ -233,9 +251,20 @@ function LLMTypeCard({
   const showsTemp = modelCapabilities?.supports_temperature ?? true;
   const tierClass = config.info.power_tier ? (POWER_TIER_STYLES[config.info.power_tier] ?? '') : '';
   return (
+    // Real button semantics (audit F012/F013): the whole card opens the edit
+    // modal, so it must be reachable and operable with the keyboard. It has
+    // no interactive descendants, making role="button" valid here.
     <div
-      className={`rounded-lg border p-3 cursor-pointer hover:brightness-95 dark:hover:brightness-110 transition-all ${tierClass}`}
+      role="button"
+      tabIndex={0}
+      className={`rounded-lg border p-3 cursor-pointer hover:brightness-95 dark:hover:brightness-110 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tierClass}`}
       onClick={() => onEdit(config)}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onEdit(config);
+        }
+      }}
     >
       <div className="flex items-center justify-between mb-0.5">
         <span className="font-medium text-sm">{config.info.display_name}</span>
@@ -249,16 +278,16 @@ function LLMTypeCard({
           </Badge>
         )}
       </div>
-      <p className="text-[11px] text-muted-foreground/70 mb-1.5 line-clamp-1">
+      <p className="text-[11px] text-muted-foreground mb-1.5 line-clamp-1">
         {t(config.info.description_key)}
       </p>
       <div className="text-xs text-muted-foreground flex items-center gap-2">
         <span>{config.effective.provider}</span>
-        <span className="text-muted-foreground/50">/</span>
+        <span className="text-muted-foreground">/</span>
         <span className="font-mono">{config.effective.model}</span>
-        <span className="text-muted-foreground/50">|</span>
+        <span className="text-muted-foreground">|</span>
         {hasEffort && <span>E:{formatReasoningValue(config.effective.reasoning_effort)}</span>}
-        {hasEffort && showsTemp && <span className="text-muted-foreground/50">+</span>}
+        {hasEffort && showsTemp && <span className="text-muted-foreground">+</span>}
         {showsTemp && <span>T:{config.effective.temperature}</span>}
       </div>
     </div>
@@ -270,7 +299,7 @@ function LLMTypeCard({
 function ParamTooltip({ text }: { text: string }) {
   return (
     <span className="group relative inline-flex ml-1">
-      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />
+      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
       <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 rounded-md bg-popover px-3 py-2 text-[11px] text-popover-foreground shadow-md border opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 leading-relaxed">
         {text}
       </span>
@@ -278,87 +307,389 @@ function ParamTooltip({ text }: { text: string }) {
   );
 }
 
-// --- TTS provider_config helpers ---
+// --- Shared dialog field primitives (audit F011) ---
 
-/** Parsed shape of the ``provider_config`` JSONB blob stored on
- * ``llm_config_overrides.provider_config`` for the ``voice_tts`` LLM type.
- * Mirrors the structure documented in ``apps/api/src/domains/voice/factory.py``.
- * Each key is optional — only the ones relevant to the active provider are
- * populated when the admin saves. */
-interface TTSProviderConfig {
-  voice_male?: string;
-  voice_female?: string;
-  // Edge-specific
-  rate?: string;
-  pitch?: string;
-  volume?: string;
-  // OpenAI-specific
-  speed?: number;
-  response_format?: string;
-  // ElevenLabs-specific
-  output_format?: string;
-  voice_settings?: {
-    stability?: number;
-    similarity_boost?: number;
-    style?: number;
-    use_speaker_boost?: boolean;
-  };
+/** Field header: label + optional tooltip + "overridden" badge when modified. */
+function OverridableFieldLabel({
+  labelKey,
+  tooltipKey,
+  modified,
+  t,
+  labelId,
+}: {
+  labelKey: string;
+  tooltipKey?: string;
+  modified: boolean;
+  t: (key: string) => string;
+  /** id set on the visible label so the control can reference it (F012). */
+  labelId?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <Label id={labelId}>{t(labelKey)}</Label>
+      {tooltipKey && <ParamTooltip text={t(tooltipKey)} />}
+      {modified && (
+        <Badge variant="default" className="text-[10px] px-1 py-0">
+          {t('settings.admin.llmConfig.types.overridden')}
+        </Badge>
+      )}
+    </div>
+  );
 }
 
-const DEFAULT_ELEVENLABS_VOICE_SETTINGS = {
-  stability: 0.5,
-  similarity_boost: 0.75,
-  style: 0.0,
-  use_speaker_boost: true,
-};
-
-const OPENAI_RESPONSE_FORMATS = ['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'] as const;
-const ELEVENLABS_OUTPUT_FORMATS = [
-  'mp3_44100_128',
-  'mp3_44100_64',
-  'mp3_44100_32',
-  'mp3_22050_32',
-  'pcm_16000',
-  'pcm_22050',
-  'pcm_24000',
-  'pcm_44100',
-  'ulaw_8000',
-] as const;
-
-function parseProviderConfig(raw: string | null | undefined): TTSProviderConfig {
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed as TTSProviderConfig;
-    }
-  } catch {
-    // Malformed override — start from blank rather than crash the form.
-  }
-  return {};
+/** Labelled range slider with a monospace value display (the four sampling
+ * params share this exact layout). */
+function RangeParam({
+  labelKey,
+  tooltipKey,
+  modified,
+  min,
+  max,
+  step,
+  fallback,
+  decimals,
+  value,
+  onChange,
+  t,
+}: {
+  labelKey: string;
+  tooltipKey: string;
+  modified: boolean;
+  min: number;
+  max: number;
+  step: number;
+  fallback: number;
+  decimals: number;
+  value: number | null | undefined;
+  onChange: (value: number) => void;
+  t: (key: string) => string;
+}) {
+  // Accessible name = the visible label (F012): useId guarantees a unique,
+  // stable per-instance id, aria-labelledby makes the association explicit.
+  const labelId = useId();
+  return (
+    <div className="space-y-1.5">
+      <OverridableFieldLabel
+        labelKey={labelKey}
+        tooltipKey={tooltipKey}
+        modified={modified}
+        t={t}
+        labelId={labelId}
+      />
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          aria-labelledby={labelId}
+          min={min}
+          max={max}
+          step={step}
+          value={value ?? fallback}
+          onChange={e => onChange(parseFloat(e.target.value))}
+          className="flex-1"
+        />
+        <span className="text-sm font-mono w-10 text-right">{value?.toFixed(decimals)}</span>
+      </div>
+    </div>
+  );
 }
 
-/** Stable JSON stringification (sorted keys, two-level deep) so the diff
- * against the default is order-independent. The backend stores JSONB so key
- * order does not matter semantically, but the LLMTypeConfigUpdate diff
- * compares strings — sort keys to avoid spurious "modified" badges. */
-function stableStringify(obj: TTSProviderConfig): string {
-  const sortKeys = (v: unknown): unknown => {
-    if (Array.isArray(v)) return v.map(sortKeys);
-    if (v && typeof v === 'object') {
-      return Object.keys(v as Record<string, unknown>)
-        .sort()
-        .reduce<Record<string, unknown>>((acc, k) => {
-          acc[k] = sortKeys((v as Record<string, unknown>)[k]);
-          return acc;
-        }, {});
-    }
-    return v;
-  };
-  return JSON.stringify(sortKeys(obj));
+/** Labelled number input (max_tokens / timeout) — parse semantics stay with
+ * the caller via onValueChange(raw). */
+function NumberField({
+  labelKey,
+  tooltipKey,
+  modified,
+  value,
+  placeholder,
+  onValueChange,
+  t,
+}: {
+  labelKey: string;
+  tooltipKey: string;
+  modified: boolean;
+  value: number | null | undefined;
+  placeholder?: string;
+  onValueChange: (raw: string) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <OverridableFieldLabel
+        labelKey={labelKey}
+        tooltipKey={tooltipKey}
+        modified={modified}
+        t={t}
+      />
+      <Input
+        type="number"
+        min="1"
+        value={value ?? ''}
+        onChange={e => onValueChange(e.target.value)}
+        placeholder={placeholder}
+      />
+    </div>
+  );
 }
 
 // --- TTS Provider-specific configuration block ---
+
+/** Voice picker: catalogue select when the live/static list is available,
+ * free-text voice-id input otherwise. */
+function TtsVoicePicker({
+  labelKey,
+  value,
+  options,
+  loading,
+  onChange,
+  t,
+}: {
+  labelKey: string;
+  value: string;
+  options: VoicesResponse['voices'];
+  loading: boolean;
+  onChange: (voiceId: string) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{t(labelKey)}</Label>
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-1.5">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {t('settings.admin.llmConfig.voiceTts.loadingVoices')}
+        </div>
+      ) : options.length > 0 ? (
+        <Select value={value} onValueChange={onChange}>
+          <SelectTrigger>
+            <SelectValue placeholder={t('settings.admin.llmConfig.voiceTts.pickVoice')} />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map(o => (
+              <SelectItem key={o.voice_id} value={o.voice_id}>
+                {o.label}
+                {o.language ? ` · ${o.language}` : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={t('settings.admin.llmConfig.voiceTts.voiceIdPlaceholder')}
+        />
+      )}
+    </div>
+  );
+}
+
+type SetTtsKey = <K extends keyof TTSProviderConfig>(key: K, value: TTSProviderConfig[K]) => void;
+
+/** Edge — SSML rate / pitch / volume strings (e.g. "+10%", "-2Hz"). */
+function EdgeTuning({
+  providerConfig,
+  setKey,
+  t,
+}: {
+  providerConfig: TTSProviderConfig;
+  setKey: SetTtsKey;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <div className="space-y-1.5">
+        <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.rate')}</Label>
+        <Input
+          value={providerConfig.rate ?? ''}
+          onChange={e => setKey('rate', e.target.value)}
+          placeholder="+10%"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.pitch')}</Label>
+        <Input
+          value={providerConfig.pitch ?? ''}
+          onChange={e => setKey('pitch', e.target.value)}
+          placeholder="+0Hz"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.volume')}</Label>
+        <Input
+          value={providerConfig.volume ?? ''}
+          onChange={e => setKey('volume', e.target.value)}
+          placeholder="+0%"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** OpenAI — speed (0.25..4.0) + response audio container format. */
+function OpenAITuning({
+  providerConfig,
+  setKey,
+  t,
+}: {
+  providerConfig: TTSProviderConfig;
+  setKey: SetTtsKey;
+  t: (key: string) => string;
+}) {
+  // Accessible name for the speed slider = its visible label (F012).
+  const speedLabelId = useId();
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label id={speedLabelId}>{t('settings.admin.llmConfig.voiceTts.speed')}</Label>
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            aria-labelledby={speedLabelId}
+            min="0.25"
+            max="4"
+            step="0.05"
+            value={providerConfig.speed ?? 1.0}
+            onChange={e => setKey('speed', parseFloat(e.target.value))}
+            className="flex-1"
+          />
+          <span className="text-sm font-mono w-12 text-right">
+            {(providerConfig.speed ?? 1.0).toFixed(2)}x
+          </span>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label>{t('settings.admin.llmConfig.voiceTts.responseFormat')}</Label>
+        <Select
+          value={providerConfig.response_format ?? 'mp3'}
+          onValueChange={v => setKey('response_format', v)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {OPENAI_RESPONSE_FORMATS.map(f => (
+              <SelectItem key={f} value={f}>
+                {f}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+}
+
+/** One ElevenLabs voice_settings slider (stability / similarity / style share
+ * the exact 0..1 step-0.05 layout with a 2-decimal display). */
+function VoiceSettingSlider({
+  labelKey,
+  value,
+  onChange,
+  t,
+}: {
+  labelKey: string;
+  value: number;
+  onChange: (value: number) => void;
+  t: (key: string) => string;
+}) {
+  // Accessible name = the visible label (F012), unique per instance.
+  const labelId = useId();
+  return (
+    <div className="space-y-1.5">
+      <Label id={labelId}>{t(labelKey)}</Label>
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          aria-labelledby={labelId}
+          min="0"
+          max="1"
+          step="0.05"
+          value={value}
+          onChange={e => onChange(parseFloat(e.target.value))}
+          className="flex-1"
+        />
+        <span className="text-sm font-mono w-12 text-right">{value.toFixed(2)}</span>
+      </div>
+    </div>
+  );
+}
+
+/** ElevenLabs — output container + voice_settings (stability/similarity/style). */
+function ElevenLabsTuning({
+  providerConfig,
+  setKey,
+  setVoiceSetting,
+  t,
+}: {
+  providerConfig: TTSProviderConfig;
+  setKey: SetTtsKey;
+  setVoiceSetting: <K extends keyof NonNullable<TTSProviderConfig['voice_settings']>>(
+    key: K,
+    value: NonNullable<TTSProviderConfig['voice_settings']>[K]
+  ) => void;
+  t: (key: string) => string;
+}) {
+  const settings = providerConfig.voice_settings;
+  // Speaker-boost checkbox: explicit label association (F012); htmlFor
+  // gives native label-click toggling as a bonus.
+  const boostLabelId = useId();
+  const boostInputId = useId();
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label>{t('settings.admin.llmConfig.voiceTts.outputFormat')}</Label>
+        <Select
+          value={providerConfig.output_format ?? 'mp3_44100_128'}
+          onValueChange={v => setKey('output_format', v)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ELEVENLABS_OUTPUT_FORMATS.map(f => (
+              <SelectItem key={f} value={f}>
+                {f}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <VoiceSettingSlider
+        labelKey="settings.admin.llmConfig.voiceTts.stability"
+        value={settings?.stability ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.stability}
+        onChange={v => setVoiceSetting('stability', v)}
+        t={t}
+      />
+      <VoiceSettingSlider
+        labelKey="settings.admin.llmConfig.voiceTts.similarityBoost"
+        value={settings?.similarity_boost ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.similarity_boost}
+        onChange={v => setVoiceSetting('similarity_boost', v)}
+        t={t}
+      />
+      <VoiceSettingSlider
+        labelKey="settings.admin.llmConfig.voiceTts.style"
+        value={settings?.style ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.style}
+        onChange={v => setVoiceSetting('style', v)}
+        t={t}
+      />
+      <div className="flex items-center justify-between">
+        <Label id={boostLabelId} htmlFor={boostInputId} className="text-sm">
+          {t('settings.admin.llmConfig.voiceTts.useSpeakerBoost')}
+        </Label>
+        <input
+          id={boostInputId}
+          type="checkbox"
+          aria-labelledby={boostLabelId}
+          checked={
+            settings?.use_speaker_boost ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.use_speaker_boost
+          }
+          onChange={e => setVoiceSetting('use_speaker_boost', e.target.checked)}
+          className="h-4 w-4"
+        />
+      </div>
+    </>
+  );
+}
 
 /** Renders the voice pickers (male / female) plus provider-specific tuning
  * inputs for the voice_tts LLM type. Bound to a parsed ``provider_config``
@@ -372,15 +703,14 @@ function TTSProviderConfigBlock({
   voicesLoading,
   t,
 }: {
-  provider: 'edge' | 'openai' | 'elevenlabs';
+  provider: TtsProvider;
   providerConfig: TTSProviderConfig;
   setProviderConfig: React.Dispatch<React.SetStateAction<TTSProviderConfig>>;
   voicesData: VoicesResponse | null;
   voicesLoading: boolean;
   t: (key: string) => string;
 }) {
-  const setKey = <K extends keyof TTSProviderConfig>(key: K, value: TTSProviderConfig[K]) =>
-    setProviderConfig(prev => ({ ...prev, [key]: value }));
+  const setKey: SetTtsKey = (key, value) => setProviderConfig(prev => ({ ...prev, [key]: value }));
 
   const setVoiceSetting = <K extends keyof NonNullable<TTSProviderConfig['voice_settings']>>(
     key: K,
@@ -402,231 +732,40 @@ function TTSProviderConfigBlock({
   const maleVoices = voices.filter(v => v.gender === 'male' || v.gender === null);
   const femaleVoices = voices.filter(v => v.gender === 'female' || v.gender === null);
 
-  const renderVoicePicker = (
-    labelKey: string,
-    field: 'voice_male' | 'voice_female',
-    options: typeof voices
-  ) => (
-    <div className="space-y-1.5">
-      <Label>{t(labelKey)}</Label>
-      {voicesLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-1.5">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          {t('settings.admin.llmConfig.voiceTts.loadingVoices')}
-        </div>
-      ) : options.length > 0 ? (
-        <Select value={providerConfig[field] ?? ''} onValueChange={v => setKey(field, v)}>
-          <SelectTrigger>
-            <SelectValue placeholder={t('settings.admin.llmConfig.voiceTts.pickVoice')} />
-          </SelectTrigger>
-          <SelectContent>
-            {options.map(o => (
-              <SelectItem key={o.voice_id} value={o.voice_id}>
-                {o.label}
-                {o.language ? ` · ${o.language}` : ''}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        <Input
-          value={providerConfig[field] ?? ''}
-          onChange={e => setKey(field, e.target.value)}
-          placeholder={t('settings.admin.llmConfig.voiceTts.voiceIdPlaceholder')}
-        />
-      )}
-    </div>
-  );
-
   return (
     <div className="space-y-4 rounded-md border p-3 bg-muted/20">
       <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         {t('settings.admin.llmConfig.voiceTts.sectionTitle')}
       </div>
 
-      {renderVoicePicker('settings.admin.llmConfig.voiceTts.voiceMale', 'voice_male', maleVoices)}
-      {renderVoicePicker(
-        'settings.admin.llmConfig.voiceTts.voiceFemale',
-        'voice_female',
-        femaleVoices
-      )}
+      <TtsVoicePicker
+        labelKey="settings.admin.llmConfig.voiceTts.voiceMale"
+        value={providerConfig.voice_male ?? ''}
+        options={maleVoices}
+        loading={voicesLoading}
+        onChange={v => setKey('voice_male', v)}
+        t={t}
+      />
+      <TtsVoicePicker
+        labelKey="settings.admin.llmConfig.voiceTts.voiceFemale"
+        value={providerConfig.voice_female ?? ''}
+        options={femaleVoices}
+        loading={voicesLoading}
+        onChange={v => setKey('voice_female', v)}
+        t={t}
+      />
 
-      {/* Edge — SSML rate / pitch / volume strings (e.g. "+10%", "-2Hz"). */}
-      {provider === 'edge' && (
-        <>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.rate')}</Label>
-              <Input
-                value={providerConfig.rate ?? ''}
-                onChange={e => setKey('rate', e.target.value)}
-                placeholder="+10%"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.pitch')}</Label>
-              <Input
-                value={providerConfig.pitch ?? ''}
-                onChange={e => setKey('pitch', e.target.value)}
-                placeholder="+0Hz"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.volume')}</Label>
-              <Input
-                value={providerConfig.volume ?? ''}
-                onChange={e => setKey('volume', e.target.value)}
-                placeholder="+0%"
-              />
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* OpenAI — speed (0.25..4.0) + response audio container format. */}
+      {provider === 'edge' && <EdgeTuning providerConfig={providerConfig} setKey={setKey} t={t} />}
       {provider === 'openai' && (
-        <>
-          <div className="space-y-1.5">
-            <Label>{t('settings.admin.llmConfig.voiceTts.speed')}</Label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="0.25"
-                max="4"
-                step="0.05"
-                value={providerConfig.speed ?? 1.0}
-                onChange={e => setKey('speed', parseFloat(e.target.value))}
-                className="flex-1"
-              />
-              <span className="text-sm font-mono w-12 text-right">
-                {(providerConfig.speed ?? 1.0).toFixed(2)}x
-              </span>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('settings.admin.llmConfig.voiceTts.responseFormat')}</Label>
-            <Select
-              value={providerConfig.response_format ?? 'mp3'}
-              onValueChange={v => setKey('response_format', v)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {OPENAI_RESPONSE_FORMATS.map(f => (
-                  <SelectItem key={f} value={f}>
-                    {f}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </>
+        <OpenAITuning providerConfig={providerConfig} setKey={setKey} t={t} />
       )}
-
-      {/* ElevenLabs — output container + voice_settings (stability/similarity/style). */}
       {provider === 'elevenlabs' && (
-        <>
-          <div className="space-y-1.5">
-            <Label>{t('settings.admin.llmConfig.voiceTts.outputFormat')}</Label>
-            <Select
-              value={providerConfig.output_format ?? 'mp3_44100_128'}
-              onValueChange={v => setKey('output_format', v)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ELEVENLABS_OUTPUT_FORMATS.map(f => (
-                  <SelectItem key={f} value={f}>
-                    {f}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('settings.admin.llmConfig.voiceTts.stability')}</Label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={
-                  providerConfig.voice_settings?.stability ??
-                  DEFAULT_ELEVENLABS_VOICE_SETTINGS.stability
-                }
-                onChange={e => setVoiceSetting('stability', parseFloat(e.target.value))}
-                className="flex-1"
-              />
-              <span className="text-sm font-mono w-12 text-right">
-                {(
-                  providerConfig.voice_settings?.stability ??
-                  DEFAULT_ELEVENLABS_VOICE_SETTINGS.stability
-                ).toFixed(2)}
-              </span>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('settings.admin.llmConfig.voiceTts.similarityBoost')}</Label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={
-                  providerConfig.voice_settings?.similarity_boost ??
-                  DEFAULT_ELEVENLABS_VOICE_SETTINGS.similarity_boost
-                }
-                onChange={e => setVoiceSetting('similarity_boost', parseFloat(e.target.value))}
-                className="flex-1"
-              />
-              <span className="text-sm font-mono w-12 text-right">
-                {(
-                  providerConfig.voice_settings?.similarity_boost ??
-                  DEFAULT_ELEVENLABS_VOICE_SETTINGS.similarity_boost
-                ).toFixed(2)}
-              </span>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('settings.admin.llmConfig.voiceTts.style')}</Label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={
-                  providerConfig.voice_settings?.style ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.style
-                }
-                onChange={e => setVoiceSetting('style', parseFloat(e.target.value))}
-                className="flex-1"
-              />
-              <span className="text-sm font-mono w-12 text-right">
-                {(
-                  providerConfig.voice_settings?.style ?? DEFAULT_ELEVENLABS_VOICE_SETTINGS.style
-                ).toFixed(2)}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <Label className="text-sm">
-              {t('settings.admin.llmConfig.voiceTts.useSpeakerBoost')}
-            </Label>
-            <input
-              type="checkbox"
-              checked={
-                providerConfig.voice_settings?.use_speaker_boost ??
-                DEFAULT_ELEVENLABS_VOICE_SETTINGS.use_speaker_boost
-              }
-              onChange={e => setVoiceSetting('use_speaker_boost', e.target.checked)}
-              className="h-4 w-4"
-            />
-          </div>
-        </>
+        <ElevenLabsTuning
+          providerConfig={providerConfig}
+          setKey={setKey}
+          setVoiceSetting={setVoiceSetting}
+          t={t}
+        />
       )}
 
       {voicesData?.source === 'live' && provider === 'elevenlabs' && (
@@ -639,6 +778,361 @@ function TTSProviderConfigBlock({
 }
 
 // --- Edit Dialog ---
+
+/** Provider selector: only providers exposing at least one model matching the
+ * LLM type's required_kind are proposed. Switching wipes model +
+ * reasoning_effort (+ the TTS tuning, which is provider-scoped). */
+function ProviderField({
+  form,
+  metadataProviders,
+  requiredKind,
+  modified,
+  onProviderChange,
+  t,
+}: {
+  form: LLMTypeConfigUpdate;
+  metadataProviders: Record<string, ModelCapabilities[]>;
+  requiredKind: LLMTypeConfig['info']['required_kind'];
+  modified: boolean;
+  onProviderChange: (provider: string) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <OverridableFieldLabel
+        labelKey="settings.admin.llmConfig.fields.provider"
+        modified={modified}
+        t={t}
+      />
+      <Select value={form.provider ?? ''} onValueChange={onProviderChange}>
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {Object.entries(metadataProviders)
+            // Only show providers that actually expose at least one
+            // model matching the LLM type's required_kind. Avoids
+            // proposing ``openai`` for voice_transcription when the
+            // catalogue has no kind=audio model under it (and inversely).
+            .filter(([, models]) => models.some(m => m.kind === requiredKind))
+            .map(([p]) => (
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+/** Model selector: live Ollama spinner → catalogue select → "no compatible
+ * model" notice → free-text input, plus the Ollama live/fallback source note. */
+function ModelField({
+  form,
+  availableModels,
+  requiredCaps,
+  ollamaLoading,
+  ollamaData,
+  modified,
+  onModelChange,
+  onFreeTextModel,
+  t,
+}: {
+  form: LLMTypeConfigUpdate;
+  availableModels: string[];
+  requiredCaps: string[];
+  ollamaLoading: boolean;
+  ollamaData: OllamaModelsResponse | null;
+  modified: boolean;
+  onModelChange: (modelId: string) => void;
+  onFreeTextModel: (raw: string) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <OverridableFieldLabel
+        labelKey="settings.admin.llmConfig.fields.model"
+        modified={modified}
+        t={t}
+      />
+      {form.provider === 'ollama' && ollamaLoading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-1.5">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {t('settings.admin.llmConfig.ollama.loading')}
+        </div>
+      ) : availableModels.length > 0 ? (
+        <Select value={form.model ?? ''} onValueChange={onModelChange}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableModels.map(m => (
+              <SelectItem key={m} value={m}>
+                {m}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : requiredCaps.length > 0 && form.provider ? (
+        <p className="text-sm text-muted-foreground italic">
+          {t('settings.admin.llmConfig.no_compatible_model')}
+        </p>
+      ) : (
+        <Input
+          value={form.model ?? ''}
+          onChange={e => onFreeTextModel(e.target.value)}
+          placeholder="model-name"
+        />
+      )}
+      {form.provider === 'ollama' && !ollamaLoading && ollamaData && (
+        <p
+          className={`text-[11px] mt-1 ${ollamaData.source === 'live' ? 'text-emerald-500' : 'text-amber-500'}`}
+        >
+          {ollamaData.source === 'live'
+            ? t('settings.admin.llmConfig.ollama.live')
+            : t('settings.admin.llmConfig.ollama.fallback')}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Reasoning-effort widget (+ Anthropic sampling-constraint note) and the
+ * separate global 'effort' selector for models that declare effort_values. */
+function ReasoningSection({
+  form,
+  caps,
+  anthropicThinkingActive,
+  isModified,
+  onReasoningChange,
+  onEffortChange,
+  t,
+}: {
+  form: LLMTypeConfigUpdate;
+  caps: ModelCapabilities | undefined;
+  anthropicThinkingActive: boolean;
+  isModified: (field: keyof LLMTypeConfigUpdate) => boolean;
+  onReasoningChange: (next: ReasoningEffortValue) => void;
+  onEffortChange: (effort: string | null) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <>
+      {/* Reasoning Effort — driven by ModelCapabilities.reasoning_widget.
+          The widget renders nothing when widget='none', so no outer guard
+          is needed. */}
+      {form.provider && form.model && caps && (
+        <div className="space-y-1.5">
+          <OverridableFieldLabel
+            labelKey="settings.admin.llmConfig.fields.reasoningEffort"
+            tooltipKey="settings.admin.llmConfig.tooltips.reasoningEffort"
+            modified={isModified('reasoning_effort')}
+            t={t}
+          />
+          <ReasoningWidget
+            widget={caps.reasoning_widget ?? 'none'}
+            enumValues={caps.reasoning_enum_values}
+            budgetRange={caps.reasoning_budget_range}
+            docI18nKey={caps.reasoning_doc_i18n_key}
+            value={form.reasoning_effort ?? null}
+            onChange={onReasoningChange}
+          />
+          {anthropicThinkingActive && (
+            <p className="text-xs text-muted-foreground">
+              {t('settings.admin.llmConfig.constraints.reasoningTemp')}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Global 'effort' (Anthropic output_config.effort) — a separate
+          token-spend control, distinct from reasoning_effort. Shown only when
+          the model declares effort_values (currently opus-4-5). */}
+      {caps?.effort_values && caps.effort_values.length > 0 && (
+        <div className="space-y-1.5">
+          <OverridableFieldLabel
+            labelKey="settings.admin.llmConfig.fields.effort"
+            tooltipKey="settings.admin.llmConfig.tooltips.effort"
+            modified={isModified('effort')}
+            t={t}
+          />
+          <Select
+            value={form.effort ?? '__default__'}
+            onValueChange={v => onEffortChange(v === '__default__' ? null : v)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__default__">
+                {t('settings.admin.llmConfig.fields.reasoningDefault')}
+              </SelectItem>
+              {caps.effort_values.map(ev => (
+                <SelectItem key={ev} value={ev}>
+                  {ev}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Dialog-side dynamic catalogues: live Ollama models (fetched only while the
+ * Ollama provider is selected) and the TTS voice catalogue (fetched only for
+ * TTS types on a supported provider — any other provider keeps voicesData
+ * null). */
+function useLlmDialogQueries(
+  config: LLMTypeConfig | null,
+  form: LLMTypeConfigUpdate,
+  open: boolean
+) {
+  // Dynamic Ollama model discovery: fetch only when Ollama is selected
+  const { data: ollamaData, loading: ollamaLoading } = useApiQuery<OllamaModelsResponse>(
+    '/admin/llm-config/providers/ollama/models',
+    {
+      componentName: 'LLMConfigDialog',
+      initialData: { models: [], source: 'fallback' as const },
+      enabled: form.provider === 'ollama' && open,
+      deps: [form.provider, open],
+    }
+  );
+
+  // Dynamic voice catalogue for TTS LLM types. Edge / OpenAI return curated
+  // static lists; ElevenLabs triggers a live ``GET /v1/voices`` against the
+  // configured account (account-scoped custom + shared voices).
+  const isTts = config?.info.required_kind === 'tts';
+  const ttsProvider = resolveTtsProvider(isTts, form.provider);
+  const { data: voicesData, loading: voicesLoading } = useApiQuery<VoicesResponse>(
+    `/admin/voice/voices?provider=${ttsProvider ?? 'edge'}`,
+    {
+      componentName: 'LLMConfigDialog',
+      enabled: !!ttsProvider && open,
+      deps: [ttsProvider, open],
+    }
+  );
+
+  return {
+    ollamaData: ollamaData ?? null,
+    ollamaLoading,
+    ollamaModels: ollamaData?.models ?? [],
+    isTts,
+    ttsProvider,
+    voicesData: voicesData ?? null,
+    voicesLoading,
+  };
+}
+
+/** The six tunable execution params, in their historical display order:
+ * temperature, max_tokens, top_p, frequency/presence penalties, timeout.
+ * Slider visibility is model-capability driven. */
+function SamplingFields({
+  form,
+  setForm,
+  visibility,
+  isModified,
+  t,
+}: {
+  form: LLMTypeConfigUpdate;
+  setForm: (form: LLMTypeConfigUpdate) => void;
+  visibility: SamplingVisibility;
+  isModified: (field: keyof LLMTypeConfigUpdate) => boolean;
+  t: (key: string) => string;
+}) {
+  return (
+    <>
+      {/* Temperature — shown only if the model accepts it (DB-driven). */}
+      {visibility.showTemperature && (
+        <RangeParam
+          labelKey="settings.admin.llmConfig.fields.temperature"
+          tooltipKey="settings.admin.llmConfig.tooltips.temperature"
+          modified={isModified('temperature')}
+          min={0}
+          max={2}
+          step={0.1}
+          fallback={0}
+          decimals={1}
+          value={form.temperature}
+          onChange={v => setForm({ ...form, temperature: v })}
+          t={t}
+        />
+      )}
+
+      <NumberField
+        labelKey="settings.admin.llmConfig.fields.maxTokens"
+        tooltipKey="settings.admin.llmConfig.tooltips.maxTokens"
+        modified={isModified('max_tokens')}
+        value={form.max_tokens}
+        onValueChange={raw => setForm({ ...form, max_tokens: parseInt(raw) || null })}
+        t={t}
+      />
+
+      {/* Top P — shown only if the model accepts it (DB-driven). */}
+      {visibility.showTopP && (
+        <RangeParam
+          labelKey="settings.admin.llmConfig.fields.topP"
+          tooltipKey="settings.admin.llmConfig.tooltips.topP"
+          modified={isModified('top_p')}
+          min={0}
+          max={1}
+          step={0.05}
+          fallback={1}
+          decimals={2}
+          value={form.top_p}
+          onChange={v => setForm({ ...form, top_p: v })}
+          t={t}
+        />
+      )}
+
+      {/* Frequency Penalty — shown only if the model accepts it (DB-driven). */}
+      {visibility.showFrequencyPenalty && (
+        <RangeParam
+          labelKey="settings.admin.llmConfig.fields.frequencyPenalty"
+          tooltipKey="settings.admin.llmConfig.tooltips.frequencyPenalty"
+          modified={isModified('frequency_penalty')}
+          min={-2}
+          max={2}
+          step={0.1}
+          fallback={0}
+          decimals={1}
+          value={form.frequency_penalty}
+          onChange={v => setForm({ ...form, frequency_penalty: v })}
+          t={t}
+        />
+      )}
+
+      {/* Presence Penalty — shown only if the model accepts it (DB-driven). */}
+      {visibility.showPresencePenalty && (
+        <RangeParam
+          labelKey="settings.admin.llmConfig.fields.presencePenalty"
+          tooltipKey="settings.admin.llmConfig.tooltips.presencePenalty"
+          modified={isModified('presence_penalty')}
+          min={-2}
+          max={2}
+          step={0.1}
+          fallback={0}
+          decimals={1}
+          value={form.presence_penalty}
+          onChange={v => setForm({ ...form, presence_penalty: v })}
+          t={t}
+        />
+      )}
+
+      <NumberField
+        labelKey="settings.admin.llmConfig.fields.timeout"
+        tooltipKey="settings.admin.llmConfig.tooltips.timeout"
+        modified={isModified('timeout_seconds')}
+        value={form.timeout_seconds}
+        placeholder={t('settings.admin.llmConfig.fields.timeoutPlaceholder')}
+        onValueChange={raw => setForm({ ...form, timeout_seconds: raw ? parseInt(raw) : null })}
+        t={t}
+      />
+    </>
+  );
+}
 
 function LLMConfigDialog({
   config,
@@ -671,18 +1165,7 @@ function LLMConfigDialog({
   // Populate form when config changes (proper useEffect instead of render-time setState)
   useEffect(() => {
     if (config && open) {
-      setForm({
-        provider: config.effective.provider,
-        model: config.effective.model,
-        temperature: config.effective.temperature,
-        top_p: config.effective.top_p,
-        frequency_penalty: config.effective.frequency_penalty,
-        presence_penalty: config.effective.presence_penalty,
-        max_tokens: config.effective.max_tokens,
-        timeout_seconds: config.effective.timeout_seconds,
-        reasoning_effort: config.effective.reasoning_effort,
-        effort: config.effective.effort,
-      });
+      setForm(formFromConfig(config));
       setProviderConfig(parseProviderConfig(config.effective.provider_config));
     }
   }, [config, open]);
@@ -696,37 +1179,7 @@ function LLMConfigDialog({
   const handleSave = async () => {
     if (!config) return;
     // Build update: compare with defaults, send null for unchanged fields
-    const update: LLMTypeConfigUpdate = {};
-    const d = config.defaults;
-
-    if (form.provider !== d.provider) update.provider = form.provider;
-    if (form.model !== d.model) update.model = form.model;
-    if (form.temperature !== d.temperature) update.temperature = form.temperature;
-    if (form.top_p !== d.top_p) update.top_p = form.top_p;
-    if (form.frequency_penalty !== d.frequency_penalty)
-      update.frequency_penalty = form.frequency_penalty;
-    if (form.presence_penalty !== d.presence_penalty)
-      update.presence_penalty = form.presence_penalty;
-    if (form.max_tokens !== d.max_tokens) update.max_tokens = form.max_tokens;
-    if (form.timeout_seconds !== d.timeout_seconds) update.timeout_seconds = form.timeout_seconds;
-    // reasoning_effort is now a discriminated union object — use deep-equal.
-    if (
-      JSON.stringify(form.reasoning_effort ?? null) !== JSON.stringify(d.reasoning_effort ?? null)
-    )
-      update.reasoning_effort = form.reasoning_effort;
-    if ((form.effort ?? null) !== (d.effort ?? null)) update.effort = form.effort ?? null;
-
-    // provider_config: only send when the parsed object differs from the
-    // default-parsed object. Compared via stableStringify so a key-order
-    // permutation doesn't trigger a false-positive override.
-    if (config.info.required_kind === 'tts') {
-      const currentSerialised = stableStringify(providerConfig);
-      const defaultSerialised = stableStringify(parseProviderConfig(d.provider_config));
-      if (currentSerialised !== defaultSerialised) {
-        update.provider_config = currentSerialised;
-      }
-    }
-
+    const update = buildConfigUpdate(config, form, providerConfig);
     try {
       await onSave(config.llm_type, update);
       toast.success(t('settings.admin.llmConfig.config.saved'));
@@ -747,99 +1200,52 @@ function LLMConfigDialog({
     }
   };
 
-  // Dynamic Ollama model discovery: fetch only when Ollama is selected
-  const { data: ollamaData, loading: ollamaLoading } = useApiQuery<OllamaModelsResponse>(
-    '/admin/llm-config/providers/ollama/models',
-    {
-      componentName: 'LLMConfigDialog',
-      initialData: { models: [], source: 'fallback' as const },
-      enabled: form.provider === 'ollama' && open,
-      deps: [form.provider, open],
-    }
-  );
-
-  // Dynamic voice catalogue for TTS LLM types. Edge / OpenAI return curated
-  // static lists; ElevenLabs triggers a live ``GET /v1/voices`` against the
-  // configured account (account-scoped custom + shared voices). Only the
-  // supported TTS providers are queried — any other provider (or non-TTS
-  // type) keeps voicesData null.
-  const isTts = config?.info.required_kind === 'tts';
-  const ttsProvider =
-    isTts &&
-    (form.provider === 'edge' || form.provider === 'openai' || form.provider === 'elevenlabs')
-      ? form.provider
-      : null;
-  const { data: voicesData, loading: voicesLoading } = useApiQuery<VoicesResponse>(
-    `/admin/voice/voices?provider=${ttsProvider ?? 'edge'}`,
-    {
-      componentName: 'LLMConfigDialog',
-      enabled: !!ttsProvider && open,
-      deps: [ttsProvider, open],
-    }
-  );
+  const { ollamaData, ollamaLoading, ollamaModels, isTts, ttsProvider, voicesData, voicesLoading } =
+    useLlmDialogQueries(config, form, open);
 
   // Filter models by required_kind + required_capabilities from LLM type config.
   const requiredCaps = config?.info.required_capabilities ?? [];
   const requiredKind = config?.info.required_kind ?? 'chat';
-  const isOllamaWithDynamic = form.provider === 'ollama' && (ollamaData?.models?.length ?? 0) > 0;
-  const modelSource = isOllamaWithDynamic
-    ? ollamaData!.models
-    : (metadata.providers[form.provider ?? ''] ?? []);
-  const availableModels = form.provider
-    ? modelSource
-        .filter(m => {
-          // Backend authoritative kind filter — drives the selector down to
-          // models that match the LLM type's required_kind exactly. Covers
-          // chat / image / audio / realtime / tts / embedding (the
-          // voice_transcription type added in v1.20.x targets kind='audio').
-          if (m.kind !== requiredKind) return false;
-          if (requiredCaps.includes('vision') && !m.supports_vision) return false;
-          if (requiredCaps.includes('tools') && !m.supports_tools) return false;
-          if (requiredCaps.includes('structured_output') && !m.supports_structured_output)
-            return false;
-          return true;
-        })
-        .map(m => m.model_id)
-    : [];
-
+  const availableModels = computeAvailableModels(
+    form.provider,
+    metadata.providers,
+    ollamaModels,
+    requiredKind,
+    requiredCaps
+  );
   const selectedModelCapabilities = (metadata.providers[form.provider ?? ''] ?? []).find(
     m => m.model_id === form.model
   );
+  const anthropicThinkingActive = isAnthropicThinkingActive(form.provider, form.reasoning_effort);
+  const visibility: SamplingVisibility = samplingVisibility(
+    selectedModelCapabilities,
+    anthropicThinkingActive
+  );
+  const isModified = (field: keyof LLMTypeConfigUpdate) =>
+    config ? isFieldModified(config, form, field) : false;
 
-  // Anthropic: extended thinking is incompatible with a custom temperature/top_p
-  // (API constraint — "temperature may only be set to 1 when thinking is
-  // enabled"). When reasoning is enabled on an Anthropic model, those sampling
-  // params are managed automatically; we lock them in the UI (and the backend
-  // forces them to None). 'off' enum value / disabled toggle = reasoning off.
-  const anthropicThinkingActive =
-    form.provider === 'anthropic' &&
-    (() => {
-      const re = form.reasoning_effort;
-      if (!re) return false;
-      if ('effort' in re) return re.effort !== 'off';
-      if ('enabled' in re) return re.enabled === true;
-      return false;
-    })();
+  const handleProviderChange = (provider: string) => {
+    setForm(formAfterProviderChange(form, provider));
+    // Voice IDs and per-provider tuning are provider-scoped — wipe
+    // them so the admin can't accidentally save a stale Edge
+    // voice_id under an OpenAI override (would crash at synth).
+    if (isTts) setProviderConfig({});
+  };
 
-  // Sampling-param visibility: each input is shown if and only if the
-  // selected model accepts that specific parameter (Philosophy A: raw
-  // truth from llm_models.supports_* columns). Falls back to permissive
-  // (all true) when the model is not in metadata — e.g. dynamic Ollama.
-  // Temperature/top_p are additionally hidden when Anthropic thinking is active.
-  const showTemperature =
-    (selectedModelCapabilities?.supports_temperature ?? true) && !anthropicThinkingActive;
-  const showTopP = (selectedModelCapabilities?.supports_top_p ?? true) && !anthropicThinkingActive;
-  const showFrequencyPenalty = selectedModelCapabilities?.supports_frequency_penalty ?? true;
-  const showPresencePenalty = selectedModelCapabilities?.supports_presence_penalty ?? true;
+  const handleModelChange = (modelId: string) => {
+    const newCaps = findModelCapabilities(metadata.providers, ollamaModels, form.provider, modelId);
+    setForm(formAfterModelChange(form, modelId, newCaps));
+  };
 
-  const isModified = (field: keyof LLMTypeConfigUpdate) => {
-    if (!config) return false;
-    const defaultVal = config.defaults[field as keyof typeof config.defaults];
-    // reasoning_effort is a discriminated union object — JSON-equal it.
-    if (field === 'reasoning_effort') {
-      return JSON.stringify(form[field] ?? null) !== JSON.stringify(defaultVal ?? null);
-    }
-    return form[field] !== defaultVal;
+  const handleReasoningChange = (next: ReasoningEffortValue) => {
+    // Enabling Anthropic thinking forces temperature/top_p off
+    // (API constraint) — clear them so the saved config is coherent.
+    const willThink = isAnthropicThinkingActive(form.provider, next);
+    setForm({
+      ...form,
+      reasoning_effort: next,
+      ...(willThink ? { temperature: null, top_p: null } : {}),
+    });
   };
 
   if (!config) return null;
@@ -856,127 +1262,31 @@ function LLMConfigDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
-          {/* Provider */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Label>{t('settings.admin.llmConfig.fields.provider')}</Label>
-              {isModified('provider') && (
-                <Badge variant="default" className="text-[10px] px-1 py-0">
-                  {t('settings.admin.llmConfig.types.overridden')}
-                </Badge>
-              )}
-            </div>
-            <Select
-              value={form.provider ?? ''}
-              onValueChange={v => {
-                // reasoning_effort shape is model-scoped — clearing the model
-                // means there is no valid reasoning_effort to keep (a stale
-                // value would be persisted as-is and crash the typed reasoning
-                // builder once a model is re-picked). Same rationale as the
-                // voice_id / provider_config wipe below.
-                setForm({ ...form, provider: v, model: '', reasoning_effort: null });
-                // Voice IDs and per-provider tuning are provider-scoped — wipe
-                // them so the admin can't accidentally save a stale Edge
-                // voice_id under an OpenAI override (would crash at synth).
-                if (isTts) setProviderConfig({});
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(metadata.providers)
-                  // Only show providers that actually expose at least one
-                  // model matching the LLM type's required_kind. Avoids
-                  // proposing ``openai`` for voice_transcription when the
-                  // catalogue has no kind=audio model under it (and inversely).
-                  .filter(([, models]) => models.some(m => m.kind === requiredKind))
-                  .map(([p]) => (
-                    <SelectItem key={p} value={p}>
-                      {p}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <ProviderField
+            form={form}
+            metadataProviders={metadata.providers}
+            requiredKind={requiredKind}
+            modified={isModified('provider')}
+            onProviderChange={handleProviderChange}
+            t={t}
+          />
 
-          {/* Model */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Label>{t('settings.admin.llmConfig.fields.model')}</Label>
-              {isModified('model') && (
-                <Badge variant="default" className="text-[10px] px-1 py-0">
-                  {t('settings.admin.llmConfig.types.overridden')}
-                </Badge>
-              )}
-            </div>
-            {form.provider === 'ollama' && ollamaLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-1.5">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                {t('settings.admin.llmConfig.ollama.loading')}
-              </div>
-            ) : availableModels.length > 0 ? (
-              <Select
-                value={form.model ?? ''}
-                onValueChange={v => {
-                  // Keep reasoning_effort only if its shape still fits the newly
-                  // selected model's reasoning widget; otherwise drop it to null
-                  // (= use the model's default). Prevents a stale value (e.g. an
-                  // enum effort from a previous model) being saved onto a model
-                  // with a different reasoning widget and crashing the typed
-                  // reasoning builder at runtime.
-                  const newCaps =
-                    (metadata.providers[form.provider ?? ''] ?? []).find(m => m.model_id === v) ??
-                    (ollamaData?.models ?? []).find(m => m.model_id === v);
-                  // Drop a stale 'effort' if the new model has no (matching) effort_values.
-                  const newEffortValues = newCaps?.effort_values ?? null;
-                  const keepEffort =
-                    form.effort != null &&
-                    newEffortValues != null &&
-                    newEffortValues.includes(form.effort);
-                  setForm({
-                    ...form,
-                    model: v,
-                    reasoning_effort: coerceReasoningEffortForModel(form.reasoning_effort, newCaps),
-                    effort: keepEffort ? form.effort : null,
-                  });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableModels.map(m => (
-                    <SelectItem key={m} value={m}>
-                      {m}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : requiredCaps.length > 0 && form.provider ? (
-              <p className="text-sm text-muted-foreground italic">
-                {t('settings.admin.llmConfig.no_compatible_model')}
-              </p>
-            ) : (
-              <Input
-                value={form.model ?? ''}
-                // Free-typed model name (e.g. a dynamic Ollama model): its
-                // reasoning widget is unknown here, so we cannot keep any
-                // reasoning_effort override — clear it to null (= model default).
-                onChange={e => setForm({ ...form, model: e.target.value, reasoning_effort: null })}
-                placeholder="model-name"
-              />
-            )}
-            {form.provider === 'ollama' && !ollamaLoading && ollamaData && (
-              <p
-                className={`text-[11px] mt-1 ${ollamaData.source === 'live' ? 'text-emerald-500' : 'text-amber-500'}`}
-              >
-                {ollamaData.source === 'live'
-                  ? t('settings.admin.llmConfig.ollama.live')
-                  : t('settings.admin.llmConfig.ollama.fallback')}
-              </p>
-            )}
-          </div>
+          <ModelField
+            form={form}
+            availableModels={availableModels}
+            requiredCaps={requiredCaps}
+            ollamaLoading={ollamaLoading}
+            ollamaData={ollamaData}
+            modified={isModified('model')}
+            onModelChange={handleModelChange}
+            onFreeTextModel={raw =>
+              // Free-typed model name (e.g. a dynamic Ollama model): its
+              // reasoning widget is unknown here, so we cannot keep any
+              // reasoning_effort override — clear it to null (= model default).
+              setForm({ ...form, model: raw, reasoning_effort: null })
+            }
+            t={t}
+          />
 
           {/* Voice TTS — voice picker + provider-specific tuning. Rendered
               only for the voice_tts LLM type (kind=tts). The voice_id and
@@ -987,250 +1297,29 @@ function LLMConfigDialog({
               provider={ttsProvider}
               providerConfig={providerConfig}
               setProviderConfig={setProviderConfig}
-              voicesData={voicesData ?? null}
+              voicesData={voicesData}
               voicesLoading={voicesLoading}
               t={t}
             />
           )}
 
-          {/* Temperature — shown only if the model accepts it (DB-driven). */}
-          {showTemperature && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Label>{t('settings.admin.llmConfig.fields.temperature')}</Label>
-                <ParamTooltip text={t('settings.admin.llmConfig.tooltips.temperature')} />
-                {isModified('temperature') && (
-                  <Badge variant="default" className="text-[10px] px-1 py-0">
-                    {t('settings.admin.llmConfig.types.overridden')}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={form.temperature ?? 0}
-                  onChange={e => setForm({ ...form, temperature: parseFloat(e.target.value) })}
-                  className="flex-1"
-                />
-                <span className="text-sm font-mono w-10 text-right">
-                  {form.temperature?.toFixed(1)}
-                </span>
-              </div>
-            </div>
-          )}
+          <SamplingFields
+            form={form}
+            setForm={setForm}
+            visibility={visibility}
+            isModified={isModified}
+            t={t}
+          />
 
-          {/* Max Tokens */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Label>{t('settings.admin.llmConfig.fields.maxTokens')}</Label>
-              <ParamTooltip text={t('settings.admin.llmConfig.tooltips.maxTokens')} />
-              {isModified('max_tokens') && (
-                <Badge variant="default" className="text-[10px] px-1 py-0">
-                  {t('settings.admin.llmConfig.types.overridden')}
-                </Badge>
-              )}
-            </div>
-            <Input
-              type="number"
-              min="1"
-              value={form.max_tokens ?? ''}
-              onChange={e => setForm({ ...form, max_tokens: parseInt(e.target.value) || null })}
-            />
-          </div>
-
-          {/* Top P — shown only if the model accepts it (DB-driven). */}
-          {showTopP && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Label>{t('settings.admin.llmConfig.fields.topP')}</Label>
-                <ParamTooltip text={t('settings.admin.llmConfig.tooltips.topP')} />
-                {isModified('top_p') && (
-                  <Badge variant="default" className="text-[10px] px-1 py-0">
-                    {t('settings.admin.llmConfig.types.overridden')}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={form.top_p ?? 1}
-                  onChange={e => setForm({ ...form, top_p: parseFloat(e.target.value) })}
-                  className="flex-1"
-                />
-                <span className="text-sm font-mono w-10 text-right">{form.top_p?.toFixed(2)}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Frequency Penalty — shown only if the model accepts it (DB-driven). */}
-          {showFrequencyPenalty && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Label>{t('settings.admin.llmConfig.fields.frequencyPenalty')}</Label>
-                <ParamTooltip text={t('settings.admin.llmConfig.tooltips.frequencyPenalty')} />
-                {isModified('frequency_penalty') && (
-                  <Badge variant="default" className="text-[10px] px-1 py-0">
-                    {t('settings.admin.llmConfig.types.overridden')}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.1"
-                  value={form.frequency_penalty ?? 0}
-                  onChange={e =>
-                    setForm({ ...form, frequency_penalty: parseFloat(e.target.value) })
-                  }
-                  className="flex-1"
-                />
-                <span className="text-sm font-mono w-10 text-right">
-                  {form.frequency_penalty?.toFixed(1)}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Presence Penalty — shown only if the model accepts it (DB-driven). */}
-          {showPresencePenalty && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Label>{t('settings.admin.llmConfig.fields.presencePenalty')}</Label>
-                <ParamTooltip text={t('settings.admin.llmConfig.tooltips.presencePenalty')} />
-                {isModified('presence_penalty') && (
-                  <Badge variant="default" className="text-[10px] px-1 py-0">
-                    {t('settings.admin.llmConfig.types.overridden')}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.1"
-                  value={form.presence_penalty ?? 0}
-                  onChange={e => setForm({ ...form, presence_penalty: parseFloat(e.target.value) })}
-                  className="flex-1"
-                />
-                <span className="text-sm font-mono w-10 text-right">
-                  {form.presence_penalty?.toFixed(1)}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Timeout */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Label>{t('settings.admin.llmConfig.fields.timeout')}</Label>
-              <ParamTooltip text={t('settings.admin.llmConfig.tooltips.timeout')} />
-              {isModified('timeout_seconds') && (
-                <Badge variant="default" className="text-[10px] px-1 py-0">
-                  {t('settings.admin.llmConfig.types.overridden')}
-                </Badge>
-              )}
-            </div>
-            <Input
-              type="number"
-              min="1"
-              value={form.timeout_seconds ?? ''}
-              onChange={e =>
-                setForm({
-                  ...form,
-                  timeout_seconds: e.target.value ? parseInt(e.target.value) : null,
-                })
-              }
-              placeholder={t('settings.admin.llmConfig.fields.timeoutPlaceholder')}
-            />
-          </div>
-
-          {/* Reasoning Effort — driven by ModelCapabilities.reasoning_widget.
-              The widget renders nothing when widget='none', so no outer guard
-              is needed. */}
-          {form.provider && form.model && selectedModelCapabilities && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Label>{t('settings.admin.llmConfig.fields.reasoningEffort')}</Label>
-                <ParamTooltip text={t('settings.admin.llmConfig.tooltips.reasoningEffort')} />
-                {isModified('reasoning_effort') && (
-                  <Badge variant="default" className="text-[10px] px-1 py-0">
-                    {t('settings.admin.llmConfig.types.overridden')}
-                  </Badge>
-                )}
-              </div>
-              <ReasoningWidget
-                widget={selectedModelCapabilities.reasoning_widget ?? 'none'}
-                enumValues={selectedModelCapabilities.reasoning_enum_values}
-                budgetRange={selectedModelCapabilities.reasoning_budget_range}
-                docI18nKey={selectedModelCapabilities.reasoning_doc_i18n_key}
-                value={form.reasoning_effort ?? null}
-                onChange={next => {
-                  // Enabling Anthropic thinking forces temperature/top_p off
-                  // (API constraint) — clear them so the saved config is coherent.
-                  const willThink =
-                    form.provider === 'anthropic' &&
-                    !!next &&
-                    (('effort' in next && next.effort !== 'off') ||
-                      ('enabled' in next && next.enabled === true));
-                  setForm({
-                    ...form,
-                    reasoning_effort: next,
-                    ...(willThink ? { temperature: null, top_p: null } : {}),
-                  });
-                }}
-              />
-              {anthropicThinkingActive && (
-                <p className="text-xs text-muted-foreground">
-                  {t('settings.admin.llmConfig.constraints.reasoningTemp')}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Global 'effort' (Anthropic output_config.effort) — a separate
-              token-spend control, distinct from reasoning_effort. Shown only when
-              the model declares effort_values (currently opus-4-5). */}
-          {selectedModelCapabilities?.effort_values &&
-            selectedModelCapabilities.effort_values.length > 0 && (
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Label>{t('settings.admin.llmConfig.fields.effort')}</Label>
-                  <ParamTooltip text={t('settings.admin.llmConfig.tooltips.effort')} />
-                  {isModified('effort') && (
-                    <Badge variant="default" className="text-[10px] px-1 py-0">
-                      {t('settings.admin.llmConfig.types.overridden')}
-                    </Badge>
-                  )}
-                </div>
-                <Select
-                  value={form.effort ?? '__default__'}
-                  onValueChange={v => setForm({ ...form, effort: v === '__default__' ? null : v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__default__">
-                      {t('settings.admin.llmConfig.fields.reasoningDefault')}
-                    </SelectItem>
-                    {selectedModelCapabilities.effort_values.map(ev => (
-                      <SelectItem key={ev} value={ev}>
-                        {ev}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+          <ReasoningSection
+            form={form}
+            caps={selectedModelCapabilities}
+            anthropicThinkingActive={anthropicThinkingActive}
+            isModified={isModified}
+            onReasoningChange={handleReasoningChange}
+            onEffortChange={effort => setForm({ ...form, effort })}
+            t={t}
+          />
         </div>
 
         <DialogFooter className="flex justify-between sm:justify-between">

@@ -11,6 +11,7 @@ from src.domains.agents.services.analysis import (
     get_memory_resolver,
     get_routing_decider,
 )
+from src.domains.agents.services.analysis.routing_decider import reset_routing_decider
 
 
 class TestMemoryResolver:
@@ -93,6 +94,15 @@ class TestGoalInferrer:
 
 class TestRoutingDecider:
     """Tests for RoutingDecider."""
+
+    def setup_method(self):
+        """Reset the module singleton so these default-threshold assertions are
+        immune to any prior test that reconfigured it (order-independence)."""
+        reset_routing_decider()
+
+    def teardown_method(self):
+        """Leave the singleton clean for whatever runs next."""
+        reset_routing_decider()
 
     def test_routing_decider_initialization(self):
         """Test that RoutingDecider can be instantiated."""

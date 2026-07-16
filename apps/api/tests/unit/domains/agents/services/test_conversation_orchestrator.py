@@ -239,39 +239,6 @@ class TestConversationOrchestrator:
                 assert context.oauth_scopes == expected_scopes
 
     @pytest.mark.asyncio
-    async def test_persist_messages_logs_correctly(self, orchestrator, sample_conversation_id):
-        """Test persist_messages logs message count."""
-        # Arrange
-        messages = [MagicMock(), MagicMock(), MagicMock()]
-        tracking_context = MagicMock()
-
-        # Act (currently just logs, TODO: implement persistence)
-        await orchestrator.persist_messages(
-            conversation_id=sample_conversation_id,
-            messages=messages,
-            tracking_context=tracking_context,
-        )
-
-        # Assert: No exception raised (persistence not yet implemented)
-        # This test validates the method signature and basic execution
-
-    @pytest.mark.asyncio
-    async def test_persist_messages_with_empty_list(self, orchestrator, sample_conversation_id):
-        """Test persist_messages handles empty message list."""
-        # Arrange
-        messages = []
-        tracking_context = MagicMock()
-
-        # Act
-        await orchestrator.persist_messages(
-            conversation_id=sample_conversation_id,
-            messages=messages,
-            tracking_context=tracking_context,
-        )
-
-        # Assert: No exception raised
-
-    @pytest.mark.asyncio
     async def test_finalize_conversation_returns_summary(
         self, orchestrator, sample_conversation_id
     ):

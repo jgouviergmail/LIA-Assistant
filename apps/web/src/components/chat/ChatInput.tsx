@@ -375,7 +375,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const showSendMode = hasMessage || isProcessing || voiceModeEnabled;
 
   return (
+    // role="presentation": drag-and-drop is a pointer-only convenience — the
+    // universal path to attachments is the labelled attach button + file
+    // input below (audit F012/F045).
     <div
+      role="presentation"
       className={cn(
         'border-t bg-card px-4 py-4 sm:px-6 relative',
         isDragOver && 'ring-2 ring-primary ring-inset bg-primary/5',
@@ -400,6 +404,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             multiple
             className="hidden"
             onChange={handleFileSelect}
+            aria-label={t('chat.attachments.add')}
           />
           {/* Paperclip button */}
           {attachmentsEnabled && (
@@ -431,6 +436,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             }}
             onKeyDown={handleKeyDown}
             placeholder={getPlaceholder()}
+            aria-label={getPlaceholder()}
             className="flex-1 resize-none rounded-lg border border-input bg-background px-4 py-3 text-base mobile:text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-transparent mobile:placeholder:text-muted-foreground"
             rows={1}
             disabled={disabled || !apiAvailable}

@@ -122,6 +122,33 @@ def _cleanup_query_cache() -> None:
         del _query_cache[oldest_key]
 
 
+async def _compute_query_embedding(key: str, query: str) -> list[float]:
+    """Shared single-flight body: embed, cache on success, always deregister.
+
+    Owning the cache-write and the in-flight cleanup here (not in the callers)
+    lets the embed survive a caller's cancellation: callers await it through
+    ``asyncio.shield`` (F016), so a local cancellation never destroys the shared
+    computation for the other waiters. Policy when every waiter is cancelled: the
+    task still runs to completion and populates the cache — the work is not
+    wasted and a later identical query reuses it within the TTL. On failure the
+    cache is left untouched (the ``finally`` only pops the in-flight entry), so
+    the next caller retries with a fresh task.
+    """
+    try:
+        vector = await get_rag_embeddings().aembed_query(query)
+        _query_cache[key] = (time.monotonic(), vector)
+        return vector
+    finally:
+        _query_inflight.pop(key, None)
+
+
+def _drain_task_exception(task: asyncio.Task[list[float]]) -> None:
+    """Retrieve a finished task's exception so a fully-abandoned embed (all
+    waiters cancelled) does not emit 'Task exception was never retrieved'."""
+    if not task.cancelled():
+        task.exception()
+
+
 async def embed_rag_query_cached(query: str) -> list[float]:
     """Embed a RAG query with an in-process TTL cache and single-flight dedup.
 
@@ -148,18 +175,15 @@ async def embed_rag_query_cached(query: str) -> list[float]:
         return cached[1]
 
     inflight = _query_inflight.get(key)
-    if inflight is not None:
+    if inflight is None:
+        # The shared task owns the embed, the cache-write and its own in-flight
+        # cleanup (see _compute_query_embedding).
+        inflight = asyncio.create_task(_compute_query_embedding(key, query))
+        inflight.add_done_callback(_drain_task_exception)
+        _query_inflight[key] = inflight
+    else:
         logger.debug("rag_query_embedding_inflight_join", key=key[-12:])
-        return await inflight
 
-    # create_task detaches the embed from the first caller's cancellation
-    # scope: if that caller is cancelled, joiners still get their result.
-    task = asyncio.create_task(get_rag_embeddings().aembed_query(query))
-    _query_inflight[key] = task
-    try:
-        vector = await task
-    finally:
-        _query_inflight.pop(key, None)
-
-    _query_cache[key] = (time.monotonic(), vector)
-    return vector
+    # shield: a local cancellation (initiator OR joiner) must NOT cancel the
+    # shared embed for the other waiters (F016).
+    return await asyncio.shield(inflight)

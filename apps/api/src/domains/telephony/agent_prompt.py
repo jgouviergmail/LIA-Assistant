@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.core.i18n_telephony import get_disclosure_first_message
-from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.telephony.prompts.loader import load_telephony_prompt
 
 # Structured data the agent must collect during the call. The identifiers MUST
 # match the keys read by return_synthesis._extract_structured / StructuredCallData
@@ -78,7 +78,7 @@ def build_agent_config(user_language: str, user_name: str) -> AgentConfig:
     first_message = get_disclosure_first_message(user_language)
     return AgentConfig(
         name=f"LIA telephony — {user_name}",
-        system_prompt=load_prompt("telephony_agent_system_prompt", "v1"),
+        system_prompt=load_telephony_prompt("telephony_agent_system_prompt", "v1"),
         first_message=first_message,
         language=lang,
         data_collection=_DATA_COLLECTION,

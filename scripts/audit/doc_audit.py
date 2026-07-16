@@ -23,6 +23,14 @@ regressions:
 - **ROADMAP** — planning documents whose paths are intentionally
   prospective (``NANOBOT_INTEGRATION_ROADMAP.md``).
 
+One escalation refines the HISTORICAL leniency (audit F024): a broken link
+whose target is *another ADR file* (``ADR-<n>-*.md`` / ``ADR_INDEX.md``),
+found inside an ADR whose number is present in ``ADR_INDEX.md`` (an
+*actively-indexed* ADR), is promoted back to LIVING. ADR cross-links are
+navigation between living decisions, so a dangling one is real drift — while
+the annotated stale *code* paths (``*.py``) and deleted session/optim
+documents that ADRs legitimately reference stay HISTORICAL (tolerated).
+
 Exit code is 1 when at least one LIVING broken link is found (stale code
 paths alone do not fail the run: the remaining ones are deliberate
 placeholders such as ``my_service_client.py`` or annotated examples).
@@ -44,10 +52,67 @@ CODE_PATH_RE = re.compile(
     r"(?<![\w/.-])((?:apps/(?:api|web)/|src/|scripts/|infrastructure/)[\w./-]+"
     r"\.(?:py|tsx|ts|txt|yaml|yml|json|sh|md|mmd|html|sql|toml))(?![\w-])"
 )
+# Illustrative placeholder paths in creation guides / templates (``my_service``,
+# ``mon_type``, ``xxx_...``, ``YYYY_MM_DD-...``, ``apps/web/.../x.ts``). They
+# never point at a real file by design, so they are not documentation drift and
+# must not be counted as stale.
+_PLACEHOLDER_RE = re.compile(
+    r"(?:^|/)(?:my_|mon_|ton_|votre_|vos_|your_|new_card|new_service|example_)"
+    r"|/(?:my_domain|my_feature|mon_domaine)(?:/|\.|$)"
+    r"|xxx|YYYY|MM_DD|/\.\.\.(?:/|$)|_here(?:\.|/|$)|<[a-z_]+>",
+    re.IGNORECASE,
+)
+# The doc itself may explicitly flag a path as non-existent — a removed file, an
+# example/uncommitted script, a "create this" instruction, a not-found note, or
+# a rename history. Such a path is honest documentation, not drift, so a line
+# carrying one of these markers is skipped.
+_ANNOTATION_RE = re.compile(
+    r"\[obsolete\]|obsol[eè]te|deprecated|d[ée]pr[ée]ci"
+    r"|n'existe\s+(?:plus|pas)|removed|supprim|introuvable"
+    r"|exemple|example|non\s+commit|not\s+committed|illustrat"
+    r"|create\s+new|to\s+create|to\s+be\s+created|[cç]r[ée]er|\bcreer\b|à\s+cr[ée]er"
+    r"|non\s+trouv|not\s+found|anciennement|formerly|renomm|renamed|remplac"
+    r"|propos[ée]|proposed|planifi|planned|futur|hypoth",
+    re.IGNORECASE,
+)
+
+
+def _line_at(text: str, pos: int) -> str:
+    """Return the full source line containing ``pos``."""
+    start = text.rfind("\n", 0, pos) + 1
+    end = text.find("\n", pos)
+    return text[start:] if end == -1 else text[start:end]
+
+
+def _prev_nonblank_line(text: str, pos: int) -> str:
+    """Return the nearest non-blank line above the one containing ``pos``.
+
+    Commands are commonly annotated on the comment line just above them
+    (``# ... (exemple)`` / ``# Convert ... (script non commité)``), so the
+    annotation lookup considers that line too.
+    """
+    line_start = text.rfind("\n", 0, pos) + 1
+    cursor = line_start
+    while cursor > 0:
+        prev_end = cursor - 1  # the '\n' terminating the previous line
+        prev_start = text.rfind("\n", 0, prev_end) + 1
+        candidate = text[prev_start:prev_end]
+        if candidate.strip():
+            return candidate
+        cursor = prev_start
+    return ""
 EXTERNAL_PREFIXES = ("http://", "https://", "mailto:", "#", "tel:")
 
 HISTORICAL_MARKERS = ("docs/architecture/ADR-", "docs/superpowers/")
 ROADMAP_BASENAMES = {"NANOBOT_INTEGRATION_ROADMAP.md"}
+ADR_INDEX_REL = "docs/architecture/ADR_INDEX.md"
+
+# ``ADR-007`` in any surrounding text → the zero-padded canonical number.
+_ADR_NUMBER_RE = re.compile(r"ADR-(\d+)")
+# A link *target* whose final path segment is another ADR document.
+_ADR_DOC_LINK_RE = re.compile(
+    r"(?:^|/)(?:ADR-\d+[\w.-]*|ADR_INDEX)\.md$", re.IGNORECASE
+)
 
 Finding = tuple[str, int, str]
 
@@ -59,6 +124,39 @@ def _classify(rel_posix: str) -> str:
     if rel_posix.rsplit("/", 1)[-1] in ROADMAP_BASENAMES:
         return "ROADMAP"
     return "LIVING"
+
+
+def _adr_number(text: str) -> str | None:
+    """Return the zero-padded ADR number found in ``text`` (e.g. ``007``), if any."""
+    match = _ADR_NUMBER_RE.search(text)
+    return match.group(1).zfill(3) if match else None
+
+
+def _indexed_adr_numbers(root: Path) -> frozenset[str]:
+    """Zero-padded ADR numbers referenced in ``ADR_INDEX.md`` (the active set).
+
+    Returns an empty set when the index is absent, which disables the F024
+    escalation entirely (fail-safe: never invents a regression).
+    """
+    index = root / ADR_INDEX_REL
+    if not index.exists():
+        return frozenset()
+    text = index.read_text(encoding="utf-8", errors="replace")
+    return frozenset(m.group(1).zfill(3) for m in _ADR_NUMBER_RE.finditer(text))
+
+
+def _is_indexed_adr(rel_posix: str, indexed: frozenset[str]) -> bool:
+    """True when ``rel_posix`` is an ADR file whose number is actively indexed."""
+    if not rel_posix.startswith("docs/architecture/ADR-"):
+        return False
+    number = _adr_number(rel_posix.rsplit("/", 1)[-1])
+    return number is not None and number in indexed
+
+
+def _is_adr_doc_link(target: str) -> bool:
+    """True when a link target points at another ADR document (not code)."""
+    path_part = target.split("#")[0]
+    return bool(_ADR_DOC_LINK_RE.search(path_part))
 
 
 def _blank_code_regions(text: str) -> str:
@@ -74,7 +172,11 @@ def _blank_code_regions(text: str) -> str:
 def _doc_files(root: Path) -> list[Path]:
     """Collect the documentation files under audit."""
     files = sorted(root.glob("docs/**/*.md"))
-    for extra in (root / "README.md", root / "CLAUDE.md", root / "apps" / "web" / "CLAUDE.md"):
+    for extra in (
+        root / "README.md",
+        root / "CLAUDE.md",
+        root / "apps" / "web" / "CLAUDE.md",
+    ):
         if extra.exists():
             files.append(extra)
     return files
@@ -92,7 +194,9 @@ def _check_links(root: Path, doc: Path, text_nocode: str) -> list[Finding]:
         if not path_part:
             continue
         candidate = (
-            root / path_part.lstrip("/") if path_part.startswith("/") else doc.parent / path_part
+            root / path_part.lstrip("/")
+            if path_part.startswith("/")
+            else doc.parent / path_part
         )
         try:
             exists = candidate.resolve().exists()
@@ -110,6 +214,12 @@ def _check_code_paths(root: Path, doc: Path, text: str) -> list[Finding]:
     rel = doc.relative_to(root).as_posix()
     for match in CODE_PATH_RE.finditer(text):
         path = match.group(1).rstrip(".")
+        if _PLACEHOLDER_RE.search(path):
+            continue  # illustrative placeholder, not a real (stale) reference
+        if _ANNOTATION_RE.search(_line_at(text, match.start())) or _ANNOTATION_RE.search(
+            _prev_nonblank_line(text, match.start())
+        ):
+            continue  # the doc itself flags the path as absent/example/to-create
         candidates = (
             root / path,
             root / "apps" / "api" / path,
@@ -124,6 +234,36 @@ def _check_code_paths(root: Path, doc: Path, text: str) -> list[Finding]:
     return findings
 
 
+def audit(root: Path) -> dict[str, dict[str, list[Finding]]]:
+    """Scan the documentation base and return classified drift findings.
+
+    The returned mapping has two tables (``broken`` links and ``stale`` code
+    paths), each keyed by section (``LIVING`` / ``HISTORICAL`` / ``ROADMAP``).
+    The F024 escalation is applied here: broken ADR→ADR links inside an
+    actively-indexed ADR move from HISTORICAL to LIVING.
+    """
+    broken: dict[str, list[Finding]] = {"LIVING": [], "HISTORICAL": [], "ROADMAP": []}
+    stale: dict[str, list[Finding]] = {"LIVING": [], "HISTORICAL": [], "ROADMAP": []}
+    indexed = _indexed_adr_numbers(root)
+
+    for doc in _doc_files(root):
+        rel_posix = doc.relative_to(root).as_posix()
+        section = _classify(rel_posix)
+        text = doc.read_text(encoding="utf-8", errors="replace")
+        links = _check_links(root, doc, _blank_code_regions(text))
+        if section == "HISTORICAL" and _is_indexed_adr(rel_posix, indexed):
+            for finding in links:
+                target = finding[2]
+                broken["LIVING" if _is_adr_doc_link(target) else "HISTORICAL"].append(
+                    finding
+                )
+        else:
+            broken[section].extend(links)
+        stale[section].extend(_check_code_paths(root, doc, text))
+
+    return {"broken": broken, "stale": stale}
+
+
 def main(argv: list[str]) -> int:
     """Run the audit and print per-class reports."""
     args = [arg for arg in argv[1:] if not arg.startswith("--")]
@@ -133,15 +273,8 @@ def main(argv: list[str]) -> int:
         print(f"error: no docs/ directory under {root}", file=sys.stderr)
         return 2
 
-    broken: dict[str, list[Finding]] = {"LIVING": [], "HISTORICAL": [], "ROADMAP": []}
-    stale: dict[str, list[Finding]] = {"LIVING": [], "HISTORICAL": [], "ROADMAP": []}
-
-    for doc in _doc_files(root):
-        rel_posix = doc.relative_to(root).as_posix()
-        section = _classify(rel_posix)
-        text = doc.read_text(encoding="utf-8", errors="replace")
-        broken[section].extend(_check_links(root, doc, _blank_code_regions(text)))
-        stale[section].extend(_check_code_paths(root, doc, text))
+    report = audit(root)
+    broken, stale = report["broken"], report["stale"]
 
     for title, table in (("BROKEN LINKS", broken), ("STALE CODE PATHS", stale)):
         for section in ("LIVING", "HISTORICAL", "ROADMAP"):

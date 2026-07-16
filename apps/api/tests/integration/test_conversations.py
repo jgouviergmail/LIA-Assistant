@@ -6,6 +6,7 @@ Tests conversation management, message archival, and soft delete operations.
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.conversations.models import Conversation, ConversationMessage
@@ -88,16 +89,20 @@ async def test_list_conversation_messages_empty(
     assert data["conversation_id"] == str(user.id)
 
 
-@pytest.mark.skip(
-    reason="Test logic needs update: total_count returns user message count, not total messages. Also needs investigation into message filtering during testcontainer setup."
-)
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_list_conversation_messages_with_pagination(
     authenticated_client: tuple[AsyncClient, User],
     async_session: AsyncSession,
 ):
-    """Test listing messages with pagination."""
+    """Test listing messages with pagination (current contract).
+
+    ``total_count`` is NOT a global message total: it counts the USER messages
+    of the RETURNED PAGE (router: ``total_user_messages`` — "semantics
+    preserved for backwards compatibility; not a global total"). With three
+    messages (user/assistant/user) and ``limit=2``, the newest-first page is
+    [Message 3 (user), Message 2 (assistant)] → ``total_count == 1``.
+    """
     client, user = authenticated_client
 
     # Create conversation
@@ -127,51 +132,71 @@ async def test_list_conversation_messages_with_pagination(
     assert response.status_code == 200
     data = response.json()
     assert len(data["messages"]) == 2
-    assert data["total_count"] == 3
     assert data["conversation_id"] == str(user.id)
     # Messages are returned newest first (DESC order by created_at)
     assert data["messages"][0]["content"] == "Message 3"
     assert data["messages"][1]["content"] == "Message 2"
+    # Page-scoped USER-message count: only "Message 3" is role=user here.
+    assert data["total_count"] == 1
+    # Pagination contract: one older message remains.
+    assert data["has_more"] is True
+    assert data["next_cursor"] is not None
 
 
-@pytest.mark.skip(
-    reason="INFRASTRUCTURE: reset endpoint tries to delete from checkpoint tables which don't exist in test DB"
-)
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_reset_conversation_soft_delete(
+async def test_reset_conversation_preserves_record_and_purges(
     authenticated_client: tuple[AsyncClient, User],
     async_session: AsyncSession,
 ):
-    """Test soft delete of conversation via reset endpoint."""
+    """Reset endpoint (current contract): purge + counters to zero, NO soft delete.
+
+    ``reset_conversation`` deliberately does NOT set ``deleted_at`` (it would
+    hit the id=user_id unique constraint on recreation — see the service
+    docstring): the conversation record survives with its counters reset and
+    its messages purged, and GET /me keeps returning it.
+    """
     client, user = authenticated_client
 
-    # Create conversation
+    # Create conversation with one real message to prove the purge.
     conversation = Conversation(
         id=user.id,
         user_id=user.id,
-        title="To Delete",
+        title="To Reset",
         message_count=5,
         total_tokens=100,
     )
     async_session.add(conversation)
+    async_session.add(
+        ConversationMessage(conversation_id=user.id, role="user", content="Before reset")
+    )
     await async_session.commit()
 
-    # Reset conversation (soft delete)
     response = await client.post("/api/v1/conversations/me/reset")
 
     assert response.status_code == 200
     data = response.json()
+    assert data["status"] == "success"
     assert data["previous_message_count"] == 5
 
-    # Verify soft delete (deleted_at should be set)
+    # The conversation record SURVIVES (no soft delete), counters reset.
     await async_session.refresh(conversation)
-    assert conversation.deleted_at is not None
+    assert conversation.deleted_at is None
+    assert conversation.message_count == 0
+    assert conversation.total_tokens == 0
 
-    # Verify can't get deleted conversation (returns null)
+    # Messages are purged.
+    result = await async_session.execute(
+        select(ConversationMessage).where(ConversationMessage.conversation_id == user.id)
+    )
+    assert list(result.scalars().all()) == []
+
+    # GET /me still returns the (reset) conversation, not null.
     response = await client.get("/api/v1/conversations/me")
     assert response.status_code == 200
-    assert response.json() is None
+    body = response.json()
+    assert body is not None
+    assert body["message_count"] == 0
 
 
 @pytest.mark.asyncio

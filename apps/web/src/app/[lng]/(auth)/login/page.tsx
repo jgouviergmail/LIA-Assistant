@@ -57,7 +57,7 @@ export default async function LoginPage({ params }: LoginPageProps) {
             {t('auth.login_page.no_account')}{' '}
             <Link
               href={registerHref}
-              className="font-bold text-primary hover:text-primary/80 transition-colors underline underline-offset-4"
+              className="font-bold text-primary hover:text-primary/90 transition-colors underline underline-offset-4"
             >
               {t('auth.login_page.signup_link')}
             </Link>

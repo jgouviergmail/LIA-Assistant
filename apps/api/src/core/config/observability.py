@@ -10,10 +10,12 @@ Phase: PHASE 2.1 - Config Split
 Created: 2025-11-20
 """
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    APP_VERSION_DEFAULT,
+    BUILD_DATE_DEFAULT,
     EVALUATOR_HALLUCINATION_MAX_TOKENS_DEFAULT,
     EVALUATOR_LATENCY_ACCEPTABLE_THRESHOLD_MS_DEFAULT,
     EVALUATOR_LATENCY_EXCELLENT_THRESHOLD_MS_DEFAULT,
@@ -21,6 +23,7 @@ from src.core.constants import (
     EVALUATOR_LATENCY_SLOW_THRESHOLD_MS_DEFAULT,
     EVALUATOR_RELEVANCE_MAX_TOKENS_DEFAULT,
     GEOIP_DB_PATH_DEFAULT,
+    GIT_COMMIT_SHA_DEFAULT,
     LANGFUSE_FLUSH_INTERVAL_DEFAULT,
     LANGFUSE_SAMPLE_RATE_DEFAULT,
     LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT,
@@ -41,6 +44,33 @@ class ObservabilitySettings(BaseSettings):
         default=OTEL_SERVICE_NAME_DEFAULT,
         description="Service name for tracing",
     )
+
+    # Build provenance (audit F030) — injected at build/deploy so a running
+    # artifact is precisely identifiable across OTel, Langfuse, /health and logs.
+    app_version: str = Field(
+        default=APP_VERSION_DEFAULT,
+        description="Release version of the running artifact (env APP_VERSION).",
+    )
+    git_commit_sha: str = Field(
+        default=GIT_COMMIT_SHA_DEFAULT,
+        validation_alias=AliasChoices("GIT_COMMIT_SHA", "GITHUB_SHA"),
+        description="Git commit the artifact was built from (env GIT_COMMIT_SHA/GITHUB_SHA).",
+    )
+    build_date: str = Field(
+        default=BUILD_DATE_DEFAULT,
+        description="ISO-8601 UTC build timestamp (env BUILD_DATE).",
+    )
+
+    @property
+    def build_release(self) -> str:
+        """Human-readable ``version+shortsha`` release tag for tracing/Langfuse.
+
+        Falls back to the bare version when the commit SHA was not injected.
+        """
+        sha = self.git_commit_sha
+        if sha and sha != GIT_COMMIT_SHA_DEFAULT:
+            return f"{self.app_version}+{sha[:12]}"
+        return self.app_version
 
     # Prometheus
     prometheus_metrics_port: int = Field(
@@ -66,8 +96,12 @@ class ObservabilitySettings(BaseSettings):
         description="Langfuse secret key (authentication)",
     )
     langfuse_release: str = Field(
-        default="development",
-        description="Release version for tracking deployments",
+        default="",
+        description=(
+            "Explicit Langfuse release tag. Leave empty to use the build "
+            "provenance (build_release = app_version+commit) so deployments are "
+            "identifiable instead of a fixed 'development' label (audit F030)."
+        ),
     )
     langfuse_sample_rate: float = Field(
         default=LANGFUSE_SAMPLE_RATE_DEFAULT,

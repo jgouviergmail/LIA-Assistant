@@ -241,10 +241,10 @@ class PricingCacheService:
 
             # Store in Redis with TTL from settings
             ttl_seconds = settings.llm_pricing_cache_ttl_seconds
-            await self.redis.setex(
+            await self.redis.set(
                 self._cache_key,
-                ttl_seconds,
                 cache_data.to_json(),
+                ex=ttl_seconds,
             )
 
             # Update local cache for sync access

@@ -127,7 +127,12 @@ export function getPasswordRequirementChecks(
 
 /**
  * Escape special regex characters.
+ *
+ * The `-` MUST be escaped: PASSWORD_SPECIAL_CHARS is interpolated into a
+ * character class, and an unescaped `-` between two characters (e.g. the
+ * `+-=` fragment) forms a range (`\+..=`, 0x2B..0x3D) that would wrongly
+ * capture the digits 0-9 as "special" — weakening the min-special rule.
  */
 function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return string.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
 }

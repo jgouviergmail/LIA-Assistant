@@ -612,7 +612,7 @@ fi
 
 **Make executable**:
 ```bash
-chmod +x infrastructure/observability/scripts/cleanup_disk_space.sh
+chmod +x infrastructure/observability/scripts/cleanup_disk_space.sh  # (script à créer)
 ```
 
 **Setup cron job** (on host):

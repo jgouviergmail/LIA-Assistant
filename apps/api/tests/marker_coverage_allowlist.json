@@ -1,0 +1,23 @@
+{
+  "_comment": "Audit F006 — collected tests that run in NO per-PR CI job. SHRINK-ONLY, enforced by scripts/audit/check_test_marker_coverage.py (a stale entry that has become non-orphaned FAILS the gate). Reduced 38 -> 17 -> 11 on 2026-07-14: the 6 'integration_under_unit' entries were resolved — 3 dead skip-only tests (2 lifetime-metrics placeholders + 1 superseded gmail rate-limit test) were DELETED, and the 3 real message-pagination cursor tests now run in the integration PR job via its cross-root `-m integration` collection over tests/unit + tests/agents (proven against real PostgreSQL). The remaining 11 are all legitimately-periodic infra tests.",
+  "_meta": {
+    "owner": "backend-platform (repo maintainer)",
+    "review_by": "2026-10-01",
+    "categories": {
+      "on_demand_infra": "e2e / benchmark / multiprocess / perf — infra-sensitive and slow, deliberately excluded from per-PR jobs by their markers and run on demand via 'task test:backend:slow'. Legitimately out-of-PR; not a debt to erase."
+    }
+  },
+  "allow": [
+    "tests/agents/test_phase32_e2e_integration.py::TestLLMConfigE2E::test_new_pattern_llm_agent_config_override",
+    "tests/agents/test_phase32_e2e_integration.py::TestLLMConfigE2E::test_planner_override_backward_compatibility",
+    "tests/agents/test_phase32_e2e_integration.py::TestLLMConfigE2E::test_response_node_with_centralized_config",
+    "tests/agents/test_phase32_e2e_integration.py::TestLLMConfigE2E::test_router_node_with_centralized_config",
+    "tests/integration/test_checkpointer_pool_benchmark.py::test_pooled_checkpointer_beats_single_connection[4096]",
+    "tests/integration/test_checkpointer_pool_benchmark.py::test_pooled_checkpointer_beats_single_connection[65536]",
+    "tests/integration/test_redis_limiter_integration.py::TestRedisRateLimiterPerformance::test_acquire_latency",
+    "tests/integration/test_redis_limiter_integration.py::TestRedisRateLimiterPerformance::test_concurrent_throughput",
+    "tests/integration/test_redis_limiter_multiprocess.py::TestRedisRateLimiterMultiProcess::test_high_concurrency_no_race_conditions",
+    "tests/integration/test_redis_limiter_multiprocess.py::TestRedisRateLimiterMultiProcess::test_multiple_processes_respect_global_limit",
+    "tests/integration/test_redis_limiter_multiprocess.py::TestRedisRateLimiterMultiProcess::test_sliding_window_across_processes"
+  ]
+}

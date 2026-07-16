@@ -24,7 +24,7 @@
     "domains/agents/services/golden_patterns.py": 696,
     "domains/agents/services/hitl/resumption_strategies.py": 948,
     "domains/agents/services/memory_extractor.py": 637,
-    "domains/agents/services/orchestration/service.py": 1189,
+    "domains/agents/services/orchestration/service.py": 758,
     "domains/agents/services/plan_pattern_learner.py": 639,
     "domains/agents/services/query_analyzer_service.py": 1142,
     "domains/agents/services/smart_planner_service.py": 1173,
@@ -53,9 +53,9 @@
     "domains/interests/services/extraction_service.py": 886,
     "domains/journals/extraction_service.py": 730,
     "domains/psyche/engine.py": 874,
-    "domains/psyche/service.py": 961,
+    "domains/psyche/service.py": 913,
     "domains/users/service.py": 740,
     "infrastructure/llm/structured_output.py": 623,
-    "infrastructure/observability/metrics_agents.py": 839
+    "infrastructure/observability/metrics_agents.py": 829
   }
 }

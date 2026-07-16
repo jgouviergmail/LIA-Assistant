@@ -557,7 +557,9 @@ class TestUploadDocument:
         assert create_data["original_filename"] == "report.pdf"
         assert create_data["content_type"] == "application/pdf"
         assert create_data["file_size"] == len(file_content)
-        assert create_data["status"] == RAGDocumentStatus.PROCESSING
+        # Durable-job (audit F001): uploads are created PENDING; process_document
+        # claims them (PENDING -> PROCESSING + lease).
+        assert create_data["status"] == RAGDocumentStatus.PENDING
 
     @pytest.mark.asyncio
     @patch("src.domains.rag_spaces.service.settings")

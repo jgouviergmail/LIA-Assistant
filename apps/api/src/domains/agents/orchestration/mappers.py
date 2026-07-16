@@ -39,6 +39,141 @@ logger = get_logger(__name__)
 # ============================================================================
 
 
+def _merge_contact_field(existing_value: Any, new_value: Any) -> Any:
+    """Return the "richer" of two values for one contact field.
+
+    Richness rule (order-independent — ROOT CAUSE FIX #2025-11-13): a present
+    value beats ``None``; a longer list, a dict with more keys, or a longer
+    (stripped) string beats a shorter one; on a tie or a type mismatch the
+    existing value is kept for stability. Each per-type rule collapses to a
+    single "keep the larger" comparison, provably equivalent to the former
+    explicit empty/longer/equal ladder (pinned by the merge characterization
+    tests).
+
+    Args:
+        existing_value: Value already accumulated for the field.
+        new_value: Value from the contact being merged in.
+
+    Returns:
+        Whichever value is richer, per the rule above.
+    """
+    if existing_value is None:
+        return new_value
+    if new_value is None:
+        return existing_value
+    if isinstance(existing_value, list) and isinstance(new_value, list):
+        return new_value if len(new_value) > len(existing_value) else existing_value
+    if isinstance(existing_value, dict) and isinstance(new_value, dict):
+        return new_value if len(new_value) > len(existing_value) else existing_value
+    if isinstance(existing_value, str) and isinstance(new_value, str):
+        return new_value if len(new_value.strip()) > len(existing_value.strip()) else existing_value
+    return existing_value
+
+
+def _merge_contacts(
+    resource_name: str, existing: dict[str, Any], contact: dict[str, Any]
+) -> dict[str, Any]:
+    """Merge two contacts sharing a ``resource_name`` field-by-field.
+
+    Applies :func:`_merge_contact_field` to every key present in either contact,
+    so the richer value wins per field regardless of which contact carried it
+    (search vs. get_details). Emits the same ``contact_merged_intelligent`` debug
+    trace as before the extraction.
+
+    Args:
+        resource_name: Shared identifier (for the debug trace).
+        existing: Contact already stored under ``resource_name``.
+        contact: Newly seen contact to merge in.
+
+    Returns:
+        A new dict holding the richer value for every field.
+    """
+    merged: dict[str, Any] = {}
+    all_keys = set(existing.keys()) | set(contact.keys())
+    for key in all_keys:
+        merged[key] = _merge_contact_field(existing.get(key), contact.get(key))
+
+    logger.debug(
+        "contact_merged_intelligent",
+        resource_name=resource_name,
+        existing_fields=list(existing.keys()),
+        new_fields=list(contact.keys()),
+        merged_fields=list(merged.keys()),
+        preserved_non_empty=sum(1 for k in all_keys if existing.get(k) and not contact.get(k)),
+    )
+    return merged
+
+
+def _upsert_contact(contacts_dict: dict[str, dict[str, Any]], contact: dict[str, Any]) -> None:
+    """Insert ``contact`` into ``contacts_dict``, deduplicating by resource_name.
+
+    ``resource_name`` (Google People API) is the dedup key; a synthetic key is
+    minted when it is absent so no contact is dropped. A repeat ``resource_name``
+    triggers an intelligent field-by-field merge (:func:`_merge_contacts`).
+
+    Args:
+        contacts_dict: Accumulator mapping resource_name -> merged contact
+            (mutated in place).
+        contact: Contact to add or merge.
+    """
+    resource_name = contact.get(FIELD_RESOURCE_NAME)
+    if not resource_name:
+        # Fallback: If no resource_name (should never happen with Google API),
+        # use a synthetic key to avoid losing the contact
+        resource_name = f"_synthetic_{len(contacts_dict)}"
+        logger.warning(
+            "contact_without_resource_name",
+            contact_preview=str(contact)[:200],
+        )
+
+    if resource_name in contacts_dict:
+        existing = contacts_dict[resource_name]
+        contacts_dict[resource_name] = _merge_contacts(resource_name, existing, contact)
+    else:
+        # New contact -> Add to dict
+        contacts_dict[resource_name] = contact
+
+
+def _extract_contacts_from_registry(
+    data_registry: dict[str, Any], contacts_dict: dict[str, dict[str, Any]]
+) -> None:
+    """Extract CONTACT items from the data registry into ``contacts_dict``.
+
+    Data-registry fallback (Phase 5.2 BugFix 2025-11-26): registry-enabled tools
+    leave only ``summary_for_llm`` text in the step results, storing the
+    structured contact under a ``type="CONTACT"`` RegistryItem. This pulls those
+    payloads in, keyed by resource_name (or item_id when absent) and
+    deduplicated against contacts already present.
+
+    Args:
+        data_registry: Registry mapping item_id -> RegistryItem dict.
+        contacts_dict: Accumulator mapping key -> contact (mutated in place).
+    """
+    for item_id, item in data_registry.items():
+        # RegistryItem structure: {"id": ..., "type": "CONTACT", "payload": {...}, "meta": {...}}
+        item_type = item.get("type", "")
+        if item_type == "CONTACT":
+            payload = item.get("payload", {})
+            if payload:
+                resource_name = payload.get(FIELD_RESOURCE_NAME)
+                if resource_name:
+                    # Use same deduplication logic
+                    if resource_name not in contacts_dict:
+                        contacts_dict[resource_name] = payload
+                        logger.debug(
+                            "registry_contact_extracted_from_registry",
+                            item_id=item_id,
+                            resource_name=resource_name,
+                        )
+                else:
+                    # Fallback: Use item_id as key if no resource_name
+                    contacts_dict[item_id] = payload
+                    logger.debug(
+                        "registry_contact_extracted_without_resource_name",
+                        item_id=item_id,
+                    )
+
+
 def _detect_and_normalize_contacts_result(
     step_results: list[dict[str, Any]],
     data_registry: dict[str, Any] | None = None,
@@ -115,133 +250,7 @@ def _detect_and_normalize_contacts_result(
             )
 
             for contact in result["contacts"]:
-                resource_name = contact.get(FIELD_RESOURCE_NAME)
-
-                # resource_name is the unique identifier from Google People API
-                # It's present in ALL contact objects (search, list, get_details)
-                if not resource_name:
-                    # Fallback: If no resource_name (should never happen with Google API),
-                    # use a synthetic key to avoid losing the contact
-                    resource_name = f"_synthetic_{len(contacts_dict)}"
-                    logger.warning(
-                        "contact_without_resource_name",
-                        contact_preview=str(contact)[:200],
-                    )
-
-                # Merge strategy: INTELLIGENT merge preserving non-empty values
-                # BUG FIX #2025-11-13: Previous naive merge ({**existing, **contact})
-                # would overwrite detailed fields from get_contact_details with empty
-                # fields from list_contacts executed in parallel.
-                #
-                # Example issue:
-                #   existing (from get_contact_details): {"names": "jean", "relations": ["spouse: Jane"]}
-                #   contact (from list_contacts):        {"names": "jean", "relations": []}
-                #   OLD merge result: {"names": "jean", "relations": []} ❌ Lost data!
-                #   NEW merge result: {"names": "jean", "relations": ["spouse: Jane"]} ✅
-                #
-                # Strategy: For each field, keep the value that is "richer":
-                # - Non-empty list/dict wins over empty list/dict
-                # - Non-None value wins over None
-                # - Non-empty string wins over empty string
-                if resource_name in contacts_dict:
-                    existing = contacts_dict[resource_name]
-                    merged: dict[str, Any] = {}
-
-                    # Get all unique keys from both contacts
-                    all_keys = set(existing.keys()) | set(contact.keys())
-
-                    for key in all_keys:
-                        existing_value = existing.get(key)
-                        new_value = contact.get(key)
-
-                        # Apply intelligent merge rules (richer data ALWAYS wins, order-independent)
-                        # ROOT CAUSE FIX #2025-11-13: Previous logic had asymmetric preference
-                        # for "existing" value when both values were equal-richness.
-                        # This caused order-dependent bugs: if list_all_fallback (minimal fields)
-                        # was processed AFTER get_details (full fields), minimal would overwrite full.
-                        #
-                        # NEW STRATEGY: Compare both values symmetrically for "richness" and always
-                        # choose the richer one, regardless of whether it's "existing" or "new".
-                        if existing_value is None:
-                            # Existing is None → use new value (even if also None)
-                            merged[key] = new_value
-                        elif new_value is None:
-                            # New is None but existing has value → keep existing
-                            merged[key] = existing_value
-                        elif isinstance(existing_value, list) and isinstance(new_value, list):
-                            # Both are lists → always prefer richer (longer) list
-                            # Empty list is LEAST rich, longer list is MORE rich
-                            existing_len = len(existing_value)
-                            new_len = len(new_value)
-
-                            if existing_len == 0 and new_len > 0:
-                                merged[key] = new_value  # Existing empty, new has data
-                            elif new_len == 0 and existing_len > 0:
-                                merged[key] = existing_value  # New empty, existing has data
-                            elif new_len > existing_len:
-                                merged[key] = new_value  # New has MORE items → richer
-                            elif existing_len > new_len:
-                                merged[key] = existing_value  # Existing has MORE items → richer
-                            else:
-                                # Equal length (both empty or same count) → keep existing for stability
-                                # This case is symmetric: both have equal richness
-                                merged[key] = existing_value
-                        elif isinstance(existing_value, dict) and isinstance(new_value, dict):
-                            # Both are dicts → prefer dict with more keys (richer)
-                            existing_keys_count = len(existing_value)
-                            new_keys_count = len(new_value)
-
-                            if existing_keys_count == 0 and new_keys_count > 0:
-                                merged[key] = new_value  # Existing empty, new has data
-                            elif new_keys_count == 0 and existing_keys_count > 0:
-                                merged[key] = existing_value  # New empty, existing has data
-                            elif new_keys_count > existing_keys_count:
-                                merged[key] = new_value  # New has MORE keys → richer
-                            elif existing_keys_count > new_keys_count:
-                                merged[key] = existing_value  # Existing has MORE keys → richer
-                            else:
-                                # Equal key count → keep existing for stability
-                                merged[key] = existing_value
-                        elif isinstance(existing_value, str) and isinstance(new_value, str):
-                            # Both are strings → prefer non-empty, then longer string
-                            existing_stripped = existing_value.strip()
-                            new_stripped = new_value.strip()
-
-                            if not existing_stripped and new_stripped:
-                                merged[key] = new_value  # Existing empty, new has text
-                            elif not new_stripped and existing_stripped:
-                                merged[key] = existing_value  # New empty, existing has text
-                            elif len(new_stripped) > len(existing_stripped):
-                                merged[key] = new_value  # New is LONGER → potentially richer
-                            elif len(existing_stripped) > len(new_stripped):
-                                merged[key] = (
-                                    existing_value  # Existing is LONGER → potentially richer
-                                )
-                            else:
-                                # Equal length → keep existing for stability
-                                merged[key] = existing_value
-                        else:
-                            # Fallback: different types or other cases
-                            # Prefer existing for type stability (avoid switching types)
-                            merged[key] = (
-                                existing_value if existing_value is not None else new_value
-                            )
-
-                    contacts_dict[resource_name] = merged
-
-                    logger.debug(
-                        "contact_merged_intelligent",
-                        resource_name=resource_name,
-                        existing_fields=list(existing.keys()),
-                        new_fields=list(contact.keys()),
-                        merged_fields=list(merged.keys()),
-                        preserved_non_empty=sum(
-                            1 for k in all_keys if existing.get(k) and not contact.get(k)
-                        ),
-                    )
-                else:
-                    # New contact → Add to dict
-                    contacts_dict[resource_name] = contact
+                _upsert_contact(contacts_dict, contact)
 
             # Preserve freshness metadata from first result
             if timestamp is None:
@@ -266,29 +275,7 @@ def _detect_and_normalize_contacts_result(
             "registry_fallback_extracting_contacts_from_registry",
             registry_items_count=len(data_registry),
         )
-        for item_id, item in data_registry.items():
-            # RegistryItem structure: {"id": ..., "type": "CONTACT", "payload": {...}, "meta": {...}}
-            item_type = item.get("type", "")
-            if item_type == "CONTACT":
-                payload = item.get("payload", {})
-                if payload:
-                    resource_name = payload.get(FIELD_RESOURCE_NAME)
-                    if resource_name:
-                        # Use same deduplication logic
-                        if resource_name not in contacts_dict:
-                            contacts_dict[resource_name] = payload
-                            logger.debug(
-                                "registry_contact_extracted_from_registry",
-                                item_id=item_id,
-                                resource_name=resource_name,
-                            )
-                    else:
-                        # Fallback: Use item_id as key if no resource_name
-                        contacts_dict[item_id] = payload
-                        logger.debug(
-                            "registry_contact_extracted_without_resource_name",
-                            item_id=item_id,
-                        )
+        _extract_contacts_from_registry(data_registry, contacts_dict)
 
         # Update all_contacts with extracted data
         all_contacts = list(contacts_dict.values())

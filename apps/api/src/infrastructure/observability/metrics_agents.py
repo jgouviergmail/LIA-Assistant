@@ -1288,8 +1288,16 @@ registry_draft_critique_questions_total = Counter(
 # ============================================================================
 # ADAPTIVE RE-PLANNER METRICS (INTELLIPLANNER Phase E - 2025-12-03)
 # ============================================================================
-# Metrics for AdaptiveRePlanner - intelligent recovery from execution failures
-# Tracks triggers, decisions, and recovery strategies
+# Metrics for AdaptiveRePlanner — ADVISORY failure-pattern analysis.
+#
+# The replanner computes a recovery decision after each plan execution, but the
+# orchestrator does NOT act on it (RETRY_SAME / REPLAN_* are advisory only —
+# automatic recovery is unwired, see task_orchestrator_node TODO D4). So only
+# what is genuinely observed is exported: the detected trigger and the advisory
+# decision. The former ``adaptive_replanner_attempts_total`` (always attempt 0,
+# no retry ever runs) and ``adaptive_replanner_recovery_success_total`` (counted
+# a "recovery" for every non-abort decision, including plain PROCEED, though
+# nothing was recovered) were factually false and have been removed (audit F017).
 
 adaptive_replanner_triggers_total = Counter(
     "adaptive_replanner_triggers_total",
@@ -1302,28 +1310,11 @@ adaptive_replanner_triggers_total = Counter(
 
 adaptive_replanner_decisions_total = Counter(
     "adaptive_replanner_decisions_total",
-    "Total re-planning decisions by type",
+    "Total advisory re-planning decisions by type (not acted upon — see TODO D4)",
     ["decision"],
     # decision: proceed, retry_same, replan_modified, replan_new, escalate_user, abort
-    # Tracks recovery strategy effectiveness
-    # High abort rate indicates unrecoverable failure patterns
-)
-
-adaptive_replanner_attempts_total = Counter(
-    "adaptive_replanner_attempts_total",
-    "Total re-planning attempts (retries)",
-    ["attempt_number"],
-    # attempt_number: 1, 2, 3, etc.
-    # Tracks how many retries are needed before success
-    # Ideally most successes at attempt 1
-)
-
-adaptive_replanner_recovery_success_total = Counter(
-    "adaptive_replanner_recovery_success_total",
-    "Successful recoveries by strategy",
-    ["strategy"],
-    # strategy: broaden_search, alternative_source, reduce_scope, skip_optional, add_verification
-    # Tracks which recovery strategies are most effective
+    # Tracks which advice the replanner produces for detected failures.
+    # High abort rate indicates unrecoverable failure patterns.
 )
 
 

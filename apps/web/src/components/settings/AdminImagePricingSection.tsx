@@ -360,7 +360,13 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                   ${parseFloat(entry.cost_per_image_usd).toFixed(4)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                {/* Named after the visible "Actions" column header (F012):
+                    the cell holds only icon-independent buttons, which carry
+                    their own names — the cell itself needs the column's. */}
+                <td
+                  className="px-6 py-4 whitespace-nowrap text-sm"
+                  aria-label={t('settings.admin.image_pricing.table.actions')}
+                >
                   <div className="flex gap-2">
                     <Button
                       variant="outline"

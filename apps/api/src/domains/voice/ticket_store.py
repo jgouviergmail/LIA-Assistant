@@ -108,10 +108,10 @@ class WebSocketTicketStore:
             }
         )
 
-        await self._redis.setex(
+        await self._redis.set(
             key,
-            self._ttl_seconds,
             ticket_data,
+            ex=self._ttl_seconds,
         )
 
         # Track ticket issuance

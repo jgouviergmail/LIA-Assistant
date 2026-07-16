@@ -1638,7 +1638,7 @@ Créer un agent `notes_agent` avec 3 tools :
 
 ### Fichier 2 : Tool Manifests
 
-**Fichier** : `src/domains/agents/notes/catalogue_manifests.py`
+**Fichier** *(exemple — domaine « notes » illustratif)* : `src/domains/agents/notes/catalogue_manifests.py`
 
 ```python
 """Catalogue manifests for Notes tools."""
@@ -1783,7 +1783,7 @@ __all__ = [
 
 ### Fichier 3 : Tool Implementation
 
-**Fichier** : `src/domains/agents/tools/notes_tools.py`
+**Fichier** *(exemple — domaine « notes » illustratif)* : `src/domains/agents/tools/notes_tools.py`
 
 ```python
 """Notes tools implementation."""

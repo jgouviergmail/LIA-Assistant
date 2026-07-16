@@ -293,8 +293,8 @@ def test_should_execute_agent_error_state():
 
 
 @pytest.mark.integration
-@pytest.mark.asyncio
-async def test_full_orchestration_flow_contacts(async_session):
+@pytest.mark.skip(reason="Integration test - requires full setup")
+async def test_full_orchestration_flow_contacts():
     """
     Integration test: Full orchestration flow for contacts search.
 
@@ -303,9 +303,13 @@ async def test_full_orchestration_flow_contacts(async_session):
     - Google Contacts connector activated
     - Mock Google API responses
 
-    Skipped in unit tests (requires @pytest.mark.integration).
+    Skipped at COLLECTION time (decorator, not a body ``pytest.skip()``): with
+    the skip in the body, pytest still instantiated the ``async_session``
+    fixture chain — spinning up the session-scoped Testcontainers PostgreSQL
+    (plus ryuk) for a test that never runs, blocking minutes on the first
+    connection and leaving a container teardown to hang at session end.
+    Tracked in permanent_skips_allowlist.json (coverage-gap, F019 follow-up).
     """
-    pytest.skip("Integration test - requires full setup")
 
 
 # ==============================================================================

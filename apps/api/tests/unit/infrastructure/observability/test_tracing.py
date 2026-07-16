@@ -55,6 +55,10 @@ class TestConfigureTracing:
         mock_settings.otel_exporter_otlp_endpoint = "http://localhost:4317"
         mock_settings.is_production = False
         mock_settings.http_log_exclude_paths = ["/health", "/metrics"]
+        # Build provenance (F030) now feeds the OTel resource.
+        mock_settings.app_version = "1.24.0"
+        mock_settings.git_commit_sha = "deadbeef1234"
+        mock_settings.build_date = "2026-07-13T00:00:00Z"
 
         # Setup mocks
         mock_resource = Mock()
@@ -78,7 +82,9 @@ class TestConfigureTracing:
         mock_resource_class.create.assert_called_once()
         resource_attrs = mock_resource_class.create.call_args[0][0]
         assert resource_attrs["service.name"] == "test-service"
-        assert resource_attrs["service.version"] == "0.1.0"
+        assert resource_attrs["service.version"] == "1.24.0"
+        assert resource_attrs["service.instance.commit_sha"] == "deadbeef1234"
+        assert resource_attrs["service.build_date"] == "2026-07-13T00:00:00Z"
         assert resource_attrs["deployment.environment"] == "test"
 
         # Verify tracer provider creation

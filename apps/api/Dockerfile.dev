@@ -94,7 +94,9 @@ COPY requirements-dev.lock.txt ./
 # Install Python dependencies with uv (10-100x faster than pip)
 # Exact pins + hash verification: dev containers match prod resolution.
 # No cache mount = Docker layer cache works = instant rebuild if lock unchanged
-RUN uv pip install --system --require-hashes -r requirements-dev.lock.txt
+# URLLIB3_NO_OVERRIDE + --no-binary urllib3-future: build the urllib3 fork
+# from sdist so it does NOT clobber the genuine urllib3 (see requirements.txt).
+RUN URLLIB3_NO_OVERRIDE=1 uv pip install --system --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
 
 # Copy STT model from model-downloader stage
 COPY --from=model-downloader /models/whisper-small /models/whisper-small

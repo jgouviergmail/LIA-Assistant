@@ -57,7 +57,7 @@ class TestGoogleClientInheritance:
         mock_redis = MagicMock()
         mock_redis.get = AsyncMock(return_value=None)
         mock_redis.set = AsyncMock(return_value=True)
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
 
         with patch(
             "src.domains.connectors.clients.base_oauth_client.get_redis_session",
@@ -98,7 +98,7 @@ class TestGoogleClientInheritance:
         mock_redis = MagicMock()
         mock_redis.get = AsyncMock(return_value=None)
         mock_redis.set = AsyncMock(return_value=True)
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
 
         with patch(
             "src.domains.connectors.clients.base_oauth_client.get_redis_session",
@@ -199,7 +199,7 @@ class TestClientRateLimiting:
         mock_redis = MagicMock()
         mock_redis.get = AsyncMock(return_value=None)
         mock_redis.set = AsyncMock(return_value=True)
-        mock_redis.setex = AsyncMock(return_value=True)
+        mock_redis.set = AsyncMock(return_value=True)
 
         with patch(
             "src.domains.connectors.clients.base_oauth_client.get_redis_session",

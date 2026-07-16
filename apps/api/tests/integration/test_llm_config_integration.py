@@ -89,19 +89,34 @@ class TestLLMConfigIntegration:
         assert all(isinstance(config, LLMAgentConfig) for config in configs.values())
 
     @pytest.mark.integration
-    @pytest.mark.skip(
-        reason="Callbacks are now added at invocation time via enrich_config_with_node_metadata, "
-        "not at LLM creation. Factory creates LLM without callbacks."
-    )
-    def test_llm_has_metrics_callback_attached(self):
-        """Test that created LLM has metrics callback."""
-        llm = get_llm("router")
+    def test_metrics_callback_attached_at_invocation_boundary(self):
+        """Metrics callbacks attach PER-INVOCATION, not at LLM creation.
 
-        assert llm.callbacks is not None
-        assert len(llm.callbacks) >= 1
-        # At least one callback should be MetricsCallbackHandler
-        has_metrics = any("MetricsCallbackHandler" in str(type(cb)) for cb in llm.callbacks)
-        assert has_metrics, "No MetricsCallbackHandler found in callbacks"
+        The factory deliberately creates callback-less LLMs; every node calls
+        ``enrich_config_with_node_metadata`` before invoking, which injects a
+        fresh ``MetricsCallbackHandler`` carrying the node name (dynamic
+        node_name tracking is impossible with creation-time callbacks) and
+        stamps ``metadata["langgraph_node"]``.
+        """
+        from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
+        from src.infrastructure.observability.callbacks import MetricsCallbackHandler
+
+        # Creation time: no callbacks, by design.
+        llm = get_llm("router")
+        assert not llm.callbacks
+
+        # Invocation boundary: the enriched config carries the metrics handler
+        # with the node name, and preserves pre-existing metadata.
+        enriched = enrich_config_with_node_metadata({"metadata": {"run_id": "t-1"}}, "router")
+
+        callbacks = enriched.get("callbacks") or []
+        metrics_handlers = [cb for cb in callbacks if isinstance(cb, MetricsCallbackHandler)]
+        assert len(metrics_handlers) == 1, "exactly one MetricsCallbackHandler per invocation"
+        assert metrics_handlers[0].node_name == "router"
+
+        metadata = enriched.get("metadata") or {}
+        assert metadata.get("langgraph_node") == "router"
+        assert metadata.get("run_id") == "t-1"
 
     @pytest.mark.integration
     def test_provider_selection_from_settings(self):

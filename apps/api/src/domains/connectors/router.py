@@ -1742,11 +1742,19 @@ async def validate_api_key(
         data.api_secret,
     )
 
+    # F034: a valid key is "functionally verified" only when a real provider probe
+    # ran (a verifier is registered for this type); otherwise it was format-checked
+    # only. Surfaced so the UI never shows a format-only key as a verified one.
+    from src.domains.connectors.api_key_verifiers import API_KEY_FUNCTIONAL_VERIFIERS
+
+    functionally_verified = is_valid and data.connector_type in API_KEY_FUNCTIONAL_VERIFIERS
+
     # Mask the key for response (show first 4 and last 4 chars)
     masked_key = f"{data.api_key[:4]}...{data.api_key[-4:]}" if len(data.api_key) > 8 else "****"
 
     return APIKeyValidationResponse(
         is_valid=is_valid,
+        functionally_verified=functionally_verified,
         message=message,
         masked_key=masked_key,
         expires_at=None,  # Could be detected for some services

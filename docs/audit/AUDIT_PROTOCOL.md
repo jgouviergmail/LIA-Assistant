@@ -37,10 +37,12 @@ step is executable by a human reviewer. A new audit cycle is triggered by a sing
    (`apps/api/tests/unit/test_file_size_ratchet_guard.py`, same SLOC semantics and
    exemptions): each audit cycle runs `task ratchet:update` so the caps follow the
    extractions — caps only go down, never up.
-6. **Register continuity.** Findings carry stable IDs across cycles (`R-…`, `R2-…`, `R3-…`).
-   Each new cycle starts by re-verifying every open item of the previous register in the
-   code before marking it resolved / partial / open. Resolved items cite their proof
-   (ADR, release, file).
+6. **Register continuity.** Findings carry stable IDs across cycles (historically `R-…`,
+   `F-…`; `AC-…` since the V11 framework). Each new cycle starts by re-verifying every open
+   item of the previous register in the code before marking it resolved / partial / open.
+   Resolved items cite their proof (ADR, release, file). Since V11 every finding also
+   carries a level (major / moderate / minor), an effort estimate (E1–E5) and a
+   self-contained resolution prompt executable by a coding AI.
 7. **Inline audit.** The audit is conducted in a single analysis context (no delegation of
    judgment); scripts may compute, but conclusions are drawn from directly examined evidence.
 
@@ -76,34 +78,50 @@ the **minimum evidence set** — an audit that skips one of these checks is not 
 | 23 | Functional suitability | Feature surface vs test coverage per stage, documented functional gaps (are they decisions or surprises?) |
 | 24 | Usability & accessibility | ARIA/focus/reduced-motion/lang signals (counted), alt coverage, i18n parity, formal WCAG pass status |
 
-**Cross-framework mapping** reported every cycle: ISO/IEC 25010 characteristics (security
-excluded), ISO/IEC 5055 (CISQ) structural-weakness coverage via the guard inventory, DORA
-four metrics (deployment frequency and lead time from git; CFR and MTTR from the incident
-register once it exists), WCAG 2.1 sampling for area 24.
+**Referentials (V11).** Product quality: ISO/IEC 25010:2023 with the ISO/IEC 25040:2024
+evaluation framework (security characteristic neutralized). Architecture: ISO/IEC/IEEE
+42010:2022. Test processes: ISO/IEC/IEEE 29119-2:2021; automated structural quality:
+ISO/IEC 5055:2021 via the guard/metric inventory. Interaction: WCAG 2.2 level AA as the
+control grid (WAI-ARIA practices; no full-conformity claim). DORA metrics are reported only
+where an observed series exists (deployment frequency and lead time from git; CFR and MTTR
+await the incident register — never scored as if observed). The audit is an internal
+assessment aligned on these referentials — it claims no accreditation or certification.
 
-## 3. Scoring discipline
+## 3. Scoring discipline (V11)
 
-- Scale 0–10 per area, in 0.5 steps. Anchors: **9+** exemplary with proof (would cite as
-  reference); **8–8.5** strong, deviations counted and bounded; **7–7.5** solid with a known
-  structural debt; **6–6.5** significant debt, remediation not yet structured; **≤5**
-  systemic weakness. A score without at least three cited evidence points is invalid.
-- The **global score** is the plain average over the 20 historical areas (like-for-like
-  continuity with previous cycles) — the 24-area average is reported alongside.
+- Scale 0–10 per area, in 0.5 steps. Anchors: **9.5–10** exemplary practice, broad proof,
+  negligible residuals; **8.5–9.0** mastered and industrialized, explicit limits or low
+  debt; **7.0–8.0** controlled and operational, substantial but bounded debt; **5.5–6.5**
+  fragile, incomplete proof or significant recurring defects; **≤5.0** insufficient or
+  undemonstrated on essential qualities. A score without at least three cited evidence
+  points is invalid.
+- The **global score** is the plain arithmetic mean of the 24 normalized areas (no implicit
+  weighting, security excluded), rounded to one decimal. The pre-V11 cycles used a
+  20-area like-for-like average: **scores across framework revisions are not comparable**
+  and the public history table must label the framework of each row.
+- A dedicated **counter-analysis section** records discarded false positives and corrected
+  false negatives (e.g. artifacts of a degraded dev server, or skipped tests whose
+  reactivation was the counter-proof).
 - Scores may go down. A regression (e.g. a file that regrew, a gate that was lowered) is
-  reported as such, never absorbed silently.
+  reported as such, never absorbed silently. Green ratchets prove non-regression only —
+  absolute debt values are what gets scored.
 
 ## 4. Outputs
 
-1. **Internal report** (full depth, file:line references, per-finding criticality S/M/L +
-   effort, remediation prompts ready to execute). Not published as-is.
-2. **Public report** — [docs/audit/README.md](./README.md), updated in place (it is a
-   showcase document, not a changelog). Structure is fixed: score banner (like-for-like +
-   24-area) · why we publish · method · 24-area scorecard with evidence highlights ·
-   the improvement loop table (finding → resolution → ADR) · open worksites · DORA ·
-   reproduce-it-yourself (including the transparency notes on known reproduction caveats) ·
-   audit history · auditor note. **Public-content rule:** open findings are phrased as
-   prioritized worksites; no exploitation-oriented detail, no internal line numbers —
-   everything stated must be visible in the repository anyway.
+1. **Standalone report** (HTML, versioned under `docs/audit/AUDIT_CODEBASE_<date>_CONSOLIDE_V<n>.html`):
+   opinion and global score, scope/exclusions, referentials and method, application view,
+   24-area scorecard, executed-evidence register, positive controls, worksites with levels
+   (major/moderate/minor), efforts (E1–E5) and AI resolution prompts, counter-analysis,
+   prioritization horizons, publication-fitness statement and annexes (test methodology,
+   scoring scale, quantitative inventory, limits, reproduction commands, references).
+2. **Public summary** — [docs/audit/README.md](./README.md), updated in place (it is a
+   showcase document, not a changelog), linking to the standalone report. Structure is
+   fixed: score banner · why we publish · scope/referentials/method · 24-area scorecard
+   with evidence highlights · the improvement loop table (finding → resolution) · open
+   worksites with sequencing · DORA · reproduce-it-yourself (with interpretation cautions) ·
+   audit history (framework-labeled) · auditor note. **Public-content rule:** open findings
+   are phrased as prioritized worksites; no exploitation-oriented detail, no internal line
+   numbers — everything stated must be visible in the repository anyway.
 3. **Register** carried to the next cycle (IDs, statuses, proofs).
 
 ## 5. Publication pipeline (the "update everything" checklist)

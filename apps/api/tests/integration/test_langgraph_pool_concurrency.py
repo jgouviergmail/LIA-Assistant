@@ -9,13 +9,13 @@ the pool-aware `_cursor` override and the real checkpoint SQL.
 The graph is deliberately trivial (one node incrementing a counter, no LLM):
 the subject under test is the persistence layer, not agent logic.
 
-Skipped on Windows for the same reason as tests/unit/test_checkpointer.py
-(psycopg v3 async requires SelectorEventLoop); runs in the Linux dev
+Note: psycopg v3 async requires a SelectorEventLoop, which the test suite
+provides on Windows (``conftest.pytest_asyncio_loop_factories``) — these
+tests RUN on Windows against Testcontainers, as well as in the Linux dev
 container and CI.
 """
 
 import asyncio
-import sys
 from typing import TypedDict, cast
 from uuid import uuid4
 
@@ -31,13 +31,7 @@ from src.domains.conversations.instrumented_checkpointer import (
     InstrumentedAsyncPostgresSaver,
 )
 
-pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
-    ),
-]
+pytestmark = pytest.mark.integration
 
 CONCURRENT_INVOCATIONS = 20
 

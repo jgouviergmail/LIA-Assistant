@@ -8,13 +8,38 @@ on:
 permissions:
   contents: write
   packages: write
+  actions: read # require-green-ci reads the CI workflow's conclusion for this SHA
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
+  # F008: a tag push must NOT publish images or cut a release for a commit whose
+  # CI (ci.yml) is not green. This gate requires the latest COMPLETED ci.yml run
+  # for the tagged SHA to have concluded 'success' before anything is built.
+  require-green-ci:
+    name: Require green CI for the tagged commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify ci.yml succeeded for this SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="${{ github.sha }}"
+          conclusion="$(gh run list --workflow=ci.yml --commit "$sha" \
+            --json conclusion,status \
+            --jq 'map(select(.status=="completed"))[0].conclusion // ""' \
+            -R "${{ github.repository }}")"
+          echo "ci.yml conclusion for ${sha}: ${conclusion:-<none>}"
+          if [ "${conclusion}" != "success" ]; then
+            echo "::error::Release blocked — ci.yml for ${sha} is '${conclusion:-missing/incomplete}', not 'success'. Ensure CI is green on the tagged commit, then re-run this release." >&2
+            exit 1
+          fi
+
   build-and-push:
     name: Build & Push Docker Images
+    needs: require-green-ci
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -79,6 +104,7 @@ jobs:
 
   generate-sbom:
     name: Generate SBOM
+    needs: require-green-ci
     runs-on: ubuntu-latest
 
     steps:

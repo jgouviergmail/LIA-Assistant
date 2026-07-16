@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 1.0
-**Date**: 2026-07-13
-**Application**: LIA v1.24.0
+**Date**: 2026-07-16
+**Application**: LIA v1.25.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,17 +13,17 @@
 
 LIA is a complete multi-agent AI assistant — business connectors, voice, memory, six languages — designed, built and continuously operated in production, as a personal project.
 
-Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **8.5/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
+Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **8.3/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
 
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 31 functional domains | **420,000** |
 | Automated tests, run on every commit and release | **10,000+** |
-| Documented architecture decisions (ADR) | **100+** |
+| Documented architecture decisions (ADR) | **120+** |
 | Versions shipped at a steady pace | **120+** |
 | Languages, parity checked automatically | **6** |
-| Technical audit across 24 areas | **8.5/10** |
+| Technical audit across 24 areas | **8.3/10** |
 
 Conviction from experience: AI-assisted development can be industrialized today. The limiting factor is not the tool — it is the management framework you give it.
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 100+ documented:
+Three structural decisions, among the 120+ documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -69,7 +69,7 @@ A system flown on instruments:
 
 ## 6. The proof
 
-The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. Latest assessment: **8.5/10**, with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. Latest assessment: **8.3/10**, with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Confirmed strengths:**
 

@@ -17,7 +17,9 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 # requirements.lock.txt is generated from requirements.txt via `task deps:lock`
 # (uv pip compile --universal): single multi-platform lock, installable by pip.
 COPY requirements.lock.txt .
-RUN pip install --user --no-cache-dir --require-hashes -r requirements.lock.txt
+# URLLIB3_NO_OVERRIDE + --no-binary urllib3-future: build the urllib3 fork
+# from sdist so it does NOT clobber the genuine urllib3 (see requirements.txt).
+RUN URLLIB3_NO_OVERRIDE=1 pip install --user --no-cache-dir --require-hashes --no-binary urllib3-future -r requirements.lock.txt
 
 # Install Playwright Chromium browser binary (stored in ~/.local/)
 # Required for browser agent (evolution F7). ARM64-compatible.
@@ -85,6 +87,16 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH=/home/appuser/.local/bin:$PATH \
     PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.local/playwright-browsers
+
+# Build provenance (audit F030) — pass at build time so the artifact carries its
+# own identity:  docker build --build-arg APP_VERSION=1.24.0 \
+#   --build-arg GIT_COMMIT_SHA=$(git rev-parse HEAD) --build-arg BUILD_DATE=$(date -u +%FT%TZ)
+ARG APP_VERSION=0.0.0-dev
+ARG GIT_COMMIT_SHA=unknown
+ARG BUILD_DATE=unknown
+ENV APP_VERSION=${APP_VERSION} \
+    GIT_COMMIT_SHA=${GIT_COMMIT_SHA} \
+    BUILD_DATE=${BUILD_DATE}
 
 # Install prerequisites for repository setup (curl, gnupg needed for apt key imports)
 RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg \

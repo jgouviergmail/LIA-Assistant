@@ -43,11 +43,29 @@ from src.infrastructure.observability.logging import get_logger
 if TYPE_CHECKING:
     from src.domains.chat.service import TrackingContext
     from src.domains.conversations.service import ConversationService
-    from src.domains.users.models import User
+    from src.domains.users.schemas import UserProfile
     from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
     from src.domains.voice.service import VoiceCommentService
 
 logger = get_logger(__name__)
+
+
+async def _close_voice_service_safely(voice_service: "VoiceCommentService", run_id: str) -> None:
+    """Close an owned ``VoiceCommentService``, logging (never raising) on failure.
+
+    ``VoiceCommentService.close()`` is idempotent (it drops the httpx TTS client),
+    so calling it from a ``finally`` is safe on success, exception, cancellation
+    and early generator ``aclose``. A close error is logged by type only and never
+    masks the primary error nor alters the SSE contract (F005).
+    """
+    try:
+        await voice_service.close()
+    except Exception as close_err:  # noqa: BLE001 — teardown must not mask the primary error
+        logger.warning(
+            "voice_service_close_failed",
+            run_id=run_id,
+            error_type=type(close_err).__name__,
+        )
 
 
 @dataclass(slots=True)
@@ -63,7 +81,7 @@ class VoiceStreamContext:
         lia_gender: LIA voice gender from the browser context.
         personality_instruction: Personality instruction for the voice LLM,
             or None when the user has no personality set.
-        user_obj: The User row (or None) — voice_enabled preference source.
+        user_obj: The user profile (or None) — voice_enabled preference source.
         has_listeners: Async presence probe (ADR-117 Lot 2), or None on
             paths without presence tracking.
         start_time: Stream start timestamp (elapsed-ms logging).
@@ -76,7 +94,7 @@ class VoiceStreamContext:
     user_message: str
     lia_gender: str
     personality_instruction: str | None
-    user_obj: "User | None"
+    user_obj: "UserProfile | None"
     has_listeners: ListenerProbe | None
     start_time: float
 
@@ -583,7 +601,9 @@ class VoiceStreamCoordinator:
                         max_sentences=settings.voice_chat_mode_max_sentences,
                     )
 
-                    # Create voice service for direct TTS
+                    # Create voice service for direct TTS. Owned here → closed in
+                    # the finally so its OpenAI/ElevenLabs httpx client never leaks
+                    # (F005; the default Edge provider closes as a no-op).
                     voice_service = VoiceCommentService(
                         tracker=self._tracker,
                         run_id=self._ctx.run_id,
@@ -591,17 +611,20 @@ class VoiceStreamCoordinator:
                         user_id=self._ctx.user_id,
                     )
 
-                    # Direct TTS: skip voice LLM, synthesize response directly
-                    async for audio_chunk in voice_service.stream_direct_tts(
-                        text=_sanitize_text_for_tts(response_content),
-                        user_language=self._ctx.user_language,
-                        max_sentences=settings.voice_chat_mode_max_sentences,
-                    ):
-                        chunk_count += 1
-                        yield _format_voice_audio_chunk(audio_chunk)
+                    try:
+                        # Direct TTS: skip voice LLM, synthesize response directly
+                        async for audio_chunk in voice_service.stream_direct_tts(
+                            text=_sanitize_text_for_tts(response_content),
+                            user_language=self._ctx.user_language,
+                            max_sentences=settings.voice_chat_mode_max_sentences,
+                        ):
+                            chunk_count += 1
+                            yield _format_voice_audio_chunk(audio_chunk)
 
-                    # Commit TTS tokens (context already exited)
-                    await self._tracker.commit()
+                        # Commit TTS tokens (context already exited)
+                        await self._tracker.commit()
+                    finally:
+                        await _close_voice_service_safely(voice_service, self._ctx.run_id)
 
                 # === PATH 2B: Agent mode - Voice LLM + TTS ===
                 # When there's a registry (tools were used), generate commentary
@@ -636,7 +659,9 @@ class VoiceStreamCoordinator:
                         has_registry=voice_context_registry is not None,
                     )
 
-                    # Create voice service for sync generation
+                    # Create voice service for sync generation. Owned here → closed
+                    # in the finally so its OpenAI/ElevenLabs httpx client never
+                    # leaks (F005; the default Edge provider closes as a no-op).
                     voice_service = VoiceCommentService(
                         tracker=self._tracker,
                         run_id=self._ctx.run_id,
@@ -645,23 +670,26 @@ class VoiceStreamCoordinator:
                     )
                     current_dt = now_in_timezone(self._ctx.user_timezone).isoformat()
 
-                    async for audio_chunk in voice_service.stream_voice_comment(
-                        context_summary=voice_context
-                        or _sanitize_and_truncate_for_tts(
-                            response_content, settings.voice_context_max_chars
-                        ),
-                        personality_instruction=self._ctx.personality_instruction or "",
-                        user_language=self._ctx.user_language,
-                        current_datetime=current_dt,
-                        user_query=self._ctx.user_message,
-                        user_timezone=self._ctx.user_timezone,
-                    ):
-                        chunk_count += 1
-                        # DRY: use helper for audio chunk formatting
-                        yield _format_voice_audio_chunk(audio_chunk)
+                    try:
+                        async for audio_chunk in voice_service.stream_voice_comment(
+                            context_summary=voice_context
+                            or _sanitize_and_truncate_for_tts(
+                                response_content, settings.voice_context_max_chars
+                            ),
+                            personality_instruction=self._ctx.personality_instruction or "",
+                            user_language=self._ctx.user_language,
+                            current_datetime=current_dt,
+                            user_query=self._ctx.user_message,
+                            user_timezone=self._ctx.user_timezone,
+                        ):
+                            chunk_count += 1
+                            # DRY: use helper for audio chunk formatting
+                            yield _format_voice_audio_chunk(audio_chunk)
 
-                    # Commit TTS tokens (context already exited)
-                    await self._tracker.commit()
+                        # Commit TTS tokens (context already exited)
+                        await self._tracker.commit()
+                    finally:
+                        await _close_voice_service_safely(voice_service, self._ctx.run_id)
 
             # Signal voice complete (only if we emitted voice_start)
             if self._voice_start_emitted and not self._voice_complete_emitted:

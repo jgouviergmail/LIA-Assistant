@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, RefreshCw, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { RAGDocumentStatus } from '@/types/rag-spaces';
 
@@ -14,6 +14,14 @@ export function DocumentProcessingStatus({ status, errorMessage }: DocumentProce
   const { t } = useTranslation();
 
   switch (status) {
+    case 'pending':
+      return (
+        <Badge variant="outline" className="gap-1.5">
+          <Clock className="h-3 w-3" />
+          {t('spaces.documents.status.pending')}
+        </Badge>
+      );
+
     case 'processing':
       return (
         <Badge variant="outline" className="gap-1.5">

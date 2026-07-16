@@ -28,6 +28,7 @@ from src.core.field_names import (
     FIELD_RUN_ID,
     FIELD_STATUS,
 )
+from src.domains.agents.api.error_messages import SupportedLanguage
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.metrics_agents import (
@@ -41,6 +42,8 @@ from src.infrastructure.observability.metrics_langgraph import (
 )
 
 if TYPE_CHECKING:
+    from src.domains.agents.services.hitl.question_generator import HitlQuestionGenerator
+    from src.domains.agents.services.hitl.registry import HitlInteractionRegistry
     from src.domains.agents.utils.hitl_store import HITLStore
     from src.domains.chat.service import TrackingContext
     from src.domains.conversations.service import ConversationService
@@ -56,7 +59,7 @@ _hitl_registry = None
 _hitl_question_generator = None
 
 
-def _get_hitl_registry():
+def _get_hitl_registry() -> "type[HitlInteractionRegistry]":
     """Lazy load HitlInteractionRegistry to avoid circular imports."""
     global _hitl_registry
     if _hitl_registry is None:
@@ -66,7 +69,7 @@ def _get_hitl_registry():
     return _hitl_registry
 
 
-def _get_hitl_question_generator():
+def _get_hitl_question_generator() -> "HitlQuestionGenerator":
     """Lazy load HitlQuestionGenerator to avoid circular imports."""
     global _hitl_question_generator
     if _hitl_question_generator is None:
@@ -1603,7 +1606,9 @@ class StreamingService:
 
         return tool_steps
 
-    def _extract_reasoning_detail(self, content: str | list[dict[str, Any]] | None) -> str | None:
+    def _extract_reasoning_detail(
+        self, content: str | list[str | dict[str, Any]] | None
+    ) -> str | None:
         """
         Extract a truncated reasoning snippet from AIMessage content.
 
@@ -1966,7 +1971,7 @@ class StreamingService:
         self,
         error: Exception,
         context: dict[str, Any] | None = None,
-        language: str = "fr",
+        language: SupportedLanguage = "fr",
     ) -> ChatStreamChunk:
         """Format error chunk with user-friendly message.
 
@@ -2267,7 +2272,7 @@ class StreamingService:
                     from src.domains.agents.api.error_messages import SSEErrorMessages
 
                     fallback_question = SSEErrorMessages.confirmation_required(
-                        language=user_language  # type: ignore[arg-type]
+                        language=user_language
                     )
 
                 generated_question = fallback_question
@@ -2287,9 +2292,7 @@ class StreamingService:
             # Default uses centralized i18n (6 languages)
             from src.domains.agents.api.error_messages import SSEErrorMessages
 
-            default_question = SSEErrorMessages.confirmation_required(
-                language=user_language  # type: ignore[arg-type]
-            )
+            default_question = SSEErrorMessages.confirmation_required(language=user_language)
             hitl_question = first_action.get("user_message", default_question)
             generated_question = hitl_question
 

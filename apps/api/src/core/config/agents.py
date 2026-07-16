@@ -986,9 +986,10 @@ class AgentsSettings(BaseSettings):
         ge=1,
         le=5,
         description=(
-            "Maximum re-planning attempts before giving up. "
-            "Each attempt may modify search criteria or strategy. "
-            "Default: 3 - allows recovery while preventing infinite loops."
+            "Cap on the AdaptiveRePlanner's advisory analysis (and the bound for "
+            "a future automatic-recovery loop — recovery is not wired today, see "
+            "task_orchestrator TODO D4). Above this many attempts the advice is "
+            "ABORT. Default: 3."
         ),
     )
     adaptive_replanning_empty_threshold: float = Field(

@@ -69,12 +69,15 @@ class Reminder(BaseModel):
         doc="User timezone at creation time",
     )
 
-    # Status with index for scheduler
+    # Status. The scheduler queries are served by the partial indexes
+    # ix_reminders_pending_trigger (WHERE status='pending') and
+    # ix_reminders_processing, created in migration and owned there (they are
+    # not expressible faithfully in the ORM). No plain full-column status index
+    # exists in the schema, so this column carries no index=True.
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
         default=ReminderStatus.PENDING.value,
-        index=True,
         doc="pending → processing → cancelled (deleted after notification)",
     )
 

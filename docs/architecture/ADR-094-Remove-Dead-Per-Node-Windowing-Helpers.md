@@ -2,7 +2,7 @@
 
 **Status**: ✅ IMPLEMENTED (2026-07-03)
 **Author**: Claude Code (Fable 5)
-**Related**: [ADR-007](ADR-007-Service-Layer-Pattern-For-Node-Complexity.md), [MESSAGE_WINDOWING_STRATEGY.md](../technical/MESSAGE_WINDOWING_STRATEGY.md), [ADR-022](ADR-022-LangGraph-State-Checkpointing-Memory.md) (state-level truncation)
+**Related**: [ADR-007](ADR-007-Service-Layer-Pattern-For-Node-Complexity.md), [MESSAGE_WINDOWING_STRATEGY.md](../technical/MESSAGE_WINDOWING_STRATEGY.md), [ADR-022](ADR-022-LangGraph-State-Checkpointing.md) (state-level truncation)
 
 ## Context
 

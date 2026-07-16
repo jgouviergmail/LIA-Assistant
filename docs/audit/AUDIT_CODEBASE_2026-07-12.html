@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:,">
+  <title>Audit normalisé de la codebase LIA — 12 juillet 2026</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --surface: #ffffff;
+      --surface-2: #eef3f8;
+      --ink: #172033;
+      --muted: #5d687a;
+      --line: #d8e0ea;
+      --navy: #10223f;
+      --blue: #1f5f99;
+      --cyan: #0c8195;
+      --green: #247a52;
+      --amber: #a15d00;
+      --red: #a72b32;
+      --purple: #6741a5;
+      --shadow: 0 12px 32px rgba(16, 34, 63, .09);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font: 15px/1.58 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--blue); text-underline-offset: 2px; }
+    a:hover { text-decoration-thickness: 2px; }
+    code, pre { font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; }
+    code { font-size: .91em; background: #eaf0f6; border-radius: 4px; padding: .08rem .28rem; overflow-wrap: anywhere; }
+    .hero {
+      color: #fff;
+      background:
+        radial-gradient(circle at 85% 15%, rgba(34, 194, 211, .22), transparent 27rem),
+        linear-gradient(135deg, #0e1b33 0%, #15355d 62%, #0b5966 100%);
+      padding: 52px 24px 44px;
+    }
+    .hero-inner, main, .nav-inner { max-width: 1240px; margin: 0 auto; }
+    .eyebrow { margin: 0 0 8px; color: #9fe4ec; text-transform: uppercase; letter-spacing: .14em; font-size: .76rem; font-weight: 800; }
+    h1 { max-width: 900px; margin: 0; font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.08; letter-spacing: -.035em; }
+    .subtitle { max-width: 850px; margin: 18px 0 0; color: #d5e1ee; font-size: 1.06rem; }
+    .hero-grid { display: grid; grid-template-columns: 230px 1fr; gap: 28px; align-items: center; margin-top: 34px; }
+    .score-ring {
+      --score-angle: 243deg;
+      width: 190px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+      background: conic-gradient(#50d3c8 var(--score-angle), rgba(255,255,255,.16) 0);
+      position: relative;
+    }
+    .score-ring::after { content: ""; position: absolute; inset: 14px; background: #132b4b; border-radius: 50%; }
+    .score-ring strong { position: relative; z-index: 1; font-size: 2.35rem; line-height: 1; }
+    .score-ring span { display: block; position: relative; z-index: 1; color: #b9d1e5; font-size: .76rem; text-align: center; margin-top: 5px; }
+    .score-content { position: relative; z-index: 1; text-align: center; }
+    .hero-metrics { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 12px; }
+    .hero-metric { padding: 15px 16px; border: 1px solid rgba(255,255,255,.18); border-radius: 12px; background: rgba(255,255,255,.07); }
+    .hero-metric b { display: block; font-size: 1.35rem; }
+    .hero-metric small { color: #cbd9e7; }
+    nav { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.95); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }
+    .nav-inner { display: flex; gap: 18px; overflow-x: auto; padding: 11px 20px; white-space: nowrap; }
+    nav a { color: var(--navy); font-size: .86rem; font-weight: 700; text-decoration: none; }
+    main { padding: 34px 20px 70px; }
+    section { scroll-margin-top: 64px; margin: 0 0 38px; }
+    h2 { margin: 0 0 15px; color: var(--navy); font-size: 1.75rem; letter-spacing: -.025em; }
+    h3 { color: var(--navy); }
+    .lead { max-width: 930px; color: var(--muted); font-size: 1.02rem; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+    .card h3 { margin-top: 0; }
+    .callout { border-left: 5px solid var(--blue); }
+    .callout.warning { border-left-color: var(--amber); }
+    .callout.good { border-left-color: var(--green); }
+    .status-line { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 0; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; background: var(--surface-2); font-size: .76rem; font-weight: 800; }
+    .pill.major { color: var(--red); border-color: #efb9bc; background: #fff0f1; }
+    .pill.moderate { color: var(--amber); border-color: #e8c999; background: #fff8e9; }
+    .pill.minor { color: var(--blue); border-color: #b9d2e9; background: #eef7ff; }
+    .pill.proven { color: var(--green); border-color: #afd9c2; background: #effaf4; }
+    .pill.risk { color: var(--purple); border-color: #d1c2e8; background: #f7f2ff; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 11px 13px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { color: var(--navy); background: #eaf0f7; font-size: .82rem; text-transform: uppercase; letter-spacing: .035em; }
+    tr:last-child td { border-bottom: 0; }
+    .score { font-variant-numeric: tabular-nums; font-weight: 900; white-space: nowrap; }
+    .score.high { color: var(--green); }
+    .score.mid { color: var(--amber); }
+    .score.low { color: var(--red); }
+    .meter { width: 82px; height: 7px; background: #dfe7ef; border-radius: 99px; overflow: hidden; margin-top: 5px; }
+    .meter > i { display: block; height: 100%; background: var(--blue); }
+    .checks { list-style: none; padding: 0; margin: 0; }
+    .checks li { position: relative; padding: 5px 0 5px 25px; }
+    .checks li::before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 900; }
+    .checks li.limit::before { content: "!"; color: var(--amber); }
+    .checks li.fail::before { content: "×"; color: var(--red); }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 18px; }
+    .filters button, .copy-button {
+      border: 1px solid var(--line); color: var(--navy); background: var(--surface); border-radius: 8px; padding: 8px 11px;
+      font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer;
+    }
+    .filters button[aria-pressed="true"], .filters button:hover, .copy-button:hover { color: white; background: var(--blue); border-color: var(--blue); }
+    #finding-search { min-width: min(100%, 330px); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; font: inherit; }
+    .finding { background: var(--surface); border: 1px solid var(--line); border-left: 6px solid var(--amber); border-radius: var(--radius); padding: 21px; margin: 0 0 16px; box-shadow: var(--shadow); scroll-margin-top: 72px; }
+    .finding[data-severity="major"] { border-left-color: var(--red); }
+    .finding[data-severity="minor"] { border-left-color: var(--blue); }
+    .finding-head { display: flex; justify-content: space-between; gap: 20px; align-items: start; }
+    .finding h3 { margin: 0 0 4px; font-size: 1.12rem; }
+    .finding-id { color: var(--muted); font-size: .78rem; font-weight: 900; letter-spacing: .06em; }
+    .priority { text-align: right; white-space: nowrap; font-size: .77rem; color: var(--muted); }
+    .priority b { display: block; color: var(--navy); font-size: 1rem; }
+    .finding h4 { margin: 17px 0 5px; font-size: .92rem; }
+    .finding ul { margin-top: 5px; }
+    details { border: 1px solid var(--line); border-radius: 10px; background: #f7f9fc; margin-top: 14px; }
+    summary { cursor: pointer; padding: 11px 13px; font-weight: 850; color: var(--navy); }
+    details[open] summary { border-bottom: 1px solid var(--line); }
+    .prompt-wrap { position: relative; padding: 13px; }
+    .prompt { margin: 0; padding: 14px; max-height: 520px; overflow: auto; white-space: pre-wrap; color: #eaf2fa; background: #152438; border-radius: 8px; font-size: .82rem; line-height: 1.52; }
+    .copy-button { position: absolute; right: 23px; top: 23px; color: white; background: #31516f; border-color: #55738e; }
+    .hidden { display: none !important; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    .standards a { display: block; margin: 5px 0; }
+    .roadmap-row { display: grid; grid-template-columns: 100px 1fr 150px; gap: 14px; align-items: start; padding: 13px 0; border-bottom: 1px solid var(--line); }
+    .roadmap-row:last-child { border-bottom: 0; }
+    .wave { color: white; background: var(--navy); border-radius: 8px; padding: 5px 8px; text-align: center; font-size: .78rem; font-weight: 900; }
+    footer { color: #c9d7e5; background: var(--navy); padding: 30px 20px; }
+    footer > div { max-width: 1240px; margin: auto; }
+    @media (max-width: 820px) {
+      .hero-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .hero-metrics { grid-template-columns: repeat(2, 1fr); }
+      .score-ring { width: 165px; }
+      .finding-head { display: block; }
+      .priority { text-align: left; margin-top: 8px; }
+      .roadmap-row { grid-template-columns: 80px 1fr; }
+      .roadmap-row > :last-child { grid-column: 2; }
+    }
+    @media print {
+      :root { --bg: #fff; --surface: #fff; --shadow: none; }
+      body { font-size: 10pt; }
+      nav, .filters, .copy-button { display: none !important; }
+      .hero { padding: 24px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      main { max-width: none; padding: 20px; }
+      section { break-inside: avoid; }
+      .finding { break-inside: avoid; box-shadow: none; }
+      details { break-inside: avoid; }
+      details > * { display: block !important; }
+      .prompt { max-height: none; color: #111; background: #f4f4f4; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Audit technique indépendant · codebase complète · sécurité exclue</p>
+      <h1>Audit normalisé et standardisé de LIA</h1>
+      <p class="subtitle">Évaluation exigeante du snapshot de travail au 12 juillet 2026, fondée sur des preuves de code, des mesures reproductibles et des exécutions de tests. Le présent document est un avis technique, pas une certification officielle.</p>
+      <div class="hero-grid">
+        <div class="score-ring" aria-label="Note globale 6,8 sur 10">
+          <div class="score-content"><strong>6,8</strong><span>sur 10 ·<br>24 périmètres</span></div>
+        </div>
+        <div class="hero-metrics">
+          <div class="hero-metric"><b>31</b><small>constats actionnables</small></div>
+          <div class="hero-metric"><b>14</b><small>constats majeurs</small></div>
+          <div class="hero-metric"><b>10 509+</b><small>cas backend collectés</small></div>
+          <div class="hero-metric"><b>3 095</b><small>fichiers inventoriés</small></div>
+          <div class="hero-metric"><b>53,85&nbsp;%</b><small>couverture backend mesurée</small></div>
+          <div class="hero-metric"><b>12,43&nbsp;%</b><small>statements frontend couverts</small></div>
+          <div class="hero-metric"><b>195 548</b><small>SLOC logiques backend</small></div>
+          <div class="hero-metric"><b>4 920 × 6</b><small>clés i18n en parité</small></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav aria-label="Sommaire du rapport">
+    <div class="nav-inner">
+      <a href="#opinion">Opinion</a>
+      <a href="#scope">Périmètre</a>
+      <a href="#method">Méthode</a>
+      <a href="#scorecard">Notes</a>
+      <a href="#validation">Validations</a>
+      <a href="#findings">Constats</a>
+      <a href="#strengths">Forces</a>
+      <a href="#roadmap">Feuille de route</a>
+      <a href="#appendices">Annexes</a>
+    </div>
+  </nav>
+
+  <main>
+    <section id="opinion">
+      <h2>Opinion d’audit</h2>
+      <div class="grid-2">
+        <article class="card callout warning">
+          <h3>Conclusion</h3>
+          <p><strong>LIA présente une base d’ingénierie riche et disciplinée, mais son niveau d’assurance réel reste inférieur à celui suggéré par les seuls indicateurs verts.</strong> Le typage, le lint, les migrations à tête unique, l’i18n et une volumétrie de tests remarquable constituent des atouts sérieux. Ils coexistent toutefois avec des défauts fonctionnels et opérationnels confirmés dans le cache LLM, les workflows RAG, l’ordonnancement, le cycle de vie TTS, la livraison et plusieurs parcours frontend.</p>
+          <p>La note brute est <strong>6,75/10</strong>, arrondie à <strong>6,8/10</strong>. Elle correspond à un produit solide mais affecté d’une dette structurelle significative et de plusieurs risques à traiter avant de revendiquer un niveau industriel élevé.</p>
+        </article>
+        <article class="card callout">
+          <h3>Lecture de la note</h3>
+          <p>La moyenne comparable sur les 20 périmètres historiques est également <strong>6,8/10</strong>. L’écart avec l’audit public antérieur (8,4/10 sur 24 périmètres, version 1.23.7) ne doit pas être lu comme une régression mesurée : le snapshot courant n’a pas pu être rattaché à un commit, et le présent audit a introduit des sondes plus profondes — reproductions concurrentes, inventaire réel des tests hors CI, analyse de couverture frontend et contrôle WCAG 2.2 statique.</p>
+          <p>La notation ne crédite jamais un contrôle seulement déclaré. Une validation non exécutée est marquée <em>non vérifiée</em>, jamais considérée comme réussie.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="scope">
+      <h2>Périmètre et limites</h2>
+      <div class="grid-3">
+        <article class="card">
+          <h3>Inclus</h3>
+          <ul>
+            <li>Backend FastAPI, SQLAlchemy, LangGraph et services asynchrones.</li>
+            <li>Frontend Next.js, React, TypeScript, i18n et accessibilité.</li>
+            <li>Persistance, migrations, configuration, dépendances et prompts.</li>
+            <li>Architecture, maintenabilité, performance, scalabilité et fiabilité.</li>
+            <li>Tests, CI/CD, déploiement, documentation et observabilité.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Exclusion impérative</h3>
+          <p>La <strong>sécurité</strong> est intégralement exclue à la demande du commanditaire. Aucun score, constat, recommandation ou conclusion de ce rapport ne porte sur cette matière. La simple présence de contrôles connexes n’a pas été utilisée dans la notation.</p>
+        </article>
+        <article class="card">
+          <h3>Limitations d’assurance</h3>
+          <ul>
+            <li>Aucune action Git : pas d’identification de commit ni d’analyse différentielle.</li>
+            <li>Moteur Docker indisponible : pas de build d’image ni de tests d’intégration PostgreSQL/Redis.</li>
+            <li>Hôte Python 3.13.7, cible CI/production Python 3.12.</li>
+            <li>Pas de fournisseurs LLM réels, de charge multi-worker ni de campagne NVDA/VoiceOver.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="method">
+      <h2>Référentiel et méthode</h2>
+      <div class="grid-2">
+        <article class="card standards">
+          <h3>Références industrielles</h3>
+          <a href="https://www.iso.org/standard/78176.html">ISO/IEC 25010:2023 — modèle de qualité produit</a>
+          <a href="https://www.iso.org/standard/80623.html">ISO/IEC 5055:2021 — mesures structurelles automatisées</a>
+          <a href="https://www.iso.org/standard/74393.html">ISO/IEC/IEEE 42010:2022 — description d’architecture</a>
+          <a href="https://www.iso.org/standard/90219.html">ISO/IEC/IEEE 12207:2026 — processus du cycle de vie logiciel</a>
+          <a href="https://www.iso.org/standard/81291.html">ISO/IEC/IEEE 29119-1:2022 — concepts généraux de test</a>
+          <a href="https://www.iso.org/standard/79428.html">ISO/IEC/IEEE 29119-2:2021 — processus de test</a>
+          <a href="https://www.w3.org/TR/WCAG22/">W3C WCAG 2.2 — accessibilité web, niveau AA échantillonné</a>
+        </article>
+        <article class="card">
+          <h3>Discipline de preuve</h3>
+          <ol>
+            <li>Inventaire exhaustif hors artefacts générés et dépendances vendoriées.</li>
+            <li>Mesures statiques reproductibles : SLOC, complexité, couplage, documentation, typage.</li>
+            <li>Exécution proportionnée des suites et contrôles disponibles.</li>
+            <li>Lecture des flux de contrôle et reproductions minimales pour les défauts concurrents.</li>
+            <li>Contre-vérification de chaque constat ; rejet des faux positifs et qualification des risques non reproduits.</li>
+            <li>Note par périmètre en pas de 0,5 ; moyenne arithmétique simple des 24 notes.</li>
+          </ol>
+          <p><strong>Échelle :</strong> 9+ exemplaire prouvé ; 8–8,5 fort ; 7–7,5 solide avec dette bornée ; 6–6,5 dette significative ; ≤5 faiblesse systémique.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="scorecard">
+      <h2>Tableau de notation — 24 périmètres</h2>
+      <p class="lead">Chaque ligne s’appuie sur au moins trois éléments de preuve. Les défauts peuvent affecter plusieurs caractéristiques, mais la note n’est pas calculée par simple décompte : elle reflète la maîtrise, la gravité et la capacité de détection propre à chaque périmètre.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Périmètre</th><th>Note</th><th>Éléments déterminants</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Infrastructure</td><td><span class="score high">8,0/10</span><div class="meter"><i style="width:80%"></i></div></td><td>Compose dev/prod parsable ; limites de ressources et services de sauvegarde ; images multi-architecture. Builds et restauration non réexécutés faute de Docker ; chaîne de déploiement divergente.</td></tr>
+            <tr><td>2</td><td>Données et persistance</td><td><span class="score mid">7,5/10</span><div class="meter"><i style="width:75%"></i></div></td><td>45/45 FK avec <code>ondelete</code> ; tête Alembic unique ; patterns UPSERT/locking documentés. Migrations jamais jouées en CI et statuts RAG non durables.</td></tr>
+            <tr><td>3</td><td>Configuration et dépendances</td><td><span class="score high">8,0/10</span><div class="meter"><i style="width:80%"></i></div></td><td>Configuration modulaire Pydantic ; lockfiles synchronisés et hashés ; Compose paramétré. Budget de connexions incohérent et métadonnée de version API en retard.</td></tr>
+            <tr><td>4</td><td>Architecture</td><td><span class="score mid">6,5/10</span><div class="meter"><i style="width:65%"></i></div></td><td>Bounded contexts et ADR nombreux ; démarrage modularisé ; patterns de ports existants. 31 cycles runtime, dont 13 hors compromis ADR-126, et coordinateurs centraux hypertrophiés.</td></tr>
+            <tr><td>5</td><td>Design</td><td><span class="score mid">7,5/10</span><div class="meter"><i style="width:75%"></i></div></td><td>Pipeline/ReAct cohérents ; HITL et registres explicites ; primitives frontend réutilisables. Adaptive Replanner seulement consultatif et plusieurs modales contournent le design system.</td></tr>
+            <tr><td>6</td><td>Généricité</td><td><span class="score mid">7,5/10</span><div class="meter"><i style="width:75%"></i></div></td><td>BaseRepository, connecteurs, validateurs et registres partagés ; réponses tools normalisées. Des hubs transverses et implémentations de validation dupliquées limitent la généricité réelle.</td></tr>
+            <tr><td>7</td><td>Extensibilité</td><td><span class="score mid">7,0/10</span><div class="meter"><i style="width:70%"></i></div></td><td>Feature flags, catalogues et prompts versionnés ; nombreux guides d’extension. Cycles, synchronisation skills O(workers×users×skills) et code mort augmentent le coût d’extension.</td></tr>
+            <tr><td>8</td><td>Implémentation</td><td><span class="score mid">6,5/10</span><div class="meter"><i style="width:65%"></i></div></td><td>Ruff, Black, MyPy, ESLint et TypeScript verts ; patterns modernes. Cache LLM à double appel, cadence scheduler erronée, URL frontend invalide et ressources TTS non fermées.</td></tr>
+            <tr><td>9</td><td>Maintenabilité</td><td><span class="score low">6,0/10</span><div class="meter"><i style="width:60%"></i></div></td><td>Ratchet de taille backend actif et médiane CC=2. Mais 352 fonctions backend CC≥15, maximum 89 ; frontend jusqu’à CC 96 et quatre fichiers >1 300 lignes.</td></tr>
+            <tr><td>10</td><td>Outillage qualité</td><td><span class="score mid">7,0/10</span><div class="meter"><i style="width:70%"></i></div></td><td>Linters, typage, coverage gates et gardes AST. Overrides MyPy couvrant 35,1 % du backend, règles ESLint affaiblies, validateur i18n et scripts d’audit non reproductibles.</td></tr>
+            <tr><td>11</td><td>Patterns et pratiques</td><td><span class="score mid">7,0/10</span><div class="meter"><i style="width:70%"></i></div></td><td>Conventions DDD, UTC, sessions async et logs structurés largement appliquées. Jobs métier détachés, accès API ad hoc et API mortes contredisent des règles internes explicites.</td></tr>
+            <tr><td>12</td><td>Robustesse</td><td><span class="score low">6,0/10</span><div class="meter"><i style="width:60%"></i></div></td><td>Retry, circuits et dégradations prévus. Une annulation détruit le single-flight embeddings ; erreurs Redis rappellent le LLM ; tâches RAG et TTS ne garantissent pas leur finalisation.</td></tr>
+            <tr><td>13</td><td>Fiabilité</td><td><span class="score low">6,0/10</span><div class="meter"><i style="width:60%"></i></div></td><td>Plus de 10 000 tests collectés et observabilité riche. RAG peut être déclaré fini trop tôt, scheduler saute quatre cycles sur cinq et déploiement valide la liveness plutôt que la readiness.</td></tr>
+            <tr><td>14</td><td>Performance</td><td><span class="score mid">6,5/10</span><div class="meter"><i style="width:65%"></i></div></td><td>Caches, parallélisme et métriques de latence présents. Stampede LLM non empêché, budget DB ≈290 pour 200 connexions, synchronisation skills multipliée par worker.</td></tr>
+            <tr><td>15</td><td>Optimisation</td><td><span class="score mid">6,5/10</span><div class="meter"><i style="width:65%"></i></div></td><td>Ratchets, cache de pricing et chemins pipeline économes. Cache LLM métrique des hits comme coût réel et double le fournisseur ; hotspots complexes freinent l’optimisation sûre.</td></tr>
+            <tr><td>16</td><td>Scalabilité</td><td><span class="score mid">6,5/10</span><div class="meter"><i style="width:65%"></i></div></td><td>Quatre workers, leader election et verrous SQL. Capacité DB maximale dépassée, startup skills non set-based, coordination single-flight seulement locale/incomplète.</td></tr>
+            <tr><td>17</td><td>Opérabilité et observabilité</td><td><span class="score high">8,0/10</span><div class="meter"><i style="width:80%"></i></div></td><td>413 métriques inventoriées, 22 dashboards JSON, 13 alertes cœur reliées à des runbooks. Validation promtool/dashboard absente de CI et sémantique coût cache incorrecte.</td></tr>
+            <tr><td>18</td><td>CI/CD et livraison</td><td><span class="score low">5,5/10</span><div class="meter"><i style="width:55%"></i></div></td><td>CI lint/unit/agents/intégration/frontend structurée et actions épinglées. 465 cas hors collecte, migrations non exécutées, release non liée à CI et images GHCR non consommées par le déploiement.</td></tr>
+            <tr><td>19</td><td>Tests</td><td><span class="score low">6,0/10</span><div class="meter"><i style="width:60%"></i></div></td><td>9 225 unitaires backend verts avec 53,85 % de couverture ; 523 Vitest verts. Couverture frontend 12,43 %, skips permanents, tests unitaires connectant PostgreSQL et aucun parcours navigateur formel.</td></tr>
+            <tr><td>20</td><td>Documentation</td><td><span class="score mid">6,5/10</span><div class="meter"><i style="width:65%"></i></div></td><td>328 fichiers Markdown, 119 ADR et 40 runbooks. Liens ADR classés à tort historiques, commandes d’audit/coverage erronées et plusieurs chemins ou chiffres actifs périmés.</td></tr>
+            <tr><td>21</td><td>Portabilité</td><td><span class="score mid">6,5/10</span><div class="meter"><i style="width:65%"></i></div></td><td>Images amd64/arm64, Compose et locks universels. Interfaces Task/Make/scripts divergentes, chemins de scripts dépendants du CWD et validation hôte effectuée sous Python 3.13.</td></tr>
+            <tr><td>22</td><td>Compatibilité</td><td><span class="score mid">7,5/10</span><div class="meter"><i style="width:75%"></i></div></td><td>Adaptateurs fournisseurs, SSE caractérisé et six langues ; une tête de migration. Absence d’E2E réel et version package backend divergente empêchent une assurance plus haute.</td></tr>
+            <tr><td>23</td><td>Adéquation fonctionnelle</td><td><span class="score mid">6,5/10</span><div class="meter"><i style="width:65%"></i></div></td><td>Surface fonctionnelle très large et tests ciblés nombreux. Replanner sans effet, sync RAG finie prématurément, cadence d’actions retardée et export frontend cassable en URL relative.</td></tr>
+            <tr><td>24</td><td>Utilisabilité et accessibilité</td><td><span class="score low">5,5/10</span><div class="meter"><i style="width:55%"></i></div></td><td>Parité i18n parfaite, <code>lang</code> dynamique, signaux ARIA et reduced-motion présents. Contrôles sans nom, tri non clavier, faux dialogues, combobox incomplète et aucune campagne WCAG 2.2 AA.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="validation">
+      <h2>Contrôles exécutés</h2>
+      <div class="grid-2">
+        <article class="card">
+          <h3>Résultats confirmés</h3>
+          <ul class="checks">
+            <li>Ruff, Black et MyPy : succès sur 869 fichiers source backend.</li>
+            <li>ESLint et TypeScript : succès frontend.</li>
+            <li>Backend rapide : 9 249 réussis, 49 ignorés.</li>
+            <li>Backend avec couverture : 9 225 réussis, 48 ignorés, 53,85 %.</li>
+            <li>Frontend : 523/523 réussis ; couverture aux quatre dimensions au-dessus des seuils bas configurés.</li>
+            <li>Alembic : une tête ; dépendances runtime/dev : locks synchronisés.</li>
+            <li>Compose dev/prod : configuration parsée ; 45/45 FK avec <code>ondelete</code>.</li>
+            <li>i18n : 4 920 clés dans chacune des six langues, aucune différence.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Échecs, anomalies et non-exécutés</h3>
+          <ul class="checks">
+            <li class="fail"><code>task test:backend:agents</code> : 3 accès Redis non classés + couverture globale 34 % sur cette suite isolée.</li>
+            <li class="fail">Run combiné : test de performance &lt;100 ms observé entre 141 et 331 ms.</li>
+            <li class="limit">25 tests de contexte tentent PostgreSQL réel avant un fallback ; exclus uniquement de la mesure de couverture stable.</li>
+            <li class="limit">Builds d’images, intégration PostgreSQL/Redis, tests multi-worker et restauration : non exécutés, Docker indisponible.</li>
+            <li class="limit">Contraste, zoom, lecteurs d’écran, navigation complète et Lighthouse/axe : non exécutés.</li>
+            <li class="limit">Aucune validation Git du commit, de l’état de travail ou des métriques DORA.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="findings">
+      <h2>Registre détaillé des constats</h2>
+      <p class="lead">Le registre contient 31 points actionnables : 14 majeurs, 15 modérés et 2 mineurs. « Prouvé » signifie confirmé par le flot de contrôle, une exécution ou une reproduction minimale. « Risque statique » signifie que l’invariant est violé dans la configuration livrée, sans test de charge réel.</p>
+      <div class="filters" aria-label="Filtres du registre">
+        <button type="button" data-filter="all" aria-pressed="true">Tous (31)</button>
+        <button type="button" data-filter="major" aria-pressed="false">Majeurs (14)</button>
+        <button type="button" data-filter="moderate" aria-pressed="false">Modérés (15)</button>
+        <button type="button" data-filter="minor" aria-pressed="false">Mineurs (2)</button>
+        <label><span class="sr-only">Rechercher dans les constats</span><input id="finding-search" type="search" placeholder="Rechercher un constat…"></label>
+      </div>
+
+      <article class="finding" id="LIA-2026-001" data-severity="major" data-area="reliability rag">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-001 · FIABILITÉ / PERSISTANCE</span><h3>Les workflows RAG détachés ne sont ni durables ni finalisés correctement</h3></div><div class="priority"><b>P0 · XL</b>Impact 5/5 · risque 5/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Prouvé</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Upload, sync Drive et réindexation sont lancés en mémoire via <code>safe_fire_and_forget</code> : <code>rag_spaces/router.py:322-333,477-484</code> et <code>reindex.py:191-200</code>.</li>
+          <li>L’arrêt attend 15 s puis annule les tâches sans attendre leur terminaison : <code>core/constants.py:1110</code>, <code>infrastructure/async_utils.py:113-164</code>, <code>startup/shutdown.py:87-95</code>.</li>
+          <li>La sync Drive lance les indexations puis marque aussitôt la source <code>COMPLETED</code> : <code>drive_sync.py:678-715</code>.</li>
+          <li>Le verrou de réindexation dure six heures, n’est retiré qu’en fin normale et bloque toute récupération : <code>reindex.py:36-38,119-130,274-276</code>, <code>retrieval.py:198-209</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> faux statut de succès, documents bloqués en traitement après recycle, index partiel ou vide et indisponibilité pouvant durer six heures.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Travaille dans la codebase LIA, sans action Git et avec la sécurité hors périmètre. Refactorise les workflows RAG d’upload, de synchronisation Drive et de réindexation pour les rendre durables et redémarrables. Introduis un job persistant — ou réutilise un mécanisme durable existant — avec statut, token de lease propriétaire, heartbeat, progression, curseur de reprise, essais et erreur finale. Un worker ne doit finaliser que le job dont il possède encore le token. Enregistre annulation et interruption dans un finally, remplace le verrou fixe par un lease renouvelable et récupérable, et ajoute un scanner de reprise au démarrage. Ne détruis pas l’index actif avant que la nouvelle génération soit complète : réalise un shadow build puis un swap atomique. La sync Drive ne devient COMPLETED qu’après attente de toutes les indexations et agrégation des succès/échecs. Préserve l’isolation AsyncSession. Ajoute des tests PostgreSQL/Redis couvrant crash, recycle, double worker, expiration de lease, reprise, échec partiel et changement de dimension. Ajoute logs/métriques structurés, mets à jour la documentation en anglais et exécute Ruff, Black, MyPy et les suites RAG/intégration.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-002" data-severity="major" data-area="cache performance reliability">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-002 · PERFORMANCE / COÛTS / FIABILITÉ</span><h3>Le cache LLM peut appeler deux fois le fournisseur et ne protège pas du stampede</h3></div><div class="priority"><b>P0 · M</b>Impact 5/5 · risque 5/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Prouvé par reproduction</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Le même <code>try</code> englobe Redis et le producteur : <code>infrastructure/cache/llm_cache.py:389-521</code> ; le <code>except</code> rappelle le producteur : <code>:550-567</code>.</li>
+          <li>Reproduction : exception du producteur → deux appels ; échec <code>setex</code> après résultat valide → second appel.</li>
+          <li>La docstring promet l’anti-stampede, sans single-flight ni verrou : <code>:351-385</code>.</li>
+          <li>Les cache hits incrémentent coût et tokens fournisseur réels : <code>:260-337</code> face à <code>metrics_agents.py:164-168</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> double facturation, latence et charge amplifiées, misses concurrents non coalescés, métriques financières surestimées.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Corrige le décorateur de cache LLM dans infrastructure/cache/llm_cache.py, sans action Git et hors sécurité. Garantir que le producteur est appelé au maximum une fois par invocation : une erreur Redis en lecture conduit à un unique appel ; une erreur de sérialisation/écriture après succès retourne le résultat original ; une exception producteur est propagée inchangée. Sépare les frontières d’erreur cache/producteur. Ajoute un single-flight borné par clé, avec politique locale explicite et coordination multi-worker si requise. Sépare les métriques de consommation fournisseur, cache hit, coût évité et erreur cache ; un hit ne doit pas compter comme coût facturé. Préserve le format des clés. Écris des tests async sur erreurs read/write/serialization/producteur, 20 appels simultanés, annulation d’un waiter, échec puis retry, cardinalité bornée et métriques exactes. Corrige les docstrings en anglais et valide Ruff, Black, MyPy et les tests cache/consommateurs.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-003" data-severity="major" data-area="scheduler functional reliability">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-003 · EXACTITUDE FONCTIONNELLE</span><h3>Le verrou du scheduler transforme une cadence de 60 secondes en environ 5 minutes</h3></div><div class="priority"><b>P0 · S/M</b>Impact 4/5 · risque 5/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Prouvé par reproduction</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Intervalle 60 s : <code>core/constants.py:441</code> ; TTL de verrou 300 s : <code>:885</code>.</li>
+          <li>Le job est enregistré chaque minute : <code>startup/schedulers.py:174-188</code>.</li>
+          <li>Le verrou <code>SET NX EX</code> est volontairement conservé jusqu’à expiration : <code>scheduler_lock.py:73-79,97-117</code>.</li>
+          <li>L’exécuteur abandonne en cas d’échec d’acquisition, alors que le scheduler est déjà limité au leader : <code>scheduled_action_executor.py:390-403</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> quatre déclenchements sur cinq sont ignorés en régime normal ; des actions peuvent être retardées de plusieurs minutes.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Corrige la coordination de ScheduledActionExecutor, sans action Git et hors sécurité. Analyse ensemble leader election, max_instances, sélection SQL verrouillée et transitions de statut. Si ces garanties suffisent, retire le verrou Redis redondant. Sinon, utilise un verrou propre à l’occurrence, avec token propriétaire, compare-and-delete au finally et TTL de crash dérivé de la cadence — aucun nouveau nombre magique. Ajoute une validation de configuration empêchant un verrou retenu dont le TTL est supérieur ou égal à l’intervalle. Écris des tests à horloge simulée sur deux cycles consécutifs, deux workers, crash, expiration et absence de double exécution. Mets à jour métriques et documentation, puis lance tests scheduler, Ruff et MyPy.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-004" data-severity="major" data-area="capacity database configuration">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-004 · CAPACITÉ / CONFIGURATION</span><h3>Le budget maximal de connexions applicatives dépasse la capacité PostgreSQL</h3></div><div class="priority"><b>P1 · M</b>Impact 5/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur si valeurs livrées</span><span class="pill risk">Risque statique, charge non reproduite</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Pool SQLAlchemy 30 + overflow 30 par worker : <code>core/constants.py:571-599</code> et <code>.env.prod.example:146-155</code>.</li>
+          <li>Quatre workers : <code>apps/api/Dockerfile.prod:187</code> ; pools checkpointer/store : <code>core/config/database.py:64-100</code>.</li>
+          <li>PostgreSQL fixe <code>max_connections=200</code> : <code>infrastructure/docker/compose.services.yml:26-35</code>.</li>
+          <li>Budget maximal estimé ≈290 (240 SQLAlchemy + 32 checkpointer + 16 store + annexes), sans validation croisée.</li>
+        </ul>
+        <p><strong>Impact possible :</strong> timeouts de pool, refus PostgreSQL et cascade de dégradations sous burst.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Établis un modèle explicite du budget de connexions LIA, sans action Git et hors sécurité : workers, pool_size, max_overflow, checkpointer, store, exporters et réserve PostgreSQL. Mesure un profil de charge représentatif avant de modifier les valeurs. Dimensionne les defaults avec marge documentée et ajoute un contrôle Pydantic/startup fail-fast lorsque la somme maximale dépasse le budget déclaré. Mets à jour constants, config, les trois exemples .env, Compose/Docker et l’ADR ou guide capacité. Ajoute tests unitaires de l’invariant et un test d’intégration de saturation contrôlée. Ne corrige pas par l’abaissement arbitraire d’un seul pool.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-005" data-severity="major" data-area="voice resource lifecycle">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-005 · CYCLE DE VIE / VOIX</span><h3>Deux chemins TTS synchrones ne ferment jamais leur client</h3></div><div class="priority"><b>P0 · S</b>Impact 4/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Prouvé, tests figent le défaut</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>PATH 2A/2B créent des <code>VoiceCommentService</code> locaux sans <code>close()</code> : <code>voice_coordinator.py:587-604,640-664</code>.</li>
+          <li><code>cleanup()</code> ne connaît que les ressources progressives/parallèles : <code>:824-854</code>.</li>
+          <li>Les clients OpenAI/ElevenLabs détiennent un client persistant fermé explicitement : <code>voice/service.py:944-948</code>, <code>elevenlabs_tts_client.py:77-89,212-216</code>.</li>
+          <li>ADR-122 reconnaît le défaut et les tests exigent <code>closed is False</code> : <code>ADR-122…md:93-100</code>, <code>test_agent_service_stream_characterization.py:741-746,783-785</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> rétention progressive de pools HTTP et connexions, y compris sur exception, annulation et fermeture anticipée du générateur.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Corrige exclusivement le cycle de vie des VoiceCommentService locaux de VoiceStreamCoordinator.finalize() PATH 2A/2B. Lis CLAUDE.md et ADR-122. Sans action Git et hors sécurité, établis une propriété explicite et garantis await close() par try/finally sur succès, exception, CancelledError et fermeture anticipée. Ne détourne pas _voice_service_parallel. Une erreur de fermeture doit être loggée sans masquer l’erreur primaire ni changer le contrat SSE. Préserve l’ordre des événements, commits TTS et backfills ; close reste idempotent. Inverse les caractérisations pour exiger closed is True et ajoute tests succès 2A/2B, exception, annulation, aclose anticipé et fermeture unique. Mets à jour ADR-122 sans réécrire l’historique. Valide tests voice/streaming, Ruff, Black, MyPy et suite rapide.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-006" data-severity="major" data-area="ci tests">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-006 · CI / TESTS</span><h3>27 fichiers — 465 cas pytest — ne sont collectés par aucun job CI</h3></div><div class="priority"><b>P0 · M</b>Impact 5/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Prouvé par inventaire et collecte</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>La CI ne cible que <code>tests/unit</code>, <code>tests/agents</code> et <code>tests/integration</code> : <code>ci.yml:142-163,243-250</code>.</li>
+          <li><code>tests/core</code>, <code>tests/domains</code>, <code>tests/infrastructure</code>, <code>tests/services</code> et six fichiers racine restent hors périmètre.</li>
+          <li>Mesure : 27 fichiers, 460 fonctions de test statiques et 465 cas après paramétrisation.</li>
+        </ul>
+        <p><strong>Impact :</strong> configuration, cache LLM, providers, circuit breaker et streaming peuvent régresser sans bloquer la livraison.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Réintègre les 27 fichiers backend actuellement hors CI dans une taxonomie canonique, sans action Git et hors sécurité. Classe chaque fichier sous tests/unit, tests/integration ou tests/agents selon ses dépendances réelles, ajoute les marqueurs pytest appropriés et corrige les références documentaires. Ajoute un garde CI/AST qui échoue si un test_*.py apparaît hors des racines explicitement exécutées. Compare la collecte avant/après : les 465 cas doivent rester présents, sans contaminer le job unitaire avec des dépendances externes. Exécute toutes les suites concernées et documente la politique en anglais.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-007" data-severity="major" data-area="migrations ci database">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-007 · MIGRATIONS / CI</span><h3>Les migrations Alembic ne sont jamais exécutées en CI</h3></div><div class="priority"><b>P0 · M</b>Impact 5/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Prouvé</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>La CI vérifie seulement révisions et heads par analyse statique : <code>.github/workflows/ci.yml:388-424</code>.</li>
+          <li>Les fixtures construisent le schéma via <code>Base.metadata.create_all()</code> : <code>tests/conftest.py:355-364,427-430</code>.</li>
+          <li>La production exécute <code>alembic upgrade head</code> : <code>apps/api/docker-entrypoint.sh:16-19</code>.</li>
+          <li>Le dépôt contient 106 migrations ; une tête unique ne prouve ni l’exécution ni les transformations de données.</li>
+        </ul>
+        <p><strong>Impact :</strong> migration syntaxiquement valide mais inexécutable, transformation erronée ou downgrade cassé peut passer tous les gates.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Ajoute un job CI PostgreSQL dédié à l’intégrité Alembic, sans action Git et hors sécurité. Sur base vide, exécute alembic upgrade head, vérifie la révision, puis compare le schéma obtenu aux métadonnées SQLAlchemy. Teste un cycle downgrade/upgrade de la dernière révision et le chemin complet depuis la révision minimale supportée ; ajoute des assertions de données pour les migrations qui transforment/backfillent. Conserve le contrôle statique de head comme garde rapide. Fournis une commande locale Task identique, des fixtures jetables et une documentation de diagnostic. Le job doit échouer sur drift, erreur de migration ou perte de données attendues.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-008" data-severity="major" data-area="delivery release deployment">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-008 · LIVRAISON</span><h3>Release et déploiement ne partagent ni artefact immuable ni gate de disponibilité</h3></div><div class="priority"><b>P0 · L</b>Impact 5/5 · risque 5/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Prouvé</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>release.yml</code> part de tout tag <code>v*</code> sans dépendre d’une CI réussie : <code>:3-6,105-108</code>.</li>
+          <li>Les images sont publiées dans GHCR : <code>:57-75</code>, mais le Compose prod définit <code>build:</code> pour API/web : <code>docker-compose.prod.yml:123-126,201-204</code>.</li>
+          <li>Le script Linux fait <code>pull</code> sans image applicative puis <code>up</code>, tandis que le bundle PowerShell reconstruit localement : <code>deploy.sh:146-214</code>, <code>prepare-prod.ps1:333-339</code>.</li>
+          <li>Le chemin généré annonce le succès après <code>up -d</code> sans <code>/ready</code> : <code>prepare-prod.ps1:337-344</code>. L’autre chemin vérifie <code>/health</code>, explicitement liveness : <code>deploy.sh:217-249</code>, <code>docker-compose.prod.yml:177-180</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> release possible sans tests validés, artefacts publiés mais non déployés, production non traçable à un digest et faux succès pendant un état non prêt.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Unifie la livraison LIA autour d’un artefact immuable, sans action Git et hors sécurité. Fais dépendre la release d’une CI complète réussie pour le même SHA. Choisis une seule stratégie : images GHCR référencées par digest dans le Compose prod, ou build local explicitement assumé ; supprime l’autre voie. Le déploiement doit attendre un délai borné, vérifier /ready côté API et un parcours frontend, enregistrer version/digests réellement déployés et échouer clairement si un service n’est pas prêt. Définis un rollback exécutable et testé. Transforme les wrappers par plateforme en façade d’un même workflow. Ajoute tests statiques des workflows, validation du bundle et dry-run de déploiement. Mets à jour runbook et documentation en anglais.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-009" data-severity="major" data-area="architecture coupling">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-009 · ARCHITECTURE / DDD</span><h3>31 cycles d’import runtime subsistent, dont 13 hors compromis architectural</h3></div><div class="priority"><b>P1 · L</b>Impact 4/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Mesuré</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Mesure de couplage : 31 cycles bidirectionnels runtime, 32 tous imports.</li>
+          <li>ADR-126 accepte explicitement le hub <code>users</code> comme orchestrateur de cycle de vie : <code>ADR-126…md:63-89</code>.</li>
+          <li>18 cycles impliquent <code>users</code> ; 13 restent hors arbitrage : neuf autour d’<code>agents</code>, trois autour de <code>chat</code> et <code>image_generation ↔ llm_config</code>.</li>
+          <li>Exemples : <code>chat/service.py:445,898,1115,1267,1474</code> ; <code>image_generation/client.py:26</code> et <code>llm_config/service.py:436</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> propagation des changements, initialisations fragiles et frontières DDD non dirigées dans les sous-systèmes les plus critiques.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Cartographie les 13 cycles runtime hors hub users avec sites d’import et responsabilités métier, sans action Git et hors sécurité. Priorise agents, chat et image_generation/llm_config. Casse les cycles par ports/Protocol, événements, contrats shared étroits ou injection ; n’utilise pas un import local cosmétique qui conserve le couplage conceptuel. Avant chaque extraction, ajoute des tests de caractérisation des contrats. Crée un baseline machine-readable et un garde CI interdisant tout nouveau cycle, puis abaisse le plafond à chaque suppression. Documente les dépendances autorisées et met à jour l’architecture/ADR. Valide imports de démarrage, MyPy et suites ciblées après chaque lot.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-010" data-severity="major" data-area="frontend tests coverage">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-010 · TESTS FRONTEND</span><h3>La couverture frontend globale reste entre 9,35 % et 12,68 %</h3></div><div class="priority"><b>P0 · L</b>Impact 5/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Mesuré</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Seuils globaux : 10 % statements, 8 % branches, 7 % functions, 10 % lines : <code>vitest.config.ts:27-34</code>.</li>
+          <li>Mesure : 12,43 % statements, 10,64 % branches, 9,35 % functions, 12,68 % lines ; 523 tests verts.</li>
+          <li><code>AdminLLMConfigSection</code>, <code>AdminLLMPricingSection</code>, <code>ConsumptionExportSection</code>, <code>JournalsSettings</code>, <code>SkillGuideModal</code> et <code>useMcpAppBridge</code> sont à 0 %.</li>
+          <li>Ces surfaces concentrent administration, formulaires, export, journaux et JSON-RPC sans fichier de test correspondant.</li>
+        </ul>
+        <p><strong>Impact :</strong> les 523 tests donnent une assurance forte sur quelques ratchets ciblés, mais très faible sur plusieurs parcours métier complexes.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Augmente la couverture frontend de LIA selon le risque, sans action Git, hors sécurité et sans abaisser les seuils. Commence par les six surfaces à 0 %. Utilise Vitest, Testing Library et user-event ; couvre nominal, loading, erreur, validation, mutations, annulation, concurrence, navigation clavier et messages JSON-RPC. Mocke les frontières réseau, pas la logique interne. Ajoute des seuils par chemin au niveau obtenu, avec cible initiale ≥60 % statements et ≥50 % branches, puis relève les seuils globaux. Interdiction d’ignorer artificiellement les branches. Préserve les ratchets 100 % reducers/SSE/stores. Exécute pnpm test:coverage, lint et type-check ; tests et commentaires en anglais.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-011" data-severity="major" data-area="frontend maintainability complexity">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-011 · MAINTENABILITÉ FRONTEND</span><h3>Les hotspots frontend atteignent CC 96 et dépassent 1 300 lignes</h3></div><div class="priority"><b>P1 · L</b>Impact 4/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Mesuré</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>useMcpAppBridge.ts:61</code> CC 96 ; <code>AdminLLMConfigSection.tsx:643</code> CC 86 ; <code>AdminLLMPricingSection.tsx:671</code> CC 65 ; <code>JournalsSettings.tsx:116</code> CC 60.</li>
+          <li><code>SkillGuideModal</code> 1 430 lignes, <code>AdminLLMConfigSection</code> 1 384, <code>AdminLLMPricingSection</code> 1 343, <code>JournalsSettings</code> 1 341.</li>
+          <li>70 fonctions ont une complexité ≥16 ; aucune règle de complexité dans <code>eslint.config.mjs:10-22</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> changements coûteux, branches difficiles à raisonner et à couvrir, risque de régression élevé.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Refactorise progressivement les hotspots frontend sans changement fonctionnel, sans action Git et hors sécurité. Ajoute d’abord des tests de caractérisation. Dans useMcpAppBridge, sépare validation, dispatch JSON-RPC, réponses, transferts et rendu en handlers typés. Dans les écrans LLM et Journals, extrais hooks de formulaire, validateurs, adaptateurs payload et composants de domaine. Déplace les données statiques du guide dans des modules dédiés. Vise CC ≤15 par fonction et composants idéalement &lt;400 lignes. Ajoute une règle ESLint bloquante ; si migration progressive, gèle des plafonds temporaires qui ne peuvent que baisser. Aucune duplication ni eslint-disable pour masquer la dette. Préserve i18n et contrats, puis exécute couverture, tests, lint et type-check.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-012" data-severity="major" data-area="accessibility journals">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-012 · WCAG 2.2 AA</span><h3>Des champs et actions Journals n’ont pas de nom accessible</h3></div><div class="priority"><b>P0 · M</b>Impact 5/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Prouvé statiquement</span><span class="pill">WCAG 1.3.1 · 3.3.2 · 4.1.2</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>JournalsSettings.tsx:1044-1068,1109-1159,1200-1309</code> : <code>Label</code> sans <code>htmlFor</code> et contrôles sans identifiant ou nom ARIA associé.</li>
+          <li><code>:962-979</code> : boutons icône édition/suppression sans <code>aria-label</code> ni texte masqué.</li>
+          <li>Le composant est à 0 % de couverture et sans test d’accessibilité.</li>
+        </ul>
+        <p><strong>Impact :</strong> lecteurs d’écran incapables d’identifier de façon fiable champs et actions répétées.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Mets JournalsSettings.tsx en conformité WCAG 2.2 AA pour noms, rôles et relations, sans action Git et hors sécurité. Donne un id stable à chaque champ, lie Label/htmlFor et aides via aria-describedby ; nomme les SelectTrigger. Ajoute aux boutons édition/suppression un nom traduit et contextualisé. Vérifie aussi champs numériques et dialogues. Réutilise les primitives Radix. Ajoute les clés dans les six locales avec parité stricte. Écris des tests Testing Library avec getByRole(name), descriptions, erreurs et parcours clavier. Exécute tests, couverture, lint, type-check et validation i18n.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-013" data-severity="major" data-area="accessibility modal table">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-013 · WCAG 2.2 AA</span><h3>Le tri pricing n’est pas clavier et le dialogue modal ne gère pas le focus</h3></div><div class="priority"><b>P0 · M</b>Impact 5/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Prouvé statiquement</span><span class="pill">WCAG 2.1.1 · 2.4.3 · 2.4.7 · 4.1.2</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>AdminLLMPricingSection.tsx:487-555</code> attache <code>onClick</code> à trois <code>&lt;th&gt;</code> sans contrôle focusable ni activation clavier.</li>
+          <li><code>:759-771</code> simule une modalité par <code>div role="dialog"</code>, sans Escape, focus initial, confinement ou restitution.</li>
+          <li>La fermeture est en fin de formulaire : <code>:1329-1341</code> ; Radix Dialog existe déjà : <code>package.json:28</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> tri indisponible au clavier et focus pouvant rester derrière le dialogue ou être perdu.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Corrige AdminLLMPricingSection.tsx selon WCAG 2.2 AA, sans action Git et hors sécurité. Place un vrai button dans chaque en-tête triable, conserve aria-sort sur th, annonce action/état et assure Entrée/Espace avec focus visible. Remplace le faux modal par Dialog, DialogContent, DialogTitle et DialogDescription existants afin d’obtenir focus initial, trap, Escape et restitution. Préserve soumission et traductions. Ajoute tests user-event sur tri clavier, tabulation confinée, Escape, focus restauré et nom accessible. Cherche les autres div role=dialog maison similaires et applique le même pattern lorsque la preuve est identique. Exécute tests, couverture, lint et type-check.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-014" data-severity="major" data-area="frontend api concurrency accessibility">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-014 · FRONTEND / API / CONCURRENCE</span><h3>ConsumptionExport contourne le client API, produit une URL invalide et accepte des réponses obsolètes</h3></div><div class="priority"><b>P0 · M</b>Impact 5/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill major">Majeur</span><span class="pill proven">Prouvé</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>ConsumptionExportSection.tsx:145-151</code> concatène une variable sans fallback : si absente, l’URL commence par <code>undefined/api/…</code>.</li>
+          <li>Le client canonique utilise une URL relative : <code>lib/api-client.ts:55-77</code>.</li>
+          <li><code>:73-104</code> n’annule pas les autocomplétions précédentes ; une réponse ancienne peut écraser la récente. <code>useApiQuery.ts:151-160</code> fournit déjà le pattern.</li>
+          <li><code>:285-338</code> ne met pas en œuvre le pattern combobox/listbox ni la navigation fléchée.</li>
+        </ul>
+        <p><strong>Impact :</strong> export cassé en configuration proxifiée, résultats incohérents par course et parcours inaccessible.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Refactorise ConsumptionExportSection.tsx, sans action Git et hors sécurité. Crée/réutilise un hook conforme à api-client avec URL relative lorsque NEXT_PUBLIC_API_URL est absente. Centralise le téléchargement Blob, les paramètres, erreurs et filename. Annule l’autocomplétion précédente avec AbortController ou n’accepte que le dernier request-id ; l’annulation normale n’est pas une erreur et le loading reste cohérent. Implémente le pattern ARIA combobox/listbox complet : expanded, controls, activedescendant, option, flèches, Entrée, Escape et Tab. Ajoute tests avec réponses inversées, env absente, erreurs HTTP, démontage et navigation clavier. Exécute tests, couverture, lint et type-check.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-015" data-severity="moderate" data-area="backend maintainability complexity">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-015 · MAINTENABILITÉ BACKEND</span><h3>Des coordinateurs critiques dépassent fortement les seuils d’analysabilité</h3></div><div class="priority"><b>P2 · XL</b>Impact 4/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré structurel</span><span class="pill proven">Mesuré</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>41 fichiers ≥800 SLOC logiques, 23 ≥1 000 ; 170 fonctions &gt;100 SLOC, 43 &gt;200.</li>
+          <li>352 fonctions CC≥15 ; médiane 2, p90 11, maximum 89.</li>
+          <li><code>_stream_with_new_services</code> ≈691 SLOC/CC89 ; planner ≈418/CC82 ; orchestrateur ≈444/CC77 ; QueryAnalyzer ≈385/CC76.</li>
+          <li>Le ratchet fichier passe mais ne borne ni taille de fonction ni complexité.</li>
+        </ul>
+        <p><strong>Impact :</strong> coût de revue élevé et régressions probables dans streaming/orchestration malgré une bonne qualité médiane.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Lance un programme incrémental de réduction de complexité backend sans changement fonctionnel, sans action Git et hors sécurité. Commence par _stream_with_new_services, planner et task orchestrator. Ajoute avant extraction des tests de caractérisation sur SSE, transitions, erreurs, annulation, HITL, métriques et état LangGraph. Extrais fonctions pures puis composants cohésifs de lifecycle, orchestration, persistance et émission ; garde une façade compatible. Ajoute à l’outillage un ratchet versionné de SLOC/fonction et CC, plafonds uniquement décroissants et exceptions temporaires justifiées. Un hotspot par changement ; Ruff, Black, MyPy et tests ciblés à chaque étape.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-016" data-severity="moderate" data-area="embedding cancellation concurrency">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-016 · CONCURRENCE</span><h3>L’annulation d’un waiter annule l’embedding partagé pour tous</h3></div><div class="priority"><b>P1 · S</b>Impact 3/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill proven">Prouvé par reproduction</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Single-flight : <code>rag_spaces/embedding.py:125-164</code>.</li>
+          <li>Initiateur et joiners font un <code>await</code> direct : <code>:150-160</code>, malgré le commentaire affirmant le détachement.</li>
+          <li>Reproduction à deux appelants : annuler le premier produit <code>CancelledError</code> pour les deux et retire l’entrée inflight.</li>
+          <li>Les tests existants couvrent concurrence et exception, pas l’annulation.</li>
+        </ul>
+        <p><strong>Impact :</strong> la déconnexion d’un seul appelant peut faire échouer toutes les requêtes coalescées.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Corrige le single-flight d’embeddings dans embedding.py, sans action Git et hors sécurité. La tâche partagée doit posséder calcul, cache et nettoyage inflight dans son propre finally. Tous les appelants, initiateur compris, l’attendent via asyncio.shield afin qu’une annulation locale ne la détruise pas. Définis la politique si tous les waiters disparaissent et récupère les exceptions pour éviter les warnings. Ajoute tests déterministes : annulation initiateur, annulation joiner, succès de l’autre, exception partagée, retry, absence de fuite et cache non empoisonné. Valide Ruff, MyPy et tests RAG.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-017" data-severity="moderate" data-area="langgraph functional documentation">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-017 · LANGGRAPH / FONCTIONNEL</span><h3>L’Adaptive Replanner calcule des décisions sans influencer le graphe</h3></div><div class="priority"><b>P1 · L/XL</b>Impact 4/5 · risque 3/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill proven">Prouvé</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Décision calculée : <code>task_orchestrator_node.py:1163-1187</code>.</li>
+          <li>Toutes les décisions sont seulement journalisées : <code>:1189-1264</code> ; <code>RETRY</code>/<code>REPLAN</code> sont explicitement non câblés.</li>
+          <li>Configuration exposée sans feature flag : <code>constants.py:1921-1922</code>, <code>config/agents.py:984-995</code>.</li>
+          <li><code>ARCHITECTURE_LANGRAPH.md:1974-1979</code> affirme des comportements implémentés ; les tests ne vérifient que le calcul.</li>
+        </ul>
+        <p><strong>Impact :</strong> retry, replanification, escalade et abandon annoncés ne modifient pas l’exécution réelle.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Prends une décision produit explicite, sans action Git et hors sécurité : intégrer réellement Adaptive Replanner ou le retirer. Pour l’intégration, ajoute des champs typés/sérialisables dans MessagesState et des arêtes conditionnelles : RETRY seulement idempotent, REPLAN via planification+validation, ESCALATE_USER via HITL visible, ABORT vers réponse finale, PROCEED inchangé. Borne les tentatives, protège les actions déjà exécutées et assure checkpoint/resume. Ajoute tests de graphe E2E pour chaque décision, idempotence et limite. Sinon supprime service, config, métriques, tests et affirmations. Dans les deux cas, documentation et runtime doivent être honnêtes et alignés.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-018" data-severity="moderate" data-area="startup skills scalability">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-018 · STARTUP / SCALABILITÉ</span><h3>La synchronisation des skills est répétée par worker et par utilisateur</h3></div><div class="priority"><b>P1 · M/L</b>Impact 4/5 · risque 3/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill risk">Défaut d’échelle prouvé, collision non reproduite</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Chaque processus passe par <code>main.py:167</code> puis <code>startup/caches.py:232-256</code> ; quatre workers sont livrés.</li>
+          <li>Découverte puis check-then-insert : <code>skills/preference_service.py:223-263</code> ; <code>Skill.name</code> unique : <code>models.py:35-40</code>.</li>
+          <li>Tous les utilisateurs sont parcourus séquentiellement : <code>preference_service.py:289-292</code>.</li>
+          <li>Boucles de savepoints/inserts par utilisateur : <code>repository.py:158-229</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> coût O(workers×users×skills), conflits possibles au démarrage et synchronisation incomplète masquée par warning.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Rends la synchronisation des skills idempotente, set-based et possédée par un seul worker, sans action Git et hors sécurité. Utilise advisory lock PostgreSQL ou le leader existant avec comportement défini pour les autres workers. Remplace check-then-insert par INSERT ON CONFLICT DO NOTHING et les boucles utilisateurs par INSERT SELECT/bulk, sans écraser les préférences. Décide si un échec bloque le startup ou dégrade la fonctionnalité, avec métrique/log. Ajoute un test d’intégration à quatre synchronisations concurrentes, nombreux utilisateurs, nouveau skill et préférences existantes ; vérifie cardinalités, absence de doublon et nombre borné de requêtes.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-019" data-severity="moderate" data-area="tests skips coverage">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-019 · DETTE DE TEST</span><h3>Des contrats backend importants sont neutralisés par des skips permanents</h3></div><div class="priority"><b>P1 · L</b>Impact 4/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill proven">Prouvé</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>18 décorateurs <code>skip</code> inconditionnels, 31 <code>skipif</code> et 22 appels dynamiques recensés.</li>
+          <li>Cinq tests HITL entiers ignorés : <code>tests/agents/test_hitl_middleware.py:22-25</code>.</li>
+          <li>Dix tests de métriques LangGraph non implémentées : <code>test_metrics_langgraph_state.py:35-38</code>.</li>
+          <li>Tests de session/checkpoint/performance ignorés pour fixtures incomplètes : <code>test_database_session.py:66</code>, <code>test_context_cleanup_performance.py:43-46</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> HITL, métriques, sessions et checkpointing peuvent régresser sans signal ; la croissance des skips n’est pas bornée.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Audite chaque skip backend, sans action Git et hors sécurité. Pour chacun, consigne propriétaire, raison, contrat, remplacement et échéance. Répare les fixtures : faux LLM déterministe pour HITL, tables checkpointer pour intégration, context managers async correctement mockés et adaptation LangGraph. Implémente les métriques promises ou retire leur contrat. Ajoute une allowlist CI des skips inconditionnels avec expiration et garde anti-croissance. Relie tout test supprimé à un remplacement vérifiable. Exécute suites unit/agents/integration concernées et publie le solde résiduel.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-020" data-severity="moderate" data-area="typing mypy tooling">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-020 · TYPAGE</span><h3>Le succès MyPy masque une zone d’exemption couvrant 35,1 % du backend</h3></div><div class="priority"><b>P2 · L/XL</b>Impact 4/5 · risque 3/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré structurel</span><span class="pill proven">Mesuré</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>MyPy : zéro erreur sur 869 fichiers, mais <code>disallow_untyped_decorators=false</code> : <code>pyproject.toml:103-122</code>.</li>
+          <li>Overrides orchestration : 18 codes désactivés : <code>:164-173</code> ; outils/services/connecteurs/LLM : 16 codes : <code>:175-211</code>.</li>
+          <li>Union : 305/869 fichiers (35,1 %) sous au moins un override ; 278 fichiers sous les deux groupes larges.</li>
+          <li>Codes désactivés : notamment <code>arg-type</code>, <code>return-value</code>, <code>no-any-return</code> et <code>no-untyped-def</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> l’affirmation « strict » ne couvre pas les catégories les plus utiles dans les zones les plus complexes.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Réduis méthodiquement les overrides MyPy, sans action Git et hors sécurité. Ajoute un outil reproductible mesurant fichiers et codes exemptés, avec plafond de départ 305/869. Traite par lots cohérents : streaming, orchestration, tools, connectors, LLM. Retire l’override, corrige avec Protocol, TypedDict, generics, TypeGuard, adapters et casts locaux justifiés. Interdiction de nouveaux Any, ignore globaux ou codes désactivés. Remplace les wildcards résiduels par exceptions module+code avec justification et échéance. Active disallow_untyped_decorators après typage des décorateurs. Ajoute un ratchet CI monotone ; MyPy, Ruff, Black et tests restent verts à chaque lot.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-021" data-severity="moderate" data-area="eslint react tooling">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-021 · OUTILLAGE FRONTEND</span><h3>Le garde ESLint est volontairement affaibli sur le typage et React 19</h3></div><div class="priority"><b>P2 · M</b>Impact 3/5 · risque 3/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill proven">Prouvé</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>no-unused-vars</code> et <code>no-explicit-any</code> ne sont que warnings : <code>eslint.config.mjs:11-18</code>.</li>
+          <li><code>react-hooks/set-state-in-effect</code> et <code>react-hooks/immutability</code> sont désactivées avec TODO non borné : <code>:19-21</code>.</li>
+          <li>42 lignes de désactivation ESLint et 96 occurrences d’<code>any</code> explicite recensées dans <code>src</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> la CI reste verte malgré une dégradation du typage ou des pratiques React dans les fichiers nouveaux.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Renforce ESLint sans nouvelle suppression globale, sans action Git et hors sécurité. Inventorie les violations des quatre règles, corrige avec unknown+narrowing, états dérivés, immutabilité et effets limités aux synchronisations externes. Passe les règles TypeScript à error puis réactive les règles React comme erreurs après correction. Examine chaque eslint-disable ; conserve seulement les exceptions indispensables avec justification locale et test. Ajoute un garde empêchant les désactivations non justifiées et un ratchet d’explicit any. Exécute lint, type-check, tests et couverture.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-022" data-severity="moderate" data-area="developer experience commands portability">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-022 · EXPÉRIENCE DÉVELOPPEUR / PORTABILITÉ</span><h3>Task, Makefile et scripts exposent trois interfaces opératoires divergentes</h3></div><div class="priority"><b>P1 · M</b>Impact 4/5 · risque 3/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill proven">Prouvé</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>AGENTS.md:12</code> et <code>CLAUDE.md:14</code> déclarent Taskfile canonique ; <code>Makefile:119-125</code> exécute une autre sélection.</li>
+          <li><code>task test:backend:agents</code> ne reprend pas les filtres CI : <code>Taskfile.yml:267-273</code> vs <code>ci.yml:156-163</code>.</li>
+          <li><code>scripts/README.md:111-125</code> recommande un autre déploiement ; <code>deploy.sh:146-189</code> fait <code>pull</code> alors que les services applicatifs sont <code>build:</code>.</li>
+          <li>L’exécution locale agents échoue sur Redis et couverture, bien que le job CI soit construit différemment.</li>
+        </ul>
+        <p><strong>Impact :</strong> résultat différent selon la commande, diagnostic trompeur et déploiement Linux non aligné.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Déclare Taskfile façade exécutable unique, sans action Git et hors sécurité. Supprime les interfaces obsolètes ou transforme Makefile/scripts publics en wrappers minces des tâches Task. Centralise sélections pytest, marqueurs et options dans une source consommée par Task, hooks et CI. Aligne test:backend:agents sur la politique CI tout en documentant ses dépendances. Ajoute un test de cohérence automatique et des dry-runs de wrappers. Ne publie qu’un workflow de déploiement supporté par plateforme ; mets à jour toutes les docs actives.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-023" data-severity="moderate" data-area="audit tooling reproducibility">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-023 · REPRODUCTIBILITÉ D’AUDIT</span><h3>Les trois scripts de mesure publiés échouent depuis la racine documentée</h3></div><div class="priority"><b>P1 · S</b>Impact 3/5 · risque 3/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill proven">Prouvé par exécution</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Le protocole prescrit <code>python scripts/audit/measure_sloc.py</code> depuis la racine : <code>AUDIT_PROTOCOL.md:127-130</code>.</li>
+          <li>Les defaults visent <code>./src</code> ou <code>./src/domains</code> : <code>measure_sloc.py:105-109,177</code>, <code>measure_cc.py:96-100,144-146</code>.</li>
+          <li>SLOC, CC et coupling quittent tous avec code 1 depuis <code>D:\Developpement\LIA</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> protocole public non reproductible et mesures potentiellement produites avec des commandes non publiées.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Rends measure_sloc.py, measure_cc.py et measure_coupling.py indépendants du CWD, sans action Git et hors sécurité. Résous la racine depuis __file__, conserve un argument de chemin explicite et une erreur claire sur chemin invalide. Ajoute tests subprocess depuis racine, apps/api et un autre CWD ; sorties et codes doivent être identiques. Harmonise usages, protocole et rapport public. Ajoute ces tests à la CI et documente versions/instrument pour préserver la comparabilité historique.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-024" data-severity="moderate" data-area="documentation adr links">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-024 · DOCUMENTATION D’ARCHITECTURE</span><h3>Le contrôle documentaire masque 15 liens cassés dans les ADR</h3></div><div class="priority"><b>P1 · S</b>Impact 3/5 · risque 3/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill proven">Prouvé par exécution</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Tous les ADR sont classés <code>HISTORICAL</code> : <code>scripts/audit/doc_audit.py:17-24,49,55-61</code>.</li>
+          <li>Le code de sortie ignore les liens historiques : <code>:154-155</code>.</li>
+          <li>Exécution : 15 liens ADR cassés, code retour 0.</li>
+          <li>Les 119 ADR restent activement indexés et certains sont liés depuis <code>README.md:887</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> la navigation architecturale publiée se dégrade tout en satisfaisant le gate « zéro lien vivant cassé ».</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Sépare l’immutabilité du contenu décisionnel ADR de l’intégrité de navigation, sans action Git et hors sécurité. Fais échouer doc_audit sur tout lien relatif cassé dans un ADR activement indexé, tout en tolérant les anciens chemins de code explicitement annotés. Répare les 15 liens vers l’emplacement actuel, une archive identifiable ou un texte non cliquable. Ajoute tests de classification LIVING/HISTORICAL/ROADMAP, cas ADR indexé et code de sortie. Documente la politique et exécute l’audit sur toute la documentation.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-025" data-severity="moderate" data-area="observability ci">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-025 · OBSERVABILITÉ</span><h3>Les artefacts Prometheus/Grafana riches ne sont pas validés en CI</h3></div><div class="priority"><b>P1 · M</b>Impact 4/5 · risque 3/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill proven">Prouvé</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>413 instanciations de métriques, 22 dashboards Grafana JSON, 13 alertes cœur et 26 runbooks d’alerte.</li>
+          <li>Chaque alerte cœur possède actuellement une annotation runbook : <code>alerts-core.yml:17-18,29-217</code>.</li>
+          <li>Les tests de règles sont seulement une commande Docker manuelle : <code>prometheus/tests/alerts_core_test.yml:1-13</code>.</li>
+          <li>Aucun job CI n’exécute <code>promtool test rules</code>, ne valide les requêtes dashboard ni les liens alerte→runbook.</li>
+        </ul>
+        <p><strong>Impact :</strong> règle PromQL ou dashboard invalide détecté seulement manuellement ou après déploiement.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Ajoute un job CI d’observabilité déterministe, sans action Git et hors sécurité : syntaxe Prometheus, promtool test rules, parsing des 22 JSON Grafana, extraction/validation statique des requêtes PromQL, existence de chaque runbook et concordance des métriques référencées avec l’inventaire AST. Distingue métrique définie de métrique effectivement émise ; conserve les validations live dans un smoke post-déploiement séparé. Ajoute commandes Task locales, fixtures de règles invalides et documentation de diagnostic.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-026" data-severity="moderate" data-area="dead code documentation honesty">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-026 · YAGNI / CONTRATS</span><h3>Deux API de production mortes exposent des contrats trompeurs</h3></div><div class="priority"><b>P1 · XS/S</b>Impact 2/5 · risque 2/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill proven">Prouvé par recherche globale</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>ConversationOrchestrator.persist_messages()</code> ne persiste rien mais journalise <code>messages_persisted</code> : <code>conversation_orchestrator.py:145-168</code>.</li>
+          <li>Ses tests reconnaissent le TODO sans vérifier de persistance : <code>test_conversation_orchestrator.py:242-272</code>.</li>
+          <li><code>calculate_agent_routing_accuracy()</code> retourne toujours 0.0 : <code>business_metrics.py:579-607</code>.</li>
+          <li>Aucun appel de production ni consommateur n’a été trouvé pour ces symboles.</li>
+        </ul>
+        <p><strong>Impact :</strong> journal de succès sans effet, surface de maintenance artificielle et risque de futur appel fondé sur un faux contrat.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Supprime les API mortes persist_messages et calculate_agent_routing_accuracy, sans action Git et hors sécurité. Reconfirme d’abord l’absence de consommation dynamique/documentée. Applique YAGNI : n’invente pas d’implémentation sans besoin ni source de vérité. Supprime tests du no-op, imports et commentaires devenus inutiles ; aucun événement messages_persisted ne doit subsister pour une non-opération. Une future métrique routing sera une fonctionnalité séparée avec données et consommateurs. Mets à jour seulement les documents actifs concernés, puis valide rg global, tests ciblés, Ruff, Black, MyPy et suite rapide.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-027" data-severity="minor" data-area="i18n tooling">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-027 · I18N / OUTILLAGE</span><h3>Le validateur i18n manuel est inutilisable et omet le chinois</h3></div><div class="priority"><b>P1 · XS/S</b>Impact 2/5 · risque 2/5</div></div>
+        <div class="status-line"><span class="pill minor">Mineur</span><span class="pill proven">Prouvé par exécution</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>scripts/i18n/validate-translations.js:7</code> résout <code>scripts/apps/web/locales</code> au lieu de <code>apps/web/locales</code>.</li>
+          <li>La liste <code>:8</code> omet <code>zh</code>.</li>
+          <li>Exécution racine : cinq <code>ENOENT</code>, code 1 ; le script n’est appelé par aucun Task/hook/CI.</li>
+          <li>La parité réelle reste parfaite grâce à un autre validateur inline : <code>ci.yml:344-380</code>.</li>
+        </ul>
+        <p><strong>Impact :</strong> outil manuel mensonger et logique dupliquée, risque de divergence limité par le garde CI actuel.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Transforme validate-translations.js en validateur i18n canonique, sans action Git et hors sécurité. Résous le chemin indépendamment du CWD, exige en/fr/de/es/it/zh, parse chaque JSON et compare récursivement clés manquantes/supplémentaires à en. Codes de sortie déterministes sur langue/fichier/JSON/clé. Remplace l’implémentation inline CI et raccorde Task/hook au même script. Ajoute tests temporaires : conforme, zh absent, clé manquante, supplémentaire, JSON invalide, exécution depuis deux CWD. Les 4 920 clés actuelles doivent rester identiques ; ne change aucune traduction fonctionnelle.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-028" data-severity="moderate" data-area="test isolation performance taskfile">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-028 · ISOLATION ET REPRODUCTIBILITÉ DES TESTS</span><h3>Des tests « unitaires » touchent PostgreSQL et un seuil absolu échoue de façon stable</h3></div><div class="priority"><b>P0 · M</b>Impact 4/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill proven">Observé et reproduit</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>test_context_resolution_llm.py</code> patch <code>_get_items_from_tool_context_manager</code>, mais <code>_maybe_update_current_item</code> appelle <code>get_tcm_session</code> : production <code>context_resolution_service.py:542</code>.</li>
+          <li>En séquentiel, plusieurs tests attendent un <code>PoolTimeout</code> PostgreSQL de 30 s puis passent par fallback ; résultat vert mais chemin nominal non testé.</li>
+          <li><code>test_state_performance.py:74-95</code> impose &lt;0,1 s ; cinq relances isolées donnent 0,141–0,144 s, et 0,331 s sous 24 workers.</li>
+          <li><code>task test:backend:agents</code> collecte un E2E Redis non marqué et garde la couverture globale, d’où 3 erreurs Redis + seuil 34&lt;45, contrairement à la CI.</li>
+        </ul>
+        <p><strong>Impact :</strong> faux positifs de succès, suites dépendantes de l’ordre/environnement et commande locale non représentative.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Restaure l’isolation et la reproductibilité des tests backend, sans action Git et hors sécurité. Dans test_context_resolution_llm, injecte/mocke la frontière get_tcm_session ou le store complet afin qu’aucune connexion réelle ne soit tentée ; ajoute une assertion fail-fast interdisant le réseau/DB dans les tests unitaires. Classe test_hitl_streaming_e2e comme integration et aligne task test:backend:agents sur les filtres/--no-cov CI. Remplace le seuil absolu 100 ms par le pattern de baseline calibrée/ratio déjà utilisé dans le dépôt, tout en conservant une borne de non-régression. Ajoute un job planifié combiné séquentiel puis parallèle. Vérifie durées, absence de logs PoolTimeout et résultats identiques sur Python 3.12/Linux et hôte supporté.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-029" data-severity="moderate" data-area="documentation standards drift">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-029 · FRAÎCHEUR DOCUMENTAIRE</span><h3>Des documents actifs et le protocole d’audit contredisent le code courant</h3></div><div class="priority"><b>P1 · S/M</b>Impact 3/5 · risque 3/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré</span><span class="pill proven">Prouvé</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>docs/audit/README.md:126</code> prescrit <code>pnpm test -- --coverage</code>, tandis que <code>ci.yml:275-278</code> et <code>GUIDE_TESTING.md:2738-2740</code> disent que cette commande ignore silencieusement coverage.</li>
+          <li>Le protocole et le rapport citent WCAG 2.1 : <code>AUDIT_PROTOCOL.md:82</code>, <code>audit/README.md:20,99</code>, alors que le référentiel courant retenu ici est WCAG 2.2.</li>
+          <li><code>ARCHITECTURE_AGENT.md:1850</code> et <code>GUIDE_AGENT_CREATION.md:558-566</code> pointent des composants supprimés/contradictoires.</li>
+          <li><code>README_TESTS.md:3175-3176</code> référence un workflow et un document inexistants ; <code>README.md:880,885</code> affiche des comptes obsolètes.</li>
+        </ul>
+        <p><strong>Impact :</strong> procédures non reproductibles, onboarding erroné et score public fondé sur un référentiel/outillage périmé.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Réaligne la documentation active sur le code et les commandes réellement validées, sans action Git et hors sécurité. Corrige la commande frontend vers pnpm test:coverage, actualise le référentiel vers WCAG 2.2, retire/remplace les chemins SemanticIntentDetector/fewshot/workflow inexistants et recalcule les compteurs publiés via une source générée. Étends doc_audit pour détecter commandes et chemins actifs, avec allowlist explicite des exemples historiques. Mets à jour INDEX et ADR_INDEX si nécessaire. Exécute toutes les commandes de reproduction documentées dans un job docs CI et fais échouer sur contradiction ou lien cassé.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-030" data-severity="minor" data-area="version metadata compatibility">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-030 · VERSIONNEMENT</span><h3>La métadonnée du package API est en retard de deux versions mineures</h3></div><div class="priority"><b>P2 · XS</b>Impact 1/5 · risque 2/5</div></div>
+        <div class="status-line"><span class="pill minor">Mineur</span><span class="pill proven">Prouvé</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li><code>package.json:3</code> et <code>apps/web/package.json:3</code> : 1.23.13.</li>
+          <li><code>apps/api/pyproject.toml:1-4</code> : package <code>lia-api</code> version 1.21.9.</li>
+          <li>Le fichier est utilisé par les outils Python et constitue une métadonnée de distribution, même si les dépendances sont gérées ailleurs.</li>
+        </ul>
+        <p><strong>Impact :</strong> artefacts et diagnostics de version ambigus ; risque fonctionnel faible.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Établis une source unique de version LIA, sans action Git et hors sécurité. Détermine si la version monorepo doit piloter API et web ; si oui, synchronise pyproject/package.json via un script de vérification ou génération. Si les composants sont volontairement indépendants, documente la politique et expose leurs versions distinctes sans ambiguïté. Ajoute un garde CI qui échoue sur drift non intentionnel et des tests de l’endpoint/artefact de version. Mets à jour uniquement les références actives.</pre></div></details>
+      </article>
+
+      <article class="finding" id="LIA-2026-031" data-severity="moderate" data-area="e2e accessibility usability testing">
+        <div class="finding-head"><div><span class="finding-id">LIA-2026-031 · E2E / ACCESSIBILITÉ</span><h3>Aucun parcours navigateur ni audit WCAG 2.2 AA formel ne protège l’interface</h3></div><div class="priority"><b>P1 · L</b>Impact 4/5 · risque 4/5</div></div>
+        <div class="status-line"><span class="pill moderate">Modéré transverse</span><span class="pill proven">Absence vérifiée</span></div>
+        <h4>Preuves</h4>
+        <ul>
+          <li>Aucune dépendance/config/suite Playwright E2E ou axe/pa11y propre au frontend ; aucun job navigateur dans <code>ci.yml</code>.</li>
+          <li>Le rapport public marque lui-même le premier passage WCAG comme planifié : <code>docs/audit/README.md:99</code>.</li>
+          <li>Les constats 012–014 démontrent des défauts qu’ESLint/TypeScript/Vitest n’ont pas détectés.</li>
+          <li>Contraste, zoom 200 %, focus rendu, lecteurs d’écran et annonces live n’ont pas été vérifiés pendant cet audit.</li>
+        </ul>
+        <p><strong>Impact :</strong> régressions d’intégration, navigation et accessibilité invisibles jusqu’à la recette humaine ou la production.</p>
+        <details><summary>Prompt IA de résolution</summary><div class="prompt-wrap"><button class="copy-button" type="button">Copier</button><pre class="prompt">Mets en place une stratégie E2E navigateur et accessibilité WCAG 2.2 AA, sans action Git et hors sécurité. Ajoute Playwright avec environnements déterministes et données jetables. Commence par smoke : login/session de test, chat SSE, changement de langue, settings, Journals, pricing admin et ConsumptionExport. Ajoute axe-core sur les pages/états stables, mais complète par des tests clavier : ordre de focus, dialogs, combobox, erreurs, reduced-motion et zoom. Définis une matrice Chromium/Firefox/WebKit proportionnée, artefacts trace/screenshot sur échec et job PR court + campagne nocturne longue. Formalise une checklist manuelle NVDA/VoiceOver, contraste et zoom avec preuves et responsable. Corrige les défauts trouvés, ne se contente pas d’allowlists générales.</pre></div></details>
+      </article>
+
+      <div class="card callout">
+        <h3>Répartition</h3>
+        <p><span class="pill major">14 majeurs</span> <span class="pill moderate">15 modérés</span> <span class="pill minor">2 mineurs</span></p>
+        <p>Aucun constat critique n’est attribué : les défauts majeurs sont sérieux et certains touchent l’exactitude ou la durabilité, mais aucune preuve d’une perte irréversible généralisée ou d’une indisponibilité systématique en production n’a été obtenue dans le périmètre exécutable.</p>
+      </div>
+    </section>
+    <section id="strengths">
+      <h2>Forces et contrôles maîtrisés</h2>
+      <div class="grid-3">
+        <article class="card callout good">
+          <h3>Discipline statique</h3>
+          <ul>
+            <li>Ruff, Black, MyPy, ESLint et TypeScript passent sur le snapshot.</li>
+            <li>Aucun appel <code>print()</code> réel dans le backend de production.</li>
+            <li>Ratchet de taille backend actif ; médiane de complexité faible malgré les hotspots.</li>
+            <li>Lockfiles Python synchronisés et installations hashées.</li>
+          </ul>
+        </article>
+        <article class="card callout good">
+          <h3>Persistance et architecture</h3>
+          <ul>
+            <li>Une seule tête Alembic ; 45/45 clés étrangères avec politique <code>ondelete</code>.</li>
+            <li>Patterns SQLAlchemy 2, sessions async isolées dans plusieurs agrégateurs.</li>
+            <li>31 bounded contexts, registres et configuration modularisée.</li>
+            <li>119 ADR et mécanisme explicite d’acceptation de dette architecturale.</li>
+          </ul>
+        </article>
+        <article class="card callout good">
+          <h3>Tests, i18n et opérations</h3>
+          <ul>
+            <li>Plus de 10 500 cas backend collectés ; 53,85 % de couverture unitaire mesurée.</li>
+            <li>523 tests frontend verts ; ratchets à 100 % sur reducers/SSE/stores.</li>
+            <li>Parité parfaite de 4 920 clés dans six langues.</li>
+            <li>413 métriques, 22 dashboards, 13 alertes cœur et 26 runbooks.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3>Faux positifs écartés</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Candidat</th><th>Décision</th><th>Motif</th></tr></thead>
+          <tbody>
+            <tr><td>208 occurrences textuelles de <code>print(</code></td><td>Écarté</td><td>L’analyse AST ne trouve aucun appel réel en production ; la plupart sont des exemples de docstrings.</td></tr>
+            <tr><td>Usages de <code>logging.getLogger</code></td><td>Écarté</td><td>Confinés à l’initialisation du système de logging, pas aux services métier.</td></tr>
+            <tr><td>31 cycles tous jugés accidentels</td><td>Nuancé</td><td>ADR-126 accepte explicitement 18 cycles autour du hub <code>users</code> ; seuls 13 hors compromis sont retenus.</td></tr>
+            <tr><td>38 chemins de documentation « stale »</td><td>Contre-vérifié</td><td>Beaucoup sont des exemples ou mentions explicitement obsolètes ; seuls les chemins actifs prouvés sont retenus.</td></tr>
+            <tr><td>Échec de la parité i18n</td><td>Écarté</td><td>Le script manuel est cassé, mais le contrôle indépendant confirme exactement 4 920 clés dans chaque locale.</td></tr>
+            <tr><td>Échec de couverture backend à 30 %</td><td>Écarté</td><td>Mesure issue d’un contrôleur pytest interrompu ; campagne propre finalisée à 53,85 %.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <h2>Feuille de route de remédiation</h2>
+      <p class="lead">L’ordre ci-dessous minimise d’abord le risque opérationnel et les faux résultats, puis crée les garde-fous qui rendent les chantiers structurels sûrs. Les vagues sont indicatives ; chaque prompt du registre est autonome.</p>
+      <div class="card">
+        <div class="roadmap-row"><div class="wave">Vague 0<br>0–72 h</div><div><strong>Stopper les défauts à fort rendement de correction.</strong><br>LIA-002 cache LLM ; LIA-003 cadence scheduler ; LIA-005 fermeture TTS ; LIA-006 tests hors CI ; LIA-014 URL/course export ; LIA-027 validateur i18n.</div><div>Propriétaires : backend runtime, frontend, DevEx</div></div>
+        <div class="roadmap-row"><div class="wave">Vague 1<br>1–2 sem.</div><div><strong>Rétablir les garanties de livraison et de test.</strong><br>LIA-007 migrations exécutées ; LIA-008 artefact immuable/readiness ; LIA-012/013 accessibilité prouvée ; LIA-016 annulation embeddings ; LIA-022 commandes ; LIA-028 isolation des tests.</div><div>Plateforme, QA, frontend</div></div>
+        <div class="roadmap-row"><div class="wave">Vague 2<br>2–5 sem.</div><div><strong>Durabilité et capacité.</strong><br>LIA-001 jobs RAG durables ; LIA-004 budget DB ; LIA-018 sync skills ; LIA-019 skips ; LIA-025 validations observabilité ; LIA-031 E2E/WCAG.</div><div>Architecture, SRE, QA</div></div>
+        <div class="roadmap-row"><div class="wave">Vague 3<br>1–3 mois</div><div><strong>Réduire la dette structurelle sans régression.</strong><br>LIA-009 cycles ; LIA-010 couverture frontend ; LIA-011/015 complexité ; LIA-020/021 typage et lint ; LIA-017 Replanner.</div><div>Tech leads par domaine</div></div>
+        <div class="roadmap-row"><div class="wave">Continu</div><div><strong>Gouvernance et vérité documentaire.</strong><br>LIA-023/024/029 scripts et docs ; LIA-026 code mort ; LIA-030 version. Réaudit après chaque vague avec mêmes instruments et ajout d’au moins une nouvelle sonde.</div><div>Mainteneurs + audit owner</div></div>
+      </div>
+    </section>
+    <section id="appendices">
+      <h2>Annexes techniques</h2>
+
+      <h3>A. Inventaire du snapshot</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Mesure</th><th>Valeur</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td>Fichiers audités</td><td>3 095</td><td>Hors <code>node_modules</code>, <code>.venv</code>, caches, résultats coverage et artefacts de build.</td></tr>
+            <tr><td>Backend source Python</td><td>869 fichiers · 195 548 SLOC logiques</td><td>5 991 fonctions, aucun fichier non parsable.</td></tr>
+            <tr><td>Backend tests</td><td>592 fichiers <code>test_*.py</code></td><td>686 fichiers Python sous <code>tests</code> au total ; plus de 10 500 cas unit+agents collectés.</td></tr>
+            <tr><td>Frontend source</td><td>485 fichiers TS/TSX</td><td>301 TSX, 186 TS sur le dépôt ; 260 composants TSX.</td></tr>
+            <tr><td>Frontend tests</td><td>50 fichiers · 523 cas</td><td>Tous réussis dans la campagne.</td></tr>
+            <tr><td>Documentation</td><td>328 Markdown sous <code>docs</code></td><td>119 ADR, 40 runbooks, 359 fichiers de documentation/artefacts au sens large.</td></tr>
+            <tr><td>Persistance</td><td>106 migrations</td><td>Une tête Alembic : <code>admin_broadcast_translations_001</code>.</td></tr>
+            <tr><td>Prompts</td><td>78 fichiers <code>.txt</code></td><td>Prompts backend versionnés.</td></tr>
+            <tr><td>Observabilité</td><td>413 métriques · 22 dashboards</td><td>13 alertes cœur, 26 runbooks d’alerte.</td></tr>
+            <tr><td>Internationalisation</td><td>6 × 4 920 clés</td><td>en, fr, de, es, it, zh : aucune clé manquante ou supplémentaire.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>B. Mesures de structure</h3>
+      <div class="grid-2">
+        <article class="card">
+          <h4>Backend</h4>
+          <ul>
+            <li>Fichiers ≥800 SLOC : 41, dont 33 de logique.</li>
+            <li>Fichiers ≥1 000 SLOC : 23.</li>
+            <li>Fonctions &gt;100 SLOC : 170 ; &gt;200 : 43.</li>
+            <li>CC médiane 2 ; p90 11 ; maximum 89.</li>
+            <li>352 fonctions CC≥15.</li>
+            <li>31 cycles bidirectionnels runtime ; 13 hors compromis ADR-126.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h4>Frontend</h4>
+          <ul>
+            <li>70 fonctions CC≥16 ; maximum 96.</li>
+            <li>Quatre composants/fichiers majeurs entre 1 341 et 1 430 lignes.</li>
+            <li>42 désactivations ESLint recensées.</li>
+            <li>96 occurrences d’<code>any</code> explicite ; 2 suppressions TypeScript.</li>
+            <li>288 attributs ARIA et 27 signaux reduced-motion : base positive, non-preuve de conformité.</li>
+            <li>33 appels <code>fetch</code>, dont le contournement prouvé du constat 014.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3>C. Journal synthétique des commandes</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Contrôle</th><th>Résultat</th><th>Interprétation</th></tr></thead>
+          <tbody>
+            <tr><td><code>task lint:backend</code></td><td>Succès</td><td>Ruff, Black et MyPy verts ; réserves MyPy au constat 020.</td></tr>
+            <tr><td><code>task lint:frontend</code></td><td>Succès</td><td>ESLint/TypeScript verts ; règles affaiblies au constat 021.</td></tr>
+            <tr><td><code>task test:backend:unit:fast</code></td><td>9 249 passés · 49 ignorés</td><td>Exécution complète rapide, sans couverture.</td></tr>
+            <tr><td>Unitaires backend avec coverage, xdist</td><td>9 225 passés · 48 ignorés · 53,85 %</td><td>25 cas de contexte exclus pour isoler leur connexion DB parasite ; seuil 45 % atteint.</td></tr>
+            <tr><td><code>task test:backend:agents</code></td><td>Échec</td><td>3 accès Redis d’un E2E non classé et couverture 34&lt;45 ; divergence Task/CI.</td></tr>
+            <tr><td>Unit+agents combinés, xdist, sans intégration</td><td>10 206 passés · 255 ignorés · 1 échec</td><td>Seuil de performance absolu ; reproduit isolément.</td></tr>
+            <tr><td><code>pnpm test</code></td><td>523/523 passés</td><td>50 fichiers.</td></tr>
+            <tr><td><code>pnpm test:coverage</code></td><td>Succès aux seuils</td><td>12,43 % statements ; 10,64 % branches ; 9,35 % functions ; 12,68 % lines.</td></tr>
+            <tr><td>Alembic heads</td><td>Une tête</td><td>Chaîne statiquement unifiée ; migrations non exécutées en CI.</td></tr>
+            <tr><td>Compose dev/prod <code>config --quiet</code></td><td>Succès</td><td>Syntaxe et interpolation valides ; aucun conteneur démarré.</td></tr>
+            <tr><td>Docker API / builds / intégration</td><td>Non disponible</td><td>Pipe Docker Desktop absent ; aucune conclusion positive dérivée.</td></tr>
+            <tr><td>Scripts SLOC/CC/coupling depuis racine</td><td>Échec attendu du défaut</td><td>Mesures obtenues avec le chemin de travail requis ; reproductibilité à corriger.</td></tr>
+            <tr><td>Doc audit</td><td>0 lien LIVING cassé · 15 HISTORICAL</td><td>Classification ADR masque les 15 liens.</td></tr>
+            <tr><td>Validateur i18n indépendant</td><td>Parité parfaite</td><td>Le script manuel cassé n’a pas servi de preuve.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>D. Modèle de priorité</h3>
+      <div class="card">
+        <p>La priorité combine gravité, probabilité et effort. L’indicateur utilisé pour ordonner les quick wins est <code>(Impact + Risque) × (6 − Effort)</code>, chaque dimension étant notée de 1 à 5. Il ne remplace pas le jugement : un chantier XL de durabilité peut être P0 même avec un score de rendement inférieur, car son risque de continuité est supérieur.</p>
+        <ul>
+          <li><strong>P0 :</strong> exactitude, durabilité, double coût ou gate de livraison directement compromis.</li>
+          <li><strong>P1 :</strong> assurance ou expérience substantiellement insuffisante, à planifier dans la prochaine vague.</li>
+          <li><strong>P2 :</strong> dette structurelle/gouvernance à résorber par ratchet.</li>
+          <li><strong>Efforts :</strong> XS (&lt;1 j), S (1–3 j), M (3–10 j), L (2–6 sem.), XL (programme multi-vagues).</li>
+        </ul>
+      </div>
+
+      <h3>E. Traçabilité normes → périmètres</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Référentiel</th><th>Usage dans cet audit</th><th>Périmètres principaux</th></tr></thead>
+          <tbody>
+            <tr><td>ISO/IEC 25010:2023</td><td>Modèle principal de qualité produit, hors caractéristique exclue par le commanditaire.</td><td>Fonctionnel, performance, compatibilité, interaction, fiabilité, maintenabilité, flexibilité.</td></tr>
+            <tr><td>ISO/IEC 5055:2021</td><td>Faiblesses structurelles mesurables : complexité, couplage, analysabilité, robustesse.</td><td>Architecture, implémentation, maintenabilité, performance.</td></tr>
+            <tr><td>ISO/IEC/IEEE 42010:2022</td><td>Cohérence entre vues, décisions ADR, frontières et dépendances.</td><td>Architecture, design, documentation.</td></tr>
+            <tr><td>ISO/IEC/IEEE 12207:2026</td><td>Processus de construction, vérification, transition, exploitation et maintenance.</td><td>CI/CD, tests, documentation, opérabilité.</td></tr>
+            <tr><td>ISO/IEC/IEEE 29119-1/-2</td><td>Stratégie, processus, traçabilité, isolation et reproductibilité des tests.</td><td>Tests, qualité tooling, fiabilité.</td></tr>
+            <tr><td>WCAG 2.2</td><td>Échantillonnage statique niveau AA et plan de campagne formelle.</td><td>Utilisabilité/accessibilité, frontend tests.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>F. Réserves finales</h3>
+      <div class="card callout warning">
+        <p>Ce rapport ne garantit pas l’absence d’autres défauts. Un audit de code, même exhaustif dans sa méthode, reste limité par l’état exécutable, les dépendances externes, les données et les scénarios disponibles. Les constats portant sur la charge, le multi-worker, les migrations réelles, le rendu navigateur et l’accessibilité doivent être confirmés après mise à disposition d’un environnement Docker/CI représentatif.</p>
+        <p>Les notes décrivent le snapshot local du 12 juillet 2026. Elles ne doivent pas être publiées comme certification, ni recopiées dans les supports produit avant validation humaine et réaudit des remédiations. Tout point corrigé doit être fermé par preuve : tests, métrique, code et documentation alignés.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div>
+      <strong>Audit LIA — 12 juillet 2026</strong><br>
+      Avis technique fondé sur le snapshot local. Sécurité exclue. Aucun changement de code, aucune action Git et aucun déploiement n’ont été réalisés dans le cadre de cet audit.
+    </div>
+  </footer>
+
+  <script>
+    (() => {
+      const buttons = document.querySelectorAll('[data-filter]');
+      const findings = [...document.querySelectorAll('.finding')];
+      const search = document.getElementById('finding-search');
+      let active = 'all';
+      function apply() {
+        const query = (search?.value || '').trim().toLocaleLowerCase('fr');
+        findings.forEach(item => {
+          const severityMatch = active === 'all' || item.dataset.severity === active;
+          const textMatch = !query || item.textContent.toLocaleLowerCase('fr').includes(query);
+          item.classList.toggle('hidden', !(severityMatch && textMatch));
+        });
+      }
+      buttons.forEach(button => button.addEventListener('click', () => {
+        active = button.dataset.filter;
+        buttons.forEach(candidate => candidate.setAttribute('aria-pressed', String(candidate === button)));
+        apply();
+      }));
+      search?.addEventListener('input', apply);
+      document.querySelectorAll('.copy-button').forEach(button => button.addEventListener('click', async () => {
+        const text = button.parentElement.querySelector('.prompt').textContent;
+        try { await navigator.clipboard.writeText(text); button.textContent = 'Copié'; }
+        catch { button.textContent = 'Copie impossible'; }
+        setTimeout(() => { button.textContent = 'Copier'; }, 1600);
+      }));
+    })();
+  </script>
+</body>
+</html>

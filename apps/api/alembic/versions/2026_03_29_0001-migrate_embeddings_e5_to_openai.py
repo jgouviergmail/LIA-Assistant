@@ -28,10 +28,22 @@ def upgrade() -> None:
     # CASCADE drops the HNSW index and FK constraints
     op.execute("DROP TABLE IF EXISTS store_vectors CASCADE")
 
-    # 2. Reset LangGraph vector migration tracker so setup() recreates store_vectors
-    # with new dimensions on next startup.
-    # LangGraph tracks vector migrations separately in vector_migrations table.
-    op.execute("DELETE FROM vector_migrations")
+    # 2. Reset LangGraph's vector migration tracker so setup() recreates
+    # store_vectors with new dimensions on next startup.
+    # ``vector_migrations`` is created by LangGraph ``AsyncPostgresStore.setup()``
+    # at RUNTIME, not by a migration — so on a from-scratch replay (disaster
+    # recovery, a fresh environment, the CI migration-replay job) it does not
+    # exist yet, and a bare ``DELETE`` raises ``UndefinedTable`` (F007). Guard it
+    # so the chain stays replayable on BOTH existing and virgin databases: if the
+    # table is absent there is nothing to reset — ``setup()`` will create it fresh.
+    op.execute("""
+        DO $$
+        BEGIN
+            IF to_regclass('public.vector_migrations') IS NOT NULL THEN
+                DELETE FROM vector_migrations;
+            END IF;
+        END $$;
+        """)
 
     # 3. Null out interest embeddings (384-dim, incompatible with new 1536-dim)
     op.execute("UPDATE user_interests SET embedding = NULL WHERE embedding IS NOT NULL")

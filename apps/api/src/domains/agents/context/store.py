@@ -41,10 +41,14 @@ from typing import cast
 
 from langgraph.store.postgres import AsyncPostgresStore
 from psycopg import AsyncConnection
-from psycopg.rows import DictRow, dict_row
+from psycopg.rows import DictRow
 from psycopg_pool import AsyncConnectionPool
 
 from src.core.config import settings
+from src.infrastructure.database.psycopg_pool_config import (
+    psycopg_pool_kwargs,
+    resolve_psycopg_url,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -123,26 +127,20 @@ async def get_tool_context_store() -> AsyncPostgresStore:
             pool_max_size=settings.langgraph_store_pool_max_size,
         )
 
-        # Convert asyncpg URL to psycopg3 URL (same as checkpointer.py)
-        database_url_str = str(settings.database_url)
-        psycopg_url = database_url_str.replace("postgresql+asyncpg://", "postgresql://")
-
         # Connection pool for the store (ADR-111). AsyncPostgresStore._cursor is
         # natively pool-aware: each operation checks out its own connection.
-        # Connection kwargs match the former single AsyncConnection exactly.
+        # URL and connection kwargs come from the shared psycopg_pool_config
+        # helper (same as checkpointer.py) — including connect_timeout, which
+        # bounds the establishment of each connection.
         # check= validates connections on checkout (parity with SQLAlchemy
         # pool_pre_ping=True). The cast mirrors upstream (store aio.py).
         pool = cast(
             AsyncConnectionPool[AsyncConnection[DictRow]],
             AsyncConnectionPool(
-                psycopg_url,
+                resolve_psycopg_url(),
                 min_size=settings.langgraph_store_pool_min_size,
                 max_size=settings.langgraph_store_pool_max_size,
-                kwargs={
-                    "autocommit": True,
-                    "prepare_threshold": 0,
-                    "row_factory": dict_row,
-                },
+                kwargs=psycopg_pool_kwargs(),
                 check=AsyncConnectionPool.check_connection,
                 open=False,
             ),

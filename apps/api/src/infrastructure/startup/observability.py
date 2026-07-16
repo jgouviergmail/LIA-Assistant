@@ -66,7 +66,7 @@ def init_langfuse() -> None:
             logger.info(
                 "langfuse_callback_factory_initialized",
                 host=settings.langfuse_host,
-                release=settings.langfuse_release,
+                release=settings.langfuse_release or settings.build_release,
             )
         else:
             logger.info("langfuse_tracing_disabled")

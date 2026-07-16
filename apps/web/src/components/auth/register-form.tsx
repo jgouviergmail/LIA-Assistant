@@ -169,12 +169,19 @@ export function RegisterForm() {
             id="remember-me-register"
             name="remember-me"
             type="checkbox"
+            // aria-labelledby: same rationale as the login form (F012) — the
+            // htmlFor/id association is real but invisible to static analysis.
+            aria-labelledby="remember-me-register-label"
             checked={rememberMe}
             onChange={e => setRememberMe(e.target.checked)}
             disabled={isLoading}
             className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
           />
-          <label htmlFor="remember-me-register" className="ml-2 block text-sm text-gray-700">
+          <label
+            id="remember-me-register-label"
+            htmlFor="remember-me-register"
+            className="ml-2 block text-sm text-gray-700"
+          >
             {t('auth.remember_me')}
           </label>
         </div>

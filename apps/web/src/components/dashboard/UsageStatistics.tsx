@@ -146,10 +146,10 @@ function StatCard({
           <div className="pt-2 border-t border-border/50 space-y-0.5">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>{totalLabel}</span>
-              <span className="font-medium text-foreground/70">{totalValue}</span>
+              <span className="font-medium text-foreground/80">{totalValue}</span>
             </div>
             {totalSinceLabel && (
-              <div className="text-[10px] text-muted-foreground/70 text-right tabular-nums">
+              <div className="text-[10px] text-muted-foreground text-right tabular-nums">
                 {t('dashboard.statistics.since', { date: totalSinceLabel })}
               </div>
             )}

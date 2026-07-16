@@ -37,6 +37,7 @@ from src.core.constants import (
     PLACES_MIN_RATING_MIN,
     PLACES_VALID_PRICE_LEVELS,
 )
+from src.core.i18n import normalize_language
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import (
     AGENT_PLACE,
@@ -1235,23 +1236,23 @@ class ListPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
         user_id: UUID,
         **kwargs: Any,
     ) -> dict[str, Any]:
-        """Execute list places API call - business logic only."""
-        # For Places, "list" is essentially a search with empty query or cache retrieval
-        # But since Places API requires a query or location, we'll check cache first
-        # If no cache, we might return empty or default nearby if location known
+        """Reject a places lookup that carries no search criteria.
 
-        # This tool is primarily for retrieving cached results or listing specific IDs
-        # For now, we'll implement it as a cache retrieval mechanism
+        This branch is reached when ``get_places_tool`` is called with no query,
+        place type, location or place ID. The Google Places API has no "list all
+        nearby places" primitive — a search needs at least one criterion — so
+        returning an empty list here would be a fake success (F033): the LLM would
+        report "no places found" when the real issue is a missing criterion.
+        Surface an explicit, localized business error instead.
+        """
+        from src.domains.agents.tools.runtime_helpers import get_user_language_safe
 
-        # TODO: Implement proper cache retrieval logic in client if needed
-        # For now, we return empty list if no specific logic
+        language = normalize_language(await get_user_language_safe(self.runtime))
+        logger.info("list_places_no_search_criteria", user_id=str(user_id))
         return {
-            "success": True,
-            "data": {
-                "places": [],
-                "total": 0,
-                "message": "List functionality requires specific implementation or cache access",
-            },
+            "success": False,
+            "error": "search_criteria_required",
+            "message": APIMessages.places_search_criteria_required(language),
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -1619,7 +1620,8 @@ async def get_places_tool(
     - ID mode: get_places_tool(place_id="abc123") → fetch specific place
     - Batch mode: get_places_tool(place_ids=["abc", "def"]) → fetch multiple
     - Type mode: get_places_tool(place_type="restaurant") → nearby by type
-    - List mode: get_places_tool() → return nearby places
+    - No criteria: get_places_tool() → explicit business error (a query, type,
+      location or place ID is required; the Places API cannot "list everything")
 
     Args:
         runtime: Runtime dependencies injected automatically.
@@ -1673,7 +1675,8 @@ async def get_places_tool(
             force_refresh=force_refresh,
         )
     else:
-        # List mode: return nearby places (location not provided)
+        # No criteria supplied: the list tool returns an explicit business error
+        # (F033) rather than a fake empty success — Places needs a criterion.
         return await _list_places_tool_instance.execute(
             runtime=runtime,
             max_results=max_results,

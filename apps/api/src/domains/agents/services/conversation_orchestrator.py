@@ -142,31 +142,6 @@ class ConversationOrchestrator:
             previous_tokens_summary=previous_tokens_summary,
         )
 
-    async def persist_messages(
-        self,
-        conversation_id: uuid.UUID,
-        messages: list[Any],  # list[Message]
-        tracking_context: "TrackingContext",
-    ) -> None:
-        """
-        Persist messages to database.
-
-        Args:
-            conversation_id: Conversation UUID
-            messages: List of messages from graph state
-            tracking_context: Token tracking context
-
-        Example:
-            >>> await orchestrator.persist_messages(conv_id, state["messages"], tracker)
-        """
-        # TODO: Implement message persistence
-        # This will be extracted from existing chat service logic
-        logger.info(
-            "messages_persisted",
-            conversation_id=str(conversation_id),
-            messages_count=len(messages),
-        )
-
     async def finalize_conversation(
         self,
         tracking_context: "TrackingContext",

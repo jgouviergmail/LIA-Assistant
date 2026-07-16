@@ -32,7 +32,9 @@ def configure_tracing(app: FastAPI) -> None:
         resource = Resource.create(
             {
                 "service.name": settings.otel_service_name,
-                "service.version": "0.1.0",
+                "service.version": settings.app_version,
+                "service.instance.commit_sha": settings.git_commit_sha,
+                "service.build_date": settings.build_date,
                 "deployment.environment": settings.environment,
             }
         )

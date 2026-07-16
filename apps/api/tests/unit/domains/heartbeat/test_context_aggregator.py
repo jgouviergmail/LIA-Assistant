@@ -53,6 +53,43 @@ def _make_user(**overrides) -> SimpleNamespace:
 
 
 # ---------------------------------------------------------------------------
+# Frozen module clock (audit F056)
+# ---------------------------------------------------------------------------
+# The date formatters branch on "is this event today?" via datetime.now(). A
+# test asserting the full "YYYY-MM-DD HH:MM" format against a HARDCODED date is
+# a calendar time bomb: it fails on exactly that date (test_google_summer_time
+# went red on 2026-07-15) and silently turns green again the day after. Every
+# test of a today-branching formatter therefore runs under a pinned module
+# clock: `datetime` is patched IN THE MODULE UNDER TEST ONLY (no global freeze)
+# with a subclass whose now() returns FROZEN_NOW. fromisoformat/fromtimestamp
+# are inherited unchanged, so parsing behavior is identical.
+
+# 2026-02-02 12:00 Europe/Paris (CET, +1) — deliberately distinct from every
+# event date used in the assertions below.
+FROZEN_NOW = datetime(2026, 2, 2, 11, 0, tzinfo=UTC)
+
+
+class _FrozenDatetime(datetime):
+    """datetime subclass with a pinned now(); everything else inherited."""
+
+    @classmethod
+    def now(cls, tz=None):  # type: ignore[override]
+        if tz is None:
+            return FROZEN_NOW.replace(tzinfo=None)
+        return FROZEN_NOW.astimezone(tz)
+
+
+@pytest.fixture
+def frozen_clock(monkeypatch: pytest.MonkeyPatch) -> datetime:
+    """Pin the module clock of context_aggregator and return the frozen now."""
+    monkeypatch.setattr(
+        "src.domains.heartbeat.context_aggregator.datetime",
+        _FrozenDatetime,
+    )
+    return FROZEN_NOW
+
+
+# ---------------------------------------------------------------------------
 # _compute_time_context
 # ---------------------------------------------------------------------------
 
@@ -250,14 +287,21 @@ class TestApplySourceResult:
 
 @pytest.mark.unit
 class TestFormatEmailDate:
-    """Tests for _format_email_date static method."""
+    """Tests for _format_email_date static method.
+
+    Same today-branch as _format_event_time → same pinned clock (audit F056):
+    fully deterministic dates instead of wall-clock arithmetic.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _pin_clock(self, frozen_clock: datetime) -> None:
+        """Every date below is fixed relative to now == FROZEN_NOW."""
 
     def test_epoch_ms_today_shows_time_only(self):
         """Test that today's email shows only HH:MM."""
         user_tz = ZoneInfo("Europe/Paris")
-        now = datetime.now(user_tz)
-        # Build epoch ms for today at a known time in user tz
-        target = now.replace(hour=10, minute=30, second=0, microsecond=0)
+        # 10:30 Paris on the frozen current day (2026-02-02).
+        target = datetime(2026, 2, 2, 10, 30, tzinfo=user_tz)
         epoch_ms = str(int(target.timestamp() * 1000))
 
         result = ContextAggregator._format_email_date(epoch_ms, user_tz)
@@ -672,8 +716,15 @@ class TestFormatEventTime:
     """Tests for _format_event_time helper.
 
     The function accepts a start/end dict (Google/Microsoft/Apple format)
-    and converts to a human-readable local time string.
+    and converts to a human-readable local time string. Runs under the pinned
+    module clock (audit F056): the "today → HH:MM only" branch compares to
+    datetime.now(), so hardcoded event dates asserted against the FULL format
+    would otherwise fail on the very day they name.
     """
+
+    @pytest.fixture(autouse=True)
+    def _pin_clock(self, frozen_clock: datetime) -> None:
+        """Every hardcoded-date assertion below assumes now == FROZEN_NOW."""
 
     def test_google_utc_to_paris(self):
         """Test Google format (offset in dateTime) converts to user timezone."""
@@ -687,6 +738,30 @@ class TestFormatEventTime:
         user_tz = ZoneInfo("Europe/Paris")
         result = _format_event_time({"dateTime": "2026-07-15T14:00:00Z"}, user_tz)
         assert result == "2026-07-15 16:00"
+
+    def test_event_today_shows_time_only(self):
+        """An event on the (frozen) current day shows HH:MM only."""
+        user_tz = ZoneInfo("Europe/Paris")
+        # FROZEN_NOW is 2026-02-02 12:00 Paris; 14:00Z the same day = 15:00 CET.
+        result = _format_event_time({"dateTime": "2026-02-02T14:00:00Z"}, user_tz)
+        assert result == "15:00"
+
+    def test_event_tomorrow_shows_full_date(self):
+        """An event on the day after the (frozen) current day keeps the date."""
+        user_tz = ZoneInfo("Europe/Paris")
+        result = _format_event_time({"dateTime": "2026-02-03T08:00:00Z"}, user_tz)
+        assert result == "2026-02-03 09:00"
+
+    def test_day_boundary_crossing_conversion(self):
+        """A late-UTC event that lands on the NEXT local day is not 'today'.
+
+        23:30Z on the frozen day = 00:30 Paris on the NEXT day: the timezone
+        conversion itself moves the event off 'today', so the full date must
+        be shown even though the UTC date matches the current one.
+        """
+        user_tz = ZoneInfo("Europe/Paris")
+        result = _format_event_time({"dateTime": "2026-02-02T23:30:00Z"}, user_tz)
+        assert result == "2026-02-03 00:30"
 
     def test_google_offset_to_new_york(self):
         """Test dateTime with explicit offset converted to another timezone."""
@@ -730,17 +805,14 @@ class TestFormatEventTime:
         assert result == "2026-01-15 15:00"
 
     def test_today_event_shows_time_only(self):
-        """Test event happening today shows only HH:MM without date."""
+        """Test event happening today shows only HH:MM without date.
+
+        Complements test_event_today_shows_time_only (UTC input): here the
+        input already carries the local offset. Fixed to the frozen current
+        day (2026-02-02, CET → +01:00) instead of wall-clock arithmetic.
+        """
         user_tz = ZoneInfo("Europe/Paris")
-        now = datetime.now(user_tz)
-        # Build a dateTime for today at 18:00 local time with correct UTC offset
-        today_18 = now.replace(hour=18, minute=0, second=0, microsecond=0)
-        offset = today_18.strftime("%z")  # e.g., "+0100" or "+0200" depending on DST
-        offset_formatted = f"{offset[:3]}:{offset[3:]}"  # "+01:00" or "+02:00"
-        today_str = today_18.strftime("%Y-%m-%d")
-        result = _format_event_time(
-            {"dateTime": f"{today_str}T18:00:00{offset_formatted}"}, user_tz
-        )
+        result = _format_event_time({"dateTime": "2026-02-02T18:00:00+01:00"}, user_tz)
         assert result == "18:00"
 
     def test_all_day_event(self):

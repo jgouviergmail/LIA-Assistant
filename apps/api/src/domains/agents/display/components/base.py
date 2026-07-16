@@ -1228,6 +1228,7 @@ def render_attachments(
         # Build proxy URL for Gmail attachments when IDs are available
         att_id = att.get("attachment_id")
         msg_id = att.get("message_id")
+        url: str | None
         if att_id and msg_id:
             from src.core.config import settings
 

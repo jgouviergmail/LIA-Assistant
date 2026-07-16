@@ -129,7 +129,11 @@ async def health_check() -> dict:
     return {
         FIELD_STATUS: "healthy",
         "service": "lia-api",
-        "version": constants.API_VERSION,  # PHASE 2.1: Use constant instead of hardcoded value
+        "version": constants.API_VERSION,  # API contract version (stable for /v1)
+        # Build provenance (F030): identifies the exact running artifact.
+        "app_version": settings.app_version,
+        "commit": settings.git_commit_sha,
+        "build_date": settings.build_date,
     }
 
 

@@ -73,7 +73,7 @@ export function UsageGauge({
           ) : (
             <>
               {formatValue(detail.current)}/{formatValue(detail.limit!)}{' '}
-              <span className="text-muted-foreground/70">({Math.min(Math.round(pct), 9999)}%)</span>
+              <span className="text-muted-foreground">({Math.min(Math.round(pct), 9999)}%)</span>
             </>
           )}
         </span>

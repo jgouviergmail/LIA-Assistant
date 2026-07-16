@@ -89,7 +89,7 @@ function PipelineStep({
         <Icon className={cn('w-4 h-4', iconColor)} />
       </span>
       <span className="text-sm font-medium">
-        <span className="text-muted-foreground/70 tabular-nums mr-1.5">{index}.</span>
+        <span className="text-muted-foreground tabular-nums mr-1.5">{index}.</span>
         {label}
       </span>
     </li>
@@ -268,7 +268,7 @@ export function ArchitectureDiagram() {
                 <Send className="w-6 h-6 text-green-500" />
               </div>
               <span className="text-xs font-medium text-muted-foreground">{n('response')}</span>
-              <span className="text-[11px] text-muted-foreground/70">
+              <span className="text-[11px] text-muted-foreground">
                 {t('landing.architecture.response_hint')}
               </span>
             </div>

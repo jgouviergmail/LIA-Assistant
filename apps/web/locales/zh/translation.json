@@ -38,7 +38,9 @@
     "on": "开启",
     "enabled": "已启用",
     "disabled": "已禁用",
-    "saving": "保存中..."
+    "saving": "保存中...",
+    "actions": "操作",
+    "expand_image": "全屏查看图片"
   },
   "theme": {
     "toggle": "切换主题"
@@ -140,7 +142,8 @@
       "open_chat": "打开聊天",
       "connect": "连接",
       "settings": "设置",
-      "view_details": "查看详情"
+      "view_details": "查看详情",
+      "toggle_avatar": "切换 LIA 头像"
     },
     "main_feature": {
       "title": "与LIA聊天",
@@ -612,14 +615,7 @@
       "retry_button": "重试",
       "retry_failed": "无法获取您的位置。请检查GPS是否已启用。",
       "detection": {
-        "keywords": [
-          "附近",
-          "周围",
-          "周边",
-          "旁边",
-          "邻近",
-          "住处"
-        ],
+        "keywords": ["附近", "周围", "周边", "旁边", "邻近", "住处"],
         "patterns": [
           "(我|这)(附近|周围|周边)",
           "在我(附近|旁边)",
@@ -1037,7 +1033,9 @@
           "voicemail": "语音信箱",
           "failed": "失败",
           "cancelled": "已取消"
-        }
+        },
+        "key_label": "ElevenLabs API 密钥",
+        "secret_label": "Webhook 签名密钥"
       }
     },
     "user": {
@@ -2441,7 +2439,8 @@
         "processing": "处理中...",
         "ready": "就绪",
         "error": "错误",
-        "reindexing": "重新索引中..."
+        "reindexing": "重新索引中...",
+        "pending": "排队中"
       },
       "upload_formats": "支持 15+ 种格式 — 最大 {{maxSize}}MB",
       "upload_formats_tooltip": "PDF、TXT、MD、DOCX、PPTX、XLSX、CSV、RTF、HTML、ODT、ODS、ODP、EPUB、JSON、XML",
@@ -2745,12 +2744,12 @@
       "title": "推理"
     }
   },
-    "companion": {
-      "open_chat": "打开与 LIA 的对话",
-      "minimize": "最小化伙伴",
-      "restore": "显示 LIA 伙伴",
-      "aria_state": "LIA — {{count}} 条待处理通知"
-    },
+  "companion": {
+    "open_chat": "打开与 LIA 的对话",
+    "minimize": "最小化伙伴",
+    "restore": "显示 LIA 伙伴",
+    "aria_state": "LIA — {{count}} 条待处理通知"
+  },
   "faq": {
     "title": "常见问题",
     "subtitle": "查找有关LIA最常见问题的答案",
@@ -2981,6 +2980,16 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_0": {
+          "title": "v1.25.0 — 🛡️ V11审计：全面修订的评估框架，比以往更干净",
+          "date": "2026年7月",
+          "count": "3",
+          "items": {
+            "i1": "<b>🛡️ 技术审计已全面修订</b>——24个规范化领域对齐行业标准（ISO/IEC 25010），每项评分均以实际执行的证据为依据：<b>8.3/10</b>，<b>零重大缺陷、零轻微缺陷</b>。完整报告（方法、范围与待办事项）已在 GitHub 公开。",
+            "i2": "<b>♿ 在真实产品上验证无障碍性</b>——自动化无障碍测试（深色模式、键盘、320px 移动端、200% 缩放）现在针对生产构建运行，17/17 全部通过。此前报告的深色模式对比度缺陷被证实为测试环境的假象——配色方案本身没有问题。",
+            "i3": "<b>🧪 没有盲区的测试战役</b>——所有此前被跳过的后端测试均已重新启用或按当前契约重写：集成测试套件以 579/579 通过，<b>零跳过</b>，Windows 与 Linux 均如此。更多证据，更少意外。"
+          }
+        },
         "v1_24_0": {
           "title": "v1.24.0 — 📞 LIA 代你打电话",
           "date": "2026 年 7 月",
@@ -4083,7 +4092,7 @@
           },
           "q7": {
             "question": "LIA是如何构建的？",
-            "answer": "LIA近<strong>100%的代码由AI编写</strong>，在人类指导下完成：书面工程规范、强制自动检查、由人类拍板的评审流程，以及周期性的对抗性审计（最新评估：24个领域8.5/10，<a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">完整报告</a>）。<br><br>完整的故事——方法、权衡、运维以及待办事项——见<a href=\"/zh/story\">Story页面</a>；源代码开放于<a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>。"
+            "answer": "LIA近<strong>100%的代码由AI编写</strong>，在人类指导下完成：书面工程规范、强制自动检查、由人类拍板的评审流程，以及周期性的对抗性审计（最新评估：24个领域8.3/10，<a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">完整报告</a>）。<br><br>完整的故事——方法、权衡、运维以及待办事项——见<a href=\"/zh/story\">Story页面</a>；源代码开放于<a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>。"
           }
         }
       },
@@ -6128,8 +6137,8 @@
         "providers": "LLM供应商",
         "voice_languages": "语音语言"
       },
-      "audit_value": "8.5/10",
-      "audit_link_aria": "8.5/10 —— 360°技术审计。在 GitHub 上查看完整的公开审计报告。",
+      "audit_value": "8.3/10",
+      "audit_link_aria": "8.3/10 —— 360°技术审计。在 GitHub 上查看完整的公开审计报告。",
       "rex_teaser": "这些代码几乎100%由AI编写——由人类指导、审查和审计。",
       "rex_link": "阅读经验报告"
     },
@@ -6147,7 +6156,7 @@
           "label": "项自动化测试"
         },
         "audit": {
-          "value": "8.5/10",
+          "value": "8.3/10",
           "label": "技术审计（24个领域）"
         },
         "lines": {
@@ -7020,7 +7029,7 @@
   "story": {
     "meta": {
       "title": "故事 — 指挥一个会写代码的AI | LIA",
-      "description": "LIA如何建成：约100%由AI编写的代码、人类指导、10,000+测试、100+架构决策、8.5/10技术审计。完整经验报告。"
+      "description": "LIA如何建成：约100%由AI编写的代码、人类指导、10,000+测试、100+架构决策、8.3/10技术审计。完整经验报告。"
     },
     "breadcrumb": "经验报告",
     "hero": {

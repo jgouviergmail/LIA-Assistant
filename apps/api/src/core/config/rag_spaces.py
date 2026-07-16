@@ -15,11 +15,19 @@ Created: 2026-03-14
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     RAG_DRIVE_MAX_SOURCES_PER_SPACE_DEFAULT,
+    RAG_JOB_HEARTBEAT_INTERVAL_SECONDS_DEFAULT,
+    RAG_JOB_LEASE_TTL_SECONDS_DEFAULT,
+    RAG_JOB_MAX_ATTEMPTS_DEFAULT,
+    RAG_JOB_REAPER_BATCH_SIZE_DEFAULT,
+    RAG_JOB_REAPER_CONCURRENCY_DEFAULT,
+    RAG_JOB_REAPER_GRACE_SECONDS_DEFAULT,
+    RAG_JOB_REAPER_INTERVAL_SECONDS_DEFAULT,
+    RAG_REINDEX_LOCK_TTL_SECONDS_DEFAULT,
     RAG_SPACES_ALLOWED_TYPES_DEFAULT,
     RAG_SPACES_CHUNK_OVERLAP_DEFAULT,
     RAG_SPACES_CHUNK_SIZE_DEFAULT,
@@ -82,6 +90,85 @@ class RAGSpacesSettings(BaseSettings):
         le=200,
         description="Maximum number of documents per RAG space.",
     )
+
+    rag_reindex_lock_ttl_seconds: int = Field(
+        default=RAG_REINDEX_LOCK_TTL_SECONDS_DEFAULT,
+        ge=60,
+        le=21600,
+        description=(
+            "TTL of the reindex distributed lock (F001). Renewed after each "
+            "document, so a live reindex keeps it; a crash frees it within this "
+            "window. Must exceed the slowest single-document re-embed."
+        ),
+    )
+
+    # ========================================================================
+    # Durable Jobs (audit F001): entity-as-job lease/heartbeat/retry + reaper
+    # ========================================================================
+
+    rag_job_lease_ttl_seconds: int = Field(
+        default=RAG_JOB_LEASE_TTL_SECONDS_DEFAULT,
+        ge=30,
+        le=21600,
+        description=(
+            "How long a worker's claim on a document/sync job stays valid before "
+            "the reaper may reclaim it. Must exceed the slowest single work unit."
+        ),
+    )
+    rag_job_heartbeat_interval_seconds: int = Field(
+        default=RAG_JOB_HEARTBEAT_INTERVAL_SECONDS_DEFAULT,
+        ge=5,
+        le=3600,
+        description=(
+            "How often a working worker renews its lease. MUST be strictly less "
+            "than rag_job_lease_ttl_seconds (enforced) so a live job is never "
+            "reclaimed."
+        ),
+    )
+    rag_job_max_attempts: int = Field(
+        default=RAG_JOB_MAX_ATTEMPTS_DEFAULT,
+        ge=1,
+        le=20,
+        description="Bounded retry: after this many attempts a job is marked ERROR.",
+    )
+    rag_job_reaper_interval_seconds: int = Field(
+        default=RAG_JOB_REAPER_INTERVAL_SECONDS_DEFAULT,
+        ge=15,
+        le=3600,
+        description="How often the recovery reaper scans for stuck jobs.",
+    )
+    rag_job_reaper_grace_seconds: int = Field(
+        default=RAG_JOB_REAPER_GRACE_SECONDS_DEFAULT,
+        ge=5,
+        le=3600,
+        description=(
+            "How long an unclaimed PENDING document may sit before the reaper "
+            "treats it as orphaned (crash right after creation) and re-drives it."
+        ),
+    )
+    rag_job_reaper_batch_size: int = Field(
+        default=RAG_JOB_REAPER_BATCH_SIZE_DEFAULT,
+        ge=1,
+        le=1000,
+        description="Max recoverable jobs re-driven per reaper tick (backlog bound).",
+    )
+    rag_job_reaper_concurrency: int = Field(
+        default=RAG_JOB_REAPER_CONCURRENCY_DEFAULT,
+        ge=1,
+        le=64,
+        description="Max concurrent re-drives within one reaper tick.",
+    )
+
+    @model_validator(mode="after")
+    def _validate_heartbeat_below_lease(self) -> RAGSpacesSettings:
+        """Enforce heartbeat < lease TTL (a live job must never be reclaimed)."""
+        if self.rag_job_heartbeat_interval_seconds >= self.rag_job_lease_ttl_seconds:
+            raise ValueError(
+                "rag_job_heartbeat_interval_seconds must be < rag_job_lease_ttl_seconds "
+                f"(got {self.rag_job_heartbeat_interval_seconds} >= "
+                f"{self.rag_job_lease_ttl_seconds})"
+            )
+        return self
 
     # ========================================================================
     # Chunking Configuration

@@ -11,10 +11,12 @@ Business metrics track when/why users abandon conversations for product analytic
 Coverage target: 100% of abandonment metrics paths
 
 Phase: 3.2 - Business Metrics - Step 2.1
-Date: 2025-11-23
 
-NOTE: Tests temporarily skipped - Redis mock issue causing timeout in CI.
-TODO: Fix dynamic import mocking for get_redis_cache in reset_conversation.
+Isolation (audit F028): reset_conversation reaches several real backends (the
+AsyncPostgresStore pool, invalidate_llm_cache, the attachment service, Redis).
+They are all mocked by the autouse fixtures below so the tests are hermetic and
+sub-second; the previous version left them live, hanging ~30 s on a real pool,
+swallowing the failure and passing green on a meaningless `is not None`.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -30,8 +32,58 @@ from src.infrastructure.observability.metrics_business import (
     conversation_tokens_total,
 )
 
-# Skip entire module - Redis mock issue causing infinite timeout
-pytestmark = pytest.mark.integration
+# These tests are fully mocked (no real DB/Redis/psycopg pool). The
+# filterwarnings marks turn an un-awaited-coroutine leak into a FAILURE
+# (audits F028/AC-012): if a real backend is ever left unmocked again — or a
+# session double stops honouring the async-context-manager contract of
+# ``begin_nested`` — the test fails loudly instead of hanging ~30 s, absorbing
+# the error and passing green.
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.filterwarnings("error::pytest.PytestUnraisableExceptionWarning"),
+    pytest.mark.filterwarnings("error::RuntimeWarning"),
+]
+
+
+class FakeSavepointTransaction:
+    """Conformant double of SQLAlchemy's ``AsyncSessionTransaction`` (AC-012).
+
+    The production code uses BOTH protocols of ``session.begin_nested()``:
+    ``async with db.begin_nested():`` (conversations/service, usage_limits) and
+    ``savepoint = await db.begin_nested()`` (UnitOfWork). A bare ``AsyncMock``
+    only supports the awaited form — under ``async with`` its un-awaited
+    coroutine has no ``__aenter__``, the best-effort ``except`` swallows the
+    AttributeError, and a ``RuntimeWarning: coroutine ... was never awaited``
+    leaks. This double honours both, and records commit/rollback like the
+    real savepoint semantics.
+    """
+
+    def __init__(self) -> None:
+        self.committed = False
+        self.rolled_back = False
+
+    def __await__(self):
+        async def _start() -> FakeSavepointTransaction:
+            return self
+
+        return _start().__await__()
+
+    async def __aenter__(self) -> "FakeSavepointTransaction":
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> bool:
+        if exc_type is not None:
+            self.rolled_back = True
+        else:
+            self.committed = True
+        return False
+
+    async def commit(self) -> None:
+        self.committed = True
+
+    async def rollback(self) -> None:
+        self.rolled_back = True
+
 
 # ============================================================================
 # FIXTURES
@@ -79,8 +131,23 @@ def empty_conversation(sample_user_id):
 
 @pytest.fixture
 def mock_db_session():
-    """Create mock database session."""
-    return AsyncMock()
+    """Create mock database session (audit F028).
+
+    ``execute()`` returns a configured result so ``.scalar()`` yields an int and
+    ``.scalars().all()`` yields a list — otherwise a bare AsyncMock returns
+    coroutines that blow up inside ``reset_conversation`` (``'coroutine' > int``),
+    which the production ``except`` then swallows into a silent false green.
+    """
+    db = AsyncMock()
+    result = MagicMock()
+    result.scalar.return_value = 0
+    result.scalars.return_value.all.return_value = []
+    db.execute.return_value = result
+    # begin_nested is a SYNC call returning an awaitable async context manager
+    # (AsyncSessionTransaction) — a bare AsyncMock breaks the `async with` form
+    # (AC-012, see FakeSavepointTransaction above).
+    db.begin_nested = MagicMock(side_effect=FakeSavepointTransaction)
+    return db
 
 
 @pytest.fixture(autouse=True)
@@ -93,6 +160,43 @@ def mock_redis_cache():
         "src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=mock_redis)
     ):
         yield mock_redis
+
+
+@pytest.fixture(autouse=True)
+def mock_tool_context_store():
+    """Auto-mock the AsyncPostgresStore for all tests (audit F028).
+
+    ``reset_conversation`` opens a REAL psycopg pool via ``get_tool_context_store``
+    and purges tool contexts. Left unmocked, these unit-style tests open that pool
+    and hang ~30 s on ``pool open`` before the ``except`` swallows the failure and
+    the weak assertion still passes — the exact false green the audit reproduced.
+    Mocking the store (and the manager's cleanup) keeps the tests hermetic and
+    sub-second, and any real degradation now surfaces instead of being absorbed.
+    """
+    with (
+        patch(
+            "src.domains.agents.context.store.get_tool_context_store",
+            AsyncMock(return_value=AsyncMock()),
+        ),
+        patch(
+            "src.domains.agents.context.manager.ToolContextManager.cleanup_session_contexts",
+            AsyncMock(return_value={"domains_cleaned": [], "total_items_deleted": 0}),
+        ),
+        # invalidate_llm_cache is a real coroutine that reaches Redis via its own
+        # get_redis_cache import; leaving it live created an un-awaited AsyncMock
+        # coroutine (the warning the audit saw). Mock it to a plain awaitable int.
+        patch(
+            "src.infrastructure.cache.llm_cache.invalidate_llm_cache",
+            AsyncMock(return_value=0),
+        ),
+        # Attachment purge runs a real service against the mocked session; mock it
+        # so the (settings-gated) path is hermetic and never absorbs a mock error.
+        patch(
+            "src.domains.attachments.service.AttachmentService.delete_all_for_user",
+            AsyncMock(return_value=0),
+        ),
+    ):
+        yield
 
 
 @pytest.fixture
@@ -141,10 +245,15 @@ async def test_reset_conversation_tracks_abandonment_metrics(
         # Execute reset
         await conversation_service.reset_conversation(sample_user_id, mock_db_session)
 
-        # Verify metrics were tracked (real Prometheus metrics, safe for tests)
-        assert conversation_abandonment_total is not None
-        assert conversation_abandonment_at_message_count is not None
-        assert conversation_tokens_total is not None
+        # Probant assertions (F028): the metric objects existing proves nothing.
+        # Assert reset actually executed its full flow — stats reset, messages and
+        # checkpoints purged. Under the previously unmocked backends these would
+        # NOT hold, because reset failed early and the error was swallowed.
+        assert sample_conversation.message_count == 0
+        assert sample_conversation.total_tokens == 0
+        mock_repo.delete_messages_for_conversation.assert_awaited_once_with(sample_conversation.id)
+        mock_checkpointer.adelete_thread.assert_awaited_once_with(str(sample_conversation.id))
+        assert conversation_abandonment_total is not None  # available for labelling
 
 
 @pytest.mark.asyncio

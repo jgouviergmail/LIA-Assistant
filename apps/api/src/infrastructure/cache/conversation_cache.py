@@ -125,7 +125,7 @@ class ConversationIdCache:
             RedisError: If Redis operation fails (caller should handle)
         """
         cache_key = self._make_key(user_id)
-        await self.redis.setex(cache_key, self._ttl_seconds, conversation_id)
+        await self.redis.set(cache_key, conversation_id, ex=self._ttl_seconds)
 
         logger.debug(
             "conversation_id_cache_set",

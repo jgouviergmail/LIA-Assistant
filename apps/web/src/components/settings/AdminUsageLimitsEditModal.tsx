@@ -257,7 +257,7 @@ function LimitField({
         )}
       </div>
       {currentUsage !== undefined && (
-        <div className="text-[10px] text-muted-foreground/70 ml-[6.5rem]">
+        <div className="text-[10px] text-muted-foreground ml-[6.5rem]">
           {t('usage_limits.edit.current_usage')}: {formatUsage(currentUsage)}
         </div>
       )}

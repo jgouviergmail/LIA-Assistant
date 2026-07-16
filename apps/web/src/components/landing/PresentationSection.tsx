@@ -62,14 +62,14 @@ export function PresentationSection() {
             {/* Navigation arrows */}
             <button
               onClick={() => goTo(activeIndex - 1)}
-              className="absolute left-2 mobile:left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+              className="absolute left-2 mobile:left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               aria-label={t('common.previous')}
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={() => goTo(activeIndex + 1)}
-              className="absolute right-2 mobile:right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+              className="absolute right-2 mobile:right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               aria-label={t('common.next')}
             >
               <ChevronRight className="w-5 h-5" />
@@ -104,18 +104,24 @@ export function PresentationSection() {
             ))}
           </div>
 
-          {/* Dot indicators (mobile) */}
-          <div className="flex justify-center gap-2 mt-4 mobile:hidden">
+          {/* Dot indicators (mobile) — 24px hit-area (WCAG 2.5.8) with a small
+              visual dot inside; keyboard focus is visible (WCAG 2.4.7). */}
+          <div className="flex justify-center gap-1 mt-4 mobile:hidden">
             {SLIDES.map((slide, i) => (
               <button
                 key={slide.index}
                 onClick={() => setActiveIndex(i)}
-                className={cn(
-                  'w-2 h-2 rounded-full transition-all',
-                  i === activeIndex ? 'bg-primary w-6' : 'bg-border'
-                )}
+                className="flex items-center justify-center min-w-6 min-h-6 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 aria-label={t('landing.presentation.slide_alt', { number: slide.index })}
-              />
+                aria-current={i === activeIndex ? 'true' : undefined}
+              >
+                <span
+                  className={cn(
+                    'block h-2 rounded-full transition-all',
+                    i === activeIndex ? 'bg-primary w-6' : 'bg-border w-2'
+                  )}
+                />
+              </button>
             ))}
           </div>
         </FadeInOnScroll>

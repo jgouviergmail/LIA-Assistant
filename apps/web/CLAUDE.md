@@ -6,8 +6,31 @@ Scoped guidance for the Next.js frontend. The root `CLAUDE.md` (including its Sy
 
 - Next.js 16 (App Router), React 19, TypeScript strict, Tailwind, react-i18next, vitest.
 - Tests: `task test:frontend` (or `pnpm test` from `apps/web/`). Lint/format: `task lint:frontend` / `task format:frontend`.
-- **Never validate with a local `pnpm build`/`pnpm dev`/`tsc` outside the workflow** — runtime validation goes through the Docker dev container (`lia-web-dev`). The pre-commit hook runs `eslint`, `tsc` and the i18n parity check from the host.
+- **Never validate runtime behavior with a local `pnpm build`/`pnpm dev` outside the workflow** — runtime validation goes through the Docker dev container (`lia-web-dev`). Static validation uses `task lint:frontend`; when types, tests, `tsconfig`, or generated declarations change, also run the clean host check `pnpm exec tsc --noEmit --incremental false` so a stale incremental cache cannot mask diagnostics. The pre-commit hook runs `eslint`, `tsc` and the i18n parity check from the host.
 - After any `pnpm add`/`pnpm remove` inside the container, re-sync the host lockfile (root `CLAUDE.md` → Dev Container Pitfalls #1) or the prod build breaks on `--frozen-lockfile`.
+
+## Audit quality gates (security excluded)
+
+The root audit-derived gates apply in full. This section adds the frontend-specific contract; it introduces no security criterion.
+
+- **Accessible interaction is correctness**: prefer native `button`, `a`, `label`, and form controls; give every control a stable translated programmatic name. Test keyboard activation, focus order/visibility/return, disabled/error states, dialogs, and announcements by role/name. Never replace native semantics with a generic key handler or suppression.
+- **Tests stay type-safe and behavioral**: builders take `Partial<Props>` and return `Props` without `as any`, double assertions, `as never`, or ignored diagnostics; mocks preserve public signatures. Assert visible state, data transitions, requests, cancellation, and recovery. CSS selectors, snapshots, and fully mocked hooks cannot be the sole oracle for business behavior.
+- **Ratchets are shrink-only**: coverage, `a11y`, React-hooks, and complexity baselines may only improve. Never exclude business code, disable a rule, relocate branches, or raise a baseline to pass. A touched violation should decrease before its baseline is updated.
+- **Keep React logic explicit**: reducers are pure; derive state during render; effects synchronize external systems; clean up timers/listeners/streams and abort requests. Extract hotspots into typed state machines, hooks, decision tables, and pure functions — never a god-hook.
+- **Coverage follows risk**: prioritize localized App Router pages, chat/SSE reconnect/cancel, settings, connectors, Journals, spaces/uploads, voice/audio, retries, partial failures, cache invalidation, i18n, and timezone boundaries over trivial wrappers.
+- **Browser assurance stays hermetic**: intercept controlled API/SSE traffic; never contact production, a real backend, or a paid provider. Changed critical journeys cover success, their highest-risk failure/retry, and keyboard/focus. Keep PR Chromium smoke fast; extend periodic evidence to Firefox/WebKit, zoom/reflow, contrast, and NVDA/VoiceOver.
+
+From the repository root, run the complete local frontend gate after any behavioral change:
+
+```bash
+task lint:frontend
+cd apps/web
+pnpm exec tsc --noEmit --incremental false
+pnpm test:coverage
+pnpm a11y:ratchet && pnpm react-hooks:ratchet && pnpm cc:ratchet
+```
+
+Run the affected Playwright scenarios when a user journey changes; run the full hermetic E2E package when shared routing, API interception, accessibility infrastructure, or global layout changes.
 
 ## Security invariants (do not weaken)
 

@@ -24,6 +24,7 @@ from src.core.constants import (
     USAGE_LIMIT_EXCEEDED_ERROR_CODE,
 )
 from src.core.field_names import FIELD_ERROR_TYPE, FIELD_RUN_ID
+from src.core.i18n import normalize_language
 from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk
 from src.domains.agents.dependencies import ToolDependencies
@@ -42,6 +43,17 @@ logger = get_logger(__name__)
 
 # MAX_HITL_ACTIONS_PER_REQUEST defined in src.core.constants
 # Phase 3.3: Centralized constant management
+
+
+def _extract_decision_type(resume_data: object) -> str:
+    """HITL decision label from interrupt resume data, defaulting to ``UNKNOWN``.
+
+    Kept as a module helper so the branch stays out of the streaming
+    orchestrator's cyclomatic-complexity budget (audit F015).
+    """
+    if isinstance(resume_data, dict):
+        return str(resume_data.get("decision", "UNKNOWN"))
+    return "UNKNOWN"
 
 
 class AgentService(
@@ -892,7 +904,7 @@ class AgentService(
                     # === AUTO-APPROVE: Bypass HITL plan approval gate ===
                     # Used by scheduled actions executor to skip human approval
                     if auto_approve_plan:
-                        state["plan_approved"] = True  # type: ignore[literal-required]
+                        state["plan_approved"] = True
                         logger.info(
                             "auto_approve_plan_injected",
                             run_id=run_id,
@@ -1148,13 +1160,14 @@ class AgentService(
 
                     async with get_db_context() as archive_db:
                         _interrupt_resume_data = state.get("_interrupt_resume_data", {})
+                        _decision_type = _extract_decision_type(_interrupt_resume_data)
                         await self._patch_user_message_hitl_flags(
                             conv_service=conv_service,
                             db=archive_db,
                             archived_user_msg_id=archived_user_msg_id,
                             is_hitl_resumption=is_hitl_resumption,
                             hitl_interrupt_detected=streaming_service.hitl_interrupt_detected,
-                            decision_type=_interrupt_resume_data.get("decision", "UNKNOWN"),
+                            decision_type=_decision_type,
                             run_id=run_id,
                             conversation_id=conversation_id,
                         )
@@ -1184,7 +1197,7 @@ class AgentService(
                                 )
                         elif response_content.strip():
                             # Regular response: Archive the assistant response
-                            assistant_metadata = {
+                            assistant_metadata: dict[str, Any] = {
                                 FIELD_RUN_ID: run_id,
                                 "intention": intention_label,
                             }
@@ -1671,7 +1684,7 @@ class AgentService(
                 from src.domains.agents.api.error_messages import SSEErrorMessages
 
                 error_message = SSEErrorMessages.stream_error(
-                    e, language=user_language  # type: ignore[arg-type]
+                    e, language=normalize_language(user_language)
                 )
                 yield ChatStreamChunk(
                     type="error",

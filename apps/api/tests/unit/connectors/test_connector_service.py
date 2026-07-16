@@ -179,7 +179,7 @@ class TestGetUserConnectors:
         # Mock Redis cache miss
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.setex = AsyncMock()
+        mock_redis.set = AsyncMock()
         mock_get_redis_cache.return_value = mock_redis
 
         # Mock repository
@@ -196,7 +196,7 @@ class TestGetUserConnectors:
         assert result.total == 1
         assert len(result.connectors) == 1
         service.repository.get_all_by_user.assert_called_once_with(user_id)
-        mock_redis.setex.assert_called_once()
+        mock_redis.set.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("src.infrastructure.cache.redis.get_redis_cache")
@@ -1657,56 +1657,6 @@ class TestGoogleContactsOAuthFlow:
 
         assert exc_info.value.status_code == 403
         service._check_connector_enabled.assert_called_once_with(ConnectorType.GOOGLE_CONTACTS)
-
-    @pytest.mark.skip(reason="Deprecated method handle_google_contacts_callback was removed")
-    async def test_handle_google_contacts_callback_stateful_delegates(self):
-        """
-        Test deprecated stateful Google Contacts callback delegates correctly.
-
-        Coverage:
-        - Lines 746-756: handle_google_contacts_callback (deprecated wrapper)
-        - Verifies delegation to _handle_oauth_connector_callback
-        - Validates metadata created_via = oauth_flow
-        """
-        # Arrange
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
-
-        user_id = uuid4()
-        code = "auth_code_123"
-        state = "state_token_456"
-
-        expected_response = ConnectorResponse(
-            id=uuid4(),
-            user_id=user_id,
-            connector_type=ConnectorType.GOOGLE_CONTACTS,
-            status=ConnectorStatus.ACTIVE,
-            scopes=["https://www.googleapis.com/auth/contacts.readonly"],
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
-
-        # Mock internal handler
-        service._handle_oauth_connector_callback = AsyncMock(return_value=expected_response)
-
-        # Act
-        result = await service.handle_google_contacts_callback(user_id, code, state)
-
-        # Assert
-        assert result == expected_response
-
-        # Verify delegation with correct parameters
-        from src.core.oauth import GoogleOAuthProvider
-
-        service._handle_oauth_connector_callback.assert_called_once_with(
-            user_id=user_id,
-            code=code,
-            state=state,
-            connector_type=ConnectorType.GOOGLE_CONTACTS,
-            provider_factory_method=GoogleOAuthProvider.for_contacts,
-            default_scopes=GOOGLE_CONTACTS_SCOPES,
-            metadata={"created_via": "oauth_flow"},
-        )
 
     async def test_handle_google_contacts_callback_stateless_success(self):
         """

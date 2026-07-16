@@ -93,7 +93,7 @@ const MemoryRow = React.memo(function MemoryRow({
         <span
           className={cn(
             'text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0',
-            'bg-primary/10 text-primary/80 border-primary/20'
+            'bg-primary/10 text-primary/90 border-primary/20'
           )}
         >
           {memory.category}
@@ -109,7 +109,7 @@ const MemoryRow = React.memo(function MemoryRow({
       </div>
 
       {/* Content (truncated) */}
-      <div className="pl-6 text-[11px] text-muted-foreground/80 truncate" title={memory.content}>
+      <div className="pl-6 text-[11px] text-muted-foreground truncate" title={memory.content}>
         {memory.content}
       </div>
     </div>

@@ -189,13 +189,23 @@ function GeneratedImageCards({ images }: { images: { url: string; alt: string }[
           const displayUrl = img.url;
           return (
             <div key={i} className="group relative w-full max-w-[512px] mx-auto">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={displayUrl}
-                alt={img.alt}
-                className="w-full h-auto rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow [-webkit-touch-callout:default]"
+              {/* Opening the lightbox is a real action: a native <button>
+                  wraps ONLY the image (the download button stays a sibling —
+                  no nested interactive controls). Enter/Space come for free
+                  (audit F013). */}
+              <button
+                type="button"
                 onClick={() => setLightboxImage({ url: displayUrl, alt: img.alt })}
-              />
+                aria-label={t('common.expand_image')}
+                className="block w-full p-0 border-0 bg-transparent cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={displayUrl}
+                  alt={img.alt}
+                  className="w-full h-auto rounded-lg shadow-md hover:shadow-lg transition-shadow [-webkit-touch-callout:default]"
+                />
+              </button>
               {/* Discrete download button — visible on hover (desktop) or always visible (touch) */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -245,14 +255,22 @@ function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt:
     <>
       <div className="mt-3">
         <div className="group relative w-full max-w-[512px] mx-auto">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={screenshot.url}
-            alt={screenshot.alt}
-            className="w-full h-auto rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow [-webkit-touch-callout:default]"
-            crossOrigin="use-credentials"
+          {/* Real action -> native button around the image (audit F013);
+              the download button below stays a sibling. */}
+          <button
+            type="button"
             onClick={() => setLightboxOpen(true)}
-          />
+            aria-label={t('common.expand_image')}
+            className="block w-full p-0 border-0 bg-transparent cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={screenshot.url}
+              alt={screenshot.alt}
+              className="w-full h-auto rounded-lg shadow-md hover:shadow-lg transition-shadow [-webkit-touch-callout:default]"
+              crossOrigin="use-credentials"
+            />
+          </button>
           {/* Discrete download button — visible on hover (desktop) or always visible (touch) */}
           <button
             type="button"
@@ -390,16 +408,20 @@ function MessageAttachments({ attachments }: { attachments: MessageAttachmentMet
             >
               <X className="h-5 w-5" />
             </button>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={expandedImage.url}
-              alt={expandedImage.filename}
-              className="max-w-[85vw] max-h-[75vh] mobile:max-w-[70vw] mobile:max-h-[70vh] object-contain rounded-lg shadow-2xl"
-              {...(expandedImage.url.startsWith('blob:')
-                ? {}
-                : { crossOrigin: 'use-credentials' as const })}
-              onClick={e => e.stopPropagation()}
-            />
+            {/* role="presentation": the click handler is pure event
+                plumbing (stopPropagation so clicking the image never closes
+                the dialog) — not an interaction (audit F013). */}
+            <div role="presentation" onClick={e => e.stopPropagation()}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={expandedImage.url}
+                alt={expandedImage.filename}
+                className="max-w-[85vw] max-h-[75vh] mobile:max-w-[70vw] mobile:max-h-[70vh] object-contain rounded-lg shadow-2xl"
+                {...(expandedImage.url.startsWith('blob:')
+                  ? {}
+                  : { crossOrigin: 'use-credentials' as const })}
+              />
+            </div>
           </div>,
           document.body
         )}

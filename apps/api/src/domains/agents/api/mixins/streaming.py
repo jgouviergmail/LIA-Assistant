@@ -138,8 +138,10 @@ class StreamingMixin:
                     try:
                         redis = await get_redis_cache()
                         redis_key = f"token_summary:{run_id}"
-                        await redis.setex(
-                            redis_key, TOKEN_SUMMARY_CACHE_TTL, json.dumps(summary_dto_db.to_dict())
+                        await redis.set(
+                            redis_key,
+                            json.dumps(summary_dto_db.to_dict()),
+                            ex=TOKEN_SUMMARY_CACHE_TTL,
                         )
                     except Exception as cache_err:
                         logger.warning(

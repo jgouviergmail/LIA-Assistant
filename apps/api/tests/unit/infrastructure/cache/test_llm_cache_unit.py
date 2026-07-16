@@ -11,6 +11,7 @@ Phase 4.1 - Coverage Baseline & Tests Unitaires
 Target: 80%+ coverage for infrastructure/cache/llm_cache.py
 """
 
+import asyncio
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -345,18 +346,48 @@ def test_generate_cache_key_handles_complex_args():
 
 
 @pytest.mark.asyncio
-async def test_record_cache_hit_metrics_all_token_types():
-    """
-    Test that all token types are recorded correctly.
+async def test_record_cache_hit_records_cost_saved_never_billed():
+    """F002: a hit records the AVOIDED cost and NEVER the billed cost/consumption.
 
-    Validates:
-    - Input tokens counter incremented
-    - Output tokens counter incremented
-    - Cached tokens counter incremented
-
-    Note: the metrics are imported inside _record_cache_hit_metrics from
-    metrics_agents, so the patches target that module (not llm_cache).
+    A cache hit issues no provider call, so the billed ``llm_cost_total`` and
+    ``llm_tokens_consumed_total`` counters must stay untouched — only the
+    ``llm_cache_cost_saved_total`` counter moves.
     """
+    usage_metadata = {
+        "input_tokens": 100,
+        "output_tokens": 50,
+        "cached_tokens": 0,
+        "model_name": "gpt-4.1-mini",
+    }
+
+    with (
+        patch(
+            "src.infrastructure.observability.metrics_agents.estimate_cost_usd",
+            new=AsyncMock(return_value=0.0025),
+        ),
+        patch("src.infrastructure.cache.llm_cache.llm_cache_cost_saved_total") as mock_saved,
+        patch("src.infrastructure.observability.metrics_agents.llm_cost_total") as mock_billed,
+        patch(
+            "src.infrastructure.observability.metrics_agents.llm_tokens_consumed_total"
+        ) as mock_tokens,
+        patch("src.core.config.settings") as mock_settings,
+    ):
+        mock_settings.default_currency = "eur"
+
+        await _record_cache_hit_metrics(usage_metadata, node_name="router")
+
+    mock_saved.labels.assert_called_once_with(
+        node_name="router", model="gpt-4.1-mini", currency="EUR"
+    )
+    mock_saved.labels.return_value.inc.assert_called_once_with(0.0025)
+    # A hit must NEVER move the billed provider counters.
+    mock_billed.labels.assert_not_called()
+    mock_tokens.labels.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_record_cache_hit_estimates_saved_cost_with_token_counts():
+    """The avoided cost is estimated from the cached token counts."""
     usage_metadata = {
         "input_tokens": 200,
         "output_tokens": 100,
@@ -364,126 +395,27 @@ async def test_record_cache_hit_metrics_all_token_types():
         "model_name": "gpt-4.1-mini",
     }
 
+    mock_estimate = AsyncMock(return_value=0.01)
     with (
-        patch(
-            "src.infrastructure.observability.metrics_agents.llm_tokens_consumed_total"
-        ) as mock_tokens,
-        patch("src.infrastructure.observability.metrics_agents.llm_cost_total") as mock_cost,
-        patch(
-            "src.infrastructure.observability.metrics_agents.estimate_cost_usd",
-            new=AsyncMock(return_value=0.01),
-        ),
-    ):
-        await _record_cache_hit_metrics(usage_metadata, node_name="test_node")
-
-        # Every non-zero token type gets its own labelled increment
-        token_types = {call.kwargs["token_type"] for call in mock_tokens.labels.call_args_list}
-        assert token_types == {"prompt_tokens", "completion_tokens", "cached_tokens"}
-        mock_cost.labels.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_record_cache_hit_metrics_cost_calculation():
-    """
-    Test that cost is estimated (async) and recorded.
-
-    Validates:
-    - estimate_cost_usd awaited with correct parameters
-    - llm_cost_total counter incremented with the estimated cost
-    """
-    usage_metadata = {
-        "input_tokens": 100,
-        "output_tokens": 50,
-        "cached_tokens": 0,
-        "model_name": "gpt-4.1-mini",
-    }
-
-    mock_estimate = AsyncMock(return_value=0.0025)
-    with (
-        patch("src.infrastructure.observability.metrics_agents.llm_tokens_consumed_total"),
-        patch("src.infrastructure.observability.metrics_agents.llm_cost_total") as mock_cost,
         patch(
             "src.infrastructure.observability.metrics_agents.estimate_cost_usd",
             new=mock_estimate,
         ),
-        patch("src.core.config.settings") as mock_settings,
+        patch("src.infrastructure.cache.llm_cache.llm_cache_cost_saved_total"),
     ):
-        mock_settings.default_currency = "eur"
-
         await _record_cache_hit_metrics(usage_metadata, node_name="test_node")
 
-        mock_estimate.assert_awaited_once_with(
-            model="gpt-4.1-mini",
-            prompt_tokens=100,
-            completion_tokens=50,
-            cached_tokens=0,
-        )
-
-        mock_cost.labels.assert_called_once_with(
-            model="gpt-4.1-mini",
-            node_name="test_node",
-            currency="EUR",
-        )
-        mock_cost.labels.return_value.inc.assert_called_once_with(0.0025)
+    mock_estimate.assert_awaited_once_with(
+        model="gpt-4.1-mini",
+        prompt_tokens=200,
+        completion_tokens=100,
+        cached_tokens=50,
+    )
 
 
 @pytest.mark.asyncio
-async def test_record_cache_hit_metrics_prometheus_counters():
-    """
-    Test that Prometheus counters are incremented with the correct labels.
-
-    Validates:
-    - Token counters incremented with correct labels (zero types excluded)
-    - Cost counter incremented with correct labels
-    """
-    usage_metadata = {
-        "input_tokens": 100,
-        "output_tokens": 50,
-        "cached_tokens": 0,
-        "model_name": "gpt-4.1-mini",
-    }
-
-    with (
-        patch(
-            "src.infrastructure.observability.metrics_agents.llm_tokens_consumed_total"
-        ) as mock_tokens,
-        patch("src.infrastructure.observability.metrics_agents.llm_cost_total") as mock_cost,
-        patch(
-            "src.infrastructure.observability.metrics_agents.estimate_cost_usd",
-            new=AsyncMock(return_value=0.01),
-        ),
-        patch("src.core.config.settings") as mock_settings,
-    ):
-        mock_settings.default_currency = "usd"
-
-        await _record_cache_hit_metrics(usage_metadata, node_name="router")
-
-        mock_tokens.labels.assert_any_call(
-            model="gpt-4.1-mini", node_name="router", token_type="prompt_tokens"
-        )
-        mock_tokens.labels.assert_any_call(
-            model="gpt-4.1-mini", node_name="router", token_type="completion_tokens"
-        )
-        # cached_tokens == 0 → its counter must NOT be touched
-        cached_calls = [
-            call
-            for call in mock_tokens.labels.call_args_list
-            if call.kwargs.get("token_type") == "cached_tokens"
-        ]
-        assert cached_calls == []
-        mock_cost.labels.assert_called_once_with(
-            model="gpt-4.1-mini", node_name="router", currency="USD"
-        )
-
-
-@pytest.mark.asyncio
-async def test_record_cache_hit_metrics_zero_tokens():
-    """
-    Test handling of zero token values.
-
-    Validates: token counters are NOT incremented for zero values, while the
-    cost counter is still recorded (with the 0.0 estimate).
-    """
+async def test_record_cache_hit_zero_tokens_records_zero_saved():
+    """A zero-token cached entry still records a 0.0 saved-cost sample."""
     usage_metadata = {
         "input_tokens": 0,
         "output_tokens": 0,
@@ -493,18 +425,14 @@ async def test_record_cache_hit_metrics_zero_tokens():
 
     with (
         patch(
-            "src.infrastructure.observability.metrics_agents.llm_tokens_consumed_total"
-        ) as mock_tokens,
-        patch("src.infrastructure.observability.metrics_agents.llm_cost_total") as mock_cost,
-        patch(
             "src.infrastructure.observability.metrics_agents.estimate_cost_usd",
             new=AsyncMock(return_value=0.0),
         ),
+        patch("src.infrastructure.cache.llm_cache.llm_cache_cost_saved_total") as mock_saved,
     ):
         await _record_cache_hit_metrics(usage_metadata, node_name="test_node")
 
-        mock_tokens.labels.assert_not_called()
-        mock_cost.labels.return_value.inc.assert_called_once_with(0.0)
+    mock_saved.labels.return_value.inc.assert_called_once_with(0.0)
 
 
 # ============================================================================
@@ -663,3 +591,213 @@ async def test_invalidate_llm_cache_default_pattern():
         count = await invalidate_llm_cache()  # No pattern specified
 
         assert count == 2
+
+
+# ============================================================================
+# cache_llm_response wrapper - error boundaries & single-flight (F002)
+# ============================================================================
+
+
+def _mock_redis(get_return=None):
+    r = AsyncMock()
+    r.get.return_value = get_return
+    return r
+
+
+@pytest.mark.asyncio
+async def test_producer_called_once_and_propagates_when_it_raises():
+    """F002: a failing producer runs AT MOST ONCE and its exception propagates."""
+    from src.infrastructure.cache.llm_cache import cache_llm_response
+
+    calls = {"n": 0}
+
+    @cache_llm_response(ttl_seconds=60)
+    async def producer(x: str) -> dict:
+        calls["n"] += 1
+        raise RuntimeError("LLM down")
+
+    redis = _mock_redis(get_return=None)  # miss
+    with patch(
+        "src.infrastructure.cache.llm_cache.get_redis_cache",
+        new=AsyncMock(return_value=redis),
+    ):
+        with pytest.raises(RuntimeError, match="LLM down"):
+            await producer("q")
+
+    assert calls["n"] == 1  # never a silent second call (the old except → re-call bug)
+
+
+@pytest.mark.asyncio
+async def test_write_error_returns_result_without_recompute():
+    """F002: a Redis write error returns the computed result, never re-runs producer."""
+    from src.infrastructure.cache.llm_cache import cache_llm_response
+
+    calls = {"n": 0}
+
+    @cache_llm_response(ttl_seconds=60)
+    async def producer(x: str) -> dict:
+        calls["n"] += 1
+        return {"ok": True}
+
+    redis = _mock_redis(get_return=None)
+    redis.set.side_effect = RuntimeError("redis write down")
+    with patch(
+        "src.infrastructure.cache.llm_cache.get_redis_cache",
+        new=AsyncMock(return_value=redis),
+    ):
+        result = await producer("q")
+
+    assert result == {"ok": True}
+    assert calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_read_error_degrades_to_single_producer_call():
+    """F002: a Redis read error is treated as a miss — producer runs exactly once."""
+    from src.infrastructure.cache.llm_cache import cache_llm_response
+
+    calls = {"n": 0}
+
+    @cache_llm_response(ttl_seconds=60)
+    async def producer(x: str) -> dict:
+        calls["n"] += 1
+        return {"ok": 1}
+
+    redis = AsyncMock()
+    redis.get.side_effect = RuntimeError("redis read down")
+    with patch(
+        "src.infrastructure.cache.llm_cache.get_redis_cache",
+        new=AsyncMock(return_value=redis),
+    ):
+        result = await producer("q")
+
+    assert result == {"ok": 1}
+    assert calls["n"] == 1
+    redis.set.assert_not_awaited()  # read failed → redis disabled → no write attempt
+
+
+@pytest.mark.asyncio
+async def test_concurrent_identical_calls_are_single_flight():
+    """F002: 20 concurrent identical calls coalesce onto ONE producer invocation."""
+    from src.infrastructure.cache.llm_cache import cache_llm_response
+
+    calls = {"n": 0}
+    release = asyncio.Event()
+
+    @cache_llm_response(ttl_seconds=60)
+    async def producer(x: str) -> dict:
+        calls["n"] += 1
+        await release.wait()
+        return {"v": 1}
+
+    redis = _mock_redis(get_return=None)
+    with patch(
+        "src.infrastructure.cache.llm_cache.get_redis_cache",
+        new=AsyncMock(return_value=redis),
+    ):
+        tasks = [asyncio.create_task(producer("q")) for _ in range(20)]
+        for _ in range(4):
+            await asyncio.sleep(0)  # let all callers reach the single-flight join
+        release.set()
+        results = await asyncio.gather(*tasks)
+
+    assert all(r == {"v": 1} for r in results)
+    assert calls["n"] == 1  # single-flight: one producer for 20 callers (no stampede)
+
+
+@pytest.mark.asyncio
+async def test_waiter_cancellation_does_not_kill_shared_producer():
+    """F002: cancelling one caller must not cancel the shared producer for others."""
+    from src.infrastructure.cache.llm_cache import cache_llm_response
+
+    calls = {"n": 0}
+    release = asyncio.Event()
+
+    @cache_llm_response(ttl_seconds=60)
+    async def producer(x: str) -> dict:
+        calls["n"] += 1
+        await release.wait()
+        return {"v": 2}
+
+    redis = _mock_redis(get_return=None)
+    with patch(
+        "src.infrastructure.cache.llm_cache.get_redis_cache",
+        new=AsyncMock(return_value=redis),
+    ):
+        initiator = asyncio.create_task(producer("q"))
+        await asyncio.sleep(0)
+        joiner = asyncio.create_task(producer("q"))
+        await asyncio.sleep(0)
+        initiator.cancel()
+        await asyncio.sleep(0)
+        release.set()
+        result = await joiner
+
+    assert result == {"v": 2}
+    with pytest.raises(asyncio.CancelledError):
+        await initiator
+    assert calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_initiator_cancellation_keeps_producer_registered_for_late_callers():
+    """F002 (the real bug): cancelling the INITIATOR while its producer is still
+    running must NOT deregister the single-flight entry. A caller that arrives
+    AFTER the cancellation must coalesce onto the SAME producer, never start a
+    second one (no stampede / double LLM cost)."""
+    from src.infrastructure.cache.llm_cache import cache_llm_response
+
+    calls = {"n": 0}
+    release = asyncio.Event()
+
+    @cache_llm_response(ttl_seconds=60)
+    async def producer(x: str) -> dict:
+        calls["n"] += 1
+        await release.wait()
+        return {"v": 3}
+
+    redis = _mock_redis(get_return=None)
+    with patch(
+        "src.infrastructure.cache.llm_cache.get_redis_cache",
+        new=AsyncMock(return_value=redis),
+    ):
+        initiator = asyncio.create_task(producer("q"))
+        await asyncio.sleep(0)  # initiator registers the producer + awaits it
+        initiator.cancel()
+        for _ in range(4):
+            await asyncio.sleep(0)  # let the cancellation fully unwind
+        # Late caller AFTER the initiator was cancelled, producer still running.
+        late = asyncio.create_task(producer("q"))
+        for _ in range(4):
+            await asyncio.sleep(0)
+        release.set()
+        result = await late
+
+    assert result == {"v": 3}
+    with pytest.raises(asyncio.CancelledError):
+        await initiator
+    assert calls["n"] == 1  # single producer despite initiator cancellation
+
+
+@pytest.mark.asyncio
+async def test_producer_deregisters_itself_after_completion():
+    """The producer task owns cleanup: once it finishes, the key is removed so a
+    fresh call recomputes (bounded map), not stuck on a stale finished task."""
+    from src.infrastructure.cache.llm_cache import _producer_inflight, cache_llm_response
+
+    calls = {"n": 0}
+
+    @cache_llm_response(ttl_seconds=60)
+    async def producer(x: str) -> dict:
+        calls["n"] += 1
+        return {"v": 4}
+
+    redis = _mock_redis(get_return=None)
+    with patch(
+        "src.infrastructure.cache.llm_cache.get_redis_cache",
+        new=AsyncMock(return_value=redis),
+    ):
+        await producer("q")
+        for _ in range(4):
+            await asyncio.sleep(0)  # let the done-callback deregister
+        assert not any(k for k in _producer_inflight), "producer must deregister after completion"

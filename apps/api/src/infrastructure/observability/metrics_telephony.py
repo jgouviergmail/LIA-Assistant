@@ -31,3 +31,19 @@ telephony_webhook_ignored_total = Counter(
     ["reason"],
     # reason: unknown_call | agent_mismatch | bad_signature | malformed
 )
+
+telephony_notification_recovered_total = Counter(
+    "telephony_notification_recovered_total",
+    "Return notifications recovered by the reaper after a crash left them PENDING (T1).",
+    ["result"],
+    # result: delivered | failed (attempt cap reached) | skipped (no recipient)
+)
+
+telephony_return_recovered_total = Counter(
+    "telephony_return_recovered_total",
+    "Return syntheses replayed by the reaper after a crash stranded the RECEIVED "
+    "inbox before completion (T1 approach A).",
+    ["result"],
+    # result: recovered (re-synthesized) | failed (decode/synthesis error this tick)
+    #       | expired (past max-age, retired to FAILED + transcript purged)
+)

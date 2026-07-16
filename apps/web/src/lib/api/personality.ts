@@ -12,7 +12,8 @@ import {
   UserPersonalityUpdate,
 } from '@/types/personality';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// `??`, not `||`: empty string = same-origin relative URLs (see api-config.ts).
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 
 /**
  * Fetch all active personalities (localized to user's language)

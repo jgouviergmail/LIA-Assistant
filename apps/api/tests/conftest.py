@@ -7,6 +7,27 @@ Pytest configuration and fixtures for LIA API tests.
 import os
 from pathlib import Path
 
+# Scrub the DEVELOPER environment injected by the task runner. Taskfile.yml
+# declares ``dotenv: [.env]``: every task — including the test tasks — runs
+# with the ENTIRE repo-root .env (the developer environment) exported into its
+# process environment. ``.env.test`` below only overrides the keys IT defines,
+# so any other developer value silently reaches Settings and flips code paths
+# (observed: SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED=true rerouted the
+# semantic-expansion tests; DEFAULT_CURRENCY=EUR + a real CURRENCY_API_URL had
+# cost tests convert at the LIVE exchange rate — 12 failures under
+# ``task test:backend:integration`` while direct pytest stayed green, misread
+# as test-order pollution). Dropping every key declared in the root .env makes
+# the test environment identical whatever the launcher (task, direct pytest,
+# CI — where the root .env simply does not exist). Values tests DO need from
+# that file (e.g. REDIS_PASSWORD below) are re-read from the file explicitly.
+_root_env_file = Path(__file__).resolve().parents[3] / ".env"
+if _root_env_file.exists():
+    for _raw_line in _root_env_file.read_text(encoding="utf-8").splitlines():
+        _stripped = _raw_line.strip()
+        if not _stripped or _stripped.startswith("#") or "=" not in _stripped:
+            continue
+        os.environ.pop(_stripped.split("=", 1)[0].strip(), None)
+
 # Load .env.test file if it exists
 env_test_file = Path(__file__).parent.parent / ".env.test"
 if env_test_file.exists():
@@ -47,6 +68,7 @@ else:
 # fail with InvalidRequestError when the target model isn't imported.
 import asyncio
 from collections.abc import AsyncGenerator, Generator
+from typing import NoReturn
 
 import pytest
 import pytest_asyncio
@@ -55,7 +77,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 from testcontainers.postgres import PostgresContainer
 
 import src.domains.skills.models  # noqa: F401 — UserSkillState mapper registration
@@ -89,7 +111,7 @@ def _clean_llm_instance_cache():
 
 
 @pytest.fixture(autouse=True)
-def _reset_redis_singletons():
+async def _reset_redis_singletons():
     """Detach loop-bound Redis singletons between tests.
 
     The module-global Redis clients bind their connections to the event loop
@@ -98,9 +120,19 @@ def _reset_redis_singletons():
     closed" / "Future attached to a different loop". Dropping the singletons
     forces every test to lazily reconnect on ITS OWN loop.
 
+    Teardown ``aclose()``s any client created during the test BEFORE nulling
+    the global (F028): merely detaching the reference orphans the client's
+    connection pool, whose ``Connection`` objects are then finalized by the
+    GC with a pending ``Connection._cancel`` coroutine that nobody awaits —
+    surfacing as ``RuntimeWarning: coroutine ... was never awaited`` and
+    turning the warnings-as-errors gate red. Closing on the current test's
+    loop (where the client was lazily created) finalizes the pool cleanly.
+
     The shared RedisRateLimiter singleton wraps one of those clients and has
     the same loop-affinity problem — reset it alongside them.
     """
+    import contextlib
+
     from src.infrastructure.cache import redis as redis_module
     from src.infrastructure.rate_limiting import redis_limiter as limiter_module
 
@@ -108,6 +140,14 @@ def _reset_redis_singletons():
     redis_module._redis_session = None
     limiter_module._shared_limiter = None
     yield
+    # Close on THIS test's loop before detaching. A client that somehow leaked
+    # from another test's (now-closed) loop raises RuntimeError on aclose;
+    # suppress only that — best-effort cleanup must never fail the test whose
+    # assertions already passed, but any other error should still surface.
+    for _client in (redis_module._redis_cache, redis_module._redis_session):
+        if _client is not None:
+            with contextlib.suppress(RuntimeError):
+                await _client.aclose()
     redis_module._redis_cache = None
     redis_module._redis_session = None
     limiter_module._shared_limiter = None
@@ -200,6 +240,151 @@ def _detect_environment() -> tuple[bool, str | None]:
     return use_external, external_db
 
 
+def _prefer_ipv4_loopback(url: str) -> str:
+    """Rewrite a ``localhost`` DB host to ``127.0.0.1`` on Windows.
+
+    On Windows, ``localhost`` resolves to BOTH ``::1`` (IPv6) and ``127.0.0.1``
+    (IPv4). Docker Desktop publishes the container port on IPv4 only, so every
+    connection first attempts the IPv6 address, waits for it to fail, then falls
+    back to IPv4 — adding ~10 s per connection (the ~21 s repeated-setup cost the
+    A/B test measured). Forcing the literal IPv4 loopback removes the doomed IPv6
+    attempt entirely (~30× faster setup). No-op off Windows and for non-localhost
+    hosts (a remote ``DOCKER_HOST`` or an explicit external DB is untouched).
+    """
+    import sys
+
+    if sys.platform != "win32":
+        return url
+    # Only the host token, and only the exact ``localhost`` label (never a
+    # substring of a password/db name): rewrite ``@localhost:`` / ``@localhost/``.
+    return url.replace("@localhost:", "@127.0.0.1:").replace("@localhost/", "@127.0.0.1/")
+
+
+def _force_testcontainers_ipv4_on_windows() -> None:
+    """Make Testcontainers hand back ``127.0.0.1`` instead of ``localhost`` (Windows).
+
+    Sets ``testcontainers_config.tc_host_override`` (the programmatic equivalent
+    of ``TESTCONTAINERS_HOST_OVERRIDE``) so the container's own readiness poll AND
+    ``get_connection_url()`` use IPv4 loopback directly — no manual env var
+    required on the Windows runner. Applied ONLY when Docker is local (npipe /
+    unset ``DOCKER_HOST``): a remote ``DOCKER_HOST`` resolves to its own hostname
+    and must never be forced to loopback. Respects an explicit user override.
+    """
+    import sys
+
+    if sys.platform != "win32":
+        return
+
+    from testcontainers.core.config import testcontainers_config
+
+    if testcontainers_config.tc_host_override:
+        return  # respect an explicit TC_HOST / TESTCONTAINERS_HOST_OVERRIDE
+
+    docker_host = os.environ.get("DOCKER_HOST", "").lower()
+    is_local_docker = (
+        not docker_host
+        or "npipe" in docker_host
+        or "localhost" in docker_host
+        or "127.0.0.1" in docker_host
+    )
+    if is_local_docker:
+        testcontainers_config.tc_host_override = "127.0.0.1"
+
+
+# Process-wide DB redirection state (one-shot per test process/xdist worker).
+# _TESTCONTAINERS_ACTIVE is read by the integration dev-DB guard
+# (tests/integration/conftest.py): when a Testcontainers database is in play,
+# any residual connection to the developer database must fail loudly.
+_PROCESS_DB_REDIRECTED = False
+_TESTCONTAINERS_ACTIVE = False
+
+
+def _to_asyncpg_url(url: str) -> str:
+    """Normalize any PostgreSQL URL to the asyncpg driver form."""
+    return url.replace("postgresql+asyncpg://", "postgresql://").replace(
+        "postgresql://", "postgresql+asyncpg://"
+    )
+
+
+def _redirect_process_db(async_url: str) -> None:
+    """Point every PROCESS-WIDE DB entrypoint at the test database.
+
+    The session fixtures historically redirected only their own engine/session;
+    code under test going through the process singletons kept using the URL
+    from ``.env.test`` (the developer database):
+
+    - the module-level SQLAlchemy engine behind ``get_db_context()`` /
+      ``get_db_session()`` (72 call sites: pricing cache, schedulers, tools…),
+    - ``settings.database_url``, read lazily by the LangGraph checkpointer pool
+      and the LangGraph Store pool.
+
+    Those paths hide behind best-effort fallbacks, so tests stayed green while
+    validating against the WRONG database (silent false greens: ~35 s doomed
+    checkpointer waits, ``relation "store" does not exist``, 21 s admin pricing
+    calls). Redirecting here makes the whole process coherent: one test
+    database for fixtures AND singletons.
+
+    Idempotent (first DB-URL fixture wins; both fixtures resolve the same DB).
+    Not undone at session end: the test process exits with the session, and the
+    container outlives every test.
+
+    Args:
+        async_url: Test database URL in asyncpg form.
+    """
+    global _PROCESS_DB_REDIRECTED
+    if _PROCESS_DB_REDIRECTED:
+        return
+
+    from contextlib import suppress
+
+    from pydantic import PostgresDsn, TypeAdapter
+
+    from src.core.config import settings
+    from src.domains.agents.context.store import reset_tool_context_store
+    from src.domains.conversations.checkpointer import reset_checkpointer
+    from src.infrastructure.database import session as db_session_module
+    from src.infrastructure.database.psycopg_pool_config import set_psycopg_url_override
+
+    # 1. settings.database_url — the source read lazily by the checkpointer and
+    #    store pools (validated so the field keeps its PostgresDsn contract) —
+    #    PLUS the explicit psycopg URL injection point: the LangGraph pools
+    #    resolve through it first, independent of the settings object.
+    settings.database_url = TypeAdapter(PostgresDsn).validate_python(async_url)
+    set_psycopg_url_override(async_url.replace("postgresql+asyncpg://", "postgresql://"))
+
+    # 2. The module-level engine/sessionmaker behind get_db_context() /
+    #    get_db_session(). NullPool: pytest-asyncio gives each test its own
+    #    event loop, and pooled asyncpg connections reused across loops crash
+    #    with "attached to a different loop" — NullPool opens/closes one
+    #    connection per session, which is loop-safe and cheap for tests.
+    old_engine = db_session_module.engine
+    new_engine = create_async_engine(
+        async_url, echo=False, poolclass=NullPool, connect_args={"timeout": 30}
+    )
+    db_session_module.engine = new_engine
+    db_session_module.AsyncSessionLocal = async_sessionmaker(
+        new_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autocommit=False,
+        autoflush=False,
+    )
+    # The import-time engine pointed at the unreachable .env.test URL and never
+    # pooled a connection; dispose is a hygiene no-op kept best-effort.
+    with suppress(Exception):
+        old_engine.sync_engine.dispose()
+
+    # 3. LangGraph singletons: drop them so the next get_checkpointer() /
+    #    get_tool_context_store() lazily rebuilds against the new settings URL
+    #    (their idempotent setup() then creates the checkpoints/store tables in
+    #    the test database). Per-test pool closing lives in the integration
+    #    conftest (_close_langgraph_pools_on_test_loop).
+    reset_checkpointer()
+    reset_tool_context_store()
+
+    _PROCESS_DB_REDIRECTED = True
+
+
 @pytest.fixture(scope="session")
 def postgres_container() -> Generator[PostgresContainer | None, None, None]:
     """
@@ -220,21 +405,49 @@ def postgres_container() -> Generator[PostgresContainer | None, None, None]:
         # No container needed, will use external DB directly
         yield None
     else:
-        # Strategy 2: Create testcontainer (local development)
+        # Strategy 2: Create testcontainer (local development). Force IPv4
+        # loopback on Windows BEFORE startup so the container's readiness poll
+        # and connection URL skip the slow doomed IPv6 attempt (~30× faster).
+        _force_testcontainers_ipv4_on_windows()
         try:
             with PostgresContainer("pgvector/pgvector:pg16", driver=None) as postgres:
+                # Arm the dev-DB guard (tests/integration/conftest.py): with a
+                # Testcontainers DB in play, any connection to the developer
+                # database (loopback:5432) is a redirection bug — fail loudly.
+                global _TESTCONTAINERS_ACTIVE
+                _TESTCONTAINERS_ACTIVE = True
                 yield postgres
         except Exception as e:
             # Docker socket not accessible or testcontainers not available
-            pytest.skip(f"Testcontainers not available: {e}")
+            _db_unavailable(f"Testcontainers not available: {e}")
+
+
+def _db_unavailable(reason: str) -> NoReturn:
+    """Fail when a job PROMISES a database (audit F019), otherwise skip.
+
+    The CI integration/migration jobs provision PostgreSQL, so an unreachable DB
+    or a Testcontainers/Docker error there is a real infrastructure failure that
+    MUST fail the job — silently skipping whole DB test groups turns an outage
+    into invisible zero coverage (the F019 defect). Those jobs export
+    ``LIA_REQUIRE_DB=1``. Locally (no promised DB) it degrades to a readable skip
+    so dev machines without a test database are not blocked.
+    """
+    if os.environ.get("LIA_REQUIRE_DB") == "1":
+        pytest.fail(
+            f"A database was promised (LIA_REQUIRE_DB=1) but is unavailable "
+            f"(F019): {reason}. This is an infrastructure failure — do not skip.",
+            pytrace=False,
+        )
+    pytest.skip(reason)
 
 
 def _skip_if_db_unreachable(url: str) -> None:
-    """Skip (instead of ERROR at fixture setup) when the test DB is unreachable.
+    """Skip (or fail under LIA_REQUIRE_DB) when the test DB is unreachable.
 
     The dev container has no test database on localhost:5432 (.env.test assumes
     the CI service container); without this check every DB-backed test errors
-    with a raw connection traceback instead of a readable skip.
+    with a raw connection traceback instead of a readable skip. In a job that
+    promises a DB this fails loudly instead (F019).
     """
     import socket
     from urllib.parse import urlparse
@@ -249,7 +462,7 @@ def _skip_if_db_unreachable(url: str) -> None:
     except OSError:
         reachable = False
     if not reachable:
-        pytest.skip(f"Test database unreachable at {host}:{port}")
+        _db_unavailable(f"Test database unreachable at {host}:{port}")
 
 
 @pytest.fixture(scope="session")
@@ -263,16 +476,15 @@ def test_database_url(postgres_container: PostgresContainer | None) -> str:
 
     if use_external and external_db:
         # Ensure asyncpg driver for async operations
-        url = external_db.replace("postgresql://", "postgresql+asyncpg://")
+        url = _prefer_ipv4_loopback(_to_asyncpg_url(external_db))
         _skip_if_db_unreachable(url)
-        return url
     elif postgres_container:
         # Use testcontainer with explicit asyncpg driver for async operations
-        return postgres_container.get_connection_url().replace(
-            "postgresql://", "postgresql+asyncpg://"
-        )
+        url = _prefer_ipv4_loopback(_to_asyncpg_url(postgres_container.get_connection_url()))
     else:
-        pytest.skip("No database available for testing")
+        _db_unavailable("No database available for testing")
+    _redirect_process_db(url)
+    return url
 
 
 @pytest.fixture(scope="session")
@@ -286,14 +498,17 @@ def test_database_url_sync(postgres_container: PostgresContainer | None) -> str:
 
     if use_external and external_db:
         # Ensure the sync (non-asyncpg) driver for sync operations
-        url = external_db.replace("postgresql+asyncpg://", "postgresql://")
+        url = _prefer_ipv4_loopback(external_db.replace("postgresql+asyncpg://", "postgresql://"))
         _skip_if_db_unreachable(url)
-        return url
     elif postgres_container:
         # Use testcontainer with default psycopg2 driver for sync operations
-        return postgres_container.get_connection_url()
+        url = _prefer_ipv4_loopback(postgres_container.get_connection_url())
     else:
-        pytest.skip("No database available for testing")
+        _db_unavailable("No database available for testing")
+    # Redirect the process singletons too (idempotent; asyncpg form — the
+    # global engine and the settings URL both use the async driver).
+    _redirect_process_db(_to_asyncpg_url(url))
+    return url
 
 
 def pytest_asyncio_loop_factories(config, item):
@@ -340,48 +555,108 @@ def test_settings(test_database_url: str) -> Settings:
     )
 
 
+def _provision_langgraph_tables(sync_url: str) -> None:
+    """Apply the LangGraph checkpointer/store migrations ONCE, before any test.
+
+    Their migrations contain ``CREATE INDEX CONCURRENTLY``, which waits for
+    every concurrent transaction holding an XID/snapshot on the database to
+    finish. The per-test isolation (``async_session``) keeps ONE outer
+    transaction open for the whole test; a test that already WROTE therefore
+    deadlocks a first-time in-test ``setup()``: the migration waits for the
+    test's transaction, which waits for the migration — the whole run froze at
+    ``checkpointer_initializing`` (observed wedge, no timeout can fire since
+    the wait is server-side DDL, and it also produced ``relation "store" does
+    not exist`` fallbacks). Running the idempotent setup() here — sync savers,
+    session scope, ZERO open test transactions — reduces every in-test
+    ``setup()`` to a migration-version check (no DDL, no deadlock).
+    """
+    from langgraph.checkpoint.postgres import PostgresSaver
+    from langgraph.store.postgres import PostgresStore
+
+    with PostgresSaver.from_conn_string(sync_url) as saver:
+        saver.setup()
+    # No index config: tests run the non-semantic store (no embeddings API key),
+    # so the base migrations are exactly what the async store will verify.
+    with PostgresStore.from_conn_string(sync_url) as store:
+        store.setup()
+
+
+@pytest.fixture(scope="session")
+def _db_schema_ready(test_database_url_sync: str) -> Generator[None, None, None]:
+    """Build the test schema ONCE per session, via a SYNC engine (audit F049).
+
+    Previously each DB test recreated the whole schema (``drop_all`` + ``create_all``
+    over ~100 tables) inside a function-scoped ``async_engine`` — ~20 s per test,
+    which made the integration suite unusable in practice. A sync engine builds it a
+    single time (no event-loop binding to reason about, unlike a session-scoped async
+    engine whose asyncpg connections would be pinned to the wrong loop), and per-test
+    isolation moves to an external transaction + SAVEPOINT in ``async_session``.
+    """
+    # psycopg2 is not installed (the stack uses psycopg v3 + asyncpg), so pin the
+    # sync driver to psycopg v3 rather than the default ``postgresql://`` (psycopg2).
+    # NullPool: the DDL connection is closed immediately after each block, so no idle
+    # sync connection lingers to contend with the async tests' locks.
+    sync_url = test_database_url_sync.replace("postgresql://", "postgresql+psycopg://")
+    # connect_timeout: a freshly published Testcontainers port can blackhole the
+    # first TCP connect on Windows (no RST) — without a bound, psycopg waits
+    # forever in select() and the whole run wedges (AC-010 follow-up).
+    engine = create_engine(sync_url, poolclass=NullPool, connect_args={"connect_timeout": 30})
+    with engine.begin() as conn:
+        # pgvector Vector columns need the extension before create_all; unaccent()
+        # is used by the admin user search. Idempotent (no-op if already present).
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
+        Base.metadata.drop_all(conn)
+        Base.metadata.create_all(conn)
+    _provision_langgraph_tables(test_database_url_sync)
+    yield
+    with engine.begin() as conn:
+        Base.metadata.drop_all(conn)
+    engine.dispose()
+
+
 @pytest_asyncio.fixture(scope="function")
-async def async_engine(test_database_url: str):
+async def async_engine(_db_schema_ready: None, test_database_url: str):
+    """Async engine for tests. The schema is created once by ``_db_schema_ready``;
+    this per-test engine does NO DDL (F049) — engine creation is cheap, only the
+    per-test ``drop_all``/``create_all`` was slow.
     """
-    Create async SQLAlchemy engine for tests.
-    Uses StaticPool to maintain connection across async operations.
-    """
+    # NOT StaticPool: the external-transaction + SAVEPOINT isolation below checks
+    # out a real per-test connection; StaticPool's single shared connection
+    # deadlocks against the sync schema connection and the savepoint transaction.
+    # timeout: asyncpg's connect timeout — same rationale as the sync engine's
+    # connect_timeout above (never wait forever on a half-ready container port).
     engine = create_async_engine(
-        test_database_url,
-        echo=False,
-        poolclass=StaticPool,
+        test_database_url, echo=False, poolclass=NullPool, connect_args={"timeout": 30}
     )
-
-    async with engine.begin() as conn:
-        # pgvector tables (Vector columns) require the extension to exist before
-        # create_all. Idempotent + no-op when already present (local dev DB);
-        # the CI test DB (pgvector image) needs it created explicitly.
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        # Mirror the extensions the Alembic migrations create: the admin user
-        # search relies on unaccent() and 500s without it.
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-
     yield engine
-
     await engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function")
 async def async_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
-    """
-    Create async database session for tests.
-    """
-    async_session_maker = async_sessionmaker(
-        async_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
+    """Per-test DB isolation via an external transaction + SAVEPOINT (audit F049).
 
-    async with async_session_maker() as session:
+    Even a test that calls ``commit()`` is undone: the session joins an outer
+    transaction with ``join_transaction_mode="create_savepoint"`` (each commit
+    releases the current savepoint and opens a fresh one instead of ending the outer
+    transaction), and the outer transaction is rolled back at teardown — so nothing
+    persists between tests WITHOUT recreating the schema each time.
+    """
+    connection = await async_engine.connect()
+    trans = await connection.begin()
+    session = AsyncSession(
+        bind=connection,
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    )
+    try:
         yield session
-        await session.rollback()
+    finally:
+        await session.close()
+        if trans.is_active:
+            await trans.rollback()
+        await connection.close()
 
 
 @pytest_asyncio.fixture(scope="function")

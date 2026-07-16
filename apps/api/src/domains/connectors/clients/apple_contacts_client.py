@@ -406,10 +406,10 @@ class AppleContactsClient(BaseAppleClient):
         # Cache all contacts
         try:
             redis = await get_redis_session()
-            await redis.setex(
+            await redis.set(
                 cache_key,
-                settings.apple_contacts_cache_ttl,
                 json.dumps(contacts),
+                ex=settings.apple_contacts_cache_ttl,
             )
         except Exception as e:
             logger.debug("apple_contacts_cache_write_error", error=str(e))

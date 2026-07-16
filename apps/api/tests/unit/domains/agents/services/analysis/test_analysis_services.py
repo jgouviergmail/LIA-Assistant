@@ -426,6 +426,17 @@ class TestRoutingDeciderSingleton:
         """Reset singleton before each test."""
         reset_routing_decider()
 
+    def teardown_method(self):
+        """Reset singleton after each test too.
+
+        test_get_routing_decider_with_custom_thresholds initializes the module
+        singleton with a non-default high_semantic_threshold (0.9). Without this
+        teardown that instance leaks into whatever test runs next under random
+        ordering — notably test_decide_high_semantic_score, which relies on the
+        default 0.7 and would then see bypass=False (an order-dependent flake).
+        """
+        reset_routing_decider()
+
     def test_get_routing_decider_returns_same_instance(self):
         """Test that get_routing_decider returns singleton."""
         decider1 = get_routing_decider()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -46,7 +47,10 @@ async def test_webhook_ok_fires_background_task(monkeypatch) -> None:
     auth = WebhookAuth(WebhookOutcome.OK, call=call, payload={"x": 1})
     fired = _patch_auth(monkeypatch, auth)
 
-    resp = await rt.telephony_webhook(_FakeRequest(), db=object())
+    # OK outcome now durably persists the encrypted return inbox (T1 approach A)
+    # BEFORE firing the background synthesis, so the handler touches the DB —
+    # give it an async session mock (execute/commit).
+    resp = await rt.telephony_webhook(_FakeRequest(), db=AsyncMock())
 
     assert resp == {"ok": True}
     assert fired["name"] == "telephony_return"

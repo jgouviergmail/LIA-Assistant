@@ -268,7 +268,7 @@ class AppleEmailClient(BaseAppleClient):
                 ttl = settings.apple_email_message_cache_ttl
                 for msg in messages:
                     cache_key = f"apple_email:{self.user_id}:msg:{msg['id']}"
-                    await redis.setex(cache_key, ttl, json.dumps(msg))
+                    await redis.set(cache_key, json.dumps(msg), ex=ttl)
             except Exception as e:
                 logger.debug("apple_email_cache_write_error", error=str(e))
 
@@ -359,7 +359,9 @@ class AppleEmailClient(BaseAppleClient):
         try:
             redis = await get_redis_session()
             cache_key = f"apple_email:{self.user_id}:msg:{message_id}"
-            await redis.setex(cache_key, settings.apple_email_message_cache_ttl, json.dumps(result))
+            await redis.set(
+                cache_key, json.dumps(result), ex=settings.apple_email_message_cache_ttl
+            )
         except Exception as e:
             logger.warning("apple_email_cache_write_error", error=str(e))
 

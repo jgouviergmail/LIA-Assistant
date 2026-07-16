@@ -1,6 +1,6 @@
 {
   "name": "@lia-assistant/web",
-  "version": "1.24.0",
+  "version": "1.25.0",
   "description": "LIA Assistant - Frontend application",
   "license": "AGPL-3.0-or-later",
   "author": "LIA Contributors",
@@ -16,6 +16,9 @@
     "start": "next start",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "lint": "eslint src",
+    "a11y:ratchet": "node scripts/check-a11y-ratchet.mjs",
+    "react-hooks:ratchet": "node scripts/check-react-hooks-ratchet.mjs",
+    "cc:ratchet": "node scripts/check-cc-ratchet.mjs",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -16,6 +16,7 @@ The delivery strings (notification title / synthesis-failure fallback) live in
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
@@ -29,8 +30,8 @@ from pydantic import ValidationError
 from src.core.config import settings
 from src.core.i18n_telephony import get_return_phrases
 from src.core.llm_config_helper import get_llm_config_for_agent
-from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
+from src.domains.telephony.prompts.loader import load_telephony_prompt
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.telephony.schemas import ReturnProposal, StructuredCallData
 from src.domains.users.models import User
@@ -218,7 +219,7 @@ async def synthesize_return(
         The parsed proposal and the LLM token usage (``None`` when the provider
         reports none, or when a non-``include_raw`` response is returned in tests).
     """
-    system = load_prompt("telephony_synthesis_prompt", "v1")
+    system = load_telephony_prompt("telephony_synthesis_prompt", "v1")
     context = _render_context(
         objective=objective,
         callee_display=callee_display,
@@ -291,6 +292,10 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
             structured_data=structured.model_dump(exclude_none=True),
             outcome=_derive_outcome(structured, status),
             completed_at=datetime.now(UTC),
+            # T1: arm the return as a PENDING outbox record in the same atomic
+            # transition, so a crash before the dispatch below cannot lose it.
+            notification_content=proposal.proposal_text,
+            notification_title=phrases["title"],
         )
         if not claimed:
             return  # lost the race — another worker already delivered
@@ -317,7 +322,13 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
         if call_seconds is not None:
             telephony_call_duration_seconds.observe(float(call_seconds))
 
-        if user is not None:
+        if user is None:
+            # No recipient (defensive — a CASCADE would normally remove the call):
+            # close the outbox record so the reaper does not chase an undeliverable row.
+            await repo.mark_notification_delivered(call_id)
+            return
+
+        try:
             await NotificationDispatcher().dispatch(
                 user=user,
                 content=proposal.proposal_text,
@@ -327,4 +338,60 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
                 db=db,
                 title=phrases["title"],
             )
+        except Exception as exc:  # noqa: BLE001 — a dispatch failure must NOT lose the return
+            # The call result + PENDING outbox record are already committed; leave
+            # the notification PENDING and let the reaper re-dispatch it (T1). Do not
+            # re-raise: deliver_return_with_retry would retry the whole flow, but
+            # mark_completed is now terminal (returns False), so it could never
+            # re-dispatch — the reaper is the single recovery path.
+            logger.warning(
+                "telephony_return_dispatch_failed",
+                call_id=str(call_id),
+                error_type=type(exc).__name__,
+            )
+            return
+
+        await repo.mark_notification_delivered(call_id)
         logger.info("telephony_return_delivered", call_id=str(call_id), status=status.value)
+
+
+async def deliver_return_with_retry(call_id: UUID, payload: dict[str, Any]) -> None:
+    """Durable wrapper around :func:`process_completed_call` (T1).
+
+    The post-call webhook fires this and returns 200 immediately; ElevenLabs
+    delivers the payload only once. ``process_completed_call`` is idempotent (the
+    terminal transition is an atomic conditional UPDATE), so retrying after a
+    transient failure re-attempts the reconcile/synthesis/deliver without risking
+    a double delivery — a second pass over an already-completed call returns
+    early. This closes the window where a transient error *before*
+    ``mark_completed`` would otherwise leave the call stuck in dialing/in_progress
+    until the stale reaper marks it failed, losing the return entirely.
+
+    Durability envelope: the task is held in the background-task set and awaited
+    at graceful shutdown (``wait_all_background_tasks``). A hard crash mid-flight
+    is not recoverable — the raw transcript is never persisted (D-8) — but the
+    stale-call reaper still frees the one-active-call slot.
+
+    Only the exception TYPE is logged (an exception message may embed call data).
+    """
+    max_attempts = max(1, settings.telephony_return_max_attempts)
+    delay = settings.telephony_return_retry_delay_seconds
+    for attempt in range(1, max_attempts + 1):
+        try:
+            await process_completed_call(call_id, payload)
+            return
+        except Exception as exc:  # noqa: BLE001 — a transient failure must not lose the return
+            logger.warning(
+                "telephony_return_attempt_failed",
+                call_id=str(call_id),
+                attempt=attempt,
+                max_attempts=max_attempts,
+                error_type=type(exc).__name__,
+            )
+            if attempt < max_attempts and delay > 0:
+                await asyncio.sleep(delay)
+    logger.error(
+        "telephony_return_gave_up",
+        call_id=str(call_id),
+        attempts=max_attempts,
+    )

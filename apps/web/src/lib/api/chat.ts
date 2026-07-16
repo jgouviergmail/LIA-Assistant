@@ -6,7 +6,8 @@
 import { ChatStreamChunk, ChatRequest } from '@/types/chat';
 import { logger } from '@/lib/logger';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// `??`, not `||`: empty string = same-origin relative URLs (see api-config.ts).
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 const SSE_ENDPOINT = `${API_BASE_URL}/api/v1/agents/chat/stream`;
 
 /**

@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 1.0
-**Datum**: 2026-07-13
-**Anwendung**: LIA v1.24.0
+**Datum**: 2026-07-16
+**Anwendung**: LIA v1.25.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,17 +13,17 @@
 
 LIA ist ein vollständiger Multi-Agenten-KI-Assistent — Fachkonnektoren, Sprache, Gedächtnis, sechs Sprachen — der als persönliches Projekt entworfen, entwickelt und kontinuierlich in Produktion betrieben wird.
 
-Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führung: ein schriftliches Engineering-Regelwerk, blockierende automatische Prüfungen, systematische Reviews, wiederkehrende Audits. Das Ergebnis ist gemessen: **8,5/10** im technischen Audit über 24 Bereiche. Das Repository ist Open Source; die Schlussfolgerungen des Audits — Stärken wie Schwächen — werden offen eingestanden und in diesem Dokument zusammengefasst.
+Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führung: ein schriftliches Engineering-Regelwerk, blockierende automatische Prüfungen, systematische Reviews, wiederkehrende Audits. Das Ergebnis ist gemessen: **8,3/10** im technischen Audit über 24 Bereiche. Das Repository ist Open Source; die Schlussfolgerungen des Audits — Stärken wie Schwächen — werden offen eingestanden und in diesem Dokument zusammengefasst.
 
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 31 Fachdomänen | **420.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **10.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **100+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **120+** |
 | In regelmäßigem Rhythmus gelieferte Versionen | **120+** |
 | Sprachen, Parität automatisch geprüft | **6** |
-| Technisches Audit über 24 Bereiche | **8,5/10** |
+| Technisches Audit über 24 Bereiche | **8,3/10** |
 
 Überzeugung aus Erfahrung: KI-gestützte Entwicklung ist heute industrialisierbar. Der begrenzende Faktor ist nicht das Werkzeug — es ist der Führungsrahmen, den man ihm gibt.
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 100+ dokumentierten:
+Drei strukturelle Entscheidungen, unter den 120+ dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -69,7 +69,7 @@ Ein System, das nach Instrumenten geflogen wird:
 
 ## 6. Der Beweis
 
-Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen technischen Audit: 24 bewertete Bereiche, jeder Befund im Code verifiziert und gegengeprüft, um Falsch-Positive zu eliminieren. Das Audit wendet die Methode des Projekts selbst an — mit KI-Werkzeugen durchgeführt, in kontradiktorischer Haltung, jede Schlussfolgerung in gegengeprüften Belegen verankert. Letzte Bewertung: **8,5/10**, mit einem offen eingestandenen Profil. Der vollständige Bericht — Bewertungsraster, Methode, offene Befunde und das Protokoll zur Reproduktion — ist öffentlich: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen technischen Audit: 24 bewertete Bereiche, jeder Befund im Code verifiziert und gegengeprüft, um Falsch-Positive zu eliminieren. Das Audit wendet die Methode des Projekts selbst an — mit KI-Werkzeugen durchgeführt, in kontradiktorischer Haltung, jede Schlussfolgerung in gegengeprüften Belegen verankert. Letzte Bewertung: **8,3/10**, mit einem offen eingestandenen Profil. Der vollständige Bericht — Bewertungsraster, Methode, offene Befunde und das Protokoll zur Reproduktion — ist öffentlich: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Bestätigte Stärken:**
 

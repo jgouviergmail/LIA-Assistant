@@ -39,7 +39,7 @@ export function LLMUsageBadge({ usage, className }: LLMUsageBadgeProps) {
   return (
     <span
       title={tooltip}
-      className={`inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground/60 ${className ?? ''}`}
+      className={`inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground ${className ?? ''}`}
     >
       <span>{tokensLabel}</span>
       <span aria-hidden="true">·</span>

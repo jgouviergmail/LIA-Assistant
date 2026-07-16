@@ -11,6 +11,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { logger } from '@/lib/logger';
 import { useLoggingContext } from '@/lib/logging-context';
 import { API_ENDPOINTS } from '@/lib/api-config';
+import { useStaleGuard } from '@/hooks/useStaleGuard';
 
 export interface UseAPIHealthOptions {
   /** User object - health check only runs when user is authenticated */
@@ -45,21 +46,30 @@ export interface UseAPIHealthReturn {
  */
 export const useAPIHealth = ({ user, onStatusChange }: UseAPIHealthOptions): UseAPIHealthReturn => {
   const { withContext } = useLoggingContext();
+  const guard = useStaleGuard();
   const [apiAvailable, setApiAvailable] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
 
   /**
    * Check API health and update availability status.
    * Returns the health status for programmatic use.
+   *
+   * Staleness guard (audit F037): only the latest check, while mounted, may
+   * commit state — a slow/out-of-order response never clobbers a fresher one and
+   * nothing is set after unmount.
    */
   const checkHealth = useCallback(async (): Promise<boolean> => {
+    const isStale = guard.begin();
+
     if (!user) {
-      setApiAvailable(false);
-      onStatusChange?.(false);
+      if (!isStale()) {
+        setApiAvailable(false);
+        onStatusChange?.(false);
+      }
       return false;
     }
 
-    setIsChecking(true);
+    if (!isStale()) setIsChecking(true);
 
     try {
       const response = await fetch(API_ENDPOINTS.AGENTS.HEALTH, {
@@ -75,6 +85,7 @@ export const useAPIHealth = ({ user, onStatusChange }: UseAPIHealthOptions): Use
         // Verify that the graph is compiled and service is healthy
         const isHealthy = data.status === 'healthy' && data.graph_compiled === true;
 
+        if (isStale()) return isHealthy;
         setApiAvailable(isHealthy);
         onStatusChange?.(isHealthy);
 
@@ -90,6 +101,7 @@ export const useAPIHealth = ({ user, onStatusChange }: UseAPIHealthOptions): Use
 
         return isHealthy;
       } else {
+        if (isStale()) return false;
         setApiAvailable(false);
         onStatusChange?.(false);
 
@@ -105,6 +117,7 @@ export const useAPIHealth = ({ user, onStatusChange }: UseAPIHealthOptions): Use
         return false;
       }
     } catch (error) {
+      if (isStale()) return false;
       setApiAvailable(false);
       onStatusChange?.(false);
 
@@ -118,9 +131,11 @@ export const useAPIHealth = ({ user, onStatusChange }: UseAPIHealthOptions): Use
 
       return false;
     } finally {
-      setIsChecking(false);
+      // Only the current check may clear the in-progress flag — an older,
+      // superseded check finishing first must not do it (audit F037).
+      if (!isStale()) setIsChecking(false);
     }
-  }, [user, withContext, onStatusChange]);
+  }, [user, withContext, onStatusChange, guard]);
 
   /**
    * Check API health on mount and when user changes.

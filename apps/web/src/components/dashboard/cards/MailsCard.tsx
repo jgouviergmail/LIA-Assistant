@@ -52,7 +52,7 @@ function MailsContent({ data }: { data: MailsData }) {
               {mail.received_local}
             </span>
             <span className="text-sm font-medium text-foreground/90 truncate">{mail.subject}</span>
-            <span className="text-xs text-muted-foreground/80 truncate">
+            <span className="text-xs text-muted-foreground truncate">
               {mail.sender_email || mail.sender_name || '—'}
             </span>
           </li>

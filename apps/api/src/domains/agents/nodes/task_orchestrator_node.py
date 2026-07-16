@@ -1141,8 +1141,13 @@ async def _handle_execution_plan(
                 completed_steps=completed_steps,
             )
 
-            # Get re-plan attempt count from state (default 0 for first execution)
-            replan_attempt = state.get("replan_attempt", 0)
+            # Advisory-only contract (ADR-128): the replanner is a consultative
+            # analyzer — no retry or replan is ever executed, so there is NO
+            # attempt progression. The attempt is fixed at 0 (the first and only
+            # pass) and is deliberately not read from a state key, because none is
+            # ever written (removing that phantom "retry state" keeps the code
+            # honest about the committed advisory contract; F017).
+            replan_attempt = 0
 
             # Build context for decision
             user_message = ""
@@ -1212,7 +1217,7 @@ async def _handle_execution_plan(
             #   Until then, keep this block HONEST: every branch below must not
             #   claim an action it does not perform, and must not fabricate a
             #   user message that nothing renders (the failed-step results flow
-            #   to response_node, which surfaces the failure). See ADR-100 (D4).
+            #   to response_node, which surfaces the failure). See ADR-128 (D4).
             #   Scope note: this is a genuine feature (a recovery loop), not a
             #   bug — deliberately deferred; do not "fix" it by silently adding
             #   inline messages or fake retries.

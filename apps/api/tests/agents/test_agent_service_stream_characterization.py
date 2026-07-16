@@ -738,12 +738,12 @@ async def test_char_voice_path_2a_direct_tts_sequence():
     assert done.metadata["tts_cost_eur"] == pytest.approx(0.0021)
     # TTS tokens committed after synthesis (tracker context already exited).
     assert harness.tracker.commits >= 1
-    # PINNED CURRENT BEHAVIOR: the sync-path VoiceCommentService local is NOT
-    # closed by the generator's cleanup section (which only covers
-    # chat_voice_service and voice_service_parallel). Any change here is a
-    # behavior change, not an extraction.
+    # F005: the direct-TTS (PATH 2A) VoiceCommentService is owned by the
+    # finalization generator and closed in its finally (success, exception,
+    # cancellation and early aclose) so its OpenAI/ElevenLabs httpx client
+    # never leaks.
     assert len(FakeVoiceCommentService.instances) == 1
-    assert FakeVoiceCommentService.instances[0].closed is False
+    assert FakeVoiceCommentService.instances[0].closed is True
 
 
 # ---------------------------------------------------------------------------
@@ -780,9 +780,10 @@ async def test_char_voice_path_2b_sync_fallback_sequence():
     assert chunks[-2].metadata["source"] == "sync_fallback"
     assert chunks[-2].metadata["chunk_count"] == 2
     assert len(harness.conv_service.tts_updates) == 1
-    # PINNED CURRENT BEHAVIOR: sync-path service not closed (see PATH 2A test).
+    # F005: sync-fallback (PATH 2B) service is closed in the generator's finally
+    # (see PATH 2A test) so its OpenAI/ElevenLabs httpx client never leaks.
     assert len(FakeVoiceCommentService.instances) == 1
-    assert FakeVoiceCommentService.instances[0].closed is False
+    assert FakeVoiceCommentService.instances[0].closed is True
 
 
 # ---------------------------------------------------------------------------

@@ -42,9 +42,9 @@ class PsycheState(BaseModel):
     relationship metrics, self-efficacy, and drives.
 
     Updated on every non-trivial interaction via PsycheService.
-    Always read from the database; a Redis marker key exists (v1) but does
-    not serve reads — full-object Redis caching is deferred to v2 (see
-    PsycheService._load_from_cache).
+    Always read from the database: the state is a single indexed lookup by
+    user_id. A former Redis pseudo-cache was removed (F035) because its read
+    path returned None unconditionally and never avoided a DB query.
     """
 
     __tablename__ = "psyche_states"

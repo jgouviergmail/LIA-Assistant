@@ -42,8 +42,12 @@ async def process_psyche_weekly_narrative() -> dict[str, Any]:
         redis_client=redis,
         job_id=SCHEDULER_JOB_PSYCHE_DREAM_CYCLE,
         ttl_seconds=600,
-    ) as acquired:
-        if not acquired:
+    ) as lock:
+        # ``__aenter__`` returns the lock object (always truthy); only
+        # ``lock.acquired`` reflects whether SET NX succeeded. Testing the bound
+        # name directly (``if not lock``) would make this skip branch dead code
+        # and let every worker run the dream-cycle concurrently (F032).
+        if not lock.acquired:
             logger.debug("psyche_narrative_lock_not_acquired")
             return {"skipped": True, "reason": "lock_not_acquired"}
 

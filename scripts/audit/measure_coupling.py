@@ -17,21 +17,41 @@ Two edge semantics are reported side by side:
   boot-order fragility, so the Stable Dependencies assessment reads these;
   the *all* figures keep the historical series comparable.
 
-Usage (from apps/api/):
-    python ../../scripts/audit/measure_coupling.py [DOMAINS_DIR] [--detail DOMAIN]
+Usage (from any directory):
+    python scripts/audit/measure_coupling.py [DOMAINS_DIR] [--detail DOMAIN]
 
-Defaults to ./src/domains. Standard library only — no dependencies.
+Defaults to apps/api/src/domains, resolved from this file's location so the
+script is CWD-independent (F023). Standard library only — no dependencies.
 """
 
 from __future__ import annotations
 
 import ast
+import json
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 # edges[src][dst] = {"runtime": set of "file:line" sites, "typing": idem}
 EdgeMap = dict[str, dict[str, dict[str, set[str]]]]
+
+# Default target resolved from this file (scripts/audit/ -> repo root ->
+# src/domains), so the script works identically from any working directory and
+# never mistakes ``src`` for ``src/domains`` (F023 — pointing at ``src`` yields
+# 5 top-level packages and 0 cycles, a false-clean reading).
+DEFAULT_DOMAINS_DIR: Path = (
+    Path(__file__).resolve().parents[2] / "apps" / "api" / "src" / "domains"
+)
+
+# Machine-readable cycle ratchet (audit F009): the frozen set of runtime
+# bidirectional import cycles. `--check-cycles` fails on any NEW cycle;
+# `--update-cycles` lowers the baseline after a cycle is broken (shrink-only).
+CYCLES_BASELINE: Path = (
+    Path(__file__).resolve().parents[2]
+    / "apps"
+    / "api"
+    / ".coupling-cycles-baseline.json"
+)
 
 
 def _is_type_checking_if(node: ast.If) -> bool:
@@ -74,14 +94,18 @@ def _collect_edges(
             if not dst or dst not in domain_set or dst == src_domain:
                 continue
             lineno = getattr(node, "lineno", 0)
-            kind = "typing" if any(a <= lineno <= b for a, b in tc_ranges) else "runtime"
+            kind = (
+                "typing" if any(a <= lineno <= b for a, b in tc_ranges) else "runtime"
+            )
             edges[src_domain][dst][kind].add(f"{relpath}:{lineno}")
 
 
 def build_edges(domains_root: Path) -> tuple[list[str], EdgeMap, list[str]]:
     """Parse every domain file and return (domains, edge map, unparsable files)."""
     domains = sorted(
-        p.name for p in domains_root.iterdir() if p.is_dir() and not p.name.startswith("_")
+        p.name
+        for p in domains_root.iterdir()
+        if p.is_dir() and not p.name.startswith("_")
     )
     domain_set = set(domains)
     edges: EdgeMap = defaultdict(
@@ -96,7 +120,9 @@ def build_edges(domains_root: Path) -> tuple[list[str], EdgeMap, list[str]]:
             except SyntaxError:
                 unparsable.append(str(path))
                 continue
-            _collect_edges(tree, domain, str(path.relative_to(domains_root)), domain_set, edges)
+            _collect_edges(
+                tree, domain, str(path.relative_to(domains_root)), domain_set, edges
+            )
     return domains, edges, unparsable
 
 
@@ -107,8 +133,10 @@ def bidirectional_cycles(edges: EdgeMap, runtime_only: bool) -> list[tuple[str, 
         kinds = edges.get(src, {}).get(dst)
         if kinds is None:
             return False
-        return bool(kinds["runtime"]) if runtime_only else bool(
-            kinds["runtime"] or kinds["typing"]
+        return (
+            bool(kinds["runtime"])
+            if runtime_only
+            else bool(kinds["runtime"] or kinds["typing"])
         )
 
     pairs = {
@@ -120,10 +148,78 @@ def bidirectional_cycles(edges: EdgeMap, runtime_only: bool) -> list[tuple[str, 
     return sorted(pairs)  # type: ignore[arg-type]
 
 
+def runtime_cycle_keys(domains_root: Path) -> list[str]:
+    """Current runtime bidirectional cycles as sorted ``"a<->b"`` strings."""
+    _domains, edges, _unparsable = build_edges(domains_root)
+    return [f"{a}<->{b}" for a, b in bidirectional_cycles(edges, runtime_only=True)]
+
+
+def _check_cycles(domains_root: Path) -> int:
+    """Fail (1) when a runtime cycle exists that is absent from the baseline."""
+    if not CYCLES_BASELINE.exists():
+        print(
+            f"ERROR: baseline missing ({CYCLES_BASELINE}); run --update-cycles",
+            file=sys.stderr,
+        )
+        return 2
+    baseline = set(json.loads(CYCLES_BASELINE.read_text(encoding="utf-8"))["cycles"])
+    current = set(runtime_cycle_keys(domains_root))
+    added = current - baseline
+    if added:
+        print(
+            f"::error::Domain-cycle ratchet: {len(added)} NEW runtime cycle(s) (F009):"
+        )
+        for key in sorted(added):
+            print(f"  + {key}")
+        print(
+            "New import cycles are forbidden. Break the cycle (ports/Protocol/events/"
+        )
+        print(
+            "injection), or run --update-cycles ONLY if a cycle was legitimately removed."
+        )
+        return 1
+    removed = baseline - current
+    if removed:
+        print(
+            f"{len(removed)} cycle(s) broken — lower the baseline with --update-cycles:"
+        )
+        for key in sorted(removed):
+            print(f"  - {key}")
+    print(f"OK: {len(current)} runtime cycles, all within baseline ({len(baseline)}).")
+    return 0
+
+
+def _update_cycles(domains_root: Path) -> int:
+    """Rewrite the baseline from the current cycles (shrink-only discipline)."""
+    cycles = runtime_cycle_keys(domains_root)
+    payload = {
+        "_comment": (
+            "Runtime domain import-cycle ratchet baseline (audit F009). Shrink-only: "
+            "measure_coupling.py --check-cycles fails on any NEW cycle. Regenerate with "
+            "--update-cycles ONLY after breaking a cycle."
+        ),
+        "count": len(cycles),
+        "cycles": sorted(cycles),
+    }
+    CYCLES_BASELINE.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(f"baseline written: {len(cycles)} runtime cycles")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     """Measure and print the domain coupling matrix and cycles."""
     args = [a for a in argv if not a.startswith("--")]
     detail_domain: str | None = None
+    if "--check-cycles" in argv or "--update-cycles" in argv:
+        root = Path(args[0]) if args else DEFAULT_DOMAINS_DIR
+        if not root.is_dir():
+            print(
+                f"ERROR: domains directory not found: {root.resolve()}", file=sys.stderr
+            )
+            return 1
+        return (
+            _update_cycles(root) if "--update-cycles" in argv else _check_cycles(root)
+        )
     if "--detail" in argv:
         idx = argv.index("--detail")
         if idx + 1 >= len(argv):
@@ -132,9 +228,12 @@ def main(argv: list[str]) -> int:
         detail_domain = argv[idx + 1]
         args = [a for a in args if a != detail_domain]
 
-    domains_root = Path(args[0]) if args else Path("src/domains")
+    domains_root = Path(args[0]) if args else DEFAULT_DOMAINS_DIR
     if not domains_root.is_dir():
-        print(f"ERROR: domains directory not found: {domains_root.resolve()}", file=sys.stderr)
+        print(
+            f"ERROR: domains directory not found: {domains_root.resolve()}",
+            file=sys.stderr,
+        )
         return 1
 
     domains, edges, unparsable = build_edges(domains_root)
@@ -152,7 +251,9 @@ def main(argv: list[str]) -> int:
                 ca_rt[dst] += 1
 
     print(f"domains={len(domains)} unparsable={len(unparsable)}")
-    print(f"{'domain':<20} {'Ca':>3} {'Ce':>3} {'I':>5}   {'Ca_rt':>5} {'Ce_rt':>5} {'I_rt':>5}")
+    print(
+        f"{'domain':<20} {'Ca':>3} {'Ce':>3} {'I':>5}   {'Ca_rt':>5} {'Ce_rt':>5} {'I_rt':>5}"
+    )
     for domain in sorted(domains, key=lambda d: (-(ca[d] + ce[d]), d)):
         total = ca[domain] + ce[domain]
         if total == 0:

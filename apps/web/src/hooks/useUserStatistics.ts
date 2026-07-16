@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { logger } from '@/lib/logger';
 import { useLoggingContext } from '@/lib/logging-context';
+import { useStaleGuard } from '@/hooks/useStaleGuard';
 
 /**
  * User token usage and cost statistics
@@ -46,15 +47,25 @@ export const useUserStatistics = (): UseUserStatisticsReturn => {
   const [statistics, setStatistics] = useState<UserStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Staleness guard (audit F037): drop out-of-order poll responses and never
+  // commit state after unmount — shared, tested helper (useStaleGuard).
+  const guard = useStaleGuard();
 
   const fetchStatistics = useCallback(async () => {
+    // Claim a request id up-front so `isStale()` guards EVERY exit — including the
+    // finally below: only the current request (not a superseded one) may clear
+    // loading, otherwise an older poll finishing first cuts the newer one's
+    // loading state (audit F037).
+    const isStale = guard.begin();
+
     if (!user) {
-      setIsLoading(false);
+      if (!isStale()) setIsLoading(false);
       return;
     }
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      // `??`, not `||`: empty string = same-origin relative URLs (api-config.ts).
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
       const response = await fetch(`${API_BASE_URL}/api/v1/chat/users/me/statistics`, {
         method: 'GET',
         credentials: 'include', // Send session cookie
@@ -68,6 +79,7 @@ export const useUserStatistics = (): UseUserStatisticsReturn => {
       }
 
       const data = await response.json();
+      if (isStale()) return;
       setStatistics(data);
       setError(null);
 
@@ -80,6 +92,7 @@ export const useUserStatistics = (): UseUserStatisticsReturn => {
         })
       );
     } catch (err) {
+      if (isStale()) return;
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
       logger.error(
@@ -90,9 +103,11 @@ export const useUserStatistics = (): UseUserStatisticsReturn => {
         })
       );
     } finally {
-      setIsLoading(false);
+      if (!isStale()) {
+        setIsLoading(false);
+      }
     }
-  }, [user, withContext]);
+  }, [user, withContext, guard]);
 
   // Initial fetch
   useEffect(() => {

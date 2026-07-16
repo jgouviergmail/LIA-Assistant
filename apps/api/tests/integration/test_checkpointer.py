@@ -3,11 +3,13 @@ Integration tests for LangGraph PostgreSQL Checkpointer.
 
 Tests checkpointer initialization, connection management, and state persistence.
 
-Note: These tests require PostgreSQL connection (psycopg v3) which is incompatible
-with Windows ProactorEventLoop. They are skipped on Windows (local runs) and execute on the Linux CI runner.
-They also skip when the database URL resolved by the test settings is
-unreachable (the dev container has no PostgreSQL on the .env.test localhost
-URL — same guard as conftest._skip_if_db_unreachable; they run in CI).
+Note: psycopg v3 async does not work on Windows' default ProactorEventLoop,
+but the test suite provides a compatible SelectorEventLoop on Windows (see
+``conftest.pytest_asyncio_loop_factories``), so these tests RUN on Windows
+(against Testcontainers/the configured test DB). The only conditional skip
+left targets NON-Windows environments whose test database is unreachable
+(the dev container has no PostgreSQL on the .env.test localhost URL — same
+guard as conftest._skip_if_db_unreachable; they run in CI).
 Run manually with: pytest tests/integration/test_checkpointer.py -v
 """
 
@@ -45,10 +47,6 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
-)
 async def test_get_checkpointer_creates_instance():
     """Test get_checkpointer creates checkpointer instance."""
     # Reset first to ensure clean state
@@ -61,10 +59,6 @@ async def test_get_checkpointer_creates_instance():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
-)
 @pytest.mark.integration
 async def test_get_checkpointer_returns_singleton():
     """Test get_checkpointer returns same instance (singleton pattern)."""
@@ -78,10 +72,6 @@ async def test_get_checkpointer_returns_singleton():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
-)
 @pytest.mark.integration
 async def test_reset_checkpointer_clears_singleton():
     """Test reset_checkpointer clears global singleton."""
@@ -99,10 +89,6 @@ async def test_reset_checkpointer_clears_singleton():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
-)
 @pytest.mark.integration
 async def test_checkpointer_setup_is_idempotent():
     """Test checkpointer setup can be called multiple times safely."""
@@ -119,10 +105,6 @@ async def test_checkpointer_setup_is_idempotent():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
-)
 @pytest.mark.integration
 async def test_checkpointer_connection_string_format():
     """Test checkpointer uses correct psycopg3 connection string format."""

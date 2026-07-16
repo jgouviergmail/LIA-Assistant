@@ -292,7 +292,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         limit: int = 50,
         search: str | None = None,
         before_created_at: datetime | None = None,
-    ) -> Sequence[tuple[ConversationMessage, dict]]:
+    ) -> Sequence[tuple[ConversationMessage, dict[str, Any] | None]]:
         """
         Get messages with their token summaries in a single optimized query.
 
@@ -433,7 +433,10 @@ class ConversationRepository(BaseRepository[Conversation]):
             )
 
             result = await self.db.execute(stmt)
-            count = result.rowcount
+            # AsyncSession.execute is typed Result[Any]; rowcount lives on the
+            # concrete CursorResult returned for DML. getattr keeps it typed int
+            # without a cast (mirrors health_metrics/repository.py).
+            count: int = getattr(result, "rowcount", 0) or 0
 
             logger.info(
                 "messages_deleted",
@@ -856,7 +859,7 @@ class ConversationRepository(BaseRepository[Conversation]):
                 )
             )
             result = await self.db.execute(stmt)
-            count = result.rowcount or 0
+            count: int = getattr(result, "rowcount", 0) or 0
 
             logger.debug(
                 "interest_feedback_marked_on_messages",

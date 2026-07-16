@@ -508,37 +508,38 @@ class ConversationService:
             try:
                 from sqlalchemy import text
 
-                # Execute raw SQL on the existing session transaction
-                # NOTE: Do NOT use `async with db.begin()` here — the session already
-                # has an active implicit transaction from earlier operations in this method.
-                # Starting a nested begin() raises InvalidRequestError.
                 user_id_str = str(user_id)
 
-                # Delete ONLY user-specific entries (safety: only this user's data)
-                # This handles properly formatted entries with user_id in namespace
-                count_user_result = await db.execute(
-                    text("SELECT COUNT(*) FROM store WHERE prefix LIKE :pattern"),
-                    {"pattern": f"%{user_id_str}%"},
-                )
-                user_entries_count = count_user_result.scalar()
-
-                if user_entries_count > 0:
-                    await db.execute(
-                        text("DELETE FROM store WHERE prefix LIKE :pattern"),
+                # SAVEPOINT (begin_nested), NOT begin(): the ``store`` table is created
+                # at runtime by AsyncPostgresStore.setup(), so this raw cleanup can hit
+                # a missing relation / transient error. Wrapping it in a savepoint means
+                # such a failure rolls back only THIS best-effort cleanup — it must never
+                # poison the caller's transaction and abort the audit-log write below.
+                # Delete ONLY user-specific entries (safety: only this user's data).
+                async with db.begin_nested():
+                    count_user_result = await db.execute(
+                        text("SELECT COUNT(*) FROM store WHERE prefix LIKE :pattern"),
                         {"pattern": f"%{user_id_str}%"},
                     )
-                    logger.info(
-                        "user_store_entries_deleted",
-                        user_id=str(user_id),
-                        conversation_id=str(conversation.id),
-                        count=user_entries_count,
-                    )
-                else:
-                    logger.debug(
-                        "no_user_store_entries_to_delete",
-                        user_id=str(user_id),
-                        conversation_id=str(conversation.id),
-                    )
+                    user_entries_count = count_user_result.scalar()
+
+                    if user_entries_count > 0:
+                        await db.execute(
+                            text("DELETE FROM store WHERE prefix LIKE :pattern"),
+                            {"pattern": f"%{user_id_str}%"},
+                        )
+                        logger.info(
+                            "user_store_entries_deleted",
+                            user_id=str(user_id),
+                            conversation_id=str(conversation.id),
+                            count=user_entries_count,
+                        )
+                    else:
+                        logger.debug(
+                            "no_user_store_entries_to_delete",
+                            user_id=str(user_id),
+                            conversation_id=str(conversation.id),
+                        )
 
             except Exception as store_cleanup_error:
                 # Non-fatal: log warning but continue

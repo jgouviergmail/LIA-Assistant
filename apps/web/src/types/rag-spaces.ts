@@ -9,7 +9,7 @@
  */
 
 /** Document processing lifecycle status. */
-export type RAGDocumentStatus = 'processing' | 'ready' | 'error' | 'reindexing';
+export type RAGDocumentStatus = 'pending' | 'processing' | 'ready' | 'error' | 'reindexing';
 
 /** Drive folder sync status. */
 export type RAGDriveSyncStatus = 'idle' | 'syncing' | 'completed' | 'error';

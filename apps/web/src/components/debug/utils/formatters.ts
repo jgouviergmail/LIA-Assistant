@@ -63,9 +63,9 @@ export function formatTokenCount(count: number): string {
  * @returns Formatted string (e.g., "1.2s", "450ms")
  *
  * @example
- * formatDuration(1250) // "1.2s"
+ * formatDuration(1200) // "1.2s"
  * formatDuration(450) // "450ms"
- * formatDuration(1250, false) // "1.2"
+ * formatDuration(1200, false) // "1.2"
  * formatDuration(0) // "0ms"
  */
 export function formatDuration(ms: number, includeUnit: boolean = true): string {

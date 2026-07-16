@@ -7,9 +7,11 @@ BaseRepository auto-filters by ``is_active`` (soft-delete semantics),
 which conflicts with ``UserSkillState.is_active`` (business toggle).
 """
 
-from uuid import UUID
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, literal, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -155,78 +157,114 @@ class UserSkillStateRepository:
         result = await self.db.execute(stmt)
         return result.rowcount  # type: ignore[no-any-return,attr-defined]
 
+    def _state_rows(self, pairs: list[tuple[UUID, UUID]]) -> list[dict[str, object]]:
+        """Build UserSkillState insert dicts. The mixins use Python-side defaults
+        (uuid4/now), which a Core bulk insert does not apply per row, so id and
+        timestamps are supplied explicitly here."""
+        now = datetime.now(UTC)
+        return [
+            {
+                "id": uuid4(),
+                "user_id": user_id,
+                "skill_id": skill_id,
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now,
+            }
+            for (user_id, skill_id) in pairs
+        ]
+
     async def ensure_states_for_user(self, user_id: UUID) -> int:
         """Create missing user_skill_states for a user.
 
-        Inserts rows for all admin-enabled system skills that the user
-        doesn't have a state for yet. Used on user registration and startup sync.
-        Handles concurrent inserts gracefully via unique constraint.
-        Returns the number of rows created.
+        One idempotent bulk ``INSERT ... ON CONFLICT DO NOTHING`` for every
+        admin-enabled system skill the user lacks a state for — no per-skill
+        savepoint loop (audit F018). The conflict clause absorbs concurrent
+        inserts. Returns the number of rows created.
         """
-        from sqlalchemy.exc import IntegrityError
-
-        # Find system skills that this user doesn't have states for
-        existing_skill_ids = select(UserSkillState.skill_id).where(
-            UserSkillState.user_id == user_id
-        )
         missing_skills_stmt = (
             select(Skill.id)
             .where(Skill.is_system.is_(True))
             .where(Skill.admin_enabled.is_(True))
-            .where(Skill.id.not_in(existing_skill_ids))
+            .where(
+                Skill.id.not_in(
+                    select(UserSkillState.skill_id).where(UserSkillState.user_id == user_id)
+                )
+            )
         )
         result = await self.db.execute(missing_skills_stmt)
         missing_ids = [row[0] for row in result]
-
         if not missing_ids:
             return 0
 
-        created = 0
-        for skill_id in missing_ids:
-            try:
-                async with self.db.begin_nested():
-                    state = UserSkillState(user_id=user_id, skill_id=skill_id, is_active=True)
-                    self.db.add(state)
-                    await self.db.flush()
-                    created += 1
-            except IntegrityError:
-                # Concurrent insert created the same row — savepoint rolls back,
-                # outer transaction continues safely.
-                logger.debug("skill_state_already_exists", skill_id=str(skill_id))
-
-        return created
+        stmt = (
+            pg_insert(UserSkillState)
+            .values(self._state_rows([(user_id, sid) for sid in missing_ids]))
+            .on_conflict_do_nothing(index_elements=["user_id", "skill_id"])
+        )
+        res = await self.db.execute(stmt)
+        return int(res.rowcount or 0)  # type: ignore[attr-defined]
 
     async def create_states_for_all_users(self, skill_id: UUID) -> int:
         """Create user_skill_states for all existing users for a new skill.
 
-        Used when admin imports a new system skill.
-        Returns the number of rows created.
+        Used when admin imports a new system skill. One idempotent bulk
+        ``INSERT ... ON CONFLICT DO NOTHING`` instead of a per-user savepoint
+        loop (audit F018). Returns the number of rows created.
         """
         from src.domains.users.models import User
 
-        # Get all user IDs that don't already have a state for this skill
         existing_users = select(UserSkillState.user_id).where(UserSkillState.skill_id == skill_id)
         stmt = select(User.id).where(User.id.not_in(existing_users))
         result = await self.db.execute(stmt)
         user_ids = [row[0] for row in result]
-
         if not user_ids:
             return 0
 
-        from sqlalchemy.exc import IntegrityError
+        insert_stmt = (
+            pg_insert(UserSkillState)
+            .values(self._state_rows([(uid, skill_id) for uid in user_ids]))
+            .on_conflict_do_nothing(index_elements=["user_id", "skill_id"])
+        )
+        res = await self.db.execute(insert_stmt)
+        return int(res.rowcount or 0)  # type: ignore[attr-defined]
 
-        created = 0
-        for uid in user_ids:
-            try:
-                async with self.db.begin_nested():
-                    state = UserSkillState(user_id=uid, skill_id=skill_id, is_active=True)
-                    self.db.add(state)
-                    await self.db.flush()
-                    created += 1
-            except IntegrityError:
-                logger.debug("skill_state_already_exists", user_id=str(uid), skill_id=str(skill_id))
+    async def ensure_states_for_all_system_skills(self) -> int:
+        """Bulk-create every missing (user, admin-enabled system skill) state.
 
-        return created
+        A single set-based ``INSERT ... SELECT ... ON CONFLICT DO NOTHING`` over
+        the ``users × system-skills`` cross join, replacing the O(users × skills)
+        per-user savepoint loop at startup sync (audit F018). id/timestamps are
+        generated in-SQL (gen_random_uuid()/now()) because the ORM mixins use
+        Python-side defaults that a raw INSERT ... SELECT does not apply.
+        Returns the number of rows created.
+        """
+        from src.domains.users.models import User
+
+        pairs = (
+            select(
+                func.gen_random_uuid(),
+                User.id,
+                Skill.id,
+                literal(True),
+                func.now(),
+                func.now(),
+            )
+            .select_from(User)
+            .join(Skill, literal(True))  # cross join: every user × every system skill
+            .where(Skill.is_system.is_(True))
+            .where(Skill.admin_enabled.is_(True))
+        )
+        stmt = (
+            pg_insert(UserSkillState)
+            .from_select(
+                ["id", "user_id", "skill_id", "is_active", "created_at", "updated_at"],
+                pairs,
+            )
+            .on_conflict_do_nothing(index_elements=["user_id", "skill_id"])
+        )
+        res = await self.db.execute(stmt)
+        return int(res.rowcount or 0)  # type: ignore[attr-defined]
 
     async def count_for_user(self, user_id: UUID) -> int:
         """Count skill states for a user."""

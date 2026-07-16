@@ -67,6 +67,19 @@ class MockQueryIntelligence:
     is_mutation_intent: bool
 
 
+def _provider(client):
+    """Wrap a mock Redis client as a RedisProvider (async callable) for injection.
+
+    Mirrors the production seam: PlanPatternLearner resolves its client by
+    awaiting the provider, never caching it (AC-010).
+    """
+
+    async def _get():
+        return client
+
+    return _get
+
+
 @pytest.fixture(autouse=True)
 def reset_config():
     """Reset configuration singleton before each test."""
@@ -519,7 +532,7 @@ class TestPatternRecording:
     async def test_record_success_creates_task(self, sample_plan, sample_qi_mutation, mock_redis):
         """Test that record_success creates async task."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         # Should not raise, creates background task
         learner.record_success(sample_plan, sample_qi_mutation)
@@ -528,7 +541,7 @@ class TestPatternRecording:
     async def test_record_failure_creates_task(self, sample_plan, sample_qi_mutation, mock_redis):
         """Test that record_failure creates async task."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         # Should not raise, creates background task
         learner.record_failure(sample_plan, sample_qi_mutation)
@@ -550,7 +563,7 @@ class TestPatternRecording:
     ):
         """Test _record increments success counter in Redis."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         await learner._record(sample_plan, sample_qi_mutation, success=True)
 
@@ -563,7 +576,7 @@ class TestPatternRecording:
     ):
         """Test _record increments failure counter in Redis."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         await learner._record(sample_plan, sample_qi_mutation, success=False)
 
@@ -574,7 +587,7 @@ class TestPatternRecording:
     async def test_record_internal_clears_cache(self, sample_plan, sample_qi_mutation, mock_redis):
         """Test _record clears local cache after recording."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
         learner._cache = {"some_key": []}
         learner._cache_time = time.time()
 
@@ -591,7 +604,7 @@ class TestPatternRecording:
         # Mock Redis that raises exception
         mock_redis = MagicMock()
         mock_redis.pipeline.side_effect = Exception("Redis error")
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         # Should not raise, just log warning
         await learner._record(sample_plan, sample_qi_mutation, success=True)
@@ -631,7 +644,7 @@ class TestPatternSuggestions:
     async def test_get_suggestions_uses_cache(self, mock_redis):
         """Test get_suggestions uses local cache when valid."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         # Pre-populate cache
         cached_stats = [
@@ -656,7 +669,7 @@ class TestPatternSuggestions:
     async def test_get_suggestions_bypasses_stale_cache(self, mock_redis):
         """Test get_suggestions bypasses stale cache."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         # Pre-populate with stale cache
         learner._cache["contact:False"] = []
@@ -674,7 +687,7 @@ class TestPatternSuggestions:
         import asyncio
 
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         async def slow_fetch(*args, **kwargs):
             await asyncio.sleep(1)  # Longer than timeout (default 5ms)
@@ -688,7 +701,7 @@ class TestPatternSuggestions:
     async def test_get_suggestions_handles_exception(self, mock_redis):
         """Test get_suggestions returns empty on exception."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         with patch.object(
             PlanPatternLearner, "_fetch_suggestions", side_effect=Exception("Test error")
@@ -739,7 +752,7 @@ class TestPatternSuggestions:
                 }
 
         mock_redis.hgetall = hgetall_mock
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         # Request READ patterns only
         result = await learner._fetch_suggestions(["contact"], is_mutation=False)
@@ -779,7 +792,7 @@ class TestPatternSuggestions:
                 }
 
         mock_redis.hgetall = hgetall_mock
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         # Request patterns for single domain
         result = await learner._fetch_suggestions(["contact"], is_mutation=False)
@@ -818,7 +831,7 @@ class TestPatternSuggestions:
                 }
 
         mock_redis.hgetall = hgetall_mock
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner._fetch_suggestions(["contact"], is_mutation=False)
 
@@ -853,7 +866,7 @@ class TestPatternSuggestions:
                 return {"s": "3", "f": "1", "d": "contact", "i": PLAN_PATTERN_INTENT_READ, "t": "0"}
 
         mock_redis.hgetall = hgetall_mock
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner._fetch_suggestions(["contact"], is_mutation=False)
 
@@ -896,7 +909,7 @@ class TestBypassValidation:
         """Test should_bypass_validation returns False when pattern not in Redis."""
         learner = PlanPatternLearner()
         mock_redis.hgetall = AsyncMock(return_value={})
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.should_bypass_validation(sample_plan)
         assert result is False
@@ -916,7 +929,7 @@ class TestBypassValidation:
                 "t": "0",
             }
         )
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.should_bypass_validation(sample_plan)
         assert result is False
@@ -936,7 +949,7 @@ class TestBypassValidation:
                 "t": "0",
             }
         )
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.should_bypass_validation(sample_plan)
         assert result is True
@@ -958,7 +971,7 @@ class TestBypassValidation:
                 "t": "0",
             }
         )
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         # Query has mutation intent
         result = await learner.should_bypass_validation(sample_plan, sample_qi_mutation)
@@ -979,7 +992,7 @@ class TestBypassValidation:
                 "t": "0",
             }
         )
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         # Query has both contact and email domains
         qi = MockQueryIntelligence(domains=["contact", "email"], is_mutation_intent=False)
@@ -1004,7 +1017,7 @@ class TestBypassValidation:
                 "t": "0",
             }
         )
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.should_bypass_validation(sample_plan, sample_qi_read)
         assert result is True
@@ -1021,7 +1034,7 @@ class TestBypassValidation:
             return {}
 
         mock_redis.hgetall = slow_hgetall
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.should_bypass_validation(sample_plan)
         assert result is False
@@ -1031,7 +1044,7 @@ class TestBypassValidation:
         """Test should_bypass_validation returns False on exception."""
         learner = PlanPatternLearner()
         mock_redis.hgetall = AsyncMock(side_effect=Exception("Redis error"))
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.should_bypass_validation(sample_plan)
         assert result is False
@@ -1049,7 +1062,7 @@ class TestPromptGeneration:
     async def test_get_prompt_section_returns_empty_no_suggestions(self, mock_redis):
         """Test get_prompt_section returns empty string when no suggestions."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         with patch.object(
             PlanPatternLearner, "get_suggestions", new_callable=AsyncMock, return_value=[]
@@ -1061,7 +1074,7 @@ class TestPromptGeneration:
     async def test_get_prompt_section_formats_suggestions(self, mock_redis):
         """Test get_prompt_section correctly formats suggestions."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         suggestions = [
             PatternStats(
@@ -1096,7 +1109,7 @@ class TestAdminOperations:
     async def test_list_all_patterns_empty(self, mock_redis):
         """Test list_all_patterns returns empty list when no patterns."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.list_all_patterns()
         assert result == []
@@ -1125,7 +1138,7 @@ class TestAdminOperations:
                 return {"s": "3", "f": "2", "d": "contact", "i": PLAN_PATTERN_INTENT_READ, "t": "0"}
 
         mock_redis.hgetall = hgetall_mock
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.list_all_patterns()
 
@@ -1146,7 +1159,7 @@ class TestAdminOperations:
                 "t": "1704067200",
             }
         )
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.get_pattern("get_contacts→send_email")
 
@@ -1160,7 +1173,7 @@ class TestAdminOperations:
         """Test get_pattern returns None when not found."""
         learner = PlanPatternLearner()
         mock_redis.hgetall = AsyncMock(return_value={})
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.get_pattern("nonexistent")
         assert result is None
@@ -1170,7 +1183,7 @@ class TestAdminOperations:
         """Test delete_pattern returns True on success."""
         learner = PlanPatternLearner()
         mock_redis.delete = AsyncMock(return_value=1)
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
         learner._cache = {"some": "data"}
         learner._cache_time = 123
 
@@ -1185,7 +1198,7 @@ class TestAdminOperations:
         """Test delete_pattern returns False when not found."""
         learner = PlanPatternLearner()
         mock_redis.delete = AsyncMock(return_value=0)
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.delete_pattern("nonexistent")
         assert result is False
@@ -1209,7 +1222,7 @@ class TestAdminOperations:
             return 1
 
         mock_redis.delete = delete_mock
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
         learner._cache = {"some": "data"}
 
         result = await learner.delete_all_patterns()
@@ -1223,7 +1236,7 @@ class TestAdminOperations:
         """Test seed_pattern creates pattern correctly."""
         learner = PlanPatternLearner()
         mock_redis.hset = AsyncMock()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
         learner._cache = {"some": "data"}
 
         result = await learner.seed_pattern(
@@ -1243,7 +1256,7 @@ class TestAdminOperations:
         """Test seed_pattern returns False on error."""
         learner = PlanPatternLearner()
         mock_redis.hset = AsyncMock(side_effect=Exception("Redis error"))
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.seed_pattern(
             pattern_key="test",
@@ -1257,7 +1270,7 @@ class TestAdminOperations:
     async def test_get_stats_summary_empty(self, mock_redis):
         """Test get_stats_summary returns zeros when no patterns."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         with patch.object(
             PlanPatternLearner, "list_all_patterns", new_callable=AsyncMock, return_value=[]
@@ -1273,7 +1286,7 @@ class TestAdminOperations:
     async def test_get_stats_summary_with_patterns(self, mock_redis):
         """Test get_stats_summary calculates correct aggregates."""
         learner = PlanPatternLearner()
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         patterns = [
             PatternStats("p1", 10, 0, frozenset(), PLAN_PATTERN_INTENT_READ, 0),  # Bypassable
@@ -1401,7 +1414,7 @@ class TestEdgeCases:
     async def test_ensure_redis_handles_exception(self):
         """Test _ensure_redis handles exceptions gracefully."""
         learner = PlanPatternLearner()
-        learner._redis = None  # Force re-initialization
+        learner._redis_provider = None  # default path: fetch global client
 
         with patch(
             "src.infrastructure.cache.redis.get_redis_cache",
@@ -1409,6 +1422,34 @@ class TestEdgeCases:
         ):
             result = await learner._ensure_redis()
             assert result is None
+
+    @pytest.mark.asyncio
+    async def test_ensure_redis_never_caches_client(self):
+        """The client is resolved through the provider on EVERY call (AC-010).
+
+        Caching it on the instance would let this process singleton outlive
+        ``close_redis()`` and reconnect into an orphaned pool — the leaked
+        Connection/StreamWriter the audit saw after the pytest summary.
+        """
+        calls = {"n": 0}
+        sentinel = object()
+
+        async def _provider_counting():
+            calls["n"] += 1
+            return sentinel
+
+        learner = PlanPatternLearner(redis_provider=_provider_counting)
+        assert await learner._ensure_redis() is sentinel
+        assert await learner._ensure_redis() is sentinel
+        assert calls["n"] == 2, "provider must be awaited each call, never cached"
+        # The former ``_redis`` cache slot no longer exists.
+        assert not hasattr(learner, "_redis")
+
+    def test_constructor_injection_is_the_documented_seam(self):
+        """A provider passed at construction is the DI seam (no attr poking)."""
+        provider = _provider(MagicMock())
+        learner = PlanPatternLearner(redis_provider=provider)
+        assert learner._redis_provider is provider
 
     def test_make_pattern_key_empty_steps(self):
         """Test make_pattern_key handles empty steps."""
@@ -1428,7 +1469,7 @@ class TestEdgeCases:
             yield  # Make it async generator
 
         mock_redis.scan_iter = scan_iter_error
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.list_all_patterns()
         assert result == []
@@ -1438,7 +1479,7 @@ class TestEdgeCases:
         """Test get_pattern handles Redis errors gracefully."""
         learner = PlanPatternLearner()
         mock_redis.hgetall = AsyncMock(side_effect=Exception("Redis error"))
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.get_pattern("test")
         assert result is None
@@ -1448,7 +1489,7 @@ class TestEdgeCases:
         """Test delete_pattern handles Redis errors gracefully."""
         learner = PlanPatternLearner()
         mock_redis.delete = AsyncMock(side_effect=Exception("Redis error"))
-        learner._redis = mock_redis
+        learner._redis_provider = _provider(mock_redis)
 
         result = await learner.delete_pattern("test")
         assert result is False

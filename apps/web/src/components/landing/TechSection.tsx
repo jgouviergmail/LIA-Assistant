@@ -106,7 +106,7 @@ export async function TechSection({ lng }: TechSectionProps) {
           <div className="text-center mt-8">
             <Link
               href={buildLocalizedPath('/how', lng as Language)}
-              className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/90 transition-colors"
             >
               {t('landing.tech.deep_dive_link')} →
             </Link>

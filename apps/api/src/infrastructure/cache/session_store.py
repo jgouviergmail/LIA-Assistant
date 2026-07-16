@@ -148,10 +148,10 @@ class SessionStore:
 
         # Store in Redis with correct TTL
         key = f"session:{session_id}"
-        await self.redis.setex(
+        await self.redis.set(
             key,
-            ttl,  # ← FIX: TTL now respects remember_me preference
             json.dumps(session.to_dict()),
+            ex=ttl,  # TTL respects the remember_me preference
         )
 
         # ========================================================================

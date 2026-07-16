@@ -44,14 +44,14 @@ function AgendaContent({ data }: { data: AgendaData }) {
               {event.start_local}
             </span>
             {event.end_local && (
-              <span className="text-[11px] text-muted-foreground/80">{event.end_local}</span>
+              <span className="text-[11px] text-muted-foreground">{event.end_local}</span>
             )}
           </div>
           {/* Title + optional location */}
           <div className="flex-1 min-w-0 flex flex-col gap-0.5">
             <span className="text-sm text-foreground/90 truncate leading-tight">{event.title}</span>
             {event.location && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground/80 truncate">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground truncate">
                 <MapPin className="h-3 w-3 shrink-0" />
                 {event.location}
               </span>

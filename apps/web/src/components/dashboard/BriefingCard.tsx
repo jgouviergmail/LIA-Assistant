@@ -163,7 +163,7 @@ export function BriefingCard<T extends SectionData>({
             aria-label={t('dashboard.briefing.refresh_section', { section: titleLabel })}
             className={cn(
               'shrink-0 rounded-lg p-2 transition-all duration-200',
-              'text-muted-foreground/50 hover:text-foreground hover:bg-muted/60',
+              'text-muted-foreground hover:text-foreground hover:bg-muted/60',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               // Mobile: always visible (no hover on touch devices).
@@ -190,7 +190,7 @@ export function BriefingCard<T extends SectionData>({
           )}
 
           {section.status === 'empty' && (
-            <div className="flex-1 flex items-center justify-center text-center text-sm text-muted-foreground/80 italic py-2">
+            <div className="flex-1 flex items-center justify-center text-center text-sm text-muted-foreground italic py-2">
               {t(emptyStateKey)}
             </div>
           )}
@@ -204,7 +204,7 @@ export function BriefingCard<T extends SectionData>({
                 <button
                   type="button"
                   onClick={onErrorCta}
-                  className="self-start text-xs font-medium text-primary hover:text-primary/80 underline underline-offset-2 transition-colors"
+                  className="self-start text-xs font-medium text-primary hover:text-primary/90 underline underline-offset-2 transition-colors"
                 >
                   {t(ctaKey)}
                 </button>

@@ -1,0 +1,5 @@
+{
+  "_comment": "jsx-a11y accessibility debt ratchet (audit F012/F013/F021/F044). PER-FILE frozen counts for the keyboard/label rule set in check-a11y-ratchet.mjs. A file may only DECREASE; new offending files fail CI. Regenerate with --update after remediating, never to absorb a regression.",
+  "total": 0,
+  "perFile": {}
+}

@@ -47,7 +47,9 @@ from types import ModuleType
 
 import pytest
 
-REPO_ROOT = Path(__file__).parents[4]
+from tests._repo_paths import repo_root_or_skip
+
+REPO_ROOT = repo_root_or_skip()
 SRC_DIR = Path(__file__).parents[2] / "src"
 BASELINE_PATH = Path(__file__).parent / "file_size_baseline.json"
 MEASURE_SLOC_PATH = REPO_ROOT / "scripts" / "audit" / "measure_sloc.py"

@@ -351,10 +351,10 @@ async def get_debug_panel_enabled() -> bool:
 
                 # Cache for future requests
                 try:
-                    await redis.setex(
+                    await redis.set(
                         REDIS_KEY_DEBUG_PANEL_ENABLED,
-                        DEBUG_PANEL_CACHE_TTL_SECONDS,
                         "true" if enabled else "false",
+                        ex=DEBUG_PANEL_CACHE_TTL_SECONDS,
                     )
                 except RedisError as cache_err:
                     logger.warning(
@@ -459,10 +459,10 @@ async def get_debug_panel_user_access_enabled() -> bool:
 
                 # Cache for future requests
                 try:
-                    await redis.setex(
+                    await redis.set(
                         REDIS_KEY_DEBUG_PANEL_USER_ACCESS_ENABLED,
-                        DEBUG_PANEL_USER_ACCESS_CACHE_TTL_SECONDS,
                         "true" if enabled else "false",
+                        ex=DEBUG_PANEL_USER_ACCESS_CACHE_TTL_SECONDS,
                     )
                 except RedisError as cache_err:
                     logger.warning(

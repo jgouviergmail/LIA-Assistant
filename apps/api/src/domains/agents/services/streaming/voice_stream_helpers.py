@@ -21,7 +21,7 @@ from src.domains.agents.api.schemas import ChatStreamChunk
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
-    from src.domains.users.models import User
+    from src.domains.users.schemas import UserProfile
     from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
     from src.domains.voice.service import VoiceCommentService
 
@@ -105,7 +105,7 @@ def _format_voice_audio_chunk(audio_chunk: Any) -> ChatStreamChunk:
 
 
 async def _should_start_voice(
-    user_obj: "User | None",
+    user_obj: "UserProfile | None",
     has_listeners: ListenerProbe | None,
     run_id: str,
     voice_path: str,
@@ -119,7 +119,7 @@ async def _should_start_voice(
     unchanged.
 
     Args:
-        user_obj: The User (or None) — voice_enabled preference source.
+        user_obj: The user profile (or None) — voice_enabled preference source.
         has_listeners: Async presence probe, or None (no gating).
         run_id: Run identifier (logging).
         voice_path: Which start point is asking (logging):

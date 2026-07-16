@@ -777,7 +777,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                       {user.is_usage_blocked ? (
                         <ShieldOff className="h-4 w-4 mx-auto text-destructive" />
                       ) : (
-                        <span className="text-muted-foreground/40">—</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     {/* Voice enabled */}
@@ -785,7 +785,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                       {user.voice_enabled ? (
                         <Volume2 className="h-4 w-4 mx-auto text-green-600 dark:text-green-400" />
                       ) : (
-                        <VolumeOff className="h-4 w-4 mx-auto text-muted-foreground/40" />
+                        <VolumeOff className="h-4 w-4 mx-auto text-muted-foreground" />
                       )}
                     </td>
                     {/* Memory enabled */}
@@ -793,7 +793,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                       {user.memory_enabled ? (
                         <Brain className="h-4 w-4 mx-auto text-green-600 dark:text-green-400" />
                       ) : (
-                        <Brain className="h-4 w-4 mx-auto text-muted-foreground/40" />
+                        <Brain className="h-4 w-4 mx-auto text-muted-foreground" />
                       )}
                     </td>
                     {/* Tokens display enabled */}
@@ -801,13 +801,13 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                       {user.tokens_display_enabled ? (
                         <Eye className="h-4 w-4 mx-auto text-green-600 dark:text-green-400" />
                       ) : (
-                        <EyeOff className="h-4 w-4 mx-auto text-muted-foreground/40" />
+                        <EyeOff className="h-4 w-4 mx-auto text-muted-foreground" />
                       )}
                     </td>
                     {/* Active connectors count */}
                     <td className="px-3 py-3 whitespace-nowrap text-center">
                       <span
-                        className={`text-sm font-medium tabular-nums ${user.active_connectors_count > 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground/40'}`}
+                        className={`text-sm font-medium tabular-nums ${user.active_connectors_count > 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}
                       >
                         {user.active_connectors_count}
                       </span>
@@ -815,7 +815,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                     {/* Memories count */}
                     <td className="px-3 py-3 whitespace-nowrap text-center">
                       <span
-                        className={`text-sm font-medium tabular-nums ${user.memories_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                        className={`text-sm font-medium tabular-nums ${user.memories_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
                       >
                         {user.memories_count}
                       </span>
@@ -823,7 +823,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                     {/* Interests count */}
                     <td className="px-3 py-3 whitespace-nowrap text-center">
                       <span
-                        className={`text-sm font-medium tabular-nums ${user.interests_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                        className={`text-sm font-medium tabular-nums ${user.interests_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
                       >
                         {user.interests_count}
                       </span>
@@ -831,7 +831,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                     {/* Skills count */}
                     <td className="px-3 py-3 whitespace-nowrap text-center">
                       <span
-                        className={`text-sm font-medium tabular-nums ${user.skills_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                        className={`text-sm font-medium tabular-nums ${user.skills_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
                       >
                         {user.skills_count}
                       </span>
@@ -839,7 +839,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                     {/* MCP servers count */}
                     <td className="px-3 py-3 whitespace-nowrap text-center">
                       <span
-                        className={`text-sm font-medium tabular-nums ${user.mcp_servers_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                        className={`text-sm font-medium tabular-nums ${user.mcp_servers_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
                       >
                         {user.mcp_servers_count}
                       </span>
@@ -847,7 +847,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                     {/* Scheduled actions count */}
                     <td className="px-3 py-3 whitespace-nowrap text-center">
                       <span
-                        className={`text-sm font-medium tabular-nums ${user.scheduled_actions_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                        className={`text-sm font-medium tabular-nums ${user.scheduled_actions_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
                       >
                         {user.scheduled_actions_count}
                       </span>
@@ -855,7 +855,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                     {/* RAG spaces count */}
                     <td className="px-3 py-3 whitespace-nowrap text-center">
                       <span
-                        className={`text-sm font-medium tabular-nums ${user.rag_spaces_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                        className={`text-sm font-medium tabular-nums ${user.rag_spaces_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
                       >
                         {user.rag_spaces_count}
                       </span>
@@ -920,7 +920,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                           })}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground/40">-</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </td>
                     {/* Messages count */}

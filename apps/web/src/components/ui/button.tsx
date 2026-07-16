@@ -40,15 +40,17 @@ const buttonVariants = cva(
         // Link - Links
         link: 'text-primary underline-offset-4 hover:underline',
 
-        // Soft variants - Soft versions of semantic colors
+        // Soft variants - accent text on its own 15% tint. The tint stays at
+        // /15 on hover (feedback = border + shadow): darkening it to /25 drops
+        // the text below WCAG AA contrast (design-contrast.guard.test.ts).
         softPrimary:
-          'bg-primary/15 text-primary border-2 border-primary/25 hover:bg-primary/25 hover:border-primary/40 shadow-sm hover:shadow-md active:scale-[0.98]',
+          'bg-primary/15 text-primary border-2 border-primary/25 hover:bg-primary/15 hover:border-primary/40 shadow-sm hover:shadow-md active:scale-[0.98]',
 
         softSuccess:
-          'bg-success/15 text-success border-2 border-success/25 hover:bg-success/25 hover:border-success/40 shadow-sm hover:shadow-md active:scale-[0.98]',
+          'bg-success/15 text-success border-2 border-success/25 hover:bg-success/15 hover:border-success/40 shadow-sm hover:shadow-md active:scale-[0.98]',
 
         softWarning:
-          'bg-warning/15 text-warning-foreground border-2 border-warning/25 hover:bg-warning/25 hover:border-warning/40 shadow-sm hover:shadow-md active:scale-[0.98]',
+          'bg-warning/15 text-warning border-2 border-warning/25 hover:bg-warning/15 hover:border-warning/40 shadow-sm hover:shadow-md active:scale-[0.98]',
       },
       size: {
         default: 'h-9 px-4 py-2',

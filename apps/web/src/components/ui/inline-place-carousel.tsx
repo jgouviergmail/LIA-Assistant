@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -116,19 +116,23 @@ export const InlinePlaceCarousel: React.FC<InlinePlaceCarouselProps> = ({
     touchEndX.current = null;
   }, [navigateNext, navigatePrevious]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+  // Keyboard navigation — scoped to THIS carousel instance (audit F045).
+  // A document-level listener made every mounted carousel react to every
+  // arrow key anywhere on the page (cross-instance navigation). The handler
+  // now lives on the container and only fires while focus is inside the
+  // instance (the focusable group itself, its arrows or its dots).
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
       if (e.key === 'ArrowLeft') {
+        e.preventDefault();
         navigatePrevious();
       } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
         navigateNext();
       }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [navigatePrevious, navigateNext]);
+    },
+    [navigatePrevious, navigateNext]
+  );
 
   if (images.length === 0) return null;
 
@@ -137,6 +141,13 @@ export const InlinePlaceCarousel: React.FC<InlinePlaceCarouselProps> = ({
   return (
     <div
       className={cn('lia-place-carousel', className)}
+      role="group"
+      aria-roledescription="carousel"
+      aria-label={alt || t('gallery.place_photo')}
+      // Focusable only when there is something to navigate (WAI-ARIA carousel
+      // pattern): arrow keys work on the group itself and on its buttons.
+      tabIndex={showNavigation ? 0 : undefined}
+      onKeyDown={handleKeyDown}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

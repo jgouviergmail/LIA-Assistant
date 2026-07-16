@@ -159,6 +159,9 @@ export function DocumentUploadZone({
         multiple
         accept={ALLOWED_EXTENSIONS}
         className="hidden"
+        // Real F012 defect: the visually-hidden input had no accessible name.
+        // Named after the visible upload affordance that triggers it.
+        aria-label={t('spaces.documents.upload_button')}
         onChange={handleFileChange}
       />
 

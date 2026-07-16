@@ -77,7 +77,7 @@ class AdminUsageLimitTicketStore:
 
         ticket_data = json.dumps({"user_id": user_id})
 
-        await self._redis.setex(key, self._ttl_seconds, ticket_data)
+        await self._redis.set(key, ticket_data, ex=self._ttl_seconds)
 
         logger.debug(
             "usage_limit_ws_ticket_created",

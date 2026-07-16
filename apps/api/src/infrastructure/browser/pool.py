@@ -393,10 +393,10 @@ class BrowserPool:
                 worker_pid=self._pid,
                 navigation_count=0,
             )
-            await redis.setex(
+            await redis.set(
                 key,
-                settings.browser_session_timeout_seconds,
                 info.model_dump_json(),
+                ex=settings.browser_session_timeout_seconds,
             )
         except Exception as e:
             logger.warning("browser_redis_register_failed", error=str(e))
@@ -420,10 +420,10 @@ class BrowserPool:
                 info_dict["current_url"] = url
                 info_dict["page_title"] = title
                 info_dict["worker_pid"] = self._pid
-                await redis.setex(
+                await redis.set(
                     key,
-                    settings.browser_session_timeout_seconds,
                     json.dumps(info_dict),
+                    ex=settings.browser_session_timeout_seconds,
                 )
         except Exception as e:
             logger.warning("browser_redis_update_failed", error=str(e))

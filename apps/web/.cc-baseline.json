@@ -1,0 +1,220 @@
+{
+  "_comment": "Frontend cyclomatic-complexity ratchet (audit F011). Shrink-only: `over` (functions >= CC 15), `max` (worst function) and each per-file {count, max} fingerprint may only DECREASE; a regression, a new offending file, or a function growing inside an offending file fails CI. Regenerate with --update ONLY after decomposing a hotspot, never to absorb a regression.",
+  "over": 59,
+  "max": 74,
+  "threshold": 15,
+  "perFile": {
+    "src/app/[lng]/dashboard/chat/page.tsx": {
+      "count": 1,
+      "max": 32
+    },
+    "src/components/chat/ChatInput.tsx": {
+      "count": 1,
+      "max": 36
+    },
+    "src/components/chat/ChatMessage.tsx": {
+      "count": 1,
+      "max": 74
+    },
+    "src/components/chat/MarkdownContent.tsx": {
+      "count": 1,
+      "max": 23
+    },
+    "src/components/dashboard/BriefingCard.tsx": {
+      "count": 1,
+      "max": 21
+    },
+    "src/components/dashboard/cards/WeatherCard.tsx": {
+      "count": 1,
+      "max": 18
+    },
+    "src/components/dashboard/UsageStatistics.tsx": {
+      "count": 1,
+      "max": 29
+    },
+    "src/components/debug/components/sections/DomainSection.tsx": {
+      "count": 1,
+      "max": 17
+    },
+    "src/components/debug/components/sections/IntelligentMechanismsSection.tsx": {
+      "count": 1,
+      "max": 28
+    },
+    "src/components/debug/components/sections/InterestProfileSection.tsx": {
+      "count": 1,
+      "max": 22
+    },
+    "src/components/debug/components/sections/JournalExtractionSection.tsx": {
+      "count": 1,
+      "max": 17
+    },
+    "src/components/debug/components/sections/KnowledgeEnrichmentSection.tsx": {
+      "count": 1,
+      "max": 23
+    },
+    "src/components/debug/components/sections/MemoryDetectionSection.tsx": {
+      "count": 1,
+      "max": 21
+    },
+    "src/components/debug/components/sections/ToolSection.tsx": {
+      "count": 1,
+      "max": 18
+    },
+    "src/components/debug/utils/constants.ts": {
+      "count": 1,
+      "max": 19
+    },
+    "src/components/faq/FAQContent.tsx": {
+      "count": 1,
+      "max": 20
+    },
+    "src/components/psyche/AssistantAvatar.tsx": {
+      "count": 1,
+      "max": 31
+    },
+    "src/components/psyche/PsycheHistory.tsx": {
+      "count": 1,
+      "max": 20
+    },
+    "src/components/settings/AdminBroadcastSection.tsx": {
+      "count": 1,
+      "max": 22
+    },
+    "src/components/settings/AdminDebugSettingsSection.tsx": {
+      "count": 1,
+      "max": 20
+    },
+    "src/components/settings/AdminGoogleApiPricingSection.tsx": {
+      "count": 1,
+      "max": 26
+    },
+    "src/components/settings/AdminPersonalitiesSection.tsx": {
+      "count": 1,
+      "max": 16
+    },
+    "src/components/settings/AdminRAGSpacesSection.tsx": {
+      "count": 1,
+      "max": 16
+    },
+    "src/components/settings/AdminSkillsSection.tsx": {
+      "count": 1,
+      "max": 20
+    },
+    "src/components/settings/AdminUsageLimitsSection.tsx": {
+      "count": 1,
+      "max": 21
+    },
+    "src/components/settings/AdminUsersSection.tsx": {
+      "count": 2,
+      "max": 31
+    },
+    "src/components/settings/APIKeyConnectorForm.tsx": {
+      "count": 1,
+      "max": 19
+    },
+    "src/components/settings/ChannelSettings.tsx": {
+      "count": 1,
+      "max": 17
+    },
+    "src/components/settings/connectors/PreferenceDropdown.tsx": {
+      "count": 1,
+      "max": 16
+    },
+    "src/components/settings/connectors/TelephonyConnectorForm.tsx": {
+      "count": 1,
+      "max": 16
+    },
+    "src/components/settings/HealthMetricsSettings.tsx": {
+      "count": 1,
+      "max": 30
+    },
+    "src/components/settings/ImageGenerationSettings.tsx": {
+      "count": 1,
+      "max": 34
+    },
+    "src/components/settings/InterestsSettings.tsx": {
+      "count": 1,
+      "max": 23
+    },
+    "src/components/settings/JournalsSettings.tsx": {
+      "count": 1,
+      "max": 60
+    },
+    "src/components/settings/MCPServersSettings.tsx": {
+      "count": 3,
+      "max": 45
+    },
+    "src/components/settings/MemorySettings.tsx": {
+      "count": 2,
+      "max": 28
+    },
+    "src/components/settings/NotificationSettings.tsx": {
+      "count": 1,
+      "max": 19
+    },
+    "src/components/settings/SkillsSettings.tsx": {
+      "count": 1,
+      "max": 17
+    },
+    "src/components/settings/UserConnectorsSection.tsx": {
+      "count": 1,
+      "max": 25
+    },
+    "src/components/ui/avatar.tsx": {
+      "count": 1,
+      "max": 23
+    },
+    "src/components/ui/pagination.tsx": {
+      "count": 1,
+      "max": 19
+    },
+    "src/components/usage/UsageLimitsTile.tsx": {
+      "count": 1,
+      "max": 17
+    },
+    "src/components/voice/VoiceOverlay.tsx": {
+      "count": 1,
+      "max": 16
+    },
+    "src/hooks/useChat.ts": {
+      "count": 1,
+      "max": 27
+    },
+    "src/hooks/useConversation.ts": {
+      "count": 1,
+      "max": 23
+    },
+    "src/hooks/usePaginatedQuery.ts": {
+      "count": 1,
+      "max": 16
+    },
+    "src/hooks/useVoiceInput.ts": {
+      "count": 1,
+      "max": 18
+    },
+    "src/hooks/useVoiceMode.ts": {
+      "count": 1,
+      "max": 24
+    },
+    "src/lib/api-client.ts": {
+      "count": 1,
+      "max": 25
+    },
+    "src/lib/api-server.ts": {
+      "count": 1,
+      "max": 23
+    },
+    "src/lib/api/chat.ts": {
+      "count": 1,
+      "max": 22
+    },
+    "src/lib/audio/sherpaKws.ts": {
+      "count": 1,
+      "max": 16
+    },
+    "src/lib/hitl-utils.ts": {
+      "count": 3,
+      "max": 26
+    }
+  }
+}

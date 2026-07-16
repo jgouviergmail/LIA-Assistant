@@ -238,20 +238,38 @@ async def init_config_caches() -> None:
             SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
             logger.info("skills_cache_initialized")
 
-            # Sync DB with disk (create new skills, remove orphans, ensure user states)
+            # Sync DB with disk (create new skills, remove orphans, ensure user
+            # states). The in-memory cache load above is per-worker, but this
+            # write-sync is O(users×skills) — running it on every worker at boot
+            # is O(workers×users×skills). Gate it behind a distributed lock so
+            # only one worker performs the write per deploy; the others skip
+            # (the shared DB is already consistent, and per-user states are also
+            # created lazily on demand). F018.
+            from src.core.constants import SCHEDULER_JOB_SKILLS_DB_SYNC
             from src.domains.skills.preference_service import SkillPreferenceService
             from src.infrastructure.database.session import AsyncSessionLocal
+            from src.infrastructure.locks.scheduler_lock import SchedulerLock
 
-            async with AsyncSessionLocal() as db:
-                svc = SkillPreferenceService(db)
-                sync_result = await svc.sync_from_disk()
-                await db.commit()
-                logger.info(
-                    "skills_db_synced",
-                    created=len(sync_result.created),
-                    removed=len(sync_result.removed),
-                    updated=len(sync_result.updated),
-                )
+            redis = await get_redis_cache()
+            async with SchedulerLock(
+                redis_client=redis,
+                job_id=SCHEDULER_JOB_SKILLS_DB_SYNC,
+                ttl_seconds=300,
+            ) as lock:
+                if not lock.acquired:
+                    # Another worker is performing (or has performed) the sync.
+                    logger.debug("skills_db_sync_skipped_not_leader")
+                else:
+                    async with AsyncSessionLocal() as db:
+                        svc = SkillPreferenceService(db)
+                        sync_result = await svc.sync_from_disk()
+                        await db.commit()
+                        logger.info(
+                            "skills_db_synced",
+                            created=len(sync_result.created),
+                            removed=len(sync_result.removed),
+                            updated=len(sync_result.updated),
+                        )
         except Exception as exc:
             logger.warning("skills_cache_initialization_failed", error=str(exc))
 

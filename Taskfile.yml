@@ -34,9 +34,12 @@ tasks:
     dir: "{{.API_DIR}}"
     cmds:
       - "{{.PYTHON}} -m venv .venv"
-      - cmd: .venv/Scripts/pip install --require-hashes -r requirements-dev.lock.txt
+      # URLLIB3_NO_OVERRIDE + --no-binary urllib3-future: build the urllib3
+      # fork from sdist so it does NOT clobber the genuine urllib3 package
+      # (breaks docker-py/testcontainers on Windows). See requirements.txt.
+      - cmd: URLLIB3_NO_OVERRIDE=1 .venv/Scripts/pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
         platforms: [windows]
-      - cmd: .venv/bin/pip install --require-hashes -r requirements-dev.lock.txt
+      - cmd: URLLIB3_NO_OVERRIDE=1 .venv/bin/pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
         platforms: [linux, darwin]
     status:
       - test -d {{.API_DIR}}/.venv
@@ -146,6 +149,60 @@ tasks:
     deps:
       - lint:backend
       - lint:frontend
+      - lint:i18n
+      - lint:docs
+      - lint:mypy-debt
+      - lint:observability
+      - lint:cycles
+      - lint:cc
+
+  lint:i18n:
+    desc: Validate frontend i18n key parity across all 6 languages (en reference)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/i18n/validate_translations.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/i18n/validate_translations.py
+        platforms: [linux, darwin]
+
+  lint:docs:
+    desc: Audit documentation drift (broken links; ADR→ADR escalated to failing — F024)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_audit.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_audit.py
+        platforms: [linux, darwin]
+
+  lint:mypy-debt:
+    desc: Ratchet the MyPy exemption surface (shrink-only; fails on new exemptions — F020)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/measure_mypy_debt.py --check
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/measure_mypy_debt.py --check
+        platforms: [linux, darwin]
+
+  lint:observability:
+    desc: Validate Grafana dashboards + Prometheus rules (structural, F025)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/observability/validate_observability.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/observability/validate_observability.py
+        platforms: [linux, darwin]
+
+  lint:cycles:
+    desc: Ratchet runtime domain import cycles (shrink-only; fails on new cycles — F009)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/measure_coupling.py --check-cycles
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/measure_coupling.py --check-cycles
+        platforms: [linux, darwin]
+
+  lint:cc:
+    desc: Ratchet backend cyclomatic complexity (shrink-only; fails on new hotspots — F011/F015)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/measure_cc.py --check-ratchet
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/measure_cc.py --check-ratchet
+        platforms: [linux, darwin]
 
   lint:backend:
     desc: Lint backend code
@@ -230,18 +287,34 @@ tasks:
     cmds:
       # -n auto --dist loadscope (pytest-xdist): parallel workers, tests
       # grouped by module — same flags as the pre-commit hook pytest step.
-      - cmd: .venv/Scripts/pytest tests/unit/ -v --no-cov -m "not integration and not slow" -n auto --dist loadscope
+      - cmd: .venv/Scripts/pytest tests/unit/ -v --no-cov -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n auto --dist loadscope
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v --no-cov -m "not integration and not slow" -n auto --dist loadscope
+      - cmd: .venv/bin/pytest tests/unit/ -v --no-cov -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n auto --dist loadscope
         platforms: [linux, darwin]
 
   test:backend:integration:
     desc: Run backend integration tests (mirrors CI test-backend-integration; needs PG+Redis)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/integration/ -v --no-cov -m "not e2e and not benchmark and not multiprocess"
+      # AC-001 preflight: classify the DB strategy (explicit URL / in-docker /
+      # Testcontainers) and fail fast with an actionable diagnostic when none
+      # is available. Once it passes, a database is PROMISED: LIA_REQUIRE_DB=1
+      # turns any downstream infrastructure skip into a loud failure so a green
+      # exit code can never be produced by mass DB skips (F019).
+      - cmd: .venv/Scripts/python scripts/integration_preflight.py
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/integration/ -v --no-cov -m "not e2e and not benchmark and not multiprocess"
+      - cmd: .venv/bin/python scripts/integration_preflight.py
+        platforms: [linux, darwin]
+      - cmd: LIA_REQUIRE_DB=1 .venv/Scripts/pytest tests/integration/ -v --no-cov -m "not e2e and not benchmark and not multiprocess"
+        platforms: [windows]
+      - cmd: LIA_REQUIRE_DB=1 .venv/bin/pytest tests/integration/ -v --no-cov -m "not e2e and not benchmark and not multiprocess"
+        platforms: [linux, darwin]
+      # F006: integration-marked tests co-located under tests/unit / tests/agents
+      # run in this services-equipped job (they'd otherwise run in no job) —
+      # mirrors ci.yml's test-backend-integration second invocation (F022 parity).
+      - cmd: LIA_REQUIRE_DB=1 .venv/Scripts/pytest tests/unit/ tests/agents/ -v --no-cov -m "integration and not e2e and not benchmark and not multiprocess"
+        platforms: [windows]
+      - cmd: LIA_REQUIRE_DB=1 .venv/bin/pytest tests/unit/ tests/agents/ -v --no-cov -m "integration and not e2e and not benchmark and not multiprocess"
         platforms: [linux, darwin]
 
   test:backend:exhaustive:
@@ -265,12 +338,16 @@ tasks:
         platforms: [linux, darwin]
 
   test:backend:agents:
-    desc: Run agent-specific tests only
+    desc: Run agent-specific tests only (mirrors the CI "Run agents tests" job)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/agents/ -v --tb=short
+      # Must match .github/workflows/ci.yml exactly (F022): --no-cov because the
+      # global --cov-fail-under gate belongs to the exhaustive run, not this
+      # partial subset (otherwise the command exits 1 despite all tests passing);
+      # same marker filter as CI so the local suite equals the gated suite.
+      - cmd: .venv/Scripts/pytest tests/agents/ -v --tb=short -m "not slow and not e2e and not benchmark and not multiprocess" --no-cov
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/agents/ -v --tb=short
+      - cmd: .venv/bin/pytest tests/agents/ -v --tb=short -m "not slow and not e2e and not benchmark and not multiprocess" --no-cov
         platforms: [linux, darwin]
 
   test:frontend:
@@ -278,6 +355,12 @@ tasks:
     dir: "{{.WEB_DIR}}"
     cmds:
       - pnpm test
+
+  test:deploy:
+    desc: Hermetic deploy-path tests (F008) — readiness-gate lib + Pester driver suite (needs Pester >= 5.5)
+    cmds:
+      - cmd: bash scripts/deploy/lib/test_deploy_readiness_gate.sh
+      - cmd: pwsh -NoProfile -File scripts/deploy/run-deploy-driver-tests.ps1
 
   test:watch:
     desc: Run backend tests in watch mode
@@ -306,6 +389,11 @@ tasks:
   db:migrate:
     desc: Run database migrations
     dir: "{{.API_DIR}}"
+    # F047 defense-in-depth: force UTF-8 so a Windows CP1252 console can never
+    # break a migration on its output (the root cause — print()/emoji — is also
+    # removed from the migrations and guarded). Harmless on Linux/macOS.
+    env:
+      PYTHONUTF8: "1"
     cmds:
       - cmd: .venv/Scripts/alembic upgrade head
         platforms: [windows]
@@ -315,6 +403,8 @@ tasks:
   db:migrate:create:
     desc: Create a new migration
     dir: "{{.API_DIR}}"
+    env:
+      PYTHONUTF8: "1"  # F047: UTF-8 output regardless of the Windows console code page
     cmds:
       - cmd: .venv/Scripts/alembic revision --autogenerate -m "{{.CLI_ARGS}}"
         platforms: [windows]
@@ -326,10 +416,25 @@ tasks:
   db:migrate:down:
     desc: Rollback last migration
     dir: "{{.API_DIR}}"
+    env:
+      PYTHONUTF8: "1"  # F047: UTF-8 output regardless of the Windows console code page
     cmds:
       - cmd: .venv/Scripts/alembic downgrade -1
         platforms: [windows]
       - cmd: .venv/bin/alembic downgrade -1
+        platforms: [linux, darwin]
+
+  db:migrate:replay-check:
+    desc: Verify migrations replay from an EMPTY database (F007) — throwaway DB in the dev PostgreSQL
+    dir: "{{.API_DIR}}"
+    # F048: a portable Python launcher drives the host `docker` CLI directly, so
+    # this runs identically on Windows PowerShell / Git Bash / macOS / Linux. The
+    # old `bash scripts/db/replay_check_local.sh` resolved `bash` to WSL on Windows,
+    # which cannot see Docker Desktop, making the local check unrunnable there.
+    cmds:
+      - cmd: .venv/Scripts/python ../../scripts/db/replay_check_local.py
+        platforms: [windows]
+      - cmd: .venv/bin/python ../../scripts/db/replay_check_local.py
         platforms: [linux, darwin]
 
   db:seed:
@@ -417,9 +522,12 @@ tasks:
 
   build:web:
     desc: Build web Docker image
-    dir: "{{.WEB_DIR}}"
+    # Context MUST be the monorepo root: apps/web/Dockerfile.prod COPYs
+    # pnpm-workspace.yaml / pnpm-lock.yaml / package.json from the root (pnpm
+    # workspace). Building from apps/web (context ".") fails those COPY steps —
+    # this mirrors the CI build (context ".", file ./apps/web/Dockerfile.prod). (F039)
     cmds:
-      - docker build -f Dockerfile.prod -t lia-web:latest .
+      - docker build -f apps/web/Dockerfile.prod -t lia-web:latest .
 
   push:
     desc: Push Docker images to registry

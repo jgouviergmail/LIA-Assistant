@@ -30,6 +30,12 @@ config.set_main_option("sqlalchemy.url", settings.database_url_sync)
 # Add your model's MetaData object here for 'autogenerate' support
 target_metadata = Base.metadata
 
+# Object-exclusion policy (runtime/bridge tables, un-round-trippable indexes) is
+# the single source of truth in schema_drift, shared with the structural-drift
+# guard so the two never diverge (audit F042). server-default comparison is off
+# there for the same reason: server defaults are migration-managed here.
+from src.infrastructure.database.schema_drift import include_object  # noqa: E402
+
 
 def run_migrations_offline() -> None:
     """
@@ -50,7 +56,8 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
-        compare_server_default=True,
+        compare_server_default=False,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -75,7 +82,8 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
-            compare_server_default=True,
+            compare_server_default=False,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

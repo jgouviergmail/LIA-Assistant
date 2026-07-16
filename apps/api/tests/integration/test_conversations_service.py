@@ -91,7 +91,6 @@ def service() -> ConversationService:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestHITLFiltering:
     """Test HITL approval filtering static methods - NOW DISABLED.
 
@@ -222,7 +221,6 @@ class TestHITLFiltering:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestGetOrCreateConversation:
     """Test get_or_create_conversation method."""
 
@@ -282,7 +280,6 @@ class TestGetOrCreateConversation:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestGetActiveConversation:
     """Test get_active_conversation method."""
 
@@ -335,7 +332,6 @@ class TestGetActiveConversation:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestArchiveMessage:
     """Test archive_message method."""
 
@@ -398,7 +394,6 @@ class TestArchiveMessage:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestUpdateLastUserMessage:
     """Test update_last_user_message method."""
 
@@ -539,7 +534,6 @@ class TestUpdateLastUserMessage:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestIncrementConversationStats:
     """Test increment_conversation_stats method."""
 
@@ -592,7 +586,6 @@ class TestIncrementConversationStats:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestGetMessages:
     """Test get_messages method."""
 
@@ -734,7 +727,6 @@ class TestGetMessages:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestGetAuditLogs:
     """Test get_audit_logs method."""
 
@@ -794,7 +786,6 @@ class TestGetAuditLogs:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestGetMessagesWithTokens:
     """Test get_messages_with_tokens method."""
 
@@ -879,7 +870,6 @@ class TestGetMessagesWithTokens:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestGetMessagesWithTokensV2:
     """Test get_messages_with_tokens_v2 (optimized) method."""
 
@@ -938,7 +928,6 @@ class TestGetMessagesWithTokensV2:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestGetMessagesWithTokensAuto:
     """Test get_messages_with_tokens_auto always uses v2 implementation.
 
@@ -975,7 +964,6 @@ class TestGetMessagesWithTokensAuto:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestGetConversationTotals:
     """Test get_conversation_totals method."""
 
@@ -1033,7 +1021,6 @@ class TestGetConversationTotals:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestResetConversation:
     """Test reset_conversation with proper mocking."""
 
@@ -1173,7 +1160,6 @@ class TestResetConversation:
 # ============================================================================
 
 
-@pytest.mark.asyncio
 class TestGenerateTitle:
     """Test _generate_title method."""
 

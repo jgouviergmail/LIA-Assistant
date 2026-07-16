@@ -203,6 +203,83 @@ function StatusBadge({ status, size }: StatusBadgeProps) {
 }
 
 // ============================================================================
+// INTERACTION HELPER
+// ============================================================================
+
+type ClickableDivProps = Pick<
+  React.HTMLAttributes<HTMLDivElement>,
+  'onClick' | 'onKeyDown' | 'role' | 'tabIndex'
+>;
+
+/**
+ * Button semantics for a clickable non-button element (audit F012/F045):
+ * role, focusability and Enter/Space activation alongside the click handler —
+ * a click handler alone is mouse-only. Returns no props when not clickable,
+ * so the element stays semantically inert.
+ */
+function clickableProps(onClick?: () => void): ClickableDivProps {
+  if (!onClick) return {};
+  return {
+    onClick,
+    onKeyDown: e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onClick();
+      }
+    },
+    role: 'button',
+    tabIndex: 0,
+  };
+}
+
+// ============================================================================
+// IMAGE (loading, proxying and fallback chain)
+// ============================================================================
+
+interface AvatarImageProps {
+  src: string;
+  alt?: string;
+  name: string;
+  variant: VariantProps<typeof avatarVariants>['variant'];
+  effect: VariantProps<typeof avatarVariants>['effect'];
+  imageLoaded: boolean;
+  onLoad: () => void;
+  onError: () => void;
+}
+
+/** The <img> with its Google-proxy rewrite, alt fallback chain and overlay. */
+function AvatarImage({
+  src,
+  alt,
+  name,
+  variant,
+  effect,
+  imageLoaded,
+  onLoad,
+  onError,
+}: AvatarImageProps) {
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={proxyGoogleImageUrl(src) || src}
+        alt={alt || name || 'Avatar'}
+        className={cn(
+          'h-full w-full object-cover transition-opacity duration-300',
+          imageLoaded ? 'opacity-100' : 'opacity-0'
+        )}
+        loading="lazy"
+        onLoad={onLoad}
+        onError={onError}
+      />
+
+      {/* Gradient overlay for depth */}
+      <div className={cn(overlayVariants({ variant, effect }), 'z-10')} />
+    </>
+  );
+}
+
+// ============================================================================
 // MAIN AVATAR COMPONENT
 // ============================================================================
 
@@ -245,21 +322,20 @@ export function Avatar({
 
   // Show initials if: no src, image error, or loading
   const showInitials = !src || imageError || loading;
+  const showGlow = !disableHover && effect === 'glow';
 
   return (
     <div
       className={cn(
         'group relative inline-block',
         onClick && 'cursor-pointer',
-        !disableHover && effect === 'glow' && 'hover:scale-105',
+        showGlow && 'hover:scale-105',
         className
       )}
-      onClick={onClick}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      {...clickableProps(onClick)}
     >
       {/* Glow effect background (only for 'glow' effect) */}
-      {!disableHover && effect === 'glow' && (
+      {showGlow && (
         <div className="absolute inset-0 bg-gradient-radial from-primary/20 via-primary/5 to-transparent rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       )}
 
@@ -282,26 +358,19 @@ export function Avatar({
 
         {/* Image */}
         {src && !imageError && (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={proxyGoogleImageUrl(src) || src}
-              alt={alt || name || 'Avatar'}
-              className={cn(
-                'h-full w-full object-cover transition-opacity duration-300',
-                imageLoaded ? 'opacity-100' : 'opacity-0'
-              )}
-              loading="lazy"
-              onLoad={() => setImageLoaded(true)}
-              onError={() => {
-                setImageError(true);
-                setImageLoaded(false);
-              }}
-            />
-
-            {/* Gradient overlay for depth */}
-            <div className={cn(overlayVariants({ variant, effect }), 'z-10')} />
-          </>
+          <AvatarImage
+            src={src}
+            alt={alt}
+            name={name}
+            variant={variant}
+            effect={effect}
+            imageLoaded={imageLoaded}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => {
+              setImageError(true);
+              setImageLoaded(false);
+            }}
+          />
         )}
 
         {/* Initials fallback */}

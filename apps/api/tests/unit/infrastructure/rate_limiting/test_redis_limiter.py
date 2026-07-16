@@ -410,3 +410,32 @@ class TestSharedRateLimiterSingleton:
 
         assert first is second
         assert first.redis is mock_redis
+
+    @pytest.mark.asyncio
+    async def test_get_rate_limiter_rebuilds_when_client_changes(self):
+        """The wrapper is rebuilt when the underlying client instance changes.
+
+        AC-010: after ``close_redis()`` resets the process client, a limiter
+        still wrapping the old (closed) client would make redis-py reconnect
+        into an orphaned pool nobody closes. get_rate_limiter() must detect the
+        new client identity and rebuild, while reusing the instance (and its
+        cached Lua SHA) as long as the client is stable.
+        """
+        from src.infrastructure.rate_limiting import get_rate_limiter
+
+        client_a, client_b = AsyncMock(), AsyncMock()
+        with patch(
+            "src.infrastructure.cache.redis.get_redis_cache",
+            new=AsyncMock(return_value=client_a),
+        ):
+            first = await get_rate_limiter()
+            again = await get_rate_limiter()
+        assert first is again  # stable client → same wrapper (SHA reused)
+
+        with patch(
+            "src.infrastructure.cache.redis.get_redis_cache",
+            new=AsyncMock(return_value=client_b),
+        ):
+            rebuilt = await get_rate_limiter()
+        assert rebuilt is not first, "a new client instance must rebuild the limiter"
+        assert rebuilt.redis is client_b

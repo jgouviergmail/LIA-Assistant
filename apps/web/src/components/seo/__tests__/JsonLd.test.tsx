@@ -9,7 +9,7 @@
  * so no closing-tag sequence survives in the rendered HTML.
  */
 
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 import { describe, it, expect } from 'vitest';
@@ -88,18 +88,22 @@ describe('JSON-LD script safety — systemic guard (CA-5)', () => {
     expect(RAW_STRINGIFY_SINK.test('{{ __html: serializeJsonLd(s) }}')).toBe(false); // safe
   });
 
+  // Whole-`src` synchronous scan: inherently IO-heavy (hundreds of files), so
+  // it can exceed the 5s default when the full suite runs in parallel. Uses
+  // Dirent (withFileTypes) to skip a statSync per entry, and gets a generous
+  // timeout so contention — not a real offender — never reddens CI.
   it('no raw JSON.stringify is injected into a <script> via dangerouslySetInnerHTML', () => {
     // Every ld+json script must route through serializeJsonLd (which escapes
     // `<`). This guard catches any file — JsonLd.tsx, the blog page, or a
     // future sink — that reintroduces a raw `JSON.stringify` in a script.
     const walk = (dir: string): string[] => {
       const out: string[] = [];
-      for (const entry of readdirSync(dir)) {
-        if (entry === 'node_modules' || entry === '__tests__') continue;
-        const full = join(dir, entry);
-        if (statSync(full).isDirectory()) {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === 'node_modules' || entry.name === '__tests__') continue;
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
           out.push(...walk(full));
-        } else if (/\.(tsx?|jsx?)$/.test(entry)) {
+        } else if (/\.(tsx?|jsx?)$/.test(entry.name)) {
           out.push(full);
         }
       }
@@ -111,5 +115,5 @@ describe('JSON-LD script safety — systemic guard (CA-5)', () => {
     );
 
     expect(offenders).toEqual([]);
-  });
+  }, 30000);
 });

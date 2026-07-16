@@ -14,10 +14,13 @@ from pydantic import Field, PostgresDsn, RedisDsn, ValidationInfo, field_validat
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    DATABASE_CONNECT_TIMEOUT_DEFAULT,
+    DATABASE_MAX_CONNECTIONS_DEFAULT,
     DATABASE_MAX_OVERFLOW_DEFAULT,
     DATABASE_POOL_RECYCLE_DEFAULT,
     DATABASE_POOL_SIZE_DEFAULT,
     DATABASE_POOL_TIMEOUT_DEFAULT,
+    DATABASE_RESERVED_CONNECTIONS_DEFAULT,
     LANGGRAPH_CHECKPOINT_POOL_MAX_SIZE_DEFAULT,
     LANGGRAPH_CHECKPOINT_POOL_MIN_SIZE_DEFAULT,
     LANGGRAPH_STORE_POOL_MAX_SIZE_DEFAULT,
@@ -30,6 +33,7 @@ from src.core.constants import (
     REDIS_SESSION_DB,
     REDIS_SOCKET_CONNECT_TIMEOUT_DEFAULT,
     REDIS_SOCKET_TIMEOUT_DEFAULT,
+    WEB_CONCURRENCY_DEFAULT,
 )
 
 
@@ -56,6 +60,35 @@ class DatabaseSettings(BaseSettings):
     database_pool_recycle: int = Field(
         default=DATABASE_POOL_RECYCLE_DEFAULT,
         description="Recycle connections after N seconds (avoid stale connections)",
+    )
+    database_connect_timeout: int = Field(
+        default=DATABASE_CONNECT_TIMEOUT_DEFAULT,
+        ge=2,
+        description=(
+            "Seconds psycopg waits to ESTABLISH a single connection "
+            "(connect_timeout). Bounds a stalled TCP handshake (e.g. a freshly "
+            "published Docker port black-holing the SYN) with an explicit "
+            "policy instead of kernel TCP behavior (LangGraph pools)."
+        ),
+    )
+
+    # Connection-budget invariant inputs (F004). The worst-case burst across all
+    # workers must fit under database_max_connections; enforce_connection_budget()
+    # checks this at startup (fail-fast in production, warn in development).
+    database_max_connections: int = Field(
+        default=DATABASE_MAX_CONNECTIONS_DEFAULT,
+        ge=1,
+        description="PostgreSQL server max_connections — the hard ceiling the pool budget must fit under.",
+    )
+    database_reserved_connections: int = Field(
+        default=DATABASE_RESERVED_CONNECTIONS_DEFAULT,
+        ge=0,
+        description="Connections reserved outside the app pools (superuser + exporters).",
+    )
+    web_concurrency: int = Field(
+        default=WEB_CONCURRENCY_DEFAULT,
+        ge=1,
+        description="uvicorn worker processes (env WEB_CONCURRENCY) — each worker has its own pools.",
     )
 
     # LangGraph PostgreSQL pools (checkpointer + store, per worker — ADR-111).

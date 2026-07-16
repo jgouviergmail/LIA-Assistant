@@ -38,7 +38,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
       // Timing
       duration={5000} // 5s default duration (longer for better readability)
       closeButton={true} // Show close button
-      richColors={true} // Enable color-coded toasts
+      // richColors is intentionally OFF: sonner's built-in palette paints
+      // error titles #e60000 on #fff0f0 (4.34 < WCAG AA 4.5). The per-type
+      // classNames below own the color coding with AA-proven theme tokens
+      // (design-contrast.guard.test.ts).
       toastOptions={{
         classNames: {
           // Base toast styling - Larger, with glassmorphism and premium shadows
@@ -127,7 +130,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
             group-[.toaster]:border-warning/40
             group-[.toaster]:bg-warning/10
             dark:group-[.toaster]:bg-warning/15
-            group-[.toaster]:text-warning-foreground
+            group-[.toaster]:text-warning
             dark:group-[.toaster]:text-warning
             group-[.toaster]:shadow-warning/10
           `,

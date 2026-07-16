@@ -126,9 +126,13 @@ class TestGetToolContextStore:
             patch("src.domains.agents.context.store.AsyncPostgresStore") as mock_store_class,
             patch("src.domains.agents.context.store.settings") as mock_settings,
             patch("src.domains.agents.context.store._get_embeddings_model") as mock_embeddings,
+            # URL resolves through the shared helper — patch ITS settings so
+            # the end-to-end contract stays: settings → pool URL.
+            patch("src.infrastructure.database.psycopg_pool_config.settings") as mock_url_settings,
         ):
             _configure_settings(mock_settings)
-            mock_settings.database_url = "postgresql+asyncpg://user:pass@localhost:5432/testdb"
+            mock_url_settings.database_url = "postgresql+asyncpg://user:pass@localhost:5432/testdb"
+            mock_url_settings.database_connect_timeout = 30
             mock_embeddings.return_value = MagicMock()
 
             mock_pool_cls.return_value = AsyncMock()
@@ -182,6 +186,11 @@ class TestGetToolContextStore:
             assert conn_kwargs["autocommit"] is True
             assert conn_kwargs["prepare_threshold"] == 0
             assert "row_factory" in conn_kwargs
+            # libpq bound on connection ESTABLISHMENT (anti-wedge on blackholes),
+            # from the real settings (the shared helper is not patched here).
+            from src.core.config import settings as real_settings
+
+            assert conn_kwargs["connect_timeout"] == real_settings.database_connect_timeout
             # Deferred explicit open + fail-fast wait for min_size connections
             assert call_kwargs["open"] is False
             mock_pool.open.assert_awaited_once_with(

@@ -14,6 +14,7 @@ Created: 2026-03-14
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from pathlib import Path
 from uuid import UUID
@@ -24,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.domains.rag_spaces.embedding import get_rag_embeddings
+from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
 from src.domains.rag_spaces.models import RAGChunk, RAGDocument, RAGDocumentStatus
 from src.domains.rag_spaces.repository import RAGChunkRepository, RAGDocumentRepository
 from src.infrastructure.database.session import get_db_context
@@ -42,6 +44,10 @@ from src.infrastructure.observability.metrics_rag_spaces import (
 )
 
 logger = get_logger(__name__)
+
+# Per-process worker identity for the durable-job lease (audit F001). Identifies
+# the lease holder so heartbeats and the reaper can tell whose claim is whose.
+_WORKER_ID = f"rag-worker-{os.getpid()}"
 
 # Maximum number of chunks to embed in a single API call.
 # Gemini Embeddings API batch limit; 100 chunks of ~1000 chars
@@ -330,7 +336,7 @@ async def process_document(
     filename: str,
     original_filename: str,
     content_type: str,
-) -> None:
+) -> bool:
     """
     Background task to process an uploaded document.
 
@@ -343,6 +349,13 @@ async def process_document(
 
     This function creates its own DB session via get_db_context()
     and sets the embedding tracking context for cost attribution.
+
+    Returns:
+        True only when the document reached RAGDocumentStatus.READY. Any early
+        exit or caught error returns False — the function never re-raises, so
+        callers that need to count failures MUST read this return value rather
+        than rely on an exception (audit F001 follow-up: process_document
+        swallows its own exceptions).
     """
     start_time = time.time()
     logger.info(
@@ -375,9 +388,29 @@ async def process_document(
                     "rag_document_not_found_for_processing",
                     document_id=str(document_id),
                 )
-                return
+                return False
 
             previous_status = document.status
+
+            # Durable-job claim (audit F001): an upload/recovered document starts
+            # PENDING; atomically claim it (PENDING -> PROCESSING + lease). If the
+            # claim is lost, another worker owns it — skip (double-launch guard).
+            # Drive/reindex callers pass a non-PENDING document and keep their own
+            # status; the heartbeat below is then a harmless no-op for them.
+            jobs = RAGJobsRepository(db)
+            holds_lease = False
+            if document.status == RAGDocumentStatus.PENDING:
+                claimed = await jobs.claim_document(
+                    document_id, _WORKER_ID, settings.rag_job_lease_ttl_seconds
+                )
+                if not claimed:
+                    logger.info("rag_document_claim_contended", document_id=str(document_id))
+                    return False
+                holds_lease = True
+                # The claim mutated the row via raw SQL; refresh the ORM object so a
+                # later ``doc_repo.update`` sees the true attempts/status and its
+                # change-detection actually writes the reset on completion.
+                await db.refresh(document)
 
             # 1. Extract text
             file_path = (
@@ -385,17 +418,17 @@ async def process_document(
             )
             if not file_path.exists():
                 await _mark_document_error(doc_repo, document, db, "File not found on disk")
-                return
+                return False
 
             try:
                 text = await asyncio.to_thread(extract_text, file_path, content_type)
             except Exception as e:
                 await _mark_document_error(doc_repo, document, db, f"Text extraction failed: {e}")
-                return
+                return False
 
             if not text.strip():
                 await _mark_document_error(doc_repo, document, db, "No text content extracted")
-                return
+                return False
 
             # 2. Split into chunks
             splitter = RecursiveCharacterTextSplitter(
@@ -410,7 +443,7 @@ async def process_document(
                 await _mark_document_error(
                     doc_repo, document, db, "No chunks produced after splitting"
                 )
-                return
+                return False
 
             max_chunks = settings.rag_spaces_max_chunks_per_document
             if len(chunk_texts) > max_chunks:
@@ -420,7 +453,7 @@ async def process_document(
                     db,
                     f"Document produces {len(chunk_texts)} chunks, exceeding limit of {max_chunks}",
                 )
-                return
+                return False
 
             logger.debug(
                 "rag_document_chunks_created",
@@ -439,6 +472,13 @@ async def process_document(
             embeddings_model = get_rag_embeddings()
             embedding_vectors: list[list[float]] = []
             for batch_start in range(0, len(chunk_texts), EMBEDDING_BATCH_SIZE):
+                # Renew the lease before each (slow) embedding batch so a live job
+                # is never reclaimed by the reaper mid-flight. Only meaningful when
+                # we hold the lease (the claimed upload/recovery path).
+                if holds_lease:
+                    await jobs.heartbeat_document(
+                        document_id, _WORKER_ID, settings.rag_job_lease_ttl_seconds
+                    )
                 batch = chunk_texts[batch_start : batch_start + EMBEDDING_BATCH_SIZE]
                 batch_vectors = await embeddings_model.aembed_documents(batch)
                 embedding_vectors.extend(batch_vectors)
@@ -467,7 +507,12 @@ async def process_document(
                     )
                 )
 
-            # 6. Bulk insert chunks
+            # 6. Atomic chunk swap (audit F001): delete the document's existing
+            # chunks and insert the freshly-embedded ones in the SAME transaction
+            # (committed together at step 8), so retrieval never sees a reprocessed
+            # document with zero chunks. For a first-time upload the delete is a
+            # no-op; for a recovery/reindex reprocess it replaces atomically.
+            await chunk_repo.delete_by_document(document_id)
             await chunk_repo.bulk_create_chunks(chunk_objects)
 
             # 7. Calculate embedding cost (reuse shared pricing logic)
@@ -487,6 +532,13 @@ async def process_document(
                     "embedding_tokens": total_embedding_tokens,
                     "embedding_cost_eur": embedding_cost_eur,
                     "error_message": None,
+                    # Durable-job completion: clear the lease and reset the retry
+                    # budget so a later reprocess starts fresh (part of the same
+                    # atomic transaction as the chunk swap).
+                    "attempts": 0,
+                    "lease_expires_at": None,
+                    "worker_id": None,
+                    "heartbeat_at": None,
                 },
             )
             await db.commit()
@@ -511,6 +563,7 @@ async def process_document(
                 duration_seconds=round(duration, 2),
                 embedding_model=model_name,
             )
+            return True
 
     except Exception as e:
         logger.error(
@@ -519,21 +572,33 @@ async def process_document(
             error=str(e),
             exc_info=True,
         )
-        # Try to mark the document as error (also updates gauge metrics)
+        # Transient failure (e.g. embedding API error): bounded retry. Back to
+        # PENDING for the reaper to re-drive, or ERROR (dead-letter) once attempts
+        # reach the bound. Permanent failures above already dead-lettered via
+        # _mark_document_error (retrying them cannot help).
         try:
             async with get_db_context() as db:
-                doc_repo = RAGDocumentRepository(db)
-                document = await doc_repo.get_by_id(document_id)
-                if document:
-                    await _mark_document_error(doc_repo, document, db, f"Processing failed: {e}")
+                jobs = RAGJobsRepository(db)
+                new_status = await jobs.fail_or_retry_document(
+                    document_id,
+                    f"Processing failed: {e}",
+                    settings.rag_job_max_attempts,
+                )
+                if new_status == RAGDocumentStatus.ERROR:
+                    rag_documents_processed_total.labels(status="error").inc()
         except Exception:
             logger.error(
                 "rag_document_error_status_update_failed",
                 document_id=str(document_id),
             )
+        return False
 
     finally:
         clear_embedding_context()
+
+    # Unreachable in practice (the try returns True, the except returns False),
+    # but keeps the function total for the type checker.
+    return False
 
 
 async def _mark_document_error(

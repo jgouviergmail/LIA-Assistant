@@ -153,7 +153,7 @@ def _coerce_files(
 )
 async def activate_skill_tool(
     name: Annotated[str, "Name of the skill to activate (from available_skills catalogue)"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime | None, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Load a skill's full instructions and bundled resources listing.
 
@@ -198,7 +198,7 @@ async def run_skill_script(
             "(preferred) or a JSON string — both are accepted and normalized."
         ),
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime | None, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Execute a Python script from a skill's scripts/ directory."""
     coerced_parameters, coercion_error = _coerce_parameters(parameters)
@@ -303,7 +303,7 @@ async def read_skill_resource(
     path: Annotated[
         str, "Relative path to the resource (e.g., 'template.md', 'examples/sample.md')"
     ],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime | None, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Read a bundled resource file from a skill's directory.
 
@@ -397,7 +397,7 @@ async def import_user_skill(
             "Either a JSON object (preferred) or a JSON string."
         ),
     ],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime | None, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Import a generated skill directly into the user's imported skills.
 

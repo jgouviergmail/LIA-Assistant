@@ -235,6 +235,7 @@ function highlightTextContent(text: string, normalizedQuery: string): string {
 }
 
 const changelogVersionKeys = [
+  'v1_25_0',
   'v1_24_0',
   'v1_23_13',
   'v1_23_12',
@@ -489,6 +490,7 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder={t('faq.search.placeholder')}
+              aria-label={t('faq.search.placeholder')}
               className="flex h-10 w-full rounded-lg border border-input bg-background pl-10 pr-10 py-2 text-base shadow-sm transition-all duration-200 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:border-primary hover:border-primary/50 md:text-sm"
             />
             {searchQuery && (
@@ -641,7 +643,7 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
       {/* No Results Message */}
       {isSearching && resultsCount === 0 && (
         <Card className="p-8 text-center">
-          <Search className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+          <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <p className="text-lg font-medium text-muted-foreground">
             {t('faq.search.no_results', { query: searchQuery })}
           </p>

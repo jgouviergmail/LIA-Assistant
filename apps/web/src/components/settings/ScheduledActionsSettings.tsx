@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { CalendarClock, Plus, Trash2, Pencil, Play, Clock } from 'lucide-react';
+import { CalendarClock, Plus, Trash2, Pencil, Play, Clock, MoreVertical } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -412,8 +412,13 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       {!loading && actions.length > 0 && (
         <div className="space-y-3">
           {actions.map(action => (
+            // role="presentation": the tap-anywhere onClick is a pointer-only
+            // convenience duplicating the dedicated mobile actions button
+            // (audit F012/F045); the card carries no semantics (it contains
+            // interactive children).
             <div
               key={action.id}
+              role="presentation"
               className="rounded-lg border bg-card p-4 space-y-1.5 group cursor-pointer lg:cursor-default"
               onClick={() => {
                 if (window.innerWidth < 1024) setMobileActionItem(action);
@@ -464,6 +469,22 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
+                {/* Mobile actions button (audit F012/F045): the desktop
+                    buttons above are hidden below lg and the tap-anywhere card
+                    click is pointer-only — this is the keyboard/AT path to the
+                    actions popup. */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden shrink-0"
+                  aria-label={t('common.actions')}
+                  onClick={e => {
+                    e.stopPropagation();
+                    setMobileActionItem(action);
+                  }}
+                >
+                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                </Button>
                 <Switch
                   checked={action.is_enabled}
                   onCheckedChange={() => handleToggle(action)}

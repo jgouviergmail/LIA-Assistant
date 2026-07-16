@@ -121,7 +121,7 @@ class SearchContactsTool(ConnectorTool):
 **Cas d'usage** : Calculator, formatter, ou toute fonction sans API externe nécessitant OAuth.
 
 ```python
-# apps/api/src/domains/agents/tools/calculator_tools.py
+# apps/api/src/domains/agents/tools/calculator_tools.py  (exemple)
 from langchain_core.tools import tool
 
 @tool

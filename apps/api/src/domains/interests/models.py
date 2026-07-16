@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -143,6 +143,11 @@ class UserInterest(BaseModel):
         UniqueConstraint(
             "user_id", "topic", "category", name="uq_user_interests_user_topic_category"
         ),
+        # Per-user lookups and (user_id, status) filtering. The active-only
+        # partial index (ix_user_interests_active, WHERE status='active') is
+        # owned by the migration and excluded from autogenerate.
+        Index("ix_user_interests_user_id", "user_id"),
+        Index("ix_user_interests_user_status", "user_id", "status"),
     )
 
     def __repr__(self) -> str:
@@ -223,6 +228,15 @@ class InterestNotification(Base, UUIDMixin):
     # Relationships
     interest: Mapped["UserInterest | None"] = relationship(
         back_populates="notifications",
+    )
+
+    __table_args__ = (
+        # Recent-notifications-per-user history queries.
+        Index("ix_interest_notifications_user_created", "user_id", "created_at"),
+        # Per-interest notification history.
+        Index("ix_interest_notifications_interest_created", "interest_id", "created_at"),
+        # Exact-hash deduplication scoped to the user.
+        Index("ix_interest_notifications_content_hash", "user_id", "content_hash"),
     )
 
     def __repr__(self) -> str:

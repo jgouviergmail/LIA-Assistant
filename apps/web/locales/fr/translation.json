@@ -38,7 +38,9 @@
     "off": "Désactivé",
     "enabled": "Activé",
     "disabled": "Désactivé",
-    "saving": "Enregistrement..."
+    "saving": "Enregistrement...",
+    "actions": "Actions",
+    "expand_image": "Afficher l'image en plein écran"
   },
   "broadcast": {
     "modal": {
@@ -148,7 +150,8 @@
       "open_chat": "Ouvrir le Chat",
       "connect": "Connecter",
       "settings": "Paramètres",
-      "view_details": "Voir les détails"
+      "view_details": "Voir les détails",
+      "toggle_avatar": "Changer l'avatar de LIA"
     },
     "main_feature": {
       "title": "Discutez avec LIA",
@@ -1397,7 +1400,9 @@
           "voicemail": "Messagerie",
           "failed": "Échoué",
           "cancelled": "Annulé"
-        }
+        },
+        "key_label": "Clé API ElevenLabs",
+        "secret_label": "Secret de signature du webhook"
       }
     },
     "user": {
@@ -2460,7 +2465,8 @@
         "processing": "Traitement...",
         "ready": "Prêt",
         "error": "Erreur",
-        "reindexing": "Réindexation..."
+        "reindexing": "Réindexation...",
+        "pending": "En file d'attente"
       },
       "upload_formats": "15+ formats supportés — max {{maxSize}} Mo",
       "upload_formats_tooltip": "PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML",
@@ -2764,12 +2770,12 @@
       "title": "Raisonnement"
     }
   },
-    "companion": {
-      "open_chat": "Ouvrir le chat avec LIA",
-      "minimize": "Réduire le compagnon",
-      "restore": "Afficher le compagnon LIA",
-      "aria_state": "LIA — {{count}} notification(s) en attente"
-    },
+  "companion": {
+    "open_chat": "Ouvrir le chat avec LIA",
+    "minimize": "Réduire le compagnon",
+    "restore": "Afficher le compagnon LIA",
+    "aria_state": "LIA — {{count}} notification(s) en attente"
+  },
   "faq": {
     "title": "Questions fréquentes",
     "subtitle": "Trouvez des réponses aux questions les plus courantes sur LIA",
@@ -3000,6 +3006,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_0": {
+          "title": "v1.25.0 — 🛡️ Audit V11 : référentiel révisé, plus net que jamais",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🛡️ L'audit technique a été entièrement révisé</b> — 24 périmètres normalisés alignés sur des référentiels industriels (ISO/IEC 25010), chaque note appuyée sur des preuves exécutées : <b>8,3/10</b> avec <b>zéro défaut majeur et zéro défaut mineur</b>. Le rapport complet — méthode, périmètre et chantiers ouverts compris — est public sur GitHub.",
+            "i2": "<b>♿ Accessibilité prouvée sur le vrai produit</b> — les parcours d'accessibilité automatisés (mode sombre, clavier, mobile 320 px, zoom 200 %) s'exécutent désormais contre un build de production et passent 17/17. Un défaut de contraste signalé en mode sombre s'est révélé être un artefact du harnais de test — la palette est saine.",
+            "i3": "<b>🧪 Une campagne de tests sans angle mort</b> — tous les tests backend précédemment ignorés ont été réactivés ou réalignés sur les contrats actuels : la suite d'intégration passe 579/579 avec <b>zéro test ignoré</b>, sous Windows comme sous Linux. Plus de preuves, moins de surprises."
+          }
+        },
         "v1_24_0": {
           "title": "v1.24.0 — 📞 LIA appelle en ton nom",
           "date": "juillet 2026",
@@ -4102,7 +4118,7 @@
           },
           "q7": {
             "question": "Comment LIA a-t-elle été construite ?",
-            "answer": "Près de <strong>100 % du code de LIA est écrit par une IA</strong>, sous direction humaine : règles d'ingénierie écrites, contrôles automatiques bloquants, un cycle de revue où l'humain décide, et des audits contradictoires récurrents (dernière évaluation : 8,5/10 sur 24 périmètres — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">rapport complet</a>).<br><br>L'histoire complète — méthode, arbitrages, exploitation et ce qu'il reste à faire — est sur la <a href=\"/story\">page Story</a>, et le code source est ouvert sur <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
+            "answer": "Près de <strong>100 % du code de LIA est écrit par une IA</strong>, sous direction humaine : règles d'ingénierie écrites, contrôles automatiques bloquants, un cycle de revue où l'humain décide, et des audits contradictoires récurrents (dernière évaluation : 8,3/10 sur 24 périmètres — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">rapport complet</a>).<br><br>L'histoire complète — méthode, arbitrages, exploitation et ce qu'il reste à faire — est sur la <a href=\"/story\">page Story</a>, et le code source est ouvert sur <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
           }
         }
       },
@@ -6139,8 +6155,8 @@
         "providers": "Fournisseurs LLM",
         "voice_languages": "Langues vocales"
       },
-      "audit_value": "8,5/10",
-      "audit_link_aria": "8,5/10 — audit technique 360°. Consulter le rapport d'audit public complet sur GitHub.",
+      "audit_value": "8,3/10",
+      "audit_link_aria": "8,3/10 — audit technique 360°. Consulter le rapport d'audit public complet sur GitHub.",
       "rex_teaser": "Près de 100 % de ce code a été écrit par une IA — dirigée, contrôlée et auditée par un humain.",
       "rex_link": "Lire le retour d'expérience"
     },
@@ -6158,7 +6174,7 @@
           "label": "tests automatisés"
         },
         "audit": {
-          "value": "8,5/10",
+          "value": "8,3/10",
           "label": "à l'audit technique sur 24 périmètres"
         },
         "lines": {
@@ -7031,7 +7047,7 @@
   "story": {
     "meta": {
       "title": "Story — Diriger une IA qui code | LIA",
-      "description": "Comment LIA a été construite : ~100 % de code écrit par une IA sous direction humaine, 10 000+ tests, 100+ ADRs, un audit technique à 8,5/10. Le retour d'expérience complet."
+      "description": "Comment LIA a été construite : ~100 % de code écrit par une IA sous direction humaine, 10 000+ tests, 100+ ADRs, un audit technique à 8,3/10. Le retour d'expérience complet."
     },
     "breadcrumb": "Retour d'expérience",
     "hero": {

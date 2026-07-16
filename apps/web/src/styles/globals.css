@@ -31,7 +31,7 @@
   --color-popover-foreground: oklch(35% 0.02 250);
 
   /* Primary - Professional slate blue (#5383B8 ≈ hsl(217 33% 52%)) */
-  --color-primary: oklch(55% 0.13 240);
+  --color-primary: oklch(47% 0.13 240);
   --color-primary-foreground: oklch(98% 0.005 80);
 
   /* Secondary - Soft warm gray */
@@ -40,28 +40,28 @@
 
   /* Muted - Soft warm gray */
   --color-muted: oklch(93% 0.008 80);
-  --color-muted-foreground: oklch(55% 0.015 250);
+  --color-muted-foreground: oklch(51% 0.015 250);
 
   /* Accent - Subtle warm gray */
   --color-accent: oklch(93% 0.008 80);
   --color-accent-foreground: oklch(35% 0.02 250);
 
   /* Success - Professional green (#22C55E ≈ hsl(142 71% 45%)) */
-  --color-success: oklch(65% 0.2 150);
+  --color-success: oklch(42% 0.2 150);
   --color-success-foreground: oklch(98% 0.005 80);
 
   /* Warning - Professional orange (#F97316 ≈ hsl(38 92% 50%)) */
-  --color-warning: oklch(70% 0.18 50);
-  --color-warning-foreground: oklch(25% 0.02 50);
+  --color-warning: oklch(47% 0.18 50);
+  --color-warning-foreground: oklch(98% 0.005 50);
 
   /* Destructive - Professional red (#EF4444 ≈ hsl(0 84% 60%)) */
-  --color-destructive: oklch(58% 0.22 27);
+  --color-destructive: oklch(43.5% 0.22 27);
   --color-destructive-foreground: oklch(98% 0.005 80);
 
   /* Border & Input */
   --color-border: oklch(88% 0.01 80);
   --color-input: oklch(88% 0.01 80);
-  --color-ring: oklch(55% 0.13 240);
+  --color-ring: oklch(47% 0.13 240);
 }
 
 @layer theme {
@@ -86,7 +86,7 @@
 
     /* Muted */
     --color-muted: oklch(28% 0.005 250);
-    --color-muted-foreground: oklch(65% 0.006 250);
+    --color-muted-foreground: oklch(66.5% 0.006 250);
 
     /* Accent */
     --color-accent: oklch(28% 0.005 250);
@@ -94,15 +94,15 @@
 
     /* Success - Professional green for dark mode */
     --color-success: oklch(70% 0.22 150);
-    --color-success-foreground: oklch(95% 0.004 150);
+    --color-success-foreground: oklch(18% 0.004 150);
 
     /* Warning - Professional orange for dark mode */
     --color-warning: oklch(73% 0.19 50);
     --color-warning-foreground: oklch(18% 0.004 50);
 
     /* Destructive - Professional red for dark mode */
-    --color-destructive: oklch(63% 0.24 27);
-    --color-destructive-foreground: oklch(95% 0.004 27);
+    --color-destructive: oklch(71.5% 0.24 27);
+    --color-destructive-foreground: oklch(18% 0.004 27);
 
     /* Border & Input */
     --color-border: oklch(32% 0.005 250);
@@ -124,26 +124,26 @@
     --color-popover-foreground: oklch(35% 0.02 250);
 
     /* Primary - Deep teal for accents (liserets, badges) */
-    --color-primary: oklch(58% 0.14 185);
+    --color-primary: oklch(44.5% 0.14 185);
     --color-primary-foreground: oklch(98% 0.005 185);
 
     --color-secondary: oklch(93% 0.008 80);
     --color-secondary-foreground: oklch(35% 0.02 250);
     --color-muted: oklch(93% 0.008 80);
-    --color-muted-foreground: oklch(55% 0.015 250);
+    --color-muted-foreground: oklch(51% 0.015 250);
     --color-accent: oklch(93% 0.008 80);
     --color-accent-foreground: oklch(35% 0.02 250);
 
-    --color-success: oklch(65% 0.2 150);
+    --color-success: oklch(42% 0.2 150);
     --color-success-foreground: oklch(98% 0.005 150);
-    --color-warning: oklch(70% 0.18 50);
-    --color-warning-foreground: oklch(25% 0.02 50);
-    --color-destructive: oklch(58% 0.22 27);
+    --color-warning: oklch(47% 0.18 50);
+    --color-warning-foreground: oklch(98% 0.005 50);
+    --color-destructive: oklch(43.5% 0.22 27);
     --color-destructive-foreground: oklch(98% 0.005 27);
 
     --color-border: oklch(88% 0.01 80);
     --color-input: oklch(88% 0.01 80);
-    --color-ring: oklch(58% 0.14 185);
+    --color-ring: oklch(44.5% 0.14 185);
   }
 
   [data-theme='ocean'].dark {
@@ -162,16 +162,16 @@
     --color-secondary: oklch(28% 0.005 240);
     --color-secondary-foreground: oklch(95% 0.005 240);
     --color-muted: oklch(28% 0.005 240);
-    --color-muted-foreground: oklch(65% 0.008 240);
+    --color-muted-foreground: oklch(66.5% 0.008 240);
     --color-accent: oklch(28% 0.005 240);
     --color-accent-foreground: oklch(95% 0.005 240);
 
     --color-success: oklch(70% 0.22 150);
-    --color-success-foreground: oklch(95% 0.005 150);
+    --color-success-foreground: oklch(18% 0.005 150);
     --color-warning: oklch(73% 0.19 50);
     --color-warning-foreground: oklch(18% 0.004 50);
-    --color-destructive: oklch(63% 0.24 27);
-    --color-destructive-foreground: oklch(95% 0.005 27);
+    --color-destructive: oklch(71.5% 0.24 27);
+    --color-destructive-foreground: oklch(18% 0.005 27);
 
     --color-border: oklch(32% 0.005 240);
     --color-input: oklch(32% 0.005 240);
@@ -192,26 +192,26 @@
     --color-popover-foreground: oklch(35% 0.02 250);
 
     /* Primary - Sage green for accents (liserets, badges) */
-    --color-primary: oklch(52% 0.1 145);
+    --color-primary: oklch(47% 0.1 145);
     --color-primary-foreground: oklch(98% 0.005 145);
 
     --color-secondary: oklch(93% 0.008 80);
     --color-secondary-foreground: oklch(35% 0.02 250);
     --color-muted: oklch(93% 0.008 80);
-    --color-muted-foreground: oklch(55% 0.015 250);
+    --color-muted-foreground: oklch(51% 0.015 250);
     --color-accent: oklch(93% 0.008 80);
     --color-accent-foreground: oklch(35% 0.02 250);
 
-    --color-success: oklch(60% 0.18 145);
+    --color-success: oklch(43% 0.18 145);
     --color-success-foreground: oklch(98% 0.005 145);
-    --color-warning: oklch(70% 0.18 50);
-    --color-warning-foreground: oklch(25% 0.02 50);
-    --color-destructive: oklch(58% 0.22 27);
+    --color-warning: oklch(47% 0.18 50);
+    --color-warning-foreground: oklch(98% 0.005 50);
+    --color-destructive: oklch(43.5% 0.22 27);
     --color-destructive-foreground: oklch(98% 0.005 27);
 
     --color-border: oklch(88% 0.01 80);
     --color-input: oklch(88% 0.01 80);
-    --color-ring: oklch(52% 0.1 145);
+    --color-ring: oklch(47% 0.1 145);
   }
 
   [data-theme='forest'].dark {
@@ -230,16 +230,16 @@
     --color-secondary: oklch(28% 0.005 240);
     --color-secondary-foreground: oklch(95% 0.004 240);
     --color-muted: oklch(28% 0.005 240);
-    --color-muted-foreground: oklch(65% 0.006 240);
+    --color-muted-foreground: oklch(66.5% 0.006 240);
     --color-accent: oklch(28% 0.005 240);
     --color-accent-foreground: oklch(95% 0.004 240);
 
     --color-success: oklch(68% 0.18 145);
-    --color-success-foreground: oklch(95% 0.004 145);
+    --color-success-foreground: oklch(18% 0.004 145);
     --color-warning: oklch(73% 0.19 50);
     --color-warning-foreground: oklch(18% 0.004 50);
-    --color-destructive: oklch(63% 0.24 27);
-    --color-destructive-foreground: oklch(95% 0.004 27);
+    --color-destructive: oklch(71.5% 0.24 27);
+    --color-destructive-foreground: oklch(18% 0.004 27);
 
     --color-border: oklch(32% 0.005 240);
     --color-input: oklch(32% 0.005 240);
@@ -260,26 +260,26 @@
     --color-popover-foreground: oklch(35% 0.02 250);
 
     /* Primary - Dusty rose for accents (liserets, badges) */
-    --color-primary: oklch(58% 0.12 10);
+    --color-primary: oklch(49.5% 0.12 10);
     --color-primary-foreground: oklch(98% 0.005 10);
 
     --color-secondary: oklch(93% 0.008 80);
     --color-secondary-foreground: oklch(35% 0.02 250);
     --color-muted: oklch(93% 0.008 80);
-    --color-muted-foreground: oklch(55% 0.015 250);
+    --color-muted-foreground: oklch(51% 0.015 250);
     --color-accent: oklch(93% 0.008 80);
     --color-accent-foreground: oklch(35% 0.02 250);
 
-    --color-success: oklch(65% 0.2 150);
+    --color-success: oklch(42% 0.2 150);
     --color-success-foreground: oklch(98% 0.005 150);
-    --color-warning: oklch(70% 0.18 70);
-    --color-warning-foreground: oklch(25% 0.02 70);
-    --color-destructive: oklch(55% 0.22 27);
+    --color-warning: oklch(46.5% 0.18 70);
+    --color-warning-foreground: oklch(98% 0.005 70);
+    --color-destructive: oklch(43.5% 0.22 27);
     --color-destructive-foreground: oklch(98% 0.005 27);
 
     --color-border: oklch(88% 0.01 80);
     --color-input: oklch(88% 0.01 80);
-    --color-ring: oklch(58% 0.12 10);
+    --color-ring: oklch(49.5% 0.12 10);
   }
 
   [data-theme='sunset'].dark {
@@ -298,16 +298,16 @@
     --color-secondary: oklch(28% 0.004 240);
     --color-secondary-foreground: oklch(95% 0.004 240);
     --color-muted: oklch(28% 0.004 240);
-    --color-muted-foreground: oklch(65% 0.006 240);
+    --color-muted-foreground: oklch(66.5% 0.006 240);
     --color-accent: oklch(28% 0.004 240);
     --color-accent-foreground: oklch(95% 0.004 240);
 
     --color-success: oklch(70% 0.22 150);
-    --color-success-foreground: oklch(95% 0.004 150);
+    --color-success-foreground: oklch(18% 0.004 150);
     --color-warning: oklch(73% 0.19 50);
     --color-warning-foreground: oklch(18% 0.003 50);
-    --color-destructive: oklch(60% 0.24 27);
-    --color-destructive-foreground: oklch(95% 0.004 27);
+    --color-destructive: oklch(71.5% 0.24 27);
+    --color-destructive-foreground: oklch(18% 0.004 27);
 
     --color-border: oklch(32% 0.004 240);
     --color-input: oklch(32% 0.004 240);
@@ -328,26 +328,26 @@
     --color-popover-foreground: oklch(35% 0.02 250);
 
     /* Primary - Soft lavender for accents (liserets, badges) */
-    --color-primary: oklch(55% 0.12 290);
+    --color-primary: oklch(49.5% 0.12 290);
     --color-primary-foreground: oklch(98% 0.005 290);
 
     --color-secondary: oklch(93% 0.008 80);
     --color-secondary-foreground: oklch(35% 0.02 250);
     --color-muted: oklch(93% 0.008 80);
-    --color-muted-foreground: oklch(55% 0.015 250);
+    --color-muted-foreground: oklch(51% 0.015 250);
     --color-accent: oklch(93% 0.008 80);
     --color-accent-foreground: oklch(35% 0.02 250);
 
-    --color-success: oklch(65% 0.2 150);
+    --color-success: oklch(42% 0.2 150);
     --color-success-foreground: oklch(98% 0.005 150);
-    --color-warning: oklch(70% 0.18 50);
-    --color-warning-foreground: oklch(25% 0.02 50);
-    --color-destructive: oklch(58% 0.22 27);
+    --color-warning: oklch(47% 0.18 50);
+    --color-warning-foreground: oklch(98% 0.005 50);
+    --color-destructive: oklch(43.5% 0.22 27);
     --color-destructive-foreground: oklch(98% 0.005 27);
 
     --color-border: oklch(88% 0.01 80);
     --color-input: oklch(88% 0.01 80);
-    --color-ring: oklch(55% 0.12 290);
+    --color-ring: oklch(49.5% 0.12 290);
   }
 
   [data-theme='slate'].dark {
@@ -366,16 +366,16 @@
     --color-secondary: oklch(28% 0.005 260);
     --color-secondary-foreground: oklch(95% 0.004 260);
     --color-muted: oklch(28% 0.005 260);
-    --color-muted-foreground: oklch(65% 0.006 260);
+    --color-muted-foreground: oklch(66.5% 0.006 260);
     --color-accent: oklch(28% 0.005 260);
     --color-accent-foreground: oklch(95% 0.004 260);
 
     --color-success: oklch(70% 0.22 150);
-    --color-success-foreground: oklch(95% 0.004 150);
+    --color-success-foreground: oklch(18% 0.004 150);
     --color-warning: oklch(73% 0.19 50);
     --color-warning-foreground: oklch(18% 0.004 50);
-    --color-destructive: oklch(63% 0.24 27);
-    --color-destructive-foreground: oklch(95% 0.004 27);
+    --color-destructive: oklch(71.5% 0.24 27);
+    --color-destructive-foreground: oklch(18% 0.004 27);
 
     --color-border: oklch(32% 0.005 260);
     --color-input: oklch(32% 0.005 260);

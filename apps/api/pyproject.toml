@@ -1,12 +1,15 @@
 [project]
 name = "lia-api"
-version = "1.21.9"
+version = "1.25.0"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
     {name = "LIA Contributors"},
 ]
-requires-python = ">=3.12"
+# Bounded to the range actually exercised (audit F041): 3.12 in Docker/CI/prod,
+# 3.13 on developer hosts. Both are proven by the CI matrix (test-backend runs
+# on 3.12 and 3.13). Untested majors (3.14+) are excluded until added to CI.
+requires-python = ">=3.12,<3.14"
 # NOTE: Dependencies are declared in requirements.txt / requirements-dev.txt
 # (intent manifests) and installed from the compiled lockfiles
 # requirements.lock.txt / requirements-dev.lock.txt (ADR-112, `task deps:lock`).
@@ -161,54 +164,85 @@ follow_imports = "skip"
 module = ["src.domains.*.models"]
 disable_error_code = ["name-defined"]
 
+# ---------------------------------------------------------------------------
+# Internal typing-debt exemptions (audit F020, measure_mypy_debt.py ratchet).
+#
+# Each block below is scoped to the error codes that its module(s) STILL emit,
+# measured by running MyPy with every ``disable_error_code`` stripped
+# (``scripts/audit/measure_mypy_debt.py --measure-errors``). Dead exemptions —
+# codes that suppressed zero real errors — were removed, which re-enables strict
+# checking for those codes going forward. No ``Any``, ``cast``, or blanket
+# ``# type: ignore`` was introduced: this is pure exemption-surface tightening.
+# The (module, code) surface is frozen shrink-only in ``.mypy-debt-baseline.json``.
+# ---------------------------------------------------------------------------
+
+# LangGraph pipeline: TypedDict state access and the dynamic plan executor
+# trigger literal-required/index/typeddict-item false positives.
 [[tool.mypy.overrides]]
-module = [
-    "src.domains.agents.nodes.*",
-    "src.domains.agents.graph",
-    "src.domains.agents.orchestration.*",
-]
-# LangGraph TypedDict access patterns trigger false positives
-# Plan executor uses dynamic typing for step execution
-# call-overload/type-var from LangGraph API usage
-disable_error_code = ["literal-required", "index", "arg-type", "operator", "attr-defined", "no-untyped-def", "typeddict-item", "typeddict-unknown-key", "no-any-return", "var-annotated", "misc", "union-attr", "dict-item", "return-value", "call-overload", "type-var", "truthy-function", "assignment"]
+module = ["src.domains.agents.nodes.*"]
+disable_error_code = ["literal-required", "index", "arg-type", "operator", "attr-defined", "no-untyped-def", "no-any-return", "var-annotated", "misc", "union-attr", "dict-item", "return-value", "call-overload", "assignment"]
 
 [[tool.mypy.overrides]]
-module = [
-    "src.domains.agents.context.*",
-    "src.domains.agents.utils.*",
-    "src.domains.agents.middleware.*",
-    "src.domains.agents.tools.*",
-    "src.domains.agents.web_fetch.*",
-    "src.domains.agents.display.*",
-    "src.domains.agents.services.smart_catalogue_service",
-    "src.domains.skills.tools",
-    "src.domains.agents.nodes.response_node",
-    "src.domains.agents.api.service",
-    "src.domains.agents.graphs.base_agent_builder",
-    "src.domains.agents.services.hitl_classifier",
-    "src.domains.agents.services.hitl.*",
-    "src.domains.agents.services.draft_executor",
-    "src.domains.agents.services.streaming.*",
-    "src.domains.agents.services.orchestration.*",
-    "src.domains.agents.registry.*",
-    "src.domains.conversations.service",
-    "src.domains.conversations.repository",
-    "src.domains.llm.pricing_service",
-    "src.domains.personalities.*",
-    "src.domains.connectors.preferences.*",
-    "src.domains.connectors.clients.*",
-    "src.core.security.*",
-    "src.infrastructure.cache.redis",
-    "src.infrastructure.llm.*",
-    "src.infrastructure.rate_limiting.*",
-]
-# Decorators and utilities use Any for flexibility (acceptable in framework code)
-# List/Sequence variance issues are false positives (SystemMessage IS-A BaseMessage)
-# Context system uses dynamic typing for flexible domain resolution
-# LangChain v1.0 API changes may cause operator/override issues with middleware/tools
-# redis-py async methods return Awaitable[T] | T which causes false positive misc errors
-# LLM infrastructure and HITL services use dynamic provider/callback patterns
-disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "call-arg", "assignment", "dict-item", "return-value", "var-annotated", "index", "operator", "override", "union-attr", "unused-ignore", "attr-defined", "call-overload"]
+module = ["src.domains.agents.graph"]
+disable_error_code = ["index", "no-any-return", "type-var"]
+
+[[tool.mypy.overrides]]
+module = ["src.domains.agents.orchestration.*"]
+disable_error_code = ["literal-required", "index", "arg-type", "operator", "attr-defined", "no-untyped-def", "typeddict-item", "no-any-return", "var-annotated", "union-attr", "assignment"]
+
+# response_node.py is matched by the wildcard above but carries a concrete
+# section (concrete wins for disable_error_code) scoped to its own residue.
+[[tool.mypy.overrides]]
+module = ["src.domains.agents.nodes.response_node"]
+disable_error_code = ["no-any-return", "arg-type", "return-value", "union-attr", "attr-defined"]
+
+# Agent framework — context resolution, tools and utilities use dynamic domain
+# resolution; LangChain v1.0 callback/middleware patterns surface arg-type/misc.
+[[tool.mypy.overrides]]
+module = ["src.domains.agents.context.*"]
+disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "assignment", "index", "attr-defined"]
+
+# ``unused-ignore`` is retained here: several tools carry inline
+# ``# type: ignore`` comments that this block's other disabled codes make
+# redundant — dropping it would surface unused-ignore on those lines.
+[[tool.mypy.overrides]]
+module = ["src.domains.agents.tools.*"]
+disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "call-arg", "assignment", "return-value", "var-annotated", "index", "operator", "union-attr", "unused-ignore", "attr-defined"]
+
+[[tool.mypy.overrides]]
+module = ["src.domains.agents.utils.*"]
+disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "assignment", "dict-item", "return-value", "union-attr"]
+
+[[tool.mypy.overrides]]
+module = ["src.domains.agents.graphs.base_agent_builder"]
+disable_error_code = ["arg-type", "dict-item", "index", "union-attr", "attr-defined"]
+
+[[tool.mypy.overrides]]
+module = ["src.domains.agents.services.hitl.*"]
+disable_error_code = ["no-any-return", "arg-type", "var-annotated", "operator", "unused-ignore", "attr-defined", "call-overload"]
+
+# Domain services with dynamic payloads / provider variance.
+[[tool.mypy.overrides]]
+module = ["src.domains.conversations.service"]
+disable_error_code = ["arg-type", "assignment", "index", "operator", "attr-defined"]
+
+[[tool.mypy.overrides]]
+module = ["src.domains.connectors.clients.*"]
+disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "call-arg", "assignment", "var-annotated"]
+
+# LLM infrastructure: provider adapters return Awaitable[T] | T (redis-style
+# false positives) and use dynamic callback patterns.
+[[tool.mypy.overrides]]
+module = ["src.infrastructure.llm.*"]
+disable_error_code = ["no-any-return", "arg-type", "assignment", "override", "union-attr", "unused-ignore", "attr-defined"]
+
+# NOTE (F020): the exemption surface was ratcheted from 481 → 91 (module, code)
+# pairs. Modules removed entirely from the blocks above now type-check under
+# strict MyPy with NO exemptions — via dead-exemption removal (no code change)
+# and via genuine typed fixes (isinstance narrowing, precise annotations,
+# TypedDict configs, TYPE_CHECKING/string forward-refs). No ``Any``, ``cast``,
+# or blanket ``# type: ignore`` was introduced. See git history + the
+# .mypy-debt-baseline.json ``pairs`` list for the current authoritative surface.
 
 [tool.pytest.ini_options]
 minversion = "9.0"
@@ -219,6 +253,21 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
+    # Unclosed async resources (DB engine pool, Redis client, transports) that
+    # surface as a pytest "unraisable" during a run are an ERROR, not a warning
+    # — a green exit code must never hide a leaked socket (the false-green class
+    # the audit flagged on task test:backend:unit:fast). Every client/session/
+    # engine has an owner that closes it on its loop (per-test fixtures in the
+    # agents suite; the session-scoped worker teardown in tests/unit/conftest.py
+    # for app-booting unit tests). The narrowly-scoped ``ignore`` entries below
+    # (pytest-asyncio self-pipe, starlette httpx) stay ahead of nothing — this
+    # ``error`` only bites genuinely unclosed resources.
+    "error::pytest.PytestUnraisableExceptionWarning",
+    # AC-012: any call to a deprecated redis-py command API (setex, getset, …)
+    # is an ERROR in every suite. Scoped by redis-py's exact deprecation
+    # message prefix, not a broad category filter — the 27 setex call sites
+    # were migrated to `set(..., ex=ttl)` and must never come back.
+    "error:Call to deprecated:DeprecationWarning",
     # asyncio event-loop self-pipe transport occasionally GC'd after pytest-asyncio
     # tears down the per-test loop (asyncio_default_fixture_loop_scope="function") on
     # Windows. The tracemalloc allocation traceback contains ONLY pytest/pytest-asyncio
@@ -232,6 +281,25 @@ filterwarnings = [
     # tracked as debt, not a test-code issue. Scoped to that exact deprecation
     # (StarletteDeprecationWarning subclasses UserWarning, not DeprecationWarning).
     "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
+    # F028: asyncpg finalizes a GC'd Connection with a pending ``Connection._cancel``
+    # coroutine that nobody awaits — a DRIVER teardown artifact at process shutdown,
+    # non-deterministically attributed to whichever frame the GC runs in, NOT a
+    # test-code await bug. The test-code class of un-awaited coroutine (AsyncMock's
+    # ``_execute_mock_call``) is caught deterministically and made a hard failure by
+    # ``tests/_coroutine_leak_guard.py``; this scoped ignore only silences the driver
+    # artifact so it cannot mask that gate or flake the suite.
+    #
+    # BOUNDED ALLOWLIST (audit F028): this ignore is accepted ONLY for the pinned
+    # asyncpg version and must be re-evaluated on any bump.
+    #   driver:    asyncpg==0.31.0 (see requirements.txt)
+    #   scope:     whole agents suite under warnings-as-errors; no single nodeid
+    #              (GC attribution is non-deterministic across the run)
+    #   owner:     backend-platform
+    #   review_by: 2026-10-01
+    #   guard:     tests/unit/test_asyncpg_cancel_allowlist_guard.py fails when the
+    #              pinned version changes, forcing a re-check of whether the driver
+    #              still leaks and this ignore is still needed.
+    "ignore:coroutine 'Connection\\._cancel' was never awaited:RuntimeWarning",
 ]
 pythonpath = ["."]
 markers = [

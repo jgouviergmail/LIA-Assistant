@@ -308,11 +308,61 @@ class ContactCard(BaseComponent):
         return "other"
 
     def _render_collapsible_details(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render collapsible section using v4 d-row + type badges (same as main card)."""
-        detail_sections: list[str] = []
+        """Render collapsible section using v4 d-row + type badges (same as main card).
 
-        # Additional addresses (beyond the first)
+        Decomposed (F015) into one small renderer per section, each returning its
+        d-rows; the section order below IS the rendered order and must be preserved.
+        """
+        detail_sections: list[str] = []
+        for section in (
+            self._detail_extra_addresses,
+            self._detail_nicknames,
+            self._detail_relations,
+            self._detail_biography,
+            self._detail_skills,
+            self._detail_interests,
+            self._detail_occupations,
+            self._detail_im_clients,
+            self._detail_events,
+            self._detail_locations,
+            self._detail_calendar_urls,
+        ):
+            detail_sections.extend(section(data, ctx))
+
+        if detail_sections:
+            content_html = "\n".join(detail_sections)
+            return render_collapsible(
+                trigger_text=V3Messages.get_see_more(ctx.language),
+                content_html=content_html,
+                initially_open=False,
+                language=ctx.language,
+                with_separator=False,
+            )
+        return ""
+
+    @staticmethod
+    def _collect_escaped_values(items: list, cap: int) -> list[str]:
+        """Escaped non-empty ``value`` (dict) / str of the first ``cap`` items."""
+        values: list[str] = []
+        for item in items[:cap]:
+            val = item.get("value", "") if isinstance(item, dict) else str(item)
+            if val:
+                values.append(escape_html(val))
+        return values
+
+    def _detail_labeled_values(
+        self, data: dict[str, Any], key: str, cap: int, icon: str, label: str
+    ) -> list[str]:
+        """Comma-joined ``label: v1, v2`` d-row (nicknames/skills/interests/occupations)."""
+        values = self._collect_escaped_values(data.get(key, []), cap)
+        if not values:
+            return []
+        return [render_d_row(icon, f'{label}: {", ".join(values)}')]
+
+    def _detail_extra_addresses(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
+        """Addresses beyond the first (rendered on the main card): addresses[1:3]."""
         addresses = data.get("addresses", [])
+        rows: list[str] = []
         if len(addresses) > 1:
             for addr in addresses[1:3]:
                 if isinstance(addr, dict):
@@ -328,175 +378,117 @@ class ContactCard(BaseComponent):
                         if type_label
                         else ""
                     )
-                    detail_sections.append(
-                        render_d_row(Icons.LOCATION, f"{escape_html(formatted)} {badge}")
-                    )
+                    rows.append(render_d_row(Icons.LOCATION, f"{escape_html(formatted)} {badge}"))
+        return rows
 
-        # Nicknames
-        nicknames = data.get("nicknames", [])
-        if nicknames:
-            nick_values = []
-            for nick in nicknames[:3]:
-                val = nick.get("value", "") if isinstance(nick, dict) else str(nick)
-                if val:
-                    nick_values.append(escape_html(val))
-            if nick_values:
-                nicknames_label = V3Messages.get_nicknames(ctx.language)
-                detail_sections.append(
-                    render_d_row(Icons.MOOD, f'{nicknames_label}: {", ".join(nick_values)}')
-                )
+    def _detail_nicknames(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
+        return self._detail_labeled_values(
+            data, "nicknames", 3, Icons.MOOD, V3Messages.get_nicknames(ctx.language)
+        )
 
-        # Relations — same d-row + type badge pattern as main card
-        relations = data.get("relations", [])
-        if relations:
-            for rel in relations[:5]:
-                if isinstance(rel, dict):
-                    person = rel.get("person", "")
-                    rtype = rel.get("type", "")
-                else:
-                    person = str(rel)
-                    rtype = ""
-                if person:
-                    relation_icon = get_relation_icon(rtype)
-                    type_label = V3Messages.get_relation_type(ctx.language, rtype) if rtype else ""
-                    badge = render_type_badge(type_label, "other") if type_label else ""
-                    detail_sections.append(
-                        render_d_row(relation_icon, f"{escape_html(person)} {badge}")
-                    )
+    def _detail_relations(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
+        """Relations — same d-row + type badge pattern as the main card."""
+        rows: list[str] = []
+        for rel in data.get("relations", [])[:5]:
+            if isinstance(rel, dict):
+                person = rel.get("person", "")
+                rtype = rel.get("type", "")
+            else:
+                person = str(rel)
+                rtype = ""
+            if person:
+                relation_icon = get_relation_icon(rtype)
+                type_label = V3Messages.get_relation_type(ctx.language, rtype) if rtype else ""
+                badge = render_type_badge(type_label, "other") if type_label else ""
+                rows.append(render_d_row(relation_icon, f"{escape_html(person)} {badge}"))
+        return rows
 
-        # Biography/Notes
+    def _detail_biography(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
         biographies = data.get("biographies", [])
-        if biographies:
-            bio = biographies[0] if biographies else {}
-            bio_text = bio.get("value", "") if isinstance(bio, dict) else str(bio)
-            if bio_text:
-                if len(bio_text) > 150:
-                    bio_text = bio_text[:147] + "..."
-                detail_sections.append(render_d_row(Icons.NOTE, escape_html(bio_text)))
+        if not biographies:
+            return []
+        bio = biographies[0] if biographies else {}
+        bio_text = bio.get("value", "") if isinstance(bio, dict) else str(bio)
+        if not bio_text:
+            return []
+        if len(bio_text) > 150:
+            bio_text = bio_text[:147] + "..."
+        return [render_d_row(Icons.NOTE, escape_html(bio_text))]
 
-        # Skills
-        skills = data.get("skills", [])
-        if skills:
-            skill_values = []
-            for skill in skills[:5]:
-                val = skill.get("value", "") if isinstance(skill, dict) else str(skill)
-                if val:
-                    skill_values.append(escape_html(val))
-            if skill_values:
-                skills_label = V3Messages.get_skills(ctx.language)
-                detail_sections.append(
-                    render_d_row(Icons.SKILLS, f'{skills_label}: {", ".join(skill_values)}')
-                )
+    def _detail_skills(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
+        return self._detail_labeled_values(
+            data, "skills", 5, Icons.SKILLS, V3Messages.get_skills(ctx.language)
+        )
 
-        # Interests
-        interests = data.get("interests", [])
-        if interests:
-            int_values = []
-            for interest in interests[:5]:
-                val = interest.get("value", "") if isinstance(interest, dict) else str(interest)
-                if val:
-                    int_values.append(escape_html(val))
-            if int_values:
-                interests_label = V3Messages.get_interests(ctx.language)
-                detail_sections.append(
-                    render_d_row(Icons.INTERESTS, f'{interests_label}: {", ".join(int_values)}')
-                )
+    def _detail_interests(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
+        return self._detail_labeled_values(
+            data, "interests", 5, Icons.INTERESTS, V3Messages.get_interests(ctx.language)
+        )
 
-        # Occupations
-        occupations = data.get("occupations", [])
-        if occupations:
-            occ_values = []
-            for occ in occupations[:3]:
-                val = occ.get("value", "") if isinstance(occ, dict) else str(occ)
-                if val:
-                    occ_values.append(escape_html(val))
-            if occ_values:
-                occupation_label = V3Messages.get_occupation(ctx.language)
-                detail_sections.append(
-                    render_d_row(Icons.WORK, f'{occupation_label}: {", ".join(occ_values)}')
-                )
+    def _detail_occupations(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
+        return self._detail_labeled_values(
+            data, "occupations", 3, Icons.WORK, V3Messages.get_occupation(ctx.language)
+        )
 
-        # IM clients
+    def _detail_im_clients(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
         im_clients = data.get("imClients", []) or data.get("im_clients", [])
-        if im_clients:
-            im_items = []
-            for im in im_clients[:3]:
-                if isinstance(im, dict):
-                    protocol = im.get("protocol", "") or im.get("type", "")
-                    username = im.get("username", "") or im.get("value", "")
-                    if protocol and username:
-                        im_items.append(f"{escape_html(protocol)}: {escape_html(username)}")
-            if im_items:
-                detail_sections.append(render_d_row(Icons.CHAT, "; ".join(im_items)))
+        im_items: list[str] = []
+        for im in im_clients[:3]:
+            if isinstance(im, dict):
+                protocol = im.get("protocol", "") or im.get("type", "")
+                username = im.get("username", "") or im.get("value", "")
+                if protocol and username:
+                    im_items.append(f"{escape_html(protocol)}: {escape_html(username)}")
+        return [render_d_row(Icons.CHAT, "; ".join(im_items))] if im_items else []
 
-        # Personal events (anniversaries, etc.)
-        events = data.get("events", [])
-        if events:
-            event_items = []
-            for event in events[:3]:
-                if isinstance(event, dict):
-                    etype = event.get("type", "")
-                    date_obj = event.get("date", {})
-                    if date_obj:
-                        day = date_obj.get("day", "")
-                        month = date_obj.get("month", "")
-                        year = date_obj.get("year", "")
-                        if day and month:
-                            date_str = self._format_date_components(day, month, year, ctx.language)
-                            label = f"{escape_html(etype)}: " if etype else ""
-                            event_items.append(f"{label}{date_str}")
-            if event_items:
-                events_label = V3Messages.get_events(ctx.language)
-                detail_sections.append(
-                    render_d_row(Icons.EVENT, f'{events_label}: {"; ".join(event_items)}')
-                )
+    def _detail_events(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
+        """Personal events (anniversaries, etc.)."""
+        event_items: list[str] = []
+        for event in data.get("events", [])[:3]:
+            if isinstance(event, dict):
+                etype = event.get("type", "")
+                date_obj = event.get("date", {})
+                if date_obj:
+                    day = date_obj.get("day", "")
+                    month = date_obj.get("month", "")
+                    year = date_obj.get("year", "")
+                    if day and month:
+                        date_str = self._format_date_components(day, month, year, ctx.language)
+                        label = f"{escape_html(etype)}: " if etype else ""
+                        event_items.append(f"{label}{date_str}")
+        if not event_items:
+            return []
+        events_label = V3Messages.get_events(ctx.language)
+        return [render_d_row(Icons.EVENT, f'{events_label}: {"; ".join(event_items)}')]
 
-        # Locations
-        locations = data.get("locations", [])
-        if locations:
-            loc_items = []
-            for loc in locations[:2]:
-                if isinstance(loc, dict):
-                    ltype = loc.get("type", "")
-                    value = loc.get("value", "")
-                    if value:
-                        type_prefix = f"{escape_html(ltype)}: " if ltype else ""
-                        loc_items.append(f"{type_prefix}{escape_html(value)}")
-            if loc_items:
-                locations_label = V3Messages.get_locations(ctx.language)
-                detail_sections.append(
-                    render_d_row(Icons.LOCATION, f'{locations_label}: {"; ".join(loc_items)}')
-                )
+    def _detail_locations(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
+        loc_items: list[str] = []
+        for loc in data.get("locations", [])[:2]:
+            if isinstance(loc, dict):
+                ltype = loc.get("type", "")
+                value = loc.get("value", "")
+                if value:
+                    type_prefix = f"{escape_html(ltype)}: " if ltype else ""
+                    loc_items.append(f"{type_prefix}{escape_html(value)}")
+        if not loc_items:
+            return []
+        locations_label = V3Messages.get_locations(ctx.language)
+        return [render_d_row(Icons.LOCATION, f'{locations_label}: {"; ".join(loc_items)}')]
 
-        # Calendar URLs
+    def _detail_calendar_urls(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
         calendar_urls = data.get("calendarUrls", []) or data.get("calendar_urls", [])
-        if calendar_urls:
-            cal_items = []
-            calendar_label = V3Messages.get_calendar(ctx.language)
-            for cal in calendar_urls[:2]:
-                if isinstance(cal, dict):
-                    label = cal.get("label", "") or cal.get("type", calendar_label)
-                    cal_url = cal.get("url", "")
-                    if cal_url:
-                        cal_items.append(
-                            f'<a href="{escape_html(cal_url)}" target="_blank">'
-                            f"{escape_html(label)}</a>"
-                        )
-            if cal_items:
-                detail_sections.append(render_d_row(Icons.DATE_RANGE, "; ".join(cal_items)))
-
-        # Wrap in collapsible
-        if detail_sections:
-            content_html = "\n".join(detail_sections)
-            return render_collapsible(
-                trigger_text=V3Messages.get_see_more(ctx.language),
-                content_html=content_html,
-                initially_open=False,
-                language=ctx.language,
-                with_separator=False,
-            )
-
-        return ""
+        cal_items: list[str] = []
+        calendar_label = V3Messages.get_calendar(ctx.language)
+        for cal in calendar_urls[:2]:
+            if isinstance(cal, dict):
+                label = cal.get("label", "") or cal.get("type", calendar_label)
+                cal_url = cal.get("url", "")
+                if cal_url:
+                    cal_items.append(
+                        f'<a href="{escape_html(cal_url)}" target="_blank">'
+                        f"{escape_html(label)}</a>"
+                    )
+        return [render_d_row(Icons.DATE_RANGE, "; ".join(cal_items))] if cal_items else []
 
     def _get_name(self, data: dict, language: str = "fr") -> str:
         """Extract display name from various formats."""

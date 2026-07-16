@@ -179,15 +179,15 @@ class TestSessionStore:
         assert session.user_id == user_id
         assert session.remember_me is False
 
-        # Verify Redis setex was called
-        mock_redis.setex.assert_called_once()
-        call_args = mock_redis.setex.call_args
+        # Verify Redis SET (with ex= TTL) was called
+        mock_redis.set.assert_called_once()
+        call_args = mock_redis.set.call_args
         assert call_args[0][0] == f"session:{session.session_id}"  # key
-        assert isinstance(call_args[0][1], int)  # TTL
-        assert isinstance(call_args[0][2], str)  # JSON data
+        assert isinstance(call_args[0][1], str)  # JSON data
+        assert isinstance(call_args.kwargs["ex"], int)  # TTL
 
         # Verify JSON data is valid
-        stored_data = json.loads(call_args[0][2])
+        stored_data = json.loads(call_args[0][1])
         assert stored_data["user_id"] == user_id
         assert stored_data["remember_me"] is False
 
@@ -207,7 +207,7 @@ class TestSessionStore:
         assert session.remember_me is True
 
         # Verify stored data contains remember_me
-        stored_json = mock_redis.setex.call_args[0][2]
+        stored_json = mock_redis.set.call_args[0][1]
         stored_data = json.loads(stored_json)
         assert stored_data["remember_me"] is True
 
@@ -451,7 +451,7 @@ class TestSessionStoreIndexing:
         session = await store.create_session(user_id=user_id, remember_me=False)
 
         # Verify session was created
-        mock_redis.setex.assert_called_once()
+        mock_redis.set.assert_called_once()
 
         # Verify session was added to user index
         user_sessions_key = f"user:{user_id}:sessions"

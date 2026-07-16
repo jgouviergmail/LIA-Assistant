@@ -59,7 +59,9 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-primary/10 hover:text-primary hover:shadow-sm ${
       isActiveRoute(route)
         ? 'bg-primary/15 text-primary shadow-sm border border-primary/20'
-        : 'text-foreground/60'
+        : // muted-foreground is the AA-proven de-emphasis token; an alpha of
+          // foreground (/60) composites below 4.5:1 on the page background.
+          'text-muted-foreground'
     }`;
 
   useEffect(() => {
@@ -173,7 +175,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
               {/* Logout button */}
               <button
                 onClick={logout}
-                className="flex items-center justify-center h-9 w-9 rounded-lg bg-destructive text-destructive-foreground cursor-pointer transition-colors hover:bg-destructive/80 ml-3 shadow-sm"
+                className="flex items-center justify-center h-9 w-9 rounded-lg bg-destructive text-destructive-foreground cursor-pointer transition-colors hover:bg-destructive/90 ml-3 shadow-sm"
                 title={t('navigation.logout')}
                 aria-label={t('navigation.logout')}
               >

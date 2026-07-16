@@ -94,6 +94,11 @@ from src.infrastructure.observability.profiling import profile_performance
 
 logger = get_logger(__name__)
 
+# ``BaseStore.asearch`` caps each call at ``limit`` (LangGraph default 10), so a
+# single unpaginated call silently misses a session's excess context items.
+# Page through results in fixed batches until a short page marks the end.
+_CLEANUP_SEARCH_PAGE_SIZE = 100
+
 
 class ToolContextManager:
     """
@@ -1015,7 +1020,8 @@ class ToolContextManager:
         Note:
             - Non-destructive: Only affects the specified session_id
             - Other conversations/sessions remain untouched
-            - Uses Store.asearch() to find all matching namespaces
+            - Pages through Store.asearch() (default limit 10) so ALL matching
+              items are found — not just the first page
             - Deletes items individually (Store doesn't support bulk delete by prefix)
         """
         user_id_str = str(user_id)
@@ -1034,9 +1040,22 @@ class ToolContextManager:
             # We want to find all domains for this user+session
             namespace_prefix = (user_id_str, session_id, "context")
 
-            # Use asearch with namespace prefix to find all matching items
-            # Note: asearch() returns a list, not an async generator
-            search_results = await store.asearch(namespace_prefix)
+            # Page through ALL matching items: asearch() caps each call at its
+            # `limit` (LangGraph default 10), so a single call would silently
+            # leave a user's excess context items orphaned after a reset. Loop
+            # with a growing offset until a short page signals the end.
+            search_results = []
+            offset = 0
+            while True:
+                page = await store.asearch(
+                    namespace_prefix,
+                    limit=_CLEANUP_SEARCH_PAGE_SIZE,
+                    offset=offset,
+                )
+                search_results.extend(page)
+                if len(page) < _CLEANUP_SEARCH_PAGE_SIZE:
+                    break
+                offset += _CLEANUP_SEARCH_PAGE_SIZE
 
             # Group items by full namespace for efficient deletion
             items_by_namespace: dict[tuple[str, ...], list[str]] = {}

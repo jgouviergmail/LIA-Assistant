@@ -44,12 +44,30 @@ class RAGDocumentSourceType:
 
 
 class RAGDocumentStatus:
-    """Lifecycle status values for RAG documents."""
+    """Lifecycle status values for RAG documents.
 
+    Durable-job lifecycle (audit F001): ``PENDING`` (created, not yet claimed by
+    a worker) → ``PROCESSING`` (claimed, lease held) → ``READY`` | ``ERROR``.
+    ``REINDEXING`` is legacy-only: the durable reindex flow requeues documents
+    to ``PENDING`` instead; the value is kept so rows stranded by the
+    pre-durable flow remain valid and reaper-recoverable.
+    """
+
+    PENDING = "pending"
     PROCESSING = "processing"
     READY = "ready"
     ERROR = "error"
     REINDEXING = "reindexing"
+
+
+def is_terminal_document_status(status: str) -> bool:
+    """True when a document's work has finished (successfully or not).
+
+    ``PENDING``/``PROCESSING``/``REINDEXING`` are in-progress (non-terminal);
+    only ``READY`` and ``ERROR`` are terminal. Recovery logic uses this to
+    decide what is still owed work.
+    """
+    return status in (RAGDocumentStatus.READY, RAGDocumentStatus.ERROR)
 
 
 class RAGSpace(BaseModel):
@@ -199,6 +217,29 @@ class RAGDriveSource(BaseModel):
         default=None,
     )
 
+    # --- Durable-job fields (audit F001): lease/heartbeat/bounded-retry ---
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+    heartbeat_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+    attempts: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    worker_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        default=None,
+    )
+
     # Relationships
     space: Mapped["RAGSpace"] = relationship(
         "RAGSpace",
@@ -220,6 +261,8 @@ class RAGDriveSource(BaseModel):
             "folder_id",
             unique=True,
         ),
+        # Durable-job reaper scan (audit F001).
+        Index("ix_rag_drive_sources_status_lease", "sync_status", "lease_expires_at"),
     )
 
 
@@ -227,11 +270,12 @@ class RAGDocument(BaseModel):
     """
     Uploaded document within a RAG space.
 
-    Lifecycle:
-        processing → ready (after chunking + embedding)
-        processing → error (extraction/embedding failure)
-        ready → reindexing (admin changes embedding model)
-        reindexing → ready (re-embedding complete)
+    Lifecycle (durable jobs, audit F001):
+        pending → processing (atomic claim: lease + worker_id + attempt)
+        processing → ready (after chunking + embedding, atomic chunk swap)
+        processing → error/pending (failure: dead-letter or bounded retry)
+        ready/error → pending (admin reindex requeues durably; the claim
+            pipeline re-embeds with the new model)
 
     Security:
         - Files stored as UUID-based filenames (anti-traversal)
@@ -338,6 +382,29 @@ class RAGDocument(BaseModel):
         default=None,
     )
 
+    # --- Durable-job fields (audit F001): lease/heartbeat/bounded-retry ---
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+    heartbeat_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+    attempts: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    worker_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        default=None,
+    )
+
     # Relationships
     space: Mapped["RAGSpace"] = relationship(
         "RAGSpace",
@@ -361,6 +428,8 @@ class RAGDocument(BaseModel):
         Index("ix_rag_documents_user_id", "user_id"),
         Index("ix_rag_documents_drive_source_id", "drive_source_id"),
         Index("ix_rag_documents_drive_file_id", "drive_file_id"),
+        # Durable-job reaper scan (audit F001).
+        Index("ix_rag_documents_status_lease", "status", "lease_expires_at"),
     )
 
 

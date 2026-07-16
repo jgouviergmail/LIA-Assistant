@@ -105,7 +105,7 @@ function QuickActionCard({ onClick, icon, label, sublabel, tone }: QuickActionCa
         </div>
         <ChevronRight
           className={cn(
-            'h-5 w-5 text-muted-foreground/50 transition-transform duration-300',
+            'h-5 w-5 text-muted-foreground transition-transform duration-300',
             'motion-safe:group-hover:translate-x-1 motion-safe:group-hover:text-foreground'
           )}
         />

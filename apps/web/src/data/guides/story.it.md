@@ -3,8 +3,8 @@
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
 **Versione**: 1.0
-**Data**: 2026-07-13
-**Applicazione**: LIA v1.24.0
+**Data**: 2026-07-16
+**Applicazione**: LIA v1.25.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -13,17 +13,17 @@
 
 LIA è un assistente IA multi-agente completo — connettori di business, voce, memoria, sei lingue — progettato, sviluppato e gestito in produzione in modo continuativo, come progetto personale.
 
-La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: un referenziale di ingegneria scritto, controlli automatici bloccanti, revisione sistematica, audit ricorrenti. Il risultato è misurato: **8,5/10** all'audit tecnico su 24 perimetri. Il repository è open source; le conclusioni dell'audit — punti di forza come debolezze — sono assunte e riassunte in questo documento.
+La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: un referenziale di ingegneria scritto, controlli automatici bloccanti, revisione sistematica, audit ricorrenti. Il risultato è misurato: **8,3/10** all'audit tecnico su 24 perimetri. Il repository è open source; le conclusioni dell'audit — punti di forza come debolezze — sono assunte e riassunte in questo documento.
 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice (esclusi i test) — 31 domini funzionali | **420.000** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **10.000+** |
-| Decisioni di architettura documentate (ADR) | **100+** |
+| Decisioni di architettura documentate (ADR) | **120+** |
 | Versioni rilasciate a ritmo regolare | **120+** |
 | Lingue, parità verificata automaticamente | **6** |
-| Audit tecnico su 24 perimetri | **8,5/10** |
+| Audit tecnico su 24 perimetri | **8,3/10** |
 
 Convinzione maturata con l'esperienza: lo sviluppo assistito dall'IA è industrializzabile già oggi. Il fattore limitante non è lo strumento — è il quadro di direzione che gli si dà.
 
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 100+ documentate:
+Tre decisioni strutturanti, tra le 120+ documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -69,7 +69,7 @@ Un sistema che si pilota con gli strumenti:
 
 ## 6. La prova
 
-Il livello annunciato in questo documento risulta da un audit tecnico completo: 24 perimetri valutati, ogni rilievo verificato nel codice e contro-verificato per eliminare i falsi positivi. L'audit applica il metodo del progetto stesso — condotto con strumenti IA, in postura contraddittoria, ogni conclusione ancorata a una prova contro-verificata. Ultima valutazione: **8,5/10**, con un profilo assunto apertamente. Il rapporto completo — griglia di valutazione, metodo, rilievi aperti e il protocollo per riprodurlo — è pubblico: [rapporto di audit completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+Il livello annunciato in questo documento risulta da un audit tecnico completo: 24 perimetri valutati, ogni rilievo verificato nel codice e contro-verificato per eliminare i falsi positivi. L'audit applica il metodo del progetto stesso — condotto con strumenti IA, in postura contraddittoria, ogni conclusione ancorata a una prova contro-verificata. Ultima valutazione: **8,3/10**, con un profilo assunto apertamente. Il rapporto completo — griglia di valutazione, metodo, rilievi aperti e il protocollo per riprodurlo — è pubblico: [rapporto di audit completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
 **Punti di forza confermati:**
 

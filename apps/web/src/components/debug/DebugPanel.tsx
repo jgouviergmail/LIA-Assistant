@@ -72,7 +72,7 @@ import { DEFAULT_OPEN_SECTIONS } from './utils/constants';
 function SectionGroupHeader({ label }: { label: string }) {
   return (
     <div className="pt-3 pb-1 px-1 first:pt-1">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold border-b border-border/30 pb-1">
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold border-b border-border/30 pb-1">
         {label}
       </div>
     </div>

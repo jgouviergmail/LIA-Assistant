@@ -13,8 +13,8 @@ interface SettingsGroupLabelProps {
 export function SettingsGroupLabel({ label, icon: Icon, className }: SettingsGroupLabelProps) {
   return (
     <div className={cn('flex items-center gap-3 pt-6 pb-2 first:pt-0', className)}>
-      {Icon && <Icon className="h-4 w-4 text-muted-foreground/70" />}
-      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 whitespace-nowrap">
+      {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
         {label}
       </span>
       <div className="flex-1 border-t border-border/50" />

@@ -373,7 +373,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
 
 ## Related Decisions
 
-- [ADR-003: Multi-Domain Dynamic Filtering](ADR-003-Multi-Domain-Dynamic-Filtering.md) - Uses catalogue for filtering
+- ADR-003: Multi-Domain Dynamic Filtering (foundational, not migrated to an ADR file) - Uses catalogue for filtering
 - [ADR-008: HITL Plan-Level Approval](ADR_INDEX.md#adr-008) - Uses CostProfile for decisions
 - [ADR-014: ExecutionPlan](ADR-014-ExecutionPlan-Parallel-Executor.md) - Planner consumes catalogue
 

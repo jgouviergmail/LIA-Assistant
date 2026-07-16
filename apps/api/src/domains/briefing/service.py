@@ -462,7 +462,7 @@ class BriefingService:
     async def _write_cache(self, key: str, section: CardSection, ttl: int) -> None:
         try:
             redis = await get_redis_cache()
-            await redis.setex(key, ttl, section.model_dump_json())
+            await redis.set(key, section.model_dump_json(), ex=ttl)
         except Exception as exc:
             logger.debug(
                 "briefing_cache_write_failed",

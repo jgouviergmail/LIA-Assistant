@@ -574,34 +574,3 @@ def calculate_token_efficiency_ratio(input_tokens: int, output_tokens: int) -> f
     if input_tokens == 0:
         return 0.0
     return round(output_tokens / input_tokens, 2)
-
-
-# ============================================================================
-# AGENT ROUTING ACCURACY (ADVANCED - PHASE 3.2 P2)
-# ============================================================================
-
-
-def calculate_agent_routing_accuracy(state: MessagesState) -> float:
-    """
-    Calculate router accuracy (0.0-1.0).
-
-    Requires manual labeling or HITL feedback to determine "correct" routing.
-    This is a complex metric requiring production data analysis.
-
-    Args:
-        state: LangGraph state with routing_history
-
-    Returns:
-        Accuracy (0.0-1.0), or 0.0 if not calculable
-
-    Note:
-        Phase 3.2 P2 (deferred): Requires:
-        - User feedback collection ("was this the right agent?")
-        - Ground truth labeling dataset
-        - Statistical confidence calculation
-
-        For MVP, this returns 0.0 placeholder.
-    """
-    # TODO (Phase 3.2 P2): Implement routing accuracy tracking
-    # Requires user feedback integration and ground truth dataset
-    return 0.0

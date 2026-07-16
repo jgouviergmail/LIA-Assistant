@@ -248,6 +248,11 @@ $deployScript = @'
 
 set -e
 
+# Build provenance computed at prepare time (F030/F008): version, commit SHA and
+# build date. Exported so `docker compose build` injects them (build args) and
+# the release manifest records exactly what was deployed.
+[ -f "provenance.env" ] && . ./provenance.env
+
 echo "============================================"
 echo "  Deploiement LIA - Production"
 echo "============================================"
@@ -330,17 +335,50 @@ else
     echo "  -> infrastructure/logwatch/ absent, skip"
 fi
 
+# Readiness gate + operational rollback + release manifest (F008). Sourcing the
+# shipped library keeps the tested logic (scripts/deploy/lib) and the deploy in
+# sync. Guarded so a missing lib degrades to the inline readiness poll below.
+[ -f "deploy_readiness_gate.sh" ] && . ./deploy_readiness_gate.sh
+
+# Capture the CURRENT images as a rollback point BEFORE the build overwrites them.
+command -v capture_rollback_point >/dev/null 2>&1 && capture_rollback_point
+
 # Build des images
 echo "[5/6] Build des images Docker..."
 docker compose -f docker-compose.prod.yml build
 
-# Demarrage des services (force-recreate pour recharger les volumes)
+# Demarrage des services (force-recreate pour recharger les volumes).
+# --wait bloque jusqu'a ce que les healthchecks compose passent (ou echoue).
 echo "[6/6] Demarrage des services..."
-docker compose -f docker-compose.prod.yml up -d --force-recreate
+docker compose -f docker-compose.prod.yml up -d --force-recreate --wait
+
+# Readiness gate with operational rollback + release manifest (F008). Prefer the
+# shipped library (polls /ready; on failure auto-rolls back to the previous
+# image and re-validates; on success writes release-manifest.json). Fall back to
+# a plain readiness poll only if the lib was not shipped.
+if command -v run_readiness_gate >/dev/null 2>&1; then
+    run_readiness_gate || exit 1
+else
+    echo "  -> Verification de la readiness (/ready) [fallback inline]..."
+    ready=0
+    for i in $(seq 1 30); do
+        if curl -fsk https://localhost:8000/ready >/dev/null 2>&1 || curl -fs http://localhost:8000/ready >/dev/null 2>&1; then
+            ready=1
+            break
+        fi
+        sleep 2
+    done
+    if [ "$ready" -ne 1 ]; then
+        echo "ERREUR: l'API n'est pas prete (/ready) apres 60s -- deploiement en ECHEC." >&2
+        echo "    docker compose -f docker-compose.prod.yml logs --tail=120 api" >&2
+        exit 1
+    fi
+    echo "  -> API prete (/ready OK)"
+fi
 
 echo ""
 echo "============================================"
-echo "  Deploiement termine!"
+echo "  Deploiement termine (readiness verifiee)!"
 echo "============================================"
 echo ""
 echo "Services disponibles:"
@@ -360,6 +398,47 @@ $deployScript | Out-File -FilePath $deployScriptPath -Encoding utf8 -NoNewline
 # Convertir CRLF en LF pour Linux
 (Get-Content $deployScriptPath -Raw) -replace "`r`n", "`n" | Set-Content $deployScriptPath -NoNewline
 Write-Host "  + deploy.sh" -ForegroundColor DarkGray
+
+# Build provenance (F030/F008): capture version + commit SHA + build date at
+# prepare time and ship them so `docker compose build` injects them and the
+# release manifest records exactly what was deployed.
+$gitSha = (& git rev-parse HEAD 2>$null)
+if (-not $gitSha) { $gitSha = "unknown" }
+$buildDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+$appVersion = "unknown"
+foreach ($pkgRel in @("package.json", "apps/web/package.json")) {
+    $pkg = Join-Path $SourceDir $pkgRel
+    if ($appVersion -eq "unknown" -and (Test-Path $pkg)) {
+        try { $appVersion = (Get-Content $pkg -Raw | ConvertFrom-Json).version } catch {}
+    }
+}
+$provenancePath = Join-Path $OutputDir "provenance.env"
+"export APP_VERSION=$appVersion`nexport GIT_COMMIT_SHA=$gitSha`nexport BUILD_DATE=$buildDate`n" |
+    Out-File -FilePath $provenancePath -Encoding utf8 -NoNewline
+(Get-Content $provenancePath -Raw) -replace "`r`n", "`n" | Set-Content $provenancePath -NoNewline
+$shaShort = if ($gitSha.Length -ge 12) { $gitSha.Substring(0, 12) } else { $gitSha }
+Write-Host "  + provenance.env ($appVersion / $shaShort)" -ForegroundColor DarkGray
+
+# Ship the tested readiness-gate library (F008: release manifest + rollback).
+$gateLib = Join-Path $PSScriptRoot "lib/deploy_readiness_gate.sh"
+if (Test-Path $gateLib) {
+    $gateDest = Join-Path $OutputDir "deploy_readiness_gate.sh"
+    Copy-Item $gateLib -Destination $gateDest
+    (Get-Content $gateDest -Raw) -replace "`r`n", "`n" | Set-Content $gateDest -NoNewline
+    Write-Host "  + deploy_readiness_gate.sh" -ForegroundColor DarkGray
+}
+
+# Belt-and-braces: every shell script shipped in the bundle must be LF — CRLF
+# breaks bash/sh on the production host, and Windows checkouts can drift
+# (core.autocrlf). Catches any future generated/copied script the per-file
+# normalizations above would miss.
+Get-ChildItem -Path $OutputDir -Recurse -Filter *.sh | ForEach-Object {
+    $raw = Get-Content -LiteralPath $_.FullName -Raw
+    if ($raw -match "`r") {
+        ($raw -replace "`r`n", "`n") | Set-Content -LiteralPath $_.FullName -NoNewline
+        Write-Host "  ~ normalized to LF: $($_.FullName)" -ForegroundColor DarkGray
+    }
+}
 
 # ============================================================================
 # Résumé

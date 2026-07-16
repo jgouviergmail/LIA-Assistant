@@ -73,9 +73,12 @@ export function useTranslation(lng: Language, ns?: string, options?: { keyPrefix
 
   const ret = useTranslationOrg(ns, options);
 
-  // Override i18n instance if available
+  // Override the i18n instance immutably (F021): return a NEW object instead of
+  // mutating react-i18next's return value. Every caller destructures by name
+  // (`const { t } = useTranslation(...)` — 0 array-position consumers), so the
+  // spread preserves behaviour while satisfying react-hooks/immutability.
   if (i18n && ret.i18n !== i18n) {
-    ret.i18n = i18n;
+    return { ...ret, i18n };
   }
 
   return ret;

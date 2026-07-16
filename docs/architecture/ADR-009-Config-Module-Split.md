@@ -471,7 +471,7 @@ rm src/core/config.py.backup
 
 ## Related Decisions
 
-- [ADR-002: BFF Pattern Authentication](ADR-002-BFF-Pattern-Authentication.md) - Uses `SecuritySettings`
+- ADR-002: BFF Pattern Authentication (foundational, not migrated to an ADR file) - Uses `SecuritySettings`
 - [ADR-007: Message Windowing Strategy](../technical/MESSAGE_WINDOWING_STRATEGY.md) - Uses `AgentsSettings`
 - [ADR-010: Email Domain Renaming](ADR-010-Email-Domain-Renaming.md) - Updated `ConnectorsSettings`
 

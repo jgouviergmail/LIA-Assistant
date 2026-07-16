@@ -56,7 +56,7 @@ class TestGenerateOTP:
         assert len(code) == 6
         assert code.isdigit()
         assert ttl == 300
-        mock_redis.setex.assert_called_once()
+        mock_redis.set.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_otp_rejects_existing_binding(self, service) -> None:
@@ -79,12 +79,12 @@ class TestGenerateOTP:
         mock_redis = AsyncMock()
         stored_data = {}
 
-        async def capture_setex(key, ttl, data):
+        async def capture_set(key, data, ex):
             stored_data["key"] = key
-            stored_data["ttl"] = ttl
+            stored_data["ttl"] = ex
             stored_data["data"] = json.loads(data)
 
-        mock_redis.setex = capture_setex
+        mock_redis.set = capture_set
 
         with patch(
             "src.infrastructure.cache.redis.get_redis_session",

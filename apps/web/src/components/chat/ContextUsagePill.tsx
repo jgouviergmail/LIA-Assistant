@@ -113,7 +113,10 @@ export function ContextUsagePill({ usage }: Props) {
   });
 
   return (
+    // role="presentation": hover handlers only toggle the visual tooltip —
+    // the semantic control is the labelled button inside (audit F012/F045).
     <div
+      role="presentation"
       className="relative"
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}

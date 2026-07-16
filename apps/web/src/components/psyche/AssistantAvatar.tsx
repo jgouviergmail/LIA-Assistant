@@ -183,7 +183,10 @@ export function AssistantAvatar({
   const showDrives = showCuriosity || showEngagement;
 
   return (
+    // role="presentation": hover handlers only drive the visual hover state —
+    // the avatar exposes no action here (audit F012/F045).
     <div
+      role="presentation"
       className={cn('group relative', ring && 'animate-bell-ring')}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

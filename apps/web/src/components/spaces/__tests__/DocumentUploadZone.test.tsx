@@ -143,3 +143,14 @@ describe('DocumentUploadZone', () => {
     expect(input.multiple).toBe(true);
   });
 });
+
+describe('accessible name (audit F012)', () => {
+  it('names the hidden file input after the visible upload affordance', () => {
+    render(<DocumentUploadZone {...defaultProps} />);
+    // getByLabelText resolves aria-label; the input is display:none (it is
+    // triggered by the visible zone), so a role query would not reach it.
+    const input = screen.getByLabelText('spaces.documents.upload_button');
+    expect(input.tagName).toBe('INPUT');
+    expect(input.getAttribute('type')).toBe('file');
+  });
+});

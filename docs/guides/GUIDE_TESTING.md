@@ -234,6 +234,81 @@ def postgres_container() -> Generator[PostgresContainer | None, None, None]:
 - **Local** : crée testcontainer automatiquement (isolation)
 - **Pas de Docker** : skip tests avec message explicite
 
+### Redirection process-wide vers la base de test
+
+Les fixtures ne suffisent pas : le code sous test passe aussi par des
+**singletons process-wide** qui lisent leur URL en dehors des fixtures — le
+moteur SQLAlchemy module-level derrière `get_db_context()`/`get_db_session()`
+(72 sites d'appel : cache pricing, schedulers, tools…), `settings.database_url`
+lu paresseusement par le pool du checkpointer LangGraph et celui du LangGraph
+Store. Historiquement ces chemins utilisaient l'URL de `.env.test` (base de
+développement) et restaient verts grâce à des fallbacks best-effort : attentes
+de ~35 s sur des connexions vouées, `relation "store" does not exist`, appels
+admin pricing à 21 s — une validation partiellement fausse.
+
+Le mécanisme (`tests/conftest.py::_redirect_process_db`, appelé par les deux
+fixtures d'URL, idempotent) :
+
+1. `settings.database_url` ← URL de test (validée `PostgresDsn`) — les pools
+   checkpointer/store se construisent dessus et leur `setup()` idempotent crée
+   `checkpoints`/`store` dans la base de test ;
+2. le moteur global est remplacé par un moteur **NullPool** sur l'URL de test
+   (chaque test pytest-asyncio a sa propre event loop : des connexions asyncpg
+   poolées seraient réutilisées cross-loop et planteraient) ;
+3. les singletons LangGraph sont réinitialisés ; leurs pools ouverts pendant un
+   test sont fermés **sur la loop du test** par la fixture autouse
+   `tests/integration/conftest.py::_close_langgraph_pools_on_test_loop`.
+
+**Garde anti-base-dev** : quand la stratégie Testcontainers est active, toute
+connexion vers `loopback:5432` (la base de développement) lève
+`DevDatabaseAccessError` — un point d'entrée qui échappe à la redirection
+échoue bruyamment au lieu de valider silencieusement contre les données dev.
+Sous stratégie externe (`TEST_DATABASE_URL`, légitimement sur 5432) la garde
+est inerte. Contrats : `tests/integration/test_db_redirection_contract.py`.
+
+**PIÈGE environnement du lanceur (`task` injecte le `.env` développeur)** :
+`Taskfile.yml` déclare `dotenv: [.env]` — chaque task, tests inclus, tourne
+avec **tout** le `.env` de dev exporté dans son environnement ; `.env.test` ne
+surcharge que ses propres clés. Résultat historique : 12 échecs sous
+`task test:backend:integration` (flag ships-dark
+`SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED=true` reroutant l'expansion
+sémantique ; `DEFAULT_CURRENCY=EUR` + `CURRENCY_API_URL` réel convertissant
+les coûts au taux de change **live**) alors que pytest direct restait vert —
+des verdicts dépendants du lanceur, faciles à confondre avec de la pollution
+d'ordre. Remède : `tests/conftest.py` purge de `os.environ` toute clé déclarée
+dans le `.env` racine avant de charger `.env.test` (no-op en CI/conteneur).
+Contrat : `tests/integration/test_env_isolation_contract.py`. Règle : un test
+ne doit jamais dépendre d'une valeur exclusive au `.env` développeur ; si une
+valeur est nécessaire aux tests, la déclarer dans `.env.test`.
+
+**Remise à zéro des états process-wide entre tests** (défense en profondeur,
+défauts réels distincts du piège ci-dessus) : les caches de tarification
+(`CurrencyRateService._rate_cache` — **attribut de classe**, partagé par
+toutes les instances — et `pricing_cache._local_cache`, module-level) et les
+singletons sémantiques (type registry / expansion service / query analyzer)
+fuient entre tests. La fixture autouse `_reset_shared_pricing_and_semantic_state`
+(`tests/integration/conftest.py`) remet ces états dans le **statut canonique
+de boot** (core types rechargés) avant ET après chaque test. Contrat prouvé
+rouge/vert : `tests/integration/test_state_reset_contract.py` (un test pollue
+volontairement, le suivant exige l'état vierge). Règle générale : tout nouvel
+état module-level ou attribut de classe consulté par les chemins de coût ou
+d'analyse doit être couvert par cette fixture.
+
+**PIÈGE `CREATE INDEX CONCURRENTLY` (deadlock gelant le run)** : les
+migrations des savers LangGraph contiennent des `CREATE INDEX CONCURRENTLY`,
+qui attendent la fin de **toutes** les transactions détenant un XID/snapshot
+sur la base. Or l'isolation par test (`async_session`) garde UNE transaction
+externe ouverte pendant tout le test : dès que le test a écrit, un premier
+`setup()` checkpointer/store **en cours de test** attend la transaction du
+test, qui attend le `setup()` — gel infini (aucun timeout applicatif ne peut
+agir : l'attente est du DDL côté serveur). Le remède est structurel :
+`_provision_langgraph_tables` (appelée par `_db_schema_ready`) applique les
+migrations UNE fois par session via les savers **sync**, à un instant où
+aucune transaction de test n'existe — les `setup()` en cours de test se
+réduisent alors à une vérification de version (aucun DDL). Régression épinglée
+par `test_checkpointer_init_during_written_test_transaction` (borné
+`wait_for(30 s)` : toute récidive échoue bruyamment au lieu de geler le run).
+
 ### Event Loop (Windows Compatibility)
 
 ```python
@@ -542,52 +617,67 @@ def test_database_url(postgres_container: PostgresContainer | None) -> str:
         pytest.skip("No database available for testing")
 ```
 
-**Fixtures function-scoped** (recréées pour chaque test) :
+**Isolation par SAVEPOINT, PAS par re-création du schéma (audit F049)** :
+
+Le schéma est créé **une seule fois par session** (via un engine SYNC, pas de boucle
+d'event loop à gérer) ; chaque test est isolé par une **transaction externe +
+SAVEPOINT** annulée en teardown. Recréer tout le schéma (`drop_all`/`create_all` sur
+~100 tables) à chaque test coûtait ~20 s/test — l'isolation SAVEPOINT donne un état
+propre pour ~0,2 s/test (mesuré : 11 tests 241 s → 2,9 s, ~80×). Une garde AST
+(`test_db_fixture_isolation_guard.py`) gèle ce contrat.
 
 ```python
+@pytest.fixture(scope="session")
+def _db_schema_ready(test_database_url_sync: str):
+    """Build the schema ONCE per session (sync engine — F049)."""
+    sync_url = test_database_url_sync.replace("postgresql://", "postgresql+psycopg://")
+    engine = create_engine(sync_url, poolclass=NullPool)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
+        Base.metadata.drop_all(conn)
+        Base.metadata.create_all(conn)
+    yield
+    with engine.begin() as conn:
+        Base.metadata.drop_all(conn)
+    engine.dispose()
+
 @pytest_asyncio.fixture(scope="function")
-async def async_engine(test_database_url: str):
-    """
-    Create async SQLAlchemy engine for tests.
-    Uses StaticPool to maintain connection across async operations.
-    """
-    engine = create_async_engine(
-        test_database_url,
-        echo=False,
-        poolclass=StaticPool,
-    )
-
-    # Create all tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-
+async def async_engine(_db_schema_ready, test_database_url: str):
+    """Per-test engine — NO DDL (schema already built); NullPool (real per-test conn)."""
+    engine = create_async_engine(test_database_url, echo=False, poolclass=NullPool)
     yield engine
-
-    # Cleanup
     await engine.dispose()
 
 @pytest_asyncio.fixture(scope="function")
 async def async_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
-    """
-    Create async database session for tests.
-    """
-    async_session_maker = async_sessionmaker(
-        async_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
+    """External transaction + SAVEPOINT rolled back at teardown (F049).
 
-    async with async_session_maker() as session:
+    join_transaction_mode="create_savepoint" ⇒ even a test that calls commit() is
+    undone (commit releases the savepoint and opens a new one; the outer transaction
+    is rolled back), so no per-test schema rebuild is needed.
+    """
+    connection = await async_engine.connect()
+    trans = await connection.begin()
+    session = AsyncSession(
+        bind=connection, expire_on_commit=False, join_transaction_mode="create_savepoint"
+    )
+    try:
         yield session
-        await session.rollback()  # Cleanup after test
+    finally:
+        await session.close()
+        if trans.is_active:
+            await trans.rollback()
+        await connection.close()
 ```
 
 **Stratégie** :
-- **`scope="session"`** : postgres_container, test_database_url (rapide)
-- **`scope="function"`** : async_engine, async_session (isolation)
-- **StaticPool** : maintient connexion ouverte pour async ops
-- **drop_all/create_all** : état DB propre avant chaque test
+- **`scope="session"`** : postgres_container, test_database_url, **`_db_schema_ready`** (schéma créé 1×).
+- **`scope="function"`** : async_engine (sans DDL), async_session (isolation SAVEPOINT).
+- **NullPool** : une vraie connexion par test pour la transaction externe (jamais StaticPool
+  ici — sa connexion partagée bloque contre la transaction SAVEPOINT).
+- ⚠️ **Local Windows** : mettre `TEST_DATABASE_URL` sur `127.0.0.1` (pas `localhost` → `::1`
+  timeout lent avec asyncpg, comme pour Redis).
 
 ### Exemple : Test de Repository
 
@@ -1796,6 +1886,35 @@ result2 = await mock_api.fetch()  # {"status": "processing"}
 result3 = await mock_api.fetch()  # {"status": "complete"}
 ```
 
+#### Piège : coroutine `AsyncMock` jamais attendue (garde F028)
+
+Un `MagicMock(spec=UneClasse)` transforme automatiquement les méthodes `async` de
+`UneClasse` en `AsyncMock` — **et la valeur de retour d'un `AsyncMock` est
+elle-même un `AsyncMock`**. Conséquence : tout accès imbriqué du type
+`(await mock.aget_state(...)).values.get("x")` renvoie une **coroutine** (le
+`.get()` est traité comme asynchrone), que le code de production n'attend jamais.
+CPython ne signale la coroutine non attendue qu'au ramasse-miettes — souvent
+pendant un **autre** test, innocent : c'est le « faux vert » de l'audit (F028).
+
+```python
+# ❌ Fuite : aget_state renvoie un AsyncMock, .values.get(...) est une coroutine
+graph = MagicMock(spec=CompiledStateGraph)
+
+# ✅ Correct : configurer un snapshot dont .values est un vrai dict (sync)
+snapshot = MagicMock()
+snapshot.values = {"user_language": "fr", "user_timezone": "Europe/Paris"}
+graph.aget_state = AsyncMock(return_value=snapshot)
+```
+
+Une garde autouse (`tests/_coroutine_leak_guard.py`, câblée dans les conftests
+`tests/unit` et `tests/agents`) force une collecte génération-0 en teardown et
+**fait échouer le test fautif** s'il a fait fuir une coroutine `AsyncMock`
+(`_execute_mock_call`) — l'attribuant déterministiquement à son créateur au lieu
+d'un test aléatoire. Elle est volontairement limitée à cette classe : les
+coroutines internes de driver (ex. `Connection._cancel` d'asyncpg au teardown de
+process) ne sont pas des bugs de code de test et sont ignorées explicitement dans
+`pyproject.toml`. Le self-test de la garde vit dans `tests/unit/test_coroutine_leak_guard.py`.
+
 ### Fixtures Réutilisables
 
 **Patron de conception** : scope approprié pour performance.
@@ -2725,8 +2844,11 @@ apps/web/src/
 ├── __tests__/setup.ts              # Setup global (mocks next/navigation, react-i18next, matchMedia)
 ├── reducers/__tests__/             # Machine à états du chat (chat-reducer)
 ├── lib/sse-handlers/__tests__/     # Pipeline SSE (handlers, batching, symétrie contrat backend)
+├── lib/__tests__/                  # Logique pure (format, hitl-utils, password-validation, utils, briefing-utils…)
+├── utils/__tests__/                # Utilitaires purs (timezone…)
 ├── stores/__tests__/               # Stores zustand (psycheStore, voiceModeStore)
-└── hooks/__tests__/                # Hooks (useChat, useConversation, useVoiceMode)
+├── components/**/__tests__/        # Composants (RTL) + helpers purs (debug formatters/validators…)
+└── hooks/__tests__/                # Hooks — socle (useApiQuery/useApiMutation) + métier (useInterests, useConnectorHealth…)
 ```
 
 ```bash
@@ -2747,6 +2869,7 @@ Les seuils vivent dans `apps/web/vitest.config.ts` (`coverage.thresholds`) et su
 - **Seuils fixés juste sous la valeur mesurée** au moment du verrouillage — jamais à l'aveugle.
 - **Ils ne montent que lorsque de nouveaux tests arrivent, et ne descendent jamais** : baisser un seuil pour faire passer la CI est une régression à corriger, pas un réglage.
 - Les zones critiques (reducers, sse-handlers, stores) sont **verrouillées à 100 %** par des seuils par glob ; un plancher global bas protège le reste.
+- **Plancher global courant** (mesuré 2026-07, 743 tests, après les vagues logique-pure + hooks-socle) : statements 18 / branches 15 / functions 13 / lines 18 (valeurs mesurées 18.76 / 16.06 / 13.74 / 18.98). À relever à chaque nouvelle vague de tests.
 - Note vérifiée empiriquement (vitest 4.1) : le plancher global est calculé sur **tout** l'ensemble `include` — les fichiers matchés par un glob n'en sont pas soustraits.
 - Le reporter texte masque les fichiers à 100 % (`skipFull`) : pour vérifier une valeur exacte, utiliser `--coverage.reporter=json-summary` et lire `coverage/coverage-summary.json`.
 
@@ -2758,6 +2881,23 @@ Les seuils vivent dans `apps/web/vitest.config.ts` (`coverage.thresholds`) et su
 - **Audio sans audio** : `useVoiceMode` se teste avec des fakes `AudioContext`/`AudioWorkletNode`/`getUserMedia` et des mocks Sherpa/VAD dont les callbacks capturés pilotent la machine (wake word, fin de parole, transcription).
 - **Branches SSR** : un fichier de test peut opter pour l'environnement node (`// @vitest-environment node` en première ligne) pour couvrir les gardes `typeof window === 'undefined'` — le setup global est gardé en conséquence.
 - **Déterminisme** : pas de timers réels (`vi.useFakeTimers`), `Math.random` stubé, `requestAnimationFrame` stubé pour le batching de tokens.
+- **Logique pure d'abord** : les modules déterministes (`lib/format`, `lib/hitl-utils`, `utils/timezone`, `components/debug/utils/formatters`…) se testent sans mock, en pinnant les sorties exactes (locale fr normalisée). Les fonctions i18n reçues en paramètre (`TFunction`) sont stubées par un *echo* `key {params-json}` pour prouver la branche ET l'interpolation. Le `logger` est mocké pour garder la sortie propre.
+- **Hooks socle testés directement** : `useApiQuery`/`useApiMutation` se testent via `renderHook` + `waitFor`/`act` en mockant `@/lib/api-client` avec `vi.hoisted` (l'objet mock doit être créé par `vi.hoisted` pour être visible dans la factory `vi.mock` hoistée) ; on conserve la vraie classe `ApiError` via `importActual` pour que `instanceof` fonctionne. Piège : sur le chemin d'erreur d'une mutation, capturer le rejet **dans** l'`act()` (`.catch`) pour que les `setState` d'erreur soient flushés avant l'assertion.
+- **Hooks métier (CRUD) testés par dérivation** : mocker `useApiQuery`/`useApiMutation` (router le mock de query par endpoint quand le hook en appelle plusieurs), puis prouver les mises à jour optimistes en **appliquant l'updater capturé** (`setData.mock.calls`) à un état précédent connu — imiter `hooks/__tests__/useSpaces.test.ts` et `useInterests.test.ts`.
+
+### Tests de composants (RTL) — harnais partagé
+
+Le chantier de couverture des composants (≈ 280 composants, livré par lots à risque ascendant : présentationnels → formulaires → admin → chat/voice) s'appuie sur un harnais commun. **N'importer que depuis `@/__tests__/test-utils`** dans un test de composant.
+
+- **`renderWithProviders(ui, options?)`** (`src/__tests__/test-utils.tsx`) monte l'UI dans la pile de providers qui *throw* sans contexte (`ColorThemeProvider`, `FontProvider`) plus ceux couramment requis par les primitives (`TooltipProvider`, `QueryClientProvider` non-retry). Il **ne fournit délibérément ni auth ni couche API réelle** : les hooks de données (`useApiQuery`/`useApiMutation`/`useAuth`) se mockent par test. Retourne le `RenderResult` RTL augmenté de `{ user, queryClient }`. Le fichier ré-exporte toute la surface RTL + `userEvent`.
+- **`userEvent` est le standard** des nouvelles interactions (plus fidèle que `fireEvent`) : `const { user } = renderWithProviders(<C/>); await user.click(...)`. Les tests `fireEvent` pré-existants ne sont pas réécrits.
+- **Builders de mock de hooks** (`src/__tests__/api-mocks.ts`) : `dataQuery(data)` / `loadingQuery()` / `errorQuery(msg)` pour `useApiQuery` ; `mutationResult({ mutate })` pour `useApiMutation`. Couvrir systématiquement la matrice **loading / empty / error / data** des composants pilotés par la donnée.
+- **Factories de données du domaine** (`src/__tests__/factories.ts`) : `makeUser(over)` / `makeConnector(over)` construisent une entité **complète et typée** depuis un `Partial<T>`.
+- **Règle de contrat (F057) — les builders honorent le type public.** Tout builder de props/données prend un `Partial<T>` et retourne le type réel (`T`) ; les retours de hooks mockés se typent au contrat via `Partial<ReturnType<typeof useXxx>>`. **Jamais** `as never` / `as any` / `Record<string, unknown>` en surcharge : ils rouvrent la classe de bugs que le typage doit fermer (un override typé attrape une faute de frappe ou un type faux à la compilation — c'est ainsi que la remédiation a mis au jour un `previewUrl: null` non conforme et un `error` traité en booléen au lieu d'`Error`). Un cast d'échappement n'est admis qu'à une **frontière externe non constructible** (DOM `Window`, `Response` fetch, `MediaStream`, `TFunction` i18next) ou pour injecter délibérément une valeur invalide dans un test de garde.
+- **i18n et thème sont mockés globalement** (`src/__tests__/setup.ts`) : `react-i18next` **et** `@/i18n/client` renvoient `t: key => key` (on **assertit sur la clé** de traduction, jamais sur le texte traduit) ; `next-themes` est un passthrough avec `useTheme` déterministe (`resolvedTheme: 'light'`). Un test peut surcharger l'un ou l'autre avec son propre `vi.mock` local.
+- **Barre de qualité (Definition of Done)** — interdit les tests-alibi : un test de composant **assertit un comportement observable** (matrice de variantes qui changent le rendu · états conditionnels loading/empty/error/success · interactions → callback avec les bons arguments ou changement d'état observé · a11y quand c'est une vraie feature : combobox, dialog, listbox · garde-fous : stale-response, unmount-safety — imiter `ConsumptionExportSection.autocomplete.test.tsx`). **Interdit** : un test dont la seule assertion est « ça rend sans planter ».
+- **Primitives shadcn triviales exclues de la mesure** : les re-exports Radix fins ou wrappers d'un seul élément HTML (`separator`, `slider`, `switch`, `label`, `tooltip`, `accordion`, `tabs`, `dialog`, `alert-dialog`, `dropdown-menu`, `input`, `textarea`, `skeleton`, `toaster`) sont dans `coverage.exclude` (`vitest.config.ts`) — les tester relève du théâtre de couverture. Les primitives à vraie logique/variants restent mesurées et testées.
+- **Ratchet par lot** : à la fin d'un lot, mesurer (`pnpm test:coverage --coverage.reporter=json-summary`) puis **verrouiller la couverture acquise par un glob par-répertoire** (ex. `'src/components/ui/**': { statements: N, … }`) fixé juste sous la valeur mesurée. Les globs par-répertoire sont des clés additives (moins de collision avec le plancher global sous édition parallèle). Exemplars de référence : `ui/__tests__/pagination.test.tsx` (logique pure), `ui/__tests__/search-input.test.tsx` (interaction), `psyche/__tests__/PsycheLLMSummary.test.tsx` (data-driven).
 
 ### Pièges connus
 

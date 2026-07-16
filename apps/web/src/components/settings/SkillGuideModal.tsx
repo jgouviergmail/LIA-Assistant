@@ -859,7 +859,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 <div className="rounded-xl bg-muted/40 border p-4 ml-9 space-y-2">
                   {(['l1', 'l2', 'l3'] as const).map(tier => (
                     <div key={tier} className="flex gap-3 text-xs">
-                      <code className="shrink-0 font-mono text-primary/80 w-6 font-bold">
+                      <code className="shrink-0 font-mono text-primary/90 w-6 font-bold">
                         {tier.toUpperCase()}
                       </code>
                       <span className="text-muted-foreground">
@@ -908,7 +908,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
 
                 {/* Frontmatter fields */}
                 <div className="rounded-xl bg-muted/40 border p-4 space-y-2">
-                  <p className="text-xs font-semibold text-foreground/70 mb-2">
+                  <p className="text-xs font-semibold text-foreground/80 mb-2">
                     {t('settings.skills.guide_frontmatter_title')}
                   </p>
                   <div className="grid grid-cols-1 gap-1.5 text-xs">
@@ -925,11 +925,11 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                       ] as const
                     ).map(([key, type, req]) => (
                       <div key={key} className="flex gap-2 items-start">
-                        <code className="shrink-0 font-mono text-primary/80 w-28">
+                        <code className="shrink-0 font-mono text-primary/90 w-28">
                           {key}
                           {req && <span className="text-red-400 ml-0.5">*</span>}
                         </code>
-                        <span className="text-muted-foreground/60 w-20 shrink-0">{type}</span>
+                        <span className="text-muted-foreground w-20 shrink-0">{type}</span>
                         <span className="text-muted-foreground">
                           {t(`settings.skills.guide_field_${key}`)}
                         </span>
@@ -1014,31 +1014,31 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                   <div className="text-foreground font-medium">mon-skill/</div>
                   <div className="pl-5 text-foreground">
                     SKILL.md{' '}
-                    <span className="text-muted-foreground/50 font-sans">
+                    <span className="text-muted-foreground font-sans">
                       — {t('settings.skills.guide_struct_skillmd')}
                     </span>
                   </div>
                   <div className="pl-5 text-muted-foreground">
                     references/{' '}
-                    <span className="text-muted-foreground/50 font-sans">
+                    <span className="text-muted-foreground font-sans">
                       — {t('settings.skills.guide_struct_references')}
                     </span>
                   </div>
                   <div className="pl-5 text-muted-foreground">
                     scripts/{' '}
-                    <span className="text-muted-foreground/50 font-sans">
+                    <span className="text-muted-foreground font-sans">
                       — {t('settings.skills.guide_struct_scripts')}
                     </span>
                   </div>
                   <div className="pl-5 text-muted-foreground">
                     assets/{' '}
-                    <span className="text-muted-foreground/50 font-sans">
+                    <span className="text-muted-foreground font-sans">
                       — {t('settings.skills.guide_struct_assets')}
                     </span>
                   </div>
                   <div className="pl-5 text-muted-foreground">
                     translations.json{' '}
-                    <span className="text-muted-foreground/50 font-sans">
+                    <span className="text-muted-foreground font-sans">
                       — {t('settings.skills.guide_struct_translations')}
                     </span>
                   </div>
@@ -1059,14 +1059,14 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                       className="rounded-lg border p-3 bg-card/50 hover:bg-card transition-colors"
                     >
                       <div className="flex items-center gap-2 mb-1">
-                        <code className="text-xs font-mono font-semibold text-primary/80">
+                        <code className="text-xs font-mono font-semibold text-primary/90">
                           {res}/
                         </code>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">
                         {t(`settings.skills.guide_resource_${res}_desc`)}
                       </p>
-                      <p className="text-xs text-muted-foreground/60 mt-1 italic">
+                      <p className="text-xs text-muted-foreground mt-1 italic">
                         {t(`settings.skills.guide_resource_${res}_usage`)}
                       </p>
                     </div>
@@ -1106,27 +1106,27 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 <div className="pl-9 space-y-3">
                   <div className="rounded-lg border p-3 bg-card/50">
                     <div className="flex items-center gap-2 mb-1">
-                      <code className="text-xs font-mono font-semibold text-primary/80">
+                      <code className="text-xs font-mono font-semibold text-primary/90">
                         _lang / _tz
                       </code>
-                      <span className="text-xs text-muted-foreground/60">
+                      <span className="text-xs text-muted-foreground">
                         {t('settings.skills.guide_runtime_autoparams_label')}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       {t('settings.skills.guide_runtime_autoparams_body')}
                     </p>
-                    <p className="text-xs text-muted-foreground/60 mt-1 italic">
+                    <p className="text-xs text-muted-foreground mt-1 italic">
                       {t('settings.skills.guide_runtime_autoparams_hint')}
                     </p>
                   </div>
 
                   <div className="rounded-lg border p-3 bg-card/50">
                     <div className="flex items-center gap-2 mb-1">
-                      <code className="text-xs font-mono font-semibold text-primary/80">
+                      <code className="text-xs font-mono font-semibold text-primary/90">
                         html[data-theme=&quot;dark&quot;]
                       </code>
-                      <span className="text-xs text-muted-foreground/60">
+                      <span className="text-xs text-muted-foreground">
                         {t('settings.skills.guide_runtime_theme_label')}
                       </span>
                     </div>
@@ -1137,10 +1137,10 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
 
                   <div className="rounded-lg border p-3 bg-card/50">
                     <div className="flex items-center gap-2 mb-1">
-                      <code className="text-xs font-mono font-semibold text-primary/80">
+                      <code className="text-xs font-mono font-semibold text-primary/90">
                         ui/notifications/size-changed
                       </code>
-                      <span className="text-xs text-muted-foreground/60">
+                      <span className="text-xs text-muted-foreground">
                         {t('settings.skills.guide_runtime_resize_label')}
                       </span>
                     </div>
@@ -1160,7 +1160,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 </p>
                 <CodeBlock>{SCRIPT_INTERACTIVE_EXAMPLE}</CodeBlock>
 
-                <p className="text-xs text-muted-foreground/60 italic pl-9">
+                <p className="text-xs text-muted-foreground italic pl-9">
                   {t('settings.skills.guide_runtime_interactive_note')}
                 </p>
               </section>
@@ -1200,7 +1200,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
 
                 {/* Step fields legend */}
                 <div className="rounded-xl bg-muted/40 border p-4 space-y-2">
-                  <p className="text-xs font-semibold text-foreground/70 mb-2">
+                  <p className="text-xs font-semibold text-foreground/80 mb-2">
                     {t('settings.skills.guide_modal_plan_fields_title')}
                   </p>
                   <div className="grid grid-cols-1 gap-1.5 text-xs">
@@ -1215,7 +1215,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                       ] as const
                     ).map(key => (
                       <div key={key} className="flex gap-2">
-                        <code className="shrink-0 font-mono text-primary/80 w-40">{key}</code>
+                        <code className="shrink-0 font-mono text-primary/90 w-40">{key}</code>
                         <span className="text-muted-foreground">
                           {t(`settings.skills.guide_modal_plan_field_${key}`)}
                         </span>
@@ -1226,7 +1226,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
 
                 {/* Auto-trigger explanation */}
                 <div className="rounded-xl border bg-orange-500/5 p-4 space-y-1">
-                  <p className="text-xs font-semibold text-foreground/70">
+                  <p className="text-xs font-semibold text-foreground/80">
                     {t('settings.skills.guide_autotrigger_title')}
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
@@ -1266,7 +1266,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                   ))}
                 </Accordion>
 
-                <p className="text-xs text-muted-foreground/60 italic pl-2">
+                <p className="text-xs text-muted-foreground italic pl-2">
                   {t('settings.skills.guide_tools_note')}
                 </p>
               </section>
@@ -1283,12 +1283,12 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                 </p>
                 <CodeBlock>{SCRIPT_EXAMPLE}</CodeBlock>
                 <div className="rounded-xl bg-muted/40 border p-4 space-y-1.5 text-xs">
-                  <p className="font-semibold text-foreground/70">
+                  <p className="font-semibold text-foreground/80">
                     {t('settings.skills.guide_scripts_rules_title')}
                   </p>
                   {[1, 2, 3, 4].map(i => (
                     <p key={i} className="text-muted-foreground flex gap-2">
-                      <span className="text-muted-foreground/50 shrink-0">•</span>
+                      <span className="text-muted-foreground shrink-0">•</span>
                       {t(`settings.skills.guide_scripts_rule_${i}`)}
                     </p>
                   ))}
@@ -1314,7 +1314,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                     ] as const
                   ).map(([tool, key]) => (
                     <div key={tool} className="flex gap-2 items-start">
-                      <code className="shrink-0 font-mono text-primary/80 min-w-[160px]">
+                      <code className="shrink-0 font-mono text-primary/90 min-w-[160px]">
                         {tool}
                       </code>
                       <span className="text-muted-foreground">{t(`settings.skills.${key}`)}</span>
@@ -1378,7 +1378,7 @@ function AgentToolsBlock({ agent, t }: { agent: AgentDef; t: (key: string) => st
         {agent.tools.map(tool => (
           <div key={tool.name} className="pl-2 border-l-2 border-primary/20 ml-1">
             <div className="flex items-center gap-2 mb-1">
-              <code className="font-mono text-xs text-foreground/70">{tool.name}</code>
+              <code className="font-mono text-xs text-foreground/80">{tool.name}</code>
               <span className="text-[10px] text-muted-foreground">
                 {t(`settings.skills.${tool.desc}`)}
               </span>
@@ -1391,8 +1391,8 @@ function AgentToolsBlock({ agent, t }: { agent: AgentDef; t: (key: string) => st
                       {p.name}
                       {p.required && <span className="text-red-400">*</span>}
                     </code>
-                    <span className="text-muted-foreground/50 shrink-0">({p.type})</span>
-                    <span className="text-muted-foreground/70 truncate">
+                    <span className="text-muted-foreground shrink-0">({p.type})</span>
+                    <span className="text-muted-foreground truncate">
                       {t(`settings.skills.${p.desc}`)}
                     </span>
                   </div>

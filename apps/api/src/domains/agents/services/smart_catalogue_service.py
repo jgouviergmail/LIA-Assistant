@@ -290,7 +290,7 @@ class SmartCatalogueService:
         domain = self._extract_domain(manifest)
         result_key = manifest.context_key or get_result_key(domain)
 
-        result = {
+        result: dict[str, object] = {
             "name": manifest.name,
             "description": manifest.description,
             "parameters": compact_params,

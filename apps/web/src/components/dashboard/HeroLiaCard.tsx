@@ -30,7 +30,12 @@ interface HeroLiaCardProps {
  *    rotating placeholder).
  *
  * Click anywhere on the image (outside the CTA buttons) toggles the LIA gender
- * via useLiaGender — same behavior as before the refactor.
+ * via useLiaGender. The toggle is a real, named <button> overlay (audit F045):
+ * the Card itself used to carry onClick — a mouse-only, unnamed interaction
+ * invisible to keyboards and assistive tech. The overlay is a SIBLING of the
+ * CTA container (never an ancestor), so no invalid interactive nesting occurs;
+ * the CardContent layer is pointer-transparent except for its own controls,
+ * which preserves the whole-card mouse affordance exactly.
  */
 export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: HeroLiaCardProps = {}) {
   const router = useRouter();
@@ -44,12 +49,17 @@ export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: Hero
   return (
     <Card
       variant="elevated"
-      className="w-full border-0 overflow-hidden relative rounded-xl h-[420px] sm:h-[530px] cursor-pointer"
-      onClick={toggleLiaGender}
+      className="w-full border-0 overflow-hidden relative rounded-xl h-[420px] sm:h-[530px]"
     >
       <Image src={liaImage} alt="LIA" fill className="object-cover" priority />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-background/60" />
-      <CardContent className="flex flex-col items-center justify-end gap-12 h-[420px] sm:h-[530px] py-6 px-6 relative z-10">
+      <button
+        type="button"
+        onClick={toggleLiaGender}
+        aria-label={t('dashboard.actions.toggle_avatar')}
+        className="absolute inset-0 z-[5] cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      />
+      <CardContent className="pointer-events-none flex flex-col items-center justify-end gap-12 h-[420px] sm:h-[530px] py-6 px-6 relative z-10">
         {/* Greeting sits directly above the CTA buttons (no top spacer) so
             the LIA avatar fills the upper half of the card. Rendered only
             when the LLM greeting has arrived — no fallback tagline is
@@ -71,13 +81,15 @@ export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: Hero
               {greeting?.usage && (
                 <LLMUsageBadge
                   usage={greeting.usage}
-                  className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700 motion-safe:[animation-delay:200ms]"
+                  // pointer-events-auto: the badge's title tooltip needs hover
+                  // despite the pointer-transparent CardContent layer.
+                  className="pointer-events-auto motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700 motion-safe:[animation-delay:200ms]"
                 />
               )}
             </>
           ) : isLoadingGreeting ? (
             <span
-              className="text-[10px] uppercase tracking-wider text-muted-foreground/60"
+              className="text-[10px] uppercase tracking-wider text-muted-foreground"
               aria-live="polite"
             >
               {t('dashboard.briefing.refreshing')}
@@ -85,10 +97,10 @@ export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: Hero
           ) : null}
         </div>
 
-        <div
-          className="flex flex-col items-center gap-3 w-[250px]"
-          onClick={e => e.stopPropagation()}
-        >
+        {/* pointer-events-auto: the CTA container is the only interactive
+            island inside the pointer-transparent CardContent — everywhere
+            else the click falls through to the avatar-toggle button. */}
+        <div className="pointer-events-auto flex flex-col items-center gap-3 w-[250px]">
           <Button
             onClick={() => router.push(`/${lng}/dashboard/settings?section=connectors`)}
             variant="default"

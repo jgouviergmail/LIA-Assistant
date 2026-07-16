@@ -51,7 +51,7 @@ function ExtractedInterestRow({
           <span
             className={cn(
               'text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0',
-              'bg-primary/10 text-primary/80 border-primary/20'
+              'bg-primary/10 text-primary/90 border-primary/20'
             )}
           >
             {interest.category}
@@ -85,7 +85,7 @@ function ExtractedInterestRow({
 
       {/* Decision reason */}
       {decision?.reason && (
-        <div className="pl-4 text-[10px] text-muted-foreground/60">
+        <div className="pl-4 text-[10px] text-muted-foreground">
           {decision.matched_interest ? (
             <>
               <span className="text-blue-400">{decision.matched_interest}</span>

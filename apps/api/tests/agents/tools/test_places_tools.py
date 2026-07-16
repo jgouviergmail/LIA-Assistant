@@ -93,7 +93,10 @@ def create_mock_runtime(user_id: str) -> ToolRuntime:
 
     return ToolRuntime(
         state={},
-        context={},
+        # ContextT resolves to None for unparametrized tools: passing {} trips
+        # PydanticSerializationUnexpectedValue when LangChain serializes the
+        # runtime during args validation (audit F028, warnings-as-errors).
+        context=None,
         config={
             "configurable": {
                 "user_id": user_id,
@@ -384,3 +387,40 @@ class TestGetPlaceDetailsTool:
             assert result.success is False
             assert result.error_code == "connector_not_activated"
             assert "places" in result.message.lower()
+
+
+class TestListModeNoSearchCriteria:
+    """get_places_tool() with no criteria must not fake an empty success (F033).
+
+    The list branch previously returned success=True with an empty list and a
+    "requires specific implementation" message — a fake success that made the LLM
+    report "no places found". The Places API needs a query/type/location/id, so
+    the honest outcome is an explicit business error.
+    """
+
+    @pytest.mark.asyncio
+    async def test_execute_api_call_returns_business_error(self):
+        from src.domains.agents.tools.places_tools import ListPlacesTool
+
+        tool = ListPlacesTool()
+        tool.runtime = create_mock_runtime(str(uuid4()))
+
+        result = await tool.execute_api_call(client=MagicMock(), user_id=uuid4())
+
+        assert result["success"] is False
+        assert result["error"] == "search_criteria_required"
+        assert result["message"]  # localized, non-empty
+
+    @pytest.mark.asyncio
+    async def test_format_registry_response_surfaces_failure(self):
+        from src.domains.agents.tools.places_tools import ListPlacesTool
+
+        tool = ListPlacesTool()
+        tool.runtime = create_mock_runtime(str(uuid4()))
+
+        result = await tool.execute_api_call(client=MagicMock(), user_id=uuid4())
+        output = tool.format_registry_response(result)
+
+        assert isinstance(output, UnifiedToolOutput)
+        assert output.success is False
+        assert output.error_code == "search_criteria_required"

@@ -10,6 +10,7 @@ import {
   Save,
   X,
   Clock,
+  MoreVertical,
   Pin,
   PinOff,
   RefreshCw,
@@ -488,8 +489,14 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <AccordionContent>
                     <div className="space-y-2">
                       {categoryMemories.map(memory => (
+                        // role="presentation": the tap-anywhere onClick is a
+                        // pointer-only convenience duplicating the dedicated
+                        // mobile actions button below (audit F012/F045) — the
+                        // card itself carries no semantics and must not (it
+                        // contains interactive children).
                         <div
                           key={memory.id}
+                          role="presentation"
                           className="group flex items-start gap-3 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors cursor-pointer lg:cursor-default"
                           onClick={() => {
                             // On mobile/tablet, open action popup
@@ -638,6 +645,23 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                               )}
                             </Button>
                           </div>
+
+                          {/* Mobile actions button (audit F012/F045): the
+                              desktop buttons above are hidden below lg and the
+                              tap-anywhere card click is pointer-only — this is
+                              the keyboard/AT path to the actions popup. */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="lg:hidden shrink-0 self-center"
+                            aria-label={t('common.actions')}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setMobileActionMemory(memory);
+                            }}
+                          >
+                            <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                          </Button>
                         </div>
                       ))}
                     </div>

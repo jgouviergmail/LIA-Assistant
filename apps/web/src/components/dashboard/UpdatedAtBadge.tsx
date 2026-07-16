@@ -37,7 +37,7 @@ export function UpdatedAtBadge({
   if (showJustUpdated) {
     return (
       <span
-        className={`inline-flex items-center gap-1 text-xs text-primary/80 animate-in fade-in duration-200 ${className ?? ''}`}
+        className={`inline-flex items-center gap-1 text-xs text-primary/90 animate-in fade-in duration-200 ${className ?? ''}`}
       >
         {t('dashboard.briefing.synthesis_updated_badge')}
       </span>
@@ -58,7 +58,7 @@ export function UpdatedAtBadge({
     <time
       dateTime={generatedAt}
       title={generatedAt}
-      className={`text-[10px] text-muted-foreground/50 tabular-nums ${className ?? ''}`}
+      className={`text-[10px] text-muted-foreground tabular-nums ${className ?? ''}`}
     >
       {label}
     </time>

@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 40 |
-| ADRs | 120 (ADR-127 le plus récent) |
+| ADRs | 132 (ADR-130 le plus récent) |
 | Fiches knowledge (RAG système) | 24 |
 
 ---
@@ -43,7 +43,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (120) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (132) |
 
 ### Pour les Product Managers
 
@@ -64,7 +64,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [TIMEOUT_REGISTRY.md](./technical/TIMEOUT_REGISTRY.md) | Référence centralisée de tous les timeouts backend (HTTP, tools, locks, scheduler, SSE/WS) — Settings, ranges, defaults, cascades |
 | [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Guide observabilité quickstart |
 | [runbooks/](./runbooks/) | Runbooks opérationnels (34+ procédures) |
-| [audit/](./audit/README.md) | **Audit technique 360° public** — rapport (8.5/10, 24 périmètres ISO 25010) + [protocole reproductible](./audit/AUDIT_PROTOCOL.md) et pipeline de republication |
+| [audit/](./audit/README.md) | **Audit technique public** — résumé (8.3/10, 24 périmètres normalisés ISO/IEC 25010:2023, 7 chantiers modérés) + [rapport autonome V11](./audit/AUDIT_CODEBASE_2026-07-16_CONSOLIDE_V11.html) + [protocole reproductible](./audit/AUDIT_PROTOCOL.md) et pipeline de republication |
 
 ---
 
@@ -231,6 +231,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [README_ALERTING.md](./readme/README_ALERTING.md) | Chaîne d'alerte (ADR-119) : Alertmanager e-mail, validation, troubleshooting | ✅ |
 | [README_PROMETHEUS_THRESHOLDS.md](./readme/README_PROMETHEUS_THRESHOLDS.md) | Seuils alertes par environnement | ✅ |
 
+### Accessibilité
+
+| Document | Description | Statut |
+|----------|-------------|--------|
+| [CONTRAST_TOKENS.md](./a11y/CONTRAST_TOKENS.md) | Architecture contraste WCAG AA des tokens (5 thèmes × 2 modes) + garde unitaire et scans axe bloquants (AC-002) | ✅ |
+| [AT_CAMPAIGN.md](./a11y/AT_CAMPAIGN.md) | Protocole de campagne manuelle NVDA/Firefox + VoiceOver/Safari, versionné avec rapports | ✅ |
+
 ### CI/CD & Déploiement
 
 | Document | Description | Statut |
@@ -290,7 +297,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-126 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-130 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 

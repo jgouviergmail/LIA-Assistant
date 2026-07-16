@@ -13,8 +13,16 @@ from pydantic_settings import BaseSettings
 from src.core.constants import (
     TELEPHONY_CALL_RETENTION_DAYS_DEFAULT,
     TELEPHONY_MAX_CALL_DURATION_SECONDS_DEFAULT,
+    TELEPHONY_NOTIFICATION_GRACE_SECONDS_DEFAULT,
+    TELEPHONY_NOTIFICATION_MAX_ATTEMPTS_DEFAULT,
+    TELEPHONY_NOTIFICATION_REAPER_INTERVAL_MINUTES_DEFAULT,
     TELEPHONY_PREFETCH_WINDOW_DAYS_DEFAULT,
     TELEPHONY_RATE_LIMIT_PER_HOUR_DEFAULT,
+    TELEPHONY_RETURN_GRACE_SECONDS_DEFAULT,
+    TELEPHONY_RETURN_MAX_AGE_MINUTES_DEFAULT,
+    TELEPHONY_RETURN_MAX_ATTEMPTS_DEFAULT,
+    TELEPHONY_RETURN_REAPER_INTERVAL_MINUTES_DEFAULT,
+    TELEPHONY_RETURN_RETRY_DELAY_SECONDS_DEFAULT,
     TELEPHONY_RINGING_TIMEOUT_SECONDS_DEFAULT,
     TELEPHONY_STALE_CALL_TIMEOUT_MINUTES_DEFAULT,
     TELEPHONY_STALE_REAPER_INTERVAL_MINUTES_DEFAULT,
@@ -76,4 +84,55 @@ class TelephonySettings(BaseSettings):
         ge=1,
         le=60,
         description="Interval (minutes) for the stale-call reaper sweep.",
+    )
+    telephony_return_max_attempts: int = Field(
+        default=TELEPHONY_RETURN_MAX_ATTEMPTS_DEFAULT,
+        ge=1,
+        le=10,
+        description="Bounded retries of the idempotent post-call return delivery (T1).",
+    )
+    telephony_return_retry_delay_seconds: int = Field(
+        default=TELEPHONY_RETURN_RETRY_DELAY_SECONDS_DEFAULT,
+        ge=0,
+        le=120,
+        description="Delay (seconds) between post-call return delivery retries.",
+    )
+    telephony_notification_grace_seconds: int = Field(
+        default=TELEPHONY_NOTIFICATION_GRACE_SECONDS_DEFAULT,
+        ge=10,
+        le=3600,
+        description="Grace (seconds) before the notification reaper re-dispatches a "
+        "PENDING return — keeps it from racing the live in-process dispatch (T1).",
+    )
+    telephony_notification_reaper_interval_minutes: int = Field(
+        default=TELEPHONY_NOTIFICATION_REAPER_INTERVAL_MINUTES_DEFAULT,
+        ge=1,
+        le=60,
+        description="Interval (minutes) for the return-notification recovery reaper (T1).",
+    )
+    telephony_notification_max_attempts: int = Field(
+        default=TELEPHONY_NOTIFICATION_MAX_ATTEMPTS_DEFAULT,
+        ge=1,
+        le=20,
+        description="Bounded re-dispatch attempts before a PENDING return is marked FAILED (T1).",
+    )
+    telephony_return_grace_seconds: int = Field(
+        default=TELEPHONY_RETURN_GRACE_SECONDS_DEFAULT,
+        ge=10,
+        le=3600,
+        description="Grace (seconds) before the return reaper re-runs a RECEIVED inbox "
+        "synthesis — keeps it from racing the live fire-and-forget synthesis (T1-A).",
+    )
+    telephony_return_max_age_minutes: int = Field(
+        default=TELEPHONY_RETURN_MAX_AGE_MINUTES_DEFAULT,
+        ge=5,
+        le=1440,
+        description="A RECEIVED inbox row still unsynthesized after this is retired to "
+        "FAILED and its encrypted transcript purged (T1-A give-up + D-8).",
+    )
+    telephony_return_reaper_interval_minutes: int = Field(
+        default=TELEPHONY_RETURN_REAPER_INTERVAL_MINUTES_DEFAULT,
+        ge=1,
+        le=60,
+        description="Interval (minutes) for the pre-synthesis return recovery reaper (T1-A).",
     )

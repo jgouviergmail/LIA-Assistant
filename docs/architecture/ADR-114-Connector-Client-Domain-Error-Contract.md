@@ -2,7 +2,7 @@
 
 **Status**: ✅ IMPLEMENTED (2026-07-08)
 **Author**: Claude Code (Fable 5)
-**Related**: [ADR-002](ADR-002-Unified-Error-Handling.md) (BaseAPIException taxonomy), [ADR-023](ADR-023-Error-Handling-Strategy.md) (error strategy), [ADR-108](ADR-108-BaseAPIKeyClient-Adoption.md) (F0 — same contract applied to `BaseAPIKeyClient`)
+**Related**: ADR-002 (BaseAPIException taxonomy — foundational, not migrated to an ADR file), [ADR-023](ADR-023-Error-Handling-Strategy.md) (error strategy), [ADR-108](ADR-108-BaseAPIKeyClient-Adoption.md) (F0 — same contract applied to `BaseAPIKeyClient`)
 
 ## Context
 

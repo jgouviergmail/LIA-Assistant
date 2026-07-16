@@ -205,17 +205,14 @@ export function detectLocationType(message: string, language: string = 'fr'): Lo
   const messageLower = normalizeText(message);
   const lang = normalizeLanguage(language);
 
-  console.log('[location-detection] detectLocationType called:', {
-    originalMessage: message.substring(0, 50),
-    normalizedMessage: messageLower.substring(0, 50),
-    language: lang,
-  });
+  // NOTE: no debug logging here — this ran on the user's raw message and would
+  // leak message content (PII) to the browser console. Detection is pure and
+  // deterministic; trace it from the caller if ever needed.
 
   // Check home phrases first (more specific)
   const homePhrases = HOME_PHRASES[lang] || HOME_PHRASES.fr;
   for (const phrase of homePhrases) {
     if (messageLower.includes(normalizeText(phrase))) {
-      console.log('[location-detection] ✅ HOME phrase matched:', phrase);
       return 'home';
     }
   }
@@ -224,12 +221,10 @@ export function detectLocationType(message: string, language: string = 'fr'): Lo
   const currentPhrases = CURRENT_PHRASES[lang] || CURRENT_PHRASES.fr;
   for (const phrase of currentPhrases) {
     if (messageLower.includes(normalizeText(phrase))) {
-      console.log('[location-detection] ✅ CURRENT phrase matched:', phrase);
       return 'current';
     }
   }
 
-  console.log('[location-detection] No location phrase detected');
   return 'none';
 }
 

@@ -23,6 +23,8 @@ Usage:
 Compliance: LangGraph v1.0, async/await, type hints
 """
 
+import asyncio
+import functools
 import hashlib
 import json
 from collections.abc import Callable
@@ -63,6 +65,54 @@ llm_cache_format_migration = Counter(
 llm_cache_errors_total = Counter(
     "llm_cache_errors_total", "Cache operation errors", ["func_name", "error_type"]
 )
+
+# Provider cost AVOIDED by a cache hit (F002). A hit performs no provider call,
+# so it must NEVER increment the billed ``llm_cost_total`` / ``llm_tokens_consumed_total``
+# — the avoided spend is tracked separately here.
+llm_cache_cost_saved_total = Counter(
+    "llm_cache_cost_saved_total",
+    "Estimated provider cost avoided by LLM cache hits",
+    ["node_name", "model", "currency"],
+)
+
+# Local per-key single-flight for concurrent identical calls (F002): the first
+# caller runs the producer, others await the SAME task via ``asyncio.shield`` so
+# the producer is invoked at most once per key and a local cancellation never
+# cancels it for the others. Each task deregisters itself, so the map is bounded
+# by the live key set. Not a multi-worker lock — no consumer needs cross-process
+# coalescing today (the sole consumer is semantic_pivot_service).
+_producer_inflight: dict[str, "asyncio.Task[Any]"] = {}
+
+
+def _record_cache_error(func_name: str, exc: Exception) -> None:
+    """Log and count a non-fatal cache-boundary error (read/deserialize/write)."""
+    logger.error(
+        "llm_cache_error",
+        func=func_name,
+        error=str(exc),
+        error_type=type(exc).__name__,
+    )
+    llm_cache_errors_total.labels(func_name=func_name, error_type=type(exc).__name__).inc()
+
+
+def _finalize_producer(cache_key: str, task: "asyncio.Task[Any]") -> None:
+    """Producer-owned single-flight finalisation (F002).
+
+    Runs when the producer task completes — regardless of whether the initiating
+    caller survived. Ownership of the cleanup belongs to the PRODUCER, never to
+    the initiating caller: if the initiator is cancelled while the producer is
+    still running, the entry must stay so late callers coalesce onto the same
+    task instead of starting a second producer (stampede / double LLM cost).
+
+    Deregisters THIS task only when it is still the registered one (identity
+    check, so a key already re-registered by a later producer is never
+    clobbered), then retrieves the exception so an abandoned task (all waiters
+    cancelled) does not warn 'exception was never retrieved'.
+    """
+    if _producer_inflight.get(cache_key) is task:
+        del _producer_inflight[cache_key]
+    if not task.cancelled():
+        task.exception()
 
 
 class CacheJSONEncoder(json.JSONEncoder):
@@ -262,24 +312,18 @@ async def _record_cache_hit_metrics(
     node_name: str,
 ) -> None:
     """
-    Record metrics for cache hits WITHOUT triggering callbacks.
+    Record the provider cost AVOIDED by a cache hit (F002).
 
-    Phase 2.1 (RC4 Fix): Directly increments Prometheus counters with cached usage.
-    This avoids idempotency issues with callback replay.
-
-    Why not trigger callbacks?
-        - AsyncCallbackHandler.on_llm_end may not be idempotent
-        - Risk of double-counting in Prometheus counters
-        - Simpler implementation, less error-prone
-        - Langfuse limitation documented (cache hits won't appear in traces)
+    A hit issues no provider call, so this only increments
+    ``llm_cache_cost_saved_total`` — never the billed ``llm_cost_total`` or
+    ``llm_tokens_consumed_total`` (which must reflect real provider consumption,
+    i.e. cache misses whose LLM callbacks record them). Callbacks are not
+    replayed here (``on_llm_end`` is not guaranteed idempotent; cache hits are
+    intentionally absent from Langfuse traces).
 
     Args:
         usage_metadata: Cached usage data (tokens, model_name)
         node_name: Node name for metrics labeling
-
-    Performance:
-        - <2ms overhead (4 counter increments + 1 cost calculation)
-        - Non-blocking (metrics are async-safe)
 
     Example:
         >>> await _record_cache_hit_metrics(
@@ -288,41 +332,17 @@ async def _record_cache_hit_metrics(
         ... )
     """
     from src.core.config import settings
-    from src.infrastructure.observability.metrics_agents import (
-        estimate_cost_usd,
-        llm_cost_total,
-        llm_tokens_consumed_total,
-    )
+    from src.infrastructure.observability.metrics_agents import estimate_cost_usd
 
     model_name = usage_metadata.get(FIELD_MODEL_NAME, "unknown")
     input_tokens = usage_metadata.get("input_tokens", 0)
     output_tokens = usage_metadata.get("output_tokens", 0)
     cached_tokens = usage_metadata.get("cached_tokens", 0)
 
-    # Record token consumption (by type)
-    if input_tokens > 0:
-        llm_tokens_consumed_total.labels(
-            model=model_name,
-            node_name=node_name,
-            token_type="prompt_tokens",
-        ).inc(input_tokens)
-
-    if output_tokens > 0:
-        llm_tokens_consumed_total.labels(
-            model=model_name,
-            node_name=node_name,
-            token_type="completion_tokens",
-        ).inc(output_tokens)
-
-    if cached_tokens > 0:
-        llm_tokens_consumed_total.labels(
-            model=model_name,
-            node_name=node_name,
-            token_type="cached_tokens",
-        ).inc(cached_tokens)
-
-    # Estimate and record cost
-    cost = await estimate_cost_usd(
+    # A cache hit performs NO provider call: it must never touch the billed
+    # ``llm_cost_total`` / ``llm_tokens_consumed_total`` counters (F002 — those
+    # inflated the reported spend). Record only the cost it AVOIDED.
+    cost_saved = await estimate_cost_usd(
         model=model_name,
         prompt_tokens=input_tokens,
         completion_tokens=output_tokens,
@@ -330,21 +350,131 @@ async def _record_cache_hit_metrics(
     )
 
     currency = settings.default_currency.upper()
-    llm_cost_total.labels(
-        model=model_name,
+    llm_cache_cost_saved_total.labels(
         node_name=node_name,
+        model=model_name,
         currency=currency,
-    ).inc(cost)
+    ).inc(cost_saved)
 
     logger.debug(
-        "cache_hit_metrics_recorded",
+        "cache_hit_cost_saved_recorded",
         node_name=node_name,
         model=model_name,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         cached_tokens=cached_tokens,
-        cost=cost,
+        cost_saved=cost_saved,
         currency=currency,
+    )
+
+
+async def _return_cached_result(
+    cached_value: str | bytes,
+    func_name: str,
+    cache_key: str,
+    user_id: Any,
+    kwargs: dict[str, Any],
+) -> Any:
+    """Deserialize a cache entry, record hit metrics, and return the result.
+
+    Raises on a corrupt/partial entry so the caller falls through to a recompute
+    (the cache-hit boundary), never to a second producer call.
+    """
+    cached_data = json.loads(cached_value)
+    if isinstance(cached_data, dict) and FIELD_METADATA in cached_data:
+        result = cached_data[FIELD_RESULT]
+        usage_metadata = cached_data[FIELD_METADATA].get("usage")
+        format_version = cached_data[FIELD_METADATA].get("version", 2)
+        logger.info(
+            "llm_cache_hit",
+            func=func_name,
+            cache_key=cache_key[:50],
+            format_version=format_version,
+            has_usage=usage_metadata is not None,
+            user_scope=user_id if user_id else "global",
+        )
+        llm_cache_hits_total.labels(
+            func_name=func_name,
+            format_version=str(format_version),
+            has_usage=str(usage_metadata is not None),
+        ).inc()
+        if usage_metadata:
+            config = kwargs.get("config")
+            node_name = (
+                config.get(FIELD_METADATA, {}).get("langgraph_node")
+                if config
+                else func_name.replace("_call_", "").replace("_llm", "")
+            )
+            await _record_cache_hit_metrics(usage_metadata=usage_metadata, node_name=node_name)
+    else:
+        result = cached_data
+        logger.info(
+            "llm_cache_hit",
+            func=func_name,
+            cache_key=cache_key[:50],
+            format_version=1,
+            has_usage=False,
+            user_scope=user_id if user_id else "global",
+        )
+        llm_cache_hits_total.labels(
+            func_name=func_name, format_version="1", has_usage="False"
+        ).inc()
+        llm_cache_format_migration.labels(func_name=func_name).inc()
+    return result
+
+
+async def _store_cached_result(
+    redis: Any,
+    cache_key: str,
+    result: Any,
+    ttl_seconds: int,
+    func_name: str,
+    user_id: Any,
+    kwargs: dict[str, Any],
+) -> None:
+    """Serialize + store a producer result as a v2 cache entry.
+
+    A non-serializable result is logged and skipped (never a corrupt entry).
+    A Redis write error propagates to the caller's write boundary — which
+    returns the already-computed result rather than re-running the producer.
+    """
+    import time
+
+    usage_metadata = None
+    config = kwargs.get("config")
+    if config and "callbacks" in config:
+        for callback in config.get("callbacks", []):
+            if hasattr(callback, "_last_usage_metadata"):
+                usage_metadata = callback._last_usage_metadata
+                callback._last_usage_metadata = None  # clear to prevent reuse
+                break
+
+    cache_value = {
+        FIELD_RESULT: result,
+        FIELD_METADATA: {"version": 2, "cached_at": time.time(), "usage": usage_metadata},
+    }
+    try:
+        serialized = json.dumps(cache_value, cls=CacheJSONEncoder, ensure_ascii=False)
+    except (TypeError, ValueError) as exc:
+        logger.error(
+            "llm_cache_serialization_failed",
+            func=func_name,
+            error=str(exc),
+            result_type=type(result).__name__,
+            exc_info=True,
+        )
+        llm_cache_errors_total.labels(func_name=func_name, error_type="serialization_failed").inc()
+        return
+
+    await redis.set(cache_key, serialized, ex=ttl_seconds)
+    logger.info(
+        "llm_cache_stored",
+        func=func_name,
+        cache_key=cache_key[:50],
+        ttl_seconds=ttl_seconds,
+        format_version=2,
+        has_usage=usage_metadata is not None,
+        user_scope=user_id if user_id else "global",
     )
 
 
@@ -381,7 +511,10 @@ def cache_llm_response(
 
     Thread Safety:
         - Safe for concurrent access (Redis atomic operations)
-        - No cache stampede (first request computes, others wait)
+        - No cache stampede: a local per-key single-flight coalesces concurrent
+          identical calls onto ONE producer invocation; the others await it via
+          ``asyncio.shield``, so a caller's cancellation never cancels the shared
+          producer (F002). This is in-process only (no cross-worker lock).
     """
 
     def decorator(func: F) -> F:
@@ -389,182 +522,76 @@ def cache_llm_response(
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Skip caching if disabled
             if not enabled:
-                logger.debug(
-                    "llm_cache_disabled",
-                    func=func.__name__,
-                )
+                logger.debug("llm_cache_disabled", func=func.__name__)
                 return await func(*args, **kwargs)
 
-            # Phase 8: Extract user_id from config for cache isolation
-            # User_id is in config["configurable"]["user_id"] (LangGraph pattern)
+            # Extract user_id from config for cache isolation (LangGraph pattern:
+            # config["configurable"]["user_id"]).
             config = kwargs.get("config")
             user_id = None
             if config and isinstance(config, dict):
                 configurable = config.get("configurable", {})
                 if isinstance(configurable, dict):
                     user_id = configurable.get("user_id")
-
-            # Generate cache key with user isolation
             cache_key = _generate_cache_key(func.__name__, args, kwargs, user_id=user_id)
 
+            # === READ boundary: a Redis read error degrades to a miss (never a
+            # second producer call) and disables the later write. ===
+            redis = None
+            cached_value = None
             try:
-                # Try to get from cache
                 redis = await get_redis_cache()
                 cached_value = await redis.get(cache_key)
+            except Exception as read_err:  # noqa: BLE001 — a cache read must not break the call
+                _record_cache_error(func.__name__, read_err)
+                redis = None
 
-                if cached_value:
-                    # Cache HIT - Phase 2.1 (RC4 Fix): Detect format version and trigger metrics
-                    cached_data = json.loads(cached_value)
-
-                    # Detect format version (backward compatibility)
-                    if isinstance(cached_data, dict) and FIELD_METADATA in cached_data:
-                        # V2 format (with metadata) - extract result and usage
-                        result = cached_data[FIELD_RESULT]
-                        usage_metadata = cached_data[FIELD_METADATA].get("usage")
-                        format_version = cached_data[FIELD_METADATA].get("version", 2)
-
-                        logger.info(
-                            "llm_cache_hit",
-                            func=func.__name__,
-                            cache_key=cache_key[:50],
-                            format_version=format_version,
-                            has_usage=usage_metadata is not None,
-                            user_scope=user_id if user_id else "global",
-                        )
-
-                        # Track cache hit metric
-                        llm_cache_hits_total.labels(
-                            func_name=func.__name__,
-                            format_version=str(format_version),
-                            has_usage=str(usage_metadata is not None),
-                        ).inc()
-
-                        # Record metrics directly (no callback replay)
-                        if usage_metadata:
-                            # Extract node name from config or derive from function name
-                            config = kwargs.get("config")
-                            node_name = (
-                                config.get(FIELD_METADATA, {}).get("langgraph_node")
-                                if config
-                                else func.__name__.replace("_call_", "").replace("_llm", "")
-                            )
-
-                            # Trigger metrics recording
-                            await _record_cache_hit_metrics(
-                                usage_metadata=usage_metadata,
-                                node_name=node_name,
-                            )
-                    else:
-                        # V1 format (legacy) - no metadata available
-                        result = cached_data
-                        logger.info(
-                            "llm_cache_hit",
-                            func=func.__name__,
-                            cache_key=cache_key[:50],
-                            format_version=1,
-                            has_usage=False,
-                            user_scope=user_id if user_id else "global",
-                        )
-
-                        # Track cache hit metric (legacy format)
-                        llm_cache_hits_total.labels(
-                            func_name=func.__name__,
-                            format_version="1",
-                            has_usage="False",
-                        ).inc()
-
-                        # Track legacy format migration metric (should drop to 0 after TTL)
-                        llm_cache_format_migration.labels(func_name=func.__name__).inc()
-
-                    return result
-
-                # Cache MISS - call function
-                logger.info(
-                    "llm_cache_miss",
-                    func=func.__name__,
-                    cache_key=cache_key[:50],
-                    user_scope=user_id if user_id else "global",
-                )
-
-                # Track cache miss metric
-                llm_cache_misses_total.labels(func_name=func.__name__).inc()
-
-                result = await func(*args, **kwargs)
-
-                # Phase 2.1 (RC4 Fix): Extract usage metadata from callbacks and store v2 format
-                usage_metadata = None
-                config = kwargs.get("config")
-                if config and "callbacks" in config:
-                    # Extract from MetricsCallbackHandler or TokenTrackingCallback
-                    for callback in config.get("callbacks", []):
-                        if hasattr(callback, "_last_usage_metadata"):
-                            usage_metadata = callback._last_usage_metadata
-                            # CRITICAL: Clear after extraction to prevent reuse
-                            callback._last_usage_metadata = None
-                            break
-
-                # Build v2 cache value with metadata
-                import time
-
-                cache_value = {
-                    FIELD_RESULT: result,
-                    FIELD_METADATA: {
-                        "version": 2,
-                        "cached_at": time.time(),
-                        "usage": usage_metadata,
-                    },
-                }
-
-                # Cache the result with custom encoder
+            # === HIT boundary: a corrupt/partial entry falls through to a miss. ===
+            if cached_value:
                 try:
-                    serialized = json.dumps(cache_value, cls=CacheJSONEncoder, ensure_ascii=False)
-                    await redis.setex(cache_key, ttl_seconds, serialized)
-
-                    logger.info(
-                        "llm_cache_stored",
-                        func=func.__name__,
-                        cache_key=cache_key[:50],
-                        ttl_seconds=ttl_seconds,
-                        format_version=2,
-                        has_usage=usage_metadata is not None,
-                        user_scope=user_id if user_id else "global",
+                    return await _return_cached_result(
+                        cached_value, func.__name__, cache_key, user_id, kwargs
                     )
-                except (TypeError, ValueError) as e:
-                    # Result not JSON-serializable - log error but don't fail
-                    logger.error(
-                        "llm_cache_serialization_failed",
-                        func=func.__name__,
-                        error=str(e),
-                        result_type=type(result).__name__,
-                        exc_info=True,
+                except Exception as hit_err:  # noqa: BLE001 — bad entry → recompute, don't crash
+                    _record_cache_error(func.__name__, hit_err)
+
+            # === MISS ===
+            logger.info(
+                "llm_cache_miss",
+                func=func.__name__,
+                cache_key=cache_key[:50],
+                user_scope=user_id if user_id else "global",
+            )
+            llm_cache_misses_total.labels(func_name=func.__name__).inc()
+
+            # === PRODUCER boundary: single-flight — the producer runs AT MOST
+            # ONCE per key; its exception propagates UNCHANGED (no silent retry).
+            # Concurrent identical callers coalesce onto the same task; a local
+            # cancellation cannot cancel it for the others (asyncio.shield). ===
+            inflight = _producer_inflight.get(cache_key)
+            is_initiator = inflight is None
+            if inflight is None:
+                inflight = asyncio.create_task(func(*args, **kwargs))
+                _producer_inflight[cache_key] = inflight
+                # Cleanup is owned by the PRODUCER task, not the initiating
+                # caller (F002): the entry lives until the producer finishes, so
+                # an initiator cancelled mid-flight never orphans it.
+                inflight.add_done_callback(functools.partial(_finalize_producer, cache_key))
+            result = await asyncio.shield(inflight)
+
+            # === WRITE boundary: only the initiator writes (one producer → one
+            # write); a write error returns the already-computed result. ===
+            if is_initiator and redis is not None:
+                try:
+                    await _store_cached_result(
+                        redis, cache_key, result, ttl_seconds, func.__name__, user_id, kwargs
                     )
-                    # Track serialization error
-                    llm_cache_errors_total.labels(
-                        func_name=func.__name__,
-                        error_type="serialization_failed",
-                    ).inc()
-                    # Don't cache if serialization fails (better than corrupted cache)
+                except (
+                    Exception
+                ) as write_err:  # noqa: BLE001 — a write error must not lose the result
+                    _record_cache_error(func.__name__, write_err)
 
-                return result
-
-            except Exception as e:
-                # Cache error should not break the application
-                logger.error(
-                    "llm_cache_error",
-                    func=func.__name__,
-                    error=str(e),
-                    error_type=type(e).__name__,
-                    exc_info=True,
-                )
-
-                # Track general cache error
-                llm_cache_errors_total.labels(
-                    func_name=func.__name__,
-                    error_type=type(e).__name__,
-                ).inc()
-
-                # Fallback: call function without cache
-                return await func(*args, **kwargs)
+            return result
 
         return wrapper  # type: ignore
 

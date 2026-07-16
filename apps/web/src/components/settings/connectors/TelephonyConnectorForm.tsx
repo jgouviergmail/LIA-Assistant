@@ -70,9 +70,21 @@ export function TelephonyConnectorForm({
           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {t('settings.connectors.telephony.step_key')}
           </h4>
+          {/* Associated label (audit F012/F045): a placeholder is not an
+              accessible name — it vanishes on input and is skipped by voice
+              control and several screen readers. */}
+          <label
+            id="telephony-api-key-label"
+            htmlFor="telephony-api-key"
+            className="block text-xs font-medium text-gray-600 dark:text-gray-400"
+          >
+            {t('settings.connectors.telephony.key_label')}
+          </label>
           <div className="relative">
             <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
+              id="telephony-api-key"
+              aria-labelledby="telephony-api-key-label"
               type="password"
               value={apiKey}
               onChange={e => setApiKey(e.target.value)}
@@ -80,9 +92,13 @@ export function TelephonyConnectorForm({
               className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm dark:border-gray-700 dark:bg-gray-800"
             />
           </div>
+          {/* aria-label keeps the button named while isLoading swaps its
+              visible text for a spinner-only content (audit F012/F045). */}
           <button
             onClick={validateKey}
             disabled={isLoading || apiKey.trim().length < 8}
+            aria-label={t('settings.connectors.telephony.validate_key')}
+            aria-busy={isLoading}
             className="flex w-full items-center justify-center rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600 disabled:opacity-50"
           >
             {isLoading ? (
@@ -113,9 +129,7 @@ export function TelephonyConnectorForm({
               <Phone className="h-5 w-5 text-indigo-500" />
               <div>
                 <div className="text-sm font-medium">{number.phone_number}</div>
-                {number.provider && (
-                  <div className="text-xs text-gray-500">{number.provider}</div>
-                )}
+                {number.provider && <div className="text-xs text-gray-500">{number.provider}</div>}
               </div>
             </button>
           ))}
@@ -148,23 +162,31 @@ export function TelephonyConnectorForm({
               className="shrink-0 rounded p-1 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
               aria-label={t('settings.connectors.telephony.copy_url')}
             >
-              {copied ? (
-                <Check className="h-4 w-4 text-green-500" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
+              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </button>
           </div>
+          <label
+            id="telephony-webhook-secret-label"
+            htmlFor="telephony-webhook-secret"
+            className="block text-xs font-medium text-gray-600 dark:text-gray-400"
+          >
+            {t('settings.connectors.telephony.secret_label')}
+          </label>
           <input
+            id="telephony-webhook-secret"
+            aria-labelledby="telephony-webhook-secret-label"
             type="password"
             value={webhookSecret}
             onChange={e => setWebhookSecret(e.target.value)}
             placeholder={t('settings.connectors.telephony.secret_placeholder')}
             className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
           />
+          {/* aria-label: same named-while-busy rationale as the validate button. */}
           <button
             onClick={activate}
             disabled={isLoading || webhookSecret.trim().length < 1}
+            aria-label={t('settings.connectors.telephony.activate')}
+            aria-busy={isLoading}
             className="flex w-full items-center justify-center rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600 disabled:opacity-50"
           >
             {isLoading ? (

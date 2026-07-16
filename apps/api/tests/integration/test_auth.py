@@ -644,87 +644,56 @@ class TestGoogleOAuth:
 
 
 @pytest.mark.integration
-@pytest.mark.skip(
-    reason="OAuth PKCE implementation may not include redirect_uri in authorization URL query params. "
-    "These tests need to be updated for PKCE flow where redirect_uri is registered server-side."
-)
-class TestOAuthRedirectURIConfiguration:
+class TestOAuthPKCEAuthorizationURL:
     """
-    Test OAuth redirect URI configuration for cross-port cookie fix.
+    PKCE authorization-URL contract for Google OAuth (current flow).
 
-    Context (2025):
-    - BFF Pattern requires cookies shared between frontend (:3000) and backend (:8000)
-    - SameSite=Lax cookies don't work with cross-port redirects in development
-    - Solution: Next.js reverse proxy + redirect_uri points to frontend
-
-    This test validates the redirect URI configuration is correct for the architecture.
+    ``initiate_google_oauth`` goes through ``OAuthFlowHandler.initiate_flow``:
+    the authorization URL carries ``state``, ``code_challenge`` (S256 of a
+    server-side verifier stored in Redis) AND ``redirect_uri`` (from
+    ``settings.google_redirect_uri`` — configured per environment, asserted
+    from settings, never a hardcoded host/port).
     """
 
     @pytest.mark.asyncio
-    async def test_google_oauth_initiate_returns_correct_redirect_uri(
+    async def test_google_oauth_initiate_builds_pkce_authorization_url(
         self, async_client: AsyncClient
     ):
-        """
-        Test that Google OAuth initiation returns redirect_uri pointing to frontend.
-
-        Expected: http://localhost:3000/api/v1/auth/google/callback
-        (Not http://localhost:8000/api/v1/auth/google/callback)
-
-        Rationale:
-        - Next.js proxies /api/* to backend :8000
-        - Cookie is set on :3000 domain (unified)
-        - Solves cross-port cookie issue with SameSite=Lax
-        """
+        """The authorization URL carries the full PKCE parameter set."""
         response = await async_client.get("/api/v1/auth/google/login")
 
         assert response.status_code == 200
         data = response.json()
-
-        # Verify response structure
         assert "authorization_url" in data
         assert "state" in data
 
-        # Parse authorization URL
         parsed_url = urlparse(data["authorization_url"])
         query_params = parse_qs(parsed_url.query)
 
-        # Verify redirect_uri parameter points to frontend
-        assert "redirect_uri" in query_params
-        redirect_uri = query_params["redirect_uri"][0]
+        # CSRF state: present in the URL and echoed in the response body.
+        assert query_params["state"][0] == data["state"]
 
-        # Critical assertion: redirect_uri must point to port 3000 (frontend)
-        assert "localhost:3000" in redirect_uri or "3000" in redirect_uri, (
-            f"Redirect URI should point to frontend (port 3000) for cross-port cookie fix. "
-            f"Got: {redirect_uri}. "
-            f"Expected format: http://localhost:3000/api/v1/auth/google/callback"
-        )
+        # PKCE: S256 challenge derived from the server-stored verifier.
+        assert query_params["code_challenge_method"][0] == "S256"
+        # Base64url-encoded SHA-256 digest is 43 chars, no padding.
+        assert len(query_params["code_challenge"][0]) == 43
 
-        # Verify redirect_uri ends with correct path
-        assert redirect_uri.endswith(
-            "/api/v1/auth/google/callback"
-        ), f"Redirect URI path is incorrect. Got: {redirect_uri}"
+        assert query_params["response_type"][0] == "code"
+
+        # redirect_uri comes from settings (environment-specific) — assert
+        # against the configured value, not a hardcoded host/port.
+        assert query_params["redirect_uri"][0] == settings.google_redirect_uri
 
     @pytest.mark.asyncio
-    async def test_settings_google_redirect_uri_configured_correctly(self):
+    async def test_settings_google_redirect_uri_targets_callback_path(self):
+        """The configured redirect URI targets the backend callback route.
+
+        The host/port is environment-specific (dev fronts it with the Next
+        proxy); the PATH is the structural contract.
         """
-        Test that GOOGLE_REDIRECT_URI environment variable is configured correctly.
-
-        This test validates the .env configuration matches the architecture requirements.
-        """
-        # Get redirect URI from settings
-        redirect_uri = settings.google_redirect_uri
-
-        # Verify it points to frontend (port 3000)
-        assert "localhost:3000" in redirect_uri or "3000" in redirect_uri, (
-            f"GOOGLE_REDIRECT_URI must point to frontend (port 3000) in development. "
-            f"Current value: {redirect_uri}. "
-            f"Update apps/api/.env: GOOGLE_REDIRECT_URI=http://localhost:3000/api/v1/auth/google/callback"
-        )
-
-        # Verify correct path
-        assert (
-            "/api/v1/auth/google/callback" in redirect_uri
-        ), f"GOOGLE_REDIRECT_URI path is incorrect. Got: {redirect_uri}"
+        assert settings.google_redirect_uri.endswith(
+            "/api/v1/auth/google/callback"
+        ), f"GOOGLE_REDIRECT_URI path is incorrect. Got: {settings.google_redirect_uri}"
 
     @pytest.mark.asyncio
     async def test_oauth_callback_endpoint_exists(self, async_client: AsyncClient):

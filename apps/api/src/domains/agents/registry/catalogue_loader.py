@@ -42,6 +42,8 @@ from src.core.config import settings
 from .catalogue import AgentManifest
 
 if TYPE_CHECKING:
+    import structlog
+
     from .agent_registry import AgentRegistry
 
 # ============================================================================
@@ -849,7 +851,9 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     _validate_context_key_registrations(registry, logger)
 
 
-def _validate_context_key_registrations(registry: AgentRegistry, logger) -> None:
+def _validate_context_key_registrations(
+    registry: AgentRegistry, logger: structlog.stdlib.BoundLogger
+) -> None:
     """
     Validate that all context_key values in tool manifests are registered in ContextTypeRegistry.
 
@@ -933,7 +937,7 @@ def _validate_context_key_registrations(registry: AgentRegistry, logger) -> None
         )
 
 
-def _register_tool_instances(registry: AgentRegistry, logger) -> None:
+def _register_tool_instances(registry: AgentRegistry, logger: structlog.stdlib.BoundLogger) -> None:
     """
     Register tool instances from the central tool registry.
 

@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -56,6 +57,13 @@ from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Dependency-injection seam for the Redis client (AC-010). A provider returns
+# the client on demand; the client is NEVER cached on the instance, so a
+# long-lived singleton cannot resurrect a connection into an orphaned pool
+# after ``close_redis()`` resets the process client. Tests inject a provider
+# returning a mock instead of reaching the dev Redis.
+RedisProvider = Callable[[], Awaitable[Any]]
 
 
 # =============================================================================
@@ -283,10 +291,16 @@ class PlanPatternLearner:
     - Local cache is thread-safe for reads (Python dict)
     """
 
-    __slots__ = ("_redis", "_cache", "_cache_time")
+    # ``_redis_provider`` replaces the former ``_redis`` cache slot: the client
+    # is resolved on demand via the provider and never stored, so this
+    # singleton cannot resurrect a connection into an orphaned pool after
+    # ``close_redis()`` (AC-010).
+    __slots__ = ("_redis_provider", "_cache", "_cache_time")
 
-    def __init__(self) -> None:
-        self._redis: Any = None
+    def __init__(self, redis_provider: RedisProvider | None = None) -> None:
+        # None => fetch the process-wide client fresh on each call (see
+        # _ensure_redis). Tests inject a provider returning a mock.
+        self._redis_provider = redis_provider
         self._cache: dict[str, list[PatternStats]] = {}
         self._cache_time: float = 0
 
@@ -986,15 +1000,20 @@ class PlanPatternLearner:
     # =========================================================================
 
     async def _ensure_redis(self) -> Any:
-        """Lazy-load Redis client."""
-        if self._redis is not None:
-            return self._redis
+        """Resolve the Redis client via the provider (never cached — AC-010).
 
+        With an injected provider (tests / DI) it is used verbatim; otherwise
+        the process-wide ``get_redis_cache()`` accessor is called fresh each
+        time so the client lifecycle has a single owner and ``close_redis()``
+        is never defeated by a stale reference on this instance.
+        """
         try:
+            if self._redis_provider is not None:
+                return await self._redis_provider()
+
             from src.infrastructure.cache.redis import get_redis_cache
 
-            self._redis = await get_redis_cache()
-            return self._redis
+            return await get_redis_cache()
         except Exception as e:
             logger.debug(
                 "pattern_redis_unavailable",

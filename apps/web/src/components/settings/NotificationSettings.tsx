@@ -194,7 +194,12 @@ export function NotificationSettings({ lng }: NotificationSettingsProps) {
 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" disabled={deletingTokenId === token.id}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={t('settings.notifications.remove_device_title')}
+                          disabled={deletingTokenId === token.id}
+                        >
                           {deletingTokenId === token.id ? (
                             <LoadingSpinner size="default" />
                           ) : (

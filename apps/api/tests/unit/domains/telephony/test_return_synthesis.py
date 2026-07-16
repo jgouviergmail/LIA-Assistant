@@ -107,7 +107,7 @@ async def test_synthesize_return_uses_typed_output_and_context(monkeypatch) -> N
             return _FakeStructured()
 
     monkeypatch.setattr(rs, "get_llm", lambda _t: _FakeLLM())
-    monkeypatch.setattr(rs, "load_prompt", lambda _n, _v: "SYSTEM")
+    monkeypatch.setattr(rs, "load_telephony_prompt", lambda _n, _v: "SYSTEM")
 
     proposal, usage = await rs.synthesize_return(
         transcript="raw transcript",
@@ -135,7 +135,9 @@ async def test_synthesize_return_uses_typed_output_and_context(monkeypatch) -> N
 # --------------------------------------------------------------------------- #
 
 
-def _install_pipeline(monkeypatch, *, call, mark_result: bool = True) -> dict:
+def _install_pipeline(
+    monkeypatch, *, call, mark_result: bool = True, dispatch_error: Exception | None = None
+) -> dict:
     captured: dict = {}
 
     class _FakeRepo:
@@ -149,6 +151,12 @@ def _install_pipeline(monkeypatch, *, call, mark_result: bool = True) -> dict:
             captured["mark"] = {"call_id": cid, **kwargs}
             return mark_result
 
+        async def mark_notification_delivered(self, cid) -> None:
+            captured.setdefault("delivered", []).append(cid)
+
+        async def record_notification_failure(self, cid, *, max_attempts) -> None:
+            captured.setdefault("failed", []).append(cid)
+
     async def _get_user(_model, _pk):
         return SimpleNamespace(language="fr")
 
@@ -159,6 +167,8 @@ def _install_pipeline(monkeypatch, *, call, mark_result: bool = True) -> dict:
     class _FakeDispatcher:
         async def dispatch(self, **kwargs):
             captured["dispatch"] = kwargs
+            if dispatch_error is not None:
+                raise dispatch_error
             return None
 
     async def _fake_synth(**kwargs):
@@ -221,10 +231,40 @@ async def test_process_persists_minimized_and_delivers_once(monkeypatch) -> None
     assert captured["dispatch"]["content"] == "J'ai appelé Marie"
     assert captured["dispatch"]["task_type"] == "phone_call"
     assert captured["dispatch"]["title"] == "Retour d'appel"
+    # T1: the outbox record is armed with the notification payload, then flipped to
+    # DELIVERED only AFTER the dispatch succeeds.
+    assert mark["notification_content"] == "J'ai appelé Marie"
+    assert mark["notification_title"] == "Retour d'appel"
+    assert captured["delivered"] == [call.id]
     # G-1: the synthesis LLM token usage is tracked (like briefing/heartbeat).
     assert captured["track"]["tokens_in"] == 40
     assert captured["track"]["task_type"] == "phone_call"
     assert captured["track"]["model_name"] == "gpt-4.1-nano"
+
+
+@pytest.mark.unit
+async def test_process_dispatch_failure_leaves_notification_pending(monkeypatch) -> None:
+    """A crash/error in the dispatch must NOT lose the return (T1).
+
+    The call result + PENDING outbox record are already committed by mark_completed;
+    a failing dispatch is swallowed (not re-raised) and the notification is left
+    PENDING for the reaper — it is never marked DELIVERED.
+    """
+    call = SimpleNamespace(
+        id=uuid4(),
+        user_id=uuid4(),
+        status=PhoneCallStatus.DIALING,
+        objective="ask availability",
+        callee_display="Marie",
+    )
+    captured = _install_pipeline(monkeypatch, call=call, dispatch_error=RuntimeError("fcm down"))
+
+    # Must not raise — the reaper owns recovery, retrying the whole flow would be futile.
+    await rs.process_completed_call(call.id, _payload())
+
+    assert "dispatch" in captured  # dispatch was attempted
+    assert captured.get("delivered") is None  # but NOT marked delivered → stays PENDING
+    assert captured["mark"]["notification_content"] == "J'ai appelé Marie"
 
 
 @pytest.mark.unit
@@ -277,3 +317,57 @@ async def test_process_falls_back_on_synthesis_failure(monkeypatch) -> None:
     assert captured["dispatch"]["content"] == "she agreed"
     # No usage on the failure path → nothing tracked.
     assert "track" not in captured
+
+
+# --------------------------------------------------------------------------- #
+# T1: durable retry wrapper (deliver_return_with_retry)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.unit
+async def test_deliver_return_with_retry_succeeds_first_try(monkeypatch) -> None:
+    calls = {"n": 0}
+
+    async def _pcc(_call_id, _payload) -> None:
+        calls["n"] += 1
+
+    monkeypatch.setattr(rs, "process_completed_call", _pcc)
+    monkeypatch.setattr(rs.settings, "telephony_return_max_attempts", 3)
+    monkeypatch.setattr(rs.settings, "telephony_return_retry_delay_seconds", 0)
+
+    await rs.deliver_return_with_retry(uuid4(), {"x": 1})
+    assert calls["n"] == 1
+
+
+@pytest.mark.unit
+async def test_deliver_return_with_retry_retries_then_succeeds(monkeypatch) -> None:
+    calls = {"n": 0}
+
+    async def _pcc(_call_id, _payload) -> None:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("transient DB error")
+
+    monkeypatch.setattr(rs, "process_completed_call", _pcc)
+    monkeypatch.setattr(rs.settings, "telephony_return_max_attempts", 3)
+    monkeypatch.setattr(rs.settings, "telephony_return_retry_delay_seconds", 0)
+
+    await rs.deliver_return_with_retry(uuid4(), {"x": 1})
+    assert calls["n"] == 2  # failed once, succeeded on retry
+
+
+@pytest.mark.unit
+async def test_deliver_return_with_retry_gives_up_without_raising(monkeypatch) -> None:
+    calls = {"n": 0}
+
+    async def _pcc(_call_id, _payload) -> None:
+        calls["n"] += 1
+        raise RuntimeError("permanent failure")
+
+    monkeypatch.setattr(rs, "process_completed_call", _pcc)
+    monkeypatch.setattr(rs.settings, "telephony_return_max_attempts", 3)
+    monkeypatch.setattr(rs.settings, "telephony_return_retry_delay_seconds", 0)
+
+    # Must not raise — a lost return must not crash the background task runner.
+    await rs.deliver_return_with_retry(uuid4(), {"x": 1})
+    assert calls["n"] == 3  # exhausted all attempts

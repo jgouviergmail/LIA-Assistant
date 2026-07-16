@@ -31,6 +31,13 @@ rag_document_processing_duration_seconds = Histogram(
     buckets=[1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0, 120.0, 300.0],
 )
 
+# Durable-job recovery (audit F001): jobs the reaper requeued or dead-lettered.
+rag_jobs_recovered_total = Counter(
+    "rag_jobs_recovered_total",
+    "RAG durable jobs handled by the recovery reaper",
+    ["job_type", "outcome"],  # job_type: document|sync ; outcome: requeued|failed
+)
+
 rag_document_chunks_total = Histogram(
     "rag_document_chunks_total",
     "Number of chunks produced per document",

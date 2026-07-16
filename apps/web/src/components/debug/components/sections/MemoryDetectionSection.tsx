@@ -49,7 +49,7 @@ const MemoryActionRow = React.memo(function MemoryActionRow({
         <span
           className={cn(
             'text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0',
-            'bg-primary/10 text-primary/80 border-primary/20'
+            'bg-primary/10 text-primary/90 border-primary/20'
           )}
         >
           {memory.category}
@@ -73,7 +73,7 @@ const MemoryActionRow = React.memo(function MemoryActionRow({
       </div>
 
       {/* Content */}
-      <div className="pl-4 text-[11px] text-muted-foreground/80 truncate" title={memory.content}>
+      <div className="pl-4 text-[11px] text-muted-foreground truncate" title={memory.content}>
         {action === 'delete' ? (
           <span className="line-through text-red-400/60">{memory.content}</span>
         ) : (
@@ -124,7 +124,7 @@ const SimilarMemoryRow = React.memo(function SimilarMemoryRow({
       >
         {memory.category}
       </span>
-      <span className="text-[11px] text-muted-foreground/70 truncate" title={memory.content}>
+      <span className="text-[11px] text-muted-foreground truncate" title={memory.content}>
         {memory.content}
       </span>
     </div>

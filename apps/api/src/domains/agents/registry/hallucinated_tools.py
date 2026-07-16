@@ -84,7 +84,10 @@ def _load_registry() -> dict[str, Any]:
 
         try:
             with open(HALLUCINATIONS_FILE, encoding="utf-8") as f:
-                return json.load(f)
+                loaded = json.load(f)
+            if not isinstance(loaded, dict):
+                raise ValueError("hallucination registry file is not a JSON object")
+            return loaded
         except Exception as e:
             logger.error("hallucination_registry_load_error", error=str(e))
             return {

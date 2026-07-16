@@ -49,6 +49,7 @@ from src.core.constants import (
     CLIENT_RATE_LIMIT_OPENWEATHERMAP_PER_SECOND_DEFAULT,
     CLIENT_RATE_LIMIT_PERPLEXITY_PER_SECOND_DEFAULT,
     CLIENT_RATE_LIMIT_WIKIPEDIA_PER_SECOND_DEFAULT,
+    CONNECTOR_API_KEY_VERIFY_TIMEOUT_SECONDS_DEFAULT,
     CONTACTS_TOOL_DEFAULT_LIMIT_DEFAULT,
     CONTACTS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
     DRIVE_CACHE_DETAILS_TTL,
@@ -350,6 +351,17 @@ class ConnectorsSettings(BaseSettings):
         description=(
             "Timeout for generic external API calls (seconds, default 5s). "
             "Bound aligned with validate_config.py / TIMEOUT_REGISTRY (1.0–60.0)."
+        ),
+    )
+
+    connector_api_key_verify_timeout_seconds: float = Field(
+        default=CONNECTOR_API_KEY_VERIFY_TIMEOUT_SECONDS_DEFAULT,
+        ge=1.0,
+        le=60.0,
+        description=(
+            "Timeout for the functional API-key verification run at connector "
+            "activation (F034): a real authenticated call must succeed within "
+            "this window before the connector is marked ACTIVE."
         ),
     )
     # NOTE: `http_timeout_currency_api` was removed in v1.21 (Vague 4 / G1).

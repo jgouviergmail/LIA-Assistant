@@ -163,7 +163,7 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
       {/* No Telegram binding yet — show link button */}
       {!loading && !telegramBinding && (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <MessageCircle className="h-10 w-10 text-muted-foreground/50 mb-3" />
+          <MessageCircle className="h-10 w-10 text-muted-foreground mb-3" />
           <p className="text-sm text-muted-foreground mb-4">
             {telegramBotUsername
               ? t('settings.channels.empty_with_bot', { bot: telegramBotUsername })

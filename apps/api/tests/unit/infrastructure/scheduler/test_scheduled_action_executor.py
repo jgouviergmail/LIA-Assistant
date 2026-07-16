@@ -157,3 +157,44 @@ async def test_execute_single_action_marks_run_as_automated_source():
     # Regression: the user's display-mode preference must reach the agent run
     # instead of silently defaulting to "cards".
     assert kwargs["user_display_mode"] == "markdown"
+
+
+@pytest.mark.asyncio
+async def test_process_scheduled_actions_uses_no_redis_lock():
+    """F003: the executor processes due actions with NO Redis SchedulerLock.
+
+    The former per-job Redis lock, retained for its full TTL (300s), throttled
+    this 60s job to one run per five minutes. Single execution is already
+    guaranteed by leader election + APScheduler ``max_instances=1`` + the
+    repository's FOR UPDATE SKIP LOCKED, so the executor must run every cycle
+    without ever consulting Redis. This guards against re-introducing the lock.
+    """
+    from src.infrastructure.scheduler import scheduled_action_executor as mod
+
+    action = SimpleNamespace(id=uuid.uuid4(), user_id=uuid.uuid4())
+
+    mock_db = AsyncMock()
+    repo = MagicMock()
+    repo.recover_stale_executing = AsyncMock(return_value=0)
+    repo.get_and_lock_due_actions = AsyncMock(return_value=[action])
+
+    redis_factory = AsyncMock()  # must never be called by the executor
+
+    with (
+        patch(
+            "src.infrastructure.database.session.get_db_context",
+            return_value=_AsyncCM(mock_db),
+        ),
+        patch(
+            "src.domains.scheduled_actions.repository.ScheduledActionRepository",
+            return_value=repo,
+        ),
+        patch.object(mod, "execute_single_action", AsyncMock(return_value="ok")) as exec_mock,
+        patch("src.infrastructure.cache.redis.get_redis_cache", redis_factory),
+    ):
+        stats = await mod.process_scheduled_actions()
+
+    assert stats["processed"] == 1
+    assert stats["success"] == 1
+    exec_mock.assert_awaited_once()
+    redis_factory.assert_not_called()
