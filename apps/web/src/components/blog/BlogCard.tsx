@@ -19,6 +19,8 @@ interface BlogCardProps {
   categoryLabel: string;
   readTimeLabel: string;
   lng: string;
+  /** Above-the-fold card: eager-load its illustration (LCP candidate). */
+  priority?: boolean;
 }
 
 export function BlogCard({
@@ -28,6 +30,7 @@ export function BlogCard({
   categoryLabel,
   readTimeLabel,
   lng,
+  priority = false,
 }: BlogCardProps) {
   const badgeClass = CATEGORY_BADGE[article.category];
   const blogPath = lng === 'fr' ? `/blog/${article.slug}` : `/${lng}/blog/${article.slug}`;
@@ -41,6 +44,7 @@ export function BlogCard({
             src={`/articles/${article.slug}.png`}
             alt={title}
             fill
+            priority={priority}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover group-hover:scale-[1.03] transition-transform duration-300"
           />

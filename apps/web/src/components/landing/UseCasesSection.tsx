@@ -7,7 +7,14 @@ interface UseCasesSectionProps {
   lng: string;
 }
 
-const EXAMPLES = ['example1', 'example2', 'example3', 'example4', 'example5'] as const;
+const EXAMPLES = [
+  'example1',
+  'example2',
+  'example3',
+  'example4',
+  'example5',
+  'example6',
+] as const;
 
 export async function UseCasesSection({ lng }: UseCasesSectionProps) {
   const { t } = await initI18next(lng);
@@ -39,7 +46,9 @@ export async function UseCasesSection({ lng }: UseCasesSectionProps) {
         {/* Featured example + compact 2-column grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {EXAMPLES.map((key, i) => {
-            const featured = i === 0;
+            // Bookends span the full row: the multi-agent classic opens, the
+            // telephony case (the boldest differentiator) closes.
+            const featured = i === 0 || i === EXAMPLES.length - 1;
             return (
               <FadeInOnScroll key={key} delay={i * 80} className={cn(featured && 'sm:col-span-2')}>
                 <div

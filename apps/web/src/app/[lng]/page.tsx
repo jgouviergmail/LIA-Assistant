@@ -6,16 +6,14 @@ import { SoftwareApplicationJsonLd, HowToJsonLd } from '@/components/seo/JsonLd'
 import { AuthRedirect } from '@/components/landing/AuthRedirect';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { HeroSection } from '@/components/landing/HeroSection';
-import { ProofSection } from '@/components/landing/ProofSection';
-import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
-import { FeaturesSection } from '@/components/landing/FeaturesSection';
-import { ScreenshotsSection } from '@/components/landing/ScreenshotsSection';
+import { EditorialChapters } from '@/components/landing/editorial/EditorialChapters';
+import { BasicsBand } from '@/components/landing/editorial/BasicsBand';
+import { TransparencySection } from '@/components/landing/editorial/TransparencySection';
+import { DayTimeline } from '@/components/landing/editorial/DayTimeline';
+import { GallerySection } from '@/components/landing/editorial/GallerySection';
+import { ChapterRail } from '@/components/landing/editorial/ChapterRail';
 import { ArchitectureDiagram } from '@/components/landing/ArchitectureDiagram';
-import { PresentationSection } from '@/components/landing/PresentationSection';
 import { UseCasesSection } from '@/components/landing/UseCasesSection';
-import { AudienceSection } from '@/components/landing/AudienceSection';
-import { RexSection } from '@/components/landing/RexSection';
-import { SecuritySection } from '@/components/landing/SecuritySection';
 import { TechSection } from '@/components/landing/TechSection';
 import { BlogPreviewSection } from '@/components/landing/BlogPreviewSection';
 import { CtaSection } from '@/components/landing/CtaSection';
@@ -121,20 +119,22 @@ export default async function HomePage({ params }: HomePageProps) {
         </a>
 
         <LandingHeader lng={lng} />
+        <ChapterRail />
 
+        {/* Editorial narrative (ADR: the page speaks the product's language):
+            hero → five differentiation chapters (each with its expandable
+            catalog) → commodities band → radical-transparency proofs → real
+            use cases → a day per profile → gallery → under the hood. */}
         <main>
           <HeroSection lng={lng} />
-          <ProofSection lng={lng} />
-          <HowItWorksSection lng={lng} />
-          <ScreenshotsSection />
-          <FeaturesSection lng={lng} />
-          <ArchitectureDiagram />
-          <PresentationSection />
+          <EditorialChapters lng={lng} />
+          <BasicsBand lng={lng} />
+          <TransparencySection lng={lng} />
           <UseCasesSection lng={lng} />
-          <AudienceSection lng={lng} />
-          <RexSection lng={lng} />
-          <SecuritySection lng={lng} />
+          <DayTimeline />
+          <GallerySection />
           <TechSection lng={lng} />
+          <ArchitectureDiagram />
           <BlogPreviewSection lng={lng} />
           <CtaSection lng={lng} />
         </main>

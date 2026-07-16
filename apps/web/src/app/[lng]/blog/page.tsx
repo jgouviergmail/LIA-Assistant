@@ -105,7 +105,7 @@ export default async function BlogPage({ params }: BlogPageProps) {
           </div>
 
           {/* Category sections */}
-          {BLOG_CATEGORIES.map(category => {
+          {BLOG_CATEGORIES.map((category, categoryIndex) => {
             const articles = BLOG_ARTICLES.filter(a => a.category === category.id);
             if (articles.length === 0) return null;
 
@@ -118,7 +118,7 @@ export default async function BlogPage({ params }: BlogPageProps) {
                   {t(`blog.categories.${category.id}_desc`)}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-3 lg:grid-cols-4 gap-5">
-                  {articles.map(article => (
+                  {articles.map((article, articleIndex) => (
                     <BlogCard
                       key={article.slug}
                       article={article}
@@ -127,6 +127,8 @@ export default async function BlogPage({ params }: BlogPageProps) {
                       categoryLabel={t(`blog.categories.${category.id}`)}
                       readTimeLabel={t('blog.read_time', { minutes: article.readTime })}
                       lng={lng}
+                      // First row of the first category is the likely LCP.
+                      priority={categoryIndex === 0 && articleIndex < 4}
                     />
                   ))}
                 </div>

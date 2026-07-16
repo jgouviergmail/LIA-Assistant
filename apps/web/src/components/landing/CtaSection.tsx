@@ -68,6 +68,15 @@ export async function CtaSection({ lng }: CtaSectionProps) {
         <Badge className="bg-white/20 text-white border-white/30 mb-6">
           {t('landing.hero.badge_beta')}
         </Badge>
+        {/* Signature device carried to the very end: LIA gets the last word */}
+        <div className="mb-6 flex items-start justify-center gap-2.5" aria-hidden="true">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/15 text-base leading-none">
+            😏
+          </span>
+          <span className="rounded-2xl rounded-tl-[5px] border border-white/25 bg-white/10 px-3.5 py-2 text-sm italic text-white/85">
+            {t('landing.cta.bubble')}
+          </span>
+        </div>
         <h2 className="text-3xl mobile:text-4xl lg:text-5xl font-bold text-white tracking-tight mb-6">
           {t('landing.cta.title')}
         </h2>

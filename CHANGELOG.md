@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.2] - 2026-07-16
+
+> **The landing page now speaks the product's language.** Two-stage public-site overhaul, shipped with an executable zero-information-loss contract. First the hero: the old generic chat window becomes a **faithful miniature of the real app** (real user-left/assistant-right layout, live conversation token/€ bar, a request that visibly types itself in, Send morphing into Stop mid-stream) cycling through **four true acts** — parallel orchestration held by the HITL approval gate, a cross-domain proactive initiative carried through to the rescheduled event, a real **agentic phone call** (approval first, live call, written summary card), and a **skill mini-app forged in chat** from a voice request; while LIA "thinks", a glass pane reveals the **orchestration backstage** (an honest styling of the real debug panel / SSE execution steps) with live token/€ counting — pacing tuned for reading (glass 7–8.5 s, every note ≥ 4.5 s). Then the page: the 35-card features wall gives way to a **five-chapter narrative opened by LIA's own chat bubbles** (*She gets it done · She knows you · She notices before you · Nothing leaves without you · She grows with you*), each chapter carrying 3–4 benefits, a discreet "under the hood" line, a visual that **decomposes the hero animation** (backstage vignettes staged on scroll — never duplicating its four acts), and an **expandable catalog preserving every detailed feature card** (SEO-safe: collapsed content stays in the DOM). Commodities condense into one confident band ("And everything else, obviously."), trust gets a dedicated section (*She has nothing to hide*: per-message cost to the cent as a brand motif, the public 8.3/10 audit, open source, the AI-written/human-directed story) with a mid-page CTA at peak trust, the four personas become **four tabbed day-in-the-life timelines** (16 lived scenes), screenshots + the 15-slide deck merge into one tabbed gallery, and the engineering numbers move to "Under the hood" where their audience lives. Fully **transcreated in 6 languages** (never literally translated), WAI-ARIA tabs/disclosures, chapter scroll-spy rail, reduced-motion faithful.
+
+### Added
+
+- **Hero animation "backstage glass" (4 acts)** — `landing/mockup/` (timeline engine,
+  app frame, per-act renderers, backstage figures); 72 i18n keys ×6; decorative
+  `role="img"`, static act-1 render under `prefers-reduced-motion`; timeline +
+  i18n-contract + behavioural render tests (32 tests).
+- **Editorial landing narrative** — `landing/editorial/`: `chapters-data.ts`
+  (single source of truth + `REQUIRED_FEATURE_KEYS` contract), 5 chapter
+  sections with LIA-bubble titles, backstage vignettes (FOR_EACH fan-out,
+  mail×agenda spark, skill forge — reusing the mockup keyframes, paused until
+  scroll via `ScrollStage`), complementary chat scenes (morning briefing, HITL
+  *edit* round-trip), per-chapter expandable catalogs reusing the existing
+  `landing.features.*` copy ×6, basics band with its own catalog, transparency
+  section, 4-profile day timeline, tabbed gallery (`embedded` mode on the two
+  carousels), chapter rail with scroll-spy, rewritten final CTA (LIA gets the
+  last word), 6th real use case (telephony). ~175 new i18n keys ×6.
+- **Anti-regression guards** — `editorial-content-coverage.test.ts`: the chapter
+  catalogs + basics must form an exact partition of the 36 canonical feature
+  cards (title/description/icon present ×6 locales — dropping a card now
+  requires editing the contract); editorial i18n contract (referenced keys
+  exist ×6, purged keys stay purged, `how_it_works.*` kept alive for the HowTo
+  JsonLd); WAI-ARIA keyboard tests for the tabs and disclosures.
+
+### Changed
+
+- **TechSection** hosts the engineering-numbers strip (ex-proof tiles: agents,
+  tools, providers, voice languages, tests, ADRs, releases) — re-targeted at
+  its actual audience; `UseCasesSection` leads rewritten with featured bookends;
+  header/footer/skip-link anchors repointed to `#features`; hero chevron
+  follows. Sections whose content was re-homed are deleted (`ProofSection`,
+  `HowItWorksSection`, `FeaturesSection`, `AudienceSection`, `RexSection`,
+  `SecuritySection`) — their copy lives on in the chapters, catalogs,
+  transparency band and day timeline.
+- **Blog listing LCP** — the first visible row of cards now eager-loads its
+  illustrations (`priority` prop on `BlogCard`), silencing the Next.js LCP
+  warning on `/blog`.
+
+### Fixed
+
+- **`click` 8.3.1 → 8.4.2** (both universal lockfiles) — clears PYSEC-2026-2132
+  (command injection in `click.edit()`); shipped earlier on main, credited here.
+- **Dead `#how-it-works` footer anchor** repointed to `#features`.
+- **ScrollStage effect** rewritten observer-only (no direct setState in effect
+  body) — the strict react-hooks ratchet stays green.
+
+### Tests
+
+- Frontend: **1,303 vitest green** (56 new: mockup timelines/render 32,
+  coverage+i18n contract 15, tabs/disclosure keyboard 9); clean
+  non-incremental `tsc`; ESLint clean; a11y (0), react-hooks and complexity
+  ratchets hold; strict 6-locale key parity (guard script green).
+
 ## [1.25.1] - 2026-07-16
 
 > **Security hardening — audit Lot 1 remediation, transparent and zero-regression.** First wave of fixes from an independent security audit conducted on 2026-07-13. Every finding was verified against the real code before remediation (no material false positive); **no feature was removed** — each fix is a pure reinforcement shipped with tests and an executable anti-recurrence guard. Verified: Ruff + Black + MyPy strict + tsc + ESLint clean, 10,188 backend unit + 1,278 vitest + 27/27 hermetic deploy tests green, disclosure endpoint served live.

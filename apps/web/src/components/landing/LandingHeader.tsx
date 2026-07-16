@@ -17,7 +17,7 @@ interface LandingHeaderProps {
 }
 
 /** Anchor links to landing page sections */
-const SECTION_ANCHORS = [{ id: 'how-it-works', key: 'landing.nav.features' }] as const;
+const SECTION_ANCHORS = [{ id: 'features', key: 'landing.nav.features' }] as const;
 
 /** Links to separate pages — order: Story, Philosophy, Technical, Blog, FAQ */
 const PAGE_LINKS = [

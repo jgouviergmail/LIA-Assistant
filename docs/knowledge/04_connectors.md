@@ -34,6 +34,9 @@ A **connector** is a secure gateway between LIA and your external services:
 **Smart Home (hybrid auth):**
 • 💡 **Philips Hue**: control lights, rooms, and scenes
 
+**Telephony (bring-your-own):**
+• 📞 **ElevenLabs Telephony**: LIA places outbound phone calls on your behalf (see Phone Calls)
+
 **🔒 Security:**
 Each connector has limited permissions. LIA only accesses necessary data.
 
@@ -382,32 +385,3 @@ Activating an Apple service automatically deactivates its Google equivalent (and
 
 **🔐 Security:**
 Your app-specific password is encrypted and never exposed. You can revoke it at any time from your Apple account.
-
-## Can LIA make phone calls for me?
-Yes. LIA can place a real outbound call on your behalf — for example "call the bakery and ask if they have a cake for Saturday" or "call Marie to check if she's free Tuesday evening".
-
-**How it works:**
-1. You ask LIA to call someone
-2. LIA shows you **who** it will call and **why**, and waits for your confirmation
-3. LIA holds the conversation toward your goal
-4. A written summary comes back into the chat, with a one-tap follow-up when useful (e.g. create the event it just agreed)
-
-**💡** The summary arrives asynchronously — you can keep chatting while the call happens.
-
-## What do I need to enable phone calls?
-Phone calls use your **own ElevenLabs connector** (bring-your-own credentials), set up in **Settings > Connectors**:
-
-1. Create an ElevenLabs account and a voice agent
-2. Add your API key and agent / phone identifiers in LIA
-3. LIA validates the connection
-
-**💡 Billing:**
-Calls are billed on **your own ElevenLabs account** — LIA adds no surcharge and does no metering of its own. The feature is available once your administrator has enabled it.
-
-## Is telephony private? Can LIA see my calendar or record the call?
-Privacy is enforced **by design**, not by instructions:
-
-• **🔒 Read-only, free/busy only** — during a call LIA can check whether you're free or busy at a given time, but **never** reveals your event titles, participants, locations or any content.
-• **🚫 No recording** — the call is not recorded.
-• **🗑️ No stored transcript** — the full conversation is never saved; only a short summary is kept, and it expires automatically.
-• **✅ You stay in control** — every call is confirmed by you before it is placed.

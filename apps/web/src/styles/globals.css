@@ -1422,6 +1422,14 @@
     animation: drop-fill 0.45s ease-out both;
   }
 
+  /* --- Editorial chapter vignettes (landing/editorial/ScrollStage) ---
+     Vignette elements reuse the fill-both mockup keyframes above; they stay
+     paused (delay countdown included) until the stage scrolls into view,
+     so each figure choreographs itself exactly once, on arrival. */
+  .scroll-stage:not(.staged) :is(.animate-chip-pop, .animate-wire-draw, .animate-fan-draw) {
+    animation-play-state: paused;
+  }
+
   /* Micro-interactions batch: the global reduced-motion kill-switch below is
      an explicit class list — new animated classes must opt out here too.
      (Typing variants swap to static dots via motion-reduce: DOM classes.) */

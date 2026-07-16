@@ -141,7 +141,7 @@ export async function HeroSection({ lng }: HeroSectionProps) {
 
       {/* Scroll chevron */}
       <a
-        href="#proof"
+        href="#features"
         className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
         aria-label={t('landing.hero.scroll_hint')}
       >

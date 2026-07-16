@@ -18,7 +18,7 @@
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
  *   report + protocol: docs/audit/ (AUDIT_REPORT_URL below). The i18n key
- *   landing.proof.audit_value carries the locale-formatted display value and
+ *   landing.transparency.p2_t carries the locale-formatted display value and
  *   must be updated in the 6 locales whenever auditScore changes.
  */
 
@@ -31,7 +31,7 @@ export const LANDING_STATS = {
   uiLanguages: 6,
   tests: 11900,
   adrs: 120,
-  releases: 149,
+  releases: 151,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

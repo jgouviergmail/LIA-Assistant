@@ -15,7 +15,9 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/ca
 import { cn } from '@/lib/utils';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
+import { formatNumber } from '@/lib/format';
 import { FadeInOnScroll } from './FadeInOnScroll';
+import { LANDING_STATS } from './constants';
 
 interface TechSectionProps {
   lng: string;
@@ -101,6 +103,35 @@ export async function TechSection({ lng }: TechSectionProps) {
             </FadeInOnScroll>
           ))}
         </div>
+
+        {/* Engineering numbers, re-targeted from the former proof section:
+            this is their audience — the general public gets trust proofs in
+            the transparency band instead. */}
+        <FadeInOnScroll>
+          <ul className="mt-12 flex list-none flex-wrap justify-center gap-2.5">
+            {(
+              [
+                ['agents', `${LANDING_STATS.agents}+`],
+                ['tools', `${LANDING_STATS.tools}`],
+                ['providers', `${LANDING_STATS.providers}`],
+                ['voice_languages', `${LANDING_STATS.voiceLanguages}+`],
+                ['tests', `${formatNumber(LANDING_STATS.tests, lng as Language)}+`],
+                ['adrs', `${LANDING_STATS.adrs}+`],
+                ['releases', `${LANDING_STATS.releases}+`],
+              ] as const
+            ).map(([key, value]) => (
+              <li
+                key={key}
+                className="rounded-lg border border-border bg-background px-3.5 py-2 text-xs text-muted-foreground"
+              >
+                <span className="mr-1.5 text-sm font-bold tabular-nums text-foreground">
+                  {value}
+                </span>
+                {t(`landing.proof.items.${key}`)}
+              </li>
+            ))}
+          </ul>
+        </FadeInOnScroll>
 
         <FadeInOnScroll>
           <div className="text-center mt-8">

@@ -3006,6 +3006,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_2": {
+          "title": "v1.25.2 — 🎬 La page d’accueil publique, réinventée",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎬 Une démo qui montre le vrai produit</b> — l’animation d’accueil devient une miniature fidèle de l’application : quatre scènes réelles (orchestration avec votre accord, initiative météo×agenda menée au bout, véritable appel téléphonique, mini-app créée dans le chat), et pendant que LIA « réfléchit », une vitre révèle les coulisses de l’orchestration avec le compteur de coût en direct.",
+            "i2": "<b>📖 Un récit en 5 chapitres, zéro information perdue</b> — la page raconte désormais ce qui rend LIA différente (« Elle fait, vraiment. », « Rien ne part sans toi. »…), chaque chapitre s’ouvrant par une bulle de LIA ; toutes les fiches détaillées restent disponibles dans des catalogues dépliables, et un garde-fou automatique interdit d’en perdre une seule.",
+            "i3": "<b>🔍 La transparence mise en avant</b> — une section « Elle n’a rien à cacher » (coût au centime, audit public 8,3/10, open source) et « Une journée avec elle » : quatre journées types à onglets (indépendant, famille, développeur, administrateur) pour se projeter."
+          }
+        },
         "v1_25_1": {
           "title": "v1.25.1 — 🔒 Renforcement de la sécurité",
           "date": "Juillet 2026",
@@ -4273,7 +4283,7 @@
         "questions": {
           "q1": {
             "question": "Qu'est-ce qu'un connecteur ?",
-            "answer": "Un <strong>connecteur</strong> est une passerelle sécurisée entre LIA et vos services externes :<br><br><strong>🔌 Types de connecteurs :</strong><br><br><strong>Services Google (OAuth) :</strong><br>• 📧 <strong>Gmail</strong> : lire, envoyer, répondre aux emails<br>• 📅 <strong>Calendar</strong> : gérer vos événements<br>• 👥 <strong>Contacts</strong> : rechercher et créer des contacts<br>• 📁 <strong>Drive</strong> : explorer vos fichiers<br>• ✅ <strong>Tasks</strong> : gérer vos tâches<br>• 📍 <strong>Places</strong> : rechercher des lieux<br>• 🗺️ <strong>Routes</strong> : calculer des itinéraires<br><br><strong>Services Apple iCloud (mot de passe applicatif) :</strong><br>• 📮 <strong>Apple Mail</strong> : lire, envoyer, répondre aux emails (IMAP/SMTP)<br>• 🗓️ <strong>Apple Calendar</strong> : gérer vos événements iCloud (CalDAV)<br>• 📇 <strong>Apple Contacts</strong> : rechercher et créer des contacts iCloud (CardDAV)<br><br><strong>Services Microsoft 365 (OAuth) :</strong><br>• 📧 <strong>Outlook</strong> : lire, envoyer, répondre aux emails<br>• 📅 <strong>Microsoft Calendar</strong> : gérer vos événements<br>• 👥 <strong>Microsoft Contacts</strong> : rechercher et gérer vos contacts<br>• ✅ <strong>Microsoft To Do</strong> : gérer vos tâches et listes<br><br><strong>Services externes (clé API) :</strong><br>• 🌤️ <strong>OpenWeatherMap</strong> : météo et prévisions<br>• 📚 <strong>Wikipedia</strong> : recherche encyclopédique<br>• 🔍 <strong>Perplexity</strong> : recherche web IA<br>• 🔎 <strong>Brave Search</strong> : recherche web et actualités<br><br><strong>Smart Home (hybrid auth) :</strong><br>• 💡 <strong>Philips Hue</strong> : contrôler lumières, pièces et scènes<br><br><strong>🔒 Sécurité :</strong><br>Chaque connecteur a des permissions limitées. LIA n'accède qu'aux données nécessaires.<br><br><strong>⚡ Exclusivité mutuelle :</strong><br>Pour les emails, calendrier et contacts, un seul fournisseur peut être actif à la fois (Google OU Apple OU Microsoft, pas plusieurs simultanément). Les tâches sont disponibles via Google Tasks ou Microsoft To Do."
+            "answer": "Un <strong>connecteur</strong> est une passerelle sécurisée entre LIA et vos services externes :<br><br><strong>🔌 Types de connecteurs :</strong><br><br><strong>Services Google (OAuth) :</strong><br>• 📧 <strong>Gmail</strong> : lire, envoyer, répondre aux emails<br>• 📅 <strong>Calendar</strong> : gérer vos événements<br>• 👥 <strong>Contacts</strong> : rechercher et créer des contacts<br>• 📁 <strong>Drive</strong> : explorer vos fichiers<br>• ✅ <strong>Tasks</strong> : gérer vos tâches<br>• 📍 <strong>Places</strong> : rechercher des lieux<br>• 🗺️ <strong>Routes</strong> : calculer des itinéraires<br><br><strong>Services Apple iCloud (mot de passe applicatif) :</strong><br>• 📮 <strong>Apple Mail</strong> : lire, envoyer, répondre aux emails (IMAP/SMTP)<br>• 🗓️ <strong>Apple Calendar</strong> : gérer vos événements iCloud (CalDAV)<br>• 📇 <strong>Apple Contacts</strong> : rechercher et créer des contacts iCloud (CardDAV)<br><br><strong>Services Microsoft 365 (OAuth) :</strong><br>• 📧 <strong>Outlook</strong> : lire, envoyer, répondre aux emails<br>• 📅 <strong>Microsoft Calendar</strong> : gérer vos événements<br>• 👥 <strong>Microsoft Contacts</strong> : rechercher et gérer vos contacts<br>• ✅ <strong>Microsoft To Do</strong> : gérer vos tâches et listes<br><br><strong>Services externes (clé API) :</strong><br>• 🌤️ <strong>OpenWeatherMap</strong> : météo et prévisions<br>• 📚 <strong>Wikipedia</strong> : recherche encyclopédique<br>• 🔍 <strong>Perplexity</strong> : recherche web IA<br>• 🔎 <strong>Brave Search</strong> : recherche web et actualités<br><br><strong>Smart Home (hybrid auth) :</strong><br>• 💡 <strong>Philips Hue</strong> : contrôler lumières, pièces et scènes<br><br><strong>Téléphonie (vos propres comptes) :</strong><br>• 📞 <strong>Téléphonie ElevenLabs</strong> : LIA passe des appels sortants à votre place — voir la section dédiée Appels téléphoniques<br><br><strong>🔒 Sécurité :</strong><br>Chaque connecteur a des permissions limitées. LIA n'accède qu'aux données nécessaires.<br><br><strong>⚡ Exclusivité mutuelle :</strong><br>Pour les emails, calendrier et contacts, un seul fournisseur peut être actif à la fois (Google OU Apple OU Microsoft, pas plusieurs simultanément). Les tâches sont disponibles via Google Tasks ou Microsoft To Do."
           },
           "q2": {
             "question": "Comment connecter les services Google ?",
@@ -5022,7 +5032,7 @@
           },
           "q2": {
             "question": "Comment configurer mon iPhone pour envoyer mes données ?",
-            "answer": "<p>Trois étapes :</p><ol><li><strong>Générer un jeton</strong> dans <strong>Réglages → Fonctionnalités → Données santé → API d'ingestion</strong>. Le jeton commence par <code>hm_</code> et n'est affiché qu'une seule fois — copiez-le immédiatement. Le même jeton authentifie les deux endpoints (pas + fréquence cardiaque).</li><li><strong>Créer deux Raccourcis iOS</strong> (un par type de mesure) qui récupèrent les échantillons Apple Santé de la journée et les envoient en tableau JSON (chaque mesure portant <code>date_start</code> / <code>date_end</code> au format ISO 8601 avec fuseau) à <code>https://lia.jeyswork.com/api/v1/ingest/health/steps</code> et <code>.../heart_rate</code>, avec le jeton en en-tête <code>Authorization: Bearer hm_…</code>.</li><li><strong>Programmer une automatisation</strong> — au déverrouillage de l'iPhone ou à une heure fixe — qui exécute les deux Raccourcis. Renvoyer la même journée plusieurs fois est sans conséquence : le serveur déduplique automatiquement.</li></ol><p>👉 Le guide pas-à-pas complet est disponible dans <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>.</p>"
+            "answer": "<p>Trois étapes :</p><ol><li><strong>Générer un jeton</strong> dans <strong>Réglages → Fonctionnalités → Données santé → API d'ingestion</strong>. Le jeton commence par <code>hm_</code> et n'est affiché qu'une seule fois — copiez-le immédiatement. Le même jeton authentifie les deux endpoints (pas + fréquence cardiaque).</li><li><strong>Créer deux Raccourcis iOS</strong> (un par type de mesure) qui récupèrent les échantillons Apple Santé de la journée et les envoient en tableau JSON (chaque mesure portant <code>date_start</code> / <code>date_end</code> au format ISO 8601 avec fuseau) à <code>https://votre-domaine-lia/api/v1/ingest/health/steps</code> et <code>.../heart_rate</code>, avec le jeton en en-tête <code>Authorization: Bearer hm_…</code>.</li><li><strong>Programmer une automatisation</strong> — au déverrouillage de l'iPhone ou à une heure fixe — qui exécute les deux Raccourcis. Renvoyer la même journée plusieurs fois est sans conséquence : le serveur déduplique automatiquement.</li></ol><p>👉 Le guide pas-à-pas complet est disponible dans <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>.</p>"
           },
           "q3": {
             "question": "Quelles données sont envoyées et stockées ?",
@@ -5878,30 +5888,6 @@
       }
     },
     "features": {
-      "title": "Tout ce que LIA peut faire pour toi",
-      "subtitle": "Un assistant complet, simple et intuitif — zéro compétence technique requise",
-      "subtitle_responsible": "Une IA responsable et simple",
-      "responsible_desc": "Pas de compromis entre puissance et respect de ta vie privée. Tu gardes le contrôle, tes données restent protégées.",
-      "group_conversation": {
-        "title": "Conversation intelligente",
-        "description": "Parle naturellement, LIA comprend et répond avec clarté"
-      },
-      "group_personality": {
-        "title": "Personnalité & Mémoire",
-        "description": "Une IA qui te connaît, s'adapte et évolue avec toi"
-      },
-      "group_automation": {
-        "title": "Proactivité & Automatisation",
-        "description": "LIA anticipe, rappelle et agit à ta place"
-      },
-      "group_creation": {
-        "title": "Création & Médias",
-        "description": "Images, schémas, widgets et documents analysés"
-      },
-      "group_power": {
-        "title": "Extensibilité & Puissance",
-        "description": "Connecte, étends et personnalise sans limite"
-      },
       "connected_services": {
         "title": "Google, Apple iCloud & Microsoft 365",
         "description": "Emails, agenda, contacts et tâches via Google, Apple iCloud ou Microsoft 365 — au choix. Plus Google Drive. Le tout en langage naturel, quel que soit ton fournisseur."
@@ -6048,9 +6034,9 @@
       }
     },
     "use_cases": {
-      "title": "Cas d'usage",
-      "subtitle": "LIA t'accompagne au quotidien dans toutes les situations",
-      "intro": "Chaque requête peut mobiliser plusieurs agents simultanément. LIA identifie automatiquement les domaines concernés, construit un plan d'exécution et coordonne les agents en parallèle — le tout en quelques secondes, avec ta validation quand l'action est sensible.",
+      "title": "Des demandes réelles, pas des démos.",
+      "subtitle": "Une phrase suffit — elle découpe, active les bons spécialistes en parallèle, et demande ton accord quand c’est sensible.",
+      "intro": "Chaque exemple ci-dessous est une vraie requête utilisateur, telle quelle.",
       "example1": {
         "query": "Trouve les 3 meilleurs cafés proches de ma position et qui sont ouverts maintenant et donne moi les itinéraires pour y aller à pied",
         "description": "LIA active 3 agents en parallèle : géolocalisation pour ta position actuelle, recherche de lieux avec filtre « ouvert maintenant », et calcul d'itinéraires piétons. Les résultats s'affichent en cartes interactives avec distances et temps de marche."
@@ -6070,26 +6056,10 @@
       "example5": {
         "query": "Quel sera le jour le plus propice à une balade dehors cette semaine et quels sont les 3 endroits proches de Strasbourg qui se prêteraient à cette balade, si possible à proximité d'un café sympa",
         "description": "LIA croise les prévisions météo sur 5 jours, recherche des lieux de balade proches de Strasbourg et filtre ceux à proximité d'un café. Trois agents travaillent en parallèle pour une recommandation complète."
-      }
-    },
-    "audience": {
-      "title": "Pour qui est fait LIA ?",
-      "subtitle": "Un assistant qui s'adapte à chaque profil et à chaque besoin",
-      "freelance": {
-        "title": "Indépendant / Freelance",
-        "description": "Centralise emails, agenda et tâches de plusieurs clients sans jongler entre les applications. LIA unifie Google, Apple et Microsoft en une seule conversation."
       },
-      "family": {
-        "title": "Famille",
-        "description": "Coordonne les agendas familiaux, programme des rappels et trouve des itinéraires pour le quotidien. Chaque membre choisit sa langue et sa personnalité préférée."
-      },
-      "developer": {
-        "title": "Développeur",
-        "description": "Étends LIA avec tes propres serveurs MCP, crée des skills sur mesure et déploie des sous-agents spécialisés. Le code source est ouvert et documenté."
-      },
-      "admin": {
-        "title": "Administrateur",
-        "description": "Contrôle les quotas d'utilisation, choisis les fournisseurs LLM par nœud et gère les permissions de ton équipe depuis le panneau d'administration."
+      "example6": {
+        "query": "Appelle le cabinet et demande s’ils ont un créneau jeudi",
+        "description": "Tu valides qui elle appelle et pourquoi ; elle téléphone, obtient le créneau, et le pose dans ton agenda avec le résumé écrit."
       }
     },
     "security": {
@@ -6209,11 +6179,12 @@
       "slide_counter": "Slide {{current}} sur {{total}}"
     },
     "cta": {
-      "title": "Prêt à essayer LIA ?",
-      "subtitle": "Rejoins la BETA et découvre ce qu'un assistant IA vraiment intelligent peut faire pour toi.",
+      "bubble": "Ton agenda et moi, on a déjà des choses à se dire.",
+      "title": "Elle est prête. Et un peu impatiente.",
+      "subtitle": "Un assistant qui agit, qui te connaît, qui anticipe — et qui demande toujours avant.",
       "button": "Créer mon compte",
-      "note_beta": "Application complète, exploitée en production 24/7. Bêta gratuite — abonnements payants à venir.",
-      "philosophy_link": "Ou découvre d'abord notre philosophie"
+      "note_beta": "Bêta gratuite, exploitée en production 24/7. Honnêteté jusqu’au bout : des abonnements viendront.",
+      "philosophy_link": "Ou découvre d’abord notre philosophie"
     },
     "blog_preview": {
       "title": "Dans les coulisses de LIA",
@@ -6241,7 +6212,6 @@
       "story": "Retour d'expérience"
     },
     "proof": {
-      "title": "La preuve par les chiffres",
       "items": {
         "tests": "Tests automatisés",
         "adrs": "Décisions d'architecture",
@@ -6251,36 +6221,211 @@
         "tools": "Outils intégrés",
         "providers": "Fournisseurs LLM",
         "voice_languages": "Langues vocales"
-      },
-      "audit_value": "8,3/10",
-      "audit_link_aria": "8,3/10 — audit technique 360°. Consulter le rapport d'audit public complet sur GitHub.",
-      "rex_teaser": "Près de 100 % de ce code a été écrit par une IA — dirigée, contrôlée et auditée par un humain.",
-      "rex_link": "Lire le retour d'expérience"
+      }
     },
-    "rex": {
-      "eyebrow": "Retour d'expérience",
-      "title": "Écrit par une IA. Dirigé par un humain.",
-      "quote": "La vitesse vient de l'IA. La qualité vient du cadre.",
-      "kpis": {
-        "ai": {
-          "value": "≈100 %",
-          "label": "du code écrit par une IA"
-        },
-        "tests": {
-          "value": "10 000+",
-          "label": "tests automatisés"
-        },
-        "audit": {
-          "value": "8,3/10",
-          "label": "à l'audit technique sur 24 périmètres"
-        },
-        "lines": {
-          "value": "420 000",
-          "label": "lignes de code, hors tests"
-        }
+    "chapters": {
+      "eyebrow": "CHAPITRE",
+      "backstage_label": "En coulisses",
+      "catalog_label": "Tout ce qu'elle sait faire ici",
+      "how_prefix": "Sous le capot :",
+      "c1": {
+        "bubble": "« Préviens ma femme et décale mon rdv » — c’est une phrase, pas deux applis.",
+        "title": "Elle fait, vraiment.",
+        "sub": "Pas des suggestions, pas des brouillons à recopier : des actions menées au bout, dans ta vraie vie.",
+        "b1_t": "Une phrase, plusieurs spécialistes.",
+        "b1_d": "Contacts, agenda, email travaillent en parallèle — tu n'as pas besoin de savoir lesquels.",
+        "b2_t": "Elle décroche ton téléphone. Vraiment.",
+        "b2_d": "Réserver, demander, vérifier : tu valides qui et pourquoi, elle appelle, tu reçois le résumé écrit.",
+        "b3_t": "Du salon au web.",
+        "b3_d": "« Tamise le salon », « remplis ce formulaire » : lumières, sites, navigation — elle s’en charge.",
+        "b4_t": "La série, pas la corvée.",
+        "b4_d": "« Un rappel la veille de chacun de mes rendez-vous » : elle itère sur toute la semaine, en une demande.",
+        "how": "19+ agents orchestrés en parallèle · téléphonie agentique via ton connecteur ElevenLabs · contrôle navigateur · Philips Hue · images & diagrammes sur demande.",
+        "catalog_hint": "8 capacités détaillées",
+        "v_query": "« un rappel la veille de chacun de mes rendez-vous »",
+        "v_t1": "📅 Agenda",
+        "v_t1_sub": "4 rendez-vous trouvés",
+        "v_t2": "🔁 Série",
+        "v_t2_sub": "un rappel par rendez-vous",
+        "v_t3": "⏰ Rappels",
+        "v_t3_sub": "création en cours…",
+        "v_series": "4 rappels créés",
+        "v_series_sub": "la veille, 19 h — en une demande"
       },
-      "body": "LIA a été construite en projet personnel : une IA a écrit le code, un humain a fixé le cadre — référentiel d'ingénierie écrit, contrôles automatiques bloquants, revue systématique, audits contradictoires. La méthode complète, les résultats et ce qu'il reste à faire sont documentés publiquement.",
-      "cta": "Lire le retour d'expérience complet"
+      "c2": {
+        "bubble": "Bonjour. Ton agenda est chargé, ton café refroidit. Je m’occupe du reste.",
+        "title": "Elle te connaît.",
+        "sub": "Un assistant qui oublie tout entre deux phrases n’assiste personne.",
+        "b1_t": "Redis-le une fois. Jamais deux.",
+        "b1_d": "« Ma femme », « mon resto du vendredi », « jamais de réunion le mercredi » : dit une fois, retenu pour de bon.",
+        "b2_t": "Ta journée arrive avec le café.",
+        "b2_d": "Chaque matin : synthèse, météo, agenda, anniversaires, mails triés — avant que tu demandes.",
+        "b3_t": "Elle a ses humeurs. Tu les vois.",
+        "b3_d": "Son visage change avec la conversation, son humour sort quand l’échange est léger. Du Professeur au Cynique : 14 personnalités.",
+        "how": "mémoire hybride BM25 + embeddings · journaux introspectifs · briefing quotidien · Psyche Engine (14 humeurs, 22 émotions).",
+        "catalog_hint": "6 capacités détaillées",
+        "s_chip": "Le briefing du matin",
+        "s_greet": "Bonjour. Trois rendez-vous dos à dos, l’anniversaire de Sarah, et 5 mails dont un seul mérite ton attention. On fait semblant d’être surpris ?",
+        "s_weather": "Ce matin · 12° puis éclaircies",
+        "s_weather_b1": "☔ jusqu’à 9 h",
+        "s_weather_b2": "⛅ ensuite",
+        "s_day": "Ta journée",
+        "s_day_b1": "9:00 Point équipe",
+        "s_day_b2": "11:30 Client",
+        "s_day_b3": "18:30 Sport"
+      },
+      "c3": {
+        "bubble": "Pluie à 7 h. Footing à 7 h 30. Tu vois le problème ? Moi oui — et j’ai la solution.",
+        "title": "Elle remarque avant toi.",
+        "sub": "La différence entre répondre et assister, c’est de ne pas attendre la question.",
+        "b1_t": "Elle croise ce que tu ne croises pas.",
+        "b1_d": "Pluie prévue × sortie planifiée, mail reçu × conflit d’agenda : elle relie les points et propose l’action.",
+        "b2_t": "Elle veille sur tes sujets.",
+        "b2_d": "Tech, sport, finance, santé : elle suit ce qui te passionne et te pousse l’essentiel, au bon moment.",
+        "b3_t": "Elle se souvient à ta place.",
+        "b3_d": "« Rappelle-moi demain à 9 h » — et des routines entières : résumé des mails du lundi, météo du matin.",
+        "how": "intelligence proactive configurable · centres d’intérêt · rappels en langage naturel · routines planifiées · suivi santé.",
+        "catalog_hint": "4 capacités détaillées",
+        "v_intro": "personne n’a rien demandé —",
+        "v_left": "✉️ Mail de Claire",
+        "v_left_sub": "« plutôt jeudi 11 h ? »",
+        "v_right": "📅 Agenda",
+        "v_right_sub": "Dentiste · jeudi 11 h",
+        "v_note": "Le créneau que propose Claire tombe sur ton dentiste. Je réponds en proposant 14 h ?"
+      },
+      "c4": {
+        "bubble": "Je propose. Tu disposes. C’est le contrat.",
+        "title": "Rien ne part sans toi.",
+        "sub": "Un assistant qui agit dans ta vie n’a droit qu’à une seule posture : demander d’abord.",
+        "b1_t": "Ton accord avant l’action.",
+        "b1_d": "Envoi, modification, suppression, appel : elle montre, tu valides — en langage naturel, pas avec des cases à cocher.",
+        "b2_t": "Chaque réponse affiche son prix.",
+        "b2_d": "Tokens et centimes, message par message. Des budgets que tu fixes, des compteurs que tu vois.",
+        "b3_t": "Un bouton stop, un vrai.",
+        "b3_d": "Elle s’interrompt en pleine phrase et le texte partiel reste.",
+        "b4_t": "Tes données restent tiennes.",
+        "b4_d": "Chiffrées, jamais partagées, RGPD — et l’ensemble est auto-hébergeable chez toi, jusque sur un Raspberry Pi.",
+        "how": "6 niveaux d’approbation · quotas appliqués sur 5 couches · chiffrement Fernet · architecture BFF, aucun jeton côté navigateur.",
+        "catalog_hint": "3 capacités détaillées + la sécurité",
+        "s_chip": "Ton accord d’abord",
+        "s_hitl": "Brouillon prêt pour Sophie. Je te le montre avant tout envoi — rien ne part sans ton accord.",
+        "s_subject": "Objet : Retard ce soir (mais avec style) 😅",
+        "s_quote": "« Le trafic a décidé de tester la solidité de notre couple… »",
+        "s_user": "Change juste la fin, plus tendre",
+        "s_reply": "Version adoucie prête. On envoie celle-là ?"
+      },
+      "c5": {
+        "bubble": "Il me manquait une compétence il y a dix secondes. Plus maintenant.",
+        "title": "Elle grandit avec toi.",
+        "sub": "Les autres assistants ont une liste de fonctions. Elle, elle a une marge de progression — et c’est toi qui la dessines.",
+        "b1_t": "Une compétence qui manque ? Décris-la.",
+        "b1_d": "Elle crée la skill, l’installe, et l’affiche en mini-app dans le chat — cartes, boutons, dashboards.",
+        "b2_t": "Tes documents deviennent sa connaissance.",
+        "b2_d": "PDF, Word, dossiers Drive : importés, indexés, cités dans ses réponses.",
+        "b3_t": "Branche-la sur ton monde.",
+        "b3_d": "Serveurs MCP, sous-agents spécialisés : l’écosystème est ouvert, le code aussi.",
+        "how": "skills sandboxées avec widgets interactifs · espaces de connaissances (15+ formats, recherche hybride) · protocole MCP · open source.",
+        "catalog_hint": "6 capacités détaillées",
+        "v_forge": "Skill « Suivi budget » en cours d’assemblage",
+        "v_forge_sub": "code généré · sandbox · installation",
+        "v_docs": "tes documents (contrat.pdf, dossier Drive…) — indexés, cités dans ses réponses"
+      }
+    },
+    "basics": {
+      "title": "Et tout le reste, évidemment.",
+      "sub": "Emails, agenda, contacts, tâches, fichiers — Google, Apple ou Microsoft, au choix. Ça, tout le monde le promet. Elle le fait aussi, sans en faire un argument.",
+      "detail_label": "Le détail des indispensables",
+      "detail_hint": "9 capacités détaillées",
+      "chip_emails": "Emails",
+      "chip_calendar": "Agenda",
+      "chip_contacts": "Contacts",
+      "chip_tasks": "Tâches",
+      "chip_files": "Fichiers & Drive",
+      "chip_weather": "Météo",
+      "chip_places": "Lieux & itinéraires",
+      "chip_search": "Recherche web",
+      "chip_attachments": "Photos & documents analysés",
+      "chip_voice": "Voix — 99+ langues",
+      "chip_languages": "6 langues d’interface",
+      "chip_channels": "PWA · Telegram · push",
+      "chip_themes": "Thèmes & mode sombre"
+    },
+    "transparency": {
+      "title": "Elle n’a rien à cacher.",
+      "sub": "La confiance ne se déclare pas, elle se vérifie. Tout est public : le prix, le code, la note.",
+      "cost_prefix": "Chaque message :",
+      "cost_note": "— le vrai compteur, affiché sous chaque réponse dans l’application —",
+      "p1_t": "Le coût, au centime",
+      "p1_d": "Affiché message par message et cumulé par conversation. Aucun assistant grand public ne te montre ça.",
+      "p2_t": "8,3/10 — audité, publiquement",
+      "p2_d": "24 périmètres, protocole et rapport complets — y compris ce qui reste à améliorer.",
+      "p2_link": "Lire le rapport d’audit",
+      "p3_t": "100 % open source",
+      "p3_d": "Le code que tu peux lire est le code qui tourne. Auto-hébergeable jusque sur un Raspberry Pi.",
+      "p3_link": "Voir le code",
+      "p4_t": "Écrit par une IA, dirigé par un humain",
+      "p4_d": "420 000 lignes, ~100 % générées — sous cadre, revues et audits contradictoires. La méthode est publiée.",
+      "p4_link": "Lire le retour d’expérience",
+      "honest": "Bêta gratuite, exploitée en production 24/7. Honnêteté jusqu’au bout : des abonnements viendront.",
+      "cta": "Essayer, en toute connaissance"
+    },
+    "day": {
+      "title": "Une journée avec elle.",
+      "tabs_label": "Choisis un profil",
+      "tab_freelance": "Indépendant",
+      "tab_family": "Famille",
+      "tab_dev": "Développeur",
+      "tab_admin": "Administrateur",
+      "freelance": {
+        "s1_time": "07:02",
+        "s1_text": "Le briefing arrive avec le café : ta journée, la météo, 5 mails triés — avant que tu demandes quoi que ce soit.",
+        "s2_time": "09:15",
+        "s2_text": "« Réponds au client et propose-lui deux créneaux » — brouillon prêt, créneaux vérifiés dans l’agenda. Tu relis, tu dis « envoie ».",
+        "s3_time": "14:40",
+        "s3_text": "Un mail mentionne une réunion qui chevauche la tienne. Elle le remarque — et propose la solution avant le problème.",
+        "s4_time": "19:30",
+        "s4_text": "« Récap de demain, et un rappel pour la facture » — posé. Elle, elle a déjà noté que tu finis tard. C’est le personnage."
+      },
+      "family": {
+        "s1_time": "07:00",
+        "s1_text": "Anniversaires, météo pour l’école, agenda de tout le monde : le briefing familial, avant le premier café.",
+        "s2_time": "12:20",
+        "s2_text": "« Un rappel dentiste pour chacun des enfants » — elle itère sur la liste, tu confirmes une fois.",
+        "s3_time": "17:45",
+        "s3_text": "« Appelle la pizzeria et réserve pour samedi, 6 personnes » — tu valides, elle téléphone, le résumé arrive à l’écrit.",
+        "s4_time": "20:30",
+        "s4_text": "« Tamise le salon, mode film. » Les lumières obéissent. Chaque membre parle sa langue, elle suit."
+      },
+      "dev": {
+        "s1_time": "08:30",
+        "s1_text": "Le briefing du matin + ta veille : les sujets tech que tu suis, résumés, sans doomscrolling.",
+        "s2_time": "10:05",
+        "s2_text": "« Fais-moi un widget pour suivre mes PR » — la skill est créée, installée, affichée dans le chat.",
+        "s3_time": "15:00",
+        "s3_text": "Tes specs et tes docs sont indexées : elle répond en citant la bonne page du bon document.",
+        "s4_time": "22:10",
+        "s4_text": "Ton serveur MCP maison se branche en deux minutes — l’écosystème est ouvert, le code aussi."
+      },
+      "admin": {
+        "s1_time": "08:00",
+        "s1_text": "Le briefing d’exploitation : consommations de la veille, coûts au centime, signaux inhabituels.",
+        "s2_time": "11:00",
+        "s2_text": "« Pourquoi le conteneur API a redémarré ? » — le diagnostic en langage naturel, logs à l’appui.",
+        "s3_time": "16:30",
+        "s3_text": "Un utilisateur dépasse son budget : blocage en un clic, déblocage pareil. Cinq couches d’enforcement veillent.",
+        "s4_time": "18:00",
+        "s4_text": "Export CSV des consommations, quotas ajustés — la transparence, jusque dans la facture."
+      }
+    },
+    "gallery": {
+      "title": "Elle, en vrai.",
+      "sub": "Captures réelles de l’application et présentation complète — rien de maquillé.",
+      "tabs_label": "Choisir une vue",
+      "tab_screens": "Captures d’écran",
+      "tab_slides": "La présentation (15 slides)"
+    },
+    "rail": {
+      "aria": "Navigation des chapitres"
     }
   },
   "public_footer": {

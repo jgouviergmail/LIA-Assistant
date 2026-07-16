@@ -30,7 +30,7 @@ const SCREENSHOTS: ScreenshotItem[] = [
   { key: 'faq', src: '/screenshots/faq.png' },
 ];
 
-export function ScreenshotsSection() {
+export function ScreenshotsSection({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -40,28 +40,10 @@ export function ScreenshotsSection() {
 
   const active = SCREENSHOTS[activeIndex];
 
-  return (
-    <section
-      id="screenshots"
-      className="landing-section py-20 bg-card"
-      aria-labelledby="screenshots-title"
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <FadeInOnScroll>
-          <div className="text-center mb-12">
-            <h2
-              id="screenshots-title"
-              className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4"
-            >
-              {t('landing.screenshots.title')}
-            </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              {t('landing.screenshots.subtitle')}
-            </p>
-          </div>
-        </FadeInOnScroll>
-
-        <FadeInOnScroll delay={100}>
+  // Embedded mode (gallery tab): carousel only — the host section owns the
+  // heading; standalone mode keeps the historical full section.
+  const carousel = (
+    <>
           {/* Main screenshot display — portrait-friendly frame (the captures
               are ~0.65–0.88 ratio; a 16/10 frame letterboxes them badly) */}
           <div className="relative group">
@@ -138,7 +120,35 @@ export function ScreenshotsSection() {
               </button>
             ))}
           </div>
+    </>
+  );
+
+  if (embedded) {
+    return <FadeInOnScroll>{carousel}</FadeInOnScroll>;
+  }
+
+  return (
+    <section
+      id="screenshots"
+      className="landing-section py-20 bg-card"
+      aria-labelledby="screenshots-title"
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FadeInOnScroll>
+          <div className="text-center mb-12">
+            <h2
+              id="screenshots-title"
+              className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4"
+            >
+              {t('landing.screenshots.title')}
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              {t('landing.screenshots.subtitle')}
+            </p>
+          </div>
         </FadeInOnScroll>
+
+        <FadeInOnScroll delay={100}>{carousel}</FadeInOnScroll>
       </div>
     </section>
   );

@@ -2980,6 +2980,16 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_2": {
+          "title": "v1.25.2 — 🎬 全新的公开主页",
+          "date": "2026年7月",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎬 展示真实产品的演示</b> —— 主页动画成为应用的忠实缩影：四个真实场景（经你批准的编排、贯彻到底的天气×日程主动建议、一通真实电话、聊天中创建的迷你应用）；当 LIA「思考」时，玻璃面板揭示幕后编排，并实时显示成本计数。",
+            "i2": "<b>📖 五章叙事，信息零丢失</b> —— 页面如今讲述 LIA 的与众不同（「她真的会做事。」「未经你同意，什么都不会发出。」…），每章由 LIA 自己的聊天气泡开场；所有功能详情卡片仍在可展开目录中完整保留，并由自动零丢失守卫保护。",
+            "i3": "<b>🔍 透明度居于核心</b> —— 新增「她没什么可隐瞒的」板块（精确到分的成本、公开的 8.3/10 审计、开源），以及「与她的一天」：四种可切换的典型一天（自由职业者、家庭、开发者、管理员）。"
+          }
+        },
         "v1_25_1": {
           "title": "v1.25.1 — 🔒 安全加固",
           "date": "2026年7月",
@@ -4247,7 +4257,7 @@
         "questions": {
           "q1": {
             "question": "什么是连接器？",
-            "answer": "连接器允许LIA<strong>访问您的外部服务</strong>以帮助您完成任务。有四种类型：<br><br><strong>🔐 OAuth连接器（Google）：</strong><br>• Gmail、日历、联系人、云端硬盘、任务、地点、路线（Routes）<br>• 通过Google安全授权<br>• 您的凭据永远不会存储<br><br><strong>🔑 API密钥连接器：</strong><br>• OpenWeatherMap（天气）<br>• Perplexity（AI搜索）<br>• Brave Search（网络搜索）<br>• 维基百科（无需密钥）<br>• 需要您自己的API密钥<br><br><strong>🍎 Apple iCloud 服务（应用专用密码）：</strong><br>• 📮 <strong>Apple Mail</strong>：读取、发送、回复邮件（IMAP/SMTP）<br>• 🗓️ <strong>Apple Calendar</strong>：管理 iCloud 日程（CalDAV）<br>• 📇 <strong>Apple Contacts</strong>：搜索和创建 iCloud 联系人（CardDAV）<br><br><strong>🪟 Microsoft 365 服务（OAuth）：</strong><br>• 📧 <strong>Outlook</strong>：阅读、发送、回复邮件<br>• 📅 <strong>Microsoft Calendar</strong>：管理日程<br>• 👥 <strong>Microsoft Contacts</strong>：搜索和管理联系人<br>• ✅ <strong>Microsoft To Do</strong>：管理任务和列表<br><br><strong>Smart Home (hybrid auth):</strong><br>• 💡 <strong>Philips Hue</strong>: 控制灯光、房间和场景<br><br><strong>⚡ 互斥规则：</strong><br>对于邮件、日历和联系人，同一时间只能有一个供应商处于活动状态（Google 或 Apple 或 Microsoft，不能同时使用多个）。任务通过 Google Tasks 或 Microsoft To Do 提供。"
+            "answer": "连接器允许LIA<strong>访问您的外部服务</strong>以帮助您完成任务。有四种类型：<br><br><strong>🔐 OAuth连接器（Google）：</strong><br>• Gmail、日历、联系人、云端硬盘、任务、地点、路线（Routes）<br>• 通过Google安全授权<br>• 您的凭据永远不会存储<br><br><strong>🔑 API密钥连接器：</strong><br>• OpenWeatherMap（天气）<br>• Perplexity（AI搜索）<br>• Brave Search（网络搜索）<br>• 维基百科（无需密钥）<br>• 需要您自己的API密钥<br><br><strong>🍎 Apple iCloud 服务（应用专用密码）：</strong><br>• 📮 <strong>Apple Mail</strong>：读取、发送、回复邮件（IMAP/SMTP）<br>• 🗓️ <strong>Apple Calendar</strong>：管理 iCloud 日程（CalDAV）<br>• 📇 <strong>Apple Contacts</strong>：搜索和创建 iCloud 联系人（CardDAV）<br><br><strong>🪟 Microsoft 365 服务（OAuth）：</strong><br>• 📧 <strong>Outlook</strong>：阅读、发送、回复邮件<br>• 📅 <strong>Microsoft Calendar</strong>：管理日程<br>• 👥 <strong>Microsoft Contacts</strong>：搜索和管理联系人<br>• ✅ <strong>Microsoft To Do</strong>：管理任务和列表<br><br><strong>Smart Home (hybrid auth):</strong><br>• 💡 <strong>Philips Hue</strong>: 控制灯光、房间和场景<br><br><strong>电话（自有账户）：</strong><br>• 📞 <strong>ElevenLabs 电话</strong>：LIA 代你拨打外呼电话 —— 见专门的「电话呼叫」板块<br><br><strong>⚡ 互斥规则：</strong><br>对于邮件、日历和联系人，同一时间只能有一个供应商处于活动状态（Google 或 Apple 或 Microsoft，不能同时使用多个）。任务通过 Google Tasks 或 Microsoft To Do 提供。"
           },
           "q2": {
             "question": "如何连接Google服务？",
@@ -4996,7 +5006,7 @@
           },
           "q2": {
             "question": "如何设置 iPhone 以推送数据？",
-            "answer": "<p>三步：</p><ol><li><strong>生成令牌</strong>：在<strong>设置 → 功能 → 健康数据 → 摄入 API</strong>中创建。令牌以 <code>hm_</code> 开头，仅展示一次 — 请立即复制。同一个令牌同时对步数与心率两个端点鉴权。</li><li><strong>创建两个 iOS 快捷指令</strong>（每种测量一个），分别获取当日的 Apple 健康样本，并以 JSON 数组形式（每条测量携带带时区的 ISO 8601 <code>date_start</code> / <code>date_end</code>）发送到 <code>https://lia.jeyswork.com/api/v1/ingest/health/steps</code> 与 <code>.../heart_rate</code>，附加请求头 <code>Authorization: Bearer hm_…</code>。</li><li><strong>安排自动化</strong>：在 iPhone 解锁时或固定时刻触发，依次执行两个快捷指令。重复发送同一天的数据不会有副作用：服务器会自动去重。</li></ol><p>👉 完整分步指南：<code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>。</p>"
+            "answer": "<p>三步：</p><ol><li><strong>生成令牌</strong>：在<strong>设置 → 功能 → 健康数据 → 摄入 API</strong>中创建。令牌以 <code>hm_</code> 开头，仅展示一次 — 请立即复制。同一个令牌同时对步数与心率两个端点鉴权。</li><li><strong>创建两个 iOS 快捷指令</strong>（每种测量一个），分别获取当日的 Apple 健康样本，并以 JSON 数组形式（每条测量携带带时区的 ISO 8601 <code>date_start</code> / <code>date_end</code>）发送到 <code>https://你的-lia-域名/api/v1/ingest/health/steps</code> 与 <code>.../heart_rate</code>，附加请求头 <code>Authorization: Bearer hm_…</code>。</li><li><strong>安排自动化</strong>：在 iPhone 解锁时或固定时刻触发，依次执行两个快捷指令。重复发送同一天的数据不会有副作用：服务器会自动去重。</li></ol><p>👉 完整分步指南：<code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>。</p>"
           },
           "q3": {
             "question": "会发送和存储哪些数据？",
@@ -5860,30 +5870,6 @@
       }
     },
     "features": {
-      "title": "LIA 能为您做的一切",
-      "subtitle": "一个完整、简单、直觉化的助手——无需任何技术知识",
-      "subtitle_responsible": "一个负责任且简单的AI",
-      "responsible_desc": "强大功能与隐私保护之间绝不妥协。您始终掌握控制权，您的数据始终受到保护。",
-      "group_conversation": {
-        "title": "智能对话",
-        "description": "自然交流，LIA理解并清晰回应"
-      },
-      "group_personality": {
-        "title": "个性与记忆",
-        "description": "了解你、适应你、与你共同成长的AI"
-      },
-      "group_automation": {
-        "title": "主动性与自动化",
-        "description": "LIA预判、提醒并代你行动"
-      },
-      "group_creation": {
-        "title": "创作与媒体",
-        "description": "图像、图表、小部件和文档分析"
-      },
-      "group_power": {
-        "title": "扩展性与强大功能",
-        "description": "无限连接、扩展和自定义"
-      },
       "connected_services": {
         "title": "Google、Apple iCloud 与 Microsoft 365",
         "description": "通过 Google、Apple iCloud 或 Microsoft 365 管理邮件、日历和联系人——由您选择。还有 Google Drive、Google Tasks 和 Microsoft To Do。全部通过自然语言操作，无论您使用哪个服务商。"
@@ -6030,9 +6016,9 @@
       }
     },
     "use_cases": {
-      "title": "使用场景",
-      "subtitle": "LIA在日常生活中随时陪伴你",
-      "intro": "每个请求可以同时调动多个代理。LIA自动识别相关领域，构建执行计划，并行协调代理——一切在几秒钟内完成，敏感操作需要您的批准。",
+      "title": "真实的请求，不是演示。",
+      "subtitle": "一句话就够——她拆解任务、并行调度合适的专家，遇到敏感操作先征求你的同意。",
+      "intro": "下面每个例子都是用户的真实请求，原文照录。",
       "example1": {
         "query": "找到附近3家最好的、现在营业的咖啡馆，并给我步行路线",
         "description": "LIA并行激活3个智能体：定位你的当前位置、按「正在营业」筛选地点、计算步行路线。结果以交互卡片呈现，附带距离和步行时间。"
@@ -6052,26 +6038,10 @@
       "example5": {
         "query": "这周哪天最适合户外散步？斯特拉斯堡附近有哪3个适合散步的地方，最好靠近一家不错的咖啡馆？",
         "description": "LIA交叉分析5天天气预报，搜索斯特拉斯堡附近的散步地点，并筛选出靠近咖啡馆的选项。三个智能体并行工作，给出完整推荐。"
-      }
-    },
-    "audience": {
-      "title": "LIA适合谁？",
-      "subtitle": "适应每种角色和需求的助手",
-      "freelance": {
-        "title": "自由职业者",
-        "description": "集中管理多个客户的邮件、日历和任务，无需在应用之间切换。"
       },
-      "family": {
-        "title": "家庭",
-        "description": "协调家庭日历，设置提醒，为日常生活规划路线。"
-      },
-      "developer": {
-        "title": "开发者",
-        "description": "使用自己的MCP服务器扩展LIA，创建自定义技能，部署专业子代理。"
-      },
-      "admin": {
-        "title": "管理员",
-        "description": "控制使用配额，按节点选择LLM提供商，管理团队权限。"
+      "example6": {
+        "query": "打电话给诊所，问周四有没有空位",
+        "description": "你批准她打给谁、为了什么；她致电、拿到时段，并连同书面摘要写进你的日历。"
       }
     },
     "security": {
@@ -6191,11 +6161,12 @@
       "slide_counter": "第{{current}}页，共{{total}}页"
     },
     "cta": {
-      "title": "准备好试试LIA了吗？",
-      "subtitle": "加入BETA，发现真正智能的AI助手能为你做什么。",
+      "bubble": "你的日程和我，已经有话要聊了。",
+      "title": "她准备好了。还有点等不及。",
+      "subtitle": "一个会行动、了解你、能预判的助手——而且永远先问过你。",
       "button": "创建我的账户",
-      "note_beta": "完整应用，全天候生产运行。免费Beta——付费订阅稍后推出。",
-      "philosophy_link": "或先了解我们的理念"
+      "note_beta": "免费公测，7×24 小时生产运行。坦诚到底：将来会推出订阅。",
+      "philosophy_link": "或者先了解我们的理念"
     },
     "blog_preview": {
       "title": "深入了解 LIA：技术文章",
@@ -6223,7 +6194,6 @@
       "story": "经验报告"
     },
     "proof": {
-      "title": "用数字说话",
       "items": {
         "tests": "自动化测试",
         "adrs": "架构决策",
@@ -6233,36 +6203,211 @@
         "tools": "集成工具",
         "providers": "LLM供应商",
         "voice_languages": "语音语言"
-      },
-      "audit_value": "8.3/10",
-      "audit_link_aria": "8.3/10 —— 360°技术审计。在 GitHub 上查看完整的公开审计报告。",
-      "rex_teaser": "这些代码几乎100%由AI编写——由人类指导、审查和审计。",
-      "rex_link": "阅读经验报告"
+      }
     },
-    "rex": {
-      "eyebrow": "经验报告",
-      "title": "由AI构建，由人类指挥。",
-      "quote": "速度来自AI，质量来自框架。",
-      "kpis": {
-        "ai": {
-          "value": "≈100%",
-          "label": "的代码由AI编写"
-        },
-        "tests": {
-          "value": "10,000+",
-          "label": "项自动化测试"
-        },
-        "audit": {
-          "value": "8.3/10",
-          "label": "技术审计（24个领域）"
-        },
-        "lines": {
-          "value": "420,000",
-          "label": "行代码（不含测试）"
-        }
+    "chapters": {
+      "eyebrow": "章节",
+      "backstage_label": "幕后",
+      "catalog_label": "她在这里能做的一切",
+      "how_prefix": "幕后机制：",
+      "c1": {
+        "bubble": "「通知我妻子，并推迟我的会议」——这是一句话，不是两个应用。",
+        "title": "她真的会做事。",
+        "sub": "不是建议，不是要你照抄的草稿：是在你的真实生活中办到底的行动。",
+        "b1_t": "一句话，多位专家。",
+        "b1_d": "联系人、日历、邮件并行工作——你不需要知道是哪些。",
+        "b2_t": "她会替你打电话。真的。",
+        "b2_d": "预订、询问、确认：你批准打给谁、为了什么，她去打，你收到书面摘要。",
+        "b3_t": "从客厅到网页。",
+        "b3_d": "「调暗客厅」「填这个表单」：灯光、网站、导航——她来搞定。",
+        "b4_t": "成批处理，不是苦差。",
+        "b4_d": "「每个会议的前一天提醒我」：她遍历整周日程，只需一句话。",
+        "how": "19+ 个并行编排的智能体 · 通过你的 ElevenLabs 连接器实现智能体电话 · 浏览器控制 · Philips Hue · 按需生成图片与图表。",
+        "catalog_hint": "8 项能力详情",
+        "v_query": "「每个会议的前一天提醒我」",
+        "v_t1": "📅 日历",
+        "v_t1_sub": "找到 4 个会议",
+        "v_t2": "🔁 批量",
+        "v_t2_sub": "每个会议一条提醒",
+        "v_t3": "⏰ 提醒",
+        "v_t3_sub": "创建中…",
+        "v_series": "已创建 4 条提醒",
+        "v_series_sub": "前一天 19:00 — 一句话搞定"
       },
-      "body": "LIA是一个个人项目：AI编写代码，人类设定框架——书面工程规范、强制自动检查、系统化评审、对抗性审计。完整的方法、成果以及待办事项均公开记录。",
-      "cta": "阅读完整报告"
+      "c2": {
+        "bubble": "早上好。你的日程排满了，咖啡也快凉了。剩下的交给我。",
+        "title": "她了解你。",
+        "sub": "一个说完两句话就忘光的助手，帮不了任何人。",
+        "b1_t": "说一次。绝不用说第二次。",
+        "b1_d": "「我妻子」「我周五常去的餐厅」「周三不开会」：说过一次，永远记得。",
+        "b2_t": "你的一天和咖啡一起送达。",
+        "b2_d": "每天早上：摘要、天气、日程、生日、分好类的邮件——在你开口之前。",
+        "b3_t": "她有情绪。你看得见。",
+        "b3_d": "她的表情随对话而变，气氛轻松时幽默就会冒出来。从教授到毒舌：14 种人格。",
+        "how": "BM25 + 向量的混合记忆 · 内省日志 · 每日简报 · Psyche 引擎（14 种心情、22 种情绪）。",
+        "catalog_hint": "6 项能力详情",
+        "s_chip": "早间简报",
+        "s_greet": "早上好。三个连着的会议、Sarah 的生日，还有 5 封邮件——其中恰好只有一封值得你看。我们要假装惊讶吗？",
+        "s_weather": "今晨 · 12° 随后转晴",
+        "s_weather_b1": "☔ 9 点前",
+        "s_weather_b2": "⛅ 之后",
+        "s_day": "你的一天",
+        "s_day_b1": "9:00 团队同步",
+        "s_day_b2": "11:30 客户",
+        "s_day_b3": "18:30 运动"
+      },
+      "c3": {
+        "bubble": "7 点下雨。7 点半晨跑。看出问题了吗？我看出来了——而且有办法。",
+        "title": "她比你先发现。",
+        "sub": "回答和辅助的区别，在于不等问题出现。",
+        "b1_t": "她交叉你没交叉的信息。",
+        "b1_d": "预报的雨 × 计划的跑步，新邮件 × 日程冲突：她把点连起来，并提出行动。",
+        "b2_t": "她盯着你关心的话题。",
+        "b2_d": "科技、体育、财经、健康：她跟进你的兴趣，在合适的时刻推送最重要的。",
+        "b3_t": "她替你记住。",
+        "b3_d": "「明早 9 点提醒我」——还有整套例行：周一邮件摘要、清晨天气。",
+        "how": "可配置的主动智能 · 兴趣关注 · 自然语言提醒 · 定时例行 · 健康数据。",
+        "catalog_hint": "4 项能力详情",
+        "v_intro": "没有人提出任何要求——",
+        "v_left": "✉️ Claire 的邮件",
+        "v_left_sub": "「改到周四 11 点？」",
+        "v_right": "📅 日历",
+        "v_right_sub": "牙医 · 周四 11:00",
+        "v_note": "Claire 提议的时间和你的牙医撞上了。要我回复提议 14 点吗？"
+      },
+      "c4": {
+        "bubble": "我提议。你决定。这就是约定。",
+        "title": "未经你同意，什么都不会发出。",
+        "sub": "一个在你生活中行动的助手，只配有一种姿态：先问。",
+        "b1_t": "行动之前，先经你批准。",
+        "b1_d": "发送、修改、删除、打电话：她先展示，你来确认——用自然语言，而不是勾选框。",
+        "b2_t": "每条回复都标明价格。",
+        "b2_d": "Token 和分币，逐条显示。预算由你设定，计数你看得见。",
+        "b3_t": "一个真正的停止按钮。",
+        "b3_d": "她能在半句话处停下，已生成的文字保留。",
+        "b4_t": "你的数据仍属于你。",
+        "b4_d": "加密、绝不共享、符合 GDPR——而且整套系统可自托管，小到一台树莓派。",
+        "how": "6 级审批 · 5 层配额执行 · Fernet 加密 · BFF 架构，任何令牌都不会到达浏览器。",
+        "catalog_hint": "3 项能力详情 + 安全",
+        "s_chip": "先经你同意",
+        "s_hitl": "给 Sophie 的草稿好了。发送之前先给你看——没有你的同意，什么都不会发出。",
+        "s_subject": "主题：今晚迟到（但很有风度）😅",
+        "s_quote": "「堵车决定考验一下我们婚姻的牢固程度……」",
+        "s_user": "结尾改温柔一点",
+        "s_reply": "柔和版本已就绪。发这一版吗？"
+      },
+      "c5": {
+        "bubble": "十秒钟前我还缺一项技能。现在不缺了。",
+        "title": "她与你一起成长。",
+        "sub": "别的助手有一张功能清单。她有成长空间——而且由你来画。",
+        "b1_t": "缺一项能力？描述它。",
+        "b1_d": "她编写技能、安装它，并在聊天中以迷你应用呈现——卡片、按钮、仪表盘。",
+        "b2_t": "你的文档成为她的知识。",
+        "b2_d": "PDF、Word、Drive 文件夹：导入、索引、在回答中引用。",
+        "b3_t": "把她接入你的世界。",
+        "b3_d": "MCP 服务器、专职子智能体：生态开放，代码也开放。",
+        "how": "沙箱化技能与交互组件 · 知识空间（15+ 格式、混合检索）· MCP 协议 · 开源。",
+        "catalog_hint": "6 项能力详情",
+        "v_forge": "技能「预算追踪」组装中",
+        "v_forge_sub": "代码生成 · 沙箱 · 安装",
+        "v_docs": "你的文档（contract.pdf、Drive 文件夹…）——已索引，在回答中被引用"
+      }
+    },
+    "basics": {
+      "title": "其余一切，当然也有。",
+      "sub": "邮件、日历、联系人、任务、文件——Google、Apple 或 Microsoft，随你选。这些人人都承诺。她也都做到，只是不拿来当卖点。",
+      "detail_label": "基础能力详情",
+      "detail_hint": "9 项能力详情",
+      "chip_emails": "邮件",
+      "chip_calendar": "日历",
+      "chip_contacts": "联系人",
+      "chip_tasks": "任务",
+      "chip_files": "文件与 Drive",
+      "chip_weather": "天气",
+      "chip_places": "地点与路线",
+      "chip_search": "网页搜索",
+      "chip_attachments": "照片与文档解析",
+      "chip_voice": "语音 — 99+ 种语言",
+      "chip_languages": "6 种界面语言",
+      "chip_channels": "PWA · Telegram · 推送",
+      "chip_themes": "主题与深色模式"
+    },
+    "transparency": {
+      "title": "她没什么可隐瞒的。",
+      "sub": "信任不是靠宣称，而是靠验证。一切公开：价格、代码、评分。",
+      "cost_prefix": "每条消息：",
+      "cost_note": "——真实计数器，应用中每条回复下都能看到——",
+      "p1_t": "成本，精确到分",
+      "p1_d": "逐条显示，按会话累计。没有一个主流助手会给你看这个。",
+      "p2_t": "8.3/10 —— 公开审计",
+      "p2_d": "24 个评估领域，协议与报告完整公开——包括仍需改进之处。",
+      "p2_link": "阅读审计报告",
+      "p3_t": "100% 开源",
+      "p3_d": "你能读到的代码就是正在运行的代码。可自托管，小到一台树莓派。",
+      "p3_link": "查看代码",
+      "p4_t": "由 AI 编写，由人类主导",
+      "p4_d": "42 万行代码，约 100% 由 AI 生成——在框架、评审与对抗性审计之下。方法已公开发表。",
+      "p4_link": "阅读实践分享",
+      "honest": "免费公测，7×24 小时生产运行。坦诚到底：将来会推出订阅。",
+      "cta": "知情地试用"
+    },
+    "day": {
+      "title": "与她的一天。",
+      "tabs_label": "选择一个画像",
+      "tab_freelance": "自由职业者",
+      "tab_family": "家庭",
+      "tab_dev": "开发者",
+      "tab_admin": "管理员",
+      "freelance": {
+        "s1_time": "07:02",
+        "s1_text": "简报和咖啡一起到：你的日程、天气、5 封分好类的邮件——在你开口之前。",
+        "s2_time": "09:15",
+        "s2_text": "「回复客户并给他两个时间」——草稿备好，时段已对照日历核实。你过目，说「发送」。",
+        "s3_time": "14:40",
+        "s3_text": "一封邮件提到的会议与你的日程冲突。她注意到了——在问题出现之前给出解决方案。",
+        "s4_time": "19:30",
+        "s4_text": "「明天的要点，再加一条发票提醒」——办好。她早就记下你总是收工很晚。这就是她的性格。"
+      },
+      "family": {
+        "s1_time": "07:00",
+        "s1_text": "生日、上学路上的天气、全家人的日程：家庭简报，在第一杯咖啡之前。",
+        "s2_time": "12:20",
+        "s2_text": "「给每个孩子设一条牙医提醒」——她遍历名单，你只确认一次。",
+        "s3_time": "17:45",
+        "s3_text": "「打给披萨店，订周六六个人的位子」——你批准，她打电话，书面摘要随后送到。",
+        "s4_time": "20:30",
+        "s4_text": "「调暗客厅，电影模式。」灯光听话。每个家庭成员说自己的语言，她都跟得上。"
+      },
+      "dev": {
+        "s1_time": "08:30",
+        "s1_text": "早间简报 + 你的技术雷达：你关注的话题，浓缩成摘要，不用无休止刷屏。",
+        "s2_time": "10:05",
+        "s2_text": "「给我做个跟踪 PR 的小组件」——技能被创建、安装、直接显示在聊天里。",
+        "s3_time": "15:00",
+        "s3_text": "你的规格文档已被索引：她回答时会引用正确文档的正确页码。",
+        "s4_time": "22:10",
+        "s4_text": "你自建的 MCP 服务器几分钟就接入——生态开放，代码也开放。"
+      },
+      "admin": {
+        "s1_time": "08:00",
+        "s1_text": "运维简报：昨日消耗、精确到分的成本、异常信号。",
+        "s2_time": "11:00",
+        "s2_text": "「API 容器为什么重启了？」——自然语言诊断，附上日志。",
+        "s3_time": "16:30",
+        "s3_text": "某个用户超出预算：一键封禁，一键解封。五层配额执行在值守。",
+        "s4_time": "18:00",
+        "s4_text": "消耗数据 CSV 导出、配额调整——透明，一直到账单。"
+      }
+    },
+    "gallery": {
+      "title": "她的真实模样。",
+      "sub": "应用的真实截图与完整演示——没有任何摆拍。",
+      "tabs_label": "选择视图",
+      "tab_screens": "应用截图",
+      "tab_slides": "演示文稿（15 页）"
+    },
+    "rail": {
+      "aria": "章节导航"
     }
   },
   "public_footer": {

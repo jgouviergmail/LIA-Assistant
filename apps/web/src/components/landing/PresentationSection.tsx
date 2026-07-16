@@ -14,7 +14,7 @@ const SLIDES = Array.from({ length: TOTAL_SLIDES }, (_, i) => ({
   src: `/presentation/slide-${String(i + 1).padStart(2, '0')}.png`,
 }));
 
-export function PresentationSection() {
+export function PresentationSection({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -24,28 +24,10 @@ export function PresentationSection() {
 
   const active = SLIDES[activeIndex];
 
-  return (
-    <section
-      id="presentation"
-      className="landing-section py-24"
-      aria-labelledby="presentation-title"
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <FadeInOnScroll>
-          <div className="text-center mb-12">
-            <h2
-              id="presentation-title"
-              className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4"
-            >
-              {t('landing.presentation.title')}
-            </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              {t('landing.presentation.subtitle')}
-            </p>
-          </div>
-        </FadeInOnScroll>
-
-        <FadeInOnScroll delay={100}>
+  // Embedded mode (gallery tab): carousel only — the host section owns the
+  // heading; standalone mode keeps the historical full section.
+  const carousel = (
+    <>
           {/* Main slide display */}
           <div className="relative group">
             <div className="relative aspect-[16/9] w-full max-w-5xl mx-auto rounded-xl overflow-hidden border border-border/60 shadow-2xl bg-background">
@@ -124,7 +106,35 @@ export function PresentationSection() {
               </button>
             ))}
           </div>
+    </>
+  );
+
+  if (embedded) {
+    return <FadeInOnScroll>{carousel}</FadeInOnScroll>;
+  }
+
+  return (
+    <section
+      id="presentation"
+      className="landing-section py-24"
+      aria-labelledby="presentation-title"
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FadeInOnScroll>
+          <div className="text-center mb-12">
+            <h2
+              id="presentation-title"
+              className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4"
+            >
+              {t('landing.presentation.title')}
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              {t('landing.presentation.subtitle')}
+            </p>
+          </div>
         </FadeInOnScroll>
+
+        <FadeInOnScroll delay={100}>{carousel}</FadeInOnScroll>
       </div>
     </section>
   );

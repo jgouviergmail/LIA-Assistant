@@ -22,7 +22,7 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
       title: t('landing.footer.product'),
       links: [
         { label: t('landing.footer.features'), href: '#features' },
-        { label: t('landing.footer.how_it_works'), href: '#how-it-works' },
+        { label: t('landing.footer.how_it_works'), href: '#features' },
       ],
     },
     {
