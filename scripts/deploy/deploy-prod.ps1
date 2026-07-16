@@ -132,7 +132,13 @@ function Invoke-SopsEncryptDotenv {
     }
     [IO.File]::WriteAllText($tmp, ($cleanLines -join "`n") + "`n", $utf8NoBom)
     try {
-        $result = sops --encrypt --input-type dotenv --output-type dotenv $tmp 2>&1
+        # --filename-override: the comment-stripped copy is a temp file
+        # (".env.prod.sops.tmp") that matches NO .sops.yaml creation rule —
+        # the rules are anchored on the exact names (^\.env\.prod$). Overriding
+        # the filename makes SOPS pick the SOURCE file's rule (regression fix:
+        # "error loading config: no matching creation rules found").
+        $result = sops --encrypt --input-type dotenv --output-type dotenv `
+            --filename-override $SourceEnv $tmp 2>&1
         if ($LASTEXITCODE -eq 0) {
             $result | Out-File -FilePath $OutputEnc -Encoding utf8
             return $true
