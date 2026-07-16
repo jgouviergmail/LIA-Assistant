@@ -2,10 +2,10 @@
 
 > **Catalogue complet des métriques Prometheus pour observabilité multi-couches**
 >
-> Version: 1.6
-> Date: 2026-07-11
-> Architecture: Prometheus + Grafana (22 dashboards, 354+ panels)
-> Total métriques: **413 métriques instrumentées** (relevé code 2026-07-11) + recording rules Prometheus
+> Version: 1.7
+> Date: 2026-07-17
+> Architecture: Prometheus + Grafana (25 dashboards, 595 panels)
+> Total métriques: **419 métriques instrumentées** (relevé code 2026-07-17) + recording rules Prometheus
 > Source de vérité : `src/infrastructure/observability/metrics_*.py` — ce catalogue détaille les familles principales (~120 métriques), voir « Couverture du catalogue »
 > Compliance: OpenTelemetry conventions, Google SRE best practices
 
@@ -123,7 +123,7 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 
 ## Couverture du catalogue
 
-> Relevé du 2026-07-11 : **413 métriques** définies dans le code, ~120 détaillées dans ce
+> Relevé du 2026-07-17 : **419 métriques** définies dans le code, ~120 détaillées dans ce
 > document. Les familles suivantes ne sont **pas encore détaillées ici** — leur source de
 > vérité est leur module de définition :
 

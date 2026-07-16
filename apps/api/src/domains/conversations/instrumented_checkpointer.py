@@ -12,7 +12,10 @@ This enables monitoring of:
 - Error categorization (db_connection/serialization/timeout/permission)
 
 The wrapper is transparent to LangGraph - it passes through all method calls
-while capturing metrics on the critical paths (aget, aput, alist).
+while capturing metrics on the critical paths (aget_tuple, aput). Instrumenting
+aget_tuple (not the aget convenience helper) matters: the LangGraph runtime
+loads checkpoints exclusively through aget_tuple, and BaseCheckpointSaver.aget
+itself delegates to aget_tuple, so both entry points are covered.
 
 It additionally overrides the private `_cursor()` context manager to bypass the
 instance-level lock when the saver runs on an `AsyncConnectionPool` (upstream
@@ -29,7 +32,6 @@ import pickle
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import cast as typing_cast
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import (
@@ -72,14 +74,15 @@ class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
 
     The wrapper intercepts these critical methods:
     - aput(): Checkpoint save (writes state to PostgreSQL)
-    - aget(): Checkpoint load (reads state from PostgreSQL)
-    - alist(): Checkpoint list (queries checkpoint history)
+    - aget_tuple(): Checkpoint load (reads state from PostgreSQL) — the method
+      the LangGraph runtime actually calls; the inherited aget() convenience
+      helper delegates here, so it is instrumented transitively
 
     It also overrides the private `_cursor()` context manager to make the saver
     pool-aware (bypass the instance-level lock when `conn` is an
     `AsyncConnectionPool`) — see `_cursor` docstring and ADR-111.
 
-    All other methods (setup, atuple, etc.) are passed through unchanged.
+    All other methods (setup, alist, etc.) are passed through unchanged.
 
     Usage:
         >>> checkpointer = InstrumentedAsyncPostgresSaver(conn=connection)
@@ -263,12 +266,14 @@ class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
             )
             raise
 
-    async def aget(self, config: RunnableConfig) -> CheckpointTuple | None:  # type: ignore[override]
+    async def aget_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
         """
-        Load checkpoint from PostgreSQL with metrics instrumentation.
+        Load checkpoint tuple from PostgreSQL with metrics instrumentation.
 
-        Tracks duration of checkpoint load operation. Size is not tracked on load
-        (already tracked during save).
+        This overrides the method the LangGraph runtime uses for every
+        checkpoint read (BaseCheckpointSaver.aget also delegates here), so the
+        load metrics below cover all load paths. Tracks duration of the load
+        operation; size is not tracked on load (already tracked during save).
 
         Args:
             config: RunnableConfig with thread_id, checkpoint_id to load
@@ -283,7 +288,7 @@ class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
 
         try:
             # Call parent implementation
-            result = await super().aget(config)
+            result = await super().aget_tuple(config)
 
             # Calculate duration
             duration = time.perf_counter() - start_time
@@ -301,7 +306,7 @@ class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
                 thread_id=config.get("configurable", {}).get("thread_id"),
             )
 
-            return typing_cast(CheckpointTuple | None, result)
+            return result
 
         except Exception as e:
             duration = time.perf_counter() - start_time
@@ -333,5 +338,6 @@ class InstrumentedAsyncPostgresSaver(AsyncPostgresSaver):
             )
             raise
 
-    # All other methods (setup, atuple, alist, etc.) are inherited unchanged
-    # from AsyncPostgresSaver. No need to override if we don't need metrics for them.
+    # All other methods (setup, alist, aget, etc.) are inherited unchanged from
+    # AsyncPostgresSaver. The aget convenience helper delegates to aget_tuple,
+    # so it is covered by the instrumentation above without an override.

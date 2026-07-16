@@ -2,7 +2,12 @@
   "title": "17 - User Analytics & Geolocation",
   "uid": "17-user-analytics-geo",
   "description": "Analyse utilisateur : geolocalisation IP, periodes d'activite, outils les plus utilises, engagement. Requiert GeoIP DB-IP Lite.",
-  "tags": ["lia", "users", "analytics", "geolocation"],
+  "tags": [
+    "lia",
+    "users",
+    "analytics",
+    "geolocation"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -15,7 +20,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -54,7 +61,12 @@
       "id": 100,
       "title": "Geographic Overview",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
@@ -63,7 +75,12 @@
       "description": "Geographic distribution of API requests. Requires GeoIP DB-IP Lite MMDB. Private/local IPs are excluded.",
       "type": "geomap",
       "datasource": "$datasource",
-      "gridPos": { "h": 14, "w": 16, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 14,
+        "w": 16,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (country) (http_requests_by_country_total{country!~\"local|unknown\"})",
@@ -122,7 +139,12 @@
       "title": "Requests by Country",
       "type": "piechart",
       "datasource": "$datasource",
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 1 },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (country) (http_requests_by_country_total{country=~\"$country\"})",
@@ -134,30 +156,43 @@
       "options": {
         "pieType": "donut",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
         "legend": {
           "displayMode": "table",
           "placement": "right",
-          "values": ["value", "percent"]
+          "values": [
+            "value",
+            "percent"
+          ]
         },
-        "tooltip": { "mode": "multi" }
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short"
         },
         "overrides": []
-      }
+      },
+      "description": "Total HTTP requests by country (ISO 3166-1 alpha-2)."
     },
     {
       "id": 3,
       "title": "Request Rate by Country",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 8 },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
       "targets": [
         {
           "expr": "sum by (country) (rate(http_requests_by_country_total{country=~\"$country\", country!~\"local|unknown\"}[$__rate_interval]))",
@@ -173,25 +208,35 @@
             "lineInterpolation": "smooth",
             "fillOpacity": 20,
             "lineWidth": 1,
-            "stacking": { "mode": "normal" }
+            "stacking": {
+              "mode": "normal"
+            }
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
+        "tooltip": {
+          "mode": "multi"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total HTTP requests by country (ISO 3166-1 alpha-2)."
     },
     {
       "type": "row",
       "id": 101,
       "title": "User Engagement",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
       "panels": []
     },
     {
@@ -199,7 +244,12 @@
       "title": "DAU (Daily Active Users)",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 16 },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 16
+      },
       "targets": [
         {
           "expr": "user_active_daily_gauge",
@@ -213,7 +263,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "blue" }
+              {
+                "value": null,
+                "color": "blue"
+              }
             ]
           }
         },
@@ -225,18 +278,26 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Number of daily active users (DAU) - users with activity in last 24h."
     },
     {
       "id": 5,
       "title": "WAU (Weekly Active Users)",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 16 },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 16
+      },
       "targets": [
         {
           "expr": "user_active_weekly_gauge",
@@ -250,7 +311,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "blue" }
+              {
+                "value": null,
+                "color": "blue"
+              }
             ]
           }
         },
@@ -262,18 +326,26 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Number of weekly active users (WAU) - users with activity in last 7 days."
     },
     {
       "id": 6,
       "title": "Logins Today",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 16 },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 16
+      },
       "targets": [
         {
           "expr": "sum(increase(user_logins_total{status=\"success\"}[24h]))",
@@ -288,7 +360,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
@@ -300,18 +375,26 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Total user login attempts and successes."
     },
     {
       "id": 7,
       "title": "Messages Today",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 16 },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 16
+      },
       "targets": [
         {
           "expr": "messages_archived_last_24h",
@@ -326,7 +409,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "purple" }
+              {
+                "value": null,
+                "color": "purple"
+              }
             ]
           }
         },
@@ -338,18 +424,26 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Messages archived in last 24 hours from database."
     },
     {
       "id": 8,
       "title": "Conversations Today",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 16 },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 16
+      },
       "targets": [
         {
           "expr": "conversations_created_last_24h",
@@ -364,7 +458,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "orange" }
+              {
+                "value": null,
+                "color": "orange"
+              }
             ]
           }
         },
@@ -376,18 +473,26 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Conversations created in last 24 hours from database."
     },
     {
       "id": 9,
       "title": "Registrations Today",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 16 },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 16
+      },
       "targets": [
         {
           "expr": "users_registered_last_24h",
@@ -402,7 +507,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "yellow" }
+              {
+                "value": null,
+                "color": "yellow"
+              }
             ]
           }
         },
@@ -414,25 +522,38 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "User registrations in last 24 hours from database."
     },
     {
       "type": "row",
       "id": 102,
       "title": "Activity Patterns",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
       "panels": [
         {
           "id": 10,
           "title": "Login Trend",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 22
+          },
           "targets": [
             {
               "expr": "sum by (provider) (rate(user_logins_total{status=\"success\"}[$__rate_interval]))",
@@ -448,25 +569,35 @@
                 "lineInterpolation": "smooth",
                 "fillOpacity": 15,
                 "lineWidth": 1,
-                "stacking": { "mode": "normal" }
+                "stacking": {
+                  "mode": "normal"
+                }
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total user login attempts and successes."
         },
         {
           "id": 11,
           "title": "Conversations & Messages Rate",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 22
+          },
           "targets": [
             {
               "expr": "rate(conversation_created_total[$__rate_interval])",
@@ -492,12 +623,15 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total conversations created (lazy creation)."
         },
         {
           "id": 12,
@@ -505,7 +639,12 @@
           "description": "Request volume by hour of day. Helps identify peak usage periods.",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 30 },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 30
+          },
           "targets": [
             {
               "expr": "sum(rate(http_requests_total[$__rate_interval]))",
@@ -526,7 +665,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -538,7 +679,12 @@
           "title": "User Return Rate",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 38 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 38
+          },
           "targets": [
             {
               "expr": "sum by (time_window) (rate(user_return_rate_total[$__rate_interval]))",
@@ -559,27 +705,35 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Users returning to app after first conversation."
         },
         {
           "id": 14,
           "title": "Daily Conversations per User",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 38 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 38
+          },
           "targets": [
             {
-              "expr": "histogram_quantile(0.50, rate(user_daily_conversations_total_bucket[$__rate_interval]))",
+              "expr": "histogram_quantile(0.50, increase(user_daily_conversations_total_bucket[1d]))",
               "legendFormat": "P50",
               "refId": "A"
             },
             {
-              "expr": "histogram_quantile(0.95, rate(user_daily_conversations_total_bucket[$__rate_interval]))",
+              "expr": "histogram_quantile(0.95, increase(user_daily_conversations_total_bucket[1d]))",
               "legendFormat": "P95",
               "refId": "B"
             }
@@ -597,12 +751,15 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Number of conversations per user per day. Shown: p50/p95 percentile."
         }
       ]
     },
@@ -611,14 +768,24 @@
       "id": 103,
       "title": "Tool & Agent Usage",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
       "panels": [
         {
           "id": 15,
           "title": "Top 15 Tools (24h)",
           "type": "bargauge",
           "datasource": "$datasource",
-          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 23 },
+          "gridPos": {
+            "h": 10,
+            "w": 12,
+            "x": 0,
+            "y": 23
+          },
           "targets": [
             {
               "expr": "topk(15, sum by (tool_name) (increase(agent_tool_invocations_total[24h])))",
@@ -634,10 +801,22 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "blue" },
-                  { "value": 50, "color": "green" },
-                  { "value": 200, "color": "yellow" },
-                  { "value": 500, "color": "orange" }
+                  {
+                    "value": null,
+                    "color": "blue"
+                  },
+                  {
+                    "value": 50,
+                    "color": "green"
+                  },
+                  {
+                    "value": 200,
+                    "color": "yellow"
+                  },
+                  {
+                    "value": 500,
+                    "color": "orange"
+                  }
                 ]
               }
             },
@@ -648,18 +827,26 @@
             "displayMode": "gradient",
             "showUnfilled": true,
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "Total agent tool invocations."
         },
         {
           "id": 16,
           "title": "Router Intentions (24h)",
           "type": "piechart",
           "datasource": "$datasource",
-          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 23 },
+          "gridPos": {
+            "h": 10,
+            "w": 12,
+            "x": 12,
+            "y": 23
+          },
           "targets": [
             {
               "expr": "sum by (intention) (increase(router_decisions_total[24h]))",
@@ -671,30 +858,43 @@
           "options": {
             "pieType": "donut",
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             },
             "legend": {
               "displayMode": "table",
               "placement": "right",
-              "values": ["value", "percent"]
+              "values": [
+                "value",
+                "percent"
+              ]
             },
-            "tooltip": { "mode": "multi" }
+            "tooltip": {
+              "mode": "multi"
+            }
           },
           "fieldConfig": {
             "defaults": {
               "unit": "short"
             },
             "overrides": []
-          }
+          },
+          "description": "Total router decisions."
         },
         {
           "id": 17,
           "title": "Tool Usage Trend",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 33 },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 33
+          },
           "targets": [
             {
               "expr": "topk(10, sum by (tool_name) (rate(agent_tool_invocations_total[$__rate_interval])))",
@@ -715,19 +915,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total agent tool invocations."
         },
         {
           "id": 18,
           "title": "Tool Success Rate",
           "type": "bargauge",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 41 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 41
+          },
           "targets": [
             {
               "expr": "business:tool_success_rate:5m_by_tool * 100",
@@ -744,9 +952,18 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "red" },
-                  { "value": 90, "color": "yellow" },
-                  { "value": 95, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "red"
+                  },
+                  {
+                    "value": 90,
+                    "color": "yellow"
+                  },
+                  {
+                    "value": 95,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -757,18 +974,26 @@
             "displayMode": "gradient",
             "showUnfilled": true,
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "Tool success rate by tool name (5m window) Identify unreliable tools (low success rate)."
         },
         {
           "id": 19,
           "title": "Agent Success Rate",
           "type": "bargauge",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 41 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 41
+          },
           "targets": [
             {
               "expr": "agent:slo:success_rate:1h * 100",
@@ -785,9 +1010,18 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "red" },
-                  { "value": 90, "color": "yellow" },
-                  { "value": 95, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "red"
+                  },
+                  {
+                    "value": 90,
+                    "color": "yellow"
+                  },
+                  {
+                    "value": 95,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -798,11 +1032,14 @@
             "displayMode": "gradient",
             "showUnfilled": true,
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "Agent success rate (rolling 1h) SLO target = 95% success rate."
         }
       ]
     },
@@ -811,14 +1048,24 @@
       "id": 104,
       "title": "Conversation Quality & Cost",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
       "panels": [
         {
           "id": 20,
           "title": "Avg Cost per Conversation (1h)",
           "type": "stat",
           "datasource": "$datasource",
-          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 24 },
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 24
+          },
           "targets": [
             {
               "expr": "business:conversation:cost_avg_usd:1h",
@@ -832,9 +1079,18 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" },
-                  { "value": 0.10, "color": "yellow" },
-                  { "value": 0.50, "color": "red" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 0.1,
+                    "color": "yellow"
+                  },
+                  {
+                    "value": 0.5,
+                    "color": "red"
+                  }
                 ]
               }
             },
@@ -846,18 +1102,26 @@
             "textMode": "auto",
             "justifyMode": "auto",
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "Average conversation cost (rolling 1h) Cost efficiency SLO."
         },
         {
           "id": 21,
           "title": "Avg Tokens per Conversation (1h)",
           "type": "stat",
           "datasource": "$datasource",
-          "gridPos": { "h": 6, "w": 6, "x": 6, "y": 24 },
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 6,
+            "y": 24
+          },
           "targets": [
             {
               "expr": "business:conversation_tokens:avg_1h_by_agent",
@@ -872,7 +1136,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "blue" }
+                  {
+                    "value": null,
+                    "color": "blue"
+                  }
                 ]
               }
             },
@@ -884,18 +1151,26 @@
             "textMode": "auto",
             "justifyMode": "auto",
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "Average tokens consumed per conversation by agent (1h window) Cost attribution per agent type High token usage may indicate inefficient prompts."
         },
         {
           "id": 22,
           "title": "Abandonment Rate (24h)",
           "type": "stat",
           "datasource": "$datasource",
-          "gridPos": { "h": 6, "w": 6, "x": 12, "y": 24 },
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 12,
+            "y": 24
+          },
           "targets": [
             {
               "expr": "business:slo:abandonment_rate:24h * 100",
@@ -909,11 +1184,21 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" },
-                  { "value": 10, "color": "yellow" },
-                  { "value": 25, "color": "red" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 10,
+                    "color": "yellow"
+                  },
+                  {
+                    "value": 25,
+                    "color": "red"
+                  }
                 ]
-              }
+              },
+              "noValue": "n/a"
             },
             "overrides": []
           },
@@ -923,18 +1208,26 @@
             "textMode": "auto",
             "justifyMode": "auto",
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "BUSINESS SLOs Conversation abandonment rate (rolling 24h) Product health indicator."
         },
         {
           "id": 23,
           "title": "HITL Approval Rate",
           "type": "stat",
           "datasource": "$datasource",
-          "gridPos": { "h": 6, "w": 6, "x": 18, "y": 24 },
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 18,
+            "y": 24
+          },
           "targets": [
             {
               "expr": "hitl_approval_rate:1h * 100",
@@ -948,9 +1241,18 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "red" },
-                  { "value": 60, "color": "yellow" },
-                  { "value": 80, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "red"
+                  },
+                  {
+                    "value": 60,
+                    "color": "yellow"
+                  },
+                  {
+                    "value": 80,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -962,18 +1264,26 @@
             "textMode": "auto",
             "justifyMode": "auto",
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "HITL approval rate (approve vs reject) Measure user trust in tool suggestions."
         },
         {
           "id": 24,
           "title": "Abandonment by Reason",
           "type": "piechart",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 30
+          },
           "targets": [
             {
               "expr": "sum by (abandonment_reason) (increase(conversation_abandonment_total[24h]))",
@@ -985,30 +1295,43 @@
           "options": {
             "pieType": "donut",
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             },
             "legend": {
               "displayMode": "table",
               "placement": "right",
-              "values": ["value", "percent"]
+              "values": [
+                "value",
+                "percent"
+              ]
             },
-            "tooltip": { "mode": "multi" }
+            "tooltip": {
+              "mode": "multi"
+            }
           },
           "fieldConfig": {
             "defaults": {
               "unit": "short"
             },
             "overrides": []
-          }
+          },
+          "description": "Total conversations abandoned (user stopped responding)."
         },
         {
           "id": 25,
           "title": "Cost per Conversation Trend",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 30
+          },
           "targets": [
             {
               "expr": "business:conversation:cost_avg_usd:1h",
@@ -1034,12 +1357,15 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Cost per conversation in USD (distribution). Shown: p95 percentile."
         }
       ]
     },
@@ -1048,7 +1374,12 @@
       "id": 105,
       "title": "Geo Detail Logs (Loki)",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
       "panels": [
         {
           "id": 26,
@@ -1056,7 +1387,12 @@
           "description": "Logs enriched with GeoIP data. Only shows external (non-local) IPs.",
           "type": "table",
           "datasource": "$datasource_loki",
-          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 25 },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 25
+          },
           "targets": [
             {
               "expr": "{job=\"api\"} |= \"geo_country\" | json | geo_country != \"local\" | geo_country != \"\" | line_format \"{{.geo_country}} | {{.geo_city}} | {{.path}} | {{.method}} | {{.status_code}}\"",
@@ -1077,7 +1413,12 @@
           "title": "Unique Countries (Loki)",
           "type": "logs",
           "datasource": "$datasource_loki",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 35 },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "{job=\"api\"} |= \"geo_country\" | json | geo_country != \"local\" | geo_country != \"\" | line_format \"[{{.geo_country}}] {{.geo_city}} — {{.path}} ({{.method}} {{.status_code}})\"",

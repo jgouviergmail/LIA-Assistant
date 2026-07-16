@@ -5,8 +5,8 @@
 > 面向架构师、工程师和技术专家的技术展示文档。
 
 **版本**：3.0
-**日期**：2026-07-16
-**应用**：LIA v1.25.3
+**日期**：2026-07-17
+**应用**：LIA v1.25.4
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -52,7 +52,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | ARM64 自托管 | Docker 多架构、语义嵌入（多语言）、Playwright chromium 跨平台 |
 | 数据主权 | 本地 PostgreSQL（非 SaaS 数据库）、Fernet 静态加密、本地 Redis 会话 |
 | 多 LLM 供应商 | Factory 模式搭配 8 个适配器，按节点配置，不与特定供应商强耦合 |
-| 完全透明 | 394 Prometheus 指标、内嵌调试面板、逐 token 追踪 |
+| 完全透明 | 419 Prometheus 指标、内嵌调试面板、逐 token 追踪 |
 | 生产可靠性 | 123 篇 ADR、由 pytest 在 670 个文件中收集的 ~11,900 个测试、原生可观测性、6 层 HITL |
 | 成本可控 | Smart Services（节省 89% token）、语义嵌入、prompt 缓存、目录过滤 |
 
@@ -75,8 +75,8 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | 可复用 Fixtures | 170+ |
 | 文档 | 280+ |
 | ADR（架构决策记录） | 123 篇 |
-| Prometheus 指标 | 394 定义 |
-| Grafana 仪表板 | 22 |
+| Prometheus 指标 | 419 定义 |
+| Grafana 仪表板 | 25 |
 | 支持语言（i18n） | 6（fr、en、de、es、it、zh） |
 
 ---
@@ -176,7 +176,7 @@ apps/api/src/
     ├── browser/                  # Playwright 会话池、CDP、反检测
     ├── rate_limiting/            # Redis 分布式滑动窗口
     ├── scheduler/                # APScheduler、领导者选举、锁
-    └── observability/            # 17+ Prometheus 指标文件、OTel 追踪
+    └── observability/            # 23 Prometheus 指标文件、OTel 追踪
 ```
 
 ### 3.2. 配置优先级链
@@ -768,8 +768,8 @@ URL → SSRF 验证（DNS + IP 黑名单 + 重定向后重检） → 可读性�
 
 | 技术 | 角色 |
 |------|------|
-| Prometheus | 394 自定义指标（RED 模式） |
-| Grafana | 22 个生产就绪仪表板 |
+| Prometheus | 419 自定义指标（RED 模式） |
+| Grafana | 25 个生产就绪仪表板 |
 | Loki | JSON 结构化日志聚合 |
 | Tempo | 跨服务分布式追踪（OTLP gRPC） |
 | Langfuse | LLM 专用追踪（prompt 版本、token 用量） |
@@ -967,7 +967,7 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 ### 23.11. 可观测性架构
 
-可观测性建立在三大支柱上：关键路径上的**防御性发射**、预连线的 **Grafana 仪表盘**（20 个仪表盘 / 354+ 面板，覆盖应用、基础设施及每个业务子系统），以及由定期更新器维护的 **DB-backed gauges**。
+可观测性建立在三大支柱上：关键路径上的**防御性发射**、预连线的 **Grafana 仪表盘**（25 个仪表盘 / 595 面板，覆盖应用、基础设施及每个业务子系统），以及由定期更新器维护的 **DB-backed gauges**。
 
 Prometheus 埋点统一包裹在 `try/except Exception: pass` 中，并采用惰性导入（`from ... import foo` 放在 try 内），确保任何指标问题都不会传播到执行路径。三个专用的 Postgres 索引（`ix_conversations_updated_at` 用于 DAU/WAU，`ix_conversations_created_at` 用于对话直方图，`ix_connectors_status` 用于激活率）将更新器查询在填充数据的 DB 上从 ~500 ms 降至 <50 ms。
 
@@ -1065,4 +1065,4 @@ LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个�
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、123 篇 ADR 及变更日志（v1.0 至 v1.25.3）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、123 篇 ADR 及变更日志（v1.0 至 v1.25.4）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

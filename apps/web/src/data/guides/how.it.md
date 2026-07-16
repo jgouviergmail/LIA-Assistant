@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 3.0
-**Data**: 2026-07-16
-**Applicazione**: LIA v1.25.3
+**Data**: 2026-07-17
+**Applicazione**: LIA v1.25.4
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,7 +52,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 394 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Trasparenza totale | 419 metriche Prometheus, debug panel integrato, tracciamento token per token |
 | Affidabilità in produzione | 120+ ADR, ~11.900 test raccolti da pytest in 670 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
@@ -75,8 +75,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 280+ |
 | ADR (Architecture Decision Record) | 120+ |
-| Metriche Prometheus | 394 definizioni |
-| Dashboard Grafana | 22 |
+| Metriche Prometheus | 419 definizioni |
+| Dashboard Grafana | 25 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -176,7 +176,7 @@ apps/api/src/
     ├── browser/                  # Playwright session pool, CDP, anti-rilevamento
     ├── rate_limiting/            # Redis sliding window distribuito
     ├── scheduler/                # APScheduler, leader election, lock
-    └── observability/            # 17+ file di metriche Prometheus, tracing OTel
+    └── observability/            # 23 file di metriche Prometheus, tracing OTel
 ```
 
 ### 3.2. Catena di priorità della configurazione
@@ -768,8 +768,8 @@ Design **fail-open**: i fallimenti dell'infrastruttura non bloccano gli utenti.
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 394 metriche custom (RED pattern) |
-| Grafana | 22 dashboard production-ready |
+| Prometheus | 419 metriche custom (RED pattern) |
+| Grafana | 25 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
 | Langfuse | Tracing specifico LLM (versioni prompt, utilizzo token) |
@@ -970,7 +970,7 @@ L'applicazione completa alla meteo (`gettext.gettext(text, language)` propagato 
 
 ### 23.11. Architettura di osservabilità
 
-L'osservabilità poggia su tre pilastri: **emissione difensiva** sul percorso critico, **dashboard Grafana** pre-cablate (20 dashboard / 354+ pannelli che coprono l'app, l'infra e ogni sotto-sistema di business) e **gauge DB-backed** mantenute da un updater periodico.
+L'osservabilità poggia su tre pilastri: **emissione difensiva** sul percorso critico, **dashboard Grafana** pre-cablate (25 dashboard / 595 pannelli che coprono l'app, l'infra e ogni sotto-sistema di business) e **gauge DB-backed** mantenute da un updater periodico.
 
 L'instrumentazione Prometheus è sistematicamente avvolta in `try/except Exception: pass` con import lazy (`from ... import foo` all'interno del try) affinché nessun problema di metrica si propaghi sul percorso di esecuzione. Tre indici Postgres dedicati (`ix_conversations_updated_at` per DAU/WAU, `ix_conversations_created_at` per l'istogramma delle conversazioni, `ix_connectors_status` per il tasso di attivazione) portano le query dell'updater da ~500 ms a <50 ms su DB popolato.
 
@@ -1068,4 +1068,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), dei 120+ ADR e del changelog (da v1.0 a v1.25.3). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), dei 120+ ADR e del changelog (da v1.0 a v1.25.4). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

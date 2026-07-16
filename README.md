@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.25.3</strong> — <strong>The prompt layer gets a full engineering pass: sharper HITL confirmations, a provider-agnostic prompt-cache convention, and CI guards that keep both honest.</strong> A senior-level review of all 84 versioned prompts surfaced a silent, long-standing bug: the HITL classifier's few-shot examples <strong>never reached the LLM</strong> (the template sentinel was de-escaped by <code>.format()</code> before the <code>.replace()</code> ran, leaving a literal placeholder in every approve/reject/edit classification) — fixed with a brace-free sentinel and end-to-end oracle tests on the real files, so "no, send it to Marie instead" is now classified with its full action-type guidance restored. Confirmation questions <strong>follow the personality you chose</strong> (gentle, professional, playful…) instead of a hardcoded sarcastic register. Structurally, every dynamic system prompt now separates its static prefix from per-request content with one canonical <code>DYNAMIC CONTEXT</code> marker — templates stay model-neutral while the infra layer owns each provider's caching (Anthropic <code>cache_control</code> split, OpenAI <code>prompt_cache_key</code>, implicit prefix caches): the planner, the pipeline's most expensive prompt, goes from ~3% to <strong>77% byte-stable cacheable prefix</strong>, cutting billed tokens and latency on every actionable request whatever model each function uses. Governance closes the pass: two orphaned prompts deleted, the <code>PromptName</code> registry CI-synced to the files in both directions, the emotional-safety directive extracted to versioned files under a sentinel-coupling lock, and shrink-only cache-hygiene guards so none of it can silently regress. <strong>Verified:</strong> <strong>10,232 fast unit + 971 agents</strong> tests green (14 new guards), mypy/black/ruff clean, full Docker boot + healthcheck, 78 prompts load-proven and 31 restructured templates format-proven with their exact call-site keys. — 16 July 2026.
+  <strong>Version 1.25.4</strong> — <strong>The Grafana fleet becomes complete, readable and honest: 25 dashboards, every one of the 419 metrics covered, and panels that tell the truth about silence.</strong> A full observability review — every one of ~590 panel queries executed live against the production Prometheus, every metric definition cross-referenced by AST against the code — followed by a complete remediation. <strong>Coverage:</strong> 76 metrics had no panel anywhere, including three entire families of features running blind in production; Journals & User Model, Telephony and Today Briefing each get a dedicated dashboard (23/24/25), and ten new sections surface the semantic guard (ADR-120/121), background runs (ADR-117), the per-stage TTFT latency breakdown, LLM-cache savings and tool-registry integrity. <strong>Honesty:</strong> error-rate recording rules returned <em>empty</em> when there were zero errors — the healthiest state rendered as "No data" on the most-watched panels; seven rules now synthesize an explicit 0, and a nuanced <code>noValue</code> convention distinguishes a true zero (event counters) from a never-computed ratio (<code>n/a</code>) while core-throughput panels keep their silence as an outage signal. One real corpse found and fixed: <code>checkpoint_load_duration_seconds</code> had <strong>never been emitted</strong> — the wrapper instrumented a convenience method the LangGraph runtime never calls; the instrumentation moved to the real entry point (<code>aget_tuple</code>) with a regression-locking test. Readability closes the pass: ~550 panel descriptions generated from the metrics' own help strings, sparse-histogram windows matched to real cadence, Loki panels that survive zoom-out, and the duplicate dashboard number resolved. <strong>Verified:</strong> 0 query typos / 0 errors against both prod and dev Prometheus (~665 queries), all 25 dashboards provisioning-loaded and visually checked, <strong>10,270 fast unit</strong> tests green, promtool green on 86 rules, mypy/black/ruff clean. — 17 July 2026.
 
 </p>
 
@@ -80,7 +80,7 @@
 | **Unpredictable LLM costs** | Real-time token tracking, budget alerts, 93% optimization |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
 | **Fragmented integrations** | Unified multi-domain orchestration (19+ agents + MCP + sub-agents) |
-| **Limited observability** | 394 Prometheus metrics, 22 Grafana dashboards, email alerting with runbooks, GeoIP analytics |
+| **Limited observability** | 419 Prometheus metrics, 25 Grafana dashboards, email alerting with runbooks, GeoIP analytics |
 | **Inconsistent performance** | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring |
 
 ### Primary Use Cases
@@ -117,7 +117,7 @@ The result is measured, not proclaimed:
 | | | | |
 |---|---|---|---|
 | **32** functional domains | **420,000** lines of code (excl. tests) | **11,900+** automated tests | **120+** ADRs |
-| **149** versions shipped | **6 languages**, parity enforced in CI | **394** Prometheus metrics | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **153** versions shipped | **6 languages**, parity enforced in CI | **419** Prometheus metrics | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -322,7 +322,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 394 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 419 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 22 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -828,8 +828,8 @@ apps/api/src/
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 394 metrics |
-| Grafana | 22 dashboards |
+| Prometheus | 419 metrics |
+| Grafana | 25 dashboards |
 | Loki | Aggregated logs |
 | Tempo | Distributed tracing |
 | Langfuse | LLM observability |

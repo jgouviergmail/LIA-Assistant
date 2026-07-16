@@ -261,7 +261,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Semantic issues detected by type."
         },
         {
           "id": 12,
@@ -307,7 +308,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Security events detected in HITL flows (DoS attempts, abuse, rate limits). Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 13,
@@ -353,7 +355,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total authentication attempts."
         }
       ]
     },
@@ -417,7 +420,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Current circuit breaker state (0=closed, 1=open, 2=half_open)."
         },
         {
           "id": 16,
@@ -467,7 +471,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total circuit breaker state changes."
         },
         {
           "id": 17,
@@ -517,7 +522,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total calls through circuit breaker."
         },
         {
           "id": 18,
@@ -567,7 +573,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Time in seconds since circuit opened (0 if closed)."
         }
       ]
     },
@@ -631,7 +638,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total HTTP errors by status code and exception type. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 21,
@@ -681,7 +689,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total HTTP 4xx client errors by specific type. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 22,
@@ -731,7 +740,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total HTTP 5xx server errors by specific type. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 23,
@@ -781,7 +791,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total LLM API errors by provider and error type. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 24,
@@ -831,7 +842,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total LLM rate limit hits by provider and limit type. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 25,
@@ -881,7 +893,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total context length exceeded errors by provider and model."
         },
         {
           "id": 26,
@@ -931,7 +944,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total content filter violations by provider. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 27,
@@ -981,7 +995,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total external service errors by service and error type. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 28,
@@ -1031,7 +1046,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total external service timeouts by service. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 29,
@@ -1081,7 +1097,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total validation errors by field and error type. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 30,
@@ -1131,7 +1148,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total security violations by violation type. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 31,
@@ -1181,7 +1199,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total exceptions in graph execution. Empty panel = zero events in the window (healthy)."
         }
       ]
     },
@@ -1245,7 +1264,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total usage limit checks performed."
         },
         {
           "id": 34,
@@ -1294,6 +1314,111 @@
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
+            }
+          },
+          "description": "Total enforcement actions (user blocked from action)."
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 35,
+      "title": "Registry Integrity",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 78
+      },
+      "panels": [
+        {
+          "id": 36,
+          "title": "Tool module import failures",
+          "type": "stat",
+          "datasource": "$datasource",
+          "description": "Tool modules that failed to import at startup (prod swallows the error and counts it here — dev/CI raise). Any value > 0 means an entire tool family is silently missing from the registry.",
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 0,
+            "y": 79
+          },
+          "targets": [
+            {
+              "expr": "sum(tool_module_import_failures_total)",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "none",
+            "colorMode": "value",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          }
+        },
+        {
+          "id": 37,
+          "title": "Import failures (by module)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Tool-module import failures over time, by module. Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 18,
+            "x": 6,
+            "y": 79
+          },
+          "targets": [
+            {
+              "expr": "sum by (module) (rate(tool_module_import_failures_total[$__rate_interval]))",
+              "legendFormat": "{{module}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
             }
           }
         }

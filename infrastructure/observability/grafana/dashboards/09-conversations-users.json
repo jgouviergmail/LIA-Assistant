@@ -1,7 +1,12 @@
 {
   "title": "09 - Conversations & Users",
   "uid": "09-conversations-users",
-  "tags": ["lia", "conversations", "users", "engagement"],
+  "tags": [
+    "lia",
+    "conversations",
+    "users",
+    "engagement"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -14,7 +19,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -46,7 +53,12 @@
       "id": 100,
       "title": "User Activity",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
@@ -54,7 +66,12 @@
       "title": "DAU",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 4, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "user_active_daily_gauge",
@@ -69,7 +86,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
@@ -81,18 +101,26 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Number of daily active users (DAU) - users with activity in last 24h."
     },
     {
       "id": 2,
       "title": "WAU",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 4, "x": 4, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "user_active_weekly_gauge",
@@ -107,7 +135,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
@@ -119,18 +150,26 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Number of weekly active users (WAU) - users with activity in last 7 days."
     },
     {
       "id": 3,
       "title": "New Registrations (24h)",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 4, "x": 8, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "users_registered_last_24h",
@@ -144,7 +183,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
@@ -156,18 +198,26 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "User registrations in last 24 hours from database."
     },
     {
       "id": 4,
       "title": "Login Rate",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "user_logins:rate1h",
@@ -188,26 +238,37 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "single" },
+        "tooltip": {
+          "mode": "single"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "User login rate (logins/hour) — includes password + OAuth Engagement tracking."
     },
     {
       "id": 5,
       "title": "Logins by Provider",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (provider) (rate(user_logins_total{status=\"success\"}[$__rate_interval]))",
@@ -228,26 +289,37 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "single" },
+        "tooltip": {
+          "mode": "single"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total user login attempts and successes."
     },
     {
       "id": 6,
       "title": "Return Rate by Window",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
       "targets": [
         {
           "expr": "sum by (time_window) (rate(user_return_rate_total[$__rate_interval]))",
@@ -268,29 +340,40 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "single" },
+        "tooltip": {
+          "mode": "single"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Users returning to app after first conversation."
     },
     {
       "id": 7,
       "title": "Daily Conversations/User",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
       "targets": [
         {
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(user_daily_conversations_total_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (increase(user_daily_conversations_total_bucket[1d])))",
           "legendFormat": "P50",
           "refId": "A"
         }
@@ -308,33 +391,49 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "single" },
+        "tooltip": {
+          "mode": "single"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Number of conversations per user per day. Shown: p50 percentile."
     },
     {
       "type": "row",
       "id": 101,
       "title": "Conversation Lifecycle",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
       "panels": [
         {
           "id": 8,
           "title": "Conversations Created",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "conversations_created:rate1h",
@@ -355,26 +454,37 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Conversation creation rate Feature adoption."
         },
         {
           "id": 9,
           "title": "Conversations Reactivated",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "rate(conversation_reactivated_total[$__rate_interval])",
@@ -395,26 +505,37 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total soft-deleted conversations reactivated."
         },
         {
           "id": 10,
           "title": "Conversation Resets",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "rate(conversation_resets_total[$__rate_interval])",
@@ -435,26 +556,37 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total conversation resets by users. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 11,
           "title": "Messages by Role",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 26 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "sum by (role) (rate(conversation_message_archived_total[$__rate_interval]))",
@@ -479,26 +611,37 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total messages archived to conversation_messages table."
         },
         {
           "id": 12,
           "title": "Conversation Length Distribution",
           "type": "heatmap",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 26 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "sum by (le) (increase(conversation_length_messages_bucket[$__rate_interval]))",
@@ -523,14 +666,20 @@
               "show": true
             },
             "cellGap": 1
-          }
+          },
+          "description": "Number of messages in completed conversations (distribution)."
         },
         {
           "id": 13,
           "title": "Conversation Turns by Agent",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 26 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "sum by (agent_type) (rate(conversation_turns_total_sum[$__rate_interval])) / sum by (agent_type) (rate(conversation_turns_total_count[$__rate_interval]))",
@@ -551,26 +700,37 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Number of user-agent turns per conversation."
         },
         {
           "id": 14,
           "title": "Conversation Repository Queries",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 34
+          },
           "targets": [
             {
               "expr": "sum by (version) (rate(conversation_repository_queries_total[$__rate_interval]))",
@@ -591,26 +751,37 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Query count by implementation version (legacy vs optimized)."
         },
         {
           "id": 15,
           "title": "Message Query Duration",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 34
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(conversation_messages_query_duration_seconds_bucket[$__rate_interval])))",
@@ -631,19 +802,25 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Query duration for message retrieval with token summaries. Shown: p95 percentile."
         }
       ]
     },
@@ -652,14 +829,24 @@
       "id": 102,
       "title": "Abandonment Analysis",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
       "panels": [
         {
           "id": 16,
           "title": "Abandonment Rate by Agent",
           "type": "bargauge",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 43 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 43
+          },
           "targets": [
             {
               "expr": "business:abandonment_rate:5m_by_agent",
@@ -673,9 +860,13 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
-              }
+              },
+              "noValue": "n/a"
             },
             "overrides": []
           },
@@ -684,18 +875,26 @@
             "displayMode": "gradient",
             "showUnfilled": true,
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "PHASE 3.2 - BUSINESS METRICS (Part 2 - P1 High Priority) These recording rules pre-aggregate business metrics instrumented in Part 2 (Steps 2.1-2.4) for efficient dashboard queries and alerting."
         },
         {
           "id": 17,
           "title": "Abandonment by Reason",
           "type": "piechart",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 43 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 43
+          },
           "targets": [
             {
               "expr": "sum by (abandonment_reason) (increase(conversation_abandonment_total[24h]))",
@@ -709,19 +908,27 @@
           },
           "options": {
             "pieType": "donut",
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "right"
             }
-          }
+          },
+          "description": "Total conversations abandoned (user stopped responding)."
         },
         {
           "id": 18,
           "title": "Avg Messages at Abandonment",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 43 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 43
+          },
           "targets": [
             {
               "expr": "business:abandonment_message_count:avg_5m",
@@ -742,26 +949,37 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Average message count at abandonment by reason (5m window) Understand when users abandon (early vs late in conversation) Early abandonment (<3 messages) indicates onboarding issues."
         },
         {
           "id": 19,
           "title": "P95 Messages at Abandonment",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 51 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 51
+          },
           "targets": [
             {
               "expr": "business:abandonment_message_count:p95_5m",
@@ -782,26 +1000,37 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "P95 message count at abandonment (5m window) Detect outlier abandonment patterns."
         },
         {
           "id": 20,
           "title": "Conversation Cost by Agent",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 51 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 51
+          },
           "targets": [
             {
               "expr": "business:conversation_tokens:avg_1h_by_agent",
@@ -822,19 +1051,25 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Average tokens consumed per conversation by agent (1h window) Cost attribution per agent type High token usage may indicate inefficient prompts."
         }
       ]
     },
@@ -843,14 +1078,24 @@
       "id": 103,
       "title": "Agent Success & Quality",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 59 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 59
+      },
       "panels": [
         {
           "id": 21,
           "title": "Agent Success Rate",
           "type": "bargauge",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 60 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 60
+          },
           "targets": [
             {
               "expr": "agent:slo:success_rate:1h * 100",
@@ -864,10 +1109,22 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "red" },
-                  { "value": 90, "color": "yellow" },
-                  { "value": 95, "color": "orange" },
-                  { "value": 99, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "red"
+                  },
+                  {
+                    "value": 90,
+                    "color": "yellow"
+                  },
+                  {
+                    "value": 95,
+                    "color": "orange"
+                  },
+                  {
+                    "value": 99,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -878,18 +1135,26 @@
             "displayMode": "gradient",
             "showUnfilled": true,
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "Agent success rate (rolling 1h) SLO target = 95% success rate."
         },
         {
           "id": 22,
           "title": "Graph Exceptions Rate (by node/type)",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 60 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 60
+          },
           "targets": [
             {
               "expr": "sum by (node_name, exception_type) (rate(graph_exceptions_total[$__rate_interval]))",
@@ -910,26 +1175,37 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total exceptions in graph execution. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 23,
           "title": "Router High-Confidence Rate (proxy for accuracy)",
           "type": "bargauge",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 60 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 60
+          },
           "targets": [
             {
               "expr": "sum by (intention) (rate(router_decisions_total{confidence_bucket=~\"high|very_high\"}[$__rate_interval])) / sum by (intention) (rate(router_decisions_total[$__rate_interval])) * 100",
@@ -943,7 +1219,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -954,18 +1233,26 @@
             "displayMode": "gradient",
             "showUnfilled": true,
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "Total router decisions."
         },
         {
           "id": 24,
           "title": "Connector Activation Rate",
           "type": "bargauge",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 68 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 68
+          },
           "targets": [
             {
               "expr": "connector_activation_rate * 100",
@@ -979,7 +1266,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -990,18 +1280,26 @@
             "displayMode": "gradient",
             "showUnfilled": true,
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "Percentage of users with at least one active connector (0-1)."
         },
         {
           "id": 25,
           "title": "Agent Latency P95 (per intention)",
           "type": "bargauge",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 68 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 68
+          },
           "targets": [
             {
               "expr": "agent:latency:p95_5m",
@@ -1015,7 +1313,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -1026,18 +1327,26 @@
             "displayMode": "gradient",
             "showUnfilled": true,
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "AGENT LATENCY SLOs Agent execution P95 latency (by agent type) SLO target = p95 < 3000ms for agents."
         },
         {
           "id": 26,
           "title": "Cost per Successful Conversation",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 68 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 68
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.5, sum by (le) (rate(cost_per_successful_conversation_usd_bucket[$__rate_interval])))",
@@ -1058,19 +1367,25 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Cost per successful conversation (only conversations that achieved goal). Shown: p50 percentile."
         }
       ]
     },
@@ -1079,14 +1394,24 @@
       "id": 104,
       "title": "Attachments",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 76 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 76
+      },
       "panels": [
         {
           "id": 27,
           "title": "Attachments Uploaded (24h)",
           "type": "stat",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 77 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 77
+          },
           "targets": [
             {
               "expr": "sum(increase(attachments_uploaded_total{status=\"success\"}[24h]))",
@@ -1101,7 +1426,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -1113,18 +1441,26 @@
             "textMode": "auto",
             "justifyMode": "auto",
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "Total file attachments uploaded."
         },
         {
           "id": 28,
           "title": "Attachment Types",
           "type": "piechart",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 77 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 77
+          },
           "targets": [
             {
               "expr": "sum by (content_type) (increase(attachments_uploaded_total{status=\"success\"}[24h]))",
@@ -1138,19 +1474,27 @@
           },
           "options": {
             "pieType": "donut",
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "right"
             }
-          }
+          },
+          "description": "Total file attachments uploaded."
         },
         {
           "id": 29,
           "title": "Upload Rate",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 77 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 77
+          },
           "targets": [
             {
               "expr": "attachments_upload_rate:5m",
@@ -1171,26 +1515,37 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Attachment upload success rate (5m rolling window) Track upload reliability."
         },
         {
           "id": 30,
           "title": "Upload Size Distribution",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 85 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 85
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.5, sum by (le, content_type) (rate(attachments_upload_size_bytes_bucket[5m])))",
@@ -1216,26 +1571,37 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Size of uploaded attachments in bytes. Shown: p50/p95 percentile."
         },
         {
           "id": 31,
           "title": "Active Attachments",
           "type": "stat",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 85 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 85
+          },
           "targets": [
             {
               "expr": "attachments_active_count",
@@ -1250,7 +1616,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -1262,18 +1631,26 @@
             "textMode": "auto",
             "justifyMode": "auto",
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "Current number of active (non-expired) attachments."
         },
         {
           "id": 32,
           "title": "Upload Errors",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 85 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 85
+          },
           "targets": [
             {
               "expr": "attachments_upload_error_rate:5m",
@@ -1294,17 +1671,157 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
+            "tooltip": {
+              "mode": "single"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
+            }
+          },
+          "description": "Attachment upload error rate (5m rolling window) Detect upload issues."
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 105,
+      "title": "Attachments Deep / Registrations",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 93
+      },
+      "panels": [
+        {
+          "id": 106,
+          "title": "Upload duration p95 (by content_type)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Attachment upload pipeline duration (1h window — uploads are sparse).",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 94
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (content_type, le) (rate(attachments_upload_duration_seconds_bucket[1h])))",
+              "legendFormat": "{{content_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 107,
+          "title": "Attachment cleanup deletions (by reason)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Attachments deleted by the cleanup job, by reason (TTL, orphan...). Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 94
+          },
+          "targets": [
+            {
+              "expr": "sum by (reason) (rate(attachments_cleanup_deleted_total[$__rate_interval]))",
+              "legendFormat": "{{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 108,
+          "title": "Registrations (by provider / status)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Password-based user registrations by provider and status (OAuth signups are tracked separately by oauth_user_creation_total). Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 94
+          },
+          "targets": [
+            {
+              "expr": "sum by (provider, status) (rate(user_registrations_total[$__rate_interval]))",
+              "legendFormat": "{{provider}} · {{status}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
             }
           }
         }

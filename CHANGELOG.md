@@ -5,6 +5,104 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.4] - 2026-07-17
+
+> **The Grafana fleet becomes complete, readable and honest.** A full review of the observability dashboards — every one of ~590 panel queries executed live against the production Prometheus, every metric definition cross-referenced by AST against the code — followed by a complete remediation. Coverage first: **all 419 code-defined metrics are now referenced by at least one panel** (76 were orphaned, including three entire families of features running blind in production: Journals, Telephony, Today Briefing — each gets a dedicated dashboard, 23/24/25). Honesty second: error-rate recording rules returned *empty* when there were **zero errors** — the healthiest state rendered as "No data" on the most-watched panels; seven rules now synthesize an explicit 0 (`or vector(0)`), and a nuanced `noValue` convention distinguishes a true zero (event counters) from a never-computed ratio (`n/a`) while core-throughput panels keep their silence as an outage signal. One real instrumentation corpse: `checkpoint_load_duration_seconds` had **never been emitted** — the wrapper instrumented `aget()`, a convenience helper the LangGraph runtime never calls (it calls `aget_tuple()`), and the tests patched a method the parent class doesn't even define; the override moved to the real entry point with a regression-locking test. Readability closes the pass: ~550 generated-then-reviewed panel descriptions (from the metrics' own help strings and recording-rule comments), sparse-histogram windows matched to each source's real cadence, Loki panels that survive zoom-out, the duplicate dashboard number resolved (Compaction moves to 22, deduplicated from the LLM-cost board), and the Langfuse row explicitly labeled as disabled-in-prod. Verified end-to-end: 0 query typos / 0 errors against both prod and dev, all 25 dashboards provisioning-loaded and visually checked in Grafana.
+
+### Added
+
+- **Three new dashboards for previously-blind active features** —
+  `23 - Journals & User Model` (extraction volume/duration/errors, entry
+  lifecycle by action/theme, consolidation levels & promotions, portrait age /
+  feedback / injections), `24 - Telephony` (terminal call statuses, durations,
+  T1 recovery reapers, HMAC-filtered webhooks), `25 - Today Briefing` (build
+  duration by cache state, per-section outcomes, LLM invocations, refreshes).
+- **Ten collapsed coverage rows on existing dashboards** — background runs
+  ADR-117 + semantic layer ADR-120/121 (param-guard blocks, evidence expansion,
+  leak detection/autocorrection) on 07; **per-stage TTFT latency breakdown**
+  (`langgraph_stage_duration_seconds`, the LATENCY_PLAN instrument) + graph
+  errors + reasoning-stream double-call guard on 15; tool-module import
+  failures (a family-silently-missing detector, red above 0) on 16; LLM-cache
+  cost savings + pricing-cache fallbacks on 05; OAuth deep metrics (callback
+  errors, initiate/activation durations, refresh-lock lifecycle, API-key
+  verification) and contacts/email query shapes on 10; attachments deep +
+  registrations by provider on 09; conversation-repository health on 14; RAG
+  job-reaper recoveries on 18; ingestion duplicates on 21. **Metric coverage:
+  419/419** (from 343/419), recording-rule transitivity included.
+- **Panel-rendering conventions** (documented in `GRAFANA_DASHBOARDS.md`) —
+  nuanced `noValue`: `"0"` on rare-event counters (no series genuinely means
+  zero events), `"n/a"` on ratios whose denominator can be empty (a 0 would
+  claim a measurement that never happened), and **never** on core-throughput
+  metrics whose absence must stay visible; quantile windows matched to source
+  cadence (`[1h]` for sparse families, `increase[1d]` for the once-a-day
+  histogram); systematic descriptions with an explicit "Empty panel = zero
+  events in the window (healthy)" note on rare-event timeseries.
+
+### Changed
+
+- **Compaction dashboard consolidated as `22 - Compaction`** — resolves the
+  duplicate `14-` numbering, absorbs the redundant compaction section from
+  `05 - LLM Tokens & Cost`, and gains a 24h health headline (executions,
+  truncation fallbacks, errors, writer-unavailable — red thresholds) plus the
+  per-chunk LLM call duration and token cost-vs-savings panels.
+- **~550 panel descriptions generated then reviewed** from the Prometheus help
+  strings in the code and the recording-rule comment blocks — every panel now
+  explains what it measures and how to read an empty state; the Langfuse row
+  on 15 is explicitly titled "requires LANGFUSE_ENABLED — currently off in
+  prod".
+- **Sparse-histogram quantile windows widened** (55 queries) — RAG, voice,
+  compaction, OAuth, HITL for-each, sub-agents, browser P50/P95 panels no
+  longer blank out at long time ranges on a low-traffic deployment; Loki
+  panels move from a fixed `[1m]` to `[$__auto]` (error logs were invisible
+  at 7-day zoom); `user_daily_conversations` quantiles move to
+  `increase(...[1d])` (observed ~once a day — structurally empty before).
+- **`GRAFANA_DASHBOARDS.md` v4.4** — full 01-25 catalogue with real panel
+  counts (it claimed "22 dashboards" in the header, "20" in the key-figures
+  table and "18 files" in the file list simultaneously), rendering conventions,
+  and the `or vector(0)` recording-rule doctrine.
+
+### Fixed
+
+- **`checkpoint_load_duration_seconds` never emitted (dead instrumentation)** —
+  `InstrumentedAsyncPostgresSaver` overrode `aget()`, which the LangGraph
+  runtime never calls: checkpoint loads go through `aget_tuple()`, and the
+  base-class `aget` merely delegates to it. The instrumentation (duration
+  histogram, operation counter, error categorization) moves to `aget_tuple`
+  with the parent's exact signature — removing a return-type annotation that
+  contradicted the parent, masked by `typing_cast` + `type: ignore`. The tests
+  patched (and thereby created) a method `AsyncPostgresSaver` doesn't define,
+  exercising a phantom path; they now patch the real parent method, and a
+  regression test locks the entry point (`aget_tuple` overridden, `aget` not
+  shadowed, convenience path instrumented transitively). The
+  `checkpoint_load_duration:p95_5m` recording rule also aggregated by a label
+  this histogram never carried.
+- **Error-rate recording rules empty in the nominal state** — with zero 5xx
+  (resp. zero DB errors, zero planner fallbacks, zero cache misses…) the
+  numerator selector matched no series and `http_error_rate:5m`,
+  `api:slo:error_budget:burn_rate_1h`, `db:slo:error_rate:5m`,
+  `planner_filtered_cache_hit_rate:5m`,
+  `planner_domain_filtering_low_confidence_rate:1h` and
+  `business:tool_rejection_rate:1h_by_tool` rendered "No data" instead of 0
+  on the Overview, SLO and HTTP boards — for `db:slo:error_rate` the empty
+  numerator even emptied the denominator through vector-matched addition.
+  Fixed with `or vector(0)` (label-preserving `or … * 0` where the rule
+  groups by label); `promtool` green on all 86 rules.
+- **Loki error panels empty at wide time ranges** — five panels queried
+  `rate({job="api", level="error"}[1m])` with a fixed 1-minute log range:
+  sparse error bursts fell between long-range sampling steps (verified against
+  prod: ~700 error lines over 7 days, all invisible at default zoom).
+
+### Tests
+
+- Backend: **10,270 fast unit tests green** (15 checkpoint-metrics tests, of
+  which a histogram-count oracle and the aget/aget_tuple regression lock);
+  ruff + black (1,674 files) + mypy strict (897 files) clean.
+- Observability: live audit executed against **production and dev Prometheus**
+  (~665 queries incl. Loki): 0 metric typos, 0 query errors, 0 template-variable
+  problems; 25/25 dashboards provisioning-loaded (Grafana API) and visually
+  verified (health stats render 0-green, repaired burn-rate stat renders 0.00,
+  new Journals board renders live dev data).
+
 ## [1.25.3] - 2026-07-16
 
 > **The prompt layer gets a full engineering pass.** A senior-level review of all 84 versioned prompts (directives, robustness, LLM cache management) followed by a four-batch remediation. The headline fix: the HITL classifier's few-shot examples were **never reaching the LLM** — the `{{...}}` sentinel was de-escaped by `.format()` before the `.replace()` ran, so every approve/reject/edit classification shipped with a literal placeholder instead of ~2,800 tokens of action-type examples; a brace-free `[[...]]` sentinel plus real-file oracle tests close the class for good. The structural work: a **provider-agnostic prompt-cache convention** — static content first, one canonical `--- DYNAMIC CONTEXT ---` marker, per-request content after — generalized to 34 system prompts and enforced by shrink-only CI guards. The planner (the pipeline's most expensive prompt) goes from ~3% to **77% byte-stable cacheable prefix**; the infra layer owns provider specifics (Anthropic `cache_control` split, OpenAI `prompt_cache_key`, implicit prefix caches), so models can be swapped per prompt with no template change. Governance closes the rest: two orphaned prompts deleted, the `PromptName` Literal now bidirectionally synced to the files by CI, the emotional-safety directive extracted to versioned files with a sentinel-coupling lock, and HITL confirmation questions now follow the user's **personality** instead of a hardcoded sarcastic register.

@@ -99,7 +99,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total sub-agent executions by agent name and mode."
     },
     {
       "id": 3,
@@ -146,7 +147,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Number of sub-agents currently executing."
     },
     {
       "id": 4,
@@ -188,7 +190,8 @@
                 "value": 20
               }
             ]
-          }
+          },
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -201,7 +204,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total sub-agent execution errors by type."
     },
     {
       "id": 7,
@@ -248,7 +252,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total prompt tokens consumed by sub-agent executions."
     },
     {
       "id": 10,
@@ -310,7 +315,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total sub-agent executions by agent name and mode."
     },
     {
       "id": 12,
@@ -360,7 +366,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total sub-agent execution errors by type. Empty panel = zero events in the window (healthy)."
     },
     {
       "id": 20,
@@ -390,17 +397,17 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.5, sum by (agent_name, le) (rate(subagent_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.5, sum by (agent_name, le) (rate(subagent_duration_seconds_bucket[1h])))",
           "legendFormat": "P50 {{agent_name}}",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (agent_name, le) (rate(subagent_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (agent_name, le) (rate(subagent_duration_seconds_bucket[1h])))",
           "legendFormat": "P95 {{agent_name}}",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, sum by (agent_name, le) (rate(subagent_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (agent_name, le) (rate(subagent_duration_seconds_bucket[1h])))",
           "legendFormat": "P99 {{agent_name}}",
           "refId": "C"
         }
@@ -432,7 +439,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Duration of sub-agent execution in seconds. Shown: p50/p95/p99 percentile."
     },
     {
       "id": 22,
@@ -450,7 +458,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (agent_name, le) (rate(subagent_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (agent_name, le) (rate(subagent_duration_seconds_bucket[1h])))",
           "legendFormat": "{{agent_name}}",
           "refId": "A",
           "instant": true
@@ -479,7 +487,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Duration of sub-agent execution in seconds. Shown: p95 percentile."
     },
     {
       "id": 30,
@@ -541,7 +550,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total prompt tokens consumed by sub-agent executions."
     },
     {
       "id": 32,
@@ -591,7 +601,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total completion tokens consumed by sub-agent executions."
     }
   ]
 }

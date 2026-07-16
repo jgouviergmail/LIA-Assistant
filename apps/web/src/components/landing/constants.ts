@@ -27,11 +27,11 @@ export const LANDING_STATS = {
   tools: 76,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 394,
+  metrics: 419,
   uiLanguages: 6,
   tests: 11900,
   adrs: 120,
-  releases: 152,
+  releases: 153,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

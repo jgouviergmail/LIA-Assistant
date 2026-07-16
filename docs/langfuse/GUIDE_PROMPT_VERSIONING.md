@@ -936,7 +936,7 @@ except Exception as e:
 ### Documentation LIA
 
 - [README Observability](../readme/README_OBSERVABILITY.md) - Metrics overview
-- [README Grafana Dashboards](../readme/README_GRAFANA_DASHBOARD.md) - Dashboard 14 details
+- [GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md) - Dashboard 14 details
 - Langfuse Evaluation Scores Guide - Quality monitoring
 - Langfuse A/B Testing Guide - Experiment framework
 - [Langfuse Best Practices](./GUIDE_BEST_PRACTICES.md) - Production guidelines

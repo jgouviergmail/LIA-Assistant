@@ -100,7 +100,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total ReAct agent node executions."
     },
     {
       "id": 3,
@@ -155,7 +156,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total ReAct agent node executions."
     },
     {
       "id": 4,
@@ -202,7 +204,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Tools called by ReAct agent."
     },
     {
       "id": 5,
@@ -236,7 +239,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -249,7 +253,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "HITL interrupts triggered in ReAct mode."
     },
     {
       "id": 10,
@@ -311,7 +316,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total ReAct agent node executions."
     },
     {
       "id": 12,
@@ -371,7 +377,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "ReAct agent iteration count distribution. Shown: p50/p95/p99 percentile."
     },
     {
       "id": 13,
@@ -421,7 +428,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "ReAct agent total execution duration. Shown: p95 percentile."
     },
     {
       "id": 20,
@@ -483,7 +491,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Tools called by ReAct agent."
     },
     {
       "id": 22,
@@ -533,7 +542,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "HITL interrupts triggered in ReAct mode. Empty panel = zero events in the window (healthy)."
     },
     {
       "id": 30,
@@ -592,7 +602,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Number of currently active browser sessions."
     },
     {
       "id": 32,
@@ -639,7 +650,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total browser actions executed."
     },
     {
       "id": 33,
@@ -681,7 +693,8 @@
                 "value": 20
               }
             ]
-          }
+          },
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -694,7 +707,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total browser errors."
     },
     {
       "id": 34,
@@ -749,7 +763,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Browser process memory usage in bytes."
     },
     {
       "id": 40,
@@ -811,7 +826,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total browser actions executed."
     },
     {
       "id": 42,
@@ -829,7 +845,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(browser_navigation_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(browser_navigation_duration_seconds_bucket[1h])))",
           "legendFormat": "P95 navigation",
           "refId": "A"
         }
@@ -861,7 +877,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Time to load a page in the browser. Shown: p95 percentile."
     },
     {
       "id": 43,
@@ -879,7 +896,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(browser_snapshot_tokens_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(browser_snapshot_tokens_bucket[1h])))",
           "legendFormat": "P95 tokens",
           "refId": "A"
         }
@@ -911,7 +928,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Estimated token count of accessibility tree snapshots. Shown: p95 percentile."
     },
     {
       "id": 44,
@@ -961,7 +979,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total browser errors. Empty panel = zero events in the window (healthy)."
     }
   ]
 }

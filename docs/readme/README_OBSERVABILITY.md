@@ -1,14 +1,14 @@
 # Observability Infrastructure - LIA
 
-**As of 2026-05-29**: Metrics and dashboards have been significantly expanded and hardened. There are now 505+ metrics, 93 recording rules, and 20 dashboards (345+ panels). Dashboards 19 (Sub-agents & Skills) and 20 (ReAct & Browser) were added to close remaining observability gaps; the sub-agent execution metrics are now emitted by the runner (the module was previously defined but never wired), nine never-emitted/deprecated metric definitions were removed, and a panel-by-panel audit against the **production** Prometheus repaired dozens of dashboard queries that were stuck on "No data" (wrong metric names, labels, or label values). The Prometheus metrics server runs on a dedicated HTTP-only port (9091) separate from the main HTTPS API (8000).
+**As of 2026-07-17**: The Grafana fleet is complete, readable and honest. All 419 code-defined metrics (637 exported series) are referenced by at least one panel — dashboards 23 (Journals & User Model), 24 (Telephony) and 25 (Today Briefing) close the last blind feature families, and ten coverage sections surface the semantic guard, background runs, per-stage TTFT latency, LLM-cache savings and tool-registry integrity. Error-rate recording rules synthesize an explicit 0 instead of an empty result in the zero-error nominal state (`or vector(0)` doctrine); a nuanced `noValue` convention distinguishes true zeros (event counters) from never-computed ratios (`n/a`) while core-throughput panels keep "No data" as an outage signal; ~550 panel descriptions are generated from the metrics' own help strings. The whole fleet is audit-verified live against both production and dev Prometheus (0 query typos, 0 errors). The Prometheus metrics server runs on a dedicated HTTP-only port (9091) separate from the main HTTPS API (8000).
 
-**Version**: 4.0 (2025-11-23) - Phase 4 Complete
+**Version**: 4.1 (2026-07-17)
 **Status**: Production-Ready
 **Architecture**: Prometheus + Grafana + Loki + Tempo + AlertManager
-**Total Metrics**: 500+ across 12 categories
-**Dashboards**: 20 comprehensive dashboards (345+ panels)
-**Alert Rules**: 100+ alerts across 15 groups
-**Recording Rules**: 93 optimized rules
+**Total Metrics**: 419 definitions (637 exported series) across 23 metric modules
+**Dashboards**: 25 comprehensive dashboards (595 panels)
+**Alert Rules**: 13-alert active core (ADR-119; legacy set pending recalibration)
+**Recording Rules**: 86 optimized rules
 **Runbooks**: 22 incident response runbooks
 
 ---
@@ -47,8 +47,8 @@ Observability is the ability to measure the internal states of a system by exami
 
 | Component | Purpose | Metrics | Retention | Port |
 |-----------|---------|---------|-----------|------|
-| **Prometheus** | Metrics collection & storage | 139 custom metrics (scraped from :9091) | 15 days | 9090 |
-| **Grafana** | Visualization & dashboards | 20 dashboards, 354+ panels | N/A (queries only) | 3000 |
+| **Prometheus** | Metrics collection & storage | 419 custom metrics (scraped from :9091) | 15 days | 9090 |
+| **Grafana** | Visualization & dashboards | 25 dashboards, 595 panels | N/A (queries only) | 3000 |
 | **Loki** | Log aggregation & storage | N/A (logs, not metrics) | 7 days | 3100 |
 | **Tempo** | Distributed tracing | Trace spans | 7 days | 3200 |
 | **AlertManager** | Alert routing & notifications | 13-alert core loaded (ADR-119); legacy catalog quarantined | N/A (stateful) | 9093 |
@@ -126,7 +126,7 @@ Observability is the ability to measure the internal states of a system by exami
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
 │  │  Datasources │  │  Dashboards  │  │    Alerts    │     │
 │  │              │  │              │  │              │     │
-│  │ - Prometheus │  │ 20 dashboards│  │ Email/Slack  │     │
+│  │ - Prometheus │  │ 25 dashboards│  │ Email/Slack  │     │
 │  │ - Loki       │  │ 312+ panels  │  │ integration  │     │
 │  │ - Tempo      │  │              │  │              │     │
 │  └──────────────┘  └──────────────┘  └──────────────┘     │

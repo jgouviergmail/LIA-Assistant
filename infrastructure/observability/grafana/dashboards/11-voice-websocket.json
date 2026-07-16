@@ -1,7 +1,13 @@
 {
   "title": "11 - Voice & WebSocket",
   "uid": "11-voice-websocket",
-  "tags": ["lia", "voice", "tts", "stt", "websocket"],
+  "tags": [
+    "lia",
+    "voice",
+    "tts",
+    "stt",
+    "websocket"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -14,7 +20,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -46,7 +54,12 @@
       "id": 100,
       "title": "TTS (Text-to-Speech)",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
@@ -54,7 +67,12 @@
       "title": "TTS Requests Rate",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (status, voice_name) (rate(voice_tts_requests_total{voice_name=~\"$voice_name\"}[$__rate_interval]))",
@@ -75,22 +93,30 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
+        "tooltip": {
+          "mode": "multi"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total TTS API requests across providers (Edge, OpenAI, ElevenLabs)."
     },
     {
       "id": 2,
       "title": "TTS Latency P95",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (voice_name, le) (rate(voice_tts_latency_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (voice_name, le) (rate(voice_tts_latency_seconds_bucket[1h])))",
           "legendFormat": "{{voice_name}}",
           "refId": "A"
         }
@@ -108,19 +134,27 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
+        "tooltip": {
+          "mode": "multi"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "TTS API call latency across providers. Shown: p95 percentile."
     },
     {
       "id": 3,
       "title": "TTS Error Rate",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 4, "x": 16, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum(rate(voice_tts_requests_total{status=\"error\"}[$__rate_interval])) / sum(rate(voice_tts_requests_total[$__rate_interval])) * 100",
@@ -134,9 +168,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" },
-              { "value": 5, "color": "yellow" },
-              { "value": 10, "color": "red" }
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 5,
+                "color": "yellow"
+              },
+              {
+                "value": 10,
+                "color": "red"
+              }
             ]
           }
         },
@@ -148,18 +191,26 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Total TTS API requests across providers (Edge, OpenAI, ElevenLabs)."
     },
     {
       "id": 4,
       "title": "TTS Errors by Type",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (error_type) (rate(voice_tts_errors_total[$__rate_interval]))",
@@ -180,19 +231,27 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
+        "tooltip": {
+          "mode": "multi"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total TTS API errors by type across providers. Empty panel = zero events in the window (healthy)."
     },
     {
       "id": 5,
       "title": "Voice Comment Tokens",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 9
+      },
       "targets": [
         {
           "expr": "sum by (token_type) (rate(voice_comment_tokens_total[$__rate_interval]))",
@@ -208,28 +267,38 @@
             "lineInterpolation": "smooth",
             "fillOpacity": 10,
             "lineWidth": 1,
-            "stacking": { "mode": "normal" }
+            "stacking": {
+              "mode": "normal"
+            }
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
+        "tooltip": {
+          "mode": "multi"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Tokens used for voice comment generation."
     },
     {
       "id": 6,
       "title": "Comment Generation Duration P95",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 9 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 9
+      },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_comment_generation_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_comment_generation_duration_seconds_bucket[1h])))",
           "legendFormat": "Duration P95",
           "refId": "A"
         }
@@ -247,19 +316,27 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
+        "tooltip": {
+          "mode": "multi"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Duration of voice comment LLM generation. Shown: p95 percentile."
     },
     {
       "id": 7,
       "title": "Sentences per Comment",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 9 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 9
+      },
       "targets": [
         {
           "expr": "rate(voice_comment_sentences_total[$__rate_interval]) / rate(voice_comment_generation_duration_seconds_count[$__rate_interval])",
@@ -273,7 +350,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
@@ -285,25 +365,38 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Total sentences generated in voice comments."
     },
     {
       "type": "row",
       "id": 101,
       "title": "Audio Streaming",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
       "panels": [
         {
           "id": 8,
           "title": "Audio Bytes Rate",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "sum(rate(voice_audio_bytes_total[$__rate_interval]))",
@@ -324,22 +417,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total audio bytes generated and streamed."
         },
         {
           "id": 9,
           "title": "Time to First Audio P95",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 18
+          },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_time_to_first_audio_seconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_time_to_first_audio_seconds_bucket[1h])))",
               "legendFormat": "TTFA P95",
               "refId": "A"
             }
@@ -357,22 +458,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Time to first audio chunk (perceived latency). Shown: p95 percentile."
         },
         {
           "id": 10,
           "title": "Streaming Duration P95",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 18
+          },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_streaming_duration_seconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_streaming_duration_seconds_bucket[1h])))",
               "legendFormat": "Duration P95",
               "refId": "A"
             }
@@ -390,19 +499,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total voice streaming duration (LLM + TTS). Shown: p95 percentile."
         },
         {
           "id": 11,
           "title": "Audio Chunks Rate",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 26 },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "rate(voice_audio_chunks_total[$__rate_interval])",
@@ -423,19 +540,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total audio chunks streamed to clients."
         },
         {
           "id": 12,
           "title": "Voice Preference Toggles",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 26 },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "sum by (action) (rate(voice_preference_toggles_total[$__rate_interval]))",
@@ -456,19 +581,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total voice preference toggle operations."
         },
         {
           "id": 13,
           "title": "Voice Sessions by Gender",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 26 },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "sum by (lia_gender) (rate(voice_sessions_total[$__rate_interval]))",
@@ -489,19 +622,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total chat sessions with voice enabled."
         },
         {
           "id": 14,
           "title": "Fallbacks",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 3, "x": 18, "y": 26 },
+          "gridPos": {
+            "h": 8,
+            "w": 3,
+            "x": 18,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "sum by (reason) (rate(voice_fallback_total[$__rate_interval]))",
@@ -522,19 +663,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total voice feature fallbacks (graceful degradation). Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 15,
           "title": "Interruptions",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 3, "x": 21, "y": 26 },
+          "gridPos": {
+            "h": 8,
+            "w": 3,
+            "x": 21,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "sum by (trigger) (rate(voice_interruptions_total[$__rate_interval]))",
@@ -555,12 +704,15 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total voice playback interruptions."
         }
       ]
     },
@@ -569,14 +721,24 @@
       "id": 102,
       "title": "STT (Speech-to-Text)",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
       "panels": [
         {
           "id": 16,
           "title": "Transcription Rate",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 35 },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "sum by (status) (rate(voice_stt_transcriptions_total[$__rate_interval]))",
@@ -597,22 +759,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total STT transcription attempts."
         },
         {
           "id": 17,
           "title": "Transcription Duration P95",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 35 },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 35
+          },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_stt_transcription_duration_seconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_stt_transcription_duration_seconds_bucket[1h])))",
               "legendFormat": "Duration P95",
               "refId": "A"
             }
@@ -630,22 +800,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "STT processing time (CPU time, not audio duration). Shown: p95 percentile."
         },
         {
           "id": 18,
           "title": "Audio Duration (input)",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 35 },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 35
+          },
           "targets": [
             {
-              "expr": "histogram_quantile(0.5, sum by (le) (rate(voice_stt_audio_duration_seconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(voice_stt_audio_duration_seconds_bucket[1h])))",
               "legendFormat": "Audio P50",
               "refId": "A"
             }
@@ -663,19 +841,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Audio duration received for transcription. Shown: p50 percentile."
         },
         {
           "id": 19,
           "title": "STT Errors",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 35 },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "sum by (error_type) (rate(voice_stt_errors_total[$__rate_interval]))",
@@ -696,12 +882,15 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total STT errors by type. Empty panel = zero events in the window (healthy)."
         }
       ]
     },
@@ -710,14 +899,24 @@
       "id": 103,
       "title": "WebSocket",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
       "panels": [
         {
           "id": 20,
           "title": "Active Connections",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 44 },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 44
+          },
           "targets": [
             {
               "expr": "voice_websocket_connections_active",
@@ -738,19 +937,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Current active WebSocket audio connections."
         },
         {
           "id": 21,
           "title": "Total Connections Rate",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 44 },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 44
+          },
           "targets": [
             {
               "expr": "sum by (status) (rate(voice_websocket_connections_total[$__rate_interval]))",
@@ -771,19 +978,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total WebSocket audio connections."
         },
         {
           "id": 22,
           "title": "Bytes Received Rate",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 44 },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 44
+          },
           "targets": [
             {
               "expr": "rate(voice_websocket_audio_bytes_received_total[$__rate_interval])",
@@ -804,22 +1019,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total audio bytes received via WebSocket."
         },
         {
           "id": 23,
           "title": "Connection Duration P95",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 44 },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 44
+          },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_websocket_connection_duration_seconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_websocket_connection_duration_seconds_bucket[1h])))",
               "legendFormat": "Duration P95",
               "refId": "A"
             }
@@ -837,19 +1060,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "WebSocket connection duration from open to close. Shown: p95 percentile."
         },
         {
           "id": 24,
           "title": "Ticket Issued vs Validated",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 52 },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 52
+          },
           "targets": [
             {
               "expr": "rate(voice_websocket_tickets_issued_total[$__rate_interval])",
@@ -875,12 +1106,15 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total WebSocket auth tickets issued."
         }
       ]
     }

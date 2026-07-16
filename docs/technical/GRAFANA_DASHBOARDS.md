@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.3** | 2026-07-11 | 22 dashboards, 345+ panels
+> **Version 4.4** | 2026-07-17 | 25 dashboards, 595 panels
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Objectifs
 
-Les **22 dashboards Grafana** fournissent une observabilite complete pour :
+Les **25 dashboards Grafana** fournissent une observabilite complete pour :
 
 1. **Monitoring production** : Sante applicative, SLOs, performance HTTP, ressources infrastructure
 2. **Agent debugging** : Pipeline d'orchestration LangGraph, router, planner, outils, HITL
@@ -36,12 +36,13 @@ Les **22 dashboards Grafana** fournissent une observabilite complete pour :
 
 | Indicateur | Valeur |
 |------------|--------|
-| Dashboards | 20 |
-| Panels total | 354+ |
-| Recording rules | 70+ |
+| Dashboards | 25 |
+| Panels total | 595 |
+| Recording rules | 86 |
 | Schema version | 38 (Grafana 11.3) |
 | graphTooltip | 1 (shared crosshair) sur tous les dashboards |
 | Navigation | Tag `lia` sur tous les dashboards |
+| Couverture metriques | 419/419 metriques du code referencees par au moins un panel (audit 2026-07) |
 
 ---
 
@@ -71,8 +72,8 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 
 | Datasource | UID | Type | Dashboards |
 |------------|-----|------|------------|
-| Prometheus | `prometheus` | Metriques + recording rules | Tous (01-18) |
-| Loki | `loki` | Logs structures | 05, 06, 17 |
+| Prometheus | `prometheus` | Metriques + recording rules | Tous (01-25) |
+| Loki | `loki` | Logs structures | 05, 06, 07, 17 |
 | Tempo | `tempo` | Traces distribuees | 06 |
 
 ### Fichiers de configuration
@@ -80,8 +81,8 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | Fichier | Contenu |
 |---------|---------|
 | `infrastructure/observability/prometheus/prometheus.yml` | Configuration scrape Prometheus |
-| `infrastructure/observability/prometheus/recording_rules.yml` | 70+ recording rules |
-| `infrastructure/observability/grafana/dashboards/*.json` | 18 fichiers JSON de dashboards |
+| `infrastructure/observability/prometheus/recording_rules.yml` | 86 recording rules |
+| `infrastructure/observability/grafana/dashboards/*.json` | 25 fichiers JSON de dashboards |
 | `infrastructure/observability/grafana/provisioning/` | Provisioning datasources et dashboards |
 
 ---
@@ -90,30 +91,37 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 
 | # | Dashboard | UID | Tags | Panels | Domaine |
 |---|-----------|-----|------|--------|---------|
-| 01 | Application Overview | `01-app-overview` | lia, overview, health | 23 | Sante globale, performance requetes, pipeline agent, infra, resume couts LLM |
+| 01 | Application Overview | `01-app-overview` | lia, overview, health | 24 | Sante globale, performance requetes, pipeline agent, infra, resume couts LLM |
 | 02 | SLO Tracking | `02-slo-tracking` | lia, slo, reliability | 17 | SLOs API, SLOs agents, SLOs providers LLM, SLOs DB et business |
 | 03 | Infrastructure & Resources | `03-infra-resources` | lia, infra, docker, raspberry-pi | 24 | Systeme hote (RPi), ressources conteneurs, PostgreSQL, Redis |
 | 04 | HTTP & API Performance | `04-http-api` | lia, http, api, latency | 17 | Trafic, latence, erreurs, rate limiting |
-| 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost | 33 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, metriques cumulees |
+| 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost | 48 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees |
 | 06 | Logs, Traces & Correlations | `06-logs-traces` | lia, logs, traces, debug | 17 | Logs, traces, correlation metrique-log, vue correlee, jobs background, recherche |
-| 07 | Agent Orchestration Pipeline | `07-agents-pipeline` | lia, agents, langgraph, orchestration | 32 | Router, planner et orchestrateur, execution nodes agent, execution outils, contexte et etat, SSE streaming |
-| 08 | HITL Human-in-the-Loop | `08-hitl` | lia, hitl, approval | 24 | Vue d'ensemble HITL, qualite classification, comportement utilisateur, editions et rejets, reprise |
-| 09 | Conversations & Users | `09-conversations-users` | lia, conversations, users, engagement | 26 | Activite utilisateurs, cycle de vie conversations, analyse abandon, succes et qualite agents |
-| 10 | OAuth, Connectors & MCP | `10-oauth-connectors-mcp` | lia, oauth, connectors, mcp | 28 | Flux OAuth, performance OAuth, sante connecteurs, APIs Google, serveurs MCP |
+| 07 | Agent Orchestration Pipeline | `07-agents-pipeline` | lia, agents, langgraph, orchestration | 61 | Router, planner et orchestrateur, execution nodes agent, execution outils, contexte et etat, SSE streaming, background runs (ADR-117), couche semantique (ADR-120/121) |
+| 08 | HITL Human-in-the-Loop | `08-hitl` | lia, hitl, approval | 27 | Vue d'ensemble HITL, qualite classification, comportement utilisateur, editions et rejets, reprise |
+| 09 | Conversations & Users | `09-conversations-users` | lia, conversations, users, engagement | 35 | Activite utilisateurs, cycle de vie conversations, analyse abandon, succes et qualite agents, attachments, inscriptions |
+| 10 | OAuth, Connectors & MCP | `10-oauth-connectors-mcp` | lia, oauth, connectors, mcp | 39 | Flux OAuth, performance OAuth, sante connecteurs, APIs Google, serveurs MCP, formes de requetes contacts/email |
 | 11 | Voice & WebSocket | `11-voice-websocket` | lia, voice, tts, stt, websocket | 24 | TTS, streaming audio, STT, WebSocket |
 | 12 | Channels / Telegram | `12-channels` | lia, channels, telegram | 13 | Flux messages, bindings et securite, fonctionnalites canal |
-| 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat | 13 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback |
-| 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints | 19 | Data registry, moteur de requetes, checkpoints LangGraph, recherche hybride |
-| 15 | LangGraph Framework Deep Dive | `15-langgraph-deep` | lia, langgraph, framework | 21 | Execution graphe, gestion d'etat, integration Langfuse |
-| 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational | 10 | Sante des recording rules, sante des alertes, validation et securite |
+| 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat | 20 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback |
+| 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints | 26 | Data registry, moteur de requetes, checkpoints LangGraph, recherche hybride, sante repository |
+| 15 | LangGraph Framework Deep Dive | `15-langgraph-deep` | lia, langgraph, framework | 36 | Execution graphe, gestion d'etat, latence par etage (TTFT), integration Langfuse (repliee, requiert LANGFUSE_ENABLED) |
+| 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational | 27 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils |
 | 17 | User Analytics & Geo | `17-user-analytics-geo` | lia, users, analytics, geo | 27 | Vue geographique (Geomap), engagement utilisateur, patterns d'activite, usage outils et agents, qualite et cout conversations, logs geo detailles |
-| 18 | RAG Spaces / Knowledge Documents | `18-rag-spaces` | lia, rag, spaces, knowledge | 21 | Vue d'ensemble RAG, pipeline de traitement documents, performance retrieval, couts embedding, reindexation |
+| 18 | RAG Spaces / Knowledge Documents | `18-rag-spaces` | lia, rag, spaces, knowledge | 30 | Vue d'ensemble RAG, pipeline de traitement documents, performance retrieval, couts embedding, reindexation, recuperation de jobs |
+| 19 | Sub-agents & Skills | `19-subagents-skills` | lia, subagents, skills | 10 | Executions de sous-agents ReAct (spawns, duree, tokens, erreurs), skills |
+| 20 | ReAct Agent & Browser | `20-react-browser` | lia, react, browser | 17 | Boucle ReAct (iterations, outils, HITL tool-level), sessions navigateur, snapshots |
+| 21 | Health Metrics | `21-health-metrics` | lia, health-metrics | 10 | Ingestion des echantillons sante (auth, validation, doublons), variations detectees |
+| 22 | Compaction | `22-compaction` | lia, compaction | 13 | Sante compaction (executions, fallbacks truncation, writer unavailable), timeouts, volume et economies de tokens |
+| 23 | Journals & User Model | `23-journals-user-model` | lia, journals, user-model | 16 | Extraction, actions sur entrees, consolidation par niveaux, portrait utilisateur |
+| 24 | Telephony | `24-telephony` | lia, telephony, calls | 9 | Appels sortants par statut, duree, reapers de recuperation (T1), webhooks ignores |
+| 25 | Today Briefing | `25-briefing` | lia, briefing | 8 | Duree de build par etat de cache, statuts par section, invocations LLM, refresh |
 
 ---
 
 ## Details par Dashboard
 
-### 01 - Application Overview (23 panels)
+### 01 - Application Overview (24 panels)
 
 Dashboard d'accueil. Fournit une vue synthetique de la sante de l'application : taux de requetes, erreurs, latence p95, etat du pipeline agent (router, planner, outils), resume infra (CPU, memoire, DB, Redis) et resume des couts LLM du jour. Point d'entree pour identifier rapidement un probleme avant d'aller dans un dashboard specialise.
 
@@ -131,9 +139,9 @@ Trafic HTTP detaille : requetes/s par endpoint, distribution latence (p50/p95/p9
 
 > **Labels `endpoint` bornes (v1.21.1)** : les labels des metriques HTTP (`http_requests_total`, `http_request_duration_seconds`) utilisent desormais le **template de route** matche (`/api/v1/journals/{entry_id}`) et non plus le chemin brut avec UUID ; les requetes non routees (404, scans de bots) sont regroupees sous `unmatched`, et la gauge `http_requests_in_progress` (pre-routing) applique un repli qui remplace les segments UUID/hex/numeriques par `{id}`. Cardinalite bornee par construction. **Toute requete Grafana qui filtrait sur des chemins exacts contenant des identifiants doit etre adaptee aux templates.**
 
-### 05 - LLM Tokens & Cost (33 panels)
+### 05 - LLM Tokens & Cost (48 panels)
 
-Dashboard le plus riche en panels. Headlines de couts (jour, mois, projection), ventilation par modele et par node, consommation tokens (prompt, completion, cached), metriques d'efficacite (cout par requete, tokens par seconde). Section Loki pour le suivi par utilisateur. Performance des appels API LLM (latence, erreurs par provider). Metriques de cout cumulees sur la duree de vie.
+Dashboard le plus riche en panels avec le 07. Headlines de couts (jour, mois, projection), ventilation par modele et par node, consommation tokens (prompt, completion, cached), metriques d'efficacite (cout par requete, tokens par seconde). Section Loki pour le suivi par utilisateur. Performance des appels API LLM (latence, erreurs par provider). Cache LLM (hits/misses, erreurs, migrations de format) et economies estimees (`llm_cache_cost_saved_total`), fallbacks du cache pricing. Metriques de cout cumulees sur la duree de vie. La section compaction historique a ete deplacee vers le dashboard 22.
 
 **Datasources** : Prometheus + Loki (pour les logs de suivi utilisateur).
 
@@ -143,21 +151,21 @@ Observabilite unifiee. Volume de logs par niveau, recherche par `run_id` ou `use
 
 **Datasources** : Prometheus + Loki + Tempo.
 
-### 07 - Agent Orchestration Pipeline (32 panels)
+### 07 - Agent Orchestration Pipeline (61 panels)
 
-Coeur du monitoring agent. Sections pour chaque etape du pipeline : router (decisions, confiance, latence), planner (plans crees, retries, validation, succes), orchestrateur (vagues d'execution, parallellisme), execution des nodes agent (duree, statut, erreurs), execution des outils (taux succes, latence par outil), contexte et etat (taille state, checkpoints), SSE streaming (TTFT, tokens/s, erreurs).
+Coeur du monitoring agent. Sections pour chaque etape du pipeline : router (decisions, confiance, latence), planner (plans crees, retries, validation, succes), orchestrateur (vagues d'execution, parallellisme), execution des nodes agent (duree, statut, erreurs), execution des outils (taux succes, latence par outil), contexte et etat (taille state, checkpoints), SSE streaming (TTFT, tokens/s, erreurs). Deux sections repliees completent le perimetre : background runs ADR-117 (producteurs detaches, statuts terminaux, resolution de contexte) et couche semantique ADR-120/121 (blocages du garde de parametres, expansion par evidence, fuites de termes semantiques detectees/autocorrigees, clarifications du validateur).
 
-### 08 - HITL Human-in-the-Loop (24 panels)
+### 08 - HITL Human-in-the-Loop (27 panels)
 
 Monitoring des 6 types HITL : Plan Approval, Clarification, Draft Critique, Destructive Confirm, FOR_EACH Confirm, Modifier Review. Qualite de classification (taux d'approbation, confiance), comportement utilisateur (temps de reponse, timeouts), analyse des editions de parametres et des rejets, metriques de reprise apres interruption HITL.
 
-### 09 - Conversations & Users (26 panels)
+### 09 - Conversations & Users (35 panels)
 
-Activite utilisateurs (sessions actives, repartition horaire), cycle de vie des conversations (creation, duree, longueur en messages), analyse de l'abandon (ou et quand les utilisateurs quittent), succes des agents par domaine et indicateurs de qualite.
+Activite utilisateurs (sessions actives, repartition horaire), cycle de vie des conversations (creation, duree, longueur en messages), analyse de l'abandon (ou et quand les utilisateurs quittent), succes des agents par domaine et indicateurs de qualite. Section repliee : attachments en profondeur (duree upload par content_type, suppressions cleanup) et inscriptions par provider/statut.
 
-### 10 - OAuth, Connectors & MCP (28 panels)
+### 10 - OAuth, Connectors & MCP (39 panels)
 
-Flux OAuth complet (initiations, callbacks, succes/echec, types d'erreurs), performance OAuth (latence d'echange de tokens, rafraichissement), sante des connecteurs Google (contacts, calendar, drive, gmail, tasks), metriques des serveurs MCP (admin et per-user : connexions, appels d'outils, erreurs).
+Flux OAuth complet (initiations, callbacks, succes/echec, types d'erreurs), performance OAuth (latence d'echange de tokens, rafraichissement), sante des connecteurs Google (contacts, calendar, drive, gmail, tasks), metriques des serveurs MCP (admin et per-user : connexions, appels d'outils, erreurs). Sections repliees : OAuth en profondeur (erreurs de callback, durees initiate/activation, cycle de vie des verrous de refresh, verification par cle API) et formes de requetes contacts/email (types de requetes, resultats par requete).
 
 ### 11 - Voice & WebSocket (24 panels)
 
@@ -167,21 +175,21 @@ TTS : latence par provider (Edge, OpenAI, Gemini), taille audio, erreurs. Stream
 
 Flux de messages Telegram (entrants/sortants, types), bindings utilisateur-canal (OTP, etat), securite (rate limiting, tentatives invalides), fonctionnalites canal (voix, HITL clavier, formatage).
 
-### 13 - Proactive & Heartbeat (13 panels)
+### 13 - Proactive & Heartbeat (20 panels)
 
 Taches proactives (selections, generations, envois), notifications heartbeat (volume, cout LLM de la decision + redaction), eligibilite (fenetres horaires, quotas, cooldowns, dedup), feedback utilisateur.
 
-### 14 - Data Registry & Checkpoints (19 panels)
+### 14 - Data Registry & Checkpoints (26 panels)
 
-Data registry (items par type, taille, operations CRUD), moteur de requetes (latence, filtres), checkpoints LangGraph (duree sauvegarde, taille payload, frequence), recherche hybride (BM25 + semantic OpenAI embeddings, scores, latence).
+Data registry (items par type, taille, operations CRUD), moteur de requetes (latence, filtres), checkpoints LangGraph (duree sauvegarde et chargement, taille payload, frequence), recherche hybride (BM25 + semantic OpenAI embeddings, scores, latence). Section repliee : sante du repository de conversations (erreurs par version, cache de resolution d'id).
 
-### 15 - LangGraph Framework Deep Dive (21 panels)
+### 15 - LangGraph Framework Deep Dive (36 panels)
 
-Metriques bas niveau LangGraph : execution de graphe (duree totale, nombre de noeuds traverses), gestion d'etat (taille, serialisation), integration Langfuse (traces LLM, cout par trace, latence par span).
+Metriques bas niveau LangGraph : execution de graphe (duree totale, nombre de noeuds traverses), gestion d'etat (taille, serialisation), latence par etage du tour de chat (`langgraph_stage_duration_seconds`, l'instrument du chantier TTFT — voir LATENCY_PLAN), erreurs de graphe, appels d'outils par subgraph, garde double-appel du reasoning streaming. La section Langfuse est repliee et marquee : elle reste vide tant que `LANGFUSE_ENABLED=false`.
 
-### 16 - Recording Rules & Alerts Health (10 panels)
+### 16 - Recording Rules & Alerts Health (27 panels)
 
-Dashboard meta/operationnel. Sante des 70+ recording rules Prometheus (evaluation, erreurs, duree), validation de la configuration et securite de la stack d'observabilite. (Les panneaux de ce dashboard suivent la sante d'evaluation des recording rules ; l'alerting Prometheus est reactive depuis ADR-119 — le noyau de 13 alertes actives se consulte dans Prometheus `/alerts` et Alertmanager, voir README_ALERTING.md.)
+Dashboard meta/operationnel. Sante des 86 recording rules Prometheus (evaluation, erreurs, duree), validation de la configuration et securite de la stack d'observabilite, integrite du registre d'outils (`tool_module_import_failures_total` : toute valeur > 0 signifie qu'une famille entiere d'outils manque silencieusement du registre). (L'alerting Prometheus est reactive depuis ADR-119 — le noyau de 13 alertes actives se consulte dans Prometheus `/alerts` et Alertmanager, voir README_ALERTING.md.)
 
 ### 17 - User Analytics & Geo (27 panels)
 
@@ -191,11 +199,39 @@ Vue geographique via Geomap (DB-IP Lite City, compteur `http_requests_by_country
 
 ---
 
-### 18 - RAG Spaces / Knowledge Documents (21 panels)
+### 18 - RAG Spaces / Knowledge Documents (30 panels)
 
-Vue d'ensemble des espaces de connaissances RAG : espaces actifs, documents traites, taux de succes, requetes de retrieval, tokens embedding. Pipeline de traitement documents (rate, duree percentiles, distribution chunks, tailles uploads). Performance retrieval (rate, latence percentiles, chunks retournes, raisons de skip). Couts embedding (tokens par operation, distribution statuts documents). Section reindexation (historique runs, succes/echecs).
+Vue d'ensemble des espaces de connaissances RAG : espaces actifs, documents traites, taux de succes, requetes de retrieval, tokens embedding. Pipeline de traitement documents (rate, duree percentiles, distribution chunks, tailles uploads). Performance retrieval (rate, latence percentiles, chunks retournes, raisons de skip). Couts embedding (tokens par operation, distribution statuts documents). Section reindexation (historique runs, succes/echecs). Section repliee : recuperation de jobs par le reaper (`rag_jobs_recovered_total`).
 
 **Datasources** : Prometheus.
+
+### 19 - Sub-agents & Skills (10 panels)
+
+Executions de sous-agents ReAct via `ReactSubAgentRunner` (ADR-083) : spawns par agent et mode, duree (p50/p95/p99), tokens entrants/sortants, sous-agents actifs, erreurs par type. Vision de la delegation de taches aux agents parametres.
+
+### 20 - ReAct Agent & Browser (17 panels)
+
+Mode d'execution ReAct : iterations par tour, appels d'outils, interruptions HITL tool-level, erreurs. Sessions navigateur headless (actions, navigation, memoire, tokens des snapshots).
+
+### 21 - Health Metrics (10 panels)
+
+Ingestion des echantillons sante (Apple Health) : volume par type, echecs d'authentification, rejets de validation, variations significatives detectees. Section repliee : doublons de batch ignores a l'ingestion.
+
+### 22 - Compaction (13 panels)
+
+Compaction de contexte v2. Ligne de sante en tete : compactions 24h, fallbacks truncation (rouge si > 0), erreurs, writer unavailable (rouge si > 0). Strategie mix, duree end-to-end et par chunk, timeouts par chunk et globaux, raisons de skip, tokens economises vs tokens consommes par la compaction.
+
+### 23 - Journals & User Model (16 panels)
+
+Feature journaux : extraction (volume, duree, erreurs), actions sur les entrees par action/theme/source, signaux d'evidence, consolidation (distribution par niveau, promotions/demotions, dedup), age des entrees jamais injectees, portrait utilisateur (age, feedback, duree de compilation, injections dans les prompts).
+
+### 24 - Telephony (9 panels)
+
+Appels sortants agentiques : appels par statut terminal, duree des appels (plafonnee par TELEPHONY_MAX_CALL_DURATION_SECONDS), reapers de recuperation T1 (notifications et syntheses de retour re-dispatchees apres crash), webhooks post-appel ignores par le filtre HMAC/foreign.
+
+### 25 - Today Briefing (8 panels)
+
+Page d'accueil Today Briefing (BRIEFING_DOMAIN) : duree de build par etat de cache (cold = LLM-bound, warm = quasi instantane), statuts de build par section (agenda, mails, meteo...), volume par section, invocations LLM (greeting / synthese) par issue, refreshes utilisateur.
 
 ---
 
@@ -207,8 +243,8 @@ Tous les dashboards declarent au minimum :
 
 | Variable | Type | Description | Dashboards |
 |----------|------|-------------|------------|
-| `$datasource` | Datasource (Prometheus) | Source de metriques principale | Tous (01-18) |
-| `$datasource_loki` | Datasource (Loki) | Source de logs | 05, 06, 17 |
+| `$datasource` | Datasource (Prometheus) | Source de metriques principale | Tous (01-25) |
+| `$datasource_loki` | Datasource (Loki) | Source de logs | 05, 06, 07, 17 |
 | `$datasource_tempo` | Datasource (Tempo) | Source de traces | 06 |
 
 Des variables supplementaires sont definies par dashboard selon le besoin (filtres endpoint, node_name, model, user_id, etc.).
@@ -325,6 +361,13 @@ infrastructure/observability/grafana/dashboards/
   16-meta-health.json
   17-user-analytics-geo.json
   18-rag-spaces.json
+  19-subagents-skills.json
+  20-react-browser.json
+  21-health-metrics.json
+  22-compaction.json
+  23-journals-user-model.json
+  24-telephony.json
+  25-briefing.json
 ```
 
 ### Ajouter un panel
@@ -348,6 +391,14 @@ infrastructure/observability/grafana/dashboards/
    - UID unique au format `<numero>-<slug>`
 4. Ajouter le dashboard dans le tableau catalogue de cette documentation
 
+### Conventions de rendu des panels (audit 2026-07)
+
+Trois conventions garantissent des panels lisibles sur une instance a faible trafic :
+
+1. **`noValue` nuance** : les panels stat de compteurs d'evenements rares (erreurs, violations, timeouts, recoveries...) declarent `noValue: "0"` — l'absence de serie pour un counter signifie reellement zero evenement. Les ratios dont le denominateur peut etre vide declarent `noValue: "n/a"` (un 0 affirmerait un 0 % jamais calcule). Les metriques de debit coeur (http_requests, llm_api_calls, tokens...) ne declarent JAMAIS de noValue : leur absence doit rester visible, c'est le signal d'une panne d'instrumentation.
+2. **Fenetres adaptees a la cadence** : les `histogram_quantile` sur des familles a evenements rares (rag, voice, compaction, oauth, hitl for-each, subagents, browser...) utilisent une fenetre `[1h]` ; `user_daily_conversations_total` (observe ~1x/jour) utilise `increase(...[1d])`. Les requetes Loki utilisent `[$__auto]`, jamais une fenetre fixe.
+3. **Descriptions systematiques** : chaque panel porte une description issue du help string Prometheus de sa metrique (ou du commentaire de sa recording rule), avec la mention « Empty panel = zero events in the window (healthy) » sur les timeseries d'evenements rares.
+
 ### Conventions de nommage des metriques
 
 Suivre les bonnes pratiques Prometheus :
@@ -365,7 +416,9 @@ Suivre les bonnes pratiques Prometheus :
 
 ### Recording rules
 
-Les 70+ recording rules sont definies dans `infrastructure/observability/prometheus/recording_rules.yml`. Elles pre-calculent les requetes couteuses (taux, percentiles, aggregations) pour accelerer le rendu des dashboards. Le dashboard 16 (Meta Health) surveille la sante de ces rules.
+Les 86 recording rules sont definies dans `infrastructure/observability/prometheus/recording_rules.yml`. Elles pre-calculent les requetes couteuses (taux, percentiles, aggregations) pour accelerer le rendu des dashboards. Le dashboard 16 (Meta Health) surveille la sante de ces rules.
+
+Convention : les rules de taux d'erreur dont le numerateur peut ne matcher aucune serie (aucun 5xx, aucune erreur DB...) utilisent `or vector(0)` (ou `or <selecteur vivant> * 0` pour preserver les labels) afin de rendre 0 au lieu d'un resultat vide.
 
 ### Versionning et rollback
 
@@ -387,7 +440,7 @@ docker compose restart grafana
 
 ### Code source
 
-**Dashboards** : `infrastructure/observability/grafana/dashboards/*.json` (17 fichiers)
+**Dashboards** : `infrastructure/observability/grafana/dashboards/*.json` (25 fichiers)
 
 **Metriques** :
 - `apps/api/src/infrastructure/observability/metrics_agents.py`
@@ -408,7 +461,7 @@ docker compose restart grafana
 
 ---
 
-**Version** : 4.1
-**Date** : 2026-04-20
+**Version** : 4.4
+**Date** : 2026-07-17
 **Auteur** : Equipe LIA
-**Statut** : Production (22 dashboards, 354+ panels)
+**Statut** : Production (25 dashboards, 595 panels)

@@ -149,7 +149,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Router decision latency (time to route). Shown: p50/p95 percentile."
     },
     {
       "id": 3,
@@ -197,7 +198,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Router decision distribution (1h aggregate) Understand intention patterns and routing quality."
     },
     {
       "id": 4,
@@ -242,7 +244,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Router confidence score distribution. Shown: p95 percentile."
     },
     {
       "id": 5,
@@ -276,7 +279,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "noValue": "n/a"
         },
         "overrides": []
       },
@@ -288,7 +292,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total router fallbacks (low confidence)."
     },
     {
       "id": 6,
@@ -334,7 +339,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Router decisions based on data availability instead of syntax (RULE #5 violation)."
     },
     {
       "id": 7,
@@ -392,7 +398,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total orchestration plans created."
         },
         {
           "id": 9,
@@ -430,7 +437,8 @@
                     "value": null
                   }
                 ]
-              }
+              },
+              "unit": "short"
             },
             "overrides": []
           },
@@ -442,7 +450,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Distribution of agents count per orchestration plan. Shown: p50/p95 percentile."
         },
         {
           "id": 10,
@@ -507,7 +516,8 @@
                 "lastNotNull"
               ]
             }
-          }
+          },
+          "description": "Domain filtering status flag (1=enabled, 0=disabled)."
         },
         {
           "id": 11,
@@ -552,7 +562,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Router confidence score for domain detection (used for planner filtering). Shown: p95 percentile."
         },
         {
           "id": 12,
@@ -606,7 +617,8 @@
                 "lastNotNull"
               ]
             }
-          }
+          },
+          "description": "Cache hit rate (global) Cache efficiency."
         },
         {
           "id": 13,
@@ -652,7 +664,8 @@
                 "lastNotNull"
               ]
             }
-          }
+          },
+          "description": "Low confidence fallback rate (1h window) Track router confidence quality (target: < 10%) High rate indicates router v7 needs prompt optimization."
         }
       ]
     },
@@ -718,7 +731,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Agent execution rate (requests/sec by node) Track load distribution across agent nodes."
         },
         {
           "id": 16,
@@ -776,7 +790,8 @@
                 "lastNotNull"
               ]
             }
-          }
+          },
+          "description": "Agent node success rate (5m rolling window) Track reliability of each agent node."
         },
         {
           "id": 17,
@@ -822,7 +837,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Agent node execution duration. Shown: p95 percentile."
         },
         {
           "id": 18,
@@ -868,7 +884,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total exceptions in graph execution. Empty panel = zero events in the window (healthy)."
         }
       ]
     },
@@ -928,7 +945,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total agent tool invocations."
         },
         {
           "id": 21,
@@ -986,7 +1004,8 @@
                 "lastNotNull"
               ]
             }
-          }
+          },
+          "description": "Tool success rate by tool name (5m window) Identify unreliable tools (low success rate)."
         },
         {
           "id": 22,
@@ -1025,7 +1044,8 @@
             },
             "overrides": []
           },
-          "options": {}
+          "options": {},
+          "description": "Agent tool execution duration. Shown: p95 percentile."
         },
         {
           "id": 23,
@@ -1071,7 +1091,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total agent tool rate limit hits (requests blocked). Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 24,
@@ -1109,7 +1130,8 @@
             },
             "overrides": []
           },
-          "options": {}
+          "options": {},
+          "description": "Total tool invocations by agent and tool."
         },
         {
           "id": 25,
@@ -1143,7 +1165,8 @@
                     "value": null
                   }
                 ]
-              }
+              },
+              "noValue": "n/a"
             },
             "overrides": []
           },
@@ -1155,7 +1178,8 @@
                 "lastNotNull"
               ]
             }
-          }
+          },
+          "description": "Tool rejection rate (user_rejected outcome) by tool (1h window) Identify tools users don't trust (high rejection) High rejection rate indicates poor tool suggestions."
         }
       ]
     },
@@ -1215,7 +1239,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Current context size in tokens."
         },
         {
           "id": 28,
@@ -1261,7 +1286,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Number of messages in conversation history. Shown: p95 percentile."
         },
         {
           "id": 29,
@@ -1307,7 +1333,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Context resolution confidence scores distribution. Shown: p95 percentile."
         },
         {
           "id": 30,
@@ -1355,7 +1382,8 @@
                 "lastNotNull"
               ]
             }
-          }
+          },
+          "description": "Distribution of turn types detected in conversations."
         },
         {
           "id": 31,
@@ -1401,7 +1429,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total context resolution attempts by turn type."
         }
       ]
     },
@@ -1461,7 +1490,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "SSE streaming P95 duration by intention User experience monitoring."
         },
         {
           "id": 34,
@@ -1507,7 +1537,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "SSE TTFT (Time to First Token) P95 Responsiveness SLI."
         },
         {
           "id": 35,
@@ -1553,7 +1584,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "SSE tokens generation rate (tokens/sec) Throughput monitoring."
         },
         {
           "id": 36,
@@ -1599,7 +1631,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total SSE events emitted."
         },
         {
           "id": 37,
@@ -1645,7 +1678,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total SSE streaming errors. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 38,
@@ -1691,7 +1725,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Size of registry_update SSE events in bytes. Shown: p95 percentile."
         }
       ]
     },
@@ -1755,7 +1790,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total execution plans created by planner LLM."
         },
         {
           "id": 41,
@@ -1805,7 +1841,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total execution plans rejected by validator. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 42,
@@ -1855,7 +1892,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total planner errors. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 43,
@@ -1905,7 +1943,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Distribution of token counts for planner prompts. Shown: p95 percentile."
         },
         {
           "id": 44,
@@ -1955,7 +1994,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total planner retry attempts after validation errors. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 45,
@@ -2010,7 +2050,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total successful planner retries (plan became valid after retry). Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 46,
@@ -2060,7 +2101,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Distribution of tool count loaded in planner catalogue. Shown: p95 percentile."
         },
         {
           "id": 47,
@@ -2115,7 +2157,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Successful JSON parsing from LLM responses."
         },
         {
           "id": 48,
@@ -2165,7 +2208,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Auto-corrections of for_each attributes by type."
         },
         {
           "id": 49,
@@ -2215,7 +2259,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total fallback strategy triggers due to token overflow. Empty panel = zero events in the window (healthy)."
         }
       ]
     },
@@ -2279,7 +2324,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total re-planning triggers detected by type."
         },
         {
           "id": 52,
@@ -2323,7 +2369,8 @@
               "displayMode": "list",
               "placement": "right"
             }
-          }
+          },
+          "description": "Total advisory re-planning decisions by type (not acted upon — see TODO D4)."
         }
       ]
     },
@@ -2381,7 +2428,8 @@
               "displayMode": "list",
               "placement": "right"
             }
-          }
+          },
+          "description": "Total semantic validations performed."
         },
         {
           "id": 57,
@@ -2431,7 +2479,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Duration of semantic validation (includes LLM call). Shown: p95 percentile."
         },
         {
           "id": 58,
@@ -2481,7 +2530,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Semantic validations that timed out (optimistic fallback). Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 59,
@@ -2531,7 +2581,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Semantic issues detected by type."
         }
       ]
     },
@@ -2810,6 +2861,410 @@
         "textMode": "value_and_name",
         "colorMode": "value"
       }
+    },
+    {
+      "type": "row",
+      "id": 705,
+      "title": "Context & Background Runs (ADR-117)",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 170
+      },
+      "panels": [
+        {
+          "id": 706,
+          "title": "Active background producers",
+          "type": "stat",
+          "datasource": "$datasource",
+          "description": "Detached chat producers currently streaming to Redis Streams (ADR-117). Should return to 0 when idle.",
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 0,
+            "y": 171
+          },
+          "targets": [
+            {
+              "expr": "sum(chat_background_producers_active)",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "none",
+            "colorMode": "value",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          }
+        },
+        {
+          "id": 707,
+          "title": "Background runs (by status)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Background chat runs reaching a terminal status (ADR-117 detached producer). Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 10,
+            "x": 4,
+            "y": 171
+          },
+          "targets": [
+            {
+              "expr": "sum by (status) (rate(chat_background_runs_total[$__rate_interval]))",
+              "legendFormat": "{{status}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 708,
+          "title": "Context resolution duration p95 (by turn_type)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Duration of pre-graph context resolution per turn type.",
+          "gridPos": {
+            "h": 8,
+            "w": 10,
+            "x": 14,
+            "y": 171
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (turn_type, le) (rate(context_resolution_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "{{turn_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 709,
+      "title": "Semantic Layer (ADR-120/121)",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 179
+      },
+      "panels": [
+        {
+          "id": 710,
+          "title": "Param guard blocks (by tool / type)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Runtime semantic param-guard blocks (ADR-120, fail-open). Each block prevented a tool call with a mistyped semantic parameter. Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 180
+          },
+          "targets": [
+            {
+              "expr": "sum by (tool_name, semantic_type) (rate(semantic_param_guard_blocks_total[$__rate_interval]))",
+              "legendFormat": "{{tool_name}} · {{semantic_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 711,
+          "title": "Evidence-driven domain expansion",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Domains added by deterministic evidence expansion (ADR-120, behind flag). Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 180
+          },
+          "targets": [
+            {
+              "expr": "sum by (evidence_entity, added_domain) (rate(semantic_expansion_total[$__rate_interval]))",
+              "legendFormat": "{{evidence_entity}} → {{added_domain}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 712,
+          "title": "Semantic leaks: detected vs autocorrected",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Semantic filter terms leaking into tool params: detected by the guard vs automatically corrected (ADR-121). Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 188
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(lia_planner_semantic_leak_detected_total[$__rate_interval]))",
+              "legendFormat": "detected",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(lia_planner_semantic_leak_autocorrected_total[$__rate_interval]))",
+              "legendFormat": "autocorrected",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 713,
+          "title": "Filter terms emitted (by model)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Semantic filter terms emitted by the planner, bucketed by count per plan. Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 188
+          },
+          "targets": [
+            {
+              "expr": "sum by (model, term_count_bucket) (rate(lia_planner_semantic_filter_terms_emitted_total[$__rate_interval]))",
+              "legendFormat": "{{model}} · {{term_count_bucket}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 714,
+          "title": "Open-query date resets / global timeouts",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Planner open-query date-param resets and parallel-execution global timeouts. Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 188
+          },
+          "targets": [
+            {
+              "expr": "sum by (tool_name) (rate(lia_planner_open_query_date_reset_total[$__rate_interval]))",
+              "legendFormat": "date reset {{tool_name}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (plan_outcome) (rate(lia_parallel_execution_global_timeout_total[$__rate_interval]))",
+              "legendFormat": "global timeout ({{plan_outcome}})",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 715,
+          "title": "Semantic validation clarifications",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Plans sent back to the user for clarification by the semantic validator. Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 196
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(semantic_validation_clarification_requests_total[$__rate_interval]))",
+              "legendFormat": "clarifications",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        }
+      ]
     }
   ]
 }

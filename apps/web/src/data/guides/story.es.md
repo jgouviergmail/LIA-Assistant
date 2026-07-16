@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 1.0
-**Fecha**: 2026-07-16
-**Aplicación**: LIA v1.25.3
+**Fecha**: 2026-07-17
+**Aplicación**: LIA v1.25.4
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---

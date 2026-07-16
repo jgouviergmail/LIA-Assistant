@@ -98,7 +98,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Current number of active RAG spaces (across all users)."
     },
     {
       "id": 2,
@@ -143,7 +144,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total number of RAG spaces (across all users)."
     },
     {
       "id": 3,
@@ -192,7 +194,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total RAG documents processed (chunking + embedding)."
     },
     {
       "id": 4,
@@ -246,7 +249,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total RAG documents processed (chunking + embedding)."
     },
     {
       "id": 5,
@@ -295,7 +299,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total RAG retrieval requests."
     },
     {
       "id": 6,
@@ -340,7 +345,8 @@
             "lastNotNull"
           ]
         }
-      }
+      },
+      "description": "Total tokens consumed by RAG embedding operations."
     },
     {
       "type": "row",
@@ -419,7 +425,8 @@
             ]
           }
         ]
-      }
+      },
+      "description": "Total RAG documents processed (chunking + embedding)."
     },
     {
       "id": 8,
@@ -437,17 +444,17 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(rag_document_processing_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(rag_document_processing_duration_seconds_bucket[1h])))",
           "legendFormat": "P50",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_document_processing_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_document_processing_duration_seconds_bucket[1h])))",
           "legendFormat": "P95",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(rag_document_processing_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(rag_document_processing_duration_seconds_bucket[1h])))",
           "legendFormat": "P99",
           "refId": "C"
         }
@@ -460,7 +467,8 @@
             "fillOpacity": 10
           }
         }
-      }
+      },
+      "description": "RAG document processing pipeline duration (extract → chunk → embed → persist). Shown: p50/p95/p99 percentile."
     },
     {
       "id": 9,
@@ -478,12 +486,12 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(rag_document_chunks_total_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(rag_document_chunks_total_bucket[1h])))",
           "legendFormat": "Median chunks",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_document_chunks_total_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_document_chunks_total_bucket[1h])))",
           "legendFormat": "P95 chunks",
           "refId": "B"
         }
@@ -496,7 +504,8 @@
             "fillOpacity": 10
           }
         }
-      }
+      },
+      "description": "Number of chunks produced per document. Shown: p50/p95 percentile."
     },
     {
       "id": 10,
@@ -514,7 +523,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, content_type) (rate(rag_document_upload_size_bytes_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, content_type) (rate(rag_document_upload_size_bytes_bucket[1h])))",
           "legendFormat": "P95 {{content_type}}",
           "refId": "A"
         }
@@ -527,7 +536,8 @@
             "fillOpacity": 10
           }
         }
-      }
+      },
+      "description": "Size of uploaded RAG documents in bytes. Shown: p95 percentile."
     },
     {
       "type": "row",
@@ -606,7 +616,8 @@
             ]
           }
         ]
-      }
+      },
+      "description": "Total RAG retrieval requests."
     },
     {
       "id": 12,
@@ -624,17 +635,17 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(rag_retrieval_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(rag_retrieval_duration_seconds_bucket[1h])))",
           "legendFormat": "P50",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_retrieval_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_retrieval_duration_seconds_bucket[1h])))",
           "legendFormat": "P95",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(rag_retrieval_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(rag_retrieval_duration_seconds_bucket[1h])))",
           "legendFormat": "P99",
           "refId": "C"
         }
@@ -647,7 +658,8 @@
             "fillOpacity": 10
           }
         }
-      }
+      },
+      "description": "RAG retrieval duration (embed query + semantic search + BM25 + fusion). Shown: p50/p95/p99 percentile."
     },
     {
       "id": 13,
@@ -665,12 +677,12 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(rag_retrieval_chunks_returned_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(rag_retrieval_chunks_returned_bucket[1h])))",
           "legendFormat": "Median",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_retrieval_chunks_returned_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_retrieval_chunks_returned_bucket[1h])))",
           "legendFormat": "P95",
           "refId": "B"
         }
@@ -683,7 +695,8 @@
             "fillOpacity": 10
           }
         }
-      }
+      },
+      "description": "Number of chunks returned per retrieval request. Shown: p50/p95 percentile."
     },
     {
       "id": 14,
@@ -717,7 +730,8 @@
             }
           }
         }
-      }
+      },
+      "description": "Total RAG retrieval requests skipped (no active spaces or reindexing). Empty panel = zero events in the window (healthy)."
     },
     {
       "id": 15,
@@ -818,7 +832,8 @@
           "placement": "right"
         },
         "pieType": "donut"
-      }
+      },
+      "description": "Total number of RAG documents (across all users)."
     },
     {
       "type": "row",
@@ -897,7 +912,8 @@
             ]
           }
         ]
-      }
+      },
+      "description": "Total tokens consumed by RAG embedding operations."
     },
     {
       "id": 17,
@@ -933,7 +949,8 @@
             "fillOpacity": 10
           }
         }
-      }
+      },
+      "description": "Embedding API call latency in seconds. Shown: p50/p95 percentile."
     },
     {
       "id": 18,
@@ -965,7 +982,8 @@
             "fillOpacity": 20
           }
         }
-      }
+      },
+      "description": "Total cost of embedding operations."
     },
     {
       "id": 19,
@@ -1031,7 +1049,8 @@
             ]
           }
         ]
-      }
+      },
+      "description": "Total embedding API calls."
     },
     {
       "type": "row",
@@ -1074,7 +1093,8 @@
                 "fillOpacity": 60
               }
             }
-          }
+          },
+          "description": "Total reindexation runs triggered."
         },
         {
           "id": 21,
@@ -1140,7 +1160,8 @@
                 ]
               }
             ]
-          }
+          },
+          "description": "Total documents processed during reindexation."
         }
       ]
     },
@@ -1204,7 +1225,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total Drive folder sync runs by status."
         },
         {
           "id": 503,
@@ -1222,7 +1244,7 @@
           },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_drive_sync_duration_seconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_drive_sync_duration_seconds_bucket[1h])))",
               "legendFormat": "P95",
               "refId": "A"
             }
@@ -1254,7 +1276,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Duration of Drive folder sync operations. Shown: p95 percentile."
         },
         {
           "id": 504,
@@ -1304,7 +1327,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total files processed during Drive sync by result."
         },
         {
           "id": 505,
@@ -1351,7 +1375,8 @@
                 "lastNotNull"
               ]
             }
-          }
+          },
+          "description": "Total number of linked Drive folder sources."
         }
       ]
     },
@@ -1415,7 +1440,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total system RAG space indexations triggered."
         },
         {
           "id": 508,
@@ -1433,7 +1459,7 @@
           },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_system_indexation_duration_seconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(rag_system_indexation_duration_seconds_bucket[1h])))",
               "legendFormat": "P95",
               "refId": "A"
             }
@@ -1465,7 +1491,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "System RAG space indexation duration. Shown: p95 percentile."
         },
         {
           "id": 509,
@@ -1514,6 +1541,111 @@
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
+            }
+          },
+          "description": "Total system RAG context retrievals."
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 510,
+      "title": "Job Recovery",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 83
+      },
+      "panels": [
+        {
+          "id": 511,
+          "title": "Jobs recovered (24h)",
+          "type": "stat",
+          "datasource": "$datasource",
+          "description": "RAG jobs re-queued by the reaper after a lease expired (crashed or wedged worker). Zero is nominal.",
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 0,
+            "y": 84
+          },
+          "targets": [
+            {
+              "expr": "sum(increase(rag_jobs_recovered_total[24h]))",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "none",
+            "colorMode": "value",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          }
+        },
+        {
+          "id": 512,
+          "title": "Recoveries (by job_type / outcome)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "RAG job reaper recoveries by job type and outcome. Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 18,
+            "x": 6,
+            "y": 84
+          },
+          "targets": [
+            {
+              "expr": "sum by (job_type, outcome) (rate(rag_jobs_recovered_total[$__rate_interval]))",
+              "legendFormat": "{{job_type}} · {{outcome}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
             }
           }
         }

@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 1.0
-**Date**: 2026-07-16
-**Application**: LIA v1.25.3
+**Date**: 2026-07-17
+**Application**: LIA v1.25.4
 **License**: AGPL-3.0 (Open Source)
 
 ---

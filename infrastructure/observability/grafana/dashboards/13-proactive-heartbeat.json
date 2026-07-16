@@ -115,7 +115,8 @@
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Total users processed by proactive tasks."
     },
     {
       "id": 3,
@@ -173,7 +174,8 @@
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Total successful proactive notifications sent."
     },
     {
       "id": 4,
@@ -207,7 +209,8 @@
                 "color": "green"
               }
             ]
-          }
+          },
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -223,7 +226,8 @@
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Total skipped proactive tasks (not eligible, no target, etc.)."
     },
     {
       "id": 5,
@@ -277,7 +281,8 @@
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Total failed proactive task executions."
     },
     {
       "id": 6,
@@ -327,7 +332,8 @@
           "fields": "",
           "values": false
         }
-      }
+      },
+      "description": "Duration of proactive task batch execution. Shown: p95 percentile."
     },
     {
       "id": 7,
@@ -390,7 +396,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total proactive notifications sent per channel."
         },
         {
           "id": 9,
@@ -441,7 +448,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total tokens consumed by proactive tasks."
         },
         {
           "id": 10,
@@ -487,7 +495,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total cost in EUR for proactive tasks."
         },
         {
           "id": 11,
@@ -533,7 +542,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total content generations by source."
         }
       ]
     },
@@ -593,7 +603,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total eligibility checks by result."
         },
         {
           "id": 14,
@@ -639,7 +650,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total user feedback on proactive notifications."
         },
         {
           "id": 15,
@@ -685,7 +697,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total users processed by proactive tasks."
         },
         {
           "id": 16,
@@ -736,7 +749,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total successful proactive notifications sent."
         }
       ]
     },
@@ -794,7 +808,8 @@
               "displayMode": "list",
               "placement": "right"
             }
-          }
+          },
+          "description": "Initiative phase evaluations."
         },
         {
           "id": 19,
@@ -844,7 +859,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Initiative actions executed."
         },
         {
           "id": 20,
@@ -894,7 +910,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Initiative phase total duration. Shown: p95 percentile."
         },
         {
           "id": 21,
@@ -944,7 +961,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Initiative phase evaluations."
         }
       ]
     },
@@ -1002,7 +1020,8 @@
               "displayMode": "list",
               "placement": "right"
             }
-          }
+          },
+          "description": "Which location source was used for a proactive weather notification."
         },
         {
           "id": 24,
@@ -1046,7 +1065,8 @@
               "displayMode": "list",
               "placement": "right"
             }
-          }
+          },
+          "description": "Outcomes of the PUT /auth/me/last-location endpoint."
         },
         {
           "id": 25,
@@ -1090,7 +1110,8 @@
               "displayMode": "list",
               "placement": "right"
             }
-          }
+          },
+          "description": "Reverse-geocoding outcomes for heartbeat notifications."
         }
       ]
     }

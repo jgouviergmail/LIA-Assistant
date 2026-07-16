@@ -66,12 +66,12 @@ LIA est une **plateforme d'assistant conversationnel entreprise** construite sur
 | **Fichiers** | 1,500+ |
 | **Modules Python** | 300+ |
 | **Tests** | ~590 fichiers pytest |
-| **Métriques Prometheus** | 500+ |
-| **Dashboards Grafana** | 22 |
+| **Métriques Prometheus** | 419 |
+| **Dashboards Grafana** | 25 |
 | **API Endpoints** | 90+ |
 | **LLM Providers** | 9 (catalogue-driven, ADR-078) |
-| **Agents** | 18+ |
-| **Tools** | 60+ |
+| **Agents** | 19+ |
+| **Tools** | 76 |
 | **Fichiers Prompts** | 78 (`prompts/v1/`) |
 | **Langues i18n** | 6 |
 

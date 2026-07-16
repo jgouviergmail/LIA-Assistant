@@ -2,7 +2,11 @@
   "title": "12 - Channels / Telegram",
   "uid": "12-channels",
   "description": "Monitoring des channels de messagerie externe (Telegram). Requiert CHANNELS_ENABLED=true.",
-  "tags": ["lia", "channels", "telegram"],
+  "tags": [
+    "lia",
+    "channels",
+    "telegram"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -15,7 +19,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -47,7 +53,12 @@
       "id": 100,
       "title": "Message Flow",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
@@ -55,7 +66,12 @@
       "title": "Messages Received",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (message_type) (rate(channel_messages_received_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
@@ -76,19 +92,27 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
+        "tooltip": {
+          "mode": "multi"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total inbound messages received via channels."
     },
     {
       "id": 2,
       "title": "Messages Sent",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (message_type) (rate(channel_messages_sent_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
@@ -109,19 +133,27 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
+        "tooltip": {
+          "mode": "multi"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total outbound messages sent via channels."
     },
     {
       "id": 3,
       "title": "Messages Rejected",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (reason) (rate(channel_messages_rejected_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
@@ -142,22 +174,30 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
+        "tooltip": {
+          "mode": "multi"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total inbound messages rejected (rate limited, locked, unbound). Empty panel = zero events in the window (healthy)."
     },
     {
       "id": 4,
       "title": "Processing Duration P95",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(channel_message_processing_duration_seconds_bucket{channel_type=~\"$channel_type\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(channel_message_processing_duration_seconds_bucket{channel_type=~\"$channel_type\"}[1h])))",
           "legendFormat": "Processing P95",
           "refId": "A"
         }
@@ -175,19 +215,27 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
+        "tooltip": {
+          "mode": "multi"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Duration of inbound message processing (binding lookup to response sent). Shown: p95 percentile."
     },
     {
       "id": 5,
       "title": "Send Errors",
       "type": "timeseries",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
       "targets": [
         {
           "expr": "sum by (error_type) (rate(channel_send_errors_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
@@ -208,26 +256,39 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
+        "tooltip": {
+          "mode": "multi"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total outbound message send errors. Empty panel = zero events in the window (healthy)."
     },
     {
       "type": "row",
       "id": 101,
       "title": "Bindings & Security",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
       "panels": [
         {
           "id": 6,
           "title": "Active Bindings",
           "type": "stat",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "channel_active_bindings{channel_type=~\"$channel_type\"}",
@@ -241,7 +302,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -253,18 +317,26 @@
             "textMode": "auto",
             "justifyMode": "auto",
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
-          }
+          },
+          "description": "Number of active channel bindings."
         },
         {
           "id": 7,
           "title": "OTP Generated",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "rate(channel_otp_generated_total{channel_type=~\"$channel_type\"}[$__rate_interval])",
@@ -285,19 +357,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total OTP codes generated. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 8,
           "title": "OTP Verified",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "sum by (status) (rate(channel_otp_verified_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
@@ -318,12 +398,15 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total OTP verification attempts. Empty panel = zero events in the window (healthy)."
         }
       ]
     },
@@ -332,14 +415,24 @@
       "id": 102,
       "title": "Channel Features",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
       "panels": [
         {
           "id": 9,
           "title": "HITL Decisions via Channel",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 27 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 27
+          },
           "targets": [
             {
               "expr": "sum by (decision) (rate(channel_hitl_decisions_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
@@ -360,19 +453,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total HITL decisions made via channels."
         },
         {
           "id": 10,
           "title": "Voice Transcriptions",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 27 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 27
+          },
           "targets": [
             {
               "expr": "sum by (status) (rate(channel_voice_transcriptions_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
@@ -393,22 +494,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total voice transcription attempts via channels."
         },
         {
           "id": 11,
           "title": "Voice Message Duration",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 27 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 27
+          },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum by (le) (rate(channel_voice_duration_seconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(channel_voice_duration_seconds_bucket[1h])))",
               "legendFormat": "Duration P95",
               "refId": "A"
             }
@@ -426,19 +535,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Duration of received voice messages. Shown: p95 percentile."
         },
         {
           "id": 12,
           "title": "Notifications Sent",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 35 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "sum by (task_type) (rate(channel_notifications_sent_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
@@ -459,19 +576,27 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total proactive notifications sent via channels."
         },
         {
           "id": 13,
           "title": "Notification Errors",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 35 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "sum by (error_type) (rate(channel_notification_errors_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
@@ -492,12 +617,15 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total proactive notification send errors. Empty panel = zero events in the window (healthy)."
         }
       ]
     }

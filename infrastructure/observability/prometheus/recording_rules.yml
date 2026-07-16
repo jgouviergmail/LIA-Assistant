@@ -121,9 +121,12 @@ groups:
     rules:
       # HTTP error rate (5xx errors)
       # Usage: SLI for availability
+      # `or vector(0)`: with zero 5xx in the window (the nominal case) the
+      # numerator selector matches no series and the ratio would be empty
+      # ("No data" on every consumer panel) instead of 0.
       - record: http_error_rate:5m
         expr: |
-          sum(rate(http_requests_total{status=~"5.."}[5m]))
+          (sum(rate(http_requests_total{status=~"5.."}[5m])) or vector(0))
           /
           sum(rate(http_requests_total[5m]))
 
@@ -177,9 +180,12 @@ groups:
 
       # Checkpoint load P95 latency
       # Usage: Cold start performance
+      # Aggregates by node_name (the label the metric actually carries — always
+      # "checkpoint_load"); the previous `conversation_exists` grouping label
+      # never existed on this histogram.
       - record: checkpoint_load_duration:p95_5m
         expr: |
-          histogram_quantile(0.95, sum by (conversation_exists, le) (rate(checkpoint_load_duration_seconds_bucket[5m])))
+          histogram_quantile(0.95, sum by (node_name, le) (rate(checkpoint_load_duration_seconds_bucket[5m])))
 
       # Checkpoint size P90 (by node)
       # Usage: Storage optimization
@@ -317,9 +323,15 @@ groups:
       # Tool rejection rate (user_rejected outcome) by tool (1h window)
       # Usage: Identify tools users don't trust (high rejection)
       # High rejection rate indicates poor tool suggestions
+      # `or ... * 0`: tools with zero rejections must read 0%, not "No data"
+      # (synthesizes per-tool zeros from the all-outcomes selector).
       - record: business:tool_rejection_rate:1h_by_tool
         expr: |
-          sum by (tool_name) (rate(agent_tool_usage_total{outcome="user_rejected"}[1h]))
+          (
+            sum by (tool_name) (rate(agent_tool_usage_total{outcome="user_rejected"}[1h]))
+            or
+            sum by (tool_name) (rate(agent_tool_usage_total[1h])) * 0
+          )
           /
           sum by (tool_name) (rate(agent_tool_usage_total[1h]))
 
@@ -479,10 +491,11 @@ groups:
       # Error budget burn rate (1h window)
       # Usage: Alerting on fast error budget consumption
       # Critical: >10% budget consumed in 1h
+      # `or vector(0)`: zero 5xx must yield a burn rate of 0, not an empty result.
       - record: api:slo:error_budget:burn_rate_1h
         expr: |
           (
-            sum(rate(http_requests_total{status=~"5.."}[1h]))
+            (sum(rate(http_requests_total{status=~"5.."}[1h])) or vector(0))
             /
             sum(rate(http_requests_total[1h]))
           ) / 0.001  # Normalize to error budget percentage
@@ -563,14 +576,27 @@ groups:
 
       # Database error rate (rolling 5m)
       # Usage: SLO target = <0.1% query errors
+      # `or ... * 0`: db_query_errors_total emits no series until the first
+      # error ever occurs, which would empty BOTH the numerator and (through
+      # vector-matching of the `+`) the denominator. The `or` arm synthesizes
+      # per-repository zeros from the always-live query-duration count so the
+      # rate reads 0 instead of "No data".
       - record: db:slo:error_rate:5m
         expr: |
-          sum by (repository) (rate(db_query_errors_total[5m]))
+          (
+            sum by (repository) (rate(db_query_errors_total[5m]))
+            or
+            sum by (repository) (rate(repository_query_duration_seconds_count[5m])) * 0
+          )
           /
           (
             sum by (repository) (rate(repository_query_duration_seconds_count[5m]))
             +
-            sum by (repository) (rate(db_query_errors_total[5m]))
+            (
+              sum by (repository) (rate(db_query_errors_total[5m]))
+              or
+              sum by (repository) (rate(repository_query_duration_seconds_count[5m])) * 0
+            )
           )
 
       # =======================================================================
@@ -629,18 +655,20 @@ groups:
       # Low confidence fallback rate (1h window)
       # Usage: Track router confidence quality (target: < 10%)
       # High rate indicates router v7 needs prompt optimization
+      # `or vector(0)`: no fallback ever triggered must read 0%, not "No data".
       - record: planner_domain_filtering_low_confidence_rate:1h
         expr: |
-          sum(rate(planner_domain_confidence_score_count{fallback_triggered="true"}[1h]))
+          (sum(rate(planner_domain_confidence_score_count{fallback_triggered="true"}[1h])) or vector(0))
           /
           sum(rate(planner_domain_confidence_score_count[1h]))
 
       # Filtered catalogue cache hit rate (5min window)
       # Usage: Monitor cache effectiveness (target: > 30%)
       # Low hit rate suggests TTL too short or high domain diversity
+      # `or vector(0)`: an all-miss window must read 0%, not "No data".
       - record: planner_filtered_cache_hit_rate:5m
         expr: |
-          sum(rate(planner_domain_filtering_cache_hits_total{cache_status="hit"}[5m]))
+          (sum(rate(planner_domain_filtering_cache_hits_total{cache_status="hit"}[5m])) or vector(0))
           /
           sum(rate(planner_domain_filtering_cache_hits_total[5m]))
 

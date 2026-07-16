@@ -1,7 +1,12 @@
 {
   "title": "04 - HTTP & API Performance",
   "uid": "04-http-api",
-  "tags": ["lia", "http", "api", "latency"],
+  "tags": [
+    "lia",
+    "http",
+    "api",
+    "latency"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -14,7 +19,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -24,17 +31,26 @@
         "name": "datasource",
         "type": "datasource",
         "query": "prometheus",
-        "current": { "text": "Prometheus", "value": "Prometheus" }
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
       },
       {
         "name": "endpoint",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "query": "label_values(http_requests_total, endpoint)",
         "multi": true,
         "includeAll": true,
         "refresh": 1,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       },
       {
         "name": "method",
@@ -42,7 +58,10 @@
         "query": "GET,POST,PUT,DELETE,PATCH",
         "multi": true,
         "includeAll": true,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       }
     ]
   },
@@ -52,15 +71,28 @@
       "type": "row",
       "title": "Traffic Overview",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
       "id": 2,
       "type": "timeseries",
       "title": "Requests/sec",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum(rate(http_requests_total{endpoint=~\"$endpoint\", method=~\"$method\"}[$__rate_interval]))",
@@ -80,16 +112,30 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "single" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
-      }
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Total HTTP requests."
     },
     {
       "id": 3,
       "type": "timeseries",
       "title": "Status Code Distribution",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (status) (rate(http_requests_total{endpoint=~\"$endpoint\"}[$__rate_interval]))",
@@ -104,22 +150,38 @@
             "drawStyle": "line",
             "lineInterpolation": "smooth",
             "fillOpacity": 30,
-            "stacking": { "mode": "normal" }
+            "stacking": {
+              "mode": "normal"
+            }
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
-      }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Total HTTP requests."
     },
     {
       "id": 4,
       "type": "barchart",
       "title": "Top 10 Endpoints (1h)",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "topk(10, sum by (endpoint) (increase(http_requests_total[1h])))",
@@ -135,15 +197,26 @@
       "options": {
         "orientation": "horizontal",
         "xTickLabelRotation": 0,
-        "legend": { "displayMode": "hidden" }
-      }
+        "legend": {
+          "displayMode": "hidden"
+        }
+      },
+      "description": "Total HTTP requests."
     },
     {
       "id": 5,
       "type": "timeseries",
       "title": "In-Progress Requests",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (endpoint) (http_requests_in_progress{endpoint=~\"$endpoint\"})",
@@ -163,23 +236,42 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
-      }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Number of HTTP requests in progress."
     },
     {
       "id": 6,
       "type": "row",
       "title": "Latency",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
       "panels": [
         {
           "id": 7,
           "type": "timeseries",
           "title": "P50/P95/P99 Latency",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{endpoint=~\"$endpoint\"}[$__rate_interval])))",
@@ -209,16 +301,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "HTTP request duration in seconds. Shown: p50/p95/p99 percentile."
         },
         {
           "id": 8,
           "type": "heatmap",
           "title": "Latency Heatmap",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "sum by (le) (increase(http_request_duration_seconds_bucket{endpoint=~\"$endpoint\"}[$__rate_interval]))",
@@ -227,7 +333,9 @@
             }
           ],
           "fieldConfig": {
-            "defaults": {},
+            "defaults": {
+              "unit": "s"
+            },
             "overrides": []
           },
           "options": {
@@ -239,14 +347,23 @@
             "yAxis": {
               "unit": "s"
             }
-          }
+          },
+          "description": "HTTP request duration in seconds."
         },
         {
           "id": 9,
           "type": "table",
           "title": "Slowest Endpoints (P95)",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "topk(15, http_request_duration:p95_5m)",
@@ -256,7 +373,9 @@
             }
           ],
           "fieldConfig": {
-            "defaults": {},
+            "defaults": {
+              "unit": "s"
+            },
             "overrides": []
           },
           "transformations": [
@@ -272,8 +391,14 @@
           ],
           "options": {
             "showHeader": true,
-            "sortBy": [{ "displayName": "P95 Latency", "desc": true }]
-          }
+            "sortBy": [
+              {
+                "displayName": "P95 Latency",
+                "desc": true
+              }
+            ]
+          },
+          "description": "HTTP P95 latency (by endpoint) Performance monitoring."
         }
       ]
     },
@@ -282,14 +407,27 @@
       "type": "row",
       "title": "Errors",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
       "panels": [
         {
           "id": 11,
           "type": "timeseries",
           "title": "Error Rate %",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 27 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 27
+          },
           "targets": [
             {
               "expr": "http_error_rate:5m * 100",
@@ -304,29 +442,51 @@
                 "drawStyle": "line",
                 "lineInterpolation": "smooth",
                 "fillOpacity": 10,
-                "thresholdsStyle": { "mode": "line" }
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
               },
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "red", "value": 1.0 }
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 1.0
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "HTTP error rate (5xx errors) SLI for availability numerator selector matches no series and the ratio would be empty."
         },
         {
           "id": 12,
           "type": "timeseries",
           "title": "Client Errors (4xx) par type",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 27 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 27
+          },
           "targets": [
             {
               "expr": "sum by (status) (rate(http_requests_total{endpoint=~\"$endpoint\", status=~\"4..\"}[$__rate_interval]))",
@@ -346,16 +506,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Total HTTP requests."
         },
         {
           "id": 13,
           "type": "timeseries",
           "title": "Server Errors (5xx) par type",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 27 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 27
+          },
           "targets": [
             {
               "expr": "sum by (status) (rate(http_requests_total{endpoint=~\"$endpoint\", status=~\"5..\"}[$__rate_interval]))",
@@ -375,16 +549,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Total HTTP requests."
         },
         {
           "id": 14,
           "type": "table",
           "title": "Error Requests Breakdown (1h)",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 35 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "topk(15, sum by (status, endpoint) (increase(http_requests_total{status=~\"[45]..\"}[1h])))",
@@ -399,8 +587,14 @@
           },
           "options": {
             "showHeader": true,
-            "sortBy": [{ "displayName": "Value", "desc": true }]
-          }
+            "sortBy": [
+              {
+                "displayName": "Value",
+                "desc": true
+              }
+            ]
+          },
+          "description": "Total HTTP requests."
         }
       ]
     },
@@ -409,14 +603,27 @@
       "type": "row",
       "title": "Rate Limiting",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
       "panels": [
         {
           "id": 16,
           "type": "timeseries",
           "title": "HTTP Rate Limit Hits",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 44 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 44
+          },
           "targets": [
             {
               "expr": "sum by (endpoint_type) (rate(http_rate_limit_hits_total[$__rate_interval]))",
@@ -436,16 +643,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Total HTTP requests blocked by rate limiting (429 responses). Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 17,
           "type": "timeseries",
           "title": "Redis Allows vs Hits",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 44 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 44
+          },
           "targets": [
             {
               "expr": "sum(rate(redis_rate_limit_allows_total[$__rate_interval]))",
@@ -470,16 +691,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Total rate limit allows (accepted requests). Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 18,
           "type": "timeseries",
           "title": "Check Latency P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 44 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 44
+          },
           "targets": [
             {
               "expr": "key_prefix:redis_rate_limit_check_duration_ms:p95_rate5m",
@@ -499,16 +734,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 19,
           "type": "timeseries",
           "title": "Sliding Window Current",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 52 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 52
+          },
           "targets": [
             {
               "expr": "redis_sliding_window_requests_current",
@@ -528,16 +776,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Current number of requests in sliding window."
         },
         {
           "id": 20,
           "type": "timeseries",
           "title": "Lua Script Executions",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 52 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 52
+          },
           "targets": [
             {
               "expr": "sum by (script_name, status) (rate(redis_lua_script_executions_total[$__rate_interval]))",
@@ -557,16 +819,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Lua script executions for atomic rate limiting."
         },
         {
           "id": 21,
           "type": "timeseries",
           "title": "Rate Limit Errors",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 52 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 52
+          },
           "targets": [
             {
               "expr": "sum by (error_type) (rate(redis_rate_limit_errors_total[$__rate_interval]))",
@@ -586,9 +862,15 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Errors during rate limit checks. Empty panel = zero events in the window (healthy)."
         }
       ]
     }

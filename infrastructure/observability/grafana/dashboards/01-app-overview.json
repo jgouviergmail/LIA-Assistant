@@ -1,7 +1,11 @@
 {
   "title": "01 - Application Overview",
   "uid": "01-app-overview",
-  "tags": ["lia", "overview", "health"],
+  "tags": [
+    "lia",
+    "overview",
+    "health"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -14,7 +18,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -24,7 +30,10 @@
         "name": "datasource",
         "type": "datasource",
         "query": "prometheus",
-        "current": { "text": "Prometheus", "value": "Prometheus" }
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
       }
     ]
   },
@@ -34,15 +43,28 @@
       "type": "row",
       "title": "Health Summary",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
       "id": 2,
       "type": "stat",
       "title": "API Availability (30d)",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 4, "x": 0, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "api:slo:availability:ratio_5m * 100",
@@ -57,10 +79,22 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "orange", "value": 98 },
-              { "color": "yellow", "value": 99 },
-              { "color": "green", "value": 99.9 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 98
+              },
+              {
+                "color": "yellow",
+                "value": 99
+              },
+              {
+                "color": "green",
+                "value": 99.9
+              }
             ]
           }
         },
@@ -70,16 +104,27 @@
         "graphMode": "area",
         "colorMode": "value",
         "reduceOptions": {
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
-      }
+      },
+      "description": "AVAILABILITY SLOs API availability (success rate) SLO target = 99.9% (3 nines)."
     },
     {
       "id": 3,
       "type": "stat",
       "title": "Error Budget Remaining",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 4, "x": 4, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "api:slo:error_budget:remaining_30d * 100",
@@ -94,9 +139,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 20 },
-              { "color": "green", "value": 50 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "green",
+                "value": 50
+              }
             ]
           }
         },
@@ -106,16 +160,27 @@
         "graphMode": "area",
         "colorMode": "value",
         "reduceOptions": {
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
-      }
+      },
+      "description": "Error budget remaining (30-day rolling window) 99.9% SLO = 0.1% error budget (43.2 min/month)."
     },
     {
       "id": 4,
       "type": "stat",
       "title": "Error Budget Burn Rate (1h)",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 4, "x": 8, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "api:slo:error_budget:burn_rate_1h",
@@ -130,9 +195,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 5 },
-              { "color": "red", "value": 10 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
             ]
           }
         },
@@ -142,16 +216,27 @@
         "graphMode": "none",
         "colorMode": "value",
         "reduceOptions": {
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
-      }
+      },
+      "description": "Error budget burn rate (1h window) Alerting on fast error budget consumption Critical: >10% budget consumed in 1h."
     },
     {
       "id": 5,
       "type": "stat",
       "title": "Active Users (DAU)",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 4, "x": 12, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "user_active_daily_gauge",
@@ -174,16 +259,27 @@
         "graphMode": "area",
         "colorMode": "value",
         "reduceOptions": {
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
-      }
+      },
+      "description": "Number of daily active users (DAU) - users with activity in last 24h."
     },
     {
       "id": 6,
       "type": "stat",
       "title": "Active Users (WAU)",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 4, "x": 16, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "user_active_weekly_gauge",
@@ -206,16 +302,27 @@
         "graphMode": "area",
         "colorMode": "value",
         "reduceOptions": {
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
-      }
+      },
+      "description": "Number of weekly active users (WAU) - users with activity in last 7 days."
     },
     {
       "id": 7,
       "type": "stat",
       "title": "Conversations Today",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "conversations_created_last_24h",
@@ -238,23 +345,39 @@
         "graphMode": "area",
         "colorMode": "value",
         "reduceOptions": {
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
-      }
+      },
+      "description": "Conversations created in last 24 hours from database."
     },
     {
       "id": 8,
       "type": "row",
       "title": "Request Performance",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
       "panels": [
         {
           "id": 9,
           "type": "timeseries",
           "title": "Request Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "http_requests:rate5m",
@@ -275,16 +398,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "HTTP request rate (total req/sec) Traffic monitoring."
         },
         {
           "id": 10,
           "type": "timeseries",
           "title": "HTTP Error Rate (5xx)",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "http_error_rate:5m * 100",
@@ -307,24 +444,44 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "red", "value": 0.1 }
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "HTTP error rate (5xx errors) SLI for availability numerator selector matches no series and the ratio would be empty."
         },
         {
           "id": 11,
           "type": "timeseries",
           "title": "P95 Latency (top 10)",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "topk(10, http_request_duration:p95_5m)",
@@ -345,16 +502,30 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "single" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "HTTP P95 latency (by endpoint) Performance monitoring."
         },
         {
           "id": 12,
           "type": "stat",
           "title": "Requests In Progress",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "sum(http_requests_in_progress)",
@@ -372,9 +543,12 @@
             "graphMode": "none",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
-          }
+          },
+          "description": "Number of HTTP requests in progress."
         }
       ]
     },
@@ -383,14 +557,27 @@
       "type": "row",
       "title": "Agent Pipeline Health",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
       "panels": [
         {
           "id": 14,
           "type": "bargauge",
           "title": "Node Success Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 27 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 27
+          },
           "targets": [
             {
               "expr": "agent_node_success_rate:5m * 100",
@@ -404,10 +591,22 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "red", "value": null },
-                  { "color": "yellow", "value": 90 },
-                  { "color": "orange", "value": 95 },
-                  { "color": "green", "value": 99 }
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 90
+                  },
+                  {
+                    "color": "orange",
+                    "value": 95
+                  },
+                  {
+                    "color": "green",
+                    "value": 99
+                  }
                 ]
               }
             },
@@ -417,16 +616,27 @@
             "orientation": "horizontal",
             "displayMode": "gradient",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
-          }
+          },
+          "description": "Agent node success rate (5m rolling window) Track reliability of each agent node."
         },
         {
           "id": 15,
           "type": "piechart",
           "title": "Router Distribution (1h)",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 27 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 27
+          },
           "targets": [
             {
               "expr": "router_decisions_by_intention:1h",
@@ -443,20 +653,31 @@
           "options": {
             "pieType": "donut",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             },
             "legend": {
               "displayMode": "list",
               "placement": "right"
             }
-          }
+          },
+          "description": "Router decision distribution (1h aggregate) Understand intention patterns and routing quality."
         },
         {
           "id": 16,
           "type": "stat",
           "title": "E2E Duration P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 4, "x": 16, "y": 27 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 16,
+            "y": 27
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(e2e_request_duration_seconds_bucket[$__rate_interval])))",
@@ -475,16 +696,27 @@
             "graphMode": "area",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
-          }
+          },
+          "description": "End-to-end request duration (router → agents → response) with agents complexity tracking. Shown: p95 percentile."
         },
         {
           "id": 17,
           "type": "stat",
           "title": "TTFT P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 4, "x": 20, "y": 27 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 20,
+            "y": 27
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(sse_time_to_first_token_seconds_bucket[$__rate_interval])))",
@@ -503,9 +735,12 @@
             "graphMode": "area",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
-          }
+          },
+          "description": "Time to first token (TTFT) in SSE streaming. Shown: p95 percentile."
         }
       ]
     },
@@ -514,14 +749,27 @@
       "type": "row",
       "title": "Infrastructure Quick Glance",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
       "panels": [
         {
           "id": 19,
           "type": "gauge",
           "title": "CPU Usage Total",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 5, "x": 0, "y": 36 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 5,
+            "x": 0,
+            "y": 36
+          },
           "targets": [
             {
               "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])) * 100)",
@@ -537,10 +785,22 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "yellow", "value": 60 },
-                  { "color": "orange", "value": 80 },
-                  { "color": "red", "value": 90 }
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 60
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
                 ]
               }
             },
@@ -548,7 +808,9 @@
           },
           "options": {
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -556,8 +818,16 @@
           "id": 20,
           "type": "gauge",
           "title": "Memory Usage",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 5, "x": 5, "y": 36 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 5,
+            "x": 5,
+            "y": 36
+          },
           "targets": [
             {
               "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100",
@@ -573,10 +843,22 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "yellow", "value": 60 },
-                  { "color": "orange", "value": 80 },
-                  { "color": "red", "value": 90 }
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 60
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
                 ]
               }
             },
@@ -584,7 +866,9 @@
           },
           "options": {
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -592,8 +876,16 @@
           "id": 21,
           "type": "gauge",
           "title": "DB Pool Utilization",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 5, "x": 10, "y": 36 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 5,
+            "x": 10,
+            "y": 36
+          },
           "targets": [
             {
               "expr": "db_connection_pool_checkedout / db_connection_pool_size * 100",
@@ -609,10 +901,22 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "yellow", "value": 60 },
-                  { "color": "orange", "value": 80 },
-                  { "color": "red", "value": 90 }
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 60
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
                 ]
               }
             },
@@ -620,16 +924,27 @@
           },
           "options": {
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
-          }
+          },
+          "description": "Number of connections currently checked out from pool."
         },
         {
           "id": 22,
           "type": "stat",
           "title": "Cache Hit Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 5, "x": 15, "y": 36 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 5,
+            "x": 15,
+            "y": 36
+          },
           "targets": [
             {
               "expr": "cache_hit_rate:5m * 100",
@@ -644,10 +959,22 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "red", "value": null },
-                  { "color": "orange", "value": 30 },
-                  { "color": "yellow", "value": 50 },
-                  { "color": "green", "value": 80 }
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 30
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 50
+                  },
+                  {
+                    "color": "green",
+                    "value": 80
+                  }
                 ]
               }
             },
@@ -657,16 +984,27 @@
             "graphMode": "none",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
-          }
+          },
+          "description": "Cache hit rate (global) Cache efficiency."
         },
         {
           "id": 23,
           "type": "stat",
           "title": "Redis Memory",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 4, "x": 20, "y": 36 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 20,
+            "y": 36
+          },
           "targets": [
             {
               "expr": "redis_memory_used_bytes",
@@ -685,7 +1023,9 @@
             "graphMode": "none",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         }
@@ -696,14 +1036,27 @@
       "type": "row",
       "title": "LLM Cost Summary",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
       "panels": [
         {
           "id": 25,
           "type": "stat",
           "title": "Cost Today",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 45 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 45
+          },
           "targets": [
             {
               "expr": "llm_cost_last_24h",
@@ -718,10 +1071,22 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "yellow", "value": 5 },
-                  { "color": "orange", "value": 20 },
-                  { "color": "red", "value": 50 }
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 5
+                  },
+                  {
+                    "color": "orange",
+                    "value": 20
+                  },
+                  {
+                    "color": "red",
+                    "value": 50
+                  }
                 ]
               }
             },
@@ -731,16 +1096,27 @@
             "graphMode": "area",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
-          }
+          },
+          "description": "LLM cost in last 24 hours from database."
         },
         {
           "id": 26,
           "type": "stat",
           "title": "Cost Lifetime (DB)",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 45 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 45
+          },
           "targets": [
             {
               "expr": "sum(llm_cost_lifetime)",
@@ -759,16 +1135,27 @@
             "graphMode": "none",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
-          }
+          },
+          "description": "Lifetime LLM cost from database (restart-safe)."
         },
         {
           "id": 27,
           "type": "stat",
           "title": "Tokens Today",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 45 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 45
+          },
           "targets": [
             {
               "expr": "sum(llm_tokens_consumed_last_24h)",
@@ -787,16 +1174,27 @@
             "graphMode": "area",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
-          }
+          },
+          "description": "LLM token consumption in last 24 hours from database."
         },
         {
           "id": 28,
           "type": "stat",
           "title": "Cost/Request (1h)",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 45 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 45
+          },
           "targets": [
             {
               "expr": "llm_cost_per_request:1h",
@@ -815,9 +1213,12 @@
             "graphMode": "none",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
-          }
+          },
+          "description": "LLM cost per request (hourly average) Cost optimization and budget tracking."
         }
       ]
     },
@@ -826,14 +1227,27 @@
       "type": "row",
       "title": "Features",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 53 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 53
+      },
       "panels": [
         {
           "id": 30,
           "type": "stat",
           "title": "Attachments (24h)",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 4, "x": 0, "y": 54 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 0,
+            "y": 54
+          },
           "targets": [
             {
               "expr": "sum(increase(attachments_uploaded_total{status=\"success\"}[24h]))",
@@ -856,9 +1270,12 @@
             "graphMode": "area",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
-          }
+          },
+          "description": "Total file attachments uploaded."
         }
       ]
     }

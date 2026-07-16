@@ -1,7 +1,12 @@
 {
   "title": "06 - Logs, Traces & Correlations",
   "uid": "06-logs-traces",
-  "tags": ["lia", "logs", "traces", "debug"],
+  "tags": [
+    "lia",
+    "logs",
+    "traces",
+    "debug"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -14,7 +19,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -123,7 +130,12 @@
       "type": "row",
       "title": "Log Overview",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
@@ -134,7 +146,12 @@
         "type": "loki",
         "uid": "$datasource_loki"
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "refId": "A",
@@ -142,7 +159,7 @@
             "type": "loki",
             "uid": "$datasource_loki"
           },
-          "expr": "sum by (level) (rate({job=\"api\", level=~\"$log_level\"}[1m]))",
+          "expr": "sum by (level) (rate({job=\"api\", level=~\"$log_level\"}[$__auto]))",
           "legendFormat": "{{level}}"
         }
       ],
@@ -165,28 +182,60 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "error" },
+            "matcher": {
+              "id": "byName",
+              "options": "error"
+            },
             "properties": [
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "warning" },
+            "matcher": {
+              "id": "byName",
+              "options": "warning"
+            },
             "properties": [
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "info" },
+            "matcher": {
+              "id": "byName",
+              "options": "info"
+            },
             "properties": [
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
             ]
           }
         ]
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
@@ -197,7 +246,12 @@
         "type": "loki",
         "uid": "$datasource_loki"
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
       "targets": [
         {
           "refId": "A",
@@ -205,7 +259,7 @@
             "type": "loki",
             "uid": "$datasource_loki"
           },
-          "expr": "sum by (logger) (rate({job=\"api\", level=\"error\"}[1m]))",
+          "expr": "sum by (logger) (rate({job=\"api\", level=\"error\"}[$__auto]))",
           "legendFormat": "{{logger}}"
         }
       ],
@@ -225,8 +279,13 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
@@ -237,7 +296,12 @@
         "type": "loki",
         "uid": "$datasource_loki"
       },
-      "gridPos": { "h": 12, "w": 12, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
       "targets": [
         {
           "refId": "A",
@@ -264,7 +328,12 @@
         "type": "loki",
         "uid": "$datasource_loki"
       },
-      "gridPos": { "h": 12, "w": 12, "x": 12, "y": 9 },
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
       "targets": [
         {
           "refId": "A",
@@ -288,7 +357,12 @@
       "type": "row",
       "title": "Trace Overview",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
       "panels": [
         {
           "id": 7,
@@ -298,7 +372,12 @@
             "type": "tempo",
             "uid": "$datasource_tempo"
           },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 22
+          },
           "targets": [
             {
               "refId": "A",
@@ -348,8 +427,13 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
@@ -360,7 +444,12 @@
             "type": "tempo",
             "uid": "$datasource_tempo"
           },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 22
+          },
           "targets": [
             {
               "refId": "A",
@@ -375,7 +464,10 @@
           ],
           "options": {
             "orientation": "horizontal",
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           },
           "fieldConfig": {
             "defaults": {
@@ -394,7 +486,12 @@
             "type": "tempo",
             "uid": "$datasource_tempo"
           },
-          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 30 },
+          "gridPos": {
+            "h": 12,
+            "w": 24,
+            "x": 0,
+            "y": 30
+          },
           "targets": [
             {
               "refId": "A",
@@ -419,13 +516,23 @@
       "type": "row",
       "title": "Metric-to-Log Correlation",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
       "panels": [
         {
           "id": 11,
           "type": "timeseries",
           "title": "HTTP 5xx + Error Logs",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 43
+          },
           "targets": [
             {
               "refId": "A",
@@ -433,7 +540,7 @@
                 "type": "prometheus",
                 "uid": "$datasource"
               },
-              "expr": "sum(rate(http_requests_total{status=~\"5..\"}[$__rate_interval]))",
+              "expr": "sum(rate(http_requests_total{status=~\"5..\"}[$__rate_interval])) or vector(0)",
               "legendFormat": "5xx Rate"
             },
             {
@@ -442,7 +549,7 @@
                 "type": "loki",
                 "uid": "$datasource_loki"
               },
-              "expr": "sum(rate({job=\"api\", level=\"error\"} | json | status_code >= 500 [1m]))",
+              "expr": "sum(rate({job=\"api\", level=\"error\"} | json | status_code >= 500 [$__auto]))",
               "legendFormat": "Error Logs"
             }
           ],
@@ -462,15 +569,26 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Total HTTP requests."
         },
         {
           "id": 12,
           "type": "timeseries",
           "title": "LLM Errors + Logs",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 43
+          },
           "targets": [
             {
               "refId": "A",
@@ -487,7 +605,7 @@
                 "type": "loki",
                 "uid": "$datasource_loki"
               },
-              "expr": "sum(rate({job=\"api\", level=\"error\"} | json | logger=~\".*llm.*|.*adapter.*\" [1m]))",
+              "expr": "sum(rate({job=\"api\", level=\"error\"} | json | logger=~\".*llm.*|.*adapter.*\" [$__auto]))",
               "legendFormat": "LLM Error Logs"
             }
           ],
@@ -507,15 +625,26 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Total LLM API errors by provider and error type. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 13,
           "type": "timeseries",
           "title": "Graph Exceptions + Logs",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 51 },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 51
+          },
           "targets": [
             {
               "refId": "A",
@@ -532,7 +661,7 @@
                 "type": "loki",
                 "uid": "$datasource_loki"
               },
-              "expr": "sum(rate({job=\"api\", level=\"error\"} | json | event=\"response_node_exception\" [1m]))",
+              "expr": "sum(rate({job=\"api\", level=\"error\"} | json | event=\"response_node_exception\" [$__auto]))",
               "legendFormat": "Exception Logs"
             }
           ],
@@ -552,18 +681,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Total exceptions in graph execution. Empty panel = zero events in the window (healthy)."
         }
       ]
     },
     {
       "id": 14,
       "type": "row",
-      "title": "Correlated View (Logs \u2192 Traces)",
+      "title": "Correlated View (Logs → Traces)",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 59 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 59
+      },
       "panels": [
         {
           "id": 15,
@@ -573,7 +713,12 @@
             "type": "loki",
             "uid": "$datasource_loki"
           },
-          "gridPos": { "h": 12, "w": 12, "x": 0, "y": 60 },
+          "gridPos": {
+            "h": 12,
+            "w": 12,
+            "x": 0,
+            "y": 60
+          },
           "targets": [
             {
               "refId": "A",
@@ -595,7 +740,10 @@
             "defaults": {},
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Line" },
+                "matcher": {
+                  "id": "byName",
+                  "options": "Line"
+                },
                 "properties": [
                   {
                     "id": "links",
@@ -620,7 +768,12 @@
             "type": "loki",
             "uid": "$datasource_loki"
           },
-          "gridPos": { "h": 12, "w": 12, "x": 12, "y": 60 },
+          "gridPos": {
+            "h": 12,
+            "w": 12,
+            "x": 12,
+            "y": 60
+          },
           "targets": [
             {
               "refId": "A",
@@ -642,7 +795,10 @@
             "defaults": {},
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Line" },
+                "matcher": {
+                  "id": "byName",
+                  "options": "Line"
+                },
                 "properties": [
                   {
                     "id": "links",
@@ -666,7 +822,12 @@
       "type": "row",
       "title": "Background Jobs",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 72 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 72
+      },
       "panels": [
         {
           "id": 18,
@@ -676,7 +837,12 @@
             "type": "prometheus",
             "uid": "$datasource"
           },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 73 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 73
+          },
           "targets": [
             {
               "refId": "A",
@@ -705,9 +871,15 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Background job execution duration (scheduled tasks, workers)."
         },
         {
           "id": 19,
@@ -717,7 +889,12 @@
             "type": "prometheus",
             "uid": "$datasource"
           },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 73 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 73
+          },
           "targets": [
             {
               "refId": "A",
@@ -746,9 +923,15 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
-          }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Total background job errors. Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 20,
@@ -758,7 +941,12 @@
             "type": "loki",
             "uid": "$datasource_loki"
           },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 73 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 73
+          },
           "targets": [
             {
               "refId": "A",
@@ -784,7 +972,12 @@
       "type": "row",
       "title": "Search & Filter Helpers",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 81 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 81
+      },
       "panels": [
         {
           "id": 22,
@@ -794,7 +987,12 @@
             "type": "loki",
             "uid": "$datasource_loki"
           },
-          "gridPos": { "h": 14, "w": 24, "x": 0, "y": 82 },
+          "gridPos": {
+            "h": 14,
+            "w": 24,
+            "x": 0,
+            "y": 82
+          },
           "targets": [
             {
               "refId": "A",
@@ -822,7 +1020,12 @@
             "type": "loki",
             "uid": "$datasource_loki"
           },
-          "gridPos": { "h": 14, "w": 24, "x": 0, "y": 96 },
+          "gridPos": {
+            "h": 14,
+            "w": 24,
+            "x": 0,
+            "y": 96
+          },
           "targets": [
             {
               "refId": "A",

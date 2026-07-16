@@ -127,7 +127,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "LangGraph Graph P95 Latency."
     },
     {
       "id": 3,
@@ -173,7 +174,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Total graph executions (conversations)."
     },
     {
       "id": 4,
@@ -219,7 +221,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "LangGraph SubGraph Duration by Agent - P95."
     },
     {
       "id": 5,
@@ -265,7 +268,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "SubGraph invocations (contacts_agent, emails_agent, etc.)."
     },
     {
       "id": 6,
@@ -311,7 +315,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "Node transitions (edges traversed)."
     },
     {
       "id": 7,
@@ -357,7 +362,8 @@
           "displayMode": "list",
           "placement": "bottom"
         }
-      }
+      },
+      "description": "SSE streaming chunks emitted to client."
     },
     {
       "id": 8,
@@ -415,7 +421,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "LangGraph State Size by Node - P95 (KB)."
         },
         {
           "id": 10,
@@ -461,7 +468,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "State modifications by node."
         },
         {
           "id": 11,
@@ -507,7 +515,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total multi-domain composition operations."
         },
         {
           "id": 12,
@@ -553,7 +562,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Duration of multi-domain formatting for LLM context. Shown: p95 percentile."
         },
         {
           "id": 13,
@@ -599,7 +609,8 @@
                 "lastNotNull"
               ]
             }
-          }
+          },
+          "description": "Total domain handlers registered."
         },
         {
           "id": 14,
@@ -645,7 +656,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Domain detection results."
         },
         {
           "id": 15,
@@ -691,14 +703,15 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Errors during domain normalization. Empty panel = zero events in the window (healthy)."
         }
       ]
     },
     {
       "id": 16,
       "type": "row",
-      "title": "Langfuse Integration",
+      "title": "Langfuse Integration (requires LANGFUSE_ENABLED — currently off in prod)",
       "collapsed": true,
       "gridPos": {
         "h": 1,
@@ -751,7 +764,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Prompt version usage from prompt_loader."
         },
         {
           "id": 18,
@@ -797,7 +811,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "LLM output evaluation scores (relevance, hallucination, correctness). Shown: p50 percentile."
         },
         {
           "id": 19,
@@ -843,7 +858,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "A/B test variant assignments."
         },
         {
           "id": 20,
@@ -889,7 +905,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Tool call executions by tool name and success status."
         },
         {
           "id": 21,
@@ -935,7 +952,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Agent handoff transitions (source → target)."
         },
         {
           "id": 22,
@@ -981,7 +999,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Agent handoff duration (transition latency). Shown: p95 percentile."
         },
         {
           "id": 23,
@@ -1027,7 +1046,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Hierarchical trace depth distribution. Shown: p95 percentile."
         },
         {
           "id": 24,
@@ -1073,7 +1093,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Subgraph invocation rate by agent name."
         }
       ]
     },
@@ -1137,7 +1158,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total steps skipped due to conditional branching (ADR-005). Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 27,
@@ -1187,7 +1209,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total waves that had steps filtered before execution (ADR-005). Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 28,
@@ -1242,7 +1265,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Ratio of executed steps to total planned steps (measures branching efficiency). Shown: p50/p95 percentile."
         },
         {
           "id": 29,
@@ -1292,7 +1316,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total soft validation warnings issued for inefficient plan patterns (ADR-006)."
         }
       ]
     },
@@ -1356,7 +1381,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Total tool safeguards applied at runtime to prevent resource waste (ADR-006)."
         },
         {
           "id": 32,
@@ -1406,7 +1432,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Conditional edge routing decisions."
         },
         {
           "id": 33,
@@ -1456,7 +1483,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Graph executions that exceeded recursion limit."
         },
         {
           "id": 34,
@@ -1506,7 +1534,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Graph interrupts (HITL approval gates). Empty panel = zero events in the window (healthy)."
         },
         {
           "id": 35,
@@ -1556,7 +1585,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "LangGraph streaming events (astream_events)."
         },
         {
           "id": 36,
@@ -1605,6 +1635,221 @@
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
+            }
+          },
+          "description": "SSE streaming chunks emitted to client."
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 37,
+      "title": "Stage Latency (TTFT breakdown)",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 85
+      },
+      "panels": [
+        {
+          "id": 38,
+          "title": "Stage duration p95 (by stage)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Per-stage latency of a chat turn (router, planner, agents, response...) — the instrument behind the TTFT optimization work (LATENCY_PLAN).",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 86
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (stage, le) (rate(langgraph_stage_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "{{stage}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 39,
+          "title": "Stage duration p95 (by execution_mode / turn_kind)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Stage latency split by execution mode (pipeline / react) and turn kind.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 86
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (execution_mode, turn_kind, le) (rate(langgraph_stage_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "{{execution_mode}} · {{turn_kind}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 40,
+          "title": "Graph errors (by error_type)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "LangGraph graph-level errors by type. Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 94
+          },
+          "targets": [
+            {
+              "expr": "sum by (error_type) (rate(langgraph_graph_errors_total[$__rate_interval]))",
+              "legendFormat": "{{error_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 41,
+          "title": "SubGraph tool calls (by agent)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Tool calls made inside agent subgraphs. Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 94
+          },
+          "targets": [
+            {
+              "expr": "sum by (agent_name, tool_name) (rate(langgraph_subgraph_tool_calls_total[$__rate_interval]))",
+              "legendFormat": "{{agent_name}} · {{tool_name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 42,
+          "title": "Reasoning-stream double calls",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Guard counter: a reasoning-streaming path invoked the model twice for one turn (would double cost). Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 94
+          },
+          "targets": [
+            {
+              "expr": "sum by (provider, model, path) (rate(llm_reasoning_stream_double_call_total[$__rate_interval]))",
+              "legendFormat": "{{provider}}/{{model}} {{path}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
             }
           }
         }

@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 3.0
-**Datum**: 2026-07-16
-**Application**: LIA v1.25.3
+**Datum**: 2026-07-17
+**Application**: LIA v1.25.4
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,7 +52,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 394 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Vollständige Transparenz | 419 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
 | Produktionszuverlässigkeit | 120+ ADRs, ~11.900 von pytest gesammelte Tests in 670 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
@@ -75,8 +75,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
-| Prometheus-Metriken | 394 Definitionen |
-| Grafana-Dashboards | 22 |
+| Prometheus-Metriken | 419 Definitionen |
+| Grafana-Dashboards | 25 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -176,7 +176,7 @@ apps/api/src/
     ├── browser/                  # Playwright Session Pool, CDP, Anti-Erkennung
     ├── rate_limiting/            # Verteiltes Redis Sliding Window
     ├── scheduler/                # APScheduler, Leader Election, Locks
-    └── observability/            # 17+ Prometheus-Metrik-Dateien, OTel-Tracing
+    └── observability/            # 23 Prometheus-Metrik-Dateien, OTel-Tracing
 ```
 
 ### 3.2. Konfigurationsprioritätskette
@@ -768,8 +768,8 @@ Autonomer ReAct-Agent (Playwright Chromium Headless). Redis-gesicherter Session 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 394 benutzerdefinierte Metriken (RED Pattern) |
-| Grafana | 22 produktionsreife Dashboards |
+| Prometheus | 419 benutzerdefinierte Metriken (RED Pattern) |
+| Grafana | 25 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
 | Langfuse | LLM-spezifisches Tracing (Prompt-Versionen, Token-Nutzung) |
@@ -970,7 +970,7 @@ Die vollständige Anwendung auf Wetter (`gettext.gettext(text, language)` expliz
 
 ### 23.11. Observability-Architektur
 
-Observability ruht auf drei Säulen: **defensive Emission** auf dem kritischen Pfad, vorverdrahtete **Grafana-Dashboards** (20 Dashboards / 354+ Panels, die App, Infra und jedes Business-Subsystem abdecken) und **DB-gestützte Gauges**, die durch einen periodischen Updater gepflegt werden.
+Observability ruht auf drei Säulen: **defensive Emission** auf dem kritischen Pfad, vorverdrahtete **Grafana-Dashboards** (25 Dashboards / 595 Panels, die App, Infra und jedes Business-Subsystem abdecken) und **DB-gestützte Gauges**, die durch einen periodischen Updater gepflegt werden.
 
 Die Prometheus-Instrumentierung ist systematisch in `try/except Exception: pass` mit Lazy-Imports (`from ... import foo` innerhalb des try) gekapselt, damit kein Metrik-Problem je auf den Ausführungspfad propagiert. Drei dedizierte Postgres-Indizes (`ix_conversations_updated_at` für DAU/WAU, `ix_conversations_created_at` für das Conversations-Histogramm, `ix_connectors_status` für die Aktivierungsrate) bringen die Updater-Queries auf einer bevölkerten DB von ~500 ms auf <50 ms.
 
@@ -1068,4 +1068,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 120+ ADRs und des Changelogs (v1.0 bis v1.25.3). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 120+ ADRs und des Changelogs (v1.0 bis v1.25.4). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

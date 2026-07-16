@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 3.0
-**Date**: 2026-07-16
-**Application**: LIA v1.25.3
+**Date**: 2026-07-17
+**Application**: LIA v1.25.4
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,7 +52,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 394 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Full transparency | 419 Prometheus metrics, embedded debug panel, token-by-token tracking |
 | Production reliability | 120+ ADRs, ~11,900 pytest-collected tests across 670 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
@@ -75,8 +75,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Reusable fixtures | 170+ |
 | Documentation documents | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
-| Prometheus metrics | 394 definitions |
-| Grafana dashboards | 22 |
+| Prometheus metrics | 419 definitions |
+| Grafana dashboards | 25 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -176,7 +176,7 @@ apps/api/src/
     ├── browser/                  # Playwright session pool, CDP, anti-detection
     ├── rate_limiting/            # Distributed Redis sliding window
     ├── scheduler/                # APScheduler, leader election, locks
-    └── observability/            # 17+ Prometheus metrics files, OTel tracing
+    └── observability/            # 23 Prometheus metrics files, OTel tracing
 ```
 
 ### 3.2. Configuration priority chain
@@ -768,8 +768,8 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 394 custom metrics (RED pattern) |
-| Grafana | 22 production-ready dashboards |
+| Prometheus | 419 custom metrics (RED pattern) |
+| Grafana | 25 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
@@ -969,7 +969,7 @@ The full application to weather (`gettext.gettext(text, language)` propagated ex
 
 ### 23.11. Observability architecture
 
-Observability rests on three pillars: **defensive emission** on the critical path, pre-wired **Grafana dashboards** (20 dashboards / 354+ panels covering app, infra and every business sub-system), and **DB-backed gauges** maintained by a periodic updater.
+Observability rests on three pillars: **defensive emission** on the critical path, pre-wired **Grafana dashboards** (25 dashboards / 595 panels covering app, infra and every business sub-system), and **DB-backed gauges** maintained by a periodic updater.
 
 Prometheus instrumentation is systematically wrapped in `try/except Exception: pass` with lazy imports (`from ... import foo` inside the try) so no metric issue ever propagates onto the execution path. Three dedicated Postgres indexes (`ix_conversations_updated_at` for DAU/WAU, `ix_conversations_created_at` for the conversations histogram, `ix_connectors_status` for the activation rate) bring the updater queries from ~500 ms to <50 ms on a populated DB.
 
@@ -1096,4 +1096,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.3). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.4). All metrics, versions, and patterns cited are verifiable in the codebase.*

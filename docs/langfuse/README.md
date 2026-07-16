@@ -461,7 +461,7 @@ See ab-testing.md for details.
 ### Documentation Complémentaire
 
 - **[README Observability](../readme/README_OBSERVABILITY.md)** - Vue d'ensemble metrics infrastructure
-- **[README Grafana Dashboards](../readme/README_GRAFANA_DASHBOARD.md)** - Dashboard 14 détails (Panel-by-panel)
+- **[GRAFANA_DASHBOARDS.md](../technical/GRAFANA_DASHBOARDS.md)** - Dashboard 14 détails (Panel-by-panel)
 - **[Runbooks](../runbooks/)** - Incident response procedures (22 runbooks)
 
 ---

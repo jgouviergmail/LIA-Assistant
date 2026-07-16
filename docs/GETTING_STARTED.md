@@ -4,8 +4,8 @@
 > Every default value in this guide is the **production-proven configuration** actually running in production; you can adopt them as-is with confidence.
 
 **Version**: 4.0
-**Last Updated**: 2026-07-16
-**Compatibility**: LIA v1.25.3
+**Last Updated**: 2026-07-17
+**Compatibility**: LIA v1.25.4
 
 ## Table of Contents
 
@@ -48,8 +48,8 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 | Voice providers | ElevenLabs (STT/TTS), Edge TTS (free), OpenAI TTS + local Whisper STT |
 | Configurable LLM slots | 54 (admin UI, hot-reloaded) |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 394 |
-| Grafana dashboards | 22 |
+| Prometheus metrics | 419 |
+| Grafana dashboards | 25 |
 | Built-in FAQ knowledge base | 200+ Q/A (auto-indexed at startup) |
 
 ### Technical Architecture
@@ -1533,7 +1533,7 @@ task deploy:prepare        # prepare the PROD/ bundle only
 
 ### Observability
 
-- [ ] Grafana up (http://localhost:3001) — 22 dashboards load
+- [ ] Grafana up (http://localhost:3001) — 25 dashboards load
 - [ ] Prometheus up (http://localhost:9090)
 - [ ] Langfuse up in dev (http://localhost:3002) if started via `task dev:langfuse` with `LANGFUSE_ENABLED=true`
 
