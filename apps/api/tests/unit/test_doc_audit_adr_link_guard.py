@@ -141,13 +141,23 @@ def test_git_checkout_existence_is_index_based(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (docs / "LOCAL_ONLY.md").write_text("# local, never committed\n", encoding="utf-8")
+    (docs / "CODE.md").write_text(
+        "# Code refs\n\nRuntime reads src/local_secret.py at boot.\n", encoding="utf-8"
+    )
+    src = repo / "src"
+    src.mkdir()
+    (src / "local_secret.py").write_text("SECRET = 1\n", encoding="utf-8")
     _git(repo, "init", "-q")
-    _git(repo, "add", "docs/Guide.md", "docs/INDEX.md")
+    _git(repo, "add", "docs/Guide.md", "docs/INDEX.md", "docs/CODE.md")
     _git(repo, "commit", "-q", "-m", "init")
 
     report = doc_audit.audit(repo)
     living_targets = sorted(t for _rel, _ln, t in report["broken"]["LIVING"])
     assert living_targets == ["LOCAL_ONLY.md", "guide.md"]
+    # Same contract for inline code paths: locally present but untracked
+    # (git-ignored secrets/config) is stale in every fresh checkout.
+    stale_living = sorted(t for _rel, _ln, t in report["stale"]["LIVING"])
+    assert stale_living == ["src/local_secret.py"]
 
 
 def test_repository_doc_audit_has_no_living_broken_links() -> None:

@@ -77,7 +77,8 @@ _ANNOTATION_RE = re.compile(
     r"|exemple|example|non\s+commit|not\s+committed|illustrat"
     r"|create\s+new|to\s+create|to\s+be\s+created|[cç]r[ée]er|\bcreer\b|à\s+cr[ée]er"
     r"|non\s+trouv|not\s+found|anciennement|formerly|renomm|renamed|remplac"
-    r"|propos[ée]|proposed|planifi|planned|futur|hypoth",
+    r"|propos[ée]|proposed|planifi|planned|futur|hypoth"
+    r"|save\s+as|enregistr|generate",
     re.IGNORECASE,
 )
 
@@ -282,8 +283,19 @@ def _check_links(
     return findings
 
 
-def _check_code_paths(root: Path, doc: Path, text: str) -> list[Finding]:
-    """Return stale inline code-path references in one document."""
+def _check_code_paths(
+    root: Path,
+    doc: Path,
+    text: str,
+    tracked: tuple[frozenset[str], frozenset[str]] | None,
+) -> list[Finding]:
+    """Return stale inline code-path references in one document.
+
+    Existence follows the same contract as links (``_target_exists``): inside a
+    git checkout the git index is authoritative, so a locally present but
+    git-ignored file (secrets, generated config) referenced without an
+    annotation is stale — it is absent from every fresh clone.
+    """
     findings: list[Finding] = []
     rel = doc.relative_to(root).as_posix()
     for match in CODE_PATH_RE.finditer(text):
@@ -302,7 +314,7 @@ def _check_code_paths(root: Path, doc: Path, text: str) -> list[Finding]:
             root / "apps" / "web" / path,
             root / "apps" / "web" / "src" / path,
         )
-        if not any(candidate.exists() for candidate in candidates):
+        if not any(_target_exists(root, candidate, tracked) for candidate in candidates):
             line_no = text[: match.start()].count("\n") + 1
             findings.append((rel, line_no, path))
     return findings
@@ -334,7 +346,7 @@ def audit(root: Path) -> dict[str, dict[str, list[Finding]]]:
                 )
         else:
             broken[section].extend(links)
-        stale[section].extend(_check_code_paths(root, doc, text))
+        stale[section].extend(_check_code_paths(root, doc, text, tracked))
 
     return {"broken": broken, "stale": stale}
 
