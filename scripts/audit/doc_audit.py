@@ -5,9 +5,12 @@ Scans the documentation base (``docs/**/*.md`` plus ``README.md``, ``CLAUDE.md``
 and ``apps/web/CLAUDE.md``) and reports two drift classes:
 
 1. **Broken relative links** — markdown ``[text](target)`` links whose target,
-   resolved relative to the containing file, does not exist on disk. Links
-   inside fenced code blocks and inline code spans are ignored (they are code,
-   not navigation).
+   resolved relative to the containing file, does not exist. Inside a git
+   checkout, existence means "present in the git index, exact case" so the
+   verdict matches a fresh CI clone (case drift and locally-present-but-
+   untracked targets are findings); outside git it falls back to the disk.
+   Links inside fenced code blocks and inline code spans are ignored (they
+   are code, not navigation).
 2. **Stale code paths** — inline references to source files
    (``src/...``, ``apps/api/...``, ``apps/web/...``, ``scripts/...``,
    ``infrastructure/...``) that no longer exist. Common doc shorthands are
@@ -43,7 +46,9 @@ Standard library only — no dependencies.
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -169,8 +174,45 @@ def _blank_code_regions(text: str) -> str:
     return re.sub(r"`[^`\n]+`", _blank, text)
 
 
-def _doc_files(root: Path) -> list[Path]:
-    """Collect the documentation files under audit."""
+def _tracked_paths(root: Path) -> tuple[frozenset[str], frozenset[str]] | None:
+    """Git-tracked files and directories (POSIX, exact case), or ``None``.
+
+    Link-existence checks must mirror a fresh CI checkout, not the author's
+    disk (F024 wave 2): a case-insensitive filesystem (Windows/macOS) resolves
+    links whose case has drifted from the tracked name, and a locally present
+    but git-ignored/untracked file (private runbooks) resolves links that are
+    broken in every clone. The git index is authoritative on both. Outside a
+    git checkout (e.g. the guard tests' tmp_path fixtures) this returns
+    ``None`` and the disk remains the only source of truth.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "-z"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    files = frozenset(path for path in proc.stdout.split("\0") if path)
+    dirs: set[str] = set()
+    for path in files:
+        parent = path
+        while "/" in parent:
+            parent = parent.rsplit("/", 1)[0]
+            if parent in dirs:
+                break
+            dirs.add(parent)
+    return files, dirs
+
+
+def _doc_files(root: Path, tracked: tuple[frozenset[str], frozenset[str]] | None) -> list[Path]:
+    """Collect the documentation files under audit.
+
+    Inside a git checkout, untracked/ignored local documents are excluded so a
+    local-only file neither produces findings absent from CI nor masks any.
+    """
     files = sorted(root.glob("docs/**/*.md"))
     for extra in (
         root / "README.md",
@@ -179,10 +221,46 @@ def _doc_files(root: Path) -> list[Path]:
     ):
         if extra.exists():
             files.append(extra)
-    return files
+    if tracked is None:
+        return files
+    tracked_files = tracked[0]
+    return [doc for doc in files if doc.relative_to(root).as_posix() in tracked_files]
 
 
-def _check_links(root: Path, doc: Path, text_nocode: str) -> list[Finding]:
+def _target_exists(
+    root: Path, candidate: Path, tracked: tuple[frozenset[str], frozenset[str]] | None
+) -> bool:
+    """True when a link target exists — in the git index when available.
+
+    The candidate is normalized LEXICALLY (``os.path.normpath``), never through
+    ``Path.resolve``: on a case-insensitive filesystem ``resolve()`` folds the
+    link's case to the on-disk name, which would hide exactly the case drift
+    this check exists to catch.
+    """
+    if tracked is None:
+        try:
+            return candidate.resolve().exists()
+        except OSError:
+            return False
+    tracked_files, tracked_dirs = tracked
+    normalized = Path(os.path.normpath(str(candidate)))
+    try:
+        rel = normalized.relative_to(root).as_posix()
+    except ValueError:
+        # Escapes the repository — the index cannot answer; fall back to disk.
+        try:
+            return candidate.resolve().exists()
+        except OSError:
+            return False
+    return rel in tracked_files or rel in tracked_dirs
+
+
+def _check_links(
+    root: Path,
+    doc: Path,
+    text_nocode: str,
+    tracked: tuple[frozenset[str], frozenset[str]] | None,
+) -> list[Finding]:
     """Return broken relative links in one document."""
     findings: list[Finding] = []
     rel = doc.relative_to(root).as_posix()
@@ -198,11 +276,7 @@ def _check_links(root: Path, doc: Path, text_nocode: str) -> list[Finding]:
             if path_part.startswith("/")
             else doc.parent / path_part
         )
-        try:
-            exists = candidate.resolve().exists()
-        except OSError:
-            exists = False
-        if not exists:
+        if not _target_exists(root, candidate, tracked):
             line_no = text_nocode[: match.start()].count("\n") + 1
             findings.append((rel, line_no, target))
     return findings
@@ -245,12 +319,13 @@ def audit(root: Path) -> dict[str, dict[str, list[Finding]]]:
     broken: dict[str, list[Finding]] = {"LIVING": [], "HISTORICAL": [], "ROADMAP": []}
     stale: dict[str, list[Finding]] = {"LIVING": [], "HISTORICAL": [], "ROADMAP": []}
     indexed = _indexed_adr_numbers(root)
+    tracked = _tracked_paths(root)
 
-    for doc in _doc_files(root):
+    for doc in _doc_files(root, tracked):
         rel_posix = doc.relative_to(root).as_posix()
         section = _classify(rel_posix)
         text = doc.read_text(encoding="utf-8", errors="replace")
-        links = _check_links(root, doc, _blank_code_regions(text))
+        links = _check_links(root, doc, _blank_code_regions(text), tracked)
         if section == "HISTORICAL" and _is_indexed_adr(rel_posix, indexed):
             for finding in links:
                 target = finding[2]

@@ -382,7 +382,6 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | Runbook | Description |
 |---------|-------------|
 | [DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BACKUP_RESTORE.md) | Backup PostgreSQL automatisé (sidecar pg_dump, ADR-109) — backup manuel, restauration testée, vérification d'intégrité |
-| [CLOUDFLARE_TUNNEL.md](./runbooks/CLOUDFLARE_TUNNEL.md) | Tunnel Cloudflare prod (systemd, QUIC, incidents) |
 | [LAST_KNOWN_LOCATION.md](./runbooks/LAST_KNOWN_LOCATION.md) | Persistance last-known location (météo proactive) |
 
 ### Alertes Générales

@@ -22,6 +22,8 @@ This guard proves the refined contract of ``scripts/audit/doc_audit.py``:
 from __future__ import annotations
 
 import importlib.util
+import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -96,6 +98,56 @@ def test_adr_link_in_unindexed_adr_not_escalated(tmp_path: Path) -> None:
     historical_targets = [t for _rel, _ln, t in report["broken"]["HISTORICAL"]]
     assert "ADR-999-Ghost.md" in historical_targets
     assert not living_targets
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        env={
+            **os.environ,
+            "GIT_AUTHOR_NAME": "t",
+            "GIT_AUTHOR_EMAIL": "t@t",
+            "GIT_COMMITTER_NAME": "t",
+            "GIT_COMMITTER_EMAIL": "t@t",
+        },
+    )
+
+
+def test_git_checkout_existence_is_index_based(tmp_path: Path) -> None:
+    """Inside a git checkout, link targets resolve against the INDEX, not the disk.
+
+    Two CI-vs-Windows divergences hid real broken links (F024 wave 2):
+
+    * a link whose case drifts from the tracked file resolves on NTFS/APFS
+      (case-insensitive) but 404s on the Linux runner's checkout;
+    * a link to a locally present but git-ignored/untracked file resolves on
+      the author's disk but is broken in every fresh clone.
+
+    Both must be findings even when the audit runs on a case-insensitive
+    filesystem with the untracked file present.
+    """
+    doc_audit = _load_doc_audit()
+    repo = tmp_path / "repo"
+    docs = repo / "docs"
+    docs.mkdir(parents=True)
+    (docs / "Guide.md").write_text("# Guide\n", encoding="utf-8")
+    (docs / "INDEX.md").write_text(
+        "# Index\n\n"
+        "- [ok](Guide.md)\n"
+        "- [case drift](guide.md)\n"
+        "- [untracked](LOCAL_ONLY.md)\n",
+        encoding="utf-8",
+    )
+    (docs / "LOCAL_ONLY.md").write_text("# local, never committed\n", encoding="utf-8")
+    _git(repo, "init", "-q")
+    _git(repo, "add", "docs/Guide.md", "docs/INDEX.md")
+    _git(repo, "commit", "-q", "-m", "init")
+
+    report = doc_audit.audit(repo)
+    living_targets = sorted(t for _rel, _ln, t in report["broken"]["LIVING"])
+    assert living_targets == ["LOCAL_ONLY.md", "guide.md"]
 
 
 def test_repository_doc_audit_has_no_living_broken_links() -> None:

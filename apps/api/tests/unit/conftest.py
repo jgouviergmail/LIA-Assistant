@@ -75,6 +75,32 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _prefetch_tiktoken_encodings() -> None:
+    """Warm the tiktoken BPE cache once, before the per-test network guard arms.
+
+    ``tiktoken.get_encoding`` downloads the encoding file on first use and
+    caches it on disk. On a cold machine (fresh CI runner, empty
+    ``TIKTOKEN_CACHE_DIR``) that download happens in the middle of whichever
+    unit test touches tiktoken first, and the F028 guard kills it — the suite
+    is then green or red depending on the runner's cache, not on the code.
+    Prefetching at session scope keeps the download outside any test body; on
+    a warm machine this is a pure cache hit with no network at all.
+    """
+    import tiktoken
+
+    for name in ("o200k_base", "cl100k_base"):
+        try:
+            tiktoken.get_encoding(name)
+        except Exception as exc:  # offline machine with a cold cache: leave the
+            # tiktoken-dependent tests to fail on the guard, but say why here.
+            print(
+                f"WARNING: tiktoken encoding {name!r} prefetch failed ({exc}); "
+                "tiktoken-dependent unit tests will fail on the F028 guard.",
+                flush=True,
+            )
+
+
 @pytest.fixture(autouse=True)
 def _forbid_real_network(request: pytest.FixtureRequest) -> Any:
     """Fail any unit test that opens an external socket, unless marked ``real_io``."""

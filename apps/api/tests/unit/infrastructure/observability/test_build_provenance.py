@@ -28,10 +28,16 @@ class TestBuildRelease:
         assert s.build_release == "1.24.0+abcdef012345"  # 12-char short sha
 
     def test_bare_version_when_sha_not_injected(self):
-        s = _settings(APP_VERSION="1.24.0")
-        # No commit env → default sentinel → release is just the version.
-        assert s.git_commit_sha == GIT_COMMIT_SHA_DEFAULT
-        assert s.build_release == "1.24.0"
+        # GitHub Actions always injects GITHUB_SHA — both aliases must be
+        # scrubbed for "not injected" to hold on CI runners too (patch.dict
+        # restores the popped keys on exit).
+        with patch.dict(os.environ, {"APP_VERSION": "1.24.0"}, clear=False):
+            os.environ.pop("GIT_COMMIT_SHA", None)
+            os.environ.pop("GITHUB_SHA", None)
+            s = Settings(_env_file=None)
+            # No commit env → default sentinel → release is just the version.
+            assert s.git_commit_sha == GIT_COMMIT_SHA_DEFAULT
+            assert s.build_release == "1.24.0"
 
     def test_accepts_github_sha_alias(self):
         # CI exposes GITHUB_SHA; the field must read it too.

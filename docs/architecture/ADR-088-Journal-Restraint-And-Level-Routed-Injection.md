@@ -98,5 +98,5 @@ The two distinct read moments, now disambiguated:
 - [ADR-057: Personal Journals](ADR-057-Personal-Journals.md) — original feature
 - [ADR-064: Journal Analyst Persona](ADR-064-Journal-Analyst-Persona.md) — analyst persona, directive format, dedup discipline
 - [ADR-079: Stratified Journal Consciousness](ADR-079-Stratified-Journal-Consciousness.md) — levels, epistemic status, deferred self-evaluation, portrait diffusion (**amended here**)
-- [ADR-070: ReAct Execution Mode](ADR-070-React-Execution-Mode.md) — the ReAct loop this ADR makes journal-coherent
+- [ADR-070: ReAct Execution Mode](ADR-070-ReAct-Execution-Mode.md) — the ReAct loop this ADR makes journal-coherent
 - `docs/technical/JOURNALS.md` — operational reference (updated)
