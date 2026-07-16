@@ -230,6 +230,9 @@ debug_*.py
 fix_*.py
 tmpclaude-*
 test_*.sh
+# Exception: CI-executed test harness for the deploy readiness gate
+# (.github/workflows/ci.yml runs it) — not a scratch script, must be tracked.
+!/scripts/deploy/lib/test_deploy_readiness_gate.sh
 
 # Temporary reports
 *_REPORT.md

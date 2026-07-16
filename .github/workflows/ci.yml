@@ -220,7 +220,11 @@ jobs:
       REDIS_URL: redis://localhost:6379
       REDIS_PASSWORD: ""
       SECRET_KEY: test-secret-key-minimum-32-characters-long-for-testing
-      FERNET_KEY: ${{ secrets.TEST_FERNET_KEY }}
+      # Fallback = the throwaway PUBLIC test key from apps/api/.env.test: the
+      # TEST_FERNET_KEY repo secret is optional (absent on forks/this repo), and
+      # jobs that drive alembic/settings directly (no pytest .env.test reload)
+      # would otherwise fail Fernet validation on an empty value.
+      FERNET_KEY: ${{ secrets.TEST_FERNET_KEY || 'nXQIoBSMZtcMuA30Zz8LUORRsD3zsV04L5oOJDoR0WM=' }} # gitleaks:allow
       ENVIRONMENT: test
 
     steps:
@@ -330,7 +334,11 @@ jobs:
       REDIS_URL: redis://localhost:6379
       REDIS_PASSWORD: ""
       SECRET_KEY: test-secret-key-minimum-32-characters-long-for-testing
-      FERNET_KEY: ${{ secrets.TEST_FERNET_KEY }}
+      # Fallback = the throwaway PUBLIC test key from apps/api/.env.test: the
+      # TEST_FERNET_KEY repo secret is optional (absent on forks/this repo), and
+      # jobs that drive alembic/settings directly (no pytest .env.test reload)
+      # would otherwise fail Fernet validation on an empty value.
+      FERNET_KEY: ${{ secrets.TEST_FERNET_KEY || 'nXQIoBSMZtcMuA30Zz8LUORRsD3zsV04L5oOJDoR0WM=' }} # gitleaks:allow
       ENVIRONMENT: test
 
     steps:
@@ -408,7 +416,11 @@ jobs:
       REDIS_URL: redis://localhost:6379
       REDIS_PASSWORD: ""
       SECRET_KEY: test-secret-key-minimum-32-characters-long-for-testing
-      FERNET_KEY: ${{ secrets.TEST_FERNET_KEY }}
+      # Fallback = the throwaway PUBLIC test key from apps/api/.env.test: the
+      # TEST_FERNET_KEY repo secret is optional (absent on forks/this repo), and
+      # jobs that drive alembic/settings directly (no pytest .env.test reload)
+      # would otherwise fail Fernet validation on an empty value.
+      FERNET_KEY: ${{ secrets.TEST_FERNET_KEY || 'nXQIoBSMZtcMuA30Zz8LUORRsD3zsV04L5oOJDoR0WM=' }} # gitleaks:allow
       ENVIRONMENT: test
 
     steps:
@@ -694,7 +706,11 @@ jobs:
         working-directory: ./apps/api
     env:
       SECRET_KEY: test-secret-key-minimum-32-characters-long-for-testing
-      FERNET_KEY: ${{ secrets.TEST_FERNET_KEY }}
+      # Fallback = the throwaway PUBLIC test key from apps/api/.env.test: the
+      # TEST_FERNET_KEY repo secret is optional (absent on forks/this repo), and
+      # jobs that drive alembic/settings directly (no pytest .env.test reload)
+      # would otherwise fail Fernet validation on an empty value.
+      FERNET_KEY: ${{ secrets.TEST_FERNET_KEY || 'nXQIoBSMZtcMuA30Zz8LUORRsD3zsV04L5oOJDoR0WM=' }} # gitleaks:allow
       ENVIRONMENT: test
 
     steps:

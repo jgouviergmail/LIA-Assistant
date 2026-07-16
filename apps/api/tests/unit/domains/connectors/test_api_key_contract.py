@@ -26,8 +26,9 @@ from src.domains.connectors.service import ConnectorService
 
 # Async tests run under the repo-wide ``asyncio_mode = "auto"`` — no marker needed.
 
-# A well-formed key: >= 8 chars, no placeholder token.
-GOOD_KEY = "abcd1234efgh"
+# A well-formed key: >= 8 chars, no placeholder token. Not a credential — a
+# format fixture for the validator under test.
+GOOD_KEY = "abcd1234efgh"  # gitleaks:allow
 
 
 def _service() -> ConnectorService:
