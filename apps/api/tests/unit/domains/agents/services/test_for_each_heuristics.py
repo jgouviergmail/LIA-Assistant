@@ -298,3 +298,52 @@ class TestCollectionKeyInference:
         enhanced = _apply_for_each_heuristics(result, query.lower(), result.domains)
         assert enhanced.for_each_detected is True
         assert enhanced.has_cardinality_risk is True
+
+
+# =============================================================================
+# Tests: Word-boundary matching (regression, 2026-07-17 incident)
+# =============================================================================
+
+
+class TestWordBoundaryMatching:
+    """Substring matching false positives, fixed by word-bounded regexes.
+
+    Real incident: "call my wife" matched the explicit pattern "all my" as a
+    substring (c[all my] wife) -> for_each_detected with collection "calls" ->
+    the semantic validator demanded a FOR_EACH plan the planner rightly never
+    produced -> 3 replans -> degraded bypass -> the call was never placed.
+    """
+
+    def test_call_my_wife_does_not_trigger_for_each(self) -> None:
+        """'call my' must NOT substring-match the explicit pattern 'all my'."""
+        query = "call my wife to ask for the time"
+        result = MockAnalysisResult(
+            english_query=query,
+            is_mutation_intent=True,
+            primary_domain="telephony",
+        )
+        enhanced = _apply_for_each_heuristics(result, query.lower(), result.domains)
+        assert enhanced.for_each_detected is False
+
+    def test_delete_all_my_calls_still_detected_with_calls_key(self) -> None:
+        """Word-bounded 'all my' + telephony domain infers the 'calls' key."""
+        query = "delete all my calls"
+        result = MockAnalysisResult(
+            english_query=query,
+            is_mutation_intent=True,
+            primary_domain="telephony",
+        )
+        enhanced = _apply_for_each_heuristics(result, query.lower(), result.domains)
+        assert enhanced.for_each_detected is True
+        assert enhanced.for_each_collection_key == "calls"
+
+    def test_plural_hint_does_not_match_inside_words(self) -> None:
+        """'places' embedded in 'replaces' must not count as a plural hint."""
+        query = "replaces the kitchen bulb"
+        result = MockAnalysisResult(
+            english_query=query,
+            is_mutation_intent=True,
+            primary_domain="hue",
+        )
+        enhanced = _apply_for_each_heuristics(result, query.lower(), result.domains)
+        assert enhanced.for_each_detected is False

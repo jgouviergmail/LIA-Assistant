@@ -112,7 +112,12 @@ async def test_synthesize_return_uses_typed_output_and_context(monkeypatch) -> N
     proposal, usage = await rs.synthesize_return(
         transcript="raw transcript",
         transcript_summary="she agreed",
-        structured_data=StructuredCallData(agreed=True, proposed_datetime="mardi 19h"),
+        structured_data=StructuredCallData(
+            agreed=True,
+            proposed_datetime="mardi 19h",
+            additional_costs="extra cheese +3€",
+            pending_user_decision="whether to add extra cheese for +3€",
+        ),
         objective="ask availability",
         callee_display="Marie",
         user_language="fr",
@@ -128,6 +133,10 @@ async def test_synthesize_return_uses_typed_output_and_context(monkeypatch) -> N
     assert "CALLEE: Marie" in human
     assert "LANGUAGE: fr" in human
     assert "mardi 19h" in human
+    # Cost + deferred decision reach the synthesis LLM so the summary can never
+    # silently drop them (pizza cheese +3€ use case).
+    assert "extra cheese +3€" in human
+    assert "whether to add extra cheese for +3€" in human
 
 
 # --------------------------------------------------------------------------- #

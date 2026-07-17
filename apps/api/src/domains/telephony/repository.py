@@ -283,6 +283,32 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
         )
         await self.db.commit()
 
+    async def close_zombie(self, call_id: UUID, error: str) -> bool:
+        """Close ONE zombie active row inline (self-healing one-active guard).
+
+        Same transition and exclusions as ``recover_stale`` but targeted by PK
+        and without a time cutoff — the caller decides eligibility (vendor says
+        the conversation ended, or the stale threshold elapsed). ``RECEIVED``
+        rows stay untouched: their webhook DID arrive and the return reaper owns
+        them (the call is over but its return is in flight — the guard keeps
+        refusing until ``mark_completed`` lands, seconds away). Returns True
+        when the row was actually transitioned (atomic conditional UPDATE).
+        """
+        stmt = (
+            update(PhoneCall)
+            .where(
+                PhoneCall.id == call_id,
+                PhoneCall.status.in_(_ACTIVE_STATUSES),
+                PhoneCall.return_status.is_distinct_from(ReturnSynthesisStatus.RECEIVED),
+            )
+            .values(status=PhoneCallStatus.FAILED, error=error)
+            .execution_options(synchronize_session=False)
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        count: int = result.rowcount  # type: ignore[attr-defined]
+        return count > 0
+
     async def recover_stale(self, timeout_minutes: int) -> int:
         """Mark in-flight calls with no terminal webhook as failed (crash recovery).
 

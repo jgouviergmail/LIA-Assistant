@@ -1,9 +1,10 @@
 /**
- * useTelephony — the per-user telephony connector wizard hook.
+ * useTelephony — the per-user telephony connector single-screen form hook.
  *
  * Covers the key-validation branches (valid / invalid / no numbers), the
- * activate call payload, and reset. apiClient is a default import → the mock
- * provides `default`.
+ * single-number preselection, key-edit invalidation of loaded numbers, the
+ * canActivate gate, the activate call payload, and reset. apiClient is a
+ * default import → the mock provides `default`.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -25,8 +26,11 @@ vi.mock('react-i18next', () => ({
 
 import { useTelephony, buildTelephonyWebhookUrl } from '../useTelephony';
 
-const NUMBERS = [
+const NUMBERS = [{ phone_number_id: 'pn_1', phone_number: '+33600000000', provider: 'twilio' }];
+
+const TWO_NUMBERS = [
   { phone_number_id: 'pn_1', phone_number: '+33600000000', provider: 'twilio' },
+  { phone_number_id: 'pn_2', phone_number: '+33611111111', provider: 'twilio' },
 ];
 
 beforeEach(() => {
@@ -34,7 +38,7 @@ beforeEach(() => {
 });
 
 describe('useTelephony', () => {
-  it('validates a key and moves to the number step', async () => {
+  it('validates a key, loads numbers and preselects a single number', async () => {
     h.post.mockResolvedValueOnce({ is_valid: true, message: 'ok', numbers: NUMBERS });
     const { result } = renderHook(() => useTelephony());
 
@@ -46,12 +50,25 @@ describe('useTelephony', () => {
     expect(h.post).toHaveBeenCalledWith('/telephony/connector/validate-key', {
       api_key: 'sk-testkey',
     });
-    expect(result.current.step).toBe('number');
     expect(result.current.numbers).toHaveLength(1);
+    expect(result.current.selectedNumberId).toBe('pn_1'); // single → preselected
     expect(result.current.error).toBeNull();
   });
 
-  it('surfaces an error for an invalid key and stays on the key step', async () => {
+  it('does not preselect when several numbers are available', async () => {
+    h.post.mockResolvedValueOnce({ is_valid: true, message: 'ok', numbers: TWO_NUMBERS });
+    const { result } = renderHook(() => useTelephony());
+
+    act(() => result.current.setApiKey('sk-testkey'));
+    await act(async () => {
+      await result.current.validateKey();
+    });
+
+    expect(result.current.numbers).toHaveLength(2);
+    expect(result.current.selectedNumberId).toBeNull();
+  });
+
+  it('surfaces an error for an invalid key', async () => {
     h.post.mockResolvedValueOnce({ is_valid: false, message: 'nope', numbers: [] });
     const { result } = renderHook(() => useTelephony());
 
@@ -60,7 +77,7 @@ describe('useTelephony', () => {
       await result.current.validateKey();
     });
 
-    expect(result.current.step).toBe('key');
+    expect(result.current.numbers).toHaveLength(0);
     expect(result.current.error).toBe('settings.connectors.telephony.invalid_key');
   });
 
@@ -73,8 +90,41 @@ describe('useTelephony', () => {
       await result.current.validateKey();
     });
 
-    expect(result.current.step).toBe('key');
+    expect(result.current.numbers).toHaveLength(0);
     expect(result.current.error).toBe('settings.connectors.telephony.no_numbers');
+  });
+
+  it('invalidates loaded numbers when the key is edited', async () => {
+    h.post.mockResolvedValueOnce({ is_valid: true, message: 'ok', numbers: NUMBERS });
+    const { result } = renderHook(() => useTelephony());
+
+    act(() => result.current.setApiKey('sk-testkey'));
+    await act(async () => {
+      await result.current.validateKey();
+    });
+    expect(result.current.numbers).toHaveLength(1);
+
+    act(() => result.current.setApiKey('sk-otherkey'));
+
+    expect(result.current.numbers).toHaveLength(0);
+    expect(result.current.selectedNumberId).toBeNull();
+    expect(result.current.canActivate).toBe(false);
+  });
+
+  it('gates canActivate on key + number + secret', async () => {
+    h.post.mockResolvedValueOnce({ is_valid: true, message: 'ok', numbers: NUMBERS });
+    const { result } = renderHook(() => useTelephony());
+
+    expect(result.current.canActivate).toBe(false);
+
+    act(() => result.current.setApiKey('sk-testkey'));
+    await act(async () => {
+      await result.current.validateKey();
+    });
+    expect(result.current.canActivate).toBe(false); // secret still missing
+
+    act(() => result.current.setWebhookSecret('whsec'));
+    expect(result.current.canActivate).toBe(true);
   });
 
   it('activates with the selected number + webhook secret and calls onSuccess', async () => {
@@ -89,7 +139,6 @@ describe('useTelephony', () => {
       await result.current.validateKey();
     });
     act(() => {
-      result.current.setSelectedNumberId('pn_1');
       result.current.setWebhookSecret('whsec');
     });
     await act(async () => {
@@ -102,11 +151,11 @@ describe('useTelephony', () => {
       webhook_secret: 'whsec',
       caller_number_display: '+33600000000',
     });
-    expect(result.current.step).toBe('success');
+    expect(result.current.activated).toBe(true);
     expect(onSuccess).toHaveBeenCalledOnce();
   });
 
-  it('resets back to the key step', async () => {
+  it('resets the whole form', async () => {
     h.post.mockResolvedValueOnce({ is_valid: true, message: 'ok', numbers: NUMBERS });
     const { result } = renderHook(() => useTelephony());
 
@@ -116,9 +165,9 @@ describe('useTelephony', () => {
     });
     act(() => result.current.reset());
 
-    expect(result.current.step).toBe('key');
     expect(result.current.apiKey).toBe('');
     expect(result.current.numbers).toHaveLength(0);
+    expect(result.current.activated).toBe(false);
   });
 });
 

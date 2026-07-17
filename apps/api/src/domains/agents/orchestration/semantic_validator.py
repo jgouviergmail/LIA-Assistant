@@ -33,14 +33,12 @@ import asyncio
 import json
 import re
 import time
+from collections.abc import Iterator
 from contextlib import suppress
-from dataclasses import dataclass
-from enum import Enum
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field
 
 from src.core.config import settings
 from src.core.constants import (
@@ -50,185 +48,21 @@ from src.core.constants import (
 )
 from src.domains.agents.prompts import load_prompt
 from src.infrastructure.llm.factory import get_llm
-from src.infrastructure.llm.structured_output import get_structured_output
+from src.infrastructure.llm.structured_output import StructuredOutputError, get_structured_output
 from src.infrastructure.observability.logging import get_logger
 
 from .plan_schemas import ExecutionPlan
 
+# Validation domain models extracted to validation_models.py (file-size
+# ratchet — pure data contracts). Re-exported here (``as`` form: explicit
+# re-export under mypy strict) so historical import sites keep working.
+from .validation_models import CriticalityLevel as CriticalityLevel
+from .validation_models import SemanticIssue as SemanticIssue
+from .validation_models import SemanticIssueType as SemanticIssueType
+from .validation_models import SemanticValidationOutput as SemanticValidationOutput
+from .validation_models import SemanticValidationResult as SemanticValidationResult
+
 logger = get_logger(__name__)
-
-
-# ============================================================================
-# Semantic Issue Types
-# ============================================================================
-
-
-class SemanticIssueType(str, Enum):
-    """
-    Types of semantic issues detected in execution plans.
-
-    The "Seven Deadly Sins" of plan validation - each represents a specific
-    class of plan-request mismatch that may require correction or clarification.
-
-    Critical Issues (blocking):
-        HALLUCINATED_CAPABILITY: Tool/parameter doesn't exist in available_tools
-        GHOST_DEPENDENCY: Step references non-existent output from another step
-        LOGICAL_CYCLE: Circular dependencies or deadlock conditions
-
-    Semantic Issues:
-        CARDINALITY_MISMATCH: Plan processes one item when user said "all" or vice versa
-        SCOPE_OVERFLOW: Plan does more than requested (scope creep)
-        SCOPE_UNDERFLOW: Plan ignores constraints or does less than requested (lazy execution)
-
-    Safety Issues:
-        DANGEROUS_AMBIGUITY: High-stakes action based on vague input without confirmation
-        IMPLICIT_ASSUMPTION: Plan assumes data exists without verification
-    """
-
-    # Critical - Plan cannot execute correctly
-    HALLUCINATED_CAPABILITY = "hallucinated_capability"
-    GHOST_DEPENDENCY = "ghost_dependency"
-    LOGICAL_CYCLE = "logical_cycle"
-
-    # Semantic - Plan may not match intent
-    CARDINALITY_MISMATCH = "cardinality_mismatch"
-    SCOPE_OVERFLOW = "scope_overflow"
-    SCOPE_UNDERFLOW = "scope_underflow"
-    WRONG_PARAMETERS = "wrong_parameters"  # Parameter values don't match user intent
-    MISSING_STEP = "missing_step"  # Plan is missing a necessary step
-
-    # Safety - Plan may cause unintended consequences
-    DANGEROUS_AMBIGUITY = "dangerous_ambiguity"
-    IMPLICIT_ASSUMPTION = "implicit_assumption"
-
-    # Content - User hasn't provided sufficient content for mutation
-    INSUFFICIENT_CONTENT = "insufficient_content"
-
-    # FOR_EACH pattern issues (plan_planner.md Section 10)
-    FOR_EACH_MISSING_CARDINALITY = (
-        "for_each_missing_cardinality"  # User said "each" but no for_each
-    )
-    FOR_EACH_MAX_EXCEEDED = "for_each_max_exceeded"  # for_each_max too small for expected items
-    FOR_EACH_INVALID_REFERENCE = "for_each_invalid_reference"  # for_each points to non-array
-    FOR_EACH_MISSING_ITEM_REF = "for_each_missing_item_ref"  # Parameters don't use $item references
-
-    # Legacy aliases (for backward compatibility)
-    MISSING_DEPENDENCY = "ghost_dependency"  # Alias
-    AMBIGUOUS_INTENT = "dangerous_ambiguity"  # Alias
-
-
-# ============================================================================
-# Pydantic Schemas for Structured Output
-# ============================================================================
-
-
-class SemanticIssue(BaseModel):
-    """
-    A single semantic issue detected in the plan.
-
-    Used in structured LLM output for reliable parsing.
-    Aligned with "Seven Deadly Sins" taxonomy from semantic_validator_prompt v2.
-    """
-
-    issue_type: SemanticIssueType = Field(
-        description="Type of semantic issue detected (from Seven Deadly Sins taxonomy)"
-    )
-    description: str = Field(description="Concise explanation of the error in user's language")
-    step_index: int | None = Field(
-        default=None,
-        description="Index of the affected step (0-based), null if plan-level issue",
-    )
-    affected_step_ids: list[str] = Field(
-        default_factory=list,
-        description="List of step IDs affected by this issue (for backward compatibility)",
-    )
-    severity: str = Field(
-        default="medium",
-        description="Severity: low, medium, high",
-    )
-    suggested_fix: str | None = Field(
-        default=None,
-        description="How the planner should correct this issue (actionable guidance)",
-    )
-
-
-class CriticalityLevel(str, Enum):
-    """Risk level of the execution plan."""
-
-    LOW = "LOW"  # Read-only, no side effects
-    MEDIUM = "MEDIUM"  # State-changing but reversible
-    HIGH = "HIGH"  # Irreversible actions (delete, send, pay)
-
-
-class SemanticValidationOutput(BaseModel):
-    """
-    Structured output from semantic validation LLM.
-
-    LangChain v1.0 pattern: Pydantic schema for with_structured_output().
-    Aligned with semantic_validator_prompt v2.0 output contract.
-    """
-
-    is_valid: bool = Field(description="False if ANY blocking issue is found")
-    confidence: float = Field(
-        ge=0.0,
-        le=1.0,
-        description="Confidence score 0.0-1.0. If < 0.8, is_valid should likely be false.",
-    )
-    criticality: CriticalityLevel = Field(
-        default=CriticalityLevel.LOW,
-        description="Risk level of the plan: LOW (read-only), MEDIUM (reversible), HIGH (irreversible)",
-    )
-    issues: list[SemanticIssue] = Field(
-        default_factory=list,
-        description="List of semantic issues found (empty if is_valid=True)",
-    )
-    reasoning: str = Field(description="Synthesized view of why the plan is accepted or rejected")
-    clarification_questions: list[str] = Field(
-        default_factory=list,
-        description="Questions to ask user if intent is truly ambiguous",
-    )
-
-
-# ============================================================================
-# Validation Result (Domain Model)
-# ============================================================================
-
-
-@dataclass
-class SemanticValidationResult:
-    """
-    Result of semantic validation (domain model).
-
-    This is what nodes receive (not the Pydantic schema).
-    Aligned with "Seven Deadly Sins" taxonomy from semantic_validator_prompt v2.
-
-    Attributes:
-        is_valid: False if ANY blocking issue found
-        issues: List of detected semantic issues (Seven Deadly Sins)
-        confidence: Confidence score 0.0-1.0, if < 0.8 likely invalid
-        criticality: Risk level (LOW/MEDIUM/HIGH)
-        requires_clarification: True if user input needed
-        clarification_questions: Questions to ask user
-        validation_duration_seconds: Time taken for validation
-        used_fallback: True if validation timed out and used fallback
-        fallback_reason: Reason for fallback (for UI notification)
-    """
-
-    # Required fields (no defaults)
-    is_valid: bool
-    issues: list[SemanticIssue]
-    confidence: float
-    requires_clarification: bool
-    clarification_questions: list[str]
-    validation_duration_seconds: float
-    # Optional fields (with defaults) - must come after required fields
-    criticality: CriticalityLevel = CriticalityLevel.LOW  # Default for fallbacks (Issue #60 fix)
-    used_fallback: bool = False
-    fallback_reason: str | None = None  # Reason for fallback (timeout, error, etc.)
-    clarification_field: str | None = (
-        None  # Field for which clarification was asked (e.g., "subject")
-    )
-
 
 # ============================================================================
 # Smart Validation Trigger Logic (v3.1 - LLM-based)
@@ -288,6 +122,82 @@ def _tool_is_mutation(tool_name: str) -> bool:
     """Check if a tool name indicates a mutation operation."""
     tool_lower = tool_name.lower()
     return any(pattern in tool_lower for pattern in MUTATION_TOOL_PATTERNS)
+
+
+def plan_contains_mutation(plan: Any) -> bool:
+    """True if ANY step of ``plan`` calls a mutation tool.
+
+    Public helper for the safety net that keeps an INVALID mutation plan from
+    being executed by the max-iterations bypass (it is rerouted to a HITL
+    clarification instead). Tolerates None and the dict-serialized plan form.
+    """
+    if plan is None:
+        return False
+    steps = getattr(plan, "steps", None)
+    if steps is None and isinstance(plan, dict):
+        steps = plan.get("steps")
+    for step in steps or []:
+        tool = getattr(step, "tool_name", None)
+        if tool is None and isinstance(step, dict):
+            tool = step.get("tool_name")
+        if tool and _tool_is_mutation(tool):
+            return True
+    return False
+
+
+# Emails on RFC 2606 reserved domains (example.com/org/net, .invalid, .test) are
+# ALWAYS fabricated — no real mailbox can live there. Observed in prod
+# (2026-07-17): the planner filled attendees=['jerome.gouvier@example.com'] for
+# a real contact instead of resolving or omitting. The reserved TLDs are only
+# matched as the FINAL label (dot required) so real domains like test.com or
+# invalid-prefixed names never false-positive.
+_PLACEHOLDER_EMAIL_RE = re.compile(
+    r"@(?:[\w-]+\.)*example\.(?:com|org|net)\b|@[\w.-]+\.(?:invalid|test)\b",
+    re.IGNORECASE,
+)
+
+# Free-text parameters where a placeholder address may be QUOTED legitimately
+# (e.g. a dictated email body citing example.com) — never flagged.
+_FREE_TEXT_PARAM_NAMES = frozenset(
+    {"body", "subject", "description", "notes", "content_instruction", "message", "text", "content"}
+)
+
+
+def _iter_param_strings(value: Any) -> Iterator[str]:
+    """Yield every string nested inside a parameter value (str/list/dict)."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, list | tuple):
+        for item in value:
+            yield from _iter_param_strings(item)
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _iter_param_strings(item)
+
+
+def detect_placeholder_contacts(plan: ExecutionPlan) -> list[str]:
+    """Find fabricated placeholder emails in MUTATION step parameters.
+
+    Deterministic pre-LLM guard: scans every non-free-text parameter of
+    mutation steps for RFC 2606 reserved-domain emails. Read-only steps are
+    exempt (no real-world damage, and a search query quoting a placeholder
+    must not loop the planner).
+
+    Returns:
+        Human-readable findings like ``"step_1.attendees='j.doe@example.com'"``
+        (empty list when the plan is clean).
+    """
+    findings: list[str] = []
+    for step in plan.steps:
+        if not _tool_is_mutation(step.tool_name or ""):
+            continue
+        for param_name, value in (step.parameters or {}).items():
+            if param_name.lower() in _FREE_TEXT_PARAM_NAMES:
+                continue
+            for text in _iter_param_strings(value):
+                if _PLACEHOLDER_EMAIL_RE.search(text):
+                    findings.append(f"{step.step_id}.{param_name}='{text[:60]}'")
+    return findings
 
 
 def should_trigger_semantic_validation(
@@ -363,8 +273,15 @@ def should_trigger_semantic_validation(
         if not _tool_is_mutation(single_tool_name):
             return True, f"mutation_intent_but_no_mutation_tool:{single_tool_name}"
 
-    # Short-circuit: single step (without cross-domain pattern) is safe
+    # Single-step MUTATIONS are validated: the only step writes real data, and a
+    # planner that drops conversational context invents parameters silently
+    # (observed in prod 2026-07-17: a breakfast agreed for Saturday 10:00 was
+    # planned as a default next-hour slot on Friday — the skip below let it
+    # through). Read-only single steps stay trivial: a wrong read is harmless
+    # and spurious clarification loops on reads are worse than the miss.
     if len(plan.steps) <= 1:
+        if plan.steps and _tool_is_mutation(plan.steps[0].tool_name or ""):
+            return True, "single_step_mutation"
         return False, "single_step_trivial"
 
     # =========================================================================
@@ -1367,6 +1284,48 @@ class PlanSemanticValidator:
             )
 
         # =====================================================================
+        # PLACEHOLDER CONTACT VALIDATION: Pre-LLM detection of fabricated emails
+        # =====================================================================
+        # The planner must NEVER invent contact details. Observed in prod
+        # (2026-07-17): attendees=['jerome.gouvier@example.com'] fabricated for
+        # a real contact. RFC 2606 reserved domains in a non-free-text mutation
+        # parameter are always an hallucination → deterministic REJECT with
+        # replanning feedback (resolve via contacts step or omit).
+        # =====================================================================
+        placeholder_findings = detect_placeholder_contacts(plan)
+        if placeholder_findings:
+            logger.warning(
+                "semantic_validation_placeholder_contact",
+                findings_count=len(placeholder_findings),
+                step_count=len(plan.steps),
+                duration_ms=int((time.time() - start_time) * 1000),
+            )
+            return SemanticValidationResult(
+                is_valid=False,
+                issues=[
+                    SemanticIssue(
+                        issue_type=SemanticIssueType.WRONG_PARAMETERS,
+                        description=(
+                            "Fabricated placeholder contact detail: "
+                            f"{'; '.join(placeholder_findings[:3])}"
+                        ),
+                        suggested_fix=(
+                            "NEVER invent contact details (emails, phone numbers). "
+                            "Either add a get_contacts_tool step and reference its "
+                            "output ($steps.step_N.contacts[0].emails[0]), or OMIT "
+                            "the optional parameter entirely."
+                        ),
+                        severity="high",
+                    )
+                ],
+                confidence=1.0,  # Programmatic detection = 100% confident
+                requires_clarification=False,
+                clarification_questions=[],
+                validation_duration_seconds=time.time() - start_time,
+                criticality=CriticalityLevel.HIGH,
+            )
+
+        # =====================================================================
         # FOR_EACH PATTERN VALIDATION: Check for_each coherence with user intent
         # =====================================================================
         # Validates that:
@@ -1462,10 +1421,25 @@ class PlanSemanticValidator:
 
         # Async validation with timeout
         try:
-            result = await asyncio.wait_for(
-                self._validate_with_llm(plan, user_request, user_language, config),
-                timeout=self._timeout_seconds,
-            )
+            try:
+                result = await asyncio.wait_for(
+                    self._validate_with_llm(plan, user_request, user_language, config),
+                    timeout=self._timeout_seconds,
+                )
+            except StructuredOutputError as first_error:
+                # deepseek-v4-flash keeps a residual empty-answer rate on this
+                # call (measured 2/9 on 2026-07-17 even after the prompt-conflict
+                # fix): ONE retry squares the residual (~4 %) before the
+                # fail-open fallback below would give the plan a free pass.
+                logger.warning(
+                    "semantic_validation_retry",
+                    error_type=type(first_error).__name__,
+                    raw_output_length=len(getattr(first_error, "raw_output", None) or ""),
+                )
+                result = await asyncio.wait_for(
+                    self._validate_with_llm(plan, user_request, user_language, config),
+                    timeout=self._timeout_seconds,
+                )
 
             duration = time.time() - start_time
 
@@ -1535,13 +1509,21 @@ class PlanSemanticValidator:
             # IMPORTANT: Reduced confidence (0.3) + fallback_reason for UI notification
             duration = time.time() - start_time
 
+            # StructuredOutputError carries the raw model text the rescue failed
+            # on. Its LENGTH is the key diagnostic at ERROR (0 = the model went
+            # silent — the 2026-07-17 prompt-conflict signature); the payload
+            # itself may echo user text, so it stays at DEBUG (PII rule).
+            raw_output = getattr(e, "raw_output", None)
             logger.error(
                 "semantic_validation_error_fallback",
                 error=str(e),
                 error_type=type(e).__name__,
                 duration_seconds=duration,
+                raw_output_length=len(raw_output) if raw_output else 0,
                 exc_info=True,
             )
+            if raw_output:
+                logger.debug("semantic_validation_raw_output", raw_output=raw_output[:500])
 
             # Return with explicit fallback reason for UI notification
             return SemanticValidationResult(
@@ -1739,7 +1721,7 @@ Validate this plan against the user request. Pay special attention to:
 3. **Dependencies**: Are step dependencies correctly defined?
 4. **Completeness**: Does the plan fully address the user request?
 
-Respond in {user_language}."""
+Deliver your verdict ONLY by calling the structured validation tool — never as a text answer. Write the free-text fields of the tool payload (issues, questions) in {user_language}."""
 
         return [
             SystemMessage(content=system_prompt),

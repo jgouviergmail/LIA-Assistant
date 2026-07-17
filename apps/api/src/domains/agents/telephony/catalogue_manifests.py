@@ -59,8 +59,9 @@ place_phone_call_catalogue_manifest = ToolManifest(
     description=(
         "Places an outbound phone call on the user's behalf to pursue a stated objective "
         "(e.g. 'ask if Marie is free for dinner Tuesday'). Resolves the callee to a phone "
-        "number (contact name or raw international number) and returns a draft that the user "
-        "MUST confirm before LIA dials. The summary of the call comes back asynchronously."
+        "number ITSELF (contact name or raw number — no separate contact-search step is "
+        "needed) and returns a draft that the user MUST confirm before LIA dials. The "
+        "summary of the call comes back asynchronously."
     ),
     parameters=[
         ParameterSchema(
@@ -69,8 +70,10 @@ place_phone_call_catalogue_manifest = ToolManifest(
             required=True,
             semantic_type="person_name",
             description=(
-                "Who to call: a contact name ('Marie', 'my brother') or a raw phone "
-                "number in international format (+33...)."
+                "Who to call: a contact name or a raw phone number. Pass the name "
+                "EXACTLY as known in the address book ('Marie Dupont') — never append "
+                "annotations or relationship notes ('(my wife)'), they break the "
+                "contact lookup."
             ),
             constraints=[
                 ParameterConstraint(kind="min_length", value=1),
@@ -82,7 +85,10 @@ place_phone_call_catalogue_manifest = ToolManifest(
             required=True,
             description=(
                 "What LIA must accomplish on the call, in the user's words "
-                "(e.g. 'ask if she is free for dinner on Tuesday evening')."
+                "(e.g. 'ask if she is free for dinner on Tuesday evening'). "
+                "Express every date ABSOLUTELY (weekday + date: 'Saturday July 18'), "
+                "never relatively ('tomorrow') — the voice agent speaks this to the "
+                "callee and a relative date is ambiguous on the phone."
             ),
             constraints=[
                 ParameterConstraint(kind="min_length", value=1),

@@ -193,6 +193,8 @@ def _render_context(
         f"- proposed_datetime: {structured.proposed_datetime or '(none)'}",
         f"- location: {structured.location or '(none)'}",
         f"- notes: {structured.notes or '(none)'}",
+        f"- additional_costs: {structured.additional_costs or '(none)'}",
+        f"- pending_user_decision: {structured.pending_user_decision or '(none)'}",
     ]
     if transcript:
         parts.append(f"TRANSCRIPT EXCERPT:\n{transcript}")

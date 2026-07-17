@@ -131,6 +131,14 @@ async def init_agent_registry(
             registry.register_agent("health_agent", build_health_agent)
             logger.info("health_agent_registered")
 
+        # Agentic telephony agent (ADR-127) — gated on feature flag, symmetric
+        # with the catalogue-manifest registration in catalogue_loader.py
+        if getattr(settings, "telephony_enabled", False):
+            from src.domains.agents.graphs import build_telephony_agent
+
+            registry.register_agent("telephony_agent", build_telephony_agent)
+            logger.info("telephony_agent_registered")
+
         # Browser agent (F7 - lazy-initialized, Chromium only starts on first browser tool call)
         # Pool.initialize() deferred to first acquire_session() to save ~1.5 GB RAM at boot.
         # Cleanup job is registered on ALL workers (leader election requires it) but is

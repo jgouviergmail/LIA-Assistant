@@ -532,6 +532,32 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "per_user_opt_in": True,
         },
     ),
+    # Agentic telephony (ADR-127) — outbound phone calls on the user's behalf.
+    # Routability is deployment-flag-gated at the query-analyzer chokepoint
+    # (_build_available_domains filters this domain when TELEPHONY_ENABLED is
+    # off, mirroring the MCP filtering), because is_routable is static.
+    "telephony": DomainConfig(
+        name="telephony",
+        display_name="Telephony",
+        description=(
+            "Place a real outbound phone call on the user's behalf via their "
+            "telephony connector: call a person or a phone number to pursue a "
+            "stated objective (ask a question, check availability, book or "
+            "confirm something), then report back asynchronously in the chat. "
+            "Use whenever the user asks to phone/call/ring someone or a number. "
+            "NOT for video calls, SMS, or reading past call history."
+        ),
+        agent_names=["telephony_agent"],
+        result_key="calls",
+        related_domains=["contact"],
+        is_routable=True,
+        metadata={
+            "provider": "elevenlabs",
+            "requires_oauth": False,
+            "requires_api_key": True,
+            "requires_hitl": True,  # every call is confirmed via a PHONE_CALL draft
+        },
+    ),
     "devops": DomainConfig(
         name="devops",
         display_name="DevOps (Claude CLI)",
@@ -567,9 +593,7 @@ def slugify_mcp_server_name(name: str) -> str:
     Returns:
         Slugified domain name (e.g., "mcp_huggingface_hub").
     """
-    slug = re.sub(r"[^a-z0-9]", "_", name.lower())
-    slug = re.sub(r"_+", "_", slug).strip("_")
-    slug = slug[:40]
+    slug = re.sub(r"_+", "_", re.sub(r"[^a-z0-9]", "_", name.lower())).strip("_")[:40]
     if not slug:
         return "mcp_unnamed"
     return f"{MCP_DOMAIN_PREFIX}{slug}"
@@ -806,17 +830,10 @@ def get_result_key_for_tool(tool_name: str) -> str | None:
     # - {action}_{domain}s_tool (e.g., get_contacts_tool, get_events_tool)
     # - {domain}_{action}_tool (e.g., perplexity_search_tool, wikipedia_search_tool)
     for domain_name, config in DOMAIN_REGISTRY.items():
-        # Pattern 1: _{domain}_ (action_domain_tool)
-        if f"_{domain_name}_" in tool_lower:
-            return config.result_key
-        # Pattern 2: _{domain}s_ (action_domains_tool - plural)
-        if f"_{domain_name}s_" in tool_lower:
-            return config.result_key
-        # Pattern 3: {domain}_ at start (domain_action_tool)
-        if tool_lower.startswith(f"{domain_name}_"):
-            return config.result_key
-        # Pattern 4: {domain}s_ at start (domains_action_tool - plural)
-        if tool_lower.startswith(f"{domain_name}s_"):
+        # Patterns: _{domain}_ / _{domain}s_ anywhere (action_domain(s)_tool),
+        # or {domain}_ / {domain}s_ at the start (domain(s)_action_tool).
+        starts = tool_lower.startswith((f"{domain_name}_", f"{domain_name}s_"))
+        if f"_{domain_name}_" in tool_lower or f"_{domain_name}s_" in tool_lower or starts:
             return config.result_key
 
     # Fallback: check if result_key itself appears in tool name
@@ -845,17 +862,9 @@ def export_context_labels_for_router() -> str:
         - Domain names are converted to context labels
         - Only routable domains are included
     """
-    # Static labels that are always valid
-    static_labels = ["general"]
-
-    # Dynamic labels from routable domains
-    domain_labels = get_routable_domains()
-
-    # 'info' covers wikipedia, perplexity (knowledge domains)
-    # This is a semantic grouping for conversational context
-    all_labels = static_labels + domain_labels + ["info"]
-
-    return "|".join(all_labels)
+    # 'general' and 'info' are always valid; 'info' covers the knowledge
+    # domains (wikipedia, perplexity) as a semantic conversational grouping.
+    return "|".join(["general", *get_routable_domains(), "info"])
 
 
 def validate_domain_registry() -> list[str]:

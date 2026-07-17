@@ -43,6 +43,7 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.orchestration.semantic_validator import (
     PlanSemanticValidator,
+    plan_contains_mutation,
 )
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
@@ -328,14 +329,55 @@ async def semantic_validator_node(
         # If issues found and needs auto-replan, increment iteration counter
         # This prevents infinite loops (max: PLANNER_MAX_REPLANS setting)
         if not validation_result.is_valid and not validation_result.requires_clarification:
+            from src.core.config import settings
+
             current_iteration = state.get(STATE_KEY_PLANNER_ITERATION, 0)
-            state_updates[STATE_KEY_PLANNER_ITERATION] = current_iteration + 1
-            logger.info(
-                "semantic_validator_node_auto_replan_triggered",
-                planner_iteration=current_iteration + 1,
-                issue_count=len(validation_result.issues),
-                msg="Fixable issues found, will route back to planner for auto-correction",
-            )
+            # This increment would produce the value at which the router bypasses
+            # (planner_iteration > planner_max_replans): auto-replans are exhausted.
+            exhausting = current_iteration + 1 > settings.planner_max_replans
+            execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
+
+            if exhausting and plan_contains_mutation(execution_plan):
+                # SAFETY NET (mutations only): the max-iterations bypass would
+                # execute this still-INVALID mutation plan (silently wrong — prod
+                # 2026-07-17: a calendar event created on the wrong day after the
+                # replanner failed to converge). Hand it to a HITL clarification
+                # instead: the routing then takes Case 5 (clarification, since the
+                # iteration is NOT bumped past the bypass threshold) and
+                # ClarificationInteraction synthesizes a localized question from
+                # the issues. Read-only plans keep the bypass — a wrong read is
+                # harmless and asking would only annoy.
+                validation_result.requires_clarification = True
+                # Surface the specific mismatches so the user knows WHAT to
+                # confirm: the issue descriptions are already localized, and the
+                # ClarificationInteraction renders them under the localized
+                # "points needing clarification" header (its issue→question
+                # generator is not built yet, so an empty list would only yield a
+                # generic fallback question). Capped to keep the prompt readable.
+                if not validation_result.clarification_questions:
+                    validation_result.clarification_questions = [
+                        issue.description
+                        for issue in validation_result.issues[:3]
+                        if getattr(issue, "description", None)
+                    ]
+                # planner_iteration deliberately NOT incremented: a clarification
+                # is not an auto-replan (2026-01-14) and the un-bumped value is
+                # what keeps the router on the clarification branch.
+                logger.warning(
+                    "semantic_validator_node_mutation_exhausted_to_clarification",
+                    planner_iteration=current_iteration,
+                    issue_count=len(validation_result.issues),
+                    msg="Invalid mutation plan exhausted auto-replans; asking the user "
+                    "instead of executing a wrong mutation",
+                )
+            else:
+                state_updates[STATE_KEY_PLANNER_ITERATION] = current_iteration + 1
+                logger.info(
+                    "semantic_validator_node_auto_replan_triggered",
+                    planner_iteration=current_iteration + 1,
+                    issue_count=len(validation_result.issues),
+                    msg="Fixable issues found, will route back to planner for auto-correction",
+                )
 
         return state_updates
 

@@ -187,6 +187,8 @@ LLMType = Literal[
     "briefing",
     # Agentic telephony — post-call return synthesis (tool-less)
     "telephony_synthesis",
+    # Agentic telephony — domain agent wrapping place_phone_call (ADR-127)
+    "telephony_agent",
 ]
 
 

@@ -129,6 +129,9 @@ Privacy is enforced **by design**, not by instructions:
 • **📢 Transparent disclosure** — the agent always introduces itself as an assistant calling on your behalf; it never pretends to be you.
 • **✅ You stay in control** — every call is confirmed by you before it is placed.
 
+## Can the assistant accept an extra or commit to an expense for me?
+No, never. The assistant operates under a **strict mandate**: it can only act within the exact scope of your request. If the person offers an extra, an option, a price change or any unplanned commitment (even a small one, like a 3€ cheese topping on a pizza), it neither accepts nor declines on your behalf: it **notes the exact offer and its price**, explains that it cannot confirm by itself, and announces a call-back to confirm. You then find everything in the call summary — every cost with its amount, every open point — and LIA asks you how to proceed. If you wish, just request a new call with your instructions ("call back and accept the cheese topping").
+
 ## How much do phone calls cost?
 LIA adds **no charge of its own** — costs go to your two external accounts:
 

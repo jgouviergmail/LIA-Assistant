@@ -16,10 +16,12 @@ from uuid import UUID
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
+from src.core.exceptions import ExternalServiceError
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
 from src.domains.connectors.service import ConnectorService
-from src.domains.telephony.agent_prompt import build_agent_config
-from src.domains.telephony.client import ElevenLabsAgentsClient
+from src.domains.telephony.agent_prompt import agent_config_fingerprint, build_agent_config
+from src.domains.telephony.client import ElevenLabsAgentsClient, ElevenLabsAgentsError
 from src.domains.telephony.schemas import KeyValidationResult, PhoneNumberInfo
 
 logger = structlog.get_logger(__name__)
@@ -66,7 +68,14 @@ class TelephonyConnectorService:
 
     async def list_numbers(self, api_key: str) -> list[PhoneNumberInfo]:
         """List the phone numbers imported in the user's ElevenLabs workspace."""
-        return await self._client_factory(api_key).list_phone_numbers()
+        try:
+            return await self._client_factory(api_key).list_phone_numbers()
+        except ElevenLabsAgentsError as exc:
+            raise ExternalServiceError(
+                service_name="elevenlabs",
+                detail=f"ElevenLabs phone-number listing failed: {exc.detail}",
+                status_code_upstream=exc.status_code,
+            ) from exc
 
     async def activate(
         self,
@@ -81,18 +90,42 @@ class TelephonyConnectorService:
     ) -> Connector:
         """Provision the LIA-controlled agent and persist the encrypted connector."""
         cfg = build_agent_config(user_language, user_name)
-        agent_id = await self._client_factory(api_key).create_agent(
-            name=cfg.name,
-            system_prompt=cfg.system_prompt,
-            first_message=cfg.first_message,
-            language=cfg.language,
-            data_collection=cfg.data_collection,
-        )
+        try:
+            agent_id = await self._client_factory(api_key).create_agent(
+                name=cfg.name,
+                system_prompt=cfg.system_prompt,
+                first_message=cfg.first_message,
+                language=cfg.language,
+                # Vendor constraint: non-English agents require a turbo/flash
+                # v2.5 TTS model — without it agent creation is rejected (400).
+                llm_model=settings.telephony_agent_llm_model or None,
+                tts_model_id=settings.telephony_agent_tts_model_id,
+                voice_id=settings.telephony_agent_voice_id or None,
+                audio_format=settings.telephony_agent_audio_format or None,
+                max_duration_seconds=settings.telephony_max_call_duration_seconds,
+                data_collection=cfg.data_collection,
+            )
+        except ElevenLabsAgentsError as exc:
+            raise ExternalServiceError(
+                service_name="elevenlabs",
+                detail=f"ElevenLabs agent provisioning failed: {exc.detail}",
+                status_code_upstream=exc.status_code,
+            ) from exc
 
         metadata: dict[str, Any] = {
             "agent_id": agent_id,
             "agent_phone_number_id": agent_phone_number_id,
             "caller_number_display": caller_number_display,
+            # Lazy re-sync anchor: initiate_call compares this against the
+            # current config and PATCHes the agent in place on drift.
+            "agent_config_hash": agent_config_fingerprint(
+                cfg,
+                llm_model=settings.telephony_agent_llm_model or None,
+                tts_model_id=settings.telephony_agent_tts_model_id,
+                voice_id=settings.telephony_agent_voice_id or None,
+                audio_format=settings.telephony_agent_audio_format or None,
+                max_duration_seconds=settings.telephony_max_call_duration_seconds,
+            ),
         }
         connector_service = ConnectorService(self.db)
         await connector_service.activate_api_key_connector(
@@ -114,8 +147,10 @@ class TelephonyConnectorService:
     async def deactivate(self, user_id: UUID) -> None:
         """Best-effort agent cleanup, then remove the connector row.
 
-        TODO(P6): invalidate the user-connectors cache (activate does it via
-        ConnectorService; deactivate deletes directly here).
+        Deletion goes through ``ConnectorService.delete_connector`` so the
+        Redis ``user_connectors`` cache is invalidated like every other
+        disconnect — a direct row delete left the cached list serving the
+        connector as still connected until its TTL expired.
         """
         connector_service = ConnectorService(self.db)
         connector = await connector_service.repository.get_by_user_and_type(
@@ -132,6 +167,5 @@ class TelephonyConnectorService:
             # The agent lives in the user's workspace — delete is best-effort.
             await self._client_factory(creds.api_key).delete_agent(agent_id)
 
-        await self.db.delete(connector)
-        await self.db.commit()
+        await connector_service.delete_connector(user_id, connector.id)
         logger.info("telephony_connector_deactivated", user_id=str(user_id))

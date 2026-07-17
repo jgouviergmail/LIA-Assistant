@@ -463,6 +463,35 @@ TELEPHONY_MAX_CALL_DURATION_SECONDS_DEFAULT = 600
 TELEPHONY_CALL_RETENTION_DAYS_DEFAULT = 30
 TELEPHONY_STALE_CALL_TIMEOUT_MINUTES_DEFAULT = 15
 TELEPHONY_RATE_LIMIT_PER_HOUR_DEFAULT = 10
+# TTS model of the provisioned voice agent. ElevenLabs REQUIRES a turbo/flash
+# v2.5 model for non-English agents (real 400 observed: "Non-english Agents
+# must use turbo or flash v2_5"); flash v2.5 is the low-latency phone choice.
+TELEPHONY_AGENT_TTS_MODEL_ID_DEFAULT = "eleven_flash_v2_5"
+# Default country calling code applied to NATIONAL numbers (single leading 0,
+# no '+'): "0682511639" -> "+33682511639" when set to "+33". Empty = keep the
+# number as-is (telephony vendors may reject non-E.164 numbers).
+TELEPHONY_DEFAULT_COUNTRY_CODE_DEFAULT = ""
+# Voice of the provisioned agent (ElevenLabs voice id). Empty = vendor default,
+# which is an ENGLISH voice — set a multilingual/native voice for non-English
+# deployments (garbled speech reported with the default voice on French calls).
+TELEPHONY_AGENT_VOICE_ID_DEFAULT = ""
+# Audio format of the agent (output TTS + input ASR). The phone network runs
+# 8 kHz mu-law: Twilio telephony REQUIRES ulaw_8000 (vendor troubleshooting for
+# garbled/poor audio names exactly this), higher formats are inaudible on a
+# call and only add latency. Empty = vendor default (pcm_16000).
+TELEPHONY_AGENT_AUDIO_FORMAT_DEFAULT = "ulaw_8000"
+# LLM behind the vendor voice agent. NEVER left to the platform default: that
+# default is gemini-2.5-flash (verified on a fresh agent), a thinking model
+# observed reciting its English reasoning/directives ALOUD on a real French
+# call. gpt-4o-mini is fast, thinking-free and voice-proven. Empty = platform
+# default (not recommended).
+TELEPHONY_AGENT_LLM_MODEL_DEFAULT = "gpt-4o-mini"
+# Grace window before a 404 conversation-status probe may close an active call
+# row as gone. A conversation can vanish vendor-side (observed: connector
+# deactivation deleted the agent mid-call → its conversation with it → the
+# end-of-call webhook can never arrive), but a FRESHLY dialed conversation
+# might not be readable yet — closing it would allow a concurrent second call.
+TELEPHONY_PROBE_NOT_FOUND_GRACE_SECONDS_DEFAULT = 60
 # Post-call webhook HMAC replay window: reject signatures whose timestamp is
 # older than this (strict, like Stripe's construct_event tolerance).
 TELEPHONY_WEBHOOK_TOLERANCE_SECONDS_DEFAULT = 1800

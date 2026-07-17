@@ -621,11 +621,17 @@ def _format_draft_execution_result(result: dict[str, Any] | None) -> str:
                 last_key = field.content_key.rsplit(".", 1)[-1]
                 if last_key in ("body", "description", "notes") and len(str_value) > 200:
                     str_value = str_value[:200] + "…"
-                details.append(f"{field.emoji} **{label}** : {str_value}")
+                # Explicit <br/> per field: the response LLM re-emits this block
+                # inside its HTML answer, where bare "\n" soft-wraps and markdown
+                # "-" bullets get half-copied (observed: two fields merged with a
+                # stray dash). <br/> survives the copy verbatim and renders as a
+                # hard break in every display mode (sanitize schema keeps `br`,
+                # same convention as the draft preview_renderer).
+                details.append(f"<br/>{field.emoji} **{label}** : {str_value}")
 
         html_link = data.get("html_link")
         if html_link:
-            details.append(f"🔗 [{_('Link', user_lang)}]({html_link})")
+            details.append(f"<br/>🔗 [{_('Link', user_lang)}]({html_link})")
 
         header = f"\n\n{domain_emoji} ✅ {message}"
         if details:

@@ -251,6 +251,14 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=["tools"],
         power_tier=POWER_TIER_LOW,
     ),
+    "telephony_agent": LLMTypeMetadata(
+        llm_type="telephony_agent",
+        display_name="Telephony Agent",
+        category=CATEGORY_DOMAIN_AGENTS,
+        description_key="settings.admin.llmConfig.types.telephony_agent",
+        required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
+    ),
     # --- Query & Response ---
     "query_agent": LLMTypeMetadata(
         llm_type="query_agent",
@@ -809,6 +817,18 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1500,
+        timeout_seconds=30.0,
+    ),
+    # Telephony agent: a single draft-producing tool call (place_phone_call) —
+    # small deterministic model, same profile as the other domain agents.
+    "telephony_agent": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-nano",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=1000,
         timeout_seconds=30.0,
     ),
     "web_fetch_agent": LLMAgentConfig(

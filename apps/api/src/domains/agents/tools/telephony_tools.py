@@ -44,11 +44,31 @@ def _looks_like_phone(value: str) -> bool:
 
 
 def _normalize_phone(value: str) -> str:
-    """Collapse a raw number to a compact E.164-ish form (keep leading '+')."""
+    """Collapse a raw number to a compact E.164-ish form (keep leading '+').
+
+    When ``TELEPHONY_DEFAULT_COUNTRY_CODE`` is configured, a national number
+    (single leading 0, e.g. ``0682511639``) is converted to E.164 by replacing
+    the trunk 0 (``+33682511639``). ``00``-prefixed international numbers and
+    numbers already carrying ``+`` are left untouched.
+    """
     stripped = value.strip()
-    plus = stripped.startswith("+")
-    digits = re.sub(r"\D", "", stripped)
-    return f"+{digits}" if plus else digits
+    if stripped.startswith("+"):
+        return f"+{re.sub(r'[^0-9]', '', stripped)}"
+    digits = re.sub(r"[^0-9]", "", stripped)
+    country_code = get_settings().telephony_default_country_code
+    if country_code and len(digits) >= 6 and digits.startswith("0") and not digits.startswith("00"):
+        return f"{country_code}{digits[1:]}"
+    return digits
+
+
+def _strip_trailing_annotations(contact: str) -> str:
+    """Drop trailing parenthetical annotations an LLM may append to a name.
+
+    ``"Hua Gouvier (my wife)"`` -> ``"Hua Gouvier"``. Only TRAILING groups are
+    stripped, and only as a retry fallback — contacts legitimately named with a
+    parenthetical (e.g. ``"Jean Dupont (plombier)"``) still match exact-first.
+    """
+    return re.sub(r"(?:\s*\([^)]*\))+\s*$", "", contact).strip()
 
 
 def _person_display_name(person: dict) -> str:
@@ -58,9 +78,20 @@ def _person_display_name(person: dict) -> str:
 
 
 def _person_first_phone(person: dict) -> str:
-    """First phone value of a Google People person, or '' when absent."""
+    """First dialable phone of a Google People person, or '' when absent.
+
+    Prefers ``canonicalForm`` (E.164, e.g. ``+33682511639``) over ``value``
+    (display formatting, e.g. ``"06 82 51 16 39"``); the value fallback is
+    normalized so the dial never receives spaces/dots.
+    """
     phones = person.get("phoneNumbers") or []
-    return phones[0].get("value", "") if phones else ""
+    if not phones:
+        return ""
+    canonical = phones[0].get("canonicalForm", "")
+    if canonical:
+        return canonical
+    value = phones[0].get("value", "")
+    return _normalize_phone(value) if value else ""
 
 
 @dataclass(frozen=True)
@@ -111,13 +142,25 @@ async def _search_contacts_with_phones(
             query, max_results=max_results, fields=["names", "phoneNumbers"]
         )
 
-    results = result.get("results", []) or []
-    if not results:
+    return _extract_candidates(result)
+
+
+def _extract_candidates(result: dict) -> tuple[list[tuple[str, str]], str | None]:
+    """Parse a provider search payload into ``(candidates, first_match_name)``.
+
+    Every provider wraps search hits as ``{"person": {...}}`` (Google natively,
+    Microsoft/Apple by parity — see their ``search_contacts``); an unwrapped
+    person is tolerated defensively.
+    """
+    persons = [
+        (r.get("person") or r) for r in (result.get("results", []) or []) if isinstance(r, dict)
+    ]
+    if not persons:
         return [], None
     candidates = [
-        (_person_display_name(p), _person_first_phone(p)) for p in results if _person_first_phone(p)
+        (_person_display_name(p), _person_first_phone(p)) for p in persons if _person_first_phone(p)
     ]
-    return candidates, _person_display_name(results[0])
+    return candidates, _person_display_name(persons[0])
 
 
 async def _resolve_callee(user_id: UUID, contact: str) -> _CalleeResolution:
@@ -127,6 +170,12 @@ async def _resolve_callee(user_id: UUID, contact: str) -> _CalleeResolution:
         return _CalleeResolution(kind="resolved", name=number, phone=number)
 
     candidates, first_match_name = await _search_contacts_with_phones(user_id, contact)
+    if first_match_name is None:
+        # Exact-first, sanitized retry: planners occasionally annotate the name
+        # ("Hua Gouvier (my wife)") which the providers' exact search rejects.
+        cleaned = _strip_trailing_annotations(contact)
+        if cleaned and cleaned != contact:
+            candidates, first_match_name = await _search_contacts_with_phones(user_id, cleaned)
     if first_match_name is None:
         return _CalleeResolution(kind="not_found")
     if not candidates:

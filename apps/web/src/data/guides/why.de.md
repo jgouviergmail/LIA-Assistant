@@ -4,7 +4,7 @@
 
 **Version** : 3.7
 **Datum** : 2026-07-17
-**Anwendung** : LIA v1.25.4
+**Anwendung** : LIA v1.25.5
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -179,7 +179,7 @@ Drei Verwaltungsaktionen geben Ihnen die volle Kontrolle: alle Herzfrequenz-Mess
 
 LIA kann für Sie zum Hörer greifen. Bitten Sie sie, „die Werkstatt anzurufen, um zu prüfen, ob das Auto fertig ist" oder „Marie anzurufen und zu fragen, ob sie Dienstagabend Zeit hat", und LIA tätigt einen echten ausgehenden Anruf, führt das Gespräch auf Ihr Ziel hin und bringt eine schriftliche Zusammenfassung zurück — mit einer Folgeaktion per Fingertipp, wenn danach etwas zu tun ist (etwa den soeben vereinbarten Termin buchen).
 
-Sie bleiben stets eingebunden: Vor dem Wählen sagt Ihnen LIA genau, **wen** sie anruft und **warum**, und wartet auf Ihr Einverständnis. Die Zusammenfassung landet asynchron im Chat, sodass Sie während des Anrufs anderes erledigen können.
+Sie bleiben stets eingebunden: Vor dem Wählen sagt Ihnen LIA genau, **wen** sie anruft und **warum**, und wartet auf Ihr Einverständnis. Und diese Kontrolle endet nicht während des Anrufs: Der Assistent arbeitet unter einem strikten Mandat — bietet der Gesprächspartner einen Aufpreis, eine Option oder eine ungeplante Verpflichtung an (selbst eine kleine), akzeptiert er niemals in Ihrem Namen; er notiert Angebot und Preis, kündigt einen Rückruf an, und die Zusammenfassung legt Ihnen jeden Betrag und jeden offenen Punkt zur Entscheidung vor. Die Zusammenfassung landet asynchron im Chat, sodass Sie während des Anrufs anderes erledigen können.
 
 Und es bleibt konstruktionsbedingt privat. Während eines Anrufs kann LIA nur mitteilen, ob Sie zu einem bestimmten Zeitpunkt frei oder gebucht sind — nie die Titel, Gäste oder Orte in Ihrem Kalender. Nichts wird aufgezeichnet, das Gespräch wird nie gespeichert, und nur eine kurze Zusammenfassung bleibt erhalten, bevor sie abläuft. Anrufe laufen über Ihren eigenen ElevenLabs-Connector, abgerechnet über Ihr Konto, und die Funktion ist nur vorhanden, wenn Ihr Administrator sie aktiviert hat.
 

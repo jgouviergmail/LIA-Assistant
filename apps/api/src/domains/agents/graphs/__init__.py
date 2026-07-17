@@ -12,6 +12,7 @@ from src.domains.agents.graphs.places_agent_builder import build_places_agent
 from src.domains.agents.graphs.query_agent_builder import build_query_agent
 from src.domains.agents.graphs.routes_agent_builder import build_routes_agent
 from src.domains.agents.graphs.tasks_agent_builder import build_tasks_agent
+from src.domains.agents.graphs.telephony_agent_builder import build_telephony_agent
 from src.domains.agents.graphs.weather_agent_builder import build_weather_agent
 from src.domains.agents.graphs.web_fetch_agent_builder import build_web_fetch_agent
 from src.domains.agents.graphs.web_search_agent_builder import build_web_search_agent
@@ -39,4 +40,6 @@ __all__ = [
     "build_query_agent",
     # Health Metrics agent (v1.17.2)
     "build_health_agent",
+    # Agentic telephony agent (ADR-127)
+    "build_telephony_agent",
 ]

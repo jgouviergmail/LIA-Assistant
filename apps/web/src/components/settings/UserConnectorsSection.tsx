@@ -910,23 +910,29 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                {!showTelephonyWizard ? (
-                  <AvailableConnectorCard
-                    connectorType="elevenlabs_telephony"
-                    label={t('settings.connectors.telephony.label')}
-                    description={t('settings.connectors.telephony.description')}
-                    onConnect={() => setShowTelephonyWizard(true)}
-                  />
-                ) : (
-                  <TelephonyConnectorForm
-                    lng={lng}
-                    onSuccess={() => {
-                      setShowTelephonyWizard(false);
-                      refetch();
-                    }}
-                    onCancel={() => setShowTelephonyWizard(false)}
-                  />
-                )}
+                <div className="space-y-3">
+                  {!showTelephonyWizard ? (
+                    <AvailableConnectorCard
+                      connectorType="elevenlabs_telephony"
+                      label={t('settings.connectors.telephony.label')}
+                      description={t('settings.connectors.telephony.description')}
+                      onConnect={() => setShowTelephonyWizard(true)}
+                    />
+                  ) : (
+                    <TelephonyConnectorForm
+                      lng={lng}
+                      onSuccess={() => {
+                        setShowTelephonyWizard(false);
+                        refetch();
+                      }}
+                      onCancel={() => setShowTelephonyWizard(false)}
+                    />
+                  )}
+                  {/* Past calls belong to the user, not the connector — keep the
+                      history visible after a disconnect (rows are never erased).
+                      hideWhenEmpty: no "no calls yet" noise for never-users. */}
+                  <TelephonyCallHistory lng={lng} hideWhenEmpty />
+                </div>
               </AccordionContent>
             </AccordionItem>
           )}

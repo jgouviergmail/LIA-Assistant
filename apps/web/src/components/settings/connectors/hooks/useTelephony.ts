@@ -1,11 +1,11 @@
 /**
- * Hook for the per-user telephony (ElevenLabs) connector wizard.
+ * Hook for the per-user telephony (ElevenLabs) connector single-screen form.
  *
- * Multi-step BYO flow (spec §4.2):
- * 1. key      — paste the ElevenLabs API key → validate + list workspace numbers
- * 2. number   — pick the number LIA will call from
- * 3. webhook  — show LIA's post-call webhook URL + paste the workspace HMAC secret
- * 4. success  — the guardrailed agent is provisioned and the connector is active
+ * The whole configuration is exposed at once (BYO key, calling number, post-call
+ * webhook secret); only the number list is intrinsically dependent — it can only
+ * be fetched once the key is validated, so the number picker enables after
+ * `validateKey`. Editing the key invalidates a previously loaded list (the
+ * numbers belong to the old key's workspace).
  *
  * Calls are billed on the user's own ElevenLabs/telephony accounts (D-9).
  */
@@ -39,8 +39,6 @@ interface UseTelephonyOptions {
   onError?: (error: string) => void;
 }
 
-export type TelephonyStep = 'key' | 'number' | 'webhook' | 'success';
-
 /** Public URL the user pastes into their ElevenLabs workspace webhook config. */
 export function buildTelephonyWebhookUrl(): string {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
@@ -49,32 +47,48 @@ export function buildTelephonyWebhookUrl(): string {
 
 export function useTelephony({ onSuccess, onError }: UseTelephonyOptions = {}) {
   const { t } = useTranslation();
-  const [step, setStep] = useState<TelephonyStep>('key');
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKeyRaw] = useState('');
   const [numbers, setNumbers] = useState<TelephonyPhoneNumber[]>([]);
   const [selectedNumberId, setSelectedNumberId] = useState<string | null>(null);
   const [webhookSecret, setWebhookSecret] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
+  const [activated, setActivated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /** Editing the key invalidates the loaded numbers (they belong to the old key). */
+  const setApiKey = useCallback(
+    (value: string) => {
+      setApiKeyRaw(value);
+      if (numbers.length > 0) {
+        setNumbers([]);
+        setSelectedNumberId(null);
+      }
+    },
+    [numbers.length]
+  );
+
   const validateKey = useCallback(async () => {
-    setIsLoading(true);
+    setIsValidating(true);
     setError(null);
     try {
-      const data = await apiClient.post<ValidateKeyResponse>(
-        '/telephony/connector/validate-key',
-        { api_key: apiKey }
-      );
+      const data = await apiClient.post<ValidateKeyResponse>('/telephony/connector/validate-key', {
+        api_key: apiKey,
+      });
       if (!data.is_valid) {
         setError(t('settings.connectors.telephony.invalid_key'));
         return;
       }
-      setNumbers(data.numbers || []);
-      if (!data.numbers || data.numbers.length === 0) {
+      const loaded = data.numbers || [];
+      setNumbers(loaded);
+      if (loaded.length === 0) {
         setError(t('settings.connectors.telephony.no_numbers'));
         return;
       }
-      setStep('number');
+      // Single number: preselect it — nothing left to choose.
+      if (loaded.length === 1) {
+        setSelectedNumberId(loaded[0].phone_number_id);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Validation failed';
       logger.error('Telephony key validation failed', err as Error, {
@@ -83,13 +97,13 @@ export function useTelephony({ onSuccess, onError }: UseTelephonyOptions = {}) {
       setError(msg);
       onError?.(msg);
     } finally {
-      setIsLoading(false);
+      setIsValidating(false);
     }
   }, [apiKey, t, onError]);
 
   const activate = useCallback(async () => {
     if (!selectedNumberId) return;
-    setIsLoading(true);
+    setIsActivating(true);
     setError(null);
     try {
       const selected = numbers.find(n => n.phone_number_id === selectedNumberId);
@@ -99,7 +113,7 @@ export function useTelephony({ onSuccess, onError }: UseTelephonyOptions = {}) {
         webhook_secret: webhookSecret,
         caller_number_display: selected?.phone_number ?? null,
       });
-      setStep('success');
+      setActivated(true);
       onSuccess?.();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Activation failed';
@@ -107,23 +121,31 @@ export function useTelephony({ onSuccess, onError }: UseTelephonyOptions = {}) {
       setError(msg);
       onError?.(msg);
     } finally {
-      setIsLoading(false);
+      setIsActivating(false);
     }
   }, [apiKey, selectedNumberId, webhookSecret, numbers, onSuccess, onError]);
 
   const reset = useCallback(() => {
-    setStep('key');
-    setApiKey('');
+    setApiKeyRaw('');
     setNumbers([]);
     setSelectedNumberId(null);
     setWebhookSecret('');
     setError(null);
-    setIsLoading(false);
+    setIsValidating(false);
+    setIsActivating(false);
+    setActivated(false);
   }, []);
 
+  /** All fields ready — the single Activate button can be enabled. */
+  const canActivate =
+    apiKey.trim().length >= 8 &&
+    numbers.length > 0 &&
+    selectedNumberId !== null &&
+    webhookSecret.trim().length > 0 &&
+    !isValidating &&
+    !isActivating;
+
   return {
-    step,
-    setStep,
     apiKey,
     setApiKey,
     numbers,
@@ -131,7 +153,10 @@ export function useTelephony({ onSuccess, onError }: UseTelephonyOptions = {}) {
     setSelectedNumberId,
     webhookSecret,
     setWebhookSecret,
-    isLoading,
+    isValidating,
+    isActivating,
+    activated,
+    canActivate,
     error,
     validateKey,
     activate,

@@ -4,7 +4,7 @@
 
 **Version**: 3.7
 **Date**: 2026-07-17
-**Application**: LIA v1.25.4
+**Application**: LIA v1.25.5
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -179,7 +179,7 @@ Three management actions give you full control: delete all heart-rate samples, d
 
 LIA can pick up the phone for you. Ask it to "call the garage to check if the car is ready" or "call Marie and ask if she's free Tuesday evening", and LIA places a real outbound call, holds the conversation toward your goal, and brings back a written summary — with a one-tap follow-up when there's something to do next (booking the slot it just agreed, for instance).
 
-You are always in the loop: before dialing, LIA tells you exactly **who** it will call and **why**, and waits for your go-ahead. The summary lands in the chat asynchronously, so you can keep doing other things while the call happens.
+You are always in the loop: before dialing, LIA tells you exactly **who** it will call and **why**, and waits for your go-ahead. And that control doesn't stop during the call: the assistant operates under a strict mandate — if the person offers an extra, an option or any unplanned commitment (even a small one), it never accepts on your behalf; it notes the offer and its price, announces a call-back, and the summary hands you every cost and every open point so you decide. The summary lands in the chat asynchronously, so you can keep doing other things while the call happens.
 
 And it stays private by construction. During a call LIA can only tell whether you're free or busy at a given time — never the titles, guests or places on your calendar. Nothing is recorded, the conversation is never stored, and only a short summary is kept before it expires. Phone calls run through your own ElevenLabs connector, billed on your account, and the feature is there only if your administrator turned it on.
 

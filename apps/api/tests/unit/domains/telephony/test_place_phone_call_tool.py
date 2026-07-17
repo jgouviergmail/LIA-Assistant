@@ -12,10 +12,15 @@ from uuid import uuid4
 import pytest
 
 import src.domains.agents.tools.telephony_tools as tmod
+from src.core.config import settings
 from src.domains.agents.tools.telephony_tools import (
     _build_place_phone_call_output,
+    _extract_candidates,
     _looks_like_phone,
     _normalize_phone,
+    _person_first_phone,
+    _resolve_callee,
+    _strip_trailing_annotations,
 )
 
 
@@ -50,9 +55,126 @@ def test_looks_like_phone(value: str, expected: bool) -> None:
 
 
 @pytest.mark.unit
-def test_normalize_phone_keeps_plus_and_digits() -> None:
+def test_normalize_phone_keeps_plus_and_digits(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Pin the deployment knob: this test asserts the WITHOUT-country-code
+    # behavior and must not depend on the ambient .env value.
+    monkeypatch.setattr(settings, "telephony_default_country_code", "", raising=False)
     assert _normalize_phone("+33 6 12-34.56 78") == "+33612345678"
     assert _normalize_phone("06 12 34 56 78") == "0612345678"
+
+
+@pytest.mark.unit
+def test_normalize_phone_applies_default_country_code(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A national number (single leading 0) gains the configured E.164 prefix."""
+    monkeypatch.setattr(settings, "telephony_default_country_code", "+33", raising=False)
+    assert _normalize_phone("06.82.51.16.39") == "+33682511639"
+    # International forms are never rewritten
+    assert _normalize_phone("0033682511639") == "0033682511639"
+    assert _normalize_phone("+33682511639") == "+33682511639"
+    # Too short to be a national subscriber number (short codes stay untouched,
+    # even 0-leading ones — the length guard)
+    assert _normalize_phone("3631") == "3631"
+    assert _normalize_phone("08000") == "08000"
+
+
+@pytest.mark.unit
+def test_normalize_phone_without_country_code_keeps_national(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "telephony_default_country_code", "", raising=False)
+    assert _normalize_phone("06.82.51.16.39") == "0682511639"
+
+
+@pytest.mark.unit
+def test_strip_trailing_annotations() -> None:
+    assert _strip_trailing_annotations("Hua Gouvier (my wife)") == "Hua Gouvier"
+    assert _strip_trailing_annotations("X (a) (b)") == "X"
+    assert _strip_trailing_annotations("(only annotation)") == ""
+    assert _strip_trailing_annotations("Jean Dupont") == "Jean Dupont"
+
+
+@pytest.mark.unit
+def test_person_first_phone_prefers_canonical_form() -> None:
+    """canonicalForm is E.164 — always preferred over display formatting."""
+    person = {"phoneNumbers": [{"value": "06 82 51 16 39", "canonicalForm": "+33682511639"}]}
+    assert _person_first_phone(person) == "+33682511639"
+
+
+@pytest.mark.unit
+def test_person_first_phone_normalizes_display_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without canonicalForm the display value is normalized (never spaces/dots)."""
+    monkeypatch.setattr(settings, "telephony_default_country_code", "", raising=False)
+    person = {"phoneNumbers": [{"value": "06 82 51 16 39"}]}
+    assert _person_first_phone(person) == "0682511639"
+    assert _person_first_phone({"phoneNumbers": []}) == ""
+
+
+@pytest.mark.unit
+def test_extract_candidates_unwraps_person_wrapper() -> None:
+    """Real provider shape: hits wrapped as {'person': {...}} (all 3 providers).
+
+    Regression for the 2026-07-17 bug: the wrapper was parsed as the person, so
+    every name resolution ended 'no_phone' although the contact had a number.
+    """
+    payload = {
+        "results": [
+            {
+                "person": {
+                    "names": [{"displayName": "Jérôme Gouvier"}],
+                    "phoneNumbers": [{"value": "06 82 51 16 39", "canonicalForm": "+33682511639"}],
+                }
+            }
+        ],
+        "totalItems": 1,
+    }
+    candidates, first_name = _extract_candidates(payload)
+    assert first_name == "Jérôme Gouvier"
+    assert candidates == [("Jérôme Gouvier", "+33682511639")]
+
+
+@pytest.mark.unit
+def test_extract_candidates_tolerates_unwrapped_person() -> None:
+    payload = {"results": [{"names": [{"displayName": "Marie"}], "phoneNumbers": []}]}
+    candidates, first_name = _extract_candidates(payload)
+    assert first_name == "Marie"
+    assert candidates == []  # matched but carries no phone
+
+
+@pytest.mark.unit
+async def test_resolve_callee_retries_with_stripped_annotation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """LLM-annotated names ('Hua Gouvier (my wife)') fall back to the clean name."""
+    queries: list[str] = []
+
+    async def _search(_user_id, query, max_results=5):
+        queries.append(query)
+        if query == "Hua Gouvier":
+            return [("Hua Gouvier", "+33612345678")], "Hua Gouvier"
+        return [], None
+
+    monkeypatch.setattr(tmod, "_search_contacts_with_phones", _search)
+    resolution = await _resolve_callee(uuid4(), "Hua Gouvier (my wife)")
+    assert resolution.kind == "resolved"
+    assert resolution.phone == "+33612345678"
+    assert queries == ["Hua Gouvier (my wife)", "Hua Gouvier"]
+
+
+@pytest.mark.unit
+async def test_resolve_callee_exact_first_without_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A contact legitimately named with a parenthetical matches exact-first."""
+    queries: list[str] = []
+
+    async def _search(_user_id, query, max_results=5):
+        queries.append(query)
+        return [("Jean Dupont (plombier)", "+33698765432")], "Jean Dupont (plombier)"
+
+    monkeypatch.setattr(tmod, "_search_contacts_with_phones", _search)
+    resolution = await _resolve_callee(uuid4(), "Jean Dupont (plombier)")
+    assert resolution.kind == "resolved"
+    assert queries == ["Jean Dupont (plombier)"]
 
 
 @pytest.mark.unit

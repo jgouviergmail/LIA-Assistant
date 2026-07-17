@@ -5,7 +5,125 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.25.4] - 2026-07-17
+## [1.25.5] - 2026-07-17
+
+> **The phone assistant becomes trustworthy — and the planner learns to converge.** A full day of live-call debugging turns the agentic telephony feature from a promising prototype into a disciplined agent. On the call itself: the assistant now greets the instant the line opens (an empty first message caused a multi-second silent standoff), knows what day it is (a `current_datetime` anchor — "tomorrow" was being resolved to the wrong weekday out loud), speaks with a pinned French-capable voice over telephony-native `ulaw_8000` audio (the vendor's documented garble cause), runs on a **pinned thinking-free LLM** (the platform default, gemini-2.5-flash, was caught reciting its English reasoning aloud mid-call), and **hangs up** when the goal is met (the `end_call` system tool was never actually enabled). Above all it now has a **mandate boundary**: it never accepts an unrequested expense or commitment — even a 3€ cheese topping — it captures the offer and its price, defers to the user, and the post-call summary is required to be complete: every cost stated, every open point flagged for a call-back with instructions. Around the call, the machinery self-heals: the vendor agent re-syncs lazily on config drift (no more deactivate/reactivate), a stuck "call already active" row is closed by probing the vendor (including the deleted-agent 404 case, with a grace window so a freshly dialed call is never killed), and a deleted vendor agent is diagnosable in one log line. The second act is deeper: the "crée le rdv" follow-up after a call kept producing a next-hour default slot instead of the agreed Saturday 9:30 — the enriched context was correct, but the planner never *received* its facts where models actually read them. Resolved facts now ride in the planner's **human message**; the semantic validator finally validates **single-step mutations** (they were skipped as "trivial" — the whole class was unguarded), survives a structured-output quirk with a one-shot retry (the prompt's last line contradicted the tool mandate: 0/3 → 6/6 tool calls after an A/B-proven fix), rejects fabricated placeholder contacts deterministically (RFC 2606 — `jerome.gouvier@example.com` invented as an attendee), and when a replan is needed the planner is finally shown **its own previous plan** with a fix-don't-rebuild directive (it used to oscillate — fixing the date on one pass, losing it on the next). The last net: an invalid **mutation** plan that exhausts its replans is never silently executed anymore — LIA asks the user instead.
+
+### Added
+
+- **Instant greeting at pickup** — a short localized `first_message` (identity
+  only, 6 languages) plays the moment the call connects; the LLM then continues
+  with the objective and a first concrete question at the callee's first
+  response. Closes the silent-standoff at call start (empty first message: agent
+  and callee each waiting for the other) without reintroducing the
+  stops-after-intro bug of a long static disclosure.
+- **Temporal anchor for the voice agent** — a `current_datetime` dynamic
+  variable (user timezone + language) plus a prompt rule to resolve every
+  relative expression against it and restate dates absolutely out loud;
+  objectives and post-call summaries are also required to use absolute dates
+  ("samedi 18 juillet", never "demain" — an archived "tomorrow" goes stale).
+- **Mandate boundary for calls** — the voice agent never accepts costs,
+  upsells, substitutions or commitments beyond the stated objective (even
+  small ones): it captures the exact offer and price, declines to decide, and
+  announces a call-back. Two new structured fields (`additional_costs`,
+  `pending_user_decision`) flow into the post-call synthesis, whose summary
+  must state every cost and surface every deferred point with a
+  how-do-you-want-to-proceed question.
+- **Six deployment knobs for the vendor voice agent** (`.env`) —
+  `TELEPHONY_AGENT_LLM_MODEL` (pinned `gpt-4o-mini`; the platform default is a
+  thinking model observed leaking its English reasoning into speech),
+  `TELEPHONY_AGENT_TTS_MODEL_ID` (flash v2.5 — required for non-English
+  agents), `TELEPHONY_AGENT_VOICE_ID` (multilingual voice; the default English
+  voice garbled French), `TELEPHONY_AGENT_AUDIO_FORMAT` (`ulaw_8000` both
+  directions — Twilio's telephony-native format), `TELEPHONY_DEFAULT_COUNTRY_CODE`
+  (national → E.164 dialing), `TELEPHONY_PROBE_NOT_FOUND_GRACE_SECONDS`.
+- **Lazy vendor-agent re-sync** — the full agent config (prompt, greeting,
+  voice, LLM, formats, data collection) is fingerprinted; any drift triggers an
+  in-place PATCH on the next call. Prompt or settings changes no longer require
+  deactivating/reactivating the connector.
+- **Self-healing one-active-call guard** — a row stuck without its end-of-call
+  webhook no longer blocks calls until a reaper tick: the guard probes the
+  vendor conversation status inline and closes ended (`ended_no_webhook`),
+  vanished (`conversation_gone` on 404, after a grace window that protects
+  freshly dialed calls) or stale rows itself.
+- **Planner receives its facts where models read them** — the
+  analyzer-resolved facts (dates, people, places) now ride in the planner's
+  human message with authority + language constraints
+  (`services/planner/human_message.py`), on all four planning paths
+  (single/multi-domain strategies + service fallbacks), with an
+  anti-recurrence test forbidding any hand-rolled bare query message.
+- **Replan convergence** — on a validation replan the planner is shown its own
+  previous plan with an "apply ONLY the named fixes, keep everything else
+  byte-for-byte" directive. Observed prod failure: it fixed the date on one
+  pass and lost it on the next, because it was regenerating from scratch
+  against a delta-only feedback.
+- **Single-step mutation validation + safety net** — single-step plans were
+  skipped as "trivial" by the semantic validator, leaving every one-shot
+  create/update/send unguarded; they are now validated (reads stay exempt,
+  `place_phone_call` stays draft-gated at zero extra cost), and an invalid
+  mutation plan that exhausts its replans routes to a HITL clarification
+  (questions synthesized from the localized issues) instead of being executed
+  by the max-iterations bypass.
+- **Deterministic fabricated-contact guard** — plan parameters carrying an
+  RFC 2606 reserved-domain email (`…@example.com`, `.invalid`, `.test` as the
+  final label) in a non-free-text mutation parameter are rejected pre-LLM with
+  replanning feedback (resolve via a contacts step or omit); look-alike real
+  domains (`test.com`, `invalid-corp.fr`) never false-positive.
+
+### Fixed
+
+- **Voice agent recited its English directives aloud** — the vendor-side LLM
+  was never pinned and the platform default (gemini-2.5-flash, a thinking
+  model) leaked its reasoning into speech on a real French call; the agent LLM
+  is now explicitly pinned (PATCH contract verified against the vendor API).
+- **"Un appel est déjà en cours" after a hung-up call** — deactivating the
+  connector mid-call deletes the vendor agent *and its conversation*, so the
+  end-of-call webhook could never arrive and the active row blocked calls for
+  the full 15-minute stale threshold; a 404 conversation probe past the grace
+  window now closes the row immediately.
+- **Validator crashed open on deepseek** — the validation prompt's last line
+  ("Respond in {language}") frontally contradicted its own never-answer-in-free-text
+  mandate: the model froze into an empty answer (no tool call), 3/3 crashes
+  reproduced, and the fail-open fallback silently passed invalid plans. The
+  line now scopes the language to the tool payload's text fields (3/3 tool
+  calls after the fix, A/B-proven) and a one-shot retry absorbs the residual
+  empty-answer rate, with `raw_output_length` logged for the next diagnosis.
+- **Follow-up "crée le rdv" created a wrong default event** — the full chain
+  above (facts in human message + single-step validation + convergence +
+  safety net); the prod failure sequence (three invalid plans, then the
+  max-iterations bypass executing the wrong one) is closed at every link.
+- **Vendor API errors were undiagnosable in prod** — `elevenlabs_api_error`
+  now logs the truncated vendor detail (which names the offending field);
+  the sync-PATCH 400 that kept the prod agent on a stale config was
+  root-caused this way in one log line.
+- **HITL confirmation fields glued on one line** — a deterministic stream
+  normalizer inserts hard breaks (`<br/>`) into the critique stream
+  (cross-chunk safe) instead of trusting the LLM to reproduce template tags;
+  draft success details are hard-broken likewise.
+- **Contact resolution misses** — provider search hits are unwrapped from
+  their `{"person": …}` envelope (all three providers), the E.164
+  `canonicalForm` is preferred over display formatting, national numbers gain
+  the configured country code, and planner-appended annotations
+  ("Hua Gouvier (my wife)") are stripped on an exact-first retry.
+- **"call my wife" rejected as bulk operation** — FOR_EACH heuristics now
+  match on word boundaries (the substring "all my" inside "c[all my]" tripped
+  the bulk detector).
+- **Telephony connector UX** — the whole configuration is one screen (key →
+  validate → number → webhook secret → single Activate), editing the key
+  invalidates the loaded numbers, call history stays visible after a
+  disconnect (calls belong to the user, not the connector), and disconnecting
+  invalidates the server-side connector cache (it used to keep serving the
+  connector as active for up to 5 minutes).
+
+### Changed
+
+- **`telephony_agent` becomes the 56th admin-configurable LLM type** — the
+  telephony domain is routable end-to-end (registry, router filtering under
+  its feature flag, dedicated agent builder, admin UI label in 6 languages).
+- **Validation domain models extracted** (`orchestration/validation_models.py`)
+  and the planner human-message builder extracted
+  (`services/planner/human_message.py`) — both under the file-size ratchet
+  doctrine (caps only shrink, never bump).
 
 > **The Grafana fleet becomes complete, readable and honest.** A full review of the observability dashboards — every one of ~590 panel queries executed live against the production Prometheus, every metric definition cross-referenced by AST against the code — followed by a complete remediation. Coverage first: **all 419 code-defined metrics are now referenced by at least one panel** (76 were orphaned, including three entire families of features running blind in production: Journals, Telephony, Today Briefing — each gets a dedicated dashboard, 23/24/25). Honesty second: error-rate recording rules returned *empty* when there were **zero errors** — the healthiest state rendered as "No data" on the most-watched panels; seven rules now synthesize an explicit 0 (`or vector(0)`), and a nuanced `noValue` convention distinguishes a true zero (event counters) from a never-computed ratio (`n/a`) while core-throughput panels keep their silence as an outage signal. One real instrumentation corpse: `checkpoint_load_duration_seconds` had **never been emitted** — the wrapper instrumented `aget()`, a convenience helper the LangGraph runtime never calls (it calls `aget_tuple()`), and the tests patched a method the parent class doesn't even define; the override moved to the real entry point with a regression-locking test. Readability closes the pass: ~550 generated-then-reviewed panel descriptions (from the metrics' own help strings and recording-rule comments), sparse-histogram windows matched to each source's real cadence, Loki panels that survive zoom-out, the duplicate dashboard number resolved (Compaction moves to 22, deduplicated from the LLM-cost board), and the Langfuse row explicitly labeled as disabled-in-prod. Verified end-to-end: 0 query typos / 0 errors against both prod and dev, all 25 dashboards provisioning-loaded and visually checked in Grafana.
 

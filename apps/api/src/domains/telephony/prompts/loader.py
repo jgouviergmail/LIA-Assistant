@@ -1,10 +1,12 @@
 """Versioned prompt loading for the telephony domain.
 
-Telephony owns its prompts (``prompts/<version>/*.txt``) and loads them here, so
-the domain does NOT import the agents package — this breaks the
-``agents ↔ telephony`` import cycle (audit T2). The loader is a minimal cached
-file reader; telephony has only two prompts and needs none of the agents
-loader's hash-validation / metrics machinery.
+The prompt FILES live in the central store with every other prompt
+(``src/domains/agents/prompts/v1/`` — absolute repo rule: one store for all
+prompts, entries mirrored in the agents ``PromptName`` Literal). This loader
+reads them by FILESYSTEM PATH only, so telephony still does NOT import the
+agents package — the ``agents ↔ telephony`` import cycle stays broken (audit
+T2). It is a minimal cached file reader; telephony has only two prompts and
+needs none of the agents loader's hash-validation / metrics machinery.
 """
 
 from __future__ import annotations
@@ -13,7 +15,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-_PROMPTS_DIR = Path(__file__).parent
+# Central prompt store, reached by path (never by importing the agents package).
+_PROMPTS_DIR = Path(__file__).parents[2] / "agents" / "prompts"
 
 TelephonyPromptName = Literal[
     "telephony_agent_system_prompt",

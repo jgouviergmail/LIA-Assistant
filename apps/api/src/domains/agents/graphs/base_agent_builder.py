@@ -244,6 +244,8 @@ def build_generic_agent(config: AgentConfig) -> Any:
         "routes_agent": "route_agent",
         # Health Metrics agent (v1.17.2)
         "health_agent": "health_agent",
+        # Agentic telephony (ADR-127)
+        "telephony_agent": "telephony_agent",
     }
     llm_type = llm_type_map.get(agent_name, "contact_agent")
 

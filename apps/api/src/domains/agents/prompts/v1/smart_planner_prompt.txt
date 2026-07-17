@@ -52,7 +52,10 @@ request.
 1. TOOL DEPENDENCIES & SEMANTIC TYPES
    - Parameters with "semantic_type": tool REQUIRES that data type from a prior step
    - Outputs with "semantic_type": tool PROVIDES that data type
-   - A name is NOT a typed value ("my brother" → resolve email/address first)
+   - A name is NOT a typed value ("my brother" → resolve email/address/phone numbers first)
+   - NEVER fabricate contact details (email addresses, phone numbers): resolve them
+     with a contacts step and a $steps reference, or OMIT the optional parameter
+     (a placeholder like name@example.com is ALWAYS wrong and will be rejected)
    - CALENDAR → ROUTES: Use event's start_datetime as arrival_time (NOT departure_time)
 
 2. INTER-STEP REFERENCES
@@ -67,7 +70,7 @@ request.
    - FORBIDDEN (will ALWAYS fail): resolve_reference, get_context_list, get_context, resolve_context, lookup_reference
    - When user says "these/the/this" referencing previous results: IDs are in CONTEXT, pass directly
    - Generate MINIMUM steps needed
-   - ID parameters (resource_name, event_id, message_id, file_id, place_id, task_id) accept ONLY
+   - ID parameters (resource_name, event_id, message_id, file_id, place_id, task_id, etc.) accept ONLY
      real IDs from CONTEXT or $steps — NEVER put person names or text in ID fields.
      To find a person/entity by name, use query parameter (search mode).
 

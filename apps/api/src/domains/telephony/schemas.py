@@ -26,6 +26,17 @@ class StructuredCallData(BaseModel):
     )
     location: str | None = Field(default=None, description="Location proposed/agreed, if any.")
     notes: str | None = Field(default=None, description="Short free-text note, minimized.")
+    additional_costs: str | None = Field(
+        default=None,
+        description="Any extra cost, surcharge, price change or fee mentioned on the call, "
+        "with its amount (e.g. 'extra cheese +3€'). None if no cost was discussed.",
+    )
+    pending_user_decision: str | None = Field(
+        default=None,
+        description="Anything left UNCONFIRMED for the user to decide — an option, upsell, "
+        "surcharge or new information outside the assistant's mandate that it did not accept "
+        "and flagged for a call-back. None if nothing was deferred.",
+    )
 
 
 class ReturnProposal(BaseModel):

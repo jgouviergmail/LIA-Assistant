@@ -173,6 +173,13 @@ PromptName = Literal[
     "html_response_directive",
     # Health Metrics — assistant agent (v1.17.2)
     "health_agent_prompt",
+    # Agentic telephony (ADR-127) — LIA-side domain agent prompt, plus the
+    # ElevenLabs voice-agent and return-synthesis prompts. The two vendor-side
+    # prompts are LOADED by telephony/prompts/loader.py (path-based read of
+    # this store — no agents import, so the T2 cycle stays broken).
+    "telephony_agent_prompt",
+    "telephony_agent_system_prompt",
+    "telephony_synthesis_prompt",
     # Today Dashboard — Briefing (greeting + synthesis)
     "briefing_greeting_prompt",
     "briefing_synthesis_prompt",

@@ -383,10 +383,19 @@ async def planner_node_v3(
             )
             clarification_response = resolved_clarification
 
-    # Get existing execution plan for parameter preservation during multi-step clarification
-    # When replanning after clarifying one field (e.g., body), we need to preserve
-    # parameters that were already set in previous clarifications (e.g., subject="retard")
-    existing_plan = state.get(STATE_KEY_EXECUTION_PLAN) if clarification_response else None
+    # Get the previous execution plan for two purposes:
+    #  - clarification replan: preserve parameters already set (e.g. subject);
+    #  - validation replan (planner_iteration > 0): feed the previous plan back
+    #    so the planner FIXES it instead of rebuilding from scratch and losing
+    #    already-correct parameters (prod 2026-07-17: the replanner oscillated —
+    #    fixed the date on one pass, lost it on the next — because it never saw
+    #    its own previous plan). Same live in-memory object (no interrupt in the
+    #    planner→validator→planner cycle), safe to read as an ExecutionPlan.
+    existing_plan = (
+        state.get(STATE_KEY_EXECUTION_PLAN)
+        if (clarification_response or planner_iteration > 0)
+        else None
+    )
 
     # Get tool selection scores from router (for catalogue filtering)
     tool_selection_result = state.get("tool_selection_result")

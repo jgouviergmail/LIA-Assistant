@@ -4,7 +4,10 @@
  * Compact history of the user's recent agentic calls (GET /telephony/calls).
  *
  * Shows only status + summary — never the callee's phone number (the API omits
- * it). Rendered inside the connected-telephony accordion.
+ * it). Rendered inside BOTH telephony accordions: past calls belong to the
+ * user, so the history stays visible after a disconnect. `hideWhenEmpty`
+ * suppresses the empty-state line in the "available" block (a user who never
+ * called does not need "no calls yet" under the connect card).
  */
 
 import { Loader2, Phone } from 'lucide-react';
@@ -35,13 +38,22 @@ const STATUS_COLOR: Record<string, string> = {
   cancelled: 'text-gray-500',
 };
 
-export function TelephonyCallHistory({ lng }: { lng: Language }) {
+export function TelephonyCallHistory({
+  lng,
+  hideWhenEmpty = false,
+}: {
+  lng: Language;
+  hideWhenEmpty?: boolean;
+}) {
   const { t } = useTranslation();
   const { data, loading } = useApiQuery<TelephonyCall[]>('/telephony/calls', {
     componentName: 'TelephonyCallHistory',
     params: { limit: 10 },
   });
 
+  if (loading && hideWhenEmpty) {
+    return null;
+  }
   if (loading) {
     return (
       <div className="flex justify-center py-3">
@@ -52,6 +64,9 @@ export function TelephonyCallHistory({ lng }: { lng: Language }) {
 
   const calls = data ?? [];
   if (calls.length === 0) {
+    if (hideWhenEmpty) {
+      return null;
+    }
     return (
       <p className="py-2 text-center text-xs text-gray-500">
         {t('settings.connectors.telephony.no_calls')}

@@ -4,7 +4,7 @@
 
 **Version** : 3.7
 **Date** : 2026-07-17
-**Application** : LIA v1.25.4
+**Application** : LIA v1.25.5
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -179,7 +179,7 @@ Trois actions de gestion vous donnent un contrôle total : supprimer toutes les 
 
 LIA peut décrocher le téléphone pour vous. Demandez-lui d'« appeler le garage pour savoir si la voiture est prête » ou d'« appeler Marie pour savoir si elle est libre mardi soir », et LIA passe un vrai appel sortant, mène la conversation vers votre objectif et vous rapporte un résumé écrit — avec une action de suivi en un geste quand il reste quelque chose à faire (réserver le créneau qui vient d'être convenu, par exemple).
 
-Vous gardez toujours la main : avant de composer, LIA vous indique précisément **qui** elle va appeler et **pourquoi**, et attend votre feu vert. Le résumé arrive dans le chat de façon asynchrone, vous pouvez donc faire autre chose pendant l'appel.
+Vous gardez toujours la main : avant de composer, LIA vous indique précisément **qui** elle va appeler et **pourquoi**, et attend votre feu vert. Et pendant l'appel, ce contrôle ne s'arrête pas : l'assistant opère sous un mandat strict — si l'interlocuteur propose un supplément, une option ou un engagement imprévu (même minime), il n'accepte jamais à votre place ; il note l'offre et son prix, annonce qu'on rappellera, et le résumé vous restitue chaque coût et chaque point en suspens pour que vous décidiez. Le résumé arrive dans le chat de façon asynchrone, vous pouvez donc faire autre chose pendant l'appel.
 
 Et cela reste confidentiel par construction. Pendant un appel, LIA peut seulement indiquer si vous êtes libre ou occupé à un moment donné — jamais les titres, invités ou lieux de votre agenda. Rien n'est enregistré, la conversation n'est jamais conservée, et seul un résumé court est gardé avant d'expirer. Les appels passent par votre propre connecteur ElevenLabs, facturés sur votre compte, et la fonctionnalité n'est là que si votre administrateur l'a activée.
 

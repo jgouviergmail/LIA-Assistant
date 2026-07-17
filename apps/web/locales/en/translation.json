@@ -1190,6 +1190,7 @@
         "validate_key": "Validate key",
         "invalid_key": "This API key is not valid.",
         "no_numbers": "No phone number is available in your ElevenLabs workspace. Import one first.",
+        "numbers_hint": "Validate your API key to load the numbers from your ElevenLabs workspace.",
         "step_number": "Choose the number to call from",
         "step_webhook": "Configure the post-call webhook",
         "webhook_instructions": "In your ElevenLabs workspace, create a post-call webhook pointing to this URL, then paste its signing secret below.",
@@ -1208,7 +1209,6 @@
           "failed": "Failed",
           "cancelled": "Cancelled"
         },
-        "key_label": "ElevenLabs API key",
         "secret_label": "Webhook signing secret"
       }
     },
@@ -1778,6 +1778,9 @@
           "psyche_summary": "Psyche Summary",
           "briefing": "Generates the home dashboard greeting and synthesis (Today)",
           "telephony_synthesis": "Post-call synthesis for agentic phone calls (summary + follow-up)",
+          "telephony_agent": "Domain agent that creates confirmed phone-call drafts (agentic telephony)",
+          "hue_agent": "Domain agent for Philips Hue smart lighting control",
+          "health_agent": "Domain agent answering factual questions about ingested health data",
           "voice_transcription": "Speech-to-text for the voice mode (Sherpa local or ElevenLabs Scribe remote)",
           "voice_tts": "Text-to-speech for assistant voice synthesis (Edge / OpenAI / ElevenLabs)"
         },
@@ -2982,7 +2985,7 @@
         },
         "telephony": {
           "title": "📞 Agentic Telephony",
-          "description": "LIA can place outbound phone calls through a goal-directed ElevenLabs Agent, driven by your <b>own per-user connector</b> (bring-your-own credentials — no LIA-side metering). Data protection is enforced <b>by capability, not by prompt</b>: the call agent exposes a single read-only availability tool that returns free/busy slots only — never event titles, attendees, locations or content. Nothing is recorded and the transcript is never persisted; when the call ends, a <b>signed per-user webhook</b> triggers a tool-less LLM synthesis reinjected asynchronously into the chat as a short, expiring summary with an optional one-tap follow-up. Every call is confirmed by you before dialing (HITL draft) and the whole subsystem is feature-flagged (ADR-127)."
+          "description": "LIA can place outbound phone calls through a goal-directed ElevenLabs Agent, driven by your <b>own per-user connector</b> (bring-your-own credentials — no LIA-side metering). Data protection is enforced <b>by capability, not by prompt</b>: the call agent exposes a single read-only availability tool that returns free/busy slots only — never event titles, attendees, locations or content. Nothing is recorded and the transcript is never persisted; when the call ends, a <b>signed per-user webhook</b> triggers a tool-less LLM synthesis reinjected asynchronously into the chat as a short, expiring summary with an optional one-tap follow-up. Every call is confirmed by you before dialing (HITL draft) and the whole subsystem is feature-flagged (ADR-127). The agent operates under a <b>strict mandate</b> enforced by its system prompt: no expense or commitment beyond the objective; any out-of-mandate offer is captured in dedicated structured fields (additional cost, pending decision) that the post-call synthesis must surface."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -2995,6 +2998,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_5": {
+          "title": "v1.25.5 — 📞 The phone assistant becomes trustworthy",
+          "date": "July 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🎙️ Natural calls end to end</b> — the assistant greets the instant the line opens (no more seconds of silence), knows today's date (\"tomorrow\" resolves to the right weekday, spoken out loud), speaks with a crisp voice over the telephony-native audio format, and hangs up by itself once the goal is met.",
+            "i2": "<b>🛡️ A strict mandate: never an unplanned expense</b> — if the person offers an extra, an option or any commitment beyond your request (even a 3€ cheese topping), the assistant notes the offer and its price, says it cannot confirm by itself and that someone will call back. You decide — never the assistant.",
+            "i3": "<b>📋 Complete, reliable call reports</b> — the call summary always states every cost mentioned with its amount, flags anything left open and asks how you want to proceed; dates are always absolute (\"Saturday July 18\", never a \"tomorrow\" that goes stale).",
+            "i4": "<b>📅 Faithful call follow-ups</b> — \"create the appointment\" after a call now reuses exactly the date, time, place and title agreed on the phone. If an action plan still looks wrong after checks, LIA asks you instead of executing something false — and it will never invent an email address for an invitation.",
+            "i5": "<b>⚙️ A self-healing connector</b> — configuration fits one screen, settings changes apply automatically on the next call (no more disconnect/reconnect), a call wrongly stuck \"in progress\" frees itself, and call history survives disconnection.",
+            "i6": "<b>🔧 For admins: 6 new telephony settings</b> — the voice agent's language model (pinned to a model without \"thinking aloud\"), TTS model and voice, audio format, country dial code, guard grace window. The \"Telephony Agent\" LLM type (56th) is tunable from the admin panel."
+          }
+        },
         "v1_25_4": {
           "title": "v1.25.4 — 📊 Complete supervision: 25 dashboards, zero blind spots",
           "date": "July 2026",
@@ -4352,7 +4368,7 @@
       "telephony": {
         "title": "Phone Calls",
         "description": "LIA can place real phone calls on your behalf. Complete setup guide (Twilio + ElevenLabs) and everyday use.",
-        "count": "11",
+        "count": "12",
         "questions": {
           "q1": {
             "question": "What can LIA do on the phone?",
@@ -4391,10 +4407,14 @@
             "answer": "Privacy is enforced <strong>by design</strong>, not by instructions:<br><br>• <strong>🔒 Read-only, free/busy only</strong> — during a call LIA can check whether you're free or busy at a given time, but <strong>never</strong> reveals your event titles, participants, locations or any content. The call agent simply has no access to that data.<br>• <strong>🚫 No recording</strong> — the call is not recorded.<br>• <strong>🗑️ No stored transcript</strong> — the full conversation is never saved; only a short summary is kept, and it expires automatically (30 days by default).<br>• <strong>📢 Transparent disclosure</strong> — the agent always introduces itself as an assistant calling on your behalf; it never pretends to be you.<br>• <strong>✅ You stay in control</strong> — every call is confirmed by you before it is placed."
           },
           "q10": {
+            "question": "Can the assistant accept an extra or commit to an expense for me?",
+            "answer": "No, never. The assistant operates under a <b>strict mandate</b>: it can only act within the exact scope of your request. If the person offers an extra, an option, a price change or any unplanned commitment (even a small one, like a 3€ cheese topping on a pizza), it neither accepts nor declines on your behalf: it <b>notes the exact offer and its price</b>, explains that it cannot confirm by itself, and announces a call-back to confirm. You then find everything in the call summary — every cost with its amount, every open point — and LIA asks you how to proceed. If you wish, just request a new call with your instructions (\"call back and accept the cheese topping\")."
+          },
+          "q11": {
             "question": "How much does it cost?",
             "answer": "LIA adds <strong>no charge of its own</strong> — costs go to your two external accounts:<br><br><strong>📞 Twilio</strong><br>• Number rental: ~1–15 €/month depending on the type<br>• Outbound minutes: per-minute rate based on the destination<br><br><strong>🎙️ ElevenLabs</strong><br>• Agent call minutes, taken from your plan's credits<br><br><strong>🤖 LIA</strong><br>• No surcharge, no markup — only the small LLM synthesis of your summary appears in your LIA usage statistics.<br><br><strong>🛡️ Built-in guardrails against surprises:</strong><br>• One active call at a time<br>• Hourly call cap per user (10/hour by default)<br>• Hard cap on call duration (10 minutes by default)"
           },
-          "q11": {
+          "q12": {
             "question": "It doesn't work — what should I check?",
             "answer": "<strong>\"Invalid key\" at step 1</strong><br>→ The key is mistyped or lacks permissions (Agents platform access required).<br><br><strong>\"No numbers\" after validating the key</strong><br>→ Your number isn't imported into the ElevenLabs <strong>Agents</strong> workspace, or was imported as a SIP trunk instead of the native Twilio integration.<br><br><strong>The call goes out but no summary comes back</strong><br>→ The webhook is the issue: URL not publicly reachable, wrong signing secret, or wrong event type (it must be <strong>post_call_transcription</strong>).<br><br><strong>\"A call is already in progress\"</strong><br>→ Only one active call at a time, by design. A stuck call is automatically cleaned up after ~15 minutes.<br><br><strong>Calls refused after several in a row</strong><br>→ You've hit the hourly cap (10 calls/hour by default).<br><br><strong>Still stuck?</strong> Ask your administrator: the server logs state precisely which webhook events were received and why any were ignored."
           }
@@ -6011,7 +6031,7 @@
       },
       "telephony": {
         "title": "LIA can call for you",
-        "description": "Ask LIA to place a real phone call on your behalf — reach a contact, ask a quick question, check a slot. You approve who it calls and why before it dials; LIA holds the conversation, then drops a written summary back into the chat, with a one-tap follow-up when useful."
+        "description": "Ask LIA to place a real phone call on your behalf — reach a contact, ask a quick question, check a slot. You approve who it calls and why before it dials; LIA holds the conversation, then drops a written summary back into the chat, with a one-tap follow-up when useful. And never a commitment without you: any unplanned expense or option is noted with its price, never accepted — you make the call."
       },
       "reminders_scheduling": {
         "title": "Reminders & automations",
@@ -6758,7 +6778,7 @@
       "llm-providers": {
         "title": "Multi-Provider AI: choose the right model for every task",
         "excerpt": "LIA supports many language model providers and lets you configure a different model for each task type: routing, planning, response, agents.",
-        "body": "<h2>Many providers, one assistant</h2><p>LIA natively integrates <strong>many LLM providers</strong> — from proprietary cloud models to locally-run open-source models. Each provider is managed by a dedicated adapter in the LLM factory, and you can add new ones.</p><h2>55 individually configurable LLM types</h2><p>LIA defines <strong>over 50 LLM types</strong> that can be configured separately: router, response, planner, each domain agent, and more. For each type, you can set: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> and <code>reasoning_effort</code>.</p><p>For example:</p><ul><li>A fast, economical model for <strong>routing</strong></li><li>A powerful model for <strong>planning</strong></li><li>A creative model for <strong>responses</strong></li><li>A local model for <strong>privacy</strong></li></ul><h2>Configuration resolution chain</h2><p>Each LLM configuration follows a <strong>3-level resolution chain</strong>: Admin UI (stored in the database) → Environment variables → Code defaults. An <code>LLMConfigOverrideCache</code> provides O(1) lookups without database queries at runtime. Changes made via the admin interface take <strong>immediate effect</strong> thanks to cache invalidation.</p><h2>The multi-provider LLM factory</h2><p>A single entry point for all providers:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Each task type uses the model you configured\nrouter_llm = get_llm(\"router\")\nplanner_llm = get_llm(\"planner\")\nresponse_llm = get_llm(\"response\")</code></pre><h2>API key security</h2><p>Provider API keys are <strong>encrypted with Fernet</strong> (AES-128 CBC + HMAC) before database storage. No key is ever exposed in plaintext in logs or API responses.</p><h2>Reasoning models</h2><p>LIA supports reasoning models with 5 levels of <code>reasoning_effort</code>: <code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code> and <code>xhigh</code>. This activates deep reasoning only where needed, optimizing the cost/performance ratio.</p><h2>100% local deployment</h2><p>LIA can run entirely locally with open-source models. No data leaves your infrastructure. Just point configuration variables to your local instance.</p>"
+        "body": "<h2>Many providers, one assistant</h2><p>LIA natively integrates <strong>many LLM providers</strong> — from proprietary cloud models to locally-run open-source models. Each provider is managed by a dedicated adapter in the LLM factory, and you can add new ones.</p><h2>56 individually configurable LLM types</h2><p>LIA defines <strong>over 50 LLM types</strong> that can be configured separately: router, response, planner, each domain agent, and more. For each type, you can set: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> and <code>reasoning_effort</code>.</p><p>For example:</p><ul><li>A fast, economical model for <strong>routing</strong></li><li>A powerful model for <strong>planning</strong></li><li>A creative model for <strong>responses</strong></li><li>A local model for <strong>privacy</strong></li></ul><h2>Configuration resolution chain</h2><p>Each LLM configuration follows a <strong>3-level resolution chain</strong>: Admin UI (stored in the database) → Environment variables → Code defaults. An <code>LLMConfigOverrideCache</code> provides O(1) lookups without database queries at runtime. Changes made via the admin interface take <strong>immediate effect</strong> thanks to cache invalidation.</p><h2>The multi-provider LLM factory</h2><p>A single entry point for all providers:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Each task type uses the model you configured\nrouter_llm = get_llm(\"router\")\nplanner_llm = get_llm(\"planner\")\nresponse_llm = get_llm(\"response\")</code></pre><h2>API key security</h2><p>Provider API keys are <strong>encrypted with Fernet</strong> (AES-128 CBC + HMAC) before database storage. No key is ever exposed in plaintext in logs or API responses.</p><h2>Reasoning models</h2><p>LIA supports reasoning models with 5 levels of <code>reasoning_effort</code>: <code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code> and <code>xhigh</code>. This activates deep reasoning only where needed, optimizing the cost/performance ratio.</p><h2>100% local deployment</h2><p>LIA can run entirely locally with open-source models. No data leaves your infrastructure. Just point configuration variables to your local instance.</p>"
       },
       "google-workspace": {
         "title": "Google Workspace Integration: Gmail, Calendar, Contacts, Drive, Tasks",

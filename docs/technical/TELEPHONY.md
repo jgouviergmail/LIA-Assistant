@@ -35,9 +35,9 @@ flowchart TD
 |---|---|
 | `connector.py` | Activation wizard backend (validate key → provision guardrailed agent → store encrypted connector); `get_active` capability guard. |
 | `client.py` | Thin async ElevenLabs Agents client (`xi-api-key`); `call_recording_enabled=false`; injectable transport for tests. |
-| `agent_prompt.py` | Fixed guardrail system prompt + per-call dynamic vars + the `data_collection` schema (contract with the webhook extractor). |
+| `agent_prompt.py` | Fixed guardrail system prompt + per-call dynamic vars — including the localized `current_datetime` anchor: the voice agent has no clock of its own, so a callee's "tomorrow" was unresolvable without it (observed: agreed "tomorrow"=Saturday spoken back as Sunday) — + the `data_collection` schema (contract with the webhook extractor) + the config fingerprint powering the lazy agent re-sync (`initiate_call` PATCHes the vendor agent on drift — prompt/settings changes need no reactivation). |
 | `availability.py` | Free/busy projection — **busy ranges only**, never titles/attendees/locations. |
-| `service.py` | `initiate_call`: guard → one-active pre-check → availability → **commit dialing row → dial → persist conversation id**. |
+| `service.py` | `initiate_call`: guard → **self-healing** one-active pre-check (vendor conversation-status probe closes rows whose webhook never arrived, then the stale threshold inline — the guard no longer depends on the reaper's tick) → lazy agent config re-sync → availability → **commit dialing row → dial → persist conversation id**. |
 | `webhook_handler.py` | Foreign-filter → resolve → agent match → per-user HMAC verify (Stripe-style `t=,v0=`). |
 | `return_synthesis.py` | Tool-less synthesis (structured output) + `process_completed_call` (exactly-once, minimized persistence, token tracking, **arms + delivers the durable return outbox**). |
 | `repository.py` | `PhoneCall` data access: F12 active-guard, `mark_completed` (atomic conditional UPDATE **+ PENDING outbox arm + SYNTHESIZED inbox close + transcript purge**), `mark_notification_delivered` / `fetch_recoverable_notifications` / `record_notification_failure`, **`persist_return_inbox` / `fetch_recoverable_returns` / `expire_stale_returns` (T1-A inbox)**, reaper queries. |
@@ -64,6 +64,14 @@ flowchart TD
 5. **No PII at INFO/WARNING.** Logs carry IDs/counts/status only — never names,
    phones, summaries, or collected values (a `ValidationError` message is logged
    by type, not value, to avoid leaking a collected detail).
+6. **Mandate boundary (no unrequested spending).** The voice agent's mandate is
+   exactly the objective: it never accepts a surcharge, upsell, substitution or
+   commitment beyond it — even a small one. It captures the offer and its price,
+   defers, and announces a call-back; the deferred item flows through two
+   dedicated structured fields (`additional_costs`, `pending_user_decision`)
+   that the synthesis MUST surface (every cost stated, every open point flagged
+   with a how-to-proceed question). Enforced in the system prompt (Goal step 4 +
+   guardrail) and in the synthesis prompt's hard rules.
 
 ## Data model — `phone_calls`
 
@@ -128,7 +136,26 @@ notification on a mid-dispatch crash — deliberately preferred over a lost retu
 ## Configuration
 
 All knobs are deployment-wide (`TelephonySettings`, `.env`); per-user secrets
-live in the connector. Notable: `TELEPHONY_PREFETCH_WINDOW_DAYS`,
+live in the connector. Notable: `TELEPHONY_AGENT_LLM_MODEL` (LLM behind the
+vendor voice agent — NEVER left to the platform default: that default is
+gemini-2.5-flash, a thinking model observed reciting its English reasoning
+aloud on a real French call; gpt-4o-mini is fast, thinking-free and
+voice-proven), `TELEPHONY_PROBE_NOT_FOUND_GRACE_SECONDS` (age before a 404
+conversation-status probe closes an active row as gone — a mid-call connector
+deactivation deletes the vendor agent and its conversation, so the end-of-call
+webhook can never arrive; the grace window protects freshly dialed calls whose
+conversation may not be readable yet), `TELEPHONY_AGENT_TTS_MODEL_ID` (voice
+model of the provisioned agent — non-English agents REQUIRE a turbo/flash v2.5
+model, vendor 400 otherwise; switch to `eleven_turbo_v2_5` if speech quality
+matters more than latency), `TELEPHONY_AGENT_VOICE_ID` (empty = vendor default,
+an ENGLISH voice — set a multilingual voice for non-English calls),
+`TELEPHONY_AGENT_AUDIO_FORMAT` (default `ulaw_8000` — the telephony-native
+format Twilio requires; the phone line is 8 kHz anyway, so higher formats are
+inaudible and only add latency, and a mismatch is the vendor's documented cause
+of garbled call audio),
+`TELEPHONY_DEFAULT_COUNTRY_CODE` (e.g. `+33` — converts
+national numbers with a single leading 0 to E.164 before dialing; empty = as-is),
+`TELEPHONY_PREFETCH_WINDOW_DAYS`,
 `TELEPHONY_MAX_CALL_DURATION_SECONDS`, `TELEPHONY_CALL_RETENTION_DAYS`,
 `TELEPHONY_STALE_CALL_TIMEOUT_MINUTES`, `TELEPHONY_RATE_LIMIT_PER_HOUR`,
 `TELEPHONY_WEBHOOK_TOLERANCE_SECONDS`, `TELEPHONY_STALE_REAPER_INTERVAL_MINUTES`,
@@ -174,4 +201,8 @@ Confirm against a real ElevenLabs + Twilio account (all marked `spike:` in code)
 - webhook: exact signature header name (`ElevenLabs-Signature`) + post-call
   payload field paths (`call_id` in `dynamic_variables`, `agent_id`,
   `transcript_summary`, `data_collection_results`, `call_duration_secs`).
-- voicemail-detection / max-duration config placement.
+- `built_in_tools` shape (`agent.prompt.built_in_tools` keyed by tool name —
+  `end_call` + `voicemail_detection` are now sent; without `end_call` the agent
+  can never hang up). Max duration is wired at
+  `conversation_config.conversation.max_duration_seconds` (confirmed in the
+  create-agent OpenAPI spec).

@@ -146,13 +146,24 @@ class MultiDomainStrategy:
             journal_context=journal_context,
         )
 
+        from src.domains.agents.services.planner.human_message import (
+            build_planner_human_message,
+        )
+
         llm = get_llm("planner")
-        # Use ORIGINAL query (user's language) for planner
-        # Memory references are resolved via RESOLVED REFERENCES section in prompt
-        # This ensures tool parameters (content, summary, etc.) are in user's language
+        # Original query (user's language) + resolved facts in the HUMAN message
+        # (see build_planner_human_message — facts in the system context were
+        # demonstrably ignored; this strategy is the runtime path, keep it in
+        # sync with the service's fallback sites).
         messages = [
             SystemMessage(content=prompt),
-            HumanMessage(content=f"Query: {intelligence.original_query}"),
+            HumanMessage(
+                content=build_planner_human_message(
+                    intelligence,
+                    existing_plan=existing_plan if clarification_response is None else None,
+                    validation_feedback=validation_feedback,
+                )
+            ),
         ]
 
         try:

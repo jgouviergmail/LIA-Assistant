@@ -38,6 +38,9 @@ GENERATOR_EXCLUDED_AGENTS = frozenset(
         "devops_agent",  # admin-only in-container CLI
         "health_agent",  # personal health data, feature-flagged
         "sub_agent_agent",  # internal delegation, not a plan-executable domain agent
+        # Real paid outbound calls to real people, feature-flagged, HITL-confirmed
+        # per call — generated skills must never be able to place phone calls.
+        "telephony_agent",
     }
 )
 

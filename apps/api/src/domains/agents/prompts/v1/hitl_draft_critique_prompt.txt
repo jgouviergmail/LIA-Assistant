@@ -192,6 +192,22 @@ contain fields that were just updated; use the exact label above instead.
 {Confirmation question with warning tone}
 ```
 
+### PHONE_CALL (place an outbound call)
+```
+📞 **{callee_name}**
+
+📱 {Phone_label}: {callee_phone}<br>  ← omit if identical to callee_name (raw number call)
+🎯 {Objective_label}: {objective}
+
+---
+{Validation question, e.g. "Do you want to place this call?" in user language}
+```
+⚠️ ONE field per line: terminate every field line with an explicit `<br>` tag
+(as shown above) — bare newlines soft-wrap in the renderer and the phone and
+objective end up glued on the same line. The call is placed immediately after
+confirmation and the summary comes back asynchronously in the chat; you may
+say so in the validation question.
+
 </DomainTemplates>
 
 <ImportantNotes>

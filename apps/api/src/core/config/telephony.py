@@ -11,12 +11,18 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    TELEPHONY_AGENT_AUDIO_FORMAT_DEFAULT,
+    TELEPHONY_AGENT_LLM_MODEL_DEFAULT,
+    TELEPHONY_AGENT_TTS_MODEL_ID_DEFAULT,
+    TELEPHONY_AGENT_VOICE_ID_DEFAULT,
     TELEPHONY_CALL_RETENTION_DAYS_DEFAULT,
+    TELEPHONY_DEFAULT_COUNTRY_CODE_DEFAULT,
     TELEPHONY_MAX_CALL_DURATION_SECONDS_DEFAULT,
     TELEPHONY_NOTIFICATION_GRACE_SECONDS_DEFAULT,
     TELEPHONY_NOTIFICATION_MAX_ATTEMPTS_DEFAULT,
     TELEPHONY_NOTIFICATION_REAPER_INTERVAL_MINUTES_DEFAULT,
     TELEPHONY_PREFETCH_WINDOW_DAYS_DEFAULT,
+    TELEPHONY_PROBE_NOT_FOUND_GRACE_SECONDS_DEFAULT,
     TELEPHONY_RATE_LIMIT_PER_HOUR_DEFAULT,
     TELEPHONY_RETURN_GRACE_SECONDS_DEFAULT,
     TELEPHONY_RETURN_MAX_AGE_MINUTES_DEFAULT,
@@ -36,6 +42,55 @@ class TelephonySettings(BaseSettings):
     telephony_enabled: bool = Field(
         default=False,
         description="Master switch for the agentic telephony feature.",
+    )
+    telephony_agent_tts_model_id: str = Field(
+        default=TELEPHONY_AGENT_TTS_MODEL_ID_DEFAULT,
+        description=(
+            "TTS model of the provisioned ElevenLabs voice agent. Must be a "
+            "turbo/flash v2.5 model for non-English agents (vendor constraint)."
+        ),
+    )
+    telephony_default_country_code: str = Field(
+        default=TELEPHONY_DEFAULT_COUNTRY_CODE_DEFAULT,
+        pattern=r"^$|^\+\d{1,3}$",
+        description=(
+            "Country calling code (e.g. '+33') applied to national numbers with a "
+            "single leading 0 so dialing uses E.164. Empty = numbers passed as-is."
+        ),
+    )
+    telephony_agent_voice_id: str = Field(
+        default=TELEPHONY_AGENT_VOICE_ID_DEFAULT,
+        description=(
+            "ElevenLabs voice id for the provisioned agent. Empty = vendor default "
+            "(an ENGLISH voice — pick a multilingual voice for non-English calls)."
+        ),
+    )
+    telephony_agent_audio_format: str = Field(
+        default=TELEPHONY_AGENT_AUDIO_FORMAT_DEFAULT,
+        description=(
+            "Agent audio format (TTS output + ASR input). ulaw_8000 is the "
+            "telephony-native format (required by Twilio; higher formats are "
+            "inaudible on a phone line and add latency). Empty = vendor default."
+        ),
+    )
+    telephony_agent_llm_model: str = Field(
+        default=TELEPHONY_AGENT_LLM_MODEL_DEFAULT,
+        description=(
+            "LLM behind the vendor voice agent. The platform default "
+            "(gemini-2.5-flash, a thinking model) was observed reciting its "
+            "English reasoning aloud on a call — pin a thinking-free model. "
+            "Empty = platform default (not recommended)."
+        ),
+    )
+    telephony_probe_not_found_grace_seconds: int = Field(
+        default=TELEPHONY_PROBE_NOT_FOUND_GRACE_SECONDS_DEFAULT,
+        ge=10,
+        le=600,
+        description=(
+            "Age a call row must reach before a 404 conversation-status probe "
+            "closes it as gone (guards against closing a freshly dialed call "
+            "whose conversation is not yet readable vendor-side)."
+        ),
     )
     telephony_ringing_timeout_seconds: int = Field(
         default=TELEPHONY_RINGING_TIMEOUT_SECONDS_DEFAULT,

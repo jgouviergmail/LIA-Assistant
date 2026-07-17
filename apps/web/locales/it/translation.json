@@ -1010,6 +1010,7 @@
         "validate_key": "Convalida chiave",
         "invalid_key": "Questa chiave API non è valida.",
         "no_numbers": "Nessun numero disponibile nel tuo spazio ElevenLabs. Importane uno prima.",
+        "numbers_hint": "Convalida la tua chiave API per caricare i numeri del tuo spazio ElevenLabs.",
         "step_number": "Scegli il numero da cui chiamare",
         "step_webhook": "Configura il webhook post-chiamata",
         "webhook_instructions": "Nel tuo spazio ElevenLabs, crea un webhook post-chiamata che punti a questo URL, poi incolla qui sotto il suo segreto di firma.",
@@ -1028,7 +1029,6 @@
           "failed": "Non riuscita",
           "cancelled": "Annullata"
         },
-        "key_label": "Chiave API ElevenLabs",
         "secret_label": "Segreto di firma del webhook"
       }
     },
@@ -1598,6 +1598,9 @@
           "psyche_summary": "Psyche Summary",
           "briefing": "Genera il saluto e la sintesi della dashboard principale (Today)",
           "telephony_synthesis": "Sintesi post-chiamata per le chiamate con agente (riepilogo + proposta)",
+          "telephony_agent": "Agente di dominio che crea le bozze di chiamata confermate (telefonia agentica)",
+          "hue_agent": "Agente di dominio per il controllo dell'illuminazione Philips Hue",
+          "health_agent": "Agente di dominio che risponde a domande fattuali sui dati sanitari acquisiti",
           "voice_transcription": "Riconoscimento vocale della modalità vocale (Sherpa locale o ElevenLabs Scribe remoto)",
           "voice_tts": "Sintesi vocale dell'assistente (Edge / OpenAI / ElevenLabs)"
         },
@@ -2974,7 +2977,7 @@
         },
         "telephony": {
           "title": "📞 Telefonia agentica",
-          "description": "LIA può effettuare chiamate in uscita tramite un Agente ElevenLabs orientato all'obiettivo, guidato dal tuo <b>connettore personale per utente</b> (le tue credenziali — nessuna misurazione lato LIA). La protezione dei dati è garantita <b>per capacità, non per prompt</b>: l'agente di chiamata espone un unico strumento di disponibilità in sola lettura che restituisce solo le fasce libero/occupato — mai titoli, partecipanti, luoghi o contenuti. Nulla viene registrato e la trascrizione non viene mai conservata; al termine della chiamata, un <b>webhook firmato specifico per ogni utente</b> avvia una sintesi LLM senza strumenti reiniettata in modo asincrono nella chat come un breve riepilogo effimero, con un'azione di follow-up in un tocco. Ogni chiamata viene confermata da te prima di comporre il numero (bozza HITL) e l'intero sottosistema è protetto da un feature flag (ADR-127)."
+          "description": "LIA può effettuare chiamate in uscita tramite un Agente ElevenLabs orientato all'obiettivo, guidato dal tuo <b>connettore personale per utente</b> (le tue credenziali — nessuna misurazione lato LIA). La protezione dei dati è garantita <b>per capacità, non per prompt</b>: l'agente di chiamata espone un unico strumento di disponibilità in sola lettura che restituisce solo le fasce libero/occupato — mai titoli, partecipanti, luoghi o contenuti. Nulla viene registrato e la trascrizione non viene mai conservata; al termine della chiamata, un <b>webhook firmato specifico per ogni utente</b> avvia una sintesi LLM senza strumenti reiniettata in modo asincrono nella chat come un breve riepilogo effimero, con un'azione di follow-up in un tocco. Ogni chiamata viene confermata da te prima di comporre il numero (bozza HITL) e l'intero sottosistema è protetto da un feature flag (ADR-127). L'agente opera sotto un <b>mandato rigoroso</b> imposto dal suo prompt di sistema: nessuna spesa o impegno oltre l'obiettivo; ogni offerta fuori mandato viene catturata in campi strutturati dedicati (costo aggiuntivo, decisione in sospeso) che la sintesi post-chiamata deve obbligatoriamente restituire."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -2987,6 +2990,19 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_25_5": {
+          "title": "v1.25.5 — 📞 L'assistente telefonico diventa affidabile",
+          "date": "Luglio 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🎙️ Chiamate naturali dall'inizio alla fine</b> — l'assistente saluta nell'istante in cui si risponde (basta secondi di silenzio), conosce la data di oggi («domani» viene risolto nel giorno giusto e detto ad alta voce), parla con una voce nitida nel formato audio nativo della telefonia e riaggancia da solo una volta raggiunto l'obiettivo.",
+            "i2": "<b>🛡️ Un mandato rigoroso: mai una spesa non prevista</b> — se l'interlocutore propone un extra, un'opzione o un impegno oltre la tua richiesta (anche 3 € di formaggio in più), l'assistente annota l'offerta e il prezzo, dichiara di non poter confermare da solo e che si richiamerà. Decidi tu — mai l'assistente.",
+            "i3": "<b>📋 Resoconti di chiamata completi e affidabili</b> — il riepilogo cita sempre ogni costo con il suo importo, segnala ciò che resta in sospeso e ti chiede come procedere; le date sono sempre assolute («sabato 18 luglio», mai un «domani» che scade).",
+            "i4": "<b>📅 Follow-up di chiamata fedeli</b> — «crea l'appuntamento» dopo una chiamata riprende esattamente data, ora, luogo e titolo concordati al telefono. Se un piano d'azione sembra ancora sbagliato dopo le verifiche, LIA ti chiede invece di eseguire qualcosa di errato — e non inventerà mai un indirizzo email per un invito.",
+            "i5": "<b>⚙️ Un connettore che si ripara da solo</b> — la configurazione sta in una schermata, le modifiche alle impostazioni si applicano automaticamente alla chiamata successiva (niente più disconnessione/riconnessione), una chiamata rimasta erroneamente «in corso» si sblocca da sola e la cronologia delle chiamate sopravvive alla disconnessione.",
+            "i6": "<b>🔧 Per gli admin: 6 nuove impostazioni di telefonia</b> — modello linguistico dell'agente vocale (fissato su un modello senza «ragionamento ad alta voce»), modello e voce di sintesi, formato audio, prefisso internazionale, finestra di grazia del guardiano delle chiamate. Il tipo LLM «Telephony Agent» (56º) è regolabile dall'amministrazione."
+          }
+        },
         "v1_25_4": {
           "title": "v1.25.4 — 📊 Supervisione completa: 25 dashboard, zero punti ciechi",
           "date": "Luglio 2026",
@@ -4344,7 +4360,7 @@
       "telephony": {
         "title": "Chiamate telefoniche",
         "description": "LIA può fare vere telefonate al posto tuo. Guida di configurazione completa (Twilio + ElevenLabs) e uso quotidiano.",
-        "count": "11",
+        "count": "12",
         "questions": {
           "q1": {
             "question": "Cosa può fare LIA al telefono?",
@@ -4383,10 +4399,14 @@
             "answer": "La riservatezza è garantita <strong>fin dalla progettazione</strong>, non da istruzioni:<br><br>• <strong>🔒 Sola lettura, solo libero/occupato</strong> — durante una chiamata LIA può verificare se sei libero o occupato in un dato momento, ma <strong>non</strong> rivela mai i titoli dei tuoi eventi, i partecipanti, i luoghi o alcun contenuto. L'agente di chiamata semplicemente non ha accesso a quei dati.<br>• <strong>🚫 Nessuna registrazione</strong> — la chiamata non viene registrata.<br>• <strong>🗑️ Nessuna trascrizione conservata</strong> — l'intera conversazione non viene mai salvata; si conserva solo un breve riepilogo, che scade automaticamente (30 giorni per impostazione predefinita).<br>• <strong>📢 Trasparenza</strong> — l'agente si presenta sempre come un assistente che chiama da parte tua; non si spaccia mai per te.<br>• <strong>✅ Mantieni il controllo</strong> — ogni chiamata è confermata da te prima di essere effettuata."
           },
           "q10": {
+            "question": "L'assistente può accettare un extra o impegnare una spesa per me?",
+            "answer": "No, mai. L'assistente opera con un <b>mandato rigoroso</b>: può agire solo nel perimetro esatto della tua richiesta. Se l'interlocutore propone un extra, un'opzione, una variazione di prezzo o qualsiasi impegno non previsto (anche piccolo, come 3 € di formaggio in più su una pizza), non lo accetta né lo rifiuta al posto tuo: <b>annota l'offerta esatta e il prezzo</b>, spiega di non poter confermare da solo e annuncia che si richiamerà per confermare. Ritrovi poi tutto nel riepilogo della chiamata — ogni costo con l'importo, ogni punto in sospeso — e LIA ti chiede come procedere. Se vuoi, basta chiedere una nuova chiamata con le tue istruzioni."
+          },
+          "q11": {
             "question": "Quanto costa?",
             "answer": "LIA non aggiunge <strong>alcun costo da parte sua</strong> — i costi vanno sui tuoi due account esterni:<br><br><strong>📞 Twilio</strong><br>• Noleggio del numero: ~1–15 €/mese secondo il tipo<br>• Minuti in uscita: tariffa al minuto secondo la destinazione<br><br><strong>🎙️ ElevenLabs</strong><br>• Minuti dell'agente vocale, detratti dai crediti del tuo piano<br><br><strong>🤖 LIA</strong><br>• Nessun sovrapprezzo, nessun margine — solo la piccola sintesi LLM del tuo riepilogo appare nelle tue statistiche di consumo LIA.<br><br><strong>🛡️ Protezioni integrate contro le sorprese:</strong><br>• Una sola chiamata attiva alla volta<br>• Limite orario di chiamate per utente (10/ora per impostazione predefinita)<br>• Durata massima della chiamata limitata (10 minuti per impostazione predefinita)"
           },
-          "q11": {
+          "q12": {
             "question": "Non funziona — cosa devo verificare?",
             "answer": "<strong>«Chiave non valida» al passo 1</strong><br>→ La chiave è copiata male o non ha i permessi richiesti (accesso alla piattaforma Agents).<br><br><strong>«Nessun numero» dopo la convalida della chiave</strong><br>→ Il tuo numero non è importato nel workspace <strong>Agents</strong> di ElevenLabs, oppure è stato importato come trunk SIP invece dell'integrazione Twilio nativa.<br><br><strong>La chiamata parte ma nessun riepilogo torna</strong><br>→ Il problema è il webhook: URL non raggiungibile pubblicamente, segreto di firma errato o tipo di evento sbagliato (deve essere <strong>post_call_transcription</strong>).<br><br><strong>«Una chiamata è già in corso»</strong><br>→ Una sola chiamata attiva alla volta, per progettazione. Una chiamata bloccata viene ripulita automaticamente dopo ~15 minuti.<br><br><strong>Chiamate rifiutate dopo diverse di seguito</strong><br>→ Hai raggiunto il limite orario (10 chiamate/ora per impostazione predefinita).<br><br><strong>Ancora bloccato?</strong> Chiedi al tuo amministratore: i log del server indicano con precisione quali eventi webhook sono stati ricevuti e perché alcuni sono stati ignorati."
           }
@@ -5932,7 +5952,7 @@
       },
       "telephony": {
         "title": "LIA telefona per te",
-        "description": "Chiedi a LIA di fare una vera telefonata al posto tuo — raggiungere un contatto, porre una domanda veloce, verificare una disponibilità. Approvi chi chiama e perché prima che componga il numero; LIA conduce la conversazione, poi lascia un riepilogo scritto nella chat, con un'azione di follow-up in un tocco quando è utile."
+        "description": "Chiedi a LIA di fare una vera telefonata al posto tuo — raggiungere un contatto, porre una domanda veloce, verificare una disponibilità. Approvi chi chiama e perché prima che componga il numero; LIA conduce la conversazione, poi lascia un riepilogo scritto nella chat, con un'azione di follow-up in un tocco quando è utile. E mai un impegno senza di voi: qualsiasi spesa od opzione imprevista viene annotata con il prezzo, mai accettata — decidete voi."
       },
       "reminders_scheduling": {
         "title": "Promemoria e automatizzazioni",
@@ -6679,7 +6699,7 @@
       "llm-providers": {
         "title": "Multi-provider IA: scegli il modello giusto per ogni attività",
         "excerpt": "LIA supporta numerosi provider di modelli linguistici e permette di configurare un modello diverso per ogni tipo di compito.",
-        "body": "<h2>Numerosi provider, un solo assistente</h2><p>LIA integra nativamente <strong>numerosi provider di LLM</strong>: provider cloud leader di mercato (modelli proprietari), provider open-source ospitati nel cloud e provider locali per la massima riservatezza. Ogni provider è gestito da un adattatore dedicato nella factory LLM.</p><h2>55 tipi di LLM configurabili individualmente</h2><p>LIA definisce <strong>oltre 50 tipi di LLM</strong> configurabili separatamente: router, response, planner, ogni agente di dominio e altro. Per ogni tipo, puoi definire: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> e <code>reasoning_effort</code>.</p><p>Ad esempio:</p><ul><li>Un modello rapido ed economico per il <strong>routing</strong></li><li>Un modello potente per la <strong>pianificazione</strong></li><li>Un modello creativo per le <strong>risposte</strong></li><li>Un modello locale per la <strong>riservatezza</strong></li></ul><h2>Catena di risoluzione della configurazione</h2><p>La configurazione di ogni LLM segue una <strong>catena di risoluzione a 3 livelli</strong>: Admin UI (memorizzata nel database) → Variabili d'ambiente → Valori predefiniti del codice. Una cache <code>LLMConfigOverrideCache</code> fornisce lookup in O(1) senza query al database a runtime. Le modifiche tramite l'interfaccia di amministrazione hanno <strong>effetto immediato</strong> grazie all'invalidazione della cache.</p><h2>La factory LLM multi-provider</h2><p>Un unico punto di ingresso per tutti i provider:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Esempi di utilizzo\nrouter_llm = get_llm(\"router\")\nplanner_llm = get_llm(\"planner\")\nresponse_llm = get_llm(\"response\")</code></pre><h2>Sicurezza delle chiavi API</h2><p>Le chiavi API dei provider sono <strong>crittografate con Fernet</strong> (AES-128 CBC + HMAC) prima dello stoccaggio nel database. Nessuna chiave viene mai esposta in chiaro nei log o nelle risposte API.</p><h2>Modelli di ragionamento</h2><p>LIA supporta i modelli di ragionamento avanzati con 5 livelli di <code>reasoning_effort</code>: <code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code> e <code>xhigh</code>. Questo permette di attivare il ragionamento profondo solo dove è necessario, ottimizzando il rapporto costo/prestazioni.</p><h2>Distribuzione 100% locale</h2><p>Per la massima riservatezza, LIA può funzionare interamente in locale tramite un provider locale compatibile. Nessun dato lascia la tua infrastruttura. Basta puntare le variabili di configurazione verso la tua istanza locale.</p>"
+        "body": "<h2>Numerosi provider, un solo assistente</h2><p>LIA integra nativamente <strong>numerosi provider di LLM</strong>: provider cloud leader di mercato (modelli proprietari), provider open-source ospitati nel cloud e provider locali per la massima riservatezza. Ogni provider è gestito da un adattatore dedicato nella factory LLM.</p><h2>56 tipi di LLM configurabili individualmente</h2><p>LIA definisce <strong>oltre 50 tipi di LLM</strong> configurabili separatamente: router, response, planner, ogni agente di dominio e altro. Per ogni tipo, puoi definire: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> e <code>reasoning_effort</code>.</p><p>Ad esempio:</p><ul><li>Un modello rapido ed economico per il <strong>routing</strong></li><li>Un modello potente per la <strong>pianificazione</strong></li><li>Un modello creativo per le <strong>risposte</strong></li><li>Un modello locale per la <strong>riservatezza</strong></li></ul><h2>Catena di risoluzione della configurazione</h2><p>La configurazione di ogni LLM segue una <strong>catena di risoluzione a 3 livelli</strong>: Admin UI (memorizzata nel database) → Variabili d'ambiente → Valori predefiniti del codice. Una cache <code>LLMConfigOverrideCache</code> fornisce lookup in O(1) senza query al database a runtime. Le modifiche tramite l'interfaccia di amministrazione hanno <strong>effetto immediato</strong> grazie all'invalidazione della cache.</p><h2>La factory LLM multi-provider</h2><p>Un unico punto di ingresso per tutti i provider:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Esempi di utilizzo\nrouter_llm = get_llm(\"router\")\nplanner_llm = get_llm(\"planner\")\nresponse_llm = get_llm(\"response\")</code></pre><h2>Sicurezza delle chiavi API</h2><p>Le chiavi API dei provider sono <strong>crittografate con Fernet</strong> (AES-128 CBC + HMAC) prima dello stoccaggio nel database. Nessuna chiave viene mai esposta in chiaro nei log o nelle risposte API.</p><h2>Modelli di ragionamento</h2><p>LIA supporta i modelli di ragionamento avanzati con 5 livelli di <code>reasoning_effort</code>: <code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code> e <code>xhigh</code>. Questo permette di attivare il ragionamento profondo solo dove è necessario, ottimizzando il rapporto costo/prestazioni.</p><h2>Distribuzione 100% locale</h2><p>Per la massima riservatezza, LIA può funzionare interamente in locale tramite un provider locale compatibile. Nessun dato lascia la tua infrastruttura. Basta puntare le variabili di configurazione verso la tua istanza locale.</p>"
       },
       "google-workspace": {
         "title": "Integrazione Google Workspace: Gmail, Calendar, Contacts, Drive, Tasks",

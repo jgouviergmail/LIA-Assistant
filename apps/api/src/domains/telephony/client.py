@@ -21,6 +21,80 @@ _BASE_URL = "https://api.elevenlabs.io/v1/convai"
 _AUTH_HEADER = "xi-api-key"
 
 
+def _agent_config_body(
+    *,
+    name: str,
+    system_prompt: str,
+    first_message: str,
+    language: str,
+    llm_model: str | None,
+    tts_model_id: str | None,
+    voice_id: str | None,
+    audio_format: str | None,
+    max_duration_seconds: int | None,
+    data_collection: list[dict[str, str]] | None,
+) -> dict[str, Any]:
+    """Build the agent config body shared by create_agent and update_agent.
+
+    One source of truth: whatever is covered by the config fingerprint
+    (``agent_prompt.agent_config_fingerprint``) is exactly what gets sent.
+    """
+    prompt_config: dict[str, Any] = {
+        "prompt": system_prompt,
+        # System tools: each entry REQUIRES its "name" field (real vendor 400
+        # observed on an empty object: "Field required — built_in_tools.
+        # end_call.name"). Without end_call the agent can NEVER hang up.
+        "built_in_tools": {
+            "end_call": {"name": "end_call"},
+            "voicemail_detection": {"name": "voicemail_detection"},
+        },
+    }
+    if llm_model:
+        # Pin the agent's LLM: the platform default (gemini-2.5-flash, a
+        # thinking model — verified on a fresh agent) was observed reciting
+        # its English reasoning ALOUD on a real French call. PATCH contract
+        # verified on a throwaway agent (200, stored, echoed by GET).
+        prompt_config["llm"] = llm_model
+    body: dict[str, Any] = {
+        "name": name,
+        "conversation_config": {
+            "agent": {
+                "prompt": prompt_config,
+                "first_message": first_message,
+                "language": language,
+            },
+        },
+    }
+    tts: dict[str, Any] = {}
+    if tts_model_id:
+        tts["model_id"] = tts_model_id
+    if voice_id:
+        tts["voice_id"] = voice_id
+    if audio_format:
+        # Telephony is 8 kHz mu-law end to end: Twilio requires ulaw_8000 and a
+        # format mismatch is the vendor's documented cause of garbled/poor call
+        # audio. Set BOTH directions (TTS out + ASR in).
+        # spike: field paths per the agent config schema
+        # (tts.agent_output_audio_format / asr.user_input_audio_format).
+        tts["agent_output_audio_format"] = audio_format
+        body["conversation_config"]["asr"] = {"user_input_audio_format": audio_format}
+    if tts:
+        body["conversation_config"]["tts"] = tts
+    if max_duration_seconds:
+        body["conversation_config"]["conversation"] = {"max_duration_seconds": max_duration_seconds}
+    if data_collection:
+        body["platform_settings"] = {
+            "data_collection": {
+                field["identifier"]: {
+                    "type": field["type"],
+                    "description": field["description"],
+                }
+                for field in data_collection
+            }
+        }
+    return body
+
+
 class ElevenLabsAgentsError(RuntimeError):
     """Raised when the ElevenLabs API returns a non-success response."""
 
@@ -60,14 +134,19 @@ class ElevenLabsAgentsClient:
         async with self._client() as client:
             resp = await client.request(method, path, **kwargs)
         if resp.status_code >= 400:
-            # Never log the api key; a short detail only.
+            # Never log the api key. The truncated vendor detail IS logged: it
+            # names the offending field (e.g. "built_in_tools.end_call.name:
+            # Field required") and carries no user data — without it a prod 4xx
+            # (observed: agent-sync PATCH 400) is undiagnosable.
+            detail = resp.text[:200]
             logger.warning(
                 "elevenlabs_api_error",
                 method=method,
                 path=path,
                 status_code=resp.status_code,
+                detail=detail,
             )
-            raise ElevenLabsAgentsError(resp.status_code, resp.text[:200])
+            raise ElevenLabsAgentsError(resp.status_code, detail)
         return resp
 
     async def validate_key(self) -> bool:
@@ -91,9 +170,26 @@ class ElevenLabsAgentsClient:
         system_prompt: str,
         first_message: str,
         language: str,
+        llm_model: str | None = None,
+        tts_model_id: str | None = None,
+        voice_id: str | None = None,
+        audio_format: str | None = None,
+        max_duration_seconds: int | None = None,
         data_collection: list[dict[str, str]] | None = None,
     ) -> str:
         """Create a LIA-controlled agent; returns its ``agent_id``.
+
+        ``tts_model_id`` selects the agent's voice model. ElevenLabs REJECTS
+        non-English agents without a turbo/flash v2.5 model (real 400 observed:
+        "Non-english Agents must use turbo or flash v2_5"), so callers must pass
+        one whenever ``language`` is not English. ``voice_id`` overrides the
+        vendor default voice (an ENGLISH voice — garbled speech observed on
+        French calls with it).
+
+        The ``end_call`` system tool is always enabled — without it the agent
+        can NEVER hang up and the line stays open after the goodbyes (observed).
+        ``voicemail_detection`` supports the prompt's voicemail behavior, and
+        ``max_duration_seconds`` caps runaway calls at the vendor level.
 
         ``data_collection`` declares the structured fields the agent must extract
         during the call (their identifiers are the contract with the post-call
@@ -102,33 +198,61 @@ class ElevenLabsAgentsClient:
 
         spike: confirm the exact prompt-text key (``conversation_config.agent.
         prompt.prompt``), the data-collection config path (assumed
-        ``platform_settings.data_collection``) and where voicemail-detection +
-        max-duration config live in the body before go-live.
+        ``platform_settings.data_collection``) and the ``built_in_tools`` shape
+        (docs: ``agent.prompt.built_in_tools`` object keyed by tool name).
         """
-        body: dict[str, Any] = {
-            "name": name,
-            "conversation_config": {
-                "agent": {
-                    "prompt": {"prompt": system_prompt},
-                    "first_message": first_message,
-                    "language": language,
-                },
-            },
-        }
-        if data_collection:
-            body["platform_settings"] = {
-                "data_collection": {
-                    field["identifier"]: {
-                        "type": field["type"],
-                        "description": field["description"],
-                    }
-                    for field in data_collection
-                }
-            }
+        body = _agent_config_body(
+            name=name,
+            system_prompt=system_prompt,
+            first_message=first_message,
+            language=language,
+            llm_model=llm_model,
+            tts_model_id=tts_model_id,
+            voice_id=voice_id,
+            audio_format=audio_format,
+            max_duration_seconds=max_duration_seconds,
+            data_collection=data_collection,
+        )
         resp = await self._request("POST", "/agents/create", json=body)
         agent_id: str = resp.json()["agent_id"]
         logger.info("elevenlabs_agent_created", agent_id=agent_id)
         return agent_id
+
+    async def update_agent(
+        self,
+        agent_id: str,
+        *,
+        name: str,
+        system_prompt: str,
+        first_message: str,
+        language: str,
+        llm_model: str | None = None,
+        tts_model_id: str | None = None,
+        voice_id: str | None = None,
+        audio_format: str | None = None,
+        max_duration_seconds: int | None = None,
+        data_collection: list[dict[str, str]] | None = None,
+    ) -> None:
+        """Update an existing agent in place with the SAME config body as create.
+
+        Powers the lazy config re-sync: prompt/voice/format changes reach the
+        provisioned agent on the next call, without deactivating the connector.
+        spike: PATCH semantics per the agents API (config fields replaced).
+        """
+        body = _agent_config_body(
+            name=name,
+            system_prompt=system_prompt,
+            first_message=first_message,
+            language=language,
+            llm_model=llm_model,
+            tts_model_id=tts_model_id,
+            voice_id=voice_id,
+            audio_format=audio_format,
+            max_duration_seconds=max_duration_seconds,
+            data_collection=data_collection,
+        )
+        await self._request("PATCH", f"/agents/{agent_id}", json=body)
+        logger.info("elevenlabs_agent_updated", agent_id=agent_id)
 
     async def delete_agent(self, agent_id: str) -> None:
         """Best-effort delete of a LIA-created agent (deactivation cleanup)."""
@@ -137,6 +261,19 @@ class ElevenLabsAgentsClient:
         except ElevenLabsAgentsError as exc:
             # The agent lives in the user's workspace — cleanup failure is non-fatal.
             logger.warning("elevenlabs_agent_delete_failed", agent_id=agent_id, detail=exc.detail)
+
+    async def get_conversation_status(self, conversation_id: str) -> str:
+        """Return the vendor-side status of a conversation (empty if absent).
+
+        Powers the self-healing one-active-call guard: a row stuck DIALING
+        because its post-call webhook never arrived can be closed as soon as
+        the vendor reports the conversation terminal. spike: status values per
+        the conversations API (initiated / in-progress / processing / done /
+        failed).
+        """
+        resp = await self._request("GET", f"/conversations/{conversation_id}")
+        status: str = resp.json().get("status", "")
+        return status
 
     async def initiate_outbound_call(
         self,

@@ -83,6 +83,68 @@ async def test_create_agent_returns_agent_id_with_language():
     )
     assert agent_id == "ag_new"
     assert captured["body"]["conversation_config"]["agent"]["language"] == "fr"
+    # No tts_model_id given -> no tts block (English-only default upstream)
+    assert "tts" not in captured["body"]["conversation_config"]
+
+
+@pytest.mark.unit
+async def test_create_agent_sets_tts_model_for_non_english():
+    """Non-English agents REQUIRE a turbo/flash v2.5 TTS model (vendor 400 otherwise)."""
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"agent_id": "ag_tts"})
+
+    await _client(handler).create_agent(
+        name="n",
+        system_prompt="s",
+        first_message="f",
+        language="fr",
+        tts_model_id="eleven_flash_v2_5",
+    )
+    assert captured["body"]["conversation_config"]["tts"] == {"model_id": "eleven_flash_v2_5"}
+
+
+@pytest.mark.unit
+async def test_create_agent_enables_end_call_and_caps_duration():
+    """Without the end_call system tool the agent can NEVER hang up (observed:
+    the line stayed open after the goodbyes); the duration cap bounds runaway
+    calls vendor-side and the voice overrides the English default voice."""
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"agent_id": "ag_sys"})
+
+    await _client(handler).create_agent(
+        name="n",
+        system_prompt="s",
+        first_message="f",
+        language="fr",
+        llm_model="gpt-4o-mini",
+        tts_model_id="eleven_flash_v2_5",
+        voice_id="voice_fr_1",
+        audio_format="ulaw_8000",
+        max_duration_seconds=600,
+    )
+    prompt_cfg = captured["body"]["conversation_config"]["agent"]["prompt"]
+    assert "end_call" in prompt_cfg["built_in_tools"]
+    assert "voicemail_detection" in prompt_cfg["built_in_tools"]
+    # LLM pinned: the platform default (gemini-2.5-flash, thinking) recited its
+    # English reasoning aloud on a real call — never left to the default.
+    assert prompt_cfg["llm"] == "gpt-4o-mini"
+    assert captured["body"]["conversation_config"]["conversation"] == {"max_duration_seconds": 600}
+    # Telephony-native audio on BOTH directions (Twilio requires ulaw_8000;
+    # a mismatch is the vendor's documented cause of garbled call audio).
+    assert captured["body"]["conversation_config"]["tts"] == {
+        "model_id": "eleven_flash_v2_5",
+        "voice_id": "voice_fr_1",
+        "agent_output_audio_format": "ulaw_8000",
+    }
+    assert captured["body"]["conversation_config"]["asr"] == {
+        "user_input_audio_format": "ulaw_8000"
+    }
 
 
 @pytest.mark.unit
@@ -99,6 +161,36 @@ async def test_create_agent_includes_data_collection():
     )
     collected = captured["body"]["platform_settings"]["data_collection"]
     assert collected["agreed"] == {"type": "boolean", "description": "agreed?"}
+
+
+@pytest.mark.unit
+async def test_update_agent_patches_same_config_shape():
+    """update_agent PATCHes /agents/{id} with the SAME body as create (lazy sync)."""
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["method"] = request.method
+        captured["path"] = request.url.path
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json={})
+
+    await _client(handler).update_agent(
+        "ag_1",
+        name="n",
+        system_prompt="s",
+        first_message="f",
+        language="fr",
+        tts_model_id="eleven_turbo_v2_5",
+        audio_format="ulaw_8000",
+        max_duration_seconds=600,
+    )
+    assert captured["method"] == "PATCH"
+    assert captured["path"].endswith("/agents/ag_1")
+    prompt_cfg = captured["body"]["conversation_config"]["agent"]["prompt"]
+    assert "end_call" in prompt_cfg["built_in_tools"]
+    assert (
+        captured["body"]["conversation_config"]["tts"]["agent_output_audio_format"] == "ulaw_8000"
+    )
 
 
 @pytest.mark.unit

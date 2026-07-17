@@ -4,7 +4,7 @@
 
 **Versione** : 3.7
 **Data** : 2026-07-17
-**Applicazione** : LIA v1.25.4
+**Applicazione** : LIA v1.25.5
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -179,7 +179,7 @@ Tre azioni di gestione ti danno il pieno controllo: eliminare tutte le misurazio
 
 LIA può alzare la cornetta per te. Chiedile di «chiamare l'officina per verificare se l'auto è pronta» o di «chiamare Marie per sapere se è libera martedì sera», e LIA effettua una vera chiamata in uscita, conduce la conversazione verso il tuo obiettivo e ti riporta un riepilogo scritto — con un'azione di follow-up in un tocco quando resta qualcosa da fare (prenotare la fascia appena concordata, per esempio).
 
-Mantieni sempre il controllo: prima di comporre il numero, LIA ti dice esattamente **chi** chiamerà e **perché**, e attende il tuo via libera. Il riepilogo arriva nella chat in modo asincrono, così puoi fare altro mentre la chiamata è in corso.
+Mantieni sempre il controllo: prima di comporre il numero, LIA ti dice esattamente **chi** chiamerà e **perché**, e attende il tuo via libera. E quel controllo non si ferma durante la chiamata: l'assistente opera sotto un mandato rigoroso — se l'interlocutore propone un extra, un'opzione o un impegno imprevisto (anche piccolo), non accetta mai al posto tuo; annota l'offerta e il prezzo, annuncia che si richiamerà, e il riepilogo ti consegna ogni costo e ogni punto in sospeso perché sia tu a decidere. Il riepilogo arriva nella chat in modo asincrono, così puoi fare altro mentre la chiamata è in corso.
 
 E resta riservato per costruzione. Durante una chiamata LIA può solo indicare se sei libero o occupato in un dato momento — mai i titoli, gli invitati o i luoghi del tuo calendario. Nulla viene registrato, la conversazione non viene mai conservata e si mantiene solo un breve riepilogo prima che scada. Le chiamate passano dal tuo connettore ElevenLabs personale, addebitate sul tuo account, e la funzione è presente solo se il tuo amministratore l'ha attivata.
 

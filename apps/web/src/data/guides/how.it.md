@@ -6,7 +6,7 @@
 
 **Versione**: 3.0
 **Data**: 2026-07-17
-**Applicazione**: LIA v1.25.4
+**Applicazione**: LIA v1.25.5
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -590,7 +590,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 Il `get_llm()` risolve la configurazione effettiva tramite `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), istanzia il modello e applica gli adattatori specifici.
 
-### 12.2. 55 tipi di configurazione LLM
+### 12.2. 56 tipi di configurazione LLM
 
 Ogni nodo della pipeline è configurabile indipendentemente tramite l'Admin UI — senza ridistribuzione:
 
@@ -1068,4 +1068,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), dei 120+ ADR e del changelog (da v1.0 a v1.25.4). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), dei 120+ ADR e del changelog (da v1.0 a v1.25.5). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

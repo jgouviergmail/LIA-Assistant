@@ -40,6 +40,7 @@ from src.domains.agents.prompts import (
 from src.domains.agents.semantic.expansion_service import (
     generate_semantic_dependencies_for_prompt,
 )
+from src.domains.agents.services.planner.human_message import build_planner_human_message
 from src.domains.agents.services.planner.planning_result import PlanningResult
 from src.domains.agents.services.smart_catalogue_service import (
     FilteredCatalogue,
@@ -397,12 +398,18 @@ class SmartPlannerService:
         )
 
         llm = get_llm("planner")
-        # Use ORIGINAL query (user's language) for planner
-        # Memory references are resolved via RESOLVED REFERENCES section in prompt
-        # This ensures tool parameters (content, summary, etc.) are in user's language
+        # Original query (user's language) + resolved facts in the HUMAN message
+        # (see build_planner_human_message — facts in the system context were
+        # demonstrably ignored).
         messages = [
             SystemMessage(content=prompt),
-            HumanMessage(content=f"Query: {intelligence.original_query}"),
+            HumanMessage(
+                content=build_planner_human_message(
+                    intelligence,
+                    existing_plan=existing_plan if clarification_response is None else None,
+                    validation_feedback=validation_feedback,
+                )
+            ),
         ]
 
         logger.debug(
@@ -550,12 +557,18 @@ class SmartPlannerService:
         )
 
         llm = get_llm("planner")
-        # Use ORIGINAL query (user's language) for planner
-        # Memory references are resolved via RESOLVED REFERENCES section in prompt
-        # This ensures tool parameters (content, summary, etc.) are in user's language
+        # Original query (user's language) + resolved facts in the HUMAN message
+        # (see build_planner_human_message — facts in the system context were
+        # demonstrably ignored).
         messages = [
             SystemMessage(content=prompt),
-            HumanMessage(content=f"Query: {intelligence.original_query}"),
+            HumanMessage(
+                content=build_planner_human_message(
+                    intelligence,
+                    existing_plan=existing_plan if clarification_response is None else None,
+                    validation_feedback=validation_feedback,
+                )
+            ),
         ]
 
         try:
@@ -1274,17 +1287,12 @@ class SmartPlannerService:
         if iot_context:
             context = f"{context}\n\n{iot_context}" if context else iot_context
 
-        # Append enriched English query with resolved references.
-        # All ordinal/pronoun references are ALREADY resolved here — the planner must use
-        # these values directly and NEVER call resolve_reference or any lookup tool.
-        # User-provided content (body, subject, title, description, notes) must be extracted
-        # from the Original query (user's language), not from this English version.
-        if intelligence.english_enriched_query:
-            context += (
-                f"\n\nResolved request (all references already resolved, use directly): "
-                f"{intelligence.english_enriched_query}\n"
-                f"CONTENT RULE: Extract user-provided content from Original query above (user's language)."
-            )
+        # The enriched English query (resolved references) is NOT injected here
+        # anymore: buried in the system context the planner demonstrably ignored
+        # it (prod 2026-07-17, twice — defaults substituted for stated facts,
+        # even with an explicit FACT RULE). It now rides in the HUMAN message
+        # with the authority + language constraints attached — see
+        # build_planner_human_message.
 
         # MCP reference content (read_me) — only when MCP domains are selected
         mcp_reference = self._build_mcp_reference(intelligence.domains)

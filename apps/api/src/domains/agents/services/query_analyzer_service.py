@@ -170,6 +170,20 @@ _FOR_EACH_PATTERNS_EXPLICIT: frozenset[str] = frozenset(
     ]
 )
 
+# Word-boundary matching is mandatory: substring matching made "call my wife"
+# trigger FOR_EACH via the embedded "all my" (c[all my] wife) — every natural
+# "call my X" telephony request was rejected by the semantic validator.
+_FOR_EACH_EXPLICIT_RE: re.Pattern[str] = re.compile(
+    r"\b(?:" + "|".join(re.escape(p) for p in sorted(_FOR_EACH_PATTERNS_EXPLICIT)) + r")\b"
+)
+
+
+@functools.lru_cache(maxsize=1)
+def _get_plural_hints_regex() -> re.Pattern[str]:
+    """Word-boundary regex over the plural collection hints (same rationale)."""
+    hints = "|".join(re.escape(h) for h in sorted(_get_plural_collection_hints()))
+    return re.compile(r"\b(?:" + hints + r")\b")
+
 
 @functools.lru_cache(maxsize=1)
 def _get_plural_collection_hints() -> frozenset[str]:
@@ -233,11 +247,11 @@ def _apply_for_each_heuristics(
     if result.for_each_detected:
         return result
 
-    # Heuristic 1: Explicit patterns
-    has_explicit = any(p in query_lower for p in _FOR_EACH_PATTERNS_EXPLICIT)
+    # Heuristic 1: Explicit patterns (word-bounded — see _FOR_EACH_EXPLICIT_RE)
+    has_explicit = bool(_FOR_EACH_EXPLICIT_RE.search(query_lower))
 
-    # Heuristic 2: Plural collection noun + mutation intent
-    has_plural = any(p in query_lower for p in _get_plural_collection_hints())
+    # Heuristic 2: Plural collection noun + mutation intent (word-bounded)
+    has_plural = bool(_get_plural_hints_regex().search(query_lower))
     has_mutation = result.is_mutation_intent
 
     # Heuristic 3: Quantifier + mutation ("delete the first 3 tasks")
@@ -617,6 +631,12 @@ def _build_available_domains() -> list[dict[str, str]]:
         config = DOMAIN_REGISTRY.get(domain_name)
         if config:
             available_domains.append({"name": domain_name, "description": config.description})
+
+    # Agentic telephony (ADR-127) is deployment-flag-gated: when disabled, its
+    # tools/agent are not registered, so the domain must not be offered to the
+    # router either (same runtime-filtering chokepoint as MCP below).
+    if not getattr(settings, "telephony_enabled", False):
+        available_domains = [d for d in available_domains if d["name"] != "telephony"]
 
     # F2.2+F2.5: Unified MCP per-server domain injection (admin + user).
     mcp_domains = collect_all_mcp_domains(

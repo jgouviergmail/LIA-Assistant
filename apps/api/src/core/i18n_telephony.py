@@ -23,23 +23,30 @@ def _iso(language: str | None) -> str:
 
 
 # ============================================================================
-# Agent disclosure — the first message the LIA agent speaks on the call.
-# Contains {{user_name}} / {{objective}} ElevenLabs dynamic-variable markers.
+# Agent greeting — the first message spoken the instant the call connects.
 # ============================================================================
+# DELIBERATELY SHORT (identity only, no objective): it plays instantly at
+# pickup, so the line is never silent while the agent LLM composes its first
+# real turn (an EMPTY first_message caused a multi-second standoff at call
+# start — the agent waited for speech, the callee waited for the caller). The
+# old long disclosure (identity + objective) caused the opposite bug: the
+# agent considered its opening done and stalled. Why + first question come
+# from the LLM at the person's first response (prompt's Opening mandate).
+# Contains the {{user_name}} ElevenLabs dynamic-variable marker.
 
-DISCLOSURE_FIRST_MESSAGE: dict[str, str] = {
-    "fr": "Bonjour, je suis l'assistant vocal de {{user_name}}. Il m'a demandé de vous appeler au sujet de : {{objective}}.",
-    "en": "Hello, I'm {{user_name}}'s voice assistant. They asked me to call you about: {{objective}}.",
-    "de": "Guten Tag, ich bin der Sprachassistent von {{user_name}} und rufe Sie an wegen: {{objective}}.",
-    "es": "Hola, soy el asistente de voz de {{user_name}}. Me pidió que le llamara sobre: {{objective}}.",
-    "it": "Salve, sono l'assistente vocale di {{user_name}}. Mi ha chiesto di chiamarla riguardo a: {{objective}}.",
-    "zh": "您好，我是{{user_name}}的语音助手，受托就以下事项致电您：{{objective}}。",
+GREETING_FIRST_MESSAGE: dict[str, str] = {
+    "fr": "Bonjour, je suis l'assistant vocal de {{user_name}}.",
+    "en": "Hello, this is {{user_name}}'s voice assistant speaking.",
+    "de": "Guten Tag, hier spricht der Sprachassistent von {{user_name}}.",
+    "es": "Hola, soy el asistente de voz de {{user_name}}.",
+    "it": "Salve, sono l'assistente vocale di {{user_name}}.",
+    "zh": "您好，我是{{user_name}}的语音助手。",
 }
 
 
-def get_disclosure_first_message(language: str | None) -> str:
-    """First-message disclosure for the agent, in the user's language."""
-    return DISCLOSURE_FIRST_MESSAGE.get(_iso(language), DISCLOSURE_FIRST_MESSAGE[_DEFAULT])
+def get_greeting_first_message(language: str | None) -> str:
+    """Instant-pickup greeting for the agent, in the user's language."""
+    return GREETING_FIRST_MESSAGE.get(_iso(language), GREETING_FIRST_MESSAGE[_DEFAULT])
 
 
 # ============================================================================

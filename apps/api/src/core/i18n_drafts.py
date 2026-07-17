@@ -35,7 +35,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Supprimé avec succès",
         "label_delete": "Label supprimé avec succès",
         "reminder_delete": "Rappel '{content}' supprimé",
-        "phone_call": "J'appelle {name} maintenant, je te fais un retour dès que j'ai la réponse.",
+        "phone_call": "J'appelle **{name}** maintenant, je te fais un retour dès que j'ai la réponse.",
         "_default": "Action exécutée avec succès",
     },
     "en": {
@@ -55,7 +55,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Deleted successfully",
         "label_delete": "Label deleted successfully",
         "reminder_delete": "Reminder '{content}' deleted",
-        "phone_call": "I'm calling {name} now — I'll get back to you as soon as I have an answer.",
+        "phone_call": "I'm calling **{name}** now — I'll get back to you as soon as I have an answer.",
         "_default": "Action completed successfully",
     },
     "es": {
@@ -75,7 +75,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Eliminado con éxito",
         "label_delete": "Etiqueta eliminada con éxito",
         "reminder_delete": "Recordatorio '{content}' eliminado",
-        "phone_call": "Estoy llamando a {name} ahora; te aviso en cuanto tenga una respuesta.",
+        "phone_call": "Estoy llamando a **{name}** ahora; te aviso en cuanto tenga una respuesta.",
         "_default": "Acción ejecutada con éxito",
     },
     "de": {
@@ -95,7 +95,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Erfolgreich gelöscht",
         "label_delete": "Label erfolgreich gelöscht",
         "reminder_delete": "Erinnerung '{content}' gelöscht",
-        "phone_call": "Ich rufe {name} jetzt an und melde mich, sobald ich eine Antwort habe.",
+        "phone_call": "Ich rufe **{name}** jetzt an und melde mich, sobald ich eine Antwort habe.",
         "_default": "Aktion erfolgreich ausgeführt",
     },
     "it": {
@@ -115,7 +115,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Eliminato con successo",
         "label_delete": "Etichetta eliminata con successo",
         "reminder_delete": "Promemoria '{content}' eliminato",
-        "phone_call": "Sto chiamando {name} adesso; ti aggiorno appena ho una risposta.",
+        "phone_call": "Sto chiamando **{name}** adesso; ti aggiorno appena ho una risposta.",
         "_default": "Azione eseguita con successo",
     },
     "zh-CN": {
@@ -135,7 +135,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "删除成功",
         "label_delete": "标签删除成功",
         "reminder_delete": "提醒 '{content}' 已删除",
-        "phone_call": "我正在拨打{name}，一有答复我就告诉你。",
+        "phone_call": "我正在拨打 **{name}**，一有答复我就告诉你。",
         "_default": "操作成功完成",
     },
 }

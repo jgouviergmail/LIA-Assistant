@@ -64,6 +64,55 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+async def _with_markdown_hard_breaks(
+    stream: AsyncGenerator[str, None],
+) -> AsyncGenerator[str, None]:
+    """Convert single newlines of a token stream into explicit ``<br/>`` breaks.
+
+    The critique question is rendered as markdown, where a bare ``\\n`` is a
+    SOFT wrap — consecutive field lines end up glued on one line. Paragraph
+    breaks (``\\n\\n`` runs) are preserved, and a line already ending with a
+    ``<br>``/``<br/>`` tag is not doubled. Stream-safe: a trailing newline run
+    is held back until the following chunk resolves whether it is a single
+    break or a paragraph.
+    """
+    pending = ""
+    # Tail of the text emitted so far: the already-a-break guard must also see
+    # a "<br>" whose newline arrived in the NEXT chunk (token streams split
+    # anywhere), not just the current segment.
+    emitted_tail = ""
+    async for chunk in stream:
+        if not chunk:
+            continue
+        pending += chunk
+        while True:
+            i = pending.find("\n")
+            if i == -1:
+                yield pending
+                emitted_tail = (emitted_tail + pending)[-8:]
+                pending = ""
+                break
+            j = i
+            while j < len(pending) and pending[j] == "\n":
+                j += 1
+            if j == len(pending):
+                # Newline run touches the buffer end — unresolved, wait for more.
+                if i > 0:
+                    yield pending[:i]
+                    emitted_tail = (emitted_tail + pending[:i])[-8:]
+                    pending = pending[i:]
+                break
+            head, run = pending[:i], j - i
+            already_break = (emitted_tail + head).rstrip().endswith(("<br>", "<br/>"))
+            out = head + ("<br/>\n" if run == 1 and not already_break else "\n" * run)
+            yield out
+            emitted_tail = (emitted_tail + out)[-8:]
+            pending = pending[j:]
+    if pending:
+        # Trailing text (possibly ending in newlines) — emit verbatim.
+        yield pending
+
+
 @HitlInteractionRegistry.register(HitlInteractionType.DRAFT_CRITIQUE)
 class DraftCritiqueInteraction:
     """
@@ -267,14 +316,18 @@ class DraftCritiqueInteraction:
         token_count = 0
 
         try:
-            async for token in self._generate_critique_via_llm(
+            llm_stream = self._generate_critique_via_llm(
                 draft_type=draft_type,
                 draft_content=draft_content,
                 user_language=user_language,
                 user_timezone=user_timezone,
                 batch_total=batch_total,
                 tracker=tracker,
-            ):
+            )
+            # Deterministic layout: the renderer soft-wraps single newlines
+            # (fields glued on one line) and the LLM does not reliably emit the
+            # template's <br> tags — normalize in-stream instead of trusting it.
+            async for token in _with_markdown_hard_breaks(llm_stream):
                 # Track TTFT on first token
                 if not first_token_received:
                     ttft = time.time() - start_time
