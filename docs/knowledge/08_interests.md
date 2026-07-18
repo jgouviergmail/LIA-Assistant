@@ -29,20 +29,22 @@ LIA sends you relevant content on your favorite topics:
 • Personalized with LIA's active personality
 
 **📚 Content sources:**
-1. **Wikipedia**: encyclopedic articles
-2. **Perplexity**: recent news and research
-3. **AI Reflection**: generated content if no source fits
+1. **Perplexity**: recent news and research
+2. **Brave Search**: up-to-date web results
+3. **Wikipedia**: encyclopedic articles
+4. **AI Reflection**: generated content if no source fits
 
 **⏰ Triggering:**
 • Only within your time window (9am-10pm by default)
 • Configurable frequency (1 to 5 per day)
 • Never when you're actively using chat
-• 2-hour global cooldown between notifications
+• 1-hour global cooldown between notifications
 
 **📱 Delivery:**
 • Push notification (even with app closed)
 • Real-time display in chat
 • Archived in conversation history
+• **Clickable source links** at the end of the message (chat), so you can read the original articles
 
 ## How do I manage my interests?
 Manage your interests in **Settings**:
@@ -79,19 +81,22 @@ Each interest has a **weight** that evolves:
 
 **📉 Negative signals (-weight):**
 • Clicking "*Less interested*" 👎
-• Temporal decay (1%/day without mention)
+• Temporal decay (0.5%/day without mention)
 
 **⏳ Temporal decay:**
 • If you stop talking about a topic, its weight decreases
 • Dormant interests after 15 days without mention
-• Automatic deletion after 90 days of inactivity
+• Automatic deletion after 30 days of dormancy
 
 **🌙 Dormant ≠ lost:**
 • Dormant interests stay visible in Settings, in a dedicated section
 • You can reactivate, edit or delete them at any time
 
-**🎯 Selection for notification:**
-Interests with the **highest weight** are more likely to be chosen
+**🎯 Selection for notification (variety-first):**
+• Your interests are grouped into **subjects** (e.g. several AI tools = one subject)
+• Recently notified subjects are set aside for a while, and rarely served
+  subjects get priority — so one passion never monopolizes your notifications
+• Within a subject, the least recently covered interest is favored
 
 ## How do I give feedback on a notification?
 When you receive a notification, give your opinion:
@@ -126,12 +131,13 @@ LIA uses several anti-duplicate mechanisms:
 
 **2. Content deduplication:**
 • SHA256 hash of content (exact comparison)
-• Semantic similarity (85% threshold)
-• Checked against the last 30 days
+• Semantic similarity (90% threshold)
+• Checked against the last 7 days
 
 **3. Cooldowns:**
-• **Global**: 2h minimum between 2 notifications
-• **Per topic**: 24h before discussing the same theme again
+• **Global**: 1h minimum between 2 notifications
+• **Per topic**: 12h before discussing the same interest again
+• **Per subject**: 36h before revisiting the same theme
 • **Daily quota**: max N notifications/day
 
 **📊 Result:**

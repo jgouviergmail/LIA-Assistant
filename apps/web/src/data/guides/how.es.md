@@ -4,9 +4,9 @@
 >
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
-**Versión**: 3.0
-**Fecha**: 2026-07-17
-**Aplicación**: LIA v1.25.5
+**Versión**: 3.1
+**Fecha**: 2026-07-18
+**Aplicación**: LIA v1.25.6
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,7 +52,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 419 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Transparencia total | 423 métricas Prometheus, debug panel integrado, seguimiento token por token |
 | Fiabilidad en producción | 120+ ADRs, ~11.900 tests recogidos por pytest en 670 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
@@ -75,7 +75,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
-| Métricas Prometheus | 419 definiciones |
+| Métricas Prometheus | 423 definiciones |
 | Dashboards Grafana | 25 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -576,7 +576,7 @@ El asistente mantiene reflexiones introspectivas organizadas en cuatro temas (au
 
 ### 11.6. Sistema de intereses
 
-Detección por análisis de las peticiones con evolución bayesiana de los pesos (decay 0.01/día). Notificaciones proactivas multi-fuente (Wikipedia, Perplexity, LLM). Feedback del usuario (thumbs up/down/block) ajusta los pesos.
+Detección por análisis de las peticiones con evolución bayesiana de los pesos (decay configurable). Los intereses se agrupan en **temas** mediante clustering LLM por lotes (dato derivado, auto-reparable), y la selección de notificaciones sortea con **rareza a dos niveles** (cooldown por tema + prioridad a los temas e intereses menos servidos) — una pasión nunca monopoliza las notificaciones. Contenido multi-fuente (Perplexity, Brave, Wikipedia, reflexión LLM) con **enlaces a las fuentes clicables** añadidos de forma determinista. El feedback del usuario (thumbs up/down/block) ajusta los pesos; fusión nocturna de casi-duplicados.
 
 ---
 
@@ -768,7 +768,7 @@ Diseño **fail-open**: los fallos de infraestructura no bloquean a los usuarios.
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 419 métricas custom (RED pattern) |
+| Prometheus | 423 métricas custom (RED pattern) |
 | Grafana | 25 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
@@ -1068,4 +1068,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 120+ ADRs y del changelog (v1.0 a v1.25.5). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 120+ ADRs y del changelog (v1.0 a v1.25.6). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

@@ -11,6 +11,7 @@ provides a generic, reusable interface for all proactive tasks.
 """
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -30,6 +31,24 @@ from src.infrastructure.observability.metrics_channels import (
 )
 
 logger = get_logger(__name__)
+
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
+
+
+def markdown_links_to_plain(text: str) -> str:
+    """Convert markdown links to "label (url)" for surfaces without markdown.
+
+    FCM push bodies and Telegram (HTML parse_mode with escaping) would render
+    raw markdown syntax; this keeps appended source links readable there
+    (ADR-131). Chat archive and SSE keep the original markdown.
+
+    Args:
+        text: Notification content, possibly containing markdown links.
+
+    Returns:
+        The text with every markdown link flattened to "label (url)".
+    """
+    return _MD_LINK_RE.sub(r"\1 (\2)", text)
 
 
 @dataclass
@@ -307,7 +326,7 @@ class NotificationDispatcher:
                 fcm_result = await self._send_fcm(
                     user=user,
                     title=title,
-                    body=self._truncate_for_notification(content),
+                    body=self._truncate_for_notification(markdown_links_to_plain(content)),
                     task_type=task_type,
                     target_id=target_id,
                     db=db,
@@ -348,7 +367,7 @@ class NotificationDispatcher:
                 channel_result = await self._send_channels(
                     user_id=user.id,
                     title=title,
-                    body=content,
+                    body=markdown_links_to_plain(content),
                     task_type=f"proactive_{task_type}",
                     target_id=target_id,
                     db=db,
@@ -553,60 +572,20 @@ class NotificationDispatcher:
         """
         Get localized notification title for task type.
 
+        Delegates to the centralized ProactiveMessages (i18n systemic rule).
+        The previous inline table was keyed "zh" while User.language is
+        backend-canonical "zh-CN" — Chinese users silently got English titles.
+
         Args:
             task_type: Task type identifier
-            language: User language code
+            language: Backend-canonical user language code (e.g. "zh-CN")
 
         Returns:
             Localized title string
         """
-        # Define titles per task type and language
-        titles: dict[str, dict[str, str]] = {
-            "interest": {
-                "fr": "Pour toi",
-                "en": "For you",
-                "es": "Para ti",
-                "de": "Für dich",
-                "it": "Per te",
-                "zh": "为你推荐",
-            },
-            "birthday": {
-                "fr": "Anniversaire",
-                "en": "Birthday",
-                "es": "Cumpleaños",
-                "de": "Geburtstag",
-                "it": "Compleanno",
-                "zh": "生日",
-            },
-            "event": {
-                "fr": "Événement",
-                "en": "Event",
-                "es": "Evento",
-                "de": "Ereignis",
-                "it": "Evento",
-                "zh": "活动",
-            },
-            "summary": {
-                "fr": "Résumé",
-                "en": "Summary",
-                "es": "Resumen",
-                "de": "Zusammenfassung",
-                "it": "Riepilogo",
-                "zh": "摘要",
-            },
-            "heartbeat": {
-                "fr": "Notification proactive",
-                "en": "Proactive notification",
-                "es": "Notificación proactiva",
-                "de": "Proaktive Benachrichtigung",
-                "it": "Notifica proattiva",
-                "zh": "主动通知",
-            },
-        }
+        from src.core.i18n_proactive import ProactiveMessages
 
-        # Get task-specific titles or default
-        task_titles = titles.get(task_type, {})
-        return task_titles.get(language, task_titles.get("en", "Notification"))
+        return ProactiveMessages.notification_title(task_type, language)
 
     def _truncate_for_notification(self, text: str, max_length: int | None = None) -> str:
         """

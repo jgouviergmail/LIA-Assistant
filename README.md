@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.25.5</strong> — <strong>The phone assistant becomes trustworthy — and the planner learns to converge.</strong> A full day of live-call debugging turns agentic telephony from a promising prototype into a disciplined agent. <strong>On the call:</strong> an instant localized greeting at pickup (an empty first message caused a multi-second silent standoff), a <code>current_datetime</code> anchor so "tomorrow" resolves to the right weekday out loud, a pinned multilingual voice over telephony-native <code>ulaw_8000</code> audio, a <strong>pinned thinking-free LLM</strong> (the platform default was caught reciting its English reasoning aloud mid-call), and a real hang-up via the <code>end_call</code> system tool. Above all, a <strong>mandate boundary</strong>: the assistant never accepts an unrequested expense or commitment — even a 3€ topping — it captures the offer and its price, defers to the user, and the post-call summary must state every cost and flag every open point for a call-back. <strong>Around the call:</strong> the vendor agent re-syncs lazily on config drift (no more deactivate/reactivate), a stuck "call already active" row self-heals by probing the vendor (including the deleted-agent 404 case, grace-window protected), and vendor errors are diagnosable in one log line. <strong>In the pipeline:</strong> the post-call follow-up "crée le rdv" kept producing a next-hour default slot instead of the agreed Saturday 9:30 — resolved facts now ride in the planner's <em>human message</em> where models actually read them; the semantic validator finally validates <strong>single-step mutations</strong> (skipped as "trivial" before — the whole class was unguarded), survives a structured-output prompt conflict with an A/B-proven fix (0/3 → 6/6 tool calls) plus a one-shot retry, rejects fabricated placeholder emails deterministically (RFC 2606), and on replan the planner is finally shown <strong>its own previous plan</strong> with a fix-don't-rebuild directive (it used to oscillate — fixing the date on one pass, losing it on the next). Final net: an invalid <em>mutation</em> plan that exhausts its replans is never silently executed — LIA asks the user instead. <strong>Verified:</strong> <strong>10,344 fast unit</strong> tests green, mypy strict clean on 900 files, every fix reproduced then re-proven against live prod logs and real calls. — 17 July 2026.
+  <strong>Version 1.25.6</strong> — <strong>Interest notifications learn variety — every mechanism validated by measurement first.</strong> Production data showed the repetitiveness was not the draw (already uniform) but pool composition: one perceived subject (AI), fragmented into 9 of 19 interests, captured ~50% of notifications. Three benches on the real prod snapshot settled the design (<strong>ADR-131</strong>): an embedding-cosine "semantic cooldown" was <em>refuted</em> (a false pair outscored a true one; only ≥ 0.95 is reliable), incremental LLM subject labeling was <em>refuted</em> (order-dependent drift, aberrant merges), while <strong>batch labeling measured 98.2% stable</strong> — so the <code>subject</code> label is derived data, recomputed wholesale by a scheduled job (stale scan 30 min + nightly full). A 300-run simulation validated against production picked variant <strong>V5</strong>: subject cooldown then rarity draws at both levels — the dominant family falls to ~33% and starvation drops 0.8 → 0.3 interests/30 days, fail-open at every stage, instant <code>uniform</code> rollback knob. The audit also closed real holes: extraction dedup silently disabled itself when embedding generation failed (how "Anthropic"/"anthropic" both existed — a nightly retro-merge ≥ 0.95 now heals history while repointing the audit trail), renames could collide or keep stale labels, and notifications gained <strong>deterministic source hyperlinks</strong> (markdown in chat, readable text for push/Telegram — zero hallucinated URLs). A long-standing i18n bug died too: proactive titles were keyed <code>zh</code> while <code>User.language</code> is <code>zh-CN</code> — Chinese users had been silently receiving English titles. <strong>Verified:</strong> <strong>10,388 fast unit</strong> tests green, mypy strict clean on 904 files, migration replay-from-zero green, live clustering of 33 real interests in dev Docker, distribution regression executable in CI. — 18 July 2026.
 
 </p>
 
@@ -80,7 +80,7 @@
 | **Unpredictable LLM costs** | Real-time token tracking, budget alerts, 93% optimization |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
 | **Fragmented integrations** | Unified multi-domain orchestration (19+ agents + MCP + sub-agents) |
-| **Limited observability** | 419 Prometheus metrics, 25 Grafana dashboards, email alerting with runbooks, GeoIP analytics |
+| **Limited observability** | 423 Prometheus metrics, 25 Grafana dashboards, email alerting with runbooks, GeoIP analytics |
 | **Inconsistent performance** | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring |
 
 ### Primary Use Cases
@@ -117,7 +117,7 @@ The result is measured, not proclaimed:
 | | | | |
 |---|---|---|---|
 | **32** functional domains | **420,000** lines of code (excl. tests) | **11,900+** automated tests | **120+** ADRs |
-| **153** versions shipped | **6 languages**, parity enforced in CI | **419** Prometheus metrics | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **153** versions shipped | **6 languages**, parity enforced in CI | **423** Prometheus metrics | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -323,7 +323,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 419 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 423 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 22 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -829,7 +829,7 @@ apps/api/src/
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 419 metrics |
+| Prometheus | 423 metrics |
 | Grafana | 25 dashboards |
 | Loki | Aggregated logs |
 | Tempo | Distributed tracing |

@@ -6,7 +6,7 @@ Selects top weighted interests and generates content using the content sources.
 
 Flow:
 1. check_eligibility: Verify user has interests_enabled
-2. select_target: Pick random interest from top 20%
+2. select_target: subject-rarity draw (ADR-131) or legacy uniform draw (mode switch)
 3. generate_content: Use InterestContentGenerator
 4. on_feedback: Update interest weights
 5. on_notification_sent: Update last_notified_at
@@ -30,13 +30,22 @@ from src.domains.interests.repository import (
     InterestNotificationRepository,
     InterestRepository,
 )
+from src.domains.interests.selection import (
+    SelectionConfig,
+    select_interest_subject_rarity,
+)
 from src.domains.interests.services.content_sources import (
     ContentGenerationContext,
     InterestContentGenerator,
 )
+from src.domains.interests.sources import build_sources_block
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm.token_utils import extract_llm_tokens
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_registry import (
+    interest_selection_eligible_subjects,
+    interest_selection_total,
+)
 from src.infrastructure.proactive.base import ContentSource, ProactiveTaskResult
 
 logger = get_logger(__name__)
@@ -48,7 +57,8 @@ class InterestProactiveTask:
 
     Implements the ProactiveTask protocol to:
     1. Check if user is eligible (interests_enabled)
-    2. Select top weighted interest not in cooldown
+    2. Select an interest via subject-rarity draw (cooldown + rarity, ADR-131)
+       or legacy uniform draw (settings.interest_selection_mode)
     3. Generate content via Wikipedia/Perplexity/LLM
     4. Handle user feedback (thumbs up/down/block)
 
@@ -117,12 +127,11 @@ class InterestProactiveTask:
         """
         Select an interest to notify about.
 
-        Selection algorithm:
-        1. Get all active interests
-        2. Calculate effective weights (with decay)
-        3. Filter out interests in cooldown
-        4. Select top N% (configurable)
-        5. Random selection from top N%
+        Modes (settings.interest_selection_mode, ADR-131):
+        - "subject_rarity" (default): two-level draw — subject cooldown + rarity,
+          then intra-subject rarity (bench variant V5). Fail-open at every stage.
+        - "uniform": legacy uniform draw over eligible interests
+          (with INTEREST_TOP_PERCENT=1.0 the historical "top N%" filter is a no-op).
 
         Args:
             user_id: User UUID
@@ -149,17 +158,60 @@ class InterestProactiveTask:
                     )
                     return None
 
-                selected_interest, weight = random.choice(top_interests)
+                if settings.interest_selection_mode != "subject_rarity":
+                    selected_interest, weight = random.choice(top_interests)
+                    interest_selection_total.labels(mode="uniform", fail_open="false").inc()
+                    logger.info(
+                        "interest_task_target_selected",
+                        user_id=str(user_id),
+                        interest_id=str(selected_interest.id),
+                        topic=selected_interest.topic[:50],
+                        weight=round(weight, 3),
+                        candidates_count=len(top_interests),
+                        selection_mode="uniform",
+                    )
+                    return selected_interest
 
+                actives = await repo.get_active_for_user(user_id)
+                subject_by_interest = {i.id: i.subject for i in actives}
+                notif_repo = InterestNotificationRepository(db)
+                recent = await notif_repo.get_recent_for_user(
+                    user_id=user_id,
+                    days=settings.interest_rarity_lookback_days,
+                )
+
+                result = select_interest_subject_rarity(
+                    candidates=top_interests,
+                    subject_by_interest=subject_by_interest,
+                    recent_notifications=[(n.interest_id, n.created_at) for n in recent],
+                    now=datetime.now(UTC),
+                    config=SelectionConfig.from_settings(settings),
+                )
+                if result is None:
+                    return None
+                selected_interest, debug = result
+
+                interest_selection_total.labels(
+                    mode="subject_rarity",
+                    fail_open=str(debug.fail_open).lower(),
+                ).inc()
+                interest_selection_eligible_subjects.observe(debug.eligible_subjects)
                 logger.info(
                     "interest_task_target_selected",
                     user_id=str(user_id),
                     interest_id=str(selected_interest.id),
                     topic=selected_interest.topic[:50],
-                    weight=round(weight, 3),
                     candidates_count=len(top_interests),
+                    selection_mode="subject_rarity",
+                    total_subjects=debug.total_subjects,
+                    eligible_subjects=debug.eligible_subjects,
+                    fail_open=debug.fail_open,
                 )
-
+                logger.debug(
+                    "interest_task_subject_picked",
+                    user_id=str(user_id),
+                    subject=debug.picked_subject[:50],
+                )
                 return selected_interest
 
         except Exception as e:
@@ -244,6 +296,14 @@ class InterestProactiveTask:
                     personality_instruction=personality_instruction,
                     user_id=user_id,
                 )
+            )
+
+            # Deterministic source hyperlinks (ADR-131): appended after LLM
+            # presentation so URLs can never be hallucinated or malformed.
+            presented_content += build_sources_block(
+                citations=content_result.citations,
+                language=user_language,
+                max_links=settings.interest_sources_max_links,
             )
 
             content_source = self._map_source(content_result.source)
@@ -367,7 +427,7 @@ class InterestProactiveTask:
                 interest_category=category,
                 source_name=source,
                 raw_content=raw_content,
-                citations=", ".join(citations) if citations else "Aucune",
+                citations=", ".join(citations) if citations else "(none)",
                 user_language=get_language_name(user_language),
                 current_datetime=current_datetime,
                 psyche_context=psyche_block,

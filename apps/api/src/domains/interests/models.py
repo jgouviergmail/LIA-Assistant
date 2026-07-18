@@ -69,7 +69,8 @@ class UserInterest(BaseModel):
         last_mentioned_at: Last time mentioned in conversation
         last_notified_at: Last time notified about this interest
         dormant_since: When interest became dormant
-        embedding: E5-small embedding for deduplication
+        embedding: Embedding vector for deduplication (model set by INTEREST_EMBEDDING_MODEL)
+        subject: LLM-assigned subject label for thematic grouping (nullable, derived)
     """
 
     __tablename__ = "user_interests"
@@ -123,6 +124,15 @@ class UserInterest(BaseModel):
     dormant_since: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+
+    # Subject label for thematic grouping (ADR-131). Derived data recomputed
+    # by the batch clustering job; NULL means "needs clustering" and is the
+    # stale marker consumed by the scheduler. Topic renames reset it to NULL.
+    subject: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        default=None,
     )
 
     # Embedding for semantic deduplication

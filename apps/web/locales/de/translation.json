@@ -2815,7 +2815,7 @@
         },
         "interests": {
           "title": "✨ Intelligentes Interessenlernen",
-          "description": "Automatisches Lernen Ihrer Interessen durch LLM-Gesprächsanalyse. Proaktive personalisierte Benachrichtigungen zu Ihren Lieblingsthemen via Wikipedia, Perplexity oder KI-Reflexion. Bayessche Gewichtung mit zeitlichem Verfall. Semantische Deduplizierung via KI-gestützter Embeddings. Volle Kontrolle: Feedback, Blockierung, konfigurierbare Zeitfenster und Häufigkeit."
+          "description": "Automatisches Lernen Ihrer Interessen durch LLM-Gesprächsanalyse. Interessen werden per Batch-LLM-Clustering zu Themen gruppiert, und die Benachrichtigungsauswahl zieht mit zweistufiger Seltenheit (Themen-Cooldown + Vorrang für die am wenigsten bedienten Themen) — eine Leidenschaft monopolisiert nie. Inhalte via Perplexity, Brave, Wikipedia oder KI-Reflexion, mit deterministisch angehängten klickbaren Quellenlinks. Bayessche Gewichtung mit zeitlichem Verfall, nächtliche Fusion von Quasi-Duplikaten. Volle Kontrolle: Feedback, Blockierung, konfigurierbare Zeitfenster und Häufigkeit."
         },
         "summarization": {
           "title": "📝 Automatische Zusammenfassung",
@@ -2988,6 +2988,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_6": {
+          "title": "v1.25.6 — 🎯 Endlich abwechslungsreiche Interessen-Benachrichtigungen",
+          "date": "Juli 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎯 Vielfalt zuerst</b> — deine Interessen werden jetzt zu Themen gruppiert (mehrere KI-Tools = ein Thema) und die Auswahl lässt sie rotieren: kürzlich behandelte Themen pausieren, selten bediente haben Vorrang. Eine Leidenschaft monopolisiert deine Benachrichtigungen nicht mehr (gemessen: das dominante Thema fällt von ~50% auf ~33% der Benachrichtigungen).",
+            "i2": "<b>🔗 Klickbare Quellenlinks</b> — jede Interessen-Benachrichtigung endet jetzt mit Links zu den Originalartikeln (Perplexity, Brave, Wikipedia). Push und Telegram erhalten eine lesbare Textversion.",
+            "i3": "<b>🧹 Doppelte Interessen heilen sich selbst</b> — Schreibvarianten und fast identische Themen (\"Anthropic\" vs \"anthropic\") werden jetzt jede Nacht automatisch zusammengeführt, der Benachrichtigungsverlauf bleibt erhalten.",
+            "i4": "<b>🇨🇳 Chinesische Benachrichtigungstitel korrigiert</b> — die Titel proaktiver Benachrichtigungen fielen für chinesische Nutzer stillschweigend auf Englisch zurück; sie erscheinen jetzt korrekt auf 中文.",
+            "i5": "<b>⚙️ Für Admins</b> — die gesamte Auswahl ist per .env steuerbar (Modus, Themen-Cooldown, Seltenheits-Exponenten, Link-Limit) mit sofortigem Fallback auf die Gleichverteilung, und 4 neue Prometheus-Metriken verfolgen Auswahlen, Re-Clustering und Fusionen."
+          }
+        },
         "v1_25_5": {
           "title": "v1.25.5 — 📞 Der Telefonassistent wird vertrauenswürdig",
           "date": "Juli 2026",
@@ -4610,7 +4622,7 @@
           },
           "q2": {
             "question": "Wie funktionieren proaktive Benachrichtigungen?",
-            "answer": "LIA sendet Ihnen relevante Inhalte zu Ihren Lieblingsthemen:<br><br><strong>📬 Prinzip:</strong><br>• Benachrichtigungen werden <strong>ohne Ihre Anfrage</strong> gesendet<br>• Inhalte angepasst an Ihre Interessen<br>• Personalisiert mit LIAs aktiver Persönlichkeit<br><br><strong>📚 Inhaltsquellen:</strong><br>1. <strong>Wikipedia</strong>: enzyklopädische Artikel<br>2. <strong>Perplexity</strong>: aktuelle Nachrichten und Recherchen<br>3. <strong>KI-Reflexion</strong>: generierte Inhalte, wenn keine Quelle passt<br><br><strong>⏰ Auslösung:</strong><br>• Nur innerhalb Ihres Zeitfensters (standardmäßig 9-22 Uhr)<br>• Konfigurierbare Häufigkeit (1 bis 5 pro Tag)<br>• Nie während Sie aktiv chatten<br>• Globale Abklingzeit von 2h zwischen Benachrichtigungen<br><br><strong>📱 Zustellung:</strong><br>• Push-Benachrichtigung (auch bei geschlossener App)<br>• Echtzeit-Anzeige im Chat<br>• Archivierung im Gesprächsverlauf"
+            "answer": "LIA sendet Ihnen relevante Inhalte zu Ihren Lieblingsthemen:<br><br><strong>📬 Prinzip:</strong><br>• Benachrichtigungen werden <strong>ohne Ihre Anfrage</strong> gesendet<br>• Inhalte angepasst an Ihre Interessen<br>• Personalisiert mit LIAs aktiver Persönlichkeit<br><br><strong>📚 Inhaltsquellen:</strong><br>1. <strong>Perplexity</strong>: aktuelle Nachrichten und Recherchen<br>2. <strong>Brave Search</strong>: aktuelle Webergebnisse<br>3. <strong>Wikipedia</strong>: enzyklopädische Artikel<br>4. <strong>KI-Reflexion</strong>: generierte Inhalte, wenn keine Quelle passt<br><br><strong>⏰ Auslösung:</strong><br>• Nur innerhalb Ihres Zeitfensters (standardmäßig 9-22 Uhr)<br>• Konfigurierbare Häufigkeit (1 bis 5 pro Tag)<br>• Nie während Sie aktiv chatten<br>• Globale Abklingzeit von 1h zwischen Benachrichtigungen<br><br><strong>📱 Zustellung:</strong><br>• Push-Benachrichtigung (auch bei geschlossener App)<br>• Echtzeit-Anzeige im Chat<br>• Archivierung im Gesprächsverlauf<br>• <strong>Klickbare Quellenlinks</strong> am Ende der Nachricht, um die Originalartikel zu lesen"
           },
           "q3": {
             "question": "Wie verwalte ich meine Interessen?",
@@ -4618,7 +4630,7 @@
           },
           "q4": {
             "question": "Wie funktioniert das Gewichtungssystem?",
-            "answer": "Jedes Interesse hat ein <strong>Gewicht</strong>, das sich entwickelt:<br><br><strong>📊 Gewichtsberechnung:</strong><br>• <strong>Bayesscher</strong> Algorithmus (Beta-Verteilung)<br>• Beginnt mit einem leicht positiven Prior<br>• Steigt mit positiven Signalen<br>• Sinkt mit negativen Signalen<br><br><strong>📈 Positive Signale (+Gewicht):</strong><br>• Erwähnung des Themas in einem Gespräch<br>• Klick auf \"<em>Ich mag dieses Thema</em>\" 👍<br><br><strong>📉 Negative Signale (-Gewicht):</strong><br>• Klick auf \"<em>Weniger interessiert</em>\" 👎<br>• Zeitlicher Verfall (1%/Tag ohne Erwähnung)<br><br><strong>⏳ Zeitlicher Verfall:</strong><br>• Wenn Sie nicht mehr über ein Thema sprechen, sinkt sein Gewicht<br>• Ruhende Interessen nach 15 Tagen ohne Erwähnung — sie bleiben jedoch in einem eigenen Bereich der Einstellungen sichtbar und verwaltbar (reaktivieren, bearbeiten oder löschen)<br>• Automatische Löschung nach 90 Tagen Inaktivität<br><br><strong>🎯 Auswahl für Benachrichtigung:</strong><br>Interessen mit dem <strong>höchsten Gewicht</strong> werden eher ausgewählt"
+            "answer": "Jedes Interesse hat ein <strong>Gewicht</strong>, das sich entwickelt:<br><br><strong>📊 Gewichtsberechnung:</strong><br>• <strong>Bayesscher</strong> Algorithmus (Beta-Verteilung)<br>• Beginnt mit einem leicht positiven Prior<br>• Steigt mit positiven Signalen<br>• Sinkt mit negativen Signalen<br><br><strong>📈 Positive Signale (+Gewicht):</strong><br>• Erwähnung des Themas in einem Gespräch<br>• Klick auf \"<em>Ich mag dieses Thema</em>\" 👍<br><br><strong>📉 Negative Signale (-Gewicht):</strong><br>• Klick auf \"<em>Weniger interessiert</em>\" 👎<br>• Zeitlicher Verfall (0,5%/Tag ohne Erwähnung)<br><br><strong>⏳ Zeitlicher Verfall:</strong><br>• Wenn Sie nicht mehr über ein Thema sprechen, sinkt sein Gewicht<br>• Ruhende Interessen nach 15 Tagen ohne Erwähnung — sie bleiben jedoch in einem eigenen Bereich der Einstellungen sichtbar und verwaltbar (reaktivieren, bearbeiten oder löschen)<br>• Automatische Löschung nach 30 Tagen Ruhezustand<br><br><strong>🎯 Auswahl für Benachrichtigung (Vielfalt zuerst):</strong><br>Ihre Interessen werden zu <strong>Themen</strong> gruppiert (z. B. mehrere KI-Tools = ein Thema). Kürzlich benachrichtigte Themen pausieren eine Weile und selten bediente Themen haben Vorrang — eine Leidenschaft monopolisiert nie Ihre Benachrichtigungen. Innerhalb eines Themas wird das am längsten nicht behandelte Interesse bevorzugt"
           },
           "q5": {
             "question": "Wie gebe ich Feedback zu einer Benachrichtigung?",
@@ -4626,7 +4638,7 @@
           },
           "q6": {
             "question": "Wie werden doppelte Inhalte vermieden?",
-            "answer": "LIA verwendet mehrere Anti-Duplikat-Mechanismen:<br><br><strong>🔄 Duplikatschutz:</strong><br><br><strong>1. Interessendeduplizierung:</strong><br>• Semantische Ähnlichkeit via KI-gestützter Embeddings<br>• 90%-Schwelle: zwei ähnliche Themen → Konsolidierung<br>• \"<em>Python</em>\" und \"<em>Python-Programmierung</em>\" = gleiches Interesse<br><br><strong>2. Inhaltsdeduplizierung:</strong><br>• SHA256-Hash des Inhalts (exakter Vergleich)<br>• Semantische Ähnlichkeit (85%-Schwelle)<br>• Überprüft gegen die letzten 30 Tage<br><br><strong>3. Abklingzeiten:</strong><br>• <strong>Global</strong>: mindestens 2h zwischen 2 Benachrichtigungen<br>• <strong>Pro Thema</strong>: 24h bevor dasselbe Thema wieder besprochen wird<br>• <strong>Tagesquote</strong>: max N Benachrichtigungen/Tag<br><br><strong>📊 Ergebnis:</strong><br>Sie erhalten nie zweimal denselben Inhalt, noch zu ähnliche Themen hintereinander."
+            "answer": "LIA verwendet mehrere Anti-Duplikat-Mechanismen:<br><br><strong>🔄 Duplikatschutz:</strong><br><br><strong>1. Interessendeduplizierung:</strong><br>• Semantische Ähnlichkeit via KI-gestützter Embeddings<br>• 90%-Schwelle: zwei ähnliche Themen → Konsolidierung<br>• \"<em>Python</em>\" und \"<em>Python-Programmierung</em>\" = gleiches Interesse<br><br><strong>2. Inhaltsdeduplizierung:</strong><br>• SHA256-Hash des Inhalts (exakter Vergleich)<br>• Semantische Ähnlichkeit (90%-Schwelle)<br>• Überprüft gegen die letzten 7 Tage<br><br><strong>3. Abklingzeiten:</strong><br>• <strong>Global</strong>: mindestens 1h zwischen 2 Benachrichtigungen<br>• <strong>Pro Interesse</strong>: 12h bevor dasselbe Interesse wieder besprochen wird<br>• <strong>Pro Thema</strong>: 36h bevor dasselbe Themengebiet wieder aufgegriffen wird<br>• <strong>Tagesquote</strong>: max N Benachrichtigungen/Tag<br><br><strong>📊 Ergebnis:</strong><br>Sie erhalten nie zweimal denselben Inhalt, noch zu ähnliche Themen hintereinander."
           }
         }
       },
@@ -5946,7 +5958,7 @@
       },
       "interests": {
         "title": "Interessenverfolgung",
-        "description": "Verfolge Themen, die dich begeistern (Tech, Sport, Finanzen, Gesundheit...). LIA sucht automatisch relevante Inhalte und sendet sie als Benachrichtigungen."
+        "description": "Verfolge Themen, die dich begeistern (Tech, Sport, Finanzen, Gesundheit...). LIA sucht automatisch relevante Inhalte und sendet sie als Benachrichtigungen — die Themen wechseln sich ab, und jede Benachrichtigung verlinkt ihre Quellen."
       },
       "telephony": {
         "title": "LIA ruft für Sie an",

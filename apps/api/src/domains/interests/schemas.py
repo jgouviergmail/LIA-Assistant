@@ -39,6 +39,10 @@ class InterestResponse(BaseModel):
     last_mentioned_at: datetime
     last_notified_at: datetime | None
     created_at: datetime
+    subject: str | None = Field(
+        default=None,
+        description="LLM-assigned subject label grouping related interests (ADR-131).",
+    )
 
 
 class InterestCreate(BaseModel):

@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 3.0
-**Data**: 2026-07-17
-**Applicazione**: LIA v1.25.5
+**Versione**: 3.1
+**Data**: 2026-07-18
+**Applicazione**: LIA v1.25.6
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,7 +52,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 419 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Trasparenza totale | 423 metriche Prometheus, debug panel integrato, tracciamento token per token |
 | Affidabilità in produzione | 120+ ADR, ~11.900 test raccolti da pytest in 670 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
@@ -75,7 +75,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 280+ |
 | ADR (Architecture Decision Record) | 120+ |
-| Metriche Prometheus | 419 definizioni |
+| Metriche Prometheus | 423 definizioni |
 | Dashboard Grafana | 25 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -576,7 +576,7 @@ L'assistente mantiene riflessioni introspettive organizzate su quattro temi (aut
 
 ### 11.6. Sistema di interessi
 
-Rilevamento tramite analisi delle richieste con evoluzione bayesiana dei pesi (decay 0.01/giorno). Notifiche proattive multi-sorgente (Wikipedia, Perplexity, LLM). Feedback utente (thumbs up/down/block) regola i pesi.
+Rilevamento tramite analisi delle richieste con evoluzione bayesiana dei pesi (decay configurabile). Gli interessi vengono raggruppati in **argomenti** tramite clustering LLM batch (dato derivato, auto-riparante), e la selezione delle notifiche estrae con **rarità a due livelli** (cooldown per argomento + priorità agli argomenti e interessi meno serviti) — una passione non monopolizza mai le notifiche. Contenuto multi-sorgente (Perplexity, Brave, Wikipedia, riflessione LLM) con **link alle fonti cliccabili** aggiunti in modo deterministico. Il feedback utente (thumbs up/down/block) regola i pesi; fusione notturna dei quasi-duplicati.
 
 ---
 
@@ -768,7 +768,7 @@ Design **fail-open**: i fallimenti dell'infrastruttura non bloccano gli utenti.
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 419 metriche custom (RED pattern) |
+| Prometheus | 423 metriche custom (RED pattern) |
 | Grafana | 25 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
@@ -1068,4 +1068,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), dei 120+ ADR e del changelog (da v1.0 a v1.25.5). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), dei 120+ ADR e del changelog (da v1.0 a v1.25.6). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

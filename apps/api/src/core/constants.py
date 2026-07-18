@@ -17,6 +17,8 @@ References:
     - ADR-001: Constants Centralization Strategy
 """
 
+from typing import Final
+
 # ============================================================================
 # APPLICATION IDENTITY
 # ============================================================================
@@ -1635,6 +1637,8 @@ INTEREST_DELETION_THRESHOLD_DAYS = 90  # Days dormant before auto-deletion
 # Scheduler job identifiers
 SCHEDULER_JOB_INTEREST_NOTIFICATION = "interest_notification"
 SCHEDULER_JOB_INTEREST_CLEANUP = "interest_cleanup"
+SCHEDULER_JOB_INTEREST_SUBJECT_STALE = "interest_subject_stale"
+SCHEDULER_JOB_INTEREST_SUBJECT_FULL = "interest_subject_full"
 
 # Heartbeat autonome (Proactive Notifications)
 # Scheduler
@@ -2143,6 +2147,21 @@ INTEREST_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = (
 INTEREST_CONTENT_SIMILARITY_THRESHOLD_DEFAULT = (
     0.90  # Calibrated for Gemini embedding-001 (2026-04-09)
 )
+# Subject-based selection (ADR-131). Bench-validated defaults 2026-07-18:
+# batch LLM clustering 98.2% stable; V5 variant (subject + intra-subject rarity).
+# Final annotation: preserves the literal type for the Literal-typed Settings field.
+INTEREST_SELECTION_MODE_DEFAULT: Final = "subject_rarity"
+INTEREST_SUBJECT_COOLDOWN_HOURS_DEFAULT = 36
+INTEREST_SUBJECT_RARITY_GAMMA_DEFAULT = 1.0
+INTEREST_SUBJECT_WEIGHT_BETA_DEFAULT = 0.0  # Sim: no measurable effect (weights 0.75-0.98)
+INTEREST_INTRA_SUBJECT_RARITY_GAMMA_DEFAULT = 1.0  # V5: starvation 0.8 -> 0.3 interests/30d
+INTEREST_RARITY_LOOKBACK_DAYS_DEFAULT = 30
+INTEREST_SUBJECT_RECLUSTER_INTERVAL_MINUTES_DEFAULT = 30
+INTEREST_SUBJECT_RECLUSTER_FULL_HOUR_DEFAULT = 4  # After 03:00 cleanup+merge
+INTEREST_SUBJECT_RECLUSTER_BATCH_SIZE_DEFAULT = 50
+INTEREST_MERGE_SIMILARITY_THRESHOLD_DEFAULT = 0.95  # Prod: true dup 0.987, first false 0.890
+INTEREST_SOURCES_MAX_LINKS_DEFAULT = 3  # 0 disables source links in content
+INTEREST_SUBJECT_MAX_LENGTH_DEFAULT = 100  # Matches DB String(100)
 HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT = "qwen"
 HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT = "qwen"
 

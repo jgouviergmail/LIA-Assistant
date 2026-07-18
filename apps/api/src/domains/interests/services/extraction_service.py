@@ -582,8 +582,11 @@ async def _find_similar_interest(
                     best_similarity = similarity
                     best_match = interest
 
-        # Fallback: string-based matching for interests without embeddings
-        elif not interest.embedding:
+        # Fallback: string matching when either side lacks an embedding.
+        # Embedding generation is best-effort and may return None — that
+        # failure mode must not disable dedup entirely (ADR-131: the
+        # "Anthropic"/"anthropic" prod duplicate slipped through here).
+        elif topic_embedding is None or not interest.embedding:
             if interest.topic.lower() in topic.lower() or topic.lower() in interest.topic.lower():
                 logger.debug(
                     "interest_similarity_string_match",
@@ -955,8 +958,27 @@ async def extract_interests_background(
                             continue
                         interest = await repo.get_by_id(UUID(extracted.interest_id))
                         if interest and str(interest.user_id) == user_id:
-                            if extracted.topic:
+                            if extracted.topic and extracted.topic != interest.topic:
+                                # Rename collision guard (ADR-131): renaming onto
+                                # an existing topic would create a duplicate —
+                                # consolidate the existing target instead.
+                                collision = await repo.get_by_user_and_topic_ci(
+                                    user_uuid, extracted.topic
+                                )
+                                if collision and collision.id != interest.id:
+                                    await repo.consolidate_on_mention(collision)
+                                    logger.info(
+                                        "interest_rename_collision_consolidated",
+                                        user_id=user_id,
+                                        interest_id=str(collision.id),
+                                        topic=collision.topic[:50],
+                                    )
+                                    stored_count += 1
+                                    continue
                                 interest.topic = extracted.topic
+                                # Subject is derived from the topic: relabel on
+                                # the next stale scan (ADR-131).
+                                interest.subject = None
                                 # Re-embed with updated topic
                                 from src.domains.interests.helpers import (
                                     generate_interest_embedding,

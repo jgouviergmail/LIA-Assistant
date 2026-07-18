@@ -137,11 +137,23 @@ from src.core.constants import (
     INTEREST_EMBEDDING_DIMENSIONS_DEFAULT,
     INTEREST_EMBEDDING_MODEL_DEFAULT,
     INTEREST_GLOBAL_COOLDOWN_HOURS_DEFAULT,
+    INTEREST_INTRA_SUBJECT_RARITY_GAMMA_DEFAULT,
+    INTEREST_MERGE_SIMILARITY_THRESHOLD_DEFAULT,
     INTEREST_NOTIFICATION_BATCH_SIZE_DEFAULT,
     INTEREST_NOTIFY_INTERVAL_MINUTES_DEFAULT,
     INTEREST_PER_TOPIC_COOLDOWN_HOURS_DEFAULT,
     INTEREST_PRIOR_ALPHA_DEFAULT,
     INTEREST_PRIOR_BETA_DEFAULT,
+    INTEREST_RARITY_LOOKBACK_DAYS_DEFAULT,
+    INTEREST_SELECTION_MODE_DEFAULT,
+    INTEREST_SOURCES_MAX_LINKS_DEFAULT,
+    INTEREST_SUBJECT_COOLDOWN_HOURS_DEFAULT,
+    INTEREST_SUBJECT_MAX_LENGTH_DEFAULT,
+    INTEREST_SUBJECT_RARITY_GAMMA_DEFAULT,
+    INTEREST_SUBJECT_RECLUSTER_BATCH_SIZE_DEFAULT,
+    INTEREST_SUBJECT_RECLUSTER_FULL_HOUR_DEFAULT,
+    INTEREST_SUBJECT_RECLUSTER_INTERVAL_MINUTES_DEFAULT,
+    INTEREST_SUBJECT_WEIGHT_BETA_DEFAULT,
     INTEREST_TOP_PERCENT_DEFAULT,
     LAST_KNOWN_LOCATION_MIN_DISTANCE_KM_DEFAULT,
     LAST_KNOWN_LOCATION_TTL_HOURS_DEFAULT,
@@ -2490,6 +2502,88 @@ class AgentsSettings(BaseSettings):
             "Top N% of interests to consider for notifications. "
             "0.2 = top 20% by effective weight. Ensures variety and relevance."
         ),
+    )
+
+    # Subject-based selection (ADR-131)
+    interest_selection_mode: Literal["uniform", "subject_rarity"] = Field(
+        default=INTEREST_SELECTION_MODE_DEFAULT,
+        description=(
+            "Interest notification selection algorithm. "
+            "'subject_rarity': two-level draw (subject cooldown + rarity, then "
+            "intra-subject rarity — bench variant V5). 'uniform': legacy uniform draw."
+        ),
+    )
+    interest_subject_cooldown_hours: int = Field(
+        default=INTEREST_SUBJECT_COOLDOWN_HOURS_DEFAULT,
+        ge=1,
+        le=168,
+        description="Hours before re-notifying any interest of a recently notified subject.",
+    )
+    interest_subject_rarity_gamma: float = Field(
+        default=INTEREST_SUBJECT_RARITY_GAMMA_DEFAULT,
+        ge=0.0,
+        le=3.0,
+        description="Subject draw rarity exponent: p ~ 1/(1+recent_notifs)^gamma. 0 disables.",
+    )
+    interest_subject_weight_beta: float = Field(
+        default=INTEREST_SUBJECT_WEIGHT_BETA_DEFAULT,
+        ge=0.0,
+        le=3.0,
+        description="Subject draw weight exponent: p ~ mean_weight^beta. 0 disables.",
+    )
+    interest_intra_subject_rarity_gamma: float = Field(
+        default=INTEREST_INTRA_SUBJECT_RARITY_GAMMA_DEFAULT,
+        ge=0.0,
+        le=3.0,
+        description=(
+            "Intra-subject draw rarity exponent. 0 falls back to weight-proportional draw."
+        ),
+    )
+    interest_rarity_lookback_days: int = Field(
+        default=INTEREST_RARITY_LOOKBACK_DAYS_DEFAULT,
+        ge=7,
+        le=90,
+        description="Rolling window (days) for rarity counts in subject selection.",
+    )
+    interest_subject_recluster_interval_minutes: int = Field(
+        default=INTEREST_SUBJECT_RECLUSTER_INTERVAL_MINUTES_DEFAULT,
+        ge=5,
+        le=240,
+        description="Interval for the stale-scan subject clustering job (subject IS NULL).",
+    )
+    interest_subject_recluster_full_hour: int = Field(
+        default=INTEREST_SUBJECT_RECLUSTER_FULL_HOUR_DEFAULT,
+        ge=0,
+        le=23,
+        description="Local server hour for the nightly full subject re-clustering job.",
+    )
+    interest_subject_recluster_batch_size: int = Field(
+        default=INTEREST_SUBJECT_RECLUSTER_BATCH_SIZE_DEFAULT,
+        ge=1,
+        le=500,
+        description="Max users re-clustered per job run.",
+    )
+    interest_merge_similarity_threshold: float = Field(
+        default=INTEREST_MERGE_SIMILARITY_THRESHOLD_DEFAULT,
+        ge=0.90,
+        le=0.99,
+        description=(
+            "Cosine threshold for the nightly retro-merge of near-duplicate interests. "
+            "Conservative by design (prod evidence: true dup 0.987, first false pair 0.890); "
+            "distinct from interest_dedup_similarity_threshold (extraction-time, 0.89)."
+        ),
+    )
+    interest_sources_max_links: int = Field(
+        default=INTEREST_SOURCES_MAX_LINKS_DEFAULT,
+        ge=0,
+        le=10,
+        description="Max source hyperlinks appended to notification content. 0 disables.",
+    )
+    interest_subject_max_length: int = Field(
+        default=INTEREST_SUBJECT_MAX_LENGTH_DEFAULT,
+        ge=20,
+        le=200,
+        description="Max characters for an LLM-produced subject label (DB column is 100).",
     )
 
     # Cooldowns

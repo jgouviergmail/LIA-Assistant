@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 3.0
-**Date**: 2026-07-17
-**Application**: LIA v1.25.5
+**Version**: 3.1
+**Date**: 2026-07-18
+**Application**: LIA v1.25.6
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,7 +52,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 419 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Full transparency | 423 Prometheus metrics, embedded debug panel, token-by-token tracking |
 | Production reliability | 120+ ADRs, ~11,900 pytest-collected tests across 670 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
@@ -75,7 +75,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Reusable fixtures | 170+ |
 | Documentation documents | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
-| Prometheus metrics | 419 definitions |
+| Prometheus metrics | 423 definitions |
 | Grafana dashboards | 25 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -576,7 +576,7 @@ The assistant maintains introspective reflections organized along four themes (s
 
 ### 11.6. Interest system
 
-Detection through query analysis with Bayesian weight evolution (decay 0.01/day). Multi-source proactive notifications (Wikipedia, Perplexity, LLM). User feedback (thumbs up/down/block) adjusts weights.
+Detection through query analysis with Bayesian weight evolution (configurable decay). Interests are grouped into **subjects** by batch LLM clustering (derived, self-healing data), and notification selection draws with **two-level rarity** (per-subject cooldown + priority to the least-served subjects and interests) — one passion never monopolizes notifications. Multi-source content (Perplexity, Brave, Wikipedia, LLM reflection) with deterministically appended **clickable source links**. User feedback (thumbs up/down/block) adjusts weights; nightly merge of near-duplicates.
 
 ---
 
@@ -768,7 +768,7 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 419 custom metrics (RED pattern) |
+| Prometheus | 423 custom metrics (RED pattern) |
 | Grafana | 25 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1096,4 +1096,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.5). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.6). All metrics, versions, and patterns cited are verifiable in the codebase.*

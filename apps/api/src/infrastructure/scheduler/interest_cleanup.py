@@ -1,9 +1,10 @@
 """
 Scheduled task for automatic interest cleanup.
 
-Performs two cleanup operations:
-1. Mark dormant: Interests with effective_weight < 0.5 for N days
-2. Delete dormant: Interests dormant for > N days
+Performs three cleanup operations:
+1. Retro-merge duplicates: case variants and near-identical topics (ADR-131)
+2. Mark dormant: Interests with effective_weight < 0.5 for N days
+3. Delete dormant: Interests dormant for > N days
 
 Runs daily at configured hour (default: 3 AM UTC).
 
@@ -29,8 +30,89 @@ from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
 )
+from src.infrastructure.observability.metrics_registry import interest_merge_total
 
 logger = get_logger(__name__)
+
+
+def find_duplicate_pairs(
+    interests: list[UserInterest],
+    threshold: float,
+) -> list[tuple[UserInterest, UserInterest]]:
+    """Find (keep, dup) merge pairs among one user's active interests.
+
+    A pair is a duplicate when topics match case/whitespace-insensitively, or
+    when both embeddings exist and cosine similarity >= threshold. The kept
+    side has the higher positive_signals (tie: earlier created_at). Chains
+    collapse onto a single winner via union-find-lite resolution.
+
+    Args:
+        interests: One user's active interests.
+        threshold: Cosine threshold (settings.interest_merge_similarity_threshold;
+            >= 0.95 is the only reliable zone for these embeddings — prod
+            evidence: true duplicate at 0.987, first false pair at 0.890).
+
+    Returns:
+        Ordered (keep, dup) pairs, safe to merge sequentially.
+    """
+    from src.infrastructure.llm.local_embeddings import cosine_similarity
+
+    def rank(interest: UserInterest) -> tuple[int, float]:
+        return (-interest.positive_signals, interest.created_at.timestamp())
+
+    winner: dict[int, UserInterest] = {id(i): i for i in interests}
+
+    def resolve(interest: UserInterest) -> UserInterest:
+        seen = interest
+        while winner[id(seen)] is not seen:
+            seen = winner[id(seen)]
+        return seen
+
+    ordered = sorted(interests, key=rank)
+    for pos, first in enumerate(ordered):
+        for second in ordered[pos + 1 :]:
+            same_text = first.topic.strip().lower() == second.topic.strip().lower()
+            same_vector = (
+                first.embedding is not None
+                and second.embedding is not None
+                and cosine_similarity(first.embedding, second.embedding) >= threshold
+            )
+            if same_text or same_vector:
+                keep, dup = resolve(first), resolve(second)
+                if keep is not dup:
+                    winner[id(dup)] = keep
+
+    pairs: list[tuple[UserInterest, UserInterest]] = []
+    for interest in ordered:
+        keep = resolve(interest)
+        if keep is not interest:
+            pairs.append((keep, interest))
+    return pairs
+
+
+async def merge_duplicate_interests(repo: InterestRepository, threshold: float) -> int:
+    """Retro-merge duplicate active interests across all users (ADR-131).
+
+    Args:
+        repo: InterestRepository bound to the job's session.
+        threshold: Cosine similarity threshold for near-duplicates.
+
+    Returns:
+        Number of interests merged away.
+    """
+    merged_count = 0
+    user_rows = await repo.db.execute(
+        select(UserInterest.user_id)
+        .where(UserInterest.status == InterestStatus.ACTIVE.value)
+        .distinct()
+    )
+    for (user_id,) in user_rows.all():
+        actives = await repo.get_active_for_user(user_id)
+        for keep, dup in find_duplicate_pairs(actives, threshold=threshold):
+            await repo.merge_interests(keep, dup)
+            merged_count += 1
+            interest_merge_total.inc()
+    return merged_count
 
 
 async def mark_dormant_interests(
@@ -116,6 +198,7 @@ async def cleanup_interests() -> dict[str, Any]:
     job_name = SCHEDULER_JOB_INTEREST_CLEANUP
 
     stats: dict[str, Any] = {
+        "merged": 0,
         "marked_dormant": 0,
         "deleted": 0,
         "total_checked": 0,
@@ -144,6 +227,13 @@ async def cleanup_interests() -> dict[str, Any]:
             all_interests = await db.execute(select(UserInterest))
             stats["total_checked"] = len(list(all_interests.scalars().all()))
 
+            # Step 0: Retro-merge duplicates BEFORE dormancy so merged
+            # signals count toward the kept interest's weight (ADR-131).
+            stats["merged"] = await merge_duplicate_interests(
+                repo=repo,
+                threshold=settings.interest_merge_similarity_threshold,
+            )
+
             # Step 1: Mark dormant interests
             stats["marked_dormant"] = await mark_dormant_interests(
                 repo=repo,
@@ -168,6 +258,7 @@ async def cleanup_interests() -> dict[str, Any]:
         logger.info(
             "interest_cleanup_completed",
             total_checked=stats["total_checked"],
+            merged=stats["merged"],
             marked_dormant=stats["marked_dormant"],
             deleted=stats["deleted"],
             duration_seconds=round(duration, 3),

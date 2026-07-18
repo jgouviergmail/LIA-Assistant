@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 3.7
-**Date**: 2026-07-17
-**Application**: LIA v1.25.5
+**Version**: 3.8
+**Date**: 2026-07-18
+**Application**: LIA v1.25.6
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -63,7 +63,7 @@ Every user has their own settings space, organized in two tabs:
 - **Psyche Engine**: adjust personality traits (Big Five) that modulate your assistant's emotional responsiveness
 - **Memory**: view, edit, pin or delete LIA's memories — enable or disable automatic fact extraction
 - **Personal journals**: configure introspection extraction after each conversation and periodic consolidation review
-- **Interests**: define your favorite topics, configure notification frequency, time slots and sources (Wikipedia, Perplexity, AI reflection)
+- **Interests**: define your favorite topics, configure notification frequency, time slots and sources (Perplexity, Brave, Wikipedia, AI reflection)
 - **Proactive notifications**: set frequency, time window and context sources (calendar, weather, tasks, emails, interests, memories, journals)
 - **Scheduled actions**: create recurring automations executed by the assistant
 - **Skills**: enable/disable expert competencies, create your own personal Skills
@@ -152,7 +152,7 @@ LIA doesn't just respond — it anticipates:
 
 - **Proactive notifications**: LIA cross-references your context sources (calendar, weather, tasks, emails, interests) and notifies you when something is genuinely useful — with a built-in anti-spam system (daily quota, time window, cooldown)
 - **Conversational initiative**: during an exchange, LIA proactively checks related information — if weather forecasts rain on Saturday, it checks your calendar to flag potential outdoor activities
-- **Interests**: LIA progressively detects topics you're passionate about and can send you relevant content
+- **Interests**: LIA progressively detects topics you're passionate about and sends you varied content — themes rotate (never the same subject twice in a row) and every notification includes clickable links to its sources
 - **Sub-agents**: for complex tasks, LIA delegates to ephemeral specialized agents working in parallel
 
 ### 3.7. Autonomous web browsing

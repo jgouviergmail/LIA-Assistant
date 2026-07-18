@@ -2836,7 +2836,7 @@
         },
         "interests": {
           "title": "✨ Centres d'Intérêt Intelligents",
-          "description": "Apprentissage automatique de vos centres d'intérêt via analyse LLM des conversations. Notifications proactives personnalisées sur vos sujets favoris via Wikipedia, Perplexity ou réflexion IA. Pondération bayésienne avec décroissance temporelle. Déduplication sémantique via embeddings IA. Contrôle total : feedback, blocage, plage horaire et fréquence configurables."
+          "description": "Apprentissage automatique de vos centres d'intérêt via analyse LLM des conversations. Les intérêts sont regroupés en sujets par clustering LLM batch, et la sélection des notifications tire par rareté à deux niveaux (cooldown par sujet + priorité aux sujets les moins servis) — une passion ne monopolise jamais. Contenu via Perplexity, Brave, Wikipedia ou réflexion IA, avec liens sources cliquables ajoutés de manière déterministe. Pondération bayésienne avec décroissance temporelle, fusion nocturne des quasi-doublons. Contrôle total : feedback, blocage, plage horaire et fréquence configurables."
         },
         "summarization": {
           "title": "📝 Résumé Automatique",
@@ -3009,6 +3009,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_6": {
+          "title": "v1.25.6 — 🎯 Des notifications d'intérêts enfin variées",
+          "date": "Juillet 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎯 La variété d'abord</b> — tes centres d'intérêt sont désormais regroupés en sujets (plusieurs outils IA = un même sujet) et la sélection les fait tourner : les sujets récemment couverts se reposent, les moins servis deviennent prioritaires. Une passion ne monopolise plus tes notifications (mesuré : le thème dominant passe de ~50% à ~33% des notifications).",
+            "i2": "<b>🔗 Liens sources cliquables</b> — chaque notification d'intérêt se termine maintenant par des liens vers les articles d'origine (Perplexity, Brave, Wikipedia) pour approfondir en un clic. Push et Telegram reçoivent une version texte lisible.",
+            "i3": "<b>🧹 Les doublons d'intérêts se réparent seuls</b> — les variantes de casse et sujets quasi identiques (« Anthropic » vs « anthropic ») sont désormais fusionnés automatiquement chaque nuit, avec un historique de notifications préservé.",
+            "i4": "<b>🇨🇳 Titres de notifications corrigés en chinois</b> — les titres des notifications proactives retombaient silencieusement en anglais pour les utilisateurs chinois ; ils s'affichent désormais correctement en 中文.",
+            "i5": "<b>⚙️ Pour les admins</b> — toute la sélection est pilotable en .env (mode, cooldown sujet, exposants de rareté, plafond de liens) avec un repli instantané vers le tirage uniforme, et 4 nouvelles métriques Prometheus suivent sélections, re-clustering et fusions."
+          }
+        },
         "v1_25_5": {
           "title": "v1.25.5 — 📞 L'assistant téléphonique devient digne de confiance",
           "date": "Juillet 2026",
@@ -4631,7 +4643,7 @@
           },
           "q2": {
             "question": "Comment fonctionnent les notifications proactives ?",
-            "answer": "LIA vous envoie du contenu pertinent sur vos sujets favoris :<br><br><strong>📬 Principe :</strong><br>• Notifications envoyées <strong>sans que vous le demandiez</strong><br>• Contenu adapté à vos centres d'intérêt<br>• Personnalisé avec la personnalité active de LIA<br><br><strong>📚 Sources de contenu :</strong><br>1. <strong>Wikipedia</strong> : articles encyclopédiques<br>2. <strong>Perplexity</strong> : actualités et recherches récentes<br>3. <strong>Réflexion IA</strong> : contenu généré si aucune source ne convient<br><br><strong>⏰ Déclenchement :</strong><br>• Uniquement dans votre plage horaire (9h-22h par défaut)<br>• Fréquence configurable (1 à 5 par jour)<br>• Jamais quand vous utilisez activement le chat<br>• Cooldown global de 2h entre notifications<br><br><strong>📱 Livraison :</strong><br>• Push notification (même app fermée)<br>• Affichage en temps réel dans le chat<br>• Archivage dans l'historique de conversation"
+            "answer": "LIA vous envoie du contenu pertinent sur vos sujets favoris :<br><br><strong>📬 Principe :</strong><br>• Notifications envoyées <strong>sans que vous le demandiez</strong><br>• Contenu adapté à vos centres d'intérêt<br>• Personnalisé avec la personnalité active de LIA<br><br><strong>📚 Sources de contenu :</strong><br>1. <strong>Perplexity</strong> : actualités et recherches récentes<br>2. <strong>Brave Search</strong> : résultats web à jour<br>3. <strong>Wikipedia</strong> : articles encyclopédiques<br>4. <strong>Réflexion IA</strong> : contenu généré si aucune source ne convient<br><br><strong>⏰ Déclenchement :</strong><br>• Uniquement dans votre plage horaire (9h-22h par défaut)<br>• Fréquence configurable (1 à 5 par jour)<br>• Jamais quand vous utilisez activement le chat<br>• Cooldown global de 1h entre notifications<br><br><strong>📱 Livraison :</strong><br>• Push notification (même app fermée)<br>• Affichage en temps réel dans le chat<br>• Archivage dans l'historique de conversation<br>• <strong>Liens sources cliquables</strong> en fin de message pour lire les articles d'origine"
           },
           "q3": {
             "question": "Comment gérer mes centres d'intérêt ?",
@@ -4639,7 +4651,7 @@
           },
           "q4": {
             "question": "Comment fonctionne le système de poids ?",
-            "answer": "Chaque centre d'intérêt a un <strong>poids</strong> qui évolue :<br><br><strong>📊 Calcul du poids :</strong><br>• Algorithme <strong>bayésien</strong> (Beta distribution)<br>• Démarre avec un prior légèrement positif<br>• Augmente avec les signaux positifs<br>• Diminue avec les signaux négatifs<br><br><strong>📈 Signaux positifs (+poids) :</strong><br>• Mention du sujet dans une conversation<br>• Clic sur \"<em>J'aime ce sujet</em>\" 👍<br><br><strong>📉 Signaux négatifs (-poids) :</strong><br>• Clic sur \"<em>Moins intéressé</em>\" 👎<br>• Décroissance temporelle (1%/jour sans mention)<br><br><strong>⏳ Décroissance temporelle :</strong><br>• Si vous ne parlez plus d'un sujet, son poids diminue<br>• Intérêts en sommeil après 15 jours sans mention — mais ils restent visibles et gérables (réactiver, modifier ou supprimer) dans une section dédiée des Réglages<br>• Suppression automatique après 90 jours d'inactivité<br><br><strong>🎯 Sélection pour notification :</strong><br>Les intérêts avec le <strong>poids le plus élevé</strong> ont plus de chances d'être choisis"
+            "answer": "Chaque centre d'intérêt a un <strong>poids</strong> qui évolue :<br><br><strong>📊 Calcul du poids :</strong><br>• Algorithme <strong>bayésien</strong> (Beta distribution)<br>• Démarre avec un prior légèrement positif<br>• Augmente avec les signaux positifs<br>• Diminue avec les signaux négatifs<br><br><strong>📈 Signaux positifs (+poids) :</strong><br>• Mention du sujet dans une conversation<br>• Clic sur \"<em>J'aime ce sujet</em>\" 👍<br><br><strong>📉 Signaux négatifs (-poids) :</strong><br>• Clic sur \"<em>Moins intéressé</em>\" 👎<br>• Décroissance temporelle (0,5%/jour sans mention)<br><br><strong>⏳ Décroissance temporelle :</strong><br>• Si vous ne parlez plus d'un sujet, son poids diminue<br>• Intérêts en sommeil après 15 jours sans mention — mais ils restent visibles et gérables (réactiver, modifier ou supprimer) dans une section dédiée des Réglages<br>• Suppression automatique après 30 jours de sommeil<br><br><strong>🎯 Sélection pour notification (variété d'abord) :</strong><br>Vos intérêts sont regroupés en <strong>sujets</strong> (ex. : plusieurs outils IA = un même sujet). Les sujets récemment notifiés sont mis au repos et les sujets rarement servis sont prioritaires — une passion ne monopolise jamais vos notifications. Au sein d'un sujet, l'intérêt le moins récemment couvert est favorisé"
           },
           "q5": {
             "question": "Comment donner un feedback sur une notification ?",
@@ -4647,7 +4659,7 @@
           },
           "q6": {
             "question": "Comment éviter les doublons de contenu ?",
-            "answer": "LIA utilise plusieurs mécanismes anti-doublon :<br><br><strong>🔄 Protection contre les doublons :</strong><br><br><strong>1. Déduplication des intérêts :</strong><br>• Similarité sémantique via embeddings IA<br>• Seuil de 90% : deux sujets similaires → consolidation<br>• \"<em>Python</em>\" et \"<em>Programmation Python</em>\" = même intérêt<br><br><strong>2. Déduplication du contenu :</strong><br>• Hash SHA256 du contenu (comparaison exacte)<br>• Similarité sémantique (seuil 85%)<br>• Vérifié contre les 30 derniers jours<br><br><strong>3. Cooldowns :</strong><br>• <strong>Global</strong> : 2h minimum entre 2 notifications<br>• <strong>Par sujet</strong> : 24h avant de reparler du même thème<br>• <strong>Quota journalier</strong> : max N notifications/jour<br><br><strong>📊 Résultat :</strong><br>Vous ne recevrez jamais deux fois le même contenu, ni des sujets trop similaires à la suite."
+            "answer": "LIA utilise plusieurs mécanismes anti-doublon :<br><br><strong>🔄 Protection contre les doublons :</strong><br><br><strong>1. Déduplication des intérêts :</strong><br>• Similarité sémantique via embeddings IA<br>• Seuil de 90% : deux sujets similaires → consolidation<br>• \"<em>Python</em>\" et \"<em>Programmation Python</em>\" = même intérêt<br><br><strong>2. Déduplication du contenu :</strong><br>• Hash SHA256 du contenu (comparaison exacte)<br>• Similarité sémantique (seuil 90%)<br>• Vérifié contre les 7 derniers jours<br><br><strong>3. Cooldowns :</strong><br>• <strong>Global</strong> : 1h minimum entre 2 notifications<br>• <strong>Par intérêt</strong> : 12h avant de reparler du même intérêt<br>• <strong>Par sujet</strong> : 36h avant de revisiter le même thème<br>• <strong>Quota journalier</strong> : max N notifications/jour<br><br><strong>📊 Résultat :</strong><br>Vous ne recevrez jamais deux fois le même contenu, ni des sujets trop similaires à la suite."
           }
         }
       },
@@ -5959,7 +5971,7 @@
       },
       "interests": {
         "title": "Centres d'intérêt",
-        "description": "Suis les sujets qui te passionnent (tech, sport, finance, santé...). LIA recherche automatiquement du contenu pertinent et te le pousse sous forme de notifications."
+        "description": "Suis les sujets qui te passionnent (tech, sport, finance, santé...). LIA recherche automatiquement du contenu pertinent et te le pousse sous forme de notifications — les thèmes alternent pour la variété, et chaque notification cite ses sources en liens cliquables."
       },
       "telephony": {
         "title": "LIA passe des appels pour vous",

@@ -93,6 +93,7 @@ PromptName = Literal[
     "interest_extraction_prompt",
     "interest_content_prompt",
     "interest_llm_reflection_prompt",
+    "interest_subject_clustering_prompt",
     # Domain agent prompts
     "brave_agent_prompt",
     "calendar_agent_prompt",

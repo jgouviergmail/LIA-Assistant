@@ -3393,6 +3393,8 @@ User Message → LLM Analysis → Interest Candidates → Confidence Filter → 
 apps/api/src/domains/interests/
 ├── models.py         # Interest, UserInterest SQLAlchemy
 ├── repository.py     # CRUD operations
+├── selection.py      # Subject-rarity notification selection (ADR-131)
+├── sources.py        # Source hyperlink block for notifications (ADR-131)
 ├── service.py        # Extraction logic + LLM
 ├── router.py         # REST API endpoints
 └── schemas.py        # Pydantic DTOs

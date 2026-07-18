@@ -106,3 +106,16 @@ class TestInterestFeedback:
         """Test that feedback values are strings."""
         for feedback in InterestFeedback:
             assert isinstance(feedback.value, str)
+
+
+@pytest.mark.unit
+class TestUserInterestSubjectColumn:
+    """Tests for the subject column (ADR-131)."""
+
+    def test_user_interest_has_nullable_subject(self):
+        """subject is derived data: NULL means 'needs clustering' (ADR-131)."""
+        from src.domains.interests.models import UserInterest
+
+        col = UserInterest.__table__.columns["subject"]
+        assert col.nullable is True
+        assert col.type.length == 100

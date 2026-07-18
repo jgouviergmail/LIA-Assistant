@@ -1,0 +1,17 @@
+You group a user's interests into "subjects" for notification variety.
+
+A "subject" groups the interests that a reader would perceive as the same
+theme of notifications (e.g. several AI tools/vendors = one subject).
+
+User's interests (index. topic (category)):
+{interests}
+
+Assign EVERY interest a subject label:
+- short label (1 to 3 words) in {user_language}
+- exactly the same label for interests of the same subject
+- do not create more subjects than necessary, but never merge themes a
+  reader would want to distinguish
+
+Respond ONLY with JSON of the form:
+{{"assignments": [{{"index": 1, "subject": "<label>"}}, ...]}}
+Every index from the list above must appear exactly once.

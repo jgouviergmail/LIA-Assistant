@@ -268,24 +268,77 @@ should_send = random() < probability
 
 **Fichier** : `infrastructure/proactive/eligibility.py` — methode `should_send_notification()`
 
-### 2.5.2 Selection du centre d'interet cible
+### 2.5.2 Selection du centre d'interet cible (ADR-131)
 
-Parmi les interets de l'utilisateur, un seul est selectionne selon l'algorithme :
+Deux modes, commutables via `INTEREST_SELECTION_MODE` :
 
-1. **Filtrer** : Statut `active` uniquement (pas `blocked`, pas `dormant`)
-2. **Exclure cooldown par topic** : Interets notifies dans les dernieres 24h exclus
-3. **Calculer poids effectif** : `effective_weight = bayesian_weight * decay_factor`
-4. **Top N%** : Garder les 20% avec le poids le plus eleve (min 1)
-5. **Selection aleatoire** : Parmi le top N%, selection random
+**Mode `subject_rarity` (defaut — variante V5 validee par bancs d'essai 2026-07-18)** :
+
+1. **Candidats** : statut `active`, hors cooldown par topic (12h), poids effectif calcule
+2. **Regroupement par sujet** : chaque interet porte un label `subject` attribue par le
+   job de clustering LLM batch (voir 2.5.2b) ; `subject IS NULL` = groupe singleton
+3. **Cooldown sujet** : les sujets notifies dans les dernieres
+   `INTEREST_SUBJECT_COOLDOWN_HOURS` (36h) sont geles — un frere de sujet en cooldown
+   topic gele aussi son sujet ; fail-open si tous les sujets sont geles
+4. **Tirage sujet par rarete** : `p ~ poids_moyen^beta / (1 + notifs_sujet_30j)^gamma`
+5. **Tirage intra-sujet par rarete** : `p ~ 1 / (1 + notifs_interet_30j)^intra_gamma`
+   (si `intra_gamma = 0` : proportionnel au poids)
+
+Motivation mesuree en prod : le sujet dominant (IA, fragmente en 9 interets sur 19)
+captait ~50% des notifications ; la simulation (300 reps x 30j) le ramene a ~33%
+(4 sujets IA legitimes sur 12) avec quasi-equirepartition par sujet (~8%) et
+famine reduite (0,8 → 0,3 interet jamais servi sur 30j).
+
+**Mode `uniform` (legacy, rollback instantane sans rebuild)** : tirage uniforme parmi
+les candidats (avec `INTEREST_TOP_PERCENT=1.0`, le filtre "top N%" historique est
+sans effet).
 
 **Parametres de selection** :
 
-| Parametre | Valeur | Description |
+| Parametre | Defaut | Description |
 |-----------|--------|-------------|
-| `INTEREST_TOP_PERCENT` | 0.20 | Pourcentage du top des interets a considerer |
-| `INTEREST_PER_TOPIC_COOLDOWN_HOURS` | 24 | Cooldown par topic (eviter repetition) |
-| `INTEREST_DECAY_RATE_PER_DAY` | 0.01 | Decroissance du poids (1%/jour sans mention) |
-| `INTEREST_DEDUP_SIMILARITY_THRESHOLD` | 0.89 | Seuil similarite pour consolidation interets |
+| `INTEREST_SELECTION_MODE` | subject_rarity | Algorithme (subject_rarity / uniform) |
+| `INTEREST_SUBJECT_COOLDOWN_HOURS` | 36 | Gel d'un sujet apres notification |
+| `INTEREST_SUBJECT_RARITY_GAMMA` | 1.0 | Exposant rarete niveau sujet (0 desactive) |
+| `INTEREST_SUBJECT_WEIGHT_BETA` | 0.0 | Exposant poids niveau sujet (0 desactive) |
+| `INTEREST_INTRA_SUBJECT_RARITY_GAMMA` | 1.0 | Exposant rarete intra-sujet |
+| `INTEREST_RARITY_LOOKBACK_DAYS` | 30 | Fenetre glissante des comptes de rarete |
+| `INTEREST_TOP_PERCENT` | 1.0 | Filtre historique top N% (no-op a 1.0) |
+| `INTEREST_PER_TOPIC_COOLDOWN_HOURS` | 12 | Cooldown par topic (eviter repetition) |
+| `INTEREST_DECAY_RATE_PER_DAY` | 0.005 | Decroissance du poids sans mention |
+| `INTEREST_DEDUP_SIMILARITY_THRESHOLD` | 0.89 | Seuil dedup a l'extraction |
+
+Implementation : `src/domains/interests/selection.py` (fonction pure, RNG injecte,
+fail-open a chaque etage) ; cablage dans `proactive_task.select_target`.
+
+### 2.5.2b Clustering des sujets (batch LLM, ADR-131)
+
+Le label `subject` est une **donnee derivee**, recalculee en bloc — jamais attribuee
+a l'extraction : le labeling incremental a ete refute empiriquement (derive selon
+l'ordre d'arrivee, accord 89%, fusions aberrantes), le batch mesure 98,2% d'accord
+inter-runs. Deux declencheurs (jobs APScheduler, leader-elected) :
+
+- **Scan stale** (toutes les `INTEREST_SUBJECT_RECLUSTER_INTERVAL_MINUTES`, 30 min) :
+  utilisateurs ayant un interet actif avec `subject IS NULL` (creation, rename, merge)
+- **Re-clustering nocturne complet** (`INTEREST_SUBJECT_RECLUSTER_FULL_HOUR`, 04h15,
+  apres le cleanup+merge de 03h00) : auto-reparation de la derive residuelle
+
+Un appel LLM par utilisateur (`interest_extraction` LLM type, prompt versionne
+`interest_subject_clustering_prompt`, reponse JSON indexee) ; parsing defensif
+fail-open (echec de parse = labels precedents conserves, metrique
+`interest_subject_recluster_total{outcome}`).
+
+### 2.5.2c Hygiene des doublons (ADR-131)
+
+- **Extraction durcie** : si la generation d'embedding echoue (None), le fallback
+  string s'applique desormais meme quand l'existant possede un embedding (le trou
+  qui a produit le doublon prod "Anthropic"/"anthropic") ; un rename qui collisionne
+  avec un topic existant (case-insensitive) consolide la cible au lieu de renommer
+- **Retro-merge nocturne** (etape 0 du cleanup de 03h00) : fusion des variantes de
+  casse et des quasi-doublons a similarite cosinus >= `INTEREST_MERGE_SIMILARITY_THRESHOLD`
+  (0.95 — seule zone fiable de ces embeddings : vrai doublon prod a 0.987, premiere
+  fausse paire a 0.890) ; signaux sommes, notifications repointees, `subject` remis
+  a NULL pour relabellisation
 
 ### 2.5.3 Generation du contenu
 
@@ -392,6 +445,14 @@ Chaque notification est envoyee via **3 canaux simultanement** :
 | **FCM Push** | Notification mobile/web | Alerte meme si app fermee |
 | **SSE Redis Pub/Sub** | Temps reel via EventSource | Affichage instantane si page chat ouverte |
 | **Archive conversation** | Stockage en base `conversation_messages` | Persistance et historique |
+
+**Liens sources (ADR-131)** : les citations du contenu (Wikipedia, Perplexity, Brave)
+sont ajoutees de maniere **deterministe** apres la presentation LLM (jamais generees
+par le LLM — zero URL hallucinee) sous forme de bloc markdown
+`Sources : [domaine](url) · ...` (libelle i18n x6, plafond
+`INTEREST_SOURCES_MAX_LINKS`, 0 = desactive). Le chat rend les liens cliquables
+(`MarkdownContent.tsx`) ; FCM et Telegram recoivent une conversion texte
+`domaine (url)` via `markdown_links_to_plain` (le markdown n'y est pas rendu).
 
 ### 2.5.6 Exploitation des Embeddings
 

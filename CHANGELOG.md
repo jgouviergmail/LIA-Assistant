@@ -5,6 +5,84 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.6] - 2026-07-18
+
+> **Interest notifications learn variety — every mechanism validated by measurement before a line of code.** Production data showed the problem was not the draw (already uniform) but pool composition: one perceived subject (AI), fragmented into 9 of 19 interests, captured ~50% of notifications. Three benches on the real prod snapshot settled the design (ADR-131): an embedding-cosine "semantic cooldown" was **refuted** (topic-embedding space is compressed — a false pair scores higher than a true one; only ≥ 0.95 is reliable), incremental LLM subject labeling was **refuted** (order-dependent drift, 89% agreement, one aberrant merge), while **batch** labeling measured 98.2% stable — so the `subject` label became derived data, recomputed wholesale by a scheduled job, never assigned at extraction. A 300-run simulation validated against production (uniform simulated 47.9% vs ~50% measured) picked variant **V5**: subject cooldown, then rarity draws at both the subject and interest level — the dominant family falls to ~33% and starvation drops from 0.8 to 0.3 interests/30 days, with fail-open at every stage and an instant `uniform` rollback knob. Along the way the audit closed real holes: the extraction dedup path silently disabled itself when embedding generation failed (how "Anthropic"/"anthropic" both existed), manual renames could collide or keep stale labels, and a nightly retro-merge (≥ 0.95 only — the measured reliable zone) now heals history while repointing the notification audit trail. Notifications also gained **deterministic source hyperlinks** (never LLM-generated — zero hallucinated URLs): markdown links in chat, a readable text conversion for FCM/Telegram. And a long-standing i18n bug died: proactive notification titles were keyed `zh` while `User.language` is backend-canonical `zh-CN` — Chinese users had been silently receiving English titles.
+
+### Added
+
+- **Subject-based variety selection (ADR-131)** — interests carry a derived
+  `subject` label (nullable = "needs clustering"); selection groups candidates
+  by subject, freezes recently notified subjects
+  (`INTEREST_SUBJECT_COOLDOWN_HOURS`, 36h — a sibling in per-topic cooldown
+  freezes its whole subject), then draws subject and member by rarity
+  (`p ∝ mean_weight^β / (1+recent)^γ`, intra-subject `1/(1+recent)^γ`).
+  Pure, injected-RNG implementation in `domains/interests/selection.py`;
+  fail-open at every stage; `INTEREST_SELECTION_MODE=uniform` is the
+  rebuild-free rollback.
+- **Batch LLM subject clustering job** — one `interest_extraction`-typed call
+  per user labels all active interests at once (index-keyed JSON protocol,
+  defensive fail-open parsing): stale scan every 30 min (subject IS NULL) +
+  nightly full re-cluster at 04:15 self-heals label drift. Incremental
+  (per-extraction) labeling was empirically refuted and deliberately avoided.
+- **Deterministic source hyperlinks in notifications** — citations from
+  Perplexity/Brave/Wikipedia are appended after LLM presentation as markdown
+  `[domain](url)` links (i18n label ×6, cap `INTEREST_SOURCES_MAX_LINKS`,
+  0 disables); `markdown_links_to_plain` converts them to "domain (url)" for
+  FCM push and Telegram (HTML-escaped surfaces).
+- **Nightly retro-merge of duplicate interests** — case/whitespace variants and
+  near-identical topics (cosine ≥ `INTEREST_MERGE_SIMILARITY_THRESHOLD`, 0.95)
+  merge into the strongest row: signals summed, activity timestamps maxed,
+  BLOCKED status preserved, notifications repointed (audit trail and rarity
+  counts survive), subject reset for relabeling.
+- **12 new `.env` knobs** for selection mode, subject cooldown, rarity
+  exponents, lookback window, re-clustering cadence/batch, merge threshold,
+  source-link cap and subject label length — plus **4 Prometheus metrics**
+  (`interest_selection_total`, `interest_subject_recluster_total`,
+  `interest_merge_total`, `interest_selection_eligible_subjects`).
+
+### Changed
+
+- **Interest selection docstrings and repository honesty** — `select_target`
+  documents both modes (the historical "top 20%" claim was config-dead);
+  `get_all_for_user` gains a deterministic `ORDER BY created_at DESC` and stops
+  claiming a weight ordering SQL cannot produce; `InterestResponse` exposes the
+  read-only `subject` field.
+- **Interest content prompt** — source names are woven into the text but raw
+  URLs are forbidden (clickable links are appended deterministically instead);
+  the French `"Aucune"` fallback in English prompt scaffolding became
+  `"(none)"`.
+- **Proactive notification titles centralized** (`core/i18n_proactive.py`,
+  `ProactiveMessages`) — replaces the inline per-task-type table in the
+  dispatcher, per the backend i18n systemic rule.
+
+### Fixed
+
+- **Chinese users received English notification titles** — the dispatcher's
+  titles table was keyed `zh` while `User.language` is backend-canonical
+  `zh-CN`; the lookup silently fell back to English for every proactive title.
+  Now served from `ProactiveMessages` with a zh-CN regression test.
+- **Extraction dedup silently disabled on embedding failure** — when
+  `generate_interest_embedding()` returned None at creation time, no check ran
+  at all against interests that had embeddings (the hole that produced the
+  "Anthropic"/"anthropic" production duplicate); the string fallback now
+  applies whenever either side lacks a vector.
+- **Topic renames bypassed dedup and kept stale subjects** — the extraction
+  UPDATE action now consolidates into an existing case-insensitive topic match
+  instead of renaming onto a duplicate, and any topic change (extraction or
+  manual router update) resets the derived subject label for re-clustering.
+
+### Tests
+
+- ~40 new tests: pure selection algorithm (cooldown/fail-open/rarity
+  statistics, seeded RNG), 30-day distribution regression (dominant subject
+  < 40%, ≤ 2 starved interests), clustering parser robustness, duplicate-pair
+  resolution (transitive chains), repository merge with real-database
+  notification repointing (integration), source-link block (6 languages),
+  zh-CN title regression, settings wiring. Migration `0ef84488b15c` passes the
+  replay-from-zero gate; runtime validated in dev Docker (33 real interests
+  clustered by the live LLM, selection dry-run, metrics exposed on `/metrics`).
+
 ## [1.25.5] - 2026-07-17
 
 > **The phone assistant becomes trustworthy — and the planner learns to converge.** A full day of live-call debugging turns the agentic telephony feature from a promising prototype into a disciplined agent. On the call itself: the assistant now greets the instant the line opens (an empty first message caused a multi-second silent standoff), knows what day it is (a `current_datetime` anchor — "tomorrow" was being resolved to the wrong weekday out loud), speaks with a pinned French-capable voice over telephony-native `ulaw_8000` audio (the vendor's documented garble cause), runs on a **pinned thinking-free LLM** (the platform default, gemini-2.5-flash, was caught reciting its English reasoning aloud mid-call), and **hangs up** when the goal is met (the `end_call` system tool was never actually enabled). Above all it now has a **mandate boundary**: it never accepts an unrequested expense or commitment — even a 3€ cheese topping — it captures the offer and its price, defers to the user, and the post-call summary is required to be complete: every cost stated, every open point flagged for a call-back with instructions. Around the call, the machinery self-heals: the vendor agent re-syncs lazily on config drift (no more deactivate/reactivate), a stuck "call already active" row is closed by probing the vendor (including the deleted-agent 404 case, with a grace window so a freshly dialed call is never killed), and a deleted vendor agent is diagnosable in one log line. The second act is deeper: the "crée le rdv" follow-up after a call kept producing a next-hour default slot instead of the agreed Saturday 9:30 — the enriched context was correct, but the planner never *received* its facts where models actually read them. Resolved facts now ride in the planner's **human message**; the semantic validator finally validates **single-step mutations** (they were skipped as "trivial" — the whole class was unguarded), survives a structured-output quirk with a one-shot retry (the prompt's last line contradicted the tool mandate: 0/3 → 6/6 tool calls after an A/B-proven fix), rejects fabricated placeholder contacts deterministically (RFC 2606 — `jerome.gouvier@example.com` invented as an attendee), and when a replan is needed the planner is finally shown **its own previous plan** with a fix-don't-rebuild directive (it used to oscillate — fixing the date on one pass, losing it on the next). The last net: an invalid **mutation** plan that exhausts its replans is never silently executed anymore — LIA asks the user instead.

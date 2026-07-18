@@ -273,6 +273,31 @@ proactive_task_duration_seconds = Histogram(
     buckets=[1, 5, 15, 30, 60, 120, 300, 600],  # Up to 10 minutes
 )
 
+# Interest subject-based selection (ADR-131). No subject label on any metric:
+# labels are unbounded user-derived text (cardinality + content policy).
+interest_selection_total = Counter(
+    "interest_selection_total",
+    "Interest notification selections by mode (ADR-131)",
+    ["mode", "fail_open"],  # mode: uniform|subject_rarity; fail_open: true|false
+)
+
+interest_subject_recluster_total = Counter(
+    "interest_subject_recluster_total",
+    "Subject re-clustering runs by outcome (ADR-131)",
+    ["outcome"],  # success | parse_failed | error
+)
+
+interest_merge_total = Counter(
+    "interest_merge_total",
+    "Duplicate interests retro-merged (ADR-131)",
+)
+
+interest_selection_eligible_subjects = Histogram(
+    "interest_selection_eligible_subjects",
+    "Eligible (non-cooling) subjects at selection time (ADR-131)",
+    buckets=(1, 2, 3, 5, 8, 12, 20),
+)
+
 proactive_notification_channel_total = Counter(
     "proactive_notification_channel_total",
     "Total proactive notifications sent per channel",

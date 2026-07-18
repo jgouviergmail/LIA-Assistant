@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión** : 3.7
-**Fecha** : 2026-07-17
-**Aplicación** : LIA v1.25.5
+**Versión** : 3.8
+**Fecha** : 2026-07-18
+**Aplicación** : LIA v1.25.6
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -63,7 +63,7 @@ Cada usuario dispone de su propio espacio de configuración, organizado en dos p
 - **Psyche Engine**: ajusta los rasgos de personalidad (Big Five) que modulan la reactividad emocional de tu asistente
 - **Memoria**: consulta, edita, fija o elimina los recuerdos de LIA — activa o desactiva la extracción automática de hechos
 - **Diarios personales**: configura la extracción de introspecciones tras cada conversación y la consolidación periódica
-- **Centros de interés**: define tus temas favoritos, configura la frecuencia de notificaciones, los horarios y las fuentes (Wikipedia, Perplexity, reflexión IA)
+- **Centros de interés**: define tus temas favoritos, configura la frecuencia de notificaciones, los horarios y las fuentes (Perplexity, Brave, Wikipedia, reflexión IA)
 - **Notificaciones proactivas**: ajusta la frecuencia, la ventana horaria y las fuentes de contexto (calendario, tiempo, tareas, correos, intereses, memorias, diarios)
 - **Acciones programadas**: crea automatizaciones recurrentes ejecutadas por el asistente
 - **Skills**: activa o desactiva competencias expertas, crea tus propios Skills personales
@@ -152,7 +152,7 @@ LIA no se limita a responder — anticipa:
 
 - **Notificaciones proactivas**: LIA cruza tus fuentes de contexto (calendario, tiempo, tareas, correos, intereses) y te avisa cuando es genuinamente útil — con un sistema anti-spam integrado (cuota diaria, ventana horaria, cooldown)
 - **Iniciativa conversacional**: durante un intercambio, LIA verifica proactivamente información relacionada — si el tiempo anuncia lluvia el sábado, consulta tu calendario para señalar posibles actividades al aire libre
-- **Centros de interés**: LIA detecta progresivamente los temas que te apasionan y puede enviarte contenido relevante
+- **Centros de interés**: LIA detecta progresivamente los temas que te apasionan y te envía contenido variado — los temas se alternan (nunca el mismo tema dos veces seguidas) y cada notificación incluye enlaces clicables a sus fuentes
 - **Subagentes**: para tareas complejas, LIA delega en agentes efímeros especializados que trabajan en paralelo
 
 ### 3.7. Navegación web autónoma

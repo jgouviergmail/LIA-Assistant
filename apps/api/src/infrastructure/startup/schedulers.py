@@ -29,6 +29,8 @@ from src.core.constants import (
     SCHEDULER_JOB_HEARTBEAT_NOTIFICATION,
     SCHEDULER_JOB_INTEREST_CLEANUP,
     SCHEDULER_JOB_INTEREST_NOTIFICATION,
+    SCHEDULER_JOB_INTEREST_SUBJECT_FULL,
+    SCHEDULER_JOB_INTEREST_SUBJECT_STALE,
     SCHEDULER_JOB_JOURNAL_CONSOLIDATION,
     SCHEDULER_JOB_LEADER_LOCK_RENEWAL,
     SCHEDULER_JOB_MEMORY_CLEANUP,
@@ -161,6 +163,42 @@ async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElecto
             replace_existing=True,
         )
         logger.info("interest_cleanup_job_scheduled", hour=3, minute=0)
+
+        # Subject clustering (ADR-131): stale scan + nightly full re-cluster.
+        # Subjects feed the subject-rarity notification selection, so both
+        # jobs are gated by the notification scheduler flag.
+        if settings.interest_notifications_enabled:
+            from src.infrastructure.scheduler.interest_subject_clustering import (
+                run_subject_clustering_full,
+                run_subject_clustering_stale,
+            )
+
+            scheduler.add_job(
+                run_subject_clustering_stale,
+                trigger="interval",
+                minutes=settings.interest_subject_recluster_interval_minutes,
+                id=SCHEDULER_JOB_INTEREST_SUBJECT_STALE,
+                name="Cluster interests with missing subject labels",
+                replace_existing=True,
+                max_instances=1,  # Prevent concurrent runs
+                misfire_grace_time=60,
+            )
+            scheduler.add_job(
+                run_subject_clustering_full,
+                trigger="cron",
+                hour=settings.interest_subject_recluster_full_hour,
+                minute=15,  # After the 03:00 cleanup+merge pass
+                id=SCHEDULER_JOB_INTEREST_SUBJECT_FULL,
+                name="Nightly full interest subject re-clustering",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=300,
+            )
+            logger.info(
+                "interest_subject_clustering_jobs_scheduled",
+                stale_interval_minutes=settings.interest_subject_recluster_interval_minutes,
+                full_hour=settings.interest_subject_recluster_full_hour,
+            )
 
         # Schedule reminder notification job (every minute)
         # Checks for pending reminders and sends notifications

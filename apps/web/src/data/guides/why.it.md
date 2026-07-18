@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione** : 3.7
-**Data** : 2026-07-17
-**Applicazione** : LIA v1.25.5
+**Versione** : 3.8
+**Data** : 2026-07-18
+**Applicazione** : LIA v1.25.6
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -63,7 +63,7 @@ Ogni utente ha il proprio spazio di configurazione, organizzato in due schede:
 - **Psyche Engine**: regola i tratti di personalità (Big Five) che modulano la reattività emotiva del tuo assistente
 - **Memoria**: consulta, modifica, fissa o elimina i ricordi di LIA — attiva o disattiva l'estrazione automatica di informazioni
 - **Diari personali**: configura l'estrazione di riflessioni dopo ogni conversazione e il consolidamento periodico
-- **Interessi**: definisci i tuoi argomenti preferiti, configura la frequenza delle notifiche, le finestre orarie e le fonti (Wikipedia, Perplexity, ragionamento IA)
+- **Interessi**: definisci i tuoi argomenti preferiti, configura la frequenza delle notifiche, le finestre orarie e le fonti (Perplexity, Brave, Wikipedia, ragionamento IA)
 - **Notifiche proattive**: regola frequenza, finestra oraria e fonti di contesto (calendario, meteo, attività, email, interessi, memorie, diari)
 - **Azioni pianificate**: crea automazioni ricorrenti eseguite dall'assistente
 - **Skills**: attiva/disattiva competenze specializzate, crea le tue Skills personali
@@ -152,7 +152,7 @@ LIA non si limita a rispondere — anticipa:
 
 - **Notifiche proattive**: LIA incrocia le tue fonti di contesto (calendario, meteo, attività, email, interessi) e ti notifica quando è davvero utile — con un sistema anti-spam integrato (quota giornaliera, finestra oraria, cooldown)
 - **Iniziativa conversazionale**: durante uno scambio, LIA verifica proattivamente le informazioni correlate — se il meteo prevede pioggia sabato, consulta il tuo calendario per segnalarti eventuali attività all'aperto
-- **Interessi**: LIA rileva progressivamente gli argomenti che ti appassionano e può inviarti contenuti pertinenti
+- **Interessi**: LIA rileva progressivamente gli argomenti che ti appassionano e ti invia contenuti variati — i temi si alternano (mai due volte di seguito lo stesso argomento) e ogni notifica include link cliccabili alle sue fonti
 - **Sotto-agenti**: per le attività complesse, LIA delega ad agenti effimeri specializzati che lavorano in parallelo
 
 ### 3.7. Navigazione web autonoma

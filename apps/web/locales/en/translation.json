@@ -2825,7 +2825,7 @@
         },
         "interests": {
           "title": "✨ Smart Interest Learning",
-          "description": "Automatic learning of your interests through LLM conversation analysis. Proactive personalized notifications on your favorite topics via Wikipedia, Perplexity, or AI reflection. Bayesian weighting with temporal decay. Semantic deduplication via AI-powered embeddings. Full control: feedback, blocking, configurable time window and frequency."
+          "description": "Automatic learning of your interests through LLM conversation analysis. Interests are grouped into subjects by batch LLM clustering, and notification selection draws with two-level rarity (subject cooldown + priority to the least-served subjects) — one passion never monopolizes. Content via Perplexity, Brave, Wikipedia or AI reflection, with clickable source links appended deterministically. Bayesian weighting with temporal decay, nightly merge of near-duplicate topics. Full control: feedback, blocking, configurable time window and frequency."
         },
         "summarization": {
           "title": "📝 Automatic Summarization",
@@ -2998,6 +2998,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_6": {
+          "title": "v1.25.6 — 🎯 Interest notifications finally varied",
+          "date": "July 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎯 Variety-first notifications</b> — your interests are now grouped into subjects (several AI tools = one subject) and selection rotates them: recently covered subjects rest, rarely served ones get priority. One passion no longer monopolizes your notifications (measured: the dominant theme drops from ~50% to ~33% of notifications).",
+            "i2": "<b>🔗 Clickable source links</b> — every interest notification now ends with links to the original articles (Perplexity, Brave, Wikipedia), so you can read further with one tap. Push and Telegram get a readable text version.",
+            "i3": "<b>🧹 Duplicate interests self-heal</b> — case variants and near-identical topics (\"Anthropic\" vs \"anthropic\") are now merged automatically every night, keeping your interest list clean and your notification history intact.",
+            "i4": "<b>🇨🇳 Chinese notification titles fixed</b> — proactive notification titles were silently falling back to English for Chinese users; they now display correctly in 中文.",
+            "i5": "<b>⚙️ For admins</b> — the whole selection is tunable via .env (mode, subject cooldown, rarity exponents, source-link cap) with an instant uniform-draw fallback, and 4 new Prometheus metrics track selections, re-clustering and merges."
+          }
+        },
         "v1_25_5": {
           "title": "v1.25.5 — 📞 The phone assistant becomes trustworthy",
           "date": "July 2026",
@@ -4620,7 +4632,7 @@
           },
           "q2": {
             "question": "How do proactive notifications work?",
-            "answer": "LIA sends you relevant content on your favorite topics:<br><br><strong>📬 Principle:</strong><br>• Notifications sent <strong>without you asking</strong><br>• Content adapted to your interests<br>• Personalized with LIA's active personality<br><br><strong>📚 Content sources:</strong><br>1. <strong>Wikipedia</strong>: encyclopedic articles<br>2. <strong>Perplexity</strong>: recent news and research<br>3. <strong>AI Reflection</strong>: generated content if no source fits<br><br><strong>⏰ Triggering:</strong><br>• Only within your time window (9am-10pm by default)<br>• Configurable frequency (1 to 5 per day)<br>• Never when you're actively using chat<br>• 2-hour global cooldown between notifications<br><br><strong>📱 Delivery:</strong><br>• Push notification (even with app closed)<br>• Real-time display in chat<br>• Archived in conversation history"
+            "answer": "LIA sends you relevant content on your favorite topics:<br><br><strong>📬 Principle:</strong><br>• Notifications sent <strong>without you asking</strong><br>• Content adapted to your interests<br>• Personalized with LIA's active personality<br><br><strong>📚 Content sources:</strong><br>1. <strong>Perplexity</strong>: recent news and research<br>2. <strong>Brave Search</strong>: up-to-date web results<br>3. <strong>Wikipedia</strong>: encyclopedic articles<br>4. <strong>AI Reflection</strong>: generated content if no source fits<br><br><strong>⏰ Triggering:</strong><br>• Only within your time window (9am-10pm by default)<br>• Configurable frequency (1 to 5 per day)<br>• Never when you're actively using chat<br>• 1-hour global cooldown between notifications<br><br><strong>📱 Delivery:</strong><br>• Push notification (even with app closed)<br>• Real-time display in chat<br>• Archived in conversation history<br>• <strong>Clickable source links</strong> at the end of the message to read the original articles"
           },
           "q3": {
             "question": "How do I manage my interests?",
@@ -4628,7 +4640,7 @@
           },
           "q4": {
             "question": "How does the weight system work?",
-            "answer": "Each interest has a <strong>weight</strong> that evolves:<br><br><strong>📊 Weight calculation:</strong><br>• <strong>Bayesian</strong> algorithm (Beta distribution)<br>• Starts with a slightly positive prior<br>• Increases with positive signals<br>• Decreases with negative signals<br><br><strong>📈 Positive signals (+weight):</strong><br>• Mentioning the topic in a conversation<br>• Clicking \"<em>I like this topic</em>\" 👍<br><br><strong>📉 Negative signals (-weight):</strong><br>• Clicking \"<em>Less interested</em>\" 👎<br>• Temporal decay (1%/day without mention)<br><br><strong>⏳ Temporal decay:</strong><br>• If you stop talking about a topic, its weight decreases<br>• Dormant interests after 15 days without mention — but they stay visible and manageable (reactivate, edit or delete) in a dedicated section of Settings<br>• Automatic deletion after 90 days of inactivity<br><br><strong>🎯 Selection for notification:</strong><br>Interests with the <strong>highest weight</strong> are more likely to be chosen"
+            "answer": "Each interest has a <strong>weight</strong> that evolves:<br><br><strong>📊 Weight calculation:</strong><br>• <strong>Bayesian</strong> algorithm (Beta distribution)<br>• Starts with a slightly positive prior<br>• Increases with positive signals<br>• Decreases with negative signals<br><br><strong>📈 Positive signals (+weight):</strong><br>• Mentioning the topic in a conversation<br>• Clicking \"<em>I like this topic</em>\" 👍<br><br><strong>📉 Negative signals (-weight):</strong><br>• Clicking \"<em>Less interested</em>\" 👎<br>• Temporal decay (0.5%/day without mention)<br><br><strong>⏳ Temporal decay:</strong><br>• If you stop talking about a topic, its weight decreases<br>• Dormant interests after 15 days without mention — but they stay visible and manageable (reactivate, edit or delete) in a dedicated section of Settings<br>• Automatic deletion after 30 days of dormancy<br><br><strong>🎯 Selection for notification (variety-first):</strong><br>Your interests are grouped into <strong>subjects</strong> (e.g. several AI tools = one subject). Recently notified subjects rest for a while and rarely served subjects get priority — one passion never monopolizes your notifications. Within a subject, the least recently covered interest is favored"
           },
           "q5": {
             "question": "How do I give feedback on a notification?",
@@ -4636,7 +4648,7 @@
           },
           "q6": {
             "question": "How is duplicate content avoided?",
-            "answer": "LIA uses several anti-duplicate mechanisms:<br><br><strong>🔄 Duplicate protection:</strong><br><br><strong>1. Interest deduplication:</strong><br>• Semantic similarity via AI-powered embeddings<br>• 90% threshold: two similar topics → consolidation<br>• \"<em>Python</em>\" and \"<em>Python Programming</em>\" = same interest<br><br><strong>2. Content deduplication:</strong><br>• SHA256 hash of content (exact comparison)<br>• Semantic similarity (85% threshold)<br>• Checked against the last 30 days<br><br><strong>3. Cooldowns:</strong><br>• <strong>Global</strong>: 2h minimum between 2 notifications<br>• <strong>Per topic</strong>: 24h before discussing the same theme again<br>• <strong>Daily quota</strong>: max N notifications/day<br><br><strong>📊 Result:</strong><br>You will never receive the same content twice, nor topics too similar in a row."
+            "answer": "LIA uses several anti-duplicate mechanisms:<br><br><strong>🔄 Duplicate protection:</strong><br><br><strong>1. Interest deduplication:</strong><br>• Semantic similarity via AI-powered embeddings<br>• 90% threshold: two similar topics → consolidation<br>• \"<em>Python</em>\" and \"<em>Python Programming</em>\" = same interest<br><br><strong>2. Content deduplication:</strong><br>• SHA256 hash of content (exact comparison)<br>• Semantic similarity (90% threshold)<br>• Checked against the last 7 days<br><br><strong>3. Cooldowns:</strong><br>• <strong>Global</strong>: 1h minimum between 2 notifications<br>• <strong>Per topic</strong>: 12h before discussing the same interest again<br>• <strong>Per subject</strong>: 36h before revisiting the same theme<br>• <strong>Daily quota</strong>: max N notifications/day<br><br><strong>📊 Result:</strong><br>You will never receive the same content twice, nor topics too similar in a row."
           }
         }
       },
@@ -6027,7 +6039,7 @@
       },
       "interests": {
         "title": "Interest tracking",
-        "description": "Follow topics you're passionate about (tech, sports, finance, health...). LIA automatically searches relevant content and pushes it as notifications."
+        "description": "Follow topics you're passionate about (tech, sports, finance, health...). LIA automatically searches relevant content and pushes it as notifications — themes rotate for variety, and every notification links to its sources."
       },
       "telephony": {
         "title": "LIA can call for you",

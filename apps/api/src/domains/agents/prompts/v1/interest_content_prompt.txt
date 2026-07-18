@@ -41,8 +41,9 @@ Introduce with an original but natural hook that captures attention.
 - The question should be expert and invite deeper exploration
 
 ### 4. SOURCES
-- If citations available, mention the source fluidly
-- No academic format, just "according to [source]" or "per [source]"
+- If citations available, mention the source name fluidly ("according to [source name]")
+- No academic format
+- Never paste raw URLs in your text — clickable source links are appended automatically after your message
 
 ## FORMAT
 Free text, natural.

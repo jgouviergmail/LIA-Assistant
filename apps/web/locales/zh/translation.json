@@ -2810,7 +2810,7 @@
         },
         "interests": {
           "title": "✨ 智能兴趣学习",
-          "description": "通过 LLM 对话分析自动学习您的兴趣。通过 Wikipedia、Perplexity 或 AI 反思主动向您推送个性化的感兴趣内容。贝叶斯加权与时间衰减。通过语义嵌入向量进行语义去重。完全控制：反馈、屏蔽、可配置的时间窗口和频率。"
+          "description": "通过 LLM 对话分析自动学习您的兴趣。兴趣通过批量 LLM 聚类归入主题，通知选择采用两级稀有度抽取（主题冷却 + 优先服务最少被推送的主题）——单一爱好绝不会垄断。内容来自 Perplexity、Brave、Wikipedia 或 AI 反思，并以确定性方式附加可点击的来源链接。贝叶斯加权与时间衰减，夜间合并近似重复项。完全控制：反馈、屏蔽、可配置的时间窗口和频率。"
         },
         "summarization": {
           "title": "📝 自动摘要",
@@ -2983,6 +2983,18 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_6": {
+          "title": "v1.25.6 — 🎯 兴趣通知终于丰富多样",
+          "date": "2026年7月",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎯 多样性优先</b> — 您的兴趣现在会归入主题（多个 AI 工具 = 同一主题），选择机制让它们轮换：最近覆盖的主题休息，很少被推送的主题优先。单一爱好不再垄断您的通知（实测：主导主题从约50%降至约33%）。",
+            "i2": "<b>🔗 可点击的来源链接</b> — 每条兴趣通知末尾现在都附带原文链接（Perplexity、Brave、Wikipedia），一键深入阅读。推送和 Telegram 收到可读的文本版本。",
+            "i3": "<b>🧹 重复兴趣自动修复</b> — 大小写变体和近似重复的话题（\"Anthropic\" 与 \"anthropic\"）现在每晚自动合并，通知历史完整保留。",
+            "i4": "<b>🇨🇳 中文通知标题已修复</b> — 主动通知的标题此前对中文用户静默回退为英文；现在可以正确显示中文。",
+            "i5": "<b>⚙️ 面向管理员</b> — 整个选择机制可通过 .env 调节（模式、主题冷却、稀有度指数、链接上限），可即时回退到均匀抽取，并新增 4 个 Prometheus 指标跟踪选择、重聚类与合并。"
+          }
+        },
         "v1_25_5": {
           "title": "v1.25.5 — 📞 电话助手变得值得信赖",
           "date": "2026年7月",
@@ -4605,7 +4617,7 @@
           },
           "q2": {
             "question": "主动通知如何工作？",
-            "answer": "LIA会向您发送关于您最喜欢的话题的相关内容：<br><br><strong>📬 原则：</strong><br>• <strong>无需您请求</strong>即发送通知<br>• 内容根据您的兴趣调整<br>• 使用LIA的活跃个性进行个性化<br><br><strong>📚 内容来源：</strong><br>1. <strong>维基百科</strong>：百科全书文章<br>2. <strong>Perplexity</strong>：最新新闻和研究<br>3. <strong>AI反思</strong>：如果没有合适的来源则生成内容<br><br><strong>⏰ 触发：</strong><br>• 仅在您的时间窗口内（默认9点-22点）<br>• 可配置频率（每天1到5次）<br>• 在您活跃使用聊天时不会发送<br>• 通知之间2小时的全局冷却时间<br><br><strong>📱 发送：</strong><br>• 推送通知（即使应用关闭）<br>• 聊天中实时显示<br>• 归档到对话历史记录"
+            "answer": "LIA会向您发送关于您最喜欢的话题的相关内容：<br><br><strong>📬 原则：</strong><br>• <strong>无需您请求</strong>即发送通知<br>• 内容根据您的兴趣调整<br>• 使用LIA的活跃个性进行个性化<br><br><strong>📚 内容来源：</strong><br>1. <strong>Perplexity</strong>：最新新闻和研究<br>2. <strong>Brave Search</strong>：最新的网页结果<br>3. <strong>维基百科</strong>：百科全书文章<br>4. <strong>AI反思</strong>：如果没有合适的来源则生成内容<br><br><strong>⏰ 触发：</strong><br>• 仅在您的时间窗口内（默认9点-22点）<br>• 可配置频率（每天1到5次）<br>• 在您活跃使用聊天时不会发送<br>• 通知之间1小时的全局冷却时间<br><br><strong>📱 发送：</strong><br>• 推送通知（即使应用关闭）<br>• 聊天中实时显示<br>• 归档到对话历史记录<br>• 消息末尾附带<strong>可点击的来源链接</strong>，方便阅读原文"
           },
           "q3": {
             "question": "如何管理我的兴趣？",
@@ -4613,7 +4625,7 @@
           },
           "q4": {
             "question": "权重系统如何工作？",
-            "answer": "每个兴趣都有一个会演变的<strong>权重</strong>：<br><br><strong>📊 权重计算：</strong><br>• <strong>贝叶斯</strong>算法（Beta分布）<br>• 从略微正向的先验开始<br>• 随正向信号增加<br>• 随负向信号减少<br><br><strong>📈 正向信号（+权重）：</strong><br>• 在对话中提及该话题<br>• 点击\"<em>我喜欢这个话题</em>\" 👍<br><br><strong>📉 负向信号（-权重）：</strong><br>• 点击\"<em>不太感兴趣</em>\" 👎<br>• 时间衰减（无提及每天1%）<br><br><strong>⏳ 时间衰减：</strong><br>• 如果您不再谈论某个话题，其权重会下降<br>• 15天未提及后兴趣进入休眠——但它们仍可在设置的专门区域中查看和管理（重新激活、编辑或删除）<br>• 90天不活跃后自动删除<br><br><strong>🎯 通知选择：</strong><br><strong>权重最高</strong>的兴趣更可能被选中"
+            "answer": "每个兴趣都有一个会演变的<strong>权重</strong>：<br><br><strong>📊 权重计算：</strong><br>• <strong>贝叶斯</strong>算法（Beta分布）<br>• 从略微正向的先验开始<br>• 随正向信号增加<br>• 随负向信号减少<br><br><strong>📈 正向信号（+权重）：</strong><br>• 在对话中提及该话题<br>• 点击\"<em>我喜欢这个话题</em>\" 👍<br><br><strong>📉 负向信号（-权重）：</strong><br>• 点击\"<em>不太感兴趣</em>\" 👎<br>• 时间衰减（无提及每天0.5%）<br><br><strong>⏳ 时间衰减：</strong><br>• 如果您不再谈论某个话题，其权重会下降<br>• 15天未提及后兴趣进入休眠——但它们仍可在设置的专门区域中查看和管理（重新激活、编辑或删除）<br>• 休眠30天后自动删除<br><br><strong>🎯 通知选择（多样性优先）：</strong><br>您的兴趣会被归入<strong>主题</strong>（例如多个 AI 工具 = 同一主题）。最近通知过的主题会休息一段时间，很少被推送的主题获得优先——单一爱好绝不会垄断您的通知。在同一主题内，优先选择最久未覆盖的兴趣"
           },
           "q5": {
             "question": "如何对通知提供反馈？",
@@ -4621,7 +4633,7 @@
           },
           "q6": {
             "question": "如何避免重复内容？",
-            "answer": "LIA使用多种防重复机制：<br><br><strong>🔄 重复保护：</strong><br><br><strong>1. 兴趣去重：</strong><br>• 通过语义嵌入向量的语义相似度<br>• 90%阈值：两个相似话题 → 合并<br>• \"<em>Python</em>\"和\"<em>Python编程</em>\" = 同一兴趣<br><br><strong>2. 内容去重：</strong><br>• 内容的SHA256哈希（精确比较）<br>• 语义相似度（85%阈值）<br>• 与过去30天进行检查<br><br><strong>3. 冷却时间：</strong><br>• <strong>全局</strong>：两次通知之间至少2小时<br>• <strong>每个话题</strong>：再次讨论同一主题前24小时<br>• <strong>每日配额</strong>：每天最多N次通知<br><br><strong>📊 结果：</strong><br>您永远不会两次收到相同的内容，也不会连续收到太相似的话题。"
+            "answer": "LIA使用多种防重复机制：<br><br><strong>🔄 重复保护：</strong><br><br><strong>1. 兴趣去重：</strong><br>• 通过语义嵌入向量的语义相似度<br>• 90%阈值：两个相似话题 → 合并<br>• \"<em>Python</em>\"和\"<em>Python编程</em>\" = 同一兴趣<br><br><strong>2. 内容去重：</strong><br>• 内容的SHA256哈希（精确比较）<br>• 语义相似度（90%阈值）<br>• 与过去7天进行检查<br><br><strong>3. 冷却时间：</strong><br>• <strong>全局</strong>：两次通知之间至少1小时<br>• <strong>每个兴趣</strong>：再次讨论同一兴趣前12小时<br>• <strong>每个主题</strong>：重访同一主题前36小时<br>• <strong>每日配额</strong>：每天最多N次通知<br><br><strong>📊 结果：</strong><br>您永远不会两次收到相同的内容，也不会连续收到太相似的话题。"
           }
         }
       },
@@ -5941,7 +5953,7 @@
       },
       "interests": {
         "title": "兴趣追踪",
-        "description": "关注您热爱的话题（科技、体育、金融、健康...）。LIA自动搜索相关内容并以通知形式推送。"
+        "description": "关注您热爱的话题（科技、体育、金融、健康...）。LIA自动搜索相关内容并以通知形式推送——主题轮换保持多样性，每条通知都附带来源链接。"
       },
       "telephony": {
         "title": "LIA 可以替你打电话",

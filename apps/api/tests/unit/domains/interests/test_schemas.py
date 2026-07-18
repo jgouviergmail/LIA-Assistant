@@ -422,3 +422,13 @@ class TestExtractionResult:
             ExtractionResult(interests=interests)
 
         assert "at most 2" in str(exc_info.value).lower()
+
+
+@pytest.mark.unit
+class TestInterestResponseSubject:
+    """Tests for the subject field on InterestResponse (ADR-131)."""
+
+    def test_interest_response_exposes_subject(self):
+        """subject is optional and defaults to None (unclustered)."""
+        assert "subject" in InterestResponse.model_fields
+        assert InterestResponse.model_fields["subject"].default is None

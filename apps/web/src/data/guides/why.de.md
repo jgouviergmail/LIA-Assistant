@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 3.7
-**Datum** : 2026-07-17
-**Anwendung** : LIA v1.25.5
+**Version** : 3.8
+**Datum** : 2026-07-18
+**Anwendung** : LIA v1.25.6
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -63,7 +63,7 @@ Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Re
 - **Psyche Engine**: Passen Sie die Persönlichkeitsmerkmale (Big Five) an, die die emotionale Reaktivität Ihres Assistenten steuern
 - **Gedächtnis**: Erinnerungen von LIA einsehen, bearbeiten, anheften oder löschen — automatische Faktenextraktion aktivieren oder deaktivieren
 - **Persönliche Journale**: Konfigurieren Sie die Extraktion von Introspektion nach jedem Gespräch und die periodische Konsolidierung
-- **Interessengebiete**: Definieren Sie Ihre Lieblingsthemen, konfigurieren Sie die Benachrichtigungshäufigkeit, Zeitfenster und Quellen (Wikipedia, Perplexity, KI-Reflexion)
+- **Interessengebiete**: Definieren Sie Ihre Lieblingsthemen, konfigurieren Sie die Benachrichtigungshäufigkeit, Zeitfenster und Quellen (Perplexity, Brave, Wikipedia, KI-Reflexion)
 - **Proaktive Benachrichtigungen**: Stellen Sie Häufigkeit, Zeitfenster und Kontextquellen ein (Kalender, Wetter, Aufgaben, E-Mails, Interessen, Erinnerungen, Journale)
 - **Geplante Aktionen**: Erstellen Sie wiederkehrende Automatisierungen, die vom Assistenten ausgeführt werden
 - **Skills**: Aktivieren/deaktivieren Sie Expertenfähigkeiten, erstellen Sie Ihre eigenen persönlichen Skills
@@ -152,7 +152,7 @@ LIA beschränkt sich nicht aufs Antworten — LIA antizipiert:
 
 - **Proaktive Benachrichtigungen**: LIA verknüpft Ihre Kontextquellen (Kalender, Wetter, Aufgaben, E-Mails, Interessen) und benachrichtigt Sie, wenn es wirklich nützlich ist — mit einem integrierten Anti-Spam-System (Tageskontingent, Zeitfenster, Cooldown)
 - **Konversationelle Initiative**: Während eines Austauschs prüft LIA proaktiv verwandte Informationen — wenn das Wetter für Samstag Regen vorhersagt, schaut LIA in Ihren Kalender, um auf mögliche Outdoor-Aktivitäten hinzuweisen
-- **Interessengebiete**: LIA erkennt schrittweise Themen, die Sie begeistern, und kann Ihnen relevante Inhalte zukommen lassen
+- **Interessengebiete**: LIA erkennt schrittweise Themen, die Sie begeistern, und sendet Ihnen abwechslungsreiche Inhalte — die Themen wechseln sich ab (nie zweimal hintereinander dasselbe Thema) und jede Benachrichtigung enthält klickbare Links zu ihren Quellen
 - **Unteragenten**: Für komplexe Aufgaben delegiert LIA an spezialisierte, kurzlebige Agenten, die parallel arbeiten
 
 ### 3.7. Autonomes Web-Browsing
