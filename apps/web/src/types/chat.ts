@@ -2,6 +2,8 @@
  * Chat types for LIA AI Assistant
  */
 
+import type { ExecutionTrace } from './execution-trace';
+
 export type MessageRole = 'user' | 'assistant' | 'system';
 
 /**
@@ -52,6 +54,11 @@ export interface Message {
   ttsModel?: string | null;
   ttsCharacters?: number | null;
   ttsCostEur?: number | null;
+  // Execution trace (Lot 2 P2-V1): the backstage record of the agentic work
+  // (steps + reasoning + duration) captured at the progress→answer flip and
+  // attached here so it survives the response. Rendered as a collapsed
+  // disclosure under the assistant bubble. Session-only in V1.
+  executionTrace?: ExecutionTrace;
   // Message metadata (HITL responses, run_id, etc.)
   metadata?: Record<string, unknown>;
 }

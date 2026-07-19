@@ -602,7 +602,14 @@
       "retry_button": "Reintentar",
       "retry_failed": "No se pudo obtener tu posición. Verifica que el GPS esté activado.",
       "detection": {
-        "keywords": ["alrededores", "cercanias", "proximidad", "vecindario", "zona", "domicilio"],
+        "keywords": [
+          "alrededores",
+          "cercanias",
+          "proximidad",
+          "vecindario",
+          "zona",
+          "domicilio"
+        ],
         "patterns": [
           "cerca de (aqu[ií]|m[ií])",
           "a mi alrededor",
@@ -619,6 +626,57 @@
           "mi hogar"
         ]
       }
+    },
+    "hitl": {
+      "title": {
+        "tool_confirmation": "Aprobación requerida",
+        "draft_critique": "Borrador para revisar",
+        "destructive_confirm": "Acción destructiva — confirmación requerida",
+        "for_each_confirmation": "Acción en serie — confirmación requerida"
+      },
+      "actions": {
+        "confirm": "Confirmar",
+        "cancel": "Cancelar",
+        "confirm_deletion": "Confirmar eliminación",
+        "keep_items": "Conservar elementos",
+        "edit": "Modificar"
+      },
+      "affected_count_one": "{{count}} elemento afectado",
+      "affected_count_other": "{{count}} elementos afectados",
+      "draft": {
+        "to": "Para",
+        "subject": "Asunto"
+      },
+      "resolved": {
+        "confirmed": "Confirmado",
+        "cancelled": "Cancelado",
+        "via_text": "Respondido en la conversación"
+      },
+      "expired": "Esta solicitud ya no está activa.",
+      "edit": {
+        "placeholder": "Describe el cambio (p. ej., acorta el mensaje, cambia el asunto…)",
+        "submit": "Enviar cambios",
+        "cancel": "Volver"
+      }
+    },
+    "trace": {
+      "summary_one": "{{count}} paso",
+      "summary_other": "{{count}} pasos",
+      "duration": "{{seconds}} s",
+      "reasoning_title": "Razonamiento",
+      "category": {
+        "system": "Sistema",
+        "agent": "Agentes",
+        "tool": "Herramientas",
+        "context": "Contexto"
+      },
+      "aria_toggle": "Mostrar detalles de ejecución"
+    },
+    "connector_notice": {
+      "reconnect_message": "LIA no pudo acceder a {{connector}} — la conexión ha caducado.",
+      "rate_limit_message": "{{connector}} está limitando las solicitudes. Inténtalo de nuevo en unos minutos.",
+      "reconnect_button": "Reconectar",
+      "dismiss": "Cerrar aviso"
     }
   },
   "skill_apps": {
@@ -2988,6 +3046,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_25_7": {
+          "title": "v1.25.7 — 🎛️ El núcleo agéntico se vuelve visible y controlable",
+          "date": "Julio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎛️ Aprobación con un toque</b> — cuando LIA está a punto de actuar por ti (enviar un correo, confirmar una eliminación…), aparece una tarjeta con botones Confirmar / Cancelar — y Modificar para los borradores. Puedes seguir respondiendo por texto o voz, igual que antes.",
+            "i2": "<b>🔎 El detrás de cada respuesta</b> — bajo cada mensaje, una línea plegada «⚙ N pasos · X s» muestra lo que LIA hizo realmente (enrutamiento, herramientas, razonamiento), desplegable con un clic. La transparencia de los costes se extiende ahora al desarrollo de las acciones.",
+            "i3": "<b>🔌 Reconexión con un clic</b> — si un servicio conectado (Gmail, Calendario…) ha caducado, LIA te lo dice claramente en el chat con un botón Reconectar que te lleva directo al ajuste correcto, en lugar de una disculpa imprecisa.",
+            "i4": "<b>🚀 Onboarding que pasa a la acción</b> — el tutorial ahora te propone conectar tus servicios con un clic, y cada comando de ejemplo rellena el chat para probarlo enseguida.",
+            "i5": "<b>✨ Correcciones de experiencia</b> — cancelar una solicitud de aclaración ya no se repite sin fin, la tarjeta de aprobación desaparece una vez tratada la acción, y el tutorial ya no se reabre en cada navegación."
+          }
+        },
         "v1_25_6": {
           "title": "v1.25.6 — 🎯 Notificaciones de intereses por fin variadas",
           "date": "Julio 2026",
@@ -4173,7 +4243,7 @@
       "chat": {
         "title": "Conversaciones",
         "description": "Uso del chat y conversaciones",
-        "count": "14",
+        "count": "16",
         "questions": {
           "q1": {
             "question": "¿Puedo tener varias conversaciones al mismo tiempo?",
@@ -4230,6 +4300,14 @@
           "q14": {
             "question": "¿Qué pasa si salgo de la página mientras LIA responde?",
             "answer": "No se pierde nada. La generación continúa <strong>en segundo plano</strong> en el servidor: tu mensaje y la respuesta completa se guardan aunque cierres la pestaña, cambies de aplicación o pierdas la conexión.<br><br>Si vuelves al chat mientras la respuesta aún se está escribiendo, <strong>se reanuda en directo automáticamente</strong> — la burbuja en curso se reconstruye y sigue el streaming (también funciona con varias pestañas abiertas).<br><br>También puedes <strong>detener una respuesta en curso</strong>: mientras LIA escribe, el botón de enviar se convierte en un botón <strong>Detener</strong>. El texto parcial se conserva y se marca como «interrumpida» ⏸ — ten en cuenta que las acciones ya realizadas (un email enviado, un evento creado…) no se deshacen.<br><br>Solo una respuesta a la vez por conversación: si intentas enviar otro mensaje durante una generación, LIA te reconecta a la respuesta en curso."
+          },
+          "q15": {
+            "question": "¿Cómo apruebo o cancelo una acción que LIA propone?",
+            "answer": "Cuando LIA está a punto de hacer algo sensible (enviar un correo, eliminar un evento, validar un borrador…), aparece una <strong>tarjeta de aprobación</strong> sobre el campo de entrada con botones <strong>Confirmar</strong> y <strong>Cancelar</strong> — y <strong>Modificar</strong> para los borradores, que te deja describir el cambio a realizar.<br><br>Es un solo clic, pero también puedes responder <strong>por texto o voz</strong> como antes («sí, envíalo» / «no, cancela»): ambos funcionan en paralelo. Una vez tratada la acción, la tarjeta desaparece y la respuesta de LIA confirma lo que se hizo."
+          },
+          "q16": {
+            "question": "¿Puedo ver lo que LIA hizo para producir una respuesta?",
+            "answer": "Sí. Bajo cada respuesta, una pequeña línea <strong>«⚙ N pasos · X s»</strong> resume lo que ocurre entre bastidores; un clic la despliega para mostrar lo que LIA hizo realmente — el enrutamiento, las herramientas que llamó y su razonamiento — agrupados por categoría.<br><br>Es la misma transparencia que el coste mostrado en cada mensaje, extendida al <em>desarrollo de las acciones</em>. La visualización permanece discreta y plegada por defecto, para no saturar la conversación."
           }
         }
       },
@@ -5401,7 +5479,8 @@
         "weather_desc": "para buscar el tiempo y previsiones a 5 días (clave API gratuita en openweathermap.org/api)",
         "browser_name": "Browser",
         "browser_desc": "para búsqueda y navegación en internet (sin clave, gratuito)"
-      }
+      },
+      "cta": "Conectar mis servicios"
     },
     "page3": {
       "title": "La personalidad",
@@ -5571,7 +5650,8 @@
           "example7": "crea un recordatorio el día antes de cada una de mis próximas 5 citas",
           "example8": "¿cuándo es mi próxima cita y crea un recordatorio 1 hora antes?"
         }
-      }
+      },
+      "examples_hint": "Toca un ejemplo para probarlo ahora mismo: rellenará el chat, no se envía nada sin ti."
     }
   },
   "broadcast": {
@@ -6010,7 +6090,7 @@
       },
       "control": {
         "title": "Tú mantienes el control",
-        "description": "Antes de cualquier acción sensible (enviar email, modificar calendario...), LIA te muestra su plan y espera tu aprobación. Nada se ejecuta sin tu consentimiento. Y mientras LIA escribe, un botón de detener te permite interrumpir la respuesta en cualquier momento — el texto parcial se conserva."
+        "description": "Antes de cualquier acción sensible (enviar email, modificar calendario...), LIA te muestra su plan y espera tu aprobación. Nada se ejecuta sin tu consentimiento. Y mientras LIA escribe, un botón de detener te permite interrumpir la respuesta en cualquier momento — el texto parcial se conserva. Y tras cada respuesta, una línea discreta revela exactamente lo que LIA hizo — los pasos, las herramientas y el razonamiento."
       },
       "privacy": {
         "title": "Datos protegidos",

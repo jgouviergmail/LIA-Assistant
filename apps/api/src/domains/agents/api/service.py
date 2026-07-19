@@ -25,9 +25,15 @@ from src.core.constants import (
 )
 from src.core.field_names import FIELD_ERROR_TYPE, FIELD_RUN_ID
 from src.core.i18n import normalize_language
+from src.domains.agents.api.attachments_injection import inject_attachments_into_state
+from src.domains.agents.api.error_messages import SSEErrorMessages
+from src.domains.agents.api.hitl_pending import extract_decision_type, hitl_stale_chunks
 from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk
 from src.domains.agents.dependencies import ToolDependencies
+from src.domains.agents.services.orchestration.approval_decision import (
+    HitlDecisionStaleError,
+)
 from src.domains.agents.services.streaming.voice_coordinator import (
     VoiceStreamContext,
     VoiceStreamCoordinator,
@@ -43,17 +49,6 @@ logger = get_logger(__name__)
 
 # MAX_HITL_ACTIONS_PER_REQUEST defined in src.core.constants
 # Phase 3.3: Centralized constant management
-
-
-def _extract_decision_type(resume_data: object) -> str:
-    """HITL decision label from interrupt resume data, defaulting to ``UNKNOWN``.
-
-    Kept as a module helper so the branch stays out of the streaming
-    orchestrator's cyclomatic-complexity budget (audit F015).
-    """
-    if isinstance(resume_data, dict):
-        return str(resume_data.get("decision", "UNKNOWN"))
-    return "UNKNOWN"
 
 
 class AgentService(
@@ -493,6 +488,7 @@ class AgentService(
         stt_audio_duration_seconds: float | None = None,
         stt_cost_usd: float | None = None,
         stt_cost_eur: float | None = None,
+        hitl_decision: dict[str, Any] | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
         """
         Stream chat response with SSE chunks and conversation persistence.
@@ -607,6 +603,7 @@ class AgentService(
             stt_audio_duration_seconds=stt_audio_duration_seconds,
             stt_cost_usd=stt_cost_usd,
             stt_cost_eur=stt_cost_eur,
+            hitl_decision=hitl_decision,
         ):
             yield chunk
 
@@ -636,6 +633,7 @@ class AgentService(
         stt_audio_duration_seconds: float | None = None,
         stt_cost_usd: float | None = None,
         stt_cost_eur: float | None = None,
+        hitl_decision: dict[str, Any] | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
         """
         Stream agent response using service-oriented architecture (Phase 3.3).
@@ -830,76 +828,49 @@ class AgentService(
                     )
 
                     # === Step 2: Load or create state using OrchestrationService ===
-                    state = await orchestration_service.load_or_create_state(
-                        graph=self.graph,
-                        conversation_id=conversation_id,
-                        user_message=user_message,
-                        user_id=user_id,
-                        session_id=session_id,
-                        run_id=run_id,
-                        user_timezone=user_timezone,
-                        user_language=user_language,
-                        oauth_scopes=oauth_scopes,
-                        personality_instruction=personality_instruction,
-                        is_hitl_resumption=is_hitl_resumption,
-                        user_display_name=user_display_name,
-                    )
+                    try:
+                        state = await orchestration_service.load_or_create_state(
+                            graph=self.graph,
+                            conversation_id=conversation_id,
+                            user_message=user_message,
+                            user_id=user_id,
+                            session_id=session_id,
+                            run_id=run_id,
+                            user_timezone=user_timezone,
+                            user_language=user_language,
+                            oauth_scopes=oauth_scopes,
+                            personality_instruction=personality_instruction,
+                            is_hitl_resumption=is_hitl_resumption,
+                            user_display_name=user_display_name,
+                            hitl_decision=hitl_decision,
+                        )
+                    except HitlDecisionStaleError as stale_err:
+                        # Lot 1 option B, fail-closed: a one-click decision that
+                        # no longer matches the pending interrupt is NEVER
+                        # processed as a new turn — typed error + done so the
+                        # frontend card flips to its "expired" state.
+                        logger.warning(
+                            "hitl_decision_stale_rejected",
+                            run_id=run_id,
+                            conversation_id=str(conversation_id),
+                            reason=str(stale_err),
+                        )
+                        for chunk in hitl_stale_chunks(user_language):
+                            yield chunk
+                        return
 
                     # === ATTACHMENT INJECTION (evolution F4) ===
                     # Load attachments and inject metadata + hint into state
                     # AFTER load_or_create_state, BEFORE graph execution
                     if attachment_ids and getattr(settings, "attachments_enabled", False):
-                        from src.domains.attachments.llm_content import (
-                            build_attachment_hint,
+                        await inject_attachments_into_state(
+                            state=state,
+                            attachment_ids=attachment_ids,
+                            user_id=user_id,
+                            user_language=user_language,
+                            run_id=run_id,
+                            db=db,
                         )
-                        from src.domains.attachments.service import AttachmentService
-
-                        attachment_service = AttachmentService(db)
-                        attachments = await attachment_service.get_batch(attachment_ids, user_id)
-
-                        if attachments:
-                            # Annotate last HumanMessage for Router/Planner awareness
-                            hint = build_attachment_hint(
-                                [
-                                    {
-                                        "content_type": a.content_type,
-                                        "original_filename": a.original_filename,
-                                        "mime_type": a.mime_type,
-                                    }
-                                    for a in attachments
-                                ],
-                                user_language=user_language,
-                            )
-                            from langchain_core.messages import HumanMessage
-
-                            for i in range(len(state["messages"]) - 1, -1, -1):
-                                if isinstance(state["messages"][i], HumanMessage):
-                                    state["messages"][i] = HumanMessage(
-                                        content=f"{state['messages'][i].content}\n\n{hint}",
-                                        id=state["messages"][i].id,
-                                    )
-                                    break
-
-                            # Store lightweight metadata for response_node late resolution
-                            state["metadata"]["current_turn_attachments"] = [
-                                {
-                                    "id": str(a.id),
-                                    "mime_type": a.mime_type,
-                                    "content_type": a.content_type,
-                                    "file_path": a.file_path,
-                                    "file_size": a.file_size,
-                                    "original_filename": a.original_filename,
-                                    "extracted_text": a.extracted_text,
-                                }
-                                for a in attachments
-                            ]
-
-                            logger.info(
-                                "attachments_injected_into_state",
-                                run_id=run_id,
-                                attachment_count=len(attachments),
-                                content_types=[a.content_type for a in attachments],
-                            )
 
                     # === AUTO-APPROVE: Bypass HITL plan approval gate ===
                     # Used by scheduled actions executor to skip human approval
@@ -1160,7 +1131,7 @@ class AgentService(
 
                     async with get_db_context() as archive_db:
                         _interrupt_resume_data = state.get("_interrupt_resume_data", {})
-                        _decision_type = _extract_decision_type(_interrupt_resume_data)
+                        _decision_type = extract_decision_type(_interrupt_resume_data)
                         await self._patch_user_message_hitl_flags(
                             conv_service=conv_service,
                             db=archive_db,
@@ -1448,13 +1419,11 @@ class AgentService(
                             ttl_seconds=settings.hitl_pending_data_ttl_seconds,
                         )
 
-                        # Clear pending_hitl since graph completed without re-interrupting
+                        # Clear pending_hitl since graph completed without
+                        # re-interrupting. The store invalidates the in-memory
+                        # detection cache itself (Lot 1 Phase 0) — no router
+                        # hook needed anymore.
                         await hitl_store.clear_interrupt(thread_id=str(conversation_id))
-
-                        # Invalidate in-memory cache to prevent stale data on next request
-                        from src.domains.agents.api.router import invalidate_hitl_cache
-
-                        invalidate_hitl_cache(str(conversation_id))
 
                         logger.info(
                             "pending_hitl_cleared_after_completion",
@@ -1681,8 +1650,6 @@ class AgentService(
                 )
 
                 # User-friendly error message (never expose raw API errors)
-                from src.domains.agents.api.error_messages import SSEErrorMessages
-
                 error_message = SSEErrorMessages.stream_error(
                     e, language=normalize_language(user_language)
                 )

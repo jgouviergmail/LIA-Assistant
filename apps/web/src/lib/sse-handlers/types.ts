@@ -7,6 +7,7 @@
 import { Dispatch, type MutableRefObject } from 'react';
 import { ChatAction } from '@/types/chat-state';
 import { ChatStreamChunk, VoiceAudioChunk } from '@/types/chat';
+import type { ExecutionTraceStep } from '@/types/execution-trace';
 import { TFunction } from 'i18next';
 import type { LogContext } from '@/lib/logger';
 
@@ -31,6 +32,16 @@ export interface SSEHandlerContext {
   emittedStepKeysRef: MutableRefObject<Set<string>>;
   /** Accumulated live reasoning text (💭 block), cleared on first answer token */
   reasoningBufRef: MutableRefObject<string>;
+  /**
+   * Execution trace accumulators (Lot 2 P2-V1). Parallel to the ephemeral
+   * step/reasoning refs above but NOT wiped at the progress→answer flip —
+   * they live from the turn start (router_decision / new send) until the
+   * `done`, where the trace is attached to the message. This is what lets the
+   * backstage record survive the response instead of vanishing.
+   */
+  traceStepsRef: MutableRefObject<ExecutionTraceStep[]>;
+  /** Live reasoning kept for the trace (survives the answer flip). */
+  traceReasoningRef: MutableRefObject<string>;
   /** Current assistant message ID */
   assistantMessageId: string;
   /** Progress message ID (ephemeral router/planner/HITL messages) */
@@ -77,4 +88,6 @@ export interface ProgressMessageMetadata {
   delta?: string;
   /** Originating node name (e.g. 'query_analyzer') */
   node?: string;
+  /** Trace grouping bucket (Lot 2): system | agent | tool | context. */
+  category?: string;
 }

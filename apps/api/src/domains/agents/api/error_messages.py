@@ -600,6 +600,32 @@ class SSEErrorMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def hitl_decision_stale(language: SupportedLanguage = "fr") -> str:
+        """
+        Error message when a one-click HITL decision no longer matches the
+        pending interrupt (expired, already answered, or superseded).
+
+        Lot 1 T1.3: the frontend card shows this and switches to its
+        "expired" state — the click is never processed as a new turn.
+
+        Args:
+            language: Target language (fr/en/es/de/it/zh-CN)
+
+        Returns:
+            User-friendly staleness message
+        """
+        messages = {
+            "fr": "Cette demande de confirmation n'est plus active. Reformule ta demande si besoin.",
+            "en": "This confirmation request is no longer active. Rephrase your request if needed.",
+            "es": "Esta solicitud de confirmación ya no está activa. Reformula tu petición si es necesario.",
+            "de": "Diese Bestätigungsanfrage ist nicht mehr aktiv. Formuliere deine Anfrage bei Bedarf neu.",
+            "it": "Questa richiesta di conferma non è più attiva. Riformula la tua richiesta se necessario.",
+            "zh-CN": "此确认请求已失效。如有需要，请重新表述你的请求。",
+        }
+
+        return messages.get(language, messages["en"])
+
+    @staticmethod
     def hitl_resumption_error_simple(error: Exception, language: SupportedLanguage = "fr") -> str:
         """
         Simple error message for HITL resumption failures (used in prompts.py).

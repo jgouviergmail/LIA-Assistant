@@ -173,6 +173,12 @@ connector_api_key_verification_total = Counter(
     ["connector_type", "result"],
 )
 
+connector_error_notices_total = Counter(
+    "connector_error_notices_total",
+    "Actionable connector error notices emitted to the chat stream (Lot 3 P3)",
+    ["connector_type", "action"],  # action: reconnect | rate_limit
+)
+
 # NOTE: Generic repository metrics removed (never instrumented, too high cardinality risk)
 # Use domain-specific metrics instead (e.g., conversation_repository_queries_total in conversations)
 # Database-level monitoring should use external tools (pg_stat_statements, pganalyze)

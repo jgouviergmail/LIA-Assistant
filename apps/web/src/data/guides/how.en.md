@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 3.1
-**Date**: 2026-07-18
-**Application**: LIA v1.25.6
+**Date**: 2026-07-19
+**Application**: LIA v1.25.7
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -1096,4 +1096,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.6). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.7). All metrics, versions, and patterns cited are verifiable in the codebase.*

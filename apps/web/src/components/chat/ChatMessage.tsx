@@ -30,6 +30,7 @@ import { API_ENDPOINTS } from '@/lib/api-config';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { downloadImage } from '@/lib/utils/download-image';
 import { AssistantAvatar, type AvatarTooltipLine } from '@/components/psyche/AssistantAvatar';
+import { ExecutionTraceDisclosure } from '@/components/chat/ExecutionTraceDisclosure';
 import { usePsycheStore } from '@/stores/psycheStore';
 import type { PsycheStateSummary } from '@/types/psyche';
 import type { StreamPhase } from '@/types/chat-state';
@@ -690,6 +691,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             {message.generatedImages && message.generatedImages.length > 0 && (
               <GeneratedImageCards images={message.generatedImages} />
             )}
+            {/* Execution trace (Lot 2 P2-V1): the backstage record of this
+                turn, collapsed by default. Renders nothing without steps. */}
+            <ExecutionTraceDisclosure trace={message.executionTrace} />
           </div>
           <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-right">
             {formatTime(message.timestamp)}

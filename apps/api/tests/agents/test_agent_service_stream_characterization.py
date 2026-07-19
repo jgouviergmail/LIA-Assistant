@@ -335,7 +335,6 @@ class Harness:
         self.fail_direct_tts = fail_direct_tts
         self.tracker = FakeTracker()
         self.conv_service = FakeConversationService()
-        self.invalidated_hitl_cache: list[str] = []
         self.raised: BaseException | None = None
 
     async def run(self, monkeypatch: pytest.MonkeyPatch) -> list[ChatStreamChunk]:
@@ -463,10 +462,6 @@ class Harness:
                 (
                     "src.domains.agents.formatters.text_summary.generate_text_summary_for_llm",
                     Mock(return_value="VOICE-CTX"),
-                ),
-                (
-                    "src.domains.agents.api.router.invalidate_hitl_cache",
-                    Mock(side_effect=self.invalidated_hitl_cache.append),
                 ),
             ]:
                 stack.enter_context(patch(target, replacement))
@@ -678,9 +673,10 @@ async def test_char_hitl_resumption_sequence():
     assistant_row = harness.conv_service.archived[1]
     assert assistant_row[1] == "Action effectuée"
     assert assistant_row[2]["hitl_approved"] is True
-    # Pending HITL cleared + in-memory cache invalidated (no new interrupt).
+    # Pending HITL cleared (no new interrupt). Detection-cache invalidation
+    # now lives inside HITLStore.delete_interrupt itself — covered end-to-end
+    # by tests/integration/test_hitl_pending_lifecycle.py.
     assert any(store.cleared == [str(CONVERSATION_ID)] for store in FakeHITLStore.instances)
-    assert harness.invalidated_hitl_cache == [str(CONVERSATION_ID)]
 
 
 # ---------------------------------------------------------------------------

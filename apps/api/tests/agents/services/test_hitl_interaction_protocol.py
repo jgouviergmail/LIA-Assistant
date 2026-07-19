@@ -389,6 +389,40 @@ class TestToolConfirmationInteraction:
         assert metadata["is_plan_approval"] is False
         assert metadata["tool_name"] == "delete_email_tool"
 
+    def test_build_metadata_chunk_includes_available_actions(
+        self, mock_question_generator, tool_confirmation_context
+    ):
+        """Tool confirmation must emit available_actions like its siblings.
+
+        Lot 1 T1.1 (runtime-verified gap): draft_critique, destructive_confirm
+        and for_each_confirmation all emit ``available_actions`` with
+        action/label/style so the frontend renders backend-driven buttons —
+        tool_confirmation (the only interrupt shared with ReAct) did not.
+        Action ids MUST match the resume contract: ReAct executes only on
+        ``confirm``/``approve`` and declines everything else, so the pair is
+        ``confirm`` + ``cancel``.
+        """
+        from src.domains.agents.services.hitl.interactions import (
+            ToolConfirmationInteraction,
+        )
+
+        interaction = ToolConfirmationInteraction(question_generator=mock_question_generator)
+
+        metadata = interaction.build_metadata_chunk(
+            context=tool_confirmation_context,
+            message_id="hitl_tool_123",
+            conversation_id="conv-uuid-789",
+        )
+
+        actions = metadata["action_requests"][0]["available_actions"]
+        assert [a["action"] for a in actions] == ["confirm", "cancel"]
+        assert all({"action", "label", "style"} <= a.keys() for a in actions)
+        styles = {a["action"]: a["style"] for a in actions}
+        assert styles["confirm"] == "primary"
+        assert styles["cancel"] == "destructive"
+        # Top-level convenience mirror, same shape as draft_critique.
+        assert metadata["available_actions"] == ["confirm", "cancel"]
+
     def test_get_fallback_question_returns_language_specific(self, mock_question_generator):
         """Test that fallback question is language-specific."""
         from src.domains.agents.services.hitl.interactions import (

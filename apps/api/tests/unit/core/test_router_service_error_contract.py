@@ -804,7 +804,7 @@ class TestHitlRateLimitContract:
                 new=AsyncMock(return_value="conv-1"),
             ),
             patch(
-                "src.domains.agents.api.router._check_pending_hitl",
+                "src.domains.agents.api.router.check_pending_hitl",
                 new=AsyncMock(return_value=pending_hitl),
             ),
             patch("src.domains.agents.api.router.get_agent_service", return_value=Mock()),

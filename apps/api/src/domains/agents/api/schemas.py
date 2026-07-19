@@ -7,7 +7,7 @@ Domain schemas (RouterOutput, etc.) are in domain_schemas.py.
 """
 
 import uuid
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -58,6 +58,39 @@ class BrowserContext(BaseModel):
     )
 
 
+class HitlDecisionRequest(BaseModel):
+    """Structured one-click HITL decision (Lot 1 option B).
+
+    Sent by the frontend approval card INSTEAD of a natural-language reply.
+    When present (and a matching interrupt is pending), the resume path maps
+    it deterministically — no LLM classifier call. The natural-language
+    channel stays fully functional in parallel (voice, typed replies).
+
+    Scope: ``confirm``/``cancel`` (V1) plus ``edit`` with modification
+    instructions on a draft card (P1-V2 — routes the live draft_modifier
+    loop, classifier bypassed).
+    """
+
+    message_id: str = Field(
+        min_length=1,
+        max_length=200,
+        description="HITL session identifier of the card the user acted on.",
+    )
+    action: str = Field(
+        min_length=1,
+        max_length=32,
+        description="Selected action id ('confirm', 'cancel', or 'edit').",
+    )
+    modification_instructions: str | None = Field(
+        default=None,
+        max_length=2000,
+        description=(
+            "Free-text draft modification instructions. Required when action "
+            "is 'edit' on a draft card; ignored otherwise."
+        ),
+    )
+
+
 class ChatRequest(BaseModel):
     """
     Request to send a message to the agent.
@@ -70,6 +103,8 @@ class ChatRequest(BaseModel):
         session_id: Session identifier for conversation context.
         context: Browser context (geolocation, etc.) - sent automatically.
         attachment_ids: Optional list of uploaded attachment UUIDs.
+        hitl_decision: Optional structured one-click HITL decision — bypasses
+            the reply classifier when it matches the pending interrupt.
     """
 
     message: str = Field(
@@ -112,6 +147,40 @@ class ChatRequest(BaseModel):
         default=None,
         max_length=10,
         description="IDs of uploaded file attachments to include in this message",
+    )
+    hitl_decision: HitlDecisionRequest | None = Field(
+        default=None,
+        description=(
+            "Structured one-click HITL decision (Lot 1 option B). When present "
+            "and matching the pending interrupt, the resume path bypasses the "
+            "reply classifier. Ignored by channels (NL-only surfaces)."
+        ),
+    )
+
+
+class PendingHitlResponse(BaseModel):
+    """Pending HITL interrupt exposed for card rehydration (Lot 1 T1.4).
+
+    Returned by GET /agents/hitl/pending so a reloaded page can rebuild the
+    approval card: the ``hitl_interrupt_metadata`` SSE chunk is not part of
+    the archived history, only this Redis-backed state survives a refresh.
+    """
+
+    message_id: str | None = Field(
+        default=None,
+        description="HITL session identifier (None for legacy pendings stored before persistence).",
+    )
+    action_requests: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Interrupt action requests, verbatim per-type payloads (same shapes as the SSE chunk).",
+    )
+    interrupt_ts: str | None = Field(
+        default=None,
+        description="ISO timestamp of the interrupt (drives frontend expiry display).",
+    )
+    generated_question: str | None = Field(
+        default=None,
+        description="The question streamed at interrupt time (already archived in history; provided for context).",
     )
 
 

@@ -13,6 +13,7 @@ import { vi, type Mock } from 'vitest';
 
 import type { SSEHandlerContext } from '@/lib/sse-handlers/types';
 import type { VoiceAudioChunk } from '@/types/chat';
+import type { ExecutionTraceStep } from '@/types/execution-trace';
 
 export interface FixtureOptions {
   /** Initial progress message id (default: null). */
@@ -52,6 +53,8 @@ export function buildHandlerContext(options: FixtureOptions = {}): HandlerFixtur
     executionStepsRef: { current: [] as string[] },
     emittedStepKeysRef: { current: new Set<string>() },
     reasoningBufRef: { current: '' },
+    traceStepsRef: { current: [] as ExecutionTraceStep[] },
+    traceReasoningRef: { current: '' },
     assistantMessageId: 'assistant-1',
     get progressMessageId() {
       return state.progressMessageId;

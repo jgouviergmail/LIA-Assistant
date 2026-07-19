@@ -4,10 +4,18 @@ import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { OnboardingPageLayout } from '../OnboardingPageLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { Search, BookOpen, MapPin, Cloud, Globe, Info } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Search, BookOpen, MapPin, Cloud, Globe, Info, Plug } from 'lucide-react';
 
 interface Page2ConnectorsProps {
   lng: Language;
+  /**
+   * Volet B (actionable pages): completes the onboarding then navigates to
+   * the target — the dialog re-mounts on any navigation while incomplete,
+   * so plain links are not an option here.
+   */
+  onAction?: (href: string) => void;
+  isLoading?: boolean;
 }
 
 const externalConnectors = [
@@ -53,7 +61,7 @@ const externalConnectors = [
  *
  * Explains the importance of connectors and their customization options.
  */
-export function Page2Connectors({ lng }: Page2ConnectorsProps) {
+export function Page2Connectors({ lng, onAction, isLoading }: Page2ConnectorsProps) {
   const { t } = useTranslation(lng);
 
   return (
@@ -96,6 +104,21 @@ export function Page2Connectors({ lng }: Page2ConnectorsProps) {
           </Card>
         ))}
       </div>
+
+      {/* Volet B: direct CTA to the connectors settings (completes onboarding
+          first — see OnboardingTutorial.handleActionNavigate). */}
+      {onAction && (
+        <div className="flex justify-center pt-5">
+          <Button
+            onClick={() => onAction('/dashboard/settings?section=connectors')}
+            disabled={isLoading}
+            className="min-h-[44px]"
+          >
+            <Plug className="w-4 h-4 mr-2" />
+            {t('onboarding.page2.cta')}
+          </Button>
+        </div>
+      )}
     </OnboardingPageLayout>
   );
 }

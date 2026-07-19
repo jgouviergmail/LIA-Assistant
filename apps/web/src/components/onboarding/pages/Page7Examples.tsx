@@ -38,6 +38,12 @@ interface Page7ExamplesProps {
   lng: Language;
   onFinish: () => void;
   onPrevious: () => void;
+  /**
+   * Volet B (actionable pages): tapping an example completes the onboarding
+   * and opens the chat with the example prefilled as a draft (never sent
+   * automatically — the user keeps the hand).
+   */
+  onAction?: (href: string) => void;
   isLoading: boolean;
 }
 
@@ -80,7 +86,13 @@ const EXAMPLES_PER_CATEGORY = 8;
  * Uses OnboardingPageLayout for DRY compliance.
  * Has a special "OK on y va !" CTA button and a Previous button.
  */
-export function Page7Examples({ lng, onFinish, onPrevious, isLoading }: Page7ExamplesProps) {
+export function Page7Examples({
+  lng,
+  onFinish,
+  onPrevious,
+  onAction,
+  isLoading,
+}: Page7ExamplesProps) {
   const { t } = useTranslation(lng);
 
   return (
@@ -112,6 +124,13 @@ export function Page7Examples({ lng, onFinish, onPrevious, isLoading }: Page7Exa
         {t('onboarding.page7.subtitle_extra')}
       </p>
 
+      {/* Volet B: examples are actionable — hint shown when wired */}
+      {onAction && (
+        <p className="text-center text-xs text-muted-foreground mb-3 italic">
+          {t('onboarding.page7.examples_hint')}
+        </p>
+      )}
+
       {/* Accordion with categories */}
       <Accordion type="single" collapsible className="w-full">
         {EXAMPLE_CATEGORIES.map(category => {
@@ -136,7 +155,20 @@ export function Page7Examples({ lng, onFinish, onPrevious, isLoading }: Page7Exa
                     return (
                       <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                         <span className="text-primary mt-0.5">•</span>
-                        <span className="italic">&quot;{example}&quot;</span>
+                        {onAction ? (
+                          <button
+                            type="button"
+                            disabled={isLoading}
+                            onClick={() =>
+                              onAction(`/dashboard/chat?draft=${encodeURIComponent(example)}`)
+                            }
+                            className="text-left italic underline-offset-2 hover:text-foreground hover:underline focus-visible:underline"
+                          >
+                            &quot;{example}&quot;
+                          </button>
+                        ) : (
+                          <span className="italic">&quot;{example}&quot;</span>
+                        )}
                       </li>
                     );
                   })}

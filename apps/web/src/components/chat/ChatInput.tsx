@@ -51,6 +51,17 @@ export interface ChatInputProps {
   isGenerating?: boolean;
   /** ADR-117 Lot 3: stop-button handler (cancels the in-flight run). */
   onStopGeneration?: () => void;
+  /**
+   * Prefill the input on mount (onboarding volet B: `?draft=` deep link).
+   * Initializer only — later changes to this prop are intentionally ignored
+   * (the user owns the text once the input is mounted). Never auto-sent.
+   */
+  initialMessage?: string;
+}
+
+/** Initial textarea value (module-level: keeps the component's CC flat). */
+function initialDraft(initialMessage: string | undefined): string {
+  return initialMessage ?? '';
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -63,9 +74,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   attachmentsEnabled = false,
   isGenerating = false,
   onStopGeneration,
+  initialMessage,
 }) => {
   const { t } = useTranslation();
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(initialDraft(initialMessage));
   // Holds the remote-STT cost metadata of the latest transcription that fed
   // the input. Cleared once the message is actually sent, or when the user
   // wipes the input. Stays NULL for text-only typed messages and for local

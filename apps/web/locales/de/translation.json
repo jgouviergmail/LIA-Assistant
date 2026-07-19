@@ -602,7 +602,14 @@
       "retry_button": "Erneut versuchen",
       "retry_failed": "Ihre Position konnte nicht abgerufen werden. Überprüfen Sie, ob GPS aktiviert ist.",
       "detection": {
-        "keywords": ["nahe", "umgebung", "gegend", "nachbarschaft", "viertel", "zuhause"],
+        "keywords": [
+          "nahe",
+          "umgebung",
+          "gegend",
+          "nachbarschaft",
+          "viertel",
+          "zuhause"
+        ],
         "patterns": [
           "in der n[aä]he",
           "um mich herum",
@@ -619,6 +626,57 @@
           "nahe meines hauses"
         ]
       }
+    },
+    "hitl": {
+      "title": {
+        "tool_confirmation": "Freigabe erforderlich",
+        "draft_critique": "Entwurf zur Prüfung",
+        "destructive_confirm": "Destruktive Aktion — Bestätigung erforderlich",
+        "for_each_confirmation": "Massenaktion — Bestätigung erforderlich"
+      },
+      "actions": {
+        "confirm": "Bestätigen",
+        "cancel": "Abbrechen",
+        "confirm_deletion": "Löschen bestätigen",
+        "keep_items": "Elemente behalten",
+        "edit": "Bearbeiten"
+      },
+      "affected_count_one": "{{count}} Element betroffen",
+      "affected_count_other": "{{count}} Elemente betroffen",
+      "draft": {
+        "to": "An",
+        "subject": "Betreff"
+      },
+      "resolved": {
+        "confirmed": "Bestätigt",
+        "cancelled": "Abgebrochen",
+        "via_text": "Im Gespräch beantwortet"
+      },
+      "expired": "Diese Anfrage ist nicht mehr aktiv.",
+      "edit": {
+        "placeholder": "Beschreiben Sie die Änderung (z. B. Nachricht kürzen, Betreff ändern…)",
+        "submit": "Änderungen senden",
+        "cancel": "Zurück"
+      }
+    },
+    "trace": {
+      "summary_one": "{{count}} Schritt",
+      "summary_other": "{{count}} Schritte",
+      "duration": "{{seconds}} s",
+      "reasoning_title": "Überlegung",
+      "category": {
+        "system": "System",
+        "agent": "Agenten",
+        "tool": "Werkzeuge",
+        "context": "Kontext"
+      },
+      "aria_toggle": "Ausführungsdetails anzeigen"
+    },
+    "connector_notice": {
+      "reconnect_message": "LIA konnte nicht auf {{connector}} zugreifen — die Verbindung ist abgelaufen.",
+      "rate_limit_message": "{{connector}} begrenzt derzeit die Anfragen. Bitte in einigen Minuten erneut versuchen.",
+      "reconnect_button": "Neu verbinden",
+      "dismiss": "Hinweis schließen"
     }
   },
   "skill_apps": {
@@ -2988,6 +3046,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_7": {
+          "title": "v1.25.7 — 🎛️ Der agentische Kern wird sichtbar und steuerbar",
+          "date": "Juli 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎛️ Bestätigung mit einem Tipp</b> — wenn LIA für dich handeln will (eine E-Mail senden, eine Löschung bestätigen …), erscheint eine Karte mit den Schaltflächen Bestätigen / Abbrechen — und Bearbeiten für Entwürfe. Du kannst weiterhin per Text oder Sprache antworten, genau wie zuvor.",
+            "i2": "<b>🔎 Der Blick hinter jede Antwort</b> — unter jeder Nachricht zeigt eine eingeklappte Zeile „⚙ N Schritte · X s“, was LIA tatsächlich getan hat (Routing, Werkzeuge, Überlegung) — mit einem Klick ausklappbar. Die Kostentransparenz erstreckt sich nun auf den Ablauf der Aktionen.",
+            "i3": "<b>🔌 Neu verbinden mit einem Klick</b> — wenn ein verbundener Dienst (Gmail, Kalender …) abgelaufen ist, sagt LIA es dir klar im Chat mit einer Schaltfläche Neu verbinden, die dich direkt zur richtigen Einstellung führt, statt einer vagen Entschuldigung.",
+            "i4": "<b>🚀 Onboarding, das aktiv wird</b> — das Tutorial lässt dich jetzt deine Dienste mit einem Klick verbinden, und jedes Beispiel füllt den Chat vor, damit du es sofort ausprobieren kannst.",
+            "i5": "<b>✨ Verbesserungen der Bedienung</b> — das Abbrechen einer Rückfrage führt nicht mehr in eine Endlosschleife, die Bestätigungskarte verschwindet, sobald die Aktion erledigt ist, und das Tutorial öffnet sich nicht mehr bei jeder Navigation erneut."
+          }
+        },
         "v1_25_6": {
           "title": "v1.25.6 — 🎯 Endlich abwechslungsreiche Interessen-Benachrichtigungen",
           "date": "Juli 2026",
@@ -4173,7 +4243,7 @@
       "chat": {
         "title": "Unterhaltungen",
         "description": "Chat- und Unterhaltungsnutzung",
-        "count": "14",
+        "count": "16",
         "questions": {
           "q1": {
             "question": "Kann ich mehrere Unterhaltungen gleichzeitig führen?",
@@ -4230,6 +4300,14 @@
           "q14": {
             "question": "Was passiert, wenn ich die Seite verlasse, während LIA antwortet?",
             "answer": "Nichts geht verloren. Die Generierung läuft <strong>im Hintergrund</strong> auf dem Server weiter: Ihre Nachricht und die vollständige Antwort werden gespeichert, auch wenn Sie den Tab schließen, die App wechseln oder die Verbindung verlieren.<br><br>Kehren Sie zurück, während die Antwort noch geschrieben wird, <strong>wird sie automatisch live fortgesetzt</strong> — die laufende Antwortblase baut sich wieder auf und streamt weiter (das funktioniert auch mit mehreren offenen Tabs).<br><br>Sie können eine laufende Antwort auch <strong>stoppen</strong>: Während LIA schreibt, wird der Senden-Knopf zu einem <strong>Stopp</strong>-Knopf. Der Teiltext bleibt erhalten und wird als „unterbrochen“ ⏸ markiert — beachten Sie jedoch, dass bereits ausgeführte Aktionen (eine gesendete E-Mail, ein erstellter Termin…) nicht rückgängig gemacht werden.<br><br>Pro Unterhaltung läuft nur eine Antwort gleichzeitig: Versuchen Sie, während einer Generierung eine weitere Nachricht zu senden, verbindet LIA Sie wieder mit der laufenden Antwort."
+          },
+          "q15": {
+            "question": "Wie genehmige oder storniere ich eine Aktion, die LIA vorschlägt?",
+            "answer": "Wenn LIA etwas Sensibles tun will (eine E-Mail senden, einen Termin löschen, einen Entwurf bestätigen …), erscheint über dem Eingabefeld eine <strong>Bestätigungskarte</strong> mit den Schaltflächen <strong>Bestätigen</strong> und <strong>Abbrechen</strong> — und <strong>Bearbeiten</strong> für Entwürfe, womit du die gewünschte Änderung beschreiben kannst.<br><br>Ein einziger Klick genügt, aber du kannst auch weiterhin <strong>per Text oder Sprache</strong> antworten („ja, senden“ / „nein, abbrechen“): beides funktioniert parallel. Sobald die Aktion erledigt ist, verschwindet die Karte und LIAs Antwort bestätigt, was getan wurde."
+          },
+          "q16": {
+            "question": "Kann ich sehen, was LIA getan hat, um eine Antwort zu erstellen?",
+            "answer": "Ja. Unter jeder Antwort fasst eine kleine Zeile <strong>„⚙ N Schritte · X s“</strong> den Ablauf hinter den Kulissen zusammen; ein Klick klappt sie aus und zeigt, was LIA tatsächlich getan hat — das Routing, die aufgerufenen Werkzeuge und ihre Überlegung — nach Kategorie gruppiert.<br><br>Es ist dieselbe Transparenz wie die bei jeder Nachricht angezeigten Kosten, erweitert auf den <em>Ablauf der Aktionen</em>. Die Anzeige bleibt dezent und standardmäßig eingeklappt, damit sie die Unterhaltung nie überlädt."
           }
         }
       },
@@ -5401,7 +5479,8 @@
         "weather_desc": "um Wetter und 5-Tage-Vorhersagen zu suchen (kostenloser API-Schlüssel auf openweathermap.org/api)",
         "browser_name": "Browser",
         "browser_desc": "für Suche und Navigation im Internet (kein Schlüssel erforderlich, kostenlos)"
-      }
+      },
+      "cta": "Meine Dienste verbinden"
     },
     "page3": {
       "title": "Die Persönlichkeit",
@@ -5571,7 +5650,8 @@
           "example7": "erstelle eine Erinnerung am Tag vor jedem meiner nächsten 5 Termine",
           "example8": "wann ist mein nächster Termin und erstelle eine Erinnerung 1 Stunde vorher"
         }
-      }
+      },
+      "examples_hint": "Tippen Sie auf ein Beispiel, um es sofort auszuprobieren — es füllt den Chat vor, nichts wird ohne Sie gesendet."
     }
   },
   "broadcast": {
@@ -6010,7 +6090,7 @@
       },
       "control": {
         "title": "Du behältst die Kontrolle",
-        "description": "Vor jeder sensiblen Aktion (E-Mail senden, Kalender ändern...) zeigt LIA dir ihren Plan und wartet auf deine Genehmigung. Nichts geschieht ohne deine Zustimmung. Und während LIA schreibt, kannst du die Antwort jederzeit mit einem Stopp-Knopf unterbrechen — der Teiltext bleibt erhalten."
+        "description": "Vor jeder sensiblen Aktion (E-Mail senden, Kalender ändern...) zeigt LIA dir ihren Plan und wartet auf deine Genehmigung. Nichts geschieht ohne deine Zustimmung. Und während LIA schreibt, kannst du die Antwort jederzeit mit einem Stopp-Knopf unterbrechen — der Teiltext bleibt erhalten. Und nach jeder Antwort zeigt eine dezente Zeile genau, was LIA getan hat — die Schritte, Werkzeuge und die Überlegung dahinter."
       },
       "privacy": {
         "title": "Geschützte Daten",

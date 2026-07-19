@@ -26,6 +26,7 @@ from redis.asyncio import Redis
 
 from src.core.config import settings
 from src.domains.agents.api.schemas import ChatStreamChunk
+from src.domains.agents.utils.hitl_store import HITLStore
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -167,7 +168,9 @@ async def _produce(
         status = "cancelled" if cancel_state["requested"] else "killed"
         with suppress(Exception):
             await asyncio.shield(
-                _finalize_abnormal(redis, stream_id, status, response_content, finalize_partial)
+                _finalize_abnormal(
+                    redis, stream_id, status, response_content, finalize_partial, conversation_id
+                )
             )
         raise
     except Exception as exc:  # noqa: BLE001 — top-level task boundary
@@ -287,6 +290,7 @@ async def _finalize_abnormal(
     status: str,
     response_content: str,
     finalize_partial: PartialFinalizer | None,
+    conversation_id: str | None = None,
 ) -> None:
     """Terminal marker + optional partial-content archive on abnormal end."""
     if status == "cancelled":
@@ -301,6 +305,22 @@ async def _finalize_abnormal(
             metadata={"cancelled": True},
         )
         await publish_chunk(redis, stream_id, done_chunk.model_dump_json())
+        if conversation_id is not None:
+            # Lot 1 Phase 0: a user cancel landing after save_interrupt would
+            # otherwise leave an orphan pending_hitl — the next message would
+            # be misrouted into HITL resumption for a question the user
+            # deliberately killed. A hard kill ("killed") deliberately does
+            # NOT clear: the delivered question stays answerable after a
+            # restart. Best-effort (caller shields + suppresses).
+            store = HITLStore(
+                redis_client=redis, ttl_seconds=settings.hitl_pending_data_ttl_seconds
+            )
+            await store.delete_interrupt(conversation_id)
+            logger.info(
+                "pending_hitl_cleared_on_cancel",
+                stream_id=stream_id,
+                conversation_id=conversation_id,
+            )
     await publish_end(redis, stream_id, status)
     chat_background_runs_total.labels(status=status).inc()
     if finalize_partial is not None and response_content.strip():

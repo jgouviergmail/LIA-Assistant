@@ -318,6 +318,7 @@ class OrchestrationService:
         personality_instruction: str | None = None,
         is_hitl_resumption: bool = False,
         user_display_name: str | None = None,
+        hitl_decision: dict[str, Any] | None = None,
     ) -> MessagesState:
         """
         Load existing state from checkpoints or create initial state.
@@ -347,6 +348,11 @@ class OrchestrationService:
                                Used as fallback when checkpoint-based detection fails.
             user_display_name: User's friendly first name for sender/signature context
                                (optional).
+            hitl_decision: Structured one-click decision (Lot 1 option B). When
+                           provided on a resumption, the resume payload is built
+                           deterministically (classifier bypassed); a stale or
+                           mismatched decision raises HitlDecisionStaleError
+                           (fail-closed, never processed as a new turn).
 
         Returns:
             MessagesState: Loaded or newly created state with user message added
@@ -606,13 +612,27 @@ class OrchestrationService:
         # When there's a pending interrupt, we need to use Command(resume=decision_data)
         # instead of passing state to graph.astream()
         if is_interrupted:
-            # Parse user's message to determine approval decision
-            # Issue #61 Fix: Now uses LLM classifier for EDIT detection
-            decision_data = await self._parse_approval_decision(
-                user_message=user_message,
-                conversation_id=conversation_id,
-                run_id=run_id,
-            )
+            if hitl_decision is not None:
+                # Lot 1 option B: one-click approval — deterministic mapping,
+                # no classifier call. Raises HitlDecisionStaleError on any
+                # mismatch (propagated to the stream layer as a typed error).
+                from src.domains.agents.services.orchestration.approval_decision import (
+                    build_structured_decision,
+                )
+
+                decision_data = await build_structured_decision(
+                    hitl_decision=hitl_decision,
+                    conversation_id=conversation_id,
+                    run_id=run_id,
+                )
+            else:
+                # Parse user's message to determine approval decision
+                # Issue #61 Fix: Now uses LLM classifier for EDIT detection
+                decision_data = await self._parse_approval_decision(
+                    user_message=user_message,
+                    conversation_id=conversation_id,
+                    run_id=run_id,
+                )
 
             # === FIX 2026-01-11: Handle NEW_REQUEST (stale HITL state) ===
             # If _parse_approval_decision returns NEW_REQUEST, this means there's no valid

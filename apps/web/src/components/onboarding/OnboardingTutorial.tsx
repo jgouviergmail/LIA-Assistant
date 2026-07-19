@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
 import { Dialog } from '@/components/ui/dialog';
@@ -29,14 +30,18 @@ interface OnboardingTutorialProps {
 /**
  * Onboarding Tutorial Dialog
  *
- * A 6-page guided tutorial that introduces new users to LIA.
+ * A 7-page guided tutorial that introduces new users to LIA.
  * - Cannot be closed via X or Escape (must use explicit buttons)
  * - "Ne plus afficher" dismisses permanently
- * - "OK on y va !" on last page completes the tutorial
+ * - "OK on y va !" on last page ALSO completes permanently (Lot 1 fix:
+ *   it previously left onboarding_completed=false, so the dialog re-opened
+ *   on every dashboard navigation — runtime-proven). The tutorial stays
+ *   replayable on demand from the FAQ page.
  */
 export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorialProps) {
   const { t } = useTranslation(lng);
   const { refreshUser } = useAuth();
+  const router = useLocalizedRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -56,9 +61,12 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
     }
   }, [currentPage]);
 
-  // Mark onboarding as completed in the backend
-  const handleDismiss = async () => {
-    if (isLoading) return;
+  // Mark onboarding as completed in the backend. Returns true on success so
+  // action CTAs (volet B) only navigate once completion is persisted — the
+  // layout re-mounts this dialog on EVERY navigation while the flag is
+  // false, so navigating without persisting would re-open it on arrival.
+  const handleDismiss = async (): Promise<boolean> => {
+    if (isLoading) return false;
     setIsLoading(true);
 
     try {
@@ -73,12 +81,23 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
       refreshUser().catch(error => {
         console.error('Failed to refresh user after onboarding:', error);
       });
+      return true;
     } catch (error) {
       console.error('Failed to update onboarding preference:', error);
       toast.error(t('common.error'));
+      return false;
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Volet B (pages actionnables): a page CTA completes the onboarding, then
+  // navigates to the target (settings, chat with a prefilled draft…). On
+  // persistence failure the user stays in the tutorial (toast already shown).
+  const handleActionNavigate = (href: string) => {
+    void handleDismiss().then(success => {
+      if (success) router.push(href);
+    });
   };
 
   const handleNext = () => {
@@ -94,9 +113,11 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
   };
 
   const handleFinish = () => {
-    // Just close the dialog - onboarding_completed stays false
-    // User can see the tutorial again next time
-    onComplete();
+    // Lot 1 fix: finishing the tour persists completion exactly like the
+    // skip button — the layout re-mounts this dialog on EVERY navigation
+    // while onboarding_completed is false, so a non-persisting finish
+    // re-opened the tutorial endlessly. Replay stays available in the FAQ.
+    void handleDismiss();
   };
 
   const renderPage = () => {
@@ -104,7 +125,7 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
       case 1:
         return <Page1Welcome lng={lng} />;
       case 2:
-        return <Page2Connectors lng={lng} />;
+        return <Page2Connectors lng={lng} onAction={handleActionNavigate} isLoading={isLoading} />;
       case 3:
         return <Page3Personality lng={lng} />;
       case 4:
@@ -119,6 +140,7 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
             lng={lng}
             onFinish={handleFinish}
             onPrevious={handlePrevious}
+            onAction={handleActionNavigate}
             isLoading={isLoading}
           />
         );

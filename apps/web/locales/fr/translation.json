@@ -653,6 +653,57 @@
           "[àa] c[oô]t[ée] de chez moi"
         ]
       }
+    },
+    "hitl": {
+      "title": {
+        "tool_confirmation": "Approbation requise",
+        "draft_critique": "Brouillon à valider",
+        "destructive_confirm": "Action destructive — confirmation requise",
+        "for_each_confirmation": "Action en série — confirmation requise"
+      },
+      "actions": {
+        "confirm": "Confirmer",
+        "cancel": "Annuler",
+        "confirm_deletion": "Confirmer la suppression",
+        "keep_items": "Conserver les éléments",
+        "edit": "Modifier"
+      },
+      "affected_count_one": "{{count}} élément concerné",
+      "affected_count_other": "{{count}} éléments concernés",
+      "draft": {
+        "to": "À",
+        "subject": "Objet"
+      },
+      "resolved": {
+        "confirmed": "Confirmé",
+        "cancelled": "Annulé",
+        "via_text": "Répondu dans la conversation"
+      },
+      "expired": "Cette demande n'est plus active.",
+      "edit": {
+        "placeholder": "Décrivez la modification (ex. raccourcis le message, change le sujet…)",
+        "submit": "Envoyer les modifications",
+        "cancel": "Retour"
+      }
+    },
+    "trace": {
+      "summary_one": "{{count}} étape",
+      "summary_other": "{{count}} étapes",
+      "duration": "{{seconds}} s",
+      "reasoning_title": "Raisonnement",
+      "category": {
+        "system": "Système",
+        "agent": "Agents",
+        "tool": "Outils",
+        "context": "Contexte"
+      },
+      "aria_toggle": "Afficher les détails d'exécution"
+    },
+    "connector_notice": {
+      "reconnect_message": "LIA n'a pas pu accéder à {{connector}} — la connexion a expiré.",
+      "rate_limit_message": "{{connector}} limite temporairement les requêtes. Réessayez dans quelques minutes.",
+      "reconnect_button": "Reconnecter",
+      "dismiss": "Fermer l'avertissement"
     }
   },
   "skill_apps": {
@@ -3009,6 +3060,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_7": {
+          "title": "v1.25.7 — 🎛️ Le cœur agentique devient visible et pilotable",
+          "date": "Juillet 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎛️ Validation en un clic</b> — quand LIA s’apprête à agir pour toi (envoyer un email, confirmer une suppression…), une carte apparaît avec des boutons Confirmer / Annuler — et Modifier pour les brouillons. Tu peux toujours répondre en texte ou à la voix, comme avant.",
+            "i2": "<b>🔎 Les coulisses de chaque réponse</b> — sous chaque message, une ligne « ⚙ N étapes · X s » repliée te montre ce que LIA a réellement fait (routage, outils, raisonnement), dépliable d’un clic. La transparence des coûts s’étend au déroulé des actions.",
+            "i3": "<b>🔌 Reconnexion en un clic</b> — si un service connecté (Gmail, Agenda…) a expiré, LIA te le dit clairement dans le chat avec un bouton Reconnecter qui t’amène droit au bon réglage, au lieu d’une excuse vague.",
+            "i4": "<b>🚀 Onboarding qui passe à l’action</b> — le tutoriel te propose maintenant de connecter tes services en un clic, et chaque exemple de commande pré-remplit le chat pour l’essayer tout de suite.",
+            "i5": "<b>✨ Corrections d’expérience</b> — annuler une demande de précision ne boucle plus à l’infini, la carte de validation disparaît une fois l’action traitée, et le tutoriel ne se rouvre plus à chaque navigation."
+          }
+        },
         "v1_25_6": {
           "title": "v1.25.6 — 🎯 Des notifications d'intérêts enfin variées",
           "date": "Juillet 2026",
@@ -4194,7 +4257,7 @@
       "chat": {
         "title": "Conversations",
         "description": "Utilisation du chat et des conversations",
-        "count": "14",
+        "count": "16",
         "questions": {
           "q1": {
             "question": "Puis-je avoir plusieurs conversations en même temps ?",
@@ -4251,6 +4314,14 @@
           "q14": {
             "question": "Que se passe-t-il si je quitte la page pendant que LIA répond ?",
             "answer": "Rien n'est perdu. La génération continue <strong>en arrière-plan</strong> côté serveur : votre message et la réponse complète sont sauvegardés même si vous fermez l'onglet, changez d'application ou perdez la connexion.<br><br>Si vous revenez sur le chat pendant que la réponse s'écrit encore, elle <strong>reprend en direct automatiquement</strong> — la bulle en cours se reconstruit et continue de streamer (cela fonctionne aussi avec plusieurs onglets ouverts).<br><br>Vous pouvez aussi <strong>arrêter une réponse en cours</strong> : pendant que LIA écrit, le bouton d'envoi devient un bouton <strong>Stop</strong>. Le texte partiel est conservé et marqué « interrompue » ⏸ — attention toutefois, les actions déjà effectuées (un email envoyé, un événement créé…) ne sont pas annulées.<br><br>Une seule réponse à la fois par conversation : si vous tentez d'envoyer un autre message pendant une génération, LIA vous reconnecte à la réponse en cours."
+          },
+          "q15": {
+            "question": "Comment j’approuve ou j’annule une action que LIA me propose ?",
+            "answer": "Quand LIA s’apprête à faire quelque chose de sensible (envoyer un email, supprimer un événement, valider un brouillon…), une <strong>carte de validation</strong> apparaît au-dessus de la zone de saisie avec des boutons <strong>Confirmer</strong> et <strong>Annuler</strong> — et <strong>Modifier</strong> pour les brouillons, qui te laisse décrire le changement à apporter.<br><br>C’est un simple clic, mais tu peux aussi répondre <strong>en texte ou à la voix</strong> comme avant (« oui, envoie » / « non, annule ») : les deux fonctionnent en parallèle. Une fois l’action traitée, la carte disparaît et la réponse de LIA confirme ce qui a été fait."
+          },
+          "q16": {
+            "question": "Puis-je voir ce que LIA a fait pour produire une réponse ?",
+            "answer": "Oui. Sous chaque réponse, une petite ligne <strong>« ⚙ N étapes · X s »</strong> résume les coulisses ; un clic la déplie pour montrer ce que LIA a réellement fait — le routage, les outils appelés, et son raisonnement — regroupés par catégorie.<br><br>C’est la même transparence que le coût affiché à chaque message, étendue au <em>déroulé des actions</em>. L’affichage reste discret et replié par défaut, pour ne pas encombrer la conversation."
           }
         }
       },
@@ -5583,7 +5654,8 @@
         "weather_desc": "pour rechercher la météo et prévisions à 5 jours (clé gratuite à obtenir sur openweathermap.org/api)",
         "browser_name": "Browser",
         "browser_desc": "pour recherche et navigation sur internet (activation sans clé et gratuit)"
-      }
+      },
+      "cta": "Connecter mes services"
     },
     "page3": {
       "title": "La personnalité",
@@ -5753,7 +5825,8 @@
           "example7": "crée un rappel la veille de chacun de mes 5 prochains rdv",
           "example8": "quand est mon prochain RDV et crée un rappel 1 heure avant"
         }
-      }
+      },
+      "examples_hint": "Touchez un exemple pour l'essayer tout de suite — il pré-remplit le chat, rien n'est envoyé sans vous."
     }
   },
   "scheduled_actions": {
@@ -6023,7 +6096,7 @@
       },
       "control": {
         "title": "Tu gardes le contrôle",
-        "description": "Avant toute action sensible (envoi d'email, modification d'agenda...), LIA te montre son plan et attend ta validation. Rien ne part sans ton accord. Et pendant que LIA écrit, un bouton stop te permet d'interrompre la réponse à tout moment — le texte partiel reste."
+        "description": "Avant toute action sensible (envoi d'email, modification d'agenda...), LIA te montre son plan et attend ta validation. Rien ne part sans ton accord. Et pendant que LIA écrit, un bouton stop te permet d'interrompre la réponse à tout moment — le texte partiel reste. Et après chaque réponse, une ligne discrète révèle exactement ce que LIA a fait — les étapes, les outils et le raisonnement."
       },
       "privacy": {
         "title": "Données protégées",
@@ -7336,7 +7409,7 @@
     }
   },
   "conversations": {
-    "search_placeholder": "Rechercher dans l'historique...",
+    "search_placeholder": "Rechercher...",
     "search_clear": "Effacer la recherche"
   },
   "story": {

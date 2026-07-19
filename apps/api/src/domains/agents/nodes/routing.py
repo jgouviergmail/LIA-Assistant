@@ -369,6 +369,41 @@ def route_from_approval_gate(
     return "response"
 
 
+def route_from_clarification(
+    state: MessagesState,
+) -> Literal["semantic_validator", "response"]:
+    """Route after clarification_node: cancelled flow exits to response.
+
+    Lot 1 Phase 0: a cancel intent during clarification aborts the flow
+    (plan-rejection contract) instead of looping back through the
+    validator → planner → validator cycle. The signal is the self-cleaning
+    ``clarification_cancelled`` flag inside semantic_validation — set True
+    only by the abort branch of clarification_node and explicitly reset to
+    False on every normal clarification pass, so a stale value from an
+    earlier turn can never divert a later clarification.
+
+    Args:
+        state: Graph state after clarification_node ran.
+
+    Returns:
+        "response" when the user cancelled, "semantic_validator" otherwise
+        (the historical fixed edge).
+    """
+    semantic_validation = state.get(STATE_KEY_SEMANTIC_VALIDATION)
+    if isinstance(semantic_validation, dict):
+        cancelled = bool(semantic_validation.get("clarification_cancelled", False))
+    else:
+        cancelled = bool(getattr(semantic_validation, "clarification_cancelled", False))
+
+    if cancelled:
+        logger.info(
+            "route_from_clarification_cancelled",
+            decision="response",
+        )
+        return "response"
+    return "semantic_validator"
+
+
 def route_from_semantic_validator(
     state: MessagesState,
 ) -> Literal["approval_gate", "clarification", "planner"]:

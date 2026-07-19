@@ -2,8 +2,8 @@
 
 > Système d'approbation plan-level avant exécution avec génération de questions LLM multilingues
 >
-> Version: 8.6 (July 2026 - Unified HITL contract across pipeline & ReAct: `hitl_required` = pre-exec non-draft only, ReAct mutation gate on `tool_confirmation` — ADR-106)
-> Date: 2026-07-06
+> Version: 8.7 (July 2026 - One-click interactive layer over the resume contract: structured `hitl_decision` (classifier bypassed), `GET /agents/hitl/pending` rehydration, execution trace, actionable connector notices — ADR-132/133/134)
+> Date: 2026-07-19
 
 ## 📋 Table des Matières
 
@@ -74,6 +74,32 @@ ReAct** (`react_execute_tools_node` → `tool_confirmation`).
 3. **Editable** : Utilisateur peut modifier paramètres
 4. **Strategy-Driven** : 5 stratégies d'approbation composables
 5. **Multilingue** : Questions générées en 6 langues
+
+### Couche interactive one-click (ADR-132/133/134)
+
+Au-dessus du contrat de resume conversationnel décrit ci-dessous, une couche
+interface rend l'approbation tangible sans jamais fermer le canal texte/voix :
+
+- **Cartes d'approbation (ADR-132)** — un interrupt en attente (tool
+  confirmation, draft, destructive/FOR_EACH) s'affiche en carte avec des
+  boutons pilotés par le backend (`available_actions`). Le clic envoie un
+  `hitl_decision` structuré `{message_id, action[, modification_instructions]}`
+  sur le send normal ; `build_structured_decision` le mappe **déterministiquement**
+  vers le payload de resume — **sans appel classifier** (`classifier_bypassed`),
+  parité octet-pour-octet avec le chemin langage naturel, **fail-closed**
+  (`hitl_decision_stale`) sur tout clic périmé/désaligné. Le bouton *Modifier*
+  d'un draft route la boucle `draft_modifier` vivante (édition structurée).
+- **Réhydratation** — `GET /agents/hitl/pending` (lecture autoritaire no-store)
+  reconstruit la carte après un rechargement de page ; le canal texte/voix
+  reste pleinement fonctionnel en parallèle (règle : la conversation gagne
+  toujours). Cache de détection en `utils/hitl_cache`, invalidé au chokepoint
+  `HITLStore` save/delete.
+- **Coulisses (ADR-133)** — les étapes agentiques et le raisonnement, jadis
+  effacés au flip progress→answer, survivent désormais attachés au message
+  (ligne repliée « ⚙ N étapes · X s »).
+- **Erreurs connecteurs actionnables (ADR-134)** — un échec d'outil sur OAuth
+  expiré (typé, jamais par string) affiche un encart « Reconnecter » dans le
+  chat.
 
 ---
 
@@ -561,6 +587,8 @@ async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> di
 | `HITL_AMBIGUOUS_CONFIDENCE_THRESHOLD` | 0.7 | Seuil detection ambiguite |
 | `HITL_FUZZY_MATCH_AMBIGUITY_THRESHOLD` | 0.05 | Seuil fuzzy match (scores dans 5% = ambigu) |
 | `HITL_LOW_CONFIDENCE_THRESHOLD` | 0.5 | Seuil basse confidence → clarification |
+| `HITL_PENDING_DATA_TTL_SECONDS` | 3600 | TTL Redis des données d'interrupt en attente |
+| `HITL_DETECTION_CACHE_TTL_SECONDS` | 5 | TTL du cache mémoire de détection pending-HITL (borne la staleness cross-worker — ADR-132) |
 
 ### Variables .env - HITL Classifier LLM
 

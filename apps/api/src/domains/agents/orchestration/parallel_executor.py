@@ -122,6 +122,9 @@ from src.domains.agents.semantic.param_guard import (
     check_semantic_params,
     person_names_from_config,
 )
+from src.domains.agents.services.connector_error_notice import (
+    emit_connector_notice_for_exception,
+)
 from src.domains.agents.services.hitl.scope_detector import detect_for_each_scope
 from src.domains.agents.tools.common import ToolErrorCode
 
@@ -883,6 +886,10 @@ async def _execute_wave_parallel(
                 error_type=type(result).__name__,
                 error_message=str(result),
             )
+            # Lot 3 P3 (ADR-134): typed connector auth failures surface an
+            # actionable "reconnect" notice in the chat (best-effort, deduped
+            # frontend-side).
+            emit_connector_notice_for_exception(result, tool_name=step.tool_name or "unknown")
             step_results.append(
                 StepResult(
                     step_id=step_id,

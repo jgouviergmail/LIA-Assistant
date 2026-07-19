@@ -39,6 +39,9 @@ from src.domains.agents.analysis.query_intelligence_helpers import (
 )
 from src.domains.agents.models import MessagesState
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.agents.services.connector_error_notice import (
+    emit_connector_notice_for_exception,
+)
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.services.react_tool_selector import ReactToolSelector
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
@@ -729,6 +732,11 @@ async def react_execute_tools_node(
                 error=str(exc),
                 error_type=type(exc).__name__,
             )
+            # Lot 3 P3 (ADR-134): safety net for tools that don't route their
+            # exceptions through handle_tool_exception (ConnectorToolBase does;
+            # this covers direct-coroutine tools). Best-effort, deduped
+            # frontend-side.
+            emit_connector_notice_for_exception(exc, tool_name=tc_name)
 
         new_messages.append(
             ToolMessage(

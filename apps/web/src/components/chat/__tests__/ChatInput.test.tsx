@@ -97,4 +97,24 @@ describe('ChatInput — sending', () => {
     await user.type(screen.getByRole('textbox'), 'hello{Enter}');
     expect(onSendMessage).not.toHaveBeenCalled();
   });
+
+  it('prefills from initialMessage without sending (onboarding deep link)', () => {
+    const onSendMessage = vi.fn();
+    renderWithProviders(
+      <ChatInput onSendMessage={onSendMessage} initialMessage="Trouve le contact Jean" />
+    );
+
+    expect(screen.getByRole('textbox')).toHaveValue('Trouve le contact Jean');
+    expect(onSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('prefilled text is editable and sendable like typed text', async () => {
+    const onSendMessage = vi.fn();
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={onSendMessage} initialMessage="Bonjour" />
+    );
+
+    await user.type(screen.getByRole('textbox'), ' LIA{Enter}');
+    expect(onSendMessage).toHaveBeenCalledWith('Bonjour LIA', undefined, undefined, undefined);
+  });
 });

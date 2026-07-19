@@ -8,6 +8,7 @@
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 import { generateFallbackHitlQuestion } from '@/lib/hitl-utils';
+import { normalizeHitlPayload } from '@/lib/hitl-payload';
 import { generateUUID } from '@/lib/utils';
 import { usePsycheStore } from '@/stores/psycheStore';
 import type { PsycheStateSummary } from '@/types/psyche';
@@ -21,6 +22,7 @@ import {
   BrowserScreenshotData,
 } from '@/types/chat';
 import { DebugMetricsEntry } from '@/types/chat-state';
+import type { ExecutionTrace, ExecutionTraceStep } from '@/types/execution-trace';
 import { SSEHandlerContext, ProgressMessageMetadata } from './types';
 
 // Stable id used to morph the compaction toast in place (loading → success/warn)
@@ -136,6 +138,41 @@ function buildReasoningBlock(reasoning: string, t: SSEHandlerContext['t']): stri
   const body = paragraphs.map(p => `<p>${escapeHtml(p)}</p>`).join('');
   // Blank lines around the div ensure rehype-raw treats it as a block.
   return `\n\n<div class="lia-reasoning">${header}${body}</div>\n\n`;
+}
+
+/** Valid trace-step categories (defaults to 'system' for unknown values). */
+const TRACE_CATEGORIES = new Set(['system', 'agent', 'tool', 'context']);
+
+/**
+ * Build a structured trace step (Lot 2 P2-V1) from execution-step metadata.
+ *
+ * Reuses the same translated ``execution.steps.<i18n_key>`` labels the live
+ * progress bubble shows (already i18n ×6), so the retained trace matches what
+ * the user saw. Returns null for a reasoning sub-event (kept separately) or
+ * when no meaningful label can be resolved.
+ */
+function buildTraceStep(
+  metadata: ProgressMessageMetadata | undefined,
+  t: SSEHandlerContext['t']
+): ExecutionTraceStep | null {
+  if (!metadata || metadata.step_type === 'reasoning') return null;
+  const emoji = metadata.emoji || '⚙️';
+  const rawCategory = metadata.category;
+  const category =
+    typeof rawCategory === 'string' && TRACE_CATEGORIES.has(rawCategory)
+      ? (rawCategory as ExecutionTraceStep['category'])
+      : 'system';
+
+  let label: string | undefined;
+  if (metadata.i18n_key) {
+    const translated = t(`execution.steps.${metadata.i18n_key}`, { defaultValue: '' });
+    if (translated) label = translated;
+  }
+  if (!label && metadata.detail) {
+    label = metadata.detail.length > 80 ? `${metadata.detail.slice(0, 77)}...` : metadata.detail;
+  }
+  if (!label) return null;
+  return { emoji, label, category };
 }
 
 /**
@@ -310,6 +347,18 @@ export function handleRouterDecision(chunk: ChatStreamChunk, context: SSEHandler
   const routerStep = getProgressMessage('router_decision', t);
   executionStepsRef.current.push(routerStep);
   context.emittedStepKeysRef.current.add('router_decision');
+
+  // Execution trace (Lot 2 P2-V1): a router_decision marks the turn start —
+  // reset the (flip-surviving) trace accumulators and seed the router step.
+  // A stable translated label is used, not the randomized analyzing message.
+  context.traceStepsRef.current = [
+    {
+      emoji: '🧭',
+      label: t('execution.steps.router_decision', { defaultValue: 'Analyzing…' }),
+      category: 'system',
+    },
+  ];
+  context.traceReasoningRef.current = '';
   const fullContent = buildProgressContent(
     executionStepsRef.current,
     context.reasoningBufRef.current,
@@ -418,10 +467,45 @@ function handleCompactionStep(chunk: ChatStreamChunk, context: SSEHandlerContext
 /**
  * Handle execution_step: Dynamic execution progress messages (accumulated)
  */
+/**
+ * Intercept connector error notices (Lot 3 P3, ADR-134).
+ *
+ * `step_type: "tool_error"` chunks carry a structured connector failure
+ * (connector_type + action) emitted when a tool broke on connector auth.
+ * They feed the reconnect/rate-limit banner — never the progress steps nor
+ * the Lot 2 execution trace. Returns true when the chunk was consumed.
+ */
+function handleConnectorNoticeStep(chunk: ChatStreamChunk, context: SSEHandlerContext): boolean {
+  const metadata = chunk.metadata as
+    | { step_type?: string; connector_type?: string; action?: string; tool_name?: string }
+    | undefined;
+  if (metadata?.step_type !== 'tool_error') return false;
+
+  const { connector_type: connectorType, action, tool_name: toolName } = metadata;
+  if (!connectorType || (action !== 'reconnect' && action !== 'rate_limit')) {
+    logger.warn(
+      'chat_connector_notice_malformed',
+      context.withContext({ component: 'useChat', metadata: chunk.metadata })
+    );
+    return true; // Consumed anyway: never fall through to the step accumulator
+  }
+
+  context.dispatch({
+    type: 'CONNECTOR_NOTICE_ADD',
+    payload: { notice: { connectorType, action, toolName: toolName ?? 'unknown' } },
+  });
+  return true;
+}
+
 export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
   // Intercept compaction-specific events first — they drive the chat-input
   // lock + sonner toast rather than the generic execution_step accumulator.
   if (handleCompactionStep(chunk, context)) {
+    return;
+  }
+
+  // Intercept connector error notices (Lot 3 P3) — banner, not progress step.
+  if (handleConnectorNoticeStep(chunk, context)) {
     return;
   }
 
@@ -455,6 +539,8 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
   if (metadata?.step_type === 'reasoning') {
     if (metadata.delta) {
       reasoningBufRef.current += metadata.delta;
+      // Trace (Lot 2): keep a flip-surviving copy of the reasoning.
+      context.traceReasoningRef.current += metadata.delta;
     }
   } else {
     // Deduplication by i18n_key: skip if already emitted by router/planner handlers.
@@ -470,6 +556,11 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
     if (metadata?.i18n_key) {
       emittedStepKeysRef.current.add(metadata.i18n_key);
     }
+
+    // Trace (Lot 2): accumulate the structured step in parallel — this ref is
+    // NOT wiped at the answer flip, so it survives to be attached at `done`.
+    const traceStep = buildTraceStep(metadata, t);
+    if (traceStep) context.traceStepsRef.current.push(traceStep);
   }
 
   const fullContent = buildProgressContent(executionStepsRef.current, reasoningBufRef.current, t);
@@ -604,6 +695,11 @@ export function handleDone(chunk: ChatStreamChunk, context: SSEHandlerContext): 
     usePsycheStore.getState().updateFromSSE(metadata.psyche_state as PsycheStateSummary);
   }
 
+  // Execution trace (Lot 2 P2-V1): attach the flip-surviving backstage record
+  // to the completed message BEFORE STREAM_DONE flips status to idle. Skipped
+  // when nothing was captured (e.g. a pure-conversation reply with no steps).
+  attachExecutionTrace(context, assistantMessageId, metadata?.duration_ms);
+
   dispatch({
     type: 'STREAM_DONE',
     payload: {
@@ -611,6 +707,29 @@ export function handleDone(chunk: ChatStreamChunk, context: SSEHandlerContext): 
       metadata,
     },
   });
+}
+
+/**
+ * Attach the captured execution trace to a message (Lot 2 P2-V1).
+ *
+ * No-op when no step was captured — a trace of nothing adds a useless empty
+ * disclosure. The step/reasoning refs survive the answer flip on purpose, so
+ * at `done` they still hold the whole turn.
+ */
+function attachExecutionTrace(
+  context: SSEHandlerContext,
+  messageId: string,
+  durationMs: number | undefined
+): void {
+  const steps = context.traceStepsRef.current;
+  if (steps.length === 0) return;
+
+  const trace: ExecutionTrace = {
+    steps: [...steps],
+    reasoning: context.traceReasoningRef.current,
+    ...(typeof durationMs === 'number' ? { durationMs } : {}),
+  };
+  context.dispatch({ type: 'TRACE_ATTACH', payload: { messageId, trace } });
 }
 
 // ============================================================================
@@ -647,6 +766,16 @@ export function handleHitlInterruptMetadata(
       action_requests_count: metadataChunk?.action_requests?.length,
     })
   );
+
+  // Approval card (Lot 1 P1-V1): build the card state from the wire payload.
+  // Last-wins by design (a fresh interrupt replaces any previous card) and
+  // replay-safe: an interrupt run's backlog ends at the interrupt, so the
+  // replayed metadata chunk legitimately re-arms the card. Out-of-scope
+  // kinds (clarification…) normalize to null — text-only flow, no card.
+  const normalized = normalizeHitlPayload(chunk.metadata);
+  if (normalized) {
+    dispatch({ type: 'HITL_AWAITING', payload: { payload: normalized } });
+  }
 
   // Initialize buffer for this question
   hitlQuestionBuffer.current.set(messageId, '');
@@ -952,6 +1081,14 @@ export function handleError(chunk: ChatStreamChunk, context: SSEHandlerContext):
   // Replay (ADR-117 Lot 2): the toast already fired when it happened live.
   if (errorCode === 'usage_limit_exceeded' && !context.isReplay) {
     toast.error(chunk.content || 'Usage limit exceeded');
+  }
+
+  // Approval card (Lot 1 P1-V1): the one-click decision no longer matches
+  // the pending interrupt (expired / answered / superseded) — flip the card
+  // to its terminal 'expired' state BEFORE the generic STREAM_ERROR below,
+  // whose submitting→awaiting retry branch must not re-arm dead buttons.
+  if (errorCode === 'hitl_decision_stale') {
+    dispatch({ type: 'HITL_EXPIRED' });
   }
 
   logger.error(

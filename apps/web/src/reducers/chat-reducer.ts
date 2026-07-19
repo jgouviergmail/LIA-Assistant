@@ -22,6 +22,8 @@
  */
 
 import { ChatState, ChatAction, initialChatState } from '@/types/chat-state';
+import { initialHitlCardState } from '@/types/hitl';
+import { MAX_TRACE_STEPS } from '@/types/execution-trace';
 import { Message } from '@/types/chat';
 import { generateUUID } from '@/lib/utils';
 
@@ -138,6 +140,25 @@ function nextContextUsage(
 // Action handlers (one pure transition per action)
 // ============================================================================
 
+/**
+ * HITL card interaction with an outgoing user message (Lot 1 P1-V1).
+ *
+ * A typed reply while the card is 'awaiting' resolves it via_text — the
+ * conversational channel always wins, the card must never block it. The
+ * button flow dispatches HITL_SUBMITTING BEFORE its own send, so a
+ * 'submitting' card passes through unchanged. An 'expired' card is cleared:
+ * the user moved on, the stale note has served its purpose.
+ */
+function hitlAfterSend(hitl: ChatState['hitl']): ChatState['hitl'] {
+  if (hitl.status === 'awaiting') {
+    return { ...hitl, status: 'resolved', resolution: 'via_text' };
+  }
+  if (hitl.status === 'expired') {
+    return initialHitlCardState;
+  }
+  return hitl;
+}
+
 const ACTION_HANDLERS: ChatActionHandlers = {
   // ------------------------------------------------------------------ User
   SEND_MESSAGE: (state, action) => ({
@@ -154,6 +175,10 @@ const ACTION_HANDLERS: ChatActionHandlers = {
     browserScreenshot: null,
     // Clear any previous compaction banner — a new turn starts fresh.
     compaction: null,
+    // HITL card: a typed reply resolves an awaiting card via_text.
+    hitl: hitlAfterSend(state.hitl),
+    // Connector notices: a new turn gets a fresh verdict (Lot 3 P3).
+    connectorNotices: [],
   }),
 
   CLEAR_MESSAGES: state => ({
@@ -181,6 +206,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
     browserScreenshot: null, // Browser Screenshots: Clear overlay when clearing messages
     compaction: null, // Compaction v2: clear banner when clearing messages
     contextUsage: null, // Context pill: stale once messages are wiped
+    hitl: initialHitlCardState, // HITL card: a wiped conversation has no pending interrupt
   }),
 
   SET_MESSAGES: (state, action) => {
@@ -406,6 +432,18 @@ const ACTION_HANDLERS: ChatActionHandlers = {
     // Update conversation totals
     const updatedTotals = metadata ? accumulateTotals(state.totals, metadata) : state.totals;
 
+    // HITL card: a submitted decision resolves when its stream completes.
+    // An 'awaiting' card is never touched here — the interrupt stream itself
+    // ends WITHOUT a done chunk (runtime-proven protocol fact). A submitting
+    // (button flow) or resolved (via_text flow) card is CLEARED: the reply
+    // bubble is the outcome feedback, a lingering card is noise (user
+    // feedback 2026-07-19). An expired card stays — its turn produced no
+    // outcome, the note explains why (cleared on the next send).
+    const hitlAfterDone: ChatState['hitl'] =
+      state.hitl.status === 'submitting' || state.hitl.status === 'resolved'
+        ? initialHitlCardState
+        : state.hitl;
+
     return {
       ...state,
       status: 'idle',
@@ -419,6 +457,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
       },
       browserScreenshot: null, // Clear overlay when stream completes
       contextUsage: nextContextUsage(state, metadata),
+      hitl: hitlAfterDone,
     };
   },
 
@@ -439,13 +478,88 @@ const ACTION_HANDLERS: ChatActionHandlers = {
         timestamp: new Date(),
       },
     ],
+    // HITL card: a transport failure while submitting re-arms the buttons
+    // (retryable). The typed hitl_decision_stale error dispatches
+    // HITL_EXPIRED separately — this branch only covers generic failures.
+    hitl:
+      state.hitl.status === 'submitting'
+        ? { ...state.hitl, status: 'awaiting', submittedAction: null }
+        : state.hitl,
   }),
 
   // ------------------------------------------------------------------ Router Metadata
   // Router decision is logged but doesn't change state.
   ROUTER_DECISION: state => state,
 
+  // ------------------------------------------------------------ Execution trace
+  // Attach the captured backstage record to a completed assistant message
+  // (Lot 2 P2-V1). Targets by id; no-op on unknown id; caps retained steps.
+  TRACE_ATTACH: (state, action) => {
+    const { messageId, trace } = action.payload;
+    const index = state.messages.findIndex(m => m.id === messageId);
+    if (index < 0) return state;
+
+    const cappedSteps =
+      trace.steps.length > MAX_TRACE_STEPS ? trace.steps.slice(-MAX_TRACE_STEPS) : trace.steps;
+
+    const updatedMessages = [...state.messages];
+    updatedMessages[index] = {
+      ...updatedMessages[index],
+      executionTrace: { ...trace, steps: cappedSteps },
+    };
+    return { ...state, messages: updatedMessages };
+  },
+
+  // ---------------------------------------------------- Connector notices
+  // Actionable connector failure banners (Lot 3 P3, ADR-134). ADD dedupes by
+  // (connectorType, action) — backend emits once per failed step; returning
+  // the same array reference on dedup avoids a useless re-render.
+  CONNECTOR_NOTICE_ADD: (state, action) => {
+    const { notice } = action.payload;
+    const exists = state.connectorNotices.some(
+      n => n.connectorType === notice.connectorType && n.action === notice.action
+    );
+    if (exists) return state;
+    return { ...state, connectorNotices: [...state.connectorNotices, notice] };
+  },
+
+  CONNECTOR_NOTICE_DISMISS: (state, action) => ({
+    ...state,
+    connectorNotices: state.connectorNotices.filter(
+      n => !(n.connectorType === action.payload.connectorType && n.action === action.payload.action)
+    ),
+  }),
+
   // ------------------------------------------------------------------ HITL
+  // Approval card lifecycle (Lot 1 P1-V1) — see chat-reducer.hitl-card.test.ts
+  // for the full transition matrix.
+  HITL_AWAITING: (state, action) => ({
+    ...state,
+    // Last-wins: a fresh interrupt replaces any previous card state
+    // (successive interrupts in one logical turn, replay reconstruction).
+    hitl: {
+      status: 'awaiting',
+      payload: action.payload.payload,
+      resolution: null,
+      submittedAction: null,
+    },
+  }),
+
+  HITL_SUBMITTING: (state, action) =>
+    state.hitl.status === 'awaiting'
+      ? {
+          ...state,
+          hitl: { ...state.hitl, status: 'submitting', submittedAction: action.payload.action },
+        }
+      : state, // Defensive: ignore double-clicks / clicks after resolution
+
+  HITL_EXPIRED: state =>
+    state.hitl.status === 'awaiting' || state.hitl.status === 'submitting'
+      ? { ...state, hitl: { ...state.hitl, status: 'expired', submittedAction: null } }
+      : state,
+
+  HITL_CLEAR: state => ({ ...state, hitl: initialHitlCardState }),
+
   ADD_APPROVAL_MESSAGE: (state, action) => ({
     ...state,
     messages: [...state.messages, action.payload.message],

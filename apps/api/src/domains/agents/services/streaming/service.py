@@ -2345,6 +2345,9 @@ class StreamingService:
                     "count": len(action_requests),
                     FIELD_RUN_ID: run_id,
                     "interrupt_ts": str(time.time()),
+                    # Lot 1 T1.3: persisted so structured one-click decisions
+                    # can verify they target the CURRENT pending interrupt.
+                    "message_id": message_id,
                     # Phase 1 HITL Streaming: Store generated question for recovery
                     "generated_question": generated_question,
                 },

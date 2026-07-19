@@ -78,6 +78,7 @@ from src.domains.agents.nodes.hitl_dispatch_node import hitl_dispatch_node
 from src.domains.agents.nodes.initiative_node import initiative_node
 from src.domains.agents.nodes.routing import (
     route_from_approval_gate,
+    route_from_clarification,
     route_from_for_each_confirm,
     route_from_hitl_dispatch,
     route_from_initiative,
@@ -669,10 +670,19 @@ async def build_graph(
         },
     )
 
-    # Clarification routes back to semantic_validator after user response (Phase 2 OPTIMPLAN)
-    # This creates the feedback loop: planner → validator → clarification → validator → ...
-    # Note: clarification_node sets needs_replan=True which triggers route to planner
-    graph.add_edge(NODE_CLARIFICATION, NODE_SEMANTIC_VALIDATOR)
+    # Clarification routes back to semantic_validator after user response
+    # (Phase 2 OPTIMPLAN feedback loop: planner → validator → clarification →
+    # validator → …), EXCEPT when the user cancelled during clarification —
+    # the abort exits straight to response (Lot 1 Phase 0: without this exit
+    # a cancel intent looped forever through replanning).
+    graph.add_conditional_edges(
+        NODE_CLARIFICATION,
+        route_from_clarification,
+        {
+            "semantic_validator": NODE_SEMANTIC_VALIDATOR,
+            "response": NODE_RESPONSE,
+        },
+    )
 
     # Approval gate routes based on user decision
     # If approved → task_orchestrator (execute plan)

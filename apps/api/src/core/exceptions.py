@@ -1461,6 +1461,33 @@ class ConnectorAPIError(BaseAPIException):
             upstream_status_code=status_code,
             **log_context,
         )
+        # Typed attributes so agent-side handlers can classify without
+        # string matching (Lot 3 P3 — actionable connector error notices).
+        self.connector_type = connector_type
+        self.upstream_status_code = status_code
+
+
+class ConnectorTokenExpiredError(ValidationError):
+    """OAuth refresh rejected by the provider — the user must reconnect.
+
+    Raised by ``ConnectorService._refresh_oauth_token`` when the token
+    endpoint rejects the refresh (``invalid_grant`` = revoked or expired
+    refresh token, or any non-200). Subclasses ``ValidationError`` on purpose:
+    the HTTP contract (400) and every existing ``except ValidationError``
+    remain intact, while agent-side handlers can now catch this specific
+    class to surface an actionable "reconnect" notice in the chat.
+    """
+
+    def __init__(self, detail: str, connector_type: str, **log_context: Any) -> None:
+        """Initialize with the connector that needs reconnecting.
+
+        Args:
+            detail: User-facing message (already localized upstream)
+            connector_type: Connector type value (e.g. "google_gmail")
+            **log_context: Additional context for structured logging
+        """
+        super().__init__(detail=detail, connector_type=connector_type, **log_context)
+        self.connector_type = connector_type
 
 
 class ConnectorValidationError(BaseAPIException):

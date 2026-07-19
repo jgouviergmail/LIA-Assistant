@@ -22,6 +22,7 @@ from tenacity import (
 
 from src.core.config import settings
 from src.core.exceptions import (
+    ConnectorTokenExpiredError,
     raise_configuration_missing,
     raise_invalid_input,
     raise_oauth_flow_failed,
@@ -702,6 +703,11 @@ class ConnectorService:
 
             return credentials
 
+        except ConnectorTokenExpiredError:
+            # Not a decryption failure: the refresh (line above) was rejected
+            # by the provider. Preserve the typed error so agent-side handlers
+            # can surface the actionable "reconnect" notice (Lot 3 P3).
+            raise
         except Exception as e:
             logger.error(
                 "connector_credentials_decryption_failed",
@@ -1398,8 +1404,12 @@ class ConnectorService:
             else:
                 user_message = APIMessages.oauth_token_refresh_failed()
 
-            raise_invalid_input(
+            # Typed subclass of ValidationError: same HTTP 400 contract for all
+            # existing callers, but lets agent-side handlers surface an
+            # actionable "reconnect" notice in the chat (Lot 3 P3, ADR-134).
+            raise ConnectorTokenExpiredError(
                 user_message,
+                connector_type=connector.connector_type.value,
                 connector_id=str(connector.id),
                 response_status_code=token_response.status_code,
             )

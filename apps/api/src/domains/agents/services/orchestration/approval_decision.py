@@ -8,7 +8,8 @@ the exact resume payload each interrupt kind expects. Extracted from the
 Contract per ``interrupt_type`` (unchanged from the original):
     - ``draft_critique`` / ``tool_confirmation`` -> ``{"action": ...}``
     - ``for_each_confirmation`` / plan approval / generic -> ``{"decision": ...}``
-    - ``clarification`` -> ``{"clarification": <message>}``
+    - ``clarification`` -> ``{"clarification": <message>}`` (info passthrough)
+      or ``{"clarification": <message>, "cancelled": True}`` (cancel intent)
     - stale/missing context -> ``{"decision": NEW_REQUEST, ...}``
 
 Redis (interrupt context) and the LLM classifier are imported lazily inside the
@@ -447,6 +448,75 @@ def _map_generic_result(
     }
 
 
+async def _classify_clarification(
+    user_message: str,
+    message_lower: str,
+    action_context: list[dict[str, Any]],
+    run_id: str,
+) -> dict[str, Any]:
+    """Map a clarification reply: raw-text passthrough, except a clear cancel.
+
+    Lot 1 Phase 0 (runtime-proven defect): without an abort path, a cancel
+    intent loops — the bare word fast-pathed to a plan-level ``{"decision":
+    "REJECT"}`` the clarification_node ignores, and a full cancel phrase
+    passed through as clarification text the planner dutifully replanned
+    with. Both re-triggered the same interrupt.
+
+    Abort rules (conservative — a wrongly aborted flow loses the user's
+    info, a wrongly passed-through cancel just loops once more):
+        - exact cancel word -> abort, no LLM call;
+        - otherwise the classifier decides: REJECT at/above the configured
+          confidence threshold with no edited params -> abort;
+        - anything else (info reply, low confidence, classifier error)
+          -> passthrough of the raw text.
+    """
+    from src.core.config import settings
+
+    if message_lower in _HITL_CANCEL_WORDS:
+        logger.info(
+            "approval_decision_clarification_cancel_fast_path",
+            run_id=run_id,
+            user_message=user_message[:50],
+        )
+        return {"clarification": user_message, "cancelled": True}
+
+    try:
+        from src.domains.agents.services.hitl_classifier import HitlResponseClassifier
+
+        classifier = HitlResponseClassifier()
+        result = await classifier.classify(
+            user_response=user_message, action_context=action_context
+        )
+        if (
+            result is not None
+            and result.decision == "REJECT"
+            and result.confidence >= settings.hitl_classifier_confidence_threshold
+            and not result.edited_params
+        ):
+            logger.info(
+                "approval_decision_clarification_cancel_classified",
+                run_id=run_id,
+                confidence=result.confidence,
+                user_message=user_message[:50],
+            )
+            return {"clarification": user_message, "cancelled": True}
+    except (ValueError, KeyError, TypeError, RuntimeError, AttributeError) as e:
+        logger.warning(
+            "approval_decision_clarification_classifier_error",
+            run_id=run_id,
+            error=str(e),
+            error_type=type(e).__name__,
+            fallback="passthrough",
+        )
+
+    logger.info(
+        "approval_decision_clarification_passthrough",
+        run_id=run_id,
+        user_message=user_message[:100],
+    )
+    return {"clarification": user_message}
+
+
 async def _classify_generic(
     user_message: str,
     message_lower: str,
@@ -456,8 +526,9 @@ async def _classify_generic(
 ) -> dict[str, Any]:
     """Classify a generic / plan-level reply into a ``{"decision": ...}`` payload.
 
-    Handles the confirm/reject fast paths, the clarification passthrough, and the
-    LLM-classified slow path (with a safe REJECT fallback on classifier error).
+    Handles the confirm/reject fast paths and the LLM-classified slow path
+    (with a safe REJECT fallback on classifier error). Clarification replies
+    are dispatched to :func:`_classify_clarification` upstream.
     """
     if message_lower in _HITL_CONFIRM_WORDS:
         logger.info(
@@ -488,16 +559,6 @@ async def _classify_generic(
             interrupt_type=interrupt_type,
         )
 
-        # Clarification interrupts: user supplies the missing info — pass through.
-        if interrupt_type == "clarification":
-            logger.info(
-                "approval_decision_clarification_passthrough",
-                run_id=run_id,
-                user_message=user_message[:100],
-                interrupt_type=interrupt_type,
-            )
-            return {"clarification": user_message}
-
         classifier = HitlResponseClassifier()
         result = await classifier.classify(
             user_response=user_message, action_context=action_context
@@ -523,6 +584,140 @@ async def _classify_generic(
             "decision": "REJECT",
             "rejection_reason": f"Erreur de classification: {e!s}",
         }
+
+
+class HitlDecisionStaleError(Exception):
+    """A structured hitl_decision cannot be applied to the pending interrupt.
+
+    Raised when the pending interrupt is missing, its message_id does not
+    match the decision's, or the (interrupt_type, action) pair is not
+    supported. The caller MUST emit a typed error chunk
+    (``error_code="hitl_decision_stale"``) and stop — the message is never
+    processed as a new turn (fail-closed: a button click is an approval
+    gesture, not conversation content).
+    """
+
+
+# Wire action ids emitted by the interactions are not uniform (e.g.
+# destructive_confirm emits "confirm_delete", the for_each STANDARD set
+# defines "confirm_all") — canonicalize them server-side so the frontend
+# passes wire ids through verbatim and there is a single source of truth.
+_STRUCTURED_ACTION_ALIASES: dict[str, str] = {
+    "confirm": "confirm",
+    "approve": "confirm",
+    "confirm_delete": "confirm",
+    "confirm_all": "confirm",
+    "cancel": "cancel",
+    "reject": "cancel",
+}
+
+
+# (interrupt_type, action) -> resume payload builders for one-click approvals.
+# Scope: confirm/cancel (V1) + draft edit with modification instructions
+# (P1-V2 — routes the LIVE draft_modifier loop, same payload the classifier
+# EDIT branch produces). Per-field edit (updated_content) has NO live
+# execution path (dead code on the whole chain) and stays rejected.
+def _structured_resume_payload(
+    interrupt_type: str,
+    action: str,
+    draft_id: str | None,
+    modification_instructions: str | None = None,
+) -> dict[str, Any] | None:
+    """Return the resume payload for a supported (type, action) pair, else None."""
+    action = _STRUCTURED_ACTION_ALIASES.get(action, action)
+    if interrupt_type == ACTION_TYPE_DRAFT_CRITIQUE and action == "edit":
+        # Parity with _map_draft_critique_result EDIT: instructions required.
+        instructions = (modification_instructions or "").strip()
+        if not instructions:
+            return None
+        return {
+            "action": "edit",
+            FIELD_DRAFT_ID: draft_id,
+            "modification_instructions": instructions,
+        }
+    if interrupt_type in ("tool_confirmation", "draft_critique"):
+        if action not in ("confirm", "cancel"):
+            return None
+        payload: dict[str, Any] = {"action": action}
+        if interrupt_type == ACTION_TYPE_DRAFT_CRITIQUE:
+            payload[FIELD_DRAFT_ID] = draft_id
+            if action == "cancel":
+                payload["reason"] = "User declined via approval button"
+        return payload
+    if interrupt_type == "clarification":
+        # Buttons on an open question only make sense for cancelling it.
+        if action != "cancel":
+            return None
+        return {"clarification": "", "cancelled": True}
+    # destructive_confirm / for_each_confirmation / plan approval / generic
+    if action == "confirm":
+        return {FIELD_DECISION: "APPROVE"}
+    if action == "cancel":
+        return {FIELD_DECISION: "REJECT", "rejection_reason": "User declined via approval button"}
+    return None
+
+
+async def build_structured_decision(
+    hitl_decision: dict[str, Any], conversation_id: uuid.UUID, run_id: str
+) -> dict[str, Any]:
+    """Map a structured one-click decision to the interrupt's resume payload.
+
+    Deterministic counterpart of :func:`parse_approval_decision` for approval
+    buttons (Lot 1 option B): no LLM classifier call, and by-construction
+    parity — the payload shapes are exactly the ones the conversational
+    branches produce for the same intents.
+
+    Args:
+        hitl_decision: ``{"message_id": ..., "action": "confirm"|"cancel"}``
+            as sent by the frontend card.
+        conversation_id: Conversation UUID for the Redis pending lookup.
+        run_id: Run ID for logging.
+
+    Returns:
+        The interrupt-kind-specific resume payload.
+
+    Raises:
+        HitlDecisionStaleError: No pending interrupt, message_id mismatch,
+            or unsupported (interrupt_type, action) pair — fail-closed.
+    """
+    action_context, interrupt_type, draft_id, pending_data = await _fetch_interrupt_context(
+        conversation_id, run_id
+    )
+
+    if not action_context or interrupt_type is None:
+        raise HitlDecisionStaleError("no pending interrupt for structured decision")
+
+    # Freshness check: the card the user clicked must be the pending one.
+    # Legacy pendings stored before message_id persistence are tolerated
+    # (bounded by the pending TTL after deployment).
+    stored_message_id = (pending_data or {}).get(FIELD_INTERRUPT_DATA, {}).get("message_id")
+    decision_message_id = hitl_decision.get("message_id")
+    if stored_message_id and decision_message_id and stored_message_id != decision_message_id:
+        raise HitlDecisionStaleError(
+            f"message_id mismatch: pending={stored_message_id} decision={decision_message_id}"
+        )
+
+    action = str(hitl_decision.get("action", "")).lower()
+    raw_instructions = hitl_decision.get("modification_instructions")
+    payload = _structured_resume_payload(
+        interrupt_type,
+        action,
+        draft_id,
+        modification_instructions=(raw_instructions if isinstance(raw_instructions, str) else None),
+    )
+    if payload is None:
+        raise HitlDecisionStaleError(
+            f"unsupported structured action {action!r} for interrupt_type {interrupt_type!r}"
+        )
+
+    logger.info(
+        "structured_hitl_decision_built",
+        run_id=run_id,
+        interrupt_type=interrupt_type,
+        action=action,
+        classifier_bypassed=True,
+    )
+    return payload
 
 
 async def parse_approval_decision(
@@ -575,6 +770,8 @@ async def parse_approval_decision(
         return await _classify_tool_confirmation(
             user_message, message_lower, action_context, run_id
         )
+    if interrupt_type == "clarification":
+        return await _classify_clarification(user_message, message_lower, action_context, run_id)
     return await _classify_generic(
         user_message, message_lower, action_context, interrupt_type, run_id
     )

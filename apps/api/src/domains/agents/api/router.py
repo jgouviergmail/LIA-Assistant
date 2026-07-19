@@ -9,10 +9,10 @@ import threading
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import suppress
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, Header, Request, Response
 from fastapi.responses import StreamingResponse
 from starlette.requests import ClientDisconnect
 
@@ -41,7 +41,8 @@ from src.domains.agents.api.background_runner import (
     spawn_chat_run_producer,
 )
 from src.domains.agents.api.error_messages import SSEErrorMessages
-from src.domains.agents.api.schemas import ChatRequest
+from src.domains.agents.api.hitl_pending import check_pending_hitl, check_pending_hitl_uncached
+from src.domains.agents.api.schemas import ChatRequest, ChatStreamChunk, PendingHitlResponse
 from src.domains.agents.api.service import AgentService
 from src.domains.agents.api.sse_keepalive import KeepalivePulse, iter_with_keepalive
 from src.domains.agents.utils import generate_run_id
@@ -64,32 +65,9 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 _agent_service: AgentService | None = None
 _agent_service_lock = threading.Lock()
 
-# PHASE 8.1.3: In-memory LRU cache for HITL pending checks (performance optimization)
-# Trade-off: 5-second stale data risk vs -10-20ms latency per request
-
-_hitl_cache: dict[str, tuple[dict | None, datetime]] = {}
-HITL_CACHE_TTL = timedelta(seconds=5)  # Short TTL for freshness
-
-
-def invalidate_hitl_cache(conversation_id: str) -> None:
-    """
-    Invalidate the in-memory HITL cache for a specific conversation.
-
-    Called after clearing HITL state from Redis to ensure cache consistency.
-    Prevents stale cache data from causing routing issues when a new request
-    arrives shortly after HITL completion/cancellation.
-
-    Args:
-        conversation_id: Conversation UUID string to invalidate.
-    """
-    global _hitl_cache
-
-    if conversation_id in _hitl_cache:
-        del _hitl_cache[conversation_id]
-        logger.debug(
-            "hitl_cache_invalidated",
-            conversation_id=conversation_id,
-        )
+# PHASE 8.1.3: the in-memory pending-HITL detection cache lives in
+# src.domains.agents.utils.hitl_cache — HITLStore.save/delete invalidate it
+# at the source, so router-level invalidation hooks are no longer needed.
 
 
 def get_agent_service() -> AgentService:
@@ -341,128 +319,6 @@ def _build_partial_finalizer(conversation_id: str, run_id: str) -> PartialFinali
     return _finalize
 
 
-async def _check_pending_hitl_uncached(conversation_id: str) -> dict | None:
-    """
-    Check if conversation has pending HITL interrupt (uncached Redis query).
-
-    Detects if the conversation has a pending HITL interrupt stored in Redis
-    waiting for user response. This is used to automatically pass original_run_id
-    to stream_chat_response() for unified HITL resumption flow.
-
-    Detection strategy:
-    - Check Redis for hitl_pending:{conversation_id} key using HITLStore
-    - If found, return action_requests, metadata, and interrupt_ts for routing
-    - If not found, no pending HITL (normal flow)
-
-    Args:
-        conversation_id: Conversation UUID string.
-
-    Returns:
-        dict with action_requests, review_configs, and interrupt_ts if HITL pending, None otherwise.
-
-    Note:
-        This function queries Redis for pending HITL state with schema versioning.
-        Internal implementation - use _check_pending_hitl() wrapper for caching.
-    """
-    from src.domains.agents.utils import HITLStore
-    from src.infrastructure.cache.redis import get_redis_cache
-
-    logger.debug(
-        "checking_pending_hitl_uncached",
-        conversation_id=conversation_id,
-    )
-
-    try:
-        redis = await get_redis_cache()
-        hitl_store = HITLStore(
-            redis_client=redis,
-            ttl_seconds=settings.hitl_pending_data_ttl_seconds,
-        )
-
-        versioned_data = await hitl_store.get_interrupt(conversation_id)
-
-        logger.debug(
-            "pending_hitl_check_result_uncached",
-            conversation_id=conversation_id,
-            found=bool(versioned_data),
-        )
-
-        if versioned_data:
-            # Extract interrupt_data and interrupt_ts from versioned structure
-            interrupt_data = versioned_data.get("interrupt_data", {})
-            interrupt_ts = versioned_data.get("interrupt_ts")
-
-            # Return flattened structure for backward compatibility + interrupt_ts
-            result = {
-                **interrupt_data,
-                "interrupt_ts": interrupt_ts,  # Add for response time metric
-            }
-
-            logger.info(
-                "pending_hitl_detected",
-                conversation_id=conversation_id,
-                action_count=len(result.get("action_requests", [])),
-                interrupt_ts=interrupt_ts,
-            )
-            return result
-
-    except Exception as e:
-        logger.error(
-            "check_pending_hitl_error",
-            conversation_id=conversation_id,
-            error=str(e),
-        )
-
-    return None
-
-
-async def _check_pending_hitl(conversation_id: str) -> dict | None:
-    """
-    Check if conversation has pending HITL interrupt (with 5-second in-memory cache).
-
-    PHASE 8.1.3 Performance Optimization:
-    - Caches Redis lookups for 5 seconds in-memory
-    - Trade-off: 5-second stale data risk vs -10-20ms latency
-    - Cache hit rate expected: ~50-70% (rapid user responses)
-
-    Args:
-        conversation_id: Conversation UUID string.
-
-    Returns:
-        dict with action_requests, review_configs, and interrupt_ts if HITL pending, None otherwise.
-    """
-    global _hitl_cache
-
-    now = datetime.now(UTC)
-
-    # Cache hit (fresh data)
-    if conversation_id in _hitl_cache:
-        data, cached_at = _hitl_cache[conversation_id]
-        if now - cached_at < HITL_CACHE_TTL:
-            logger.debug(
-                "hitl_cache_hit",
-                conversation_id=conversation_id,
-                age_seconds=(now - cached_at).total_seconds(),
-            )
-            return data
-
-    # Cache miss or stale → fetch from Redis
-    logger.debug("hitl_cache_miss", conversation_id=conversation_id)
-    data = await _check_pending_hitl_uncached(conversation_id)
-
-    # Update cache
-    _hitl_cache[conversation_id] = (data, now)
-
-    # Cleanup old cache entries (prevent memory leak)
-    # Remove entries older than 2x TTL
-    cleanup_threshold = now - (HITL_CACHE_TTL * 2)
-    _hitl_cache = {
-        conv_id: (d, ts) for conv_id, (d, ts) in _hitl_cache.items() if ts > cleanup_threshold
-    }
-
-    return data
-
-
 @router.post("/chat/stream")
 async def stream_chat(
     http_request: Request,
@@ -610,7 +466,15 @@ async def stream_chat(
             conversation_id = await get_conversation_id_cached(request.user_id)
 
             # If no conversation exists yet, skip HITL check (new user, no pending HITL possible)
-            pending_hitl = await _check_pending_hitl(conversation_id) if conversation_id else None
+            if request.hitl_decision is not None and conversation_id:
+                # Lot 1 option B: a one-click decision demands an authoritative
+                # read — the per-process detection cache (bounded cross-worker
+                # staleness) must never misroute a button click.
+                pending_hitl = await check_pending_hitl_uncached(conversation_id)
+            else:
+                pending_hitl = (
+                    await check_pending_hitl(conversation_id) if conversation_id else None
+                )
 
             agent_service = get_agent_service()
 
@@ -834,6 +698,9 @@ async def stream_chat(
                         stt_audio_duration_seconds=request.stt_audio_duration_seconds,
                         stt_cost_usd=request.stt_cost_usd,
                         stt_cost_eur=request.stt_cost_eur,
+                        hitl_decision=(
+                            request.hitl_decision.model_dump() if request.hitl_decision else None
+                        ),
                     )
                     if settings.background_runs_enabled:
                         # ADR-117: detached execution — the run survives client
@@ -900,6 +767,26 @@ async def stream_chat(
                     user_language=user_language,
                     accept_language_header=accept_language,
                 )
+
+                # Lot 1 option B, fail-closed: a one-click decision with no
+                # pending interrupt (authoritative read above) is expired or
+                # already answered — typed error, never a new LLM turn.
+                if request.hitl_decision is not None:
+                    logger.warning(
+                        "hitl_decision_without_pending_rejected",
+                        user_id=str(current_user.id),
+                        conversation_id=conversation_id,
+                        decision_message_id=request.hitl_decision.message_id,
+                    )
+                    stale_chunk = ChatStreamChunk(
+                        type="error",
+                        content=SSEErrorMessages.hitl_decision_stale(language=user_language),
+                        metadata={"error_code": "hitl_decision_stale"},
+                    )
+                    yield f"data: {stale_chunk.model_dump_json()}\n\n"
+                    stale_done = ChatStreamChunk(type="done", content="", metadata=None)
+                    yield f"data: {stale_done.model_dump_json()}\n\n"
+                    return
 
                 # Wrap with concurrent keepalive so heartbeats fire during long
                 # silent awaits (Day 2 / Task 2.3) — the legacy inline check
@@ -1130,6 +1017,43 @@ async def get_active_run_status(
         "stream_id": active.get("stream_id"),
         "run_id": active.get("run_id"),
     }
+
+
+@router.get("/hitl/pending", response_model=PendingHitlResponse | None)
+async def get_pending_hitl_interrupt(
+    response: Response,
+    current_user: User = Depends(get_current_active_session),
+) -> PendingHitlResponse | None:
+    """Expose the caller's pending HITL interrupt for card rehydration.
+
+    Lot 1 T1.4: the ``hitl_interrupt_metadata`` SSE chunk is not part of the
+    archived history — after a page reload, only this Redis-backed state can
+    rebuild the approval card. Read-only, scoped to the session user's own
+    conversation (no user-supplied id), authoritative Redis read (no
+    detection cache), never HTTP-cached.
+
+    Returns:
+        The pending interrupt payload, or ``null`` when nothing is pending
+        (no conversation yet, answered, expired, or cancelled).
+    """
+    response.headers["Cache-Control"] = "no-store"
+
+    from src.infrastructure.cache import get_conversation_id_cached
+
+    conversation_id = await get_conversation_id_cached(current_user.id)
+    if not conversation_id:
+        return None
+
+    pending = await check_pending_hitl_uncached(conversation_id)
+    if not pending or not pending.get(FIELD_ACTION_REQUESTS):
+        return None
+
+    return PendingHitlResponse(
+        message_id=pending.get("message_id"),
+        action_requests=pending.get(FIELD_ACTION_REQUESTS, []),
+        interrupt_ts=pending.get("interrupt_ts"),
+        generated_question=pending.get("generated_question"),
+    )
 
 
 @router.post("/runs/active/cancel")

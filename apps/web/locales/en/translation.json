@@ -623,7 +623,13 @@
       "retry_button": "Retry",
       "retry_failed": "Unable to retrieve your position. Check that GPS is enabled.",
       "detection": {
-        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
+        "keywords": [
+          "nearby",
+          "vicinity",
+          "neighborhood",
+          "surroundings",
+          "area"
+        ],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -642,6 +648,57 @@
           "near my place"
         ]
       }
+    },
+    "hitl": {
+      "title": {
+        "tool_confirmation": "Approval required",
+        "draft_critique": "Draft to review",
+        "destructive_confirm": "Destructive action — confirmation required",
+        "for_each_confirmation": "Bulk action — confirmation required"
+      },
+      "actions": {
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "confirm_deletion": "Confirm deletion",
+        "keep_items": "Keep items",
+        "edit": "Modify"
+      },
+      "affected_count_one": "{{count}} item affected",
+      "affected_count_other": "{{count}} items affected",
+      "draft": {
+        "to": "To",
+        "subject": "Subject"
+      },
+      "resolved": {
+        "confirmed": "Confirmed",
+        "cancelled": "Cancelled",
+        "via_text": "Answered in the conversation"
+      },
+      "expired": "This request is no longer active.",
+      "edit": {
+        "placeholder": "Describe the change (e.g. shorten the message, change the subject…)",
+        "submit": "Send changes",
+        "cancel": "Back"
+      }
+    },
+    "trace": {
+      "summary_one": "{{count}} step",
+      "summary_other": "{{count}} steps",
+      "duration": "{{seconds}}s",
+      "reasoning_title": "Reasoning",
+      "category": {
+        "system": "System",
+        "agent": "Agents",
+        "tool": "Tools",
+        "context": "Context"
+      },
+      "aria_toggle": "Show execution details"
+    },
+    "connector_notice": {
+      "reconnect_message": "LIA could not access {{connector}} — the connection has expired.",
+      "rate_limit_message": "{{connector}} is rate-limiting requests. Please try again in a few minutes.",
+      "reconnect_button": "Reconnect",
+      "dismiss": "Dismiss notice"
     }
   },
   "skill_apps": {
@@ -2998,6 +3055,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_7": {
+          "title": "v1.25.7 — 🎛️ The agentic core becomes visible and controllable",
+          "date": "July 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎛️ One-tap approval</b> — when LIA is about to act for you (send an email, confirm a deletion…), a card appears with Confirm / Cancel buttons — and Modify for drafts. You can still reply by text or voice, exactly as before.",
+            "i2": "<b>🔎 The backstage of every answer</b> — under each message, a collapsed “⚙ N steps · X s” line shows what LIA actually did (routing, tools, reasoning), expandable in one click. The transparency of costs now extends to the flow of actions.",
+            "i3": "<b>🔌 Reconnect in one click</b> — if a connected service (Gmail, Calendar…) has expired, LIA tells you plainly in the chat with a Reconnect button that takes you straight to the right setting, instead of a vague apology.",
+            "i4": "<b>🚀 Onboarding that takes action</b> — the tutorial now lets you connect your services in one click, and each example command prefills the chat so you can try it right away.",
+            "i5": "<b>✨ Experience fixes</b> — cancelling a clarification no longer loops forever, the approval card disappears once the action is handled, and the tutorial no longer re-opens on every navigation."
+          }
+        },
         "v1_25_6": {
           "title": "v1.25.6 — 🎯 Interest notifications finally varied",
           "date": "July 2026",
@@ -4183,7 +4252,7 @@
       "chat": {
         "title": "Conversations",
         "description": "Using chat and conversations",
-        "count": "14",
+        "count": "16",
         "questions": {
           "q1": {
             "question": "Can I have multiple conversations at the same time?",
@@ -4240,6 +4309,14 @@
           "q14": {
             "question": "What happens if I leave the page while LIA is answering?",
             "answer": "Nothing is lost. Generation continues <strong>in the background</strong> on the server: your message and the full answer are saved even if you close the tab, switch apps or lose the connection.<br><br>When you come back to the chat while the answer is still being written, it <strong>resumes live automatically</strong> — the in-progress bubble rebuilds itself and keeps streaming (this also works with several tabs open).<br><br>You can also <strong>stop an in-progress answer</strong>: while LIA is writing, the send button becomes a <strong>Stop</strong> button. The partial text is kept and marked \"interrupted\" ⏸ — but note that actions already performed (a sent email, a created event…) are not undone.<br><br>Only one answer runs at a time per conversation: if you try to send another message during a generation, LIA reattaches you to the answer in progress."
+          },
+          "q15": {
+            "question": "How do I approve or cancel an action LIA proposes?",
+            "answer": "When LIA is about to do something sensitive (send an email, delete an event, validate a draft…), an <strong>approval card</strong> appears above the input with <strong>Confirm</strong> and <strong>Cancel</strong> buttons — and <strong>Modify</strong> for drafts, which lets you describe the change to make.<br><br>It's a single click, but you can also reply <strong>by text or voice</strong> as before (“yes, send it” / “no, cancel”): both work in parallel. Once the action is handled, the card disappears and LIA's reply confirms what was done."
+          },
+          "q16": {
+            "question": "Can I see what LIA did to produce an answer?",
+            "answer": "Yes. Under each answer, a small <strong>“⚙ N steps · X s”</strong> line summarizes the backstage; one click expands it to show what LIA actually did — the routing, the tools it called, and its reasoning — grouped by category.<br><br>It's the same transparency as the cost shown on every message, extended to the <em>flow of actions</em>. The display stays discreet and collapsed by default, so it never clutters the conversation."
           }
         }
       },
@@ -5651,7 +5728,8 @@
         "weather_desc": "for weather search and 5-day forecasts (free API key from openweathermap.org/api)",
         "browser_name": "Browser",
         "browser_desc": "to search and browse the internet (no key required, free)"
-      }
+      },
+      "cta": "Connect my services"
     },
     "page3": {
       "title": "Personality",
@@ -5821,7 +5899,8 @@
           "example7": "create a reminder the day before each of my next 5 appointments",
           "example8": "when is my next appointment and create a reminder 1 hour before"
         }
-      }
+      },
+      "examples_hint": "Tap an example to try it right away — it will prefill the chat, nothing is sent without you."
     }
   },
   "scheduled_actions": {
@@ -6091,7 +6170,7 @@
       },
       "control": {
         "title": "You stay in control",
-        "description": "Before any sensitive action (sending email, modifying calendar...), LIA shows you her plan and waits for your approval. Nothing happens without your consent. And while LIA writes, a stop button lets you interrupt the answer at any moment — the partial text stays."
+        "description": "Before any sensitive action (sending email, modifying calendar...), LIA shows you her plan and waits for your approval. Nothing happens without your consent. And while LIA writes, a stop button lets you interrupt the answer at any moment — the partial text stays. And after each answer, a discreet line reveals exactly what LIA did — the steps, tools and reasoning behind it."
       },
       "privacy": {
         "title": "Protected data",

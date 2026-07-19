@@ -219,12 +219,23 @@ class ToolConfirmationInteraction:
         if registry_ids is None:
             registry_ids = context.get("registry_ids", [])
 
+        # Lot 1 T1.1: backend-driven buttons, aligned with the draft_critique /
+        # destructive_confirm / for_each siblings. Action ids match the resume
+        # contract — ReAct executes ONLY on confirm/approve and declines
+        # everything else, so the pair is confirm + cancel (no edit: tool-arg
+        # editing is not supported by the tool-level resume path today).
+        available_actions = [
+            {"action": "confirm", "label": "confirm", "style": "primary"},
+            {"action": "cancel", "label": "cancel", "style": "destructive"},
+        ]
+
         # Build action_requests in expected format
         action_requests = [
             {
                 "type": "tool_confirmation",
                 "tool_name": tool_name,
                 "tool_args": tool_args,
+                "available_actions": available_actions,
                 # Data Registry LOT 4: Include registry_ids in action_request
                 "registry_ids": registry_ids,
             }
@@ -238,6 +249,7 @@ class ToolConfirmationInteraction:
             "is_plan_approval": False,
             # Tool-specific metadata
             "tool_name": tool_name,
+            "available_actions": [a["action"] for a in available_actions],
             # Data Registry LOT 4: Registry IDs at top level for easy access
             "registry_ids": registry_ids,
             "has_registry_items": len(registry_ids) > 0,

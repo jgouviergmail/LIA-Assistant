@@ -6,12 +6,15 @@ import { useConversation, ConversationTotals } from '@/hooks/useConversation';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useSearchParams, type ReadonlyURLSearchParams } from 'next/navigation';
 import { Message } from '@/types/chat';
 import { RegistryProvider } from '@/lib/registry-context';
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { PsycheMilestoneWatcher } from '@/components/psyche/PsycheMilestoneWatcher';
 import { useLiveTabTitle } from '@/hooks/useLiveTabTitle';
 import { ChatInput } from '@/components/chat/ChatInput';
+import { HitlActionCard } from '@/components/chat/HitlActionCard';
+import { ConnectorNoticeBanner } from '@/components/chat/ConnectorNoticeBanner';
 import { ContextUsagePill } from '@/components/chat/ContextUsagePill';
 import { GeolocationPrompt } from '@/components/chat/GeolocationPrompt';
 import { DebugPanel } from '@/components/debug/DebugPanel';
@@ -31,8 +34,19 @@ import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UsageBlockedBanner } from '@/components/usage/UsageBlockedBanner';
 import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator';
 
+/**
+ * Read the onboarding deep-link draft (`?draft=`) used to prefill the chat
+ * input (volet B). Returns undefined when absent so the input keeps its
+ * default empty state. The draft is never auto-sent.
+ */
+function readDraftParam(searchParams: ReadonlyURLSearchParams | null): string | undefined {
+  const draft = searchParams?.get('draft');
+  return draft && draft.trim() ? draft : undefined;
+}
+
 export default function ChatPage() {
   const { user, isLoading } = useAuth();
+  const searchParams = useSearchParams();
   // Debug Panel: Check if enabled (runtime admin setting only)
   // Must be before useChat so we can pass visibility for viewport_width calculation
   const { isEnabled: debugPanelEnabled } = useDebugPanelEnabled();
@@ -73,6 +87,11 @@ export default function ChatPage() {
     hydrateContextUsage, // Seeds the pill from /me/totals on page load
     checkAndResumeActiveRun, // ADR-117 Lot 2: silent reattach to an in-flight run
     stopGeneration, // ADR-117 Lot 3: stop button (cancels the in-flight run)
+    hitl, // HITL approval card state (Lot 1 P1-V1)
+    submitHitlDecision, // One-click approval (structured decision, classifier bypassed)
+    hydratePendingHitl, // Card rehydration after reload (GET /agents/hitl/pending)
+    connectorNotices, // Connector error banners (Lot 3 P3, ADR-134)
+    dismissConnectorNotice,
   } = useChat({ debugPanelVisible: showDebugPanel });
 
   // Blink the tab title while LIA works and the tab is in the background (I5)
@@ -351,7 +370,14 @@ export default function ChatPage() {
         // (the user navigated away mid-run). Silently reattach AFTER the
         // history is rendered so the in-progress bubble lands below its
         // already-persisted user message (product decision: auto-resume).
-        await checkAndResumeActiveRun();
+        const resumed = await checkAndResumeActiveRun();
+
+        // HITL approval card (Lot 1 P1-V1): rebuild the card after a reload —
+        // the interrupt metadata chunk is not part of archived history. When a
+        // live run was reattached, its replay re-arms the card itself.
+        if (!resumed) {
+          await hydratePendingHitl();
+        }
       }
     };
 
@@ -634,9 +660,19 @@ export default function ChatPage() {
           {/* Geolocation Prompt - Shows when user types location phrases */}
           <GeolocationPrompt currentMessage={currentMessage} />
 
+          {/* HITL approval card (Lot 1 P1-V1) — additive: the typed/voice
+              reply below stays fully functional next to the buttons. */}
+          <HitlActionCard hitl={hitl} onAction={submitHitlDecision} />
+
+          {/* Connector error notices (Lot 3 P3, ADR-134): reconnect /
+              rate-limit banners emitted when a tool broke on connector auth.
+              Renders nothing (not even the padding) without notices. */}
+          <ConnectorNoticeBanner notices={connectorNotices} onDismiss={dismissConnectorNotice} />
+
           {/* Input Area - Enhanced with elevation */}
           <div className="border-t border-border/40 bg-card/80 backdrop-blur-sm shadow-lg">
             <ChatInput
+              initialMessage={readDraftParam(searchParams)}
               onSendMessage={sendMessage}
               disabled={isTyping || isUsageBlocked}
               isConnected={isConnected}

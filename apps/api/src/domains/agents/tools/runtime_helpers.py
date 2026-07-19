@@ -425,6 +425,10 @@ def handle_tool_exception(
         ... except Exception as e:
         ...     return handle_tool_exception(e, "search_contacts_tool", {"query": query})
     """
+    from src.domains.agents.services.connector_error_notice import (
+        classify_connector_exception,
+        emit_connector_notice_for_exception,
+    )
     from src.domains.agents.tools.output import UnifiedToolOutput
 
     logger.error(
@@ -435,9 +439,22 @@ def handle_tool_exception(
         exc_info=True,
     )
 
+    # Lot 3 P3 (ADR-134): typed connector auth failures surface an actionable
+    # "reconnect" banner in the chat (best-effort — no-op outside a LangGraph
+    # run) and map to their honest error code instead of a blind
+    # INTERNAL_ERROR, so the LLM can explain the failure truthfully.
+    notice = classify_connector_exception(e)
+    if notice is not None:
+        emit_connector_notice_for_exception(e, tool_name=tool_name)
+    error_code = (
+        "UNAUTHORIZED"
+        if notice is not None and notice.action == "reconnect"
+        else "RATE_LIMIT_EXCEEDED" if notice is not None else "INTERNAL_ERROR"
+    )
+
     return UnifiedToolOutput.failure(
         message=APIMessages.internal_error(type(e).__name__),
-        error_code="INTERNAL_ERROR",
+        error_code=error_code,
         metadata={
             FIELD_ERROR_TYPE: type(e).__name__,
             FIELD_ERROR_MESSAGE: str(e),

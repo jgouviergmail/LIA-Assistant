@@ -282,3 +282,21 @@ Nothing is lost. Since v1.22.0, generation continues **in the background** on th
 
 **📌 Good to know**
 - Only one answer runs at a time per conversation: if you try to send another message during a generation, LIA reattaches you to the answer in progress instead of showing an error
+
+## How do I approve or cancel an action LIA proposes?
+When LIA is about to do something sensitive (send an email, delete an event, validate a draft…), an **approval card** appears above the input with **Confirm** and **Cancel** buttons — and **Modify** for drafts, which lets you describe the change to make.
+
+**Two ways to answer, always available:**
+- One click on the card, or
+- A plain reply **by text or voice** as before ("yes, send it" / "no, cancel")
+
+Both work in parallel — the conversation always wins. Once the action is handled, the card disappears and LIA's reply confirms what was done. This works the same way in both Pipeline and ReAct modes.
+
+## Can I see what LIA did to produce an answer?
+Yes. Under each answer, a small **"⚙ N steps · X s"** line summarizes the backstage. One click expands it to show what LIA actually did:
+
+- The **routing** (how your message was understood)
+- The **tools** it called
+- Its **reasoning**, grouped by category
+
+It is the same transparency as the cost shown on every message, extended to the *flow of actions*. The display stays discreet and collapsed by default, so it never clutters the conversation.

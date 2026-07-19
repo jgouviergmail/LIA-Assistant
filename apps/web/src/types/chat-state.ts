@@ -14,6 +14,8 @@
  */
 
 import { Message, RegistryItem, DebugMetrics, BrowserScreenshotData } from './chat';
+import { HitlCardState, NormalizedHitlPayload, initialHitlCardState } from './hitl';
+import type { ExecutionTrace } from './execution-trace';
 
 // ============================================================================
 // Chat State Machine
@@ -146,6 +148,28 @@ export interface ChatState {
   // compaction threshold. Set on every `done` SSE event when the backend
   // exposes the figures. `null` until the first turn completes.
   contextUsage: ContextUsage | null;
+
+  // HITL approval card (Lot 1 P1-V1): lifecycle of the one-click approval
+  // card built from `hitl_interrupt_metadata` chunks (or rehydrated via
+  // GET /agents/hitl/pending after a reload). The text/voice reply channel
+  // stays fully functional in parallel — see the SEND_MESSAGE interaction.
+  hitl: HitlCardState;
+
+  // Actionable connector error notices (Lot 3 P3, ADR-134): "reconnect" /
+  // "rate limit" banners built from `tool_error` execution steps emitted by
+  // the backend when a connector auth failure breaks a tool. Deduplicated by
+  // (connectorType, action) here — the backend emits once per failed step.
+  connectorNotices: ConnectorNotice[];
+}
+
+/** One actionable connector failure surfaced under the chat input. */
+export interface ConnectorNotice {
+  /** Backend connector type value, e.g. "google_gmail". */
+  connectorType: string;
+  /** What the user can do about it. */
+  action: 'reconnect' | 'rate_limit';
+  /** The failing tool (context for logs; not necessarily displayed). */
+  toolName: string;
 }
 
 // ============================================================================
@@ -277,7 +301,35 @@ export type ChatAction =
   | {
       type: 'CONTEXT_USAGE_HYDRATE';
       payload: { tokens: number; threshold: number };
-    };
+    }
+
+  // Execution trace (Lot 2 P2-V1): attach the captured backstage record
+  // (steps + reasoning + duration) to a completed assistant message so it
+  // survives the response instead of being wiped at the progress→answer flip.
+  | {
+      type: 'TRACE_ATTACH';
+      payload: { messageId: string; trace: ExecutionTrace };
+    }
+
+  // Connector error notices (Lot 3 P3): ADD dedupes by (connectorType,
+  // action); DISMISS removes one banner; notices are cleared on the next
+  // SEND_MESSAGE (a new turn gets a fresh verdict).
+  | { type: 'CONNECTOR_NOTICE_ADD'; payload: { notice: ConnectorNotice } }
+  | {
+      type: 'CONNECTOR_NOTICE_DISMISS';
+      payload: { connectorType: string; action: ConnectorNotice['action'] };
+    }
+
+  // HITL approval card (Lot 1 P1-V1). Last-wins: a new interrupt replaces
+  // any previous card state.
+  | { type: 'HITL_AWAITING'; payload: { payload: NormalizedHitlPayload } }
+  // Button pressed — buttons lock while the decision request is in flight.
+  | { type: 'HITL_SUBMITTING'; payload: { action: 'confirm' | 'cancel' } }
+  // Typed error from the backend: the decision no longer matches the pending
+  // interrupt (expired / already answered / superseded).
+  | { type: 'HITL_EXPIRED' }
+  // Reset (conversation cleared).
+  | { type: 'HITL_CLEAR' };
 
 // ============================================================================
 // Initial State
@@ -308,6 +360,8 @@ export const initialChatState: ChatState = {
   browserScreenshot: null, // Browser Screenshots: No overlay at start
   compaction: null, // Compaction v2: no compaction in flight or recorded
   contextUsage: null, // Context pill: no measurement yet (first turn not done)
+  hitl: initialHitlCardState, // HITL card: no interrupt pending at start
+  connectorNotices: [], // Lot 3 P3: no connector failure surfaced at start
 };
 
 // ============================================================================

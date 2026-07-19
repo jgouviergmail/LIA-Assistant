@@ -11,17 +11,27 @@ import {
 import {
   ConversationTotals,
   ChatAction,
+  ChatState,
   DebugMetricsEntry,
   ContextUsage,
   StreamPhase,
 } from '@/types/chat-state';
+import { normalizeHitlPayload } from '@/lib/hitl-payload';
+import type { HitlDecisionWire } from '@/types/hitl';
+import type { ExecutionTraceStep } from '@/types/execution-trace';
 import {
   chatReducer,
   createInitialState,
   persistDebugMetricsHistory,
 } from '@/reducers/chat-reducer';
 import { validateReducerAction } from '@/reducers/chat-reducer-errors';
-import { cancelActiveRun, chatSSEClient, ChatStreamError, fetchActiveRun } from '@/lib/api/chat';
+import {
+  cancelActiveRun,
+  chatSSEClient,
+  ChatStreamError,
+  fetchActiveRun,
+  fetchPendingHitl,
+} from '@/lib/api/chat';
 import { useAuth } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useLiaGender } from '@/hooks/useLiaGender';
@@ -77,7 +87,8 @@ export interface UseChatReturn {
      */
     sttMeta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta & {
       stt_audio_duration_seconds?: number | null;
-    }
+    },
+    hitlDecision?: HitlDecisionWire
   ) => Promise<void>;
   clearMessages: () => void;
   setMessages: (messages: Message[]) => void;
@@ -107,6 +118,29 @@ export interface UseChatReturn {
     tokens: number | null | undefined,
     threshold: number | null | undefined
   ) => void;
+  /** HITL approval card state (Lot 1 P1-V1). */
+  hitl: ChatState['hitl'];
+  /**
+   * Rehydrate the approval card after a page reload: fetches the pending
+   * interrupt (GET /agents/hitl/pending) and re-arms the card when one is
+   * pending. Safe no-op on null/failure — progressive enhancement only.
+   */
+  hydratePendingHitl: () => Promise<void>;
+  /**
+   * One-click HITL approval (Lot 1 P1-V1): locks the card (submitting),
+   * then sends the localized button label as the message with the
+   * structured decision attached. Wire action ids pass through verbatim
+   * (the backend canonicalizes aliases).
+   */
+  submitHitlDecision: (
+    wireAction: string,
+    labelText: string,
+    modificationInstructions?: string
+  ) => Promise<void>;
+  /** Connector error banners accumulated for the current turn (Lot 3 P3). */
+  connectorNotices: ChatState['connectorNotices'];
+  /** Dismiss one connector banner by its (connector, action) identity. */
+  dismissConnectorNotice: (connectorType: string, action: 'reconnect' | 'rate_limit') => void;
   /** ADR-117 Lot 2: reattach to an in-flight background run (replay + live). */
   resumeActiveRun: (streamId: string) => Promise<void>;
   /**
@@ -121,6 +155,45 @@ export interface UseChatReturn {
    * Flag OFF (or no active run), falls back to the legacy local abort.
    */
   stopGeneration: () => Promise<void>;
+}
+
+/**
+ * Build the chat-stream request body (pure, hook-free).
+ *
+ * Optional blocks: attachments, remote-STT cost metadata (persisted on the
+ * user ConversationMessage row), and the one-click HITL decision (Lot 1
+ * P1-V1) — the structured decision rides the normal send, with the localized
+ * button label as message content (user bubble + graceful NL fallback on
+ * older backends).
+ */
+function buildChatRequest(args: {
+  content: string;
+  userId: string;
+  sessionId: string;
+  browserContext: BrowserContext;
+  attachmentIds?: string[];
+  sttMeta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta & {
+    stt_audio_duration_seconds?: number | null;
+  };
+  hitlDecision?: HitlDecisionWire;
+}) {
+  const { content, userId, sessionId, browserContext, attachmentIds, sttMeta, hitlDecision } = args;
+  return {
+    message: content,
+    user_id: userId,
+    session_id: sessionId,
+    context: browserContext,
+    ...(attachmentIds && attachmentIds.length > 0 ? { attachment_ids: attachmentIds } : {}),
+    ...(sttMeta?.stt_provider
+      ? {
+          stt_provider: sttMeta.stt_provider,
+          stt_audio_duration_seconds: sttMeta.stt_audio_duration_seconds ?? null,
+          stt_cost_usd: sttMeta.stt_cost_usd ?? null,
+          stt_cost_eur: sttMeta.stt_cost_eur ?? null,
+        }
+      : {}),
+    ...(hitlDecision ? { hitl_decision: hitlDecision } : {}),
+  };
 }
 
 export const useChat = ({
@@ -231,6 +304,11 @@ export const useChat = ({
   const emittedStepKeysRef = useRef<Set<string>>(new Set());
   // Live reasoning (💭) accumulated text — cleared on first answer token
   const reasoningBufRef = useRef<string>('');
+  // Execution trace accumulators (Lot 2 P2-V1): parallel to the ephemeral
+  // refs above but NOT wiped at the answer flip — they survive to `done`
+  // where the backstage record is attached to the message.
+  const traceStepsRef = useRef<ExecutionTraceStep[]>([]);
+  const traceReasoningRef = useRef<string>('');
 
   // API health monitoring - syncs with reducer state via callback
   useAPIHealth({
@@ -286,6 +364,8 @@ export const useChat = ({
               executionStepsRef,
               emittedStepKeysRef,
               reasoningBufRef,
+              traceStepsRef,
+              traceReasoningRef,
               assistantMessageId,
               progressMessageId,
               setProgressMessageId: (id: string | null) => {
@@ -383,7 +463,8 @@ export const useChat = ({
       attachmentsMeta?: MessageAttachmentMeta[],
       sttMeta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta & {
         stt_audio_duration_seconds?: number | null;
-      }
+      },
+      hitlDecision?: HitlDecisionWire
     ) => {
       // ✅ CRITICAL: Cancel any pending stream before starting new one
       // Prevents double token counting and ensures clean state
@@ -481,6 +562,10 @@ export const useChat = ({
       executionStepsRef.current = [];
       emittedStepKeysRef.current = new Set();
       reasoningBufRef.current = '';
+      // Trace accumulators reset per turn (Lot 2): a router_decision re-seeds
+      // them, this guards the edge where the first event is not a router.
+      traceStepsRef.current = [];
+      traceReasoningRef.current = '';
 
       // Prepare SSE request
       // Session management: Using user.id as session identifier
@@ -510,24 +595,15 @@ export const useChat = ({
             : null,
       };
 
-      const request = {
-        message: content,
-        user_id: user.id,
-        session_id: sessionId,
-        context: browserContext,
-        ...(attachmentIds && attachmentIds.length > 0 ? { attachment_ids: attachmentIds } : {}),
-        // Forward remote-STT cost metadata so the backend persists it on
-        // the user ConversationMessage row. All four fields are optional and
-        // ignored when the user message did not come from a remote provider.
-        ...(sttMeta?.stt_provider
-          ? {
-              stt_provider: sttMeta.stt_provider,
-              stt_audio_duration_seconds: sttMeta.stt_audio_duration_seconds ?? null,
-              stt_cost_usd: sttMeta.stt_cost_usd ?? null,
-              stt_cost_eur: sttMeta.stt_cost_eur ?? null,
-            }
-          : {}),
-      };
+      const request = buildChatRequest({
+        content,
+        userId: user.id,
+        sessionId,
+        browserContext,
+        attachmentIds,
+        sttMeta,
+        hitlDecision,
+      });
 
       try {
         // Drop any tokens still buffered by a previous (cancelled) stream —
@@ -548,6 +624,8 @@ export const useChat = ({
               executionStepsRef,
               emittedStepKeysRef,
               reasoningBufRef,
+              traceStepsRef,
+              traceReasoningRef,
               assistantMessageId,
               progressMessageId,
               setProgressMessageId: (id: string | null) => {
@@ -791,6 +869,54 @@ export const useChat = ({
     [] // dispatch excluded: stable from useReducer
   );
 
+  /**
+   * HITL card rehydration (Lot 1 P1-V1) — called by the chat page at mount,
+   * alongside history loading. The wire payload is normalized here; out-of-
+   * scope kinds (clarification…) yield null and no card appears.
+   */
+  const hydratePendingHitl = useCallback(async () => {
+    const pending = await fetchPendingHitl();
+    const normalized = normalizeHitlPayload(pending);
+    if (normalized) {
+      dispatch({ type: 'HITL_AWAITING', payload: { payload: normalized } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // dispatch excluded: stable from useReducer
+
+  /** Wire→canonical action mapping (mirror of the backend alias table). */
+  const canonicalHitlAction = (wireAction: string): 'confirm' | 'cancel' =>
+    ['cancel', 'reject'].includes(wireAction) ? 'cancel' : 'confirm';
+
+  const submitHitlDecision = useCallback(
+    async (wireAction: string, labelText: string, modificationInstructions?: string) => {
+      const { status, payload } = stateRef.current.hitl;
+      if (status !== 'awaiting' || !payload?.messageId) {
+        return; // Defensive: no live card, or unidentifiable interrupt
+      }
+      // Lock the buttons BEFORE the send: SEND_MESSAGE keeps a 'submitting'
+      // card untouched (the via_text rule only fires on 'awaiting').
+      dispatch({ type: 'HITL_SUBMITTING', payload: { action: canonicalHitlAction(wireAction) } });
+      await sendMessage(labelText, undefined, undefined, undefined, {
+        message_id: payload.messageId,
+        action: wireAction,
+        ...(modificationInstructions
+          ? { modification_instructions: modificationInstructions }
+          : {}),
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sendMessage] // dispatch/stateRef stable
+  );
+
+  // Connector error notices (Lot 3 P3): dismiss one banner.
+  const dismissConnectorNotice = useCallback(
+    (connectorType: string, action: 'reconnect' | 'rate_limit') => {
+      dispatch({ type: 'CONNECTOR_NOTICE_DISMISS', payload: { connectorType, action } });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [] // dispatch stable
+  );
+
   // Derived state (computed from reducer state)
   // Compaction v2 (Task 3.3): `compacting` is treated as an in-flight state so
   // that the existing `disabled={isTyping || isUsageBlocked}` wiring on
@@ -825,6 +951,13 @@ export const useChat = ({
     // Context-usage pill: tokens vs compaction threshold (null on first load)
     contextUsage: state.contextUsage,
     hydrateContextUsage,
+    // HITL approval card (Lot 1 P1-V1)
+    hitl: state.hitl,
+    hydratePendingHitl,
+    submitHitlDecision,
+    // Connector error notices (Lot 3 P3, ADR-134)
+    connectorNotices: state.connectorNotices,
+    dismissConnectorNotice,
     // ADR-117 Lot 2: background-run reattachment
     resumeActiveRun,
     checkAndResumeActiveRun,

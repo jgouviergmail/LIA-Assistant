@@ -369,6 +369,60 @@ class TestGeneric:
         result = await _parse("paris", _pending("clarification"))
         assert result == {"clarification": "paris"}
 
+
+# ============================================================================
+# clarification branch — cancel intent aborts, info passes through
+# ============================================================================
+
+
+class TestClarificationCancel:
+    """Lot 1 Phase 0: a cancel intent on a clarification must ABORT the flow.
+
+    Runtime-proven defect: without an abort path, "annule" either fast-paths to
+    a plan-level ``{"decision": "REJECT"}`` the clarification_node ignores
+    (bare word), or passes through as clarification text the planner dutifully
+    replans with (full phrase) — both loop back into the same interrupt.
+    """
+
+    async def test_bare_cancel_word_aborts(self):
+        result = await _parse("annule", _pending("clarification"))
+        assert result == {"clarification": "annule", "cancelled": True}
+
+    async def test_cancel_phrase_classified_reject_aborts(self):
+        result = await _parse(
+            "Non, annule cette action",
+            _pending("clarification"),
+            classification=_classification("REJECT", reasoning="user cancels"),
+        )
+        assert result == {"clarification": "Non, annule cette action", "cancelled": True}
+
+    async def test_info_reply_passes_through_even_with_edit_classification(self):
+        result = await _parse(
+            "utilise jean.dupont@gmail.com",
+            _pending("clarification"),
+            classification=_classification("EDIT", edited_params={"to": "jean.dupont@gmail.com"}),
+        )
+        assert result == {"clarification": "utilise jean.dupont@gmail.com"}
+
+    async def test_low_confidence_reject_passes_through(self):
+        from src.core.config import settings
+
+        below = settings.hitl_classifier_confidence_threshold - 0.2
+        result = await _parse(
+            "non pas celui-là, l'autre",
+            _pending("clarification"),
+            classification=_classification("REJECT", confidence=below),
+        )
+        assert result == {"clarification": "non pas celui-là, l'autre"}
+
+    async def test_classifier_error_falls_back_to_passthrough(self):
+        result = await _parse(
+            "quelque chose de long et ambigu",
+            _pending("clarification"),
+            classifier_error=RuntimeError("llm down"),
+        )
+        assert result == {"clarification": "quelque chose de long et ambigu"}
+
     async def test_classifier_approve(self):
         result = await _parse(
             "sure go for it",

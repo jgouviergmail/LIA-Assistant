@@ -32,6 +32,8 @@ function buildContext(): { context: SSEHandlerContext; dispatch: ReturnType<type
     executionStepsRef: { current: [] },
     emittedStepKeysRef: { current: new Set<string>() },
     reasoningBufRef: { current: '' },
+    traceStepsRef: { current: [] },
+    traceReasoningRef: { current: '' },
   } as unknown as SSEHandlerContext;
   return { context, dispatch };
 }

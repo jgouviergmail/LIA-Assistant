@@ -35,6 +35,7 @@ from src.core.constants import (
     ENTITY_RESOLUTION_MAX_CANDIDATES_DEFAULT,
     EXTERNAL_CONTENT_WRAPPING_ENABLED_DEFAULT,
     FORMAT_TRUNCATE_SUBJECT_LENGTH_DEFAULT,
+    HITL_DETECTION_CACHE_TTL_SECONDS_DEFAULT,
     HITL_PENDING_DATA_TTL_SECONDS_DEFAULT,
     JINJA_MAX_RECURSION_DEPTH_DEFAULT,
     LLM_PRICING_CACHE_TTL_DEFAULT,
@@ -246,6 +247,15 @@ class AdvancedSettings(BaseSettings):
         default=HITL_PENDING_DATA_TTL_SECONDS_DEFAULT,
         gt=0,
         description="Redis TTL for pending HITL tool approval data (seconds, default: 1 hour for response time metrics)",
+    )
+    hitl_detection_cache_ttl_seconds: int = Field(
+        default=HITL_DETECTION_CACHE_TTL_SECONDS_DEFAULT,
+        gt=0,
+        description=(
+            "In-memory TTL for the per-process pending-HITL detection cache "
+            "(seconds). Save/clear invalidate the local entry; this TTL only "
+            "bounds cross-worker staleness."
+        ),
     )
 
     # ========================================================================

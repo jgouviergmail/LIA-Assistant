@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 3.1
-**Date** : 2026-07-18
-**Application** : LIA v1.25.6
+**Date** : 2026-07-19
+**Application** : LIA v1.25.7
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -1108,4 +1108,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 120+ ADRs, et du changelog (v1.0 à v1.25.6). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 120+ ADRs, et du changelog (v1.0 à v1.25.7). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

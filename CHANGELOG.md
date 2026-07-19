@@ -5,6 +5,83 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.7] - 2026-07-19
+
+> **The agentic core becomes visible, controllable, and honest about its failures.** LIA's most consequential moments — the ones where it acts on your behalf — were the least tangible: an approval was a sentence you had to type, the work behind an answer vanished the instant the reply began, and a broken connector surfaced only as a vague apology. This release turns each of those into something you can see and act on. **Approval cards** put a one-tap Confirm / Cancel — and now **Modify** — under any pending action, riding a deterministic structured decision that skips the LLM classifier entirely (byte-for-byte parity with the conversational path, fail-closed on any stale click); the typed and voice channels stay fully live beside them. The **execution trace** that used to be wiped at the first answer token now survives the response as a collapsed "N steps · Xs" line under the bubble, expandable into the grouped backstage — the same honesty the cost-per-message already gave, extended to *what LIA actually did*. When a tool breaks because a connector's OAuth access expired, an **actionable "Reconnect" banner** now appears in the chat, classified from typed exceptions (never string-matched) and linking straight to the fix. The **onboarding** stops being a slideshow: its pages now complete the tour and jump you into connecting a service or trying a real example. Along the way a cluster of latent HITL defects — each proven red before being fixed green — was closed: a clarification you cancelled used to loop forever, a cancelled run left an orphan pending interrupt, a stale detection cache mis-served the resume path, the tour re-opened on every navigation, a rejected OAuth refresh was mislogged as a decryption failure, and a resolved approval card lingered on screen after its outcome had already been spoken.
+
+### Added
+
+- **HITL approval cards (ADR-132)** — a pending action (tool confirmation,
+  draft validation, destructive or FOR_EACH confirmation) renders a card above
+  the input with backend-driven one-tap buttons. A structured `hitl_decision`
+  rides the normal send and maps deterministically to the resume payload — no
+  classifier call (`classifier_bypassed`), byte-for-byte parity with the
+  natural-language path, fail-closed (`hitl_decision_stale`) on any
+  stale/mismatched click. The card rehydrates after a reload via
+  `GET /agents/hitl/pending`; the typed/voice reply channel stays fully
+  functional beside it, in both Pipeline and ReAct modes.
+- **Inline draft edit (ADR-132)** — the draft card's *Modify* button opens an
+  instructions field that routes the live modification loop (structured edit,
+  classifier bypassed) and re-presents the revised draft for validation.
+- **Execution trace per message (ADR-133)** — the agentic steps and live
+  reasoning, previously wiped at the progress→answer flip, are captured and
+  attached to the message: a collapsed "⚙ N steps · Xs" line under the answer
+  expands into the steps grouped by category plus the reasoning. Session-only,
+  100% frontend, no SSE contract change.
+- **Actionable connector error notices (ADR-134)** — when a tool fails on a
+  connector's expired or revoked OAuth (a typed `ConnectorTokenExpiredError`,
+  or a 401/403 from the provider — classified by exception type, never by
+  message text), a "Reconnect" banner appears in the chat and links to the
+  connector settings; a 429 surfaces a rate-limit notice instead. New
+  `connector_error_notices_total` metric; `HITL_DETECTION_CACHE_TTL_SECONDS`
+  knob.
+- **Actionable onboarding pages** — the connectors page gains a *Connect my
+  services* button and the examples page turns each command into a tap that
+  prefills the chat (never auto-sent); both complete the tutorial first, then
+  navigate.
+
+### Changed
+
+- **Execution trace line sits bottom-right** of the assistant bubble.
+- **Resolved approval cards clear at end of turn** — a confirmed, cancelled or
+  typed-reply card disappears once the reply lands (the answer is the
+  feedback); an expired card stays until the next message.
+- **Voice agent opening and spoken dates refined** — the telephony assistant
+  opens without waiting for the callee's first turn, and states dates without
+  the year the way people speak them.
+
+### Fixed
+
+- **The clarification loop was inescapable** — cancelling a clarification
+  ("no, forget it") now aborts to a response instead of re-asking forever
+  (new abort branch, conditional edge, self-cleaning flag; proven end-to-end).
+- **A cancelled run left an orphan pending interrupt** — a cancelled background
+  run now clears `pending_hitl` (a killed run preserves it, on purpose).
+- **The HITL detection cache was never invalidated** — extracted to
+  `utils/hitl_cache` with invalidation at the `HITLStore` save/delete
+  chokepoint, bounded by the new TTL knob.
+- **Onboarding re-opened endlessly** — finishing or skipping the tour now
+  persists completion, so the dashboard layout stops re-mounting the dialog on
+  every navigation.
+- **A rejected OAuth refresh was mislogged as "decryption failed"** — the
+  `invalid_grant` path now raises a typed `ConnectorTokenExpiredError` that
+  reaches the agent layer intact instead of being swallowed by a broad
+  `except`.
+
+### Tests
+
+- ~135 new unit and integration tests plus two hermetic Playwright journey
+  specs: reducer transitions (HITL card lifecycle, execution-trace attach/cap,
+  connector notices), SSE handler capture and interception, the approval-card /
+  trace-disclosure / reconnect-banner / onboarding components, the
+  structured-decision mapping matrix (confirm/cancel/edit parity, fail-closed),
+  the connector-error-notice classifier, and the pending-HITL lifecycle. Every
+  latent fix landed red-then-green; each feature was runtime-validated in dev
+  Docker (approval click with `classifier_bypassed`, trace after a real run,
+  reconnect banner on a deliberately corrupted token, draft edit re-presented,
+  card cleared after resolution). Three new ADRs (132–134); frontend
+  complexity, accessibility and file-size ratchets held without a raise.
+
 ## [1.25.6] - 2026-07-18
 
 > **Interest notifications learn variety — every mechanism validated by measurement before a line of code.** Production data showed the problem was not the draw (already uniform) but pool composition: one perceived subject (AI), fragmented into 9 of 19 interests, captured ~50% of notifications. Three benches on the real prod snapshot settled the design (ADR-131): an embedding-cosine "semantic cooldown" was **refuted** (topic-embedding space is compressed — a false pair scores higher than a true one; only ≥ 0.95 is reliable), incremental LLM subject labeling was **refuted** (order-dependent drift, 89% agreement, one aberrant merge), while **batch** labeling measured 98.2% stable — so the `subject` label became derived data, recomputed wholesale by a scheduled job, never assigned at extraction. A 300-run simulation validated against production (uniform simulated 47.9% vs ~50% measured) picked variant **V5**: subject cooldown, then rarity draws at both the subject and interest level — the dominant family falls to ~33% and starvation drops from 0.8 to 0.3 interests/30 days, with fail-open at every stage and an instant `uniform` rollback knob. Along the way the audit closed real holes: the extraction dedup path silently disabled itself when embedding generation failed (how "Anthropic"/"anthropic" both existed), manual renames could collide or keep stale labels, and a nightly retro-merge (≥ 0.95 only — the measured reliable zone) now heals history while repointing the notification audit trail. Notifications also gained **deterministic source hyperlinks** (never LLM-generated — zero hallucinated URLs): markdown links in chat, a readable text conversion for FCM/Telegram. And a long-standing i18n bug died: proactive notification titles were keyed `zh` while `User.language` is backend-canonical `zh-CN` — Chinese users had been silently receiving English titles.

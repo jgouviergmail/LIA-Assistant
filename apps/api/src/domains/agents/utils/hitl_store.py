@@ -14,6 +14,7 @@ from typing import Any
 
 import redis.asyncio as aioredis
 
+from src.domains.agents.utils.hitl_cache import invalidate as invalidate_detection_cache
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -71,6 +72,10 @@ class HITLStore:
 
         key = f"hitl_pending:{thread_id}"
         await self.redis.set(key, json.dumps(versioned_data), ex=self.ttl_seconds)
+        # The detection cache may hold a fresh "nothing pending" answer for
+        # this conversation — drop it so a reply faster than the cache TTL
+        # (one-click approvals) is routed as a resumption, not a new turn.
+        invalidate_detection_cache(thread_id)
 
         logger.info(
             "hitl_interrupt_saved",
@@ -145,6 +150,9 @@ class HITLStore:
         """
         key = f"hitl_pending:{thread_id}"
         await self.redis.delete(key)
+        # Mirror of save_interrupt: a fresh "pending" answer must not outlive
+        # the deletion, or the next message resumes a phantom HITL.
+        invalidate_detection_cache(thread_id)
 
         logger.info("hitl_interrupt_deleted", thread_id=thread_id)
 

@@ -39,6 +39,7 @@ from src.domains.agents.constants import (
     STATE_KEY_CLARIFICATION_RESPONSE,
     STATE_KEY_NEEDS_REPLAN,
     STATE_KEY_PLAN_APPROVED,
+    STATE_KEY_PLAN_REJECTION_REASON,
     STATE_KEY_SEMANTIC_VALIDATION,
 )
 from src.infrastructure.observability.logging import get_logger
@@ -242,11 +243,18 @@ async def clarification_node(
         if isinstance(clarification_data, dict)
         else str(clarification_data)
     )
+    # Lot 1 Phase 0: cancel intent detected by the resume parser
+    # (approval_decision._classify_clarification) — abort the flow instead of
+    # replanning with the cancel phrase as clarification info (loop otherwise).
+    clarification_cancelled = isinstance(clarification_data, dict) and bool(
+        clarification_data.get("cancelled", False)
+    )
 
     logger.info(
         "clarification_node_received_user_response",
         clarification_response_length=len(clarification_response),
         has_response=bool(clarification_response),
+        cancelled=clarification_cancelled,
     )
 
     # Track metrics
@@ -265,6 +273,32 @@ async def clarification_node(
     updated_semantic_validation["requires_clarification"] = False
     # Clear clarification questions as they've been answered
     updated_semantic_validation["clarification_questions"] = []
+    # Self-cleaning abort signal for route_from_clarification: explicitly False
+    # on every normal path so a cancelled flag from an earlier turn can never
+    # leak into a later clarification (state persists across turns).
+    updated_semantic_validation["clarification_cancelled"] = False
+
+    # =========================================================================
+    # Lot 1 Phase 0: ABORT branch — user cancelled during clarification
+    # =========================================================================
+    # Without this exit, a cancel intent loops forever: the planner replans
+    # (with or without the cancel text) and the validator re-flags the same
+    # issues. Reuses the plan-rejection contract the response node already
+    # renders (same as approval-gate rejection).
+    if clarification_cancelled:
+        updated_semantic_validation["clarification_cancelled"] = True
+        logger.info(
+            "clarification_node_cancelled_by_user",
+            clarification_response=clarification_response[:50] if clarification_response else None,
+            action="Aborting flow, routing to response",
+        )
+        return {
+            STATE_KEY_CLARIFICATION_RESPONSE: clarification_response,
+            STATE_KEY_NEEDS_REPLAN: False,
+            STATE_KEY_PLAN_APPROVED: False,
+            STATE_KEY_PLAN_REJECTION_REASON: "User cancelled during clarification",
+            STATE_KEY_SEMANTIC_VALIDATION: updated_semantic_validation,
+        }
 
     # =========================================================================
     # BUG FIX 2025-12-07: Differentiate between confirmation vs info clarification

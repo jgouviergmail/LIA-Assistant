@@ -174,7 +174,7 @@
     },
     "src/hooks/useChat.ts": {
       "count": 1,
-      "max": 27
+      "max": 20
     },
     "src/hooks/useConversation.ts": {
       "count": 1,
