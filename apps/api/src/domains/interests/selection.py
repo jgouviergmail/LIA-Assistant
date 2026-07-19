@@ -95,6 +95,60 @@ def _subject_key(interest_id: UUID, subject: str | None) -> str:
     return subject if subject else f"{_SOLO_PREFIX}{interest_id}"
 
 
+@dataclass(frozen=True)
+class _LedgerStats:
+    """Serving statistics derived from the unified notification ledger.
+
+    Attributes:
+        subject_counts: Notifications per subject key within the lookback.
+        subject_last: Most recent notification datetime per subject key.
+        interest_counts: Notifications per interest within the lookback.
+    """
+
+    subject_counts: dict[str, int]
+    subject_last: dict[str, datetime]
+    interest_counts: dict[UUID, int]
+
+
+def _scan_ledger(
+    recent_notifications: list[tuple[UUID | None, datetime]],
+    subject_by_interest: dict[UUID, str | None],
+    now: datetime,
+    lookback_days: int,
+) -> _LedgerStats:
+    """Aggregate ledger rows into per-subject and per-interest serving stats.
+
+    Shared by the rarity selection (ADR-131) and the varied context sample
+    (ADR-135) so both read the ledger through the same, single rule set.
+
+    Args:
+        recent_notifications: (interest_id, created_at) pairs from ANY flow;
+            None ids (deleted interests) are skipped, as are notifications of
+            interests that are no longer active (absent from the subject map).
+        subject_by_interest: Subject label for every ACTIVE interest.
+        now: Timezone-aware current datetime.
+        lookback_days: Window bounding which rows count.
+
+    Returns:
+        Aggregated _LedgerStats.
+    """
+    lookback_floor = now - timedelta(days=lookback_days)
+    subject_counts: dict[str, int] = {}
+    subject_last: dict[str, datetime] = {}
+    interest_counts: dict[UUID, int] = {}
+    for interest_id, created_at in recent_notifications:
+        if interest_id is None or interest_id not in subject_by_interest:
+            continue
+        if created_at < lookback_floor:
+            continue
+        key = _subject_key(interest_id, subject_by_interest[interest_id])
+        subject_counts[key] = subject_counts.get(key, 0) + 1
+        interest_counts[interest_id] = interest_counts.get(interest_id, 0) + 1
+        if key not in subject_last or created_at > subject_last[key]:
+            subject_last[key] = created_at
+    return _LedgerStats(subject_counts, subject_last, interest_counts)
+
+
 def _resolve_recent_notifications(
     recent_notifications: list[tuple[UUID | None, datetime]],
     subject_by_interest: dict[UUID, str | None],
@@ -114,22 +168,11 @@ def _resolve_recent_notifications(
     Returns:
         (per-subject counts, per-interest counts, cooling subject keys).
     """
-    lookback_floor = now - timedelta(days=config.lookback_days)
+    stats = _scan_ledger(recent_notifications, subject_by_interest, now, config.lookback_days)
     cooldown_floor = now - timedelta(hours=config.subject_cooldown_hours)
-    subject_counts: dict[str, int] = {}
-    interest_counts: dict[UUID, int] = {}
-    cooling: set[str] = set()
-    for interest_id, created_at in recent_notifications:
-        if interest_id is None or interest_id not in subject_by_interest:
-            continue
-        if created_at < lookback_floor:
-            continue
-        key = _subject_key(interest_id, subject_by_interest[interest_id])
-        subject_counts[key] = subject_counts.get(key, 0) + 1
-        interest_counts[interest_id] = interest_counts.get(interest_id, 0) + 1
-        if created_at >= cooldown_floor:
-            cooling.add(key)
-    return subject_counts, interest_counts, cooling
+    # A subject cools when its MOST RECENT notification is inside the window.
+    cooling = {key for key, last in stats.subject_last.items() if last >= cooldown_floor}
+    return stats.subject_counts, stats.interest_counts, cooling
 
 
 def _draw_subject(
@@ -186,6 +229,64 @@ def _draw_member(
         weights = [w for _, w in members]
     selected: UserInterest = draw.choices(members, weights=weights)[0][0]
     return selected
+
+
+def pick_varied_sample(
+    candidates: list["UserInterest"],
+    subject_by_interest: dict[UUID, str | None],
+    recent_notifications: list[tuple[UUID | None, datetime]],
+    now: datetime,
+    sample_size: int,
+    lookback_days: int,
+    rng: random.Random | None = None,
+) -> list["UserInterest"]:
+    """Pick a subject-diverse interest sample for context injection (ADR-135).
+
+    One interest per subject, subjects ordered least-recently-served first
+    (never-served subjects lead, RNG tiebreak), and within a subject the
+    least-served member wins. Replaces top-by-weight context fetches whose
+    fixed composition anchored the heartbeat LLM on the same topics.
+
+    Args:
+        candidates: Active interests to sample from.
+        subject_by_interest: Subject label per ACTIVE interest (ADR-131).
+        recent_notifications: (interest_id, created_at) pairs from ANY flow
+            (unified ledger); None ids (deleted interests) are skipped.
+        now: Timezone-aware current datetime.
+        sample_size: Max interests returned.
+        lookback_days: Serving-count window.
+        rng: Injected RNG for deterministic tests; defaults to the module RNG.
+
+    Returns:
+        Up to sample_size interests, one per subject, diversity-ordered.
+    """
+    if not candidates or sample_size <= 0:
+        return []
+    draw: random.Random | Any = rng or random
+
+    stats = _scan_ledger(recent_notifications, subject_by_interest, now, lookback_days)
+
+    groups: dict[str, list[UserInterest]] = {}
+    for interest in candidates:
+        key = _subject_key(interest.id, subject_by_interest.get(interest.id))
+        groups.setdefault(key, []).append(interest)
+
+    def subject_rank(key: str) -> tuple[int, float, float]:
+        last = stats.subject_last.get(key)
+        # Never-served subjects first (0), then oldest-served first.
+        return (
+            0 if last is None else 1,
+            last.timestamp() if last is not None else 0.0,
+            draw.random(),
+        )
+
+    def member_rank(interest: "UserInterest") -> tuple[int, float]:
+        return (stats.interest_counts.get(interest.id, 0), draw.random())
+
+    sample: list[UserInterest] = []
+    for key in sorted(groups, key=subject_rank)[:sample_size]:
+        sample.append(min(groups[key], key=member_rank))
+    return sample
 
 
 def select_interest_subject_rarity(

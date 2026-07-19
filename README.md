@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.25.7</strong> — <strong>The agentic core becomes visible, controllable, and honest about its failures.</strong> LIA's most consequential moments — the ones where it acts on your behalf — were the least tangible. This release makes each of them something you can see and act on. <strong>Approval cards</strong> (<strong>ADR-132</strong>) put a one-tap Confirm / Cancel — and <strong>Modify</strong> for drafts — under any pending action, riding a deterministic structured decision that skips the LLM classifier entirely (byte-for-byte parity with the conversational path, fail-closed on any stale click); the typed and voice channels stay fully live beside them, in both Pipeline and ReAct modes. The <strong>execution trace</strong> (<strong>ADR-133</strong>) that used to be wiped at the first answer token now survives the response as a collapsed <code>⚙ N steps · Xs</code> line under the bubble, expandable into the grouped backstage — the same honesty the cost-per-message already gave, extended to <em>what LIA actually did</em>. When a tool breaks because a connector's OAuth expired, an <strong>actionable "Reconnect" banner</strong> (<strong>ADR-134</strong>) now appears in the chat, classified from typed exceptions (never string-matched) and linking straight to the fix. <strong>Onboarding</strong> stops being a slideshow: its pages complete the tour and jump you into connecting a service or trying a real example. A cluster of latent HITL defects — each proven <em>red</em> before being fixed <em>green</em> — was also closed: a cancelled clarification looped forever, a cancelled run left an orphan pending interrupt, a stale detection cache mis-served the resume path, the tour re-opened on every navigation, a rejected OAuth refresh was mislogged as a decryption failure, and a resolved card lingered after its outcome had been spoken. <strong>Verified:</strong> <strong>10,440 fast backend unit</strong> tests + <strong>1,384 frontend</strong> tests green, mypy strict clean on 908 files, all frontend complexity / accessibility / file-size ratchets held, three new ADRs (132–134), every feature runtime-validated in dev Docker. — 19 July 2026.
+  <strong>Version 1.25.8</strong> — <strong>Proactive notifications stop repeating themselves — and start saying something concrete.</strong> A user report ("it's always the same interest, and the remarks are flat") became a measured investigation: over 45 days of production, <strong>~14 of 20 interest-flavoured heartbeats centred on the same subject</strong>, near-daily, and not one ever named an actual film, article or event. The causes were structural (<strong>ADR-135</strong>): the interest sample injected into the decision prompt was <em>hardcoded top-30%-by-weight</em> — the model could not rotate away from a fixed list; the anti-redundancy window held 5 notifications and exposed only <em>which sources</em> fired, never <em>what was said</em>; and the context carried topic <em>names only</em>, so "have a look at a recent release" was the best any model could produce. The fix is mechanical where it can be: a <strong>subject-diverse sample</strong> (one interest per subject, least-recently-served first), a <strong>unified cross-flow ledger</strong> so a theme covered by either proactive flow steps aside — with an explicit boundary keeping each flow's quota budget its own — a <strong>content-level anti-repetition window</strong> (10 notifications / 7 days, excerpts included, rule operating on topics rather than sources), and <strong>on-demand enrichment</strong> that fetches real facts and names them with clickable source links. Every mechanism was benched on production data before a line was written: the structured-output risk retired at 8/8, the content window proven to unlock pivots (2 notifies/4 runs vs 0/7), the enrichment chain proven end-to-end. Also fixed: 141 Brave-served notifications audited as "custom", stale proactive values in the FAQ and knowledge base, and a spurious Telegram error logged at every restart. <strong>Verified:</strong> <strong>10,476 fast unit</strong> tests green, mypy strict clean on 909 files, every ratchet green, full cycle proven in dev Docker. — 19 July 2026.
 
 </p>
 
@@ -80,7 +80,7 @@
 | **Unpredictable LLM costs** | Real-time token tracking, budget alerts, 93% optimization |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
 | **Fragmented integrations** | Unified multi-domain orchestration (19+ agents + MCP + sub-agents) |
-| **Limited observability** | 423 Prometheus metrics, 25 Grafana dashboards, email alerting with runbooks, GeoIP analytics |
+| **Limited observability** | 425 Prometheus metrics, 25 Grafana dashboards, email alerting with runbooks, GeoIP analytics |
 | **Inconsistent performance** | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring |
 
 ### Primary Use Cases
@@ -117,7 +117,7 @@ The result is measured, not proclaimed:
 | | | | |
 |---|---|---|---|
 | **32** functional domains | **420,000** lines of code (excl. tests) | **11,900+** automated tests | **120+** ADRs |
-| **153** versions shipped | **6 languages**, parity enforced in CI | **423** Prometheus metrics | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **156** versions shipped | **6 languages**, parity enforced in CI | **425** Prometheus metrics | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -323,7 +323,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 423 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 425 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 22 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -829,7 +829,7 @@ apps/api/src/
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 423 metrics |
+| Prometheus | 425 metrics |
 | Grafana | 25 dashboards |
 | Loki | Aggregated logs |
 | Tempo | Distributed tracing |

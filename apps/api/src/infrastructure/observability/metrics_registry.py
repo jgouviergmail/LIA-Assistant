@@ -292,6 +292,12 @@ interest_merge_total = Counter(
     "Duplicate interests retro-merged (ADR-131)",
 )
 
+heartbeat_enrichment_total = Counter(
+    "heartbeat_enrichment_total",
+    "Heartbeat interest-enrichment fetches by outcome (ADR-135)",
+    ["outcome"],  # success | empty | error | disabled
+)
+
 interest_selection_eligible_subjects = Histogram(
     "interest_selection_eligible_subjects",
     "Eligible (non-cooling) subjects at selection time (ADR-131)",

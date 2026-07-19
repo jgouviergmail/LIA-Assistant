@@ -539,6 +539,7 @@ class InterestProactiveTask:
         mapping = {
             "wikipedia": ContentSource.WIKIPEDIA,
             "perplexity": ContentSource.PERPLEXITY,
+            "brave": ContentSource.BRAVE,
             "llm_reflection": ContentSource.LLM_REFLECTION,
         }
         return mapping.get(source_name, ContentSource.CUSTOM)

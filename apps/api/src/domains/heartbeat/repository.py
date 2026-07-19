@@ -157,21 +157,28 @@ class HeartbeatNotificationRepository:
         self,
         user_id: UUID,
         limit: int = 5,
+        max_age_days: int | None = None,
     ) -> list[HeartbeatNotification]:
         """Get recent notifications for a user (for anti-redundancy).
 
         Args:
             user_id: User UUID.
             limit: Maximum number of notifications to return.
+            max_age_days: When set, only notifications newer than N days are
+                returned (ADR-135: the anti-redundancy window is bounded in
+                time as well as in count, so a quiet period cannot resurface
+                stale topics).
 
         Returns:
             List of recent HeartbeatNotification (newest first).
         """
+        query = select(HeartbeatNotification).where(HeartbeatNotification.user_id == user_id)
+        if max_age_days is not None:
+            threshold = datetime.now(UTC) - timedelta(days=max_age_days)
+            query = query.where(HeartbeatNotification.created_at >= threshold)
+
         result = await self.db.execute(
-            select(HeartbeatNotification)
-            .where(HeartbeatNotification.user_id == user_id)
-            .order_by(HeartbeatNotification.created_at.desc())
-            .limit(limit)
+            query.order_by(HeartbeatNotification.created_at.desc()).limit(limit)
         )
         return list(result.scalars().all())
 

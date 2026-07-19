@@ -172,7 +172,11 @@ async def shutdown_telegram_bot() -> None:
             logger.info("telegram_polling_stopped")
 
         if _application:
-            await _application.stop()
+            # `stop()` raises when the application was never started — the
+            # webhook path never starts it, so every restart logged an ERROR
+            # with a traceback. `shutdown()` is still required either way.
+            if _application.running:
+                await _application.stop()
             await _application.shutdown()
             logger.info("telegram_application_shutdown")
 

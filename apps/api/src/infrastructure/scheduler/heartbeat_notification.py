@@ -62,6 +62,9 @@ def _create_heartbeat_eligibility_checker() -> EligibilityChecker:
         interval_minutes=settings.heartbeat_notification_interval_minutes,
         # Cross-type: don't fire if an interest notification was sent recently
         cross_type_models=[InterestNotification],
+        # ADR-135: exclude this flow's OWN interest-ledger artifacts — a
+        # heartbeat must never block the next heartbeat through its own trace.
+        cross_type_filters={InterestNotification: InterestNotification.source != "heartbeat"},
         cross_type_cooldown_minutes=settings.proactive_cross_type_cooldown_minutes,
         default_start_hour=HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
         default_end_hour=HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,

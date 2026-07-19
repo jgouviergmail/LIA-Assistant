@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 3.1
+**Version**: 3.2
 **Date**: 2026-07-19
-**Application**: LIA v1.25.7
+**Application**: LIA v1.25.8
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,7 +52,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 423 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Full transparency | 425 Prometheus metrics, embedded debug panel, token-by-token tracking |
 | Production reliability | 120+ ADRs, ~11,900 pytest-collected tests across 670 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
@@ -75,7 +75,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Reusable fixtures | 170+ |
 | Documentation documents | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
-| Prometheus metrics | 423 definitions |
+| Prometheus metrics | 425 definitions |
 | Grafana dashboards | 25 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -684,11 +684,13 @@ Wake word ("OK Guy") via Sherpa-onnx WASM in the browser (zero external transmis
 ### 16.1. Heartbeat: 2-phase architecture
 
 **Phase 1 — Decision** (cost-effective, gpt-4.1-mini):
-1. `EligibilityChecker`: opt-in, time window, cooldown (2h global, 30 min per type), recent activity
-2. `ContextAggregator`: 7 sources in parallel (`asyncio.gather`): Calendar, Weather (change detection), Tasks, Emails, Interests, Memories, Journals
-3. LLM structured output: `skip` | `notify` with anti-redundancy (recent history injected)
+1. `EligibilityChecker`: opt-in, time window, cooldown (1h global, 30 min per type), recent activity — optional `notification_filter`/`cross_type_filters` keep each flow's eligibility budget separate from the shared ledger
+2. `ContextAggregator`: 8 sources in parallel (`asyncio.gather`): Calendar, Weather (change detection), Tasks, Emails, Interests, Memories, Journals, Health. Interests arrive as a **varied sample** (`pick_varied_sample`: one interest per subject, least recently served subjects first) — the model can only mention what it is shown, so the rotation is mechanical
+3. LLM structured output: `skip` | `notify` plus `interest_topic` (copied verbatim from the sample, fail-open runtime guard) and source labels constrained by a `Literal`. Two-level anti-redundancy: source, and **content** — the last 10 notifications over 7 days are injected with their excerpts, which forbids re-proposing a theme even when it came from a different source
 
-**Phase 2 — Generation** (if notify): LLM rewrites with personality + user language. Multi-channel dispatch.
+**Phase 1b — Enrichment** (when `interest_topic` is set): `InterestContentGenerator` (Perplexity → Brave → Wikipedia) under a hard timeout, deduplicated against recent notification embeddings. Fully fail-open: flag off, failure or empty result → the message ships without facts.
+
+**Phase 2 — Generation** (if notify): LLM rewrites with personality + user language. When facts were fetched, a VERIFIED FACTS block requires naming 1-2 concrete items without ever inventing, and source links are appended deterministically. Multi-channel dispatch. An interest mention is written to the shared ledger (`InterestNotification(source='heartbeat')`): the subject then rests for both proactive flows.
 
 ### 16.2. Agent Initiative (ADR-062)
 
@@ -768,7 +770,7 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 423 custom metrics (RED pattern) |
+| Prometheus | 425 custom metrics (RED pattern) |
 | Grafana | 25 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1096,4 +1098,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.7). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.8). All metrics, versions, and patterns cited are verifiable in the codebase.*

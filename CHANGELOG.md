@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.8] - 2026-07-19
+
+> **Proactive notifications stop repeating themselves — and start saying something concrete.** A user report ("it's always the same interest, and the remarks are flat") turned into a measured investigation: over 45 days of production, **~14 of 20 interest-flavoured heartbeats centred on the same subject**, near-daily, and not one ever named an actual film, article or event. The causes were structural, not stylistic (ADR-135). First, the interest sample injected into the decision prompt was **hardcoded top-30%-by-weight**: the same handful of topics at every tick, ignoring the subject machinery ADR-131 had just built — the model could not rotate away from a fixed list. Second, the anti-redundancy window held 5 notifications (under two days) and exposed only *which sources* fired, never *what was said* — so the model had no way to know it had proposed the same thing ten evenings running; a bench proved this directly, watching it pivot away from one motif straight into another it had used the day before, sourced from memories. Third, the context injected topic **names only**: with no material, "have a look at a recent release" is the best any model can produce. The fix is mechanical where it can be and prompted only where it must: a subject-diverse sample (one interest per subject, least-recently-served first), a unified cross-flow ledger so a theme covered by *either* proactive flow steps aside — with an explicit boundary keeping each flow's quota budget its own — a content-level anti-repetition window (10 notifications / 7 days, excerpts included, rule operating on topics rather than sources), and on-demand enrichment that fetches real facts through the existing content pipeline and names them, with deterministic source links. Every mechanism was benched on production data before a line was written; the schema risk was retired at 8/8, and the enrichment chain proved out end-to-end.
+
+### Added
+
+- **Subject-diverse interest sampling for heartbeat context** (ADR-135) —
+  `pick_varied_sample` (in `domains/interests/selection.py`, reusing the ADR-131
+  subject machinery) returns one interest per subject, subjects ordered
+  least-recently-served first with the RNG only breaking exact ties. Extracted
+  into `domains/heartbeat/interest_context.py` so the aggregator shrinks rather
+  than grows (823 → 799 logical SLOC).
+- **Unified cross-flow mention ledger** — an interest-centred heartbeat writes
+  an `InterestNotification(source="heartbeat")` row, carrying the content
+  embedding, so both proactive flows see the subject as served. The boundary is
+  explicit and tested: eligibility queries (daily quota, global cooldown, runner
+  pacing, cross-type burst check) exclude these rows via the new optional
+  `EligibilityChecker.notification_filter` / `cross_type_filters`; selection,
+  rarity, content dedup and GDPR erasure include them.
+- **On-demand interest enrichment** — when the decision centres on an interest,
+  real content is fetched through `InterestContentGenerator`
+  (Perplexity → Brave → Wikipedia) under a hard timeout and deduplicated against
+  that interest's recent notification embeddings, then injected as a VERIFIED
+  FACTS block with a "name 1-2 concrete items, never invent, no raw URLs"
+  contract; deterministic source links are appended afterwards. Fail-open at
+  every step.
+- **Five `.env` knobs** (`HEARTBEAT_INTEREST_SAMPLE_SIZE`,
+  `HEARTBEAT_RECENT_WINDOW_COUNT`, `HEARTBEAT_RECENT_WINDOW_DAYS`,
+  `HEARTBEAT_INTEREST_ENRICHMENT_ENABLED`,
+  `HEARTBEAT_ENRICHMENT_TIMEOUT_SECONDS`) and the
+  `heartbeat_enrichment_total{outcome}` metric (success | empty | error |
+  disabled) so the fail-open rate is measurable in production.
+
+### Changed
+
+- **Anti-redundancy operates on content, not sources** — the window grows to 10
+  notifications over 7 days and renders content excerpts; the decision prompt
+  gains a two-level rule (source level, then topic/product/activity level,
+  explicitly cross-source). A bench showed the content view is what unlocks real
+  pivots: 2 notifies out of 4 runs versus 0 out of 7 without it.
+- **Decision structured output extended and constrained** — `interest_topic`
+  (copied verbatim from the injected sample, validated at runtime with a
+  fail-open guard that drops anything else) and `sources_used` typed by the new
+  `HeartbeatSourceLabel` Literal. The Literal is deliberately confined to the
+  LLM output: the history API keeps `list[str]` so rows predating this release
+  still serialize, pinned by a regression test.
+
+### Fixed
+
+- **Brave-served interest notifications were audited as "custom"** — 141 rows
+  over 60 days carried the wrong source because `_map_source` never learned
+  `"brave"`; every per-source statistic was skewed. `ContentSource.BRAVE` added
+  and mapped.
+- **FAQ and knowledge base claimed stale proactive values** — global cooldown
+  advertised as 2h (actual: 1h) and "10 data sources" where the aggregator
+  exposes 8; corrected in the 6 locales and in `docs/knowledge/`.
+- **Telegram shutdown logged a spurious error on every restart** (out of scope,
+  fixed in passing) — `Application.stop()` was called unconditionally while the
+  webhook path never starts the application, producing an ERROR with a traceback
+  at each dev restart. Guarded by `running`, with two regression tests.
+
+### Tests
+
+- ~30 new tests: varied sample (7, seeded RNG), extended decision schema (3 +
+  legacy-serialization guard), content window (3 + updated contract test),
+  eligibility filters (7, both directions plus defaults-unchanged), unified
+  ledger (4, including embedding symmetry), enrichment (6, including fail-open,
+  dedup symmetry and the metric), brave mapping (1), Telegram shutdown (2).
+- Runtime proven in dev Docker: subject-diverse sample whose ordering matches
+  the real serving timestamps, served subject stepping aside, full
+  decision → enrichment → message cycle producing named facts with clickable
+  sources, and the metric exposed on `/metrics`.
+
 ## [1.25.7] - 2026-07-19
 
 > **The agentic core becomes visible, controllable, and honest about its failures.** LIA's most consequential moments — the ones where it acts on your behalf — were the least tangible: an approval was a sentence you had to type, the work behind an answer vanished the instant the reply began, and a broken connector surfaced only as a vague apology. This release turns each of those into something you can see and act on. **Approval cards** put a one-tap Confirm / Cancel — and now **Modify** — under any pending action, riding a deterministic structured decision that skips the LLM classifier entirely (byte-for-byte parity with the conversational path, fail-closed on any stale click); the typed and voice channels stay fully live beside them. The **execution trace** that used to be wiped at the first answer token now survives the response as a collapsed "N steps · Xs" line under the bubble, expandable into the grouped backstage — the same honesty the cost-per-message already gave, extended to *what LIA actually did*. When a tool breaks because a connector's OAuth access expired, an **actionable "Reconnect" banner** now appears in the chat, classified from typed exceptions (never string-matched) and linking straight to the fix. The **onboarding** stops being a slideshow: its pages now complete the tour and jump you into connecting a service or trying a real example. Along the way a cluster of latent HITL defects — each proven red before being fixed green — was closed: a clarification you cancelled used to loop forever, a cancelled run left an orphan pending interrupt, a stale detection cache mis-served the resume path, the tour re-opened on every navigation, a rejected OAuth refresh was mislogged as a decryption failure, and a resolved approval card lingered on screen after its outcome had already been spoken.

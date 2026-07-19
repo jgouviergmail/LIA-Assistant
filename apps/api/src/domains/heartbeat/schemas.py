@@ -23,6 +23,24 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 # ---------------------------------------------------------------------------
 
 
+HeartbeatSourceLabel = Literal[
+    "UPCOMING_CALENDAR_EVENTS",
+    "PENDING_TASKS",
+    "UNREAD_EMAILS",
+    "CURRENT_WEATHER",
+    "WEATHER_CHANGES",
+    "USER_INTERESTS",
+    "USER_MEMORIES",
+    "JOURNAL_ENTRIES",
+    "HEALTH_SIGNALS",
+]
+"""Canonical source labels for the decision structured output (ADR-135).
+
+Free-text labels drifted in production ("USER_MEMORIES" vs "USER MEMORIES"),
+making per-source statistics approximate. The Literal makes the LLM comply
+(bench 2026-07-18: 8/8 valid) and the API reject any drift."""
+
+
 class HeartbeatDecision(BaseModel):
     """Structured output from LLM decision phase.
 
@@ -43,9 +61,16 @@ class HeartbeatDecision(BaseModel):
         default="low",
         description="Notification priority level",
     )
-    sources_used: list[str] = Field(
+    sources_used: list[HeartbeatSourceLabel] = Field(
         default_factory=list,
-        description="Which context sources contributed to this decision",
+        description="Which context sources contributed (exact labels only)",
+    )
+    interest_topic: str | None = Field(
+        None,
+        description=(
+            "EXACT topic string copied from the USER INTERESTS list, ONLY when "
+            "the notification centers on that interest; null otherwise."
+        ),
     )
 
     @model_validator(mode="after")
@@ -268,15 +293,19 @@ class HeartbeatContext:
 
     @property
     def recent_heartbeats_summary(self) -> str | None:
-        """Format recent heartbeats for the LLM prompt."""
+        """Format recent heartbeats for the LLM prompt.
+
+        Renders the CONTENT the user actually received (ADR-135) rather than
+        sources + decision reason: topic-level anti-repetition needs to see
+        what was said, not which source said it.
+        """
         if not self.recent_heartbeats:
             return None
         lines = []
         for hb in self.recent_heartbeats:
-            sources = hb.get("sources_used", "?")
-            reason = hb.get("decision_reason", "?")
             sent_at = hb.get("created_at", "?")
-            lines.append(f"  - [{sent_at}] Sources: {sources} — {reason}")
+            content = hb.get("content") or hb.get("decision_reason") or "?"
+            lines.append(f"  - [{sent_at}] {content}")
         return "\n".join(lines)
 
     @property

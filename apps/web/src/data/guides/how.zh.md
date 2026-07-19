@@ -4,9 +4,9 @@
 >
 > 面向架构师、工程师和技术专家的技术展示文档。
 
-**版本**：3.1
+**版本**：3.2
 **日期**：2026-07-19
-**应用**：LIA v1.25.7
+**应用**：LIA v1.25.8
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -52,8 +52,8 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | ARM64 自托管 | Docker 多架构、语义嵌入（多语言）、Playwright chromium 跨平台 |
 | 数据主权 | 本地 PostgreSQL（非 SaaS 数据库）、Fernet 静态加密、本地 Redis 会话 |
 | 多 LLM 供应商 | Factory 模式搭配 8 个适配器，按节点配置，不与特定供应商强耦合 |
-| 完全透明 | 423 Prometheus 指标、内嵌调试面板、逐 token 追踪 |
-| 生产可靠性 | 127 篇 ADR、由 pytest 在 670 个文件中收集的 ~11,900 个测试、原生可观测性、6 层 HITL |
+| 完全透明 | 425 Prometheus 指标、内嵌调试面板、逐 token 追踪 |
+| 生产可靠性 | 128 篇 ADR、由 pytest 在 670 个文件中收集的 ~11,900 个测试、原生可观测性、6 层 HITL |
 | 成本可控 | Smart Services（节省 89% token）、语义嵌入、prompt 缓存、目录过滤 |
 
 ### 1.2. 架构原则
@@ -75,7 +75,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | 可复用 Fixtures | 170+ |
 | 文档 | 280+ |
 | ADR（架构决策记录） | 124 篇 |
-| Prometheus 指标 | 423 定义 |
+| Prometheus 指标 | 425 定义 |
 | Grafana 仪表板 | 25 |
 | 支持语言（i18n） | 6（fr、en、de、es、it、zh） |
 
@@ -684,11 +684,13 @@ LIA 可以代表用户拨打外呼电话、进行目标导向的对话，然后�
 ### 16.1. Heartbeat：2 阶段架构
 
 **阶段 1 — 决策**（高性价比，gpt-4.1-mini）：
-1. `EligibilityChecker`：用户 opt-in、时间窗口、冷却期（全局 2 小时、每类型 30 分钟）、近期活跃
-2. `ContextAggregator`：通过 `asyncio.gather` 并行获取 7 个源：Calendar、Weather（变化检测）、Tasks、Emails、Interests、Memories、Journals
-3. LLM 结构化输出：`skip` | `notify`，带防重复（注入近期历史）
+1. `EligibilityChecker`：用户 opt-in、时间窗口、冷却期（全局 1 小时、每类型 30 分钟）、近期活跃——可选的 `notification_filter`/`cross_type_filters` 将各渠道的配额预算与共享账本分离
+2. `ContextAggregator`：通过 `asyncio.gather` 并行获取 8 个源：Calendar、Weather（变化检测）、Tasks、Emails、Interests、Memories、Journals、Health。兴趣以**多样化样本**形式进入（`pick_varied_sample`：每个主题一个兴趣，最久未服务的主题优先）——模型只能提及展示给它的内容，因此轮换是机械保证的
+3. LLM 结构化输出：`skip` | `notify`，外加 `interest_topic`（从样本逐字复制，带 fail-open 运行时校验）以及由 `Literal` 约束的来源标签。两级防重复：来源级与**内容级**——注入最近 7 天内 10 条通知及其内容摘录，从而禁止再次推荐同一主题，即使它来自其他来源
 
-**阶段 2 — 生成**（若 notify）：LLM 以用户人格 + 语言重写。多渠道分发。
+**阶段 1b — 内容增强**（当设置了 `interest_topic`）：`InterestContentGenerator`（Perplexity → Brave → Wikipedia）在硬超时下运行，并针对近期通知的向量做去重。完全 fail-open：开关关闭、失败或结果为空 → 消息不带事实照常发出。
+
+**阶段 2 — 生成**（若 notify）：LLM 以用户人格 + 语言重写。当已获取事实时，VERIFIED FACTS 区块要求点名 1-2 个具体元素且绝不臆造，来源链接以确定性方式追加。多渠道分发。兴趣提及会写入共享账本（`InterestNotification(source='heartbeat')`）：该主题随后对两个主动渠道都进入休息期。
 
 ### 16.2. Agent Initiative（ADR-062）
 
@@ -768,7 +770,7 @@ URL → SSRF 验证（DNS + IP 黑名单 + 重定向后重检） → 可读性�
 
 | 技术 | 角色 |
 |------|------|
-| Prometheus | 423 自定义指标（RED 模式） |
+| Prometheus | 425 自定义指标（RED 模式） |
 | Grafana | 25 个生产就绪仪表板 |
 | Loki | JSON 结构化日志聚合 |
 | Tempo | 跨服务分布式追踪（OTLP gRPC） |
@@ -1059,10 +1061,10 @@ LIA 通过统一模式接受外部事件摄入（iPhone Apple Health 样本、�
 
 LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个生产级的多智能体 AI 助手，透明、安全、可扩展，并且能在 Raspberry Pi 上运行。
 
-127 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。670 个文件里的 ~11,900 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
+128 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。670 个文件里的 ~11,900 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
 
 子系统之间的交织 — 心理记忆、贝叶斯学习、语义路由、系统化 HITL、LLM 驱动的主动性、内省日志 — 创造了一个各组件相互增强的系统。HITL 为模式学习提供数据，模式学习降低成本，降低的成本支撑更多功能，更多功能为记忆产生更多数据，记忆改善响应质量。这是一个设计中的良性循环，而非偶然。
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、127 篇 ADR 及变更日志（v1.0 至 v1.25.7）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、128 篇 ADR 及变更日志（v1.0 至 v1.25.8）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

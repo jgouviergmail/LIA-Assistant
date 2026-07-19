@@ -340,6 +340,26 @@ fail-open (echec de parse = labels precedents conserves, metrique
   fausse paire a 0.890) ; signaux sommes, notifications repointees, `subject` remis
   a NULL pour relabellisation
 
+### 2.5.2d Ledger unifie cross-flux (ADR-135)
+
+Le flux **heartbeat** (notifications proactives contextuelles) mentionne lui aussi
+des centres d'interet. Depuis ADR-135, ces mentions sont enregistrees comme
+`InterestNotification(source='heartbeat')` — un **livre de comptes unique** pour
+la variete percue par l'utilisateur, avec une frontiere explicite :
+
+| Site de requete | Compte les lignes `source='heartbeat'` ? |
+|---|---|
+| Quota journalier / cooldown global / cadence du flux interets | **NON** (`notification_filter`) |
+| Burst check cross-type du flux heartbeat | **NON** (`cross_type_filters` — ses propres traces ne doivent pas le bloquer) |
+| Selection interets : rarete, cooldown sujet (`get_recent_for_user`) | **OUI** — la variete est globale |
+| Dedup de contenu (`get_recent_for_interest`), echantillon heartbeat | **OUI** |
+| Effacement RGPD | **OUI** — tout est purge |
+
+Consequence concrete : une notification heartbeat sur « Cinema A24 » met le sujet
+« cinema » au repos pour LES DEUX flux (cooldown sujet 36 h), sans consommer le
+quota quotidien du flux interets. Les lignes portent aussi l'embedding du contenu
+servi, pour que la deduplication ulterieure fonctionne dans les deux sens.
+
 ### 2.5.3 Generation du contenu
 
 Le contenu est genere via une **chaine de fallback** :

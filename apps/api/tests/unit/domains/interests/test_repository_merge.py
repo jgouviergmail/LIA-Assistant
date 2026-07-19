@@ -98,3 +98,15 @@ async def test_update_same_topic_keeps_subject() -> None:
 
     assert interest.subject == "old label"
     assert interest.positive_signals == 5
+
+
+@pytest.mark.unit
+def test_map_source_knows_brave() -> None:
+    """Brave results were logged as "custom" (141 rows/60d in prod), skewing
+    every per-source statistic (ADR-135 bonus fix)."""
+    from src.domains.interests.proactive_task import InterestProactiveTask
+    from src.infrastructure.proactive.base import ContentSource
+
+    assert InterestProactiveTask()._map_source("brave") == ContentSource.BRAVE
+    assert InterestProactiveTask()._map_source("perplexity") == ContentSource.PERPLEXITY
+    assert InterestProactiveTask()._map_source("unknown_x") == ContentSource.CUSTOM

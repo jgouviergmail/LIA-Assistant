@@ -33,7 +33,7 @@ Settings → "*Proactive Notifications*" section → Enable the toggle
 If you disable push, LIA's messages are archived **silently** in conversation + SSE. You'll see them at your next login without being disturbed.
 
 ## What data sources are used?
-LIA aggregates **10 data sources** in parallel to decide whether to notify you:
+LIA aggregates **8 data sources** in parallel to decide whether to notify you:
 
 **📅 Calendar:**
 • Upcoming events (next few hours)
@@ -75,7 +75,7 @@ Frequency is **controlled at multiple levels**:
 • **Time window**: only during your configured hours (default 9 AM - 10 PM, independent from interest hours)
 
 **🛡️ Automatic safeguards:**
-• **Global cooldown**: minimum 2h between 2 proactive notifications
+• **Global cooldown**: minimum 1h between 2 proactive notifications
 • **Anti-redundancy**: the LLM sees recent notifications and avoids repeating the same topic
 • **Cross-type dedup**: interest notifications are also considered (no thematic spam)
 • **Activity cooldown**: if you chatted with LIA in the last 15 minutes, no notification will be sent

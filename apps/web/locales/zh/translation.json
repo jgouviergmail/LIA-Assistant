@@ -615,14 +615,7 @@
       "retry_button": "重试",
       "retry_failed": "无法获取您的位置。请检查GPS是否已启用。",
       "detection": {
-        "keywords": [
-          "附近",
-          "周围",
-          "周边",
-          "旁边",
-          "邻近",
-          "住处"
-        ],
+        "keywords": ["附近", "周围", "周边", "旁边", "邻近", "住处"],
         "patterns": [
           "(我|这)(附近|周围|周边)",
           "在我(附近|旁边)",
@@ -2952,7 +2945,7 @@
         },
         "heartbeatAutonome": {
           "title": "💓 自主心跳",
-          "description": "LLM驱动的上下文感知主动通知。并行聚合8个来源（日历、天气、天气变化、任务、兴趣中心、记忆、个人资料、历史记录）。两阶段方式：LLM结构化决策（经济模型）+个性和语言感知重写。天气变化检测（雨开始/结束、温度骤降、大风预警）。每用户控制：推送开关、每日上限、专用时间窗口。"
+          "description": "由 LLM 驱动的主动上下文通知，实时并行聚合 8 个数据源。两阶段方式：结构化决策（通过经济型模型决定跳过/通知），然后按个性重写消息。话题通过多样化的兴趣样本和基于内容的防重复窗口（7天内10条通知）进行轮换，同一主题不会日复一日地重复。当通知围绕某个兴趣时，会获取真实事实（Perplexity、Brave、Wikipedia）并附加可点击的来源链接。天气变化检测（降雨开始/结束、气温骤降、大风预警）。可配置时间窗口和按用户的推送控制。"
         },
         "webFetch": {
           "title": "🌐 智能网页抓取",
@@ -3041,6 +3034,17 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_8": {
+          "title": "v1.25.8 — 🎯 主动通知变得多样且具体",
+          "date": "2026年7月",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔄 话题终于开始轮换</b> — 主动通知几乎每晚都会回到同一个兴趣上。现在它们从多样化的样本中选取（每个主题一个兴趣，最久未覆盖的优先），并且任一通知渠道服务过的主题都会休息一段时间。单一爱好不再垄断你的信息流。",
+            "i2": "<b>🔗 具体的建议，并附来源</b> — 当通知基于你的某个兴趣时，LIA 现在会查找真实且新鲜的事实并点名说明（一部电影、一则公告、一个事件），并附上可点击的来源链接，而不再是含糊的“去看看最近的新片”。",
+            "i3": "<b>🧠 真正读懂已说内容的防重复机制</b> — LIA 会重读最近 10 条通知（7 天内）的内容，绝不再次推荐相同的话题、活动或产品，即使它来自另一个来源（兴趣、记忆或日志条目）。",
+            "i4": "<b>⚙️ 面向管理员</b> — 五个新的 .env 设置（样本大小、防重复窗口、内容增强的开关与超时），新增一个跟踪增强结果的 Prometheus 指标；来自 Brave 的通知在审计中不再被错误标记为“custom”；Telegram 关闭时不再在每次重启时记录多余的错误。"
+          }
+        },
         "v1_25_7": {
           "title": "v1.25.7 — 🎛️ 智能体核心变得可见且可控",
           "date": "2026年7月",
@@ -4722,7 +4726,7 @@
         "questions": {
           "q1": {
             "question": "什么是主动通知？",
-            "answer": "主动通知允许LIA<strong>主动</strong>向您发送有用信息：<br><br><strong>🧠 原理：</strong><br>• LIA持续分析多个数据源（日历、天气、邮件、兴趣、记忆、日志）<br>• LLM<strong>智能决定</strong>是否有值得告诉您的信息<br>• 消息根据您的<strong>个性</strong>和<strong>语言</strong>重新编写<br><br><strong>📌 示例：</strong><br>• \"<em>预计45分钟后下雨，别忘了带伞</em>\"<br>• \"<em>你14点有会议，预计会下雨——带把伞</em>\"<br>• \"<em>你感兴趣的话题今天是热门</em>\"<br><br><strong>💡 理念：</strong><br>LIA只在<strong>真正有用</strong>时才发送通知——质量胜于数量。"
+            "answer": "主动通知允许LIA<strong>主动</strong>向您发送有用信息：<br><br><strong>🧠 原理：</strong><br>• LIA持续分析多个数据源（日历、天气、邮件、兴趣、记忆、日志）<br>• LLM<strong>智能决定</strong>是否有值得告诉您的信息<br>• 消息根据您的<strong>个性</strong>和<strong>语言</strong>重新编写<br><br><strong>📌 示例：</strong><br>• \"<em>预计45分钟后下雨，别忘了带伞</em>\"<br>• \"<em>你14点有会议，预计会下雨——带把伞</em>\"<br>• \"<em>你感兴趣的话题今天是热门</em>\"<br><br><strong>🎯 多样且具体：</strong><br>• 话题会<strong>轮换</strong>：刚刚覆盖过的主题会让位，很少被推送的主题优先——单一爱好绝不会垄断您的通知<br>• 当通知基于您的某个兴趣时，LIA 会查找<strong>真实且新鲜的事实</strong>并点名说明（一部电影、一个事件、一则公告），并附上<strong>可点击的来源链接</strong>——不再是含糊的“去看看……”<br><br><strong>💡 理念：</strong><br>LIA只在<strong>真正有用</strong>时才发送通知——质量胜于数量。"
           },
           "q2": {
             "question": "如何启用主动通知？",
@@ -4730,11 +4734,11 @@
           },
           "q3": {
             "question": "使用了哪些数据源？",
-            "answer": "LIA并行聚合<strong>10个数据源</strong>来决定是否通知您：<br><br><strong>📅 日历：</strong><br>• 即将到来的事件（未来几小时）<br>• 需要活跃的日历连接器（Google Calendar、Apple Calendar 或 Microsoft）<br><br><strong>🌤️ 天气 + 变化：</strong><br>• 当前状况 + 变化检测：开始/停止下雨、<strong>明天温度下降或上升</strong>（基于每日平均温度比较 — 夜间降温不再触发虚假「温度下降」警报）、强风<br>• 需要OpenWeatherMap连接器 + 已配置家庭地址<br>• <strong>可选的旅行位置（v1.16.7）</strong>：启用「使用我当前的位置进行天气提醒」后,当您离家超过50公里时,LIA使用您的浏览器位置而不是家庭地址。请参阅下面的专用问题。<br><br><strong>✅ 任务：</strong><br>• 待办或逾期任务<br>• 需要活跃的任务连接器（Google Tasks 或 Microsoft To Do）<br><br><strong>📧 邮件：</strong><br>• 今天未读的邮件（紧急、可操作的）<br>• 需要活跃的邮件连接器（Gmail、Apple、Microsoft）<br><br><strong>⭐ 兴趣：</strong><br>• 您活跃兴趣中的热门话题<br><br><strong>🧠 记忆：</strong><br>• 从您的记忆中提取的相关信息<br><br><strong>📓 日志：</strong><br>• 助手个人日志中的相关条目（自我反思、观察、学习心得）<br>• 需要启用日志功能（设置 > 功能 > 个人日志）<br><br><strong>📊 指标：</strong><br>设置部分为每个已连接的源显示<strong>绿色徽章</strong>，为不可用的源显示<strong>灰色徽章</strong>。"
+            "answer": "LIA并行聚合<strong>8个数据源</strong>来决定是否通知您：<br><br><strong>📅 日历：</strong><br>• 即将到来的事件（未来几小时）<br>• 需要活跃的日历连接器（Google Calendar、Apple Calendar 或 Microsoft）<br><br><strong>🌤️ 天气 + 变化：</strong><br>• 当前状况 + 变化检测：开始/停止下雨、<strong>明天温度下降或上升</strong>（基于每日平均温度比较 — 夜间降温不再触发虚假「温度下降」警报）、强风<br>• 需要OpenWeatherMap连接器 + 已配置家庭地址<br>• <strong>可选的旅行位置（v1.16.7）</strong>：启用「使用我当前的位置进行天气提醒」后,当您离家超过50公里时,LIA使用您的浏览器位置而不是家庭地址。请参阅下面的专用问题。<br><br><strong>✅ 任务：</strong><br>• 待办或逾期任务<br>• 需要活跃的任务连接器（Google Tasks 或 Microsoft To Do）<br><br><strong>📧 邮件：</strong><br>• 今天未读的邮件（紧急、可操作的）<br>• 需要活跃的邮件连接器（Gmail、Apple、Microsoft）<br><br><strong>⭐ 兴趣：</strong><br>• 您活跃兴趣的<strong>多样化样本</strong>——每个主题一个，最久未覆盖的优先（这样同一话题不会日复一日地重复）<br><br><strong>🧠 记忆：</strong><br>• 从您的记忆中提取的相关信息<br><br><strong>📓 日志：</strong><br>• 助手个人日志中的相关条目（自我反思、观察、学习心得）<br>• 需要启用日志功能（设置 > 功能 > 个人日志）<br><br><strong>📊 指标：</strong><br>设置部分为每个已连接的源显示<strong>绿色徽章</strong>，为不可用的源显示<strong>灰色徽章</strong>。"
           },
           "q4": {
             "question": "我多久会收到一次通知？",
-            "answer": "频率<strong>在多个层面受控</strong>：<br><br><strong>📊 您的控制：</strong><br>• <strong>每日最小/最大数</strong>：您选择（范围1-8，默认最小1 / 最大3）<br>• <strong>时间窗口</strong>：仅在您配置的时间段内（默认上午9点 - 晚上10点，独立于兴趣通知时间）<br><br><strong>🛡️ 自动保护：</strong><br>• <strong>全局冷却</strong>：两次主动通知之间至少2小时<br>• <strong>防重复</strong>：LLM查看最近的通知并避免重复相同话题<br>• <strong>跨类型去重</strong>：兴趣通知也会被考虑（无主题垃圾）<br>• <strong>活动冷却</strong>：如果您在过去15分钟内与LIA聊天，则不会发送通知<br><br><strong>💡 实际上：</strong><br>您每天会收到0到3条通知，仅在相关时。某些天，LIA可能决定不发送任何内容。"
+            "answer": "频率<strong>在多个层面受控</strong>：<br><br><strong>📊 您的控制：</strong><br>• <strong>每日最小/最大数</strong>：您选择（范围1-8，默认最小1 / 最大3）<br>• <strong>时间窗口</strong>：仅在您配置的时间段内（默认上午9点 - 晚上10点，独立于兴趣通知时间）<br><br><strong>🛡️ 自动保护：</strong><br>• <strong>全局冷却</strong>：两次主动通知之间至少1小时<br>• <strong>防重复</strong>：LIA 会重读最近通知的<strong>内容</strong>（7天内10条），绝不再次推荐相同的话题、活动或产品——即使它来自另一个来源<br>• <strong>跨类型去重</strong>：兴趣通知同样计入，且双向生效（任一渠道覆盖过的主题都会休息一段时间）<br>• <strong>活动冷却</strong>：如果您在过去15分钟内与LIA聊天，则不会发送通知<br><br><strong>💡 实际上：</strong><br>您每天会收到0到3条通知，仅在相关时。某些天，LIA可能决定不发送任何内容。"
           },
           "q5": {
             "question": "如何对通知提供反馈？",
@@ -6029,7 +6033,7 @@
       },
       "proactive": {
         "title": "主动智能",
-        "description": "在正确的时间推送通知（天气、会议、任务）。对话中，LIA会主动交叉检查相关信息：降雨预报+户外活动、提到会议的邮件+日历冲突。完全可配置。"
+        "description": "在恰当的时机推送通知（天气、会议、任务）。主题会轮换，同一话题不会日复一日地重复；当通知基于你的某个兴趣时，会点名真实且新鲜的事实并附上可点击的来源。在对话中，LIA 会主动交叉核对相关信息：预报有雨 + 户外活动、邮件中的会议提议 + 日程冲突。完全可配置。"
       },
       "interests": {
         "title": "兴趣追踪",
@@ -6824,7 +6828,7 @@
       "proactive-notifications": {
         "title": "主动智能：通知与主动行动",
         "excerpt": "LIA预见您的需求：通过Heartbeat推送通知，以及在对话中实时交叉检查相关信息的会话主动性。",
-        "body": "<h2>预见您需求的助手</h2><p>LIA的<strong>Heartbeat</strong>系统定期分析您的个人上下文，决定是否有有用的信息需要传达。它只在相关时才打扰您。</p><h2>9个上下文来源</h2><p>每个周期，Heartbeat并行聚合以下信息：</p><ul><li><strong>日历</strong> — 未来<strong>6小时</strong>的日程</li><li><strong>任务</strong> — 未来<strong>2天</strong>的待办任务</li><li><strong>邮件</strong> — 最多<strong>5封</strong>近期未读邮件</li><li><strong>天气</strong> — 当前天气状况，含警报阈值（雨、极端温度、强风）</li><li><strong>兴趣</strong> — 您的收藏主题，用于定向建议</li><li><strong>记忆</strong> — 最多<strong>5条</strong>相关长期记忆</li><li><strong>活动</strong> — 最后一条消息的时间戳（检测不活跃状态）</li><li><strong>时间</strong> — 包含用户时区的时间上下文</li><li><strong>近期Heartbeat</strong> — 近期通知历史，用于<strong>防重复</strong>（不重复相同信息）</li></ul><h2>两阶段LLM决策</h2><p>Heartbeat使用<strong>两阶段</strong>LLM管线：</p><ul><li><strong>select_target()</strong> — 分析全部上下文，决定是否需要通知，如果需要，选择最相关的主题。</li><li><strong>generate_content()</strong> — 以助手<strong>当前活跃个性</strong>的风格生成消息。</li></ul><h2>调度与安全机制</h2><p>Heartbeat调度器每<strong>30分钟</strong>执行一次，每批处理<strong>50</strong>个用户。安全机制非常严格：</p><ul><li>每天最多<strong>3条通知</strong>，最少<strong>1条</strong></li><li>允许的时间范围：<strong>9:00-22:00</strong>（用户本地时间）</li><li>两次通知之间<strong>2小时</strong>冷却期</li><li><strong>7天不活跃</strong>后自动停用</li></ul><h2>会话主动性</h2><p>除了定时通知外，LIA在<strong>对话过程中</strong>也具有主动性。执行您的请求后，<strong>主动代理</strong>分析结果并自主检查跨域相关信息。如果天气预报显示周六下雨而您有户外远足计划，LIA会提醒您。100%提示驱动，仅限只读操作，利用您的记忆和兴趣丰富。</p>"
+        "body": "<h2>预见您需求的助手</h2><p>LIA的<strong>Heartbeat</strong>系统定期分析您的个人上下文，决定是否有有用的信息需要传达。它只在相关时才打扰您。</p><h2>9个上下文来源</h2><p>每个周期，Heartbeat并行聚合以下信息：</p><ul><li><strong>日历</strong> — 未来<strong>6小时</strong>的日程</li><li><strong>任务</strong> — 未来<strong>2天</strong>的待办任务</li><li><strong>邮件</strong> — 最多<strong>5封</strong>近期未读邮件</li><li><strong>天气</strong> — 当前天气状况，含警报阈值（雨、极端温度、强风）</li><li><strong>兴趣</strong> — 您收藏主题的多样化样本（每个主题一个，最久未覆盖的优先），让建议轮换而不是反复回到同一个爱好</li><li><strong>记忆</strong> — 最多<strong>5条</strong>相关长期记忆</li><li><strong>活动</strong> — 最后一条消息的时间戳（检测不活跃状态）</li><li><strong>时间</strong> — 包含用户时区的时间上下文</li><li><strong>近期Heartbeat</strong> — 最近通知的<strong>内容</strong>（7天内10条），用于<strong>防重复</strong>：已建议过的话题、活动或产品绝不会被再次提出，即使来自其他来源</li></ul><h2>两阶段LLM决策</h2><p>Heartbeat使用<strong>两阶段</strong>LLM管线：</p><ul><li><strong>select_target()</strong> — 分析全部上下文，决定是否需要通知，如果需要，选择最相关的主题。</li><li><strong>generate_content()</strong> — 以助手<strong>当前活跃个性</strong>的风格生成消息。</li></ul><h2>调度与安全机制</h2><p>Heartbeat调度器每<strong>30分钟</strong>执行一次，每批处理<strong>50</strong>个用户。安全机制非常严格：</p><ul><li>每天最多<strong>3条通知</strong>，最少<strong>1条</strong></li><li>允许的时间范围：<strong>9:00-22:00</strong>（用户本地时间）</li><li>两次通知之间<strong>2小时</strong>冷却期</li><li><strong>7天不活跃</strong>后自动停用</li></ul><h2>会话主动性</h2><p>除了定时通知外，LIA在<strong>对话过程中</strong>也具有主动性。执行您的请求后，<strong>主动代理</strong>分析结果并自主检查跨域相关信息。如果天气预报显示周六下雨而您有户外远足计划，LIA会提醒您。100%提示驱动，仅限只读操作，利用您的记忆和兴趣丰富。</p>"
       },
       "reminders-scheduling": {
         "title": "提醒和计划操作：自动化您的日常",

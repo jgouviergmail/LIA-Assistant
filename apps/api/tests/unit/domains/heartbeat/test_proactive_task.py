@@ -110,7 +110,7 @@ class TestHeartbeatTargetConstruction:
             action="notify",
             reason="Upcoming meeting",
             message_draft="You have a meeting soon.",
-            sources_used=["calendar"],
+            sources_used=["UPCOMING_CALENDAR_EVENTS"],
         )
         target = HeartbeatTarget(
             context=context,

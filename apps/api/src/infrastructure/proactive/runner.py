@@ -737,6 +737,10 @@ class ProactiveTaskRunner:
             model.user_id == user.id,
             model.created_at >= today_start_utc,
         )
+        # Same budget boundary as the eligibility checks (ADR-135): rows the
+        # checker excludes from the quota must not steer the adaptive pacing.
+        if self.eligibility_checker.notification_filter is not None:
+            query = query.where(self.eligibility_checker.notification_filter)
         result = await db.execute(query)
         return result.scalar() or 0
 

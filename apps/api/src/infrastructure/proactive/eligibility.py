@@ -113,6 +113,8 @@ class EligibilityChecker:
         default_end_hour: int = 22,
         default_min_per_day: int = 1,
         default_max_per_day: int = 3,
+        notification_filter: Any = None,
+        cross_type_filters: dict[Any, Any] | None = None,
     ):
         """
         Initialize eligibility checker.
@@ -138,6 +140,16 @@ class EligibilityChecker:
             default_end_hour: Fallback end hour if user field is missing.
             default_min_per_day: Fallback min per day if user field is missing.
             default_max_per_day: Fallback max per day if user field is missing.
+            notification_filter: Optional SQLAlchemy boolean clause restricting
+                which notification_model rows count toward the daily quota and
+                the global cooldown. ADR-135: the interest flow excludes
+                heartbeat ledger rows (`source == "heartbeat"`) so a heartbeat
+                mention feeds variety without consuming the interest budget.
+                None (default) keeps the historical behavior byte-identical.
+            cross_type_filters: Optional {model: clause} restricting which rows
+                of a cross-type model count for the burst check. ADR-135: the
+                heartbeat flow excludes its own interest-ledger artifacts so it
+                cannot self-block. None (default) changes nothing.
         """
         self.task_type = task_type
         self.enabled_field = enabled_field
@@ -155,6 +167,8 @@ class EligibilityChecker:
         self.default_end_hour = default_end_hour
         self.default_min_per_day = default_min_per_day
         self.default_max_per_day = default_max_per_day
+        self.notification_filter = notification_filter
+        self.cross_type_filters = cross_type_filters or {}
 
     async def check(
         self,
@@ -306,6 +320,8 @@ class EligibilityChecker:
             model.user_id == user.id,
             model.created_at >= today_start,
         )
+        if self.notification_filter is not None:
+            query = query.where(self.notification_filter)
         result = await db.execute(query)
         today_count = result.scalar() or 0
 
@@ -338,12 +354,10 @@ class EligibilityChecker:
 
         # Get last notification time
         model = self.notification_model
-        query = (
-            select(model.created_at)
-            .where(model.user_id == user.id)
-            .order_by(model.created_at.desc())
-            .limit(1)
-        )
+        query = select(model.created_at).where(model.user_id == user.id)
+        if self.notification_filter is not None:
+            query = query.where(self.notification_filter)
+        query = query.order_by(model.created_at.desc()).limit(1)
         result = await db.execute(query)
         last_notification = result.scalar()
 
@@ -394,9 +408,11 @@ class EligibilityChecker:
                 select(model.created_at)
                 .where(model.user_id == user.id)
                 .where(model.created_at > cooldown_threshold)
-                .order_by(model.created_at.desc())
-                .limit(1)
             )
+            model_filter = self.cross_type_filters.get(model)
+            if model_filter is not None:
+                query = query.where(model_filter)
+            query = query.order_by(model.created_at.desc()).limit(1)
             result = await db.execute(query)
             last_cross_notification = result.scalar()
 

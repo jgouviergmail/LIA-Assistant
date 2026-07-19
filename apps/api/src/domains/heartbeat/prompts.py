@@ -67,8 +67,8 @@ def build_decision_user_prompt(context: HeartbeatContext) -> str:
     # Recent heartbeats for anti-redundancy
     hb_summary = context.recent_heartbeats_summary
     parts.append(
-        f"\nRECENT HEARTBEAT NOTIFICATIONS (avoid repeating similar topics):\n"
-        f"{hb_summary or 'None sent recently.'}"
+        f"\nRECENT HEARTBEAT NOTIFICATIONS (contents shown — never repeat their "
+        f"topics, activities or products):\n{hb_summary or 'None sent recently.'}"
     )
 
     # Cross-type: recent interest notifications
@@ -155,6 +155,7 @@ async def generate_heartbeat_message(
     user_language: str,
     personality_instruction: str | None = None,
     user_id: str | UUID | None = None,
+    facts_block: str | None = None,
 ) -> tuple[str, int, int, int]:
     """Generate the final notification message (Phase 2).
 
@@ -167,6 +168,9 @@ async def generate_heartbeat_message(
         user_language: User's language code (e.g., "fr", "en").
         personality_instruction: Personality prompt instruction.
         user_id: User UUID for psyche context injection.
+        facts_block: Verified facts fetched for an interest-centered heartbeat
+            (ADR-135). When present, the message must be built on named items
+            from it instead of staying vague.
 
     Returns:
         Tuple of (message, tokens_in, tokens_out, tokens_cache).
@@ -206,6 +210,18 @@ async def generate_heartbeat_message(
     )
     if user_model_block:
         system_prompt += "\n\n" + user_model_block
+
+    if facts_block:
+        # ADR-135: real, fresh facts for an interest-centered heartbeat. The
+        # contract is explicit so the model names concrete items instead of
+        # producing another vague "have a look at ..." message.
+        system_prompt += (
+            "\n\nVERIFIED FACTS about the user's interest (fresh, from web search):\n"
+            + facts_block
+            + "\n\nYour notification MUST be built on 1-2 concrete items from these "
+            "facts, naming them explicitly. Never invent titles or facts. Do not "
+            "include raw URLs — source links are appended automatically."
+        )
 
     llm = get_llm("heartbeat_message")
 

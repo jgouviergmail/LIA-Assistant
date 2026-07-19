@@ -79,12 +79,16 @@ from src.core.constants import (
     HEARTBEAT_CONTEXT_TASKS_DAYS_DEFAULT,
     HEARTBEAT_DECISION_LLM_MODEL_DEFAULT,
     HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT,
+    HEARTBEAT_ENRICHMENT_TIMEOUT_SECONDS_DEFAULT,
     HEARTBEAT_GLOBAL_COOLDOWN_HOURS_DEFAULT,
     HEARTBEAT_INACTIVE_SKIP_DAYS_DEFAULT,
+    HEARTBEAT_INTEREST_SAMPLE_SIZE_DEFAULT,
     HEARTBEAT_MESSAGE_LLM_MODEL_DEFAULT,
     HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT,
     HEARTBEAT_NOTIFICATION_BATCH_SIZE_DEFAULT,
     HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES_DEFAULT,
+    HEARTBEAT_RECENT_WINDOW_COUNT_DEFAULT,
+    HEARTBEAT_RECENT_WINDOW_DAYS_DEFAULT,
     HEARTBEAT_WEATHER_RAIN_THRESHOLD_HIGH_DEFAULT,
     HEARTBEAT_WEATHER_RAIN_THRESHOLD_LOW_DEFAULT,
     HEARTBEAT_WEATHER_TEMP_CHANGE_THRESHOLD_DEFAULT,
@@ -2750,6 +2754,39 @@ class AgentsSettings(BaseSettings):
             "Don't send heartbeat if user sent a message within N minutes. "
             "Prevents interrupting active conversations."
         ),
+    )
+
+    # Interest-quality (ADR-135)
+    heartbeat_interest_sample_size: int = Field(
+        default=HEARTBEAT_INTEREST_SAMPLE_SIZE_DEFAULT,
+        ge=1,
+        le=20,
+        description="Interests injected into the heartbeat context (subject-aware varied sample).",
+    )
+    heartbeat_recent_window_count: int = Field(
+        default=HEARTBEAT_RECENT_WINDOW_COUNT_DEFAULT,
+        ge=5,
+        le=30,
+        description="Recent heartbeats exposed (with content excerpts) for anti-redundancy.",
+    )
+    heartbeat_recent_window_days: int = Field(
+        default=HEARTBEAT_RECENT_WINDOW_DAYS_DEFAULT,
+        ge=1,
+        le=30,
+        description="Max age (days) of recent heartbeats in the anti-redundancy window.",
+    )
+    heartbeat_interest_enrichment_enabled: bool = Field(
+        default=True,
+        description=(
+            "Fetch real content (Perplexity/Brave/Wikipedia) when a heartbeat centers "
+            "on an interest, so the notification proposes something concrete."
+        ),
+    )
+    heartbeat_enrichment_timeout_seconds: int = Field(
+        default=HEARTBEAT_ENRICHMENT_TIMEOUT_SECONDS_DEFAULT,
+        ge=5,
+        le=180,
+        description="Hard timeout for the enrichment fetch (fail-open to the plain draft).",
     )
 
     # Cross-type proactive cooldown (applies to ALL proactive task types)

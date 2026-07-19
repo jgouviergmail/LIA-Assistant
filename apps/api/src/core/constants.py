@@ -1653,6 +1653,17 @@ HEARTBEAT_PUSH_ENABLED_DEFAULT = True
 HEARTBEAT_NOTIFY_START_HOUR_DEFAULT = 9  # 9 AM
 HEARTBEAT_NOTIFY_END_HOUR_DEFAULT = 22  # 10 PM
 
+# Heartbeat interest-quality (ADR-135). Bench-validated 2026-07-18:
+# a 5-item content window was blind to the "1664" motif — 10 items / 7 days required.
+HEARTBEAT_CONTENT_EXCERPT_CHARS = 160  # Anti-redundancy window excerpt length
+# Synthetic interest_id for enrichment fetches (no InterestNotification row is
+# created by the content generator itself — the ledger write is explicit).
+HEARTBEAT_ENRICHMENT_CONTEXT_ID = "heartbeat_enrichment"
+HEARTBEAT_INTEREST_SAMPLE_SIZE_DEFAULT = 5
+HEARTBEAT_RECENT_WINDOW_COUNT_DEFAULT = 10
+HEARTBEAT_RECENT_WINDOW_DAYS_DEFAULT = 7
+HEARTBEAT_ENRICHMENT_TIMEOUT_SECONDS_DEFAULT = 45
+
 # Cooldowns
 HEARTBEAT_GLOBAL_COOLDOWN_HOURS_DEFAULT = 1
 HEARTBEAT_ACTIVITY_COOLDOWN_MINUTES_DEFAULT = 15

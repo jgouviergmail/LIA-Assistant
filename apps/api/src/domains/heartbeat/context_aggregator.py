@@ -35,6 +35,7 @@ from src.core.config import get_settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
     GMAIL_FORMAT_METADATA,
+    HEARTBEAT_CONTENT_EXCERPT_CHARS,
 )
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
@@ -956,24 +957,18 @@ class ContextAggregator:
         db: AsyncSession,
         user_id: UUID,
     ) -> list[dict[str, str]] | None:
-        """Fetch trending user interest topics.
+        """Fetch a subject-diverse sample of user interest topics (ADR-135).
+
+        Replaces the historical top-30%-by-weight fetch whose fixed composition
+        anchored the decision LLM on the same topics (A24 near-daily in prod).
+        Logic lives in `interest_context.fetch_varied_interest_topics`.
 
         Returns:
             List of {topic} dicts or None if unavailable.
         """
-        from src.domains.interests.repository import InterestRepository
+        from src.domains.heartbeat.interest_context import fetch_varied_interest_topics
 
-        repo = InterestRepository(db)
-        interests = await repo.get_top_weighted_interests(
-            user_id=user_id,
-            top_percent=0.3,
-            exclude_in_cooldown=False,
-        )
-
-        if not interests:
-            return None
-
-        return [{"topic": interest.topic} for interest, _weight in interests]
+        return await fetch_varied_interest_topics(db, user_id)
 
     # ------------------------------------------------------------------
     # Memories source
@@ -1121,12 +1116,22 @@ class ContextAggregator:
     ) -> list[dict[str, str]] | None:
         """Fetch recent heartbeat notifications for anti-redundancy.
 
+        The window carries CONTENT excerpts (ADR-135): a source-only summary
+        let the decision LLM repeat a topic it had already used through a
+        different source (memories, journals), which is exactly how the same
+        motifs resurfaced day after day.
+
         Returns:
-            List of {sources_used, decision_reason, created_at} dicts
+            List of {sources_used, decision_reason, created_at, content} dicts
             with created_at converted to the user's local timezone.
         """
+        settings = get_settings()
         repo = HeartbeatNotificationRepository(db)
-        notifications = await repo.get_recent_by_user(user_id, limit=5)
+        notifications = await repo.get_recent_by_user(
+            user_id,
+            limit=settings.heartbeat_recent_window_count,
+            max_age_days=settings.heartbeat_recent_window_days,
+        )
 
         if not notifications:
             return None
@@ -1137,6 +1142,7 @@ class ContextAggregator:
                 "sources_used": n.sources_used,
                 "decision_reason": n.decision_reason or "N/A",
                 "created_at": _format_utc_datetime(n.created_at, user_tz),
+                "content": (n.content or "")[:HEARTBEAT_CONTENT_EXCERPT_CHARS],
             }
             for n in notifications
         ]

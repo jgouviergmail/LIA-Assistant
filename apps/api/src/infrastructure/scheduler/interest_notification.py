@@ -61,6 +61,9 @@ def _create_interest_eligibility_checker() -> EligibilityChecker:
         global_cooldown_hours=settings.interest_global_cooldown_hours,
         activity_cooldown_minutes=settings.interest_activity_cooldown_minutes,
         interval_minutes=settings.interest_notification_interval_minutes,
+        # ADR-135: heartbeat ledger rows feed interest VARIETY (rarity, subject
+        # cooldown) but must not consume this flow's own quota/global cooldown.
+        notification_filter=InterestNotification.source != "heartbeat",
         # Cross-type: don't fire if a heartbeat notification was sent recently
         cross_type_models=[HeartbeatNotification],
         cross_type_cooldown_minutes=settings.proactive_cross_type_cooldown_minutes,

@@ -38,7 +38,7 @@ class TestHeartbeatDecision:
             reason="Upcoming meeting in 1 hour + rain expected",
             message_draft="You have a meeting at 2pm and it might rain.",
             priority="high",
-            sources_used=["calendar", "weather"],
+            sources_used=["UPCOMING_CALENDAR_EVENTS", "CURRENT_WEATHER"],
         )
 
         assert decision.action == "notify"
@@ -328,7 +328,32 @@ class TestHeartbeatContext:
         assert ctx.recent_heartbeats_summary is None
 
     def test_recent_heartbeats_summary_with_data(self):
-        """Test summary format with recent heartbeats."""
+        """Test summary format with recent heartbeats.
+
+        ADR-135 changed the contract: the summary renders the CONTENT the user
+        received (topic-level anti-repetition), falling back to the decision
+        reason when no content is available. Sources are no longer rendered —
+        they are already covered by the source-level rule.
+        """
+        ctx = HeartbeatContext(
+            recent_heartbeats=[
+                {
+                    "sources_used": "calendar, weather",
+                    "decision_reason": "Meeting + rain",
+                    "created_at": "2026-03-03 10:00",
+                    "content": "Meeting at 2pm and rain expected — take an umbrella",
+                }
+            ]
+        )
+
+        summary = ctx.recent_heartbeats_summary
+
+        assert summary is not None
+        assert "2026-03-03 10:00" in summary
+        assert "take an umbrella" in summary
+
+    def test_recent_heartbeats_summary_falls_back_to_reason(self):
+        """Legacy rows without a content excerpt still render their reason."""
         ctx = HeartbeatContext(
             recent_heartbeats=[
                 {
@@ -342,7 +367,6 @@ class TestHeartbeatContext:
         summary = ctx.recent_heartbeats_summary
 
         assert summary is not None
-        assert "calendar, weather" in summary
         assert "Meeting + rain" in summary
 
     def test_recent_interest_notifications_summary(self):
@@ -380,7 +404,7 @@ class TestHeartbeatTarget:
             action="notify",
             reason="Upcoming meeting",
             message_draft="You have a meeting soon.",
-            sources_used=["calendar"],
+            sources_used=["UPCOMING_CALENDAR_EVENTS"],
         )
         target = HeartbeatTarget(
             context=ctx,

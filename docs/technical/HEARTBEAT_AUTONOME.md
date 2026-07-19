@@ -56,6 +56,11 @@ APScheduler (30 min, configurable)
 | `HEARTBEAT_NOTIFICATION_BATCH_SIZE` | `50` | Users per batch |
 | `HEARTBEAT_GLOBAL_COOLDOWN_HOURS` | `2` | Min hours between notifications |
 | `HEARTBEAT_ACTIVITY_COOLDOWN_MINUTES` | `15` | Skip if user active recently |
+| `HEARTBEAT_INTEREST_SAMPLE_SIZE` | `5` | Varied interests injected into the context (ADR-135) |
+| `HEARTBEAT_RECENT_WINDOW_COUNT` | `10` | Anti-redundancy window size (notifications) |
+| `HEARTBEAT_RECENT_WINDOW_DAYS` | `7` | Anti-redundancy window age limit |
+| `HEARTBEAT_INTEREST_ENRICHMENT_ENABLED` | `true` | Fetch real facts for interest-centered heartbeats |
+| `HEARTBEAT_ENRICHMENT_TIMEOUT_SECONDS` | `45` | Enrichment hard timeout (fail-open) |
 | `HEARTBEAT_DECISION_LLM_PROVIDER` | `openai` | LLM provider for decision |
 | `HEARTBEAT_DECISION_LLM_MODEL` | `gpt-4.1-mini` | LLM model for decision |
 | `HEARTBEAT_MESSAGE_LLM_PROVIDER` | `openai` | LLM provider for message |
@@ -92,12 +97,12 @@ The `ContextAggregator` fetches all sources in parallel via `asyncio.gather(retu
 | Weather + Changes | OpenWeatherMap API | Connector + home_location | None |
 | Tasks | Google Tasks / Microsoft To Do API | Active connector | None |
 | Emails | Gmail / Apple Email / Microsoft Outlook | Active connector | None |
-| Interests | InterestRepository | Active interests | None |
+| Interests | InterestRepository + `pick_varied_sample` (ADR-135: one per subject, least-recently-served first) | Active interests | None |
 | Memories | LangGraph Store | memory_enabled | None |
 | Journals | JournalEntryRepository (semantic search, second-pass dynamic query) | journals_enabled | None |
 | User-model portrait | `build_journal_user_model_block(format='brief')` (compiled portrait, ADR-079) | journals_enabled | "" |
 | Activity | Last message query | Always available | None |
-| Recent heartbeats | HeartbeatNotification table | Always available | [] |
+| Recent heartbeats | HeartbeatNotification table (10 items / 7 days, CONTENT excerpts — ADR-135) | Always available | [] |
 | Recent interest notifications | InterestNotification JOIN | Always available | [] |
 | Time | Computed from timezone | Always available | Always OK |
 
@@ -128,13 +133,22 @@ Privacy: the persisted coordinates are encrypted (Fernet), non-historized (overw
 ### Phase 1: Decision (structured output)
 - Model: `gpt-4.1-mini` (cheap, fast)
 - Temperature: 0.3 (deterministic)
-- Output: `HeartbeatDecision` (action, reason, message_draft, priority, sources_used)
-- Includes recent heartbeats + interest notifications for anti-redundancy
+- Output: `HeartbeatDecision` (action, reason, message_draft, priority, sources_used, `interest_topic`)
+- `sources_used` uses the canonical `HeartbeatSourceLabel` enum (ADR-135: free-text labels had drifted, e.g. "USER_MEMORIES" vs "USER MEMORIES")
+- `interest_topic` must be copied verbatim from the injected interest sample; anything else is dropped by a runtime guard (fail-open to `None`)
+- Includes recent heartbeats (with CONTENT excerpts) + interest notifications for two-level anti-redundancy (source level AND topic/product/activity level, explicitly cross-source)
+
+### Phase 1b: Interest enrichment (ADR-135, only when `interest_topic` is set)
+- Fetches real, fresh content through `InterestContentGenerator` (Perplexity → Brave → Wikipedia) under `HEARTBEAT_ENRICHMENT_TIMEOUT_SECONDS`
+- Reuses the interest's recent-notification embeddings for content dedup (symmetry with the interest flow)
+- Fail-open: disabled flag, timeout, failure or empty result → the message is generated from the plain draft
 
 ### Phase 2: Message Generation (if action="notify")
 - Model: `gpt-4.1-mini`
 - Temperature: 0.7 (creative)
 - Rewrites `message_draft` with user's personality and language
+- When facts were fetched, a VERIFIED FACTS block is appended to the system prompt with a strict contract: center the message on 1-2 **named** items, never invent, never paste raw URLs
+- Source links are appended deterministically afterwards (`build_sources_block`, ADR-131)
 - Output: 2-4 sentences, natural tone
 
 ## API Endpoints

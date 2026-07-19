@@ -4,9 +4,9 @@
 >
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
-**Versión**: 3.1
+**Versión**: 3.2
 **Fecha**: 2026-07-19
-**Aplicación**: LIA v1.25.7
+**Aplicación**: LIA v1.25.8
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,7 +52,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 423 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Transparencia total | 425 métricas Prometheus, debug panel integrado, seguimiento token por token |
 | Fiabilidad en producción | 120+ ADRs, ~11.900 tests recogidos por pytest en 670 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
@@ -75,7 +75,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
-| Métricas Prometheus | 423 definiciones |
+| Métricas Prometheus | 425 definiciones |
 | Dashboards Grafana | 25 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -684,11 +684,13 @@ Factory **catalogue-driven** (ADR-081): `factory.get_tts_client()` lee el overri
 ### 16.1. Heartbeat: arquitectura en 2 fases
 
 **Fase 1 — Decisión** (coste-efectiva, gpt-4.1-mini):
-1. `EligibilityChecker`: opt-in, ventana horaria, cooldown (2h global, 30 min por tipo), actividad reciente
-2. `ContextAggregator`: 7 fuentes en paralelo (`asyncio.gather`): Calendar, Weather (detección de cambios), Tasks, Emails, Interests, Memories, Journals
-3. LLM structured output: `skip` | `notify` con anti-redundancia (historial reciente inyectado)
+1. `EligibilityChecker`: opt-in, ventana horaria, cooldown (1h global, 30 min por tipo), actividad reciente — los filtros opcionales `notification_filter`/`cross_type_filters` separan el presupuesto de elegibilidad de cada flujo del libro de cuentas compartido
+2. `ContextAggregator`: 8 fuentes en paralelo (`asyncio.gather`): Calendar, Weather (detección de cambios), Tasks, Emails, Interests, Memories, Journals, Health. Los intereses llegan como **muestra variada** (`pick_varied_sample`: un interés por tema, los temas menos servidos recientemente primero) — el modelo solo puede mencionar lo que se le muestra, así que la rotación es mecánica
+3. LLM structured output: `skip` | `notify` más `interest_topic` (copiado literalmente de la muestra, guardia de ejecución fail-open) y etiquetas de fuente restringidas por un `Literal`. Anti-redundancia de dos niveles: fuente y **contenido** — las últimas 10 notificaciones en 7 días se inyectan con sus extractos, lo que prohíbe volver a proponer un tema aunque provenga de otra fuente
 
-**Fase 2 — Generación** (si notify): LLM reescribe con personalidad + idioma del usuario. Dispatch multi-canal.
+**Fase 1b — Enriquecimiento** (si `interest_topic`): `InterestContentGenerator` (Perplexity → Brave → Wikipedia) bajo timeout estricto, deduplicado contra los embeddings de notificaciones recientes. Totalmente fail-open: flag apagado, fallo o resultado vacío → el mensaje sale sin hechos.
+
+**Fase 2 — Generación** (si notify): LLM reescribe con personalidad + idioma del usuario. Cuando se han recuperado hechos, un bloque VERIFIED FACTS exige nombrar 1-2 elementos concretos sin inventar nunca, y los enlaces a las fuentes se añaden de forma determinista. Dispatch multi-canal. Una mención de interés se inscribe en el libro compartido (`InterestNotification(source='heartbeat')`): el tema descansa entonces para ambos flujos proactivos.
 
 ### 16.2. Agent Initiative (ADR-062)
 
@@ -768,7 +770,7 @@ Diseño **fail-open**: los fallos de infraestructura no bloquean a los usuarios.
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 423 métricas custom (RED pattern) |
+| Prometheus | 425 métricas custom (RED pattern) |
 | Grafana | 25 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
@@ -1068,4 +1070,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 120+ ADRs y del changelog (v1.0 a v1.25.7). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 120+ ADRs y del changelog (v1.0 a v1.25.8). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

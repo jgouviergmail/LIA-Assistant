@@ -21,6 +21,7 @@ class ContentSource(str, Enum):
 
     WIKIPEDIA = "wikipedia"
     PERPLEXITY = "perplexity"
+    BRAVE = "brave"
     LLM_REFLECTION = "llm_reflection"
     CALENDAR = "calendar"
     MEMORY = "memory"

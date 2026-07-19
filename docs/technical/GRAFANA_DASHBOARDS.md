@@ -42,7 +42,7 @@ Les **25 dashboards Grafana** fournissent une observabilite complete pour :
 | Schema version | 38 (Grafana 11.3) |
 | graphTooltip | 1 (shared crosshair) sur tous les dashboards |
 | Navigation | Tag `lia` sur tous les dashboards |
-| Couverture metriques | 419/423 metriques du code referencees par au moins un panel (audit 2026-07 ; les 4 metriques ADR-131 attendent leurs panels — voir ADR-131, differe explicitement) |
+| Couverture metriques | 419/425 metriques du code referencees par au moins un panel (audit 2026-07 ; les 4 metriques ADR-131, celle d'ADR-134 et celle d'ADR-135 attendent leurs panels — differe explicitement dans ces ADR) |
 
 ---
 

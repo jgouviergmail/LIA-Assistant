@@ -12,6 +12,7 @@ Two-phase LLM approach:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 from datetime import UTC, datetime
@@ -21,6 +22,7 @@ from uuid import UUID, uuid4
 import structlog
 
 from src.core.config import get_settings
+from src.core.constants import HEARTBEAT_ENRICHMENT_CONTEXT_ID
 from src.domains.heartbeat.context_aggregator import ContextAggregator
 from src.domains.heartbeat.prompts import (
     generate_heartbeat_message,
@@ -28,6 +30,7 @@ from src.domains.heartbeat.prompts import (
 )
 from src.domains.heartbeat.schemas import HeartbeatTarget
 from src.infrastructure.database import get_db_context
+from src.infrastructure.observability.metrics_registry import heartbeat_enrichment_total
 from src.infrastructure.proactive.base import ContentSource, ProactiveTaskResult
 
 logger = structlog.get_logger(__name__)
@@ -111,6 +114,18 @@ class HeartbeatProactiveTask:
                 context, user_language=user_language
             )
 
+            # Fail-open guard (ADR-135): interest_topic must be one of the
+            # injected sample topics — anything else is dropped, never trusted.
+            if decision.interest_topic is not None:
+                sample_topics = {i.get("topic") for i in (context.trending_interests or [])}
+                if decision.interest_topic not in sample_topics:
+                    logger.warning(
+                        "heartbeat_interest_topic_invalid",
+                        user_id=str(user_id),
+                        invalid_topic=decision.interest_topic[:50],
+                    )
+                    decision.interest_topic = None
+
             if decision.action == "skip":
                 logger.info(
                     "heartbeat_llm_skip",
@@ -143,6 +158,147 @@ class HeartbeatProactiveTask:
             )
             return None
 
+    async def _resolve_interest_for_enrichment(
+        self,
+        user_id: UUID,
+        topic: str,
+    ) -> tuple[UUID | None, str, list[list[float]]]:
+        """Resolve the stored interest behind an enrichment topic (ADR-135).
+
+        Returns its category and the embeddings of its recent notifications so
+        the fetched content is deduplicated exactly like the interest flow does
+        (flow asymmetries are a recurring bug source). Best-effort: an
+        unresolved topic simply yields no category and no embeddings.
+
+        Args:
+            user_id: User UUID.
+            topic: Interest topic string from the decision.
+
+        Returns:
+            (interest_id or None, category, recent content embeddings).
+        """
+        settings = get_settings()
+        try:
+            async with get_db_context() as db:
+                from src.domains.interests.repository import (
+                    InterestNotificationRepository,
+                    InterestRepository,
+                )
+
+                interest = await InterestRepository(db).get_by_user_and_topic_ci(user_id, topic)
+                if interest is None:
+                    return None, "", []
+
+                recent = await InterestNotificationRepository(db).get_recent_for_interest(
+                    interest_id=interest.id,
+                    days=settings.interest_content_lookback_days,
+                )
+                embeddings = [n.content_embedding for n in recent if n.content_embedding]
+                return interest.id, interest.category, embeddings
+        except Exception as e:
+            logger.warning(
+                "heartbeat_enrichment_resolve_failed",
+                user_id=str(user_id),
+                topic=topic[:50],
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return None, "", []
+
+    async def _fetch_interest_facts(
+        self,
+        user_id: UUID,
+        topic: str,
+        user_language: str,
+    ) -> tuple[str, list[str], int, int] | None:
+        """Fetch real, fresh content for an interest-centered heartbeat (ADR-135).
+
+        Reuses the interest content pipeline (Perplexity/Brave/Wikipedia) under
+        a hard timeout so the notification can propose something concrete
+        instead of a vague exhortation. Fail-open by contract: any failure
+        returns None and the message is generated from the plain draft.
+
+        Args:
+            user_id: User UUID (the content sources resolve per-user API keys).
+            topic: Interest topic the decision centered on.
+            user_language: User's language code.
+
+        Returns:
+            (facts_text, citations, tokens_in, tokens_out) or None.
+        """
+        from src.domains.interests.services.content_sources import (
+            ContentGenerationContext,
+            InterestContentGenerator,
+        )
+
+        settings = get_settings()
+        if not settings.heartbeat_interest_enrichment_enabled:
+            heartbeat_enrichment_total.labels(outcome="disabled").inc()
+            return None
+
+        interest_id, category, recent_embeddings = await self._resolve_interest_for_enrichment(
+            user_id, topic
+        )
+
+        generator = InterestContentGenerator()
+        try:
+            generation = await asyncio.wait_for(
+                generator.generate(
+                    ContentGenerationContext(
+                        interest_id=(
+                            str(interest_id)
+                            if interest_id is not None
+                            else HEARTBEAT_ENRICHMENT_CONTEXT_ID
+                        ),
+                        topic=topic,
+                        category=category,
+                        user_id=str(user_id),
+                        user_language=user_language,
+                        recent_notification_embeddings=recent_embeddings,
+                    )
+                ),
+                timeout=settings.heartbeat_enrichment_timeout_seconds,
+            )
+        except Exception as e:
+            # Fail-open by contract: enrichment is a bonus, never a blocker.
+            logger.warning(
+                "heartbeat_enrichment_failed",
+                user_id=str(user_id),
+                topic=topic[:50],
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            heartbeat_enrichment_total.labels(outcome="error").inc()
+            return None
+        finally:
+            await generator.close()
+
+        if not generation.success or generation.content_result is None:
+            logger.info(
+                "heartbeat_enrichment_empty",
+                user_id=str(user_id),
+                topic=topic[:50],
+                sources_tried=generation.sources_tried,
+            )
+            heartbeat_enrichment_total.labels(outcome="empty").inc()
+            return None
+
+        content_result = generation.content_result
+        logger.info(
+            "heartbeat_enrichment_succeeded",
+            user_id=str(user_id),
+            topic=topic[:50],
+            source=content_result.source,
+            citations_count=len(content_result.citations),
+        )
+        heartbeat_enrichment_total.labels(outcome="success").inc()
+        return (
+            content_result.content,
+            content_result.citations,
+            content_result.tokens_in,
+            content_result.tokens_out,
+        )
+
     async def generate_content(
         self,
         user_id: UUID,
@@ -153,11 +309,24 @@ class HeartbeatProactiveTask:
 
         Only called when LLM decided to notify (target is not None).
         Rewrites the decision's message_draft with personality and language.
+        When the decision centers on an interest (ADR-135), real facts are
+        fetched first so the message proposes something concrete, and the
+        sources are appended as clickable links.
         """
         personality = await self._get_user_personality(user_id)
 
         # Use the message_draft from the decision phase
         draft = target.decision.message_draft or target.decision.reason
+
+        facts_block: str | None = None
+        citations: list[str] = []
+        enrich_tok_in = 0
+        enrich_tok_out = 0
+        interest_topic = target.decision.interest_topic
+        if interest_topic:
+            facts = await self._fetch_interest_facts(user_id, interest_topic, user_language)
+            if facts is not None:
+                facts_block, citations, enrich_tok_in, enrich_tok_out = facts
 
         message, msg_tok_in, msg_tok_out, msg_tok_cache = await generate_heartbeat_message(
             message_draft=draft,
@@ -165,11 +334,21 @@ class HeartbeatProactiveTask:
             user_language=user_language,
             personality_instruction=personality,
             user_id=user_id,
+            facts_block=facts_block,
         )
 
-        # Aggregate tokens: decision + message phases
-        total_in = target.decision_tokens_in + msg_tok_in
-        total_out = target.decision_tokens_out + msg_tok_out
+        if citations:
+            from src.domains.interests.sources import build_sources_block
+
+            message += build_sources_block(
+                citations=citations,
+                language=user_language,
+                max_links=get_settings().interest_sources_max_links,
+            )
+
+        # Aggregate tokens: decision + message + enrichment phases
+        total_in = target.decision_tokens_in + msg_tok_in + enrich_tok_in
+        total_out = target.decision_tokens_out + msg_tok_out + enrich_tok_out
         total_cache = target.decision_tokens_cache + msg_tok_cache
 
         from src.core.llm_config_helper import get_llm_config_for_agent
@@ -190,6 +369,8 @@ class HeartbeatProactiveTask:
                 "priority": target.decision.priority,
                 "sources_used": target.decision.sources_used,
                 "decision_reason": target.decision.reason,
+                "interest_topic": interest_topic,
+                "citations": citations,
             },
         )
 
@@ -236,6 +417,47 @@ class HeartbeatProactiveTask:
                 tokens_out=result.tokens_out,
                 model_name=result.model_name,
             )
+
+            # Unified mention ledger (ADR-135): an interest-centered heartbeat
+            # counts as "subject served" for BOTH proactive flows' variety.
+            # Eligibility queries exclude source='heartbeat' rows; selection
+            # and rarity queries include them.
+            interest_topic = result.metadata.get("interest_topic")
+            if interest_topic:
+                from src.domains.interests.repository import (
+                    InterestNotificationRepository,
+                    InterestRepository,
+                )
+
+                interest_repo = InterestRepository(db)
+                interest = await interest_repo.get_by_user_and_topic_ci(user_id, interest_topic)
+                if interest is not None:
+                    await interest_repo.mark_notified(interest)
+
+                    # Embed the served content so later fetches (either flow)
+                    # deduplicate against it, exactly like the interest flow.
+                    from src.domains.interests.helpers import generate_interest_embedding
+
+                    content_embedding = None
+                    if result.content:
+                        content_embedding = await generate_interest_embedding(result.content)
+
+                    ledger_repo = InterestNotificationRepository(db)
+                    await ledger_repo.create(
+                        user_id=user_id,
+                        interest_id=interest.id,
+                        run_id=f"hb_{result.target_id or uuid4().hex[:12]}",
+                        content_hash=hashlib.sha256((result.content or "").encode()).hexdigest(),
+                        source="heartbeat",
+                        content_embedding=content_embedding,
+                    )
+                else:
+                    logger.debug(
+                        "heartbeat_ledger_topic_unresolved",
+                        user_id=str(user_id),
+                        topic=interest_topic[:50],
+                    )
+
             await db.commit()
 
         # 2. Store summary in LangGraph Store for conversational continuity
