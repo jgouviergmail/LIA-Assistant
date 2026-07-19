@@ -99,3 +99,84 @@ describe('handlers — execution trace capture', () => {
     expect(traceAttach(dispatch)).toBeUndefined();
   });
 });
+
+describe('handlers — trace step detail fallback (no i18n_key)', () => {
+  function detailStep(detail: string): ChatStreamChunk {
+    return {
+      type: 'execution_step',
+      content: '',
+      metadata: { emoji: '🔧', detail, category: 'tool' },
+    } as ChatStreamChunk;
+  }
+
+  it('uses the raw detail as label when short, and truncates it past 80 chars', () => {
+    const { context, dispatch } = buildHandlerContext();
+    handleRouterDecision(routerChunk(), context);
+
+    handleExecutionStep(detailStep('short detail'), context);
+    const long = 'x'.repeat(120);
+    handleExecutionStep(detailStep(long), context);
+
+    handleDone({ type: 'done', content: '', metadata: {} } as ChatStreamChunk, context);
+
+    const attach = traceAttach(dispatch);
+    expect(attach).toBeDefined();
+    const labels = attach!.payload.trace.steps.map(s => s.label);
+    expect(labels).toContain('short detail');
+    // Long detail truncated to 77 chars + ellipsis.
+    const truncated = labels.find(l => l.endsWith('...'));
+    expect(truncated).toBeDefined();
+    expect(truncated!.length).toBe(80);
+  });
+});
+
+describe('handlers — trace step edge branches', () => {
+  it('skips a metadata-less execution step and defaults an unknown category to system', () => {
+    const { context, dispatch } = buildHandlerContext({ t: traceT });
+    handleRouterDecision(routerChunk(), context);
+
+    // No metadata → buildTraceStep returns null (no trace step added).
+    handleExecutionStep({ type: 'execution_step', content: '' } as ChatStreamChunk, context);
+    // Unknown category → grouped under 'system'.
+    handleExecutionStep(
+      {
+        type: 'execution_step',
+        content: '',
+        metadata: { emoji: '❓', i18n_key: 'send_email', category: 'bogus' },
+      } as ChatStreamChunk,
+      context
+    );
+
+    handleDone({ type: 'done', content: '', metadata: {} } as ChatStreamChunk, context);
+
+    const attach = traceAttach(dispatch);
+    const bogus = attach!.payload.trace.steps.find(s => s.label === 'send_email');
+    expect(bogus?.category).toBe('system');
+  });
+});
+
+describe('handlers — trace step i18n-empty falls back to detail', () => {
+  it('uses the detail when the i18n key resolves to an empty string', () => {
+    // Translator that resolves execution.steps.* to '' (missing translation),
+    // forcing buildTraceStep down the detail-fallback path.
+    const emptyT = ((key: string, opts?: { defaultValue?: string }) =>
+      key.startsWith('execution.steps.') ? '' : (opts?.defaultValue ?? key)) as never;
+    const { context, dispatch } = buildHandlerContext({ t: emptyT });
+    handleRouterDecision(routerChunk(), context);
+
+    handleExecutionStep(
+      {
+        type: 'execution_step',
+        content: '',
+        metadata: { emoji: '📮', i18n_key: 'send_email', detail: 'Envoi du courriel', category: 'tool' },
+      } as ChatStreamChunk,
+      context
+    );
+
+    handleDone({ type: 'done', content: '', metadata: {} } as ChatStreamChunk, context);
+
+    const attach = traceAttach(dispatch);
+    const labels = attach!.payload.trace.steps.map(s => s.label);
+    expect(labels).toContain('Envoi du courriel');
+  });
+});

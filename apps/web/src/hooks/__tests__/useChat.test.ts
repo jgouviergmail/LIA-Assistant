@@ -25,12 +25,14 @@ const h = vi.hoisted(() => {
   const reattachStream = vi.fn();
   const fetchActiveRun = vi.fn(async () => ({ active: false }) as Record<string, unknown>);
   const cancelActiveRun = vi.fn(async () => ({ cancelled: false }));
+  const fetchPendingHitl = vi.fn(async () => null as unknown);
   return {
     streamChat,
     cancel,
     reattachStream,
     fetchActiveRun,
     cancelActiveRun,
+    fetchPendingHitl,
     user: {
       id: 'user-1',
       email: 'u@test.local',
@@ -61,6 +63,7 @@ vi.mock('@/lib/api/chat', async importOriginal => {
     ...actual,
     fetchActiveRun: () => h.fetchActiveRun(),
     cancelActiveRun: () => h.cancelActiveRun(),
+    fetchPendingHitl: () => h.fetchPendingHitl(),
     chatSSEClient: {
       streamChat: (...args: unknown[]) => h.streamChat(...args),
       cancel: (...args: unknown[]) => h.cancel(...args),
@@ -949,5 +952,133 @@ describe('useChat — stopGeneration (ADR-117 Lot 3)', () => {
       interrupt_reason: 'cancelled',
     });
     expect(result.current.isTyping).toBe(false);
+  });
+});
+
+describe('useChat — HITL approval card decisions (Lot 1 P1-V1)', () => {
+  const CARD_INTERRUPT = {
+    type: 'hitl_interrupt_metadata',
+    content: '',
+    metadata: {
+      message_id: 'hitl_card_1',
+      action_requests: [
+        { type: 'tool_confirmation', tool_name: 'send_email_tool', tool_args: { to: 'a@b.c' } },
+      ],
+    },
+  } as ChatStreamChunk;
+
+  it('submitHitlDecision(confirm) locks the card and resumes with a structured decision', async () => {
+    scriptStream([ROUTER_CHUNK, CARD_INTERRUPT]);
+    const { result } = renderHook(() => useChat());
+    await act(async () => {
+      await result.current.sendMessage('Envoie le mail à Alice');
+    });
+    expect(result.current.hitl.status).toBe('awaiting');
+
+    scriptStream([token('Email envoyé ✅'), done({ message_count: 2 })]);
+    await act(async () => {
+      await result.current.submitHitlDecision('confirm', 'Oui, envoie');
+    });
+
+    const resumeReq = h.streamChat.mock.calls[1][0] as { hitl_decision?: Record<string, unknown> };
+    expect(resumeReq.hitl_decision).toEqual({ message_id: 'hitl_card_1', action: 'confirm' });
+    // Card cleared once the resume turn completes (2026-07-19 lifecycle fix).
+    expect(result.current.hitl.status).toBe('none');
+  });
+
+  it('submitHitlDecision(edit) forwards the modification instructions', async () => {
+    scriptStream([ROUTER_CHUNK, CARD_INTERRUPT]);
+    const { result } = renderHook(() => useChat());
+    await act(async () => {
+      await result.current.sendMessage('Prépare un brouillon');
+    });
+
+    scriptStream([token('Brouillon mis à jour'), done()]);
+    await act(async () => {
+      await result.current.submitHitlDecision('edit', 'Change le sujet', 'raccourcis le message');
+    });
+
+    const resumeReq = h.streamChat.mock.calls[1][0] as { hitl_decision?: Record<string, unknown> };
+    expect(resumeReq.hitl_decision).toEqual({
+      message_id: 'hitl_card_1',
+      action: 'edit',
+      modification_instructions: 'raccourcis le message',
+    });
+  });
+
+  it('submitHitlDecision is a no-op when no card is awaiting', async () => {
+    scriptStream([done()]);
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.submitHitlDecision('confirm', 'Oui');
+    });
+
+    // No stream started — the defensive guard returned early.
+    expect(h.streamChat).not.toHaveBeenCalled();
+    expect(result.current.hitl.status).toBe('none');
+  });
+});
+
+describe('useChat — connector error notices (Lot 3 P3)', () => {
+  const TOOL_ERROR = {
+    type: 'execution_step',
+    content: '',
+    metadata: {
+      step_type: 'tool_error',
+      connector_type: 'google_gmail',
+      action: 'reconnect',
+      tool_name: 'get_emails_tool',
+    },
+  } as ChatStreamChunk;
+
+  it('accumulates a notice from a tool_error step, then dismisses it', async () => {
+    scriptStream([ROUTER_CHUNK, TOOL_ERROR, token('Je ne peux pas accéder à vos e-mails.'), done()]);
+    const { result } = renderHook(() => useChat());
+    await act(async () => {
+      await result.current.sendMessage('Cherche mes emails');
+    });
+
+    expect(result.current.connectorNotices).toHaveLength(1);
+    expect(result.current.connectorNotices[0]).toEqual({
+      connectorType: 'google_gmail',
+      action: 'reconnect',
+      toolName: 'get_emails_tool',
+    });
+
+    act(() => {
+      result.current.dismissConnectorNotice('google_gmail', 'reconnect');
+    });
+    expect(result.current.connectorNotices).toHaveLength(0);
+  });
+});
+
+describe('useChat — pending HITL rehydration (Lot 1 P1-V1)', () => {
+  it('hydratePendingHitl arms the card from a pending interrupt', async () => {
+    h.fetchPendingHitl.mockResolvedValueOnce({
+      message_id: 'hitl_pending_1',
+      action_requests: [
+        { type: 'tool_confirmation', tool_name: 'send_email_tool', tool_args: {} },
+      ],
+    });
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.hydratePendingHitl();
+    });
+
+    expect(result.current.hitl.status).toBe('awaiting');
+    expect(result.current.hitl.payload?.messageId).toBe('hitl_pending_1');
+  });
+
+  it('hydratePendingHitl is a safe no-op when nothing is pending', async () => {
+    h.fetchPendingHitl.mockResolvedValueOnce(null);
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.hydratePendingHitl();
+    });
+
+    expect(result.current.hitl.status).toBe('none');
   });
 });

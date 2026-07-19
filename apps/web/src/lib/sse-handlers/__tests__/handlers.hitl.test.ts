@@ -15,6 +15,7 @@ import {
   handleHitlInterruptComplete,
   handleHitlInterruptLegacy,
   handleHitlStreamingFallback,
+  handleError,
 } from '@/lib/sse-handlers/handlers';
 import { logger } from '@/lib/logger';
 import type { ChatStreamChunk } from '@/types/chat';
@@ -240,5 +241,61 @@ describe('handleHitlInterruptLegacy', () => {
 
     const tokens = dispatchedOfType(dispatch, 'STREAM_TOKEN') as Array<{ token: string }>;
     expect(tokens[0].token).toBe('hitl.default');
+  });
+});
+
+describe('handleHitlInterruptMetadata — approval card (Lot 1 P1-V1)', () => {
+  it('dispatches HITL_AWAITING with the normalized payload for a card-kind interrupt', () => {
+    const { context, dispatch } = buildHandlerContext({ progressMessageId: 'assistant-1' });
+    const chunk = {
+      type: 'hitl_interrupt_metadata',
+      content: '',
+      metadata: {
+        message_id: 'hitl_card_1',
+        action_requests: [
+          { type: 'tool_confirmation', tool_name: 'send_email_tool', tool_args: { to: 'a@b.c' } },
+        ],
+      },
+    } as ChatStreamChunk;
+
+    handleHitlInterruptMetadata(chunk, context);
+
+    const awaiting = dispatchedOfType(dispatch, 'HITL_AWAITING') as Array<{
+      payload: { kind: string; messageId: string };
+    }>;
+    expect(awaiting).toHaveLength(1);
+    expect(awaiting[0].payload).toMatchObject({ kind: 'tool_confirmation', messageId: 'hitl_card_1' });
+  });
+});
+
+describe('handleError — stale HITL decision (Lot 1 P1-V1)', () => {
+  it('flips the card to expired on error_code hitl_decision_stale before STREAM_ERROR', () => {
+    const { context, dispatch } = buildHandlerContext();
+    const chunk = {
+      type: 'error',
+      content: 'Cette demande n’est plus active.',
+      metadata: { error_code: 'hitl_decision_stale' },
+    } as ChatStreamChunk;
+
+    handleError(chunk, context);
+
+    const types = dispatch.mock.calls.map(c => c[0].type);
+    expect(types).toContain('HITL_EXPIRED');
+    expect(types).toContain('STREAM_ERROR');
+    // HITL_EXPIRED must precede STREAM_ERROR (the retry branch must not re-arm).
+    expect(types.indexOf('HITL_EXPIRED')).toBeLessThan(types.indexOf('STREAM_ERROR'));
+  });
+
+  it('does not flip the card for a generic error', () => {
+    const { context, dispatch } = buildHandlerContext();
+    const chunk = {
+      type: 'error',
+      content: 'Boom',
+      metadata: { error_code: 'internal_error' },
+    } as ChatStreamChunk;
+
+    handleError(chunk, context);
+
+    expect(dispatchedOfType(dispatch, 'HITL_EXPIRED')).toHaveLength(0);
   });
 });

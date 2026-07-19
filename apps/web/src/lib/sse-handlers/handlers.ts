@@ -155,7 +155,9 @@ function buildTraceStep(
   metadata: ProgressMessageMetadata | undefined,
   t: SSEHandlerContext['t']
 ): ExecutionTraceStep | null {
-  if (!metadata || metadata.step_type === 'reasoning') return null;
+  // The caller (handleExecutionStep) already filters reasoning sub-events, so
+  // metadata here is either absent or a real step — no reasoning re-check.
+  if (!metadata) return null;
   const emoji = metadata.emoji || '⚙️';
   const rawCategory = metadata.category;
   const category =

@@ -82,3 +82,19 @@ describe('handleExecutionStep — tool_error interception', () => {
     expect(noticeActions(dispatch)).toHaveLength(0);
   });
 });
+
+describe('handleExecutionStep — tool_error default tool name', () => {
+  it('defaults toolName to "unknown" when the payload omits tool_name', () => {
+    const { context, dispatch } = buildHandlerContext();
+    handleExecutionStep(
+      toolErrorChunk({ connector_type: 'google_gmail', action: 'reconnect' }),
+      context
+    );
+    const add = dispatch.mock.calls
+      .map(c => c[0] as ChatAction)
+      .find(a => a.type === 'CONNECTOR_NOTICE_ADD');
+    expect(add).toBeDefined();
+    if (add?.type !== 'CONNECTOR_NOTICE_ADD') throw new Error('unreachable');
+    expect(add.payload.notice.toolName).toBe('unknown');
+  });
+});
