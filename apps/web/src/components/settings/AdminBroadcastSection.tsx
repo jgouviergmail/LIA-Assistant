@@ -47,7 +47,11 @@ interface BroadcastResponse {
   fcm_failed: number;
 }
 
-interface UserAutocompleteItem {
+/**
+ * A candidate recipient returned by the admin autocomplete. Exported so tests
+ * can build a complete, contract-conformant fixture instead of duplicating it.
+ */
+export interface UserAutocompleteItem {
   id: string;
   email: string;
   full_name: string | null;

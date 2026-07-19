@@ -25,7 +25,7 @@ export interface Skill {
 /**
  * API list response shape.
  */
-interface SkillListResponse {
+export interface SkillListResponse {
   skills: Skill[];
   total: number;
 }

@@ -23,7 +23,11 @@ import type { Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
 
-interface GoogleApiPricing {
+/**
+ * A Google API pricing row. Exported so tests can build a complete,
+ * contract-conformant fixture instead of duplicating the shape.
+ */
+export interface GoogleApiPricing {
   id: string;
   api_name: string;
   endpoint: string;

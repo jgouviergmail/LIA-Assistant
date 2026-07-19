@@ -42,8 +42,12 @@ const VARIANT_STYLES: Record<AssistantVariant, string> = {
 
 const VARIANT_ICONS: Record<AssistantVariant, React.ReactNode> = {
   default: null,
-  hitl: <ShieldCheck className="inline w-3 h-3 mr-1 align-[-1.5px] text-amber-600 dark:text-amber-400" />,
-  success: <Check className="inline w-3 h-3 mr-1 align-[-1.5px] text-green-600 dark:text-green-400" />,
+  hitl: (
+    <ShieldCheck className="inline w-3 h-3 mr-1 align-[-1.5px] text-amber-600 dark:text-amber-400" />
+  ),
+  success: (
+    <Check className="inline w-3 h-3 mr-1 align-[-1.5px] text-green-600 dark:text-green-400" />
+  ),
   initiative: (
     <Sparkles className="inline w-3 h-3 mr-1 align-[-1.5px] text-violet-600 dark:text-violet-400" />
   ),
@@ -58,7 +62,12 @@ export interface AssistantRowProps {
 }
 
 /** Wide right-side assistant row with the psyche avatar, like the real app. */
-export function AssistantRow({ variant = 'default', bare = false, footer, children }: AssistantRowProps) {
+export function AssistantRow({
+  variant = 'default',
+  bare = false,
+  footer,
+  children,
+}: AssistantRowProps) {
   return (
     <div className="flex flex-row-reverse gap-2 items-start animate-chat-bubble">
       <span className="flex-shrink-0 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center text-sm leading-none">

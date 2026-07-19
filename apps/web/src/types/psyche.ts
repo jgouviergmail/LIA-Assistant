@@ -156,15 +156,26 @@ export interface PsycheHistoryEntry {
   mood_dominance: number;
   dominant_emotion: string | null;
   relationship_stage: string;
-  /** Extended metrics: emotion_intensity, relationship_depth/warmth/trust, drives. */
+  /**
+   * Extended metrics captured with the snapshot, mirroring the payload the
+   * backend writes (`PsycheService.process_post_response` → `trait_snapshot`).
+   *
+   * The column is a JSONB blob, so the index signature stays open — but it must
+   * admit the emotion **map** as well as the scalars: `active_emotions` is a
+   * `dict[str, float]` (emotion name → intensity), not a number. Declaring it
+   * explicitly is what lets consumers read it without an assertion.
+   */
   trait_snapshot: {
     emotion_intensity?: number;
+    /** Emotion name → intensity (0-1), every emotion above the 0.05 floor. */
+    active_emotions?: Record<string, number>;
     relationship_depth?: number;
     relationship_warmth?: number;
     relationship_trust?: number;
     drive_curiosity?: number;
     drive_engagement?: number;
-    [key: string]: number | undefined;
+    resonance?: number;
+    [key: string]: number | Record<string, number> | undefined;
   } | null;
   created_at: string;
 }

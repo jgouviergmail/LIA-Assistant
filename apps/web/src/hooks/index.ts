@@ -35,7 +35,7 @@ export type {
 } from './useGeolocation';
 
 // Long-term Memory
-export { useMemories, getEmotionalEmoji, getEmotionalLabel } from './useMemories';
+export { useMemories, getEmotionalEmoji } from './useMemories';
 export type { Memory, MemoryCategory, MemoryUpdate, MemoryListResponse } from './useMemories';
 
 // Interest Learning System

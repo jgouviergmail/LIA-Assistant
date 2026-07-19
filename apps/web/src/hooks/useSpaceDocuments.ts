@@ -24,8 +24,8 @@ export interface DocumentUploadState {
 /** XHR timeout for uploads in milliseconds (2 minutes). */
 const UPLOAD_TIMEOUT_MS = 120_000;
 
-/** Polling interval for document processing status (5 seconds). */
-const STATUS_POLL_INTERVAL_MS = 5_000;
+/** Cadence at which the caller is asked to refresh while a document indexes. */
+export const STATUS_POLL_INTERVAL_MS = 5_000;
 
 interface UseSpaceDocumentsOptions {
   spaceId: string;

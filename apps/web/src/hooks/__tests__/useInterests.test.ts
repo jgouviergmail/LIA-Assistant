@@ -88,7 +88,13 @@ function routeQuery(list: InterestListResponse = LIST): void {
       return { data: list, loading: false, error: null, refetch: vi.fn(), setData: mockSetData };
     }
     if (endpoint === '/interests/categories') {
-      return { data: { categories: [] }, loading: false, error: null, refetch: vi.fn(), setData: vi.fn() };
+      return {
+        data: { categories: [] },
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+        setData: vi.fn(),
+      };
     }
     return { data: undefined, loading: false, error: null, refetch: vi.fn(), setData: vi.fn() };
   });
@@ -121,13 +127,13 @@ describe('useInterests — derived state', () => {
     const { result } = renderHook(() => useInterests());
 
     act(() => result.current.setCategoryFilter('technology'));
-    expect(result.current.interests.map((i) => i.id)).toEqual(['i1']);
+    expect(result.current.interests.map(i => i.id)).toEqual(['i1']);
 
     act(() => {
       result.current.setCategoryFilter(null);
       result.current.setStatusFilter('blocked');
     });
-    expect(result.current.interests.map((i) => i.id)).toEqual(['i2']);
+    expect(result.current.interests.map(i => i.id)).toEqual(['i2']);
   });
 });
 

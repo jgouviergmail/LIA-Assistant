@@ -14,7 +14,12 @@ import {
   OrchestrateChat,
   type ActProps,
 } from './mockup/acts';
-import { REDUCED_MOTION_KINDS, SCENARIOS, type Scenario, type ScenarioId } from './mockup/scenarios';
+import {
+  REDUCED_MOTION_KINDS,
+  SCENARIOS,
+  type Scenario,
+  type ScenarioId,
+} from './mockup/scenarios';
 
 /**
  * Animated hero conversation — a miniature of the real app cycling through

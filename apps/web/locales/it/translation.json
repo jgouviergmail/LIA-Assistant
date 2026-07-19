@@ -3041,6 +3041,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_25_9": {
+          "title": "v1.25.9 — 🧪 L'interfaccia va al banco di prova, emergono bug reali",
+          "date": "Luglio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🖼️ Il visualizzatore di immagini diventa usabile da tastiera</b> — aprire un'immagine a schermo intero porta ora il focus dentro il visualizzatore, mantiene il tasto Tab al suo interno e restituisce il focus alla miniatura da cui provenivi alla chiusura. Gli screen reader lo annunciano come una finestra di dialogo che porta il nome dell'immagine. Prima, chi usava la tastiera veniva rimandato in cima alla pagina e doveva ritabulare tutto.",
+            "i2": "<b>🔌 Le tue preferenze dei connettori non vengono più annullate in silenzio</b> — una preferenza appena modificata poteva essere sovrascritta pochi istanti dopo da un caricamento in background avviato prima del tuo clic, e la stessa impostazione poteva essere richiesta due volte. Entrambi i casi sono risolti: la tua scelta vince.",
+            "i3": "<b>🔗 Collega tutto non salta più un connettore</b> — quando la sequenza di autorizzazione riprendeva dopo un reindirizzamento mentre ne avevi appena avviata un'altra, le due code si sovrascrivevano e un connettore poteva sparire silenziosamente dal gruppo. Ora non possono più sovrapporsi.",
+            "i4": "<b>🧪 Per gli amministratori — l'interfaccia è finalmente testata sul serio</b> — la copertura del frontend è quasi raddoppiata sulle funzioni (29 % → 55 %), con 40 nuove suite di test su caricamenti di file, streaming della chat, notifiche, connettori, voce e notifiche push. È proprio questo lavoro ad aver fatto emergere le tre correzioni qui sopra: sono state trovate testando il codice reale invece dei mock.",
+"i5": "<b>📜 Sette versioni riappaiono in questa cronologia</b> — la v1.15 e dalla v1.20.17 alla v1.20.22 erano state scritte e tradotte, ma non erano mai state aggiunte all'elenco mostrato da questa pagina: le loro voci esistevano e semplicemente non comparivano. Ora un test fallisce se una versione viene scritta senza essere collegata, in entrambe le direzioni."
+          }
+        },
         "v1_25_8": {
           "title": "v1.25.8 — 🎯 Notifiche proattive variate e concrete",
           "date": "Luglio 2026",

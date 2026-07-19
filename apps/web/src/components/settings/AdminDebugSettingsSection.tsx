@@ -16,14 +16,16 @@ import type { BaseSettingsProps } from '@/types/settings';
 const DEBUG_PANEL_ENDPOINT = '/admin/system-settings/debug-panel';
 const DEBUG_PANEL_USER_ACCESS_ENDPOINT = '/admin/system-settings/debug-panel-user-access';
 
-interface DebugPanelEnabledResponse {
+/** Admin's own debug-panel switch, as served by {@link DEBUG_PANEL_ENDPOINT}. */
+export interface DebugPanelEnabledResponse {
   enabled: boolean;
   updated_by: string | null;
   updated_at: string | null;
   is_default: boolean;
 }
 
-interface DebugPanelUserAccessResponse {
+/** Whether end users may reach the debug panel at all. */
+export interface DebugPanelUserAccessResponse {
   available: boolean;
   updated_by: string | null;
   updated_at: string | null;

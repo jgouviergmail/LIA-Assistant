@@ -17,35 +17,9 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 import { AdminUsageLimitsEditModal } from '../AdminUsageLimitsEditModal';
-import type { AdminUserUsageLimitResponse } from '@/types/usage-limits';
-
-function makeUser(over: Partial<AdminUserUsageLimitResponse> = {}): AdminUserUsageLimitResponse {
-  return {
-    user_id: 'u1',
-    email: 'a@b.co',
-    full_name: null,
-    is_active: true,
-    is_usage_blocked: false,
-    blocked_reason: null,
-    blocked_at: null,
-    blocked_by: null,
-    token_limit_per_cycle: 1000,
-    message_limit_per_cycle: 50,
-    cost_limit_per_cycle: 5,
-    token_limit_absolute: null,
-    message_limit_absolute: null,
-    cost_limit_absolute: null,
-    cycle_tokens: 0,
-    cycle_messages: 0,
-    cycle_cost: 0,
-    total_tokens: 0,
-    total_messages: 0,
-    total_cost: 0,
-    status: 'ok',
-    created_at: '2026-01-01T00:00:00Z',
-    ...over,
-  };
-}
+// Shared domain factory — the same row shape is exercised by
+// AdminUsageLimitsSection.test.tsx.
+import { makeUsageLimitsUser as makeUser } from '@/__tests__/factories';
 
 const save = () => screen.getByRole('button', { name: 'usage_limits.edit.save' });
 

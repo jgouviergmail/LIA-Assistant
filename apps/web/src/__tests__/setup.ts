@@ -26,15 +26,26 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// STABLE translation stub — built ONCE and shared by both i18n mocks below.
+//
+// Identity stability is not cosmetic here: a hook mock that hands back a fresh
+// `t` on every call re-triggers every effect depending on it. A component that
+// holds `t` in a `useCallback`/`useEffect` dependency array (e.g.
+// `AdminUsersSection`'s fetch effect) then spins in an infinite
+// render → fetch → render loop and the test hangs instead of failing. The real
+// `useTranslation` memoizes `t` through react-i18next, so pinning the identity
+// here is what makes the mock faithful rather than merely convenient
+// (GUIDE_TESTING → Pièges connus, « stabilité des mocks de hooks »).
+const { i18nStub } = vi.hoisted(() => ({
+  i18nStub: {
+    t: (key: string) => key,
+    i18n: { language: 'fr', changeLanguage: vi.fn() },
+  },
+}));
+
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: {
-      language: 'fr',
-      changeLanguage: vi.fn(),
-    },
-  }),
+  useTranslation: () => i18nStub,
   Trans: ({ children }: { children: React.ReactNode }) => children,
   initReactI18next: {
     type: '3rdParty',
@@ -51,13 +62,7 @@ vi.mock('react-i18next', () => ({
 // network/timer side effects. A test can still override this per-file with its
 // own `vi.mock('@/i18n/client', ...)` when it needs bespoke translations.
 vi.mock('@/i18n/client', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: {
-      language: 'fr',
-      changeLanguage: vi.fn(),
-    },
-  }),
+  useTranslation: () => i18nStub,
 }));
 
 // Mock next-themes. The real `ThemeProvider` injects an inline anti-FOUC

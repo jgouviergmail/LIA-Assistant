@@ -32,9 +32,8 @@ export async function scanPage(page: Page, testInfo: TestInfo, label: string) {
   await page
     .waitForFunction(
       () =>
-        getComputedStyle(document.documentElement)
-          .getPropertyValue('--color-background')
-          .trim() !== '',
+        getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim() !==
+        '',
       undefined,
       { timeout: 30_000 }
     )
@@ -44,20 +43,20 @@ export async function scanPage(page: Page, testInfo: TestInfo, label: string) {
           '(design-system tokens unresolved after 30s) — the server under ' +
           'test is degraded (next dev compiling or broken). Contrast results ' +
           'would reflect UA default colors, not the palette. Restart the dev ' +
-          "server (purge .next if it keeps returning 500) and re-run."
+          'server (purge .next if it keeps returning 500) and re-run.'
       );
     });
 
   const results = await new AxeBuilder({ page: page as unknown as AxePage })
     .withTags(WCAG_TAGS)
     .analyze();
-  const blocking = results.violations.filter((v) => BLOCKING_IMPACTS.has(v.impact ?? ''));
+  const blocking = results.violations.filter(v => BLOCKING_IMPACTS.has(v.impact ?? ''));
 
-  const report = blocking.map((v) => ({
+  const report = blocking.map(v => ({
     rule: v.id,
     impact: v.impact,
     help: v.help,
-    nodes: v.nodes.map((n) => ({
+    nodes: v.nodes.map(n => ({
       selector: n.target.join(' '),
       summary: n.failureSummary,
       ...(v.id === CONTRAST_RULE ? { contrast: n.any[0]?.data ?? null } : {}),
@@ -74,11 +73,11 @@ export async function scanPage(page: Page, testInfo: TestInfo, label: string) {
 
   const summary = report
     .map(
-      (v) =>
+      v =>
         `${v.impact} · ${v.rule} (${v.nodes.length})\n` +
         v.nodes
           .map(
-            (n) =>
+            n =>
               `    ${n.selector}${'contrast' in n && n.contrast ? ` — ${JSON.stringify(n.contrast)}` : ''}`
           )
           .join('\n')

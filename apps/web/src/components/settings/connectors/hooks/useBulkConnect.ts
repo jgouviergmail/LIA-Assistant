@@ -211,36 +211,59 @@ export function useBulkConnect({
     }
   }, [loading, connectors, t]);
 
+  /**
+   * Serialize everything that owns a bulk queue. The resume pass above and a
+   * user-initiated run both read-modify-write the same localStorage key, so
+   * letting them overlap would silently drop a connector from the run: the
+   * resume would pop the entry the freshly-started run had just parked. The
+   * window is narrow (a re-render carrying a new `connectors` array while the
+   * resume awaits its authorize call) but the consequence is invisible, which
+   * is exactly the kind of defect that never gets reported.
+   */
+  const runExclusively = useCallback(async (task: () => Promise<void>) => {
+    if (isProcessingQueueRef.current) return;
+    isProcessingQueueRef.current = true;
+    try {
+      await task();
+    } finally {
+      isProcessingQueueRef.current = false;
+    }
+  }, []);
+
   const connectAllGoogle = useCallback(
     () =>
-      startBulkConnect(
-        GOOGLE_CONNECTOR_TYPES,
-        GOOGLE_AUTH_ENDPOINTS,
-        BULK_CONNECT_QUEUE_KEY,
-        'settings.connectors.google.all_already_connected',
-        'settings.connectors.google.connect_all_error',
-        'Google',
-        connectors,
-        t,
-        setBulkConnecting
+      runExclusively(() =>
+        startBulkConnect(
+          GOOGLE_CONNECTOR_TYPES,
+          GOOGLE_AUTH_ENDPOINTS,
+          BULK_CONNECT_QUEUE_KEY,
+          'settings.connectors.google.all_already_connected',
+          'settings.connectors.google.connect_all_error',
+          'Google',
+          connectors,
+          t,
+          setBulkConnecting
+        )
       ),
-    [connectors, t]
+    [connectors, t, runExclusively]
   );
 
   const connectAllMicrosoft = useCallback(
     () =>
-      startBulkConnect(
-        MICROSOFT_CONNECTOR_TYPES,
-        MICROSOFT_AUTH_ENDPOINTS,
-        MICROSOFT_BULK_CONNECT_QUEUE_KEY,
-        'settings.connectors.microsoft.all_already_connected',
-        'settings.connectors.microsoft.connect_all_error',
-        'Microsoft',
-        connectors,
-        t,
-        setBulkConnecting
+      runExclusively(() =>
+        startBulkConnect(
+          MICROSOFT_CONNECTOR_TYPES,
+          MICROSOFT_AUTH_ENDPOINTS,
+          MICROSOFT_BULK_CONNECT_QUEUE_KEY,
+          'settings.connectors.microsoft.all_already_connected',
+          'settings.connectors.microsoft.connect_all_error',
+          'Microsoft',
+          connectors,
+          t,
+          setBulkConnecting
+        )
       ),
-    [connectors, t]
+    [connectors, t, runExclusively]
   );
 
   return {

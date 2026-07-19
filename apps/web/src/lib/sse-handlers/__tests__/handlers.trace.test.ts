@@ -18,6 +18,7 @@ import {
 import { buildHandlerContext } from './context-fixture';
 import type { ChatStreamChunk } from '@/types/chat';
 import type { ChatAction } from '@/types/chat-state';
+import type { TFunction } from 'i18next';
 
 type TraceAttachAction = Extract<ChatAction, { type: 'TRACE_ATTACH' }>;
 
@@ -159,8 +160,14 @@ describe('handlers — trace step i18n-empty falls back to detail', () => {
   it('uses the detail when the i18n key resolves to an empty string', () => {
     // Translator that resolves execution.steps.* to '' (missing translation),
     // forcing buildTraceStep down the detail-fallback path.
+    // `as unknown as TFunction`, not `as never`: TFunction is the sanctioned
+    // external-boundary escape (F057) — i18next's overloaded signature is not
+    // constructible from a plain arrow. `as never` bypasses the contract
+    // instead of naming it, and would swallow a genuine signature change.
     const emptyT = ((key: string, opts?: { defaultValue?: string }) =>
-      key.startsWith('execution.steps.') ? '' : (opts?.defaultValue ?? key)) as never;
+      key.startsWith('execution.steps.')
+        ? ''
+        : (opts?.defaultValue ?? key)) as unknown as TFunction;
     const { context, dispatch } = buildHandlerContext({ t: emptyT });
     handleRouterDecision(routerChunk(), context);
 
@@ -168,7 +175,12 @@ describe('handlers — trace step i18n-empty falls back to detail', () => {
       {
         type: 'execution_step',
         content: '',
-        metadata: { emoji: '📮', i18n_key: 'send_email', detail: 'Envoi du courriel', category: 'tool' },
+        metadata: {
+          emoji: '📮',
+          i18n_key: 'send_email',
+          detail: 'Envoi du courriel',
+          category: 'tool',
+        },
       } as ChatStreamChunk,
       context
     );

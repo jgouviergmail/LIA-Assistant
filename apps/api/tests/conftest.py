@@ -1004,6 +1004,42 @@ def extract_cookie_value(response, cookie_name: str) -> str:
 
 
 # ============================================================================
+# LangGraph pool URL isolation
+# ============================================================================
+
+
+@pytest.fixture
+def psycopg_url_from_settings() -> Generator[None, None, None]:
+    """Make ``resolve_psycopg_url()`` read ``settings`` again, for one test.
+
+    ``_redirect_process_db_urls`` installs a PROCESS-WIDE psycopg URL override
+    (deliberately never undone — the container outlives the session) so the
+    LangGraph pools always target the test database. ``resolve_psycopg_url()``
+    consults that override BEFORE ``settings``, which is exactly the point.
+
+    The consequence is easy to miss: a test asserting the ``settings → pool
+    URL`` contract cannot express it by patching ``settings`` alone — the
+    override short-circuits the patch and the pool receives the Testcontainers
+    URL instead. Whether it does depends on whether that worker had already run
+    a DB-backed test, so the failure is **intermittent under ``-n auto
+    --dist loadscope``** and green in isolation (observed 2026-07-20: one full
+    run clean, the next with two failures, on identical code).
+
+    Save-and-restore, never clear-to-``None``: leaving the override cleared
+    would silently point every later DB test in that worker at the developer
+    database — the exact class of leak the redirection exists to prevent.
+    """
+    from src.infrastructure.database import psycopg_pool_config
+
+    previous = psycopg_pool_config._psycopg_url_override
+    psycopg_pool_config.set_psycopg_url_override(None)
+    try:
+        yield
+    finally:
+        psycopg_pool_config.set_psycopg_url_override(previous)
+
+
+# ============================================================================
 # Agent Registry Fixtures
 # ============================================================================
 

@@ -23,9 +23,55 @@
  */
 
 import { vi } from 'vitest';
+import type { SetStateAction } from 'react';
 
 import type { UseApiQueryResult } from '@/hooks/useApiQuery';
 import type { UseApiMutationResult } from '@/hooks/useApiMutation';
+
+/**
+ * A `mutate` spy typed to the `useApiMutation` contract.
+ *
+ * Prefer this over a bare `vi.fn()` when the spy is handed to
+ * {@link mutationResult}: `vi.fn()` with no implementation widens to
+ * `Mock<Procedure | Constructable>`, which does not satisfy the hook's
+ * `(endpoint, data?) => Promise<…>` signature and fails `tsc` even though the
+ * test runs.
+ */
+export function mutateSpy() {
+  return vi.fn(async (_endpoint: string, _data?: unknown): Promise<unknown> => undefined);
+}
+
+/** A `setData` spy typed to the `useApiQuery` contract for payload `T`. */
+export function setDataSpy<T>() {
+  return vi.fn((_value: SetStateAction<T | undefined>): void => {});
+}
+
+/**
+ * Type guard picking the updater arm out of a `SetStateAction`. Written as a
+ * predicate rather than an assertion because `T` is unconstrained, so TypeScript
+ * cannot discriminate the union on `typeof` alone.
+ */
+function isUpdater<T>(
+  value: SetStateAction<T | undefined>
+): value is (prev: T | undefined) => T | undefined {
+  return typeof value === 'function';
+}
+
+/**
+ * Returns the functional updater a component passed to `setData`, throwing if
+ * it wrote a bare value instead — so a test meaning to exercise the optimistic
+ * reducer cannot silently pass against the wrong shape.
+ */
+export function takeUpdater<T>(
+  spy: ReturnType<typeof setDataSpy<T>>,
+  call = 0
+): (prev: T | undefined) => T | undefined {
+  const arg = spy.mock.calls[call]?.[0];
+  if (!isUpdater<T>(arg)) {
+    throw new Error(`setData call #${call} was not a functional updater`);
+  }
+  return arg;
+}
 
 /** A `useApiQuery` result with idle defaults; override any field. */
 export function queryResult<T>(over: Partial<UseApiQueryResult<T>> = {}): UseApiQueryResult<T> {
@@ -40,7 +86,10 @@ export function queryResult<T>(over: Partial<UseApiQueryResult<T>> = {}): UseApi
 }
 
 /** A settled `useApiQuery` result carrying `data`. */
-export function dataQuery<T>(data: T, over: Partial<UseApiQueryResult<T>> = {}): UseApiQueryResult<T> {
+export function dataQuery<T>(
+  data: T,
+  over: Partial<UseApiQueryResult<T>> = {}
+): UseApiQueryResult<T> {
   return queryResult<T>({ data, ...over });
 }
 

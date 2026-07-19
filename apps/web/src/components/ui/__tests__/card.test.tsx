@@ -6,14 +6,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '../card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../card';
 
 describe('Card', () => {
   it('renders its children and forwards HTML attributes', () => {

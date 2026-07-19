@@ -101,9 +101,7 @@ describe('time-dependent helpers (fixed winter instant)', () => {
     });
 
     it('uses local time when no timezone is provided', () => {
-      expect(['morning', 'lunch', 'afternoon', 'evening', 'night']).toContain(
-        getGreetingPeriod()
-      );
+      expect(['morning', 'lunch', 'afternoon', 'evening', 'night']).toContain(getGreetingPeriod());
     });
 
     it('falls back to afternoon for an invalid zone (catch branch)', () => {
@@ -131,9 +129,7 @@ describe('formatTimezoneDisplay', () => {
 
 describe('groupTimezonesByRegion', () => {
   it('buckets zones by their region prefix', () => {
-    expect(
-      groupTimezonesByRegion(['Europe/Paris', 'Europe/London', 'America/New_York'])
-    ).toEqual({
+    expect(groupTimezonesByRegion(['Europe/Paris', 'Europe/London', 'America/New_York'])).toEqual({
       Europe: ['Europe/Paris', 'Europe/London'],
       America: ['America/New_York'],
     });

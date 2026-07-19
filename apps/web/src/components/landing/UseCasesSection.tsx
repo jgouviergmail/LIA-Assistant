@@ -7,14 +7,7 @@ interface UseCasesSectionProps {
   lng: string;
 }
 
-const EXAMPLES = [
-  'example1',
-  'example2',
-  'example3',
-  'example4',
-  'example5',
-  'example6',
-] as const;
+const EXAMPLES = ['example1', 'example2', 'example3', 'example4', 'example5', 'example6'] as const;
 
 export async function UseCasesSection({ lng }: UseCasesSectionProps) {
   const { t } = await initI18next(lng);

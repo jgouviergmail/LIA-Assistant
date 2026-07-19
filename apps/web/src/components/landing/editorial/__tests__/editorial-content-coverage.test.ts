@@ -84,20 +84,69 @@ describe('editorial i18n contract', () => {
         `${base}.b${i + 1}_t`,
         `${base}.b${i + 1}_d`,
       ]).flat();
-      return [`${base}.bubble`, `${base}.title`, `${base}.sub`, `${base}.how`, `${base}.catalog_hint`, ...benefits];
+      return [
+        `${base}.bubble`,
+        `${base}.title`,
+        `${base}.sub`,
+        `${base}.how`,
+        `${base}.catalog_hint`,
+        ...benefits,
+      ];
     }),
     // vignette / scene strings
-    ...['v_query', 'v_t1', 'v_t1_sub', 'v_t2', 'v_t2_sub', 'v_t3', 'v_t3_sub', 'v_series', 'v_series_sub'].map(s => `chapters.c1.${s}`),
-    ...['s_chip', 's_greet', 's_weather', 's_weather_b1', 's_weather_b2', 's_day', 's_day_b1', 's_day_b2', 's_day_b3'].map(s => `chapters.c2.${s}`),
-    ...['v_intro', 'v_left', 'v_left_sub', 'v_right', 'v_right_sub', 'v_note'].map(s => `chapters.c3.${s}`),
-    ...['s_chip', 's_hitl', 's_subject', 's_quote', 's_user', 's_reply'].map(s => `chapters.c4.${s}`),
+    ...[
+      'v_query',
+      'v_t1',
+      'v_t1_sub',
+      'v_t2',
+      'v_t2_sub',
+      'v_t3',
+      'v_t3_sub',
+      'v_series',
+      'v_series_sub',
+    ].map(s => `chapters.c1.${s}`),
+    ...[
+      's_chip',
+      's_greet',
+      's_weather',
+      's_weather_b1',
+      's_weather_b2',
+      's_day',
+      's_day_b1',
+      's_day_b2',
+      's_day_b3',
+    ].map(s => `chapters.c2.${s}`),
+    ...['v_intro', 'v_left', 'v_left_sub', 'v_right', 'v_right_sub', 'v_note'].map(
+      s => `chapters.c3.${s}`
+    ),
+    ...['s_chip', 's_hitl', 's_subject', 's_quote', 's_user', 's_reply'].map(
+      s => `chapters.c4.${s}`
+    ),
     ...['v_forge', 'v_forge_sub', 'v_docs'].map(s => `chapters.c5.${s}`),
     'basics.title',
     'basics.sub',
     'basics.detail_label',
     'basics.detail_hint',
     ...BASICS_CHIPS.map(c => `basics.${c.key}`),
-    ...['title', 'sub', 'cost_prefix', 'cost_note', 'p1_t', 'p1_d', 'p2_t', 'p2_d', 'p2_link', 'p3_t', 'p3_d', 'p3_link', 'p4_t', 'p4_d', 'p4_link', 'honest', 'cta'].map(s => `transparency.${s}`),
+    ...[
+      'title',
+      'sub',
+      'cost_prefix',
+      'cost_note',
+      'p1_t',
+      'p1_d',
+      'p2_t',
+      'p2_d',
+      'p2_link',
+      'p3_t',
+      'p3_d',
+      'p3_link',
+      'p4_t',
+      'p4_d',
+      'p4_link',
+      'honest',
+      'cta',
+    ].map(s => `transparency.${s}`),
     'day.title',
     'day.tabs_label',
     ...['freelance', 'family', 'dev', 'admin'].flatMap(p => [
@@ -106,7 +155,9 @@ describe('editorial i18n contract', () => {
     ]),
     ...['title', 'sub', 'tabs_label', 'tab_screens', 'tab_slides'].map(s => `gallery.${s}`),
     'rail.aria',
-    ...['bubble', 'title', 'subtitle', 'button', 'note_beta', 'philosophy_link'].map(s => `cta.${s}`),
+    ...['bubble', 'title', 'subtitle', 'button', 'note_beta', 'philosophy_link'].map(
+      s => `cta.${s}`
+    ),
     'use_cases.example6.query',
     'use_cases.example6.description',
     // security block reused by chapter 04's catalog extra
@@ -118,7 +169,9 @@ describe('editorial i18n contract', () => {
       `security.${k}.description`,
     ]),
     // engineering stats strip (TechSection) reuses the proof labels
-    ...['agents', 'tools', 'providers', 'voice_languages', 'tests', 'adrs', 'releases'].map(s => `proof.items.${s}`),
+    ...['agents', 'tools', 'providers', 'voice_languages', 'tests', 'adrs', 'releases'].map(
+      s => `proof.items.${s}`
+    ),
   ];
 
   /** Keys orphaned by the removed sections — must stay purged everywhere. */

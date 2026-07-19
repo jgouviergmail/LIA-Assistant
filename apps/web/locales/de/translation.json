@@ -3039,6 +3039,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_9": {
+          "title": "v1.25.9 — 🧪 Die Oberfläche kommt auf den Prüfstand, echte Fehler kommen ans Licht",
+          "date": "Juli 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🖼️ Die Bildansicht wird per Tastatur bedienbar</b> — wer ein Bild im Vollbild öffnet, bekommt den Fokus jetzt in die Ansicht, die Tabulatortaste bleibt darin, und beim Schließen kehrt der Fokus zu der Miniatur zurück, von der du gekommen bist. Screenreader kündigen sie als Dialog an, benannt nach dem Bild. Vorher landete man per Tastatur oben auf der Seite und musste sich komplett zurücktabben.",
+            "i2": "<b>🔌 Deine Connector-Einstellungen werden nicht mehr stillschweigend zurückgesetzt</b> — eine gerade geänderte Einstellung konnte Momente später von einem Hintergrundabruf überschrieben werden, der vor deinem Klick gestartet war, und dieselbe Einstellung konnte doppelt angefragt werden. Beides ist behoben: Deine Wahl gewinnt.",
+            "i3": "<b>🔗 Alle verbinden überspringt keinen Connector mehr</b> — setzte die Autorisierungsfolge nach einer Weiterleitung fort, während du gerade eine weitere gestartet hattest, überschrieben sich die beiden Warteschlangen und ein Connector konnte klammheimlich herausfallen. Sie können sich nicht mehr überlappen.",
+            "i4": "<b>🧪 Für Admins — die Oberfläche ist jetzt wirklich getestet</b> — die Frontend-Abdeckung hat sich bei den Funktionen nahezu verdoppelt (29 % → 55 %), mit 40 neuen Test-Suites für Datei-Uploads, Chat-Streaming, Benachrichtigungen, Connectoren, Sprache und Push-Benachrichtigungen. Genau diese Arbeit hat die drei Korrekturen oben zutage gefördert: Sie wurden gefunden, indem echter Code statt Mocks getestet wurde.",
+"i5": "<b>📜 Sieben Versionen tauchen in dieser Historie wieder auf</b> — v1.15 sowie v1.20.17 bis v1.20.22 waren verfasst und übersetzt, wurden aber nie in die Liste aufgenommen, die diese Seite anzeigt: Ihre Einträge existierten und wurden schlicht nie dargestellt. Ein Test schlägt jetzt fehl, wenn eine Version verfasst, aber nicht verdrahtet wird — in beide Richtungen."
+          }
+        },
         "v1_25_8": {
           "title": "v1.25.8 — 🎯 Proaktive Benachrichtigungen werden abwechslungsreich und konkret",
           "date": "Juli 2026",

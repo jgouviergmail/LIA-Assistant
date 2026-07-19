@@ -132,9 +132,10 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
           D: Math.round(entry.mood_dominance * 100),
           // Per-emotion intensities (from active_emotions map in trait_snapshot)
           ...Object.fromEntries(
-            Object.entries(
-              (entry.trait_snapshot?.active_emotions as Record<string, number> | undefined) ?? {}
-            ).map(([emo, intensity]) => [`emo_${emo}`, Math.round((intensity as number) * 100)])
+            Object.entries(entry.trait_snapshot?.active_emotions ?? {}).map(([emo, intensity]) => [
+              `emo_${emo}`,
+              Math.round(intensity * 100),
+            ])
           ),
           // Fallback: if no active_emotions map, use dominant_emotion + intensity
           ...(!entry.trait_snapshot?.active_emotions && entry.dominant_emotion

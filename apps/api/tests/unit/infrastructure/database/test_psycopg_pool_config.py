@@ -9,6 +9,12 @@ bounded the SQLAlchemy engines but not the psycopg pools).
 These tests pin the shared helper: URL resolution from settings, an explicit
 test-only override (reliable injection for the pools, independent of the
 settings object), and pool kwargs that always carry ``connect_timeout``.
+
+They all take ``psycopg_url_from_settings``, which SAVES and RESTORES the
+process-wide override around each test. Restoring matters as much as clearing:
+these tests used to end on ``set_psycopg_url_override(None)``, which does not
+undo the override — it destroys it, pointing every later DB-backed test in the
+same xdist worker at the developer database instead of the container.
 (The frozen-run incident at ``checkpointer_initializing`` had a different
 cause — the CREATE INDEX CONCURRENTLY deadlock, fixed by
 ``tests/conftest.py::_provision_langgraph_tables`` and pinned by its own
@@ -28,20 +34,19 @@ from src.infrastructure.database.psycopg_pool_config import (
 
 
 class TestResolvePsycopgUrl:
-    def test_resolves_from_settings_in_psycopg_form(self) -> None:
+    def test_resolves_from_settings_in_psycopg_form(self, psycopg_url_from_settings: None) -> None:
         url = resolve_psycopg_url()
         assert url.startswith("postgresql://")
         assert "+asyncpg" not in url
         assert url == str(settings.database_url).replace("postgresql+asyncpg://", "postgresql://")
 
-    def test_explicit_override_wins_over_settings(self) -> None:
-        try:
-            set_psycopg_url_override("postgresql://u:p@127.0.0.1:45999/injected")
-            assert resolve_psycopg_url() == "postgresql://u:p@127.0.0.1:45999/injected"
-        finally:
-            set_psycopg_url_override(None)
+    def test_explicit_override_wins_over_settings(self, psycopg_url_from_settings: None) -> None:
+        set_psycopg_url_override("postgresql://u:p@127.0.0.1:45999/injected")
+        assert resolve_psycopg_url() == "postgresql://u:p@127.0.0.1:45999/injected"
 
-    def test_clearing_override_restores_settings_resolution(self) -> None:
+    def test_clearing_override_restores_settings_resolution(
+        self, psycopg_url_from_settings: None
+    ) -> None:
         set_psycopg_url_override("postgresql://u:p@127.0.0.1:45999/injected")
         set_psycopg_url_override(None)
         assert resolve_psycopg_url() == str(settings.database_url).replace(

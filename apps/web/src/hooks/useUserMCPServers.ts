@@ -114,7 +114,7 @@ export interface OAuthInitiateResponse {
 /**
  * API list response shape.
  */
-interface UserMCPServerListResponse {
+export interface UserMCPServerListResponse {
   servers: UserMCPServer[];
   total: number;
 }

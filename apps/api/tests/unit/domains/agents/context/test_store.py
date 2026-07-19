@@ -117,8 +117,13 @@ class TestGetToolContextStore:
     # Tool context is now always enabled (no feature flag)
 
     @pytest.mark.asyncio
-    async def test_get_tool_context_store_url_conversion(self):
-        """Test that asyncpg URL is correctly converted to psycopg URL."""
+    async def test_get_tool_context_store_url_conversion(self, psycopg_url_from_settings):
+        """Test that asyncpg URL is correctly converted to psycopg URL.
+
+        ``psycopg_url_from_settings`` neutralizes the process-wide URL override
+        installed by the DB redirection: it wins over ``settings`` by design, so
+        without it this assertion is intermittently handed the Testcontainers URL.
+        """
         reset_tool_context_store()  # Start fresh
 
         with (

@@ -82,6 +82,12 @@ Published deliberately — a quality claim without its known gaps is marketing, 
 | AC-006 | Frontend complexity concentrated in 59 functions (max CC 74) | Moderate · E4 |
 | AC-007 | 34 strict-React deviations remain baselined | Moderate · E3 |
 
+**Remediation in flight, between cycles.** The table above is the 2026-07-16 snapshot and is left untouched — only a re-audit closes a worksite. For transparency on what has moved since:
+
+| Worksite | Status at v1.25.9 (2026-07-20) |
+|---|---|
+| AC-002 | **Substantially remediated, pending re-audit.** Frontend coverage went from 35.4 / 33.5 / 29.3 / 35.8 to **60.5 / 54.9 / 54.5 / 60.9**, the suite from 1,222 to **2,147 tests across 214 files** (40 new suites, 31 extended), and the global floor was raised 35 → 60 with eight per-area locks added or tightened. The concentration the finding named is what was attacked first: the data layer, the connector provider hooks (three at 0 %) and the voice/push chain were driven directly instead of being mocked out. The work surfaced **six production defects** fixed in the same release, each pinned by a test proven to fail without its fix. Not claimed as closed: `sherpaKws` and `audio-queue` (WASM / Web Audio) remain out of the honest jsdom perimeter, and App Router pages stay in the hermetic E2E lane. |
+
 **Recommended sequencing** (risk × dependencies × effort): 0–30 days — AC-002, AC-007, start AC-005; 30–90 days — AC-001, AC-006, first AC-003 batches; 90–180 days — AC-003 program, AC-004, MyPy continuation. Continuous: load campaigns, Firefox/WebKit/assistive-technology matrix, DORA series, provider tests on a controlled environment.
 
 ## Delivery performance (DORA)

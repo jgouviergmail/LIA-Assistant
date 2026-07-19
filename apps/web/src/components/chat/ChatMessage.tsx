@@ -84,7 +84,6 @@ function InterestFeedbackButtons({
     componentName: 'ChatMessage',
     onError: () => {
       toast.error(t('interests.feedback.error'));
-      setIsSubmitting(false);
     },
   });
 
@@ -93,9 +92,11 @@ function InterestFeedbackButtons({
       if (isSubmitting) return;
       setIsSubmitting(true);
 
-      // Optimistic UX: hide buttons + show toast immediately.
-      // The underlying POST runs asynchronously; onError callback will
-      // revert isSubmitting=false if the mutation fails, re-showing buttons.
+      // Optimistic UX: hide buttons + show toast immediately. The verdict is
+      // one-way — the parent drops this row as soon as `onFeedbackSubmitted`
+      // fires, so a failed POST surfaces its own error toast (see `onError`)
+      // but never brings the buttons back; `isSubmitting` only guards the
+      // double click that can still happen before that unmount.
       onFeedbackSubmitted();
       switch (feedback) {
         case 'thumbs_up':

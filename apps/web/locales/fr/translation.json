@@ -3060,6 +3060,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_9": {
+          "title": "v1.25.9 — 🧪 L'interface passe au banc d'essai, de vrais bugs en sortent",
+          "date": "Juillet 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🖼️ La visionneuse d'images devient utilisable au clavier</b> — ouvrir une image en plein écran amène désormais le focus dans la visionneuse, garde la touche Tab à l'intérieur, et rend le focus à la vignette d'où tu venais à la fermeture. Les lecteurs d'écran l'annoncent comme une boîte de dialogue nommée d'après l'image. Avant, un utilisateur au clavier était renvoyé en haut de la page et devait tout retabuler.",
+            "i2": "<b>🔌 Tes préférences de connecteur ne sont plus écrasées en silence</b> — une préférence que tu venais de changer pouvait être écrasée un instant plus tard par un chargement de fond démarré avant ton clic, et le même réglage pouvait être demandé deux fois. Les deux sont corrigés : ton choix l'emporte.",
+            "i3": "<b>🔗 Tout connecter n'oublie plus un connecteur</b> — quand la séquence d'autorisation reprenait après une redirection alors que tu venais d'en lancer une autre, les deux files s'écrasaient et un connecteur pouvait discrètement sortir du lot. Elles ne peuvent plus se chevaucher.",
+            "i4": "<b>🧪 Pour les admins — l'interface est enfin réellement testée</b> — la couverture du frontend a presque doublé sur les fonctions (29 % → 55 %), avec 40 nouvelles suites de tests sur les envois de fichiers, le streaming du chat, les notifications, les connecteurs, la voix et les notifications push. C'est précisément ce travail qui a fait remonter les trois correctifs ci-dessus : ils ont été trouvés en testant le vrai code plutôt que des mocks.",
+"i5": "<b>📜 Sept versions réapparaissent dans cet historique</b> — la v1.15 et les v1.20.17 à v1.20.22 avaient bien été rédigées et traduites, mais n'avaient jamais été ajoutées à la liste affichée par cette page : leurs entrées existaient et ne s'affichaient tout simplement pas. Un test échoue désormais si une version est rédigée sans être câblée, dans un sens comme dans l'autre."
+          }
+        },
         "v1_25_8": {
           "title": "v1.25.8 — 🎯 Des notifications proactives variées et concrètes",
           "date": "Juillet 2026",

@@ -264,7 +264,10 @@ describe('handleHitlInterruptMetadata — approval card (Lot 1 P1-V1)', () => {
       payload: { kind: string; messageId: string };
     }>;
     expect(awaiting).toHaveLength(1);
-    expect(awaiting[0].payload).toMatchObject({ kind: 'tool_confirmation', messageId: 'hitl_card_1' });
+    expect(awaiting[0].payload).toMatchObject({
+      kind: 'tool_confirmation',
+      messageId: 'hitl_card_1',
+    });
   });
 });
 

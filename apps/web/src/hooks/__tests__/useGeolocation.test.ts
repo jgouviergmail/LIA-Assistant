@@ -44,7 +44,7 @@ function positionOf(lat: number, lon: number, accuracy = 10) {
  * clobber the result — a race that never happens in a real browser where the
  * mount settles before any user interaction.
  */
-const settle = () => act(async () => new Promise((r) => setTimeout(r, 0)));
+const settle = () => act(async () => new Promise(r => setTimeout(r, 0)));
 
 // GeolocationPositionError codes (constants the hook switches on).
 const ERR = { PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 };
@@ -71,7 +71,7 @@ describe('useGeolocation', () => {
   });
 
   it('enable() persists the preference, requests a position and exposes coords', async () => {
-    getCurrentPosition.mockImplementation((success) => success(positionOf(48.85, 2.35, 12)));
+    getCurrentPosition.mockImplementation(success => success(positionOf(48.85, 2.35, 12)));
     const { result } = renderHook(() => useGeolocation());
     await settle();
 
@@ -114,7 +114,7 @@ describe('useGeolocation', () => {
   });
 
   it('disable() clears the preference, cache and coordinates', async () => {
-    getCurrentPosition.mockImplementation((success) => success(positionOf(1, 2)));
+    getCurrentPosition.mockImplementation(success => success(positionOf(1, 2)));
     const { result } = renderHook(() => useGeolocation());
     await settle();
     await act(async () => {

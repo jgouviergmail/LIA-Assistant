@@ -7,7 +7,7 @@
  * backend, LLM, or paid provider is contacted — the catch-all fails any
  * un-mocked call loudly.
  */
-import { test, expect, makeTestUser, type MockRoute } from '../fixtures';
+import { test, expect, makeTestUser, type MockRoute, waitForHydration } from '../fixtures';
 
 /** Minimal, shape-correct briefing/usage mocks so the dashboard renders clean. */
 const dashboardData: MockRoute[] = [
@@ -46,6 +46,9 @@ test.describe('authenticated dashboard', () => {
     ]);
 
     await page.goto('/en/login');
+    // The form is fillable before React attaches its handlers; submitting then
+    // performs a native GET and the login never runs (see waitForHydration).
+    await waitForHydration(page);
     await page.locator('input[type="email"]').fill(user.email);
     await page.locator('input[type="password"]').fill('correct horse battery');
     await page.locator('button[type="submit"]').click();

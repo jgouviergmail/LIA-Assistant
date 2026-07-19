@@ -90,17 +90,6 @@ export function getEmotionalEmoji(weight: number): string {
 }
 
 /**
- * Get emotional state label.
- */
-export function getEmotionalLabel(weight: number): string {
-  if (weight <= -7) return 'Zone sensible';
-  if (weight <= -3) return 'Négatif';
-  if (weight >= 7) return 'Très positif';
-  if (weight >= 3) return 'Positif';
-  return 'Neutre';
-}
-
-/**
  * Hook for managing user memories.
  * Uses optimistic updates to prevent focus loss during mutations.
  */

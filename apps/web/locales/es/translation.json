@@ -3039,6 +3039,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_25_9": {
+          "title": "v1.25.9 — 🧪 La interfaz pasa al banco de pruebas y salen errores reales",
+          "date": "Julio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🖼️ El visor de imágenes se vuelve utilizable con el teclado</b> — abrir una imagen a pantalla completa lleva ahora el foco al visor, mantiene la tecla Tab dentro de él y devuelve el foco a la miniatura de la que venías al cerrar. Los lectores de pantalla lo anuncian como un diálogo con el nombre de la imagen. Antes, quien usaba el teclado acababa al principio de la página y tenía que volver tabulando.",
+            "i2": "<b>🔌 Tus preferencias de conector dejan de revertirse en silencio</b> — una preferencia que acababas de cambiar podía ser sobrescrita instantes después por una carga en segundo plano iniciada antes de tu clic, y el mismo ajuste podía pedirse dos veces. Ambos casos están corregidos: tu elección gana.",
+            "i3": "<b>🔗 Conectar todo ya no se salta un conector</b> — cuando la secuencia de autorización se reanudaba tras una redirección mientras acababas de lanzar otra, las dos colas se sobrescribían y un conector podía caerse discretamente de la tanda. Ya no pueden solaparse.",
+            "i4": "<b>🧪 Para administradores — la interfaz está por fin realmente probada</b> — la cobertura del frontend casi se ha duplicado en funciones (29 % → 55 %), con 40 nuevas suites de pruebas sobre subidas de archivos, streaming del chat, notificaciones, conectores, voz y notificaciones push. Ese trabajo es justamente lo que sacó a la luz las tres correcciones anteriores: se encontraron probando el código real en lugar de simulaciones.",
+"i5": "<b>📜 Siete versiones reaparecen en este historial</b> — la v1.15 y de la v1.20.17 a la v1.20.22 estaban redactadas y traducidas, pero nunca se añadieron a la lista que muestra esta página: sus entradas existían y sencillamente no se mostraban. Ahora una prueba falla si una versión se redacta sin quedar conectada, en cualquiera de los dos sentidos."
+          }
+        },
         "v1_25_8": {
           "title": "v1.25.8 — 🎯 Notificaciones proactivas variadas y concretas",
           "date": "Julio 2026",

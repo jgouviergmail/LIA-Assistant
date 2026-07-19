@@ -37,7 +37,7 @@ export interface MockRoute {
  * visible failure — never a silent hit on a real backend.
  */
 export async function installApiCatchAll(page: Page): Promise<void> {
-  await page.route('**/api/v1/**', async (route) => {
+  await page.route('**/api/v1/**', async route => {
     await route.fulfill({
       status: 501,
       contentType: 'application/json',

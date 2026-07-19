@@ -41,7 +41,7 @@ describe('formatLocalDateInput', () => {
   it('agrees with the local calendar fields for an arbitrary UTC instant', () => {
     const d = new Date('2026-03-10T22:45:00Z');
     const expected = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-      d.getDate(),
+      d.getDate()
     ).padStart(2, '0')}`;
     expect(formatLocalDateInput(d)).toBe(expected);
   });

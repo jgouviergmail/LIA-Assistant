@@ -40,11 +40,7 @@ function TypedText({ text }: { text: string }) {
   return (
     <>
       {parts.map((part, i) => (
-        <span
-          key={i}
-          className="animate-word-in"
-          style={{ animationDelay: `${i * stagger}ms` }}
-        >
+        <span key={i} className="animate-word-in" style={{ animationDelay: `${i * stagger}ms` }}>
           {part}
         </span>
       ))}
@@ -137,9 +133,7 @@ export function AppFrame({
         <Mic
           className={cn(
             'w-3.5 h-3.5 shrink-0',
-            voice && typingText
-              ? 'text-red-500 animate-step-breathe'
-              : 'text-muted-foreground'
+            voice && typingText ? 'text-red-500 animate-step-breathe' : 'text-muted-foreground'
           )}
         />
         {streaming ? (

@@ -60,7 +60,7 @@ function contrast(fg: Rgb, bg: Rgb): number {
 
 /** Alpha-composite `top` at `alpha` over an opaque `bottom` (sRGB space, like the browser). */
 function blend(top: Rgb, bottom: Rgb, alpha: number): Rgb {
-  return [0, 1, 2].map((i) => alpha * top[i] + (1 - alpha) * bottom[i]) as Rgb;
+  return [0, 1, 2].map(i => alpha * top[i] + (1 - alpha) * bottom[i]) as Rgb;
 }
 
 // --- globals.css token extraction --------------------------------------------
@@ -117,89 +117,154 @@ const NON_TEXT = 3;
 
 const CHECKS: Check[] = [
   // Body text on every neutral surface it sits on.
-  { label: 'foreground on background', fg: (p) => p['foreground'], bg: (p) => p['background'], min: AA },
-  { label: 'card-foreground on card', fg: (p) => p['card-foreground'], bg: (p) => p['card'], min: AA },
-  { label: 'popover-foreground on popover', fg: (p) => p['popover-foreground'], bg: (p) => p['popover'], min: AA },
-  { label: 'secondary-foreground on secondary', fg: (p) => p['secondary-foreground'], bg: (p) => p['secondary'], min: AA },
-  { label: 'accent-foreground on accent', fg: (p) => p['accent-foreground'], bg: (p) => p['accent'], min: AA },
+  {
+    label: 'foreground on background',
+    fg: p => p['foreground'],
+    bg: p => p['background'],
+    min: AA,
+  },
+  { label: 'card-foreground on card', fg: p => p['card-foreground'], bg: p => p['card'], min: AA },
+  {
+    label: 'popover-foreground on popover',
+    fg: p => p['popover-foreground'],
+    bg: p => p['popover'],
+    min: AA,
+  },
+  {
+    label: 'secondary-foreground on secondary',
+    fg: p => p['secondary-foreground'],
+    bg: p => p['secondary'],
+    min: AA,
+  },
+  {
+    label: 'accent-foreground on accent',
+    fg: p => p['accent-foreground'],
+    bg: p => p['accent'],
+    min: AA,
+  },
   // Muted text on every surface it is used on (worst: the muted tint itself).
-  { label: 'muted-foreground on background', fg: (p) => p['muted-foreground'], bg: (p) => p['background'], min: AA },
-  { label: 'muted-foreground on card', fg: (p) => p['muted-foreground'], bg: (p) => p['card'], min: AA },
-  { label: 'muted-foreground on muted', fg: (p) => p['muted-foreground'], bg: (p) => p['muted'], min: AA },
+  {
+    label: 'muted-foreground on background',
+    fg: p => p['muted-foreground'],
+    bg: p => p['background'],
+    min: AA,
+  },
+  {
+    label: 'muted-foreground on card',
+    fg: p => p['muted-foreground'],
+    bg: p => p['card'],
+    min: AA,
+  },
+  {
+    label: 'muted-foreground on muted',
+    fg: p => p['muted-foreground'],
+    bg: p => p['muted'],
+    min: AA,
+  },
   // Primary as text (links, outline/link buttons, icons-with-text).
-  { label: 'primary on background', fg: (p) => p['primary'], bg: (p) => p['background'], min: AA },
-  { label: 'primary on card', fg: (p) => p['primary'], bg: (p) => p['card'], min: AA },
+  { label: 'primary on background', fg: p => p['primary'], bg: p => p['background'], min: AA },
+  { label: 'primary on card', fg: p => p['primary'], bg: p => p['card'], min: AA },
   // Signature nav/soft pattern: primary text on its own 15% tint over background.
   {
     label: 'primary on primary/15 tint',
-    fg: (p) => p['primary'],
-    bg: (p) => blend(p['primary'], p['background'], 0.15),
+    fg: p => p['primary'],
+    bg: p => blend(p['primary'], p['background'], 0.15),
     min: AA,
   },
   // Solid primary button + its /90 hover over the lightest underlay (card).
-  { label: 'primary-foreground on primary', fg: (p) => p['primary-foreground'], bg: (p) => p['primary'], min: AA },
+  {
+    label: 'primary-foreground on primary',
+    fg: p => p['primary-foreground'],
+    bg: p => p['primary'],
+    min: AA,
+  },
   {
     label: 'primary-foreground on primary/90 hover',
-    fg: (p) => p['primary-foreground'],
-    bg: (p) => blend(p['primary'], p['card'], 0.9),
+    fg: p => p['primary-foreground'],
+    bg: p => blend(p['primary'], p['card'], 0.9),
     min: AA,
   },
   // Destructive as text (form errors, alerts) + alert/toast self-tints up to /20.
-  { label: 'destructive on background', fg: (p) => p['destructive'], bg: (p) => p['background'], min: AA },
-  { label: 'destructive on card', fg: (p) => p['destructive'], bg: (p) => p['card'], min: AA },
   {
-    label: 'destructive on destructive/20 tint',
-    fg: (p) => p['destructive'],
-    bg: (p) => blend(p['destructive'], p['background'], 0.2),
+    label: 'destructive on background',
+    fg: p => p['destructive'],
+    bg: p => p['background'],
     min: AA,
   },
-  { label: 'destructive-foreground on destructive', fg: (p) => p['destructive-foreground'], bg: (p) => p['destructive'], min: AA },
+  { label: 'destructive on card', fg: p => p['destructive'], bg: p => p['card'], min: AA },
+  {
+    label: 'destructive on destructive/20 tint',
+    fg: p => p['destructive'],
+    bg: p => blend(p['destructive'], p['background'], 0.2),
+    min: AA,
+  },
+  {
+    label: 'destructive-foreground on destructive',
+    fg: p => p['destructive-foreground'],
+    bg: p => p['destructive'],
+    min: AA,
+  },
   {
     label: 'destructive-foreground on destructive/90 hover',
-    fg: (p) => p['destructive-foreground'],
-    bg: (p) => blend(p['destructive'], p['card'], 0.9),
+    fg: p => p['destructive-foreground'],
+    bg: p => blend(p['destructive'], p['card'], 0.9),
     min: AA,
   },
   // Success as text (alerts, toasts) + self-tints, and the solid success button.
-  { label: 'success on background', fg: (p) => p['success'], bg: (p) => p['background'], min: AA },
+  { label: 'success on background', fg: p => p['success'], bg: p => p['background'], min: AA },
   {
     label: 'success on success/20 tint',
-    fg: (p) => p['success'],
-    bg: (p) => blend(p['success'], p['background'], 0.2),
+    fg: p => p['success'],
+    bg: p => blend(p['success'], p['background'], 0.2),
     min: AA,
   },
-  { label: 'success-foreground on success', fg: (p) => p['success-foreground'], bg: (p) => p['success'], min: AA },
+  {
+    label: 'success-foreground on success',
+    fg: p => p['success-foreground'],
+    bg: p => p['success'],
+    min: AA,
+  },
   {
     label: 'success-foreground on success/90 hover',
-    fg: (p) => p['success-foreground'],
-    bg: (p) => blend(p['success'], p['card'], 0.9),
+    fg: p => p['success-foreground'],
+    bg: p => blend(p['success'], p['card'], 0.9),
     min: AA,
   },
   // Warning as text (alerts, badges, soft buttons) + its self-tints, and the
   // solid warning button (warning-foreground text).
-  { label: 'warning on background', fg: (p) => p['warning'], bg: (p) => p['background'], min: AA },
+  { label: 'warning on background', fg: p => p['warning'], bg: p => p['background'], min: AA },
   {
     label: 'warning on warning/20 tint',
-    fg: (p) => p['warning'],
-    bg: (p) => blend(p['warning'], p['background'], 0.2),
+    fg: p => p['warning'],
+    bg: p => blend(p['warning'], p['background'], 0.2),
     min: AA,
   },
-  { label: 'warning-foreground on warning', fg: (p) => p['warning-foreground'], bg: (p) => p['warning'], min: AA },
+  {
+    label: 'warning-foreground on warning',
+    fg: p => p['warning-foreground'],
+    bg: p => p['warning'],
+    min: AA,
+  },
   {
     label: 'warning-foreground on warning/90 hover',
-    fg: (p) => p['warning-foreground'],
-    bg: (p) => blend(p['warning'], p['card'], 0.9),
+    fg: p => p['warning-foreground'],
+    bg: p => blend(p['warning'], p['card'], 0.9),
     min: AA,
   },
   // Ghost button hover: accent-foreground on accent/50 over background.
   {
     label: 'accent-foreground on accent/50 hover',
-    fg: (p) => p['accent-foreground'],
-    bg: (p) => blend(p['accent'], p['background'], 0.5),
+    fg: p => p['accent-foreground'],
+    bg: p => blend(p['accent'], p['background'], 0.5),
     min: AA,
   },
   // Focus ring is a non-text indicator against the page background.
-  { label: 'ring vs background (non-text)', fg: (p) => p['ring'], bg: (p) => p['background'], min: NON_TEXT },
+  {
+    label: 'ring vs background (non-text)',
+    fg: p => p['ring'],
+    bg: p => p['background'],
+    min: NON_TEXT,
+  },
 ];
 
 // --- Assertions ----------------------------------------------------------------

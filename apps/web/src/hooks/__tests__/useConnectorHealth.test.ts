@@ -82,7 +82,7 @@ describe('useConnectorHealth — derived state', () => {
     const { result } = renderHook(() => useConnectorHealth());
     expect(result.current.health).not.toBeNull();
     expect(result.current.hasIssues).toBe(true);
-    expect(result.current.criticalConnectors.map((c) => c.id)).toEqual(['c1']);
+    expect(result.current.criticalConnectors.map(c => c.id)).toEqual(['c1']);
   });
 
   it('reflects loading from the underlying query', () => {

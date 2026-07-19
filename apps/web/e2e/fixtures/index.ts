@@ -30,11 +30,11 @@ export const test = base.extend<Fixtures>({
   ],
 
   mockApi: async ({ page }, use) => {
-    await use((routes) => registerRoutes(page, routes));
+    await use(routes => registerRoutes(page, routes));
   },
 
   authenticate: async ({ page, context }, use) => {
-    await use(async (overrides) => {
+    await use(async overrides => {
       const user = makeTestUser(overrides);
       // The real session cookie is HTTP-only and validated server-side; here
       // /auth/me is intercepted, so the value is irrelevant — we only seed a
@@ -56,3 +56,4 @@ export { expect };
 export { makeTestUser } from './test-user';
 export type { TestUser } from './test-user';
 export type { MockRoute } from './api-mock';
+export { waitForHydration } from './hydration';

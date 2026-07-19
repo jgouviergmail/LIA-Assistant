@@ -3049,6 +3049,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_9": {
+          "title": "v1.25.9 — 🧪 The interface gets tested, and real bugs surface",
+          "date": "July 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🖼️ The image viewer becomes usable at the keyboard</b> — opening a picture full screen now moves focus into the viewer, keeps the Tab key inside it, and hands focus back to the thumbnail you came from when you close. Screen readers announce it as a dialog named after the image. Before, a keyboard user was dropped at the top of the page and had to tab all the way back.",
+            "i2": "<b>🔌 Your connector preferences stop being silently reverted</b> — a preference you had just changed could be overwritten moments later by a background load that had started before your click, and the same setting could be requested twice. Both are fixed: what you choose now wins.",
+            "i3": "<b>🔗 Connect all no longer skips a connector</b> — when the authorization sequence resumed after a redirect while you had just started another one, the two queues overwrote each other and a connector could quietly drop out of the run. They can no longer overlap.",
+            "i4": "<b>🧪 For admins — the interface is now genuinely tested</b> — frontend coverage nearly doubled on functions (29 % → 55 %), with 40 new test suites over uploads, chat streaming, notifications, connectors, voice and push notifications. That work is exactly what surfaced the three fixes above: they were found by testing the real code instead of mocks.",
+"i5": "<b>📜 Seven versions reappear in this history</b> — v1.15 and v1.20.17 through v1.20.22 had been written and translated, but were never added to the list this page renders: their entries existed and simply never displayed. A test now fails if any version is written without being wired, in either direction."
+          }
+        },
         "v1_25_8": {
           "title": "v1.25.8 — 🎯 Proactive notifications get varied and concrete",
           "date": "July 2026",

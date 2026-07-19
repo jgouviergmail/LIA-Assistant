@@ -48,7 +48,10 @@ describe('useApiQuery — success path', () => {
     expect(result.current.data).toEqual({ id: 1 });
     expect(result.current.error).toBeNull();
     expect(onSuccess).toHaveBeenCalledWith({ id: 1 });
-    expect(mockApi.get).toHaveBeenCalledWith('/thing', expect.objectContaining({ params: undefined }));
+    expect(mockApi.get).toHaveBeenCalledWith(
+      '/thing',
+      expect.objectContaining({ params: undefined })
+    );
   });
 
   it('forwards params and config to the client', async () => {
@@ -73,9 +76,7 @@ describe('useApiQuery — error paths', () => {
     const onError = vi.fn();
     mockApi.get.mockRejectedValueOnce(new Error('boom'));
 
-    const { result } = renderHook(() =>
-      useApiQuery('/thing', { componentName: 'T', onError })
-    );
+    const { result } = renderHook(() => useApiQuery('/thing', { componentName: 'T', onError }));
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error?.message).toBe('boom');
@@ -96,9 +97,7 @@ describe('useApiQuery — error paths', () => {
     const onError = vi.fn();
     mockApi.get.mockRejectedValueOnce(Object.assign(new Error('aborted'), { name: 'AbortError' }));
 
-    const { result } = renderHook(() =>
-      useApiQuery('/thing', { componentName: 'T', onError })
-    );
+    const { result } = renderHook(() => useApiQuery('/thing', { componentName: 'T', onError }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBeNull();
@@ -140,9 +139,7 @@ describe('useApiQuery — control surface', () => {
   it('throws a helpful error when options is missing', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() =>
-      renderHook(() =>
-        useApiQuery('/thing', undefined as unknown as UseApiQueryOptions<unknown>)
-      )
+      renderHook(() => useApiQuery('/thing', undefined as unknown as UseApiQueryOptions<unknown>))
     ).toThrow(/options is required/);
     spy.mockRestore();
   });

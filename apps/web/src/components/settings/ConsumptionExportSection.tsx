@@ -22,7 +22,6 @@ type ExportType =
   | 'tts-usage'
   | 'consumption-summary';
 
-
 interface ConsumptionExportSectionProps extends BaseSettingsProps {
   /** 'admin' shows user filter and uses admin endpoint; 'user' exports own data only. */
   mode: 'admin' | 'user';

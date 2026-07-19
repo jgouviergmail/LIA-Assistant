@@ -241,7 +241,16 @@ function highlightTextContent(text: string, normalizedQuery: string): string {
   return result;
 }
 
-const changelogVersionKeys = [
+/**
+ * Versions rendered by the changelog accordion, newest first.
+ *
+ * This list is the ONLY thing that makes an entry visible: a `faq.changelog.versions.vX_Y_Z`
+ * block can exist in all 6 locales, pass i18n parity, and still never render if its key is
+ * missing here. That is not hypothetical — `v1_21_8` and `v1_21_9` shipped invisible for two
+ * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
+ */
+export const changelogVersionKeys = [
+  'v1_25_9',
   'v1_25_8',
   'v1_25_7',
   'v1_25_6',
@@ -294,6 +303,14 @@ const changelogVersionKeys = [
   'v1_21_2',
   'v1_21_1',
   'v1_21_0',
+  // v1_20_17..22 shipped complete in the 6 locales but were never listed here,
+  // so six releases of history stayed invisible. Found by changelog-wiring.test.ts.
+  'v1_20_22',
+  'v1_20_21',
+  'v1_20_20',
+  'v1_20_19',
+  'v1_20_18',
+  'v1_20_17',
   'v1_20_16',
   'v1_20_15',
   'v1_20_14',
@@ -330,6 +347,7 @@ const changelogVersionKeys = [
   'v1_15_3',
   'v1_15_2',
   'v1_15_1',
+  'v1_15',
   'v1_14',
   'v1_13',
   'v1_12',

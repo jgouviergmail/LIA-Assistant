@@ -75,7 +75,9 @@ describe('SEC-017 — rag-upload spaceId route-escape guard', () => {
     expect(res.status).toBe(200);
     expect(fetch).toHaveBeenCalledTimes(1);
     const calledUrl = vi.mocked(fetch).mock.calls[0][0];
-    expect(calledUrl).toBe(`${process.env.API_URL_SERVER || 'https://api:8000'}/api/v1/rag-spaces/${uuid}/documents`);
+    expect(calledUrl).toBe(
+      `${process.env.API_URL_SERVER || 'https://api:8000'}/api/v1/rag-spaces/${uuid}/documents`
+    );
     // No traversal survived into the final path.
     expect(String(calledUrl)).not.toContain('..');
   });

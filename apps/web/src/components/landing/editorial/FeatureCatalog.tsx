@@ -9,7 +9,13 @@ export type Translate = (key: string) => string;
  * all 6 locales. Rendered inside a CatalogDisclosure; stays in the DOM while
  * collapsed so every description remains crawlable.
  */
-export function FeatureCatalog({ t, featureKeys }: { t: Translate; featureKeys: readonly string[] }) {
+export function FeatureCatalog({
+  t,
+  featureKeys,
+}: {
+  t: Translate;
+  featureKeys: readonly string[];
+}) {
   return (
     <ul className="grid list-none grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {featureKeys.map(key => {

@@ -61,6 +61,9 @@ export function getLastAssistantMessageId(messages: Message[]): string | null {
   return null;
 }
 
+/** Stable empty list: keeps effect dependencies identical across renders. */
+const NO_MESSAGES: Message[] = [];
+
 export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   messages,
   isTyping = false,
@@ -72,6 +75,15 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   onLoadOlder,
 }) => {
   const { t } = useTranslation();
+
+  // `messages` crosses an API/state boundary, and the defensive branch further
+  // down renders an error card when it is not an array. That guard is a
+  // *render* guard, though: the effects declared above it run on every render
+  // regardless, so a null/undefined prop used to crash them (`messages[0]`)
+  // before the card could ever be shown. Normalising once — against a stable
+  // module-level constant, so the effect dependencies keep their identity —
+  // makes the defensive branch actually reachable.
+  const safeMessages = Array.isArray(messages) ? messages : NO_MESSAGES;
 
   // Client-only gate for the time-aware empty-chat greeting: the server SSRs
   // this 'use client' page in UTC while the browser hydrates in the user's
@@ -159,7 +171,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     return () => {
       pendingScrollRef.current = false;
     };
-  }, [messages, isTyping]);
+  }, [safeMessages, isTyping]);
 
   // Scroll-position preservation after a scroll-up prepend.
   //
@@ -171,7 +183,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   // useEffect below knows to skip its scrollIntoView this cycle.
   useLayoutEffect(() => {
     const container = containerRef.current;
-    const newFirstId = messages[0]?.id ?? null;
+    const newFirstId = safeMessages[0]?.id ?? null;
 
     if (
       container &&
@@ -189,7 +201,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
 
     prevFirstIdRef.current = newFirstId;
     prevScrollHeightRef.current = null;
-  }, [messages]);
+  }, [safeMessages]);
 
   // IntersectionObserver on the top sentinel — fires ``onLoadOlder`` as soon
   // as the user scrolls within ``rootMargin`` of the top of the list. Re-bound

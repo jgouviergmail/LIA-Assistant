@@ -109,9 +109,12 @@ describe('useAPIHealth', () => {
     const fetchMock = stubFetch(() =>
       Promise.resolve(okResponse({ status: 'healthy', graph_compiled: true }))
     );
-    const { rerender } = renderHook((props: { user: { id: string } | null }) => useAPIHealth(props), {
-      initialProps: { user: USER },
-    });
+    const { rerender } = renderHook(
+      (props: { user: { id: string } | null }) => useAPIHealth(props),
+      {
+        initialProps: { user: USER },
+      }
+    );
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
     rerender({ user: { id: 'u2' } });

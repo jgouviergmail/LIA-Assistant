@@ -12,7 +12,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 
 const mockGet = vi.hoisted(() => vi.fn());
 
-vi.mock('@/lib/api-client', async (importOriginal) => {
+vi.mock('@/lib/api-client', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/api-client')>();
   return { ...actual, apiClient: { get: mockGet } };
 });
@@ -44,7 +44,9 @@ describe('useUsageLimits', () => {
     const { result } = renderHook(() => useUsageLimits());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.limits).toEqual(makeLimits({ is_blocked: true, blocked_reason: 'quota' }));
+    expect(result.current.limits).toEqual(
+      makeLimits({ is_blocked: true, blocked_reason: 'quota' })
+    );
     expect(result.current.isBlocked).toBe(true);
     expect(result.current.blockReason).toBe('quota');
     expect(mockGet).toHaveBeenCalledWith('/usage-limits/me');

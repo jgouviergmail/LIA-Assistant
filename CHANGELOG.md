@@ -5,6 +5,132 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.9] - 2026-07-20
+
+> **The frontend stops being the untested half — and the tests find real defects.** Frontend coverage was the oldest open finding of the audit (F010): 35.4 % of statements, 29.3 % of functions, with the data layer, the connector hooks and the whole voice/push chain simply mocked out of existence. This release closes it by risk rather than by file count — 40 new suites and 31 extended ones, **+645 tests in the new files alone**, bringing the suite to **2,147 tests across 214 files** and coverage to **60.5 / 54.9 / 54.5 / 60.9** (functions nearly doubled). The point was never the percentage. Writing tests that drive the real code instead of a mock surfaced **six production defects that no suite could have caught before**, each fixed at the source and pinned by a test proven to fail without its fix: two races in the connector preferences, an unguarded bulk-OAuth queue, a defensive branch the effects crashed before it could render, an unanchored auth route match, and a type that lied about what the backend actually sends. The accessibility work went the same way — the image viewer became a real modal dialog, and the review of that very change caught it stealing focus from keyboard users on every parent re-render. What did not change: no threshold was lowered, no rule suppressed, no oracle weakened. One coverage lock that had been calibrated from the wrong population (14.7 points of slack on functions) was tightened, and vitest's uncalibrated 5-second per-test default was measured and raised so a correct-but-slow test stops being reported as a failure.
+
+### Added
+
+- **Frontend test coverage, risk-first** — 40 new suites over the data layer
+  (file upload, chat SSE transport, notifications, scheduled actions, memories,
+  MCP servers, skills, journals, RAG space documents), the session boundary
+  (`lib/auth`), the admin broadcast provider, the FAQ page, the admin sections,
+  the connector provider hooks (three of which sat at 0 %), and the voice/push
+  chain (WebSocket transport, push-to-talk state machine, FCM enrolment).
+- **`waitForHydration` E2E fixture** (`apps/web/e2e/fixtures/hydration.ts`) —
+  closes a **silent** failure class: a server-rendered form is fillable and
+  clickable before React attaches its handlers, so submitting performs a native
+  GET and the application logic never runs. No error, no request — the click
+  simply does nothing. Production builds hydrate almost instantly, which is why
+  this passes in CI and fails locally, until a slow runner makes it flake there
+  too.
+- **Focus trap and modal semantics on the shared image viewer** — the overlay is
+  now a `dialog` named after the picture, takes focus on open, keeps Tab inside
+  and returns focus to the thumbnail that opened it. `aria-modal` previously
+  announced a containment nothing enforced.
+- **Typed test helpers** — `mutateSpy()` / `setDataSpy<T>()` / `takeUpdater()`
+  (`src/__tests__/api-mocks.ts`) and the `makeMessage` / `makeAttachment` /
+  `makeLLMPricing` / `makeUsageLimitsUser` factories, so optimistic-update
+  reducers can be proven without a single escape cast (rule F057).
+
+### Changed
+
+- **Coverage ratchets re-measured and tightened** — the global floor rises
+  35/33/29/35 → 60/54/54/60, and eight per-area locks were added or raised. One
+  existing lock (`settings/connectors/**/*.tsx`) had been derived from the whole
+  directory aggregate — a different population from the one it guarded — leaving
+  **14.7 points of slack on functions**; it is now measured on its own subset.
+  Every lock was verified to sit within ~3 points of measured, and the tightened
+  one was falsified (raised above measured) to prove the glob actually matches.
+- **`testTimeout` calibrated to 15 s** (vitest default: 5 s, never examined
+  here). The settings mega-forms drive real `userEvent` typing at ~29 ms per
+  keystroke; under full-suite parallelism with coverage instrumentation that
+  stretches ~5×, and the heaviest creation test ran 1.0 s alone yet timed out
+  past 5 s in the full run — a passing test reported as a failure. Worst case
+  measured across the suite is ~3.3 s. Same treatment already applied to
+  `teardownTimeout`.
+- **Node pinned to 24 across host, CI and Docker** — `engines.node` raised to
+  `>=24` with `engine-strict=true`. The pre-commit hook runs on the host, so a
+  drifting local Node silently stops reproducing CI; the install now fails
+  instead.
+- **`AdminUsersSection`'s row type renamed `AdminUserRow`** — `@/lib/auth`
+  already exports a `User` with a different shape, and the test had to alias the
+  import to tell them apart.
+
+### Fixed
+
+- **A connector preference load could overwrite what the user had just chosen** —
+  the GET issued on mount resolved after the optimistic local write and clobbered
+  it. Local edits now claim their value, and the claim is released on rollback so
+  a still-in-flight load may legitimately fill the hole.
+- **The same preference was requested twice** — `preferencesLoaded` can only be
+  raised once the response is in, leaving the in-flight window unguarded; a
+  parent re-render carrying a new `connectors` array (the optimistic add/remove
+  produces one) re-entered and fired a second request.
+- **The bulk-OAuth queue could silently drop a connector** — the redirect-resume
+  pass and a user-initiated run both read-modify-write the same `localStorage`
+  key; overlapping, the resume popped the entry the fresh run had just parked.
+  The two are now mutually exclusive.
+- **The image viewer stole focus from keyboard users** — introduced by the modal
+  work in this very release and caught in review: the focus effect depended on
+  `onClose`, an inline arrow at all five call sites, so every parent render (a
+  streaming chat message renders constantly) yanked focus off whichever control
+  the user had reached. The keyboard listener and focus ownership are now
+  separate effects.
+- **The message list's defensive branch was unreachable** — it renders an error
+  card when `messages` is not an array, but the effects above it run first and
+  crashed on `messages[0]` before the card could show.
+- **The auth-page skip list matched by prefix** — `/^\/([a-z]{2}\/)?(login|register|oauth-callback)/`
+  would have silently disabled the session check for any future route merely
+  starting with one of those words (`/login-help`, `/register-invite`). No
+  current route is affected; the anchor keeps the list a deliberate choice
+  rather than a naming accident.
+- **`PsycheHistoryEntry.trait_snapshot` misdeclared its own payload** — the index
+  signature admitted numbers only, while the backend writes `active_emotions` as
+  an emotion→intensity map. Consumers were reading it through casts; the type now
+  mirrors what `PsycheService.process_post_response` actually persists, and the
+  casts are gone.
+- **Two backend unit tests failed intermittently under `-n auto --dist loadscope`**
+  — surfaced by this release's gate runs: one full run clean, the next with two
+  failures on identical code. The DB redirection installs a **process-wide**
+  psycopg URL override (deliberately never undone) that `resolve_psycopg_url()`
+  consults *before* `settings`, so a test asserting the `settings → pool URL`
+  contract by patching `settings` alone is silently handed the Testcontainers
+  URL — if and only if that xdist worker had already run a DB-backed test.
+  A new `psycopg_url_from_settings` fixture neutralizes the override for the
+  duration of a test and, crucially, **restores** it: the three helper tests
+  previously ended on `set_psycopg_url_override(None)`, which does not undo the
+  override but destroys it, pointing every later DB test in that worker at the
+  developer database. Proven by simulating a contaminated worker: identical
+  failure signature without the fix, green with it.
+- **Seven FAQ changelog versions had never rendered** — `v1_15` and `v1_20_17`
+  through `v1_20_22` were written and translated into all 6 locales (so i18n
+  parity passed) but were missing from the hardcoded `changelogVersionKeys`
+  array that decides what the accordion displays. The same class had already
+  hit `v1_21_8`/`v1_21_9` once. A new guard
+  (`faq/__tests__/changelog-wiring.test.ts`) now fails on drift in **either**
+  direction — content without wiring, or wiring without content — and also
+  pins each entry's declared item `count` against the items actually written.
+  It found these seven the first time it ran.
+- **Dead code and stale contracts** — an unused `getEmotionalLabel` carrying five
+  hardcoded French strings (a live namesake exists elsewhere), a `setIsSubmitting`
+  in an error path the parent had already unmounted, a duplicated JSDoc block, and
+  a doc pointer to a backend method that does not exist.
+
+### Tests
+
+- **2,147 vitest across 214 files** (40 new suites, 31 extended), coverage
+  **60.49 / 54.86 / 54.50 / 60.94** (from 35.40 / 33.54 / 29.25 / 35.83).
+- **26/26 hermetic Playwright** (Chromium smoke + axe journeys), including new
+  browser-level assertions on the viewer's tab cycle — `user-event` only
+  approximates tab order under jsdom.
+- Every regression test in this release was **proven to fail against the
+  unfixed code** before being kept; one that passed on both sides was deleted
+  rather than shipped as false assurance.
+- Static gates unchanged and green: `tsc --noEmit --incremental false`, ESLint,
+  Prettier, and the a11y / react-hooks / complexity ratchets — all three sitting
+  at exactly their baseline, with zero slack.
+
 ## [1.25.8] - 2026-07-19
 
 > **Proactive notifications stop repeating themselves — and start saying something concrete.** A user report ("it's always the same interest, and the remarks are flat") turned into a measured investigation: over 45 days of production, **~14 of 20 interest-flavoured heartbeats centred on the same subject**, near-daily, and not one ever named an actual film, article or event. The causes were structural, not stylistic (ADR-135). First, the interest sample injected into the decision prompt was **hardcoded top-30%-by-weight**: the same handful of topics at every tick, ignoring the subject machinery ADR-131 had just built — the model could not rotate away from a fixed list. Second, the anti-redundancy window held 5 notifications (under two days) and exposed only *which sources* fired, never *what was said* — so the model had no way to know it had proposed the same thing ten evenings running; a bench proved this directly, watching it pivot away from one motif straight into another it had used the day before, sourced from memories. Third, the context injected topic **names only**: with no material, "have a look at a recent release" is the best any model can produce. The fix is mechanical where it can be and prompted only where it must: a subject-diverse sample (one interest per subject, least-recently-served first), a unified cross-flow ledger so a theme covered by *either* proactive flow steps aside — with an explicit boundary keeping each flow's quota budget its own — a content-level anti-repetition window (10 notifications / 7 days, excerpts included, rule operating on topics rather than sources), and on-demand enrichment that fetches real facts through the existing content pipeline and names them, with deterministic source links. Every mechanism was benched on production data before a line was written; the schema risk was retired at 8/8, and the enrichment chain proved out end-to-end.

@@ -57,9 +57,7 @@ describe('useApiMutation — method routing', () => {
 
   it('PUT and PATCH route to the matching client method', async () => {
     mockApi.put.mockResolvedValueOnce('put-ok');
-    const { result: put } = renderHook(() =>
-      useApiMutation({ method: 'PUT', componentName: 'F' })
-    );
+    const { result: put } = renderHook(() => useApiMutation({ method: 'PUT', componentName: 'F' }));
     await act(async () => {
       await put.current.mutate('/e', { a: 1 });
     });
@@ -77,9 +75,7 @@ describe('useApiMutation — method routing', () => {
 
   it('DELETE serializes the optional body into config', async () => {
     mockApi.delete.mockResolvedValue(undefined);
-    const { result } = renderHook(() =>
-      useApiMutation({ method: 'DELETE', componentName: 'F' })
-    );
+    const { result } = renderHook(() => useApiMutation({ method: 'DELETE', componentName: 'F' }));
 
     await act(async () => {
       await result.current.mutate('/e/1', { reason: 'x' });
@@ -105,7 +101,7 @@ describe('useApiMutation — error handling', () => {
     // capture the thrown value to prove the mutation rethrows.
     let thrown: unknown;
     await act(async () => {
-      await result.current.mutate('/e', {}).catch((e) => {
+      await result.current.mutate('/e', {}).catch(e => {
         thrown = e;
       });
     });
@@ -118,9 +114,7 @@ describe('useApiMutation — error handling', () => {
 
   it('preserves an ApiError (status kept)', async () => {
     mockApi.post.mockRejectedValueOnce(new ApiError('bad', 422));
-    const { result } = renderHook(() =>
-      useApiMutation({ method: 'POST', componentName: 'F' })
-    );
+    const { result } = renderHook(() => useApiMutation({ method: 'POST', componentName: 'F' }));
 
     await act(async () => {
       await result.current.mutate('/e', {}).catch(() => {});
@@ -133,9 +127,7 @@ describe('useApiMutation — error handling', () => {
 describe('useApiMutation — reset & guard', () => {
   it('reset clears error and data', async () => {
     mockApi.post.mockResolvedValueOnce({ id: 9 });
-    const { result } = renderHook(() =>
-      useApiMutation({ method: 'POST', componentName: 'F' })
-    );
+    const { result } = renderHook(() => useApiMutation({ method: 'POST', componentName: 'F' }));
     await act(async () => {
       await result.current.mutate('/e', {});
     });
@@ -149,9 +141,7 @@ describe('useApiMutation — reset & guard', () => {
   it('throws when options is missing', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() =>
-      renderHook(() =>
-        useApiMutation(undefined as unknown as UseApiMutationOptions<unknown>)
-      )
+      renderHook(() => useApiMutation(undefined as unknown as UseApiMutationOptions<unknown>))
     ).toThrow(/options is required/);
     spy.mockRestore();
   });

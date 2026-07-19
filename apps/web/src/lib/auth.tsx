@@ -89,7 +89,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Skip auth check on public auth pages only
       if (typeof window !== 'undefined') {
         const pathname = window.location.pathname;
-        const isAuthPage = pathname.match(/^\/([a-z]{2}\/)?(login|register|oauth-callback)/);
+        // The trailing `(\/|$)` is load-bearing: without it the match is a
+        // prefix test, so a future route merely *starting* with one of these
+        // words (`/login-help`, `/register-invite`…) would silently lose its
+        // session check and report an authenticated user as anonymous. No
+        // current route is affected — the anchor keeps the skip list a
+        // deliberate choice rather than a naming accident.
+        const isAuthPage = pathname.match(/^\/([a-z]{2}\/)?(login|register|oauth-callback)(\/|$)/);
 
         if (isAuthPage) {
           // User is on an auth page - assume not authenticated

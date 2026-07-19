@@ -149,9 +149,7 @@ describe('validateToolScores', () => {
 describe('validateIntentDetection', () => {
   it('accepts a valid section', () => {
     expect(
-      validateIntentDetection(
-        cast<DebugMetrics['intent_detection']>({ confidence: 0.5 })
-      ).success
+      validateIntentDetection(cast<DebugMetrics['intent_detection']>({ confidence: 0.5 })).success
     ).toBe(true);
   });
 

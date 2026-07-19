@@ -221,11 +221,7 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
     expect(blocking, `axe violations on admin settings:\n${summary}`).toHaveLength(0);
   });
 
-  test('dashboard scans clean in dark mode', async ({
-    page,
-    authenticate,
-    mockApi,
-  }, testInfo) => {
+  test('dashboard scans clean in dark mode', async ({ page, authenticate, mockApi }, testInfo) => {
     // next-themes defaults to light; the user choice is persisted in
     // localStorage — seed it before any script runs so the whole page
     // renders with the dark palette (guard-proven, browser-verified here).

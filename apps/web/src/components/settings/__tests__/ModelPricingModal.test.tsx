@@ -55,35 +55,9 @@ const TEMPLATES = [
   },
 ];
 
-function editModel(overrides: Partial<LLMModelPricing> = {}): LLMModelPricing {
-  return {
-    id: 'm1',
-    provider: 'anthropic',
-    model_name: 'claude-x',
-    kind: 'chat',
-    max_input_tokens: 200000,
-    max_output_tokens: 8192,
-    supports_tools: true,
-    supports_structured_output: true,
-    supports_strict_mode: false,
-    supports_streaming: true,
-    supports_vision: true,
-    is_reasoning_model: false,
-    reasoning_widget: 'none',
-    reasoning_enum_values: null,
-    reasoning_budget_range: null,
-    reasoning_doc_i18n_key: null,
-    supports_temperature: true,
-    supports_top_p: true,
-    supports_frequency_penalty: true,
-    supports_presence_penalty: true,
-    pricing_unit: 'per_1m_tokens',
-    input_unit_price: '3.0',
-    cached_input_unit_price: '0.3',
-    output_unit_price: '15.0',
-    ...overrides,
-  } as LLMModelPricing;
-}
+// Shared domain factory — the same row shape drives
+// AdminLLMPricingSection.test.tsx.
+import { makeLLMPricing as editModel } from '@/__tests__/factories';
 
 function renderModal(model: LLMModelPricing | null) {
   const onSubmit = vi.fn();

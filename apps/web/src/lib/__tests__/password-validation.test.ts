@@ -21,7 +21,7 @@ const t = ((key: string, opts?: unknown): string =>
 
 /** True when at least one error string references the given i18n rule fragment. */
 function hasError(errors: string[], fragment: string): boolean {
-  return errors.some((e) => e.includes(fragment));
+  return errors.some(e => e.includes(fragment));
 }
 
 describe('validatePassword', () => {
@@ -95,12 +95,12 @@ describe('getPasswordRequirementChecks', () => {
   it('reports per-requirement met flags for a compliant password', () => {
     const checks = getPasswordRequirementChecks('AB12!@cdef', t);
     expect(checks).toHaveLength(4);
-    expect(checks.every((c) => c.met)).toBe(true);
+    expect(checks.every(c => c.met)).toBe(true);
   });
 
   it('reports the unmet requirement for a weak password', () => {
     const checks = getPasswordRequirementChecks('abcdefghij', t);
-    const byLabel = Object.fromEntries(checks.map((c) => [c.label.split(' ')[0], c.met]));
+    const byLabel = Object.fromEntries(checks.map(c => [c.label.split(' ')[0], c.met]));
     expect(byLabel['auth.password.checks.min_length']).toBe(true); // 10 chars
     expect(byLabel['auth.password.checks.min_uppercase']).toBe(false);
     expect(byLabel['auth.password.checks.min_digits']).toBe(false);

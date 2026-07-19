@@ -38,7 +38,8 @@ interface ReindexResponse {
   model_to: string;
 }
 
-interface ReindexStatus {
+/** Live status of the global reindex. Exported for contract-typed fixtures. */
+export interface ReindexStatus {
   in_progress: boolean;
   started_at: string | null;
   model_from: string | null;
@@ -48,7 +49,8 @@ interface ReindexStatus {
   failed_documents: number;
 }
 
-interface SystemSpace {
+/** A system-managed RAG space. Exported for contract-typed fixtures. */
+export interface SystemSpace {
   id: string;
   name: string;
   description: string | null;
@@ -60,7 +62,8 @@ interface SystemSpace {
   updated_at: string;
 }
 
-interface SystemStaleness {
+/** Whether a system space's index still matches its source. Exported for tests. */
+export interface SystemStaleness {
   space_name: string;
   is_stale: boolean;
   stored_hash: string | null;

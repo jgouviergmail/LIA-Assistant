@@ -56,7 +56,11 @@ export function OrchestrateChat({ reached }: ActProps) {
       {reached('hitl') && (
         <AssistantRow variant="hitl">
           {tm('s1_hitl')}
-          <DraftCard to={tm('s1_draft_to')} subject={tm('s1_draft_subject')} quote={tm('s1_draft_quote')} />
+          <DraftCard
+            to={tm('s1_draft_to')}
+            subject={tm('s1_draft_subject')}
+            quote={tm('s1_draft_quote')}
+          />
         </AssistantRow>
       )}
       {reached('approve') && <UserBubble text={tm('s1_approve')} />}
@@ -80,8 +84,16 @@ export function OrchestrateBackstage({ reached }: ActProps) {
       <BsQuery text={tm('s1_bs_query')} />
       <BsFan direction="split" />
       <div className="flex w-full justify-center gap-1.5">
-        <BsChip label={tm('s1_bs_c1')} sub={tm('s1_bs_c1_sub')} state={reached('bs_c1') ? 'done' : 'run'} />
-        <BsChip label={tm('s1_bs_c2')} sub={tm('s1_bs_c2_sub')} state={reached('bs_c2') ? 'done' : 'run'} />
+        <BsChip
+          label={tm('s1_bs_c1')}
+          sub={tm('s1_bs_c1_sub')}
+          state={reached('bs_c1') ? 'done' : 'run'}
+        />
+        <BsChip
+          label={tm('s1_bs_c2')}
+          sub={tm('s1_bs_c2_sub')}
+          state={reached('bs_c2') ? 'done' : 'run'}
+        />
         <BsChip label={tm('s1_bs_c3')} sub={tm('s1_bs_c3_sub')} state="run" />
       </div>
       {reached('bs_gate') && (
@@ -115,7 +127,9 @@ export function AnticipateChat({ reached }: ActProps) {
           />
         </AssistantRow>
       )}
-      {reached('initiative') && <AssistantRow variant="initiative">{tm('s2_initiative')}</AssistantRow>}
+      {reached('initiative') && (
+        <AssistantRow variant="initiative">{tm('s2_initiative')}</AssistantRow>
+      )}
       {reached('approve') && <UserBubble text={tm('s2_approve')} />}
       {reached('done') && (
         <AssistantRow variant="success">
@@ -142,7 +156,13 @@ export function AnticipateBackstage({ reached }: ActProps) {
       <BsQuery text={tm('s2_bs_query')} />
       <BsStem />
       <BsSparkLink
-        left={<BsChip label={tm('s2_bs_c1')} sub={tm('s2_bs_c1_sub')} state={reached('bs_c1') ? 'done' : 'run'} />}
+        left={
+          <BsChip
+            label={tm('s2_bs_c1')}
+            sub={tm('s2_bs_c1_sub')}
+            state={reached('bs_c1') ? 'done' : 'run'}
+          />
+        }
         right={<BsChip label={tm('s2_bs_c2')} sub={tm('s2_bs_c2_sub')} state="done" />}
         spark="✨"
         wiresDrawn={reached('bs_wire')}
@@ -180,7 +200,11 @@ export function CallChat({ reached }: ActProps) {
 export function CallBackstage({ reached }: ActProps) {
   const tm = useMockupT();
   return (
-    <Backstage label={tm('backstage_label')} cost={BACKSTAGE_COSTS.call} costLabel={tm('bs_cost_live')}>
+    <Backstage
+      label={tm('backstage_label')}
+      cost={BACKSTAGE_COSTS.call}
+      costLabel={tm('bs_cost_live')}
+    >
       <BsGate text={tm('s3_bs_gate')} tone="green" />
       {reached('bs_call') && (
         <>

@@ -8,6 +8,7 @@ import { render } from '@testing-library/react';
 import { ChatMessage, type ChatMessageProps, isFreshProactive } from '../ChatMessage';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { usePsycheStore } from '@/stores/psycheStore';
+import { makeMessage } from '@/__tests__/factories';
 import type { Message } from '@/types/chat';
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -17,12 +18,7 @@ vi.mock('@/hooks/useApiMutation', () => ({
   useApiMutation: () => ({ mutate: vi.fn() }),
 }));
 
-const MSG = {
-  id: 'a-1',
-  role: 'assistant',
-  content: 'Hello world',
-  timestamp: new Date(),
-} as Message;
+const MSG: Message = makeMessage({ id: 'a-1', timestamp: new Date() });
 
 function renderMessage(props: Partial<ChatMessageProps> = {}) {
   return render(

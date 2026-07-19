@@ -13,7 +13,12 @@ import type { BaseSettingsProps } from '@/types/settings';
 // API endpoint constant to avoid duplication
 const GLOBAL_CONFIG_ENDPOINT = '/connectors/admin/global-config';
 
-interface ConnectorConfig {
+/**
+ * Global per-connector availability, as served by
+ * `/connectors/admin/global-config`. Exported so tests can build a complete,
+ * contract-conformant fixture instead of duplicating the shape.
+ */
+export interface ConnectorConfig {
   id: string;
   connector_type: string;
   is_enabled: boolean;

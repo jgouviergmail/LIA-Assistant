@@ -13,11 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 
-import {
-  extractToolNames,
-  formatActionArgs,
-  generateFallbackHitlQuestion,
-} from '../hitl-utils';
+import { extractToolNames, formatActionArgs, generateFallbackHitlQuestion } from '../hitl-utils';
 import type { ActionRequest } from '@/types/chat';
 
 /** Echo stub: returns `key` alone, or `key {json-params}` when interpolation is used. */
@@ -42,7 +38,9 @@ describe('generateFallbackHitlQuestion — empty / missing input', () => {
   });
 
   it('falls back to hitl.default for a null-ish list', () => {
-    expect(generateFallbackHitlQuestion(null as unknown as ActionRequest[], t)).toBe('hitl.default');
+    expect(generateFallbackHitlQuestion(null as unknown as ActionRequest[], t)).toBe(
+      'hitl.default'
+    );
   });
 });
 

@@ -48,7 +48,15 @@ const LANGUAGE_CODES: Record<string, string> = {
   'zh-CN': 'ZH', // Backend uses zh-CN, but display same label
 };
 
-interface User {
+/**
+ * A user row as returned by `/users/admin/search`. Exported so tests can build
+ * a complete, contract-conformant fixture instead of duplicating the shape.
+ *
+ * Named `AdminUserRow`, not `User`: `@/lib/auth` already exports a `User` (the
+ * authenticated session's own account, a different shape). Two exported `User`
+ * types in one app is an import waiting to go to the wrong one.
+ */
+export interface AdminUserRow {
   id: string;
   email: string;
   full_name: string | null;
@@ -91,7 +99,7 @@ interface User {
 }
 
 interface UserListResponse {
-  users: User[];
+  users: AdminUserRow[];
   total: number;
   page: number;
   page_size: number;
@@ -100,15 +108,15 @@ interface UserListResponse {
 
 export default function AdminUsersSection({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   // ✅ React 19 useOptimistic for instant UI updates without full page refresh
   const [optimisticUsers, updateOptimisticUsers] = useOptimistic(
     users,
     (
-      state: User[],
-      optimisticValue: { id: string; updates?: Partial<User>; deleted?: boolean }
+      state: AdminUserRow[],
+      optimisticValue: { id: string; updates?: Partial<AdminUserRow>; deleted?: boolean }
     ) => {
       if (optimisticValue.deleted) {
         return deleteListItem(state, optimisticValue.id);

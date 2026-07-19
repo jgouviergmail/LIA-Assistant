@@ -11,7 +11,7 @@ import { test, expect } from '../fixtures';
 test.describe('public login page', () => {
   test('renders the credential form without any API call', async ({ page }) => {
     const apiRequests: string[] = [];
-    page.on('request', (r) => {
+    page.on('request', r => {
       if (r.url().includes('/api/v1/')) apiRequests.push(r.url());
     });
 

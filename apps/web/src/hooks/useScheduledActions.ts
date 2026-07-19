@@ -3,9 +3,9 @@ import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
 
 /** Polling interval when no action is executing (ms). */
-const AUTO_REFRESH_INTERVAL_MS = 30_000;
+export const AUTO_REFRESH_INTERVAL_MS = 30_000;
 /** Faster polling interval when an action is executing (ms). */
-const EXECUTING_REFRESH_INTERVAL_MS = 10_000;
+export const EXECUTING_REFRESH_INTERVAL_MS = 10_000;
 
 /**
  * Scheduled action status types.
@@ -61,7 +61,7 @@ export interface ScheduledActionUpdate {
 /**
  * API list response shape.
  */
-interface ScheduledActionListResponse {
+export interface ScheduledActionListResponse {
   scheduled_actions: ScheduledAction[];
   total: number;
 }

@@ -85,15 +85,7 @@ export function BsFan({ direction }: { direction: 'split' | 'join' }) {
 export type BsChipState = 'run' | 'done';
 
 /** One parallel task: a domain chip that works (progress) then checks green. */
-export function BsChip({
-  label,
-  sub,
-  state,
-}: {
-  label: string;
-  sub: string;
-  state: BsChipState;
-}) {
+export function BsChip({ label, sub, state }: { label: string; sub: string; state: BsChipState }) {
   return (
     <span
       className={cn(
@@ -162,7 +154,10 @@ export function BsSparkLink({
   wiresDrawn: boolean;
   sparkShown: boolean;
 }) {
-  const wire = cn('h-px w-7 shrink-0 bg-primary/50', wiresDrawn ? 'animate-wire-draw' : 'scale-x-0');
+  const wire = cn(
+    'h-px w-7 shrink-0 bg-primary/50',
+    wiresDrawn ? 'animate-wire-draw' : 'scale-x-0'
+  );
   return (
     <span className="flex items-center justify-center w-full">
       {left}
@@ -187,7 +182,9 @@ export function BsCall({ name, sub }: { name: string; sub: string }) {
     <span className="flex items-center gap-2 rounded-lg border border-primary bg-card px-3 py-1.5 ring-2 ring-primary/15 animate-chip-pop">
       <Phone className="w-3.5 h-3.5 text-primary" />
       <span className="text-left">
-        <span className="block text-[10px] font-semibold leading-tight text-foreground">{name}</span>
+        <span className="block text-[10px] font-semibold leading-tight text-foreground">
+          {name}
+        </span>
         <span className="block text-[8.5px] leading-tight text-muted-foreground tabular-nums">
           {sub}
         </span>
@@ -248,8 +245,7 @@ export function BsForge({ label, sub }: { label: string; sub: string }) {
 /** Explanatory line under a figure (violet = initiative, cyan = creation…). */
 export function BsNote({ tone, text }: { tone: 'violet' | 'cyan' | 'muted'; text: string }) {
   const tones = {
-    violet:
-      'border-violet-500/30 bg-violet-500/10 text-violet-800 dark:text-violet-200',
+    violet: 'border-violet-500/30 bg-violet-500/10 text-violet-800 dark:text-violet-200',
     cyan: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200',
     muted: 'border-transparent bg-transparent text-muted-foreground italic',
   };

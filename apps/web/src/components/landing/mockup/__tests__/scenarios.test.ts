@@ -14,12 +14,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import {
-  BACKSTAGE_COSTS,
-  REDUCED_MOTION_KINDS,
-  SCENARIOS,
-  SCENARIO_FOOTERS,
-} from '../scenarios';
+import { BACKSTAGE_COSTS, REDUCED_MOTION_KINDS, SCENARIOS, SCENARIO_FOOTERS } from '../scenarios';
 
 const LANGS = ['en', 'fr', 'de', 'es', 'it', 'zh'] as const;
 
@@ -36,10 +31,75 @@ const REFERENCED_KEYS = [
   'tokens_unit',
   'messages_one',
   'messages_other',
-  ...['s1_chip', 's1_user', 's1_wait', 's1_bs_query', 's1_bs_c1', 's1_bs_c1_sub', 's1_bs_c2', 's1_bs_c2_sub', 's1_bs_c3', 's1_bs_c3_sub', 's1_bs_gate', 's1_bs_note', 's1_hitl', 's1_draft_to', 's1_draft_subject', 's1_draft_quote', 's1_approve', 's1_done'],
-  ...['s2_chip', 's2_user', 's2_bs_query', 's2_bs_c1', 's2_bs_c1_sub', 's2_bs_c2', 's2_bs_c2_sub', 's2_bs_note', 's2_card_title', 's2_slot1', 's2_slot2', 's2_slot3', 's2_initiative', 's2_approve', 's2_done', 's2_event_title', 's2_event_day', 's2_event_time', 's2_event_dur'],
-  ...['s3_chip', 's3_user', 's3_hitl', 's3_approve', 's3_bs_gate', 's3_bs_call', 's3_bs_call_sub', 's3_bs_note', 's3_done', 's3_card_title', 's3_card_day', 's3_card_time', 's3_card_pers'],
-  ...['s4_chip', 's4_user', 's4_bs_forge', 's4_bs_forge_sub', 's4_bs_note', 's4_skill_badge', 's4_reply', 's4_widget_title', 's4_widget_btn1', 's4_widget_btn2', 's4_widget_note'],
+  ...[
+    's1_chip',
+    's1_user',
+    's1_wait',
+    's1_bs_query',
+    's1_bs_c1',
+    's1_bs_c1_sub',
+    's1_bs_c2',
+    's1_bs_c2_sub',
+    's1_bs_c3',
+    's1_bs_c3_sub',
+    's1_bs_gate',
+    's1_bs_note',
+    's1_hitl',
+    's1_draft_to',
+    's1_draft_subject',
+    's1_draft_quote',
+    's1_approve',
+    's1_done',
+  ],
+  ...[
+    's2_chip',
+    's2_user',
+    's2_bs_query',
+    's2_bs_c1',
+    's2_bs_c1_sub',
+    's2_bs_c2',
+    's2_bs_c2_sub',
+    's2_bs_note',
+    's2_card_title',
+    's2_slot1',
+    's2_slot2',
+    's2_slot3',
+    's2_initiative',
+    's2_approve',
+    's2_done',
+    's2_event_title',
+    's2_event_day',
+    's2_event_time',
+    's2_event_dur',
+  ],
+  ...[
+    's3_chip',
+    's3_user',
+    's3_hitl',
+    's3_approve',
+    's3_bs_gate',
+    's3_bs_call',
+    's3_bs_call_sub',
+    's3_bs_note',
+    's3_done',
+    's3_card_title',
+    's3_card_day',
+    's3_card_time',
+    's3_card_pers',
+  ],
+  ...[
+    's4_chip',
+    's4_user',
+    's4_bs_forge',
+    's4_bs_forge_sub',
+    's4_bs_note',
+    's4_skill_badge',
+    's4_reply',
+    's4_widget_title',
+    's4_widget_btn1',
+    's4_widget_btn2',
+    's4_widget_note',
+  ],
 ];
 
 /** Pre-backstage keys that must not survive the redesign. */

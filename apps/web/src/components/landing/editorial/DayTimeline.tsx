@@ -44,11 +44,7 @@ export function DayTimeline() {
   const { t } = useTranslation();
 
   return (
-    <section
-      id="day"
-      aria-labelledby="day-title"
-      className="landing-section scroll-mt-24 py-24"
-    >
+    <section id="day" aria-labelledby="day-title" className="landing-section scroll-mt-24 py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
           <h2

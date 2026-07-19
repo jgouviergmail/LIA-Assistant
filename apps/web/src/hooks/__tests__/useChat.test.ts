@@ -1033,7 +1033,12 @@ describe('useChat — connector error notices (Lot 3 P3)', () => {
   } as ChatStreamChunk;
 
   it('accumulates a notice from a tool_error step, then dismisses it', async () => {
-    scriptStream([ROUTER_CHUNK, TOOL_ERROR, token('Je ne peux pas accéder à vos e-mails.'), done()]);
+    scriptStream([
+      ROUTER_CHUNK,
+      TOOL_ERROR,
+      token('Je ne peux pas accéder à vos e-mails.'),
+      done(),
+    ]);
     const { result } = renderHook(() => useChat());
     await act(async () => {
       await result.current.sendMessage('Cherche mes emails');
@@ -1057,9 +1062,7 @@ describe('useChat — pending HITL rehydration (Lot 1 P1-V1)', () => {
   it('hydratePendingHitl arms the card from a pending interrupt', async () => {
     h.fetchPendingHitl.mockResolvedValueOnce({
       message_id: 'hitl_pending_1',
-      action_requests: [
-        { type: 'tool_confirmation', tool_name: 'send_email_tool', tool_args: {} },
-      ],
+      action_requests: [{ type: 'tool_confirmation', tool_name: 'send_email_tool', tool_args: {} }],
     });
     const { result } = renderHook(() => useChat());
 

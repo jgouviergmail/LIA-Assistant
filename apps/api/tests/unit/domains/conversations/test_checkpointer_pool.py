@@ -40,8 +40,13 @@ class TestGetCheckpointerPoolFactory:
     """Tests for get_checkpointer() building an AsyncConnectionPool."""
 
     @pytest.mark.asyncio
-    async def test_builds_pool_from_settings(self):
-        """Pool sizes, connection kwargs and fail-fast open come from settings."""
+    async def test_builds_pool_from_settings(self, psycopg_url_from_settings):
+        """Pool sizes, connection kwargs and fail-fast open come from settings.
+
+        ``psycopg_url_from_settings`` neutralizes the process-wide URL override
+        installed by the DB redirection: it wins over ``settings`` by design, so
+        without it this assertion is intermittently handed the Testcontainers URL.
+        """
         reset_checkpointer()
 
         with (
