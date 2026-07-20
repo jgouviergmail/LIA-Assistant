@@ -50,6 +50,14 @@ jobs:
           E2E_BASE_URL: http://localhost:3000
           NEXT_PUBLIC_API_URL: ""
           E2E_ALL_BROWSERS: "1"
+          # Firefox refuses to start when $HOME is not owned by the current
+          # user, which is exactly what Actions sets up inside this container:
+          # every Firefox project failed with "Failed to launch the browser
+          # process" while Chromium passed, so the run reported an
+          # accessibility failure that was really an environment one. Scoped to
+          # this step so the pnpm/npm caches of the earlier steps keep their own
+          # HOME. The workaround is the one Playwright itself prints.
+          HOME: /root
         run: npx playwright test
 
       - name: Upload Playwright report
