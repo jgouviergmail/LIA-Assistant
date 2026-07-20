@@ -118,6 +118,30 @@ class TestPlainTextForNotification:
         assert "color" not in out
         assert out == "Bonjour"
 
+    # Notification bodies reach this flattener truncated to a preview budget, so
+    # a block element routinely arrives severed with no closing tag. Requiring
+    # the pair let tag-stripping remove the marker and leave the body as prose —
+    # a lock-screen notification read "body{color:red;font-size:12px}".
+    #
+    # Mirrored by `notification-preview.test.ts` on the frontend half; the two
+    # strippers must agree, a preview can be built on either side.
+    @pytest.mark.parametrize(
+        ("payload", "expected"),
+        [
+            ('<div class="lia-response"><style>body{color:red;font-size:12px}', ""),
+            ('<div class="x"><script>var a=1;alert(9)', ""),
+            ('<div class="x"><style>a{b:c}</style>Texte<script>var z=1', "Texte"),
+            # `<script src="x"/>` has no body: without the (?<!/) guard the lazy
+            # body would run to end-of-input and eat the rest of the document.
+            ('<div class="x"><script src="a.js"/>Texte</div>', "Texte"),
+            # A </script> must not close a <style> (\1 backreference).
+            ('<div class="x"><style>x</script>y</style>Fin</div>', "Fin"),
+            ("<html><head><title>T</title></head><body><p>Corps</p></body></html>", "Corps"),
+        ],
+    )
+    def test_drops_block_elements_even_when_truncated(self, payload: str, expected: str) -> None:
+        assert plain_text_for_notification(payload) == expected
+
     def test_markdown_content_is_untouched_apart_from_whitespace(self) -> None:
         # Interest/heartbeat bodies are Markdown; flattening must not mangle them.
         assert plain_text_for_notification("**Salut** ! Un fait surprenant.") == (

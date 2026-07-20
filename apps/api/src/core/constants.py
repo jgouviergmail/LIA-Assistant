@@ -17,7 +17,7 @@ References:
     - ADR-001: Constants Centralization Strategy
 """
 
-from typing import Final
+from typing import Final, Literal
 
 # ============================================================================
 # APPLICATION IDENTITY
@@ -813,8 +813,16 @@ SUPPORTED_CURRENCIES = ["USD", "EUR"]
 # SECURITY
 # ============================================================================
 
-# JWT algorithm for email verification and password reset tokens
-JWT_ALGORITHM_DEFAULT = "HS256"
+# JWT algorithm for email verification and password reset tokens.
+#
+# Constrained to HMAC (symmetric) algorithms on purpose: the CI pip-audit
+# exemption for CVE-2024-23342 (ecdsa timing attack on signing) holds only
+# because python-jose never reaches its ecdsa backend under HS*. Adding an
+# EC/RSA algorithm here means revisiting that exemption in
+# .github/workflows/security.yml — and switching to an asymmetric algorithm
+# also means `secret_key` stops being a valid signing key.
+JwtAlgorithm = Literal["HS256", "HS384", "HS512"]
+JWT_ALGORITHM_DEFAULT: Final[JwtAlgorithm] = "HS256"
 
 # Minimum secret key length (bytes)
 SECRET_KEY_MIN_LENGTH = 32

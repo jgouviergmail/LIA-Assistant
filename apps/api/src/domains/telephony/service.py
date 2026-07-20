@@ -74,7 +74,7 @@ class TelephonyService:
         client_factory: Callable[[str], ElevenLabsAgentsClient] | None = None,
     ) -> None:
         self.db = db
-        self._client_factory = client_factory or (lambda api_key: ElevenLabsAgentsClient(api_key))
+        self._client_factory = client_factory or ElevenLabsAgentsClient
 
     async def _resolve_zombie_call(
         self,

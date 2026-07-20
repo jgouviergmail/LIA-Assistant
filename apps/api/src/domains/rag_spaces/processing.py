@@ -596,10 +596,6 @@ async def process_document(
     finally:
         clear_embedding_context()
 
-    # Unreachable in practice (the try returns True, the except returns False),
-    # but keeps the function total for the type checker.
-    return False
-
 
 async def _mark_document_error(
     doc_repo: RAGDocumentRepository,

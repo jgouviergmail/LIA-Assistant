@@ -15,6 +15,7 @@ import re
 import time
 import uuid
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from langchain_core.messages import AIMessageChunk
@@ -42,6 +43,7 @@ from src.infrastructure.observability.metrics_langgraph import (
 )
 
 if TYPE_CHECKING:
+    from src.domains.agents.services.hitl.protocols import HitlInteractionProtocol
     from src.domains.agents.services.hitl.question_generator import HitlQuestionGenerator
     from src.domains.agents.services.hitl.registry import HitlInteractionRegistry
     from src.domains.agents.utils.hitl_store import HITLStore
@@ -2123,6 +2125,18 @@ class StreamingService:
         # === Step 1: Build and emit metadata chunk ===
         # Phase 1 HITL Streaming: Use registry to build metadata if streaming
         # Data Registry LOT 4: Pass registry_ids to interaction for rich rendering
+        #
+        # Declared here, ahead of BOTH `from_action_type` blocks, because the
+        # streaming block's `except` READS it. The lookup is the first statement
+        # in each try, so a RuntimeError/ValueError there (unregistered type,
+        # interaction constructor) leaves it unbound — and since both blocks call
+        # it with the same arguments, a failure in one means a failure in the
+        # other. The handler's `except (AttributeError, KeyError, ValueError,
+        # RuntimeError)` does not catch NameError, so the fallback path meant to
+        # rescue the request would crash it instead. None is the right sentinel:
+        # `.get_fallback_question` on it raises AttributeError, which that handler
+        # already routes to the centralized i18n fallback.
+        interaction: HitlInteractionProtocol | None = None
         if generate_streaming:
             try:
                 hitl_registry = _get_hitl_registry()
@@ -2264,10 +2278,17 @@ class StreamingService:
                 )
                 yield fallback_event_chunk
 
-                # Get fallback question from interaction
-                try:
-                    fallback_question = interaction.get_fallback_question(user_language)
-                except (AttributeError, KeyError, ValueError, RuntimeError):
+                # Get fallback question from interaction. `interaction` is None
+                # when the registry lookup itself is what failed, in which case
+                # the centralized i18n message is the only option left.
+                fallback_question: str | None = None
+                if interaction is not None:
+                    # Best-effort: any interaction-side failure must degrade to the
+                    # i18n message rather than break the request we are rescuing.
+                    with suppress(AttributeError, KeyError, ValueError, RuntimeError):
+                        fallback_question = interaction.get_fallback_question(user_language)
+
+                if fallback_question is None:
                     # Ultimate fallback - uses centralized i18n (6 languages)
                     from src.domains.agents.api.error_messages import SSEErrorMessages
 

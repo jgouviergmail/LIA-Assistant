@@ -58,6 +58,34 @@ describe('toPlainPreview', () => {
     expect(out).toBe('Bonjour');
   });
 
+  // This surface truncates (NOTIFICATION_PREVIEW_MAX_LENGTH), so a block element
+  // routinely arrives severed with no closing tag. Requiring the pair let tag
+  // stripping remove the marker and leave the body as prose — a toast read
+  // "body{color:red;font-size:12px}".
+  it('drops a truncated style block, closing tag or not', () => {
+    expect(toPlainPreview('<div class="lia-response"><style>body{color:red;font-size:12px}')).toBe(
+      ''
+    );
+  });
+
+  it('drops a truncated script block, closing tag or not', () => {
+    expect(toPlainPreview('<div class="x"><script>var a=1;alert(9)')).toBe('');
+  });
+
+  it('keeps prose that follows a truncated block', () => {
+    expect(toPlainPreview('<div class="x"><style>a{b:c}</style>Texte<script>var z=1')).toBe('Texte');
+  });
+
+  it('does not let a self-closing script swallow the document', () => {
+    // `<script src="x"/>` has no body; without the (?<!/) guard the lazy body
+    // would run to end-of-string and eat the rest of the content.
+    expect(toPlainPreview('<div class="x"><script src="a.js"/>Texte</div>')).toBe('Texte');
+  });
+
+  it('does not let a </script> close a <style>', () => {
+    expect(toPlainPreview('<div class="x"><style>x</script>y</style>Fin</div>')).toBe('Fin');
+  });
+
   it('decodes the entities the backend stripper would have decoded', () => {
     expect(toPlainPreview('<p>Caf&eacute;</p>')).toBe('Caf&eacute;'); // unknown entity kept verbatim
     expect(toPlainPreview('<p>Tom &amp; Jerry &lt;3</p>')).toBe('Tom & Jerry <3');

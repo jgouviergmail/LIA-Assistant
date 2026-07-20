@@ -50,7 +50,22 @@ function looksLikeHtml(text: string): boolean {
   return VOID_TAG_RE.test(text) || ATTR_TAG_RE.test(text);
 }
 
-const BLOCK_RE = /<\/?(?:style|script)[^>]*>[\s\S]*?<\/(?:style|script)\s*>/gi;
+/**
+ * Elements whose content is never prose: CSS, JS, document metadata.
+ *
+ * Mirrors `_BLOCK_ELEMENT_RE` in `apps/api/src/domains/agents/display/components/base.py`
+ * — the two must stay in step, a preview can be built on either side.
+ *
+ * The closing tag is OPTIONAL (`|$`), and that is the point: this surface
+ * truncates, so a `<style>` severed mid-rule keeps no `</style>`. Requiring the
+ * pair let `TAG_RE` strip the marker and leave the raw CSS as text
+ * ("body{color:red;font-size:12px}" in a toast).
+ *
+ * `(?<!\/)` rejects a self-closing `<script src="x"/>`, whose lazy body would
+ * otherwise find no closing tag and swallow the rest of the document. The `\1`
+ * backreference stops a `<style>` from being closed by a `</script>`.
+ */
+const BLOCK_RE = /<(head|style|script)\b[^>]*(?<!\/)>[\s\S]*?(?:<\/\1\s*>|$)/gi;
 
 /**
  * Material Symbols icons render as `<span class="material-symbols-outlined">NAME</span>`,
@@ -100,8 +115,8 @@ export function toPlainPreview(text: string, maxLength?: number): string {
 
   let out = text;
   if (looksLikeHtml(out)) {
-    // Drop <style>/<script> bodies and icon spans entirely — their content is
-    // CSS/JS or a font ligature name, never prose.
+    // Drop <head>/<style>/<script> bodies and icon spans entirely — their
+    // content is CSS/JS/metadata or a font ligature name, never prose.
     out = out.replace(BLOCK_RE, ' ').replace(ICON_SPAN_RE, ' ').replace(TAG_RE, ' ');
     for (const [entity, char] of Object.entries(ENTITIES)) {
       out = out.split(entity).join(char);

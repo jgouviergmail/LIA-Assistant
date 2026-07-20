@@ -7,9 +7,15 @@ paths:
 
 # Exclude non-production code that generates false positives
 paths-ignore:
-  # Tests — assertions, pytest.raises patterns, mock data trigger false positives
+  # Tests — assertions, pytest.raises patterns, mock data trigger false positives.
+  # `__tests__` is listed explicitly: `**/tests/**` does NOT match it, so every
+  # frontend test directory (31 of them under apps/web/src) was analysed despite
+  # the intent above — that is where the js/clear-text-cookie alerts on
+  # useLiaGender.test.ts came from. Backend tests live outside `apps/api/src`,
+  # so `paths` already excludes them.
   - '**/test/**'
   - '**/tests/**'
+  - '**/__tests__/**'
   # Build artifacts and dependencies
   - '**/node_modules/**'
   - '**/dist/**'
