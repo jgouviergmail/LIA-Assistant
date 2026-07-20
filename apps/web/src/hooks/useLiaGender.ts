@@ -32,7 +32,11 @@ export function useLiaGender() {
     // Save preference in cookie (1 year expiry)
     const expires = new Date();
     expires.setFullYear(expires.getFullYear() + 1);
-    document.cookie = `${LIA_GENDER_COOKIE}=${newIsMale ? 'male' : 'female'}; expires=${expires.toUTCString()}; path=/`;
+    // SameSite=Lax blocks cross-site submission of the preference; Secure is
+    // conditional on purpose — setting it unconditionally would make browsers
+    // drop the cookie on a plain-HTTP dev origin, silently breaking the toggle.
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `${LIA_GENDER_COOKIE}=${newIsMale ? 'male' : 'female'}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${secure}`;
   }, [isMale]);
 
   // LIA images: TC/TS for female, TCM/TSM for male

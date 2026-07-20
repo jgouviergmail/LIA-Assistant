@@ -115,10 +115,34 @@ class ResizeObserverStub {
 }
 global.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
 
-class IntersectionObserverStub {
-  readonly root = null;
-  readonly rootMargin = '';
-  readonly thresholds: ReadonlyArray<number> = [];
+// Constructor arguments are ACCEPTED and reflected, unlike a bare default
+// constructor: production code calls `new IntersectionObserver(cb, { rootMargin })`,
+// and a stub that takes none made every such call read as passing superfluous
+// arguments (7 CodeQL js/superfluous-trailing-arguments alerts) while silently
+// dropping the callback — which is why `ChatMessageList.test.tsx` had to ship its
+// own observer double to test anything.
+//
+// The callback is stored, never invoked: nothing here fires an intersection on
+// its own. Components that only act when their sentinel scrolls into view
+// (AnimatedCounter, FadeInOnScroll, ChapterRail…) therefore keep the exact
+// behaviour they had under the old stub. A test that WANTS an intersection
+// installs its own double via `vi.stubGlobal`.
+class IntersectionObserverStub implements IntersectionObserver {
+  readonly root: Element | Document | null;
+  readonly rootMargin: string;
+  readonly scrollMargin: string;
+  readonly thresholds: ReadonlyArray<number>;
+
+  constructor(
+    readonly callback: IntersectionObserverCallback,
+    options?: IntersectionObserverInit
+  ) {
+    this.root = options?.root ?? null;
+    this.rootMargin = options?.rootMargin ?? '';
+    this.scrollMargin = options?.scrollMargin ?? '';
+    this.thresholds = options?.threshold === undefined ? [] : [options.threshold].flat();
+  }
+
   observe(): void {}
   unobserve(): void {}
   disconnect(): void {}
@@ -126,7 +150,7 @@ class IntersectionObserverStub {
     return [];
   }
 }
-global.IntersectionObserver = IntersectionObserverStub as unknown as typeof IntersectionObserver;
+global.IntersectionObserver = IntersectionObserverStub;
 
 // jsdom lacks the pointer-capture and scroll APIs that Radix primitives
 // (DropdownMenu, Select, Popover…) call when opening/closing. Stub them so those

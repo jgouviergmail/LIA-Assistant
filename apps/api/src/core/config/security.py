@@ -29,6 +29,7 @@ from src.core.constants import (
     SESSION_COOKIE_NAME,
     SESSION_DURATION_DEFAULT,
     SESSION_DURATION_REMEMBER_ME,
+    JwtAlgorithm,
 )
 
 
@@ -95,9 +96,15 @@ class SecuritySettings(BaseSettings):
         min_length=SECRET_KEY_MIN_LENGTH,
         description="Secret key for token signing (email verification, password reset)",
     )
-    algorithm: str = Field(
+    algorithm: JwtAlgorithm = Field(
         default=JWT_ALGORITHM_DEFAULT,
-        description="JWT algorithm for email verification and password reset tokens",
+        description=(
+            "JWT algorithm for email verification and password reset tokens. "
+            "HMAC only — an EC/RSA value would route python-jose through its "
+            "vulnerable ecdsa backend (CVE-2024-23342, exempted in CI on the "
+            "strength of this constraint) and would not accept `secret_key` "
+            "as a signing key."
+        ),
     )
     fernet_key: str = Field(
         ...,

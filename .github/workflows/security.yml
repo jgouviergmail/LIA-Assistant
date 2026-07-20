@@ -71,8 +71,16 @@ jobs:
         # Audits the compiled lockfile so transitive dependencies are covered.
         # (The previous `pip install -e .` audited an empty environment:
         # pyproject.toml declares no dependencies.)
-        # CVE-2026-4539: Pygments ReDoS in AdlLexer (local-only, low severity, no fix available upstream)
-        # CVE-2024-23342: ecdsa timing attack on *signing*; LIA only verifies JWTs (see Taskfile rationale)
+        # CVE-2026-4539: Pygments ReDoS in AdlLexer (local-only, low severity,
+        # no fix available upstream — 2.20.0 is the latest release; dev-only, it
+        # is absent from the production image).
+        # CVE-2024-23342: ecdsa timing attack on signing. LIA DOES sign JWTs
+        # (`jwt.encode` in core/security/utils.py) — the earlier "only verifies"
+        # rationale was wrong. What makes this inert is the algorithm: HS256
+        # (HMAC, see JWT_ALGORITHM_DEFAULT), so python-jose never routes through
+        # the ecdsa backend. `SecuritySettings.algorithm` is a Literal of HMAC
+        # algorithms precisely so this exemption cannot be invalidated by an
+        # .env change; widening it to an EC algorithm means dropping this ignore.
         run: pip-audit --desc -r requirements.lock.txt --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2024-23342
 
       - name: Setup pnpm
@@ -88,10 +96,15 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
+      # Blocking, like its Python counterpart above. It ran with
+      # `continue-on-error: true` for a long time, which is how a CRITICAL
+      # advisory (websocket-driver, GHSA-xv26-6w52-cph6) lived on `main` for
+      # months with a green pipeline: the step reported it and the job passed
+      # anyway. Fix the advisory or pin a `pnpm.overrides` entry in the root
+      # package.json — do not restore the flag.
       - name: npm audit (Node)
         working-directory: ./apps/web
         run: pnpm audit --audit-level=high
-        continue-on-error: true
 
   trivy:
     name: Trivy Scan
