@@ -2919,7 +2919,7 @@
         },
         "voice": {
           "title": "🎙️ Mode Vocal Complet",
-          "description": "Système bidirectionnel. <b>TTS</b> catalogue-driven (configuré par l'admin) : trois providers livrés — Edge (voix neuronales Microsoft, gratuit, défaut), OpenAI (<code>tts-1</code> / <code>tts-1-hd</code>) et ElevenLabs (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>). Le streaming par phrase démarre le premier audio en ~1 s. <b>STT</b> par défaut Sherpa-onnx Whisper gratuit côté serveur (99+ langues, l'audio ne quitte jamais le serveur) ; chaque utilisateur peut activer en option ElevenLabs Scribe distant (0,22 $/h) pour une précision supérieure sur la parole conversationnelle. Badges de coût par message (🎤 utilisateur / 🔊 assistant) pour les appels vocaux payants ; kill switch admin et cap de durée 5 min pour parer aux explosions de coût. Activation par mot-clé « OK Guy » ou bouton micro ; détection de fin de parole automatique (VAD)."
+          "description": "Système bidirectionnel. <b>TTS</b> catalogue-driven (configuré par l'admin) : trois providers livrés — Edge (voix neuronales Microsoft, gratuit, défaut), OpenAI (<code>tts-1</code> / <code>tts-1-hd</code>) et ElevenLabs (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>). Le streaming par phrase démarre le premier audio en ~1 s. <b>STT</b> par défaut Sherpa-onnx Whisper gratuit côté serveur (99+ langues, l'audio ne quitte jamais le serveur) ; chaque utilisateur peut activer en option ElevenLabs Scribe distant (0,22 $/h) pour une précision supérieure sur la parole conversationnelle. Badges de coût par message (🎤 utilisateur / 🔊 assistant) pour les appels vocaux payants ; kill switch admin et cap de durée 5 min pour parer aux explosions de coût. Activation par mot-clé « OK Guy » ou bouton micro ; détection de fin de parole automatique (VAD). Le texte lu est systématiquement débarrassé du balisage (HTML de mise en forme, icônes décoratives) pour que la voix ne prononce que la phrase."
         },
         "reminders": {
           "title": "🔔 Rappels & Notifications Push",
@@ -2951,7 +2951,7 @@
         },
         "scheduledActions": {
           "title": "📅 Actions Planifiées",
-          "description": "Actions récurrentes exécutées automatiquement par l'assistant selon un calendrier défini. Configurez des jours de la semaine et une heure, associez un prompt d'instruction et LIA l'exécutera automatiquement. Résultats archivés dans la conversation et notifiés via push. Auto-désactivation après 5 échecs consécutifs."
+          "description": "Actions récurrentes exécutées automatiquement par l'assistant selon un calendrier défini. Configurez des jours de la semaine et une heure, associez un prompt d'instruction et LIA l'exécutera automatiquement. Résultats archivés dans la conversation et notifiés via push. Auto-désactivation après 5 échecs consécutifs. Le corps de la notification reprend le texte final post-traitement — le même que celui archivé dans la conversation — mis à plat en texte brut avant troncature."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -3060,6 +3060,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_10": {
+          "title": "v1.25.10 — 🔔 Des notifications lisibles et une conversation qui s'ouvre au bon endroit",
+          "date": "Juillet 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔔 Tes notifications n'affichent plus de code</b> — le résultat d'une action planifiée arrivait parfois sur l'écran de verrouillage sous la forme &lt;div class=\"lia-response\"&gt;&lt;h2&gt;… Le texte est désormais mis à plat avant l'envoi, sur la notification push comme sur la bulle affichée dans l'application.",
+            "i2": "<b>🔁 La notification dit la même chose que la conversation</b> — le texte poussé sur ton téléphone était construit avant la mise en forme finale : il pouvait différer du message que tu ouvrais quelques secondes plus tard dans le chat. Les deux viennent maintenant de la même source.",
+            "i3": "<b>🗣️ La voix lit exactement le texte affiché</b> — deux défauts la faisaient dévier : elle prononçait l'identifiant des icônes des cartes de données («event», «mail») avant la phrase, et elle pouvait avaler des morceaux de texte contenant des comparaisons comme «x&lt;a et b&gt;c». Les deux sont corrigés.",
+            "i4": "<b>⬇️ Une longue conversation s'ouvre sur ton dernier message</b> — l'historique s'ouvrait au milieu et t'obligeait à faire défiler vers le bas pour retrouver la fin. Le positionnement est désormais immédiat, quelle que soit la longueur de la conversation.",
+            "i5": "<b>🌏 Interface en chinois : les titres d'actions planifiées sont traduits</b> — ils s'affichaient en anglais alors que le reste de l'interface était localisé."
+          }
+        },
         "v1_25_9": {
           "title": "v1.25.9 — 🧪 L'interface passe au banc d'essai, de vrais bugs en sortent",
           "date": "Juillet 2026",
@@ -3069,7 +3081,7 @@
             "i2": "<b>🔌 Tes préférences de connecteur ne sont plus écrasées en silence</b> — une préférence que tu venais de changer pouvait être écrasée un instant plus tard par un chargement de fond démarré avant ton clic, et le même réglage pouvait être demandé deux fois. Les deux sont corrigés : ton choix l'emporte.",
             "i3": "<b>🔗 Tout connecter n'oublie plus un connecteur</b> — quand la séquence d'autorisation reprenait après une redirection alors que tu venais d'en lancer une autre, les deux files s'écrasaient et un connecteur pouvait discrètement sortir du lot. Elles ne peuvent plus se chevaucher.",
             "i4": "<b>🧪 Pour les admins — l'interface est enfin réellement testée</b> — la couverture du frontend a presque doublé sur les fonctions (29 % → 55 %), avec 40 nouvelles suites de tests sur les envois de fichiers, le streaming du chat, les notifications, les connecteurs, la voix et les notifications push. C'est précisément ce travail qui a fait remonter les trois correctifs ci-dessus : ils ont été trouvés en testant le vrai code plutôt que des mocks.",
-"i5": "<b>📜 Sept versions réapparaissent dans cet historique</b> — la v1.15 et les v1.20.17 à v1.20.22 avaient bien été rédigées et traduites, mais n'avaient jamais été ajoutées à la liste affichée par cette page : leurs entrées existaient et ne s'affichaient tout simplement pas. Un test échoue désormais si une version est rédigée sans être câblée, dans un sens comme dans l'autre."
+            "i5": "<b>📜 Sept versions réapparaissent dans cet historique</b> — la v1.15 et les v1.20.17 à v1.20.22 avaient bien été rédigées et traduites, mais n'avaient jamais été ajoutées à la liste affichée par cette page : leurs entrées existaient et ne s'affichaient tout simplement pas. Un test échoue désormais si une version est rédigée sans être câblée, dans un sens comme dans l'autre."
           }
         },
         "v1_25_8": {

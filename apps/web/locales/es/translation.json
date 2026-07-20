@@ -602,7 +602,14 @@
       "retry_button": "Reintentar",
       "retry_failed": "No se pudo obtener tu posición. Verifica que el GPS esté activado.",
       "detection": {
-        "keywords": ["alrededores", "cercanias", "proximidad", "vecindario", "zona", "domicilio"],
+        "keywords": [
+          "alrededores",
+          "cercanias",
+          "proximidad",
+          "vecindario",
+          "zona",
+          "domicilio"
+        ],
         "patterns": [
           "cerca de (aqu[ií]|m[ií])",
           "a mi alrededor",
@@ -2898,7 +2905,7 @@
         },
         "voice": {
           "title": "🎙️ Modo Vocal Completo",
-          "description": "Sistema bidireccional. <b>TTS</b> orientado a catálogo (configurado por el admin): tres proveedores entregados — Edge (voces neuronales Microsoft, gratuito, predeterminado), OpenAI (<code>tts-1</code> / <code>tts-1-hd</code>) y ElevenLabs (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>). El streaming por frase inicia el primer audio en ~1 s. <b>STT</b> por defecto Sherpa-onnx Whisper gratuito en servidor (99+ idiomas, el audio nunca sale del servidor); cada usuario puede activar opcionalmente ElevenLabs Scribe remoto (0,22 $/h) para mayor precisión en habla conversacional. Insignias de costo por mensaje (🎤 usuario / 🔊 asistente) para llamadas de voz pagadas; kill switch admin y tope de duración 5 min protegen contra picos de costo. Activación con palabra clave \"OK Guy\" o botón de micrófono; detección automática de fin del habla (VAD)."
+          "description": "Sistema bidireccional. <b>TTS</b> orientado a catálogo (configurado por el admin): tres proveedores entregados — Edge (voces neuronales Microsoft, gratuito, predeterminado), OpenAI (<code>tts-1</code> / <code>tts-1-hd</code>) y ElevenLabs (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>). El streaming por frase inicia el primer audio en ~1 s. <b>STT</b> por defecto Sherpa-onnx Whisper gratuito en servidor (99+ idiomas, el audio nunca sale del servidor); cada usuario puede activar opcionalmente ElevenLabs Scribe remoto (0,22 $/h) para mayor precisión en habla conversacional. Insignias de costo por mensaje (🎤 usuario / 🔊 asistente) para llamadas de voz pagadas; kill switch admin y tope de duración 5 min protegen contra picos de costo. Activación con palabra clave \"OK Guy\" o botón de micrófono; detección automática de fin del habla (VAD). El texto leído se limpia sistemáticamente de marcado (HTML de formato, iconos decorativos) para que la voz pronuncie solo la frase."
         },
         "reminders": {
           "title": "🔔 Recordatorios y Notificaciones Push",
@@ -2930,7 +2937,7 @@
         },
         "scheduledActions": {
           "title": "📅 Acciones Programadas",
-          "description": "Acciones recurrentes ejecutadas automáticamente por el asistente según un calendario definido. Configure los días de la semana y una hora, asocie una instrucción y LIA la ejecutará automáticamente. Resultados archivados en la conversación y notificados por push. Auto-desactivación tras 5 fallos consecutivos."
+          "description": "Acciones recurrentes ejecutadas automáticamente por el asistente según un calendario definido. Configure los días de la semana y una hora, asocie una instrucción y LIA la ejecutará automáticamente. Resultados archivados en la conversación y notificados por push. Auto-desactivación tras 5 fallos consecutivos. El cuerpo de la notificación recoge el texto final posprocesado — el mismo que se archiva en la conversación — aplanado a texto plano antes de truncarse."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -3039,6 +3046,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_25_10": {
+          "title": "v1.25.10 — 🔔 Notificaciones legibles y una conversación que se abre en el lugar correcto",
+          "date": "Julio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔔 Tus notificaciones ya no muestran código</b> — el resultado de una acción programada podía aparecer en la pantalla de bloqueo como &lt;div class=\"lia-response\"&gt;&lt;h2&gt;… Ahora el texto se aplana antes de enviarse, tanto en la notificación push como en el aviso dentro de la aplicación.",
+            "i2": "<b>🔁 La notificación dice lo mismo que la conversación</b> — el texto enviado a tu teléfono se construía antes del formato final, por lo que podía diferir del mensaje que abrías segundos después en el chat. Ambos provienen ahora de la misma fuente.",
+            "i3": "<b>🗣️ La voz lee exactamente lo que está escrito</b> — dos defectos la desviaban: pronunciaba los identificadores de los iconos de las tarjetas de datos («event», «mail») antes de la frase, y podía tragarse fragmentos de texto con comparaciones como «x&lt;a y b&gt;c». Ambos están corregidos.",
+            "i4": "<b>⬇️ Una conversación larga se abre en tu último mensaje</b> — el historial se abría por la mitad y te obligaba a desplazarte hacia abajo. El posicionamiento es ahora inmediato, sea cual sea la longitud de la conversación.",
+            "i5": "<b>🌏 Interfaz en chino: los títulos de las acciones programadas están traducidos</b> — aparecían en inglés mientras el resto de la interfaz estaba localizada."
+          }
+        },
         "v1_25_9": {
           "title": "v1.25.9 — 🧪 La interfaz pasa al banco de pruebas y salen errores reales",
           "date": "Julio 2026",
@@ -3048,7 +3067,7 @@
             "i2": "<b>🔌 Tus preferencias de conector dejan de revertirse en silencio</b> — una preferencia que acababas de cambiar podía ser sobrescrita instantes después por una carga en segundo plano iniciada antes de tu clic, y el mismo ajuste podía pedirse dos veces. Ambos casos están corregidos: tu elección gana.",
             "i3": "<b>🔗 Conectar todo ya no se salta un conector</b> — cuando la secuencia de autorización se reanudaba tras una redirección mientras acababas de lanzar otra, las dos colas se sobrescribían y un conector podía caerse discretamente de la tanda. Ya no pueden solaparse.",
             "i4": "<b>🧪 Para administradores — la interfaz está por fin realmente probada</b> — la cobertura del frontend casi se ha duplicado en funciones (29 % → 55 %), con 40 nuevas suites de pruebas sobre subidas de archivos, streaming del chat, notificaciones, conectores, voz y notificaciones push. Ese trabajo es justamente lo que sacó a la luz las tres correcciones anteriores: se encontraron probando el código real en lugar de simulaciones.",
-"i5": "<b>📜 Siete versiones reaparecen en este historial</b> — la v1.15 y de la v1.20.17 a la v1.20.22 estaban redactadas y traducidas, pero nunca se añadieron a la lista que muestra esta página: sus entradas existían y sencillamente no se mostraban. Ahora una prueba falla si una versión se redacta sin quedar conectada, en cualquiera de los dos sentidos."
+            "i5": "<b>📜 Siete versiones reaparecen en este historial</b> — la v1.15 y de la v1.20.17 a la v1.20.22 estaban redactadas y traducidas, pero nunca se añadieron a la lista que muestra esta página: sus entradas existían y sencillamente no se mostraban. Ahora una prueba falla si una versión se redacta sin quedar conectada, en cualquiera de los dos sentidos."
           }
         },
         "v1_25_8": {

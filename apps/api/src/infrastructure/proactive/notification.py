@@ -24,6 +24,7 @@ from src.core.field_names import (
     FIELD_FEEDBACK_ENABLED,
     FIELD_TARGET_ID,
 )
+from src.domains.agents.display.plain_text import strip_html_if_markup
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_channels import (
     channel_notification_errors_total,
@@ -33,6 +34,46 @@ from src.infrastructure.observability.metrics_channels import (
 logger = get_logger(__name__)
 
 _MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
+_WHITESPACE_RE = re.compile(r"\s+")
+
+
+def plain_text_for_notification(text: str) -> str:
+    """Flatten rich assistant content into a one-line plain-text notification body.
+
+    Notification surfaces render their body verbatim: the service worker hands
+    ``body`` straight to ``showNotification``, and the frontend toast renders
+    the description as escaped React children. Content produced by the agent
+    pipeline is rich — an HTML document wrapped in ``<div class="lia-response">``
+    in HTML display mode, server-rendered data cards appended post-LLM, Markdown
+    otherwise — so without this flattening the user reads literal
+    ``<div class="lia-response"><h2>`` on their lock screen.
+
+    Order is load-bearing:
+
+    1. strip HTML first (Markdown/plain prose passes through untouched),
+    2. flatten Markdown links to ``label (url)``,
+    3. collapse the newlines the HTML stripper introduces for block elements,
+       since a notification body is a single line.
+
+    Note the deliberate asymmetry on links: HTML anchors keep only their text
+    (``preserve_links=False``), while Markdown links keep ``label (url)``. A
+    notification body is unclickable, and spelling out every href of a rich
+    HTML answer would blow the character budget; the Markdown case is the
+    interest sources block (ADR-131), where the URL *is* the payload.
+
+    Callers MUST truncate *after* this, never before: truncating raw HTML cuts
+    mid-tag and wastes the character budget on the wrapper (``<div
+    class="lia-response">`` alone is 26 of the default 150 characters).
+
+    Args:
+        text: Assistant content, possibly HTML and/or Markdown.
+
+    Returns:
+        Single-line plain text, ready to be truncated for a notification body.
+    """
+    if not text:
+        return text
+    return _WHITESPACE_RE.sub(" ", markdown_links_to_plain(strip_html_if_markup(text))).strip()
 
 
 def markdown_links_to_plain(text: str) -> str:

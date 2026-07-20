@@ -16,7 +16,9 @@ Les Scheduled Actions permettent aux utilisateurs de configurer des taches recur
 - Un **calendrier** : jours de la semaine (ISO 1-7) + heure/minute en timezone locale
 - Un **fuseau horaire** (herite du profil utilisateur)
 
-Les resultats sont archives dans la conversation de l'utilisateur et notifies via FCM push, Redis SSE, et canaux de messagerie externes (Telegram, etc.) si `CHANNELS_ENABLED=true`.
+Les resultats sont archives dans la conversation de l'utilisateur et notifies via FCM push et Redis SSE.
+
+> **Pas de canaux externes.** Contrairement aux rappels et aux notifications proactives, l'executeur d'actions planifiees n'appelle pas `send_notification_to_channels()` : un resultat d'action planifiee n'est jamais pousse vers Telegram, meme avec `CHANNELS_ENABLED=true`.
 
 ### Exemples
 
@@ -121,12 +123,24 @@ return next_fire.astimezone(UTC)
 
 Le job `process_scheduled_actions` tourne toutes les 60 secondes :
 
-1. **SchedulerLock** (Redis SETNX, TTL retain) pour securite multi-worker — le lock n'est pas release dans `__aexit__`, il expire via TTL
-2. **Recovery** : reset actions `executing` > 10 min (crash recovery)
-3. **Lock** : `FOR UPDATE SKIP LOCKED` + transition `status='executing'`
-4. **Commit** : libere les verrous FOR UPDATE (status='executing' sert de verrou logique)
-5. **Execute** : `execute_single_action()` dans sa propre session DB
-6. **Notification** : FCM push + Redis SSE + canaux externes (Telegram, etc.) via `send_notification_to_channels()` si `CHANNELS_ENABLED=true`
+1. **Recovery** : reset actions `executing` > 10 min (crash recovery)
+2. **Lock** : `FOR UPDATE SKIP LOCKED` + transition `status='executing'`
+3. **Commit** : libere les verrous FOR UPDATE (status='executing' sert de verrou logique)
+4. **Execute** : `execute_single_action()` dans sa propre session DB
+5. **Notification** : FCM push + Redis SSE (voir [Corps des notifications](#corps-des-notifications))
+
+> **Aucun SchedulerLock Redis** (F003). L'unicite d'execution est deja garantie par l'election de leader (`SchedulerLeaderElector`), le `max_instances=1` d'APScheduler et le `FOR UPDATE SKIP LOCKED` de l'etape 2. L'ancien lock, retenu pendant tout son TTL (300 s), bridait ce job de 60 s a une execution toutes les cinq minutes. Verrouille par `test_process_scheduled_actions_uses_no_redis_lock`.
+
+### Corps des notifications
+
+Le contenu de la reponse est **riche** : HTML enveloppe dans `<div class="lia-response">` quand le mode d'affichage de l'utilisateur est `html`, cartes de donnees rendues cote serveur en mode `cards`, Markdown sinon. Or le service worker passe `body` tel quel a `showNotification()` et le toast frontend rend sa description en texte echappe : sans aplatissement, l'utilisateur lit `<div class="lia-response"><h2>` sur son ecran de verrouillage.
+
+Deux regles, dans cet ordre :
+
+1. **Contenu canonique** — l'executeur consomme le chunk `content_replacement`, qui **remplace** les tokens diffuses (il porte le texte final apres post-traitement : cartes HTML, injection de photos, nettoyage des balises `psyche_eval`). N'accumuler que les `token` construisait la notification sur une version perimee, en desaccord avec le message archive que l'utilisateur ouvre ensuite dans le chat.
+2. **Aplatissement puis troncature** — `plain_text_for_notification()` (`infrastructure/proactive/notification.py`) retire le HTML, aplatit les liens Markdown en `libelle (url)` et replie le tout sur une ligne. La troncature vient **apres** : tronquer du HTML brut coupe au milieu d'une balise et gaspille le budget (`<div class="lia-response">` consomme a lui seul 26 des 150 caracteres par defaut).
+
+Le budget du push suit `PROACTIVE_NOTIFICATION_MAX_LENGTH` ; l'apercu SSE est plafonne par `SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH`. Cote frontend, `toPlainPreview()` (`apps/web/src/lib/notification-preview.ts`) applique la meme protection aux descriptions de toast, pour les trois familles de notifications.
 
 ### HITL bypass
 

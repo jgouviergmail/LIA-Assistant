@@ -452,6 +452,11 @@ SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS = 30  # Delay between retry attempts
 SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES = 10
 SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES = 5
 SCHEDULED_ACTIONS_BATCH_SIZE = 50
+# Payload cap for the scheduled-action SSE preview. Not an env setting: its only
+# consumer is the frontend toast, which slices to 100 chars — this is headroom,
+# not a user-tunable threshold. The FCM push body uses the real user-facing
+# setting instead (PROACTIVE_NOTIFICATION_MAX_LENGTH).
+SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH = 500
 
 # ============================================================================
 # TELEPHONY (agentic outbound calls)

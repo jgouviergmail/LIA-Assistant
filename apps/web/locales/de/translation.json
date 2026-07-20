@@ -602,7 +602,14 @@
       "retry_button": "Erneut versuchen",
       "retry_failed": "Ihre Position konnte nicht abgerufen werden. Überprüfen Sie, ob GPS aktiviert ist.",
       "detection": {
-        "keywords": ["nahe", "umgebung", "gegend", "nachbarschaft", "viertel", "zuhause"],
+        "keywords": [
+          "nahe",
+          "umgebung",
+          "gegend",
+          "nachbarschaft",
+          "viertel",
+          "zuhause"
+        ],
         "patterns": [
           "in der n[aä]he",
           "um mich herum",
@@ -2898,7 +2905,7 @@
         },
         "voice": {
           "title": "🎙️ Vollständiger Sprachmodus",
-          "description": "Bidirektionales System. <b>TTS</b> katalog-getrieben (vom Admin konfiguriert): drei Provider bereitgestellt — Edge (Microsoft-Neural-Stimmen, kostenlos, Standard), OpenAI (<code>tts-1</code> / <code>tts-1-hd</code>) und ElevenLabs (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>). Streaming auf Satzebene startet das erste Audio in ~1 s. <b>STT</b> standardmäßig kostenloses serverseitiges Sherpa-onnx Whisper (99+ Sprachen, Audio verlässt nie den Server); jeder Benutzer kann optional Remote ElevenLabs Scribe (0,22 $/h) aktivieren für höhere Genauigkeit bei gesprochener Sprache. Kostenabzeichen pro Nachricht (🎤 Nutzer / 🔊 Assistent) für kostenpflichtige Sprachanrufe; Admin-Kill-Switch und 5-min-Dauerlimit schützen vor Kostenexplosionen. Aktivierung mit „OK Guy\"-Wake-Word oder Mikrofon-Button; automatische Sprachende-Erkennung (VAD)."
+          "description": "Bidirektionales System. <b>TTS</b> katalog-getrieben (vom Admin konfiguriert): drei Provider bereitgestellt — Edge (Microsoft-Neural-Stimmen, kostenlos, Standard), OpenAI (<code>tts-1</code> / <code>tts-1-hd</code>) und ElevenLabs (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>). Streaming auf Satzebene startet das erste Audio in ~1 s. <b>STT</b> standardmäßig kostenloses serverseitiges Sherpa-onnx Whisper (99+ Sprachen, Audio verlässt nie den Server); jeder Benutzer kann optional Remote ElevenLabs Scribe (0,22 $/h) aktivieren für höhere Genauigkeit bei gesprochener Sprache. Kostenabzeichen pro Nachricht (🎤 Nutzer / 🔊 Assistent) für kostenpflichtige Sprachanrufe; Admin-Kill-Switch und 5-min-Dauerlimit schützen vor Kostenexplosionen. Aktivierung mit „OK Guy\"-Wake-Word oder Mikrofon-Button; automatische Sprachende-Erkennung (VAD). Der vorgelesene Text wird konsequent von Markup befreit (Formatierungs-HTML, dekorative Icons), damit die Stimme nur den Satz spricht."
         },
         "reminders": {
           "title": "🔔 Erinnerungen & Push-Benachrichtigungen",
@@ -2930,7 +2937,7 @@
         },
         "scheduledActions": {
           "title": "📅 Geplante Aktionen",
-          "description": "Wiederkehrende Aktionen, die automatisch vom Assistenten nach einem festgelegten Zeitplan ausgeführt werden. Konfigurieren Sie Wochentage und eine Uhrzeit, verknüpfen Sie eine Anweisung und LIA führt sie automatisch aus. Ergebnisse werden in der Konversation archiviert und per Push benachrichtigt. Automatische Deaktivierung nach 5 aufeinanderfolgenden Fehlern."
+          "description": "Wiederkehrende Aktionen, die automatisch vom Assistenten nach einem festgelegten Zeitplan ausgeführt werden. Konfigurieren Sie Wochentage und eine Uhrzeit, verknüpfen Sie eine Anweisung und LIA führt sie automatisch aus. Ergebnisse werden in der Konversation archiviert und per Push benachrichtigt. Automatische Deaktivierung nach 5 aufeinanderfolgenden Fehlern. Der Benachrichtigungstext übernimmt den endgültigen, nachbearbeiteten Text — denselben, der im Gespräch archiviert wird — und wird vor dem Kürzen zu reinem Text geglättet."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -3039,6 +3046,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_10": {
+          "title": "v1.25.10 — 🔔 Lesbare Benachrichtigungen und ein Gespräch, das an der richtigen Stelle öffnet",
+          "date": "Juli 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔔 Deine Benachrichtigungen zeigen keinen Code mehr</b> — das Ergebnis einer geplanten Aktion landete manchmal als &lt;div class=\"lia-response\"&gt;&lt;h2&gt;… auf dem Sperrbildschirm. Der Text wird jetzt vor dem Versand geglättet, sowohl in der Push-Benachrichtigung als auch im Hinweis in der App.",
+            "i2": "<b>🔁 Die Benachrichtigung sagt dasselbe wie das Gespräch</b> — der an dein Telefon gesendete Text entstand vor der endgültigen Formatierung und konnte deshalb von der Nachricht abweichen, die du Sekunden später im Chat geöffnet hast. Beide stammen jetzt aus derselben Quelle.",
+            "i3": "<b>🗣️ Die Stimme liest genau das vor, was geschrieben steht</b> — zwei Fehler ließen sie abweichen: Sie sprach die Icon-Bezeichner der Datenkarten („event“, „mail“) vor dem Satz aus und konnte Textstücke mit Vergleichen wie „x&lt;a und b&gt;c“ verschlucken. Beides ist behoben.",
+            "i4": "<b>⬇️ Ein langes Gespräch öffnet sich bei deiner letzten Nachricht</b> — der Verlauf öffnete sich in der Mitte und zwang dich, nach unten zu scrollen. Die Positionierung erfolgt jetzt sofort, unabhängig von der Länge des Gesprächs.",
+            "i5": "<b>🌏 Chinesische Oberfläche: Titel geplanter Aktionen sind übersetzt</b> — sie erschienen auf Englisch, während der Rest der Oberfläche lokalisiert war."
+          }
+        },
         "v1_25_9": {
           "title": "v1.25.9 — 🧪 Die Oberfläche kommt auf den Prüfstand, echte Fehler kommen ans Licht",
           "date": "Juli 2026",
@@ -3048,7 +3067,7 @@
             "i2": "<b>🔌 Deine Connector-Einstellungen werden nicht mehr stillschweigend zurückgesetzt</b> — eine gerade geänderte Einstellung konnte Momente später von einem Hintergrundabruf überschrieben werden, der vor deinem Klick gestartet war, und dieselbe Einstellung konnte doppelt angefragt werden. Beides ist behoben: Deine Wahl gewinnt.",
             "i3": "<b>🔗 Alle verbinden überspringt keinen Connector mehr</b> — setzte die Autorisierungsfolge nach einer Weiterleitung fort, während du gerade eine weitere gestartet hattest, überschrieben sich die beiden Warteschlangen und ein Connector konnte klammheimlich herausfallen. Sie können sich nicht mehr überlappen.",
             "i4": "<b>🧪 Für Admins — die Oberfläche ist jetzt wirklich getestet</b> — die Frontend-Abdeckung hat sich bei den Funktionen nahezu verdoppelt (29 % → 55 %), mit 40 neuen Test-Suites für Datei-Uploads, Chat-Streaming, Benachrichtigungen, Connectoren, Sprache und Push-Benachrichtigungen. Genau diese Arbeit hat die drei Korrekturen oben zutage gefördert: Sie wurden gefunden, indem echter Code statt Mocks getestet wurde.",
-"i5": "<b>📜 Sieben Versionen tauchen in dieser Historie wieder auf</b> — v1.15 sowie v1.20.17 bis v1.20.22 waren verfasst und übersetzt, wurden aber nie in die Liste aufgenommen, die diese Seite anzeigt: Ihre Einträge existierten und wurden schlicht nie dargestellt. Ein Test schlägt jetzt fehl, wenn eine Version verfasst, aber nicht verdrahtet wird — in beide Richtungen."
+            "i5": "<b>📜 Sieben Versionen tauchen in dieser Historie wieder auf</b> — v1.15 sowie v1.20.17 bis v1.20.22 waren verfasst und übersetzt, wurden aber nie in die Liste aufgenommen, die diese Seite anzeigt: Ihre Einträge existierten und wurden schlicht nie dargestellt. Ein Test schlägt jetzt fehl, wenn eine Version verfasst, aber nicht verdrahtet wird — in beide Richtungen."
           }
         },
         "v1_25_8": {

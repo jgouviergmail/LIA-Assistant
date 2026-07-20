@@ -12,10 +12,10 @@
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
  * - metrics: Prometheus metric definitions in infrastructure/observability/
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured 2026-07-20: backend pytest 12,293 collected (702 files) +
- *   frontend vitest 2,147 (214 files) = 14,440. The previous value carried the
- *   backend count alone while its comment claimed both, and the frontend figure
- *   it quoted (1,222) predated the F010 coverage chantier.
+ *   Measured 2026-07-20 (v1.25.10): backend pytest 12,342 collected (705 files)
+ *   + frontend vitest 2,175 (215 files) = 14,517. Re-measure both suites every
+ *   release: the value carried the backend count alone until v1.25.9, while its
+ *   comment already claimed both.
  * - adrs: docs/architecture/ ADR files (128 files, numbered up to ADR-135)
  * - releases: CHANGELOG.md release entries
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
@@ -33,9 +33,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 425,
   uiLanguages: 6,
-  tests: 14400,
+  tests: 14500,
   adrs: 128,
-  releases: 157,
+  releases: 158,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

@@ -12,14 +12,17 @@ from ``"x < 5 and y > 3"``. So we only run the stripper when the content is
 *actually* HTML, detected via recognised element tags or the LLM's
 ``lia-response`` / ``<style>`` wrappers.
 
-The helpers live in the voice_stream_helpers module since the B2 voice
-extraction (ADR-122) — formerly in ``agents.api.service``.
+Detection and stripping now live in ``domains.agents.display.plain_text``,
+shared with the notification surfaces (push bodies, toast previews) which have
+the same "cannot render markup" constraint. ``_sanitize_text_for_tts`` remains
+the TTS-facing entry point exercised by the voice coordinator, so it keeps its
+own coverage here.
 """
 
 import pytest
 
+from src.domains.agents.display.plain_text import looks_like_html as _looks_like_html
 from src.domains.agents.services.streaming.voice_stream_helpers import (
-    _looks_like_html,
     _sanitize_text_for_tts,
 )
 

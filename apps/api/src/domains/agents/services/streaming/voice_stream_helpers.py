@@ -12,12 +12,12 @@ structlog event names are unchanged; the golden net is
 """
 
 import asyncio
-import re
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from src.domains.agents.api.schemas import ChatStreamChunk
+from src.domains.agents.display.plain_text import strip_html_if_markup
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -33,31 +33,6 @@ logger = get_logger(__name__)
 ListenerProbe = Callable[[], Awaitable[bool]]
 
 
-# Recognised HTML element tags emitted by the response/display layer. Used to
-# detect *real* markup before stripping it for TTS, so plain prose with bare
-# angle brackets ("x < 5 and y > 3") or Markdown symbols is left untouched.
-_HTML_TAG_RE = re.compile(
-    r"</?(?:div|p|span|style|script|h[1-6]|ul|ol|li|table|thead|tbody|tr|td|th"
-    r"|br|hr|a|strong|em|b|i|blockquote|code|pre|img)\b",
-    re.IGNORECASE,
-)
-
-
-def _looks_like_html(text: str) -> bool:
-    """Cheaply detect genuine HTML markup (not a bare '<' in prose or code).
-
-    Guards :func:`_sanitize_text_for_tts` so plain text such as
-    ``"x < 5 and y > 3"`` is never run through ``html_to_text`` — whose final
-    ``re.sub(r"<[^>]+>", "", text)`` would otherwise delete ``"< 5 and y >"``.
-    Only recognised HTML element tags trigger stripping; the LLM's
-    ``lia-response`` wrapper is detected via its own ``<div>`` / ``<style>``
-    tags, so no separate (false-positive-prone) substring check is needed.
-    """
-    if not text:
-        return False
-    return bool(_HTML_TAG_RE.search(text))
-
-
 def _sanitize_text_for_tts(text: str) -> str:
     """Strip HTML to speakable plain text, but only when markup is present.
 
@@ -65,12 +40,12 @@ def _sanitize_text_for_tts(text: str) -> str:
     the raw assistant response (reference turns, post-LLM data cards, sync
     voice fallbacks). A no-op on Markdown / plain prose, so it is safe to apply
     unconditionally at TTS entry points without mangling normal replies.
-    """
-    if not text or not _looks_like_html(text):
-        return text
-    from src.domains.agents.display.components.base import html_to_text
 
-    return html_to_text(text, preserve_links=False)
+    Thin TTS-facing alias over :func:`~src.domains.agents.display.plain_text.
+    strip_html_if_markup`, which owns the detection regex shared with the
+    notification surfaces (push bodies, toast previews).
+    """
+    return strip_html_if_markup(text)
 
 
 def _sanitize_and_truncate_for_tts(text: str, max_chars: int) -> str:

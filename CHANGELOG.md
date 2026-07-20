@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.10] - 2026-07-20
+
+> **Notifications stop leaking markup, and a long conversation opens where you left it.** A user reported reading `<div class="lia-response"><h2>` on a push notification. The wrapper was only the visible half. Scheduled-action notifications were built from the *token stream* rather than the canonical post-processed content, so the push could disagree with the message the same click opens in chat — and a `<psyche_eval` tag split across two chunks could reach a lock screen. Tracing that leak surfaced a second one nobody had reported: Material Symbols icons render their **ligature name** as element text, so a data card read "event Déjeuner avec Marie" — and the voice engine, sharing the same stripper, *read "event" aloud* before the sentence. Hardening the stripper then exposed the opposite failure: detection accepted a lone `<tag`, and single-letter element names collide with ordinary prose, so `if x<a and b>c` was silently mutilated into `if xc`. Separately, opening a long conversation landed the reader mid-history: the initial scroll was animated, and while it played the pagination sentinel was still on screen, fired a prepend, and the prepend suppressed the scroll-to-bottom — the longer the conversation, the wider the window and the more reliable the failure. Every fix here is pinned by a test **proven to fail without it**; two guards that could not be made to fail were deleted rather than shipped as false assurance, and one performance finding was **retracted** after re-measurement showed it was a lazy-import artifact, not backtracking.
+
+### Added
+
+- **`domains/agents/display/plain_text.py`** — the single place that answers "is this markup, and what does it read as in plain text?". Shared by the TTS engine and every notification surface, which have the same constraint: a voice that speaks `<div>` aloud and a lock screen that displays it are the same defect. Detection accepts markup on three signals — a matched tag pair, a void element (`<br>`, `<hr>`, `<img>`), or a tag carrying an attribute (which keeps a *truncated* document detected).
+- **`plain_text_for_notification()`** (`infrastructure/proactive/notification.py`) — flattens HTML, then Markdown links to `label (url)`, then collapses to the single line a notification body actually is. Callers must truncate *after* it: truncating raw HTML cuts mid-tag and spends 26 of the default 150 characters on `<div class="lia-response">`.
+- **`toPlainPreview()`** (`apps/web/src/lib/notification-preview.ts`) — the client-side half of the same guard, applied uniformly to the three toast families. Produces text rendered as escaped React children; it is a legibility helper, never a sanitizer.
+- **`scheduled_action` notification titles** in `ProactiveMessages`, in the 6 languages.
+- **`SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH`** — the SSE preview cap, previously a bare `500` at the call site.
+
+### Changed
+
+- **The scheduled-action executor consumes `content_replacement`**, the chunk carrying the canonical post-processed content (HTML cards, photo injection, psyche-tag cleanup), replacing the accumulated tokens exactly as `stream_chat_response` already did for archiving. The two had silently diverged.
+- **The push budget follows `PROACTIVE_NOTIFICATION_MAX_LENGTH`** instead of a hardcoded `150` that happened to match it.
+- **Initial chat positioning moved into a layout effect and made instant.** The container's `scroll-smooth` class animates every programmatic scroll — a plain `scrollTop` assignment included — so it is neutralised inline for the jump and restored immediately. Deliberately not `scrollIntoView({ behavior: 'instant' })`: `behavior` is a WebIDL enum, and a browser whose `ScrollBehavior` lacks `instant` throws a `TypeError` that, inside a layout effect, takes the whole conversation down.
+- **`SCHEDULED_ACTIONS.md` corrected against the code** — it documented a Telegram dispatch and a Redis `SchedulerLock` that the executor does not have (the lock was removed as F003; it throttled a 60-second job to one run per five minutes).
+
+### Fixed
+
+- **Raw HTML in scheduled-action notifications**, on both surfaces: the FCM push body (rendered verbatim by the service worker) and the SSE toast description (rendered as escaped React children).
+- **Notification content diverging from the archived message** — the body was built before post-processing, so the push and the chat could tell different stories, and a `psyche_eval` tag split across token chunks escaped the streaming-level filter documented as partial.
+- **Material Symbols ligature names leaking as prose** — `<span class="material-symbols-outlined">event</span>` kept its text through the stripper. Fixed in the shared module, so the notification body and the **voice engine** are both clean; the latter was a pre-existing defect unrelated to the reported one.
+- **Prose destroyed by over-eager HTML detection** — `if x<a and b>c`, `count<b et total>i` and `vector<i> v; map<p,tr> m;` were all treated as markup and stripped. Pre-existing on the TTS path; the notification work would have widened its blast radius.
+- **Chinese users receiving English scheduled-action titles** — the executor kept a private table keyed `"zh"` while `User.language` is backend-canonical `"zh-CN"`, reproducing exactly the bug ADR-131 had already fixed elsewhere.
+- **A long conversation opening mid-history instead of at its last message.**
+- **Mixed German typography** in the how/why/story guides — 17 quotations opened with `„` and closed with a straight `"`.
+- **Stale ADR counts in `how.zh.md`** — two occurrences said 124 while three others in the same file already said 128.
+
+### Tests
+
+- **12,342 backend tests collected** (705 files, +49) and **2,175 frontend tests across 215 files** (+28); frontend coverage 60.6 / 55.0 / 54.6 / 61.1, above every ratchet.
+- New suites: `test_notification_plain_text.py` (detection, flattening, icon ligatures, linear scaling), `notification-preview.test.ts` (including `lastIndex` statefulness of the `g`-flagged patterns), and the initial-positioning group in `ChatMessageList.test.tsx`.
+- `test_i18n_proactive.py` now **iterates the title table** instead of a hand-maintained tuple, and asserts every task type covers all 6 supported languages — the previous list would have silently skipped `scheduled_action`.
+- Every fix was falsified by re-injecting the defect and confirming the matching test dies. Two guards survived that check and were **removed**: an `isPositioned` gate on the pagination observer (redundant — layout effects run before passive ones) and an ordering assertion that measured effect declaration order rather than the guard it claimed to protect.
+
 ## [1.25.9] - 2026-07-20
 
 > **The frontend stops being the untested half — and the tests find real defects.** Frontend coverage was the oldest open finding of the audit (F010): 35.4 % of statements, 29.3 % of functions, with the data layer, the connector hooks and the whole voice/push chain simply mocked out of existence. This release closes it by risk rather than by file count — 40 new suites and 31 extended ones, **+645 tests in the new files alone**, bringing the suite to **2,147 tests across 214 files** and coverage to **60.5 / 54.9 / 54.5 / 60.9** (functions nearly doubled). The point was never the percentage. Writing tests that drive the real code instead of a mock surfaced **six production defects that no suite could have caught before**, each fixed at the source and pinned by a test proven to fail without its fix: two races in the connector preferences, an unguarded bulk-OAuth queue, a defensive branch the effects crashed before it could render, an unanchored auth route match, and a type that lied about what the backend actually sends. The accessibility work went the same way — the image viewer became a real modal dialog, and the review of that very change caught it stealing focus from keyboard users on every parent re-render. What did not change: no threshold was lowered, no rule suppressed, no oracle weakened. One coverage lock that had been calibrated from the wrong population (14.7 points of slack on functions) was tightened, and vitest's uncalibrated 5-second per-test default was measured and raised so a correct-but-slow test stops being reported as a failure.

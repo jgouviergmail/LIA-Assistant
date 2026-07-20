@@ -623,7 +623,13 @@
       "retry_button": "Retry",
       "retry_failed": "Unable to retrieve your position. Check that GPS is enabled.",
       "detection": {
-        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
+        "keywords": [
+          "nearby",
+          "vicinity",
+          "neighborhood",
+          "surroundings",
+          "area"
+        ],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -2908,7 +2914,7 @@
         },
         "voice": {
           "title": "🎙️ Full Voice Mode",
-          "description": "Bidirectional system. <b>TTS</b> is catalogue-driven (admin-configured): three providers seeded — Edge (Microsoft neural voices, free, default), OpenAI (<code>tts-1</code> / <code>tts-1-hd</code>) and ElevenLabs (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>). Sentence-level streaming starts the first audio in ~1 s. <b>STT</b> defaults to free, on-server Sherpa-onnx Whisper (99+ languages, audio never leaves the server); each user can opt into remote ElevenLabs Scribe ($0.22/h) for higher accuracy on conversational speech. Per-message cost badges (🎤 user / 🔊 assistant) for paid voice calls; admin-side kill switch and 5-min duration cap protect against cost spikes. Activate with \"OK Guy\" wake word or microphone button; auto end-of-speech detection (VAD)."
+          "description": "Bidirectional system. <b>TTS</b> is catalogue-driven (admin-configured): three providers seeded — Edge (Microsoft neural voices, free, default), OpenAI (<code>tts-1</code> / <code>tts-1-hd</code>) and ElevenLabs (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>). Sentence-level streaming starts the first audio in ~1 s. <b>STT</b> defaults to free, on-server Sherpa-onnx Whisper (99+ languages, audio never leaves the server); each user can opt into remote ElevenLabs Scribe ($0.22/h) for higher accuracy on conversational speech. Per-message cost badges (🎤 user / 🔊 assistant) for paid voice calls; admin-side kill switch and 5-min duration cap protect against cost spikes. Activate with \"OK Guy\" wake word or microphone button; auto end-of-speech detection (VAD). The spoken text is systematically stripped of markup (formatting HTML, decorative icons) so the voice reads the sentence and nothing else."
         },
         "reminders": {
           "title": "🔔 Reminders & Push Notifications",
@@ -2940,7 +2946,7 @@
         },
         "scheduledActions": {
           "title": "📅 Scheduled Actions",
-          "description": "Recurring actions executed automatically by the assistant on a defined schedule. Configure days of the week and a time, attach a prompt instruction and LIA will execute it automatically. Results archived in conversation and notified via push. Auto-disable after 5 consecutive failures."
+          "description": "Recurring actions executed automatically by the assistant on a defined schedule. Configure days of the week and a time, attach a prompt instruction and LIA will execute it automatically. Results archived in conversation and notified via push. Auto-disable after 5 consecutive failures. The notification body carries the final post-processed text — the same one archived in the conversation — flattened to plain text before truncation."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -3049,6 +3055,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_10": {
+          "title": "v1.25.10 — 🔔 Readable notifications, and a conversation that opens in the right place",
+          "date": "July 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔔 Your notifications no longer show code</b> — a scheduled-action result could land on your lock screen as &lt;div class=\"lia-response\"&gt;&lt;h2&gt;… The text is now flattened before it is sent, on the push notification as well as the in-app toast.",
+            "i2": "<b>🔁 The notification says what the conversation says</b> — the text pushed to your phone was built before the final formatting, so it could differ from the message you opened seconds later in the chat. Both now come from the same source.",
+            "i3": "<b>🗣️ The voice reads exactly what is written</b> — two defects made it drift: it spoke the icon identifiers of data cards (\"event\", \"mail\") before the sentence, and it could swallow fragments of text containing comparisons such as \"x&lt;a and b&gt;c\". Both are fixed.",
+            "i4": "<b>⬇️ A long conversation opens at your last message</b> — history used to open midway, forcing you to scroll down to reach the end. Positioning is now immediate, however long the conversation.",
+            "i5": "<b>🌏 Chinese interface: scheduled-action titles are translated</b> — they were displayed in English while the rest of the interface was localised."
+          }
+        },
         "v1_25_9": {
           "title": "v1.25.9 — 🧪 The interface gets tested, and real bugs surface",
           "date": "July 2026",
@@ -3058,7 +3076,7 @@
             "i2": "<b>🔌 Your connector preferences stop being silently reverted</b> — a preference you had just changed could be overwritten moments later by a background load that had started before your click, and the same setting could be requested twice. Both are fixed: what you choose now wins.",
             "i3": "<b>🔗 Connect all no longer skips a connector</b> — when the authorization sequence resumed after a redirect while you had just started another one, the two queues overwrote each other and a connector could quietly drop out of the run. They can no longer overlap.",
             "i4": "<b>🧪 For admins — the interface is now genuinely tested</b> — frontend coverage nearly doubled on functions (29 % → 55 %), with 40 new test suites over uploads, chat streaming, notifications, connectors, voice and push notifications. That work is exactly what surfaced the three fixes above: they were found by testing the real code instead of mocks.",
-"i5": "<b>📜 Seven versions reappear in this history</b> — v1.15 and v1.20.17 through v1.20.22 had been written and translated, but were never added to the list this page renders: their entries existed and simply never displayed. A test now fails if any version is written without being wired, in either direction."
+            "i5": "<b>📜 Seven versions reappear in this history</b> — v1.15 and v1.20.17 through v1.20.22 had been written and translated, but were never added to the list this page renders: their entries existed and simply never displayed. A test now fails if any version is written without being wired, in either direction."
           }
         },
         "v1_25_8": {

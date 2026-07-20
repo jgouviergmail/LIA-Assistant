@@ -26,7 +26,34 @@ Le système de notifications LIA gère deux types de notifications avec livraiso
 |------|---------|----------|----------|
 | **Reminders** | Scheduled (trigger_at) | FCM Push + SSE + Channels (Telegram) | "Rappelle-moi de..." |
 | **Proactive** | Interest detection | FCM Push + SSE + Channels (Telegram) | Actualités centres d'intérêt |
+| **Scheduled actions** | Cron (jours + heure) | FCM Push + SSE (**pas** de canaux) | Voir [SCHEDULED_ACTIONS.md](SCHEDULED_ACTIONS.md) |
 | **Real-time** | Immediate | SSE only | Status updates, typing indicators |
+
+### Règle transverse : le corps d'une notification est du texte brut
+
+Toute surface de notification rend son texte **verbatim** — le service worker passe `body` tel quel à `showNotification()`, et le toast frontend rend sa description en enfants React échappés. Or les contenus produits par le pipeline sont riches (HTML `lia-response` en mode d'affichage `html`, cartes de données en mode `cards`, Markdown sinon).
+
+Tout contenu poussé vers un push, un toast ou un canal externe passe donc par un aplatissement **avant** troncature :
+
+| Couche | Helper | Rôle |
+|--------|--------|------|
+| Backend | `plain_text_for_notification()` (`apps/api/src/infrastructure/proactive/notification.py`) | HTML → texte, liens Markdown → `libellé (url)`, repli sur une ligne |
+| Backend | `markdown_links_to_plain()` (même module) | Aplatissement des liens seuls, pour les surfaces déjà en texte |
+| Frontend | `toPlainPreview()` (`apps/web/src/lib/notification-preview.ts`) | Même protection sur les descriptions de toast, pour les trois familles |
+
+La détection HTML est partagée côté backend par le TTS et les notifications (`apps/api/src/domains/agents/display/plain_text.py`) : les deux surfaces ont la même contrainte — un moteur vocal qui lit `<div>` à voix haute et un écran de verrouillage qui l'affiche sont le même défaut.
+
+**Les icônes sont retirées avec leur contenu.** Material Symbols rend `<span class="material-symbols-outlined">event</span>`, où `event` est un **nom de ligature** transformé en glyphe par la police — jamais de la prose. `html_to_text` conservant le texte des éléments, une carte de données ressortait en « *event* Déjeuner avec Marie 12:30 », et la voix prononçait « event » avant la phrase. Ces spans sont donc supprimés entiers en amont. La détection est ciblée sur le span : le mot « event » dans une vraie phrase est préservé.
+
+L'ordre est contraignant : **tronquer d'abord couperait au milieu d'une balise** et gaspillerait le budget (`<div class="lia-response">` consomme à lui seul 26 des 150 caractères par défaut).
+
+**La détection exige un vrai balisage, pas un simple `<`.** Le repli se termine par `re.sub(r"<[^>]+>", "", text)` : appliqué à tort, il détruit du texte. Or les noms de balises d'une lettre entrent en collision avec la prose ordinaire — `if x<a and b>c` devenait `if xc`, `count<b et total>i` devenait `counti`. Le balisage est donc reconnu sur trois signaux, dont un seul suffit :
+
+1. une **paire appariée** — même nom de balise ouvert puis fermé ;
+2. un **élément vide** (`<br>`, `<hr>`, `<img>`), qui ne se ferme jamais ;
+3. une **balise portant un attribut** (`<div class="…">`), que la prose ne produit pas — c'est ce qui maintient la détection d'un document tronqué, tout en ouvrantes sans fermantes.
+
+L'implémentation fait deux balayages complets et une intersection d'ensembles, et non une rétro-référence `<(tag)…>.*?</\1>` : cette dernière est super-linéaire sur une suite de balises non fermées (24 Ko de `<p>` coûtaient 448 ms), et ce code s'exécute sur la boucle d'événements.
 
 ### Architecture Overview
 

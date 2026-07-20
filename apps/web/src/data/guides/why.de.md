@@ -4,7 +4,7 @@
 
 **Version** : 3.8
 **Datum** : 2026-07-20
-**Anwendung** : LIA v1.25.9
+**Anwendung** : LIA v1.25.10
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -85,7 +85,7 @@ Der Administrator hat Zugriff auf eine dritte Registerkarte zur Verwaltung der I
 
 - **LLM-Konfiguration**: API-Schlüssel der Anbieter konfigurieren (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), ein Modell pro Rolle in der Pipeline zuweisen, Reasoning-Level verwalten — Schlüssel werden verschlüsselt gespeichert. Der Dialog zeigt nur die Parameter an, die das gewählte Modell tatsächlich akzeptiert (modellspezifische DB-Matrix für temperature, top_p, frequency_penalty, presence_penalty und Reasoning-Widget-Form), wodurch die Eingabe eines Werts vermieden wird, den die API ablehnen würde
 - **Konnektoren aktivieren/deaktivieren**: Integrationen auf globaler Ebene aktivieren oder deaktivieren (Google OAuth, Apple, Microsoft 365, Hue, Wetter, Wikipedia, Perplexity, Brave Search). Die Deaktivierung widerruft aktive Verbindungen und benachrichtigt die Benutzer
-- **Preisgestaltung**: Preise pro LLM-Modell verwalten (Kosten pro Million Token), pro Google Maps API (Places, Routes, Geocoding) und pro Bildgenerierung — mit Preishistorie. Beim Hinzufügen eines neuen Reasoning-Modells lässt ein Selektor „Form von einem solchen vorhandenen Modell kopieren" automatisch das Reasoning-Widget und seine Werte ohne manuelle Eingabe erben; der Custom-Modus bleibt für atypische Modelle verfügbar
+- **Preisgestaltung**: Preise pro LLM-Modell verwalten (Kosten pro Million Token), pro Google Maps API (Places, Routes, Geocoding) und pro Bildgenerierung — mit Preishistorie. Beim Hinzufügen eines neuen Reasoning-Modells lässt ein Selektor „Form von einem solchen vorhandenen Modell kopieren“ automatisch das Reasoning-Widget und seine Werte ohne manuelle Eingabe erben; der Custom-Modus bleibt für atypische Modelle verfügbar
 
 **Inhalte und Erweiterungen:**
 
@@ -171,13 +171,13 @@ Die Daten verbleiben in Ihrer LIA-Instanz — kein Drittanbieterdienst hat Zugri
 
 Die Übertragung wird durch ein **dediziertes Token** authentifiziert (beginnend mit `hm_…`), das Sie in der App erzeugen und jederzeit widerrufen können. Das Token autorisiert ausschließlich das Einsenden von Gesundheitsdaten — niemals den Rest Ihres Kontos. Sie können mehrere davon erzeugen (eines pro Gerät) und sie unabhängig voneinander verwalten.
 
-Ein **„Assistent"-Schalter** (standardmäßig aus, *Opt-in*) erlaubt Ihnen, dem Assistenten zu gestatten, diese Messungen zu lesen und sachliche Fragen zu beantworten („Wie viele Schritte diese Woche?", „Meine durchschnittliche Herzfrequenz heute?", „Laufe ich weniger als üblich?"), proaktive Benachrichtigungen anzureichern, die Gesundheit + Wetter + Kalender kombinieren, sowie einen nicht-rohen biometrischen Kontext (Deltas, Trends) an seine Memories und internen Journale anzuheften. Ein einziger Schalter steuert diese vier Integrationen. Nie Diagnose — nur sachliche Zahlen, wobei sich die Baseline ehrlich qualifiziert („basierend auf nur N Tagen", solange die Historie unter 7 Tagen liegt).
+Ein **„Assistent“-Schalter** (standardmäßig aus, *Opt-in*) erlaubt Ihnen, dem Assistenten zu gestatten, diese Messungen zu lesen und sachliche Fragen zu beantworten („Wie viele Schritte diese Woche?“, „Meine durchschnittliche Herzfrequenz heute?“, „Laufe ich weniger als üblich?“), proaktive Benachrichtigungen anzureichern, die Gesundheit + Wetter + Kalender kombinieren, sowie einen nicht-rohen biometrischen Kontext (Deltas, Trends) an seine Memories und internen Journale anzuheften. Ein einziger Schalter steuert diese vier Integrationen. Nie Diagnose — nur sachliche Zahlen, wobei sich die Baseline ehrlich qualifiziert („basierend auf nur N Tagen“, solange die Historie unter 7 Tagen liegt).
 
 Drei Verwaltungsaktionen geben Ihnen die volle Kontrolle: alle Herzfrequenz-Messungen löschen, alle Schrittmessungen löschen oder alles entfernen. Kein physiologischer Rohwert wird jemals in den Server-Logs festgehalten — DSGVO-Konformität ist von Grund auf integriert.
 
 ### 3.10. In Ihrem Namen anrufen
 
-LIA kann für Sie zum Hörer greifen. Bitten Sie sie, „die Werkstatt anzurufen, um zu prüfen, ob das Auto fertig ist" oder „Marie anzurufen und zu fragen, ob sie Dienstagabend Zeit hat", und LIA tätigt einen echten ausgehenden Anruf, führt das Gespräch auf Ihr Ziel hin und bringt eine schriftliche Zusammenfassung zurück — mit einer Folgeaktion per Fingertipp, wenn danach etwas zu tun ist (etwa den soeben vereinbarten Termin buchen).
+LIA kann für Sie zum Hörer greifen. Bitten Sie sie, „die Werkstatt anzurufen, um zu prüfen, ob das Auto fertig ist“ oder „Marie anzurufen und zu fragen, ob sie Dienstagabend Zeit hat“, und LIA tätigt einen echten ausgehenden Anruf, führt das Gespräch auf Ihr Ziel hin und bringt eine schriftliche Zusammenfassung zurück — mit einer Folgeaktion per Fingertipp, wenn danach etwas zu tun ist (etwa den soeben vereinbarten Termin buchen).
 
 Sie bleiben stets eingebunden: Vor dem Wählen sagt Ihnen LIA genau, **wen** sie anruft und **warum**, und wartet auf Ihr Einverständnis. Und diese Kontrolle endet nicht während des Anrufs: Der Assistent arbeitet unter einem strikten Mandat — bietet der Gesprächspartner einen Aufpreis, eine Option oder eine ungeplante Verpflichtung an (selbst eine kleine), akzeptiert er niemals in Ihrem Namen; er notiert Angebot und Preis, kündigt einen Rückruf an, und die Zusammenfassung legt Ihnen jeden Betrag und jeden offenen Punkt zur Entscheidung vor. Die Zusammenfassung landet asynchron im Chat, sodass Sie während des Anrufs anderes erledigen können.
 
@@ -300,7 +300,7 @@ Das Journal ist auf **vier Ebenen der Tiefe** organisiert — von der Rohbeobach
 
 Über das Schreiben hinaus **misst sich das Journal selbst**. Bei jeder Runde betrachtet LIA die in der vorherigen Runde angewandten Direktiven und liest Ihre Reaktion in der aktuellen Runde: Haben Sie bestätigt, steigt der Beweise-Zähler; haben Sie widersprochen, steigt der Widersprüche-Zähler. Mit der Zeit werden falsche Hypothesen leise herabgestuft, gute Intuitionen befördert, übergreifende Muster durch aktives Clustering sichtbar.
 
-Aus dieser Stratifizierung ergibt sich ein **kompiliertes Nutzer-Porträt**: Ihre Stimme, Ihr Rhythmus, Ihre Kontexte, Ihre Widersprüche, Ihre blinden Flecken. Es reist mit LIA überall hin, wo sie spricht — Konversation, Stimme, Erinnerungen, proaktive Benachrichtigungen, ReAct, Fallback — damit der Assistent „nicht vergisst, wer Sie sind" je nach genutzter Oberfläche.
+Aus dieser Stratifizierung ergibt sich ein **kompiliertes Nutzer-Porträt**: Ihre Stimme, Ihr Rhythmus, Ihre Kontexte, Ihre Widersprüche, Ihre blinden Flecken. Es reist mit LIA überall hin, wo sie spricht — Konversation, Stimme, Erinnerungen, proaktive Benachrichtigungen, ReAct, Fallback — damit der Assistent „nicht vergisst, wer Sie sind“ je nach genutzter Oberfläche.
 
 Das ist eine Form künstlicher Introspektion — der Assistent, der über seine Interaktionen nachdenkt, seine eigene Nützlichkeit misst und ein nuanciertes Verständnis von Ihnen entwickelt. Sie behalten die volle Kontrolle: Lesen nach Thema oder Ebene, Bearbeiten, Problem-Meldung am Porträt, Auslösen einer Konsolidierung auf Anfrage. Das Porträt selbst wird nie direkt bearbeitet — es ist eine Synthese-Stimme, korrigiert über indirekte Hebel, um seine Kohärenz zu bewahren.
 

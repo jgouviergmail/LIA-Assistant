@@ -24,6 +24,7 @@ import { VoiceModeBadge } from '@/components/voice/VoiceModeBadge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { formatNumber, formatEuro } from '@/lib/format';
 import { logger } from '@/lib/logger';
+import { toPlainPreview, NOTIFICATION_PREVIEW_MAX_LENGTH } from '@/lib/notification-preview';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { FeatureErrorBoundary } from '@/components/errors';
@@ -142,7 +143,9 @@ export default function ChatPage() {
   const handleReminder = useCallback(
     (content: string, reminderId: string) => {
       // 1. Immediate feedback via toast popup (no icon - already in message)
-      toast.info(content, {
+      // Flattened for the toast only: the appended chat message below keeps the
+      // original content so ReactMarkdown renders it normally.
+      toast.info(toPlainPreview(content), {
         duration: 5000,
       });
 
@@ -175,7 +178,7 @@ export default function ChatPage() {
       const toastMessage = topic ? `💡 ${topic}` : '💡 Info';
       toast.info(toastMessage, {
         duration: 5000,
-        description: content.slice(0, 100) + (content.length > 100 ? '...' : ''),
+        description: toPlainPreview(content, NOTIFICATION_PREVIEW_MAX_LENGTH),
       });
 
       // 2. Append proactive message locally with token data from metadata
@@ -211,7 +214,7 @@ export default function ChatPage() {
       // 1. Toast notification with action title
       toast.info(title, {
         duration: 5000,
-        description: content.slice(0, 100) + (content.length > 100 ? '...' : ''),
+        description: toPlainPreview(content, NOTIFICATION_PREVIEW_MAX_LENGTH),
       });
 
       // 2. Reload full conversation history (result already archived by stream_chat_response)

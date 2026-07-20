@@ -1,48 +1,83 @@
 """Unit tests for the scheduled action executor.
 
-Focus: the executor must mark its agent run as an automated source so that
-response_node skips long-term memory / interest / journal / psyche extraction.
-This is the entry-point half of the ``is_automated_source`` redesign — the
-guard itself is covered by ``tests/agents/test_response_node.py``.
+Covers two contracts:
+
+1. The run is flagged as an automated source so response_node skips long-term
+   memory / interest / journal / psyche extraction, and the user's display-mode
+   preference reaches the agent run. (Entry-point half of the
+   ``is_automated_source`` redesign — the guard itself is covered by
+   ``tests/agents/test_response_node.py``.)
+2. The notification surfaces (FCM push body, SSE toast preview) carry the
+   *canonical* post-processed content, flattened to plain text. Both halves
+   regressed together in 2026-07: users received
+   ``<div class="lia-response"><h2>…`` on their lock screen, built from the
+   pre-post-processing token stream.
 """
 
 import uuid
-from contextlib import ExitStack
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
+from src.core.config import settings
+from src.domains.users.schemas import UserProfile
 from src.infrastructure.scheduler.scheduled_action_executor import execute_single_action
 
 
 class _AsyncCM:
     """Minimal async context manager yielding a fixed value (mocks get_db_context)."""
 
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         self._value = value
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Any:
         return self._value
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self, *exc_info: Any) -> bool:
         return False
 
 
-async def _fake_stream(*_args, **_kwargs):
-    """Stand-in for AgentService.stream_chat_response — yields one token chunk."""
-    yield SimpleNamespace(type="token", content="hello")
+def _chunk(chunk_type: str, content: Any) -> SimpleNamespace:
+    """Build a minimal ChatStreamChunk stand-in."""
+    return SimpleNamespace(type=chunk_type, content=content)
 
 
-@pytest.mark.asyncio
-async def test_execute_single_action_marks_run_as_automated_source():
-    """execute_single_action must call stream_chat_response(is_automated_source=True).
+def _make_stream(chunks: list[SimpleNamespace]):
+    """Stand-in for AgentService.stream_chat_response yielding fixed chunks."""
 
-    This guarantees scheduled-action runs are flagged so response_node's guard
-    skips memory/interest/journal/psyche extraction — fulfilling the contract that
-    only DIRECT user inputs feed those subsystems.
-    """
+    async def _stream(*_args: Any, **_kwargs: Any):
+        for chunk in chunks:
+            yield chunk
+
+    return _stream
+
+
+@dataclass
+class _Env:
+    """Handles on the mocked collaborators, for post-run assertions."""
+
+    action_id: uuid.UUID
+    user_id: uuid.UUID
+    action: MagicMock
+    agent_service: MagicMock
+    fcm: MagicMock
+    redis: MagicMock
+
+
+@contextmanager
+def _executor_env(
+    *,
+    chunks: list[SimpleNamespace],
+    language: str = "fr",
+    display_mode: str = "markdown",
+) -> Iterator[_Env]:
+    """Patch every collaborator of ``execute_single_action`` and yield handles."""
     action_id = uuid.uuid4()
     user_id = uuid.uuid4()
 
@@ -55,18 +90,16 @@ async def test_execute_single_action_marks_run_as_automated_source():
     # attribute, masking the very bug this asserts — the profile schema silently
     # defaulting response_display_mode to "cards". Use the production schema so the
     # read path (getattr on a real UserProfile) is exercised for real.
-    from src.domains.users.schemas import UserProfile
-
     user = UserProfile(
         id=user_id,
         email="user@example.com",
         full_name="Test User",
         timezone="Europe/Paris",
-        language="fr",
+        language=language,
         is_active=True,
         is_verified=True,
         is_superuser=False,
-        response_display_mode="markdown",
+        response_display_mode=display_mode,
         created_at=datetime(2026, 7, 1, tzinfo=UTC),
         updated_at=datetime(2026, 7, 1, tzinfo=UTC),
     )
@@ -91,40 +124,26 @@ async def test_execute_single_action_marks_run_as_automated_source():
     agent_service._ensure_graph_built = AsyncMock()
     agent_service.graph = MagicMock()
     agent_service.graph.aget_state = AsyncMock(return_value=SimpleNamespace(tasks=[]))
-    agent_service.stream_chat_response = Mock(side_effect=_fake_stream)
+    agent_service.stream_chat_response = Mock(side_effect=_make_stream(chunks))
+
+    fcm = MagicMock(send_to_user=AsyncMock())
+    redis = MagicMock(publish=AsyncMock())
 
     with ExitStack() as stack:
-        stack.enter_context(
-            patch(
-                "src.infrastructure.database.session.get_db_context",
-                return_value=_AsyncCM(db),
-            )
-        )
-        stack.enter_context(
-            patch(
-                "src.domains.scheduled_actions.repository.ScheduledActionRepository",
-                return_value=repo,
-            )
-        )
-        stack.enter_context(
-            patch("src.domains.users.service.UserService", return_value=user_service)
-        )
+        for target, replacement in (
+            ("src.infrastructure.database.session.get_db_context", _AsyncCM(db)),
+            ("src.domains.scheduled_actions.repository.ScheduledActionRepository", repo),
+            ("src.domains.users.service.UserService", user_service),
+            ("src.domains.conversations.service.ConversationService", conv_service),
+            ("src.domains.agents.api.service.AgentService", agent_service),
+            ("src.domains.notifications.service.FCMNotificationService", fcm),
+        ):
+            stack.enter_context(patch(target, return_value=replacement))
+
         stack.enter_context(
             patch(
                 "src.domains.usage_limits.service.UsageLimitService.is_user_blocked_for_llm",
                 AsyncMock(return_value=False),
-            )
-        )
-        stack.enter_context(
-            patch(
-                "src.domains.conversations.service.ConversationService",
-                return_value=conv_service,
-            )
-        )
-        stack.enter_context(
-            patch(
-                "src.domains.agents.api.service.AgentService",
-                return_value=agent_service,
             )
         )
         stack.enter_context(
@@ -134,29 +153,160 @@ async def test_execute_single_action_marks_run_as_automated_source():
             )
         )
         stack.enter_context(
-            patch(
-                "src.domains.notifications.service.FCMNotificationService",
-                return_value=MagicMock(send_to_user=AsyncMock()),
-            )
-        )
-        stack.enter_context(
-            patch(
-                "src.infrastructure.cache.redis.get_redis_cache",
-                AsyncMock(return_value=None),
-            )
+            patch("src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=redis))
         )
 
-        result = await execute_single_action(action_id=action_id, user_id=user_id)
+        yield _Env(
+            action_id=action_id,
+            user_id=user_id,
+            action=action,
+            agent_service=agent_service,
+            fcm=fcm,
+            redis=redis,
+        )
+
+
+def _sse_payload(env: _Env) -> dict[str, Any]:
+    """Decode the JSON published on the user's notification channel."""
+    import json
+
+    env.redis.publish.assert_awaited_once()
+    _channel, raw = env.redis.publish.await_args.args
+    return json.loads(raw)
+
+
+@pytest.mark.asyncio
+async def test_execute_single_action_marks_run_as_automated_source():
+    """execute_single_action must call stream_chat_response(is_automated_source=True).
+
+    This guarantees scheduled-action runs are flagged so response_node's guard
+    skips memory/interest/journal/psyche extraction — fulfilling the contract that
+    only DIRECT user inputs feed those subsystems.
+    """
+    with _executor_env(chunks=[_chunk("token", "hello")]) as env:
+        result = await execute_single_action(action_id=env.action_id, user_id=env.user_id)
 
     assert result == "hello"
-    agent_service.stream_chat_response.assert_called_once()
-    kwargs = agent_service.stream_chat_response.call_args.kwargs
+    env.agent_service.stream_chat_response.assert_called_once()
+    kwargs = env.agent_service.stream_chat_response.call_args.kwargs
     assert kwargs["is_automated_source"] is True
     # Sanity: scheduled actions also auto-approve the HITL plan gate.
     assert kwargs["auto_approve_plan"] is True
     # Regression: the user's display-mode preference must reach the agent run
     # instead of silently defaulting to "cards".
     assert kwargs["user_display_mode"] == "markdown"
+
+
+@pytest.mark.asyncio
+async def test_content_replacement_supersedes_streamed_tokens():
+    """The canonical post-processed content REPLACES the token deltas.
+
+    ``content_replacement`` carries the final text after post-processing (HTML
+    cards, photo injection, psyche-tag cleanup) and is what
+    ``stream_chat_response`` archives. Accumulating only tokens made the
+    notification disagree with the message the user opens in chat.
+    """
+    with _executor_env(
+        chunks=[
+            _chunk("token", "partial "),
+            _chunk("token", "draft"),
+            _chunk("content_replacement", "final canonical text"),
+        ]
+    ) as env:
+        result = await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+    assert result == "final canonical text"
+    assert "draft" not in result  # replaced, not appended
+
+
+@pytest.mark.asyncio
+async def test_tokens_are_used_when_no_replacement_is_emitted():
+    """No post-processing → the token stream remains the source of truth."""
+    with _executor_env(chunks=[_chunk("token", "un "), _chunk("token", "deux")]) as env:
+        result = await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+    assert result == "un deux"
+
+
+@pytest.mark.asyncio
+async def test_non_string_replacement_content_is_ignored():
+    """A dict-typed chunk must not silently blank the notification body."""
+    with _executor_env(
+        chunks=[
+            _chunk("token", "kept"),
+            _chunk("content_replacement", {"unexpected": "shape"}),
+        ]
+    ) as env:
+        result = await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+    assert result == "kept"
+
+
+@pytest.mark.asyncio
+async def test_notification_surfaces_receive_flattened_plain_text():
+    """The exact 2026-07 regression: HTML reached the push body and the toast.
+
+    Both surfaces render their text verbatim, so the markup must be gone from
+    each — while the returned value (archived by the caller) keeps it.
+    """
+    html = (
+        '<div class="lia-response">\n'
+        "<h2>Technologies 2026 : le monde tourne encore sans IA</h2>\n"
+        "<p>On respire un peu.</p>\n"
+        "</div>"
+    )
+    with _executor_env(chunks=[_chunk("content_replacement", html)]) as env:
+        result = await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+    # The agent's rich content is returned untouched for archiving/chat.
+    assert result == html
+
+    body = env.fcm.send_to_user.await_args.kwargs["body"]
+    assert "<" not in body and "lia-response" not in body
+    assert body.startswith("Technologies 2026")
+
+    content = _sse_payload(env)["content"]
+    assert "<" not in content and "lia-response" not in content
+    assert content.startswith("Technologies 2026")
+    # Single-line: the HTML stripper's block newlines must not survive.
+    assert "\n" not in content
+
+
+@pytest.mark.asyncio
+async def test_push_body_honors_the_configured_length_setting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The push budget follows the setting, not a hardcoded literal.
+
+    The setting's default happens to equal the former hardcoded 150, so
+    asserting against the default would pass for both implementations. Override
+    it to a distinct value: only a settings-driven ``_truncate`` can satisfy
+    this.
+    """
+    override = 80
+    assert (
+        override != settings.proactive_notification_max_length
+    ), "override must differ from the default, otherwise this test cannot fail"
+    monkeypatch.setattr(settings, "proactive_notification_max_length", override)
+
+    long_text = "a" * (override + 200)
+    with _executor_env(chunks=[_chunk("token", long_text)]) as env:
+        await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+    body = env.fcm.send_to_user.await_args.kwargs["body"]
+    assert len(body) == override
+    assert body.endswith("...")
+
+
+@pytest.mark.asyncio
+async def test_title_is_localized_for_backend_canonical_chinese():
+    """zh-CN must resolve: the old inline table was keyed "zh" (English fallback)."""
+    with _executor_env(chunks=[_chunk("token", "ok")], language="zh-CN") as env:
+        await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+    title = env.fcm.send_to_user.await_args.kwargs["title"]
+    assert title.startswith("计划操作")
+    assert "Scheduled" not in title
 
 
 @pytest.mark.asyncio

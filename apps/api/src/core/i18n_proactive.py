@@ -57,6 +57,18 @@ class ProactiveMessages:
             "it": "Notifica proattiva",
             "zh-CN": "主动通知",
         },
+        # Used by the scheduled-action executor, which kept its own inline
+        # table keyed "zh" — reproducing here the exact bug this module was
+        # created to fix (User.language is backend-canonical "zh-CN", so
+        # Chinese users silently received the English title).
+        "scheduled_action": {
+            "fr": "Action planifiée",
+            "en": "Scheduled action",
+            "es": "Acción programada",
+            "de": "Geplante Aktion",
+            "it": "Azione pianificata",
+            "zh-CN": "计划操作",
+        },
     }
 
     _SOURCES_LABEL: dict[str, str] = {

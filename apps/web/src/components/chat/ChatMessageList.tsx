@@ -119,6 +119,64 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const prevScrollHeightRef = useRef<number | null>(null);
   const wasPrependRef = useRef(false);
 
+  // Initial positioning. A freshly loaded conversation must open AT THE BOTTOM,
+  // and must get there instantly.
+  //
+  // Scrolling there with an animation used to strand the reader mid-history:
+  // the list mounts at ``scrollTop = 0``, so while the smooth scroll played the
+  // top sentinel was still on screen, the IntersectionObserver fired
+  // ``onLoadOlder``, and the resulting prepend raised ``wasPrependRef`` — which
+  // makes the auto-scroll effect SKIP its scroll-to-bottom. The animation's
+  // duration grows with the distance, so the longer the conversation, the wider
+  // the window and the more reliably it went wrong.
+  //
+  // Closing it takes one guarantee: the jump is instant, so there is no window
+  // during which the sentinel is on screen.
+  //
+  // The container carries the ``scroll-smooth`` class, which animates *every*
+  // programmatic scroll — including a plain ``scrollTop`` assignment. The class
+  // is therefore neutralised with an inline ``scroll-behavior: auto`` for the
+  // duration of the jump, then restored. Deliberately not
+  // ``scrollIntoView({ behavior: 'instant' })``: ``behavior`` is a WebIDL enum,
+  // so a browser whose ``ScrollBehavior`` lacks ``instant`` throws a TypeError
+  // — inside a layout effect, that takes the whole conversation down. WebKit is
+  // in the E2E matrix and its support for that value is not settled, so this
+  // uses only long-established APIs.
+  //
+  // Running it in a *layout* effect is what makes an extra pagination guard
+  // unnecessary: all layout effects of a commit run before any passive effect,
+  // so the viewport is already at the bottom by the time the
+  // IntersectionObserver below is armed and takes its first reading.
+  const didPositionRef = useRef(false);
+  // Raised by the positioning layout effect, consumed by the auto-scroll effect
+  // in the same commit so it does not replay the jump as an animation.
+  const justPositionedRef = useRef(false);
+
+  useLayoutEffect(() => {
+    if (safeMessages.length === 0) {
+      // Cleared conversation (new chat): re-arm for the next history.
+      didPositionRef.current = false;
+      return;
+    }
+    if (didPositionRef.current) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const style = container.style;
+    const previousBehavior = style.getPropertyValue('scroll-behavior');
+    style.setProperty('scroll-behavior', 'auto');
+    container.scrollTop = container.scrollHeight;
+    if (previousBehavior) {
+      style.setProperty('scroll-behavior', previousBehavior);
+    } else {
+      style.removeProperty('scroll-behavior');
+    }
+
+    didPositionRef.current = true;
+    justPositionedRef.current = true;
+  }, [safeMessages]);
+
   // Auto-scroll behavior:
   // - Default: scroll to bottom (preserves original behavior for history load, new messages, etc.)
   // - When streaming ends: scroll to last user message aligned at top
@@ -127,6 +185,14 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   //   scrolling to bottom here would undo it and hide the freshly loaded
   //   older messages).
   useEffect(() => {
+    if (justPositionedRef.current) {
+      // The layout effect above already placed the viewport at the bottom,
+      // synchronously and before paint. Replaying it here would animate a
+      // scroll that has already happened.
+      justPositionedRef.current = false;
+      wasTypingRef.current = isTyping;
+      return;
+    }
     if (wasPrependRef.current) {
       // Consume the prepend flag and short-circuit. Still update
       // ``wasTypingRef`` so the streaming-just-ended branch fires correctly

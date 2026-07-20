@@ -32,6 +32,7 @@ from src.core.constants import (
     SCHEDULED_ACTIONS_MAX_RETRIES,
     SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
     SCHEDULED_ACTIONS_SESSION_PREFIX,
+    SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH,
 )
 from src.core.user_display import resolve_user_display_name
 
@@ -41,25 +42,44 @@ from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
 )
+from src.infrastructure.proactive.notification import plain_text_for_notification
 
 logger = structlog.get_logger(__name__)
 
 
 def _get_localized_title(language: str) -> str:
-    """Get localized notification title for scheduled action results."""
-    titles = {
-        "fr": "Action planifiée",
-        "en": "Scheduled Action",
-        "es": "Acción programada",
-        "de": "Geplante Aktion",
-        "it": "Azione pianificata",
-        "zh": "计划操作",
-    }
-    return titles.get(language, "Scheduled Action")
+    """Get the localized notification title for scheduled action results.
+
+    Delegates to the centralized ``ProactiveMessages`` (i18n systemic rule).
+    The previous inline table was keyed "zh" while ``User.language`` is
+    backend-canonical "zh-CN" — Chinese users silently got the English title.
+
+    Args:
+        language: Backend-canonical user language code (e.g. "zh-CN").
+
+    Returns:
+        Localized title string.
+    """
+    from src.core.i18n_proactive import ProactiveMessages
+
+    return ProactiveMessages.notification_title("scheduled_action", language)
 
 
-def _truncate(text: str, max_length: int = 150) -> str:
-    """Truncate text for notification body."""
+def _truncate(text: str, max_length: int | None = None) -> str:
+    """Truncate already-flattened text for a notification body.
+
+    Args:
+        text: Plain text — run it through ``plain_text_for_notification`` first;
+            truncating raw HTML cuts mid-tag.
+        max_length: Character budget. Defaults to
+            ``settings.proactive_notification_max_length``, the same
+            user-facing setting the proactive dispatcher honors.
+
+    Returns:
+        The text, ellipsized when it exceeds the budget.
+    """
+    if max_length is None:
+        max_length = settings.proactive_notification_max_length
     if len(text) <= max_length:
         return text
     return text[: max_length - 3] + "..."
@@ -199,6 +219,17 @@ async def execute_single_action(
                     _attempt: int = attempt,
                 ) -> str:
                     content_parts: list[str] = []
+                    # Canonical post-processed content (HTML cards, photo
+                    # injection, psyche-tag cleanup) arrives as a single
+                    # ``content_replacement`` chunk AFTER the token deltas —
+                    # it REPLACES them rather than appending, mirroring
+                    # ``AgentService.stream_chat_response``. Accumulating only
+                    # tokens built the notification from the pre-post-processing
+                    # text, so the push body and the archived message the user
+                    # then opens in chat could disagree, and a ``<psyche_eval``
+                    # tag split across two token chunks (the streaming-level
+                    # filter is documented as partial) reached the lock screen.
+                    replacement: str | None = None
                     async for chunk in svc.stream_chat_response(
                         user_message=action.action_prompt,
                         user_id=user_id,
@@ -219,10 +250,12 @@ async def execute_single_action(
                             and isinstance(chunk.content, str)
                         ):
                             content_parts.append(chunk.content)
+                        elif chunk.type == "content_replacement" and isinstance(chunk.content, str):
+                            replacement = chunk.content
                         elif chunk.type == "hitl_interrupt":
                             # HITL interrupt during execution -> non-retryable
                             raise RuntimeError("HITL interrupt during scheduled action execution")
-                    return "".join(content_parts)
+                    return replacement if replacement is not None else "".join(content_parts)
 
                 response_content = await asyncio.wait_for(
                     _run_stream(),
@@ -315,10 +348,16 @@ async def execute_single_action(
         # === Dispatch notification (FCM + SSE) ===
         # Note: archive_enabled=False because stream_chat_response archives automatically
         if response_content:
+            # Flatten ONCE for both surfaces, before any truncation: the agent
+            # response is rich content (HTML in ``html`` display mode, data
+            # cards in ``cards`` mode, Markdown otherwise) while a push body and
+            # a toast description both render their text verbatim.
+            notification_text = plain_text_for_notification(response_content)
+
             try:
                 fcm_service = FCMNotificationService(db)
                 title = _get_localized_title(user_language)
-                body = _truncate(response_content)
+                body = _truncate(notification_text)
 
                 await fcm_service.send_to_user(
                     user_id=user_id,
@@ -342,7 +381,10 @@ async def execute_single_action(
                         json.dumps(
                             {
                                 "type": "scheduled_action",
-                                "content": _truncate(response_content, 500),
+                                "content": _truncate(
+                                    notification_text,
+                                    SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH,
+                                ),
                                 "action_id": str(action_id),
                                 "title": action.title,
                             },

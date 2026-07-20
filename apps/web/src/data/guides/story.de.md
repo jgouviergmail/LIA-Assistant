@@ -4,7 +4,7 @@
 
 **Version**: 1.0
 **Datum**: 2026-07-20
-**Anwendung**: LIA v1.25.9
+**Anwendung**: LIA v1.25.10
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -43,7 +43,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 - **Ein schriftliches Regelwerk, wie für ein Team.** Architekturregeln, Konventionen, vorgeschriebene Patterns mit ihrem kanonischen Beispiel im Code, dokumentierte bekannte Fallen — im Repository versioniert, bei jeder Lieferung einforderbar.
 - **Blockierende automatische Prüfungen.** Jede strukturelle Regel wird durch eine Prüfung abgesichert, die nicht-konforme Commits ablehnt: strikte Typisierung, Codeanalyse, maßgeschneiderte Erkennung wiederkehrender Bug-Patterns, Parität der sechs Sprachen, vollständige Testbatterie. Das Anspruchsniveau hängt weder von der Wachsamkeit des Moments noch vom guten Willen der KI ab.
-- **Ein Review, das entscheidet.** Nichts wird integriert ohne einen erzwungenen Zyklus — Impact-Analyse, Vorschlag, explizite Validierung, Implementierung, Verifizierung. Die KI schlägt vor, der Mensch entscheidet; strukturelle Entscheidungen werden protokolliert und indexiert, damit jedes „Warum" seinen Autor überlebt.
+- **Ein Review, das entscheidet.** Nichts wird integriert ohne einen erzwungenen Zyklus — Impact-Analyse, Vorschlag, explizite Validierung, Implementierung, Verifizierung. Die KI schlägt vor, der Mensch entscheidet; strukturelle Entscheidungen werden protokolliert und indexiert, damit jedes „Warum“ seinen Autor überlebt.
 - **Audits, die stören.** In regelmäßigen Abständen wird das gesamte System kontradiktorisch überprüft — Befunde am Beleg verifiziert, Falsch-Positive eliminiert, Behebung in Wellen geplant. Das stoppt die langsame Drift, die kein laufendes Review erkennt.
 
 > Die Geschwindigkeit kommt von der KI. Die Qualität kommt vom Rahmen. Und der Rahmen ist Führungsarbeit.

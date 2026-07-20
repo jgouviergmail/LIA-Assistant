@@ -34,6 +34,9 @@ LIA offers voice interaction through two input methods and configurable speech o
 - Progressive sentence streaming: the first sentence plays while the rest of the response is still being generated (~1 s perceived latency for the first audio chunk)
 - For paid TTS, a 🔊 badge on each assistant message shows the character count and EUR cost; Edge stays free with no badge
 
+### What the voice actually reads
+The spoken text is stripped of markup before synthesis: formatting HTML, and the decorative icons of data cards whose names ("event", "mail") would otherwise be read aloud before the sentence. Prose is left untouched — a comparison such as "x<a and b>c" is not markup and is read as written.
+
 ## Configuration
 
 - **Enable Voice Mode**: Settings > Voice Mode

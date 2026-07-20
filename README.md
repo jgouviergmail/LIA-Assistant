@@ -5,7 +5,7 @@
 <h1 align="center">LIA</h1>
 
 <p align="center">
-  <strong>Intelligent multi-agent conversational assistant with LangGraph orchestration, Human-in-the-Loop, enterprise-grade observability, and full i18n support (6 languages)</strong>
+  <strong>Smart multi-agent conversational assistant with LangGraph orchestration, Human-in-the-Loop, enterprise-grade observability, and full i18n support (6 languages)</strong>
 </p>
 
 <p align="center">
@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.25.9</strong> — <strong>The frontend stops being the untested half — and the tests find real defects.</strong> Frontend coverage was the oldest open finding of the audit (F010): <strong>35.4 % of statements, 29.3 % of functions</strong>, with the data layer, the connector hooks and the whole voice/push chain simply mocked out of existence. This release closes it by risk rather than by file count — <strong>40 new suites and 31 extended ones</strong>, bringing the suite to <strong>2,147 tests across 214 files</strong> and coverage to <strong>60.5 / 54.9 / 54.5 / 60.9</strong> (functions nearly doubled). The point was never the percentage: writing tests that drive the real code instead of a mock surfaced <strong>six production defects</strong> no suite could have caught before — two races in the connector preferences (a load overwriting the user's fresh choice, a duplicated request), an unguarded bulk-OAuth queue that could silently drop a connector, a defensive branch the effects crashed before it could render, an unanchored auth route match, and a type that lied about what the backend actually sends. Each was fixed at the source and pinned by a test <em>proven to fail without its fix</em>; one test that passed on both sides was deleted rather than shipped as false assurance. The accessibility work went the same way — the image viewer became a real modal dialog with a focus trap, and the review of that very change caught it stealing focus from keyboard users on every parent re-render. No threshold was lowered, no rule suppressed, no oracle weakened: one coverage lock calibrated from the wrong population (<strong>14.7 points of slack</strong>) was tightened, and vitest's uncalibrated 5-second per-test default was measured and raised so a correct-but-slow test stops being reported as a failure. <strong>Verified:</strong> <strong>2,147 vitest</strong> + <strong>26/26 hermetic Playwright</strong> green, tsc/ESLint/Prettier clean, all three ratchets at exactly their baseline. — 20 July 2026.
+  <strong>Version 1.25.10</strong> — <strong>Notifications stop leaking markup, and a long conversation opens where you left it.</strong> A user reported reading <code>&lt;div class="lia-response"&gt;&lt;h2&gt;</code> on a push notification. The wrapper was only the visible half: scheduled-action notifications were built from the <em>token stream</em> rather than the canonical post-processed content, so the push could disagree with the message the same click opens in chat — and a <code>&lt;psyche_eval</code> tag split across two chunks could reach a lock screen. Tracing that leak surfaced a second one nobody had reported: Material Symbols icons render their <strong>ligature name</strong> as element text, so a data card read "event Déjeuner avec Marie" — and the voice engine, sharing the same stripper, <em>read "event" aloud</em> before the sentence. Hardening the stripper then exposed the opposite failure: detection accepted a lone <code>&lt;tag</code>, and single-letter element names collide with ordinary prose, so <code>if x&lt;a and b&gt;c</code> was silently mutilated into <code>if xc</code>. Separately, opening a long conversation landed the reader mid-history — the initial scroll was animated, and while it played the pagination sentinel was still on screen, fired a prepend, and the prepend suppressed the scroll-to-bottom. Detection now demands real markup (a matched pair, a void element, or a tag carrying an attribute) and the initial jump is instant, inside a layout effect. <strong>Verified:</strong> every fix pinned by a test <em>proven to fail without it</em>; <strong>two guards that could not be made to fail were deleted</strong> rather than shipped as false assurance, and one performance finding was <strong>retracted</strong> after re-measurement showed a lazy-import artifact rather than backtracking. <strong>12,342 backend</strong> + <strong>2,175 frontend</strong> tests, tsc/ESLint/Prettier clean, all ratchets at baseline. — 20 July 2026.
 
 </p>
 
@@ -878,7 +878,7 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md) | Complete development workflow |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md) | How to create a new tool |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (~11,000 tests across 559 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (~12,300 backend tests across 705 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md) | LangGraph and log debugging |
 
 ### Architecture Decision Records (ADR)
