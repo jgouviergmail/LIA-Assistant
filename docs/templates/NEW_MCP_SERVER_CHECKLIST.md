@@ -23,7 +23,7 @@
 
 - [ ] **Appeler l'endpoint de creation** :
   ```bash
-  POST /api/v1/admin/mcp/servers
+  POST /api/v1/mcp/servers
   {
     "name": "nom-du-serveur",
     "url": "https://serveur-mcp.example.com/mcp",
@@ -35,7 +35,7 @@
 
 - [ ] **Tester la connexion** :
   ```bash
-  POST /api/v1/admin/mcp/servers/{server_id}/test
+  POST /api/v1/mcp/servers/{server_id}/test
   ```
 
 - [ ] **Verifier les tools decouverts** (reponse du test_connection)
@@ -60,7 +60,7 @@
 
 - [ ] **Si description insuffisante**, fournir manuellement :
   ```bash
-  PATCH /api/v1/admin/mcp/servers/{server_id}
+  PATCH /api/v1/mcp/servers/{server_id}
   {
     "domain_description": "Description optimisee pour le routing"
   }

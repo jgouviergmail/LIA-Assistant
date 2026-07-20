@@ -16,7 +16,7 @@
 1. [Analyse Root Cause Approfondie](#1-analyse-root-cause-approfondie)
 2. [Architecture Cible Générique](#2-architecture-cible-générique)
 3. [Phase 1: HITL Streaming Natif](#3-phase-1-hitl-streaming-natif)
-4. [Phase 2: Validation Sémantique](#4-phase-2-validation-sémantique)
+4. [Phase 2: Validation Sémantique](#4-phase-2-validation-sémantique-issue-56)
 5. [Phase 3: EDIT & REJECT Flow](#5-phase-3-edit--reject-flow)
 6. [Métriques & Observabilité](#6-métriques--observabilité)
 7. [Plan d'Implémentation](#7-plan-dimplémentation)

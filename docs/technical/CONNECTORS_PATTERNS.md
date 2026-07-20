@@ -10,12 +10,12 @@ Updated: Added new Google clients, API Key pattern, Circuit Breaker
 
 ## 📋 Table des Matières
 
-- [Vue d'Ensemble](#vue-densemble)
-- [Architecture Standard](#architecture-standard)
-- [Pattern ConnectorTool Class](#pattern-connectortool-class)
-- [Helpers Centralisés](#helpers-centralisés)
-- [Checklist Nouveau Connecteur](#checklist-nouveau-connecteur)
-- [Exemples de Référence](#exemples-de-référence)
+- [Vue d'Ensemble](#-vue-densemble)
+- [Architecture Standard](#-architecture-standard)
+- [Pattern ConnectorTool Class](#-pattern-connectortool-class)
+- [Helpers Centralisés](#-helpers-centralisés)
+- [Checklist Nouveau Connecteur](#-checklist-nouveau-connecteur)
+- [Exemples de Référence](#-exemples-de-référence)
 
 ---
 
@@ -62,8 +62,11 @@ apps/api/src/
 ### Registrations obligatoires
 
 1. **catalogue_loader.py** : AgentManifest
-2. **domain_taxonomy.py** : DomainConfig
-3. **router_system_prompt.txt** : Domaine dans les exemples
+2. **domain_taxonomy.py** : DomainConfig (source de vérité du domaine)
+
+*(Il n'y a plus de `router_system_prompt.txt` : le prompt router a été fusionné
+puis supprimé, et le routage/analyse d'intention est LLM-native via
+`query_analyzer_prompt.txt` — aucun exemple de domaine à maintenir à la main.)*
 
 ---
 

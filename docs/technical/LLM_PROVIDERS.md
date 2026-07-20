@@ -59,17 +59,24 @@ Chaque composant LLM du pipeline (router, planner, response, agents, etc.) est c
 | **Ollama** | `ollama` | _(aucune)_ | `langchain-openai` (compat) | Deploiement local. `OLLAMA_BASE_URL` requis |
 | **Perplexity** | `perplexity` | `PERPLEXITY_API_KEY` | `langchain-openai` (compat) | Search-augmented. Pas de tools/structured output |
 
-### Cles API dans le .env
+### Ou vivent les cles API
+
+> **La base de donnees est la source de verite, pas le `.env`.** Depuis la
+> migration `2026_03_08_0002-migrate_env_keys_to_db.py`, la table chiffree
+> `provider_api_keys` (`src/domains/llm_config/models.py` — *"sole source of
+> truth"*) porte les cles des providers, saisies via l'administration LLM.
+> `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY` et `QWEN_API_KEY` ne sont plus lus
+> depuis l'environnement et **sont absents de `.env.example`** : les definir
+> n'a aucun effet. La colonne « Cle API requise » du tableau ci-dessus nomme
+> donc l'entree attendue **en base**, pas une variable d'environnement.
+
+Restent dans le `.env` les cles qui servent hors du chat (voir `.env.example`) :
 
 ```bash
-# --- Cles API des providers LLM ---
-OPENAI_API_KEY=sk-...
-OPENAI_ORGANIZATION_ID=org-...          # Optionnel (GPT-5 streaming, verified org)
-ANTHROPIC_API_KEY=sk-ant-...
-DEEPSEEK_API_KEY=sk-...
+OPENAI_API_KEY=sk-...                   # embeddings et usages hors chat
 GOOGLE_GEMINI_API_KEY=AI...
 PERPLEXITY_API_KEY=pplx-...
-OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local
+OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local (pas une cle)
 ```
 
 ---

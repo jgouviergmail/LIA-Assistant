@@ -10,15 +10,15 @@
 
 ## 📋 Table des Matières
 
-1. [Vue d'ensemble](#vue-densemble)
-2. [Architecture](#architecture)
-3. [Algorithm - Sliding Window](#algorithm---sliding-window)
-4. [Implémentation](#implémentation)
-5. [Configuration](#configuration)
-6. [Intégration](#intégration)
-7. [Tests](#tests)
-8. [Performance & Scalabilité](#performance--scalabilité)
-9. [Monitoring](#monitoring)
+1. [Vue d'ensemble](#-vue-densemble)
+2. [Architecture](#-architecture)
+3. [Algorithm - Sliding Window](#-algorithm---sliding-window)
+4. [Implémentation](#-implémentation)
+5. [Configuration](#-configuration)
+6. [Intégration](#-intégration)
+7. [Tests](#-tests)
+8. [Performance & Scalabilité](#-performance--scalabilité)
+9. [Monitoring](#-monitoring)
 
 ---
 
@@ -392,8 +392,11 @@ class SecuritySettings(BaseSettings):
 # .env
 RATE_LIMIT_PER_MINUTE=60
 RATE_LIMIT_BURST=100
-GOOGLE_API_RATE_LIMIT=60
-OPENAI_API_RATE_LIMIT=500
+# Rate limits par client externe (noms reels, verifies 2026-07-20) :
+CLIENT_RATE_LIMIT_GOOGLE_PER_SECOND=...
+CLIENT_RATE_LIMIT_PERPLEXITY_PER_SECOND=...
+# GOOGLE_API_RATE_LIMIT et OPENAI_API_RATE_LIMIT n'existent pas ; il n'y a pas
+# de limiteur cote client pour OpenAI. Liste : grep 'RATE_LIMIT' .env.example
 ```
 
 ---

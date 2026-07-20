@@ -1155,7 +1155,7 @@ voice_interruptions_total = Counter(
 - TTS latency P95 < 1.5s
 - Fallback rate < 5%
 
-**Dashboard** : À créer - `09-voice-tts.json`
+**Dashboard** : `11-voice-websocket.json` (existe déjà ; le `09-voice-tts.json` « à créer » ne l'a jamais été — le numéro 09 est pris par `09-conversations-users.json`)
 
 #### 10. Checkpoint Metrics (3 métriques)
 
@@ -2997,7 +2997,7 @@ hitl_param_edits_total{param_name="limit",tool_name="list_contacts"} 3.0
 **Étape 5** : Analyser la trace dans Tempo :
 
 ```
-POST /api/v1/agents/chat (500ms)
+POST /api/v1/agents/chat/stream (500ms)
   └─ langgraph.node.router (50ms) ✅
       └─ langgraph.node.planner (420ms) ❌
           ├─ error: true

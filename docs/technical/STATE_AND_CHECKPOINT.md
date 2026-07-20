@@ -10,18 +10,18 @@
 
 ## 📋 Table des Matières
 
-1. [Vue d'ensemble](#vue-densemble)
-2. [MessagesState - Structure Complète](#messagesstate---structure-complète)
-3. [Les Reducers](#les-reducers)
-4. [PostgreSQL Checkpointing](#postgresql-checkpointing)
-5. [Checkpoint Lifecycle](#checkpoint-lifecycle)
-6. [HITL Integration](#hitl-integration)
-7. [State Migration](#state-migration)
-8. [State Validation](#state-validation)
-9. [Patterns Avancés](#patterns-avancés)
-10. [Métriques & Observabilité](#métriques--observabilité)
-11. [Troubleshooting](#troubleshooting)
-12. [Annexes](#annexes)
+1. [Vue d'ensemble](#-vue-densemble)
+2. [MessagesState - Structure Complète](#-messagesstate---structure-complète)
+3. [Les Reducers](#-les-reducers)
+4. [PostgreSQL Checkpointing](#-postgresql-checkpointing)
+5. [Checkpoint Lifecycle](#-checkpoint-lifecycle)
+6. [HITL Integration](#-hitl-integration)
+7. [State Migration](#-state-migration)
+8. [State Validation](#-state-validation)
+9. [Patterns Avancés](#-patterns-avancés)
+10. [Métriques & Observabilité](#-métriques--observabilité)
+11. [Troubleshooting](#-troubleshooting)
+12. [Annexes](#-annexes)
 
 ---
 
@@ -657,8 +657,10 @@ state["plan_approved"] = None
 # 2. HITL interrupt
 return Command(goto=INTERRUPT)
 
-# 3. User responds via /approve-plan or /reject-plan
-# Backend resumes with decision
+# 3. User responds in the chat stream (there is NO /approve-plan or /reject-plan
+#    endpoint — verified 2026-07-20). The decision travels as a normal message on
+#    POST /api/v1/agents/chat/stream and is read back from the checkpoint via
+#    `_interrupt_resume_data`. GET /api/v1/agents/hitl/pending lists what is waiting.
 
 # 4. State updated
 state["plan_approved"] = True  # or False
@@ -1275,8 +1277,9 @@ async def approval_gate_node(state: MessagesState) -> Command:
 
 **Resume After Approval**:
 ```python
-# POST /api/v1/conversations/{id}/approve-plan
-# Body: {"approved": true, "reason": null}
+# Pas d'endpoint dedie (verifie 2026-07-20) : la decision arrive comme un
+# message normal sur POST /api/v1/agents/chat/stream, et le graphe reprend
+# depuis le checkpoint. Le corps ci-dessous illustre l'etat injecte, pas une API.
 
 # Backend:
 result = await graph.ainvoke(

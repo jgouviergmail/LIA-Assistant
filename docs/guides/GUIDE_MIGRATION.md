@@ -233,17 +233,19 @@ async def get_rate_limiter(
 
 ```python
 # src/core/config/security.py
+# NOTE (verifie 2026-07-20) : SecuritySettings ne porte que les deux premiers
+# champs. Le rate limit par client externe vit ailleurs et s'appelle
+# CLIENT_RATE_LIMIT_GOOGLE_PER_SECOND ; il n'existe pas de GOOGLE_API_RATE_LIMIT.
 class SecuritySettings(BaseSettings):
     rate_limit_per_minute: int = Field(60, env="RATE_LIMIT_PER_MINUTE")
     rate_limit_burst: int = Field(100, env="RATE_LIMIT_BURST")
-    google_api_rate_limit: int = Field(60, env="GOOGLE_API_RATE_LIMIT")
 ```
 
 ```bash
 # .env
 RATE_LIMIT_PER_MINUTE=60
 RATE_LIMIT_BURST=100
-GOOGLE_API_RATE_LIMIT=60
+CLIENT_RATE_LIMIT_GOOGLE_PER_SECOND=...   # nom reel
 ```
 
 #### Action Requise

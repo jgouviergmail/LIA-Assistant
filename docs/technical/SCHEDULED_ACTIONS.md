@@ -142,6 +142,8 @@ Deux regles, dans cet ordre :
 
 Le budget du push suit `PROACTIVE_NOTIFICATION_MAX_LENGTH` ; l'apercu SSE est plafonne par `SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH`. Cote frontend, `toPlainPreview()` (`apps/web/src/lib/notification-preview.ts`) applique la meme protection aux descriptions de toast, pour les trois familles de notifications.
 
+C'est precisement parce que ces surfaces **tronquent** que les blocs `<head>`/`<style>`/`<script>` y sont retires **sans exiger de balise fermante** : un `<style>` coupe au milieu d'une regle ne conserve pas son `</style>`, et le retrait de balises laissait alors le CSS ressortir en texte. Voir [NOTIFICATIONS_FLOW.md](NOTIFICATIONS_FLOW.md) pour le detail des deux motifs (`_BLOCK_ELEMENT_RE` backend / `BLOCK_RE` frontend) et des garde-fous qui evitent qu'un `<script src="x"/>` auto-fermant avale le document.
+
 ### HITL bypass
 
 L'executeur injecte `auto_approve_plan=True` dans `stream_chat_response()`, ce qui positionne `state["plan_approved"] = True` dans l'etat LangGraph. Le noeud `approval_gate_node` skip l'interrupt quand ce flag est `True`.

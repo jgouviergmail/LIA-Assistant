@@ -241,7 +241,7 @@ Index: `ix_heartbeat_notifications_user_created` on (user_id, created_at)
 ### Modified files
 | File | Change |
 |------|--------|
-| `auth/models.py` | +5 user columns (enabled, max_per_day, push_enabled, notify_start_hour, notify_end_hour) |
+| `users/models.py` | +5 user columns (enabled, max_per_day, push_enabled, notify_start_hour, notify_end_hour) |
 | `core/constants.py` | +1 scheduler constant |
 | `core/config/agents.py` | +heartbeat settings |
 | `infrastructure/proactive/base.py` | +HEARTBEAT ContentSource |

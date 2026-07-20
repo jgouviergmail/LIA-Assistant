@@ -272,10 +272,14 @@ EOF
 **Option 3: Temporarily increase pool size (if traffic spike)**
 ```bash
 # Edit configuration
-nano apps/api/.env
-# Change:
-# REDIS_POOL_SIZE=20 → REDIS_POOL_SIZE=50
-# REDIS_POOL_MAX_OVERFLOW=10 → REDIS_POOL_MAX_OVERFLOW=20
+nano .env
+# Change (nom REEL de la variable — verifie 2026-07-20) :
+# REDIS_MAX_CONNECTIONS=100 → 200
+#
+# ATTENTION : il n'existe PAS de REDIS_POOL_SIZE ni de REDIS_POOL_MAX_OVERFLOW
+# dans ce projet. Les seuls reglages de pool exposes sont REDIS_MAX_CONNECTIONS
+# et REDIS_SOCKET_TIMEOUT (voir .env.example). Editer une variable inexistante
+# n'a aucun effet — verifier avec : grep -n '^REDIS_' .env.example
 
 # Restart API with new config
 docker-compose restart api
@@ -475,27 +479,28 @@ async def startup():
 
 **Fix 3: Configure proper pool settings**
 
-**File**: `apps/api/.env`
+**Fichier** : `.env` (racine du depot, pas `apps/api/.env`)
+
+Variables reellement exposees — verifiees le 2026-07-20 contre `.env.example` :
+
 ```bash
 # Redis Connection Pool Configuration
-REDIS_URL=redis://redis:6379/0
+REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+REDIS_SESSION_DB=1              # Index de DB pour les sessions
+REDIS_CACHE_DB=2                # Index de DB pour le cache applicatif
 
-# Pool sizing (adjust based on workload)
-REDIS_POOL_SIZE=20              # Base pool size (concurrent connections)
-REDIS_POOL_MAX_OVERFLOW=10      # Additional connections under load (total max: 30)
-REDIS_POOL_TIMEOUT=5            # Seconds to wait for connection before timeout
-REDIS_POOL_RECYCLE=3600         # Recycle connections every hour (prevent stale)
-
-# Connection health checks
-REDIS_POOL_PRE_PING=true        # Verify connection before use
-REDIS_SOCKET_KEEPALIVE=true     # TCP keepalive
-REDIS_SOCKET_KEEPALIVE_OPTIONS={
-    "tcp_keepalive": 1,
-    "tcp_keepalive_idle": 300,
-    "tcp_keepalive_interval": 100,
-    "tcp_keepalive_count": 3
-}
+# Dimensionnement du pool
+REDIS_MAX_CONNECTIONS=100       # Connexions max par pool (defaut: 100)
+REDIS_SOCKET_TIMEOUT=30         # Secondes avant fermeture d'une connexion idle
 ```
+
+> **Les reglages fins de pool n'existent pas ici.** `REDIS_POOL_SIZE`,
+> `REDIS_POOL_MAX_OVERFLOW`, `REDIS_POOL_TIMEOUT`, `REDIS_POOL_RECYCLE`,
+> `REDIS_POOL_PRE_PING`, `REDIS_SOCKET_KEEPALIVE` et
+> `REDIS_SOCKET_KEEPALIVE_OPTIONS` etaient documentes par ce runbook mais
+> **ne sont lus par aucun code** — les definir en incident donne l'illusion
+> d'avoir agi. Le seul levier de dimensionnement est `REDIS_MAX_CONNECTIONS`.
+> Verification : `grep -n '^REDIS_' .env.example`.
 
 **File**: `apps/api/src/infrastructure/cache/redis.py`
 ```python

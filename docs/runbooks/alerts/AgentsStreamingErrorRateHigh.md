@@ -13,7 +13,7 @@
 
 **PromQL Query**:
 ```promql
-(rate(agent_streaming_errors_total[5m]) / rate(agent_streaming_requests_total[5m])) * 100 > <<<ALERT_AGENTS_STREAMING_ERROR_RATE_PERCENT>>>
+(rate(sse_streaming_errors_total[5m]) / rate(sse_streaming_duration_seconds_count[5m])) * 100 > <<<ALERT_AGENTS_STREAMING_ERROR_RATE_PERCENT>>>
 ```
 
 **Thresholds**:
@@ -48,7 +48,7 @@ description: "Streaming errors at {{ $value }}% (threshold: <<<ALERT_AGENTS_STRE
 - Partial responses without completion
 
 ### What Ops See
-- `agent_streaming_errors_total` metric increasing
+- `sse_streaming_errors_total` metric increasing
 - WebSocket/SSE connection failures in logs
 - Client timeouts in streaming endpoints
 
@@ -168,7 +168,7 @@ async def stream_agent_response(conversation_id: str):
 
 **Streaming error rate**:
 ```promql
-(rate(agent_streaming_errors_total[5m]) / rate(agent_streaming_requests_total[5m])) * 100
+(rate(sse_streaming_errors_total[5m]) / rate(sse_streaming_duration_seconds_count[5m])) * 100
 ```
 
 ---

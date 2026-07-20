@@ -68,7 +68,7 @@ TTFT (Time To First Token) = Time from user request to first streaming chunk rec
 curl -s "http://localhost:9090/api/v1/query?query=histogram_quantile(0.95, llm_api_duration_seconds_bucket)" | jq '.data.result[0].value[1]'
 
 # Check LLM API failure rate
-curl -s "http://localhost:9090/api/v1/query?query=rate(llm_api_requests_total{status=\"error\"}[5m])" | jq '.data.result[0].value[1]'
+curl -s "http://localhost:9090/api/v1/query?query=rate(llm_api_calls_total{status=\"error\"}[5m])" | jq '.data.result[0].value[1]'
 
 # Check provider-specific latency
 docker-compose logs api --since 10m | grep "LLM API" | grep -oP "duration=\K[0-9.]+" | sort -n | tail -20
@@ -255,7 +255,7 @@ curl -s "http://localhost:9090/api/v1/query?query=histogram_quantile(0.95, sum(r
 curl -s "http://localhost:9090/api/v1/query?query=histogram_quantile(0.95, llm_api_duration_seconds_bucket) * 1000" | jq '.data.result[0].value[1]'
 
 # LLM API error rate
-curl -s "http://localhost:9090/api/v1/query?query=rate(llm_api_requests_total{status=\"error\"}[5m]) * 100" | jq '.data.result[0].value[1]'
+curl -s "http://localhost:9090/api/v1/query?query=rate(llm_api_calls_total{status=\"error\"}[5m]) * 100" | jq '.data.result[0].value[1]'
 
 # If latency >3000ms OR error rate >5% → LLM API issue
 ```

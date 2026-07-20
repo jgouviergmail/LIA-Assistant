@@ -7,21 +7,21 @@
 
 ## 📋 Table des Matières
 
-- [Vue d'Ensemble](#vue-densemble)
-- [Architecture 6 Couches](#architecture-6-couches)
-- [Schemas & Structures](#schemas--structures)
+- [Vue d'Ensemble](#-vue-densemble)
+- [Architecture 6 Couches](#-architecture-6-couches)
+- [Schemas & Structures](#-schemas--structures)
 - [Nouveaux Composants Phase 8.1](#-nouveaux-composants-phase-81)
   - [Unified Schemas (schemas.py)](#unified-schemas-schemaspy)
   - [Scope Detector (scope_detector.py)](#scope-detector-scope_detectorpy)
   - [Destructive Confirm (destructive_confirm.py)](#destructive-confirm-destructive_confirmpy)
   - [FOR_EACH Confirmation (for_each_confirmation.py)](#for_each-confirmation-for_each_confirmationpy)
-- [Question Generation](#question-generation)
+- [Question Generation](#-question-generation)
 - [Approval Strategies (removed)](#-approval-strategies-removed-in-v12116)
-- [Approval Gate Node](#approval-gate-node)
+- [Approval Gate Node](#-approval-gate-node)
 - [HITL Orchestrator (removed)](#-hitl-orchestrator-removed-in-v12116)
-- [Configuration & Storage](#configuration--storage)
-- [Métriques](#métriques)
-- [Migration Phase 7 → Phase 8](#migration-phase-7--phase-8)
+- [Configuration & Storage](#-configuration--storage)
+- [Métriques](#-métriques)
+- [Migration Phase 7 → Phase 8](#-migration-phase-7--phase-8)
 
 ---
 
@@ -746,15 +746,24 @@ hitl_plan_modifications = Counter(
 )
 ```
 
-### Tool-Level Metrics (Legacy, Phase 7)
+### Tool-Level Metrics (Legacy, Phase 7) — SUPPRIMÉES
 
-```python
-# Kept for backward compatibility
-hitl_user_response_time_seconds = Histogram(...)
-hitl_tool_rejections_by_reason = Counter(...)
-hitl_rejection_type_total = Counter(...)
-hitl_edit_actions_total = Counter(...)
-```
+> Vérifié le 2026-07-20 : **ces quatre métriques n'existent plus** dans le code.
+> Elles étaient annoncées ici comme « conservées pour rétrocompatibilité », mais
+> aucune n'est définie — un tableau Grafana ou une requête PromQL bâtis dessus
+> restent vides sans erreur.
+>
+> ```python
+> # N'EXISTENT PAS : hitl_user_response_time_seconds, hitl_tool_rejections_by_reason,
+> #                 hitl_rejection_type_total, hitl_edit_actions_total
+> ```
+>
+> Métriques HITL réellement définies (`metrics_agents.py`) : `hitl_clarification_requests_total`,
+> `hitl_clarification_fallback_total`, `hitl_classification_duration_seconds`,
+> `hitl_classification_method_total`, `hitl_classification_demoted_total`,
+> `hitl_for_each_decisions_total`, `hitl_for_each_approval_latency_seconds`,
+> `hitl_for_each_pre_execution_duration_seconds`.
+> Liste à jour : `grep -rhoE '"hitl_[a-z_]*"' apps/api/src --include=*.py | sort -u`.
 
 ---
 
@@ -1295,7 +1304,7 @@ HITL_BUTTON_LABELS = {
 
 | Service | Lines | Purpose |
 |---------|-------|---------|
-| hitl_orchestrator.py | 1,401 | Main HITL coordination |
+| ~~hitl_orchestrator.py~~ | — | **SUPPRIMÉ (ADR-107)** — ghost service jamais câblé (cf. §ADR-107 plus haut). La coordination HITL passe par `hitl_classifier.py` + le contrat de resume, pas par un orchestrateur central. |
 | hitl_classifier.py | 801 | User response classification |
 | question_generator.py | 766 | LLM question generation |
 | resumption_strategies.py | 1,437 | **Plan resumption logic** |

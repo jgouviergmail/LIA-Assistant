@@ -52,13 +52,13 @@ All metrics are collected through:
 
 #### Panel 1: Total LLM Calls (24h)
 - **Type**: Stat
-- **Metric**: `sum(increase(llm_calls_total[24h]))`
+- **Metric**: `sum(increase(llm_api_calls_total[24h]))`
 - **Thresholds**: Green (<1000), Yellow (1000-5000), Orange (5000-10000), Red (>10000)
 - **Purpose**: High-level API call volume monitoring
 
 #### Panel 2: Average Latency (24h)
 - **Type**: Stat
-- **Metric**: `avg(rate(llm_call_duration_seconds_sum[24h]) / rate(llm_call_duration_seconds_count[24h]))`
+- **Metric**: `avg(rate(llm_api_latency_seconds_sum[24h]) / rate(llm_api_latency_seconds_count[24h]))`
 - **Thresholds**: Green (<2s), Yellow (2-5s), Orange (5-10s), Red (>10s)
 - **Purpose**: Performance monitoring across all agents
 
@@ -80,13 +80,13 @@ All metrics are collected through:
 
 #### Panel 5: Latency by Prompt Version (p95)
 - **Type**: Heatmap
-- **Metric**: `histogram_quantile(0.95, sum by (prompt_id, version, le) (rate(llm_call_duration_seconds_bucket[5m])))`
+- **Metric**: `histogram_quantile(0.95, sum by (prompt_id, version, le) (rate(llm_api_latency_seconds_bucket[5m])))`
 - **Purpose**: Compare performance across prompt versions
 - **Use Case**: Identify slow prompts, validate optimization efforts
 
 #### Panel 6: Success Rate by Prompt
 - **Type**: Gauge
-- **Metric**: `(sum(rate(llm_calls_total[5m])) - sum(rate(llm_errors_total[5m]))) / sum(rate(llm_calls_total[5m])) * 100`
+- **Metric**: `(sum(rate(llm_api_calls_total[5m])) - sum(rate(llm_api_errors_total[5m]))) / sum(rate(llm_api_calls_total[5m])) * 100`
 - **Thresholds**: Red (<90%), Yellow (90-95%), Green (>95%)
 - **Purpose**: Overall reliability monitoring
 - **Use Case**: Detect prompt engineering issues, API failures
@@ -123,8 +123,8 @@ All metrics are collected through:
 #### Panel 10: Variant Performance Comparison
 - **Type**: Bar gauge
 - **Metrics**:
-  - Latency: `avg by (variant) (llm_call_duration_seconds)`
-  - Success Rate: `(sum by (variant) (llm_calls_total) - sum by (variant) (llm_errors_total)) / sum by (variant) (llm_calls_total)`
+  - Latency: `avg by (variant) (llm_api_latency_seconds)`
+  - Success Rate: `(sum by (variant) (llm_api_calls_total) - sum by (variant) (llm_api_errors_total)) / sum by (variant) (llm_api_calls_total)`
   - Cost: `sum by (variant) (llm_cost_total)`
 - **Purpose**: Compare variants across key metrics
 - **Use Case**: Data-driven variant selection, ROI analysis
@@ -212,13 +212,13 @@ All metrics are collected through:
 
 #### Panel 21: Errors by Type
 - **Type**: Pie chart
-- **Metric**: `sum by (error_type) (increase(llm_errors_total[24h]))`
+- **Metric**: `sum by (error_type) (increase(llm_api_errors_total[24h]))`
 - **Purpose**: Distribution of error types (rate_limit, timeout, invalid_request, etc.)
 - **Use Case**: Identify common failure patterns, prioritize fixes
 
 #### Panel 22: Error Rate Trend
 - **Type**: Time series
-- **Metric**: `rate(llm_errors_total[5m])`
+- **Metric**: `rate(llm_api_errors_total[5m])`
 - **Purpose**: Error rate over time (errors/sec)
 - **Alert**: Red threshold line at 0.1 errors/s
 - **Use Case**: Detect error spikes, validate fixes
@@ -259,13 +259,13 @@ All metrics are collected through:
 
 ### 3. $llm_type
 - **Type**: Query (multi-select)
-- **Query**: `label_values(llm_calls_total, llm_type)`
+- **Query**: `label_values(llm_api_calls_total, llm_type)`
 - **Options**: `router, planner, contacts_agent, emails_agent, response, orchestrator`
 - **Purpose**: Filter by agent node type
 
 ### 4. $model
 - **Type**: Query (multi-select)
-- **Query**: `label_values(llm_calls_total, model)`
+- **Query**: `label_values(llm_api_calls_total, model)`
 - **Options**: `gpt-4.1-mini, gpt-4.1-mini-mini, claude-3-5-sonnet, etc.`
 - **Purpose**: Filter by LLM model
 
@@ -290,13 +290,13 @@ These metrics are already collected via LangfuseCallbackHandler:
 
 ```python
 # LLM Calls
-llm_calls_total{llm_type, model, session_id}
-llm_call_duration_seconds{llm_type, model}
+llm_api_calls_total{llm_type, model, session_id}
+llm_api_latency_seconds{llm_type, model}
 llm_tokens_consumed_total{llm_type, model, token_type}
 llm_cost_total{llm_type, model, currency}
 
 # Errors
-llm_errors_total{llm_type, model, error_type}
+llm_api_errors_total{llm_type, model, error_type}
 ```
 
 ### New Metrics (Phase 3.1.6)
@@ -472,7 +472,7 @@ See **Phase 3.1.6.3 - Metrics Instrumentation** for implementation details.
 **Fix**:
 ```bash
 # Verify Prometheus scraping
-curl http://localhost:8000/metrics | grep llm_calls_total
+curl http://localhost:8000/metrics | grep llm_api_calls_total
 
 # Check Prometheus targets
 curl http://prometheus:9090/api/v1/targets
@@ -498,13 +498,13 @@ curl http://grafana:3000/api/datasources
 **Fix**:
 ```python
 # Correct label usage (low cardinality)
-llm_calls_total.labels(
+llm_api_calls_total.labels(
     llm_type="router",  # 5-10 unique values
     model="gpt-4.1-mini",     # 5-10 unique values
 ).inc()
 
 # Avoid high cardinality
-# ❌ BAD: llm_calls_total.labels(session_id="sess_12345")
+# ❌ BAD: llm_api_calls_total.labels(session_id="sess_12345")
 # ✅ GOOD: Store session_id in metadata, not labels
 ```
 
@@ -527,7 +527,7 @@ llm_calls_total.labels(
 from prometheus_client import Histogram
 
 llm_call_duration = Histogram(
-    'llm_call_duration_seconds',
+    'llm_api_latency_seconds',
     'LLM call latency',
     ['llm_type', 'model'],
     buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0],

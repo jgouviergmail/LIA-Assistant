@@ -45,6 +45,22 @@ La détection HTML est partagée côté backend par le TTS et les notifications 
 
 **Les icônes sont retirées avec leur contenu.** Material Symbols rend `<span class="material-symbols-outlined">event</span>`, où `event` est un **nom de ligature** transformé en glyphe par la police — jamais de la prose. `html_to_text` conservant le texte des éléments, une carte de données ressortait en « *event* Déjeuner avec Marie 12:30 », et la voix prononçait « event » avant la phrase. Ces spans sont donc supprimés entiers en amont. La détection est ciblée sur le span : le mot « event » dans une vraie phrase est préservé.
 
+**Les blocs `<head>`/`<style>`/`<script>` sont supprimés avec leur contenu, balise fermante ou non.** Leur corps est du CSS, du JS ou des métadonnées — jamais de la prose. Les deux moitiés du pipeline exigeaient auparavant une **paire complète** (`<style>…</style>`), ce qui est précisément ce que ces surfaces ne garantissent pas : elles tronquent. Un `<style>` coupé au milieu d'une règle ne conserve pas son `</style>`, le retrait de balises supprimait alors le marqueur, et le CSS ressortait en texte — une notification d'écran de verrouillage affichait `body{color:red;font-size:12px}`. La fermeture est donc optionnelle des deux côtés :
+
+| Couche | Motif |
+|--------|-------|
+| Backend | `_BLOCK_ELEMENT_RE` (`apps/api/src/domains/agents/display/components/base.py`) |
+| Frontend | `BLOCK_RE` (`apps/web/src/lib/notification-preview.ts`) |
+
+Deux garde-fous rendent la fermeture optionnelle sans effet de bord :
+
+- `(?<!/)` rejette un `<script src="x"/>` auto-fermant : sans lui, le corps paresseux ne trouverait aucune fermeture et **avalerait le reste du document** ;
+- la rétro-référence `\1` empêche un `</script>` de fermer un `<style>`.
+
+Les deux motifs doivent rester alignés : un aperçu peut être construit de chaque côté. Ce défaut n'était visible que côté frontend (`js/bad-tag-filter`) — la règle Python équivalente est exclue par `.github/codeql/codeql-config.yml`, et le pendant backend n'a été établi qu'en **exécutant** les deux implémentations sur les mêmes entrées.
+
+Ce n'est pas une faille XSS : la sortie alimente des enfants React échappés, jamais `dangerouslySetInnerHTML` — c'est le contrat que le module documente et que ses trois appelants respectent. C'est un défaut de **lisibilité**, ce qui n'en fait pas un défaut mineur : la notification est la surface la plus exposée du produit.
+
 L'ordre est contraignant : **tronquer d'abord couperait au milieu d'une balise** et gaspillerait le budget (`<div class="lia-response">` consomme à lui seul 26 des 150 caractères par défaut).
 
 **La détection exige un vrai balisage, pas un simple `<`.** Le repli se termine par `re.sub(r"<[^>]+>", "", text)` : appliqué à tort, il détruit du texte. Or les noms de balises d'une lettre entrent en collision avec la prose ordinaire — `if x<a and b>c` devenait `if xc`, `count<b et total>i` devenait `counti`. Le balisage est donc reconnu sur trois signaux, dont un seul suffit :
@@ -395,7 +411,7 @@ sequenceDiagram
     participant REDIS as Redis Pub/Sub
     participant JOB as Reminder Job
 
-    WEB->>API: GET /api/v1/events/stream
+    WEB->>API: GET /api/v1/notifications/stream
     Note right of WEB: EventSource connection
 
     API->>REDIS: SUBSCRIBE user_notifications:{user_id}
@@ -419,7 +435,7 @@ sequenceDiagram
 
     alt Connection lost
         WEB->>WEB: EventSource auto-reconnect
-        WEB->>API: GET /api/v1/events/stream
+        WEB->>API: GET /api/v1/notifications/stream
         Note right of WEB: Resume from Last-Event-ID
     end
 ```
@@ -440,7 +456,7 @@ id: 1735398030000
 
 ```javascript
 // Web client SSE subscription
-const eventSource = new EventSource('/api/v1/events/stream', {
+const eventSource = new EventSource('/api/v1/notifications/stream', {
   withCredentials: true  // BFF pattern
 });
 
@@ -655,6 +671,8 @@ background_job_errors_total = Counter(
 )
 
 # Recommended additional metrics for reminders
+# reminder_notifications_sent_total / reminder_fcm_delivery_total : PROPOSEES,
+# jamais implementees (verifie 2026-07-20). Seule metrique rappels : reminders_count.
 reminder_notifications_sent_total = Counter(
     "reminder_notifications_sent_total",
     "Total reminder notifications sent",

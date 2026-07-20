@@ -169,7 +169,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | **pytest-asyncio** | 1.4.0 | Async test support |
 | **pytest-cov** | 7.1.0 | Coverage |
 | **pytest-mock** | 3.15.1 | Mocking |
-| **bandit** | 1.9.4 | Security linter |
+
 | **safety** | 3.8.1 | Dependency scanner |
 
 ---

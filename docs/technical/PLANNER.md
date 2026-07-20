@@ -9,20 +9,20 @@
 
 ## 📋 Table des Matières
 
-1. [Vue d'ensemble](#vue-densemble)
-2. [Architecture Planner Node](#architecture-planner-node)
-3. [ExecutionPlan DSL](#executionplan-dsl)
-4. [FOR_EACH Iteration Pattern](#for_each-iteration-pattern)
-5. [Plan Validator](#plan-validator)
-6. [Retry avec Feedback](#retry-avec-feedback)
+1. [Vue d'ensemble](#-vue-densemble)
+2. [Architecture Planner Node](#-architecture-planner-node)
+3. [ExecutionPlan DSL](#-executionplan-dsl)
+4. [FOR_EACH Iteration Pattern](#-for_each-iteration-pattern)
+5. [Plan Validator](#-plan-validator)
+6. [Retry avec Feedback](#-retry-avec-feedback)
 7. [Domain Filtering & Tool Strategy](#-domain-filtering--tool-strategy)
 8. [Memory Reference Resolution (Phase 7)](#-memory-reference-resolution-phase-7)
-9. [Message Windowing](#message-windowing)
-10. [Prompt Planner v5](#prompt-planner-v5)
-11. [Exemples Complets](#exemples-complets)
-12. [Métriques & Observabilité](#métriques--observabilité)
-13. [Testing](#testing)
-14. [Troubleshooting](#troubleshooting)
+9. [Message Windowing](#-message-windowing)
+10. [Prompt Planner v5](#-prompt-planner-v5--consolidated-v1)
+11. [Exemples Complets](#-exemples-complets)
+12. [Métriques & Observabilité](#-métriques--observabilité)
+13. [Testing](#-testing)
+14. [Troubleshooting](#-troubleshooting)
 
 ---
 
@@ -2528,7 +2528,7 @@ planner_catalogue_size_tools = Histogram(
 ```python
 # Node duration
 agent_node_duration_seconds = Histogram(
-    'langgraph_agent_node_duration_seconds',
+    'langgraph_stage_duration_seconds',
     'Duration of agent node execution',
     ['node_name'],  # planner
 )
@@ -2799,7 +2799,7 @@ async def test_planner_node_e2e_with_real_llm():
 
 **Symptômes**:
 - Logs: `planner_llm_response` duration > 10s
-- Metric: `langgraph_agent_node_duration_seconds{node_name="planner"}` P95 > 10s
+- Metric: `langgraph_stage_duration_seconds{node_name="planner"}` P95 > 10s
 - Frontend: Timeout ou délais inacceptables
 
 **Causes**:

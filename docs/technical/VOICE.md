@@ -479,6 +479,16 @@ or CSS. Two complementary mechanisms enforce this:
    reference turns or post-LLM data cards are never spoken as tags, while plain
    prose containing bare angle brackets (`x < 5 and y > 3`) is left untouched.
 
+   `html_to_text` drops `<head>`/`<style>`/`<script>` **with their content, closing tag
+   or not** (`_BLOCK_ELEMENT_RE` in
+   [base.py](../../apps/api/src/domains/agents/display/components/base.py)). The optional
+   closing tag matters here as much as on notification surfaces: TTS input can arrive
+   truncated, and requiring a complete pair meant a severed `<style>` lost its marker to
+   tag-stripping while its body survived — the engine would have read a CSS rule aloud.
+   The same stripper backs both surfaces, so a fix on one side is a fix on both; that
+   shared path is also why an unrelated icon-ligature bug made the voice say "event"
+   before a sentence.
+
 Cleanup contract: every SSE generator exit path (HITL `GraphInterrupt`,
 top-level `except`, normal end) MUST tear down the voice pipeline via the
 `VoiceStreamCoordinator` (ADR-122 — `cleanup_chat_pipeline()` /
@@ -593,7 +603,7 @@ voice_tts_latency_seconds{provider="edge|openai|elevenlabs"}
 voice_tts_errors_total{provider="edge|openai|elevenlabs", error_type="..."}
 ```
 
-The `voice_tts_mode_cache_total` Prometheus counter was retired with
+The `voice_tts_mode_cache_total  # N'EXISTE PAS ; metriques TTS reelles : voice_tts_requests_total, voice_tts_errors_total, voice_tts_latency_seconds` Prometheus counter was retired with
 ADR-081 (no more `voice_tts_mode` system setting). Cache invalidation
 for the new override surface is observed through the existing
 `llm_config_cache_loaded` log event and the ADR-063 Pub/Sub channel.

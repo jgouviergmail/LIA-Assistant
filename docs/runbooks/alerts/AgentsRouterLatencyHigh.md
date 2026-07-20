@@ -13,7 +13,7 @@
 
 **PromQL Query**:
 ```promql
-histogram_quantile(0.95, rate(agent_router_latency_seconds_bucket[5m])) > <<<ALERT_AGENTS_ROUTER_LATENCY_P95_WARNING_SECONDS>>>
+histogram_quantile(0.95, rate(router_latency_seconds_bucket[5m])) > <<<ALERT_AGENTS_ROUTER_LATENCY_P95_WARNING_SECONDS>>>
 ```
 
 **Thresholds**:
@@ -47,7 +47,7 @@ description: "Router is taking {{ $value }}s at P95 (threshold: <<<ALERT_AGENTS_
 - "Thinking..." indicator lasting >3 seconds
 
 ### What Ops See
-- `agent_router_latency_seconds` P95 >2s in Prometheus
+- `router_latency_seconds` P95 >2s in Prometheus
 - Router node taking >1s in traces
 - Increased task orchestrator queue depth
 
@@ -79,7 +79,7 @@ docker-compose logs api | grep "router_node" | grep "llm_call"
 **Verification**:
 ```bash
 # Check router traces
-curl -s "http://localhost:9090/api/v1/query?query=rate(agent_router_llm_calls_total[5m])" | jq '.data.result'
+curl -s "http://localhost:9090/api/v1/query?query=rate(router_decisions_total[5m])" | jq '.data.result'
 
 # Should be ~1 call per route, >2 indicates complexity
 ```
@@ -108,11 +108,10 @@ curl -s "http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,rate(d
 
 **Option 1: Use faster LLM model for routing**
 
-**File**: `apps/api/.env`
-```bash
-# Switch router to Haiku (faster, cheaper)
-ROUTER_MODEL=claude-3-haiku-20240307  # Instead of Sonnet
-```
+**Ou changer le modele du router** (verifie 2026-07-20) : **pas dans le `.env`**.
+Il n'existe pas de variable `ROUTER_MODEL`. Les modeles par type de LLM sont
+configures **en base** (`LLM_TYPES_REGISTRY`, `src/domains/llm_config/`) et se
+modifient depuis l'administration LLM. Editer un `.env` ici n'aurait aucun effet.
 
 **Restart**:
 ```bash
@@ -168,12 +167,12 @@ async def route_with_context(state):
 
 **Router latency P95**:
 ```promql
-histogram_quantile(0.95, rate(agent_router_latency_seconds_bucket[5m]))
+histogram_quantile(0.95, rate(router_latency_seconds_bucket[5m]))
 ```
 
 **Router LLM call rate**:
 ```promql
-rate(agent_router_llm_calls_total[5m])
+rate(router_decisions_total[5m])
 ```
 
 ---

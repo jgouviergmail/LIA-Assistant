@@ -388,8 +388,8 @@ SQLALCHEMY_MAX_OVERFLOW = 100  # Was 50
 # Test unitaires
 pytest tests/unit/infrastructure/observability/test_metrics_langgraph_execution.py -v
 
-# Test end-to-end
-./scripts/test_conversation_flow.sh
+# Test end-to-end (le script scripts/test_conversation_flow.sh n'existe pas —
+# utiliser la suite e2e : cd apps/web && pnpm test:e2e, ou les tests d'intégration backend)
 
 # Load test (si scaling issue)
 cd load_tests

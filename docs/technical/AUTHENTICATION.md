@@ -19,13 +19,13 @@
 6. [Sécurité & Conformité](#-sécurité--conformité)
 7. [User Model & Repository](#-user-model--repository)
 8. [API Routes](#-api-routes)
-9. [Dependencies FastAPI](#-dependencies-fastapi)
-10. [Exemples Pratiques](#-exemples-pratiques)
-11. [Testing](#-testing)
-12. [Troubleshooting](#-troubleshooting)
-13. [Migration Legacy → BFF](#-migration-legacy--bff)
-14. [Métriques & Observabilité](#-métriques--observabilité)
-15. [Ressources](#-ressources)
+9. [Exemples Pratiques](#-exemples-pratiques)
+10. [Testing](#-testing)
+11. [Troubleshooting](#-troubleshooting)
+12. [Migration Legacy → BFF](#-migration-legacy--bff)
+13. [Métriques & Observabilité](#-métriques--observabilité)
+14. [Ressources](#-ressources)
+15. [Statistiques](#-statistiques)
 
 ---
 
@@ -3467,11 +3467,11 @@ SESSION_COOKIE_HTTPONLY=true
 SESSION_COOKIE_SAMESITE=lax
 SESSION_COOKIE_DOMAIN=.lia-assistant.com
 
-# JWT configuration (for email verification tokens)
-JWT_SECRET_KEY=your-secret-key-here
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
-JWT_REFRESH_TOKEN_EXPIRE_DAYS=30
+# JWT configuration (for email verification / password reset tokens)
+# Note: the variable names carry no JWT_ prefix — SecuritySettings declares no
+# env_prefix, so the fields map to SECRET_KEY / ALGORITHM verbatim.
+SECRET_KEY=your-secret-key-here          # min 32 chars
+ALGORITHM=HS256                          # HMAC only: HS256 / HS384 / HS512
 
 # Email service
 SMTP_HOST=smtp.gmail.com
@@ -3482,6 +3482,30 @@ SMTP_PASSWORD=your-smtp-password
 # Frontend URL (for verification/reset links)
 FRONTEND_URL=https://app.lia-assistant.com
 ```
+
+### Algorithme JWT : contraint aux HMAC
+
+`SecuritySettings.algorithm` est type `JwtAlgorithm = Literal["HS256", "HS384", "HS512"]`
+(`src/core/constants.py`). Une valeur hors de cette liste est rejetee au demarrage par
+Pydantic, avant que l'application ne serve la moindre requete.
+
+La contrainte n'est pas cosmetique. Elle porte une garantie de securite :
+
+- **python-jose route selon l'algorithme.** Sous `HS*` (HMAC, symetrique) il n'atteint jamais
+  son backend `ecdsa`. Or `ecdsa` est expose a **CVE-2024-23342** (attaque temporelle sur la
+  signature), sans correctif amont, et le depot **exempte** cette CVE dans `pip-audit`
+  (`.github/workflows/security.yml`). L'exemption n'est legitime **que** tant que
+  l'algorithme reste HMAC.
+- La justification historique de cette exemption affirmait que « LIA ne fait que verifier des
+  JWT ». C'etait faux : `core/security/utils.py` appelle bien `jwt.encode`. Ce qui rend
+  l'attaque inoperante est l'algorithme, pas l'absence de signature.
+- **Passer a un algorithme EC/RSA implique deux actions conjointes** : retirer l'exemption
+  `--ignore-vuln CVE-2024-23342`, et fournir une vraie cle asymetrique — `secret_key` (chaine
+  partagee) n'est pas une cle de signature valide pour ES*/RS*.
+
+`ALGORITHM` etant une variable exposee dans `.env.example`, `.env.prod.example` et
+`.env.min.prod`, le `Literal` est la seule barriere empechant un changement de configuration
+d'invalider silencieusement une exemption de securite.
 
 ---
 

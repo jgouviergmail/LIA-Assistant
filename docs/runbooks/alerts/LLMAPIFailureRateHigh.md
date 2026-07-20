@@ -379,7 +379,7 @@ curl -s "http://localhost:9090/api/v1/query?query=histogram_quantile(0.99,sum(ra
 curl -s "http://localhost:9090/api/v1/query?query=rate(http_requests_total{path=~\"/api/agents/.*\"}[5m])" | jq '.data.result'
 
 # Users actifs
-curl -s "http://localhost:9090/api/v1/query?query=conversation_active_users_total" | jq '.data.result[0].value[1]'
+curl -s "http://localhost:9090/api/v1/query?query=conversation_active_users_total  # N'EXISTE PAS (verifie 2026-07-20) — pas de metrique d'utilisateurs actifs ; proches: conversation_created_total, conversation_reactivated_total" | jq '.data.result[0].value[1]'
 
 # Comparer avec baseline
 curl -s "http://localhost:9090/api/v1/query?query=avg_over_time(conversation_active_users_total[24h])" | jq '.data.result[0].value[1]'

@@ -178,7 +178,7 @@ Prompts are versioned files in `src/domains/agents/prompts/v1/` (`.txt` files). 
 
 ### Configuration
 
-Settings are composed from domain-specific Pydantic modules in `src/core/config/`. All settings read from environment variables. Feature flags control optional subsystems: `MCP_ENABLED`, `CHANNELS_ENABLED`, `HEARTBEAT_ENABLED`, `SCHEDULED_ACTIONS_ENABLED`, `SKILLS_ENABLED`.
+Settings are composed from domain-specific Pydantic modules in `src/core/config/`. All settings read from environment variables. Feature flags control optional subsystems: `MCP_ENABLED`, `CHANNELS_ENABLED`, `HEARTBEAT_ENABLED`, `SKILLS_ENABLED`. (There is **no** `SCHEDULED_ACTIONS_ENABLED` flag — scheduled actions are always wired: the router is included unconditionally and only timeout settings exist. Long-documented but never implemented; do not add a guard on it without creating the setting first.)
 
 Dependencies are managed in `apps/api/requirements.txt` (runtime) and `requirements-dev.txt` (dev tools) — these are **intent manifests**; the compiled universal lockfiles `requirements.lock.txt` / `requirements-dev.lock.txt` are what every environment actually installs (ADR-112). After editing a manifest, run `task deps:lock` and commit manifest + locks together (CI enforces it). `pyproject.toml` is only used for tool configuration (black, ruff, mypy, pytest).
 
@@ -348,7 +348,7 @@ The review checklists below are the **process** (what to verify on every plan/PR
   — TESTS —
   23. Tests mirror source structure, proper pytest markers (`@pytest.mark.unit`, `integration`, `slow`), fixtures properly scoped, `asyncio_mode = "auto"`
   — DOCUMENTATION —
-  24. Update documentation in `docs/` as well as all cross-cutting docs, `README.md`, ADR if architectural decision, `docs/INDEX.md` index, `docs/technical`, `docs/guide`, `docs/architecture.md`, `docs/architecture_agent.md`, `docs/architecture_langraph.md`, `docs/getting_started.md`, and every other impacted document
+  24. Update documentation in `docs/` as well as all cross-cutting docs, `README.md`, ADR if architectural decision, `docs/INDEX.md` index, `docs/technical`, `docs/guides`, `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE_AGENT.md`, `docs/ARCHITECTURE_LANGRAPH.md`, `docs/GETTING_STARTED.md`, and every other impacted document
 
   - Verify all runtime integration points on completeness and correctness:
   1. **Config composition** — New settings module added to `Settings` MRO in `src/core/config/__init__.py`, feature flag (`{FEATURE}_ENABLED`) defined, `.env.example` and `.env.prod.example` and `.env.min.prod` (if necessary) updated with all new env vars

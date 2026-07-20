@@ -321,7 +321,7 @@ LOG_LEVEL=DEBUG                  # INFO in prod
 # [02] SECURITY & AUTHENTICATION (MANDATORY — generate unique values!)
 # ============================================================================
 SECRET_KEY=CHANGE_ME_MIN_32_CHARS          # openssl rand -base64 32
-ALGORITHM=HS256
+ALGORITHM=HS256                            # HMAC only: HS256 / HS384 / HS512
 FERNET_KEY=CHANGE_ME_FERNET_KEY            # see command above
 
 # Session cookies (production-proven)
@@ -1444,7 +1444,7 @@ task deploy:prepare        # prepare the PROD/ bundle only
 
 ### Post-Deploy Operations
 
-- **Backups**: the `postgres-backup` sidecar starts with the stack; `deploy.sh` creates the host backup directory (chmod 700). Verify restores periodically with `task backup:verify` — the restore path is documented and tested ([runbook](./runbooks/DATABASE_BACKUP_RESTORE.md)).
+- **Backups**: the `postgres-backup` sidecar starts with the stack; the prod deploy pipeline (`scripts/deploy/deploy-prod.ps1` → `prepare-prod.ps1`) creates the host backup directory (chmod 700). Verify restores periodically with `task backup:verify` — the restore path is documented and tested ([runbook](./runbooks/DATABASE_BACKUP_RESTORE.md)).
 - **Migrations** run automatically on API startup.
 - **Monitoring**: Grafana/Prometheus/Loki/Tempo are part of the prod stack; Portainer provides container administration.
 

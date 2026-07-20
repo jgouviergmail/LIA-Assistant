@@ -260,7 +260,7 @@ async def can_skip_validation(plan: ExecutionPlan) -> bool:
 ### 2. Authentification
 
 ```
-1. Script appelle GET /api/v1/users/me avec cookie
+1. Script appelle GET /api/v1/auth/me avec cookie
 2. API valide la session dans Redis
 3. API retourne les infos utilisateur (id, email, etc.)
 4. Script stocke le user_id pour les requêtes suivantes

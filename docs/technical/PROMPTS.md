@@ -10,13 +10,13 @@
 
 ## 📋 Table des Matières
 
-1. [Vue d'ensemble](#vue-densemble)
-2. [Architecture Prompts](#architecture-prompts)
+1. [Vue d'ensemble](#-vue-densemble)
+2. [Architecture Prompts](#-architecture-prompts)
 3. [Prompt Loader Avancé](#prompt-loader-avancé)
-4. [Domain Agent Prompts](#domain-agent-prompts)
+4. [Domain Agent Prompts](#-domain-agent-prompts)
 5. [Prompt Caching — la convention DYNAMIC CONTEXT](#-prompt-caching--la-convention-dynamic-context)
-6. [Voice & Memory Prompts](#voice--memory-prompts)
-7. [Best Practices](#best-practices)
+6. [Voice & Memory Prompts](#-voice--memory-prompts)
+7. [Best Practices](#-best-practices)
 
 ---
 
@@ -29,9 +29,14 @@
 
 ### Fichiers Prompts (78 fichiers, source de vérité vivante)
 
-Tous les prompts vivent dans `apps/api/src/domains/agents/prompts/v1/*.txt`
-(plus `apps/api/src/domains/telephony/prompts/v1/` pour la téléphonie, chargée
-par son propre loader). La liste exhaustive n'est plus dupliquée ici : la
+Tous les prompts vivent dans `apps/api/src/domains/agents/prompts/v1/*.txt` —
+**store unique** (règle du dépôt). La téléphonie ne fait pas exception : ses
+prompts (`telephony_agent_prompt.txt`, `telephony_agent_system_prompt.txt`,
+`telephony_synthesis_prompt.txt`) sont dans ce même répertoire ; le domaine
+telephony a seulement son propre lecteur minimal `telephony/prompts/loader.py`
+qui les lit **par chemin filesystem** (pour ne pas importer le package `agents`
+— cycle d'import cassé, audit T2). Il n'existe pas de `telephony/prompts/v1/`.
+La liste exhaustive n'est plus dupliquée ici : la
 source de vérité est le Literal `PromptName` dans `prompt_loader.py`, maintenu
 en synchronisation bidirectionnelle avec les fichiers par le test CI
 `tests/unit/domains/agents/prompts/test_prompt_name_literal_sync.py`

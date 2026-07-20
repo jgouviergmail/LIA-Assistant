@@ -9,13 +9,13 @@ Date: 2025-12-27
 
 ## 📋 Table des Matières
 
-- [Introduction](#introduction)
-- [Architecture Prompts](#architecture-prompts)
-- [Créer un Nouveau Prompt](#créer-un-nouveau-prompt)
-- [Versionning et Évolution](#versionning-et-évolution)
-- [Optimisation](#optimisation)
-- [Best Practices](#best-practices)
-- [Troubleshooting](#troubleshooting)
+- [Introduction](#-introduction)
+- [Architecture Prompts](#-architecture-prompts)
+- [Créer un Nouveau Prompt](#-créer-un-nouveau-prompt)
+- [Versionning et Évolution](#-versionning-et-évolution)
+- [Optimisation](#-optimisation)
+- [Best Practices](#-best-practices)
+- [Troubleshooting](#-troubleshooting)
 
 ---
 

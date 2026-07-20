@@ -9,7 +9,7 @@
 
 - [Vue d'Ensemble](#vue-densemble)
 - [Architecture](#architecture)
-- [Algorithme de Scoring](#algorithme-de-scoring)
+- [Algorithme de Scoring](#formule-de-scoring-rrf-like)
 - [Composants](#composants)
 - [Configuration](#configuration)
 - [Métriques](#métriques)

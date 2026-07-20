@@ -472,7 +472,6 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | [README_TESTS.md](./readme/README_TESTS.md) | Guide tests global |
 | [README_TESTS_AGENTS.md](./readme/README_TESTS_AGENTS.md) | Tests agents |
 | [README_TESTS_AGENT_MIXINS.md](./readme/README_TESTS_AGENT_MIXINS.md) | Tests agent mixins |
-| [README_WORKFLOW.md](./readme/README_WORKFLOW.md) | Workflow développement |
 | [README_BENCHMARK.md](./readme/README_BENCHMARK.md) | Benchmarks performance |
 | [README_REMINDERS.md](./readme/README_REMINDERS.md) | Système de rappels |
 

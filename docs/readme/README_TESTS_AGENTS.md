@@ -1721,7 +1721,7 @@ resolved = await resolver.resolve(
 **Internal Documentation:**
 - `tests/README.md` - Main test suite documentation
 - `tests/agents/README.md` - This document
-- `docs/optim_monitoring/TESTS_INVENTORY_ANALYSIS.md` - Comprehensive test analysis
+- *(le doc `docs/optim_monitoring/TESTS_INVENTORY_ANALYSIS.md` n'existe plus ; `docs/optim/` ne contient que `LATENCY_PLAN.md`)*
 - `.github/workflows/tests.yml` - CI/CD test workflow
 
 **Key Test Files:**

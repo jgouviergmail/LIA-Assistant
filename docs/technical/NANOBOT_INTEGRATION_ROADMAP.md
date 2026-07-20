@@ -715,6 +715,18 @@ mcp>=1.0.0    # Model Context Protocol SDK (Anthropic)
 
 ## 6. Feature 3 — Multi-Channel Telegram
 
+> [!NOTE]
+> **Livrée — l'implémentation a divergé de cette spec** (vérifié le 2026-07-20).
+> Les chemins listés plus bas dans « Fichiers à créer » décrivent le plan initial,
+> pas le code livré. Le canal vit sous **`src/infrastructure/channels/telegram/`**
+> (`bot.py`, `sender.py`, `webhook_handler.py`, `formatter.py`, `hitl_keyboard.py`,
+> `voice.py`) et non sous `src/domains/channels/telegram/` ; les composants
+> frontend envisagés (`TelegramSettings.tsx`, `useTelegramBinding.ts`) n'ont pas
+> été créés.
+>
+> **Référence à jour : [GUIDE_TELEGRAM_INTEGRATION.md](../guides/GUIDE_TELEGRAM_INTEGRATION.md)**.
+> Cette section est conservée pour l'historique de conception.
+
 ### Objectif
 
 Permettre aux utilisateurs d'interagir avec LIA via Telegram, en plus de l'interface web, avec synchronisation bidirectionnelle des conversations et support des notifications push.

@@ -16,7 +16,7 @@ Ce document est le guide de référence exhaustif pour l'ajout d'un nouveau conn
 4. [Ajouter un Tool](#4-ajouter-un-tool)
 5. [Data Registry](#5-data-registry)
 6. [Système de Manifestes](#6-système-de-manifestes)
-7. [Enregistrement dans l'Orchestrateur](#7-enregistrement-dans-lorchestrateu)
+7. [Enregistrement dans l'Orchestrateur](#7-enregistrement-dans-lorchestrateur)
 8. [Cache Redis](#8-cache-redis)
 9. [Préférences Connecteur (PostgreSQL)](#9-préférences-connecteur-postgresql)
 10. [Checklist d'Intégration](#10-checklist-dintégration)
@@ -3117,8 +3117,8 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         )
 
         # Prometheus metrics
-        llm_tokens_total.labels(type="input").inc(usage.input_tokens)
-        llm_tokens_total.labels(type="output").inc(usage.output_tokens)
+        llm_tokens_consumed_total.labels(type="input").inc(usage.input_tokens)
+        llm_tokens_consumed_total.labels(type="output").inc(usage.output_tokens)
         llm_latency_histogram.observe(latency)
 
     async def on_tool_error(self, error: Exception, *, run_id: UUID, **kwargs):
@@ -3392,8 +3392,8 @@ hitl_response_latency_seconds = Histogram(
 # LLM METRICS
 # ═══════════════════════════════════════════════════════════════════════
 
-llm_tokens_total = Counter(
-    "llm_tokens_total",
+llm_tokens_consumed_total = Counter(
+    "llm_tokens_consumed_total",
     "Total tokens consumed",
     ["model", "type"],  # type: input, output
 )

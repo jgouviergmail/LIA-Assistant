@@ -647,8 +647,13 @@ Le profil injecté inclut une **directive comportementale dynamique** basée sur
 
 | Métrique | Type | Description |
 |----------|------|-------------|
-| `memory_extraction_duration_seconds` | Histogram | Durée extraction |
-| `memory_extraction_count` | Counter | Mémoires extraites |
+> **Vérifié le 2026-07-20 : aucune de ces quatre métriques n'existe.** Les seules
+> métriques mémoire définies sont `memory_hybrid_search_total`,
+> `memory_hybrid_search_duration_seconds` et `memory_count`. Un panneau Grafana
+> bâti sur les noms ci-dessous reste vide sans erreur.
+
+| `memory_extraction_duration_seconds` | Histogram | **N'existe pas** |
+| `memory_extraction_count` | Counter | **N'existe pas** |
 | `memory_injection_count` | Counter | Mémoires injectées |
 | `memory_search_latency_seconds` | Histogram | Latence recherche sémantique |
 | `emotional_state_distribution` | Counter | Distribution comfort/danger/neutral |

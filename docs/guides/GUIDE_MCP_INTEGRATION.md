@@ -153,11 +153,17 @@ Toutes les variables sont definies dans `MCPSettings` (`apps/api/src/core/config
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `MCP_EXCALIDRAW_LLM_PROVIDER` | `str` | `anthropic` | Provider LLM pour les diagrammes |
-| `MCP_EXCALIDRAW_LLM_MODEL` | `str` | `claude-opus-4-6` | Modele LLM |
-| `MCP_EXCALIDRAW_LLM_TEMPERATURE` | `float` | `0.3` | Temperature (basse pour JSON fiable) |
-| `MCP_EXCALIDRAW_LLM_MAX_TOKENS` | `int` | `16000` | Tokens max par appel |
-| `MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS` | `int` | `60` | Timeout pour create_view (appel LLM unique) |
+> **Ces cinq variables n'existent pas** (verifie le 2026-07-20 : aucune entree
+> `excalidraw` sous `src/core/config/`, aucune dans `.env.example`). Le rendu
+> Excalidraw n'est pas parametrable par l'environnement — le LLM utilise suit la
+> configuration generale des types LLM (`LLM_TYPES_REGISTRY`, cote base). Le
+> tableau ci-dessous decrit une configurabilite qui n'a jamais ete implementee.
+
+| `MCP_EXCALIDRAW_LLM_PROVIDER` | — | — | **Inexistante** |
+| `MCP_EXCALIDRAW_LLM_MODEL` | — | — | **Inexistante** |
+| `MCP_EXCALIDRAW_LLM_TEMPERATURE` | — | — | **Inexistante** |
+| `MCP_EXCALIDRAW_LLM_MAX_TOKENS` | — | — | **Inexistante** |
+| `MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS` | — | — | **Inexistante** |
 
 #### Description LLM (auto-generation)
 

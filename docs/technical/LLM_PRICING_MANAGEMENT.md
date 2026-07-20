@@ -13,17 +13,17 @@
 
 ## 📋 Table des Matières
 
-1. [Vue d'ensemble](#vue-densemble)
-2. [AsyncPricingService](#asyncpricingservice)
-3. [Database Schema](#database-schema)
-4. [Token Tracking](#token-tracking)
-5. [Currency Conversion](#currency-conversion)
-6. [Cost Calculation](#cost-calculation)
-7. [Multi-Provider Support](#multi-provider-support)
-8. [Google API Cost Tracking](#google-api-cost-tracking)
-9. [Export de Consommation](#export-de-consommation)
-10. [Métriques & Observabilité](#métriques--observabilité)
-11. [Annexes](#annexes)
+1. [Vue d'ensemble](#-vue-densemble)
+2. [AsyncPricingService](#-asyncpricingservice)
+3. [Database Schema](#-database-schema)
+4. [Token Tracking](#-token-tracking)
+5. [Currency Conversion](#-currency-conversion)
+6. [Cost Calculation](#-cost-calculation)
+7. [Multi-Provider Support](#-multi-provider-support)
+8. [Google API Cost Tracking](#-google-api-cost-tracking)
+9. [Export de Consommation](#-export-de-consommation)
+10. [Métriques & Observabilité](#-métriques--observabilité)
+11. [Annexes](#-annexes)
 
 ---
 
@@ -724,15 +724,15 @@ def select_model_for_task(task_complexity: str) -> str:
 from prometheus_client import Counter, Histogram
 
 # Token usage
-llm_tokens_total = Counter(
-    'llm_tokens_total',
+llm_tokens_consumed_total = Counter(
+    'llm_tokens_consumed_total',
     'Total tokens used',
     ['provider', 'model', 'type', 'node']  # type=input|output|cached
 )
 
 # Cost tracking
-llm_cost_usd_total = Counter(
-    'llm_cost_usd_total',
+llm_cost_total = Counter(
+    'llm_cost_total',
     'Total cost in USD',
     ['provider', 'model', 'node']
 )
@@ -752,14 +752,14 @@ llm_tokens_per_call = Histogram(
 )
 
 # Emit metrics
-llm_tokens_total.labels(
+llm_tokens_consumed_total.labels(
     provider="openai",
     model="gpt-4.1-mini",
     type="input",
     node="router"
 ).inc(1500)
 
-llm_cost_usd_total.labels(
+llm_cost_total.labels(
     provider="openai",
     model="gpt-4.1-mini",
     node="router"
@@ -770,12 +770,12 @@ llm_cost_usd_total.labels(
 
 **Panel 1**: Token usage over time
 ```promql
-rate(llm_tokens_total[5m]) by (model, node)
+rate(llm_tokens_consumed_total[5m]) by (model, node)
 ```
 
 **Panel 2**: Cost breakdown per provider
 ```promql
-sum(rate(llm_cost_usd_total[1h])) by (provider)
+sum(rate(llm_cost_total[1h])) by (provider)
 ```
 
 **Panel 3**: Cost per conversation (average)
@@ -785,7 +785,7 @@ avg(llm_cost_eur_total) by (model)
 
 **Panel 4**: Top expensive models
 ```promql
-topk(5, sum(llm_cost_usd_total) by (model))
+topk(5, sum(llm_cost_total) by (model))
 ```
 
 ---

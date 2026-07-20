@@ -2693,7 +2693,8 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 
 ## Tables complémentaires (présentes en base, non détaillées ci-dessus)
 
-> Diff effectué le 2026-07-11 entre les modèles ORM (`__tablename__`) et ce document.
+> Diff effectué le 2026-07-20 entre les modèles ORM (`__tablename__`), les migrations
+> Alembic (`create_table`) et ce document : **50 tables réelles, 50 couvertes**.
 > Chaque table ci-dessous existe et est active ; le détail des colonnes vit dans le
 > fichier de modèle indiqué (source de vérité).
 
@@ -2714,6 +2715,7 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 | `system_settings` | `src/domains/system_settings/models.py` | Réglages système clé/valeur (activation composants, ADR-061) |
 | `admin_broadcasts` / `user_broadcast_reads` | `src/domains/notifications/models.py` | Diffusions admin + accusés de lecture (traductions JSONB persistées) |
 | `user_fcm_tokens` | `src/domains/notifications/models.py` | Tokens FCM push par appareil |
+| `phone_calls` | `src/domains/telephony/models.py` | Appels sortants (un par appel). Le numéro appelé (`callee_phone`) est **chiffré** par le service — PII. |
 
 ---
 

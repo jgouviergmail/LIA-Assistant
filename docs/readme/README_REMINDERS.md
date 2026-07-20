@@ -415,7 +415,7 @@ await redis.publish(
 
 ```javascript
 // SSE client example
-const eventSource = new EventSource('/api/v1/events/stream');
+const eventSource = new EventSource('/api/v1/notifications/stream');
 eventSource.addEventListener('notification', (event) => {
     const data = JSON.parse(event.data);
     if (data.type === 'reminder') {

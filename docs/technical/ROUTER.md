@@ -9,20 +9,20 @@
 
 ## 📋 Table des Matières
 
-1. [Vue d'ensemble](#vue-densemble)
-2. [Architecture Router Node](#architecture-router-node)
-3. [RouterOutput Schema](#routeroutput-schema)
-4. [Prompt Router v8](#prompt-router-v8)
-5. [Domain Detection](#domain-detection)
+1. [Vue d'ensemble](#-vue-densemble)
+2. [Architecture Router Node](#-architecture-router-node)
+3. [RouterOutput Schema](#-routeroutput-schema)
+4. [Prompt Router v8](#-prompt-router-v8--consolidated-v1)
+5. [Domain Detection](#-domain-detection)
 6. [Memory-Informed Routing (Phase 7)](#-memory-informed-routing-phase-7)
 7. [Context Resolution Service (Phase 7)](#-context-resolution-service-phase-7)
 8. [Semantic Intent Detection (Phase 7)](#-semantic-intent-detection-phase-7)
-9. [Anti-Hallucination Rules](#anti-hallucination-rules)
-10. [LLM Caching](#llm-caching)
-11. [Message Windowing](#message-windowing)
-12. [Métriques & Observabilité](#métriques--observabilité)
-13. [Testing](#testing)
-14. [Troubleshooting](#troubleshooting)
+9. [Anti-Hallucination Rules](#-anti-hallucination-rules)
+10. [LLM Caching](#-llm-caching)
+11. [Message Windowing](#-message-windowing)
+12. [Métriques & Observabilité](#-métriques--observabilité)
+13. [Testing](#-testing)
+14. [Troubleshooting](#-troubleshooting)
 
 ---
 
@@ -944,7 +944,7 @@ for pattern_type, pattern_list in FORBIDDEN_REASONING_PATTERNS.items():
 **Metric**:
 ```python
 router_data_presumption_total = Counter(
-    'langgraph_router_data_presumption_total',
+    'router_data_presumption_total',
     'Router decisions based on data presumption (Rule #5 violations)',
     ['pattern_detected', 'decision'],
 )
@@ -952,7 +952,7 @@ router_data_presumption_total = Counter(
 
 **Monitoring**: Query Grafana
 ```promql
-rate(langgraph_router_data_presumption_total[5m])
+rate(router_data_presumption_total[5m])
 ```
 
 ---
@@ -1154,7 +1154,7 @@ router_confidence_score = Histogram(
 
 # Router data presumption violations (Rule #5)
 router_data_presumption_total = Counter(
-    'langgraph_router_data_presumption_total',
+    'router_data_presumption_total',
     'Router decisions based on data presumption (Rule #5 violations)',
     ['pattern_detected', 'decision'],
 )
@@ -1172,7 +1172,7 @@ router_fallback_total = Counter(
 ```python
 # Node duration
 agent_node_duration_seconds = Histogram(
-    'langgraph_agent_node_duration_seconds',
+    'langgraph_stage_duration_seconds',
     'Duration of agent node execution',
     ['node_name'],  # router
 )
@@ -1392,7 +1392,7 @@ async def test_router_per_turn_state_cleanup():
 - User query: "recherche contacts critère X"
 - Router reasoning: "Aucun contact avec critère X"
 - Router decision: `next_node="response"` (au lieu de `"planner"`)
-- Metric: `langgraph_router_data_presumption_total` augmente
+- Metric: `router_data_presumption_total` augmente
 
 **Causes**:
 1. **Prompt Router v7 ou antérieur**: Pas de Règle #5 enforcement
@@ -1417,7 +1417,7 @@ async def test_router_per_turn_state_cleanup():
 3. **Monitor violations**:
    ```promql
    # Query Grafana
-   rate(langgraph_router_data_presumption_total[5m]) by (pattern_detected)
+   rate(router_data_presumption_total[5m]) by (pattern_detected)
 
    # Alert if violations > threshold
    ```
@@ -1483,7 +1483,7 @@ async def test_router_per_turn_state_cleanup():
 
 **Symptômes**:
 - Logs: `router_decision` duration > 2000ms
-- Metric: `langgraph_agent_node_duration_seconds{node_name="router"}` P95 > 2s
+- Metric: `langgraph_stage_duration_seconds{node_name="router"}` P95 > 2s
 - Frontend: Délais perçus
 
 **Causes**:
@@ -1503,12 +1503,12 @@ async def test_router_per_turn_state_cleanup():
 2. **Monitor cache hit rate**:
    ```python
    # Add metric (if not exists)
-   llm_cache_hit_total = Counter('llm_cache_hit_total', ['node_name'])
+   llm_cache_hits_total = Counter('llm_cache_hits_total', ['node_name'])
    llm_cache_miss_total = Counter('llm_cache_miss_total', ['node_name'])
 
    # Query Grafana
-   rate(llm_cache_hit_total{node_name="router"}[5m]) /
-   (rate(llm_cache_hit_total{node_name="router"}[5m]) + rate(llm_cache_miss_total{node_name="router"}[5m]))
+   rate(llm_cache_hits_total{node_name="router"}[5m]) /
+   (rate(llm_cache_hits_total{node_name="router"}[5m]) + rate(llm_cache_miss_total{node_name="router"}[5m]))
 
    # Target: > 40% hit rate
    ```

@@ -234,8 +234,9 @@ LANGFUSE_PUBLIC_KEY=pk-lf-xxx
 LANGFUSE_SECRET_KEY=sk-lf-xxx
 LANGFUSE_HOST=https://cloud.langfuse.com
 
-# Optional: Enable prompt versioning
-LANGFUSE_ENABLE_PROMPT_VERSIONING=true
+# LANGFUSE_ENABLE_PROMPT_VERSIONING n'existe pas (verifie 2026-07-20) :
+# le versionnage de prompts via Langfuse n'est pas implemente. Les prompts
+# sont versionnes par fichier sous src/domains/agents/prompts/v1/.
 ```
 
 **Fichier**: `apps/api/src/core/config/`

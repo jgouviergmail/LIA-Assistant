@@ -771,11 +771,11 @@ Solution:
 # Increase flush interval (default: 1s)
 LANGFUSE_FLUSH_INTERVAL=3
 
-# Increase batch size (default: 50)
-LANGFUSE_FLUSH_BATCH_SIZE=100
-
-# Enable async flush (non-blocking)
-LANGFUSE_ASYNC=true
+# Reglages reellement exposes (verifie 2026-07-20) :
+LANGFUSE_FLUSH_INTERVAL=...   # secondes entre deux flush
+LANGFUSE_SAMPLE_RATE=...      # echantillonnage des traces
+LANGFUSE_DEBUG=false
+# LANGFUSE_FLUSH_BATCH_SIZE et LANGFUSE_ASYNC n'existent pas.
 ```
 
 ---

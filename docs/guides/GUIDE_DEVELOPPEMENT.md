@@ -8,16 +8,16 @@
 
 ## 📋 Table des Matières
 
-- [Environnement de Développement](#environnement-de-développement)
-- [Workflow Git](#workflow-git)
-- [Standards de Code](#standards-de-code)
-- [Tests](#tests)
-- [Pre-commit Hooks](#pre-commit-hooks)
-- [CI/CD Pipeline](#cicd-pipeline)
-- [Debugging](#debugging)
-- [Performance Profiling](#performance-profiling)
-- [Documentation](#documentation)
-- [Code Review](#code-review)
+- [Environnement de Développement](#-environnement-de-développement)
+- [Workflow Git](#-workflow-git)
+- [Standards de Code](#-standards-de-code)
+- [Tests](#-tests)
+- [Pre-commit Hooks](#-pre-commit-hooks)
+- [CI/CD Pipeline](#-cicd-pipeline)
+- [Debugging](#-debugging)
+- [Performance Profiling](#-performance-profiling)
+- [Documentation](#-documentation)
+- [Code Review](#-code-review)
 
 ---
 
@@ -202,14 +202,17 @@ LOG_LEVEL=DEBUG
 
 # Database (local Docker)
 DATABASE_URL=postgresql+asyncpg://lia:lia@localhost:5432/lia
-DATABASE_URL_SYNC=postgresql+psycopg2://lia:lia@localhost:5432/lia
+# (DATABASE_URL_SYNC ne se definit PAS : c'est une propriete calculee de
+#  Settings, derivee de DATABASE_URL, utilisee par alembic/env.py)
 
 # Redis (local Docker)
 REDIS_URL=redis://localhost:6379/0
 
 # LLM (vos clés de dev)
+# Les clés des providers de chat (Anthropic, DeepSeek, Qwen) se saisissent dans
+# l'admin LLM, pas ici : la table chiffrée `provider_api_keys` est la source de
+# vérité depuis la migration `migrate_env_keys_to_db`.
 OPENAI_API_KEY=sk-proj-...
-ANTHROPIC_API_KEY=sk-ant-...
 
 # OAuth (credentials de dev)
 GOOGLE_CLIENT_ID=...apps.googleusercontent.com
@@ -232,7 +235,8 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 **Frontend .env.local** :
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_DEFAULT_LOCALE=fr
+# (pas de NEXT_PUBLIC_DEFAULT_LOCALE : la langue par defaut vient du routage
+#  [lng] et des locales sous apps/web/locales/, pas d'une variable)
 ```
 
 ---
@@ -425,6 +429,46 @@ Si le silence masque un vrai signal, ce n'est ni `pass` ni `suppress` : c'est un
 `logger.debug(...)` avec contexte. Exemples canoniques :
 `infrastructure/database/session.py` (métriques), `agents/api/sse_keepalive.py`
 (teardown multi-handler).
+
+#### Variables locales potentiellement non liées
+
+**Une variable se déclare au niveau où elle est LUE**, pas dans la branche qui la
+calcule. Deux `UnboundLocalError` de cette classe ont été trouvés dans `src/` :
+
+```python
+# ❌ Déclarée dans une branche, lue plus haut : une réponse vide saute le `elif`
+#    (il n'y a pas de `else`) et la lecture lève UnboundLocalError
+if hitl_interrupt:
+    ...
+elif response_content.strip():
+    card_url: str | None = None      # ← trop profond
+    ...
+if not hitl_interrupt:
+    if card_url:                     # ← UnboundLocalError
+
+# ✅ Déclarée au niveau de lecture, à côté de ses pairs
+card_url: str | None = None
+```
+
+Le cas le plus vicieux est le **handler qui lit une variable assignée par son propre
+`try`** : si l'affectation est la première instruction du bloc, l'exception survient
+avant, et `except (ValueError, RuntimeError)` **n'attrape pas `NameError`** — le chemin
+de secours plante la requête qu'il devait sauver. C'est ce qui s'était produit dans le
+fallback HITL de `streaming/service.py`.
+
+**Outillage.** MyPy et Ruff ne voient pas cette classe (vérifié en retirant un correctif :
+les deux restent muets). Deux détecteurs fonctionnent :
+
+- **CodeQL** (`py/uninitialized-local-variable`) — en CI, mais il a manqué le cas HITL ;
+- **pyright** (`reportPossiblyUnboundVariable`) — non intégré à la CI, à lancer
+  ponctuellement : `npx pyright@latest src/`.
+
+Le scan produit surtout des faux positifs, à trier à la main : imports locaux dans un
+`try/except ImportError` gardés par un flag, boucles `for … in range(N)` non vides,
+corrélations de gardes (`if cond:` deux fois de suite), affectation en première
+instruction d'un `try` dont le handler ne peut être atteint qu'après elle. **Avant de
+corriger un signalement, vérifier qu'il est atteignable** — un `walrus` dans une
+expression conditionnelle est signalé alors que Python évalue bien la condition d'abord.
 
 #### Taille des fichiers (doctrine ratchet)
 
@@ -1014,7 +1058,8 @@ jobs:
       - name: Install dependencies
         run: |
           cd apps/api
-          pip install -e ".[dev]"
+          # ADR-112 : lockfile compile, hashes verifies
+          pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
 
       - name: Run Ruff
         run: |
@@ -1069,7 +1114,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd apps/api
-          pip install -e ".[dev]"
+          pip install --require-hashes -r requirements-dev.lock.txt   # ADR-112 : lockfile, pas pyproject
 
       - name: Run tests with coverage
         env:
@@ -1126,12 +1171,6 @@ jobs:
           pip install pip-audit
           pip-audit -r requirements.lock.txt   # lockfile compilé : transitifs inclus (ADR-112)
 
-      - name: Run Bandit
-        run: |
-          cd apps/api
-          pip install bandit
-          bandit -r src
-
       - name: Run Trivy
         uses: aquasecurity/trivy-action@master
         with:
@@ -1174,7 +1213,7 @@ jobs:
 - [ ] Coverage >= 30%
 - [ ] Linting (Ruff/Black) passe
 - [ ] Type checking (MyPy) passe
-- [ ] Security scan (Bandit/Trivy) passe
+- [ ] Security scan (CodeQL / Trivy / pip-audit) passe
 - [ ] Pas de secrets détectés
 - [ ] Build Docker réussit
 

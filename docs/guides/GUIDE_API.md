@@ -316,7 +316,7 @@ Cookie: session_id=xxx
 **Request:**
 
 ```http
-POST /api/v1/auth/password-reset/request
+POST /api/v1/auth/request-password-reset
 Content-Type: application/json
 
 {
@@ -345,7 +345,7 @@ Content-Type: application/json
 **Request:**
 
 ```http
-POST /api/v1/auth/password-reset/confirm
+POST /api/v1/auth/reset-password
 Content-Type: application/json
 
 {
@@ -501,7 +501,7 @@ eventSource.addEventListener('error', (e) => {
 **Request:**
 
 ```http
-GET /api/v1/agents/chat/history?page=1&page_size=20
+GET /api/v1/conversations/me/messages?page=1&page_size=20
 Cookie: session_id=xxx
 ```
 
@@ -606,7 +606,7 @@ GET /api/v1/connectors/types
 **Request:**
 
 ```http
-POST /api/v1/connectors/oauth/google-contacts/initiate
+GET /api/v1/connectors/google-contacts/authorize
 Cookie: session_id=xxx
 Content-Type: application/json
 
@@ -630,7 +630,7 @@ Content-Type: application/json
 
 ```javascript
 // 1. Initiate OAuth
-const response = await fetch('/api/v1/connectors/oauth/google-contacts/initiate', {
+const response = await fetch('/api/v1/connectors/google-contacts/authorize', {
   method: 'POST',
   credentials: 'include',
   headers: {'Content-Type': 'application/json'},
@@ -641,7 +641,7 @@ const {authorization_url} = await response.json();
 // 2. Redirect to Google OAuth
 window.location.href = authorization_url;
 
-// 3. Google redirects back to: /api/v1/connectors/oauth/google-contacts/callback?code=...&state=...
+// 3. Google redirects back to: /api/v1/connectors/google-contacts/callback?code=...&state=...
 // Backend handles callback and creates connector
 
 // 4. Frontend receives redirect to success page
@@ -656,7 +656,7 @@ window.location.href = authorization_url;
 **Request:**
 
 ```http
-GET /api/v1/connectors/oauth/google-contacts/callback?code=xxx&state=yyy
+GET /api/v1/connectors/google-contacts/callback?code=xxx&state=yyy
 Cookie: session_id=xxx
 ```
 
@@ -813,13 +813,15 @@ Cookie: session_id=xxx
 **Request:**
 
 ```http
-POST /api/v1/conversations
-Cookie: session_id=xxx
-Content-Type: application/json
-
-{
-  "title": "Ma conversation avec l'assistant"
-}
+# ATTENTION (verifie 2026-07-20) : il n'existe PAS d'endpoint de creation de
+# conversation. Une conversation est creee IMPLICITEMENT au premier message
+# (ConversationService.get_or_create_conversation), appele depuis
+# POST /api/v1/agents/chat/stream. Les endpoints exposes sont :
+#   GET    /api/v1/conversations/me           # conversation courante
+#   GET    /api/v1/conversations/me/messages  # historique pagine
+#   POST   /api/v1/conversations/me/reset     # repartir a zero
+#   GET    /api/v1/conversations/me/stats
+#   GET    /api/v1/conversations/me/totals
 ```
 
 **Response:** `201 Created`
@@ -847,7 +849,7 @@ Content-Type: application/json
 **Request:**
 
 ```http
-POST /api/v1/conversations/reset
+POST /api/v1/conversations/me/reset
 Cookie: session_id=xxx
 ```
 
@@ -875,7 +877,7 @@ Cookie: session_id=xxx
 **Request:**
 
 ```http
-GET /api/v1/conversations/history?limit=50&offset=0
+GET /api/v1/conversations/me/messages?limit=50&offset=0
 Cookie: session_id=xxx
 ```
 
@@ -921,7 +923,7 @@ Cookie: session_id=xxx
 **Request:**
 
 ```http
-GET /api/v1/users/me
+GET /api/v1/auth/me
 Cookie: session_id=xxx
 ```
 
@@ -948,7 +950,7 @@ Cookie: session_id=xxx
 **Request:**
 
 ```http
-PATCH /api/v1/users/me
+PATCH /api/v1/users/{user_id}
 Cookie: session_id=xxx
 Content-Type: application/json
 
@@ -981,7 +983,7 @@ Content-Type: application/json
 **Request:**
 
 ```http
-GET /api/v1/users/me/statistics
+GET /api/v1/conversations/me/stats
 Cookie: session_id=xxx
 ```
 
@@ -1021,7 +1023,7 @@ Cookie: session_id=xxx
 **Request:**
 
 ```http
-GET /api/v1/admin/connectors/global-config
+GET /api/v1/connectors/admin/global-config
 Cookie: session_id=xxx  # Superuser session required
 ```
 
@@ -1053,7 +1055,7 @@ Cookie: session_id=xxx  # Superuser session required
 **Request:**
 
 ```http
-PATCH /api/v1/admin/connectors/global-config/gmail
+PATCH /api/v1/connectors/admin/global-config/gmail
 Cookie: session_id=xxx
 Content-Type: application/json
 
@@ -2046,7 +2048,8 @@ curl -X PATCH http://localhost:8000/api/v1/heartbeat/notifications/550e8400-e29b
 
 ## Scheduled Actions (Actions Planifiees)
 
-> Prefix : `/scheduled-actions`. Feature flag : `SCHEDULED_ACTIONS_ENABLED=true`
+> Prefix : `/scheduled-actions`. **Pas de feature flag** : le router est inclus
+> inconditionnellement (`SCHEDULED_ACTIONS_ENABLED` n'existe pas dans les settings).
 
 ### GET /scheduled-actions
 
@@ -2553,7 +2556,7 @@ data: {}
 ### Get User Stats
 
 ```bash
-curl http://localhost:8000/api/v1/users/me/statistics \
+curl http://localhost:8000/api/v1/conversations/me/stats \
   -b cookies.txt
 ```
 

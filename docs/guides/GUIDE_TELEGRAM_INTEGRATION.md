@@ -140,7 +140,7 @@ class ChannelInboundMessage:
     channel_user_id: str          # Telegram chat_id
     text: str | None = None
     voice_file_id: str | None = None
-    voice_duration_seconds: int | None = None
+    voice_tts_latency_seconds: int | None = None
     callback_data: str | None = None    # HITL button press
     message_id: str | None = None
     raw_data: dict[str, Any] = field(default_factory=dict)
@@ -562,9 +562,9 @@ Telegram voice message (OGG/Opus)
 
 ```python
 # apps/api/src/infrastructure/channels/telegram/voice.py
-async def transcribe_voice_message(bot, voice_file_id, voice_duration_seconds=None) -> str | None:
+async def transcribe_voice_message(bot, voice_file_id, voice_tts_latency_seconds=None) -> str | None:
     # 1. Rejet messages trop longs (> 120 secondes)
-    if voice_duration_seconds and voice_duration_seconds > _MAX_VOICE_DURATION_SECONDS:
+    if voice_tts_latency_seconds and voice_tts_latency_seconds > _MAX_VOICE_DURATION_SECONDS:
         return None
 
     # 2. Download OGG bytes (avec validation taille)

@@ -10,18 +10,18 @@
 
 ## 📋 Table des Matières
 
-1. [Vue d'ensemble](#vue-densemble)
-2. [Architecture Response Node](#architecture-response-node)
+1. [Vue d'ensemble](#-vue-densemble)
+2. [Architecture Response Node](#-architecture-response-node)
 3. [Prompt Response (v3 → v1)](#-prompt-response-v3--consolidated-v1)
-4. [Format Agent Results](#format-agent-results)
-5. [Post-Processing](#post-processing)
-6. [Voice/TTS Integration](#voicetts-integration) - NEW
-7. [Message Windowing](#message-windowing)
-8. [Anti-Hallucination](#anti-hallucination)
-9. [Multilingual Support](#multilingual-support)
-10. [Métriques & Observabilité](#métriques--observabilité)
-11. [Testing](#testing)
-12. [Troubleshooting](#troubleshooting)
+4. [Format Agent Results](#-format-agent-results)
+5. [Post-Processing](#-post-processing)
+6. [Voice/TTS Integration](#-voicetts-integration) - NEW
+7. [Message Windowing](#-message-windowing)
+8. [Anti-Hallucination](#-anti-hallucination)
+9. [Multilingual Support](#-multilingual-support)
+10. [Métriques & Observabilité](#-métriques--observabilité)
+11. [Testing](#-testing)
+12. [Troubleshooting](#-troubleshooting)
 
 ---
 
@@ -888,7 +888,7 @@ class VoiceSettings:
 
 ### Métriques Voice
 
-Référence complète dans [OBSERVABILITY_AGENTS.md](OBSERVABILITY_AGENTS.md#voicetts-metrics-13-métriques---new-phase-2025-12-24).
+Référence complète dans [OBSERVABILITY_AGENTS.md](OBSERVABILITY_AGENTS.md#9-voicetts-metrics-13-métriques---new-phase-2025-12-24).
 
 **KPIs critiques** :
 - `voice_time_to_first_audio_seconds` : P95 < 2s (TTFA - UX critique)
@@ -1321,7 +1321,7 @@ Week: Productivity | Weekend: Casual tone
 ```python
 # Node duration
 agent_node_duration_seconds = Histogram(
-    'langgraph_agent_node_duration_seconds',
+    'langgraph_stage_duration_seconds',
     'Duration of agent node execution',
     ['node_name'],  # response
 )

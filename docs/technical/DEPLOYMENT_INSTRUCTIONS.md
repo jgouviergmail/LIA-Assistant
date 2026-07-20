@@ -31,7 +31,7 @@ grep -c "record: business:" recording_rules.yml
 ```bash
 # Validate all 3 dashboards
 cd infrastructure/observability/grafana/dashboards
-for f in 01-app-performance.json 07-agents-pipeline.json 05-llm-tokens-cost.json; do
+for f in 01-app-overview.json 07-agents-pipeline.json 05-llm-tokens-cost.json; do
   python -c "import json; json.load(open('$f', encoding='utf-8')); print('✅ VALID: $f')"
 done
 ```
@@ -42,7 +42,7 @@ done
 - UTF-8 encoding: **CORRECTED** (dashboard 04)
 
 > **Note**: Le dashboard 07 (HITL Tool Approval) n'existe pas dans la structure actuelle.
-> Les dashboards HITL sont intégrés dans le dashboard 03-business-metrics.json.
+> Les dashboards HITL vivent dans `08-hitl.json` (il n'existe pas de `03-business-metrics.json` ; le 03 est `03-infra-resources.json`).
 
 ---
 

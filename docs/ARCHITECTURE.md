@@ -5,18 +5,18 @@
 
 ## 📋 Table des Matières
 
-- [Vue d'Ensemble](#vue-densemble)
-- [Principes Architecturaux](#principes-architecturaux)
-- [Architecture Globale](#architecture-globale)
-- [Architecture Backend](#architecture-backend)
-- [Architecture Frontend](#architecture-frontend)
-- [Architecture Multi-Agents](#architecture-multi-agents)
-- [INTELLIPLANNER](#intelliplanner---orchestration-avancée)
-- [Gestion de l'État](#gestion-de-létat)
-- [Sécurité & Authentification](#sécurité--authentification)
-- [Observabilité](#observabilité)
-- [Patterns & Best Practices](#patterns--best-practices)
-- [Scalabilité & Performance](#scalabilité--performance)
+- [Vue d'Ensemble](#-vue-densemble)
+- [Principes Architecturaux](#-principes-architecturaux)
+- [Architecture Globale](#-architecture-globale)
+- [Architecture Backend](#-architecture-backend)
+- [Architecture Frontend](#-architecture-frontend)
+- [Architecture Multi-Agents](#-architecture-multi-agents)
+- [INTELLIPLANNER](#-intelliplanner---orchestration-avancée)
+- [Gestion de l'État](#-gestion-de-létat)
+- [Sécurité & Authentification](#-sécurité--authentification)
+- [Observabilité](#-observabilité)
+- [Patterns & Best Practices](#-patterns--best-practices)
+- [Scalabilité & Performance](#-scalabilité--performance)
 - [Infrastructure Avancée](#-infrastructure-avancée)
   - [Background Jobs & Scheduler](#background-jobs--scheduler-apscheduler)
   - [Reminder Notifications](#reminder-notification-job-adr-051)
@@ -36,11 +36,11 @@
   - [Multi-Channel Telegram](#multi-channel-telegram-evolution-f3)
   - [Heartbeat Autonome](#heartbeat-autonome-evolution-f5)
 - [Fonctionnalités v6.3](#-fonctionnalités-v63)
-  - [Sub-Agents](#sub-agents--persistent-specialized-agents-f6)
+  - [Sub-Agents](#sub-agents--délégation-éphémère-f6--adr-083)
   - [Browser Control](#browser-control--web-automation-f7)
-  - [Personal Journals](#personal-journals--carnets-de-bord-f8)
+  - [Personal Journals](#personal-journals--carnets-de-bord-stratifiés-f8)
 - [Fonctionnalités v6.4 → v7.0](#-fonctionnalités-v64--v70-2026-05--2026-07)
-- [Références](#références)
+- [Références](#-références)
 
 ---
 
@@ -214,7 +214,7 @@ sequenceDiagram
     participant P as Prometheus
 
     U->>F: User message
-    F->>B: POST /api/v1/chat (SSE)
+    F->>B: POST /api/v1/agents/chat/stream (SSE)
     B->>R: Validate session
     R-->>B: Session valid
     B->>DB: Load checkpoint
@@ -1909,7 +1909,7 @@ Frontend                    Backend                 Redis
    │   SameSite=Lax            │                       │
    │<──────────────────────────┤                       │
    │                           │                       │
-   │ GET /api/v1/chat          │                       │
+   │ POST /api/v1/agents/chat/stream │                       │
    │ Cookie: session_id=abc    │                       │
    ├──────────────────────────>│                       │
    │                           │ Validate session      │
@@ -3348,9 +3348,9 @@ VOICE_LLM_PROVIDER=openai
 VOICE_LLM_MODEL=gpt-4.1-nano
 VOICE_CHAT_MODE_MAX_SENTENCES=3   # 1..50 cap on sentence streaming
 
-# Wake Word (browser-side WASM model)
-VOICE_WAKE_WORD_ENABLED=true
-VOICE_VAD_THRESHOLD=0.5
+# Wake Word : pas de variable d'environnement (VOICE_WAKE_WORD_ENABLED et
+# VOICE_VAD_THRESHOLD n'existent pas). Le modele WASM est pilote cote client.
+# Variables voix reellement exposees : grep '^VOICE_' .env.example
 ```
 
 > Voir [VOICE.md](./technical/VOICE.md) (TTS) et [VOICE_MODE.md](./technical/VOICE_MODE.md) (STT/wake word). ADRs : [ADR-080](./architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md), [ADR-081](./architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](./architecture/ADR-082-Progressive-Sentence-Streaming.md).
@@ -3484,13 +3484,16 @@ apps/api/src/infrastructure/scheduler/
 ```bash
 OAUTH_HEALTH_CHECK_ENABLED=true
 OAUTH_HEALTH_CHECK_INTERVAL_MINUTES=5
-FCM_NOTIFICATIONS_ENABLED=true
+FCM_ENABLED=true                    # nom reel (pas FCM_NOTIFICATIONS_ENABLED)
 ```
 
 **Métriques Prometheus** :
 
 ```prometheus
-# Health check results
+# ATTENTION (verifie 2026-07-20) : oauth_health_check_total et
+# oauth_health_check_duration_seconds N'EXISTENT PAS. Metriques OAuth reelles :
+# oauth_callback_total, oauth_callback_errors_total, oauth_callback_duration_seconds,
+# oauth_connector_activation_total, oauth_connector_activation_duration_seconds.
 oauth_health_check_total{connector_type="GOOGLE_GMAIL", status="healthy|error"}
 
 # Check duration

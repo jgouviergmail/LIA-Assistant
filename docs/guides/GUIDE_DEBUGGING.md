@@ -1243,7 +1243,7 @@ histogram_quantile(0.95,
 
 # LLM token usage par model
 sum by (model) (
-  increase(llm_tokens_total{type="prompt"}[1h])
+  increase(llm_tokens_consumed_total{type="prompt"}[1h])
 )
 
 # Cache hit rate

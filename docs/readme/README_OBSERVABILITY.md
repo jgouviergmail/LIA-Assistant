@@ -20,7 +20,7 @@
 3. [Quick Start](#-quick-start)
 4. [Components](#-components)
 5. [Metrics Instrumentation](#-metrics-instrumentation)
-6. [Dashboards](#-dashboards)
+6. [Dashboards](#dashboards)
 7. [Alerting](#-alerting)
 8. [Recording Rules](#-recording-rules)
 9. [Data Retention](#-data-retention)
@@ -60,8 +60,8 @@ Observability is the ability to measure the internal states of a system by exami
 |----------|---------------|-------------|------------|
 | **LLM Agents** | 35+ | `sse_time_to_first_token`, `router_latency`, `graph_exceptions` | 04 - Agents LangGraph |
 | **LLM Tokens/Cost** | 20+ | `llm_tokens_consumed_total`, `llm_cost_total`, `llm_api_calls_total` | 05 - LLM Tokens & Cost |
-| **HITL Tool Approval** | 18+ | `hitl_classification_method_total`, `hitl_edit_actions_total` | 07 - HITL Tool Approval |
-| **Conversations** | 15+ | `conversation_active_users_total`, `checkpoint_save_duration_seconds` | 06 - Conversations |
+| **HITL Tool Approval** | 18+ | `hitl_classification_method_total`, `hitl_for_each_decisions_total` (`hitl_edit_actions_total` a ete supprimee) | 07 - HITL Tool Approval |
+| **Conversations** | 15+ | `conversation_created_total`, `checkpoint_save_duration_seconds` (`conversation_active_users_total` n'existe pas) | 06 - Conversations |
 | **OAuth 2.1 Security** | 12+ | `oauth_callback_total`, `oauth_pkce_validation_total` | 08 - OAuth Security |
 | **HTTP/API** | 10+ | `http_requests_total`, `http_request_duration_seconds` | 01 - Application Performance |
 | **Infrastructure** | 25+ | `node_cpu_seconds_total`, `node_memory_MemAvailable_bytes` | 02 - Infrastructure Resources |
@@ -1814,7 +1814,7 @@ Examples:
 
 #### Prometheus
 
-Edit `docker-compose.yml`:
+Edit `docker-compose.prod.yml`:
 
 ```yaml
 services:
@@ -2149,7 +2149,7 @@ docker logs api | head -20
 
 **Fixes**:
 1. ✅ Ensure API uses structured logging (JSON format)
-2. ✅ Configure Loki logging driver in `docker-compose.yml`:
+2. ✅ Configure Loki logging driver in `docker-compose.prod.yml`:
    ```yaml
    services:
      api:
@@ -2186,7 +2186,7 @@ server.quit()
 EOF
 
 # 4. Check AlertManager logs
-docker logs lia-alertmanager | grep -i smtp
+docker logs lia-alertmanager-dev | grep -i smtp   # prod : lia-alertmanager-prod
 ```
 
 **Fixes**:

@@ -443,10 +443,13 @@ class Settings(BaseSettings):
 # apps/api/.env
 
 # Message windowing configuration
+# Variables reellement exposees (verifie 2026-07-20 contre .env.example) :
 DEFAULT_MESSAGE_WINDOW_SIZE=5
-ROUTER_MESSAGE_WINDOW_SIZE=5
-PLANNER_MESSAGE_WINDOW_SIZE=10
 RESPONSE_MESSAGE_WINDOW_SIZE=20
+CONTEXT_ACTIVE_WINDOW_TURNS=...
+REACT_AGENT_HISTORY_WINDOW_TURNS=...
+# ROUTER_MESSAGE_WINDOW_SIZE et PLANNER_MESSAGE_WINDOW_SIZE N'EXISTENT PAS :
+# router et planner heritent de DEFAULT_MESSAGE_WINDOW_SIZE.
 ```
 
 ---
@@ -625,8 +628,8 @@ search_context = await store.aget(("last_search_results", user_id))
 **Solution** :
 
 ```bash
-# Ajuster dans .env
-ROUTER_MESSAGE_WINDOW_SIZE=3  # Au lieu de 5
+# Ajuster dans .env (le router n'a pas de variable dediee)
+DEFAULT_MESSAGE_WINDOW_SIZE=3  # Au lieu de 5
 PLANNER_MESSAGE_WINDOW_SIZE=7  # Au lieu de 10
 RESPONSE_MESSAGE_WINDOW_SIZE=15  # Au lieu de 20
 ```

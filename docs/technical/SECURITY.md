@@ -2691,18 +2691,16 @@ async with redis_lock(lock_key, timeout=CHANNEL_MESSAGE_LOCK_TIMEOUT):
 ### Outils de sécurité
 
 ```bash
-# Scan de vulnérabilités (Dependabot + Safety)
-pip install safety
-safety check --file requirements.lock.txt
-
-# Scan de secrets (git-secrets)
-git secrets --scan
-
 # Audit de dépendances Python — sur le lockfile compilé, transitifs inclus (ADR-112)
 task security:scan:backend          # équivalent : pip-audit -r requirements.lock.txt
 
-# SAST (Static Application Security Testing)
-bandit -r apps/api/src/
+# Audit de dépendances Node (bloquant en CI depuis 2026-07)
+cd apps/web && pnpm audit --audit-level=high
+
+# SAST : assuré par CodeQL (security-and-quality + security-extended) sur chaque
+# push et PR — voir .github/workflows/security.yml. `bandit` et `safety` ont été
+# RETIRÉS des dépendances (2026-07-20) : jamais câblés, et redondants avec
+# CodeQL (taint tracking inter-procédural) et pip-audit respectivement.
 ```
 
 ---
@@ -2779,9 +2777,18 @@ Transitive dependency vulnerabilities are managed through a layered approach:
 
 1. **Universal Python lockfiles** (ADR-112) — every environment (prod image, dev container, CI, local venv) installs `requirements.lock.txt` / `requirements-dev.lock.txt`, compiled with SHA256 hashes for every published file: the packages actually shipped are exact, reproducible, and integrity-verified at install time (`pip --require-hashes`).
 2. **Dependabot** — Weekly PRs for direct dependency updates (pip, npm, Docker, GitHub Actions).
-3. **pnpm overrides** — Force safe versions of transitive dependencies when direct parents haven't updated yet. Overrides are defined in the root `package.json` and pinned to exact versions. See `docs/technical/CI_CD.md` for the full override table and process.
-4. **pip-audit + pnpm audit** — Automated scans in the `security.yml` CI workflow; `pip-audit` reads the Python lockfile, so transitive pins are audited too. Targeted fixes land via `task deps:upgrade -- <pkg>` (plus a manifest pin bump when the package is a direct dependency).
-5. **CodeQL** — Static analysis for Python and JavaScript (security-and-quality queries).
+3. **pnpm overrides** — Force safe versions of transitive dependencies when direct parents haven't updated yet. Overrides are defined in the root `package.json`. See `docs/technical/CI_CD.md` for the full override table and process. Two rules learned the hard way: an **exact** pin becomes a liability once upstream patches again (our own `brace-expansion: 2.0.2` was pinning a version vulnerable to a later advisory fixed in 2.0.3), and an override key must be **scoped to the affected major** when other majors are in use (`minimatch@9` leaves ESLint's `3.1.5` alone).
+4. **pip-audit + pnpm audit** — Automated scans in the `security.yml` CI workflow; `pip-audit` reads the Python lockfile, so transitive pins are audited too. **Both steps are blocking.** `pnpm audit` ran with `continue-on-error: true` for a long time, which is how a CRITICAL advisory (`websocket-driver`, GHSA-xv26-6w52-cph6) survived on `main` under a green pipeline — the step reported it and the job passed anyway. Targeted fixes land via `task deps:upgrade -- <pkg>` (plus a manifest pin bump when the package is a direct dependency).
+5. **CodeQL** — Static analysis for Python and JavaScript (`security-and-quality` + `security-extended`).
+
+### Reading an advisory's real severity
+
+The dashboard severity is a starting point, not a verdict. Two checks change the picture:
+
+- **Runtime vs dev.** `pnpm why --prod <pkg>` **run from `apps/web/`** (from the repo root it returns nothing — the root has no dependencies, and an empty result there means nothing). A `high` ReDoS reachable only through ESLint config globs is not a production risk.
+- **Reachability.** A production dependency is not automatically reachable: `websocket-driver` arrives via `firebase → @firebase/database → faye-websocket`, but the codebase imports only `firebase/app` and `firebase/messaging`, so it is never loaded. Still patched — it ships in the image — but the urgency differs.
+
+Conversely, the dashboard **under-reports**: two moderate advisories (`brace-expansion`, `js-yaml`) never appeared as Dependabot alerts and were found only by running `pnpm audit` directly.
 
 ### CodeQL Alert Remediation
 
@@ -2792,6 +2799,11 @@ CodeQL alerts are triaged in GitHub Security > Code scanning. Common patterns:
 | `py/empty-except` | Replace `pass` with `logger.debug("event_name", error=str(e))` using structlog |
 | `py/incomplete-url-substring-sanitization` | Replace `"domain" in url` with `urlparse()` domain validation |
 | `py/path-injection` | Validate resolved path stays within base directory: `Path.resolve()` + `is_relative_to(base_dir)` |
+| `py/uninitialized-local-variable` | Declare the variable **at the level it is read from**, not inside the branch that computes it. Beware the handler that reads a variable assigned by its own `try` — `except (ValueError, RuntimeError)` does **not** catch `NameError`, so the rescue path crashes the request it was meant to save |
+| `js/bad-tag-filter`, `js/incomplete-multi-character-sanitization` | Judge by destination. Output rendered as escaped React children is not an XSS — but a regex requiring a closing tag still **leaks the element body as prose** on any surface that truncates. Fix the truncation case; do not dismiss on "not exploitable" alone |
+| `js/superfluous-trailing-arguments` on a browser API | CodeQL resolved the global to a **test stub** with no constructor. The production call is correct; the stub is the defect — give it real constructor parameters rather than dismissing |
+
+**Do not treat the alert list as the perimeter.** Auditing the `py/uninitialized-local-variable` class with **pyright** (`reportPossiblyUnboundVariable`) surfaced a second, unreported instance in the HITL fallback path. MyPy and pylint are both blind to it — verified by removing the fix and confirming each tool stayed silent. Before trusting any scanner's silence, check it detects the defect you already know about.
 
 ### URL Validation
 

@@ -188,6 +188,9 @@ API_URL=https://api.yourdomain.com
 
 # Generate with: openssl rand -base64 32
 SECRET_KEY=<GENERATE_SECURE_KEY>
+# HMAC only (HS256 / HS384 / HS512) — enforced by a Literal in SecuritySettings.
+# An EC/RSA value would route python-jose through its ecdsa backend, whose
+# CVE-2024-23342 is exempted in CI on the strength of this constraint.
 ALGORITHM=HS256
 
 # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
@@ -221,16 +224,16 @@ REDIS_URL=redis://redis-host:6379/0
 # ============================================================================
 # LLM PROVIDERS
 # ============================================================================
-
-# OpenAI
+#
+# ATTENTION — les cles des providers LLM ne se configurent PLUS ici.
+# Depuis la migration `2026_03_08_0002-migrate_env_keys_to_db.py`, la table
+# `provider_api_keys` (chiffree) est la SEULE source de verite : les cles se
+# saisissent depuis l'interface d'administration LLM. `ANTHROPIC_API_KEY` et
+# `DEEPSEEK_API_KEY` ne sont plus lus depuis l'environnement et sont absents de
+# `.env.example` — les definir ici n'a aucun effet.
+#
+# OPENAI_API_KEY reste present dans `.env.example` (usages hors chat, embeddings).
 OPENAI_API_KEY=<YOUR_OPENAI_API_KEY>
-OPENAI_ORG_ID=<YOUR_OPENAI_ORG_ID>  # Optional
-
-# Anthropic
-ANTHROPIC_API_KEY=<YOUR_ANTHROPIC_API_KEY>
-
-# DeepSeek
-DEEPSEEK_API_KEY=<YOUR_DEEPSEEK_API_KEY>
 
 # ============================================================================
 # OAUTH CONFIGURATION
@@ -248,8 +251,8 @@ GOOGLE_REDIRECT_URI=https://api.yourdomain.com/api/v1/auth/google/callback
 # OpenTelemetry
 OTEL_SERVICE_NAME=lia-api
 OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
-OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 OTEL_SDK_DISABLED=false  # Set to true to disable tracing
+# (pas de OTEL_EXPORTER_OTLP_PROTOCOL : non lu, le protocole suit l'endpoint)
 
 # Langfuse
 LANGFUSE_PUBLIC_KEY=<YOUR_LANGFUSE_PUBLIC_KEY>
@@ -266,15 +269,16 @@ LLM_CACHE_ENABLED=true
 LLM_CACHE_TTL_SECONDS=300  # 5 minutes
 
 # HITL
-HITL_ENABLED=true
-TOOL_APPROVAL_ENABLED=true
+# (pas de HITL_ENABLED ni de TOOL_APPROVAL_ENABLED : ces variables n'existent
+#  pas. Le HITL au niveau outil est TOUJOURS actif — cf. la note du routeur
+#  "Tool approval is always enabled". Voir MCP_HITL_REQUIRED pour le cas MCP.)
 
 # MCP (Model Context Protocol)
 MCP_ENABLED=false                    # Active les serveurs MCP admin
 MCP_USER_ENABLED=false               # Active le MCP per-user (requiert MCP_ENABLED=true)
 MCP_MAX_TOOLS_PER_SERVER=50          # Limite tools par serveur
-MCP_CONNECTION_TIMEOUT=30            # Timeout connexion (secondes)
-MCP_APPS_MAX_HTML_SIZE=500000        # Taille max HTML pour MCP Apps (bytes)
+MCP_TOOL_TIMEOUT_SECONDS=30          # Timeout d'appel outil (PAS "MCP_CONNECTION_TIMEOUT")
+MCP_APP_MAX_HTML_SIZE=500000         # Taille max HTML MCP Apps (APP au singulier)
 
 # Multi-Channel Messaging (Telegram)
 CHANNELS_ENABLED=false               # Active les canaux de messagerie externes
@@ -282,17 +286,26 @@ TELEGRAM_BOT_TOKEN=                  # Token du bot Telegram (@BotFather)
 TELEGRAM_WEBHOOK_SECRET=             # Secret pour valider les webhooks Telegram
 
 # Heartbeat Autonome (Notifications Proactives)
-HEARTBEAT_ENABLED=false              # Active les notifications proactives LLM-driven
-HEARTBEAT_INTERVAL_MINUTES=60        # Intervalle entre executions
-HEARTBEAT_MAX_PER_DAY=3              # Max notifications par utilisateur par jour
-HEARTBEAT_NOTIFY_START_HOUR=8        # Debut plage horaire notifications
-HEARTBEAT_NOTIFY_END_HOUR=22         # Fin plage horaire notifications
+# Noms verifies contre .env.example le 2026-07-20. Les anciens noms documentes
+# ici (HEARTBEAT_INTERVAL_MINUTES, HEARTBEAT_MAX_PER_DAY, HEARTBEAT_NOTIFY_
+# START_HOUR/END_HOUR) n'existent pas — la cadence se regle par intervalle +
+# cooldowns, pas par un quota journalier ni une plage horaire.
+HEARTBEAT_ENABLED=false                      # Active les notifications proactives LLM-driven
+HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES=60   # Intervalle entre executions
+HEARTBEAT_NOTIFICATION_BATCH_SIZE=...        # Utilisateurs traites par execution
+HEARTBEAT_GLOBAL_COOLDOWN_HOURS=...          # Delai minimum entre 2 notifications
+HEARTBEAT_ACTIVITY_COOLDOWN_MINUTES=...      # Silence apres une activite utilisateur
+HEARTBEAT_INACTIVE_SKIP_DAYS=...             # Ignore les utilisateurs inactifs
+# Liste complete (contexte, meteo, enrichissement) : grep '^HEARTBEAT_' .env.example
 
 # Actions Planifiees
-SCHEDULED_ACTIONS_ENABLED=false      # Active les actions planifiees recurrentes
+# (pas de SCHEDULED_ACTIONS_ENABLED : la variable n'existe pas, les actions
+#  planifiees sont toujours actives ; seuls les timeouts sont parametrables)
 
 # Push Notifications (Firebase)
-FCM_NOTIFICATIONS_ENABLED=false      # Active les push notifications Firebase
+FCM_ENABLED=false                    # Active les push Firebase (PAS "FCM_NOTIFICATIONS_ENABLED")
+FCM_DEFAULT_TTL=...                  # TTL des messages
+FCM_TOKEN_CLEANUP_DAYS=...           # Purge des tokens inactifs
 ```
 
 ### Configuration Frontend (.env.local)
@@ -306,11 +319,9 @@ NEXT_PUBLIC_API_URL=https://api.yourdomain.com
 # Application URL
 NEXT_PUBLIC_APP_URL=https://app.yourdomain.com
 
-# Environment
-NEXT_PUBLIC_ENVIRONMENT=production
-
-# Feature Flags
-NEXT_PUBLIC_ANALYTICS_ENABLED=true
+# (pas de NEXT_PUBLIC_ENVIRONMENT ni de NEXT_PUBLIC_ANALYTICS_ENABLED :
+#  ces variables ne sont lues nulle part. Variables reellement exposees au
+#  frontend : grep '^NEXT_PUBLIC_' .env.example)
 
 # Disable Next.js telemetry
 NEXT_TELEMETRY_DISABLED=1
@@ -1017,7 +1028,9 @@ jobs:
       - name: Install dependencies
         working-directory: ./apps/api
         run: |
-          pip install -e ".[dev]"
+          # ADR-112 : on installe le LOCKFILE compile, pas pyproject
+          # (pyproject ne declare aucune dependance).
+          pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
 
       - name: Run Ruff
         working-directory: ./apps/api
@@ -1066,7 +1079,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./apps/api
-        run: pip install -e ".[dev]"
+        run: pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt   # ADR-112
 
       - name: Run tests with coverage
         working-directory: ./apps/api

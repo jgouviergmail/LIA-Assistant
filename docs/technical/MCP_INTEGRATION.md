@@ -1020,10 +1020,10 @@ Iframe-initiated MCP calls are routed through dedicated proxy endpoints on the b
 
 | Endpoint | Scope | Description |
 |----------|-------|-------------|
-| `POST /api/v1/mcp/servers/{server_id}/app/tools/call` | User MCP | Proxy `call_tool()` for per-user MCP servers |
-| `POST /api/v1/mcp/servers/{server_id}/app/resources/read` | User MCP | Proxy `read_resource()` for per-user MCP servers |
-| `POST /api/v1/mcp/admin-servers/{server_key}/app/tools/call` | Admin MCP | Proxy `call_tool()` for admin MCP servers |
-| `POST /api/v1/mcp/admin-servers/{server_key}/app/resources/read` | Admin MCP | Proxy `read_resource()` for admin MCP servers |
+| `POST /api/v1/mcp/servers/{server_id}/app/call-tool` | User MCP | Proxy `call_tool()` for per-user MCP servers |
+| `POST /api/v1/mcp/servers/{server_id}/app/read-resource` | User MCP | Proxy `read_resource()` for per-user MCP servers |
+| `POST /api/v1/mcp/admin-servers/{server_key}/app/call-tool` | Admin MCP | Proxy `call_tool()` for admin MCP servers |
+| `POST /api/v1/mcp/admin-servers/{server_key}/app/read-resource` | Admin MCP | Proxy `read_resource()` for admin MCP servers |
 
 All proxy endpoints require authenticated session (BFF cookie) and enforce the same rate limiting as direct tool calls.
 
@@ -1250,8 +1250,13 @@ Module: `infrastructure/mcp/excalidraw/`
 
 | File | Role |
 |------|------|
-| `overrides.py` | Constants (`EXCALIDRAW_SERVER_NAME`, `EXCALIDRAW_CREATE_VIEW_TOOL`, `EXCALIDRAW_SPATIAL_SUFFIX`) |
-| `iterative_builder.py` | LLM-driven builder: single call (all elements) |
+| `overrides.py` | Constants (`EXCALIDRAW_SERVER_NAME`, `EXCALIDRAW_CREATE_VIEW_TOOL`, `EXCALIDRAW_SPATIAL_SUFFIX`) — **seul fichier du module côté LIA** avec `__init__.py` |
+
+> **Note (vérifié 2026-07-20)** : `infrastructure/mcp/excalidraw/` ne contient que
+> `overrides.py` et `__init__.py`. Il n'existe pas de `iterative_builder.py` :
+> la préparation d'intent est faite par `MCPToolAdapter._prepare_excalidraw()`
+> (dans l'adaptateur MCP), et la construction itérative du diagramme est assurée
+> par le **serveur MCP Excalidraw externe**, pas par un module LIA.
 
 ### Flow
 

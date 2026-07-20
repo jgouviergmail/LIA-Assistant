@@ -5,6 +5,129 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+> **The alert dashboard was not the perimeter.** A review of 15 code-scanning alerts and 5 advisories found **16 and 7** — and the two defects that actually broke behaviour were neither the `critical` nor the `high` ones. Alert #844 appeared mid-review, on code shipped the day before. Two advisories (`brace-expansion`, `js-yaml`) were in no dashboard at all — the first because *our own override* pinned a vulnerable version. And a second `UnboundLocalError`, never reported by CodeQL, was found by auditing the class with a tool that could actually see it. What let this accumulate was a single flag: `pnpm audit` ran with `continue-on-error: true`, so a CRITICAL advisory lived on `main` for months under a green pipeline.
+
+### Fixed
+
+- **`browser_screenshot_card_url` — SSE stream killed one statement before `done`** (CodeQL `py/uninitialized-local-variable`, the only `error`-level alert). Declared inside the `elif response_content.strip():` archive branch but read two levels up, in the done-metadata block. An assistant reply that streams no content skips that branch — there is no `else` — while the `if not hitl_interrupt_detected` guard above the read still passes. Declared next to `archived_assistant_msg_id`, at the level it is read from.
+- **`interaction` — the HITL fallback crashed the request it was meant to rescue** (not reported by CodeQL; found with pyright). Assigned by the first statement of a `try` and read by that same try's handler, whose `except (AttributeError, KeyError, ValueError, RuntimeError)` does not catch `NameError`. Both `from_action_type` call sites take the same arguments, so a failure in one implies a failure in the other — the sentinel is declared ahead of both, and the handler now treats `None` explicitly via `suppress`.
+- **Truncated `<style>`/`<script>` blocks leaked their raw body as prose**, on *both* halves of the notification pipeline (`js/bad-tag-filter` on the frontend; invisible on the backend, where `py/bad-tag-filter` is excluded by config — the backend defect was established by executing both implementations, not assumed). These surfaces truncate, so a severed `<style>` keeps no `</style>`: tag-stripping removed the marker and a lock screen read `body{color:red;font-size:12px}`. The closing tag is now optional on both sides, with `(?<!/)` so a self-closing `<script src="x"/>` cannot swallow the document and a `\1` backreference so a `</script>` cannot close a `<style>`. Not an XSS on either side: output feeds escaped React children only.
+- **FAQ `voice_mode` section rendered none of its six answers** — the key was absent from the section wiring in `FAQContent.tsx`.
+- **A long conversation opened mid-history.** The component does not own its scrolling box (`scrollHeight === clientHeight` on its own node, so every `scrollTop` write is a no-op), and content keeps growing after first paint. `getScrollParent()` resolves the real scroller and the viewport is re-pinned for a 1500 ms window.
+
+### Security
+
+- **`pnpm audit` is blocking again** — `continue-on-error: true` removed from `security.yml`. That flag is how `websocket-driver` GHSA-xv26-6w52-cph6 (critical) survived on `main` under a green pipeline.
+- **5 advisories patched via `pnpm.overrides`**: `websocket-driver` 0.7.4 → 0.7.5 (critical + moderate; production dependency via firebase but unreachable — only `firebase/app` and `firebase/messaging` are imported), `minimatch` 9.0.5 → 9.0.9 (3 high ReDoS, scoped `minimatch@9` so ESLint's 3.1.5 is untouched), `brace-expansion` → `^2.0.3` (our own override pinned the vulnerable 2.0.2), `js-yaml` → `^4.2.0`. `pnpm audit` goes from 5 findings to 1 low (dev-only, not executed).
+- **CodeQL analysed every frontend test directory** — `**/tests/**` does not match `__tests__`, so 31 directories were scanned despite the stated intent, the origin of 9 of the 16 alerts. `**/__tests__/**` is now listed explicitly.
+- **`SecuritySettings.algorithm` constrained to `Literal["HS256","HS384","HS512"]`.** The `CVE-2024-23342` pip-audit exemption claimed LIA "only verifies JWTs" — it signs them; what makes the ecdsa timing attack inert is HS256. `ALGORITHM` being a documented `.env` knob, the Literal is what stops a configuration change from silently invalidating a security exemption.
+- **`lia_gender` cookie** gains `SameSite=Lax` and a protocol-conditional `Secure` (unconditional would drop it on a plain-HTTP dev origin).
+
+### Changed
+
+- **109 npm minor/patch updates**, with the root `vite` override realigned to 8.1.5. Dependabot does not read workspace-root overrides when bumping a workspace member, so its PR contradicted the override and could never pass `--frozen-lockfile` — a rebase clears the git conflict without fixing that.
+- **6 GitHub Actions updated** (SHA-pinned).
+- **`IntersectionObserver` test stub takes real constructor arguments** — 7 `js/superfluous-trailing-arguments` alerts came from CodeQL resolving the global to a stub with no constructor. The dropped callback is why `ChatMessageList.test.tsx` had to ship its own observer double. The `as unknown as` double cast is gone.
+
+### Removed
+
+- **8 dead `GuideLayout` exports** (`GuideSection`, `GuideSubSection`, `GuideP`, `GuideBold`, `GuideQuote`, `GuideTable`, `GuideList`, `GuideCode`) — `GuideToc` was the only one consumed.
+- **A dead `return` in `rag_spaces/processing.py`** whose comment claimed mypy needed it for totality; mypy is clean without it.
+
+### Documentation
+
+- `CI_CD.md` — Dependabot npm targets the workspace root, not `/apps/web` (the table was wrong); the two classes of unrebaseable Dependabot PR (pip lockfiles, override/workspace collision) are documented with the conduct to follow; the overrides table goes from 3 stale entries to the 14 real ones; CodeQL's `__tests__` blind spot is explained.
+- `SECURITY.md` — how to read an advisory's real severity (`pnpm why --prod` from `apps/web/`, reachability), and the CodeQL remediation table gains the three rule classes met here.
+- `AUTHENTICATION.md` — the `.env` example named three variables that do not exist (`JWT_SECRET_KEY`, `JWT_ALGORITHM`, `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`); the real names are `SECRET_KEY` and `ALGORITHM`. New section on the HMAC constraint and what changing it would require.
+- `NOTIFICATIONS_FLOW.md`, `VOICE.md` — block-element stripping with optional closing tag, and why the shared stripper makes it one fix for both surfaces.
+- `CONVERSATION_HISTORY_PAGINATION.md` — initial positioning, the real scroll parent, and how the animated scroll used to race the pagination sentinel.
+- `GUIDE_DEVELOPPEMENT.md` — new doctrine on possibly-unbound locals, including which tools detect the class (pyright) and which are blind to it (MyPy, Ruff).
+
+#### Full documentation realignment (215 files audited, ADRs excluded)
+
+Eight mechanically verifiable classes were audited with purpose-built detectors.
+**Five of the eight detectors were wrong on first run** and were fixed before any
+edit — one ignored the `apps/api/src/` prefix (136 false positives), one matched the
+word "task" inside prose, one counted `node_exporter` metrics as ours, one confused
+settings with metrics, one missed FastAPI's multi-line decorators, one never read the
+"Tables complémentaires" section. Acting on their first output would have "fixed" a
+sound codebase. Each was validated against a known-true case, and every correction
+re-measured afterwards.
+
+**Operationally dangerous defects — they mislead during an incident:**
+
+- **`RedisConnectionPoolExhaustion.md`** instructed operators to edit
+  `REDIS_POOL_SIZE`, `REDIS_POOL_MAX_OVERFLOW` and five more variables **that do not
+  exist**. The only real knob is `REDIS_MAX_CONNECTIONS`. Editing a phantom variable
+  mid-incident feels like acting.
+- **Three alert runbooks cited metrics their own rule does not use** —
+  `pkce_validation_failures_total` where the rule reads
+  `oauth_pkce_validation_total{result="failed"}`, plus `AgentsRouterLatencyHigh` and
+  `AgentsStreamingErrorRateHigh`. A wrong PromQL name returns nothing, **silently**.
+- **`AgentsRouterLatencyHigh.md`** told operators to change `ROUTER_MODEL` in `.env`;
+  models live in the database (`LLM_TYPES_REGISTRY`), and no such variable exists.
+
+**Configuration that no longer matched the code:**
+
+- **LLM API keys** were documented as `.env` entries across three guides, while the
+  encrypted `provider_api_keys` table has been the sole source of truth since
+  `migrate_env_keys_to_db` (March). Operators were setting ignored variables.
+- **`SCHEDULED_ACTIONS_ENABLED` does not exist** — yet **`CLAUDE.md`** listed it among
+  the feature flags, and two guides documented it. Scheduled actions are always wired.
+- **~25 phantom environment variables** corrected or flagged: `HEARTBEAT_*` (4 wrong
+  names), `MCP_EXCALIDRAW_*` (5, never implemented), Langfuse "Phase 3.1" features (3,
+  with a non-existent `ab_testing/` module), `FCM_NOTIFICATIONS_ENABLED` → `FCM_ENABLED`,
+  `MCP_APPS_MAX_HTML_SIZE` → `MCP_APP_MAX_HTML_SIZE` (singular), `ROUTER/PLANNER_MESSAGE_WINDOW_SIZE`,
+  `VOICE_WAKE_WORD_ENABLED`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `NEXT_PUBLIC_ENVIRONMENT`.
+  `DATABASE_URL_SYNC` was documented as settable — it is a computed property.
+
+**API routes — 25 corrections.** `GET /users/me` → `/auth/me`; `PATCH /users/me` →
+`/users/{user_id}`; `/conversations/history` → `/conversations/me/messages`;
+`/auth/password-reset/request` → `/auth/request-password-reset`; `/events/stream` →
+`/notifications/stream`; `POST /chat` → `/agents/chat/stream`; `/app/tools/call` →
+`/app/call-tool`; `/admin/mcp/servers` → `/mcp/servers`. Three endpoints do not exist at
+all and now explain the real mechanism instead: `POST /conversations` (created implicitly
+on first message), `/conversations/{id}/approve-plan` and `/reject-plan` (the HITL
+decision travels through the chat stream), `/admin/system-settings/voice-mode`.
+
+**Prometheus metrics.** `llm_calls_total` → `llm_api_calls_total`,
+`llm_cost_usd_total` → `llm_cost_total`, `llm_tokens_total` → `llm_tokens_consumed_total`,
+`langgraph_agent_node_duration_seconds` → `langgraph_stage_duration_seconds`,
+`voice_duration_seconds` → `voice_tts_latency_seconds`. Metrics with no counterpart are
+flagged in place — including four HITL ones `HITL.md` advertised as "kept for backward
+compatibility" while they had been deleted.
+
+**Clean by measurement:** zero invalid `task` command out of 121; zero dependency-version
+drift (the single hit was a false positive comparing the `redis` Python library to the
+`redis:7.4-alpine` image); zero phantom table — `DATABASE_SCHEMA.md` covers **50 of 50**
+tables once `phone_calls` was added.
+
+**Table-of-contents navigation was broken on ~30 documents — 199 anchors repaired.**
+GitHub turns `## 🎯 Vue d'Ensemble` into `#-vue-densemble`: the emoji vanishes but the
+space that followed it becomes a **leading dash**. The links omitted it, so every entry
+in those tables of contents was dead. `AUTHENTICATION.md` got it right, which served as
+the known-true case to prove the rule before touching anything. Four headings had also
+been renamed without their links following.
+
+**Two `docker` commands named containers that do not exist**: `docker logs lia-api-1`
+(a compose-v1 generated name) and `docker logs lia-alertmanager` — the real ones carry a
+`-dev`/`-prod` suffix, as `README_ALERTING.md` already did correctly.
+
+**Clean by measurement, second batch:** 126 mermaid blocks, zero syntax anomaly; every
+other container and compose service cited across the docs resolves.
+
+**`ADR_INDEX.md`** now warns that 8 of its 135 file references point nowhere: `ADR-001`
+and `ADR-002` under `docs/architecture/`, `ADR-003`–`ADR-006` under a `docs/archive/`
+directory that does not exist. `git log --diff-filter=A` is empty for all of them — they
+were never written, not deleted. Real ADR numbering starts at **ADR-007**, though other
+documents cite the missing numbers ~68 times.
+
+### Removed (documentation)
+
+- **`docs/readme/README_WORKFLOW.md`** (1165 lines) — deleted rather than repaired, after auditing every section for content that was unique, true, and unavailable elsewhere. There was none. It described four workflows that no longer exist (`code-quality.yml`, `tests.yml`, `mixin-tests.yml`, `codeql.yml` — 403 lines) and ignored the three that do; its `ci.yml` section documented 3 of the 12 real jobs and prescribed `pip install -e ".[dev]"`, the exact opposite of ADR-112; it listed three deployment secrets that exist in no workflow while missing `TEST_FERNET_KEY` which does; its "global env vars" were wrong and missed `URLLIB3_NO_OVERRIDE`; its local-testing commands invoked `vulture` (not a dependency) and `ruff format` (never used here) while labelling Black "legacy" — Black being the canonical formatter enforced by the pre-commit hook; and three of its five suggested badges pointed at deleted workflows. A previous release had already "aligned it with reality" (see 1.21.x); it drifted again. `CI_CD.md` covers the subject correctly, and the duplication is what allowed the drift. History keeps the file.
+
 ## [1.25.10] - 2026-07-20
 
 > **Notifications stop leaking markup, and a long conversation opens where you left it.** A user reported reading `<div class="lia-response"><h2>` on a push notification. The wrapper was only the visible half. Scheduled-action notifications were built from the *token stream* rather than the canonical post-processed content, so the push could disagree with the message the same click opens in chat — and a `<psyche_eval` tag split across two chunks could reach a lock screen. Tracing that leak surfaced a second one nobody had reported: Material Symbols icons render their **ligature name** as element text, so a data card read "event Déjeuner avec Marie" — and the voice engine, sharing the same stripper, *read "event" aloud* before the sentence. Hardening the stripper then exposed the opposite failure: detection accepted a lone `<tag`, and single-letter element names collide with ordinary prose, so `if x<a and b>c` was silently mutilated into `if xc`. Separately, opening a long conversation landed the reader mid-history: the initial scroll was animated, and while it played the pagination sentinel was still on screen, fired a prepend, and the prepend suppressed the scroll-to-bottom — the longer the conversation, the wider the window and the more reliable the failure. Every fix here is pinned by a test **proven to fail without it**; two guards that could not be made to fail were deleted rather than shipped as false assurance, and one performance finding was **retracted** after re-measurement showed it was a lazy-import artifact, not backtracking.
@@ -5869,7 +5992,7 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.3...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.25.10...HEAD
 [1.13.3]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.2...v1.13.3
 [1.13.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.0...v1.13.1
