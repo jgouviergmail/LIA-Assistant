@@ -167,117 +167,19 @@ describe('ChatMessageList — rendering the conversation', () => {
   });
 });
 
-describe('ChatMessageList — initial positioning', () => {
-  // jsdom performs no layout: `scrollHeight` is 0 and `scroll-behavior` is not
-  // a recognised CSS property, so both are installed here. Without the height,
-  // every scroll-position assertion would be vacuously true (0 === 0).
-  const CONTENT_HEIGHT = 5000;
-  let originalScrollHeight: PropertyDescriptor | undefined;
-
-  beforeEach(() => {
-    originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight');
-    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
-      configurable: true,
-      get: () => CONTENT_HEIGHT,
-    });
-  });
-
-  afterEach(() => {
-    if (originalScrollHeight) {
-      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', originalScrollHeight);
-    }
-  });
-
-  function scrollContainer(root: HTMLElement): HTMLElement {
-    const el = root.querySelector<HTMLElement>('.overflow-y-auto');
-    if (!el) throw new Error('scroll container not found');
-    return el;
-  }
-
-  const longHistory = Array.from({ length: 40 }, (_, i) =>
-    i % 2 === 0 ? user(`u${i}`) : assistant(`a${i}`)
-  );
-
-  it('opens a long conversation at its last message, not in the middle', () => {
-    // The defect: the initial scroll was animated, so while it played the list
-    // still sat near the top, the pagination sentinel was on screen, the
-    // observer fired `onLoadOlder`, and the resulting prepend raised the
-    // "was prepend" flag — which SUPPRESSES the scroll-to-bottom. The reader
-    // was stranded mid-history, the more reliably the longer the conversation.
-    const { container } = render({ messages: longHistory, hasMoreOlder: true });
-
-    expect(scrollContainer(container).scrollTop).toBe(CONTENT_HEIGHT);
-  });
-
-  it('reaches the bottom without ever animating', () => {
-    // The container's `scroll-smooth` class animates every programmatic
-    // scroll, a plain `scrollTop` assignment included. It is therefore
-    // neutralised for the duration of the jump, then restored so live updates
-    // keep gliding.
-    const setProperty = vi.spyOn(CSSStyleDeclaration.prototype, 'setProperty');
-    const removeProperty = vi.spyOn(CSSStyleDeclaration.prototype, 'removeProperty');
-
-    render({ messages: longHistory });
-
-    expect(setProperty).toHaveBeenCalledWith('scroll-behavior', 'auto');
-    expect(removeProperty).toHaveBeenCalledWith('scroll-behavior');
-  });
-
-  it('does not also animate its way to a bottom it already reached', () => {
-    // The layout effect has placed the viewport before paint; letting the
-    // auto-scroll effect fire as well would animate a scroll that is already
-    // done — and re-open the window this fix closes.
-    const scrollIntoView = vi
-      .spyOn(Element.prototype, 'scrollIntoView')
-      .mockImplementation(() => {});
-
-    render({ messages: longHistory });
-
-    expect(scrollIntoView).not.toHaveBeenCalled();
-  });
-
-  it('re-arms the jump for the next conversation once the list is cleared', () => {
-    // Starting a new chat empties the list; the history loaded afterwards must
-    // open at its bottom too, not wherever the previous one left the viewport.
-    const { container, rerender } = render({ messages: longHistory });
-    // Park the viewport away from the bottom so the assertion below can only
-    // pass if the jump genuinely ran a second time.
-    scrollContainer(container).scrollTop = 0;
-
-    rerender(<ChatMessageList messages={[]} />);
-    rerender(<ChatMessageList messages={longHistory} />);
-
-    expect(scrollContainer(container).scrollTop).toBe(CONTENT_HEIGHT);
-  });
-
-  it('does not re-jump to the bottom when older history is prepended', () => {
-    // The prepend path restores the scroll position itself; a second jump
-    // would hide the messages the reader just asked for.
-    const { container, rerender } = render({ messages: longHistory, hasMoreOlder: true });
-    const el = scrollContainer(container);
-    el.scrollTop = 1234;
-
-    rerender(<ChatMessageList messages={[user('older'), ...longHistory]} hasMoreOlder />);
-
-    expect(el.scrollTop).toBe(1234);
-  });
-
-  it('keeps animating later updates, so new replies glide into view', () => {
-    // Only the FIRST positioning is instant; live updates stay smooth.
-    const scrollIntoView = vi
-      .spyOn(Element.prototype, 'scrollIntoView')
-      .mockImplementation(() => {});
-    const { rerender } = render({ messages: longHistory });
-    scrollIntoView.mockClear();
-
-    rerender(<ChatMessageList messages={[...longHistory, assistant('new')]} />);
-
-    const behaviours = scrollIntoView.mock.calls.map(
-      ([options]) => (options as ScrollIntoViewOptions | undefined)?.behavior
-    );
-    expect(behaviours).toContain('smooth');
-  });
-});
+/*
+ * Initial scroll positioning is NOT covered here, deliberately.
+ *
+ * It was, and the coverage was worse than none: jsdom performs no layout, so
+ * the suite asserted against stubbed `scrollHeight` values on the component's
+ * own container — a box that, in the real page, never scrolls at all (the chat
+ * page wraps the list in its own `overflow-y-auto`). Those tests passed green
+ * against a fix that was a complete no-op in a browser, which is how a
+ * "positioning bug" survived two releases.
+ *
+ * The real oracles now live in `apps/web/e2e/smoke/chat-initial-scroll.spec.ts`,
+ * where a real engine reports the geometry of the box that actually scrolls.
+ */
 
 describe('ChatMessageList — loading older history', () => {
   const messages = [user('u1'), assistant('a1')];

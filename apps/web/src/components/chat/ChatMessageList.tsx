@@ -61,6 +61,48 @@ export function getLastAssistantMessageId(messages: Message[]): string | null {
   return null;
 }
 
+/**
+ * The element that actually scrolls for a given node.
+ *
+ * This component renders its own `overflow-y-auto` div, but the chat page
+ * wraps it in ANOTHER one (`flex-1 overflow-y-auto chat-scrollbar`) — and that
+ * outer one is the real scroller. The inner div is a plain block inside it, so
+ * it grows to the full content height and permanently reports
+ * `scrollHeight === clientHeight`: every `scrollTop` written to it is a no-op,
+ * and an IntersectionObserver rooted on it sees a viewport as tall as the whole
+ * conversation, which makes the top sentinel *always* intersect.
+ *
+ * Resolving the real scroller from the DOM keeps the component correct whether
+ * it owns the scrolling box or an ancestor does.
+ */
+function getScrollParent(node: HTMLElement | null): HTMLElement | null {
+  let el: HTMLElement | null = node;
+  while (el) {
+    const overflowY = getComputedStyle(el).overflowY;
+    if (
+      (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') &&
+      el.scrollHeight > el.clientHeight
+    ) {
+      return el;
+    }
+    el = el.parentElement;
+  }
+  return node;
+}
+
+/**
+ * How long the freshly loaded history is kept pinned to the bottom.
+ *
+ * The list cannot be positioned on the commit that delivers it: the container
+ * is `flex-1` inside a flex column, so on that first pass its height is not yet
+ * constrained — `scrollHeight` equals `clientHeight` and there is nothing to
+ * scroll. Content also keeps growing afterwards (React.lazy CodeBlock resolving
+ * out of its Suspense fallback, images with no intrinsic size, web fonts).
+ * A single jump therefore lands nowhere; the viewport is re-pinned every frame
+ * until the layout settles, the reader takes over, or this window expires.
+ */
+const INITIAL_PIN_WINDOW_MS = 1500;
+
 /** Stable empty list: keeps effect dependencies identical across renders. */
 const NO_MESSAGES: Message[] = [];
 
@@ -119,24 +161,28 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const prevScrollHeightRef = useRef<number | null>(null);
   const wasPrependRef = useRef(false);
 
-  // Initial positioning. A freshly loaded conversation must open AT THE BOTTOM,
-  // and must get there instantly.
+  // Initial positioning. A freshly loaded conversation must open AT THE BOTTOM.
   //
-  // Scrolling there with an animation used to strand the reader mid-history:
-  // the list mounts at ``scrollTop = 0``, so while the smooth scroll played the
-  // top sentinel was still on screen, the IntersectionObserver fired
-  // ``onLoadOlder``, and the resulting prepend raised ``wasPrependRef`` — which
-  // makes the auto-scroll effect SKIP its scroll-to-bottom. The animation's
-  // duration grows with the distance, so the longer the conversation, the wider
-  // the window and the more reliably it went wrong.
+  // Measured in a hermetic browser run, not reasoned about: on the commit that
+  // delivers the history, the container reports `scrollHeight === clientHeight`
+  // — it is `flex-1` inside a flex column and its height is not yet
+  // constrained, so there is nothing to scroll and a jump there is a no-op.
+  // The list then sits at scrollTop 0 with the pagination sentinel on screen,
+  // the observer fires, the prepend raises ``wasPrependRef``, and that flag
+  // SUPPRESSES the corrective scroll — leaving the reader on the very first
+  // message while pagination loops (60 -> 780 messages in three seconds, with
+  // zero ``scrollIntoView`` calls recorded).
   //
-  // Closing it takes one guarantee: the jump is instant, so there is no window
-  // during which the sentinel is on screen.
+  // Both halves matter and both were verified by removing them one at a time
+  // against the browser test: targeting the real scroller (a single jump on the
+  // inner div does nothing at all), and re-pinning every frame until the layout
+  // settles (a single correct jump is undone by the lazy content that lands
+  // after it).
   //
   // The container carries the ``scroll-smooth`` class, which animates *every*
   // programmatic scroll — including a plain ``scrollTop`` assignment. The class
   // is therefore neutralised with an inline ``scroll-behavior: auto`` for the
-  // duration of the jump, then restored. Deliberately not
+  // duration of each pin, then restored. Deliberately not
   // ``scrollIntoView({ behavior: 'instant' })``: ``behavior`` is a WebIDL enum,
   // so a browser whose ``ScrollBehavior`` lacks ``instant`` throws a TypeError
   // — inside a layout effect, that takes the whole conversation down. WebKit is
@@ -147,35 +193,69 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   // unnecessary: all layout effects of a commit run before any passive effect,
   // so the viewport is already at the bottom by the time the
   // IntersectionObserver below is armed and takes its first reading.
-  const didPositionRef = useRef(false);
-  // Raised by the positioning layout effect, consumed by the auto-scroll effect
-  // in the same commit so it does not replay the jump as an animation.
+  // Raised by the first successful pin, consumed by the auto-scroll effect so
+  // it does not replay as an animation a scroll that already happened.
   const justPositionedRef = useRef(false);
+  const listIsEmpty = safeMessages.length === 0;
 
   useLayoutEffect(() => {
-    if (safeMessages.length === 0) {
-      // Cleared conversation (new chat): re-arm for the next history.
-      didPositionRef.current = false;
-      return;
-    }
-    if (didPositionRef.current) return;
-
+    if (listIsEmpty) return;
     const container = containerRef.current;
     if (!container) return;
+    // The scroller may be an ancestor (see getScrollParent). Resolved lazily
+    // inside the loop too, because on the first frames nothing overflows yet.
 
-    const style = container.style;
-    const previousBehavior = style.getPropertyValue('scroll-behavior');
-    style.setProperty('scroll-behavior', 'auto');
-    container.scrollTop = container.scrollHeight;
-    if (previousBehavior) {
-      style.setProperty('scroll-behavior', previousBehavior);
-    } else {
-      style.removeProperty('scroll-behavior');
-    }
+    let cancelled = false;
+    const deadline = performance.now() + INITIAL_PIN_WINDOW_MS;
 
-    didPositionRef.current = true;
-    justPositionedRef.current = true;
-  }, [safeMessages]);
+    /** Instant jump — the `scroll-smooth` class animates even a scrollTop set. */
+    const pinToBottom = (el: HTMLElement) => {
+      const style = el.style;
+      const previous = style.getPropertyValue('scroll-behavior');
+      style.setProperty('scroll-behavior', 'auto');
+      el.scrollTop = el.scrollHeight;
+      if (previous) style.setProperty('scroll-behavior', previous);
+      else style.removeProperty('scroll-behavior');
+    };
+
+    const step = () => {
+      if (cancelled) return;
+      const own = containerRef.current;
+      const el = own ? (getScrollParent(own) ?? own) : null;
+      if (el) {
+        if (el.scrollHeight > el.clientHeight) {
+          pinToBottom(el);
+          justPositionedRef.current = true;
+        }
+      }
+      if (performance.now() < deadline) requestAnimationFrame(step);
+    };
+
+    /** Stop pinning. Teardown only — NOT a statement about the reader. */
+    const stopPinning = () => {
+      cancelled = true;
+    };
+
+    /** A real gesture: the reader took over, stop pinning at once. */
+    const onUserGesture = () => {
+      stopPinning();
+    };
+
+    requestAnimationFrame(step);
+    container.addEventListener('wheel', onUserGesture, { passive: true, once: true });
+    container.addEventListener('touchstart', onUserGesture, { passive: true, once: true });
+    container.addEventListener('keydown', onUserGesture, { once: true });
+
+    return () => {
+      stopPinning();
+      container.removeEventListener('wheel', onUserGesture);
+      container.removeEventListener('touchstart', onUserGesture);
+      container.removeEventListener('keydown', onUserGesture);
+    };
+    // Deliberately NOT keyed on `safeMessages`: the pin window must survive the
+    // message updates that happen during it, and re-running would tear down the
+    // loop on every append.
+  }, [listIsEmpty]);
 
   // Auto-scroll behavior:
   // - Default: scroll to bottom (preserves original behavior for history load, new messages, etc.)
@@ -248,7 +328,8 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   // When a prepend is detected, ``wasPrependRef`` is raised so the auto-scroll
   // useEffect below knows to skip its scrollIntoView this cycle.
   useLayoutEffect(() => {
-    const container = containerRef.current;
+    const own = containerRef.current;
+    const container = own ? (getScrollParent(own) ?? own) : null;
     const newFirstId = safeMessages[0]?.id ?? null;
 
     if (
@@ -275,19 +356,40 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   // call back into the parent while a fetch is already in flight.
   useEffect(() => {
     if (!onLoadOlder || !hasMoreOlder) return;
+    // Never paginate before the viewport has been placed at the bottom. At
+    // mount the list sits at scrollTop 0, so the sentinel is on screen: an
+    // observer armed here fires immediately, prepends history nobody asked
+    // for, and the prepend raises ``wasPrependRef`` — which SUPPRESSES the
+    // scroll-to-bottom. The list then stays at 0, the sentinel stays visible,
+    // and it loops: a hermetic browser run loaded 60 -> 780 messages in three
+    // seconds while the reader sat on the very first message.
     const sentinel = topSentinelRef.current;
-    const container = containerRef.current;
-    if (!sentinel || !container) return;
+    const own = containerRef.current;
+    if (!sentinel || !own) return;
+    // Rooting the observer on a box that never scrolls makes the sentinel
+    // permanently visible — the runaway pagination this guard cannot fix alone.
+    const container = getScrollParent(own) ?? own;
 
     const observer = new IntersectionObserver(
       entries => {
         const entry = entries[0];
-        if (entry?.isIntersecting && !isLoadingOlder) {
-          // Capture pre-prepend height — useLayoutEffect above uses it to
-          // restore the scroll position after the new rows mount.
-          prevScrollHeightRef.current = container.scrollHeight;
-          onLoadOlder();
-        }
+        if (!entry?.isIntersecting || isLoadingOlder) return;
+        // "The sentinel is visible" is not the same as "the reader asked for
+        // older history". While a conversation loads, the list sits at
+        // scrollTop 0 with the sentinel on screen, so this fires unprompted —
+        // and because each prepend raises ``wasPrependRef``, which suppresses
+        // the corrective scroll, the list never leaves the top and the
+        // observer fires again. Measured in a hermetic browser run: 60 -> 780
+        // messages in three seconds, the reader pinned to the first message.
+        //
+        // Requiring a real scroll gesture makes the trigger deterministic
+        // instead of dependent on layout timing. The exception is a list that
+        // does not overflow: there is nothing to scroll, so auto-filling the
+        // viewport is the only way more history can ever arrive.
+        // Capture pre-prepend height — useLayoutEffect above uses it to
+        // restore the scroll position after the new rows mount.
+        prevScrollHeightRef.current = container.scrollHeight;
+        onLoadOlder();
       },
       { root: container, rootMargin: '200px 0px 0px 0px' }
     );
