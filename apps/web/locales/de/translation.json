@@ -5107,29 +5107,30 @@
       },
       "voice_mode": {
         "title": "Sprachmodus",
-        "icon": "mic",
-        "items": {
-          "voice_activate": {
+        "description": "Sprechen Sie mit LIA und lassen Sie sie laut antworten. Push-to-Talk, Aktivierungswort, Transkriptionssprachen und was Ihr Gerät verlässt.",
+        "count": "6",
+        "questions": {
+          "q1": {
             "question": "Wie aktiviere ich den Sprachmodus?",
             "answer": "Gehen Sie zu Einstellungen > Sprachmodus und aktivieren Sie ihn. Ein Sprach-Badge erscheint in der Chat-Kopfzeile. Drücken Sie lange auf das Badge, um den Sprachmodus ein-/auszuschalten. Wenn aktiviert, sagen Sie \"OK Guy\" (Aktivierungswort) oder tippen Sie auf das Badge."
           },
-          "voice_ptt": {
+          "q2": {
             "question": "Wie funktioniert Push-to-Talk?",
             "answer": "Wenn der Sprachmodus deaktiviert ist und das Textfeld leer ist, halten Sie die Senden-Taste gedrückt, um Ihre Stimme aufzunehmen. Loslassen zum Stoppen — LIA transkribiert Ihre Sprache und platziert den Text im Eingabefeld."
           },
-          "voice_language": {
+          "q3": {
             "question": "Unterstützt die Spracherkennung meine Sprache?",
             "answer": "Ja! LIA verwendet Whisper (99+ Sprachen) und transkribiert automatisch in Ihrer bevorzugten Sprache aus den Einstellungen. Die Aktivierungsworterkennung verwendet ein englisches Modell (\"OK Guy\"), aber die Hauptspracherkennung funktioniert in jeder Sprache."
           },
-          "voice_privacy": {
+          "q4": {
             "question": "Werden meine Sprachdaten an externe Dienste gesendet?",
             "answer": "Standardmäßig nein. Die Aktivierungsworterkennung läuft vollständig in Ihrem Browser (Sherpa-onnx WASM, nur Englisch). Die Spracherkennung verwendet Sherpa-onnx Whisper, das auf dem LIA-Server läuft (Ihr Audio verlässt nie den LIA-Server). Ein optionaler <b>Remote-STT-Modus</b> (Einstellungen -> Sprachmodus -> Remote) überträgt das Audio an ElevenLabs Scribe für höhere Genauigkeit - opt-in, standardmäßig deaktiviert, mit einem klaren Hinweis im Einstellungsbereich."
           },
-          "voice_stt_remote": {
+          "q5": {
             "question": "Kann ich eine genauere (Remote-)Spracherkennung nutzen?",
             "answer": "Ja. In <b>Einstellungen -> Sprachmodus</b> können Sie zwischen <b>Lokal</b> (Standard, kostenlos, Sherpa-onnx Whisper auf dem LIA-Server, Audio verlässt nie den Server) und <b>Remote</b> (ElevenLabs Scribe, 0,22 $/h, nach Audiodauer abgerechnet) umschalten. Der Remote-Modus ist bei gesprochener Sprache genauer, besonders in lauten Umgebungen. Ein dezentes 🎤-Badge auf jeder Nutzer-Bubble zeigt Dauer und EUR-Kosten der Transkription. Die Kosten fließen in die übliche <b>Kosten</b>-Kachel des Dashboards und in Ihre Nutzungslimits - kein separates Kontingent. Zwei Sicherheitshebel schützen vor Kostenexplosionen: ein hartes Limit von 5 Minuten pro Clip (vom Admin einstellbar) und ein globaler Kill-Switch, den der Administrator aktivieren kann, um alle wieder auf lokal umzustellen."
           },
-          "voice_tts_provider": {
+          "q6": {
             "question": "Welche Stimmen verwendet LIA, und was kostet TTS?",
             "answer": "LIAs Sprachsynthese wird vom Administrator aus einem einheitlichen Katalog mit drei Providern konfiguriert: <b>Edge TTS</b> (Microsoft Neural-Stimmen, kostenlos, Standard), <b>OpenAI TTS</b> (<code>tts-1</code> / <code>tts-1-hd</code>, Premium-Stimmen: alloy, echo, nova, ...) und <b>ElevenLabs</b> (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>, einschließlich Custom- und Bibliotheksstimmen aus dem konfigurierten Konto). Für kostenpflichtige Provider zeigt ein 🔊-Badge auf der Assistenten-Nachricht Zeichenzahl und EUR-Kosten; Edge bleibt kostenlos ohne Badge. Latenzseitig: Ein Streamer auf Satzebene beginnt den ersten Satz in etwa 1 Sekunde abzuspielen, während der Assistent den Rest der Antwort noch verfasst."
           }

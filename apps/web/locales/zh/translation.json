@@ -5102,29 +5102,30 @@
       },
       "voice_mode": {
         "title": "语音模式",
-        "icon": "mic",
-        "items": {
-          "voice_activate": {
+        "description": "与 LIA 语音交流，并让它出声回答。按住说话、唤醒词、转写语言，以及哪些数据会离开你的设备。",
+        "count": "6",
+        "questions": {
+          "q1": {
             "question": "如何激活语音模式？",
             "answer": "前往设置 > 语音模式并启用它。聊天标题中会出现语音徽章。长按徽章可切换语音模式。启用后，说\"OK Guy\"（唤醒词）或点击徽章开始说话。"
           },
-          "voice_ptt": {
+          "q2": {
             "question": "按住说话是如何工作的？",
             "answer": "当语音模式关闭且文本框为空时，按住发送按钮录制语音。松开停止 - LIA会转录您的语音并将文本放入输入框。适用于桌面和移动设备。"
           },
-          "voice_language": {
+          "q3": {
             "question": "语音识别是否支持我的语言？",
             "answer": "是的！LIA使用Whisper（99+种语言），并自动使用您在设置中配置的首选语言进行转录。唤醒词检测使用英语模型（\"OK Guy\"），但主要的语音转文字功能支持任何语言。"
           },
-          "voice_privacy": {
+          "q4": {
             "question": "我的语音数据会发送到外部服务吗？",
             "answer": "默认情况下不会。唤醒词检测完全在您的浏览器中运行（Sherpa-onnx WASM，仅支持英语）。语音识别使用运行在 LIA 服务器上的 Sherpa-onnx Whisper（您的音频永远不会离开 LIA 服务器）。一个可选的 <b>远程 STT 模式</b>（设置 -> 语音模式 -> 远程）会将音频传输到 ElevenLabs Scribe 以获得更高的精度 - 仅在用户主动启用时生效，默认关闭，并在设置面板中明确告知。"
           },
-          "voice_stt_remote": {
+          "q5": {
             "question": "我可以使用更精准的（远程）语音识别吗？",
             "answer": "可以。在 <b>设置 -> 语音模式</b> 中，您可以在 <b>本地</b>（默认、免费、运行于 LIA 服务器上的 Sherpa-onnx Whisper，音频不会离开服务器）和 <b>远程</b>（ElevenLabs Scribe，0.22 美元/小时，按音频时长计费）之间切换。远程模式对对话语音尤其在嚏杂环境下更为精准。每条用户气泡上的低调 🎤 徽章显示转录的时长和欧元成本。成本汇入仪表板的常规 <b>成本</b> 磁贴和您的使用上限——没有独立配额。两个安全杠杆防止成本激增：每段不超过 5 分钟的硬上限（管理员可调）以及一个全局总开关，管理员可一键启用以强制所有人回退到本地。"
           },
-          "voice_tts_provider": {
+          "q6": {
             "question": "LIA 用什么声音说话？TTS 的费用是多少？",
             "answer": "LIA 的语音合成由管理员从一个统一的目录配置，目录提供三家提供商：<b>Edge TTS</b>（Microsoft 神经语音、免费、默认）、<b>OpenAI TTS</b>（<code>tts-1</code> / <code>tts-1-hd</code>，高品质语音：alloy、echo、nova 等）以及 <b>ElevenLabs</b>（<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>，包含已配置账户中的自定义和库声音）。对于付费提供商，助手消息上的 🔊 徽章会显示字符数和欧元成本；Edge 保持免费，无徽章。延迟方面：一个按句级流式合成器约 1 秒后即开始播放第一句，而助手仍在撰写其余部分的回答。"
           }

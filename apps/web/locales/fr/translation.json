@@ -5121,29 +5121,30 @@
       },
       "voice_mode": {
         "title": "Mode Vocal",
-        "icon": "mic",
-        "items": {
-          "voice_activate": {
+        "description": "Parlez à LIA et laissez-la répondre à voix haute. Appui-pour-parler, mot d'activation, langues de transcription, et ce qui quitte votre appareil.",
+        "count": "6",
+        "questions": {
+          "q1": {
             "question": "Comment activer le mode vocal ?",
             "answer": "Allez dans Paramètres > Mode Vocal et activez-le. Un badge vocal apparaît dans l'en-tête du chat. Appuyez longuement sur le badge pour activer/désactiver le mode vocal. Une fois activé, dites \"OK Guy\" (mot de réveil) ou touchez le badge pour commencer à parler."
           },
-          "voice_ptt": {
+          "q2": {
             "question": "Comment fonctionne le push-to-talk ?",
             "answer": "Quand le mode vocal est désactivé et que le champ texte est vide, maintenez le bouton d'envoi pour enregistrer votre voix. Relâchez pour arrêter — LIA transcrit votre parole et place le texte dans le champ de saisie. Fonctionne sur ordinateur et mobile."
           },
-          "voice_language": {
+          "q3": {
             "question": "La reconnaissance vocale prend-elle en charge ma langue ?",
             "answer": "Oui ! LIA utilise Whisper (99+ langues) et transcrit automatiquement dans votre langue préférée configurée dans les Paramètres. La détection du mot de réveil utilise un modèle anglais (\"OK Guy\"), mais la reconnaissance vocale principale fonctionne dans toutes les langues."
           },
-          "voice_privacy": {
+          "q4": {
             "question": "Mes données vocales sont-elles envoyées à des services externes ?",
             "answer": "Par défaut, non. La détection du mot de réveil s'exécute entièrement dans votre navigateur (Sherpa-onnx WASM, anglais uniquement). La reconnaissance vocale utilise Sherpa-onnx Whisper exécuté sur le serveur LIA (votre audio ne quitte jamais le serveur LIA). Un <b>mode STT distant</b> optionnel (Réglages -> Mode vocal -> Distant) transmet l'audio à ElevenLabs Scribe pour une précision supérieure - opt-in uniquement, désactivé par défaut, avec un avertissement clair dans le panneau Réglages."
           },
-          "voice_stt_remote": {
+          "q5": {
             "question": "Puis-je utiliser une reconnaissance vocale plus précise (distante) ?",
             "answer": "Oui. Dans <b>Réglages -> Mode vocal</b>, vous pouvez basculer entre <b>Local</b> (par défaut, gratuit, Sherpa-onnx Whisper exécuté sur le serveur LIA, l'audio ne quitte jamais le serveur) et <b>Distant</b> (ElevenLabs Scribe, 0,22 $/h, facturé à la durée audio). Le mode distant est plus précis sur la parole conversationnelle, notamment en environnement bruité. Un badge 🎤 discret sur chaque bulle utilisateur affiche la durée et le coût EUR de la transcription. Le coût alimente la tuile <b>Coût</b> du tableau de bord et vos limites d'usage - pas de quota séparé. Deux leviers de sécurité protègent contre les explosions de coût : un cap dur de 5 minutes par clip (ajustable par l'admin) et un kill switch global que l'administrateur peut actionner pour forcer tout le monde à revenir au local."
           },
-          "voice_tts_provider": {
+          "q6": {
             "question": "Quelles voix LIA utilise-t-elle pour parler, et combien coûte le TTS ?",
             "answer": "La synthèse vocale de LIA est configurée par l'administrateur depuis un catalogue unique avec trois providers : <b>Edge TTS</b> (voix neuronales Microsoft, gratuit, par défaut), <b>OpenAI TTS</b> (<code>tts-1</code> / <code>tts-1-hd</code>, voix premium : alloy, echo, nova, ...) et <b>ElevenLabs</b> (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>, y compris voix custom et de bibliothèque depuis le compte configuré). Pour les providers payants, un badge 🔊 sur le message assistant affiche le nombre de caractères et le coût EUR ; Edge reste gratuit, sans badge. Côté latence : un streamer par phrase commence à lire la première phrase en environ 1 seconde, pendant que l'assistant rédige encore la suite de la réponse."
           }

@@ -5116,29 +5116,30 @@
       },
       "voice_mode": {
         "title": "Voice Mode",
-        "icon": "mic",
-        "items": {
-          "voice_activate": {
+        "description": "Speak to LIA and let it answer out loud. Push-to-talk, wake word, transcription languages, and what leaves your device.",
+        "count": "6",
+        "questions": {
+          "q1": {
             "question": "How do I activate voice mode?",
             "answer": "Go to Settings > Voice Mode and enable it. A voice badge appears in the chat header. Long-press the badge to toggle voice mode on/off. When enabled, you can say \"OK Guy\" (wake word) or tap the badge to start speaking."
           },
-          "voice_ptt": {
+          "q2": {
             "question": "How does push-to-talk work?",
             "answer": "When voice mode is off and the text field is empty, hold the send button to record your voice. Release to stop — LIA transcribes your speech and places the text in the input field. Works on desktop and mobile."
           },
-          "voice_language": {
+          "q3": {
             "question": "Does voice recognition support my language?",
             "answer": "Yes! LIA uses Whisper (99+ languages) and automatically transcribes in your preferred language configured in Settings. The wake word detection uses an English model (\"OK Guy\"), but the main speech-to-text works in any language."
           },
-          "voice_privacy": {
+          "q4": {
             "question": "Is my voice data sent to external services?",
             "answer": "By default, no. Wake-word detection runs entirely in your browser (Sherpa-onnx WASM, English-only). Speech-to-text uses Sherpa-onnx Whisper running on LIA's own server (your audio never leaves the LIA server). An optional <b>remote STT mode</b> (Settings -> Voice mode -> Distant) transmits the audio to ElevenLabs Scribe for higher accuracy - opt-in only, off by default, with a clear notice in the Settings panel."
           },
-          "voice_stt_remote": {
+          "q5": {
             "question": "Can I use a more accurate (remote) speech-to-text?",
             "answer": "Yes. In <b>Settings -> Voice mode</b> you can switch from <b>Local</b> (default, free, Sherpa-onnx Whisper running on the LIA server, audio never leaves) to <b>Distant</b> (ElevenLabs Scribe, $0.22/h, billed by audio duration). The remote mode is more accurate on conversational speech, especially in noisy environments. A discreet 🎤 badge on each user message bubble shows the duration and EUR cost of the transcription. The cost flows into your usual <b>Cost</b> dashboard tile and your usage limits - no separate quota. Two safety levers protect against cost spikes: a hard cap of 5 minutes per clip (admin-tunable), and a global kill switch the administrator can flip to force everyone back to local."
           },
-          "voice_tts_provider": {
+          "q6": {
             "question": "Which voices does LIA use for speech, and what does TTS cost?",
             "answer": "LIA's voice synthesis is configured by the administrator from a single catalogue with three providers: <b>Edge TTS</b> (Microsoft neural voices, free, default), <b>OpenAI TTS</b> (<code>tts-1</code> / <code>tts-1-hd</code>, premium voices: alloy, echo, nova, ...), and <b>ElevenLabs</b> (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>, including custom and library voices from the configured account). For paid providers, a 🔊 badge on the assistant message shows the character count and the EUR cost; Edge stays free with no badge. Latency-side: a sentence-level streamer starts playing the first sentence in about 1 second, while the assistant is still composing the rest of the answer."
           }

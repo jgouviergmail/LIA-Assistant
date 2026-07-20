@@ -5109,29 +5109,30 @@
       },
       "voice_mode": {
         "title": "Modalità Vocale",
-        "icon": "mic",
-        "items": {
-          "voice_activate": {
+        "description": "Parla con LIA e lascia che risponda ad alta voce. Premi per parlare, parola di attivazione, lingue di trascrizione e cosa esce dal tuo dispositivo.",
+        "count": "6",
+        "questions": {
+          "q1": {
             "question": "Come attivo la modalità vocale?",
             "answer": "Vai in Impostazioni > Modalità Vocale e attivala. Un badge vocale appare nell'intestazione della chat. Tieni premuto il badge per attivare/disattivare la modalità vocale. Quando è attiva, di \"OK Guy\" (parola di attivazione) o tocca il badge per iniziare a parlare."
           },
-          "voice_ptt": {
+          "q2": {
             "question": "Come funziona il push-to-talk?",
             "answer": "Quando la modalità vocale è disattivata e il campo di testo è vuoto, tieni premuto il pulsante di invio per registrare la tua voce. Rilascia per fermare — LIA trascrive il tuo discorso e inserisce il testo nel campo di input."
           },
-          "voice_language": {
+          "q3": {
             "question": "Il riconoscimento vocale supporta la mia lingua?",
             "answer": "Sì! LIA utilizza Whisper (99+ lingue) e trascrive automaticamente nella tua lingua preferita configurata nelle Impostazioni. Il rilevamento della parola di attivazione utilizza un modello inglese (\"OK Guy\"), ma il riconoscimento vocale principale funziona in qualsiasi lingua."
           },
-          "voice_privacy": {
+          "q4": {
             "question": "I miei dati vocali vengono inviati a servizi esterni?",
             "answer": "Per impostazione predefinita, no. Il rilevamento della parola di attivazione viene eseguito interamente nel tuo browser (Sherpa-onnx WASM, solo inglese). Il riconoscimento vocale usa Sherpa-onnx Whisper eseguito sul server di LIA (il tuo audio non lascia mai il server LIA). Una <b>modalità STT remota</b> opzionale (Impostazioni -> Modalità vocale -> Remoto) trasmette l'audio a ElevenLabs Scribe per maggiore precisione - opt-in, disattivata di default, con un avviso chiaro nel pannello Impostazioni."
           },
-          "voice_stt_remote": {
+          "q5": {
             "question": "Posso usare un riconoscimento vocale più preciso (remoto)?",
             "answer": "Sì. In <b>Impostazioni -> Modalità vocale</b> puoi passare tra <b>Locale</b> (predefinito, gratuito, Sherpa-onnx Whisper sul server di LIA, l'audio non esce mai) e <b>Remoto</b> (ElevenLabs Scribe, 0,22 $/h, fatturato a durata audio). La modalità remota è più precisa sul parlato conversazionale, soprattutto in ambienti rumorosi. Un badge 🎤 discreto su ogni bolla utente mostra durata e costo in EUR della trascrizione. Il costo alimenta il riquadro <b>Costo</b> del cruscotto e i tuoi limiti d'uso - nessuna quota separata. Due leve di sicurezza proteggono dai picchi di costo: un cap rigido di 5 minuti per clip (regolabile dall'admin) e un kill switch globale che l'amministratore può attivare per riportare tutti al locale."
           },
-          "voice_tts_provider": {
+          "q6": {
             "question": "Quali voci usa LIA per parlare e quanto costa il TTS?",
             "answer": "La sintesi vocale di LIA è configurata dall'amministratore da un catalogo unico con tre provider: <b>Edge TTS</b> (voci neurali Microsoft, gratuito, predefinito), <b>OpenAI TTS</b> (<code>tts-1</code> / <code>tts-1-hd</code>, voci premium: alloy, echo, nova, ...) ed <b>ElevenLabs</b> (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>, incluse voci custom e di libreria dall'account configurato). Per i provider a pagamento, un badge 🔊 sul messaggio assistente mostra il numero di caratteri e il costo in EUR; Edge resta gratuito, senza badge. Sul fronte della latenza: uno streamer a livello di frase inizia a riprodurre la prima frase in circa 1 secondo, mentre l'assistente sta ancora componendo il resto della risposta."
           }
