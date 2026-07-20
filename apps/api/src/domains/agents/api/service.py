@@ -1128,6 +1128,12 @@ class AgentService(
                     # (user row was archived up-front — count it if it exists)
                     messages_archived = 1 if archived_user_msg_id is not None else 0
                     archived_assistant_msg_id: uuid.UUID | None = None
+                    # Declared at the level it is READ from (the done-metadata block
+                    # below), not inside the archive branch that computes it: an empty
+                    # assistant response skips that branch entirely, and reading an
+                    # unbound local here would raise UnboundLocalError right before the
+                    # `done` chunk — killing the SSE stream at its very last step.
+                    browser_screenshot_card_url: str | None = None
 
                     async with get_db_context() as archive_db:
                         _interrupt_resume_data = state.get("_interrupt_resume_data", {})
@@ -1189,7 +1195,6 @@ class AgentService(
                                     ]
 
                             # Persist last browser screenshot as Attachment for card display
-                            browser_screenshot_card_url: str | None = None
                             if getattr(settings, "browser_progressive_screenshots", False):
                                 from src.domains.agents.tools.browser_screenshot_store import (
                                     get_and_clear_last_screenshot,

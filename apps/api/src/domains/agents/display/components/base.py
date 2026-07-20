@@ -33,6 +33,29 @@ from src.domains.agents.display.icons import (
 )
 
 # =============================================================================
+# HTML flattening
+# =============================================================================
+
+# Elements whose *content* is never prose: CSS, JS, document metadata. Dropped
+# whole by :func:`html_to_text`, content included.
+#
+# The closing tag is OPTIONAL (``|\Z``), and that is the point. Rich assistant
+# content reaches flattening surfaces truncated — a notification body cut to its
+# preview budget, a web snippet from a search source — so a ``<style>`` severed
+# mid-rule keeps no ``</style>``. Requiring the pair let tag-stripping remove the
+# ``<style>`` marker and surface its raw CSS as text: a lock-screen notification
+# read "body{color:red;font-size:12px}".
+#
+# ``(?<!/)`` rejects a self-closing ``<script src="x"/>``: without it the lazy
+# body would find no closing tag and swallow the rest of the document.
+# The ``\1`` backreference keeps a ``<style>`` from being closed by a
+# ``</script>``; the lazy body plus a terminating ``\Z`` keeps it linear.
+_BLOCK_ELEMENT_RE = re.compile(
+    r"<(head|style|script)\b[^>]*(?<!/)>.*?(?:</\1\s*>|\Z)",
+    re.DOTALL | re.IGNORECASE,
+)
+
+# =============================================================================
 # Date Format Type
 # =============================================================================
 
@@ -601,10 +624,8 @@ def html_to_text(html_content: str | None, preserve_links: bool = False) -> str:
     # 1. Decode HTML entities first
     text = html.unescape(text)
 
-    # 2. Remove <head>, <style>, <script> blocks entirely
-    text = re.sub(r"<head[^>]*>.*?</head\s*>", "", text, flags=re.DOTALL | re.IGNORECASE)
-    text = re.sub(r"<style[^>]*>.*?</style\s*>", "", text, flags=re.DOTALL | re.IGNORECASE)
-    text = re.sub(r"<script[^>]*>.*?</script\s*>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    # 2. Remove <head>, <style>, <script> blocks entirely — content included
+    text = _BLOCK_ELEMENT_RE.sub("", text)
 
     # 3. Handle links: extract text and optionally URL
     if preserve_links:
