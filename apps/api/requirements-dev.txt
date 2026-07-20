@@ -18,10 +18,6 @@ testcontainers==4.14.2
 # Debugging
 debugpy==1.8.21
 
-# Security Scanning
-safety==3.8.1
-bandit[toml]==1.9.4
-
 # Type Stubs
 types-passlib==1.7.7.20260211
 types-python-jose==3.5.0.20260408

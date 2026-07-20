@@ -148,7 +148,6 @@ annotated-doc==0.0.4 \
     # via
     #   -c requirements.lock.txt
     #   fastapi
-    #   typer
 annotated-types==0.7.0 \
     --hash=sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53 \
     --hash=sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89
@@ -263,20 +262,12 @@ attrs==26.1.0 \
     #   aiohttp
     #   jsonschema
     #   referencing
-authlib==1.6.12 \
-    --hash=sha256:0656d8482f28fc8221929d5f35b2bde5d13e10555ebc06b4561b0d622e83b1bd \
-    --hash=sha256:e9229ad7fde610b139dd12f5edbe97eab9ee78bfb85691247e767727850b99ab
-    # via safety
 backoff==2.2.1 \
     --hash=sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba \
     --hash=sha256:63579f9a0628e06278f7e47b7d7d5b6ce20dc65c5e96a6f3ca99a6adca0396e8
     # via
     #   -c requirements.lock.txt
     #   langfuse
-bandit==1.9.4 \
-    --hash=sha256:b589e5de2afe70bd4d53fa0c1da6199f4085af666fde00e8a034f152a52cd628 \
-    --hash=sha256:f89ffa663767f5a0585ea075f01020207e966a9c0f2b9ef56a57c7963a3f6f8e
-    # via -r requirements-dev.txt
 bcrypt==5.0.0 \
     --hash=sha256:046ad6db88edb3c5ece4369af997938fb1c19d6a699b9c1b27b0db432faae4c4 \
     --hash=sha256:0c418ca99fd47e9c59a301744d63328f17798b5947b0f791e9af3c1c499c2d0a \
@@ -400,7 +391,6 @@ certifi==2026.2.25 \
     #   httpcore
     #   httpx
     #   requests
-    #   safety
 cffi==2.0.0 ; platform_python_implementation != 'PyPy' \
     --hash=sha256:00bdf7acc5f795150faa6957054fbbca2439db2f775ce831222b66f192f03beb \
     --hash=sha256:07b271772c100085dd28b74fa0cd81c8fb1a3ba18b21e03d7c27f3436a10606b \
@@ -644,9 +634,6 @@ click==8.4.2 \
     # via
     #   -c requirements.lock.txt
     #   black
-    #   nltk
-    #   safety
-    #   typer
     #   uvicorn
     #   x-wr-timezone
 colorama==0.4.6 ; sys_platform == 'win32' \
@@ -654,7 +641,6 @@ colorama==0.4.6 ; sys_platform == 'win32' \
     --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
     # via
     #   -c requirements.lock.txt
-    #   bandit
     #   click
     #   pytest
     #   tqdm
@@ -821,7 +807,6 @@ cryptography==48.0.1 \
     #   -c requirements.lock.txt
     #   -r requirements.txt
     #   asyncssh
-    #   authlib
     #   google-auth
     #   pyjwt
     #   python-jose
@@ -869,7 +854,6 @@ defusedxml==0.7.1 \
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
-    #   nltk
     #   odfpy
 deprecated==1.3.1 \
     --hash=sha256:597bfef186b6f60181535a29fbe44865ce137a5079f295b479886c82729d5f3f \
@@ -903,12 +887,6 @@ docstring-parser==0.17.0 \
     # via
     #   -c requirements.lock.txt
     #   anthropic
-dparse==0.6.4 \
-    --hash=sha256:90b29c39e3edc36c6284c82c4132648eaf28a01863eb3c231c2512196132201a \
-    --hash=sha256:fbab4d50d54d0e739fbb4dedfc3d92771003a5b9aa8545ca7a7045e3b174af57
-    # via
-    #   safety
-    #   safety-schemas
 ebooklib==0.20 \
     --hash=sha256:35e2f9d7d39907be8d39ae2deb261b19848945903ae3dbb6577b187ead69e985 \
     --hash=sha256:fff5322517a37e31c972d27be7d982cc3928c16b3dcc5fd7e8f7c0f5d7bcf42b
@@ -949,10 +927,6 @@ fastapi==0.136.3 \
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
-filelock==3.25.2 \
-    --hash=sha256:b64ece2b38f4ca29dd3e810287aa8c48182bbecd1ae6e9ae126c9b35f1382694 \
-    --hash=sha256:ca8afb0da15f229774c9ad1b455ed96e85a81373065fb10446672f64444ddf70
-    # via safety
 filetype==1.2.0 \
     --hash=sha256:66b56cd6474bf41d8c54660347d37afcc3f7d1970648de365c102ef77548aadb \
     --hash=sha256:7ce71b6880181241cf7ac8697a2f1eb6a8bd9b429f7ad6d27b8db9ba5f1c2d25
@@ -1426,7 +1400,6 @@ httpx==0.28.1 \
     #   mcp
     #   openai
     #   python-telegram-bot
-    #   safety
 httpx-sse==0.4.3 \
     --hash=sha256:0ac1c9fe3c0afad2e0ebb25a934a59f4c7823b60792691f779fad2c5568830fc \
     --hash=sha256:9b1ed0127459a66014aec3c56bebd93da3c1bc8bb6618c8082039a44889a755d
@@ -1596,7 +1569,6 @@ jinja2==3.1.6 \
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
-    #   safety
 jiter==0.13.0 \
     --hash=sha256:00203f47c214156df427b5989de74cb340c65c8180d09be1bf9de81d0abad599 \
     --hash=sha256:04670992b576fa65bd056dbac0c39fe8bd67681c380cb2b48efa885711d9d726 \
@@ -1704,10 +1676,6 @@ jiter==0.13.0 \
     #   -c requirements.lock.txt
     #   anthropic
     #   openai
-joblib==1.5.3 \
-    --hash=sha256:5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713 \
-    --hash=sha256:8561a3269e6801106863fd0d6d84bb737be9e7631e33aaed3fb9ce5953688da3
-    # via nltk
 jsonpatch==1.33 \
     --hash=sha256:0ae28c0cd062bbd8b8ecc26d7d164fbbea9652a1a3693f3b956c1eae5145dade \
     --hash=sha256:9fcd4009c41e6d12348b4a0ff2563ba56a2923a7dfee731d004e212e1ee5030c
@@ -2093,10 +2061,6 @@ mako==1.3.12 \
     # via
     #   -c requirements.lock.txt
     #   alembic
-markdown-it-py==4.0.0 \
-    --hash=sha256:87327c59b172c5011896038353a81343b6754500a08cd7a4973bb48c6d578147 \
-    --hash=sha256:cb0a2b4aa34f932c007117b194e945bd74e0ec24133ceb5bac59009cda1cb9f3
-    # via rich
 markdownify==1.2.2 \
     --hash=sha256:3f02d3cc52714084d6e589f70397b6fc9f2f3a8531481bf35e8cc39f975e186a \
     --hash=sha256:b274f1b5943180b031b699b199cbaeb1e2ac938b75851849a31fd0c3d6603d09
@@ -2197,10 +2161,6 @@ markupsafe==3.0.3 \
     #   -c requirements.lock.txt
     #   jinja2
     #   mako
-marshmallow==4.2.2 \
-    --hash=sha256:084a9466111b7ec7183ca3a65aed758739af919fedc5ebdab60fb39d6b4dc121 \
-    --hash=sha256:ba40340683a2d1c15103647994ff2f6bc2c8c80da01904cbe5d96ee4baa78d9f
-    # via safety
 maxminddb==3.1.1 \
     --hash=sha256:00fbbbf27738169d8111d14718e5407752d505b8ede2ee408f463db888813a4a \
     --hash=sha256:023bed7cce27556dcac761be4b41afef168e7603664ac3bfde26f35c01c15393 \
@@ -2290,10 +2250,6 @@ mcp==1.28.1 \
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
-mdurl==0.1.2 \
-    --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
-    --hash=sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba
-    # via markdown-it-py
 msgpack==1.2.1 \
     --hash=sha256:01e2dd6c9b19d333a00282330cc8a73d38d8dabc306dc5b42cd668c3ac82e833 \
     --hash=sha256:020e881a764b20d8d7ca1a54fc01b8175519d108e3c3f194fddc200bda95951a \
@@ -2579,10 +2535,6 @@ niquests==3.18.2 \
     # via
     #   -c requirements.lock.txt
     #   caldav
-nltk==3.10.0 \
-    --hash=sha256:4fbac1d98203cbcd1b5d94a2877fb822300072d80604a5e7fae49d2c5f84e8c1 \
-    --hash=sha256:54ff84d4916d3ef127e8953bee0023f6a6b320b75d634a19e06ef056d3d244bf
-    # via safety
 numpy==2.4.3 \
     --hash=sha256:0200b25c687033316fb39f0ff4e3e690e8957a2c3c8d22499891ec58c37a3eb5 \
     --hash=sha256:0448e7f9caefb34b4b7dd2b77f21e8906e5d6f0365ad525f9f4f530b13df2afc \
@@ -2909,15 +2861,12 @@ packaging==26.2 \
     # via
     #   -c requirements.lock.txt
     #   black
-    #   dparse
     #   langchain-core
     #   langfuse
     #   langsmith
     #   limits
     #   opentelemetry-instrumentation
     #   pytest
-    #   safety
-    #   safety-schemas
 passlib==1.7.4 \
     --hash=sha256:aa6bca462b8d8bda89c70b382f0c298a20b5560af6cbfa2dce410c0a2fb669f1 \
     --hash=sha256:defd50f72b65c5402ab2c573830a6978e5f202ad0d984793c8dde2c4152ebe04
@@ -3325,8 +3274,6 @@ pydantic==2.13.4 \
     #   mcp
     #   openai
     #   pydantic-settings
-    #   safety
-    #   safety-schemas
 pydantic-core==2.46.4 \
     --hash=sha256:00c603d540afdd6b80eb39f078f33ebd46211f02f33e34a32d9f053bba711de0 \
     --hash=sha256:0186750b482eefa11d7f435892b09c5c606193ef3375bcf94aa00ae6bfb66262 \
@@ -3473,9 +3420,7 @@ pyee==13.0.1 \
 pygments==2.20.0 \
     --hash=sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f \
     --hash=sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176
-    # via
-    #   pytest
-    #   rich
+    # via pytest
 pyjwt==2.13.0 \
     --hash=sha256:41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423 \
     --hash=sha256:66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728
@@ -3724,7 +3669,6 @@ pyyaml==6.0.3 \
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
-    #   bandit
     #   caldav
     #   langchain-core
     #   uvicorn
@@ -3994,7 +3938,6 @@ regex==2026.2.28 \
     --hash=sha256:fd63453f10d29097cc3dc62d070746523973fb5aa1c66d25f8558bebd47fed61
     # via
     #   -c requirements.lock.txt
-    #   nltk
     #   tiktoken
 requests==2.34.2 \
     --hash=sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0 \
@@ -4018,12 +3961,6 @@ requests-toolbelt==1.0.0 \
     # via
     #   -c requirements.lock.txt
     #   langsmith
-rich==14.3.3 \
-    --hash=sha256:793431c1f8619afa7d3b52b2cdec859562b950ea0d4b6b505397612db8d5362d \
-    --hash=sha256:b8daa0b9e4eef54dd8cf7c86c03713f53241884e814f4e2f5fb342fe520f639b
-    # via
-    #   bandit
-    #   typer
 rpds-py==2026.6.3 \
     --hash=sha256:0be972be84cfcaf46c8c6edf690ca0f154ac17babf1f6a955a51579b34ad2dc5 \
     --hash=sha256:127565fead0a10943b282957bd5447804ff3160ad79f2ad2635e6d249e380680 \
@@ -4151,12 +4088,6 @@ rsa==4.9.1 \
     # via
     #   -c requirements.lock.txt
     #   python-jose
-ruamel-yaml==0.19.1 \
-    --hash=sha256:27592957fedf6e0b62f281e96effd28043345e0e66001f97683aa9a40c667c93 \
-    --hash=sha256:53eb66cd27849eff968ebf8f0bf61f46cdac2da1d1f3576dd4ccee9b25c31993
-    # via
-    #   safety
-    #   safety-schemas
 ruff==0.15.15 \
     --hash=sha256:2728b93d7b23a603ea2c0ac6eb73d760bd38ec9de35f35fb41e18f7a3fee7622 \
     --hash=sha256:29428ea79694afbe756d45fd59b36f22b6b020dc0443cf7de0173046236964b9 \
@@ -4177,24 +4108,12 @@ ruff==0.15.15 \
     --hash=sha256:df0c1c084f5f4be9812f61518a45c440d3c30d69ce4bf6c5270e66d38338f02a \
     --hash=sha256:f5294aab6356c81600fcdea3a62bb1b924dfd5e91767c12318d3f68f86af57cd
     # via -r requirements-dev.txt
-safety==3.8.1 \
-    --hash=sha256:953c1c3c60c873f53a6cc250b2a9c4b38bb6ef45f0625990e43f20bff916c965 \
-    --hash=sha256:e646123b976bbb6707cfaacae8c926e2f886b744a60e0f410e8610a3a4eaf7be
-    # via -r requirements-dev.txt
-safety-schemas==0.0.16 \
-    --hash=sha256:3bb04d11bd4b5cc79f9fa183c658a6a8cf827a9ceec443a5ffa6eed38a50a24e \
-    --hash=sha256:6760515d3fd1e6535b251cd73014bd431d12fe0bfb8b6e8880a9379b5ab7aa44
-    # via safety
 segno==1.6.6 \
     --hash=sha256:28c7d081ed0cf935e0411293a465efd4d500704072cdb039778a2ab8736190c7 \
     --hash=sha256:e60933afc4b52137d323a4434c8340e0ce1e58cec71439e46680d4db188f11b3
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
-shellingham==1.5.4 \
-    --hash=sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686 \
-    --hash=sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de
-    # via typer
 sherpa-onnx==1.12.29 \
     --hash=sha256:00deacd1e206f6346a7333de52b0f85706b5680687865a6046788172c34fa585 \
     --hash=sha256:041f1466af9a6a6488278d5d21e0fe14f985d149f4143a9e67fcc5b5a8cfe3e9 \
@@ -4377,10 +4296,6 @@ starlette==1.3.1 \
     #   fastapi
     #   mcp
     #   sse-starlette
-stevedore==5.7.0 \
-    --hash=sha256:31dd6fe6b3cbe921e21dcefabc9a5f1cf848cf538a1f27543721b8ca09948aa3 \
-    --hash=sha256:fd25efbb32f1abb4c9e502f385f0018632baac11f9ee5d1b70f88cc5e22ad4ed
-    # via bandit
 striprtf==0.0.29 \
     --hash=sha256:0fc6a41999d015358d19627776b616424dd501ad698105c81d76734d1e14d91b \
     --hash=sha256:5a822d075e17417934ed3add6fc79b5fc8fb544fe4370b2f894cdd28f0ddd78e
@@ -4407,7 +4322,6 @@ tenacity==9.1.4 \
     #   -r requirements.txt
     #   google-genai
     #   langchain-core
-    #   safety
 testcontainers==4.14.2 \
     --hash=sha256:0d0522c3cd8f8d9627cda41f7a6b51b639fa57bdc492923c045117933c668d68 \
     --hash=sha256:1340ccf16fe3acd9389a6c9e1d9ab21d9fe99a8afdf8165f89c3e69c1967d239
@@ -4474,25 +4388,12 @@ tiktoken==0.13.0 \
     #   -c requirements.lock.txt
     #   -r requirements.txt
     #   langchain-openai
-tomlkit==0.14.0 \
-    --hash=sha256:592064ed85b40fa213469f81ac584f67a4f2992509a7c3ea2d632208623a3680 \
-    --hash=sha256:cf00efca415dbd57575befb1f6634c4f42d2d87dbba376128adb42c121b87064
-    # via safety
 tqdm==4.67.3 \
     --hash=sha256:7d825f03f89244ef73f1d4ce193cb1774a8179fd96f31d7e1dcde62092b960bb \
     --hash=sha256:ee1e4c0e59148062281c49d80b25b67771a127c85fc9676d3be5f243206826bf
     # via
     #   -c requirements.lock.txt
-    #   nltk
     #   openai
-truststore==0.10.4 \
-    --hash=sha256:9d91bd436463ad5e4ee4aba766628dd6cd7010cf3e2461756b3303710eebc301 \
-    --hash=sha256:adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981
-    # via safety
-typer==0.24.1 \
-    --hash=sha256:112c1f0ce578bfb4cab9ffdabc68f031416ebcc216536611ba21f04e9aa84c9e \
-    --hash=sha256:e39b4732d65fbdcde189ae76cf7cd48aeae72919dea1fdfc16593be016256b45
-    # via safety
 types-passlib==1.7.7.20260211 \
     --hash=sha256:af73afffe1ce94c95c7f6072bd261572c29845de74fdffa3a265fc7634bca056 \
     --hash=sha256:c0f1ad440c513a6c07f333b28249530686056fd54a7b3ac6128ae31fd46305d3
@@ -4543,8 +4444,6 @@ typing-extensions==4.15.0 \
     #   python-docx
     #   python-pptx
     #   referencing
-    #   safety
-    #   safety-schemas
     #   sqlalchemy
     #   starlette
     #   testcontainers
