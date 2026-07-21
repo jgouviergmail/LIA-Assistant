@@ -200,6 +200,11 @@ class FakeStreamingService:
         self.hitl_interrupt_detected = False
         self.hitl_generated_question: str | None = None
         self.voice_context_registry: dict[str, Any] | None = None
+        # Production contract (ADR-137): the archive path reads the widgets
+        # captured during streaming from this attribute. The real service
+        # initializes it empty and fills it per turn — the fake must carry it
+        # or `_archive_assistant_message` dies on AttributeError.
+        self.persistable_widgets: dict[str, dict[str, Any]] = {}
         FakeStreamingService.instances.append(self)
 
     async def stream_sse_chunks(self, graph_stream, conversation_id, run_id):
