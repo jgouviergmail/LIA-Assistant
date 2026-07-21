@@ -178,13 +178,26 @@ async def get_conversation_messages(
         before=before.isoformat() if before else None,
     )
 
+    # Interactive widgets persisted on the message are rehydrated here so a
+    # conversation reopened from history renders its skill/MCP frames instead
+    # of an "unavailable" box. `is_system_skill` is deliberately RECOMPUTED
+    # rather than trusted: it grants the iframe `allow-same-origin` and the
+    # `credentialless` attribute, and a skill demoted from system to user since
+    # the message was written must not keep those privileges (ADR-137).
+    from src.domains.agents.data_registry.message_widgets import with_rehydrated_widgets
+    from src.domains.skills.cache import SkillsCache
+
+    system_skill_names = SkillsCache.get_system_skill_names(str(current_user.id))
+
     return ConversationMessagesResponse(
         messages=[
             ConversationMessageResponse(
                 id=msg["id"],
                 role=msg["role"],
                 content=msg[FIELD_CONTENT],
-                message_metadata=msg["message_metadata"],  # Use actual field name from service
+                message_metadata=with_rehydrated_widgets(
+                    msg["message_metadata"], system_skill_names=system_skill_names
+                ),
                 created_at=msg[FIELD_CREATED_AT],
                 tokens_in=msg["tokens_in"],
                 tokens_out=msg["tokens_out"],

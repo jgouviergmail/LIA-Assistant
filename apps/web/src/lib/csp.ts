@@ -1,6 +1,13 @@
 /**
- * Content-Security-Policy builders for the LIA web app (audit wave 3, A4 +
- * widget airlock follow-up).
+ * Security-header builders for the LIA web app (audit wave 3, A4 + widget
+ * airlock follow-up): Content-Security-Policy, HSTS and the
+ * Cross-Origin-Embedder-Policy posture.
+ *
+ * They live in one pure module — shared with `src/lib/__tests__/csp.test.ts` —
+ * so every value a runtime feature depends on is pinned by a test. Never
+ * inline a header value in `next.config.ts`: three regressions shipped blind
+ * that way (voice worklets, the interactive-map embed, and the COEP posture
+ * that made every external embed fail on iOS).
  *
  * Two distinct policies coexist, each bound to its own HTTP response:
  *
@@ -114,6 +121,64 @@ export function buildAppCsp(isDev: boolean, apiUrl: string | undefined): string 
     "form-action 'self'",
     "frame-ancestors 'self'",
   ].join('; ');
+}
+
+/**
+ * Cross-Origin-Embedder-Policy values LIA can emit on app documents.
+ *
+ * Both enable cross-origin isolation on Chromium (so the voice-mode wake word
+ * keeps its `SharedArrayBuffer`); they differ in how a cross-origin resource
+ * that opts into nothing is treated, and — critically — in what WebKit does
+ * with them. Measured on WebKit 26.4 and Chromium, with the production headers
+ * replicated and the real Google Maps embed of the `interactive-map` skill:
+ *
+ * | header value       | Chromium: isolated / map | WebKit: isolated / map |
+ * |--------------------|--------------------------|------------------------|
+ * | `require-corp`     | yes / yes                | yes / **blocked**      |
+ * | `credentialless`   | yes / yes                | no  / yes              |
+ *
+ * `require-corp` demands that every embedded cross-origin document opt in via
+ * its own COEP header. Google Maps sends none, so the embed only survives
+ * because of the `credentialless` **attribute** on the iframe — which is
+ * Chromium-only. On WebKit (every browser on iOS) the map document is refused
+ * outright: "Cancelled load … because it violates the resource's
+ * Cross-Origin-Resource-Policy response header". The user sees a framed blank
+ * area with no error.
+ *
+ * `credentialless` (the **header** value, not the attribute) keeps isolation on
+ * Chromium — no-cors subresources are simply fetched without credentials, so
+ * the Spectre guarantee holds — while WebKit, which does not implement it,
+ * falls back to no isolation and therefore embeds normally.
+ *
+ * The trade is deliberate and already handled by the product: without
+ * isolation `isSherpaKwsSupported()` returns false and voice mode degrades to
+ * tap-to-speak (no wake word) — a path that predates this change. Losing the
+ * wake word on iOS is worth widgets that work on iOS.
+ */
+export type CoepMode = 'require-corp' | 'credentialless';
+
+/**
+ * Default COEP posture. See {@link CoepMode} for the measured trade-off.
+ *
+ * Env-tunable through `COEP_MODE` so the posture can be reverted in production
+ * by restarting the container, without a rebuild (same pattern as
+ * `HSTS_MAX_AGE`). Any unrecognized value falls back to this default rather
+ * than emitting a header the browser would ignore.
+ */
+export const DEFAULT_COEP_MODE: CoepMode = 'credentialless';
+
+/**
+ * Resolve the `Cross-Origin-Embedder-Policy` value to emit on app documents.
+ *
+ * @param raw - Value of the `COEP_MODE` environment variable, if any.
+ * @returns `raw` when it names a supported mode, {@link DEFAULT_COEP_MODE}
+ *   otherwise (absent, misspelled, or a value the platform would ignore).
+ */
+export function resolveCoepMode(raw: string | undefined): CoepMode {
+  const normalized = raw?.trim().toLowerCase();
+  return normalized === 'require-corp' || normalized === 'credentialless'
+    ? normalized
+    : DEFAULT_COEP_MODE;
 }
 
 /**

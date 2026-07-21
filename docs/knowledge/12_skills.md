@@ -69,7 +69,12 @@ a JSON object on stdout matching the `SkillScriptOutput` contract:
 ```json
 {
   "text": "Required caption (voice, LLM, accessibility).",
-  "frame": { "url": "https://...", "title": "...", "aspect_ratio": 1.333 },
+  "frame": {
+    "url": "https://...",
+    "link_url": "https://...",
+    "title": "...",
+    "aspect_ratio": 1.333
+  },
   "image": { "url": "data:image/png;base64,...", "alt": "..." }
 }
 ```
@@ -79,6 +84,10 @@ a JSON object on stdout matching the `SkillScriptOutput` contract:
 - `frame.html` (inline via srcDoc) and `frame.url` (external via src) are
   mutually exclusive; `frame.html` is bounded by `SKILLS_FRAME_MAX_HTML_BYTES`
   (200 KB).
+- `frame.link_url` (optional, https-only) is the **user-facing** URL used by
+  the frontend fallback card ("open in browser") when the frame cannot render.
+  Provide it whenever `frame.url` is embed-only — e.g. the Google Maps embed
+  endpoint refuses top-level rendering (ADR-136).
 - User-skill `frame.html` automatically receives a strict CSP (`connect-src none`,
   `frame-src none`) to prevent exfiltration. System skills are trusted and
   skip CSP injection.
@@ -110,6 +119,12 @@ automatically:
 - **Client-side interactivity** — the CSP forbids `onclick` inline handlers;
   use `addEventListener` inside a `<script>` element instead. Use
   `crypto.getRandomValues` for randomness, not `Math.random`.
+- **Durability** — widgets are persisted with the message that displays them:
+  a conversation reopened after a reload, or on another device, renders its
+  maps, games and diagrams again instead of grey "unavailable" boxes.
+- **Failure states** — a frame the browser cannot display, or that never
+  loads, shows an actionable card (explanation, Retry, open in a new tab via
+  the skill's `link_url`) instead of a blank rectangle.
 
 See the **Skills Guide** in Settings (Advanced tab → "Localization, theming
 and runtime conventions") for copy-paste examples.

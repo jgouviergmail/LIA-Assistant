@@ -12,19 +12,16 @@
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
  * - metrics: Prometheus metric definitions in infrastructure/observability/
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured 2026-07-20 (v1.25.10): backend pytest 12,342 collected (705 files)
- *   + frontend vitest 2,175 (215 files) = 14,517. Re-measure both suites every
+ *   Measured 2026-07-21 (v1.25.11): backend pytest 12,434 collected (713 files)
+ *   + frontend vitest 2,219 (217 files) = 14,653. Re-measure both suites every
  *   release: the value carried the backend count alone until v1.25.9, while its
  *   comment already claimed both.
- *   Post-v1.25.10 drift (unreleased, frontend re-measured 2026-07-20): vitest is
- *   at 2,172 (214 files) — a dead GuideLayout test removed, ChatMessageList
- *   trimmed, notification-preview extended. Backend NOT re-measured since. The
- *   rendered 14,500 still holds; re-measure BOTH at release rather than
- *   arithmetic on a stale half.
- * - adrs: docs/architecture/ ADR files (128 files, numbered up to ADR-135)
+ * - adrs: docs/architecture/ ADR files (136 files, numbered up to ADR-137 —
+ *   the six founding ADRs were reconstituted in this cycle, so files and
+ *   numbering now agree).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   158 = 159 headings - 1 Unreleased.
+ *   159 headings, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -40,9 +37,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 425,
   uiLanguages: 6,
-  tests: 14500,
-  adrs: 128,
-  releases: 158,
+  tests: 14600,
+  adrs: 136,
+  releases: 159,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

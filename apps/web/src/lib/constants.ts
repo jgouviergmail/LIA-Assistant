@@ -102,6 +102,25 @@ export const JOURNAL_CONSOLIDATION_TIMEOUT_MS = (() => {
 export const SERVER_ACTION_TIMEOUT = 10000;
 
 // ============================================================================
+// INTERACTIVE WIDGETS (skill frames, MCP apps)
+// ============================================================================
+
+/**
+ * How long a widget iframe may stay blank before the UI declares it failed.
+ *
+ * Generous on purpose: the frames it guards load over the network (a skill's
+ * `frame.url`, the MCP airlock shell and the third-party runtime it then
+ * fetches) on devices that are often on mobile data. Too short and a slow but
+ * healthy widget is replaced by an error; too long and a dead frame stays a
+ * blank rectangle. Override via `NEXT_PUBLIC_WIDGET_FRAME_TIMEOUT_MS`.
+ */
+export const WIDGET_FRAME_LOAD_TIMEOUT_MS = (() => {
+  const raw = process.env.NEXT_PUBLIC_WIDGET_FRAME_TIMEOUT_MS;
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 15_000;
+})();
+
+// ============================================================================
 // UI INTERACTIONS
 // ============================================================================
 

@@ -67,6 +67,28 @@ registry_expired_total = Counter(
     ["type"],
 )
 
+widget_sentinels_stripped_total = Counter(
+    "widget_sentinels_stripped_total",
+    (
+        "Widget sentinels authored by the LLM and removed before injection. "
+        "Sentinels are host-owned: a non-zero rate means the model is still "
+        "imitating them from context, and would produce duplicate or stale "
+        "(phantom) widgets without the strip."
+    ),
+    ["source"],  # response_llm | react_history | agent_results
+)
+
+skill_detection_suppressed_total = Counter(
+    "skill_detection_suppressed_total",
+    (
+        "Skill detections discarded because they contradicted the analyzer's "
+        "own verdict on the same output (e.g. skill_name filled while the "
+        "primary domain is an MCP domain). A rising rate flags analyzer-LLM "
+        "incoherence; each suppression is also logged with the pair."
+    ),
+    ["reason"],  # mcp_domain
+)
+
 # ============================================================================
 # HITL (Human-in-the-Loop) METRICS
 # ============================================================================

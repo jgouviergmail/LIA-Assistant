@@ -181,6 +181,12 @@ QUERY_PHRASES: dict[Language, list[str]] = {
         "où suis-je",
         "où suis je",
         "je suis où",
+        # Bare substrings: they catch the imperative forms ("montre-moi où je
+        # suis", "affiche ma position") that the longer entries missed — the
+        # exact phrasing of the 2026-07-21 production defect. The rare false
+        # positive ("la ville où je suis né") only costs a location lookup.
+        "où je suis",
+        "ma position",
         "quelle est ma position",
         "ma position actuelle",
         "à quelle adresse je suis",
@@ -199,6 +205,8 @@ QUERY_PHRASES: dict[Language, list[str]] = {
     "en": [
         "where am i",
         "where am I",
+        # Catches the imperative/subordinate forms: "show me where i am".
+        "where i am",
         "what is my location",
         "my current location",
         "what address am i at",
@@ -225,6 +233,8 @@ QUERY_PHRASES: dict[Language, list[str]] = {
     ],
     "de": [
         "wo bin ich",
+        # Subordinate-clause word order: "zeig mir, wo ich bin".
+        "wo ich bin",
         "wo befinde ich mich",
         "mein standort",
         "meine position",

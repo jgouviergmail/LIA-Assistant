@@ -21,6 +21,9 @@ import type { McpAppRegistryPayload } from '@/types/mcp-apps';
 const mcpAppCallTool = vi.hoisted(() => vi.fn());
 const mcpAppReadResource = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/api/mcp-apps', () => ({ mcpAppCallTool, mcpAppReadResource }));
+vi.mock('@/lib/logger', () => ({
+  logger: { warn: vi.fn(), debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+}));
 
 const PAYLOAD: McpAppRegistryPayload = {
   tool_name: 'render_chart',
@@ -525,5 +528,61 @@ describe('lifecycle', () => {
     dispatch(harness, { jsonrpc: '2.0', id: 22, method: 'ping' });
     await flush();
     expect(harness.postMessage).toHaveBeenCalledTimes(1); // no new response after unmount
+  });
+});
+
+describe('boot-failure relay (lia:widget-error)', () => {
+  function mountWithRelay(onWidgetError: (detail: string) => void): Harness {
+    const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
+    const iframe = document.createElement('iframe');
+    Object.defineProperty(iframe, 'contentWindow', { value: contentWindow, configurable: true });
+    const container = document.createElement('div');
+    container.appendChild(iframe);
+    document.body.appendChild(container);
+    const ref = { current: iframe };
+    const { unmount } = renderHook(() => useMcpAppBridge(ref, PAYLOAD, { onWidgetError }));
+    return { iframe, contentWindow, postMessage, container, unmount };
+  }
+
+  it('delivers the shell-relayed detail to the host', async () => {
+    const onWidgetError = vi.fn();
+    harness = mountWithRelay(onWidgetError);
+    dispatch(harness, { type: 'lia:widget-error', detail: 'Failed to load: https://esm.sh/react' });
+    await flush();
+    expect(onWidgetError).toHaveBeenCalledWith('Failed to load: https://esm.sh/react');
+    // A relay is not a JSON-RPC request — nothing must be posted back.
+    expect(harness.postMessage).not.toHaveBeenCalled();
+  });
+
+  it('caps the detail at 300 characters and defaults non-string details', async () => {
+    const onWidgetError = vi.fn();
+    harness = mountWithRelay(onWidgetError);
+    dispatch(harness, { type: 'lia:widget-error', detail: 'x'.repeat(500) });
+    dispatch(harness, { type: 'lia:widget-error', detail: { evil: true } });
+    await flush();
+    expect(onWidgetError).toHaveBeenNthCalledWith(1, 'x'.repeat(300));
+    expect(onWidgetError).toHaveBeenNthCalledWith(2, 'unknown error');
+  });
+
+  it('applies the same origin and source guards as the protocol', async () => {
+    const onWidgetError = vi.fn();
+    harness = mountWithRelay(onWidgetError);
+    dispatch(
+      harness,
+      { type: 'lia:widget-error', detail: 'spoof' },
+      { origin: 'https://evil.tld' }
+    );
+    dispatch(harness, { type: 'lia:widget-error', detail: 'spoof' }, { source: {} });
+    await flush();
+    expect(onWidgetError).not.toHaveBeenCalled();
+  });
+
+  it('never fires for protocol messages', async () => {
+    const onWidgetError = vi.fn();
+    harness = mountWithRelay(onWidgetError);
+    dispatch(harness, { jsonrpc: '2.0', id: 1, method: 'ping' });
+    await postedCount(harness, 1);
+    expect(onWidgetError).not.toHaveBeenCalled();
   });
 });

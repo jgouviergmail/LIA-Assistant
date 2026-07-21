@@ -25,13 +25,85 @@ import { useEffect, type RefObject } from 'react';
 import type { McpAppRegistryPayload, McpAppBridgeMessage } from '@/types/mcp-apps';
 import { mcpAppCallTool, mcpAppReadResource } from '@/lib/api/mcp-apps';
 import { APP_VERSION } from '@/lib/version';
+import { logger } from '@/lib/logger';
 
 export const MCP_APPS_PROTOCOL_VERSION = '2026-01-26';
 
+/**
+ * Methods whose arrival proves the widget booted far enough to speak the
+ * protocol. Either one is enough: `ui/initialize` is the handshake request,
+ * `ui/notifications/initialized` its follow-up.
+ */
+const _READY_METHODS = new Set(['ui/initialize', 'ui/notifications/initialized']);
+
+/**
+ * Fire the host's readiness callback when a message proves the widget is alive.
+ *
+ * Extracted so the message handler keeps no extra branch: it already sits at
+ * the frontend complexity ratchet's limit, and inlining this pushed it over
+ * (CC 17). Decompose, never raise the cap.
+ *
+ * @param method - JSON-RPC method of the incoming message.
+ * @param onReady - Host callback, absent when the host does not track liveness.
+ */
+function _signalReadiness(method: string, onReady?: () => void): void {
+  if (onReady && _READY_METHODS.has(method)) onReady();
+}
+
+/**
+ * Consume a boot-failure relay from the airlock shell; true when handled.
+ *
+ * The shell installs error hooks on the shared Window before writing the
+ * widget document, so the parent — otherwise blind to the opaque-origin
+ * frame — learns WHY a widget died (a CDN module that never loaded, an
+ * uncaught boot exception). The detail is a length-capped plain string; the
+ * caller must only ever render it as text (a hostile widget can post this
+ * message itself — it may choose the words, never markup or a link).
+ *
+ * @param data - Raw `event.data`, already origin/source-validated by the caller.
+ * @param onWidgetError - Host callback receiving the relayed detail.
+ */
+function _consumeWidgetErrorRelay(
+  data: unknown,
+  onWidgetError?: (detail: string) => void
+): boolean {
+  const relay = data as { type?: string; detail?: string } | null;
+  if (relay?.type !== 'lia:widget-error') return false;
+  const detail =
+    typeof relay.detail === 'string' && relay.detail ? relay.detail.slice(0, 300) : 'unknown error';
+  logger.warn('mcp_widget_boot_error_relayed', { component: 'useMcpAppBridge', detail });
+  onWidgetError?.(detail);
+  return true;
+}
+
+/** Extra wiring the host may attach to the bridge. */
+interface McpAppBridgeOptions {
+  /**
+   * Called the first time the widget speaks the protocol (`ui/initialize` or
+   * `ui/notifications/initialized`).
+   *
+   * This is the only real liveness signal an MCP App has. The airlock shell
+   * always loads — measured on WebKit: the four locks pass, the payload is
+   * delivered and executes, and the parent sees `event.origin === "null"` — so
+   * the frame's `load` event says nothing about whether the third-party widget
+   * inside ever came alive. Without this callback a widget that dies on boot
+   * stays an opaque rectangle with no message and no log.
+   */
+  onReady?: () => void;
+
+  /**
+   * Called with the boot-failure detail relayed by the airlock shell
+   * (see `_consumeWidgetErrorRelay`). Render it as PLAIN TEXT only.
+   */
+  onWidgetError?: (detail: string) => void;
+}
+
 export function useMcpAppBridge(
   iframeRef: RefObject<HTMLIFrameElement | null>,
-  payload: McpAppRegistryPayload
+  payload: McpAppRegistryPayload,
+  options: McpAppBridgeOptions = {}
 ): void {
+  const { onReady, onWidgetError } = options;
   useEffect(() => {
     let mounted = true;
 
@@ -70,7 +142,14 @@ export function useMcpAppBridge(
       if (event.source !== iframeRef.current?.contentWindow) return;
 
       const msg = event.data as McpAppBridgeMessage;
-      if (msg?.jsonrpc !== '2.0' || !msg.method) return;
+      if (msg?.jsonrpc !== '2.0' || !msg.method) {
+        // Not a protocol message — it may be the shell's boot-failure relay.
+        _consumeWidgetErrorRelay(event.data, onWidgetError);
+        return;
+      }
+
+      // The widget speaks: it booted far enough to run the protocol.
+      _signalReadiness(msg.method, onReady);
 
       let response: McpAppBridgeMessage | null = null;
       try {
@@ -104,7 +183,7 @@ export function useMcpAppBridge(
         ?.querySelectorAll('.lia-mcp-app-widget__link-banner')
         .forEach(el => el.remove());
     };
-  }, [iframeRef, payload]);
+  }, [iframeRef, payload, onReady, onWidgetError]);
 }
 
 // ---------------------------------------------------------------------------

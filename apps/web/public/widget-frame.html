@@ -51,6 +51,54 @@
 
         var received = false;
 
+        // Boot-failure relay. The parent is blind to this opaque-origin
+        // frame; these hooks tell it WHY a widget died (e.g. a CDN module
+        // that never loaded) instead of leaving an opaque rectangle. Capped:
+        // a widget erroring in a loop must not storm the parent. The parent
+        // renders the detail as plain text only — a hostile widget can
+        // already paint anything inside its own frame, this adds at most a
+        // short technical string outside it.
+        var relayed = 0;
+        function relayError(detail) {
+          if (relayed >= 5) {
+            return;
+          }
+          relayed += 1;
+          window.parent.postMessage(
+            { type: 'lia:widget-error', detail: String(detail).slice(0, 300) },
+            '*'
+          );
+        }
+        function installRelayHooks() {
+          // Capture phase: resource "error" events (script/module/img load
+          // failures) fire on the element and do NOT bubble — capture on
+          // window is the only single point that sees them all.
+          window.addEventListener(
+            'error',
+            function (event) {
+              var target = event.target;
+              var src = target && (target.src || target.href);
+              // An inline module whose static import failed emits an error
+              // event with no message and no src (measured on both engines)
+              // — name the likeliest culprit instead of "unknown".
+              var tag = target && target.tagName ? String(target.tagName).toLowerCase() : '';
+              relayError(
+                event.message ||
+                  (src
+                    ? 'Failed to load: ' + src
+                    : tag === 'script'
+                      ? 'Widget script failed — its CDN imports may be unreachable'
+                      : 'unknown error')
+              );
+            },
+            true
+          );
+          window.addEventListener('unhandledrejection', function (event) {
+            var reason = event && event.reason;
+            relayError((reason && (reason.message || reason)) || 'unhandled rejection');
+          });
+        }
+
         window.addEventListener('message', function (event) {
           // Single-shot: first valid payload wins.
           if (received) {
@@ -75,11 +123,21 @@
           received = true;
 
           // Replace this document with the widget HTML. document.open()
-          // keeps the same Window (bridge listeners and contentWindow
-          // identity survive) and the document keeps this response's CSP.
+          // keeps the same Window IDENTITY (contentWindow and event.source
+          // stay valid for the parent) and the document keeps this
+          // response's CSP — but it REMOVES every listener attached to the
+          // Window, this shell's own message listener included (measured on
+          // both engines). The relay hooks must therefore be installed
+          // AFTER the write: this script keeps executing past document.close(),
+          // and module scripts (the real failure mode — CDN imports) always
+          // run after the current task, so none of their failures can predate
+          // the hooks. Only a SYNCHRONOUS throw from a classic inline script
+          // during parsing escapes the relay — accepted, the watchdog notice
+          // still fires for it, just without a detail line.
           document.open();
           document.write(data.html);
           document.close();
+          installRelayHooks();
         });
       })();
     </script>

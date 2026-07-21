@@ -31,6 +31,9 @@ from src.core.field_names import (
 )
 from src.domains.agents.api.error_messages import SupportedLanguage
 from src.domains.agents.api.schemas import ChatStreamChunk
+from src.domains.agents.data_registry.message_widgets import (
+    extract_persistable_widgets,
+)
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.metrics_agents import (
     sse_streaming_duration_seconds,
@@ -125,6 +128,32 @@ def _get_chunk_event_type(chunk_type: str) -> str:
     else:
         # Unknown types (future additions) → generic category
         return "STREAM_OTHER"
+
+
+def _current_turn_widgets(
+    serialized_items: dict[str, dict[str, Any]],
+    current_turn_registry: dict[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    """Frame-rendering widgets produced by THIS turn, ready for persistence.
+
+    Scoped to ``current_turn_registry`` on purpose. The caller's
+    ``display_registry`` falls back to the cross-turn ``registry`` when the turn
+    produced nothing, and that fallback carries up to ``REGISTRY_MAX_ITEMS``
+    entries (70 observed in production). Persisting those would attach widgets
+    from earlier turns to a message that never displayed them.
+
+    Args:
+        serialized_items: Items about to be emitted over SSE.
+        current_turn_registry: Registry items this turn produced, if any.
+
+    Returns:
+        ``{registry_id: serialized_item}``, empty when the turn produced no widget.
+    """
+    current_turn_ids = set(current_turn_registry or {})
+    return extract_persistable_widgets(
+        {k: v for k, v in serialized_items.items() if k in current_turn_ids},
+        max_bytes=settings.widget_persist_max_bytes,
+    )
 
 
 def _serialize_registry_items(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -225,6 +254,12 @@ class StreamingService:
         # (task_orchestrator just completed). This enables true parallel voice generation
         # DURING response_node streaming, not after.
         self.voice_context_registry: dict[str, Any] | None = None
+        # Interactive widgets (SKILL_APP/MCP_APP) emitted this turn, in their
+        # SSE-serialized form. api/service.py persists them on the assistant
+        # message so the widget survives a page reload — the payload otherwise
+        # lives only in the browser's React state, fed by this stream alone
+        # (see data_registry/message_widgets.py).
+        self.persistable_widgets: dict[str, dict[str, Any]] = {}
         # Latest snapshot of state.messages from the "values" stream mode. Updated
         # on every values chunk so api/service.py can compute the context-usage
         # indicator (tokens / threshold) for the SSE `done` chunk metadata.
@@ -929,6 +964,19 @@ class StreamingService:
                                 registry_items_count=len(voice_items),
                                 source="current_turn_only",
                             )
+
+                    # Capture the frame-rendering widgets for message-level
+                    # persistence (same serialized shape the client merges).
+                    # CURRENT TURN ONLY — never `serialized_items`: `display_registry`
+                    # above falls back to the cross-turn `registry` when this turn
+                    # produced nothing, and that fallback carries up to
+                    # REGISTRY_MAX_ITEMS entries (70 observed in production). Persisting
+                    # those would attach widgets from earlier turns to a message that
+                    # never displayed them — pure metadata bloat, and a stale payload
+                    # kept alive far past its turn.
+                    self.persistable_widgets.update(
+                        _current_turn_widgets(serialized_items, current_turn_registry)
+                    )
 
                     # Emit registry_update chunk
                     registry_chunk = self.format_registry_update_chunk(serialized_items)

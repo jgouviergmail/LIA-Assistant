@@ -42,10 +42,15 @@ def main() -> None:
         return
 
     url = f"https://www.google.com/maps/embed?origin=mfe&pb=!1m2!2m1!1s{quote(location)}"
+    # The embed endpoint refuses to render top-level ("The Google Maps Embed
+    # API must be used in an iframe"), so the fallback card needs a separate
+    # user-facing link that opens the same search in the full Maps UI.
+    link_url = f"https://www.google.com/maps?q={quote(location)}"
     print(json.dumps({
         "text": f"Here is {location} on the map.",
         "frame": {
             "url": url,
+            "link_url": link_url,
             "title": f"Map: {location}",
             "aspect_ratio": 1.333,
         },

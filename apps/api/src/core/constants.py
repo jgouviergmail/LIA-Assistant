@@ -159,6 +159,16 @@ CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER = "[réponse précédente, mise en forme
 # (cards/markdown) branch. French, consistent with the sibling marker above.
 CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER = "[Résultats affichés]"
 
+# Placeholder substituted for an interactive widget sentinel
+# (``lia-skill-app`` / ``lia-mcp-app``) in the history served to the ReAct loop.
+# The sentinel is HOST-OWNED markup: only ``response_node`` may emit one, from
+# the current-turn registry. Leaving it in the model's context taught it to
+# write its own — producing duplicate widgets, and sometimes one pointing at a
+# registry id from an earlier turn (dead on reload). The marker preserves the
+# fact that a widget WAS displayed, without showing how to write one. French,
+# consistent with the two sibling placeholders above.
+CONTEXT_WIDGET_DISPLAYED_PLACEHOLDER = "[Widget interactif affiché]"
+
 # ============================================================================
 # EXTERNAL CONTENT WRAPPING (prompt injection prevention)
 # ============================================================================
@@ -619,6 +629,23 @@ MAX_TOKENS_HISTORY_DEFAULT = 200000  # Maximum tokens before truncation
 # When registry exceeds this limit, oldest items (by timestamp) are evicted
 # This is a DEFAULT value - actual value comes from config/agents.py (overridable via .env)
 REGISTRY_MAX_ITEMS_DEFAULT = 75  # Maximum items in data registry per conversation
+
+# Per-widget budget (JSON bytes) for persisting an interactive widget payload on
+# the assistant message so it survives a page reload. `html_content` dominates.
+#
+# CALIBRATED ON MEASUREMENT, not estimation. The first value shipped (64 kB) was
+# a guess based on skill frames alone and proved 7x too small: production logged
+# `widget_persist_skipped_too_large size_bytes=473503` for an Excalidraw MCP App,
+# which then rendered "erreur de chargement de l'application" on every reload —
+# the very defect the persistence exists to close. Observed range: ~1 kB for a
+# map (a URL), ~6 kB for a game board, ~473 kB for a diagramming widget that
+# inlines its scene.
+#
+# 1 MB gives ~2x headroom over the measured worst case while still bounding what
+# one history page can weigh; the response is gzipped at the edge, so ~473 kB of
+# JSON costs roughly 60 kB on the wire. Over budget the widget is DROPPED, never
+# truncated — half an html_content renders worse than an honest failure state.
+WIDGET_PERSIST_MAX_BYTES_DEFAULT = 1_048_576
 
 # ReAct Agent Context (for contacts_agent, emails_agent, etc.)
 # OPTIMIZED 2025-12-24: Reduced from 50 → 30 (-40% tokens)

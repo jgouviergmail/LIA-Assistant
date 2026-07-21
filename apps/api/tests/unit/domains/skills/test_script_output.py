@@ -63,6 +63,25 @@ class TestSkillFrame:
         with pytest.raises(ValidationError):
             SkillFrame(html="<p>x</p>", aspect_ratio=-1.5)
 
+    def test_link_url_accepted_alongside_embed_url(self) -> None:
+        """`link_url` complements `url` — the user-facing counterpart of an
+        embed-only endpoint (Google Maps refuses top-level rendering)."""
+        frame = SkillFrame(
+            url="https://www.google.com/maps/embed?pb=x",
+            link_url="https://www.google.com/maps?q=Paris",
+        )
+        assert frame.link_url == "https://www.google.com/maps?q=Paris"
+
+    def test_link_url_rejects_non_https(self) -> None:
+        """Same https-only rule as `url`: this lands in an <a href>."""
+        with pytest.raises(ValidationError, match="must start with https"):
+            SkillFrame(url="https://example.com", link_url="javascript:alert(1)")
+
+    def test_link_url_alone_does_not_make_a_frame(self) -> None:
+        """A frame still needs html XOR url — link_url is an annex, not a source."""
+        with pytest.raises(ValidationError, match="must have either html or url"):
+            SkillFrame(link_url="https://example.com")
+
 
 class TestSkillImage:
     def test_https_url_valid(self) -> None:

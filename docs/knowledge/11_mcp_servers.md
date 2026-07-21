@@ -194,6 +194,11 @@ Iterative mode changes how LIA interacts with an MCP server:
 • Regular MCP servers use a faster, more cost-efficient model
 • The administrator can configure both models in the LLM Config panel
 
+**🩺 Widget durability and diagnostics:**
+• MCP App widgets are persisted with the conversation — they reopen after a reload or on another device
+• A widget that never starts shows an actionable notice (explanation, Retry) with the technical failure detail relayed from inside the frame, so a report from any device names the culprit
+• Requests whose analyzed domain is an MCP surface (e.g. a drawing request when Excalidraw is connected) route directly to that server — the skill detector can no longer divert them
+
 **⚙️ How to enable:**
 Settings → MCP Servers → Edit your server → Toggle "Iterative mode (ReAct agent)"
 

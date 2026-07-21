@@ -57,6 +57,10 @@ from src.domains.agents.analysis.query_intelligence import (
     SemanticFallback,
     UserGoal,
 )
+from src.domains.agents.services.analysis.skill_suppression import (
+    _is_dialogue_skill,
+    effective_skill_name,
+)
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -651,27 +655,9 @@ def _build_available_domains() -> list[dict[str, str]]:
     return available_domains
 
 
-def _is_dialogue_skill(skill_name: str | None) -> bool:
-    """Return True when ``skill_name`` declares the ``dialogue: true`` extension.
-
-    Dialogue skills (ADR-118, e.g. skill-generator) run a multi-turn process:
-    the user's answers to the skill's own questions are legitimately
-    conversational, so the chat override must NOT clear the detected
-    skill_name for them — clearing is what breaks the dialogue across turns.
-    One-shot skills keep the anti-contamination behavior.
-
-    Args:
-        skill_name: Skill name detected by the analyzer LLM (may be None).
-
-    Returns:
-        True only when the skill exists in the cache and opts into dialogue.
-    """
-    if not skill_name:
-        return False
-    from src.domains.skills.cache import SkillsCache
-
-    skill = SkillsCache.get_by_name(skill_name)
-    return bool(skill and skill.get("dialogue"))
+# NOTE: _is_dialogue_skill moved to analysis/skill_suppression.py with the
+# MCP-domain guard; it stays importable from this module (top import) so
+# existing importers — tests included — keep their path.
 
 
 async def analyze_query(
@@ -1449,13 +1435,19 @@ class QueryAnalyzerService:
 
             # === STEP 10: Routing Decision ===
             # Delegated to RoutingDecider (SRP: single service for routing logic)
+            # The LLM fills skill_name and domains in one output with no
+            # coherence guarantee — resolve the contradiction BEFORE routing
+            # AND storage (both read the same resolved name).
+            _skill_name = effective_skill_name(
+                analysis_result.skill_name, domains, immediate_intent
+            )
             route_to, final_confidence, bypass = self.routing_decider.decide(
                 intent=immediate_intent,
                 intent_confidence=confidence,
                 domains=domains,
                 semantic_score=confidence,
                 is_app_help_query=analysis_result.is_app_help_query,
-                detected_skill_name=analysis_result.skill_name,
+                detected_skill_name=_skill_name,
             )
 
             # Build domain scores with softmax calibration
@@ -1534,8 +1526,8 @@ class QueryAnalyzerService:
                 is_news_query=analysis_result.is_news_query,
                 # App self-knowledge
                 is_app_help_query=analysis_result.is_app_help_query,
-                # Skill activation
-                detected_skill_name=analysis_result.skill_name,
+                # Skill activation (post MCP-domain suppression — see STEP 10)
+                detected_skill_name=_skill_name,
                 # Indexable vs Semantic — probabilistic hint (frozen tuple)
                 semantic_filter_terms=tuple(analysis_result.semantic_filter_terms),
                 has_temporal_reference=analysis_result.has_temporal_reference,

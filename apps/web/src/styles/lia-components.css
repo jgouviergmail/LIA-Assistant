@@ -7049,6 +7049,59 @@ a:focus-visible {
   padding: 0 var(--lia-space-xs);
 }
 
+/* Actionable stand-in for a frame the engine refuses, or that never loaded.
+   Shared by the skill widget and the MCP app widget so a failed widget always
+   looks the same, whatever produced it. */
+.lia-skill-app-widget__fallback {
+  padding: var(--lia-space-lg);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lia-space-sm);
+}
+
+.lia-skill-app-widget__fallback-text {
+  margin: 0;
+  color: var(--lia-text-muted);
+  font-size: var(--lia-text-sm);
+}
+
+/* Shell-relayed boot-failure detail: untrusted plain text, so keep it
+   visually technical (mono, muted) and let long URLs wrap anywhere. */
+.lia-skill-app-widget__fallback-detail {
+  margin: 0;
+  color: var(--lia-text-muted);
+  font-family: var(--lia-font-mono, monospace);
+  font-size: var(--lia-text-xs);
+  overflow-wrap: anywhere;
+  max-width: 60ch;
+}
+
+.lia-skill-app-widget__fallback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--lia-space-sm);
+}
+
+.lia-skill-app-widget__fallback-link,
+.lia-skill-app-widget__fallback-retry {
+  font-size: var(--lia-text-sm);
+  padding: var(--lia-space-xs) var(--lia-space-md);
+  border: 1px solid var(--lia-border);
+  border-radius: var(--lia-radius-sm);
+  background: var(--lia-bg);
+  color: var(--lia-primary);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.lia-skill-app-widget__fallback-link:hover,
+.lia-skill-app-widget__fallback-retry:hover {
+  background: var(--lia-bg-muted);
+}
+
 /* Server-rendered placeholder (before React hydration / fallback) */
 .lia-skill-app__placeholder {
   padding: var(--lia-space-lg);

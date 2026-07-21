@@ -11,6 +11,7 @@ import { logger } from '@/lib/logger';
 import {
   containsCurrentLocationPhrase as detectCurrentLocationPhrase,
   containsHomeLocationPhrase as detectHomeLocationPhrase,
+  containsLocationQueryPhrase as detectLocationQueryPhrase,
 } from '@/lib/location-detection';
 
 interface GeolocationPromptProps {
@@ -58,10 +59,13 @@ export function GeolocationPrompt({
   const checkLocationPhrase = useCallback(
     (message: string): boolean => {
       if (!message.trim()) return false;
-      // Check for both current location and home location phrases
+      // Current position, home, or "where am I" query phrases — all three
+      // need geolocation (the query category was the missing one: "montre-moi
+      // où je suis" never triggered this prompt).
       return (
         detectCurrentLocationPhrase(message, currentLanguage) ||
-        detectHomeLocationPhrase(message, currentLanguage)
+        detectHomeLocationPhrase(message, currentLanguage) ||
+        detectLocationQueryPhrase(message, currentLanguage)
       );
     },
     [currentLanguage]

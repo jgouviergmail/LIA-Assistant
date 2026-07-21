@@ -255,7 +255,11 @@ async def run_skill_script(
             skill_info = SkillsCache.get_by_name_for_user(
                 skill_name, str(config.user_id)
             ) or SkillsCache.get_by_name(skill_name)
-            is_system = bool(skill_info.get("is_system", True)) if skill_info else True
+            # Strict default: an unresolvable skill gets NO frame privileges.
+            # `is_system_skill` grants `credentialless` + `allow-same-origin`
+            # on the client iframe, so the permissive fallback would hand a
+            # user-imported skill system-level frame privileges (ADR-137).
+            is_system = SkillsCache.entry_is_system(skill_info) if skill_info else False
             return build_skill_app_output(
                 output=parsed,
                 skill_name=skill_name,

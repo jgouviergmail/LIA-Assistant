@@ -30,6 +30,7 @@ from src.domains.agents.api.error_messages import SSEErrorMessages
 from src.domains.agents.api.hitl_pending import extract_decision_type, hitl_stale_chunks
 from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk
+from src.domains.agents.data_registry.message_widgets import with_persisted_widgets
 from src.domains.agents.dependencies import ToolDependencies
 from src.domains.agents.services.orchestration.approval_decision import (
     HitlDecisionStaleError,
@@ -1267,6 +1268,20 @@ class AgentService(
                                             error=str(bsc_err),
                                             error_type=type(bsc_err).__name__,
                                         )
+
+                            # Persist interactive-widget payloads with the message
+                            # so they survive a page reload. Without this the
+                            # payload lived ONLY in the browser's React state,
+                            # fed by the live SSE stream: any session that had
+                            # not received it (another device, an F5, a
+                            # conversation reopened later) resolved the sentinel
+                            # to nothing and rendered an error box. Branch-free
+                            # by design — see data_registry/message_widgets.py.
+                            assistant_metadata = with_persisted_widgets(
+                                assistant_metadata,
+                                streaming_service.persistable_widgets,
+                                run_id=run_id,
+                            )
 
                             archived_msg = await conv_service.archive_message(
                                 conversation_id,

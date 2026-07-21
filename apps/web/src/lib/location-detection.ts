@@ -18,7 +18,102 @@ export type SupportedLanguage = 'fr' | 'en' | 'es' | 'de' | 'it' | 'zh';
  * Location type detected in user message.
  * Mirrors backend LocationType enum.
  */
-export type LocationType = 'home' | 'current' | 'explicit' | 'none';
+export type LocationType = 'home' | 'current' | 'query' | 'explicit' | 'none';
+
+/**
+ * Phrases where the user ASKS ABOUT their position ("where am I",
+ * "montre-moi où je suis"). They need browser geolocation just like CURRENT
+ * phrases — this category was missing here while the backend had it, so the
+ * exact phrasing "montre moi où je suis" never triggered the permission
+ * prompt and the request left without coordinates (2026-07-21 defect).
+ *
+ * Synced with backend: apps/api/src/domains/agents/utils/i18n_location.py
+ */
+const QUERY_PHRASES: Record<SupportedLanguage, string[]> = {
+  fr: [
+    'où suis-je',
+    'où suis je',
+    'je suis où',
+    'où je suis',
+    'ma position',
+    'quelle est ma position',
+    'ma position actuelle',
+    'à quelle adresse je suis',
+    'à quelle adresse suis-je',
+    'quelle adresse',
+    "c'est où ici",
+    'on est où',
+    'où on est',
+    'où est-ce que je suis',
+    "où est-ce qu'on est",
+    'ma localisation',
+    'quelle est mon adresse',
+    'dis-moi où je suis',
+    'indique-moi ma position',
+  ],
+  en: [
+    'where am i',
+    'where i am',
+    'what is my location',
+    'my current location',
+    'what address am i at',
+    "what's my address",
+    'where are we',
+    'current position',
+    'my position',
+    'tell me my location',
+    'show my location',
+    "what's my current address",
+    'where is this place',
+  ],
+  es: [
+    'dónde estoy',
+    'donde estoy',
+    'cuál es mi ubicación',
+    'mi ubicación actual',
+    'en qué dirección estoy',
+    'cuál es mi dirección',
+    'dónde estamos',
+    'mi posición',
+    'dime dónde estoy',
+    'muestra mi ubicación',
+  ],
+  de: [
+    'wo bin ich',
+    'wo ich bin',
+    'wo befinde ich mich',
+    'mein standort',
+    'meine position',
+    'welche adresse bin ich',
+    'wo sind wir',
+    'mein aktueller standort',
+    'zeig mir meinen standort',
+    'wo ist hier',
+  ],
+  it: [
+    'dove sono',
+    'dove mi trovo',
+    'qual è la mia posizione',
+    'la mia posizione attuale',
+    'a che indirizzo sono',
+    'dove siamo',
+    'il mio indirizzo',
+    'dimmi dove sono',
+    'mostra la mia posizione',
+  ],
+  zh: [
+    '我在哪里',
+    '我在哪',
+    '我的位置',
+    '我现在在哪',
+    '这是哪里',
+    '这里是哪',
+    '我的地址',
+    '告诉我我在哪',
+    '我们在哪',
+    '当前位置',
+  ],
+};
 
 /**
  * Phrases indicating CURRENT position (dynamic, from browser geolocation).
@@ -209,7 +304,16 @@ export function detectLocationType(message: string, language: string = 'fr'): Lo
   // leak message content (PII) to the browser console. Detection is pure and
   // deterministic; trace it from the caller if ever needed.
 
-  // Check home phrases first (more specific)
+  // Check query phrases first (mirrors backend priority: the user explicitly
+  // asks for their position, which needs geolocation the most directly)
+  const queryPhrases = QUERY_PHRASES[lang] || QUERY_PHRASES.fr;
+  for (const phrase of queryPhrases) {
+    if (messageLower.includes(normalizeText(phrase))) {
+      return 'query';
+    }
+  }
+
+  // Check home phrases next (more specific than current)
   const homePhrases = HOME_PHRASES[lang] || HOME_PHRASES.fr;
   for (const phrase of homePhrases) {
     if (messageLower.includes(normalizeText(phrase))) {
@@ -237,7 +341,7 @@ export function detectLocationType(message: string, language: string = 'fr'): Lo
  */
 export function messageRequiresGeolocation(message: string, language: string = 'fr'): boolean {
   const locationType = detectLocationType(message, language);
-  return locationType === 'current' || locationType === 'home';
+  return locationType === 'current' || locationType === 'home' || locationType === 'query';
 }
 
 /**
@@ -260,4 +364,16 @@ export function containsCurrentLocationPhrase(message: string, language: string 
  */
 export function containsHomeLocationPhrase(message: string, language: string = 'fr'): boolean {
   return detectLocationType(message, language) === 'home';
+}
+
+/**
+ * Check if the message asks about the user's own position ("where am I").
+ * Mirrors backend `contains_query_reference`.
+ *
+ * @param message - User message to check
+ * @param language - Language code
+ * @returns true if message asks for the user's current position
+ */
+export function containsLocationQueryPhrase(message: string, language: string = 'fr'): boolean {
+  return detectLocationType(message, language) === 'query';
 }

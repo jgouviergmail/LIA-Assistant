@@ -332,6 +332,7 @@ from src.core.constants import (
     V3_TOOL_SELECTOR_HYBRID_MODE_DEFAULT,
     V3_TOOL_SOFTMAX_TEMPERATURE,
     WEB_FETCH_TIMEOUT_SECONDS,
+    WIDGET_PERSIST_MAX_BYTES_DEFAULT,
 )
 
 
@@ -388,6 +389,18 @@ class AgentsSettings(BaseSettings):
         ge=10,
         le=1000,
         description="Max items in data registry (LRU eviction for cross-turn references)",
+    )
+
+    widget_persist_max_bytes: int = Field(
+        default=WIDGET_PERSIST_MAX_BYTES_DEFAULT,
+        ge=1_024,
+        le=8_388_608,
+        description=(
+            "Per-widget budget (JSON bytes) for persisting SKILL_APP/MCP_APP payloads "
+            "in message_metadata so widgets survive a page reload. A widget over "
+            "budget is dropped, never truncated — the frontend then shows its explicit "
+            "unavailable state instead of a broken frame."
+        ),
     )
 
     # ========================================================================

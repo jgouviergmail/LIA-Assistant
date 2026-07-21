@@ -12,12 +12,14 @@ import { describe, it, expect } from 'vitest';
 
 import {
   APP_HEADERS_SOURCE,
+  DEFAULT_COEP_MODE,
   DEFAULT_HSTS_MAX_AGE,
   WIDGET_FRAME_PATH,
   buildAppCsp,
   buildConnectSrc,
   buildHsts,
   buildWidgetFrameCsp,
+  resolveCoepMode,
 } from '../csp';
 
 /** Parse a policy string into a directive → sources map. */
@@ -138,6 +140,26 @@ describe('headers routing (app policy vs airlock)', () => {
 
   it('serves the shell from the public root', () => {
     expect(WIDGET_FRAME_PATH).toBe('/widget-frame.html');
+  });
+});
+
+describe('resolveCoepMode (COEP posture)', () => {
+  it('defaults to credentialless — require-corp blocks every external embed on WebKit, where the Chromium-only `credentialless` attribute that lifts it does not exist', () => {
+    expect(DEFAULT_COEP_MODE).toBe('credentialless');
+    expect(resolveCoepMode(undefined)).toBe('credentialless');
+  });
+
+  it('honours an explicit require-corp opt-in (reverting the posture without a rebuild)', () => {
+    expect(resolveCoepMode('require-corp')).toBe('require-corp');
+    expect(resolveCoepMode('  Require-Corp  ')).toBe('require-corp');
+  });
+
+  it('never emits a value the platform would ignore — unknown input falls back to the default', () => {
+    // A typo must not silently drop cross-origin isolation (and with it the
+    // voice-mode wake word) by emitting an unparseable header value.
+    for (const raw of ['', '   ', 'unsafe-none', 'require corp', 'true', 'credential-less']) {
+      expect(resolveCoepMode(raw)).toBe(DEFAULT_COEP_MODE);
+    }
   });
 });
 

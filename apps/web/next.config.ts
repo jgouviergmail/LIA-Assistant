@@ -6,6 +6,7 @@ import {
   buildAppCsp,
   buildHsts,
   buildWidgetFrameCsp,
+  resolveCoepMode,
 } from './src/lib/csp';
 
 // Allow self-signed certificates for internal Docker HTTPS communication
@@ -41,6 +42,14 @@ const isDev = process.env.NODE_ENV === 'development';
 // buildHsts(). Only emitted in production (see headers() below) — pinning
 // localhost to HTTPS-only would break local HTTP dev.
 const hstsMaxAge = Number(process.env.HSTS_MAX_AGE);
+
+// Cross-Origin-Embedder-Policy posture (ADR-136). The VALUE is measured, not a
+// default: `require-corp` blocks every external embed on WebKit (all iOS
+// browsers), because the lift depends on the Chromium-only `credentialless`
+// iframe attribute. See CoepMode in src/lib/csp.ts for the engine matrix.
+// Env-tunable (COEP_MODE) so the posture can be reverted by restarting the
+// container, without a rebuild.
+const coepMode = resolveCoepMode(process.env.COEP_MODE);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -142,7 +151,7 @@ const nextConfig: NextConfig = {
           //   below); its CDN subresources proved COEP-compatible pre-CSP
           {
             key: 'Cross-Origin-Embedder-Policy',
-            value: 'require-corp'
+            value: coepMode
           },
           {
             key: 'Cross-Origin-Opener-Policy',
@@ -167,8 +176,11 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: buildWidgetFrameCsp()
           },
-          // Parent responses carry COEP: require-corp; a nested document must
-          // itself enable COEP or the browser refuses to load it in the frame.
+          // Parent responses carry a COEP value (see coepMode above); a nested
+          // document must itself enable COEP or the browser refuses to load it
+          // in the frame. `require-corp` here is compatible with BOTH parent
+          // postures and was verified on Chromium and WebKit in all five
+          // combinations (ADR-136) — the shell loads and receives its payload.
           {
             key: 'Cross-Origin-Embedder-Policy',
             value: 'require-corp'

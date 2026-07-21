@@ -102,6 +102,24 @@ class TestBuildSkillAppOutput:
         item = _sole_item(out)
         assert item.payload["frame_url"] == "https://maps.google.com/maps?q=Paris"
         assert item.payload["html_content"] is None
+        # No skill-provided link → the frontend fallback keeps its frame_url
+        # last resort; the key must still exist (stable payload shape).
+        assert item.payload["link_url"] is None
+
+    def test_frame_link_url_travels_to_payload(self) -> None:
+        """The user-facing link reaches the registry payload untouched —
+        the fallback card must never open an embed-only URL top-level."""
+        out = self._system_output(
+            SkillScriptOutput(
+                text="Paris",
+                frame=SkillFrame(
+                    url="https://www.google.com/maps/embed?pb=x",
+                    link_url="https://www.google.com/maps?q=Paris",
+                ),
+            )
+        )
+        item = _sole_item(out)
+        assert item.payload["link_url"] == "https://www.google.com/maps?q=Paris"
 
     def test_frame_html_system_skill_no_csp(self) -> None:
         html = "<html><head></head><body>hi</body></html>"

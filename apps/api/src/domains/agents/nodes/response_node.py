@@ -73,6 +73,7 @@ from src.domains.agents.display.config import config_for_viewport
 
 # ResponseFormatter removed - pure HTML mode only
 from src.domains.agents.display.html_renderer import NestedData, get_html_renderer
+from src.domains.agents.display.sentinel_filter import strip_widget_sentinels
 from src.domains.agents.drafts.models import DraftAction
 
 # Extracted modules (Phase 3 refactoring)
@@ -127,6 +128,9 @@ from src.infrastructure.observability.metrics import graph_exceptions_total
 from src.infrastructure.observability.metrics_agents import (
     agent_node_duration_seconds,
     agent_node_executions_total,
+)
+from src.infrastructure.observability.metrics_registry import (
+    widget_sentinels_stripped_total,
 )
 from src.infrastructure.observability.token_efficiency import track_token_efficiency
 from src.infrastructure.observability.tracing import trace_node
@@ -1211,7 +1215,9 @@ class _SkillActivationResult(NamedTuple):
     activated_skill_name: str | None
     skill_registry_updates: dict[str, Any] | None
     current_turn_registry: dict[str, Any] | None
-    react_result: Any
+    # ``react_agent_result`` state contract (MessagesState), never the runner's
+    # dataclass — see the normalization in the skill-runner branch.
+    react_result: dict[str, Any] | None
 
 
 def _get_skill_data(skill_name: str, skill_user_id: str | None) -> dict | None:
@@ -1290,8 +1296,8 @@ def _load_all_skill_resources(skill_name: str, skill_user_id: str | None) -> str
 
 
 def _plan_already_produced_skill_app(state: MessagesState, skill_name: str) -> bool:
-    """Return True when the deterministic plan has already produced a
-    SKILL_APP registry item for this skill.
+    """Return True when THIS TURN's plan already produced a SKILL_APP registry
+    item for this skill.
 
     Addresses the B1 hybrid case (plan_template + scripts): when the
     plan's ``run_skill_script`` step has already emitted the interactive
@@ -1299,11 +1305,25 @@ def _plan_already_produced_skill_app(state: MessagesState, skill_name: str) -> b
     around a frame that is already final. Skipping the runner avoids
     a ~15k tokens LLM round-trip for zero net gain.
 
-    Scoping by ``skill_name`` prevents confusion if another skill
-    produced a SKILL_APP earlier in the same turn (edge case).
+    Scoped on TWO axes, and both matter:
+
+    - ``skill_name``, so another skill's widget never fires the guard;
+    - the CURRENT TURN. ``agent_results`` accumulates across the whole
+      conversation (production showed keys for turns 41 through 48 in a single
+      state). Without the turn scope, one widget produced at turn 47 silenced
+      the runner at every later turn that activated the same skill — and when
+      the plan did not re-run the script, no SKILL_APP was created at all and
+      the widget silently vanished (observed on run ``d0fad28b``, 2026-07-21:
+      the guard fired, the turn registry held only ``weather``/``location``,
+      and the map was never rendered).
     """
     agent_results = state.get(STATE_KEY_AGENT_RESULTS) or {}
-    for result_entry in agent_results.values():
+    current_turn = state.get(STATE_KEY_CURRENT_TURN_ID, 0)
+    turn_prefix = f"{current_turn}:"
+    for result_key, result_entry in agent_results.items():
+        # Composite key "{turn_id}:{agent_name}" (see _merge_react_synthesis_result).
+        if not str(result_key).startswith(turn_prefix):
+            continue
         if not isinstance(result_entry, dict):
             continue
         registry_updates = result_entry.get("registry_updates") or {}
@@ -1483,7 +1503,7 @@ async def _activate_response_skills(
     last_user_message: str,
     conversation_history: str,
     current_turn_registry: dict[str, Any] | None,
-    react_result: Any,
+    react_result: dict[str, Any] | None,
 ) -> _SkillActivationResult:
     """Run the hybrid skill activation (passive L2 injection + ReAct sub-agent).
 
@@ -1635,6 +1655,16 @@ async def _activate_response_skills(
 
                 configurable = config.get("configurable", {})
                 _user_lang = configurable.get("user_language", "fr")
+                # ADR-137 follow-up: the sub-agent cannot resolve a position on
+                # its own (empty bypass plan, no location tool) — feed it the
+                # canonical resolution so it never invents one ("ma position").
+                from src.domains.agents.services.skill_location_context import (
+                    resolve_user_location_for_prompt,
+                )
+
+                _user_location = await resolve_user_location_for_prompt(
+                    config, last_user_message, _user_lang
+                )
 
                 # Build task: direct activation with optional collected data
                 # (from plan_executor / SkillBypassStrategy if they ran)
@@ -1701,12 +1731,13 @@ async def _activate_response_skills(
                 # Without wrapping, rich skill outputs never reach the frontend.
                 _wrapped_skills_tools = [ReactToolWrapper(original_tool=t) for t in skills_tools]
 
-                react_result = await runner.run(
+                _runner_result = await runner.run(
                     task=_task,
                     tools=_wrapped_skills_tools,
                     prompt_vars={
                         "skills_catalog": _catalog_for_prompt,
                         "user_language": _user_lang,
+                        "user_location": _user_location,
                     },
                     parent_runtime=_skill_parent,
                     thread_prefix="skill_react",
@@ -1714,15 +1745,29 @@ async def _activate_response_skills(
                     display_name="Skill Activation",
                 )
 
-                if react_result.iteration_count > 0 and react_result.final_message:
-                    skill_react_response = react_result.final_message
+                if _runner_result.iteration_count > 0 and _runner_result.final_message:
+                    skill_react_response = _runner_result.final_message
+                    # Normalize onto the ONE shape `react_result` carries
+                    # everywhere else — the ``react_agent_result`` state
+                    # contract (MessagesState: dict | None). The runner returns
+                    # a `ReactSubAgentResult` dataclass; assigning it raw made
+                    # two incompatible shapes travel under one `Any`-typed name,
+                    # and `_build_response_system_prompt` — which reads
+                    # `react_result.get("final_message")` — crashed with
+                    # AttributeError on run ``117ce96f`` (2026-07-21), taking
+                    # the whole turn down to a 98-character fallback.
+                    react_result = {
+                        "final_message": _runner_result.final_message,
+                        "iteration_count": _runner_result.iteration_count,
+                        "mode": "react",
+                    }
                     logger.info(
                         "skill_react_agent_activated",
                         run_id=run_id,
                         skill_name=_activated_skill_name,
-                        iterations=react_result.iteration_count,
+                        iterations=_runner_result.iteration_count,
                         response_length=len(skill_react_response),
-                        duration_ms=react_result.duration_ms,
+                        duration_ms=_runner_result.duration_ms,
                     )
 
                     # Propagate registry items accumulated by the wrappers:
@@ -1732,16 +1777,16 @@ async def _activate_response_skills(
                     # reducer — returning only the NEW items is equivalent to
                     # the historical in-place update, but persisted by
                     # contract instead of by shared-reference side effect).
-                    if react_result.accumulated_registry:
+                    if _runner_result.accumulated_registry:
                         if current_turn_registry is None:
                             current_turn_registry = {}
-                        current_turn_registry.update(react_result.accumulated_registry)
-                        skill_registry_updates = react_result.accumulated_registry
+                        current_turn_registry.update(_runner_result.accumulated_registry)
+                        skill_registry_updates = _runner_result.accumulated_registry
                         logger.info(
                             "skill_react_registry_propagated",
                             run_id=run_id,
                             skill_name=_activated_skill_name,
-                            registry_items=len(react_result.accumulated_registry),
+                            registry_items=len(_runner_result.accumulated_registry),
                         )
             except Exception as exc:
                 logger.warning(
@@ -2056,7 +2101,23 @@ def _render_response_html(
     Extracted verbatim from ``response_node``. Two paths: interactive widgets
     (SKILL_APP/MCP_APP/DRAFT — always injected) and data cards (cards mode only).
     Read-only on the registry; only the (possibly appended) content is returned.
+
+    Widget sentinels are host-owned: any the model authored itself is stripped
+    first, so the injection below is the single source of them. Without this the
+    answer carried the same ``data-registry-id`` twice (two iframes really
+    mounted), and sometimes a lone sentinel pointing at a STALE id the backend
+    never injected — see ``display/sentinel_filter``.
     """
+    stripped_content, llm_sentinels = strip_widget_sentinels(final_content)
+    if llm_sentinels:
+        final_content = stripped_content
+        widget_sentinels_stripped_total.labels(source="response_llm").inc(llm_sentinels)
+        logger.info(
+            "llm_authored_widget_sentinels_stripped",
+            run_id=run_id,
+            count=llm_sentinels,
+        )
+
     html_content = ""
     source = ""
 
@@ -2308,7 +2369,7 @@ def _build_response_system_prompt(
     journal_context: str,
     psyche_context: str,
     user_model_block: Any,
-    react_result: Any,
+    react_result: dict[str, Any] | None,
 ) -> str:
     """Assemble the response LLM system prompt from all injected context.
 
@@ -3165,7 +3226,19 @@ def _apply_react_passthrough(state: MessagesState, run_id: str) -> tuple[Any, bo
     _react_passthrough_merged = False  # F5: gate for the explicit state return
     react_result = state.get("react_agent_result")
     if react_result and react_result.get("final_message"):
-        react_message = react_result["final_message"]
+        # The ReAct answer is handed to the response LLM as AUTHORITATIVE
+        # (``agent_results_summary``). A sentinel the agent copied from history
+        # would therefore be reproduced verbatim in the final answer, on top of
+        # the deterministic injection. Sentinels are host-owned: drop them here,
+        # at the point the message becomes authoritative.
+        react_message, _react_sentinels = strip_widget_sentinels(react_result["final_message"])
+        if _react_sentinels:
+            widget_sentinels_stripped_total.labels(source="agent_results").inc(_react_sentinels)
+            logger.info(
+                "react_answer_widget_sentinels_stripped",
+                run_id=run_id,
+                count=_react_sentinels,
+            )
         current_turn = state.get(STATE_KEY_CURRENT_TURN_ID, 0)
         # Inject as agent_results with registry_updates so that
         # _filter_registry_by_current_turn() can find the current turn's

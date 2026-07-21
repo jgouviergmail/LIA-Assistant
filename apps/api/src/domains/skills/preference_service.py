@@ -243,7 +243,7 @@ class SkillPreferenceService:
         # 1. Create skills that exist on disk but not in DB
         for name, cached in cache_by_name.items():
             if name not in db_names:
-                is_system = cached["scope"] == "admin"
+                is_system = SkillsCache.entry_is_system(cached)
                 owner_id_str = cached.get("owner_id")
                 skill = Skill(
                     name=name,

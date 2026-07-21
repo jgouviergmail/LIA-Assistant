@@ -140,6 +140,8 @@ plan_template:
 
 The `QueryAnalyzer` sees the skills catalogue (`{available_skills}`) in its prompt and sets `skill_name` in the analysis output. This works for both planner and response routes — the `response_node` reads `detected_skill_name` from state.
 
+**MCP-domain guard** (`services/analysis/skill_suppression.py`): the LLM fills `skill_name` and `domains` in one output with no coherence guarantee, and the routing decider gives the skill absolute priority. When the **primary** domain is an MCP domain (`mcp_*`), the detection is suppressed at the chokepoint — before routing AND before storage on `QueryIntelligence` — so a diagram request reaches `mcp_excalidraw_task` instead of being hijacked by a semantically-poor skill match. The ADR-118 dialogue exemption is preserved (a conversational answer mid-dialogue keeps its `dialogue: true` skill); every suppression is logged and counted (`skill_detection_suppressed_total{reason}`).
+
 ### 2. Planner Pre-activation (Complementary)
 
 The LLM planner also sees the L1 catalogue and can include `"skill_name": "<name>"` in its JSON output. The `response_node` treats this identically to the QueryAnalyzer-detected skill.
@@ -148,7 +150,7 @@ The LLM planner also sees the L1 catalogue and can include `"skill_name": "<name
 
 Both routes converge in the `response_node` which activates the skill based on its nature:
 
-- **Scripts present** → `ReactSubAgentRunner` (same pattern as MCP/browser agents) with 3 skill tools (`activate_skill_tool`, `read_skill_resource`, `run_skill_script`). Runs in isolation (no streaming impact). If plan_executor collected data, it is injected in the task. Uses `llm_type="mcp_react_agent"` and `skill_react_agent_prompt`.
+- **Scripts present** → `ReactSubAgentRunner` (same pattern as MCP/browser agents) with 4 skill tools (`activate_skill_tool`, `read_skill_resource`, `run_skill_script`, `import_user_skill`). Runs in isolation (no streaming impact). If plan_executor collected data, it is injected in the task. Uses `llm_type="mcp_react_agent"` and `skill_react_agent_prompt`, whose `<Context>` carries `UserLocation` — the position resolved through the `resolve_location()` chokepoint (browser geolocation first, then home address, `"unknown"` otherwise) by `services/skill_location_context.py` — so location-dependent skills receive coordinates instead of improvising. The prompt makes a successful `run_skill_script` FINAL (retry only after an explicit error, once) and the final message VERBATIM.
 - **Resources only (no scripts)** → L2 instructions + all reference files loaded in Python and injected in the prompt. No extra LLM call.
 - **Neither** → L2 passive injection only.
 

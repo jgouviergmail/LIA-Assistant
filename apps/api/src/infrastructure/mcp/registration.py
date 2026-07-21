@@ -25,7 +25,7 @@ from src.core.constants import (
     MCP_ITERATIVE_TASK_SUFFIX,
     MCP_REFERENCE_TOOL_NAME,
 )
-from src.domains.agents.constants import AGENT_MCP, CONTEXT_DOMAIN_MCP
+from src.domains.agents.constants import AGENT_MCP
 from src.infrastructure.mcp.schemas import MCPDiscoveredTool, MCPServerConfig
 from src.infrastructure.mcp.security import resolve_hitl_requirement
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
@@ -351,7 +351,13 @@ def build_mcp_tool_manifest(
             hitl_required=hitl_required,
             data_classification="INTERNAL",
         ),
-        context_key=CONTEXT_DOMAIN_MCP,
+        # No context_key on purpose: "mcps" was never a registered context
+        # type (MCP result shapes are heterogeneous per server), so the wave
+        # auto-save error-logged "Context type 'mcps' not registered" on
+        # every MCP tool result once MCP-domain turns reached the pipeline.
+        # CONTEXT_DOMAIN_MCP keeps its DISPLAY role (registry item domain,
+        # result cards) — only the context-save claim was false.
+        context_key=None,
         semantic_keywords=semantic_keywords,
         display=DisplayMetadata(
             emoji=MCP_DISPLAY_EMOJI,
@@ -422,7 +428,13 @@ def build_mcp_react_task_manifest(
             hitl_required=hitl_required,
             data_classification="INTERNAL",
         ),
-        context_key=CONTEXT_DOMAIN_MCP,
+        # No context_key on purpose: "mcps" was never a registered context
+        # type (MCP result shapes are heterogeneous per server), so the wave
+        # auto-save error-logged "Context type 'mcps' not registered" on
+        # every MCP tool result once MCP-domain turns reached the pipeline.
+        # CONTEXT_DOMAIN_MCP keeps its DISPLAY role (registry item domain,
+        # result cards) — only the context-save claim was false.
+        context_key=None,
         semantic_keywords=semantic_keywords,
         display=DisplayMetadata(
             emoji=MCP_DISPLAY_EMOJI,

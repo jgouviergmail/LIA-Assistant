@@ -272,11 +272,16 @@ def build_skill_app_output(
     # Prepare frame payload
     html_content: str | None = None
     frame_url: str | None = None
+    link_url: str | None = None
     title: str | None = None
     aspect_ratio: float = 1.333
     if output.frame is not None:
         title = output.frame.title
         aspect_ratio = output.frame.aspect_ratio
+        # User-facing URL for the fallback card: embed endpoints often refuse
+        # to render top-level (Google Maps: "must be used in an iframe"), so
+        # the fallback must never reuse frame_url when the skill provides one.
+        link_url = output.frame.link_url
         if output.frame.html is not None:
             # Inject CSP for user skills; system skills are trusted
             raw_html = output.frame.html if is_system_skill else _inject_csp_meta(output.frame.html)
@@ -300,6 +305,7 @@ def build_skill_app_output(
         "skill_name": skill_name,
         "html_content": html_content,
         "frame_url": frame_url,
+        "link_url": link_url,
         "image_url": image_url,
         "image_alt": image_alt,
         "title": title or skill_name,

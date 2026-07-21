@@ -690,11 +690,18 @@
   "skill_apps": {
     "loading": "正在加载技能……",
     "error": "无法加载技能小部件",
-    "external_frame": "外部"
+    "external_frame": "外部",
+    "frame_unsupported": "此浏览器无法显示嵌入视图。请在新标签页中打开。",
+    "frame_timeout": "小部件未能加载。",
+    "frame_open_external": "在新标签页中打开",
+    "frame_retry": "重试"
   },
   "mcp_apps": {
     "loading": "正在加载应用...",
-    "error": "加载应用失败"
+    "error": "加载应用失败",
+    "frame_timeout": "应用未能加载。",
+    "frame_error_detail": "技术详情：",
+    "frame_retry": "重试"
   },
   "settings": {
     "title": "设置",
@@ -3041,6 +3048,20 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_11": {
+          "title": "v1.25.11 — 🗺️ 值得信赖的小组件：随处可用、持久保存、失败时如实相告",
+          "date": "2026年7月",
+          "count": "7",
+          "items": {
+            "i1": "<b>🗺️ 交互式地图现已支持 iPhone</b> — 外部小组件（如地图）曾被一个只有 Chrome 系浏览器才能绕过的安全标头拦截。现在所有浏览器都能显示；在 iOS 上，免提唤醒词让位于按住说话。",
+            "i2": "<b>📍 「告诉我我在哪里」使用你的真实位置</b> — 助手过去会即兴发挥（可能用一张法国地图作答）。现在只要你共享定位，它就会收到你的位置，且授权请求会在消息需要时立即出现。",
+            "i3": "<b>💾 小组件在重新加载后依然存在</b> — 地图、游戏和图表会随对话一起重新打开，在你的任何设备上，而不再变成灰色的「不可用」方框。",
+            "i4": "<b>👻 不再有重复或幽灵小组件</b> — 小组件可能出现两次，或旧的在新回答下再次浮现。现在由应用本身放置小组件，AI 不再改写它们。",
+            "i5": "<b>🩺 加载失败的小组件会告诉你原因</b> — 不再是无尽的空白方块：一段说明、一个重试按钮、一个在新标签页打开内容的链接，以及可供反馈的技术细节。",
+            "i6": "<b>✏️ 绘图请求直达正确的工具</b> — 请求一张示意图曾可能得到一张地图或一个临时文件。现在这些请求会直接到达绘图应用（Excalidraw）。",
+            "i7": "<b>🔒 安全浪潮</b> — 16 个代码扫描警报和 7 个依赖公告已从源头修复，依赖审计现在会阻断流水线，而不再默默警告。"
+          }
+        },
         "v1_25_10": {
           "title": "v1.25.10 — 🔔 清晰可读的通知，以及定位准确的对话",
           "date": "2026年7月",
@@ -6840,7 +6861,7 @@
       "skills-system": {
         "title": "技能：专家指令定制LIA",
         "excerpt": "导入或创建专业技能，让LIA掌握新领域 — 除文本外还包括交互式地图、迷你仪表板和图像。",
-        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>丰富的输出（v1.16.8）</h2><p>自 v1.16.8 起，Python 脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、番茄钟计时器……）和/或<strong>图像</strong>（QR 码、图表）。合约很简单：脚本在 stdout 上写入 JSON 对象（<code>SkillScriptOutput</code>），包含 <code>text</code>（必需）、<code>frame</code> 和 <code>image</code> 字段 — 独立且可组合。框架在严格的<em>沙盒</em> iframe 中运行，为用户技能自动注入<strong>内容安全策略</strong>。主题和语言通过 <code>postMessage</code> 实时同步。七个新的内置技能展示了该机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>沙盒执行</h2><p>可执行技能在<strong>沙盒环境</strong>中通过<code>subprocess</code>运行（永远不使用<code>shell=True</code>）。执行环境经过过滤：仅<code>PATH</code>、<code>HOME</code>、<code>LANG</code>、<code>LC_ALL</code>和<code>TZ</code>变量传递给子进程。在Linux上，通过<code>unshare</code>实现<strong>网络隔离</strong>，防止技能脚本进行任何网络访问。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。 完成的技能经过验证后<strong>直接安装到您的技能中</strong> — 以名称宣布、立即激活、无需手动上传。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能。管理员还可以定义面向所有用户的全局技能。</p>"
+        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>丰富的输出（v1.16.8）</h2><p>自 v1.16.8 起，Python 脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、番茄钟计时器……）和/或<strong>图像</strong>（QR 码、图表）。合约很简单：脚本在 stdout 上写入 JSON 对象（<code>SkillScriptOutput</code>），包含 <code>text</code>（必需）、<code>frame</code> 和 <code>image</code> 字段 — 独立且可组合。框架在严格的<em>沙盒</em> iframe 中运行，为用户技能自动注入<strong>内容安全策略</strong>。主题和语言通过 <code>postMessage</code> 实时同步。七个新的内置技能展示了该机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>沙盒执行</h2><p>可执行技能在<strong>沙盒环境</strong>中通过<code>subprocess</code>运行（永远不使用<code>shell=True</code>）。执行环境经过过滤：仅<code>PATH</code>、<code>HOME</code>、<code>LANG</code>、<code>LC_ALL</code>和<code>TZ</code>变量传递给子进程。在Linux上，通过<code>unshare</code>实现<strong>网络隔离</strong>，防止技能脚本进行任何网络访问。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。 完成的技能经过验证后<strong>直接安装到您的技能中</strong> — 以名称宣布、立即激活、无需手动上传。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能。管理员还可以定义面向所有用户的全局技能。</p><p>交互式小组件经久耐用：它们随对话一起保存，在重新加载后或另一台设备上会重新打开；无法加载的框架会显示可操作的错误状态——说明、重试、在新标签页打开——而不是一个空白矩形。</p>"
       },
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",

@@ -10,7 +10,7 @@ Created: 2026-02-28
 
 from unittest.mock import MagicMock, patch
 
-from src.domains.agents.constants import AGENT_MCP, CONTEXT_DOMAIN_MCP
+from src.domains.agents.constants import AGENT_MCP
 from src.infrastructure.mcp.registration import (
     _compact_json_schema,
     _json_schema_to_parameters,
@@ -42,8 +42,16 @@ class TestMcpToolToManifest:
         )
         assert manifest.agent == AGENT_MCP
 
-    def test_context_key_set(self):
-        """ToolManifest must have context_key matching DomainConfig.result_key."""
+    def test_context_key_absent(self):
+        """MCP manifests carry NO context_key — the claim was always false.
+
+        "mcps" was never a registered context type (MCP result shapes are
+        heterogeneous per server), so the wave auto-save error-logged
+        "Context type 'mcps' not registered" on every MCP tool result once
+        MCP-domain turns reached the pipeline (prod, 2026-07-21). A None
+        context_key makes the executor skip the save cleanly (its designed
+        no-context path) instead of attempting a doomed one.
+        """
         discovered = MCPDiscoveredTool(
             server_name="test",
             tool_name="tool",
@@ -54,7 +62,7 @@ class TestMcpToolToManifest:
             adapter_name="mcp_test_tool",
             hitl_required=False,
         )
-        assert manifest.context_key == CONTEXT_DOMAIN_MCP
+        assert manifest.context_key is None
 
     def test_hitl_required_set(self):
         discovered = MCPDiscoveredTool(

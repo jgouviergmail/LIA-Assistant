@@ -11,11 +11,13 @@ import type { useGeolocation as useGeolocationFn } from '@/hooks/useGeolocation'
 
 const { useGeolocation } = vi.hoisted(() => ({ useGeolocation: vi.fn() }));
 vi.mock('@/hooks/useGeolocation', () => ({ useGeolocation }));
-// Deterministic phrase detection: the marker LOCPHRASE is a "current location"
-// phrase; nothing else matches. Keeps the test independent of the NLP rules.
+// Deterministic phrase detection: LOCPHRASE is a "current location" phrase,
+// QUERYPHRASE a "where am I" one; nothing else matches. Keeps the test
+// independent of the NLP rules.
 vi.mock('@/lib/location-detection', () => ({
   containsCurrentLocationPhrase: (msg: string) => msg.includes('LOCPHRASE'),
   containsHomeLocationPhrase: () => false,
+  containsLocationQueryPhrase: (msg: string) => msg.includes('QUERYPHRASE'),
 }));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
@@ -73,6 +75,11 @@ describe('GeolocationPrompt — visibility', () => {
 
   it('prompts to enable when a phrase is present and coordinates are missing', async () => {
     renderWithProviders(<GeolocationPrompt currentMessage="near LOCPHRASE" />);
+    expect(await screen.findByText('chat.geolocation.prompt_title')).toBeInTheDocument();
+  });
+
+  it('prompts on a "where am I" query phrase too (the category that was missing)', async () => {
+    renderWithProviders(<GeolocationPrompt currentMessage="show me QUERYPHRASE" />);
     expect(await screen.findByText('chat.geolocation.prompt_title')).toBeInTheDocument();
   });
 });

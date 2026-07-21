@@ -9,6 +9,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, type ReadonlyURLSearchParams } from 'next/navigation';
 import { Message } from '@/types/chat';
 import { RegistryProvider } from '@/lib/registry-context';
+import { mergeRegistryWithHistory } from '@/lib/message-widgets';
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { PsycheMilestoneWatcher } from '@/components/psyche/PsycheMilestoneWatcher';
 import { useLiveTabTitle } from '@/hooks/useLiveTabTitle';
@@ -299,6 +300,15 @@ export default function ChatPage() {
     if (!q) return messages;
     return messages.filter(msg => msg.content.toLowerCase().includes(q));
   }, [messages, searchQuery]);
+
+  // Widgets persisted on their message (ADR-137) are merged UNDER the live
+  // registry, so a conversation reopened from history renders its skill frames
+  // and MCP apps instead of an "unavailable" box. The live stream wins on
+  // conflict: it is the current turn's truth.
+  const registryWithHistory = useMemo(
+    () => mergeRegistryWithHistory(registry, messages),
+    [registry, messages]
+  );
 
   // ``setMessages`` accepts only ``Message[]`` (the underlying reducer doesn't
   // support a functional updater). To prepend without staleness we read the
@@ -640,7 +650,7 @@ export default function ChatPage() {
 
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto chat-scrollbar">
-            <RegistryProvider value={registry}>
+            <RegistryProvider value={registryWithHistory}>
               {/* Headless: celebrates relationship-stage milestones (I7) */}
               <PsycheMilestoneWatcher />
               <ChatMessageList

@@ -51,6 +51,55 @@ class SkillsCache:
         """Return all loaded skills."""
         return list(cls._skills.values())
 
+    @staticmethod
+    def entry_is_system(entry: dict[str, Any]) -> bool:
+        """Return True when a cache entry describes a system (admin-curated) skill.
+
+        Cache entries carry ``scope`` ("admin" | "user"), stamped by
+        ``scan_skills_directory`` — they never carry the DB column
+        ``is_system``, which only exists on the ``skills`` table. Reading
+        ``entry.get("is_system")`` on a cache entry therefore matches nothing:
+        that exact confusion shipped once (2026-07-21) and silently demoted
+        every rehydrated widget, and once with a permissive ``True`` default
+        that would have granted user skills system-frame privileges. Every
+        system-ness decision on a cache entry MUST go through this predicate.
+
+        Args:
+            entry: A skill dict as produced by the loader.
+
+        Returns:
+            True for admin-scope (system) skills, False otherwise.
+        """
+        return entry.get("scope") == "admin"
+
+    @classmethod
+    def get_system_skill_names(cls, user_id: str) -> frozenset[str]:
+        """Return the skill names that resolve to a SYSTEM skill for this user.
+
+        Used by the history read path to recompute ``is_system_skill`` on
+        rehydrated widgets (ADR-137): the flag grants frame privileges and is
+        never trusted from a persisted payload.
+
+        User-scoped on purpose, with the same override semantics as the write
+        path (``get_by_name_for_user``): a user skill shadowing a system name
+        makes that name resolve to the USER skill, so it must not be treated
+        as system here — a global name-based set would re-grant system frame
+        privileges (``credentialless`` + ``allow-same-origin``) to a widget
+        produced by user-owned code.
+
+        Args:
+            user_id: The user whose skill resolution applies.
+
+        Returns:
+            Frozen set of system skill names for that user; empty when the
+            cache is empty.
+        """
+        return frozenset(
+            str(s["name"])
+            for s in cls.get_for_user(user_id)
+            if cls.entry_is_system(s) and s.get("name")
+        )
+
     @classmethod
     def get_for_user(cls, user_id: str) -> list[dict[str, Any]]:
         """Admin skills + user's own skills, with override semantics.

@@ -30,6 +30,14 @@ export interface SkillAppRegistryPayload {
   /** External frame URL (rendered via iframe `src`). Exclusive with `html_content`. */
   frame_url?: string | null;
 
+  /**
+   * User-facing URL for opening the content OUTSIDE the iframe (fallback
+   * card). Embed endpoints often refuse to render top-level — Google Maps
+   * answers "must be used in an iframe" — so the fallback link must prefer
+   * this over `frame_url` when present. Backend-validated https.
+   */
+  link_url?: string | null;
+
   /** Image URL (data: or https://). */
   image_url?: string | null;
 

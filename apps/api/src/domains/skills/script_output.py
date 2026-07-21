@@ -39,6 +39,10 @@ class SkillFrame(BaseModel):
             exclusive with ``url``. Size capped at ``SKILLS_FRAME_MAX_HTML_BYTES``.
         url: External URL (rendered via iframe ``src``). Must be https://.
             Mutually exclusive with ``html``.
+        link_url: Optional user-facing URL for opening the content OUTSIDE the
+            iframe (fallback card, "open in browser"). Needed when ``url`` is
+            embed-only — e.g. the Google Maps embed endpoint answers "must be
+            used in an iframe" when opened top-level. Must be https://.
         title: Display title shown in the frame header badge.
         aspect_ratio: Width/height ratio for responsive rendering. Default 4:3.
     """
@@ -51,6 +55,10 @@ class SkillFrame(BaseModel):
         default=None,
         description="External URL (src) — mutually exclusive with html",
     )
+    link_url: str | None = Field(
+        default=None,
+        description="User-facing URL for opening outside the iframe (fallback link)",
+    )
     title: str | None = Field(
         default=None,
         description="Frame header badge title",
@@ -61,14 +69,14 @@ class SkillFrame(BaseModel):
         description="Width/height ratio (default 4:3 = 1.333)",
     )
 
-    @field_validator("url")
+    @field_validator("url", "link_url")
     @classmethod
     def _url_must_be_https(cls, v: str | None) -> str | None:
         """External frame URLs must be https:// (no http, javascript:, data:)."""
         if v is None:
             return v
         if not v.startswith("https://"):
-            raise ValueError("frame.url must start with https://")
+            raise ValueError("frame URLs must start with https://")
         return v
 
     @field_validator("html")

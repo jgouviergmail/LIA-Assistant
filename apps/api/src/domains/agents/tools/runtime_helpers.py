@@ -1171,7 +1171,7 @@ async def resolve_location(
     location source lookup. Priority depends on detected location type:
 
     - HOME: Home location > Browser geolocation > Fallback message
-    - CURRENT: Browser geolocation only > Fallback message
+    - CURRENT / QUERY: Browser geolocation only > Fallback message
     - EXPLICIT: Return None (let tool geocode the explicit location)
     - NONE: Browser geolocation > Home location > None (silent fallback)
 
@@ -1238,14 +1238,16 @@ async def resolve_location(
             )
             return (None, get_fallback_message(language))
 
-        case LocationType.CURRENT:
-            # User explicitly references current position ("nearby", "around me")
-            # Priority: browser only > fallback
+        case LocationType.CURRENT | LocationType.QUERY:
+            # User references or asks about their current position ("nearby",
+            # "around me", "where am I"). Priority: browser only > fallback.
+            # QUERY was previously unhandled and fell through to the silent
+            # (None, None) safety return — "où suis-je" resolved nothing.
             if browser_geoloc:
                 logger.info("resolve_location_using_browser")
                 return (browser_geoloc, None)
 
-            # No browser geolocation for CURRENT reference
+            # No browser geolocation for CURRENT/QUERY reference
             logger.warning(
                 "resolve_location_current_no_browser",
                 has_home=home_location is not None,
@@ -1279,7 +1281,7 @@ async def resolve_location(
             logger.debug("resolve_location_implicit_none")
             return (None, None)
 
-    # Should not reach here, but return None for safety
+    # All LocationType members are matched above; kept for type completeness.
     return (None, None)
 
 

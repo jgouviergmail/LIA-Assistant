@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   containsCurrentLocationPhrase,
   containsHomeLocationPhrase,
+  containsLocationQueryPhrase,
   detectLocationType,
   messageRequiresGeolocation,
 } from '../location-detection';
@@ -60,19 +61,43 @@ describe('detectLocationType — home precedence and language matrix', () => {
   });
 });
 
+describe('detectLocationType — query phrases (where am I)', () => {
+  it('detects the exact production phrasing that used to slip through', () => {
+    // 2026-07-21 defect: this message never triggered the geolocation
+    // permission prompt, so the request left without coordinates.
+    expect(detectLocationType('Montre moi où je suis', 'fr')).toBe('query');
+  });
+
+  it('detects query phrases across languages', () => {
+    expect(detectLocationType('Show me where I am', 'en')).toBe('query');
+    expect(detectLocationType('Zeig mir, wo ich bin', 'de')).toBe('query');
+    expect(detectLocationType('Muéstrame dónde estoy', 'es')).toBe('query');
+    expect(detectLocationType('Mostrami dove sono', 'it')).toBe('query');
+    expect(detectLocationType('告诉我我在哪里', 'zh')).toBe('query');
+  });
+
+  it('prefers query over current when both could match (backend priority)', () => {
+    // "ma position" is a query phrase; "ici" a current one.
+    expect(detectLocationType('affiche ma position ici', 'fr')).toBe('query');
+  });
+});
+
 describe('messageRequiresGeolocation', () => {
-  it('is true for current and home references, false otherwise', () => {
+  it('is true for current, home and query references, false otherwise', () => {
     expect(messageRequiresGeolocation('à proximité', 'fr')).toBe(true);
     expect(messageRequiresGeolocation('chez moi', 'fr')).toBe(true);
+    expect(messageRequiresGeolocation('montre moi où je suis', 'fr')).toBe(true);
     expect(messageRequiresGeolocation('bonjour', 'fr')).toBe(false);
   });
 });
 
-describe('containsCurrentLocationPhrase / containsHomeLocationPhrase', () => {
-  it('discriminate current vs home specifically', () => {
+describe('containsCurrentLocationPhrase / containsHomeLocationPhrase / containsLocationQueryPhrase', () => {
+  it('discriminate current vs home vs query specifically', () => {
     expect(containsCurrentLocationPhrase('à proximité', 'fr')).toBe(true);
     expect(containsCurrentLocationPhrase('chez moi', 'fr')).toBe(false);
     expect(containsHomeLocationPhrase('chez moi', 'fr')).toBe(true);
     expect(containsHomeLocationPhrase('à proximité', 'fr')).toBe(false);
+    expect(containsLocationQueryPhrase('où suis-je ?', 'fr')).toBe(true);
+    expect(containsLocationQueryPhrase('à proximité', 'fr')).toBe(false);
   });
 });

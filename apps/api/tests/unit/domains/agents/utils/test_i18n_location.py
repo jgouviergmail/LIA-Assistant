@@ -151,6 +151,18 @@ class TestPhraseDictionaries:
         """Test that specific English query phrases exist."""
         assert "where am i" in QUERY_PHRASES["en"]
 
+    def test_imperative_query_forms_are_detected(self):
+        """The imperative phrasings that slipped through (2026-07-21 defect).
+
+        "Montre-moi où je suis" matched no entry: the lists only carried
+        interrogative word orders ("où suis-je", "wo bin ich"), so the exact
+        production request resolved no location at all.
+        """
+        assert detect_location_type("Montre moi où je suis", "fr") == LocationType.QUERY
+        assert detect_location_type("Affiche ma position sur la carte", "fr") == LocationType.QUERY
+        assert detect_location_type("Show me where I am", "en") == LocationType.QUERY
+        assert detect_location_type("Zeig mir, wo ich bin", "de") == LocationType.QUERY
+
 
 # ============================================================================
 # Tests for detect_location_type function

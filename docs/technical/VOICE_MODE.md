@@ -450,7 +450,10 @@ apps/web/public/models/sherpa-wasm/
 
 **Setup**: `scripts/setup-dev.sh` (dev) or `Dockerfile.prod` model-downloader stage (prod).
 
-**Prérequis navigateur** : `SharedArrayBuffer` (requires `COEP: require-corp` + `COOP: same-origin` headers, configured in `next.config.ts`). Supported on all modern browsers including Safari iOS.
+**Prérequis navigateur** : `SharedArrayBuffer`, donc un contexte cross-origin isolé (`COOP: same-origin` + un `COEP` non vide, configurés dans `next.config.ts`).
+
+> [!IMPORTANT]
+> Depuis [ADR-136](../architecture/ADR-136-COEP-Posture-And-Widget-Failure-States.md), la posture par défaut est `COEP: credentialless`. WebKit ne l'implémente pas : sur **iOS**, la page n'est donc pas isolée, `SharedArrayBuffer` est absent et **le mot-clé vocal est indisponible** — `isSherpaKwsSupported()` le détecte et le mode vocal bascule en appui-pour-parler. C'est un arbitrage mesuré : `require-corp` conserverait le mot-clé vocal sur iOS mais y bloquerait tous les embeds externes (carte, MCP Apps). Réversible par `COEP_MODE=require-corp` sans reconstruction.
 
 ---
 
@@ -733,8 +736,10 @@ async headers() {
           value: 'same-origin',
         },
         {
+          // ADR-136 : valeur résolue par resolveCoepMode(process.env.COEP_MODE),
+          // `credentialless` par défaut. Voir CoepMode dans src/lib/csp.ts.
           key: 'Cross-Origin-Embedder-Policy',
-          value: 'require-corp',
+          value: coepMode,
         },
       ],
     },
@@ -754,18 +759,16 @@ if (!crossOriginIsolated) {
 }
 ```
 
-**Conséquences COEP `require-corp`** :
-- Les ressources externes (images, scripts) doivent avoir :
-  - `Cross-Origin-Resource-Policy: cross-origin` OU
-  - Être servies depuis le même domaine
-- Solution pour images externes : utiliser `<img crossorigin="anonymous">` ou proxy
+**Conséquences par valeur de COEP** (ADR-136) :
 
-**Configuration Production (Nginx exemple)** :
+| | `credentialless` (défaut) | `require-corp` |
+| --- | --- | --- |
+| Ressources externes sans `CORP` | chargées **sans credentials** | **bloquées** (nécessite `CORP: cross-origin` ou `crossorigin="anonymous"`) |
+| Documents imbriqués cross-origin sans COEP | levés par l'attribut `credentialless` (Chromium) | idem — mais l'attribut est **Chromium-only** |
+| Isolation sur Chromium | oui (mot-clé vocal OK) | oui |
+| Isolation sur WebKit / iOS | **non** (mot-clé vocal indisponible, embeds OK) | oui (mot-clé vocal OK, **embeds bloqués**) |
 
-```nginx
-add_header Cross-Origin-Opener-Policy "same-origin" always;
-add_header Cross-Origin-Embedder-Policy "require-corp" always;
-```
+Les images de profil Google restent proxifiées (`/api/v1/auth/profile-image-proxy`) et Google Fonts reste chargé en `crossorigin="anonymous"` : ces protections valent pour les deux valeurs et permettent de revenir à `require-corp` sans régression.
 
 **Détection navigateur** :
 

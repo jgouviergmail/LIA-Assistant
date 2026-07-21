@@ -68,6 +68,61 @@ logger = structlog.get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 
+def _neutralize_widget_sentinels(history: list[BaseMessage]) -> list[BaseMessage]:
+    """Replace host-owned widget sentinels in prior answers with a short marker.
+
+    ``response_node`` writes the enriched answer — sentinel included — back into
+    ``state["messages"]``, and this window serves that history RAW to the ReAct
+    model (the response path neutralizes HTML, this one never did). The model
+    learned the markup by imitation and started emitting its own, which produced
+    duplicate widgets and, worse, sentinels pointing at a registry id from an
+    earlier turn. Removing the example removes the incentive — and reclaims the
+    tokens the markup was costing on every turn.
+
+    Args:
+        history: Windowed prior-turn messages (the current turn is untouched —
+            the ReAct loop needs its own reasoning chain verbatim).
+
+    Returns:
+        A new list; messages without a sentinel are passed through by identity.
+    """
+    from src.core.constants import CONTEXT_WIDGET_DISPLAYED_PLACEHOLDER
+    from src.domains.agents.display.sentinel_filter import strip_widget_sentinels
+    from src.infrastructure.llm.message_text import coerce_content_to_text
+    from src.infrastructure.observability.metrics_registry import (
+        widget_sentinels_stripped_total,
+    )
+
+    out: list[BaseMessage] = []
+    stripped = 0
+    for msg in history:
+        if not isinstance(msg, AIMessage):
+            out.append(msg)
+            continue
+        text = coerce_content_to_text(getattr(msg, "content", ""))
+        cleaned, count = strip_widget_sentinels(
+            text, replacement=CONTEXT_WIDGET_DISPLAYED_PLACEHOLDER
+        )
+        if not count:
+            out.append(msg)
+            continue
+        stripped += count
+        # Copy, never rebuild: a fresh ``AIMessage(content=..., id=...)`` would
+        # silently drop ``tool_calls``/``additional_kwargs``. An AIMessage that
+        # carried BOTH tool_calls and a sentinel would then leave its
+        # ToolMessages orphaned, and the provider rejects the whole request
+        # ("messages with role 'tool' must be a response to a preceding message
+        # with 'tool_calls'") — or worse, `enforce_tool_message_pairing` drops
+        # the carrier and its results silently. `model_copy` changes the content
+        # and nothing else.
+        out.append(msg.model_copy(update={"content": cleaned}))
+
+    if stripped:
+        widget_sentinels_stripped_total.labels(source="react_history").inc(stripped)
+        logger.debug("react_history_widget_sentinels_neutralized", count=stripped)
+    return out
+
+
 def _window_messages_for_react(
     messages: list[BaseMessage],
 ) -> list[BaseMessage]:
@@ -112,7 +167,7 @@ def _window_messages_for_react(
         history, window_size=settings.react_agent_history_window_turns
     )
 
-    windowed = windowed_history + current_turn
+    windowed = _neutralize_widget_sentinels(windowed_history) + current_turn
 
     if len(windowed) < len(messages):
         logger.debug(

@@ -44,6 +44,9 @@ Rules enforced by Pydantic validators in [src/domains/skills/script_output.py](.
 
 - `text` is required and non-empty.
 - `frame.html` **XOR** `frame.url` — exactly one source per frame (srcDoc vs src).
+- `frame.link_url` (added 2026-07-21, optional, https-only) — user-facing URL for
+  the fallback card when the frame cannot render; needed when `frame.url` is
+  embed-only (Google Maps refuses top-level rendering — ADR-136).
 - `frame.html` is capped at `SKILLS_FRAME_MAX_HTML_BYTES = 200 KB`.
 - `image.url` must use `data:` or `https://` — `http://` and `javascript:` rejected.
 - `image.alt` is required and non-empty (accessibility contract).

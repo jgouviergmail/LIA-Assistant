@@ -4,6 +4,9 @@
 **Author**: Claude Code (Fable 5)
 **Related**: [ADR-096](ADR-096-Performance-Boundary-Hardening-Wave3-Audit.md) (wave-3 audit that introduced the strict CSP), [ADR-093](ADR-093-Security-Hardening-Proxy-XSS.md) (XSS hardening), [MCP_INTEGRATION.md](../technical/MCP_INTEGRATION.md)
 
+> [!NOTE]
+> **Completed by [ADR-136](ADR-136-COEP-Posture-And-Widget-Failure-States.md) (2026-07-21).** This ADR restored the widgets on Chromium; WebKit was never verified. Under `COEP: require-corp` the interactive-map embed is refused by every iOS browser, because the lift depends on the Chromium-only `credentialless` iframe attribute. ADR-136 moves the default posture to `COEP: credentialless` and gives every widget a failure state. The airlock design itself is unchanged and was re-verified on WebKit — its four locks pass and the payload is delivered.
+
 ## Context
 
 The wave-3 audit (A4, ADR-096) introduced a strict Content-Security-Policy
