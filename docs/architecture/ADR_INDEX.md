@@ -5,21 +5,16 @@
 > Format: [MADR](https://adr.github.io/madr/) (Markdown Any Decision Records)
 > Principe: Documenter les décisions importantes pour maintenir la cohérence architecturale
 
-> [!IMPORTANT]
-> **8 entrées de cet index pointent vers des fichiers qui n'existent pas** (vérifié
-> le 2026-07-20 : 135 chemins référencés, 8 absents). Le résumé donné ici reste la
-> seule trace de ces décisions — il n'y a pas de fichier à ouvrir derrière.
+> [!NOTE]
+> **ADR-001 à ADR-006 reconstitués le 2026-07-21.** Ces six ADR fondateurs étaient
+> résumés ici mais n'avaient jamais eu de fichier (`git log --diff-filter=A` vide).
+> Leurs fichiers ont été recréés sous `docs/architecture/` à partir de ce résumé et
+> confirmés contre le code courant ; chacun porte une note de provenance. Les
+> décisions restent en vigueur (implémentation parfois évoluée — voir les fichiers).
 >
-> - `ADR-001` (LangGraph Orchestration) et `ADR-002` (BFF Pattern) : annoncés sous
->   `docs/architecture/`, jamais présents.
-> - `ADR-003` à `ADR-006`, plus deux entrées héritées : annoncés sous
->   `docs/archive/…`, **ce répertoire n'existe pas**.
->
-> Ces fichiers n'apparaissent dans aucun commit (`git log --diff-filter=A` est vide) :
-> ils n'ont jamais été écrits, ils n'ont pas été supprimés. La numérotation réelle
-> des ADR commence donc à **ADR-007**. Les autres documents du dépôt citent
-> néanmoins ADR-001 à ADR-006 et ADR-008 environ 68 fois — ces renvois sont
-> compréhensibles via le résumé ci-dessous, mais ne mènent nulle part.
+> Deux entrées de la section « ADRs Archivés » (Unit of Work *rejeté*, Workflow-Based
+> HITL *déprécié*) n'ont volontairement pas de fichier : le résumé suffit à une
+> décision sans implémentation. Leur pointeur `**Fichier**` l'indique explicitement.
 
 ---
 
@@ -236,7 +231,7 @@ Un **Architecture Decision Record** est un document qui capture une **décision 
 ### ADR-003: Multi-Domain Dynamic Filtering
 
 **Status**: ✅ ACCEPTED (2025-11-09, Finalized 2025-11-11)
-**Fichier**: `docs/archive/architecture/ADR-003-Multi-Domain-Dynamic-Filtering.md`
+**Fichier**: `docs/architecture/ADR-003-Multi-Domain-Dynamic-Filtering.md`
 
 **Décision**: Implémenter **filtrage dynamique par domaine** pour éviter token explosion lors du scaling à 10+ domaines.
 
@@ -264,7 +259,7 @@ Un **Architecture Decision Record** est un document qui capture une **décision 
 ### ADR-004: Analytical Reasoning Patterns (Planner v5)
 
 **Status**: ✅ ACCEPTED (2025-11-10)
-**Fichier**: `docs/archive/architecture/ADR-004-Analytical-Reasoning-Patterns.md`
+**Fichier**: `docs/architecture/ADR-004-Analytical-Reasoning-Patterns.md`
 
 **Décision**: Intégrer **Progressive Enrichment + Structured Analysis** dans Planner prompt v5 pour améliorer qualité des plans.
 
@@ -288,7 +283,7 @@ Un **Architecture Decision Record** est un document qui capture une **décision 
 ### ADR-005: Sequential Fallback Execution
 
 **Status**: ✅ IMPLEMENTED (2025-11-14)
-**Fichier**: `docs/archive/architecture/ADR-005-Sequential-Fallback-Execution.md`
+**Fichier**: `docs/architecture/ADR-005-Sequential-Fallback-Execution.md`
 
 **Décision**: Filtrer steps skipped AVANT `asyncio.gather()` pour éviter exécution parallèle des branches conditionnelles.
 
@@ -318,7 +313,7 @@ step_results = await asyncio.gather(*tasks)
 ### ADR-006: Prevent Unbounded List Operations
 
 **Status**: ✅ IMPLEMENTED (2025-11-14)
-**Fichier**: `docs/archive/architecture/ADR-006-Prevent-Unbounded-List-Operations.md`
+**Fichier**: `docs/architecture/ADR-006-Prevent-Unbounded-List-Operations.md`
 
 **Décision**: Ajouter **soft warnings + hard safeguards** pour prévenir `list_contacts()` sans query (450+ results).
 
@@ -339,39 +334,34 @@ step_results = await asyncio.gather(*tasks)
 
 ---
 
-### ADR-007: Message Windowing Strategy
+### ADR-007: Service Layer Pattern for Node Complexity Reduction
 
-> [!WARNING]
-> **Conflit de numérotation (constaté 2026-07-20).** Le numéro **ADR-007 est
-> utilisé deux fois** : cette entrée (« Message Windowing Strategy », adossée au
-> doc technique `MESSAGE_WINDOWING_STRATEGY.md`) **et** le fichier
-> `docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md`
-> (titre H1 : « Service Layer Pattern for Node Complexity Reduction »). Les liens
-> `#adr-007-service-layer-pattern-for-node-complexity` (p. ex. depuis ADR-127)
-> visent le second. La résolution — renuméroter l'une des deux décisions — est
-> laissée au mainteneur : elle touche l'historique décisionnel et des références
-> croisées, hors du périmètre de ce réalignement documentaire.
+**Status**: ✅ Accepted & Implemented (2025-11-16) — SUPERSEDED par Architecture v3 (Smart Services)
+**Fichier**: `docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md`
 
-**Status**: ✅ ACCEPTED (2025-10-28)
-**Fichier**: Documenté dans `docs/technical/MESSAGE_WINDOWING_STRATEGY.md`
+**Décision**: Extraire la logique des nœuds LangGraph volumineux (router, planner) vers une **couche de services** dédiée pour réduire leur complexité. L'architecture v3 a poussé le pattern plus loin avec les Smart Services (`QueryAnalyzerService`, `SmartPlannerService`, `SmartCatalogueService`) — voir [SMART_SERVICES.md](../technical/SMART_SERVICES.md).
 
-**Décision**: Implémenter **message windowing** avec stratégie par node pour optimiser latency longues conversations.
+> **Conflit de numérotation résolu (2026-07-21).** Le numéro ADR-007 appartient au
+> Service Layer Pattern ci-dessus (fichier réel, référencé par ADR-127). L'entrée
+> « Message Windowing Strategy » qui occupait ce numéro n'était pas un ADR mais une
+> note technique ; elle est déclassée juste en dessous.
 
-**Problème**:
-- Conversations > 50 messages → 100k+ tokens contexte
-- Latency > 10s pour router
-- Cost explosion
+---
 
-**Solution**:
-- Router: 5 turns (messages récents)
-- Planner: 10 turns
-- Response: 20 turns
-- Store pour context business indépendant
+### Note technique — Message Windowing Strategy (pas un ADR)
 
-**Impact**:
-- ✅ E2E latency: -50% (10s → 5s)
-- ✅ Cost: -77% (messages longues)
-- ✅ Quality: Preserved via Store
+> Anciennement catalogué à tort sous « ADR-007 ». Ce n'est pas une décision
+> architecturale distincte mais une **stratégie technique**, documentée dans
+> [`MESSAGE_WINDOWING_STRATEGY.md`](../technical/MESSAGE_WINDOWING_STRATEGY.md).
+> Conservée ici pour la traçabilité.
+
+**Décision**: message windowing par nœud pour réduire la latence des longues conversations.
+
+**Problème**: conversations > 50 messages → 100k+ tokens de contexte, latence router élevée, coût.
+
+**Solution**: fenêtres de messages par nœud (valeurs à jour dans `MESSAGE_WINDOWING_STRATEGY.md` — router et planner héritent de `DEFAULT_MESSAGE_WINDOW_SIZE`, il n'existe pas de variable dédiée par nœud) + Store pour le contexte business.
+
+**Impact**: latence E2E ~-50 %, coût ~-77 % sur longues conversations, qualité préservée via le Store.
 
 ---
 
@@ -2869,7 +2859,7 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 **Status**: ✅ IMPLEMENTED (2026-07-03)
 **Fichier**: `docs/architecture/ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md`
 
-**Décision**: Suppression d'un micro-sous-système **mort** dans `message_windowing.py` — les helpers `get_router_windowed_messages` / `get_planner_windowed_messages` / `get_orchestrator_windowed_messages` n'avaient **aucun call site** en prod (le router lit `state[STATE_KEY_MESSAGES]` directement), et les 3 settings qui les alimentaient (`router/planner/orchestrator_message_window_size` + constantes + `.env`) n'étaient consommés que par ces helpers morts ; seuls des **tests** les exerçaient encore (fake coverage). Retirés avec leurs settings/constantes/`.env`/tests. **Conservé** ce qui est vivant : `get_windowed_messages` (utilisé par `react_nodes`) et `get_response_windowed_messages` (utilisé par `response_node`) + `response_message_window_size` / `default_message_window_size`. Aucun changement de comportement (la troncature de tokens est déjà bornée par le reducer state-level `add_messages_with_truncate`). Le windowing per-nœud router/planner/orchestrator (vrai levier latence) est **différé au chantier latence**, à réintroduire avec benchmarks de qualité de routage/planification plutôt qu'en scaffolding inutilisé. Application de la règle CLAUDE.md « dead code deleted, not kept for later — wire it or remove it, record in a short ADR ». Complète [ADR-007](#adr-007-service-layer-pattern-for-node-complexity).
+**Décision**: Suppression d'un micro-sous-système **mort** dans `message_windowing.py` — les helpers `get_router_windowed_messages` / `get_planner_windowed_messages` / `get_orchestrator_windowed_messages` n'avaient **aucun call site** en prod (le router lit `state[STATE_KEY_MESSAGES]` directement), et les 3 settings qui les alimentaient (`router/planner/orchestrator_message_window_size` + constantes + `.env`) n'étaient consommés que par ces helpers morts ; seuls des **tests** les exerçaient encore (fake coverage). Retirés avec leurs settings/constantes/`.env`/tests. **Conservé** ce qui est vivant : `get_windowed_messages` (utilisé par `react_nodes`) et `get_response_windowed_messages` (utilisé par `response_node`) + `response_message_window_size` / `default_message_window_size`. Aucun changement de comportement (la troncature de tokens est déjà bornée par le reducer state-level `add_messages_with_truncate`). Le windowing per-nœud router/planner/orchestrator (vrai levier latence) est **différé au chantier latence**, à réintroduire avec benchmarks de qualité de routage/planification plutôt qu'en scaffolding inutilisé. Application de la règle CLAUDE.md « dead code deleted, not kept for later — wire it or remove it, record in a short ADR ». Complète [ADR-007](#adr-007-service-layer-pattern-for-node-complexity-reduction).
 
 ---
 
@@ -3186,7 +3176,7 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 **Status**: 🗑️ DEPRECATED (Superseded by ADR-008)
 **Date**: 2025-10-25
-**Fichier**: `docs/archive/adr/ADR_005_REVERTED_LESSONS_LEARNED.md`
+**Fichier**: *(décision archivée — résumée ci-dessous, pas de fichier séparé)*
 
 **Décision originale**: Workflow-based HITL avec interruptions mid-execution.
 
@@ -3207,7 +3197,7 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 ### ADR-001 (Archive): Unit of Work Pattern
 
 **Status**: ❌ REJECTED (2025-09-15)
-**Fichier**: `docs/archive/design/ADR-001-unit-of-work-pattern.md`
+**Fichier**: *(décision archivée — résumée ci-dessous, pas de fichier séparé)*
 
 **Décision**: Utiliser Unit of Work pattern pour transactions database.
 
