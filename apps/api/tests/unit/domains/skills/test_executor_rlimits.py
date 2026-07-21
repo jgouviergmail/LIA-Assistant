@@ -85,8 +85,12 @@ def test_cpu_spin_is_killed_by_rlimit_cpu() -> None:
 
     # Killed by SIGXCPU (signal 24) — negative returncode in subprocess terms.
     assert result.returncode != 0, "CPU spin was not terminated"
-    # Bounded well within the wall-clock timeout by the CPU ceiling.
-    assert elapsed < _TEST_LIMITS["max_cpu_seconds"] + 5
+    # Bounded well within the 20 s wall-clock timeout by the CPU ceiling —
+    # proving SIGXCPU did the killing, not the subprocess timeout. The margin
+    # over max_cpu_seconds absorbs scheduler noise: RLIMIT_CPU counts CPU
+    # time while `elapsed` is WALL time, and on a loaded shared CI runner the
+    # spin gets descheduled (measured 8.2 s where the old +5 bound allowed 8).
+    assert elapsed < _TEST_LIMITS["max_cpu_seconds"] + 10
 
 
 def test_memory_hog_is_contained_by_rlimit_as() -> None:
