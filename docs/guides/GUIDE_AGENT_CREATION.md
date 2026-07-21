@@ -102,7 +102,7 @@ Response to User
 | **Domain Taxonomy** | `domain_taxonomy.py` | Configuration des domaines (keywords, agents) |
 | **Agent Manifest** | `catalogue_loader.py` | Définition des agents (nom, tools) |
 | **Tool Manifest** | `{domain}/catalogue_manifests.py` | Définition des tools (params, semantic_keywords) |
-| **Intent Anchors** | `semantic_intent_detector.py` | Classification d'intention (create, list, search...) |
+| **Analyse de requête** | `query_analyzer_service.py` | Classification d'intention et sélection des outils |
 | **Tool Implementation** | `tools/{domain}_tools.py` | Code exécutable des tools |
 | **Tool Registration** | `catalogue_loader.py` | Enregistrement des instances |
 
@@ -130,7 +130,7 @@ apps/api/src/domains/agents/
 │   └── domain_taxonomy.py              # DomainConfig
 │
 └── services/
-    └── semantic_intent_detector.py     # INTENT_ANCHORS
+    └── query_analyzer_service.py       # Analyse de requête + sélection d'outils
 ```
 
 ### Fichiers à Modifier (Checklist Rapide)
@@ -138,7 +138,7 @@ apps/api/src/domains/agents/
 1. `domain_taxonomy.py` - Ajouter DomainConfig
 2. `catalogue_loader.py` - Ajouter AgentManifest + imports + registration
 3. `{domain}/catalogue_manifests.py` - Créer Tool manifests
-4. `semantic_intent_detector.py` - Ajouter Intent anchors si nouveau type d'intent
+4. ~~`semantic_intent_detector.py`~~ — **étape obsolète** : ce fichier n'a jamais existé et la détection d'intention est LLM-native (`QueryAnalyzerService` / `analysis/query_intelligence.py`). Voir Étape 6.
 5. `tools/{domain}_tools.py` - Implémenter tools
 6. `catalogue_loader.py` - Enregistrer tool instances dans `_register_tool_instances()`
 
@@ -1172,7 +1172,7 @@ await store.aget(...)   # PAS store.get()
 
 **Cause** : `INTENT_ANCHORS` ne contient pas de phrases pour ce cas.
 
-**Solution** : Ajouter anchors spécifiques dans `semantic_intent_detector.py`.
+**Solution** : *(obsolète)* la détection d'intention est portée par le `QueryAnalyzerService` (LLM), pas par des anchors dans un `semantic_intent_detector.py` — fichier inexistant. Ajuster plutôt les `semantic_keywords` du manifeste (Étape 5).
 
 ---
 
@@ -2031,7 +2031,7 @@ async def test_list_notes_success():
 - [x] `notes/catalogue_manifests.py` : 3 ToolManifests créés
 - [x] `notes_tools.py` : 3 tools implémentés avec `@track_tool_metrics`
 - [x] `catalogue_loader.py` : AgentManifest + imports + registration
-- [x] `semantic_intent_detector.py` : Anchors ajoutés (si nécessaire)
+- [x] ~~`semantic_intent_detector.py` : Anchors~~ — sans objet (mécanisme LLM-native, voir Étape 6)
 - [x] Tests unitaires créés
 
 ---

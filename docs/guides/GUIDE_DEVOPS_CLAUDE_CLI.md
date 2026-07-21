@@ -237,7 +237,7 @@ Claude CLI runs on a remote server via SSH (`asyncssh`). Useful if Claude CLI is
 3. [ ] Verify: `claude auth status` shows `loggedIn: true`
 4. [ ] Configure `DEVOPS_ENABLED=true` in `.env` / `.env.prod`
 5. [ ] Configure `DEVOPS_SERVERS=[...]` with appropriate permissions
-6. [ ] Deploy (rebuild Docker images): `task dev` or `./scripts/deploy.sh`
+6. [ ] Deploy (rebuild Docker images): `task deploy:prod` (le script `scripts/deploy.sh` n'existe pas — le déploiement prod passe par cette tâche)
 7. [ ] Verify in container: `docker exec -it lia-api-dev claude auth status`
 
 ### Subsequent deployments

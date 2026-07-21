@@ -257,10 +257,12 @@ LANGFUSE_PUBLIC_KEY=pk-lf-xxxxxxxx
 LANGFUSE_SECRET_KEY=sk-lf-xxxxxxxx
 LANGFUSE_HOST=https://cloud.langfuse.com  # or self-hosted
 
-# Features (Phase 3.1)
-LANGFUSE_PROMPT_VERSIONING_ENABLED=true
-LANGFUSE_EVALUATION_ENABLED=true
-LANGFUSE_AB_TESTING_ENABLED=true
+# Features (Phase 3.1) — NON IMPLEMENTEES (verifie 2026-07-20)
+# Ces trois variables ne sont lues par aucun code et le module
+# domains/agents/ab_testing/ n'existe pas. Les definir n'a aucun effet.
+# Reglages Langfuse reels : LANGFUSE_ENABLED, LANGFUSE_HOST,
+# LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_RELEASE,
+# LANGFUSE_SAMPLE_RATE, LANGFUSE_FLUSH_INTERVAL, LANGFUSE_DEBUG.
 ```
 
 **Get API Keys**:
@@ -326,7 +328,7 @@ langfuse_ab_test_variant{experiment="prompt_test_001",variant="control"} 25.0
 | `LANGFUSE_PUBLIC_KEY` | Yes* | - | Langfuse public API key |
 | `LANGFUSE_SECRET_KEY` | Yes* | - | Langfuse secret API key |
 | `LANGFUSE_HOST` | No | `https://cloud.langfuse.com` | Langfuse instance URL |
-| `LANGFUSE_PROMPT_VERSIONING_ENABLED` | No | `true` | Enable prompt versioning (3.1.2) |
+| `LANGFUSE_PROMPT_VERSIONING_ENABLED` | — | — | **N'existe pas** — non implemente |
 | `LANGFUSE_EVALUATION_ENABLED` | No | `true` | Enable evaluation pipeline (3.1.3) |
 | `LANGFUSE_AB_TESTING_ENABLED` | No | `true` | Enable A/B testing (3.1.4) |
 

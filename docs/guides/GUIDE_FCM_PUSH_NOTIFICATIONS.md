@@ -10,15 +10,15 @@
 
 ## 📋 Table des Matières
 
-- [Introduction](#introduction)
-- [Architecture](#architecture)
-- [Configuration Firebase](#configuration-firebase)
-- [Modèle de Données](#modèle-de-données)
-- [Enregistrement Token](#enregistrement-token)
-- [Envoi de Notifications](#envoi-de-notifications)
-- [Gestion des Tokens Invalides](#gestion-des-tokens-invalides)
-- [Testing](#testing)
-- [Troubleshooting](#troubleshooting)
+- [Introduction](#-introduction)
+- [Architecture](#-architecture)
+- [Configuration Firebase](#-configuration-firebase)
+- [Modèle de Données](#-modèle-de-données)
+- [Enregistrement Token](#-enregistrement-token)
+- [Envoi de Notifications](#-envoi-de-notifications)
+- [Gestion des Tokens Invalides](#-gestion-des-tokens-invalides)
+- [Testing](#-testing)
+- [Troubleshooting](#-troubleshooting)
 
 ---
 
@@ -745,7 +745,7 @@ Depuis la v6.2, FCM est **un canal parmi d'autres** dans l'architecture de notif
 NotificationDispatcher
     ├── Archive en DB (toujours)
     ├── SSE real-time (toujours)
-    ├── FCM Push (si FCM_NOTIFICATIONS_ENABLED et push active pour l'utilisateur)
+    ├── FCM Push (si FCM_ENABLED et push active pour l'utilisateur)
     └── Telegram (si CHANNELS_ENABLED et utilisateur lie a Telegram)
 ```
 
@@ -762,8 +762,9 @@ FCM push est utilise par **3 sources de notifications** :
 ### Configuration Feature Flags
 
 ```bash
-# Activer FCM Push (global)
-FCM_NOTIFICATIONS_ENABLED=true
+# Activer FCM Push (global) — nom reel : FCM_ENABLED
+# (FCM_NOTIFICATIONS_ENABLED n'existe pas)
+FCM_ENABLED=true
 
 # Activer Telegram comme canal supplementaire
 CHANNELS_ENABLED=true

@@ -1218,8 +1218,12 @@ Admin Request → PostgreSQL → Redis Cache (5min TTL)
 
 **Endpoints** (superuser only) :
 ```bash
-GET  /api/v1/admin/system-settings/voice-mode
-PUT  /api/v1/admin/system-settings/voice-mode
+# ATTENTION (verifie 2026-07-20) : /admin/system-settings/voice-mode N'EXISTE PAS.
+# Le router /admin/system-settings n'expose que /debug-panel et
+# /debug-panel-user-access. La configuration TTS passe par le registre LLM :
+GET  /api/v1/admin/llm-config/types/{llm_type}          # llm_type = voice_tts
+PUT  /api/v1/admin/llm-config/types/{llm_type}
+POST /api/v1/admin/llm-config/types/{llm_type}/reset
 ```
 
 **Voir** : [VOICE.md](./VOICE.md) pour details sur les modes TTS.

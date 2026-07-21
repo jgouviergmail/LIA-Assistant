@@ -4,16 +4,16 @@
 
 ## 📋 Table des Matières
 
-- [Vue d'Ensemble](#vue-densemble)
-- [LangGraph StateGraph](#langgraph-stategraph)
-- [MessagesState Structure](#messagesstate-structure)
-- [Nodes du Graphe](#nodes-du-graphe)
-- [Routing & Flow](#routing--flow)
-- [Orchestration & Plans](#orchestration--plans)
-- [Registry & Catalogue](#registry--catalogue)
-- [Context Management](#context-management)
-- [Patterns d'Implémentation](#patterns-dimplémentation)
-- [Performance & Optimisation](#performance--optimisation)
+- [Vue d'Ensemble](#-vue-densemble)
+- [LangGraph StateGraph](#-langgraph-stategraph)
+- [MessagesState Structure](#-messagesstate-structure)
+- [Nodes du Graphe](#-nodes-du-graphe)
+- [Routing & Flow](#-routing--flow)
+- [Orchestration & Plans](#-orchestration--plans)
+- [Registry & Catalogue](#-registry--catalogue)
+- [Context Management](#-context-management)
+- [Patterns d'Implémentation](#-patterns-dimplémentation)
+- [Performance & Optimisation](#-performance--optimisation)
 
 ---
 

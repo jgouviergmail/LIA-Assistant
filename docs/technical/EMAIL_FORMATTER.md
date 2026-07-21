@@ -11,15 +11,15 @@
 
 ## 📋 Table des matières
 
-1. [Vue d'ensemble](#vue-densemble)
-2. [Objectifs et gains](#objectifs-et-gains)
-3. [Architecture](#architecture)
-4. [Structure des données](#structure-des-données)
-5. [API et utilisation](#api-et-utilisation)
-6. [Affichage utilisateur](#affichage-utilisateur)
-7. [Configuration](#configuration)
-8. [Extension future](#extension-future)
-9. [Tests](#tests)
+1. [Vue d'ensemble](#-vue-densemble)
+2. [Objectifs et gains](#-objectifs-et-gains)
+3. [Architecture](#-architecture)
+4. [Structure des données](#-structure-des-données)
+5. [API et utilisation](#-api-et-utilisation)
+6. [Affichage utilisateur](#-affichage-utilisateur)
+7. [Configuration](#-configuration)
+8. [Extension future](#-extension-future)
+9. [Tests](#-tests)
 
 ---
 

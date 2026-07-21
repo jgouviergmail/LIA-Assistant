@@ -305,7 +305,7 @@ Deux mecanismes complementaires pour eviter l'accumulation de fichiers :
 
 #### 1. Reset Conversation
 
-Quand un utilisateur reset sa conversation (`POST /api/v1/conversations/{id}/reset`), tous les attachments associes sont supprimes :
+Quand un utilisateur reset sa conversation (`POST /api/v1/conversations/me/reset`), tous les attachments associes sont supprimes :
 - Suppression des fichiers sur disque
 - Suppression des metadonnees en DB
 - Synchrone dans le flow de reset

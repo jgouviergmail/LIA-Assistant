@@ -242,10 +242,27 @@ Build smoke test (pas de push) avec cache GitHub Actions :
 
 | Job | Description |
 |-----|-------------|
-| CodeQL | Analyse statique Python + JavaScript (queries `security-and-quality`) |
-| Dependency Audit | `pip-audit -r requirements.lock.txt` (Python, transitifs inclus — ADR-112) + `pnpm audit` (Node) |
+| CodeQL | Analyse statique Python + JavaScript (queries `security-and-quality` + `security-extended`), config `.github/codeql/codeql-config.yml` |
+| Dependency Audit | `pip-audit -r requirements.lock.txt` (Python, transitifs inclus — ADR-112) + `pnpm audit --audit-level=high` (Node). **Les deux etapes sont bloquantes.** |
 | Trivy | Scan filesystem (severite CRITICAL/HIGH), resultats SARIF |
 | SBOM | Generation CycloneDX depuis `requirements.lock.txt` (versions exactes embarquees, artifact conserve 90 jours) |
+
+**`pnpm audit` a longtemps tourne avec `continue-on-error: true`** : l'etape signalait les
+advisories et le job passait quand meme. C'est ainsi qu'une advisory **critique**
+(`websocket-driver`, GHSA-xv26-6w52-cph6) a vecu des mois sur `main` sous un pipeline vert.
+Le flag a ete retire — corriger l'advisory ou epingler un override (voir plus bas), jamais
+restaurer le flag.
+
+### Perimetre analyse par CodeQL
+
+`paths` restreint l'analyse a `apps/api/src/**` et `apps/web/src/**` ; `paths-ignore` en
+retire les tests, artefacts de build, migrations, scripts et documentation.
+
+Piege a connaitre : **`**/tests/**` ne matche pas `__tests__`**. Les 31 repertoires de tests
+frontend etaient donc analyses malgre l'intention affichee, ce qui produisait des alertes sur
+du code de test (cookies sans `Secure` dans un test jsdom, stubs de navigateur). Le motif
+`**/__tests__/**` est desormais liste explicitement. Cote backend l'exclusion fonctionne par
+construction : les tests vivent hors de `apps/api/src`, donc `paths` les ecarte deja.
 
 ---
 
@@ -308,11 +325,38 @@ La branche `main` est protegee avec les regles suivantes :
 | Ecosystem | Directory | Frequence | Groupes |
 |-----------|-----------|-----------|---------|
 | pip | `/apps/api` | Hebdomadaire (lundi) | minor + patch groupes |
-| npm | `/apps/web` | Hebdomadaire (lundi) | minor + patch groupes |
+| npm | `/` (racine du workspace) | Hebdomadaire (lundi) | minor + patch groupes |
 | Docker | `/apps/api`, `/apps/web` | Mensuelle | — |
 | GitHub Actions | `/` | Hebdomadaire | Toutes les actions groupees |
 
 Les updates mineures/patch sont groupees en une seule PR pour reduire le bruit.
+
+L'ecosysteme npm cible la **racine** et non `/apps/web` : `pnpm-lock.yaml` vit a la racine
+du workspace, donc une PR scopee sur `/apps/web` bumperait `package.json` sans le lockfile
+et ne pourrait jamais passer `pnpm install --frozen-lockfile`.
+
+### Limites connues des PR Dependabot
+
+Deux classes de PR Dependabot ne sont **pas rattrapables par un rebase** dans ce depot.
+Les reconnaitre evite de rejouer indefiniment `@dependabot rebase`.
+
+**1. Ecosysteme pip — lockfiles non reproductibles.** Dependabot regenere
+`requirements*.lock.txt` avec son propre resolveur, alors que le depot les compile avec
+`uv pip compile --universal --generate-hashes` (ADR-112). Les lockfiles produits sont
+insolubles : la CI echoue des l'installation sur `ResolutionImpossible`, avant le moindre
+test. Constate sur 9 PR consecutives (#197-#204, #211). **Conduite a tenir** : fermer la PR
+et rejouer le bump localement via `task deps:upgrade -- <paquet>` puis `task deps:lock`,
+une majeure a la fois.
+
+**2. Ecosysteme npm — collision override / version workspace.** Tout paquet a la fois
+epingle dans `pnpm.overrides` (racine) **et** declare dans `apps/web/package.json` produit
+un blocage : Dependabot ne lit pas les overrides de la racine quand il bumpe un membre du
+workspace, les deux valeurs divergent, et chaque job faisant
+`pnpm install --frozen-lockfile` echoue sur `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
+Constate sur #195 puis #210 (`vite` 8.1.5 cote workspace contre 8.1.3 cote override) — un
+rebase resout le conflit git sans corriger la contradiction. **Conduite a tenir** : rejouer
+le lot en alignant l'override sur la nouvelle version et en **regenerant** le lockfile
+(jamais en le fusionnant). Paquets concernes aujourd'hui : `vite`, `postcss`, `dompurify`.
 
 ### Dependency Vulnerability Remediation (pnpm Overrides)
 
@@ -329,18 +373,42 @@ When a transitive dependency has a known CVE but the direct dependency hasn't re
 ```
 
 **Rules:**
-- Always pin to an **exact version** (no `>=` or `^`) — we control versions strictly.
-- Run `pnpm install` to regenerate the lockfile, then verify with `pnpm ls <package> --recursive`.
+- Prefer an **exact version**; a caret range (`^x.y.z`) is acceptable — and preferable —
+  when the advisory names a minimum patched version rather than a single fixed release.
+  An exact pin becomes a liability once upstream patches again: `brace-expansion` was
+  frozen at `2.0.2` by this very table while the fix shipped in `2.0.3`, so **our own
+  override was pinning a vulnerable version**. Re-read the pins when auditing.
+- Scope the key when only one major line is affected: `"minimatch@9": "^9.0.7"` patches the
+  vulnerable 9.x without touching the `3.1.5` that ESLint depends on. An unscoped
+  `"minimatch"` key would force ESLint onto v9 and break it.
+- Never override a package that `apps/web/package.json` also declares without aligning both
+  — see *Limites connues des PR Dependabot* above (`ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`).
+- Run `pnpm install --lockfile-only` to regenerate the lockfile, then verify with
+  `pnpm why <package>` (use `--prod` from `apps/web/` to tell a runtime dependency from a
+  dev-only one — the distinction drives the real severity).
+- Weigh the blast radius: an override that removes a package and its platform binaries from
+  the graph for a *low* advisory on an unused tool is not worth it (tried and reverted for
+  `esbuild`, which Vite 8/rolldown does not execute).
 - Document the CVE in the commit message and CHANGELOG.
-- Dismiss the Dependabot alert with reason `fix_started` and a reference to the commit.
 - Remove the override once the direct dependency updates its own dependency.
 
-**Current overrides** (see `package.json`):
+**Current overrides** (see `package.json` — 14 entries):
 | Package | Pinned Version | Reason |
 |---------|---------------|--------|
 | `flatted` | 3.4.2 | Prototype pollution fix |
 | `picomatch` | 4.0.4 | ReDoS fix |
-| `brace-expansion` | 2.0.2 | CVE-2024-4068 (DoS) + CVE-2025-5889 (ReDoS) |
+| `brace-expansion` | ^2.0.3 | CVE-2024-4068 (DoS) + CVE-2025-5889 (ReDoS) + zero-step sequence DoS (patched in 2.0.3) |
+| `vite` | 8.1.5 | Aligned with `apps/web/package.json` — divergence breaks `--frozen-lockfile` |
+| `defu` | 6.1.5 | Prototype pollution |
+| `protobufjs` | ^7.6.3 | Prototype pollution |
+| `uuid` | ^11.1.1 | Consolidation |
+| `postcss` | ^8.5.10 | Parsing advisory |
+| `dompurify` | ^3.4.11 | XSS bypass |
+| `@grpc/grpc-js` | ^1.9.16 | Memory exhaustion |
+| `@babel/core` | ^7.29.6 | RegExp complexity |
+| `websocket-driver` | ^0.7.5 | GHSA-xv26-6w52-cph6 (critical, message corruption) + GHSA-mp7j-qc5w-4988 (resource limit bypass). Transitive via `firebase` → `@firebase/database` → `faye-websocket`; unreachable at runtime (only `firebase/app` and `firebase/messaging` are imported) but present in the image |
+| `minimatch@9` | ^9.0.7 | 3 ReDoS advisories on the 9.x line; scoped so ESLint's `3.1.5` is untouched |
+| `js-yaml` | ^4.2.0 | Quadratic-complexity DoS in merge keys (dev-only, via ESLint) |
 
 ---
 

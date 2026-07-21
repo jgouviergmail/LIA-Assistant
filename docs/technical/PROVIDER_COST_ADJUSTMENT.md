@@ -48,6 +48,8 @@ For a SaaS business model where users are billed based on tracked token consumpt
 Add a configurable `cost_adjustment_factor` per provider in the pricing system:
 
 ```
+# PROPOSITION — non implementee (cf. section Status en fin de document).
+# Aucune de ces variables n'existe aujourd'hui dans .env.example ni dans le code.
 # .env or Admin > Settings
 ANTHROPIC_COST_ADJUSTMENT_FACTOR=1.12   # +12% markup to cover billing delta
 OPENAI_COST_ADJUSTMENT_FACTOR=1.02      # +2% estimated (needs quantification)

@@ -1114,7 +1114,10 @@ REDIS_KEY_INTEREST_ANALYSIS_PREFIX = "interest:analysis:"
 ### 9.1 Metriques Prometheus
 
 ```python
-# Extraction
+# ATTENTION (verifie 2026-07-20) : interest_extraction_total,
+# interest_extraction_tokens_total et interest_feedback_total N'EXISTENT PAS.
+# Metriques interets reellement definies : interest_merge_total,
+# interest_selection_total, interest_subject_recluster_total, interests_count.
 interest_extraction_total{status="success|failed|skipped"}
 interest_extraction_duration_seconds
 interest_extraction_tokens_total{type="in|out|cache"}

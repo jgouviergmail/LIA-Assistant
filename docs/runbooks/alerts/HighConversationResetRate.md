@@ -13,7 +13,7 @@
 
 **PromQL Query**:
 ```promql
-(rate(conversation_resets_total[5m]) / rate(conversation_messages_total[5m])) * 100 > <<<ALERT_CONVERSATION_RESET_RATE_PERCENT>>>
+(rate(conversation_resets_total[5m]) / rate(conversation_message_archived_total[5m])) * 100 > <<<ALERT_CONVERSATION_RESET_RATE_PERCENT>>>
 ```
 
 **Thresholds**:
@@ -184,7 +184,7 @@ async def save_checkpoint_with_verification(state, config):
 
 **Conversation reset rate**:
 ```promql
-(rate(conversation_resets_total[5m]) / rate(conversation_messages_total[5m])) * 100
+(rate(conversation_resets_total[5m]) / rate(conversation_message_archived_total[5m])) * 100
 ```
 
 **Resets by reason**:

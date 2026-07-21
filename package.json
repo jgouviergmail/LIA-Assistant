@@ -44,7 +44,7 @@
       "@babel/core": "^7.29.6",
       "websocket-driver": "^0.7.5",
       "minimatch@9": "^9.0.7",
-      "js-yaml": "^4.2.0"
+      "js-yaml": "^4.3.0"
     }
   }
 }

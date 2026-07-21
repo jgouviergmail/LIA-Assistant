@@ -13,7 +13,7 @@
 
 **PromQL Query**:
 ```promql
-(rate(pkce_validation_failures_total[5m]) / rate(pkce_validation_attempts_total[5m])) * 100 > <<<ALERT_PKCE_VALIDATION_FAILURE_RATE_PERCENT>>>
+(rate(oauth_pkce_validation_total{result="failed"}[5m]) / rate(oauth_pkce_validation_total[5m])) * 100 > <<<ALERT_PKCE_VALIDATION_FAILURE_RATE_PERCENT>>>
 ```
 
 **Thresholds**:
@@ -48,7 +48,7 @@ description: "PKCE validation failing at {{ $value }}% (threshold: <<<ALERT_PKCE
 - Unable to connect Google services (Gmail, Contacts, Calendar)
 
 ### What Ops See
-- `pkce_validation_failures_total` metric increasing
+- `oauth_pkce_validation_total{result="failed"}` metric increasing
 - OAuth callback errors in API logs
 - `code_verifier` mismatch errors
 - Redis cache misses for PKCE state
@@ -144,7 +144,7 @@ docker-compose logs api | grep "pkce.*invalid" | tail -20
 **Step 1: Check current failure rate**
 ```bash
 # Calculate failure rate
-curl -s "http://localhost:9090/api/v1/query?query=(rate(pkce_validation_failures_total[5m])/rate(pkce_validation_attempts_total[5m]))*100" | jq '.data.result[0].value[1]'
+curl -s "http://localhost:9090/api/v1/query?query=(rate(oauth_pkce_validation_total{result="failed"}[5m])/rate(oauth_pkce_validation_total[5m]))*100" | jq '.data.result[0].value[1]'
 
 # >5% = Warning, >10% = Critical
 ```
@@ -344,7 +344,7 @@ def validate_pkce_state(state: str, session_id: str) -> bool:
 from prometheus_client import Counter
 
 pkce_validation_failures = Counter(
-    'pkce_validation_failures_total',
+    'oauth_pkce_validation_total{result="failed"}',
     'PKCE validation failures',
     ['reason', 'user_agent', 'ip_prefix']  # Labels for debugging
 )
@@ -410,17 +410,17 @@ echo "[$(date)] Cleaned expired PKCE states"
 
 **PKCE validation failure rate**:
 ```promql
-(rate(pkce_validation_failures_total[5m]) / rate(pkce_validation_attempts_total[5m])) * 100
+(rate(oauth_pkce_validation_total{result="failed"}[5m]) / rate(oauth_pkce_validation_total[5m])) * 100
 ```
 
 **Failures by reason**:
 ```promql
-sum by (reason) (rate(pkce_validation_failures_total[5m]))
+sum by (reason) (rate(oauth_pkce_validation_total{result="failed"}[5m]))
 ```
 
 **Failures by IP prefix**:
 ```promql
-topk(10, sum by (ip_prefix) (rate(pkce_validation_failures_total[1h])))
+topk(10, sum by (ip_prefix) (rate(oauth_pkce_validation_total{result="failed"}[1h])))
 ```
 
 ---
@@ -462,7 +462,7 @@ topk(10, sum by (ip_prefix) (rate(pkce_validation_failures_total[1h])))
 **Monitoring for attacks**:
 ```bash
 # Alert if >100 failures from single IP in 5min
-(sum by (ip_prefix) (rate(pkce_validation_failures_total[5m])) > 20)
+(sum by (ip_prefix) (rate(oauth_pkce_validation_total{result="failed"}[5m])) > 20)
 ```
 
 ---

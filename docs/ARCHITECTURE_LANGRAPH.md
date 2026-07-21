@@ -600,6 +600,17 @@ Chaque type de données est converti en JSON avec cette structure:
 
 ### 3.3 Mapping Types → Domaines
 
+> [!WARNING]
+> **Le mécanisme de few-shot par fichiers `.txt` décrit ci-dessous n'existe plus
+> dans le code** (vérifié le 2026-07-20). Il n'y a ni fonction
+> `load_fewshot_examples`, ni répertoire `prompts/v1/fewshot/`, ni aucun des
+> fichiers `*_search.txt` / `*_details.txt` listés — `git ls-files` et un grep
+> du code le confirment. Le formatage par domaine est aujourd'hui assuré par les
+> helpers `response_node._simplify_*_payload()` ; « few-shot » n'est plus qu'un
+> terme dans leurs commentaires, pas un sous-système de fichiers. Le tableau
+> ci-dessous est conservé comme trace de conception ; ne pas s'appuyer sur ces
+> chemins de fichiers.
+
 | Registry Type | Domain | Items Key | Few-Shot (search) | Few-Shot (details) |
 |---------------|--------|-----------|-------------------|---------------------|
 | `CONTACT` | contacts | contacts | `contacts_search.txt` | `contacts_details.txt` |
@@ -1649,9 +1660,9 @@ class OpenAICompletionTool(APIKeyConnectorTool[OpenAIClient]):
 | **Dependencies** | `dependencies.py` | ToolDependencies + get_dependencies() |
 | **Data Registry** | `data_registry/models.py` | RegistryItem, RegistryItemType |
 | | `data_registry/state.py` | merge_registry reducer |
-| **Prompts** | `prompts/v1/response_system_prompt.txt` | Prompt response LLM |
-| | `prompts/v1/fewshot/*.txt` | Few-shot examples (10 domaines) |
-| | `prompts/v1/prompt_loader.py` | Chargement dynamique prompts |
+| **Prompts** | `prompts/v1/response_system_prompt_base.txt` | Base du prompt response LLM (assemblé par `get_response_prompt`) |
+| | *(pas de `prompts/v1/fewshot/*.txt`)* | Few-shot intégrés au formatage — voir note §3.3 |
+| | `prompts/prompt_loader.py` | Chargement dynamique prompts (dans `prompts/`, pas `prompts/v1/`) |
 | **Drafts** | `drafts/models.py` | Draft types & lifecycle |
 | | `drafts/preview_renderer.py` | Detailed-preview dispatch table (ADR-125) |
 | | `drafts/service.py` | create_*_draft functions |

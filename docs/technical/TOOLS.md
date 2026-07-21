@@ -8,18 +8,18 @@
 
 ## 📋 Table des Matières
 
-- [Vue d'Ensemble](#vue-densemble)
-- [Architecture en 5 Couches](#architecture-en-5-couches)
-- [ConnectorTool (Base)](#connectortool-base)
-- [Decorator Pattern](#decorator-pattern)
-- [Formatters System](#formatters-system)
-- [Tool Manifests](#tool-manifests)
-- [Google Contacts Tools](#google-contacts-tools) *(Exemple de référence)*
-- [Runtime Helpers](#runtime-helpers)
-- [Création d'un Nouveau Tool](#création-dun-nouveau-tool)
-- [MCP Tools Integration](#mcp-tools-integration)
-- [Best Practices](#best-practices)
-- [Performance & Caching](#performance--caching)
+- [Vue d'Ensemble](#-vue-densemble)
+- [Architecture en 5 Couches](#-architecture-en-5-couches)
+- [ConnectorTool (Base)](#-connectortool-base)
+- [Decorator Pattern](#-decorator-pattern)
+- [Formatters System](#-formatters-system)
+- [Tool Manifests](#-tool-manifests)
+- [Google Contacts Tools](#-google-contacts-tools) *(Exemple de référence)*
+- [Runtime Helpers](#-runtime-helpers)
+- [Création d'un Nouveau Tool](#-création-dun-nouveau-tool)
+- [MCP Tools Integration](#-mcp-tools-integration)
+- [Best Practices](#-best-practices)
+- [Performance & Caching](#-performance--caching)
 
 ### Domaines Implémentés (56+ tools)
 
@@ -27,10 +27,10 @@
 |---------|------|-------|---------------|
 | **Contacts** | Google OAuth | 6 | `google_contacts_tools.py` |
 | **Emails** | Google OAuth | 6 | `emails_tools.py` |
-| **Calendar** | Google OAuth | 6 | `google_calendar_tools.py` |
-| **Drive** | Google OAuth | 3 | `google_drive_tools.py` |
-| **Tasks** | Google OAuth | 7 | `google_tasks_tools.py` |
-| **Places** | Google OAuth | 3 | `google_places_tools.py` |
+| **Calendar** | Google OAuth | 6 | `calendar_tools.py` |
+| **Drive** | Google OAuth | 3 | `drive_tools.py` |
+| **Tasks** | Google OAuth | 7 | `tasks_tools.py` |
+| **Places** | Google OAuth | 3 | `places_tools.py` |
 | **Weather** | API Key | 3 | `weather_tools.py` |
 | **Wikipedia** | API Key | 4 | `wikipedia_tools.py` |
 | **Perplexity** | API Key | 2 | `perplexity_tools.py` |
@@ -41,7 +41,7 @@
 | **Hue (Smart Home)** | Hybrid (API Key + OAuth) | 6 | `hue_tools.py` |
 | **Reminders** | Local | 3 | `reminder_tools.py` |
 | **Context** | Local | 5 | `context_tools.py` |
-| **Query** | Local | 1 | `query_tools.py` |
+| **Query** | Local | 1 | `local_query_tool.py` |
 | **MCP (per-user)** | MCP External | dynamic | `infrastructure/mcp/user_tool_adapter.py` |
 
 > **Types de connexion** : **Google OAuth** = authentification OAuth2 via Google ; **API Key** = clé API tierce configurée en `.env` ; **Hybrid** = local API key for LAN control + remote OAuth2 for cloud access (Philips Hue) ; **Standalone** = aucune authentification requise (accès direct HTTP) ; **Local** = outil interne sans appel externe ; **MCP External** = outils découverts dynamiquement via Model Context Protocol.
@@ -844,7 +844,7 @@ class ToolManifest:
 ### Déclaration des manifests
 
 > **v1.21.16 (ADR-107)**: le `ToolManifestBuilder` (API fluent,
-> `registry/manifest_builder.py`) a été supprimé — aucun manifest de
+> `registry/catalogue_loader.py`) a été supprimé — aucun manifest de
 > production ne passait par lui. Les manifests sont déclarés directement en
 > dataclass `ToolManifest(...)` dans les `catalogue_manifests.py` de chaque
 > domaine, puis enregistrés dans l'`AgentRegistry` au chargement du catalogue.

@@ -10,17 +10,17 @@
 
 ## 📋 Table des Matières
 
-1. [Vue d'ensemble](#vue-densemble)
+1. [Vue d'ensemble](#-vue-densemble)
 2. [Architecture](#architecture)
-3. [Modèles de Données](#modèles-de-données)
-4. [Services](#services)
-5. [Tracking par ContextVar](#tracking-par-contextvar)
-6. [API Admin](#api-admin)
-7. [Export de Consommation](#export-de-consommation)
-8. [Composants Frontend](#composants-frontend)
-9. [Configuration](#configuration)
-10. [Métriques & Observabilité](#métriques--observabilité)
-11. [Annexes](#annexes)
+3. [Modèles de Données](#-modèles-de-données)
+4. [Services](#-services)
+5. [Tracking par ContextVar](#-tracking-par-contextvar)
+6. [API Admin](#-api-admin)
+7. [Export de Consommation](#-export-de-consommation)
+8. [Composants Frontend](#-composants-frontend)
+9. [Configuration](#-configuration)
+10. [Métriques & Observabilité](#-métriques--observabilité)
+11. [Annexes](#-annexes)
 
 ---
 

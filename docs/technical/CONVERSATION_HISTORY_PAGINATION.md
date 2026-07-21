@@ -154,6 +154,31 @@ Without step 3 the auto-scroll-to-bottom would undo step 2 and the viewport
 would snap to the bottom of the list, hiding the freshly loaded older
 messages. The flag is consumed exactly once per prepend.
 
+**Initial positioning — and why it interacts with the sentinel.** Opening an
+existing conversation must land the reader at the *bottom*. Two properties of
+this layout make that harder than a single `scrollIntoView`:
+
+1. **The component does not own the scrolling box.** Its own list `div` is a
+   plain block inside an ancestor carrying `flex-1 overflow-y-auto`; for the
+   inner node `scrollHeight === clientHeight`, so every `scrollTop` written to
+   it is a no-op. `getScrollParent()` walks up the DOM to the first ancestor
+   that actually overflows, which keeps the component correct whether it or an
+   ancestor is the scroller.
+2. **The content keeps growing after the first paint** — lazy `CodeBlock`
+   chunks resolve, KaTeX lays out, images settle. A single jump therefore lands
+   nowhere durable. The viewport is re-pinned every frame for
+   `INITIAL_PIN_WINDOW_MS` (1500 ms), until the layout settles or the reader
+   takes over.
+
+The failure this replaced is a good illustration of the coupling: the initial
+scroll used to be *animated*. The list mounts at `scrollTop = 0`, so while the
+smooth scroll played, the pagination sentinel was still on screen — the
+observer fired `onLoadOlder`, the prepend raised `wasPrependRef`, and step 3
+above dutifully **suppressed the corrective scroll**. The reader was left on the
+very first message. The longer the conversation, the wider the window, the more
+reliable the failure. Hermetic coverage lives in
+`apps/web/e2e/smoke/chat-initial-scroll.spec.ts`.
+
 ### Page-level handler (`chat/page.tsx`)
 
 Owns the `oldestCursor` / `hasMoreOlder` state. `handleLoadOlder()`:

@@ -13,13 +13,15 @@
 1. [Vue d'ensemble](#vue-densemble)
 2. [Architecture](#architecture)
 3. [Flow de Résolution](#flow-de-résolution)
-4. [Patterns Relationnels](#patterns-relationnels)
+4. [Reference Detection](#reference-detection)
 5. [Structures de Données](#structures-de-données)
 6. [Configuration](#configuration)
 7. [Intégration](#intégration)
 8. [Fail-Safe Design](#fail-safe-design)
 9. [Exemples d'Usage](#exemples-dusage)
 10. [Métriques & Observabilité](#métriques--observabilité)
+11. [Fichiers Associés](#fichiers-associés)
+12. [Related Documentation](#related-documentation)
 
 ---
 

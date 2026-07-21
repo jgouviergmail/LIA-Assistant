@@ -2565,7 +2565,7 @@ Le domaine MCP est couvert par deux groupes de tests : les tests d'infrastructur
 | `test_schemas.py` | Validation Pydantic des schémas MCP (config serveur, résultats) |
 | `test_security.py` | Sécurité des connexions MCP, validation des URLs |
 | `test_oauth_flow.py` | Flux OAuth pour serveurs MCP nécessitant une authentification |
-| `test_excalidraw_iterative_builder.py` | `build_from_intent()` : génération de diagrammes en 1 appel LLM unique (tous les éléments) |
+| ~~`test_excalidraw_iterative_builder.py`~~ | **sans objet** : pas de builder Excalidraw côté LIA (rendu délégué au serveur MCP externe, cf. MCP_INTEGRATION.md) |
 
 **Domaine User MCP** — `tests/unit/domains/user_mcp/` :
 
@@ -2841,7 +2841,8 @@ Les tests frontend (Vitest + jsdom + Testing Library) sont co-localisés avec le
 
 ```
 apps/web/src/
-├── __tests__/setup.ts              # Setup global (mocks next/navigation, react-i18next, matchMedia)
+├── __tests__/setup.ts              # Setup global (mocks next/navigation, react-i18next, matchMedia,
+│                                   #  stubs Resize/IntersectionObserver, pointer-capture, scroll)
 ├── reducers/__tests__/             # Machine à états du chat (chat-reducer)
 ├── lib/sse-handlers/__tests__/     # Pipeline SSE (handlers, batching, symétrie contrat backend)
 ├── lib/__tests__/                  # Logique pure (format, hitl-utils, password-validation, utils, briefing-utils…)
@@ -2914,6 +2915,10 @@ Le chantier de couverture des composants (≈ 280 composants, livré par lots à
 - **Un module de hook exporte souvent plus que son hook** (constantes, tables d'icônes, types) que le composant importe aussi. Une factory `vi.mock` qui ne renvoie que le hook fait échouer le rendu (`No "X" export is defined on the mock`) — utiliser `importOriginal` et ne remplacer que le hook : `vi.mock('@/hooks/useX', async importOriginal => ({ ...(await importOriginal()), useX }))`.
 - **Une fixture partielle peut casser le rendu, pas seulement l'assertion** : plusieurs sections lisent leurs réglages sans chaînage optionnel (`settings.interests_notify_start_hour.toString()`). Un `settings: {}` fait planter le composant avec un `TypeError` opaque — renseigner les champs réellement lus (les repérer par `grep 'settings\.'` sur le composant).
 - **`userEvent.setup()` remplace `navigator.clipboard`** : installer son propre stub *avant* le rendu ne sert à rien, user-event l'écrase. Espionner **après** le rendu — `vi.spyOn(navigator.clipboard, 'writeText')` — et seulement là. Modèle : `ChatMessage.test.tsx`.
+
+- **Un stub d'API navigateur doit accepter les arguments du vrai constructeur**, même s'il n'en fait rien. Le stub global d'`IntersectionObserver` n'avait qu'un constructeur par défaut : il *jetait* le callback, si bien qu'aucun test ne pouvait déclencher une intersection — `ChatMessageList.test.tsx` a dû embarquer son propre `FakeIntersectionObserver` complet pour tester la pagination. Effet de bord inattendu : CodeQL résolvait le global vers ce stub et signalait **7 fois** `js/superfluous-trailing-arguments` sur du code de production parfaitement correct (`new IntersectionObserver(cb, { rootMargin })`). Le stub implémente désormais l'interface (`root`, `rootMargin`, `scrollMargin`, `thresholds` dérivés des options), ce qui a permis de supprimer le double *cast* `as unknown as typeof IntersectionObserver` — un contournement de contrat qui masquait précisément ce trou.
+
+  **Le callback est stocké, jamais appelé** : rien ne déclenche d'intersection tout seul. C'est la condition de non-régression — les composants qui n'agissent qu'au passage de leur sentinelle dans le viewport (`AnimatedCounter`, `FadeInOnScroll`, `ChapterRail`…) gardent exactement le comportement qu'ils avaient. Un test qui *veut* une intersection installe son propre double via `vi.stubGlobal`.
 - **L'égalité structurelle sur un `File` est aveugle** : `name`/`type` ne sont pas des propriétés énumérables, donc deux `File` différents comparent égaux (`toHaveBeenCalledWith(file)` passe pour n'importe quel fichier, et `not.toHaveBeenCalledWith(autre)` échoue toujours). Asserter sur les noms extraits des appels (`mock.calls.map(([f]) => f.name)`), ce qui suppose un `vi.fn<Hook['uploadFile']>()` typé pour que la destructuration reste sûre. Modèle : `ChatInput.test.tsx`.
 - **Agir dans le même tick que le montage fait courser l'effet de montage — et cette gêne de test est souvent un vrai défaut.** `useConnectorPreferences` (chargement initial) et `useBulkConnect` (reprise de file `localStorage`) écrasaient l'action déclenchée juste après `renderHook`. La tentation est d'attendre l'effet (`await act(async () => {})`) et de passer à autre chose ; c'est un **contournement** qui ne se justifie que si la fenêtre est réellement inaccessible en production. Ici elle ne l'était pas — un simple re-rendu du parent avec un nouveau tableau `connectors` (l'ajout/retrait optimiste de `UserConnectorsSection`) suffit à la rouvrir. Les deux hooks ont donc été corrigés à la source (revendication locale non écrasable + garde de requête en vol ; verrou d'exclusion entre reprise et démarrage utilisateur), et l'attente n'a été conservée que là où elle **documente** un comportement voulu (un run lancé pendant la reprise est ignoré). Règle : quand un test doit « attendre » pour être juste, se demander d'abord *qui* garantit cet ordre en production.
 - **Un test de non-régression qui passe aussi *avant* le correctif ne prouve rien.** Après chaque correction de race, remettre temporairement l'ancienne logique et vérifier que les nouveaux tests **virent au rouge** (ici : écrasement de la valeur locale, double requête, chevauchement des files — dont un timeout révélateur). Sans cette vérification, on ne sait pas si l'on teste le correctif ou le hasard d'un ordonnancement.

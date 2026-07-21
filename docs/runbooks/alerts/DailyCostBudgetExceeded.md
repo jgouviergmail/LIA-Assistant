@@ -96,7 +96,7 @@ git log --since="7 days ago" --oneline -- apps/api/src/domains/agents/prompts/
 **Verification**:
 ```bash
 # Check cache hit rate
-curl -s "http://localhost:9090/api/v1/query?query=(sum(rate(llm_cache_hits_total[1h]))/sum(rate(llm_cache_requests_total[1h])))*100" | jq '.data.result[0].value[1]'
+curl -s "http://localhost:9090/api/v1/query?query=(sum(rate(llm_cache_hits_total[1h]))/sum(rate(llm_cache_hits_total[1h])))*100" | jq '.data.result[0].value[1]'
 
 # Should be >60%, <40% indicates poor caching
 

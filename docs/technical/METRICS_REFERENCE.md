@@ -33,8 +33,8 @@
 18. [Voice STT (4 métriques)](#voice-stt-speech-to-text)
 19. [Voice WebSocket (5 métriques)](#voice-websocket)
 20. [Hybrid Memory Search (5 métriques)](#hybrid-memory-search)
-21. [GeoIP (1 métrique)](#geoip)
-22. [Usage Limits (2 métriques)](#usage-limits)
+21. [GeoIP (1 métrique)](#geoip-1-métrique)
+22. [Usage Limits (2 métriques)](#usage-limits-2-métriques)
 23. [Recording Rules (40+ règles)](#recording-rules)
 23. [Labels & Cardinality](#labels--cardinality)
 24. [Best Practices](#best-practices)
@@ -2555,7 +2555,7 @@ sum by (operation) (rate(rag_embedding_tokens_total[1h]))
 # LLM cost per request (hourly average)
 - record: llm_cost_per_request:1h
   expr: |
-    sum(rate(llm_cost_usd_total[1h]))
+    sum(rate(llm_cost_total[1h]))
     /
     sum(rate(llm_api_calls_total[1h]))
 

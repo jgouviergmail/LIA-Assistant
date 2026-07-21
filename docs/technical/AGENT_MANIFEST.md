@@ -15,7 +15,7 @@
 3. [Per-Request Manifest Context](#per-request-manifest-context)
 4. [Tool Manifest](#tool-manifest)
 5. [Agent Manifest](#agent-manifest)
-6. [Manifest Builder Pattern](#manifest-builder-pattern)
+6. [Manifest Builder Pattern](#manifest-builder-pattern-removed-in-v12116)
 7. [Catalogue Loader](#catalogue-loader)
 8. [Export pour Planner](#export-pour-planner)
 9. [Validation](#validation)

@@ -261,9 +261,19 @@ tests/agents/mixins/
 | Test File | Mixin Tested | Test Count | Focus |
 |-----------|-------------|------------|-------|
 | `test_streaming_mixin.py` | StreamingMixin | 11 | Token enrichment, buffering |
-| *(Migrated)* | HITLManagementMixin | 11 | → HITLOrchestrator service tests |
+| *(Migré)* | HITLManagementMixin | — | → services HITL, voir ci-dessous |
 
-**Migration Note:** HITLManagementMixin tests migrated to `tests/agents/services/test_hitl_orchestrator.py` during Phase 3.3 (Days 5-6).
+**Note de migration (vérifiée le 2026-07-20).** Le `HITLManagementMixin` a bien été
+démantelé, mais **pas** vers un service unique `HITLOrchestrator` : cette classe n'existe
+pas, et le fichier `tests/agents/services/test_hitl_orchestrator.py` que cette note citait
+non plus. Le domaine HITL est aujourd'hui un **ensemble de services** sous
+`src/domains/agents/services/hitl/` (`registry.py`, `question_generator.py`, `base.py`,
+`draft_modifier.py`, `item_filter.py`, `parameter_enrichment.py`, `protocols.py`, et un
+paquet `interactions/` par niveau d'approbation).
+
+Couverture correspondante : `tests/agents/services/hitl/` — aujourd'hui
+`test_for_each_confirmation.py` et `test_scope_detector.py`. Recompter plutôt que se fier
+à un chiffre figé : `ls apps/api/tests/agents/services/hitl/*.py`.
 
 ---
 

@@ -245,8 +245,8 @@ Si une nouvelle famille reasoning émerge (ex : Mistral sort une API reasoning n
 
 ## 🔗 Références
 
-- Refonte initiale T20/T21 : `docs/superpowers/specs/2026-05-06-llm-reasoning-effort-overhaul-design.md`
-- Plan d'implémentation : `docs/superpowers/plans/2026-05-06-llm-reasoning-effort-overhaul.md`
+- Refonte initiale T20/T21 : *(doc de conception non conservé — `docs/superpowers/` ne garde que les specs/plans de juillet 2026)*
+- Plan d'implémentation : *(non conservé — voir l'historique git si besoin)*
 - ADR-078 (catalogue DB-source-of-truth) : `docs/architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md`
 - Documentation pricing globale : [LLM_PRICING_MANAGEMENT.md](./LLM_PRICING_MANAGEMENT.md)
 - Documentation Configuration LLM admin (consommateur des `supports_*`) : [LLM_CONFIG_ADMIN.md](./LLM_CONFIG_ADMIN.md)

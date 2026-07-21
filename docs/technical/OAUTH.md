@@ -10,20 +10,20 @@
 
 ## 📋 Table des Matières
 
-1. [Vue d'ensemble](#vue-densemble)
-2. [Architecture OAuth](#architecture-oauth)
-3. [OAuthFlowHandler](#oauthflowhandler)
-4. [GoogleOAuthProvider](#googleoauthprovider)
-5. [BFF Pattern](#bff-pattern)
-6. [PKCE (Proof Key for Code Exchange)](#pkce-proof-key-for-code-exchange)
-7. [State Token & CSRF Protection](#state-token--csrf-protection)
-8. [Token Storage](#token-storage)
-9. [Sécurité](#sécurité)
-10. [Error Handling](#error-handling)
-11. [Testing](#testing)
-12. [Troubleshooting](#troubleshooting)
+1. [Vue d'ensemble](#-vue-densemble)
+2. [Architecture OAuth](#-architecture-oauth)
+3. [OAuthFlowHandler](#-oauthflowhandler)
+4. [GoogleOAuthProvider](#-googleoauthprovider)
+5. [BFF Pattern](#-bff-pattern)
+6. [PKCE (Proof Key for Code Exchange)](#-pkce-proof-key-for-code-exchange)
+7. [State Token & CSRF Protection](#-state-token--csrf-protection)
+8. [Token Storage](#-token-storage)
+9. [Sécurité](#-sécurité)
+10. [Error Handling](#-error-handling)
+11. [Testing](#-testing)
+12. [Troubleshooting](#-troubleshooting)
 13. [MCP OAuth 2.1 (per-user)](#mcp-oauth-21-per-user)
-14. [Annexes](#annexes)
+14. [Annexes](#-annexes)
 
 ---
 
@@ -115,7 +115,7 @@ sequenceDiagram
 
 ```python
 # 1. User clicks "Connect Google" on frontend
-# 2. Frontend POST /api/v1/connectors/google-contacts/initiate
+# 2. Frontend GET /api/v1/connectors/google-contacts/authorize
 
 # Backend:
 provider = GoogleOAuthProvider.for_contacts(settings)
@@ -839,7 +839,7 @@ const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
 ```typescript
 // Frontend (SECURE)
 // 1. Initiate flow
-const { authorization_url, state } = await fetch("/api/v1/connectors/google-contacts/initiate", {
+const { authorization_url, state } = await fetch("/api/v1/connectors/google-contacts/authorize", {
     method: "POST"
 }).then(r => r.json());
 
@@ -863,7 +863,7 @@ const { success, connector_id } = await fetch(`/api/v1/connectors/google-contact
 ### Endpoints BFF
 
 ```python
-# POST /api/v1/connectors/google-contacts/initiate
+# GET /api/v1/connectors/google-contacts/authorize
 # Returns: {"authorization_url": "...", "state": "..."}
 
 # GET /api/v1/connectors/google-contacts/callback?code=...&state=...
@@ -872,7 +872,7 @@ const { success, connector_id } = await fetch(`/api/v1/connectors/google-contact
 # POST /api/v1/connectors/{connector_id}/refresh
 # Returns: {"access_token": "...", "expires_at": "..."}
 
-# DELETE /api/v1/connectors/{connector_id}/disconnect
+# DELETE /api/v1/connectors/{connector_id}
 # Returns: {"success": true}
 ```
 

@@ -253,7 +253,7 @@ All nodes are instrumented with `@trace_node()` decorator:
 ### Adding a New Domain
 
 1. Create tools in `tools/{domain}_tools.py`
-2. Add to tool catalogue in `registry/catalogue_manifests.py`
+2. Add to tool catalogue in `{domain}/catalogue_manifests.py` (un par domaine, ex. `calendar/catalogue_manifests.py`)
 3. Add few-shot examples in `prompts/v1/fewshot/`
 4. Register in domain constants
 

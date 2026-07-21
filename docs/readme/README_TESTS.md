@@ -125,7 +125,7 @@ Install test dependencies:
 
 ```bash
 cd apps/api
-pip install -e ".[dev]"
+pip install --require-hashes -r requirements-dev.lock.txt   # ADR-112 : lockfile, pas pyproject
 ```
 
 ### 2.3 Run All Tests
@@ -295,11 +295,13 @@ async def async_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
    - User fixtures
    - Settings overrides
 
-2. **Module-Specific Fixtures** (`tests/infrastructure/llm/conftest.py`)
+2. **Module-Specific Fixtures** (`tests/unit/infrastructure/llm/conftest.py`)
    - LLM provider mocks
    - Provider configuration fixtures
 
-3. **Domain Fixtures** (`tests/unit/core/conftest.py`)
+3. **Domain Fixtures** (`tests/unit/conftest.py`, plus des `conftest.py` par domaine :
+   `tests/unit/domains/{briefing,psyche,health_metrics}/`,
+   `tests/unit/domains/agents/services/catalogue/`)
    - Singleton reset fixtures (DomainRegistry)
    - Domain-specific test isolation
 
@@ -338,11 +340,18 @@ pytest -m "not slow"
 
 ### 4.1 Complete Directory Tree
 
+> **Compteurs mesurés le 2026-07-20.** Ils dérivent à chaque commit — les
+> recompter plutôt que s'y fier :
+> `find apps/api/tests/<dir> -name '*.py' | wc -l`.
+> Les écarts constatés à cette mesure étaient importants (`unit/` annoncé 336
+> fichiers pour 654 réels, `integration/` 18 pour 66), signe que l'arborescence
+> ci-dessous peut avoir dérivé en structure et pas seulement en nombres.
+
 ```
 tests/
 │
 ├── __init__.py                          # Package marker
-├── conftest.py                          # Global fixtures (551 lines)
+├── conftest.py                          # Global fixtures (1201 lines)
 ├── README.md                            # This file
 ├── profiling.log                        # Performance logging
 │
@@ -358,7 +367,7 @@ tests/
 │   ├── __init__.py
 │   └── factories.py                     # User/Connector factories
 │
-├── agents/                              # Agent tests (67 files)
+├── agents/                              # Agent tests (77 files)
 │   ├── integration/
 │   │   └── test_hitl_streaming_e2e.py
 │   ├── mixins/
@@ -375,7 +384,7 @@ tests/
 │   │   └── test_rate_limiting.py
 │   └── (48+ test files covering agents domain)
 │
-├── core/                                # Core module tests (5 files)
+├── core/                                # (supprime — les tests core vivent sous unit/)
 │   ├── test_config_constants.py
 │   ├── test_llm_config_helper.py
 │   ├── test_logging_middleware.py
@@ -391,9 +400,9 @@ tests/
 │   └── conversations/
 │       └── test_hitl_filtering.py
 │
-├── infrastructure/                      # Infrastructure tests (6 files)
+├── infrastructure/                      # Vestige vide (__init__.py seul) — voir unit/infrastructure/
 │   └── llm/
-│       ├── conftest.py                  # LLM fixtures (28 lines)
+│       ├── conftest.py                  # LLM fixtures (62 lines, sous unit/infrastructure/llm/)
 │       ├── providers/
 │       │   ├── test_provider_adapter.py
 │       │   └── test_token_counter.py
@@ -402,7 +411,7 @@ tests/
 │       ├── test_invoke_helpers.py
 │       └── test_invoke_helpers_integration.py
 │
-├── integration/                         # Integration tests (18 files)
+├── integration/                         # Integration tests (66 files)
 │   ├── test_auth.py                     # 755 lines - BFF Pattern
 │   ├── test_base_google_client_integration.py
 │   ├── test_bootstrap_integration.py
@@ -420,7 +429,7 @@ tests/
 ├── e2e/                                 # End-to-end tests (1 file)
 │   └── test_hitl_flows_e2e.py
 │
-├── unit/                                # Unit tests (336 files)
+├── unit/                                # Unit tests (654 files)
 │   ├── agents/
 │   │   ├── services/
 │   │   │   └── test_domain_naming_consistency.py
@@ -433,7 +442,7 @@ tests/
 │   │   ├── test_connector_service.py
 │   │   └── test_google_gmail_client.py
 │   ├── core/
-│   │   ├── conftest.py                  # Core fixtures (62 lines)
+│   │   ├── conftest.py                  # Unit fixtures (181 lines)
 │   │   ├── test_bootstrap.py            # 20 tests
 │   │   ├── test_dependencies.py
 │   │   ├── test_exceptions.py
@@ -1931,7 +1940,7 @@ directory = "htmlcov"
 
 ### 12.1 GitHub Actions Workflow
 
-**File:** `.github/workflows/tests.yml`
+**File:** `.github/workflows/ci.yml` (le workflow `tests.yml` n'existe pas — la suite de tests vit dans le job `test-backend`/`test-frontend` de `ci.yml`)
 
 **Trigger Events:**
 - Push to `main`, `develop`, `feature/*`
@@ -2322,7 +2331,7 @@ ModuleNotFoundError: No module named 'src'
 ```bash
 # Install package in editable mode
 cd apps/api
-pip install -e ".[dev]"
+pip install --require-hashes -r requirements-dev.lock.txt   # ADR-112 : lockfile, pas pyproject
 
 # Verify installation
 python -c "import src; print(src.__file__)"
@@ -3172,8 +3181,8 @@ async def test_complete_voice_comment_flow(authenticated_client):
 - `docs/readme/README_TESTS.md` - This document (anciennement `apps/api/tests/README.md`)
 - `apps/api/pyproject.toml` - Pytest configuration
 - `apps/api/tests/conftest.py` - Global fixtures
-- `.github/workflows/tests.yml` - CI/CD test workflow
-- `docs/optim_monitoring/TESTS_INVENTORY_ANALYSIS.md` - Comprehensive test analysis
+- `.github/workflows/ci.yml` - pipeline CI (jobs test-backend, test-frontend ; il n'y a pas de `tests.yml`)
+- *(le doc `docs/optim_monitoring/TESTS_INVENTORY_ANALYSIS.md` n'existe plus ; `docs/optim/` ne contient que `LATENCY_PLAN.md`)*
 
 ---
 

@@ -9,15 +9,15 @@ Date: 2025-12-27
 
 ## 📋 Table des Matières
 
-- [Introduction](#introduction)
-- [Architecture Outils](#architecture-outils)
-- [Creer un Tool Simple](#créer-un-tool-simple)
-- [Pattern ConnectorTool](#pattern-connectortool)
-- [Decorator @connector_tool](#decorator-connectortool)
-- [Tool Manifests](#tool-manifests)
-- [Testing](#testing)
-- [Best Practices](#best-practices)
-- [Troubleshooting](#troubleshooting)
+- [Introduction](#-introduction)
+- [Architecture Outils](#-architecture-outils)
+- [Creer un Tool Simple](#-créer-un-tool-simple)
+- [Pattern ConnectorTool](#-pattern-connectortool)
+- [Decorator @connector_tool](#-decorator-connector_tool)
+- [Tool Manifests](#-tool-manifests)
+- [Testing](#-testing)
+- [Best Practices](#-best-practices)
+- [Troubleshooting](#-troubleshooting)
 - [Outils MCP — Adaptateurs Dynamiques](#outils-mcp--adaptateurs-dynamiques)
 
 ---

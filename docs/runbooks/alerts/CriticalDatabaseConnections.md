@@ -270,7 +270,7 @@ curl -s "http://localhost:9090/api/v1/query?query=rate(http_requests_total[5m])*
 curl -s "http://localhost:9090/api/v1/query?query=avg_over_time(rate(http_requests_total[5m])[1h:5m])*60" | jq '.data.result[0].value[1]'
 
 # 3. Vérifier nombre de users actifs concurrents
-curl -s "http://localhost:9090/api/v1/query?query=conversation_active_users_total" | jq '.data.result[0].value[1]'
+curl -s "http://localhost:9090/api/v1/query?query=conversation_active_users_total  # N'EXISTE PAS (verifie 2026-07-20) — pas de metrique d'utilisateurs actifs ; proches: conversation_created_total, conversation_reactivated_total" | jq '.data.result[0].value[1]'
 
 # 4. Analyser logs Nginx/API pour top IPs
 docker-compose logs api --since=15m | grep -oP '"client_ip":"[^"]*"' | sort | uniq -c | sort -rn | head -20

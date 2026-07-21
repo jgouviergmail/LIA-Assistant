@@ -20,30 +20,13 @@ dependencies = []
 Homepage = "https://github.com/jgouviergmail/LIA-Assistant"
 Repository = "https://github.com/jgouviergmail/LIA-Assistant"
 
-[project.optional-dependencies]
-# NOTE: These versions must be synchronized with requirements-dev.txt
-dev = [
-    # Linting & Formatting
-    "black==26.5.1",
-    "ruff==0.15.15",
-    "mypy==1.20.1",
-    # Testing
-    "pytest==9.0.3",
-    "pytest-asyncio==1.4.0",
-    "pytest-cov==7.1.0",
-    "pytest-mock==3.15.1",
-    "pytest-xdist==3.8.0",
-    "httpx==0.28.1",
-    "testcontainers==4.14.2",
-    # Debugging
-    "debugpy==1.8.21",
-    # Security Scanning
-    "safety==3.8.1",
-    "bandit[toml]==1.9.4",
-    # Type Stubs
-    "types-passlib==1.7.7.20260211",
-    "types-python-jose==3.5.0.20260408",
-]
+# NOTE (2026-07-20) : pas de dependances ici.
+# ADR-112 fait de requirements.txt / requirements-dev.txt les MANIFESTES, et des
+# lockfiles compiles (`task deps:lock`) ce que tout environnement installe. Une
+# section [project.optional-dependencies] dupliquerait ces pins sans aucun garde
+# CI pour detecter la derive (check_requirements_lock.py compare manifestes et
+# lockfiles, jamais pyproject). Ce fichier ne sert qu'a la configuration des
+# outils : black, ruff, mypy, pytest.
 
 [tool.black]
 line-length = 100

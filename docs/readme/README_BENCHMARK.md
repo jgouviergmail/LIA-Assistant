@@ -20,7 +20,7 @@ Mesurer les métriques de performance critiques :
 Depuis la racine du projet :
 
 ```bash
-./scripts/benchmark.sh
+./scripts/optim/benchmark.sh
 ```
 
 **Ce script fait automatiquement** :
@@ -107,10 +107,10 @@ Tokens/sec > 20: 4/4 (100.0%)
 
 ```bash
 # Avant merge
-./scripts/benchmark.sh > baseline.txt
+./scripts/optim/benchmark.sh > baseline.txt
 
 # Après modifications code
-./scripts/benchmark.sh > after_changes.txt
+./scripts/optim/benchmark.sh > after_changes.txt
 
 # Comparer
 diff baseline.txt after_changes.txt
@@ -122,13 +122,13 @@ diff baseline.txt after_changes.txt
 
 ```bash
 # Test 1 : Config actuelle
-./scripts/benchmark.sh
+./scripts/optim/benchmark.sh
 
 # Modifier .env (ex: RESPONSE_LLM_TEMPERATURE=0.5)
 docker compose -f docker-compose.dev.yml restart api
 
 # Test 2 : Nouvelle config
-./scripts/benchmark.sh
+./scripts/optim/benchmark.sh
 ```
 
 **Objectif** : Trouver le meilleur compromis vitesse/qualité.
@@ -139,7 +139,7 @@ docker compose -f docker-compose.dev.yml restart api
 # Exécuter 10 fois
 for i in {1..10}; do
   echo "=== RUN $i ==="
-  ./scripts/benchmark.sh
+  ./scripts/optim/benchmark.sh
   sleep 5
 done
 ```
@@ -150,10 +150,10 @@ done
 
 ```bash
 # Test gpt-4.1-mini
-RESPONSE_LLM_MODEL=gpt-4.1-mini ./scripts/benchmark.sh > mini.txt
+RESPONSE_LLM_MODEL=gpt-4.1-mini ./scripts/optim/benchmark.sh > mini.txt
 
 # Test gpt-4.1-mini
-RESPONSE_LLM_MODEL=gpt-4.1-mini ./scripts/benchmark.sh > gpt4o.txt
+RESPONSE_LLM_MODEL=gpt-4.1-mini ./scripts/optim/benchmark.sh > gpt4o.txt
 
 # Comparer
 diff mini.txt gpt4o.txt

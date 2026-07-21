@@ -137,7 +137,7 @@ docker-compose exec api ps aux | grep python | grep -v grep
 docker-compose logs api | grep -i "scheduler\|celery\|worker" | tail -50
 
 # Check LLM request queue depth
-curl -s "http://localhost:9090/api/v1/query?query=llm_requests_queued_total" | jq '.data.result[0].value[1]'
+curl -s "http://localhost:9090/api/v1/query?query=llm_requests_queued_total  # N'EXISTE PAS (verifie 2026-07-20) — pas de metrique de file d'attente LLM" | jq '.data.result[0].value[1]'
 ```
 
 **Expected Output if This is the Cause**:
@@ -157,7 +157,7 @@ External API (OpenAI, Anthropic, Google) slow/down → retries accumulate → CP
 **How to Verify**:
 ```bash
 # Check LLM API failure rate
-curl -s "http://localhost:9090/api/v1/query?query=rate(llm_api_requests_total{status=\"error\"}[5m])" | jq '.data.result[0].value[1]'
+curl -s "http://localhost:9090/api/v1/query?query=rate(llm_api_calls_total{status=\"error\"}[5m])" | jq '.data.result[0].value[1]'
 
 # Check LLM API latency
 curl -s "http://localhost:9090/api/v1/query?query=histogram_quantile(0.95, llm_api_duration_seconds_bucket)" | jq '.data.result[0].value[1]'

@@ -46,7 +46,7 @@ inversions are tracked in section *Known conflicts* below.
 9. [Scheduler / background jobs](#9-scheduler--background-jobs)
 10. [Locks / concurrency](#10-locks--concurrency)
 11. [Lifecycle (startup / shutdown)](#11-lifecycle-startup--shutdown)
-12. [LLM-related (out-of-scope)](#12-llm-related-out-of-scope)
+12. [LLM-related (out-of-scope)](#annex-a--llm-related-out-of-scope)
 
 ---
 

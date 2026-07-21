@@ -10,16 +10,16 @@
 
 ## 📋 Table des Matières
 
-- [Introduction](#introduction)
-- [Architecture](#architecture)
-- [Configuration](#configuration)
-- [Types de Jobs](#types-de-jobs)
-- [Créer un Job](#créer-un-job)
-- [Concurrency Safety](#concurrency-safety)
-- [Fire-and-Forget Pattern](#fire-and-forget-pattern)
-- [Observabilité](#observabilité)
-- [Testing](#testing)
-- [Troubleshooting](#troubleshooting)
+- [Introduction](#-introduction)
+- [Architecture](#-architecture)
+- [Configuration](#-configuration)
+- [Types de Jobs](#-types-de-jobs)
+- [Créer un Job](#-créer-un-job)
+- [Concurrency Safety](#-concurrency-safety)
+- [Fire-and-Forget Pattern](#-fire-and-forget-pattern)
+- [Observabilité](#-observabilité)
+- [Testing](#-testing)
+- [Troubleshooting](#-troubleshooting)
 
 ---
 
@@ -719,7 +719,7 @@ async def test_concurrent_job_execution():
 
 2. **Vérifier les logs** :
    ```bash
-   docker logs lia-api-1 2>&1 | grep "my_job"
+   docker logs lia-api-dev 2>&1 | grep "my_job"   # prod : lia-api-prod
    ```
 
 ### Performance dégradée

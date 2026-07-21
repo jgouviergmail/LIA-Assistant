@@ -418,7 +418,7 @@ sum(rate(redis_rate_limit_errors_total[5m]))
 
 - **Code**: `apps/api/src/infrastructure/rate_limiting/redis_limiter.py`
 - **Metrics**: `apps/api/src/infrastructure/observability/metrics_redis.py`
-- **Redis Config**: `infrastructure/redis/redis.conf`
+- **Redis Config**: pas de fichier `.conf` — Redis est configuré en ligne de commande dans `docker-compose.prod.yml` (`command: redis-server --appendonly yes --requirepass …`)
 - **Dashboard**: Grafana → 10 - Redis Rate Limiting
 - **Alerts**: `infrastructure/observability/prometheus/alerts.yml` (line 303)
 

@@ -255,12 +255,12 @@ radon mi apps/api/src -s
 radon raw apps/api/src -s
 ```
 
-### Bandit (Security)
+### SAST (Security)
 ```bash
-pip install bandit
-
-# Security scan
-bandit -r apps/api/src
+# bandit a ete retire des dependances (2026-07-20) : redondant avec CodeQL.
+# L'analyse SAST tourne en CI (security-and-quality + security-extended) :
+#   .github/workflows/security.yml
+# Resultats : GitHub > Security > Code scanning
 ```
 
 ---
