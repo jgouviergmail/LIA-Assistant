@@ -96,10 +96,14 @@ interface rend l'approbation tangible sans jamais fermer le canal texte/voix :
   `HITLStore` save/delete.
 - **Coulisses (ADR-133)** — les étapes agentiques et le raisonnement, jadis
   effacés au flip progress→answer, survivent désormais attachés au message
-  (ligne repliée « ⚙ N étapes · X s »).
+  (ligne repliée « ⚙ N étapes · X s ») — et, depuis v1.25.12 (ADR-133 V2),
+  persistés dans `message_metadata` : la trace se relit après rechargement,
+  sur tous les appareils (clés i18n uniquement, jamais le raisonnement).
 - **Erreurs connecteurs actionnables (ADR-134)** — un échec d'outil sur OAuth
   expiré (typé, jamais par string) affiche un encart « Reconnecter » dans le
-  chat.
+  chat ; depuis v1.25.12 (ADR-134 V2), l'encart revient aussi aux runs
+  suivants, quand le connecteur requis est détecté en `status=ERROR` à la
+  résolution du provider.
 
 ---
 

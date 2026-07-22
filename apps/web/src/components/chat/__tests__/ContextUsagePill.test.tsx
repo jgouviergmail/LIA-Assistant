@@ -76,4 +76,57 @@ describe('ContextUsagePill', () => {
     expect(label).toContain('chat.context_usage.tooltip_overflow');
     expect(label).toContain('percent=150');
   });
+
+  // QW-12: the conversation-totals banner folded into the pill tooltip — one
+  // economic surface instead of two. The totals block only exists when the
+  // page passes `totals` (tokens_display_enabled gating stays page-side).
+  describe('conversation totals in the tooltip', () => {
+    const totals = {
+      tokensIn: 1_200,
+      tokensOut: 800,
+      tokensCache: 500,
+      googleApiRequests: 3,
+      costEur: 0.42,
+      userMessageCount: 7,
+    };
+
+    it('renders the totals block when totals are provided', () => {
+      render(
+        <ContextUsagePill usage={{ tokens: 5_000, threshold: 20_000, ratio: 0.25 }} totals={totals} />
+      );
+      fireEvent.click(screen.getByTestId('context-usage-pill'));
+
+      const block = screen.getByTestId('context-usage-totals');
+      // 1200 + 800 + 500 = 2500 TOTAL, then the per-bucket figures.
+      expect(block.textContent).toMatch(/2.?500/);
+      expect(block.textContent).toContain('IN');
+      expect(block.textContent).toContain('OUT');
+      expect(block.textContent).toContain('CACHE');
+      expect(block.textContent).toContain('GOOGLE');
+      expect(block.textContent).toContain('chat.page.message_plural');
+      expect(block.textContent).toContain('0,42');
+    });
+
+    it('renders no totals block without totals', () => {
+      render(<ContextUsagePill usage={{ tokens: 5_000, threshold: 20_000, ratio: 0.25 }} />);
+      fireEvent.click(screen.getByTestId('context-usage-pill'));
+
+      expect(screen.getByRole('tooltip')).toBeTruthy();
+      expect(screen.queryByTestId('context-usage-totals')).toBeNull();
+    });
+
+    it('uses the singular message label for a single message', () => {
+      render(
+        <ContextUsagePill
+          usage={{ tokens: 5_000, threshold: 20_000, ratio: 0.25 }}
+          totals={{ ...totals, userMessageCount: 1 }}
+        />
+      );
+      fireEvent.click(screen.getByTestId('context-usage-pill'));
+
+      const block = screen.getByTestId('context-usage-totals');
+      expect(block.textContent).toContain('chat.page.message');
+      expect(block.textContent).not.toContain('chat.page.message_plural');
+    });
+  });
 });

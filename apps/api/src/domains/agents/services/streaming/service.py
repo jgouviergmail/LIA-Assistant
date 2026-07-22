@@ -34,6 +34,7 @@ from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.data_registry.message_widgets import (
     extract_persistable_widgets,
 )
+from src.domains.agents.services.streaming.trace_capture import TraceCapture
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.metrics_agents import (
     sse_streaming_duration_seconds,
@@ -86,6 +87,20 @@ def _get_hitl_question_generator() -> "HitlQuestionGenerator":
     return _hitl_question_generator
 
 
+#: ChatStreamChunk.type → Prometheus event_type (cardinality control).
+#: ``hitl_*`` types are prefix-matched in :func:`_get_chunk_event_type`.
+_CHUNK_EVENT_TYPES: dict[str, str] = {
+    "token": "STREAM_TOKEN",
+    "content_replacement": "STREAM_TOKEN",  # Final content is token-like
+    "router_decision": "STREAM_METADATA",
+    "execution_step": "STREAM_METADATA",
+    "registry_update": "STREAM_REGISTRY",  # Data Registry: side-channel data
+    "debug_metrics": "STREAM_DEBUG",  # Debug Panel: scoring metrics (DEBUG=true only)
+    "error": "STREAM_ERROR",
+    "done": "STREAM_COMPLETE",
+}
+
+
 def _get_chunk_event_type(chunk_type: str) -> str:
     """
     Map ChatStreamChunk type to Prometheus event_type for metrics.
@@ -109,25 +124,10 @@ def _get_chunk_event_type(chunk_type: str) -> str:
         - error → STREAM_ERROR
         - done → STREAM_COMPLETE
     """
-    if chunk_type == "token":
-        return "STREAM_TOKEN"
-    elif chunk_type == "content_replacement":
-        return "STREAM_TOKEN"  # Final content is token-like
-    elif chunk_type in ("router_decision", "execution_step"):
-        return "STREAM_METADATA"
-    elif chunk_type == "registry_update":
-        return "STREAM_REGISTRY"  # Data Registry: Side-channel registry data
-    elif chunk_type == "debug_metrics":
-        return "STREAM_DEBUG"  # Debug Panel: Scoring metrics (DEBUG=true only)
-    elif chunk_type.startswith("hitl_"):
+    if chunk_type.startswith("hitl_"):
         return "STREAM_INTERRUPT"
-    elif chunk_type == "error":
-        return "STREAM_ERROR"
-    elif chunk_type == "done":
-        return "STREAM_COMPLETE"
-    else:
-        # Unknown types (future additions) → generic category
-        return "STREAM_OTHER"
+    # Unknown types (future additions) → generic STREAM_OTHER category
+    return _CHUNK_EVENT_TYPES.get(chunk_type, "STREAM_OTHER")
 
 
 def _current_turn_widgets(
@@ -260,6 +260,9 @@ class StreamingService:
         # lives only in the browser's React state, fed by this stream alone
         # (see data_registry/message_widgets.py).
         self.persistable_widgets: dict[str, dict[str, Any]] = {}
+        # Execution-trace steps captured this turn for persistence on the
+        # assistant message (ADR-133 V2 — see trace_capture.py).
+        self.trace_capture = TraceCapture(max_steps=settings.execution_trace_persist_max_steps)
         # Latest snapshot of state.messages from the "values" stream mode. Updated
         # on every values chunk so api/service.py can compute the context-usage
         # indicator (tokens / threshold) for the SSE `done` chunk metadata.
@@ -393,9 +396,7 @@ class StreamingService:
                     sse_chunks = self._process_values_chunk(chunk, last_sent_routing)
 
                     for sse_chunk, content_fragment in sse_chunks:
-                        # PHASE 2.5 - P5: Track streaming chunk emission
-                        event_type = _get_chunk_event_type(sse_chunk.type)
-                        langgraph_streaming_chunks_total.labels(event_type=event_type).inc()
+                        self._track_and_observe(sse_chunk)
 
                         # Track if we sent a router decision
                         if sse_chunk.type == "router_decision":
@@ -423,9 +424,7 @@ class StreamingService:
                     sse_chunks = self._process_messages_chunk(chunk, state, first_token_time)
 
                     for sse_chunk, content_fragment in sse_chunks:
-                        # PHASE 2.5 - P5: Track streaming chunk emission
-                        event_type = _get_chunk_event_type(sse_chunk.type)
-                        langgraph_streaming_chunks_total.labels(event_type=event_type).inc()
+                        self._track_and_observe(sse_chunk)
 
                         # Track first token time
                         if sse_chunk.type == "token" and first_token_time is None:
@@ -473,8 +472,7 @@ class StreamingService:
                     sse_chunks = self._process_updates_chunk(chunk, state)
 
                     for sse_chunk, content_fragment in sse_chunks:
-                        event_type = _get_chunk_event_type(sse_chunk.type)
-                        langgraph_streaming_chunks_total.labels(event_type=event_type).inc()
+                        self._track_and_observe(sse_chunk)
 
                         # Track node transitions for diagnostic logging
                         if sse_chunk.type == "execution_step" and sse_chunk.metadata:
@@ -492,8 +490,7 @@ class StreamingService:
                     sse_chunks = self._process_custom_chunk(chunk)
 
                     for sse_chunk, content_fragment in sse_chunks:
-                        event_type = _get_chunk_event_type(sse_chunk.type)
-                        langgraph_streaming_chunks_total.labels(event_type=event_type).inc()
+                        self._track_and_observe(sse_chunk)
                         yield (sse_chunk, content_fragment)
 
             # =========================================================================
@@ -1950,6 +1947,19 @@ class StreamingService:
             )
 
         return None
+
+    def _track_and_observe(self, sse_chunk: ChatStreamChunk) -> None:
+        """Count the emitted chunk (PHASE 2.5 P5 metric) and feed the trace capture.
+
+        Single per-chunk chokepoint of the main streaming loop: every branch
+        (values / messages / updates / custom) routes its emissions through
+        here, so the persisted ⚙ trace (ADR-133 V2) sees exactly what the
+        client sees. ``observe`` is a no-op for non-step chunk types.
+        """
+        langgraph_streaming_chunks_total.labels(
+            event_type=_get_chunk_event_type(sse_chunk.type)
+        ).inc()
+        self.trace_capture.observe(sse_chunk.type, sse_chunk.metadata)
 
     def _should_stream_token(self, node_name: str) -> bool:
         """

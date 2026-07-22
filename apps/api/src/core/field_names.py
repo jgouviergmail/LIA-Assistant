@@ -118,6 +118,18 @@ FIELD_FEEDBACK_ENABLED = "feedback_enabled"  # Whether feedback buttons should b
 FIELD_FEEDBACK_SUBMITTED = "feedback_submitted"  # Persisted after user submits feedback
 FIELD_FEEDBACK_VALUE = "feedback_value"  # Feedback kind (thumbs_up/thumbs_down/block)
 
+# Execution trace persisted with the assistant message (ADR-133 V2).
+# Value shape: {"steps": [{"emoji", "i18n_key", "category"}], "duration_ms": int | None}
+FIELD_EXECUTION_TRACE = "execution_trace"
+
+# Response feedback persisted on ordinary assistant messages (QW-5, ADR-138).
+# Value shape: {"verdict": "thumbs_up"|"thumbs_down", "comment": str | None}
+FIELD_RESPONSE_FEEDBACK = "response_feedback"
+# Journal entry IDs injected into the turn's context (IDs only — no content).
+# Written at archive so a later 👍/👎 can feed the evidence/contradiction
+# counters of exactly the entries that shaped the answer.
+FIELD_INJECTED_JOURNAL_IDS = "injected_journal_ids"
+
 # Data Registry & Correlation (Correlated Display)
 FIELD_REGISTRY_ID = "_registry_id"  # Internal registry item ID (enriched in structured_data)
 FIELD_CORRELATION_PARENT_ID = "_correlation_parent_id"  # System param for FOR_EACH correlation

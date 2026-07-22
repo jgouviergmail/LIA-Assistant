@@ -10,18 +10,20 @@
  * - tools: ToolManifest entries across src/domains/agents/{domain}/catalogue_manifests.py
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions in infrastructure/observability/
+ * - metrics: Prometheus metric definitions across src/ — measured 2026-07-22
+ *   (v1.25.12): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 428
+ *   (the observability/ folder alone holds 413; helpers define the rest)
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured 2026-07-21 (v1.25.11): backend pytest 12,434 collected (713 files)
- *   + frontend vitest 2,219 (217 files) = 14,653. Re-measure both suites every
+ *   Measured 2026-07-22 (v1.25.12): backend pytest 12,468 collected
+ *   + frontend vitest 2,282 (227 files) = 14,750. Re-measure both suites every
  *   release: the value carried the backend count alone until v1.25.9, while its
  *   comment already claimed both.
- * - adrs: docs/architecture/ ADR files (136 files, numbered up to ADR-137 —
+ * - adrs: docs/architecture/ ADR files (137 files, numbered up to ADR-138 —
  *   the six founding ADRs were reconstituted in this cycle, so files and
  *   numbering now agree).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   159 headings, no Unreleased pending.
+ *   160 headings, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -35,11 +37,11 @@ export const LANDING_STATS = {
   tools: 76,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 425,
+  metrics: 428,
   uiLanguages: 6,
-  tests: 14600,
-  adrs: 136,
-  releases: 159,
+  tests: 14700,
+  adrs: 137,
+  releases: 160,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

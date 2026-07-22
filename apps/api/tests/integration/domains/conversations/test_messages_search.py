@@ -1,11 +1,16 @@
-"""Unit tests for the ``search`` parameter of ConversationRepository.
+"""Integration tests for the ``search`` parameter of ConversationRepository.
 
-Validates case-insensitive ILIKE filtering on ``ConversationMessage.content``
-when ``get_messages_with_token_summaries(..., search=...)`` is used by the
-``GET /conversations/me/messages?search=`` endpoint.
+Validates the filtering contract of ``get_messages_with_token_summaries(...,
+search=...)`` used by ``GET /conversations/me/messages?search=``:
 
-MVP: accent-sensitive (``ILIKE`` without the ``unaccent`` extension). Tests
-here lock that contract so a future switch to unaccent is a conscious change.
+- case-insensitive (ILIKE),
+- **accent-insensitive** (``unaccent()`` on both sides — QW-2, aligned with the
+  admin user search; the extension is installed by migration
+  ``add_unaccent_ext_001``),
+- LIKE wildcards (``%``, ``_``) in the user's term are treated as literals.
+
+These tests lock that contract — weakening any of the three dimensions must be
+a conscious change.
 """
 
 from __future__ import annotations
@@ -16,13 +21,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.conversations.repository import ConversationRepository
 
-# Repository search uses PostgreSQL ILIKE — needs a real DB.
+# Repository search uses PostgreSQL ILIKE + unaccent — needs a real DB.
 pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
 async def user_with_messages(async_session: AsyncSession):
-    """Create a user + conversation + 5 messages with varied content."""
+    """Create a user + conversation + 6 messages with varied content."""
     from src.domains.users.models import User
 
     user = User(
@@ -48,9 +53,12 @@ async def user_with_messages(async_session: AsyncSession):
         "Quelle est la météo demain",  # neither
         "Note un rendez-vous pour la réunion",  # réunion (with accent)
         "Prepare the reunion agenda",  # reunion (without accent)
+        "Remise de 50% appliquée",  # literal % (wildcard-escaping contract)
     ]
     for role_content in zip(
-        ["user", "assistant", "user", "assistant", "user"], contents, strict=True
+        ["user", "assistant", "user", "assistant", "user", "assistant"],
+        contents,
+        strict=True,
     ):
         role, content = role_content
         async_session.add(
@@ -114,19 +122,25 @@ class TestMessagesSearch:
             search=None,
         )
 
-        assert len(results) == 5
+        assert len(results) == 6
 
     @pytest.mark.asyncio
-    async def test_search_accent_sensitive_mvp_contract(
+    async def test_search_accent_insensitive_both_directions(
         self, async_session: AsyncSession, user_with_messages
     ):
-        """MVP contract: ILIKE is accent-sensitive. 'reunion' does NOT match 'réunion'.
+        """QW-2 contract: 'reunion' matches 'réunion' and vice versa.
 
-        This test documents the known MVP limitation. If the contract changes
-        (e.g. pg_trgm/unaccent introduced), this test must be updated.
+        ``unaccent()`` is applied to both the column and the pattern, so the
+        accented and unaccented spellings are equivalent in both directions —
+        same behaviour the FAQ search already has client-side.
         """
         _, conversation = user_with_messages
         repo = ConversationRepository(async_session)
+
+        expected = {
+            "Note un rendez-vous pour la réunion",
+            "Prepare the reunion agenda",
+        }
 
         without_accent = await repo.get_messages_with_token_summaries(
             conversation_id=conversation.id,
@@ -139,10 +153,34 @@ class TestMessagesSearch:
             search="réunion",  # avec accent
         )
 
-        reunion_contents = {msg.content for msg, _ in without_accent}
-        reunion_accent_contents = {msg.content for msg, _ in with_accent}
+        assert {msg.content for msg, _ in without_accent} == expected
+        assert {msg.content for msg, _ in with_accent} == expected
 
-        # Without accent: only matches the English "Prepare the reunion agenda"
-        assert reunion_contents == {"Prepare the reunion agenda"}
-        # With accent: only matches the French "Note un rendez-vous pour la réunion"
-        assert reunion_accent_contents == {"Note un rendez-vous pour la réunion"}
+    @pytest.mark.asyncio
+    async def test_search_treats_like_wildcards_as_literals(
+        self, async_session: AsyncSession, user_with_messages
+    ):
+        """'%' and '_' in the user's term are literals, never LIKE wildcards.
+
+        Unescaped, '50%' would match any content containing '50' followed by
+        anything; escaped, it only matches the literal string '50%'.
+        """
+        _, conversation = user_with_messages
+        repo = ConversationRepository(async_session)
+
+        percent = await repo.get_messages_with_token_summaries(
+            conversation_id=conversation.id,
+            limit=50,
+            search="50%",
+        )
+        assert {msg.content for msg, _ in percent} == {"Remise de 50% appliquée"}
+
+        # A bare wildcard must not match everything — no literal '%'-free row
+        # contains an underscore, so '_a' only matches nothing (not "any char
+        # followed by a").
+        underscore = await repo.get_messages_with_token_summaries(
+            conversation_id=conversation.id,
+            limit=50,
+            search="_izza",
+        )
+        assert underscore == []

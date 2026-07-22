@@ -30,6 +30,7 @@ from typing import Any, Literal
 import structlog
 
 from src.core.exceptions import ConnectorAPIError, ConnectorTokenExpiredError
+from src.domains.agents.tools.exceptions import ConnectorNotEnabledError
 from src.infrastructure.observability.metrics import connector_error_notices_total
 
 logger = structlog.get_logger(__name__)
@@ -84,15 +85,69 @@ def classify_connector_exception(exc: BaseException) -> ConnectorNotice | None:
             return ConnectorNotice(connector_type=exc.connector_type, action="reconnect")
         if exc.upstream_status_code == _RATE_LIMIT_STATUS:
             return ConnectorNotice(connector_type=exc.connector_type, action="rate_limit")
+    # ADR-134 V2: on runs after the breakage the connector is status=ERROR and
+    # no longer resolves — the raise site enriched the exception with the
+    # broken connector (attribute read only; a genuinely unconfigured category
+    # stays un-enriched and must NOT show "Reconnect").
+    if isinstance(exc, ConnectorNotEnabledError) and exc.error_connector_type:
+        return ConnectorNotice(connector_type=exc.error_connector_type, action="reconnect")
     return None
+
+
+def emit_connector_notice(
+    connector_type: str,
+    action: Literal["reconnect", "rate_limit"],
+    tool_name: str,
+) -> bool:
+    """Emit a connector notice on the custom stream (best-effort).
+
+    Structured data only — the frontend resolves labels/messages client-side
+    from ``connector_type`` and ``action`` (backend never bakes translated
+    strings into stream payloads). Direct entry point for non-exception
+    failure paths (``ConnectorTool.execute`` returns a formatted error instead
+    of raising when a category has no active provider — ADR-134 V2).
+
+    Args:
+        connector_type: The broken connector (e.g. ``"google_gmail"``).
+        action: Actionable verdict for the banner.
+        tool_name: The failing tool, for observability and display context.
+
+    Returns:
+        True when the notice was emitted, False when the writer is unavailable.
+    """
+    writer = _get_writer()
+    if writer is None:
+        logger.debug(
+            "connector_notice_writer_unavailable",
+            connector_type=connector_type,
+            action=action,
+            tool_name=tool_name,
+        )
+        return False
+
+    writer(
+        {
+            "type": "execution_step",
+            "step_type": "tool_error",
+            "metadata": {
+                "connector_type": connector_type,
+                "action": action,
+                "tool_name": tool_name,
+            },
+        }
+    )
+    connector_error_notices_total.labels(connector_type=connector_type, action=action).inc()
+    logger.info(
+        "connector_error_notice_emitted",
+        connector_type=connector_type,
+        action=action,
+        tool_name=tool_name,
+    )
+    return True
 
 
 def emit_connector_notice_for_exception(exc: BaseException, tool_name: str) -> bool:
     """Classify and emit a connector notice on the custom stream (best-effort).
-
-    Structured data only — the frontend resolves labels/messages client-side
-    from ``connector_type`` and ``action`` (backend never bakes translated
-    strings into stream payloads).
 
     Args:
         exc: The exception raised by the tool execution path.
@@ -105,35 +160,4 @@ def emit_connector_notice_for_exception(exc: BaseException, tool_name: str) -> b
     notice = classify_connector_exception(exc)
     if notice is None:
         return False
-
-    writer = _get_writer()
-    if writer is None:
-        logger.debug(
-            "connector_notice_writer_unavailable",
-            connector_type=notice.connector_type,
-            action=notice.action,
-            tool_name=tool_name,
-        )
-        return False
-
-    writer(
-        {
-            "type": "execution_step",
-            "step_type": "tool_error",
-            "metadata": {
-                "connector_type": notice.connector_type,
-                "action": notice.action,
-                "tool_name": tool_name,
-            },
-        }
-    )
-    connector_error_notices_total.labels(
-        connector_type=notice.connector_type, action=notice.action
-    ).inc()
-    logger.info(
-        "connector_error_notice_emitted",
-        connector_type=notice.connector_type,
-        action=notice.action,
-        tool_name=tool_name,
-    )
-    return True
+    return emit_connector_notice(notice.connector_type, notice.action, tool_name)

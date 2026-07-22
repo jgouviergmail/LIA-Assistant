@@ -67,8 +67,24 @@ Classification par **types d'exceptions, jamais par message** (règle taxonomie)
 - Le bandeau sort **au run qui casse**. Aux runs suivants, le connecteur est
   en `status=ERROR` et n'est plus résolu comme provider actif
   (`provider_resolver` exige ACTIVE) → l'outil répond « pas de connecteur »
-  sans exception typée. **V2** : détecter un connecteur requis en statut
-  ERROR au moment de la résolution et émettre la même notice.
+  sans exception typée. **V2 (livré 2026-07-22, chantier Quick Wins UX
+  Lot 1)** : détection au moment de la résolution. `find_error_connector_type`
+  (`provider_resolver.py`) consulte la même liste Redis-cachée et signale un
+  connecteur de la catégorie en `status=ERROR` (`REVOKED` exclu : une
+  déconnexion volontaire ne se harcèle pas — arbitrage 2026-07-21).
+  Deux chemins, car `handle_tool_exception` est **synchrone** :
+  (1) chemin exception — `ConnectorNotEnabledError` enrichie AU RAISE
+  (contexte async) via `build_connector_not_enabled_error` avec
+  `functional_category` + `error_connector_type` ; le classificateur lit
+  l'attribut (jamais de lookup dans le handler) → mêmes trois points
+  d'émission, contrat SSE inchangé. Sites enrichis : `resolve_client_for_category`
+  (HITL), `tasks_tools`, `google_contacts_tools`. Une catégorie réellement
+  non configurée reste non-enrichie → pas de faux « Reconnecter ».
+  (2) chemin sans exception — `ConnectorTool.execute` RETOURNE une erreur
+  formatée (le handler central ne voit rien) : émission directe
+  `emit_connector_notice` au site (`base.py`), même événement, même métrique.
+  Tests : 6 helper/factory (ERROR/REVOKED/alias/catégorie/échec lookup),
+  3 classification/émission directe, les 18 V1 inchangés.
 - Le `raise_invalid_input` réseau du refresh (transient) reste volontairement
   générique — pas de « Reconnecter » sur une panne réseau.
 - 429 : les clients retentent en interne ; un 429 forwardé est rare — l'encart

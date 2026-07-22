@@ -3,7 +3,9 @@ Conversations API router.
 REST endpoints for conversation management and message history.
 """
 
+from contextlib import suppress
 from datetime import datetime
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,11 +16,12 @@ from src.core.constants import (
     CONVERSATION_SEARCH_MIN_LENGTH,
 )
 from src.core.dependencies import get_db
-from src.core.exceptions import raise_no_active_conversation
+from src.core.exceptions import raise_message_not_found, raise_no_active_conversation
 from src.core.field_names import (
     FIELD_CONTENT,
     FIELD_CONVERSATION_ID,
     FIELD_CREATED_AT,
+    FIELD_RESPONSE_FEEDBACK,
     FIELD_TOTAL_COST_EUR,
     FIELD_TOTAL_GOOGLE_API_REQUESTS,
     FIELD_TOTAL_TOKENS_CACHE,
@@ -34,6 +37,7 @@ from src.domains.conversations.schemas import (
     ConversationResponse,
     ConversationStatsResponse,
     ConversationTotalsResponse,
+    ResponseFeedbackRequest,
 )
 from src.domains.conversations.service import ConversationService
 from src.domains.users.models import User
@@ -97,7 +101,10 @@ async def get_conversation_messages(
         None,
         min_length=CONVERSATION_SEARCH_MIN_LENGTH,
         max_length=CONVERSATION_SEARCH_MAX_LENGTH,
-        description="Optional case-insensitive substring to filter message content",
+        description=(
+            "Optional substring to filter message content "
+            "(case- and accent-insensitive; wildcards are literals)"
+        ),
     ),
     before: datetime | None = Query(
         None,
@@ -125,8 +132,8 @@ async def get_conversation_messages(
         limit: Maximum number of messages. Bounds and default come from
             ``settings.conversation_history_default_limit`` and
             ``settings.conversation_history_max_limit`` (env-configurable).
-        search: Optional substring filter on message content (case-insensitive
-                ILIKE match, accent-sensitive). 2-200 chars.
+        search: Optional substring filter on message content (case- and
+                accent-insensitive — ILIKE + unaccent; QW-2). 2-200 chars.
         before: Keyset cursor for scroll-up pagination (created_at).
         current_user: Authenticated user from session dependency.
         db: Database session from FastAPI dependency injection.
@@ -219,6 +226,76 @@ async def get_conversation_messages(
         has_more=has_more,
         next_cursor=next_cursor,
     )
+
+
+@router.post(
+    "/me/messages/{message_id}/feedback",
+    summary="Submit response feedback",
+    description="Submit a thumbs verdict (and optional comment) on an assistant response.",
+)
+async def submit_response_feedback(
+    message_id: UUID,
+    data: ResponseFeedbackRequest,
+    current_user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """Persist a 👍/👎 verdict on an ordinary assistant response (QW-5, ADR-138).
+
+    The verdict lands in ``message_metadata`` (atomic owner-scoped
+    ``jsonb_set``); on the FIRST verdict only, the journal entries injected
+    into that turn get their evidence/contradiction counters incremented; a
+    👎 comment additionally lands as an L0 ``user_correction`` entry (no
+    consolidation). Never triggers a regeneration.
+
+    Raises:
+        HTTPException 404: Unknown message, foreign owner, or non-assistant
+            row (existence hidden).
+    """
+    from src.domains.conversations.response_feedback import (
+        apply_verdict_to_journals,
+        get_assistant_message_for_user,
+        persist_verdict,
+        record_comment_as_correction,
+    )
+
+    row = await get_assistant_message_for_user(db, current_user.id, message_id)
+    if row is None:
+        raise_message_not_found(message_id)
+
+    metadata = dict(row.message_metadata or {})
+    first_verdict = not isinstance(metadata.get(FIELD_RESPONSE_FEEDBACK), dict)
+    comment = (data.comment or "").strip() or None
+
+    await persist_verdict(db, current_user.id, message_id, data.verdict, comment)
+    entries_updated = 0
+    if first_verdict:
+        # Counters have no decrement path — a verdict CHANGE must never
+        # re-feed them (double count), only update the stored verdict.
+        entries_updated = await apply_verdict_to_journals(
+            db, current_user.id, metadata, data.verdict
+        )
+    if comment and data.verdict == "thumbs_down":
+        await record_comment_as_correction(db, current_user.id, comment)
+    await db.commit()
+
+    # Best-effort metric emission — never fails the request.
+    with suppress(Exception):
+        from src.infrastructure.observability.metrics_registry import track_response_feedback
+
+        track_response_feedback(data.verdict)
+
+    # Counters and flags only at INFO — the comment is content (PII rule).
+    logger.info(
+        "response_feedback_submitted",
+        user_id=str(current_user.id),
+        message_id=str(message_id),
+        verdict=data.verdict,
+        first_verdict=first_verdict,
+        journal_entries_updated=entries_updated,
+        has_comment=bool(comment),
+    )
+
+    return {"message": APIMessages.feedback_submitted_successfully()}
 
 
 @router.post(

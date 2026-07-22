@@ -647,6 +647,12 @@ REGISTRY_MAX_ITEMS_DEFAULT = 75  # Maximum items in data registry per conversati
 # truncated — half an html_content renders worse than an honest failure state.
 WIDGET_PERSIST_MAX_BYTES_DEFAULT = 1_048_576
 
+# Execution trace persisted with the assistant message (ADR-133 V2). Tail-keeping
+# cap on retained steps — 100 matches the frontend MAX_TRACE_STEPS so the reloaded
+# trace equals what the live bubble showed. Each step is ~80 bytes of JSON
+# ({emoji, i18n_key, category}), so the worst case stays under 8 kB per message.
+EXECUTION_TRACE_PERSIST_MAX_STEPS_DEFAULT = 100
+
 # ReAct Agent Context (for contacts_agent, emails_agent, etc.)
 # OPTIMIZED 2025-12-24: Reduced from 50 → 30 (-40% tokens)
 # Agents have access to data registry and tool context, 30 messages is sufficient
@@ -1227,6 +1233,10 @@ REDIS_KEY_RUN_CANCEL_PREFIX = "chat:cancel:"
 # Case-insensitive ILIKE substring match on ConversationMessage.content.
 CONVERSATION_SEARCH_MIN_LENGTH = 2  # Shortest substring accepted (avoid 1-char noise)
 CONVERSATION_SEARCH_MAX_LENGTH = 200  # Upper bound to prevent pathological queries
+
+# Response feedback (QW-5, ADR-138)
+RESPONSE_FEEDBACK_COMMENT_MAX_LENGTH = 500  # One-line "what went wrong" — not an essay
+RESPONSE_FEEDBACK_JOURNAL_IDS_MAX = 20  # Defensive cap on per-turn injected-entry updates
 
 # ============================================================================
 # BACKGROUND CHAT RUNS (ADR-117 — Lot 1 durability)

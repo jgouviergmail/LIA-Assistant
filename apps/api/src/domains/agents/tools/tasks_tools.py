@@ -1493,15 +1493,23 @@ async def _resolve_tasks_client(
         ConnectorNotEnabledError: If no tasks connector is active.
     """
     from src.domains.connectors.clients.registry import ClientRegistry
-    from src.domains.connectors.provider_resolver import resolve_active_connector
+    from src.domains.connectors.provider_resolver import (
+        build_connector_not_enabled_error,
+        resolve_active_connector,
+    )
 
     connector_service = await deps.get_connector_service()
     resolved_type = await resolve_active_connector(user_id, "tasks", connector_service)
 
     if resolved_type is None:
-        raise ConnectorNotEnabledError(
+        # Enriched with the category's ERROR-status connector (if any) so the
+        # central handler can surface the "Reconnect" banner (ADR-134 V2).
+        raise await build_connector_not_enabled_error(
             APIMessages.connector_not_enabled("Tasks"),
             connector_name="Tasks",
+            functional_category="tasks",
+            user_id=user_id,
+            connector_service=connector_service,
         )
 
     credentials = await connector_service.get_connector_credentials(user_id, resolved_type)

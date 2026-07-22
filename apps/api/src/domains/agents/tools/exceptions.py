@@ -24,10 +24,25 @@ class ConnectorNotEnabledError(ToolError):
 
     Attributes:
         connector_name: Name of the missing connector (e.g., "Google Calendar")
+        functional_category: Functional category that failed to resolve
+            ("email", "calendar", ...), when known at the raise site.
+        error_connector_type: Connector of that category currently stuck in
+            ``status=ERROR``, when one exists (ADR-134 V2). Set at raise time
+            (async context) so the sync classifier can map the failure to an
+            actionable "Reconnect" notice by attribute read alone.
     """
 
-    def __init__(self, message: str, connector_name: str | None = None):
+    def __init__(
+        self,
+        message: str,
+        connector_name: str | None = None,
+        *,
+        functional_category: str | None = None,
+        error_connector_type: str | None = None,
+    ):
         self.connector_name = connector_name
+        self.functional_category = functional_category
+        self.error_connector_type = error_connector_type
         super().__init__(message)
 
 

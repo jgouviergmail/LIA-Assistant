@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 3.8
-**Date**: 2026-07-21
-**Application**: LIA v1.25.11
+**Version**: 3.9
+**Date**: 2026-07-22
+**Application**: LIA v1.25.12
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -257,6 +257,8 @@ Right in the chat interface, a debug panel exposes in real time each conversatio
 Each message shows its cost in tokens and currency. Users can export their consumption. Administrators get real-time dashboards with per-user gauges and configurable quotas.
 
 You're not paying a subscription that hides the real costs. You see exactly what each interaction costs, and you can optimize: economical model for routing, more powerful for the response.
+
+The same transparency applies to actions: under every response, a collapsed “⚙ N steps · X s” line unfolds what actually happened — routing, tools called, duration — and that trace is stored with the message: it survives reloads, on every device. Every response can also be rated with a discreet 👍/👎, remembered and fed back into the assistant's learning — never used to regenerate the answer on your behalf.
 
 ### 6.4. Trust through evidence
 

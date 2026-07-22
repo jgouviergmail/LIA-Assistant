@@ -300,3 +300,15 @@ Yes. Under each answer, a small **"⚙ N steps · X s"** line summarizes the bac
 - Its **reasoning**, grouped by category
 
 It is the same transparency as the cost shown on every message, extended to the *flow of actions*. The display stays discreet and collapsed by default, so it never clutters the conversation.
+
+Since v1.25.12 this trace is **stored with the message**: you will find it after a reload and on your other devices (the live reasoning stream itself stays ephemeral).
+
+## How do I search my entire conversation history?
+Type in the **search field** of the chat header (or tap the 🔍 icon on mobile). The loaded messages filter instantly — accent-insensitive — with the matches **highlighted** in the bubbles and a result counter.
+
+If older history exists, a **"Search entire history"** button queries the server across everything ever said and lists dated results. Clicking one **jumps to that moment** of the conversation, and a banner offers "Back to present" at any time. Sending a new message automatically returns you to the present first.
+
+## What are the 👍/👎 under the responses for?
+Two discreet thumbs appear next to the **Copy** button on ordinary responses. Your verdict is **saved with the message** (you will find it on your other devices) and feeds LIA's understanding: it strengthens or weakens the personal observations that shaped that answer. A 👎 unfolds an optional one-line **"what went wrong?"** field, recorded as a correction.
+
+You can change your mind — the latest verdict wins. And LIA **never regenerates** an answer on its own: you stay in charge.

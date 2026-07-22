@@ -23,6 +23,7 @@ from src.domains.connectors.models import (
 
 if TYPE_CHECKING:
     from src.domains.agents.dependencies import ToolDependencies
+    from src.domains.agents.tools.exceptions import ConnectorNotEnabledError
 
 logger = structlog.get_logger(__name__)
 
@@ -91,6 +92,91 @@ async def resolve_active_connector(
     return ConnectorType(active_connectors[0].connector_type)
 
 
+async def find_error_connector_type(
+    user_id: UUID,
+    functional_category: str,
+    connector_service: Any,
+) -> str | None:
+    """Return the category's connector stuck in ``status=ERROR``, if any.
+
+    ADR-134 V2: on runs after a connector broke, it is no longer resolved as
+    the active provider and tools only report "no connector". This lookup lets
+    the raise/emission sites distinguish "nothing configured" from "the
+    provider is broken and one click away from repair" — only the latter may
+    show a "Reconnect" banner.
+
+    ``REVOKED`` is deliberately NOT eligible: a deliberate disconnection must
+    not be nagged about (arbitration 2026-07-21). Uses the same Redis-cached
+    ``get_user_connectors()`` as :func:`resolve_active_connector` — no extra
+    DB query, and this only runs on the failure path.
+
+    Args:
+        user_id: User UUID.
+        functional_category: Category name ("email", "calendar", ...).
+        connector_service: ConnectorService instance.
+
+    Returns:
+        The canonical connector type value (e.g. ``"google_gmail"``), or None.
+    """
+    category_types = CONNECTOR_FUNCTIONAL_CATEGORIES.get(functional_category)
+    if category_types is None:
+        return None
+
+    response = await connector_service.get_user_connectors(user_id)
+    for connector in response.connectors:
+        ct = connector.connector_type
+        canonical_ct = _LEGACY_CONNECTOR_ALIASES.get(ct, ct)
+        if canonical_ct in category_types and connector.status == ConnectorStatus.ERROR:
+            return ConnectorType(canonical_ct).value
+    return None
+
+
+async def build_connector_not_enabled_error(
+    message: str,
+    *,
+    connector_name: str,
+    functional_category: str,
+    user_id: UUID,
+    connector_service: Any,
+) -> ConnectorNotEnabledError:
+    """Build a ``ConnectorNotEnabledError`` enriched with the broken connector.
+
+    Best-effort enrichment: a failure while looking up the connector list must
+    never mask the original "not enabled" error — the exception is then simply
+    returned un-enriched (no banner, which is the safe default).
+
+    Args:
+        message: Human-readable message for the LLM/tool output.
+        connector_name: Display name carried by the exception.
+        functional_category: Category that failed to resolve.
+        user_id: User UUID.
+        connector_service: ConnectorService instance.
+
+    Returns:
+        The exception to raise (never raises itself).
+    """
+    from src.domains.agents.tools.exceptions import ConnectorNotEnabledError
+
+    error_connector_type: str | None = None
+    try:
+        error_connector_type = await find_error_connector_type(
+            user_id, functional_category, connector_service
+        )
+    except Exception as lookup_error:
+        logger.debug(
+            "error_connector_lookup_failed",
+            functional_category=functional_category,
+            error=str(lookup_error),
+        )
+
+    return ConnectorNotEnabledError(
+        message,
+        connector_name=connector_name,
+        functional_category=functional_category,
+        error_connector_type=error_connector_type,
+    )
+
+
 async def resolve_client_for_category(
     functional_category: str,
     user_id: UUID,
@@ -121,10 +207,15 @@ async def resolve_client_for_category(
 
     if resolved_type is None:
         display_name = CATEGORY_DISPLAY_NAMES.get(functional_category, functional_category)
-        raise ConnectorNotEnabledError(
+        # Enriched with the category's ERROR-status connector (if any) so the
+        # central handler can surface the "Reconnect" banner (ADR-134 V2).
+        raise await build_connector_not_enabled_error(
             f"No {display_name} service is enabled. "
             "Go to Settings > Connectors to activate one.",
             connector_name=display_name,
+            functional_category=functional_category,
+            user_id=user_id,
+            connector_service=connector_service,
         )
 
     if resolved_type.is_apple:

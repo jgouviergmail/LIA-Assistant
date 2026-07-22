@@ -72,6 +72,9 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
       ...m.metadata,
       psyche_state: metadata.psyche_state,
       ...(metadata.cancelled ? { interrupted: true, interrupt_reason: 'cancelled' } : {}),
+      // QW-5 (ADR-138): DB id of the archived row — the feedback buttons only
+      // render when a message can be targeted server-side.
+      ...(metadata.archived_message_id ? { message_db_id: metadata.archived_message_id } : {}),
     },
   };
 }

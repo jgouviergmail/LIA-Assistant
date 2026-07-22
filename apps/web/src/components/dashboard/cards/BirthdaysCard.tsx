@@ -1,8 +1,10 @@
 'use client';
 
 import { Cake } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
+import { chatDraftHref } from '@/lib/briefing-utils';
 import type { BirthdaysData, CardSection } from '@/types/briefing';
 
 interface BirthdaysCardProps {
@@ -18,6 +20,9 @@ export function BirthdaysCard({
   onRefresh,
   staggerIndex,
 }: BirthdaysCardProps) {
+  const router = useRouter();
+  const { i18n } = useTranslation();
+  const lng = (i18n.language || 'fr').split('-')[0];
   return (
     <BriefingCard<BirthdaysData>
       titleKey="dashboard.briefing.cards.birthdays.title"
@@ -27,35 +32,59 @@ export function BirthdaysCard({
       isRefreshing={isRefreshing}
       onRefresh={onRefresh}
       emptyStateKey="dashboard.briefing.cards.birthdays.empty"
-      renderContent={data => <BirthdaysContent data={data} />}
+      renderContent={data => (
+        <BirthdaysContent
+          data={data}
+          onOpenChat={draft => router.push(chatDraftHref(lng, draft))}
+        />
+      )}
       staggerIndex={staggerIndex}
     />
   );
 }
 
-function BirthdaysContent({ data }: { data: BirthdaysData }) {
+function BirthdaysContent({
+  data,
+  onOpenChat,
+}: {
+  data: BirthdaysData;
+  onOpenChat: (draft: string) => void;
+}) {
   const { t } = useTranslation();
   return (
-    <ul className="space-y-2" role="list">
-      {data.items.map((birthday, index) => (
-        <li key={index} className="flex items-baseline justify-between gap-2 text-sm">
-          <span className="text-foreground/90 truncate font-medium">
-            {birthday.contact_name}
-            {birthday.age_at_next !== null && (
-              <span className="text-muted-foreground font-normal ml-1">
-                ({birthday.age_at_next})
+    <ul className="space-y-0.5" role="list">
+      {data.items.map((birthday, index) => {
+        // QW-9: click opens the chat prefilled with a birthday-message intent.
+        const intent = t('dashboard.briefing.intents.birthday', {
+          name: birthday.contact_name,
+        });
+        return (
+          <li key={index}>
+            <button
+              type="button"
+              onClick={() => onOpenChat(intent)}
+              aria-label={intent}
+              className="w-full text-left flex items-baseline justify-between gap-2 text-sm rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="text-foreground/90 truncate font-medium">
+                {birthday.contact_name}
+                {birthday.age_at_next !== null && (
+                  <span className="text-muted-foreground font-normal ml-1">
+                    ({birthday.age_at_next})
+                  </span>
+                )}
               </span>
-            )}
-          </span>
-          <span className="shrink-0 text-xs font-semibold text-rose-600 dark:text-rose-300 tabular-nums">
-            {birthday.days_until === 0
-              ? t('dashboard.briefing.cards.birthdays.today')
-              : t('dashboard.briefing.cards.birthdays.in_days', {
-                  count: birthday.days_until,
-                })}
-          </span>
-        </li>
-      ))}
+              <span className="shrink-0 text-xs font-semibold text-rose-600 dark:text-rose-300 tabular-nums">
+                {birthday.days_until === 0
+                  ? t('dashboard.briefing.cards.birthdays.today')
+                  : t('dashboard.briefing.cards.birthdays.in_days', {
+                      count: birthday.days_until,
+                    })}
+              </span>
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }

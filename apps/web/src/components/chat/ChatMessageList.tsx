@@ -26,6 +26,8 @@ export interface ChatMessageListProps {
   /** Called when the top sentinel becomes visible. The parent owns the cursor
    *  and the state update (prepend + dedup). */
   onLoadOlder?: () => void;
+  /** History-search term highlighted inside the rendered bubbles (QW-2). */
+  searchHighlight?: string;
 }
 
 export interface TimeGreeting {
@@ -115,6 +117,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   hasMoreOlder = false,
   isLoadingOlder = false,
   onLoadOlder,
+  searchHighlight,
 }) => {
   const { t } = useTranslation();
 
@@ -489,6 +492,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
               isLatestAssistant={message.id === lastAssistantId}
               isActiveStream={message.id === activeStreamId}
               streamPhase={streamPhase}
+              searchHighlight={searchHighlight}
             />
           </div>
         ))}

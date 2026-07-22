@@ -302,8 +302,9 @@ class ConversationRepository(BaseRepository[Conversation]):
         Args:
             conversation_id: Conversation UUID
             limit: Maximum number of messages
-            search: Optional case-insensitive substring to filter message content.
-                    Uses PostgreSQL ILIKE (case-insensitive, accent-sensitive).
+            search: Optional substring to filter message content. Case- and
+                    accent-insensitive (ILIKE + unaccent on both sides); LIKE
+                    wildcards in the term are treated as literals.
             before_created_at: Keyset pagination cursor. When provided, only
                 returns messages older than this timestamp (strict ``<``).
                 Combined with the existing
@@ -345,11 +346,18 @@ class ConversationRepository(BaseRepository[Conversation]):
                 .where(ConversationMessage.conversation_id == conversation_id)
             )
 
-            # Apply optional full-text search filter on message content.
-            # MVP: ILIKE is case-insensitive but accent-sensitive. Upgrade to
-            # pg_trgm / unaccent extensions if accent-insensitive matching is needed.
+            # Apply optional substring search filter on message content (QW-2):
+            # case-insensitive (ILIKE) AND accent-insensitive — unaccent() on
+            # both sides, same approach as the admin user search (extension
+            # installed by migration add_unaccent_ext_001). LIKE wildcards in
+            # the user's term are escaped so "50%" matches the literal text.
             if search:
-                stmt = stmt.where(ConversationMessage.content.ilike(f"%{search}%"))
+                escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                stmt = stmt.where(
+                    func.unaccent(ConversationMessage.content).ilike(
+                        func.unaccent(f"%{escaped}%"), escape="\\"
+                    )
+                )
 
             # Keyset pagination: skip messages newer than (or equal to) the cursor.
             # Strict ``<`` matches the "older than" semantics used by the scroll-up

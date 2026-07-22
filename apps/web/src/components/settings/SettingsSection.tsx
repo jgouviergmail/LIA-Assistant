@@ -102,7 +102,7 @@ export function SettingsSection({
   // Non-collapsible mode: render simple Card
   if (!collapsible) {
     return (
-      <Card className={cn('overflow-hidden', className)}>
+      <Card id={`settings-section-${value}`} className={cn('overflow-hidden', className)}>
         <CardHeader className="px-6 py-6 flex-row items-center gap-4 space-y-0">
           {Icon && (
             <div className="rounded-lg bg-primary/10 p-2.5">
@@ -119,9 +119,10 @@ export function SettingsSection({
     );
   }
 
-  // Collapsible mode: render AccordionItem
+  // Collapsible mode: render AccordionItem. The stable id lets deep-links
+  // (settings?section=<value>) scroll to the section after expanding it.
   return (
-    <AccordionItem value={value} className="border-none">
+    <AccordionItem id={`settings-section-${value}`} value={value} className="border-none">
       <Card className={cn('overflow-hidden', className)}>
         <AccordionPrimitive.Header className="flex">
           <AccordionPrimitive.Trigger

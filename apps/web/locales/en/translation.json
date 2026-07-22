@@ -255,7 +255,18 @@
         }
       },
       "updated_hours_ago": "{{hours}} h ago",
-      "updated_days_ago": "{{days}} d ago"
+      "updated_days_ago": "{{days}} d ago",
+      "intents": {
+        "mail": "Summarize the email \"{{subject}}\" from {{sender}} and draft a reply",
+        "birthday": "Write a birthday message for {{name}}",
+        "event": "Prepare me for \"{{title}}\" at {{time}}",
+        "reminder_aria": "Open the chat about this reminder"
+      }
+    },
+    "portrait_hint": {
+      "text": "I refined my understanding of you.",
+      "cta": "See",
+      "dismiss": "Dismiss"
     }
   },
   "auth": {
@@ -464,8 +475,7 @@
         "waiting": "Waiting...",
         "hint": "Enter to send • Shift+Enter for new line",
         "offline": "Offline",
-        "processing": "Processing...",
-        "online": "Online"
+        "processing": "Processing..."
       }
     },
     "voice": {
@@ -623,13 +633,7 @@
       "retry_button": "Retry",
       "retry_failed": "Unable to retrieve your position. Check that GPS is enabled.",
       "detection": {
-        "keywords": [
-          "nearby",
-          "vicinity",
-          "neighborhood",
-          "surroundings",
-          "area"
-        ],
+        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -699,6 +703,32 @@
       "rate_limit_message": "{{connector}} is rate-limiting requests. Please try again in a few minutes.",
       "reconnect_button": "Reconnect",
       "dismiss": "Dismiss notice"
+    },
+    "search": {
+      "loaded_count_one": "{{count}} result in loaded messages",
+      "loaded_count_other": "{{count}} results in loaded messages",
+      "search_all": "Search entire history",
+      "remote_count_one": "{{count}} result in history",
+      "remote_count_other": "{{count}} results in history",
+      "remote_none": "No results in history",
+      "remote_error": "Search failed. Try again.",
+      "searching": "Searching…",
+      "load_more": "More results",
+      "history_view": "You are viewing a past moment of the conversation",
+      "back_to_present": "Back to present",
+      "open_mobile": "Search the history",
+      "close_mobile": "Close search",
+      "close_panel": "Close results",
+      "jump_aria": "Open the conversation at this message from {{date}}"
+    },
+    "feedback": {
+      "up": "This response was helpful",
+      "down": "This response was not helpful",
+      "saved": "Thanks for your feedback!",
+      "error": "Could not save your feedback. Try again.",
+      "comment_placeholder": "What went wrong? (optional)",
+      "comment_send": "Send",
+      "comment_thanks": "Thanks, your correction was recorded."
     }
   },
   "skill_apps": {
@@ -2473,6 +2503,10 @@
       "no_spaces": "No knowledge spaces created yet.",
       "create_first": "Create your first space",
       "manage_all": "Manage all spaces →"
+    },
+    "portrait_shortcut": {
+      "title": "What LIA understands about you",
+      "subtitle": "Read the living portrait compiled from your journals"
     }
   },
   "spaces": {
@@ -4266,6 +4300,20 @@
             "i2": "<b>✨ A showcase that shows the real product</b> — The welcome page now opens on a live animated conversation (draft approval, weather card, multi-agent search), a verified-numbers band (agents, tools, tests, versions) and a clearer side-by-side view of the two execution modes. Every figure was re-checked against the code — including 7 AI providers, not 8 — in all six languages.",
             "i3": "<b>🔓 Public pages accessible again without an account</b> — Logged-out visitors opening Philosophy, Technical, Blog or FAQ were silently sent back to the login page after a few seconds. Fixed — and a guard test now prevents this bug from ever coming back."
           }
+        },
+        "v1_25_12": {
+          "title": "v1.25.12 — ⚡ Six everyday quick wins: search, understand, act",
+          "date": "July 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🔍 History search finally complete</b> — accents no longer matter (« reunion » finds « réunion »), matches are highlighted in the bubbles with a result counter, and a « Search entire history » button digs through everything ever said — click a result to jump right to that moment, then « Back to present ». The search is now available on mobile too.",
+            "i2": "<b>⚙ The backstage survives a reload</b> — the « N steps · X s » line under each response (what LIA actually did) used to vanish when the page closed. It is now saved with the message: you will find it after a reload and on your other devices.",
+            "i3": "<b>🔌 « Reconnect » shows up whenever needed</b> — when a connected service breaks, the repair banner appeared only at the exact moment of failure; later attempts just said « no connector ». The banner now returns every time the broken service is the missing one.",
+            "i4": "<b>👍👎 Rate any response</b> — two discreet thumbs next to Copy. Your verdict is remembered across devices and feeds LIA's understanding of you; a 👎 opens an optional « what went wrong? » line. LIA never regenerates an answer without you asking.",
+            "i5": "<b>🗂️ The briefing becomes a cockpit</b> — the dashboard cards are now clickable: a mail opens the chat prefilled with « Summarize this email and draft a reply », a meeting with « Prepare me for… », a birthday with a message suggestion. Nothing is sent until you press Enter.",
+            "i6": "<b>🪞 « What LIA understands about you » surfaced</b> — the compiled portrait gets a shortcut at the top of Identity & Memory in Settings, and a discreet dashboard line when it was freshly refined.",
+            "i7": "<b>🤫 A quieter chat header</b> — the permanently pulsing « Online » badge is gone (only « offline » and « processing » remain), and the token totals moved into the context gauge's tooltip, freeing a full line."
+          }
         }
       }
     },
@@ -4308,7 +4356,7 @@
       "chat": {
         "title": "Conversations",
         "description": "Using chat and conversations",
-        "count": "16",
+        "count": "18",
         "questions": {
           "q1": {
             "question": "Can I have multiple conversations at the same time?",
@@ -4372,7 +4420,15 @@
           },
           "q16": {
             "question": "Can I see what LIA did to produce an answer?",
-            "answer": "Yes. Under each answer, a small <strong>“⚙ N steps · X s”</strong> line summarizes the backstage; one click expands it to show what LIA actually did — the routing, the tools it called, and its reasoning — grouped by category.<br><br>It's the same transparency as the cost shown on every message, extended to the <em>flow of actions</em>. The display stays discreet and collapsed by default, so it never clutters the conversation."
+            "answer": "Yes. Under each answer, a small <strong>“⚙ N steps · X s”</strong> line summarizes the backstage; one click expands it to show what LIA actually did — the routing, the tools it called, and its reasoning — grouped by category.<br><br>It's the same transparency as the cost shown on every message, extended to the <em>flow of actions</em>. The display stays discreet and collapsed by default, so it never clutters the conversation.<br><br>Since v1.25.12 this trace is <strong>stored with the message</strong>: you will find it after a reload and on your other devices (the live reasoning stream itself stays ephemeral)."
+          },
+          "q17": {
+            "question": "How do I search my entire conversation history?",
+            "answer": "Type in the <strong>search field</strong> of the chat header (or tap the 🔍 icon on mobile). The loaded messages filter instantly — accent-insensitive — with the matches <strong>highlighted</strong> in the bubbles and a result counter.<br><br>If older history exists, a <strong>« Search entire history »</strong> button queries the server across everything ever said and lists dated results; clicking one <strong>jumps to that moment</strong> of the conversation, and a banner offers « Back to present » at any time. Sending a new message automatically returns you to the present first."
+          },
+          "q18": {
+            "question": "What are the 👍/👎 under the responses for?",
+            "answer": "Two discreet thumbs appear next to the <strong>Copy</strong> button on ordinary responses. Your verdict is <strong>saved with the message</strong> (you will find it on your other devices) and feeds LIA's understanding: it strengthens or weakens the personal observations that shaped that answer. A 👎 unfolds an optional one-line <strong>« what went wrong? »</strong> field, recorded as a correction.<br><br>You can change your mind — the latest verdict wins. And LIA <strong>never regenerates</strong> an answer on its own: you stay in charge."
           }
         }
       },
@@ -5813,7 +5869,8 @@
       },
       "tip": "The more LIA knows you, the more relevant its responses!",
       "pin_tip": "Remember to pin important memories so it doesn't forget them over time!",
-      "settings_tip": "You can manage memories in settings."
+      "settings_tip": "You can manage memories in settings.",
+      "portrait_tip": "Over time, LIA compiles what she understands about you into a portrait you can read in Settings"
     },
     "page5": {
       "title": "Your Interests",
@@ -7026,7 +7083,7 @@
       "progressive-steps": {
         "title": "Real-Time Execution Steps: Watch LIA Work",
         "excerpt": "LIA progressively displays each execution step — routing, planning, tool calls — in real time while processing your request.",
-        "body": "<h2>Transparency in action</h2><p>When you send a complex request to LIA, several seconds may pass before the response arrives. What is the assistant doing during that time? With progressive step display, you know <strong>in real time</strong>: each node traversed, each tool called appears as it happens. And the display itself is alive: past steps dim, the current one breathes, the whole block fades into the first words of the reply, and a caret blinks while the answer is being written.</p><h2>How it works</h2><p>The backend uses LangGraph's <code>updates</code> stream mode to detect each graph node's completion. At each step, an SSE <code>execution_step</code> event is sent to the frontend with:</p><ul><li>The tool or node's <strong>i18n key</strong> (translated into the user's language)</li><li>A <strong>reasoning excerpt</strong> (truncated to 120 characters) in ReAct mode</li><li><strong>Fallback metadata</strong> for tools not listed in the catalogue</li></ul><h2>Frontend display</h2><p>Steps accumulate visually in the interface, line by line, capped at <strong>10 steps</strong> visible simultaneously. An <strong>i18n key deduplication</strong> mechanism prevents identical steps from repeating (via a reference Set). Steps disappear on the first response token, on content replacement, or on HITL interrupt.</p><h2>Pipeline and ReAct</h2><p>In <strong>Pipeline</strong> mode, steps come from the ExecutionPlan: planner, semantic validator, approval gate, task orchestrator. In <strong>ReAct</strong> mode, each tool call generates a step with an excerpt of the LLM's reasoning.</p><h2>63 tools covered</h2><p>All <strong>63 catalogue tools</strong> have dedicated i18n keys across 6 languages. Texts were translated to provide natural messages in each language (\"Searching contacts...\", \"Reading emails...\") rather than technical identifiers.</p><h2>No more random messages</h2><p>The old system displayed amusing but random waiting phrases (\"LIA is thinking...\", \"Analysis in progress...\"). This system has been entirely replaced by <strong>real, contextual steps</strong> that reflect exactly what the assistant is doing at each moment.</p>"
+        "body": "<h2>Transparency in action</h2><p>When you send a complex request to LIA, several seconds may pass before the response arrives. What is the assistant doing during that time? With progressive step display, you know <strong>in real time</strong>: each node traversed, each tool called appears as it happens. And the display itself is alive: past steps dim, the current one breathes, the whole block fades into the first words of the reply, and a caret blinks while the answer is being written.</p><h2>How it works</h2><p>The backend uses LangGraph's <code>updates</code> stream mode to detect each graph node's completion. At each step, an SSE <code>execution_step</code> event is sent to the frontend with:</p><ul><li>The tool or node's <strong>i18n key</strong> (translated into the user's language)</li><li>A <strong>reasoning excerpt</strong> (truncated to 120 characters) in ReAct mode</li><li><strong>Fallback metadata</strong> for tools not listed in the catalogue</li></ul><h2>Frontend display</h2><p>Steps accumulate visually in the interface, line by line, capped at <strong>10 steps</strong> visible simultaneously. An <strong>i18n key deduplication</strong> mechanism prevents identical steps from repeating (via a reference Set). When the answer starts streaming, the steps fold into a collapsed “⚙ N steps · X s” line under the response — stored with the message, so the backstage is still there after a reload, on every device.</p><h2>Pipeline and ReAct</h2><p>In <strong>Pipeline</strong> mode, steps come from the ExecutionPlan: planner, semantic validator, approval gate, task orchestrator. In <strong>ReAct</strong> mode, each tool call generates a step with an excerpt of the LLM's reasoning.</p><h2>63 tools covered</h2><p>All <strong>63 catalogue tools</strong> have dedicated i18n keys across 6 languages. Texts were translated to provide natural messages in each language (\"Searching contacts...\", \"Reading emails...\") rather than technical identifiers.</p><h2>No more random messages</h2><p>The old system displayed amusing but random waiting phrases (\"LIA is thinking...\", \"Analysis in progress...\"). This system has been entirely replaced by <strong>real, contextual steps</strong> that reflect exactly what the assistant is doing at each moment.</p>"
       },
       "account-lifecycle": {
         "title": "Account Lifecycle: 4 States for Complete GDPR Compliance",

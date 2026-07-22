@@ -51,6 +51,7 @@ import { MCPServersSettings } from '@/components/settings/MCPServersSettings';
 import { ChannelSettings } from '@/components/settings/ChannelSettings';
 import { HeartbeatSettings } from '@/components/settings/HeartbeatSettings';
 import { JournalsSettings } from '@/components/settings/JournalsSettings';
+import { PortraitShortcut } from '@/components/settings/PortraitShortcut';
 import { HealthMetricsSettings } from '@/components/settings/HealthMetricsSettings';
 import { PsycheSettings } from '@/components/settings/PsycheSettings';
 import { SkillsSettings } from '@/components/settings/SkillsSettings';
@@ -92,6 +93,11 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   // Track if we should auto-expand connectors section after OAuth callback
   const [shouldExpandConnectors, setShouldExpandConnectors] = React.useState(false);
 
+  // QW-10: deep-link (?section=journals) and the Identity & Memory shortcut
+  // both open the Journals section (Features tab) and scroll to it — where
+  // the "How LIA sees you" portrait lives.
+  const [shouldOpenJournals, setShouldOpenJournals] = React.useState(false);
+
   // Track if OAuth callback toast has been shown (prevents duplicate toasts)
   const oauthToastShownRef = React.useRef(false);
 
@@ -101,10 +107,15 @@ export default function SettingsPage({ params }: SettingsPageProps) {
     const error = searchParams.get('error');
     const section = searchParams.get('section');
 
-    // Handle direct navigation to a section (e.g., from dashboard)
-    if (section === 'connectors') {
-      setShouldExpandConnectors(true);
-      // Clean URL param
+    // Handle direct navigation to a section (e.g., from dashboard). Each
+    // supported value maps to a tab + accordion target; the param is cleaned
+    // either way so a reload does not replay the navigation.
+    if (section === 'connectors' || section === 'journals') {
+      if (section === 'connectors') {
+        setShouldExpandConnectors(true);
+      } else {
+        setShouldOpenJournals(true);
+      }
       const url = new URL(window.location.href);
       url.searchParams.delete('section');
       window.history.replaceState({}, '', url.toString());
@@ -166,6 +177,23 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       window.history.replaceState({}, '', url.toString());
     }
   }, [searchParams, t]);
+
+  // QW-10: open the Journals section (both layouts share the featuresSections
+  // accordion on the Features tab), then scroll to it once expanded.
+  React.useEffect(() => {
+    if (!shouldOpenJournals) return;
+    setActiveTab('features');
+    setFeaturesSections((prev: string[]) =>
+      prev.includes('journals') ? prev : [...prev, 'journals']
+    );
+    const timer = window.setTimeout(() => {
+      document
+        .getElementById('settings-section-journals')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setShouldOpenJournals(false);
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [shouldOpenJournals]);
 
   // Auto-expand connectors section when needed
   React.useEffect(() => {
@@ -274,6 +302,11 @@ export default function SettingsPage({ params }: SettingsPageProps) {
             >
               {/* Group: Identity & Memory */}
               <SettingsGroupLabel label={t('settings.groups.identity_memory')} icon={Brain} />
+              {/* QW-10: "What LIA understands about you" — jumps to the
+                  portrait inside Journals (renders only with a portrait). */}
+              <FeatureErrorBoundary feature="journals">
+                <PortraitShortcut onOpen={() => setShouldOpenJournals(true)} />
+              </FeatureErrorBoundary>
               <PersonalitySettings lng={lng} />
               <FeatureErrorBoundary feature="psyche">
                 <PsycheSettings lng={lng} />
@@ -435,6 +468,11 @@ export default function SettingsPage({ params }: SettingsPageProps) {
             >
               {/* Group: Identity & Memory */}
               <SettingsGroupLabel label={t('settings.groups.identity_memory')} icon={Brain} />
+              {/* QW-10: "What LIA understands about you" — jumps to the
+                  portrait inside Journals (renders only with a portrait). */}
+              <FeatureErrorBoundary feature="journals">
+                <PortraitShortcut onOpen={() => setShouldOpenJournals(true)} />
+              </FeatureErrorBoundary>
               <PersonalitySettings lng={lng} />
               <FeatureErrorBoundary feature="psyche">
                 <PsycheSettings lng={lng} />

@@ -65,6 +65,7 @@ from src.core.constants import (
     DEFAULT_TOOL_TIMEOUT_MS,
     DEFAULT_TOOL_TIMEOUT_SECONDS,
     EMAILS_AGENT_PROMPT_VERSION_DEFAULT,
+    EXECUTION_TRACE_PERSIST_MAX_STEPS_DEFAULT,
     FALLBACK_MODELS_DEFAULT,
     FOR_EACH_APPROVAL_THRESHOLD,
     FOR_EACH_MAX_DEFAULT,
@@ -400,6 +401,17 @@ class AgentsSettings(BaseSettings):
             "in message_metadata so widgets survive a page reload. A widget over "
             "budget is dropped, never truncated — the frontend then shows its explicit "
             "unavailable state instead of a broken frame."
+        ),
+    )
+
+    execution_trace_persist_max_steps: int = Field(
+        default=EXECUTION_TRACE_PERSIST_MAX_STEPS_DEFAULT,
+        ge=10,
+        le=1000,
+        description=(
+            "Tail-keeping cap on execution-trace steps persisted in message_metadata "
+            "(ADR-133 V2) so the ⚙ trace survives a page reload. Mirrors the frontend "
+            "MAX_TRACE_STEPS default so the reloaded trace matches the live one."
         ),
     )
 

@@ -67,6 +67,40 @@ export const SEARCH_DEBOUNCE_MS = 300;
  */
 export const EXPENSIVE_DEBOUNCE_MS = 500;
 
+/**
+ * Page size for the chat history server search (QW-2). Kept small: results
+ * render as a dated excerpt list, and keyset pagination fetches more on demand.
+ */
+export const CHAT_SEARCH_RESULTS_PAGE_SIZE = 20;
+
+/**
+ * Minimum characters before the server-side history search is offered —
+ * mirrors the backend `CONVERSATION_SEARCH_MIN_LENGTH` constraint.
+ */
+export const CHAT_SEARCH_MIN_CHARS = 2;
+
+// ============================================================================
+// PORTRAIT DISCOVERABILITY (QW-10)
+// ============================================================================
+
+/**
+ * A portrait recompiled within this window counts as "recent" for the
+ * dashboard "I refined my understanding of you" hint.
+ */
+export const PORTRAIT_HINT_RECENT_DAYS = 7;
+
+/**
+ * localStorage key remembering the last `compiled_at` the user has seen or
+ * dismissed — the hint reappears only after a NEWER compilation.
+ */
+export const PORTRAIT_HINT_STORAGE_KEY = 'lia.portraitHint.seenCompiledAt';
+
+/**
+ * Max length of the 👎 "what went wrong" correction (QW-5) — mirrors the
+ * backend `RESPONSE_FEEDBACK_COMMENT_MAX_LENGTH` request constraint.
+ */
+export const RESPONSE_FEEDBACK_COMMENT_MAX_LENGTH = 500;
+
 // ============================================================================
 // API TIMEOUTS (milliseconds)
 // ============================================================================

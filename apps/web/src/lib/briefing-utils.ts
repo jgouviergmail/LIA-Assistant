@@ -56,6 +56,21 @@ export function computeTimeAgo(generatedAtIso: string, now: Date = new Date()): 
  * Frontend cards use this to decide whether to render an inline "Reconnect" /
  * "Retry" button.
  */
+/**
+ * Build the chat deep-link a briefing item opens (QW-9).
+ *
+ * With a draft, the chat input is prefilled (never auto-sent) — the exact
+ * onboarding `?draft=` pattern, generalized to the briefing cards.
+ *
+ * @param lng - Current URL locale segment.
+ * @param draft - Optional prefill intent for the chat input.
+ * @returns Localized chat route, with the encoded `draft` when provided.
+ */
+export function chatDraftHref(lng: string, draft?: string): string {
+  const base = `/${lng}/dashboard/chat`;
+  return draft ? `${base}?draft=${encodeURIComponent(draft)}` : base;
+}
+
 export function resolveErrorCtaKey(errorCode: string | null): string | null {
   switch (errorCode) {
     case ERROR_CODE_CONNECTOR_OAUTH_EXPIRED:

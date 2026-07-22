@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { apiClient } from '@/lib/api-client';
 import { Message } from '@/types/chat';
 import { useAuth } from '@/hooks/useAuth';
+import { CHAT_SEARCH_RESULTS_PAGE_SIZE } from '@/lib/constants';
+import { executionTraceFromMetadata } from '@/lib/execution-trace-hydration';
 import { logger } from '@/lib/logger';
 import { useLoggingContext } from '@/lib/logging-context';
 
@@ -83,6 +86,18 @@ export interface ConversationPage {
   nextCursor: string | null;
 }
 
+/** One page of server-side history search results (QW-2).
+ *
+ * Rows keep the raw API shape and DESC order (newest first) — the results
+ * panel renders them as a dated list, not as chat bubbles.
+ */
+export interface MessageSearchPage {
+  rows: ConversationMessage[];
+  hasMore: boolean;
+  /** Pass back as ``before`` to fetch the next (older) results page. */
+  nextCursor: string | null;
+}
+
 export interface UseConversationReturn {
   conversation: Conversation | null;
   isLoading: boolean;
@@ -96,12 +111,18 @@ export interface UseConversationReturn {
    *  ``nextCursor`` from the previous response. No-op (returns an empty page
    *  with ``hasMore=false``) if a fetch is already in flight. */
   loadOlderMessages: (beforeCursor: string) => Promise<ConversationPage>;
+  /** Server-side history search (QW-2): accent/case-insensitive substring
+   *  match over the WHOLE conversation, keyset-paginated. Throws on transport
+   *  errors (the caller owns the error state); a 404 (no conversation yet)
+   *  resolves to an empty page. */
+  searchMessages: (query: string, before?: string) => Promise<MessageSearchPage>;
   loadConversationTotals: () => Promise<ConversationTotals | null>;
   resetConversation: () => Promise<void>;
 }
 
 export const useConversation = (): UseConversationReturn => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const { withContext } = useLoggingContext();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -172,8 +193,14 @@ export const useConversation = (): UseConversationReturn => {
       ttsModel: msg.tts_model ?? null,
       ttsCharacters: msg.tts_characters ?? null,
       ttsCostEur: msg.tts_cost_eur ?? null,
-      // Message metadata (HITL responses, run_id, etc.) - API uses alias "message_metadata"
-      metadata: msg.message_metadata ?? undefined,
+      // Message metadata (HITL responses, run_id, etc.) - API uses alias
+      // "message_metadata". `message_db_id` mirrors the live-stream done
+      // metadata (QW-5): history rows ARE DB rows, so their id is the target
+      // of the feedback endpoint.
+      metadata: { ...(msg.message_metadata ?? {}), message_db_id: msg.id },
+      // Persisted ⚙ execution trace (ADR-133 V2) — labels re-resolved from the
+      // stored i18n keys so history rows render the same disclosure as live ones
+      executionTrace: executionTraceFromMetadata(msg.message_metadata, t),
       // AI-generated images persisted in message_metadata for history display
       generatedImages:
         (msg.message_metadata?.generated_images as { url: string; alt: string }[] | undefined) ??
@@ -182,7 +209,7 @@ export const useConversation = (): UseConversationReturn => {
         (msg.message_metadata?.browser_screenshot as { url: string; alt: string } | undefined) ??
         undefined,
     }),
-    [user]
+    [user, t]
   );
 
   /**
@@ -309,6 +336,55 @@ export const useConversation = (): UseConversationReturn => {
   );
 
   /**
+   * Server-side history search (QW-2) — same endpoint, with ``search``.
+   *
+   * Returns raw DESC rows for the results panel. 404 (no conversation yet)
+   * resolves to an empty page; other errors are logged and rethrown so the
+   * caller can surface its own error state.
+   */
+  const searchMessages = useCallback(
+    async (query: string, before?: string): Promise<MessageSearchPage> => {
+      if (!user) {
+        return { rows: [], hasMore: false, nextCursor: null };
+      }
+      try {
+        const params: { limit: number; search: string; before?: string } = {
+          limit: CHAT_SEARCH_RESULTS_PAGE_SIZE,
+          search: query,
+        };
+        if (before) {
+          params.before = before;
+        }
+        const response = await apiClient.get<{
+          messages: ConversationMessage[];
+          has_more: boolean;
+          next_cursor: string | null;
+        }>('/conversations/me/messages', { params });
+
+        return {
+          rows: response.messages,
+          hasMore: response.has_more,
+          nextCursor: response.next_cursor,
+        };
+      } catch (error: unknown) {
+        if (error && typeof error === 'object' && 'response' in error) {
+          const axiosError = error as { response?: { status?: number } };
+          if (axiosError.response?.status === 404) {
+            return { rows: [], hasMore: false, nextCursor: null };
+          }
+        }
+        logger.error(
+          'conversation_search_failed',
+          error as Error,
+          withContext({ component: 'useConversation', queryLength: query.length })
+        );
+        throw error;
+      }
+    },
+    [user, withContext]
+  );
+
+  /**
    * Load conversation totals (aggregate tokens and cost)
    */
   const loadConversationTotals = useCallback(async (): Promise<ConversationTotals | null> => {
@@ -409,6 +485,7 @@ export const useConversation = (): UseConversationReturn => {
     isLoadingOlder,
     loadConversationPage,
     loadOlderMessages,
+    searchMessages,
     loadConversationTotals,
     resetConversation,
   };

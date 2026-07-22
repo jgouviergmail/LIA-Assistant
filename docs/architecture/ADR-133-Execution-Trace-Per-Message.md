@@ -1,6 +1,8 @@
 # ADR-133 : Coulisses par message — la trace d'exécution survit à la réponse (Lot 2 P2-V1)
 
-**Statut** : Accepté — implémenté (frontend, session-only), preuve runtime dev.
+**Statut** : Accepté — implémenté. V1 frontend session-only (preuve runtime dev) ;
+V2 persistance `message_metadata` livrée 2026-07-22 (backend + hydratation, preuve
+runtime dev + navigateur — voir Périmètre).
 **Date** : 2026-07-18
 **Contexte produit** : P2 du chantier « UX cœur conversationnel » (specs 2026-07-18), suit [ADR-132](ADR-132-HITL-Approval-Cards.md).
 
@@ -49,10 +51,24 @@ de la détruire.
 
 - **V1 (livré)** : session-only. La trace vit dans l'état React du tour ; un
   rechargement d'historique ne la reconstruit pas.
-- **V2 (différé)** : persistance dans `message_metadata` à l'archivage (garde
-  PII : archiver les clés i18n, jamais le `detail` ni le raisonnement brut ;
-  round-trip test obligatoire) + éventuel step-par-outil en ReAct si la
-  granularité par nœud s'avère trop grossière à l'usage.
+- **V2 (livré 2026-07-22, chantier Quick Wins UX Lot 1)** : persistance dans
+  `message_metadata` à l'archivage. Capture serveur miroir de l'accumulateur
+  frontend — module `services/streaming/trace_capture.py` : reset + seed
+  routeur sur `router_decision`, dédup par `i18n_key` par tour (une occurrence
+  par clé, comme l'early-return `emittedStepKeysRef` du live), exclusion
+  `reasoning`/`tool_error`, cap queue-conservée settings-driven
+  (`EXECUTION_TRACE_PERSIST_MAX_STEPS`). Garde PII **structurelle** : la forme
+  persistée est `{emoji, i18n_key, category}` — ni `detail` ni raisonnement
+  n'ont de slot (la trace rechargée n'a pas de bloc 💭, assumé). Attache
+  branch-free à l'archive (`with_persisted_trace`, à côté de
+  `with_persisted_widgets`, clé `FIELD_EXECUTION_TRACE` + `duration_ms`).
+  Hydratation : `lib/execution-trace-hydration.ts` re-résout les libellés
+  depuis les clés (`toUiMessage`) — même type `ExecutionTrace`, même
+  `ExecutionTraceDisclosure`, zéro changement de rendu. Tests : 16 unitaires
+  capture/attache (reset, dédup, cap, PII), 10 hydratation (malformés,
+  catégories, cap), round-trip des champs sérialisés couvert par les deux.
+- **Différé** : éventuel step-par-outil en ReAct si la granularité par nœud
+  s'avère trop grossière à l'usage.
 - **Hors périmètre** : la trace sur une carte HITL (la carte est le focus
   visuel là ; le prochain `router_decision` de reprise ré-initialise les refs).
 

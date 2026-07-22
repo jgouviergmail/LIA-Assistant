@@ -18,8 +18,10 @@ from typing import Any
 from src.core.exceptions import ConnectorAPIError, ConnectorTokenExpiredError
 from src.domains.agents.services.connector_error_notice import (
     classify_connector_exception,
+    emit_connector_notice,
     emit_connector_notice_for_exception,
 )
+from src.domains.agents.tools.exceptions import ConnectorNotEnabledError
 
 
 class _RecordingWriter:
@@ -79,6 +81,30 @@ class TestClassifyConnectorException:
         assert classify_connector_exception(ValueError("boom")) is None
         assert classify_connector_exception(TimeoutError()) is None
 
+    def test_not_enabled_enriched_with_error_connector_maps_to_reconnect(self) -> None:
+        """ADR-134 V2: on runs AFTER the breakage the connector is status=ERROR
+        and is no longer resolved — the raise site enriches the exception with
+        the broken connector so the same banner comes back."""
+        exc = ConnectorNotEnabledError(
+            "No Email service is enabled.",
+            connector_name="Email",
+            functional_category="email",
+            error_connector_type="google_gmail",
+        )
+
+        notice = classify_connector_exception(exc)
+
+        assert notice is not None
+        assert notice.action == "reconnect"
+        assert notice.connector_type == "google_gmail"
+
+    def test_not_enabled_without_broken_connector_is_not_actionable(self) -> None:
+        """A genuinely unconfigured category must NOT show "Reconnect" — there
+        is nothing to reconnect."""
+        exc = ConnectorNotEnabledError("No Email service is enabled.", connector_name="Email")
+
+        assert classify_connector_exception(exc) is None
+
 
 class TestEmitConnectorNotice:
     def test_emits_structured_tool_error_event(self, monkeypatch: Any) -> None:
@@ -124,6 +150,26 @@ class TestEmitConnectorNotice:
         emitted = emit_connector_notice_for_exception(exc, tool_name="search_emails")
 
         assert emitted is False
+
+    def test_direct_emission_for_non_exception_paths(self, monkeypatch: Any) -> None:
+        """ConnectorTool.execute returns a formatted error instead of raising
+        when a category has no active provider — that path emits directly."""
+        writer = _RecordingWriter()
+        monkeypatch.setattr(
+            "src.domains.agents.services.connector_error_notice._get_writer",
+            lambda: writer,
+        )
+
+        emitted = emit_connector_notice("google_gmail", "reconnect", tool_name="get_emails_tool")
+
+        assert emitted is True
+        event = writer.events[0]
+        assert event["step_type"] == "tool_error"
+        assert event["metadata"] == {
+            "connector_type": "google_gmail",
+            "action": "reconnect",
+            "tool_name": "get_emails_tool",
+        }
 
 
 class TestHandleToolExceptionClassification:

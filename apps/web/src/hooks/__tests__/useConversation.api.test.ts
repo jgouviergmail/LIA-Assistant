@@ -215,7 +215,9 @@ describe('useConversation — UI message mapping', () => {
     expect(message.source).toBeUndefined(); // no stt_provider → not voice
     expect(message.tokensIn).toBeUndefined();
     expect(message.generatedImages).toBeUndefined();
-    expect(message.metadata).toBeUndefined();
+    // QW-5: history rows always carry their DB id (feedback endpoint target) —
+    // a bare message has nothing else in its metadata.
+    expect(message.metadata).toEqual({ message_db_id: message.id });
   });
 });
 

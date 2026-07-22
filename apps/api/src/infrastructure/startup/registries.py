@@ -105,6 +105,19 @@ def run_failfast_validations() -> None:
         logger.warning("db_connection_budget_overcommit", detail=warning)
 
 
+def init_response_feedback_hooks() -> None:
+    """Wire the journals implementation into the response-feedback port (QW-5).
+
+    Conversations must not import journals (domain-cycle ratchet, F009) — this
+    startup step is the composition point allowed to see both domains. Runs
+    unconditionally: the ``journals_enabled`` flag is checked at call time.
+    """
+    from src.domains.conversations.response_feedback import register_journal_feedback_hooks
+    from src.domains.journals.feedback_hooks import JournalResponseFeedbackHooks
+
+    register_journal_feedback_hooks(JournalResponseFeedbackHooks())
+
+
 def init_tool_schemas() -> None:
     """Register tool schemas (Phase 2.1 - Issue #32).
 

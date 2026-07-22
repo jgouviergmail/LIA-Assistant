@@ -356,6 +356,14 @@ proactive_feedback_total = Counter(
     ["task_type", "feedback_type"],  # feedback_type: thumbs_up, thumbs_down, block
 )
 
+# QW-5 (ADR-138): first direct satisfaction signal on ORDINARY assistant
+# responses (proactive notifications keep proactive_feedback_total above).
+response_feedback_total = Counter(
+    "response_feedback_total",
+    "Total user feedback on ordinary assistant responses",
+    ["verdict"],  # verdict: thumbs_up, thumbs_down
+)
+
 proactive_eligibility_check_total = Counter(
     "proactive_eligibility_check_total",
     "Total eligibility checks by result",
@@ -447,3 +455,13 @@ def track_proactive_feedback(task_type: str, feedback_type: str) -> None:
         feedback_type: Type of feedback (thumbs_up, thumbs_down, block)
     """
     proactive_feedback_total.labels(task_type=task_type, feedback_type=feedback_type).inc()
+
+
+def track_response_feedback(verdict: str) -> None:
+    """
+    Track user feedback on an ordinary assistant response (QW-5, ADR-138).
+
+    Args:
+        verdict: "thumbs_up" or "thumbs_down"
+    """
+    response_feedback_total.labels(verdict=verdict).inc()

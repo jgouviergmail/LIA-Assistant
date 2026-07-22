@@ -259,6 +259,7 @@ class ConnectorTool[ClientType](ABC):
                 if self.functional_category:
                     from src.domains.connectors.clients.registry import ClientRegistry
                     from src.domains.connectors.provider_resolver import (
+                        find_error_connector_type,
                         resolve_active_connector,
                     )
 
@@ -266,6 +267,19 @@ class ConnectorTool[ClientType](ABC):
                         user_uuid, self.functional_category, connector_service
                     )
                     if resolved_type is None:
+                        # ADR-134 V2: this path RETURNS a formatted error (no
+                        # exception → the central handler never sees it), so
+                        # the "Reconnect" banner is emitted directly when the
+                        # category's provider is in fact broken (status=ERROR).
+                        from src.domains.agents.services.connector_error_notice import (
+                            emit_connector_notice,
+                        )
+
+                        error_ct = await find_error_connector_type(
+                            user_uuid, self.functional_category, connector_service
+                        )
+                        if error_ct:
+                            emit_connector_notice(error_ct, "reconnect", self.tool_name)
                         return self._format_category_not_activated_error(
                             self.functional_category, _extract_runtime_language(runtime)
                         )

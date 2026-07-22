@@ -122,6 +122,10 @@ export interface DoneMetadata {
   // ADR-117 Lot 3: synthesized done of a user-cancelled run — the partial
   // bubble is kept and badged "interrupted" (same flag as archived rows).
   cancelled?: boolean;
+  // QW-5 (ADR-138): DB id of the archived assistant row so the live bubble
+  // can target the feedback endpoint immediately. Absent on synthesized
+  // dones (cancelled runs) — the buttons then appear after reload.
+  archived_message_id?: string;
   // Token tracking metadata
   tokens_in?: number;
   tokens_out?: number;

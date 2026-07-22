@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 3.4
-**Date**: 2026-07-21
-**Application**: LIA v1.25.11
+**Date**: 2026-07-22
+**Application**: LIA v1.25.12
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,8 +52,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 425 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 120+ ADRs, ~12,430 pytest-collected tests across 713 files, native observability, 6-level HITL |
+| Full transparency | 428 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 120+ ADRs, ~12,470 pytest-collected tests across 716 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -71,11 +71,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~12,430 (collected by pytest across 713 test files) + 2,219 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~12,470 (collected by pytest across 716 test files) + 2,282 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
-| Prometheus metrics | 425 definitions |
+| Prometheus metrics | 428 definitions |
 | Grafana dashboards | 25 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -770,7 +770,7 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 425 custom metrics (RED pattern) |
+| Prometheus | 428 custom metrics (RED pattern) |
 | Grafana | 25 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1092,10 +1092,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 120+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~12,430 tests across 713 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 120+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~12,470 tests across 716 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.11). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.12). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -78,3 +78,54 @@ export function normalizeSearchText(text: string): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, ''); // Remove diacritical marks
 }
+
+/**
+ * Find every occurrence of an already-normalized query inside `text`,
+ * returned as ORIGINAL-text index ranges (QW-2 history search).
+ *
+ * Matching happens on the `normalizeSearchText` form while the ranges map
+ * back to the original characters \u2014 searching "reunion" locates the literal
+ * "R\u00c9UNION". Plain `indexOf` matching: the query is never a pattern.
+ *
+ * @param text - Original text to scan.
+ * @param normalizedQuery - Query already passed through `normalizeSearchText`.
+ * @returns Non-overlapping `[start, end)` ranges into `text`, in order.
+ */
+export function findNormalizedMatches(
+  text: string,
+  normalizedQuery: string
+): Array<{ start: number; end: number }> {
+  if (!normalizedQuery) return [];
+  const normalized = normalizeSearchText(text);
+  if (!normalized.includes(normalizedQuery)) return [];
+
+  // Original char index \u2192 normalized index (\u00e9 contributes one normalized char,
+  // combining marks contribute zero). Same mapping the FAQ highlighter uses.
+  const map: number[] = [];
+  let normalizedPos = 0;
+  for (let i = 0; i < text.length; i++) {
+    map.push(normalizedPos);
+    normalizedPos += normalizeSearchText(text[i]).length;
+  }
+  map.push(normalizedPos); // end sentinel
+
+  const toOriginalStart = (ns: number): number => {
+    for (let i = 0; i < text.length; i++) if (map[i + 1] > ns) return i;
+    return text.length;
+  };
+  const toOriginalEnd = (ne: number): number => {
+    for (let i = 0; i < text.length; i++) if (map[i] >= ne) return i;
+    return text.length;
+  };
+
+  const ranges: Array<{ start: number; end: number }> = [];
+  let searchFrom = 0;
+  for (;;) {
+    const ns = normalized.indexOf(normalizedQuery, searchFrom);
+    if (ns === -1) break;
+    const ne = ns + normalizedQuery.length;
+    ranges.push({ start: toOriginalStart(ns), end: toOriginalEnd(ne) });
+    searchFrom = ne;
+  }
+  return ranges;
+}

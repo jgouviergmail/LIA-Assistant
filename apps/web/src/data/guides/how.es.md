@@ -5,8 +5,8 @@
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
 **Versión**: 3.3
-**Fecha**: 2026-07-21
-**Aplicación**: LIA v1.25.11
+**Fecha**: 2026-07-22
+**Aplicación**: LIA v1.25.12
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,8 +52,8 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 425 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 120+ ADRs, ~12.340 tests recogidos por pytest en 713 archivos, observabilidad nativa, HITL de 6 niveles |
+| Transparencia total | 428 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Fiabilidad en producción | 120+ ADRs, ~12.470 tests recogidos por pytest en 716 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -71,11 +71,11 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~12.340 (recopilados por pytest en 713 archivos de prueba) + 2.175 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~12.470 (recopilados por pytest en 716 archivos de prueba) + 2.282 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
-| Métricas Prometheus | 425 definiciones |
+| Métricas Prometheus | 428 definiciones |
 | Dashboards Grafana | 25 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -770,7 +770,7 @@ Diseño **fail-open**: los fallos de infraestructura no bloquean a los usuarios.
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 425 métricas custom (RED pattern) |
+| Prometheus | 428 métricas custom (RED pattern) |
 | Grafana | 25 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
@@ -1064,10 +1064,10 @@ El Psyche Engine dota al asistente de un estado psicológico dinámico que evolu
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 120+ ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~12.340 tests en 713 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 120+ ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~12.470 tests en 716 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 120+ ADRs y del changelog (v1.0 a v1.25.11). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 120+ ADRs y del changelog (v1.0 a v1.25.12). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

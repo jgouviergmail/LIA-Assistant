@@ -21,10 +21,27 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { formatEuro, formatNumber } from '@/lib/format';
 import type { ContextUsage } from '@/types/chat-state';
+
+/**
+ * Conversation-wide totals folded into the pill tooltip (QW-12) — the header
+ * banner that used to carry them cost a full line for figures consulted
+ * occasionally. Gating (`tokens_display_enabled`, non-zero tokens) stays on
+ * the page side: the pill renders the block iff `totals` is provided.
+ */
+export interface ConversationTotalsDisplay {
+  tokensIn: number;
+  tokensOut: number;
+  tokensCache: number;
+  googleApiRequests: number;
+  costEur: number;
+  userMessageCount: number;
+}
 
 type Props = {
   usage: ContextUsage;
+  totals?: ConversationTotalsDisplay | null;
 };
 
 type Color = {
@@ -76,7 +93,7 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
-export function ContextUsagePill({ usage }: Props) {
+export function ContextUsagePill({ usage, totals }: Props) {
   const { t } = useTranslation();
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -159,13 +176,46 @@ export function ContextUsagePill({ usage }: Props) {
       {showTooltip && (
         <div
           role="tooltip"
-          className="absolute right-0 top-full mt-1 z-50 whitespace-nowrap rounded-md bg-popover text-popover-foreground border border-border shadow-md px-2 py-1 text-xs"
+          className="absolute right-0 top-full mt-1 z-50 rounded-md bg-popover text-popover-foreground border border-border shadow-md px-2 py-1 text-xs"
         >
-          {t('chat.context_usage.tooltip_compact', {
-            tokens: formatTokens(usage.tokens),
-            threshold: formatTokens(usage.threshold),
-            percent: realPercent,
-          })}
+          <span className="whitespace-nowrap">
+            {t('chat.context_usage.tooltip_compact', {
+              tokens: formatTokens(usage.tokens),
+              threshold: formatTokens(usage.threshold),
+              percent: realPercent,
+            })}
+          </span>
+          {totals && (
+            // Same token-badge vocabulary (emoji + IN/OUT/CACHE/GOOGLE) as the
+            // per-message line in ChatMessage — one consistent economic idiom.
+            <div
+              data-testid="context-usage-totals"
+              className="mt-1 pt-1 border-t border-border flex flex-col gap-0.5"
+            >
+              <span className="whitespace-nowrap">
+                🔢 {formatNumber(totals.tokensIn + totals.tokensOut + totals.tokensCache)} TOTAL
+                {' · '}
+                <span className="text-orange-500">🟠 {formatNumber(totals.tokensIn)} IN</span>
+                {' · '}
+                <span className="text-green-600">🟢 {formatNumber(totals.tokensOut)} OUT</span>
+              </span>
+              <span className="whitespace-nowrap">
+                <span className="text-blue-500">🔵 {formatNumber(totals.tokensCache)} CACHE</span>
+                {' · '}
+                <span className="text-purple-500">
+                  🟣 {formatNumber(totals.googleApiRequests)} GOOGLE
+                </span>
+              </span>
+              <span className="whitespace-nowrap font-semibold">
+                {totals.userMessageCount}{' '}
+                {totals.userMessageCount > 1
+                  ? t('chat.page.message_plural')
+                  : t('chat.page.message')}
+                {' · '}
+                {formatEuro(totals.costEur)}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

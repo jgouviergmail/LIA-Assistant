@@ -21,9 +21,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
+    RESPONSE_FEEDBACK_JOURNAL_IDS_MAX,
     USAGE_LIMIT_EXCEEDED_ERROR_CODE,
 )
-from src.core.field_names import FIELD_ERROR_TYPE, FIELD_RUN_ID
+from src.core.field_names import FIELD_ERROR_TYPE, FIELD_INJECTED_JOURNAL_IDS, FIELD_RUN_ID
 from src.core.i18n import normalize_language
 from src.domains.agents.api.attachments_injection import inject_attachments_into_state
 from src.domains.agents.api.error_messages import SSEErrorMessages
@@ -35,6 +36,7 @@ from src.domains.agents.dependencies import ToolDependencies
 from src.domains.agents.services.orchestration.approval_decision import (
     HitlDecisionStaleError,
 )
+from src.domains.agents.services.streaming.trace_capture import with_persisted_trace
 from src.domains.agents.services.streaming.voice_coordinator import (
     VoiceStreamContext,
     VoiceStreamCoordinator,
@@ -1182,6 +1184,16 @@ class AgentService(
                             if is_hitl_resumption:
                                 assistant_metadata["hitl_approved"] = True
 
+                            # QW-5 (ADR-138): archive the IDs of the journal
+                            # entries injected into this turn (IDs only — no
+                            # content) so a later 👍/👎 can feed exactly those
+                            # entries' evidence/contradiction counters.
+                            _injected_journal_ids = state.get("injected_journal_ids")
+                            if _injected_journal_ids:
+                                assistant_metadata[FIELD_INJECTED_JOURNAL_IDS] = [
+                                    str(_jid) for _jid in _injected_journal_ids
+                                ][:RESPONSE_FEEDBACK_JOURNAL_IDS_MAX]
+
                             # Persist generated image URLs in message metadata
                             # so they survive page reload (frontend reads them back)
                             if getattr(settings, "image_generation_enabled", False):
@@ -1280,6 +1292,17 @@ class AgentService(
                             assistant_metadata = with_persisted_widgets(
                                 assistant_metadata,
                                 streaming_service.persistable_widgets,
+                                run_id=run_id,
+                            )
+
+                            # Persist the ⚙ execution trace with the message so
+                            # it survives a page reload (ADR-133 V2). i18n keys
+                            # only — labels are re-resolved client-side. Branch-
+                            # free by design — see streaming/trace_capture.py.
+                            assistant_metadata = with_persisted_trace(
+                                assistant_metadata,
+                                streaming_service.trace_capture.snapshot(),
+                                duration_ms=int(duration * 1000),
                                 run_id=run_id,
                             )
 
@@ -1537,6 +1560,11 @@ class AgentService(
                         "total_tokens": final_total_tokens,
                         **final_summary_dto.to_metadata(),  # tokens_in/out/cache, cost_eur (includes TTS)
                     }
+                    # QW-5 (ADR-138): DB id of the archived assistant row so the
+                    # live bubble can target the feedback endpoint immediately
+                    # (history rows already carry their DB id).
+                    if archived_assistant_msg_id is not None:
+                        done_metadata["archived_message_id"] = str(archived_assistant_msg_id)
                     # Resolve includes the Route 3 fallback (activate_skill_tool
                     # called directly by the response LLM, no planner involved)
                     resolved_skill_name = streaming_service.resolve_activated_skill_name()

@@ -86,6 +86,12 @@ export function Page4Memory({ lng }: Page4MemoryProps) {
           <Settings className="w-4 h-4 text-muted-foreground" />
           <span>{t('onboarding.page4.settings_tip')}</span>
         </div>
+        {/* QW-10: announce the compiled portrait as an upcoming benefit of
+            sharing — it is the payoff of the memory the page describes. */}
+        <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
+          <User className="w-4 h-4 text-primary" />
+          <span>{t('onboarding.page4.portrait_tip')}</span>
+        </div>
       </div>
     </OnboardingPageLayout>
   );

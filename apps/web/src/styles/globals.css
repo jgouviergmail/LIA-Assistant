@@ -753,6 +753,19 @@
     word-break: break-word;
   }
 
+  /* History-search match highlight (QW-2) — fixed class emitted by the
+     post-sanitize rehype-search-highlight plugin. Inherits the bubble's
+     text color; amber wash readable in both themes. */
+  .lia-search-mark {
+    background-color: rgb(251 191 36 / 0.35); /* amber-400/35 */
+    color: inherit;
+    border-radius: 0.2rem;
+    padding: 0 0.1rem;
+  }
+  .dark .lia-search-mark {
+    background-color: rgb(217 119 6 / 0.45); /* amber-600/45 */
+  }
+
   /* ============================================
      Chat Scrollbar - Thin & Modern
      ============================================ */

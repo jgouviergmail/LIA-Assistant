@@ -17,13 +17,14 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { HitlActionCard } from '@/components/chat/HitlActionCard';
 import { ConnectorNoticeBanner } from '@/components/chat/ConnectorNoticeBanner';
 import { ContextUsagePill } from '@/components/chat/ContextUsagePill';
+import { ChatSearchBar } from '@/components/chat/search/ChatSearchBar';
+import { useChatHistorySearch } from '@/hooks/useChatHistorySearch';
 import { GeolocationPrompt } from '@/components/chat/GeolocationPrompt';
 import { DebugPanel } from '@/components/debug/DebugPanel';
 import { useDebugMetrics } from '@/components/debug/hooks/useDebugMetrics';
 import { WifiOff, Trash2, Search, X } from 'lucide-react';
 import { VoiceModeBadge } from '@/components/voice/VoiceModeBadge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { formatNumber, formatEuro } from '@/lib/format';
 import { logger } from '@/lib/logger';
 import { toPlainPreview, NOTIFICATION_PREVIEW_MAX_LENGTH } from '@/lib/notification-preview';
 import { useTranslation } from 'react-i18next';
@@ -57,6 +58,20 @@ export default function ChatPage() {
 
   // Usage limits (per-user quotas)
   const { isBlocked: isUsageBlocked, blockReason: usageBlockReason } = useUsageLimits();
+
+  // QW-9: strip the consumed ?draft= from the URL so a later reload does not
+  // re-prefill the input (also fixes the latent onboarding F5 re-prefill).
+  // ChatInput consumes initialMessage at mount only, so cleaning afterwards
+  // is safe. Same history.replaceState pattern as the settings ?section=.
+  useEffect(() => {
+    if (searchParams?.get('draft')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('draft');
+      window.history.replaceState({}, '', url.toString());
+    }
+    // Mount-only consumption of the deep link.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Debug panel requires desktop viewport (≥1024px) - not suitable for mobile
   const [isDesktop, setIsDesktop] = useState(false);
@@ -102,6 +117,7 @@ export default function ChatPage() {
   const {
     loadConversationPage,
     loadOlderMessages,
+    searchMessages,
     isLoadingOlder,
     loadConversationTotals,
     resetConversation,
@@ -291,15 +307,53 @@ export default function ChatPage() {
     return messages.filter(msg => msg.role === 'user').length;
   }, [messages]);
 
-  // Client-side history search: filters currently-loaded messages by content.
-  // The backend endpoint also supports ?search=... for server-side filtering,
-  // but client-side is instant for already-loaded history.
-  const [searchQuery, setSearchQuery] = useState('');
-  const displayedMessages = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return messages;
-    return messages.filter(msg => msg.content.toLowerCase().includes(q));
-  }, [messages, searchQuery]);
+  // Chat history search (QW-2): instant accent-insensitive client filter,
+  // in-bubble highlight, whole-history server search with jump-to-result and
+  // the "history view" state. All feature logic lives in the hook.
+  const {
+    searchQuery,
+    setSearchQuery,
+    highlightTerm,
+    displayedMessages,
+    loadedMatchCount,
+    serverSearchAvailable,
+    panelOpen,
+    serverResults,
+    serverHasMore,
+    serverLoading,
+    serverError,
+    runServerSearch,
+    loadMoreServerResults,
+    closePanel,
+    historyView,
+    jumpToResult,
+    returnToPresent,
+    ensurePresent,
+  } = useChatHistorySearch({
+    messages,
+    isTyping,
+    hasMoreOlder,
+    searchMessages,
+    loadOlderMessages,
+    loadConversationPage,
+    setMessages,
+    setHasMoreOlder,
+    setOldestCursor,
+  });
+  // Mobile (< 880px): the header shows a 🔍 toggle; the input row unfolds in
+  // the ChatSearchBar. Desktop keeps the inline header field.
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
+  // Arbitration #1 (QW-2): sending while viewing a past point of history
+  // first returns to the present so the new turn lands at the bottom of the
+  // real conversation, never inside a jumped-to page.
+  const sendMessageFromPresent = useCallback(
+    async (...args: Parameters<typeof sendMessage>) => {
+      await ensurePresent();
+      return sendMessage(...args);
+    },
+    [ensurePresent, sendMessage]
+  );
 
   // Widgets persisted on their message (ADR-137) are merged UNDER the live
   // registry, so a conversation reopened from history renders its skill frames
@@ -521,34 +575,45 @@ export default function ChatPage() {
           {/* Header - Enhanced with glassmorphism and shimmer effect */}
           <div className="relative border-b border-border/40 bg-card/95 backdrop-blur-sm px-4 py-4 sm:px-6 shadow-sm header-shimmer">
             <div className="flex items-center justify-between">
-              {/* Left side: Status indicator only */}
-              {!apiAvailable ? (
-                <div className="flex items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800">
-                  <WifiOff className="h-3.5 w-3.5 text-rose-600 dark:text-rose-300" />
-                  <span className="text-[11px] mobile:text-xs font-semibold text-rose-600 dark:text-rose-300">
-                    {t('chat.input.status.offline')}
-                  </span>
-                </div>
-              ) : isTyping ? (
-                <div className="flex items-center gap-2 rounded-full bg-amber-100 dark:bg-amber-900 px-3 py-1.5 shadow-sm border border-amber-200 dark:border-amber-800">
-                  <LoadingSpinner className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
-                  <span className="text-[11px] mobile:text-xs font-semibold text-amber-600 dark:text-amber-300">
-                    {t('chat.input.status.processing')}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 rounded-full bg-green-100 dark:bg-green-900 px-3 py-1.5 shadow-sm border border-green-200 dark:border-green-800">
-                  <div className="h-3.5 w-3.5 rounded-full bg-green-500 dark:bg-green-400 animate-pulse" />
-                  <span className="text-[11px] mobile:text-xs font-semibold text-green-600 dark:text-green-300">
-                    {t('chat.input.status.online')}
-                  </span>
-                </div>
-              )}
+              {/* Left side: status only when it carries information (QW-12) —
+                  the nominal "online" state is silent; offline and processing
+                  are the exceptional states worth a pill. `min-w-0 flex-1`
+                  keeps the flex layout stable when the slot renders nothing. */}
+              <div className="flex items-center min-w-0 flex-1">
+                {/* Mobile search toggle (< 880px) — unfolds the input row in
+                    the ChatSearchBar below the header (QW-2). */}
+                <button
+                  type="button"
+                  onClick={() => setMobileSearchOpen(open => !open)}
+                  aria-expanded={mobileSearchOpen}
+                  aria-label={t('chat.search.open_mobile')}
+                  className="mobile:hidden p-2 mr-1 rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Search className="h-4 w-4 text-muted-foreground" aria-hidden />
+                </button>
+                {!apiAvailable ? (
+                  <div className="flex items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800">
+                    <WifiOff className="h-3.5 w-3.5 text-rose-600 dark:text-rose-300" />
+                    <span className="text-[11px] mobile:text-xs font-semibold text-rose-600 dark:text-rose-300">
+                      {t('chat.input.status.offline')}
+                    </span>
+                  </div>
+                ) : isTyping ? (
+                  <div className="flex items-center gap-2 rounded-full bg-amber-100 dark:bg-amber-900 px-3 py-1.5 shadow-sm border border-amber-200 dark:border-amber-800">
+                    <LoadingSpinner className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
+                    <span className="text-[11px] mobile:text-xs font-semibold text-amber-600 dark:text-amber-300">
+                      {t('chat.input.status.processing')}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
 
               {/* Center: Voice Mode Badge - Single instance, always mounted to preserve KWS state */}
               <div className="absolute left-1/2 -translate-x-1/2">
                 <VoiceModeBadge
-                  onTranscription={(text, meta) => sendMessage(text, undefined, undefined, meta)}
+                  onTranscription={(text, meta) =>
+                    sendMessageFromPresent(text, undefined, undefined, meta)
+                  }
                   disabled={!apiAvailable || isTyping || isUsageBlocked}
                 />
               </div>
@@ -583,8 +648,19 @@ export default function ChatPage() {
                 {/* Context-usage pill — shows tokens vs compaction threshold.
                     Hidden until the first turn completes (no data yet).
                     Placed AFTER the search field so on desktop the order is
-                    [Search] [Pill] [Delete]. */}
-                {contextUsage && <ContextUsagePill usage={contextUsage} />}
+                    [Search] [Pill] [Delete]. Conversation totals ride its
+                    tooltip (QW-12) — the dedicated banner line is gone. */}
+                {contextUsage && (
+                  <ContextUsagePill
+                    usage={contextUsage}
+                    totals={
+                      user?.tokens_display_enabled &&
+                      (combinedTotals.tokensIn > 0 || combinedTotals.tokensOut > 0)
+                        ? { ...combinedTotals, userMessageCount }
+                        : null
+                    }
+                  />
+                )}
                 {/* Delete/New chat button */}
                 <button
                   onClick={handleResetConversation}
@@ -604,49 +680,32 @@ export default function ChatPage() {
             </div>
           </div>
 
+          {/* History search surface (QW-2): mobile input row, match counter,
+              whole-history results panel, history-view banner. */}
+          <ChatSearchBar
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            loadedMatchCount={loadedMatchCount}
+            serverSearchAvailable={serverSearchAvailable}
+            panelOpen={panelOpen}
+            serverResults={serverResults}
+            serverHasMore={serverHasMore}
+            serverLoading={serverLoading}
+            serverError={serverError}
+            excerptTerm={highlightTerm || searchQuery}
+            historyView={historyView}
+            jumpDisabled={isTyping}
+            mobileOpen={mobileSearchOpen}
+            onCloseMobile={() => setMobileSearchOpen(false)}
+            onRunServerSearch={runServerSearch}
+            onLoadMoreServerResults={loadMoreServerResults}
+            onClosePanel={closePanel}
+            onJump={jumpToResult}
+            onReturnToPresent={returnToPresent}
+          />
+
           {/* Usage Limit Blocked Banner */}
           {isUsageBlocked && <UsageBlockedBanner blockReason={usageBlockReason} />}
-
-          {/* Conversation Totals Banner - Shows combined totals (API history + current session) */}
-          {/* Show if tokens_display_enabled is true and there are tokens */}
-          {user?.tokens_display_enabled &&
-            (combinedTotals.tokensIn > 0 || combinedTotals.tokensOut > 0) && (
-              <div className="hidden mobile:flex bg-muted/50 border-b border-border px-4 py-3 items-center justify-center text-xs">
-                <div className="flex items-center gap-4">
-                  {/* Total tokens (in + out + cache) */}
-                  <span className="text-purple-600">
-                    🔢{' '}
-                    {formatNumber(
-                      combinedTotals.tokensIn +
-                        combinedTotals.tokensOut +
-                        combinedTotals.tokensCache
-                    )}{' '}
-                    TOTAL
-                  </span>
-                  <span className="text-orange-500">
-                    🟠 {formatNumber(combinedTotals.tokensIn)} IN
-                  </span>
-                  <span className="text-green-600">
-                    🟢 {formatNumber(combinedTotals.tokensOut)} OUT
-                  </span>
-                  <span className="text-blue-500">
-                    🔵 {formatNumber(combinedTotals.tokensCache)} CACHE
-                  </span>
-                  <span className="text-purple-500">
-                    🟣 {formatNumber(combinedTotals.googleApiRequests)} GOOGLE
-                  </span>
-                  <span className="text-muted-foreground">|</span>
-                  <span className="text-primary font-semibold">
-                    {userMessageCount}{' '}
-                    {userMessageCount > 1 ? t('chat.page.message_plural') : t('chat.page.message')}
-                  </span>
-                  <span className="text-muted-foreground">|</span>
-                  <span className="text-primary font-bold">
-                    {formatEuro(combinedTotals.costEur)}
-                  </span>
-                </div>
-              </div>
-            )}
 
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto chat-scrollbar">
@@ -666,6 +725,7 @@ export default function ChatPage() {
                 hasMoreOlder={hasMoreOlder && !searchQuery}
                 isLoadingOlder={isLoadingOlder}
                 onLoadOlder={handleLoadOlder}
+                searchHighlight={highlightTerm}
               />
             </RegistryProvider>
           </div>
@@ -686,7 +746,7 @@ export default function ChatPage() {
           <div className="border-t border-border/40 bg-card/80 backdrop-blur-sm shadow-lg">
             <ChatInput
               initialMessage={readDraftParam(searchParams)}
-              onSendMessage={sendMessage}
+              onSendMessage={sendMessageFromPresent}
               disabled={isTyping || isUsageBlocked}
               isConnected={isConnected}
               apiAvailable={apiAvailable && !isUsageBlocked}

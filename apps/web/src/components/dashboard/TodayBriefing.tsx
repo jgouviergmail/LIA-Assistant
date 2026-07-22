@@ -6,6 +6,7 @@ import { useBriefing } from '@/hooks/useBriefing';
 import { BriefingError } from './BriefingError';
 import { BriefingSynthesis } from './BriefingSynthesis';
 import { HeroLiaCard } from './HeroLiaCard';
+import { PortraitHint } from './PortraitHint';
 import { QuickAccessCompact } from './QuickAccessCompact';
 import { RefreshAllButton } from './RefreshAllButton';
 import { AgendaCard } from './cards/AgendaCard';
@@ -50,6 +51,10 @@ export function TodayBriefing() {
     <div className="space-y-8 sm:space-y-10">
       {/* Hero — headline swaps from fallback tagline to LLM greeting once ready */}
       <HeroLiaCard greeting={text?.greeting ?? null} isLoadingGreeting={textLoading} />
+
+      {/* QW-10: discreet "I refined my understanding of you" line when the
+          portrait was recompiled recently (renders nothing otherwise). */}
+      <PortraitHint />
 
       {/* Quick Access — placed ABOVE the cards grid as requested */}
       <QuickAccessCompact />

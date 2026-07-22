@@ -8,6 +8,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import rehypeKatex from 'rehype-katex';
 import { markdownSanitizeSchema } from '@/lib/markdown-sanitize-schema';
 import rehypeMathInText from '@/lib/rehype-math-in-text';
+import rehypeSearchHighlight from '@/lib/rehype-search-highlight';
 import { useTranslation } from 'react-i18next';
 import { cn, GOOGLE_IMAGE_DOMAINS, proxyGoogleImageUrl } from '@/lib/utils';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
@@ -451,6 +452,12 @@ interface MarkdownContentProps {
   content: string;
   isUser?: boolean;
   className?: string;
+  /**
+   * History-search term to highlight in the rendered output (QW-2). Matches
+   * are accent/case-insensitive and wrapped in fixed-class `<mark>` elements
+   * by the post-sanitize `rehype-search-highlight` plugin.
+   */
+  searchHighlight?: string;
 }
 
 /**
@@ -517,8 +524,23 @@ function normalizeMathDelimiters(text: string): string {
 }
 
 export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
-  ({ content, isUser = false, className }) => {
+  ({ content, isUser = false, className, searchHighlight }) => {
     const { t } = useTranslation();
+
+    // Search highlight (QW-2): appended LAST so KaTeX output is already in
+    // place (the plugin skips it). Memoized on the term — an empty term keeps
+    // the exact base pipeline (no per-render plugin churn while streaming).
+    const searchTerm = searchHighlight?.trim() ?? '';
+    const rehypePlugins = useMemo(() => {
+      const base: import('unified').PluggableList = [
+        rehypeRaw,
+        [rehypeSanitize, markdownSanitizeSchema],
+        rehypeMathInText,
+        rehypeKatex,
+      ];
+      if (searchTerm) base.push([rehypeSearchHighlight, { query: searchTerm }]);
+      return base;
+    }, [searchTerm]);
 
     // Sanitize malformed HTML tags (e.g., <li📧> -> <li>📧)
     const sanitizedContent = useMemo(() => sanitizeMalformedTags(content), [content]);
@@ -558,12 +580,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
           // the math nodes it consumes survive sanitization (className allowed
           // globally). Both math steps are sanitize-exempt by design: they only
           // read already-sanitized text and emit fixed-class spans.
-          rehypePlugins={[
-            rehypeRaw,
-            [rehypeSanitize, markdownSanitizeSchema],
-            rehypeMathInText,
-            rehypeKatex,
-          ]}
+          rehypePlugins={rehypePlugins}
           // Custom URL transform to allow tel: and mailto: protocols
           // Default only allows: http, https, irc, ircs, mailto, xmpp
           urlTransform={(url: string) => {

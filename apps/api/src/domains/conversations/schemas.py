@@ -4,10 +4,25 @@ Request/response models for conversation endpoints.
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+from src.core.constants import RESPONSE_FEEDBACK_COMMENT_MAX_LENGTH
+
+
+class ResponseFeedbackRequest(BaseModel):
+    """Feedback on an ordinary assistant response (QW-5, ADR-138)."""
+
+    verdict: Literal["thumbs_up", "thumbs_down"] = Field(
+        ..., description="User verdict on the response"
+    )
+    comment: str | None = Field(
+        None,
+        max_length=RESPONSE_FEEDBACK_COMMENT_MAX_LENGTH,
+        description="Optional one-line 'what went wrong' — only meaningful with thumbs_down",
+    )
 
 
 class ConversationResponse(BaseModel):

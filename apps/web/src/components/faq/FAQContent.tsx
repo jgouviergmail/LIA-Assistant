@@ -253,6 +253,7 @@ function highlightTextContent(text: string, normalizedQuery: string): string {
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_25_12',
   'v1_25_11',
   'v1_25_10',
   'v1_25_9',

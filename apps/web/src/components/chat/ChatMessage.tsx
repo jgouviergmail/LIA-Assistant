@@ -24,6 +24,7 @@ import { getIntlLocale, Language } from '@/i18n/settings';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useApiMutation } from '@/hooks/useApiMutation';
+import { ResponseFeedbackButtons } from './ResponseFeedbackButtons';
 import { toast } from 'sonner';
 import { formatFileSize } from '@/lib/utils/image-compress';
 import { API_ENDPOINTS } from '@/lib/api-config';
@@ -44,6 +45,8 @@ export interface ChatMessageProps {
   isActiveStream?: boolean;
   /** 'progress' (execution steps) vs 'answer' (real tokens) — picks the styling. */
   streamPhase?: StreamPhase;
+  /** History-search term highlighted in the rendered content (QW-2). */
+  searchHighlight?: string;
 }
 
 type FeedbackType = 'thumbs_up' | 'thumbs_down' | 'block';
@@ -171,6 +174,54 @@ function InterestFeedbackButtons({
       </Tooltip>
     </div>
   );
+}
+
+/**
+ * Token fields of a bubble: proactive notifications read from metadata
+ * (centrally injected by the runner) with message-level fields (DB JOIN via
+ * run_id) as fallback; ordinary messages read the message fields directly.
+ * Pure helper extracted from the render hotspot (CC discipline).
+ */
+function resolveTokenFields(
+  message: Message,
+  isProactiveMessage: boolean
+): { tokensIn?: number; tokensOut?: number; tokensCache: number; costEur: number } {
+  if (!isProactiveMessage) {
+    return {
+      tokensIn: message.tokensIn,
+      tokensOut: message.tokensOut,
+      tokensCache: message.tokensCache ?? 0,
+      costEur: message.costEur ?? 0,
+    };
+  }
+  return {
+    tokensIn: (message.metadata?.tokens_in as number | undefined) ?? message.tokensIn,
+    tokensOut: (message.metadata?.tokens_out as number | undefined) ?? message.tokensOut,
+    tokensCache: (message.metadata?.tokens_cache as number | undefined) ?? message.tokensCache ?? 0,
+    costEur: (message.metadata?.cost_eur as number | undefined) ?? message.costEur ?? 0,
+  };
+}
+
+/**
+ * Gate + props of the response feedback chips (QW-5): ordinary, fully
+ * archived assistant responses only. Pure helper (CC discipline) — returns
+ * null for proactive notifications (they keep their dedicated buttons),
+ * active streams, and rows without an archived DB id.
+ */
+function responseFeedbackProps(
+  message: Message,
+  isProactive: boolean,
+  isActiveStream: boolean
+): { messageDbId: string; initialVerdict?: 'thumbs_up' | 'thumbs_down' } | null {
+  if (isProactive || isActiveStream) return null;
+  const dbId = message.metadata?.message_db_id;
+  if (typeof dbId !== 'string') return null;
+  const verdict = (message.metadata?.response_feedback as { verdict?: string } | undefined)
+    ?.verdict;
+  return {
+    messageDbId: dbId,
+    initialVerdict: verdict === 'thumbs_up' || verdict === 'thumbs_down' ? verdict : undefined,
+  };
 }
 
 /**
@@ -503,21 +554,18 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Token data: for ALL proactive types, read from metadata (centrally injected by runner),
-  // then fall back to message-level fields (from DB JOIN via run_id)
-  const tokensIn = isProactiveMessage
-    ? ((message.metadata?.tokens_in as number | undefined) ?? message.tokensIn)
-    : message.tokensIn;
-  const tokensOut = isProactiveMessage
-    ? ((message.metadata?.tokens_out as number | undefined) ?? message.tokensOut)
-    : message.tokensOut;
-  const tokensCache = isProactiveMessage
-    ? ((message.metadata?.tokens_cache as number | undefined) ?? message.tokensCache ?? 0)
-    : (message.tokensCache ?? 0);
-  const costEur = isProactiveMessage
-    ? ((message.metadata?.cost_eur as number | undefined) ?? message.costEur ?? 0)
-    : (message.costEur ?? 0);
+  // Token data — proactive-vs-ordinary resolution extracted to a pure helper.
+  const { tokensIn, tokensOut, tokensCache, costEur } = resolveTokenFields(
+    message,
+    isProactiveMessage
+  );
   const googleApiRequests = message.googleApiRequests ?? 0;
+  // Response feedback chips (QW-5) — null gates the render entirely.
+  const feedbackProps = responseFeedbackProps(
+    message,
+    isProactiveInterest || isProactiveMessage,
+    isActiveStream
+  );
 
   const formatTime = (date: Date) => {
     const time = new Intl.DateTimeFormat(locale, {
@@ -679,7 +727,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
               <BrowserScreenshotCard screenshot={message.browserScreenshot} />
             )}
             <div key={markdownKey} className={phaseFadeClass}>
-              <MarkdownContent content={message.content} isUser={false} />
+              <MarkdownContent
+                content={message.content}
+                isUser={false}
+                searchHighlight={props.searchHighlight}
+              />
             </div>
             {/* Feedback buttons for proactive interest notifications */}
             {showFeedbackButtons && (
@@ -695,6 +747,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             {/* Execution trace (Lot 2 P2-V1): the backstage record of this
                 turn, collapsed by default. Renders nothing without steps. */}
             <ExecutionTraceDisclosure trace={message.executionTrace} />
+            {/* Response feedback (QW-5, ADR-138): 👍/👎 chips next to Copy on
+                ordinary, fully archived responses only (see the gate helper). */}
+            {feedbackProps && <ResponseFeedbackButtons {...feedbackProps} />}
           </div>
           <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-right">
             {formatTime(message.timestamp)}
@@ -772,7 +827,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
               (message.metadata?.attachments as MessageAttachmentMeta[] | undefined) ?? []
             }
           />
-          <MarkdownContent content={message.content} isUser={true} />
+          <MarkdownContent
+            content={message.content}
+            isUser={true}
+            searchHighlight={props.searchHighlight}
+          />
         </div>
         <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-left">
           {formatTime(message.timestamp)}

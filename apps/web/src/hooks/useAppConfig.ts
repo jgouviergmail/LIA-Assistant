@@ -29,6 +29,7 @@ export interface AppConfig {
     attachments_enabled: boolean;
     rag_spaces_enabled: boolean;
     rag_spaces_embedding_model: string;
+    journals_enabled: boolean;
   };
   api_version: string;
 }

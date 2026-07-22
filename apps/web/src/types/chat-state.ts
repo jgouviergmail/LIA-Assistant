@@ -208,6 +208,9 @@ export type ChatAction =
           // partial bubble is kept and badged "interrupted" (same flag as
           // archived history rows). Mirror of DoneMetadata.cancelled.
           cancelled?: boolean;
+          // QW-5 (ADR-138): DB id of the archived assistant row (mirror of
+          // DoneMetadata.archived_message_id) — enables live feedback.
+          archived_message_id?: string;
           tokens_in?: number;
           tokens_out?: number;
           tokens_cache?: number;

@@ -247,7 +247,18 @@
         }
       },
       "updated_hours_ago": "hace {{hours}} h",
-      "updated_days_ago": "hace {{days}} d"
+      "updated_days_ago": "hace {{days}} d",
+      "intents": {
+        "mail": "Resume el correo \"{{subject}}\" de {{sender}} y propón una respuesta",
+        "birthday": "Prepara un mensaje de cumpleaños para {{name}}",
+        "event": "Prepárame para \"{{title}}\" de las {{time}}",
+        "reminder_aria": "Abrir el chat sobre este recordatorio"
+      }
+    },
+    "portrait_hint": {
+      "text": "He afinado mi comprensión de ti.",
+      "cta": "Ver",
+      "dismiss": "Descartar"
     }
   },
   "auth": {
@@ -443,8 +454,7 @@
         "waiting": "Esperando...",
         "hint": "Enter para enviar • Shift+Enter para nueva línea",
         "offline": "Desconectado",
-        "processing": "Procesando...",
-        "online": "En línea"
+        "processing": "Procesando..."
       }
     },
     "voice": {
@@ -602,14 +612,7 @@
       "retry_button": "Reintentar",
       "retry_failed": "No se pudo obtener tu posición. Verifica que el GPS esté activado.",
       "detection": {
-        "keywords": [
-          "alrededores",
-          "cercanias",
-          "proximidad",
-          "vecindario",
-          "zona",
-          "domicilio"
-        ],
+        "keywords": ["alrededores", "cercanias", "proximidad", "vecindario", "zona", "domicilio"],
         "patterns": [
           "cerca de (aqu[ií]|m[ií])",
           "a mi alrededor",
@@ -677,6 +680,32 @@
       "rate_limit_message": "{{connector}} está limitando las solicitudes. Inténtalo de nuevo en unos minutos.",
       "reconnect_button": "Reconectar",
       "dismiss": "Cerrar aviso"
+    },
+    "search": {
+      "loaded_count_one": "{{count}} resultado en los mensajes cargados",
+      "loaded_count_other": "{{count}} resultados en los mensajes cargados",
+      "search_all": "Buscar en todo el historial",
+      "remote_count_one": "{{count}} resultado en el historial",
+      "remote_count_other": "{{count}} resultados en el historial",
+      "remote_none": "Sin resultados en el historial",
+      "remote_error": "La búsqueda falló. Inténtalo de nuevo.",
+      "searching": "Buscando…",
+      "load_more": "Más resultados",
+      "history_view": "Estás viendo un momento pasado de la conversación",
+      "back_to_present": "Volver al presente",
+      "open_mobile": "Buscar en el historial",
+      "close_mobile": "Cerrar la búsqueda",
+      "close_panel": "Cerrar los resultados",
+      "jump_aria": "Abrir la conversación en este mensaje del {{date}}"
+    },
+    "feedback": {
+      "up": "Esta respuesta fue útil",
+      "down": "Esta respuesta no fue útil",
+      "saved": "¡Gracias por tu opinión!",
+      "error": "No se pudo guardar tu opinión. Inténtalo de nuevo.",
+      "comment_placeholder": "¿Qué salió mal? (opcional)",
+      "comment_send": "Enviar",
+      "comment_thanks": "Gracias, tu corrección se ha registrado."
     }
   },
   "skill_apps": {
@@ -2451,6 +2480,10 @@
       "no_spaces": "Aún no se han creado espacios de conocimiento.",
       "create_first": "Cree su primer espacio",
       "manage_all": "Gestionar todos los espacios →"
+    },
+    "portrait_shortcut": {
+      "title": "Lo que LIA entiende de ti",
+      "subtitle": "Consulta el retrato vivo compilado desde tus diarios"
     }
   },
   "spaces": {
@@ -4257,6 +4290,20 @@
             "i2": "<b>✨ Una vitrina que muestra el producto real</b> — La página de inicio pública se abre ahora con una conversación animada en vivo (aprobación de borrador, tarjeta del tiempo, búsqueda multiagente), una banda de cifras verificadas (agentes, herramientas, tests, versiones) y una vista comparada más clara de los dos modos de ejecución. Cada cifra fue verificada contra el código — incluidos 7 proveedores de IA, y no 8 — en los seis idiomas.",
             "i3": "<b>🔓 Páginas públicas de nuevo accesibles sin cuenta</b> — Los visitantes sin sesión que abrían Filosofía, Técnica, Blog o FAQ eran redirigidos silenciosamente a la página de conexión tras unos segundos. Corregido — y un test de guardia impide que este error vuelva."
           }
+        },
+        "v1_25_12": {
+          "title": "v1.25.12 — ⚡ Seis mejoras del día a día: buscar, entender, actuar",
+          "date": "Julio 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🔍 La búsqueda del historial por fin completa</b> — los acentos ya no importan («reunion» encuentra «réunion»), las coincidencias se resaltan en los mensajes con un contador de resultados, y «Buscar en todo el historial» rastrea todo lo dicho — un clic en un resultado salta a ese momento exacto, y luego «Volver al presente». La búsqueda ya está disponible en el móvil.",
+            "i2": "<b>⚙ Los entresijos sobreviven a una recarga</b> — la línea «N pasos · X s» bajo cada respuesta (lo que LIA hizo realmente) desaparecía al cerrar la página. Ahora se guarda con el mensaje: la encontrarás tras recargar y en tus otros dispositivos.",
+            "i3": "<b>🔌 «Reconectar» aparece siempre que hace falta</b> — cuando un servicio conectado fallaba, el aviso de reparación solo aparecía en el momento exacto del fallo; los intentos posteriores solo decían «sin conector». El aviso vuelve ahora cada vez que el servicio averiado es el que falta.",
+            "i4": "<b>👍👎 Valora cualquier respuesta</b> — dos pulgares discretos junto a Copiar. Tu veredicto se recuerda en todos tus dispositivos y alimenta la comprensión que LIA tiene de ti; un 👎 abre una línea opcional «¿qué salió mal?». LIA nunca regenera una respuesta sin que lo pidas.",
+            "i5": "<b>🗂️ El briefing se convierte en cabina de mando</b> — las tarjetas del panel ahora son clicables: un correo abre el chat prellenado con «Resume este correo y propón una respuesta», una cita con «Prepárame para…», un cumpleaños con una sugerencia de mensaje. Nada se envía hasta que pulsas Enter.",
+            "i6": "<b>🪞 «Lo que LIA entiende de ti» a la vista</b> — el retrato compilado gana un acceso directo al inicio de Identidad y Memoria en Ajustes, y una línea discreta en el panel cuando acaba de afinarse.",
+            "i7": "<b>🤫 Una cabecera de chat más tranquila</b> — la insignia «En línea» que pulsaba sin parar desaparece (solo quedan «sin conexión» y «procesando»), y los totales de tokens pasan al tooltip del indicador de contexto, liberando una línea entera."
+          }
         }
       }
     },
@@ -4299,7 +4346,7 @@
       "chat": {
         "title": "Conversaciones",
         "description": "Uso del chat y conversaciones",
-        "count": "16",
+        "count": "18",
         "questions": {
           "q1": {
             "question": "¿Puedo tener varias conversaciones al mismo tiempo?",
@@ -4363,7 +4410,15 @@
           },
           "q16": {
             "question": "¿Puedo ver lo que LIA hizo para producir una respuesta?",
-            "answer": "Sí. Bajo cada respuesta, una pequeña línea <strong>«⚙ N pasos · X s»</strong> resume lo que ocurre entre bastidores; un clic la despliega para mostrar lo que LIA hizo realmente — el enrutamiento, las herramientas que llamó y su razonamiento — agrupados por categoría.<br><br>Es la misma transparencia que el coste mostrado en cada mensaje, extendida al <em>desarrollo de las acciones</em>. La visualización permanece discreta y plegada por defecto, para no saturar la conversación."
+            "answer": "Sí. Bajo cada respuesta, una pequeña línea <strong>«⚙ N pasos · X s»</strong> resume lo que ocurre entre bastidores; un clic la despliega para mostrar lo que LIA hizo realmente — el enrutamiento, las herramientas que llamó y su razonamiento — agrupados por categoría.<br><br>Es la misma transparencia que el coste mostrado en cada mensaje, extendida al <em>desarrollo de las acciones</em>. La visualización permanece discreta y plegada por defecto, para no saturar la conversación.<br><br>Desde la v1.25.12 esta traza se <strong>guarda con el mensaje</strong>: la encontrarás tras recargar y en tus otros dispositivos (el flujo de razonamiento en directo sigue siendo efímero)."
+          },
+          "q17": {
+            "question": "¿Cómo busco en todo el historial de mi conversación?",
+            "answer": "Escribe en el <strong>campo de búsqueda</strong> de la cabecera del chat (o toca el icono 🔍 en el móvil). Los mensajes cargados se filtran al instante — sin distinguir acentos — con las coincidencias <strong>resaltadas</strong> en los mensajes y un contador de resultados.<br><br>Si existe historial más antiguo, el botón <strong>«Buscar en todo el historial»</strong> consulta el servidor sobre todo lo dicho y lista resultados con fecha; al hacer clic en uno <strong>saltas a ese momento</strong> de la conversación, y un aviso ofrece «Volver al presente» en todo momento. Enviar un mensaje nuevo te devuelve antes automáticamente al presente."
+          },
+          "q18": {
+            "question": "¿Para qué sirven los 👍/👎 bajo las respuestas?",
+            "answer": "Dos pulgares discretos aparecen junto al botón <strong>Copiar</strong> en las respuestas ordinarias. Tu veredicto se <strong>guarda con el mensaje</strong> (lo encontrarás en tus otros dispositivos) y alimenta la comprensión de LIA: refuerza o debilita las observaciones personales que dieron forma a esa respuesta. Un 👎 despliega un campo opcional de una línea <strong>«¿qué salió mal?»</strong>, registrado como corrección.<br><br>Puedes cambiar de opinión — el último veredicto prevalece. Y LIA <strong>nunca regenera</strong> una respuesta por su cuenta: tú mandas."
           }
         }
       },
@@ -5564,7 +5619,8 @@
       },
       "tip": "¡Cuanto más te conozca LIA, más relevantes serán sus respuestas!",
       "pin_tip": "Recuerda fijar las memorias importantes para que no las olvide con el tiempo!",
-      "settings_tip": "Puedes gestionar las memorias en la configuración."
+      "settings_tip": "Puedes gestionar las memorias en la configuración.",
+      "portrait_tip": "Con el tiempo, LIA compila lo que entiende de ti en un retrato consultable en los Ajustes"
     },
     "page5": {
       "title": "Tus intereses",
@@ -6946,7 +7002,7 @@
       "progressive-steps": {
         "title": "Pasos de ejecución en tiempo real: observa a LIA trabajar",
         "excerpt": "LIA muestra progresivamente cada paso de ejecución — enrutamiento, planificación, llamadas a herramientas — en tiempo real mientras procesa tu solicitud.",
-        "body": "<h2>Transparencia en acción</h2><p>Cuando envías una solicitud compleja a LIA, pueden pasar varios segundos antes de que llegue la respuesta. ¿Qué hace el asistente durante ese tiempo? Con la visualización progresiva de pasos, lo sabes <strong>en tiempo real</strong>: cada nodo recorrido, cada herramienta llamada aparece a medida que sucede. Y la propia visualización está viva: los pasos pasados se atenúan, el actual respira, el conjunto se funde en las primeras palabras de la respuesta, y un cursor parpadea mientras se redacta.</p><h2>Cómo funciona</h2><p>El backend usa el modo <code>updates</code> de LangGraph para detectar la completación de cada nodo del grafo. En cada paso, se envía un evento SSE <code>execution_step</code> al frontend con:</p><ul><li>La <strong>clave i18n</strong> de la herramienta o nodo (traducida al idioma del usuario)</li><li>Un <strong>extracto del razonamiento</strong> (truncado a 120 caracteres) en modo ReAct</li><li><strong>Metadatos de respaldo</strong> para herramientas no listadas en el catálogo</li></ul><h2>Visualización frontend</h2><p>Los pasos se acumulan visualmente en la interfaz, línea por línea, limitados a <strong>10 pasos</strong> visibles simultáneamente. Un mecanismo de <strong>deduplicación por clave i18n</strong> evita que se repitan pasos idénticos (vía un Set de referencia). Los pasos desaparecen con el primer token de respuesta, al reemplazar contenido, o en interrupción HITL.</p><h2>Pipeline y ReAct</h2><p>En modo <strong>Pipeline</strong>, los pasos provienen del ExecutionPlan: planificador, validador semántico, puerta de aprobación, orquestador de tareas. En modo <strong>ReAct</strong>, cada llamada a herramienta genera un paso con un extracto del razonamiento del LLM.</p><h2>63 herramientas cubiertas</h2><p>Las <strong>63 herramientas</strong> del catálogo disponen de una clave i18n dedicada en los 6 idiomas. Los textos fueron traducidos para ofrecer mensajes naturales en cada idioma (\"Buscando contactos...\", \"Leyendo correos...\") en lugar de identificadores técnicos.</p><h2>Sin más mensajes aleatorios</h2><p>El sistema antiguo mostraba frases de espera divertidas pero aleatorias (\"LIA está pensando...\", \"Análisis en curso...\"). Este sistema ha sido completamente reemplazado por pasos <strong>reales y contextuales</strong> que reflejan exactamente lo que el asistente hace en cada momento.</p>"
+        "body": "<h2>Transparencia en acción</h2><p>Cuando envías una solicitud compleja a LIA, pueden pasar varios segundos antes de que llegue la respuesta. ¿Qué hace el asistente durante ese tiempo? Con la visualización progresiva de pasos, lo sabes <strong>en tiempo real</strong>: cada nodo recorrido, cada herramienta llamada aparece a medida que sucede. Y la propia visualización está viva: los pasos pasados se atenúan, el actual respira, el conjunto se funde en las primeras palabras de la respuesta, y un cursor parpadea mientras se redacta.</p><h2>Cómo funciona</h2><p>El backend usa el modo <code>updates</code> de LangGraph para detectar la completación de cada nodo del grafo. En cada paso, se envía un evento SSE <code>execution_step</code> al frontend con:</p><ul><li>La <strong>clave i18n</strong> de la herramienta o nodo (traducida al idioma del usuario)</li><li>Un <strong>extracto del razonamiento</strong> (truncado a 120 caracteres) en modo ReAct</li><li><strong>Metadatos de respaldo</strong> para herramientas no listadas en el catálogo</li></ul><h2>Visualización frontend</h2><p>Los pasos se acumulan visualmente en la interfaz, línea por línea, limitados a <strong>10 pasos</strong> visibles simultáneamente. Un mecanismo de <strong>deduplicación por clave i18n</strong> evita que se repitan pasos idénticos (vía un Set de referencia). Con el primer token de respuesta, los pasos se pliegan en una línea «⚙ N pasos · X s» bajo la respuesta — guardada con el mensaje: los entresijos siguen ahí tras recargar, en todos tus dispositivos.</p><h2>Pipeline y ReAct</h2><p>En modo <strong>Pipeline</strong>, los pasos provienen del ExecutionPlan: planificador, validador semántico, puerta de aprobación, orquestador de tareas. En modo <strong>ReAct</strong>, cada llamada a herramienta genera un paso con un extracto del razonamiento del LLM.</p><h2>63 herramientas cubiertas</h2><p>Las <strong>63 herramientas</strong> del catálogo disponen de una clave i18n dedicada en los 6 idiomas. Los textos fueron traducidos para ofrecer mensajes naturales en cada idioma (\"Buscando contactos...\", \"Leyendo correos...\") en lugar de identificadores técnicos.</p><h2>Sin más mensajes aleatorios</h2><p>El sistema antiguo mostraba frases de espera divertidas pero aleatorias (\"LIA está pensando...\", \"Análisis en curso...\"). Este sistema ha sido completamente reemplazado por pasos <strong>reales y contextuales</strong> que reflejan exactamente lo que el asistente hace en cada momento.</p>"
       },
       "account-lifecycle": {
         "title": "Ciclo de vida de cuentas: 4 estados para cumplimiento RGPD completo",

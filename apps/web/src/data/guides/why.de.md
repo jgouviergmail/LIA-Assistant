@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 3.8
-**Datum** : 2026-07-21
-**Anwendung** : LIA v1.25.11
+**Version** : 3.9
+**Datum** : 2026-07-22
+**Anwendung** : LIA v1.25.12
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -257,6 +257,8 @@ Direkt in der Chat-Oberfläche zeigt ein Debug-Panel in Echtzeit zu jedem Gespr�
 Jede Nachricht zeigt ihre Kosten in Tokens und Euro an. Der Benutzer kann seinen Verbrauch exportieren. Der Administrator verfügt über Echtzeit-Dashboards mit Anzeigen pro Benutzer und konfigurierbaren Kontingenten.
 
 Sie zahlen kein Abonnement, das die tatsächlichen Kosten verschleiert. Sie sehen genau, was jede Interaktion kostet, und können optimieren: ein günstigeres Modell für das Routing, ein leistungsfähigeres für die Antwort.
+
+Dieselbe Transparenz gilt für Aktionen: Unter jeder Antwort zeigt eine eingeklappte Zeile „⚙ N Schritte · X s“ den tatsächlichen Ablauf — Routing, aufgerufene Werkzeuge, Dauer — und diese Spur wird mit der Nachricht gespeichert: Sie bleibt nach einem Neuladen erhalten, auf allen Geräten. Jede Antwort lässt sich zudem mit einem dezenten 👍/👎 bewerten, das gespeichert und in das Lernen des Assistenten zurückgespielt wird — niemals, um die Antwort ungefragt neu zu generieren.
 
 ### 6.4. Vertrauen durch Beweis
 

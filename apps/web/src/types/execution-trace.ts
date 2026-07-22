@@ -5,7 +5,9 @@
  * + duration — captured at the progress→answer flip (where the live steps are
  * otherwise wiped) and attached to the assistant message so it survives the
  * response instead of vanishing. Rendered as a collapsed disclosure under the
- * bubble; V1 is session-only (not persisted to message_metadata).
+ * bubble. Since ADR-133 V2 the trace is also persisted to `message_metadata`
+ * (i18n keys only, no reasoning) and hydrated on history load via
+ * `lib/execution-trace-hydration.ts` — a reloaded trace has no 💭 block.
  */
 
 /** Coarse grouping mirroring the backend DisplayMetadata.category vocabulary. */

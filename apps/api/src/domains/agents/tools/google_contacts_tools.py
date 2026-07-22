@@ -1952,7 +1952,10 @@ async def _fetch_single_contact_details(
         # === FALLBACK PATH: Backward compatibility (tests, legacy) ===
         # Uses dynamic provider resolution (Google or Apple)
         from src.domains.connectors.clients.registry import ClientRegistry
-        from src.domains.connectors.provider_resolver import resolve_active_connector
+        from src.domains.connectors.provider_resolver import (
+            build_connector_not_enabled_error,
+            resolve_active_connector,
+        )
         from src.domains.connectors.service import ConnectorService
         from src.infrastructure.database import get_db_context
 
@@ -1961,9 +1964,15 @@ async def _fetch_single_contact_details(
             resolved_type = await resolve_active_connector(user_uuid, "contacts", connector_service)
 
             if resolved_type is None:
-                raise ConnectorNotEnabledError(
+                # Enriched with the category's ERROR-status connector (if any)
+                # so the central handler can surface the "Reconnect" banner
+                # (ADR-134 V2).
+                raise await build_connector_not_enabled_error(
                     APIMessages.connector_not_enabled("Contacts"),
                     connector_name="Contacts",
+                    functional_category="contacts",
+                    user_id=user_uuid,
+                    connector_service=connector_service,
                 )
 
             if resolved_type.is_apple:
