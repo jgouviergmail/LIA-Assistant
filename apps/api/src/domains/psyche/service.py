@@ -171,7 +171,9 @@ class PsycheService:
 
         # Compute initial mood at baseline
         baseline = PsycheEngine.compute_pad_baseline(
-            traits, damping=settings.psyche_baseline_damping
+            traits,
+            damping=settings.psyche_baseline_damping,
+            dominance_center=settings.psyche_dominance_center,
         )
         state.mood_pleasure = baseline.pleasure
         state.mood_arousal = baseline.arousal
@@ -212,7 +214,10 @@ class PsycheService:
 
         # Recompute mood baseline — mood will naturally decay toward it
         baseline = PsycheEngine.compute_pad_baseline(
-            traits, pad_override, damping=settings.psyche_baseline_damping
+            traits,
+            pad_override,
+            damping=settings.psyche_baseline_damping,
+            dominance_center=settings.psyche_dominance_center,
         )
         state.mood_pleasure = baseline.pleasure
         state.mood_arousal = baseline.arousal
@@ -254,7 +259,10 @@ class PsycheService:
         # Load personality for PAD baseline computation
         traits, pad_override = await self._load_personality_traits_and_override(user_id)
         baseline = PsycheEngine.compute_pad_baseline(
-            traits, pad_override, damping=settings.psyche_baseline_damping
+            traits,
+            pad_override,
+            damping=settings.psyche_baseline_damping,
+            dominance_center=settings.psyche_dominance_center,
         )
 
         # Compute time elapsed since last update
@@ -323,6 +331,7 @@ class PsycheService:
             self_efficacy=state.self_efficacy,
             existing_emotions=state.active_emotions or [],
             now_iso=now.isoformat(),
+            joy_pulse_enabled=settings.psyche_proactive_joy_pulse,
         )
         if proactive:
             state.active_emotions = PsycheEngine.merge_proactive_emotions(
@@ -480,7 +489,10 @@ class PsycheService:
             # Load personality traits for Big Five modulation + baseline (de-saturation)
             traits, pad_override = await self._load_personality_traits_and_override(user_id)
             baseline = PsycheEngine.compute_pad_baseline(
-                traits, pad_override, damping=settings.psyche_baseline_damping
+                traits,
+                pad_override,
+                damping=settings.psyche_baseline_damping,
+                dominance_center=settings.psyche_dominance_center,
             )
 
             # Apply appraisal (emotion creation + mood push + trait modulation).
@@ -993,7 +1005,10 @@ class PsycheService:
         # Compute baseline for mood reset
         traits, pad_override = await self._load_personality_traits_and_override(user_id)
         baseline = PsycheEngine.compute_pad_baseline(
-            traits, pad_override, damping=settings.psyche_baseline_damping
+            traits,
+            pad_override,
+            damping=settings.psyche_baseline_damping,
+            dominance_center=settings.psyche_dominance_center,
         )
 
         if level in (RESET_LEVEL_SOFT, RESET_LEVEL_FULL):
@@ -1294,7 +1309,10 @@ async def build_psyche_prompt_block(
             state = await service.get_or_create_state(uid)
             traits, pad_override = await service._load_personality_traits_and_override(uid)
             baseline = PsycheEngine.compute_pad_baseline(
-                traits, pad_override, damping=settings.psyche_baseline_damping
+                traits,
+                pad_override,
+                damping=settings.psyche_baseline_damping,
+                dominance_center=settings.psyche_dominance_center,
             )
 
             # Apply temporal decay in memory (read-only)

@@ -3858,6 +3858,7 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 | Vocabulaire domaines single-source (axes singulier/result_key) | [ADR-102](./architecture/ADR-102-Domain-Vocabulary-Single-Source.md) | [AGENT_MANIFEST.md](./technical/AGENT_MANIFEST.md) |
 | i18n backend HITL 6 langues | [ADR-103](./architecture/ADR-103-HITL-Backend-i18n.md) | [HITL.md](./technical/HITL.md) |
 | Psyché : dé-saturation + expression incarnée | [ADR-104](./architecture/ADR-104-Psyche-De-Saturation.md), [ADR-105](./architecture/ADR-105-Psyche-Embodied-Expression.md) | [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) |
+| Psyché : observabilité + recentrage dominance (leviers inertes, mesure avant activation) | [ADR-142](./architecture/ADR-142-Psyche-Observability-And-Dominance-Recentering.md) | [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) |
 | Remédiation code mort + adoption BaseAPIKeyClient | [ADR-107](./architecture/ADR-107-Dead-Code-Remediation-S7.md), [ADR-108](./architecture/ADR-108-BaseAPIKeyClient-Adoption.md) | [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) |
 | Backups PostgreSQL (sidecar pg_dump, restauration testée) | [ADR-109](./architecture/ADR-109-PostgreSQL-Backup-Strategy.md), [ADR-110](./architecture/ADR-110-Backup-Encryption-Options.md) | [DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BACKUP_RESTORE.md) |
 | Pools de connexions checkpointer & store LangGraph | [ADR-111](./architecture/ADR-111-LangGraph-Postgres-Connection-Pooling.md) | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) |

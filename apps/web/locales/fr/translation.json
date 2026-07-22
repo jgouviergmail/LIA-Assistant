@@ -3138,6 +3138,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_14": {
+          "title": "v1.25.14 — 🧠 Fondations pour des humeurs plus naturelles",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧠 Le moteur d'humeurs enfin mesuré</b> — un audit approfondi a montré pourquoi les humeurs douces de l'assistante (tendre, mélancolique, paisible…) n'apparaissaient presque jamais : son point de repos était structurellement verrouillé du côté assuré. Deux nouveaux réglages préparent le correctif (recentrage + suppression d'un renfort artificiel de « joie ») — <b>rien ne change par défaut</b> : votre admin ne les active qu'après mesure.",
+            "i2": "<b>📏 Un instrument de mesure pour les admins</b> — un nouveau script en lecture seule rejoue la batterie de qualité des humeurs sur l'usage réel (humeurs visitées, variété, émotions dominantes) : les décisions d'activation reposent sur des chiffres, comparables avant/après.",
+            "i3": "<b>🛡️ Des gardes anti-régression</b> — les propriétés attendues des humeurs sont désormais verrouillées par des tests automatiques (points de repos gelés, oracle d'atteignabilité) : un changement futur ne peut plus re-verrouiller la palette en silence."
+          }
+        },
         "v1_25_13": {
           "title": "v1.25.13 — 🔗 LIA relie ses domaines : engagements, automatisations, vos documents",
           "date": "Juillet 2026",

@@ -16,6 +16,17 @@
 > §9-10 below; it injects an embodied `<InnerVoice>` voice grammar (concrete form moves),
 > default on behind `PSYCHE_EMBODIED_INJECTION`. The graduated adjective format documented
 > below is the flag's rollback path. See ADR-105 for the current injection.
+>
+> **Observability & dominance recentering added in [ADR-142](../architecture/ADR-142-Psyche-Observability-And-Dominance-Recentering.md).**
+> The ADR-104 production re-measurement is now instrumented: `apps/api/scripts/measure_psyche.py`
+> replays the full metric battery read-only (per-user moods/octants/emotions + live catalogue
+> resting table). Two knobs ship **inert** (defaults preserve the behavior described here):
+> `PSYCHE_DOMINANCE_CENTER` (0.0; a post-damping translation of the dominance baseline —
+> the raw mapping rests ALL 14 personalities at D > 0, locking five moods out of reach at
+> rest, and damping alone cannot recenter a homothety) and `PSYCHE_PROACTIVE_JOY_PULSE`
+> (true; gates the sustained-quality joy pulse that crowned joy dominant over the actual
+> appraisal). CI guards (`test_mood_reachability.py`) freeze the 14 resting points and
+> pin mood reachability. Activation is a measured decision — see ADR-142's procedure.
 
 ## Table of Contents
 

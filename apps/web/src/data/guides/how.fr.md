@@ -6,7 +6,7 @@
 
 **Version** : 3.4
 **Date** : 2026-07-22
-**Application** : LIA v1.25.13
+**Application** : LIA v1.25.14
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 428 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 120+ ADRs, ~12 690 tests collectés par pytest sur 739 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 120+ ADRs, ~12 720 tests collectés par pytest sur 741 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -71,7 +71,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~12 690 (collectés par pytest sur 739 fichiers de test) + 2 305 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~12 720 (collectés par pytest sur 741 fichiers de test) + 2 305 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
@@ -1104,10 +1104,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 120+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~12 690 tests sur 739 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 120+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~12 720 tests sur 741 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 120+ ADRs, et du changelog (v1.0 à v1.25.13). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 120+ ADRs, et du changelog (v1.0 à v1.25.14). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

@@ -642,7 +642,14 @@
       "retry_button": "Erneut versuchen",
       "retry_failed": "Ihre Position konnte nicht abgerufen werden. Überprüfen Sie, ob GPS aktiviert ist.",
       "detection": {
-        "keywords": ["nahe", "umgebung", "gegend", "nachbarschaft", "viertel", "zuhause"],
+        "keywords": [
+          "nahe",
+          "umgebung",
+          "gegend",
+          "nachbarschaft",
+          "viertel",
+          "zuhause"
+        ],
         "patterns": [
           "in der n[aä]he",
           "um mich herum",
@@ -3117,6 +3124,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_14": {
+          "title": "v1.25.14 — 🧠 Fundament für natürlichere Stimmungen",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧠 Die Stimmungs-Engine endlich vermessen</b> — eine tiefgehende Analyse zeigte, warum die sanften Stimmungen der Assistentin (zärtlich, melancholisch, zufrieden…) fast nie sichtbar wurden: Ihr Ruhepunkt war strukturell auf der selbstsicheren Seite verriegelt. Zwei neue Einstellungen bereiten die Korrektur vor (Neuzentrierung + Entfernen eines künstlichen „Freude“-Schubs) — <b>standardmäßig ändert sich nichts</b>: Ihr Admin aktiviert sie erst nach der Messung.",
+            "i2": "<b>📏 Ein Messinstrument für Admins</b> — ein neues, rein lesendes Skript spielt die Qualitätsbatterie der Stimmungen gegen die reale Nutzung ab (besuchte Stimmungen, Vielfalt, dominante Emotionen): Aktivierungsentscheidungen stützen sich auf Zahlen, vorher/nachher vergleichbar.",
+            "i3": "<b>🛡️ Schutz vor Rückschritten</b> — die gewünschten Stimmungseigenschaften werden jetzt durch automatische Tests erzwungen (eingefrorene Ruhepunkte, Erreichbarkeits-Orakel): Eine künftige Änderung kann die Palette nicht mehr unbemerkt erneut verriegeln."
+          }
+        },
         "v1_25_13": {
           "title": "v1.25.13 — 🔗 LIA verbindet ihre Bereiche: Verpflichtungen, Automatisierungen, deine Dokumente",
           "date": "Juli 2026",

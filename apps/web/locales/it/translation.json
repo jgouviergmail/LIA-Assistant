@@ -642,7 +642,14 @@
       "retry_button": "Riprova",
       "retry_failed": "Impossibile recuperare la tua posizione. Verifica che il GPS sia attivato.",
       "detection": {
-        "keywords": ["vicinanze", "dintorni", "zona", "quartiere", "prossimita", "domicilio"],
+        "keywords": [
+          "vicinanze",
+          "dintorni",
+          "zona",
+          "quartiere",
+          "prossimita",
+          "domicilio"
+        ],
         "patterns": [
           "(nelle|in) vicinanz[ae]",
           "intorno a me",
@@ -3119,6 +3126,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_25_14": {
+          "title": "v1.25.14 — 🧠 Fondamenta per umori più naturali",
+          "date": "Luglio 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧠 Il motore degli umori finalmente misurato</b> — un audit approfondito ha mostrato perché gli umori delicati dell'assistente (tenera, malinconica, serena…) non apparivano quasi mai: il suo punto di riposo era strutturalmente bloccato sul lato assertivo. Due nuove impostazioni preparano la correzione (ricentraggio + rimozione di un rinforzo artificiale di « gioia ») — <b>nulla cambia per impostazione predefinita</b>: il tuo admin le attiva solo dopo la misurazione.",
+            "i2": "<b>📏 Uno strumento di misura per gli admin</b> — un nuovo script in sola lettura riesegue la batteria di qualità degli umori sull'uso reale (umori visitati, varietà, emozioni dominanti): le decisioni di attivazione si basano su numeri, confrontabili prima/dopo.",
+            "i3": "<b>🛡️ Guardie anti-regressione</b> — le proprietà attese degli umori sono ora imposte da test automatici (punti di riposo congelati, oracolo di raggiungibilità): una modifica futura non può più ribloccare la tavolozza in silenzio."
+          }
+        },
         "v1_25_13": {
           "title": "v1.25.13 — 🔗 LIA collega i suoi domini: impegni, automazioni, i tuoi documenti",
           "date": "Luglio 2026",

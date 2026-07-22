@@ -59,7 +59,9 @@ class PsycheState(BaseModel):
 
     # =========================================================================
     # Big Five personality traits [0.0, 1.0]
-    # Initialized from personality on first creation, evolves independently.
+    # Copied from the personality on first creation and re-synced when the
+    # user switches personality (sync_traits_from_personality). No mechanism
+    # updates them independently today.
     # =========================================================================
     trait_openness: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
     trait_conscientiousness: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
@@ -159,6 +161,9 @@ class PsycheState(BaseModel):
         nullable=True,
         comment="Last parsed psyche_eval appraisal result.",
     )
+    # Generated WEEKLY (Sunday 03:00 UTC scheduler job), despite the stale DB
+    # column comment saying "monthly" — reconcile the SQL comment in the next
+    # periodic comment-reconciliation migration (pattern: 2026_07_13_1710).
     narrative_identity: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
@@ -231,7 +236,13 @@ class PsycheHistory(BaseModel):
         default="ORIENTATION",
     )
 
-    # Big Five traits snapshot (JSONB for flexibility)
+    # Dynamic-state snapshot (JSONB). Despite the historical column name, this
+    # stores the per-message dynamic state, not Big Five traits: emotion
+    # intensity, active_emotions map, relationship depth/warmth/trust, drives,
+    # and resonance (see PsycheService.process_post_response). The stale SQL
+    # column comment below is kept verbatim to avoid model/DB comment drift —
+    # reconcile it in the next periodic comment-reconciliation migration
+    # (pattern: 2026_07_13_1710).
     trait_snapshot: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB,
         nullable=True,

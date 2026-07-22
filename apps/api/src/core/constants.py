@@ -4011,6 +4011,19 @@ PSYCHE_CIRCADIAN_AMPLITUDE_DEFAULT: float = 0.08  # Sinusoidal pleasure modulati
 #     reached serene/reflective — impossible in production).
 PSYCHE_AD_RELAXATION_DEFAULT: float = 0.15  # Asymmetric anti-ratchet pull (0 = off; tunable)
 PSYCHE_BASELINE_DAMPING_DEFAULT: float = 0.75  # Resting-point magnitude toward neutral (1.0 = raw)
+# Dominance recentering (ADR-142). The Mehrabian mapping rests ALL 14 catalogue
+# personalities at D > 0 (spread +0.063..+0.349) — damping is a homothety and cannot
+# fix that, so the five mood centroids requiring D < 0 stay unreachable at rest.
+# A fixed translation subtracted after damping recenters the frame; 0.0 keeps
+# today's behavior (inert at merge), 0.20 is the measured activation candidate
+# (catalogue mean +0.216) pending the production measurement campaign.
+PSYCHE_DOMINANCE_CENTER_DEFAULT: float = 0.0  # Translation on D baseline (0 = off; tunable)
+# Joy-pulse gate (ADR-142). Deterministic replay measured the sustained-quality joy
+# pulse firing on 40/60 ordinary-regime turns, crowning joy the dominant emotion 55%
+# of the time regardless of the actual appraisal — the same distortion mechanism as
+# the removed pride pulse (61% in production). True keeps today's behavior (inert at
+# merge); switch to false so the reported appraisal owns the emotion channel.
+PSYCHE_PROACTIVE_JOY_PULSE_DEFAULT: bool = True  # Joy pulse on sustained quality (true = today)
 
 # Emotion parameters
 PSYCHE_EMOTION_DECAY_RATE_DEFAULT: float = 0.4  # Per hour, exponential (was 0.3 — faster turnover)

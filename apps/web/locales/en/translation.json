@@ -663,7 +663,13 @@
       "retry_button": "Retry",
       "retry_failed": "Unable to retrieve your position. Check that GPS is enabled.",
       "detection": {
-        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
+        "keywords": [
+          "nearby",
+          "vicinity",
+          "neighborhood",
+          "surroundings",
+          "area"
+        ],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -3127,6 +3133,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_14": {
+          "title": "v1.25.14 — 🧠 Foundations for more natural moods",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧠 The mood engine, measured for real</b> — a deep audit showed why the assistant's soft moods (tender, melancholic, content…) almost never appeared: its resting point was structurally locked on the assertive side. Two new settings prepare the fix (recentering + removing an artificial « joy » boost) — <b>nothing changes by default</b>: your admin activates them only after measuring.",
+            "i2": "<b>📏 A measurement instrument for admins</b> — a new read-only script replays the mood-quality battery against real usage (moods visited, variety, dominant emotions): activation decisions now rest on numbers, comparable before/after.",
+            "i3": "<b>🛡️ Anti-regression guards</b> — the desired mood properties are now enforced by automated tests (frozen resting points, a reachability oracle): a future change can no longer silently re-lock the palette."
+          }
+        },
         "v1_25_13": {
           "title": "v1.25.13 — 🔗 LIA connects its domains: commitments, automations, your documents",
           "date": "July 2026",

@@ -249,6 +249,7 @@ class TestSnapshotCreation:
             mock_settings.psyche_self_efficacy_prior_weight = 5.0
             mock_settings.psyche_ad_relaxation = 0.15
             mock_settings.psyche_baseline_damping = 0.65
+            mock_settings.psyche_dominance_center = 0.0
 
             result = await service.process_post_response(user_id, appraisal)
 
@@ -291,6 +292,7 @@ class TestSnapshotCreation:
             mock_settings.psyche_self_efficacy_prior_weight = 5.0
             mock_settings.psyche_ad_relaxation = 0.15
             mock_settings.psyche_baseline_damping = 0.65
+            mock_settings.psyche_dominance_center = 0.0
 
             await service.process_post_response(user_id, appraisal)
 

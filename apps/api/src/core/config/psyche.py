@@ -23,12 +23,14 @@ from src.core.constants import (
     PSYCHE_APPRAISAL_SENSITIVITY_DEFAULT,
     PSYCHE_BASELINE_DAMPING_DEFAULT,
     PSYCHE_CIRCADIAN_AMPLITUDE_DEFAULT,
+    PSYCHE_DOMINANCE_CENTER_DEFAULT,
     PSYCHE_EMBODIED_INJECTION_DEFAULT,
     PSYCHE_EMOTION_DECAY_RATE_DEFAULT,
     PSYCHE_EMOTION_MAX_ACTIVE_DEFAULT,
     PSYCHE_ENABLED_DEFAULT,
     PSYCHE_HISTORY_RETENTION_DAYS_DEFAULT,
     PSYCHE_MOOD_DECAY_RATE_DEFAULT,
+    PSYCHE_PROACTIVE_JOY_PULSE_DEFAULT,
     PSYCHE_RELATIONSHIP_WARMTH_DECAY_DEFAULT,
     PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT_DEFAULT,
 )
@@ -125,6 +127,18 @@ class PsycheSettings(BaseSettings):
         ),
     )
 
+    psyche_dominance_center: float = Field(
+        default=PSYCHE_DOMINANCE_CENTER_DEFAULT,
+        ge=0.0,
+        le=0.5,
+        description=(
+            "Recentering (ADR-142): translation subtracted from the damped dominance "
+            "baseline so the personality catalogue straddles D=0 instead of resting "
+            "entirely assertive. 0.0 = no translation (today's behavior); 0.20 = "
+            "measured activation candidate (catalogue mean +0.216)."
+        ),
+    )
+
     # ========================================================================
     # Emotion Parameters
     # ========================================================================
@@ -144,6 +158,16 @@ class PsycheSettings(BaseSettings):
         ge=1,
         le=10,
         description="Maximum simultaneous active emotions. Weakest is evicted when exceeded.",
+    )
+
+    psyche_proactive_joy_pulse: bool = Field(
+        default=PSYCHE_PROACTIVE_JOY_PULSE_DEFAULT,
+        description=(
+            "Gate on the sustained-quality proactive joy pulse (ADR-142). True keeps "
+            "today's behavior; false removes the pulse so the LLM-reported appraisal "
+            "owns the emotion channel (measured: the pulse crowned joy dominant 55% "
+            "of ordinary-regime turns, same mechanism as the removed pride pulse)."
+        ),
     )
 
     psyche_appraisal_sensitivity: float = Field(

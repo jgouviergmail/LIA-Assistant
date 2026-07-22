@@ -3220,6 +3220,15 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 **Décision**: P1+P3 du programme Interdomain Intelligence. **P1** : domaine routable `document` — `search_user_documents_tool` (read-only) sur `retrieve_rag_context` existant, extraits plafonnés ; routabilité filtrée au chokepoint `_build_available_domains` quand `RAG_SPACES_ENABLED` off (pattern téléphonie) ; l'injection passive du response node coexiste (appoint auto + capacité dirigée). **P3** : `get_person_overview_tool` sur contact_agent — 4 sous-fetches parallèles à sessions et frontières d'échec propres (fiche contact multi-provider pattern heartbeat, emails récents, événements 30 j, mémoires par embedding du nom), **partialité honnête** (`partial_failures` ; connecteur absent = bloc vide, contact introuvable = `person_not_found`). Enregistrements via l'agrégateur `registry/program_manifests.py` (coût net zéro dans le loader gelé). Rejetés : fusion avec le domaine `file` (sémantiques disjointes), `Memory.linked_contact_id` v1 (différé post-J+14 P5), sous-fetches Drive/rappels (différés). Vérification : TDD, suites vertes, runtime dev.
 
 ---
+
+### ADR-142: Observabilité psyché & recentrage de la dominance
+
+**Statut**: ✅ IMPLEMENTED (2026-07-22) — leviers livrés inertes ; activation conditionnée à la mesure production
+**Fichier**: `docs/architecture/ADR-142-Psyche-Observability-And-Dominance-Recentering.md`
+
+**Décision**: Suite d'ADR-104, dont la re-mesure production promise n'a jamais été outillée. Le rejeu déterministe du vrai moteur + le calcul sur le catalogue réel exposent deux défauts : (1) **l'axe dominance est structurellement décentré** — les 14 personnalités reposent toutes en D>0 (moyenne +0.216, confirmée live), 5 centroïdes d'humeur en D<0 inatteignables au repos, et le damping (homothétie) ne peut PAS recentrer — il faut une **translation** ; (2) le **pulse proactif joy** couronne joy dominante 55 % des tours indépendamment de l'appraisal réel (même mécanisme que le pulse pride supprimé). Livré, tout inerte au merge : `PSYCHE_DOMINANCE_CENTER` (défaut 0.0 ; candidat 0.20 **dérivé** du catalogue), `PSYCHE_PROACTIVE_JOY_PULSE` (défaut true), instrument de mesure read-only `apps/api/scripts/measure_psyche.py` (batterie ADR-104 par utilisateur + table de repos du catalogue ; dans le contexte de build prod), gardes CI `test_mood_reachability.py` (goldens 1e-9 = merge prouvé no-op, straddle à 0.20 ordre préservé, oracle bout-en-bout 3 humeurs/87 % → 5/40 %). kindalive examiné comme source : principe d'équilibre retenu comme grille de lecture, mécanismes testés et **rejetés** (τ par axe réfuté par ablation, équilibre symétrique contre-indiqué). Procédure d'activation mesurée avant/après + matrice de réajustement (fidélité de caractère via `pad_dominance_override`, repli 0.15). 24 tests nouveaux, suite psyché 207 verts, zéro migration.
+
+---
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

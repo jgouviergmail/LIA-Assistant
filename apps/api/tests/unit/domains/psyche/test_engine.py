@@ -110,6 +110,87 @@ class TestComputePadBaseline:
         assert -1.0 <= pad.arousal <= 1.0
         assert -1.0 <= pad.dominance <= 1.0
 
+    # -------------------------------------------------------------------------
+    # dominance_center (ADR-142): translation of the dominance resting point.
+    # The raw Mehrabian mapping rests EVERY personality at D > 0 (measured
+    # catalogue spread +0.063..+0.349), locking the low-dominance mood half.
+    # Damping is a homothety and cannot recenter; the translation can.
+    # -------------------------------------------------------------------------
+
+    def test_dominance_center_zero_is_noop(self) -> None:
+        """center=0.0 (the shipped default) must reproduce today's baseline exactly."""
+        traits = PersonalityTraits(
+            openness=0.70,
+            conscientiousness=0.55,
+            extraversion=0.45,
+            agreeableness=0.25,
+            neuroticism=0.45,
+        )
+        base = PsycheEngine.compute_pad_baseline(traits, damping=0.75)
+        centered = PsycheEngine.compute_pad_baseline(traits, damping=0.75, dominance_center=0.0)
+        assert centered == base
+
+    def test_dominance_center_translates_only_d(self) -> None:
+        """The translation shifts dominance by exactly -center; P and A untouched."""
+        traits = PersonalityTraits(
+            openness=0.70,
+            conscientiousness=0.55,
+            extraversion=0.45,
+            agreeableness=0.25,
+            neuroticism=0.45,
+        )
+        base = PsycheEngine.compute_pad_baseline(traits, damping=0.75)
+        centered = PsycheEngine.compute_pad_baseline(traits, damping=0.75, dominance_center=0.20)
+        assert centered.pleasure == base.pleasure
+        assert centered.arousal == base.arousal
+        assert centered.dominance == pytest.approx(base.dominance - 0.20, abs=1e-12)
+
+    def test_dominance_center_applies_after_override_blend(self) -> None:
+        """Assertive-by-design overrides (JARVIS/Trump) shift with the frame.
+
+        The translation applies AFTER the 70/30 override blend and AFTER damping,
+        so an overridden personality keeps its relative assertive lean.
+        """
+        traits = PersonalityTraits()
+        override = PADOverride(dominance=0.30)
+        base = PsycheEngine.compute_pad_baseline(traits, override, damping=0.75)
+        centered = PsycheEngine.compute_pad_baseline(
+            traits, override, damping=0.75, dominance_center=0.20
+        )
+        assert centered.dominance == pytest.approx(base.dominance - 0.20, abs=1e-12)
+        assert centered.pleasure == base.pleasure
+        assert centered.arousal == base.arousal
+
+    def test_dominance_center_clamps_at_floor(self) -> None:
+        """Even an extreme center cannot push dominance below -1.0."""
+        traits = PersonalityTraits(
+            openness=0.0,
+            conscientiousness=0.0,
+            extraversion=0.0,
+            agreeableness=1.0,
+            neuroticism=1.0,
+        )
+        centered = PsycheEngine.compute_pad_baseline(traits, damping=1.0, dominance_center=0.5)
+        assert centered.dominance >= -1.0
+
+    def test_dominance_center_preserves_personality_ordering(self) -> None:
+        """A pure translation preserves the relative D-ordering of personalities."""
+        spread = [
+            PersonalityTraits(0.70, 0.55, 0.45, 0.25, 0.45),  # high-C assertive
+            PersonalityTraits(0.50, 0.50, 0.50, 0.50, 0.50),  # balanced
+            PersonalityTraits(0.60, 0.30, 0.20, 0.55, 0.85),  # low-C anxious
+            PersonalityTraits(0.50, 0.90, 0.30, 0.55, 0.10),  # very high C
+            PersonalityTraits(0.75, 0.25, 0.60, 0.80, 0.15),  # warm low-C
+        ]
+        before = [PsycheEngine.compute_pad_baseline(t, damping=0.75).dominance for t in spread]
+        after = [
+            PsycheEngine.compute_pad_baseline(t, damping=0.75, dominance_center=0.20).dominance
+            for t in spread
+        ]
+        order_before = sorted(range(len(spread)), key=lambda i: before[i])
+        order_after = sorted(range(len(spread)), key=lambda i: after[i])
+        assert order_before == order_after
+
 
 # =============================================================================
 # Layer 2 — Temporal Decay
@@ -1804,6 +1885,57 @@ class TestProactiveEmotions:
         )
         names = [p["name"] for p in pulses]
         assert "joy" in names
+
+    # -------------------------------------------------------------------------
+    # joy_pulse_enabled gate (ADR-142): under the shipped defaults the joy pulse
+    # fires on 40/60 ordinary-regime turns and makes joy the dominant emotion
+    # 55% of the time, overriding whatever the appraisal actually reported —
+    # the same distortion mechanism as the removed pride pulse (61%).
+    # -------------------------------------------------------------------------
+
+    def test_joy_pulse_enabled_by_default(self) -> None:
+        """Omitting the flag preserves today's behavior exactly (inert at merge)."""
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.4,
+            drive_engagement=0.8,
+            interaction_count=100,
+            last_appraisal={"quality": 0.8},
+            self_efficacy=None,
+            existing_emotions=[],
+            now_iso="t",
+        )
+        assert any(p["name"] == "joy" for p in pulses)
+
+    def test_joy_pulse_gated_off(self) -> None:
+        """joy_pulse_enabled=False suppresses the joy pulse under firing conditions."""
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.4,
+            drive_engagement=0.8,
+            interaction_count=100,
+            last_appraisal={"quality": 0.8},
+            self_efficacy=None,
+            existing_emotions=[],
+            now_iso="t",
+            joy_pulse_enabled=False,
+        )
+        assert not any(p["name"] == "joy" for p in pulses)
+
+    def test_joy_gate_leaves_other_pulses_untouched(self) -> None:
+        """The gate is joy-specific: curiosity and enthusiasm pulses still fire."""
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.8,
+            drive_engagement=0.9,
+            interaction_count=2,
+            last_appraisal={"quality": 0.9},
+            self_efficacy=None,
+            existing_emotions=[],
+            now_iso="t",
+            joy_pulse_enabled=False,
+        )
+        names = {p["name"] for p in pulses}
+        assert "curiosity" in names
+        assert "enthusiasm" in names
+        assert "joy" not in names
 
     def test_no_pride_pulse_from_high_efficacy(self) -> None:
         """The automatic pride pulse was REMOVED (ADR-068 refinement). High

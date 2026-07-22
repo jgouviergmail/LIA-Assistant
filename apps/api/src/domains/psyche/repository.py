@@ -75,7 +75,15 @@ class PsycheStateRepository:
         return state
 
     async def update(self, state: PsycheState) -> PsycheState:
-        """Update an existing psyche state (optimistic locking via updated_at).
+        """Flush pending changes on an already-tracked psyche state.
+
+        No locking of any kind is performed: this is a plain flush of the
+        session-tracked instance. The pre-response path (own session, commits
+        the decayed state) and the fire-and-forget post-response task (own
+        session, commits the appraisal) can race on the same row; the last
+        commit wins whole-row. Acceptable today because both writers touch
+        the same user sequentially in practice — revisit with SELECT ... FOR
+        UPDATE if a real concurrent-writer path appears.
 
         Args:
             state: PsycheState instance with modified fields.

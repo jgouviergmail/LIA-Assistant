@@ -198,6 +198,7 @@ class PsycheEngine:
         traits: PersonalityTraits,
         pad_override: PADOverride | None = None,
         damping: float = 1.0,
+        dominance_center: float = 0.0,
     ) -> PADVector:
         """Compute PAD mood baseline from Big Five traits.
 
@@ -214,11 +215,24 @@ class PsycheEngine:
         mood then had no low-arousal / low-dominance region to decay into. Damping
         makes rest closer to neutral so moods can swing in BOTH directions.
 
+        The ``dominance_center`` translation (ADR-142) fixes what damping cannot:
+        damping is a homothety, so a catalogue that rests entirely at D > 0
+        (measured spread +0.063..+0.349 across the 14 personalities) stays entirely
+        at D > 0 at ANY damping value, and the five mood centroids requiring D < 0
+        remain unreachable at rest. Subtracting a fixed center AFTER the override
+        blend and damping shifts the whole frame so the catalogue straddles zero,
+        while preserving both the relative D-ordering of personalities and the
+        assertive lean of override-based characters. 0.0 = no translation
+        (backwards-compatible); the recommended activation value 0.20 derives from
+        the measured catalogue mean (+0.216).
+
         Args:
             traits: Big Five personality traits.
             pad_override: Optional manual PAD overrides (nullable per dimension).
             damping: Multiplier [0, 1] applied to the final baseline magnitude
                 (1.0 = raw mapping, backwards-compatible; 0.65 = 35% toward neutral).
+            dominance_center: Translation [0, 0.5] subtracted from the damped
+                dominance baseline (0.0 = no translation, backwards-compatible).
 
         Returns:
             PAD vector representing the personality's emotional baseline.
@@ -254,10 +268,15 @@ class PsycheEngine:
         # relative ordering of personalities, only compresses the magnitude).
         damping = _clamp(damping, 0.0, 1.0)
 
+        # Recentering (ADR-142): translate dominance after damping so the
+        # catalogue straddles zero — a translation recenters where a homothety
+        # cannot. Clamped input keeps the result within [-1, 1].
+        dominance_center = _clamp(dominance_center, 0.0, 0.5)
+
         return PADVector(
             pleasure=_clamp(p_final * damping, -1.0, 1.0),
             arousal=_clamp(a_final * damping, -1.0, 1.0),
-            dominance=_clamp(d_final * damping, -1.0, 1.0),
+            dominance=_clamp(d_final * damping - dominance_center, -1.0, 1.0),
         )
 
     # =========================================================================
@@ -1288,6 +1307,7 @@ class PsycheEngine:
         self_efficacy: dict | None,
         existing_emotions: list[dict],
         now_iso: str,
+        joy_pulse_enabled: bool = True,
     ) -> list[dict]:
         """Compute anticipatory emotion pulses from contextual state.
 
@@ -1304,6 +1324,12 @@ class PsycheEngine:
                 it still feeds the profile's confidence strengths/weaknesses elsewhere.
             existing_emotions: Current active emotions (for anti-inflation guard).
             now_iso: Current ISO timestamp.
+            joy_pulse_enabled: Gate on the sustained-quality joy pulse (ADR-142).
+                True preserves today's behavior. Deterministic replay measured the
+                pulse firing on 40/60 ordinary-regime turns, making joy the dominant
+                emotion 55% of the time regardless of what the appraisal actually
+                reported — the same distortion mechanism as the removed pride pulse.
+                False lets the reported appraisal own the emotion channel.
 
         Returns:
             List of proactive emotion dicts [{name, intensity, triggered_at}].
@@ -1325,9 +1351,13 @@ class PsycheEngine:
         if drive_engagement > 0.8 and _existing("enthusiasm") < 0.50:
             pulses.append({"name": "enthusiasm", "intensity": 0.20, "triggered_at": now_iso})
 
-        # Joy pulse for sustained quality (with anti-inflation guard)
+        # Joy pulse for sustained quality (with anti-inflation guard).
+        # Gated by joy_pulse_enabled (ADR-142): its firing conditions are met on
+        # most ordinary-regime turns for an engaged user, which crowned joy the
+        # dominant emotion over whatever the appraisal reported.
         if (
-            last_appraisal
+            joy_pulse_enabled
+            and last_appraisal
             and last_appraisal.get("quality", 0) > 0.7
             and drive_engagement > 0.7
             and _existing("joy") < 0.50

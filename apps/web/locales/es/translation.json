@@ -642,7 +642,14 @@
       "retry_button": "Reintentar",
       "retry_failed": "No se pudo obtener tu posición. Verifica que el GPS esté activado.",
       "detection": {
-        "keywords": ["alrededores", "cercanias", "proximidad", "vecindario", "zona", "domicilio"],
+        "keywords": [
+          "alrededores",
+          "cercanias",
+          "proximidad",
+          "vecindario",
+          "zona",
+          "domicilio"
+        ],
         "patterns": [
           "cerca de (aqu[ií]|m[ií])",
           "a mi alrededor",
@@ -3117,6 +3124,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_25_14": {
+          "title": "v1.25.14 — 🧠 Cimientos para estados de ánimo más naturales",
+          "date": "Julio de 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧠 El motor de estados de ánimo, por fin medido</b> — una auditoría profunda reveló por qué los estados suaves de la asistente (tierna, melancólica, serena…) casi nunca aparecían: su punto de reposo estaba estructuralmente bloqueado del lado asertivo. Dos nuevos ajustes preparan la corrección (recentrado + eliminación de un refuerzo artificial de « alegría ») — <b>nada cambia por defecto</b>: tu admin los activa solo tras medir.",
+            "i2": "<b>📏 Un instrumento de medición para admins</b> — un nuevo script de solo lectura reproduce la batería de calidad de los estados de ánimo sobre el uso real (estados visitados, variedad, emociones dominantes): las decisiones de activación se apoyan en cifras, comparables antes/después.",
+            "i3": "<b>🛡️ Guardas antirregresión</b> — las propiedades deseadas de los estados de ánimo ahora están garantizadas por tests automáticos (puntos de reposo congelados, oráculo de alcanzabilidad): un cambio futuro ya no puede volver a bloquear la paleta en silencio."
+          }
+        },
         "v1_25_13": {
           "title": "v1.25.13 — 🔗 LIA conecta sus dominios: compromisos, automatizaciones, tus documentos",
           "date": "Julio 2026",
