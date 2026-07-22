@@ -205,6 +205,13 @@ class FakeStreamingService:
         # initializes it empty and fills it per turn — the fake must carry it
         # or `_archive_assistant_message` dies on AttributeError.
         self.persistable_widgets: dict[str, dict[str, Any]] = {}
+        # Production contract (ADR-133 V2): the archive path snapshots the
+        # execution-trace capture from this attribute — same rationale as
+        # persistable_widgets above. A real (cheap, dependency-free)
+        # TraceCapture keeps the fake honest about the snapshot() contract.
+        from src.domains.agents.services.streaming.trace_capture import TraceCapture
+
+        self.trace_capture = TraceCapture(max_steps=100)
         FakeStreamingService.instances.append(self)
 
     async def stream_sse_chunks(self, graph_stream, conversation_id, run_id):

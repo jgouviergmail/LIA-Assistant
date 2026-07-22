@@ -196,6 +196,23 @@ describe('chatReducer — STREAM_DONE', () => {
     expect(next.messages[0].metadata?.psyche_state).toEqual(fullMetadata.psyche_state);
     // A NORMAL done never marks the bubble as interrupted (ADR-117 Lot 3)
     expect(next.messages[0].metadata?.interrupted).toBeUndefined();
+    // No archived id in the metadata → no feedback target on the live bubble
+    expect(next.messages[0].metadata?.message_db_id).toBeUndefined();
+  });
+
+  it('carries the archived DB id onto the live bubble (QW-5, ADR-138)', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: {
+        messageId: 'a-1',
+        metadata: { ...fullMetadata, archived_message_id: 'db-uuid-1' },
+      },
+    });
+
+    // The feedback buttons target the archived row through this id.
+    expect(next.messages[0].metadata?.message_db_id).toBe('db-uuid-1');
   });
 
   it('flags the partial bubble as interrupted on a cancelled done (ADR-117 Lot 3)', () => {

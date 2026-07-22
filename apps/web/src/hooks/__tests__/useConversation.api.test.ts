@@ -221,6 +221,100 @@ describe('useConversation — UI message mapping', () => {
   });
 });
 
+describe('useConversation — searchMessages (QW-2)', () => {
+  const SEARCH_ROW = {
+    ...RICH_API_MESSAGE,
+    id: 'm-found',
+    role: 'assistant' as const,
+    content: 'la réunion de mardi',
+  };
+
+  it('queries the endpoint with the term and returns raw DESC rows', async () => {
+    h.get.mockImplementation(async (url: string, config?: { params?: object }) => {
+      if (url === '/conversations/me') return META;
+      if (url === '/conversations/me/messages') {
+        expect(config?.params).toMatchObject({ search: 'réunion' });
+        expect(config?.params).not.toHaveProperty('before');
+        return { messages: [SEARCH_ROW], has_more: true, next_cursor: '2026-01-01T00:00:00Z' };
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+    const { result } = renderHook(() => useConversation());
+
+    let page!: Awaited<ReturnType<typeof result.current.searchMessages>>;
+    await act(async () => {
+      page = await result.current.searchMessages('réunion');
+    });
+
+    // Raw API order (newest first) — the results panel renders a dated list.
+    expect(page.rows.map(r => r.id)).toEqual(['m-found']);
+    expect(page.hasMore).toBe(true);
+    expect(page.nextCursor).toBe('2026-01-01T00:00:00Z');
+  });
+
+  it('passes the keyset cursor on follow-up pages', async () => {
+    h.get.mockImplementation(async (url: string, config?: { params?: object }) => {
+      if (url === '/conversations/me') return META;
+      expect(config?.params).toMatchObject({ search: 'réunion', before: 'cursor-1' });
+      return { messages: [], has_more: false, next_cursor: null };
+    });
+    const { result } = renderHook(() => useConversation());
+
+    let page!: Awaited<ReturnType<typeof result.current.searchMessages>>;
+    await act(async () => {
+      page = await result.current.searchMessages('réunion', 'cursor-1');
+    });
+
+    expect(page).toEqual({ rows: [], hasMore: false, nextCursor: null });
+  });
+
+  it('resolves an empty page on 404 (no conversation yet)', async () => {
+    h.get.mockImplementation(async (url: string) => {
+      if (url === '/conversations/me') return META;
+      throw http404();
+    });
+    const { result } = renderHook(() => useConversation());
+
+    let page!: Awaited<ReturnType<typeof result.current.searchMessages>>;
+    await act(async () => {
+      page = await result.current.searchMessages('réunion');
+    });
+
+    expect(page).toEqual({ rows: [], hasMore: false, nextCursor: null });
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('rethrows transport errors after logging (the caller owns the error state)', async () => {
+    h.get.mockImplementation(async (url: string) => {
+      if (url === '/conversations/me') return META;
+      throw new Error('500 internal');
+    });
+    const { result } = renderHook(() => useConversation());
+
+    await act(async () => {
+      await expect(result.current.searchMessages('réunion')).rejects.toThrow('500 internal');
+    });
+    expect(logger.error).toHaveBeenCalledWith(
+      'conversation_search_failed',
+      expect.any(Error),
+      expect.any(Object)
+    );
+  });
+
+  it('returns an empty page without any API call when no user is authenticated', async () => {
+    h.user = null;
+    const { result } = renderHook(() => useConversation());
+
+    let page!: Awaited<ReturnType<typeof result.current.searchMessages>>;
+    await act(async () => {
+      page = await result.current.searchMessages('réunion');
+    });
+
+    expect(page).toEqual({ rows: [], hasMore: false, nextCursor: null });
+    expect(h.get).not.toHaveBeenCalled();
+  });
+});
+
 describe('useConversation — page fetch error paths', () => {
   it('returns an empty page on 404 (new user, no conversation yet)', async () => {
     h.get.mockImplementation(async (url: string) => {
