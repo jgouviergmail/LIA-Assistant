@@ -391,7 +391,9 @@ def _setup_response_node_patches(stack):
     mock_get_llm.return_value = Mock()
 
     # Background scheduling -> no-op (prevents real asyncio task creation).
-    stack.enter_context(patch("src.domains.agents.nodes.response_node.safe_fire_and_forget"))
+    stack.enter_context(
+        patch("src.domains.agents.nodes.post_response_extractions.safe_fire_and_forget")
+    )
     # Memory injection -> avoid semantic-memory store / DB access.
     # (moved to services/response_context.py — patch its module-level import)
     stack.enter_context(
@@ -421,13 +423,13 @@ def _setup_response_node_patches(stack):
     return {
         "memory": stack.enter_context(
             patch(
-                "src.domains.agents.nodes.response_node.extract_memories_background",
+                "src.domains.agents.nodes.post_response_extractions.extract_memories_background",
                 new_callable=Mock,
             )
         ),
         "interest": stack.enter_context(
             patch(
-                "src.domains.agents.nodes.response_node.extract_interests_background",
+                "src.domains.agents.nodes.post_response_extractions.extract_interests_background",
                 new_callable=Mock,
             )
         ),

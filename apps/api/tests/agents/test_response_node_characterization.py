@@ -82,7 +82,9 @@ def _patch_collaborators(
     mock_get_prompt.return_value = "system"
     mock_get_llm.return_value = Mock()
 
-    stack.enter_context(patch(f"{_RESP}.safe_fire_and_forget"))
+    stack.enter_context(
+        patch("src.domains.agents.nodes.post_response_extractions.safe_fire_and_forget")
+    )
     stack.enter_context(
         patch(
             "src.domains.agents.services.response_context.build_psychological_profile",
