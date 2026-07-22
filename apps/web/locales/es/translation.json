@@ -642,14 +642,7 @@
       "retry_button": "Reintentar",
       "retry_failed": "No se pudo obtener tu posición. Verifica que el GPS esté activado.",
       "detection": {
-        "keywords": [
-          "alrededores",
-          "cercanias",
-          "proximidad",
-          "vecindario",
-          "zona",
-          "domicilio"
-        ],
+        "keywords": ["alrededores", "cercanias", "proximidad", "vecindario", "zona", "domicilio"],
         "patterns": [
           "cerca de (aqu[ií]|m[ií])",
           "a mi alrededor",
@@ -3124,6 +3117,17 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_25_15": {
+          "title": "v1.25.15 — 📱 Una portada impecable en el móvil",
+          "date": "Julio 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>📱 La página de inicio por fin se ve perfecta en el teléfono</b> — se acabaron los textos y botones cortados, y el diseño ya no se mueve durante la animación de demostración. Una prueba automática reproduce ahora todo el ciclo de animación en cada versión para que no vuelva a ocurrir.",
+            "i2": "<b>❓ FAQ pública rediseñada</b> — búsqueda instantánea, navegación por secciones y 51 preguntas en lugar de 13 (conectores, llamadas telefónicas, modo de voz, generación de imágenes, privacidad). La respuesta «¿Qué puedo pedirle a LIA?» está reorganizada en 12 dominios desplegables — el mismo contenido, por fin legible.",
+            "i3": "<b>🎬 La animación de demostración tiene su propia página</b> — /demo, sin menús ni distracciones, lista para compartir en redes sociales en los 6 idiomas.",
+            "i4": "<b>♿ Accesibilidad verificada</b> — las páginas públicas superan la auditoría de accesibilidad (contraste incluido), en tema claro y oscuro."
+          }
+        },
         "v1_25_14": {
           "title": "v1.25.14 — 🧠 Cimientos para estados de ánimo más naturales",
           "date": "Julio de 2026",

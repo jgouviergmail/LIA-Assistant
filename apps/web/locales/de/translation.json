@@ -642,14 +642,7 @@
       "retry_button": "Erneut versuchen",
       "retry_failed": "Ihre Position konnte nicht abgerufen werden. Überprüfen Sie, ob GPS aktiviert ist.",
       "detection": {
-        "keywords": [
-          "nahe",
-          "umgebung",
-          "gegend",
-          "nachbarschaft",
-          "viertel",
-          "zuhause"
-        ],
+        "keywords": ["nahe", "umgebung", "gegend", "nachbarschaft", "viertel", "zuhause"],
         "patterns": [
           "in der n[aä]he",
           "um mich herum",
@@ -3124,6 +3117,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_15": {
+          "title": "v1.25.15 — 📱 Eine Startseite, die aufs Handy passt",
+          "date": "Juli 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>📱 Die Startseite sitzt endlich perfekt auf dem Handy</b> — keine abgeschnittenen Texte oder Buttons mehr, und das Layout springt während der Demo-Animation nicht mehr. Ein automatischer Test spielt jetzt bei jedem Release den gesamten Animationszyklus durch, damit das nie wieder passiert.",
+            "i2": "<b>❓ Öffentliche FAQ neu gestaltet</b> — Sofortsuche, Navigation nach Bereichen und 51 statt 13 Fragen (Konnektoren, Telefonanrufe, Sprachmodus, Bildgenerierung, Datenschutz). Die Antwort „Was kann ich LIA fragen?“ ist in 12 aufklappbare Bereiche gegliedert — gleicher Inhalt, endlich lesbar.",
+            "i3": "<b>🎬 Die Demo-Animation hat ihre eigene Seite</b> — /demo, ohne Menüs und Ablenkung, bereit zum Teilen in sozialen Netzwerken in allen 6 Sprachen.",
+            "i4": "<b>♿ Barrierefreiheit geprüft</b> — die öffentlichen Seiten bestehen das Accessibility-Audit (inklusive Kontrast), im hellen wie im dunklen Design."
+          }
+        },
         "v1_25_14": {
           "title": "v1.25.14 — 🧠 Fundament für natürlichere Stimmungen",
           "date": "Juli 2026",

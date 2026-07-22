@@ -4,7 +4,7 @@
 > that orchestrates 19+ specialized AI agents to manage daily productivity — emails, calendar,
 > contacts, files, tasks, smart home and more — with systematic human validation (HITL) of every
 > sensitive action. Nearly 100% of its code was written by an AI under human direction; the method
-> and a measured 8.0/10 technical audit are documented at /story.
+> and a measured 8.3/10 technical audit are documented at /story.
 
 ## Key Features
 
@@ -38,9 +38,9 @@
 - **Frontend**: Next.js 16 / React 19 / TypeScript strict / TailwindCSS
 - **Orchestration**: LangGraph 1.x state machine — conditional routing, parallel execution waves, PostgreSQL checkpointing
 - **Database**: PostgreSQL 16 + pgvector (state, vectors) + Redis (cache, rate limiting, sessions)
-- **Observability**: 394 Prometheus metrics, 22 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
+- **Observability**: 428 Prometheus metrics, 25 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
 - **Security**: OAuth 2.1 with PKCE, BFF pattern (HTTP-only cookies), Fernet encryption, PII filtering, GDPR compliant
-- **Engineering**: 10,000+ automated tests, 100+ Architecture Decision Records, 120+ releases, 360° technical audit (8.0/10)
+- **Engineering**: 15,000+ automated tests, 140+ Architecture Decision Records, 160+ releases, 360° technical audit (8.3/10)
 - **Self-hosting**: multi-arch Docker images (amd64/arm64) — runs in production on a Raspberry Pi 5
 
 ## How It Works
@@ -62,8 +62,9 @@
 
 - [Landing Page](https://lia.jeyswork.com)
 - [Story — how LIA was built by an AI under human direction](https://lia.jeyswork.com/story)
-- [Blog](https://lia.jeyswork.com/blog) — 28 technical articles about architecture, integrations, features, security, and engineering
+- [Blog](https://lia.jeyswork.com/blog) — 31 technical articles about architecture, integrations, features, security, and engineering
 - [FAQ](https://lia.jeyswork.com/faq)
+- [Live demo animation](https://lia.jeyswork.com/demo)
 - [Technical deep dive](https://lia.jeyswork.com/how)
 - [Philosophy](https://lia.jeyswork.com/why)
 - [GitHub](https://github.com/jgouviergmail/LIA-Assistant)

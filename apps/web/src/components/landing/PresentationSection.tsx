@@ -87,8 +87,9 @@ export function PresentationSection({ embedded = false }: { embedded?: boolean }
       </div>
 
       {/* Dot indicators (mobile) — 24px hit-area (WCAG 2.5.8) with a small
-              visual dot inside; keyboard focus is visible (WCAG 2.4.7). */}
-      <div className="flex justify-center gap-1 mt-4 mobile:hidden">
+              visual dot inside; keyboard focus is visible (WCAG 2.4.7).
+              flex-wrap: 15 dots × 24px exceed narrow viewports (WCAG reflow). */}
+      <div className="flex flex-wrap justify-center gap-1 mt-4 mobile:hidden">
         {SLIDES.map((slide, i) => (
           <button
             key={slide.index}

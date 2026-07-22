@@ -39,8 +39,10 @@ export function ChapterSection({
       )}
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        {/* min-w-0 on both grid items: a chip row's or truncated pill's
+            intrinsic width must never widen the track past the viewport */}
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-          <FadeInOnScroll className={cn(reverse && 'lg:order-2')}>
+          <FadeInOnScroll className={cn('min-w-0', reverse && 'lg:order-2')}>
             {/* Signature: the chapter opens with LIA's voice */}
             <div className="mb-5 flex items-start gap-2.5" aria-hidden="true">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-base leading-none">
@@ -78,7 +80,7 @@ export function ChapterSection({
             </p>
           </FadeInOnScroll>
 
-          <ScrollStage className={cn(reverse && 'lg:order-1')}>
+          <ScrollStage className={cn('min-w-0', reverse && 'lg:order-1')}>
             <div aria-hidden="true">{visual}</div>
           </ScrollStage>
         </div>

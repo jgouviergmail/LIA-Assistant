@@ -34,9 +34,13 @@ so a leaking request is a loud, visible failure — never a silent real hit.
 
 ```
 smoke/  public + authenticated user journeys (login, dashboard, chat, admin)
+        + the landing mobile-overflow guard (375 px across the full hero
+        animation cycle via the Playwright clock, per-section, 320 px reflow)
 a11y/   axe WCAG 2.x A/AA scans — smoke pages + journeys (chat, settings,
-        spaces, admin), reflow 320 CSS px and 200 % zoom. color-contrast is
-        BLOCKING (AC-002); per-node reports are archived as attachments.
+        spaces, admin), public pages /faq + /demo in light AND dark (the
+        theme is localStorage-driven, OS-scheme emulation does nothing),
+        reflow 320 CSS px and 200 % zoom. color-contrast is BLOCKING
+        (AC-002); per-node reports are archived as attachments.
 ```
 
 PR scope is **Chromium** for speed. The same suite replays weekly on

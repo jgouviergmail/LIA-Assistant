@@ -48,7 +48,7 @@ export function Backstage({ label, cost, costLabel, children }: BackstageProps) 
 /** The user request, condensed into a pill at the top of the figure. */
 export function BsQuery({ text }: { text: string }) {
   return (
-    <span className="max-w-[92%] truncate rounded-full border border-border bg-card px-3 py-0.5 text-[10px] text-foreground animate-chip-pop">
+    <span className="min-w-0 max-w-[92%] truncate rounded-full border border-border bg-card px-3 py-0.5 text-[10px] text-foreground animate-chip-pop">
       {text}
     </span>
   );
@@ -89,7 +89,7 @@ export function BsChip({ label, sub, state }: { label: string; sub: string; stat
   return (
     <span
       className={cn(
-        'relative block flex-1 max-w-[124px] rounded-lg border bg-card px-1.5 py-1 text-center animate-chip-pop',
+        'relative block min-w-0 flex-1 max-w-[124px] rounded-lg border bg-card px-1.5 py-1 text-center animate-chip-pop',
         state === 'done' ? 'border-green-500/40' : 'border-primary ring-2 ring-primary/15'
       )}
     >

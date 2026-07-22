@@ -3138,6 +3138,17 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_15": {
+          "title": "v1.25.15 — 📱 Vitrine impeccable sur mobile",
+          "date": "Juillet 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>📱 La page d'accueil enfin parfaite sur téléphone</b> — plus aucun texte ni bouton coupé, et la mise en page ne bouge plus pendant l'animation de démonstration. Un test automatique rejoue désormais tout le cycle d'animation à chaque livraison pour que ça ne revienne jamais.",
+            "i2": "<b>❓ FAQ publique repensée</b> — recherche instantanée, navigation par sections, et 51 questions au lieu de 13 (connecteurs, appels téléphoniques, mode vocal, génération d'images, confidentialité). La réponse « Que puis-je demander à LIA ? » est réorganisée en 12 domaines dépliables — même contenu, enfin lisible.",
+            "i3": "<b>🎬 L'animation de démonstration a sa propre page</b> — /demo, sans menus ni distraction, prête à être partagée sur les réseaux sociaux dans les 6 langues.",
+            "i4": "<b>♿ Accessibilité vérifiée</b> — les pages publiques passent l'audit d'accessibilité (contraste compris), en thème clair comme en sombre."
+          }
+        },
         "v1_25_14": {
           "title": "v1.25.14 — 🧠 Fondations pour des humeurs plus naturelles",
           "date": "Juillet 2026",

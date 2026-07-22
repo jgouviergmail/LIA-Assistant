@@ -53,10 +53,12 @@ export async function HeroSection({ lng }: HeroSectionProps) {
 
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20">
         <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-16 items-center">
-          {/* Copy column */}
-          <div className="text-center lg:text-left">
-            {/* Badges */}
-            <div className="flex items-center gap-3 justify-center lg:justify-start mb-6">
+          {/* Copy column — min-w-0 so no child's intrinsic width can widen the
+              grid track past the viewport on mobile */}
+          <div className="min-w-0 text-center lg:text-left">
+            {/* Badges — wrap allowed: the nowrap version pill drops to its own
+                line on narrow screens instead of inflating the column */}
+            <div className="flex flex-wrap items-center gap-3 justify-center lg:justify-start mb-6">
               <Badge
                 pulse
                 variant="destructive"
@@ -79,7 +81,7 @@ export async function HeroSection({ lng }: HeroSectionProps) {
             </div>
 
             {/* Tagline */}
-            <h1 className="text-5xl mobile:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6">
+            <h1 className="text-4xl sm:text-5xl mobile:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6">
               <span className="block">{t('landing.hero.title_line1')}</span>
               <span className="block">
                 {t('landing.hero.title_line2_before')}
@@ -91,17 +93,15 @@ export async function HeroSection({ lng }: HeroSectionProps) {
               <span className="block">{t('landing.hero.title_line3')}</span>
             </h1>
 
-            {/* Subtitle — whitespace-pre-line renders the sentence break (\n)
-                in subtitle_top; sizes tuned so each sentence holds one line
-                on desktop */}
-            <p className="text-base mobile:text-lg font-semibold text-foreground/90 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-3 whitespace-pre-line">
+            {/* Subtitle — the sentence break (\n in subtitle_top) and the <br>
+                breaks only apply from the `mobile` breakpoint up: on phones
+                the text flows naturally instead of leaving orphan words */}
+            <p className="text-base mobile:text-lg font-semibold text-foreground/90 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-3 whitespace-normal mobile:whitespace-pre-line">
               {t('landing.hero.subtitle_top')}
             </p>
             <p className="text-sm mobile:text-base text-foreground/80 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-8">
-              {t('landing.hero.subtitle_line1')}
-              <br />
-              {t('landing.hero.subtitle_line2')}
-              <br />
+              {t('landing.hero.subtitle_line1')} <br className="hidden mobile:inline" />
+              {t('landing.hero.subtitle_line2')} <br className="hidden mobile:inline" />
               {t('landing.hero.subtitle_line3')}
             </p>
 
@@ -132,8 +132,9 @@ export async function HeroSection({ lng }: HeroSectionProps) {
             </div>
           </div>
 
-          {/* Live conversation column */}
-          <div className="w-full">
+          {/* Live conversation column — min-w-0: the mockup's animated
+              content must never dictate the track width (layout jumps) */}
+          <div className="w-full min-w-0">
             <ChatMockup />
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 > Architecture, composants, i18n, SEO et patterns de la vitrine publique de LIA.
 >
-> Derniere revision : refonte editoriale « la page parle comme le produit » (hero anime 4 actes + recit en 5 chapitres, catalogues depliables, bande transparence, journees par profil).
+> Derniere revision : durcissement responsive mobile (doctrine min-w-0 + garde overflow e2e sur le cycle d'animation), refonte de la FAQ publique (recherche, 6 sections, reponses groupees), page /demo partageable + export MP4, garde axe clair/sombre des pages publiques — au-dessus de la refonte editoriale « la page parle comme le produit » (hero anime 4 actes + recit en 5 chapitres, catalogues depliables, bande transparence, journees par profil).
 
 ---
 
@@ -135,6 +135,9 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 | **Parite i18n globale** | `scripts/i18n/validate_translations.py` (hook pre-commit) | Toute divergence de cles entre les 6 locales. |
 | **Contrat hero** | `landing/__tests__/ChatMockup.test.tsx` + `mockup/__tests__/scenarios.test.ts` | Timelines mal formees, cles du mockup manquantes, regression reduced-motion. |
 | **Routes publiques** | `src/lib/__tests__/api-client.public-routes.test.ts` | Ejection des visiteurs anonymes vers /login. |
+| **Overflow mobile** | `e2e/smoke/landing-mobile-overflow.spec.ts` | Le retour du debordement horizontal : a 375 px, aucun element en flux ne depasse le bord droit — statiquement, **a chaque battement du cycle d'animation du hero** (horloge Playwright, ~79 s virtuelles : l'oscillation 381↔448 px de 2026-07 etait invisible en capture statique) et apres scroll de chaque section ; passe reflow 320 px (WCAG 1.4.10). |
+| **Contenu FAQ groupee** | `src/lib/__tests__/faq-answer-groups.test.ts` | La perte d'un mot lors du regroupement visuel de la reponse « Que puis-je demander ? » : egalite mot-a-mot prouvee sur les 6 locales reelles + repli tel-quel (zh a une q4 differente). |
+| **Axe pages publiques** | `e2e/a11y/axe-public-pages.spec.ts` | Violations critical/serious (contraste inclus) sur `/faq` (reponse groupee ouverte) et `/demo`, en clair ET en sombre — le theme etant pilote par localStorage (`defaultTheme="light"`), emuler le scheme OS ne suffit pas. |
 
 ---
 
@@ -163,13 +166,43 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 
 ## 8. Pages publiques et garde 401
 
-Inchange — `PUBLIC_ROUTE_SEGMENTS` + test invariant `api-client.public-routes.test.ts` (voir historique v1.21.17).
+`PUBLIC_ROUTE_SEGMENTS` + test invariant `api-client.public-routes.test.ts` (voir historique v1.21.17). Le test de
+completude scanne `app/[lng]` : **toute nouvelle page publique doit etre ajoutee au tableau** (dernier ajout : `demo`).
+
+### `/demo` — l'animation du hero en URL partageable
+
+`app/[lng]/demo/page.tsx` rend le `ChatMockup` seul (fond ambiant du hero, ni header, ni footer, ni `AuthRedirect`) —
+concu pour etre poste sur les reseaux sociaux et integre dans des publications. Metadonnees dediees (hreflang ×6,
+canonical, OG) **sans nouvelle cle i18n** : le titre reutilise `landing.meta.title`, la description reutilise
+`landing.chat_mockup.aria`. Un partage social affiche la carte OG statique ; pour l'animation dans le fil, generer un
+MP4 depuis cette page. PIEGE Playwright : si `recordVideo.size` differe du viewport, le rescale produit une video
+ecrasee horizontalement avec bande grise — enregistrer avec **viewport = recordVideo.size = 1080×1350** (dsf 1), le
+contenu agrandi via `transform: scale(2.2)` sur `main > div.w-full` (un zoom body casse le centrage flex), overlay
+`nextjs-portal` masque ; puis ffmpeg H.264 (`-ss 1.6 -t 79.2 -crf 20 -pix_fmt yuv420p`). Toujours verifier en
+extrayant des frames du MP4 final (`ffmpeg -ss N -vframes 1`), jamais ffprobe seul. Artefacts locaux sous `exports/`,
+gitignore.
+
+### FAQ publique (`/faq`)
+
+Refonte 2026-07 au langage visuel de la landing : `PublicFAQContent` (client) — recherche accent-insensible
+(`lib/faq-search.ts`, helpers partages avec la FAQ du dashboard), rail de chips d'ancres par section, en-tetes de
+section iconises (`components/faq/faq-sections.ts`, registre partage `FAQ_SECTION_ICONS` + `PUBLIC_FAQ_SECTIONS` — 6
+sections orientees prospect), accordeons `<details>` natifs, reponses en typographie `prose`. La reponse-fleuve « Que
+puis-je demander ? » (~10 k chars) est regroupee **visuellement** en sous-accordeons par domaine via
+`lib/faq-answer-groups.ts` — les fichiers de traduction restent intacts (garde de preservation §5).
 
 ---
 
 ## 9. Responsive, theming
 
 - Breakpoints : grilles en `sm:`/`lg:` (rem) ; `mobile:` (px) reserve aux bascules d'affichage — piege documente.
+- **Doctrine largeur intrinseque (post-mortem 2026-07)** : un item de grid/flex a `min-width: auto` — une rangee de
+  chips sans wrap, un `truncate`/`whitespace-nowrap` sans `min-w-0` dans la chaine, gonflent la piste au-dela du
+  viewport mobile (hero coupe a 381-448 px, chapitre 01 a 412 px ; `html` en `overflow-x: hidden` = contenu **coupe
+  en silence**, pas de scrollbar). Regle : `min-w-0` sur les items des grilles 2-colonnes (hero, `ChapterSection`),
+  `min-w-0` sur tout element `truncate` en contexte flex (input du mockup, pilules requete, chips backstage/vignettes),
+  `flex-wrap` sur les rangees a effectif variable (badges hero, points des carrousels). Garde executable : le spec
+  overflow du §5.
 - Chapitres : colonne unique mobile (texte puis visuel), 2 colonnes des `lg:` ; frise DayTimeline verticale mobile
   (ligne + puces), horizontale des `md:` ; rail chapitres `xl:` uniquement ; onglets wrap.
 - Theming : classes semantiques OKLCH du design system, variantes `dark:` ponctuelles (bulles, vignettes).

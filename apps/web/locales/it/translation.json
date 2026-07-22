@@ -642,14 +642,7 @@
       "retry_button": "Riprova",
       "retry_failed": "Impossibile recuperare la tua posizione. Verifica che il GPS sia attivato.",
       "detection": {
-        "keywords": [
-          "vicinanze",
-          "dintorni",
-          "zona",
-          "quartiere",
-          "prossimita",
-          "domicilio"
-        ],
+        "keywords": ["vicinanze", "dintorni", "zona", "quartiere", "prossimita", "domicilio"],
         "patterns": [
           "(nelle|in) vicinanz[ae]",
           "intorno a me",
@@ -3126,6 +3119,17 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_25_15": {
+          "title": "v1.25.15 — 📱 Una vetrina impeccabile sul telefono",
+          "date": "Luglio 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>📱 La pagina iniziale è finalmente perfetta sul telefono</b> — niente più testi o pulsanti tagliati, e il layout non si sposta più durante l'animazione dimostrativa. Un test automatico ripercorre ora l'intero ciclo di animazione a ogni rilascio, perché non accada mai più.",
+            "i2": "<b>❓ FAQ pubblica ridisegnata</b> — ricerca istantanea, navigazione per sezioni e 51 domande invece di 13 (connettori, chiamate telefoniche, modalità vocale, generazione di immagini, privacy). La risposta “Cosa posso chiedere a LIA?” è riorganizzata in 12 ambiti espandibili — stesso contenuto, finalmente leggibile.",
+            "i3": "<b>🎬 L'animazione dimostrativa ha la sua pagina</b> — /demo, senza menu né distrazioni, pronta da condividere sui social nelle 6 lingue.",
+            "i4": "<b>♿ Accessibilità verificata</b> — le pagine pubbliche superano l'audit di accessibilità (contrasto incluso), in tema chiaro e scuro."
+          }
+        },
         "v1_25_14": {
           "title": "v1.25.14 — 🧠 Fondamenta per umori più naturali",
           "date": "Luglio 2026",

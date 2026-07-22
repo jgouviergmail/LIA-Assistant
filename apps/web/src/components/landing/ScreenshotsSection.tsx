@@ -101,8 +101,9 @@ export function ScreenshotsSection({ embedded = false }: { embedded?: boolean } 
       </div>
 
       {/* Dot indicators (mobile) — 24px hit-area (WCAG 2.5.8) with a small
-              visual dot inside; keyboard focus is visible (WCAG 2.4.7). */}
-      <div className="flex justify-center gap-1 mt-4 mobile:hidden">
+              visual dot inside; keyboard focus is visible (WCAG 2.4.7).
+              flex-wrap: 12 dots × 24px exceed a 320px viewport (WCAG reflow). */}
+      <div className="flex flex-wrap justify-center gap-1 mt-4 mobile:hidden">
         {SCREENSHOTS.map((screenshot, i) => (
           <button
             key={screenshot.key}

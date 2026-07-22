@@ -11,17 +11,13 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { normalizeSearchText } from '@/lib/utils';
+import { highlightText, stripHtml } from '@/lib/faq-search';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { FAQ_SECTION_ICONS } from './faq-sections';
 import {
-  MessageSquare,
-  Settings,
-  Shield,
   Zap,
   HelpCircle,
-  Globe,
-  Mail,
-  Cloud,
   Search,
   X,
   Network,
@@ -34,7 +30,6 @@ import {
   ListChecks,
   ChevronDown,
   ChevronUp,
-  Bell,
   DollarSign,
   Sparkles,
   Boxes,
@@ -46,7 +41,6 @@ import {
   Palette,
   Radio,
   HeartPulse,
-  Mic,
   Globe2,
   Newspaper,
   RefreshCw,
@@ -63,7 +57,6 @@ import {
   History,
   Sunrise,
   PhoneCall,
-  Gauge,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -80,31 +73,6 @@ interface FAQQuestion {
   question: string;
   answer: string;
 }
-
-const sectionIcons = {
-  getting_started: Zap,
-  chat: MessageSquare,
-  settings: Settings,
-  connectors: Globe,
-  telephony: PhoneCall,
-  tool_examples_services: Mail,
-  tool_examples_external: Cloud,
-  rappels: Bell,
-  interests: Sparkles,
-  heartbeat: Activity,
-  scheduled_actions: CalendarClock,
-  mcp_servers: Plug,
-  skills: Blocks,
-  sub_agents: Bot,
-  rag_spaces: Library,
-  voice_mode: Mic,
-  image_generation: ImageIcon,
-  journals: BookOpen,
-  health_metrics: HeartPulse,
-  usage_limits: Gauge,
-  privacy: Shield,
-  other: HelpCircle,
-};
 
 const sections = [
   'getting_started',
@@ -131,119 +99,6 @@ const sections = [
   'other',
 ];
 
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
- * Highlight search query matches in text content (accent-insensitive).
- * XSS Protection: User query is escaped before being used in the highlight regex.
- * The text content (from translations) contains safe HTML and is NOT escaped.
- *
- * This function finds matches using normalized (accent-stripped) text but
- * highlights the original characters in the source text.
- */
-function highlightText(text: string, query: string): string {
-  if (!query.trim()) return text;
-
-  const normalizedQuery = normalizeSearchText(query.trim());
-  if (!normalizedQuery) return text;
-
-  // For text with HTML, we need to only highlight text nodes, not tags
-  // Split by HTML tags, highlight text parts, then rejoin
-  const parts = text.split(/(<[^>]*>)/);
-
-  return parts
-    .map(part => {
-      // Skip HTML tags
-      if (part.startsWith('<') && part.endsWith('>')) {
-        return part;
-      }
-      // Highlight text content
-      return highlightTextContent(part, normalizedQuery);
-    })
-    .join('');
-}
-
-/**
- * Highlight matches in plain text (no HTML tags).
- * Maps normalized positions back to original text positions.
- */
-function highlightTextContent(text: string, normalizedQuery: string): string {
-  if (!text) return text;
-
-  const normalizedText = normalizeSearchText(text);
-
-  // Find all match positions in normalized text
-  const escapedQuery = normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(escapedQuery, 'gi');
-
-  const matches: Array<{ start: number; end: number }> = [];
-  let match;
-  while ((match = regex.exec(normalizedText)) !== null) {
-    matches.push({ start: match.index, end: match.index + match[0].length });
-  }
-
-  if (matches.length === 0) return text;
-
-  // Build mapping from original char index to normalized char index
-  // NFD normalization: é (1 char) → e + ́ (2 chars), then we remove diacritics
-  const originalToNormalized: number[] = [];
-  let normalizedPos = 0;
-
-  for (let i = 0; i < text.length; i++) {
-    originalToNormalized.push(normalizedPos);
-    const char = text[i].toLowerCase();
-    const nfdChar = char.normalize('NFD');
-    // Count base characters (non-combining marks) after NFD
-    const baseChars = nfdChar.replace(/[\u0300-\u036f]/g, '').length;
-    normalizedPos += baseChars;
-  }
-  originalToNormalized.push(normalizedPos); // End sentinel
-
-  // Map normalized match positions to original positions
-  const originalMatches: Array<{ start: number; end: number }> = [];
-
-  for (const m of matches) {
-    let origStart = 0;
-    let origEnd = text.length;
-
-    // Find original start: first i where normalizedPos[i] <= m.start < normalizedPos[i+1]
-    for (let i = 0; i < text.length; i++) {
-      if (originalToNormalized[i] <= m.start && originalToNormalized[i + 1] > m.start) {
-        origStart = i;
-        break;
-      }
-    }
-
-    // Find original end: first i where normalizedPos[i] >= m.end
-    for (let i = origStart; i <= text.length; i++) {
-      if (originalToNormalized[i] >= m.end) {
-        origEnd = i;
-        break;
-      }
-    }
-
-    originalMatches.push({ start: origStart, end: origEnd });
-  }
-
-  // Build highlighted string (don't escape - content is from safe translations)
-  let result = '';
-  let lastEnd = 0;
-
-  for (const m of originalMatches) {
-    result += text.slice(lastEnd, m.start);
-    result += `<mark class="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">${text.slice(m.start, m.end)}</mark>`;
-    lastEnd = m.end;
-  }
-  result += text.slice(lastEnd);
-
-  return result;
-}
-
 /**
  * Versions rendered by the changelog accordion, newest first.
  *
@@ -253,6 +108,7 @@ function highlightTextContent(text: string, normalizedQuery: string): string {
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_25_15',
   'v1_25_14',
   'v1_25_13',
   'v1_25_12',
@@ -694,7 +550,7 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
 
       {/* FAQ Sections */}
       {sections.map(section => {
-        const Icon = sectionIcons[section as keyof typeof sectionIcons];
+        const Icon = FAQ_SECTION_ICONS[section];
         const questionCount = parseInt(t(`faq.sections.${section}.count`));
 
         // If searching, only show sections with matches

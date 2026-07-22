@@ -43,7 +43,7 @@ function PanelLabel({ text }: { text: string }) {
 function QueryPill({ text }: { text: string }) {
   return (
     <span
-      className="max-w-[92%] truncate rounded-full border border-border bg-card px-3.5 py-1 text-xs text-foreground animate-chip-pop"
+      className="min-w-0 max-w-[92%] truncate rounded-full border border-border bg-card px-3.5 py-1 text-xs text-foreground animate-chip-pop"
       style={stage(0)}
     >
       {text}
@@ -93,7 +93,7 @@ function TaskChip({
   return (
     <span
       className={cn(
-        'relative block max-w-[136px] flex-1 rounded-lg border bg-card px-2 py-1.5 text-center animate-chip-pop',
+        'relative block min-w-0 max-w-[136px] flex-1 rounded-lg border bg-card px-2 py-1.5 text-center animate-chip-pop',
         state === 'done' ? 'border-green-500/40' : 'border-primary ring-2 ring-primary/15'
       )}
       style={stage(delayMs)}

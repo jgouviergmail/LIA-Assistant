@@ -663,13 +663,7 @@
       "retry_button": "Retry",
       "retry_failed": "Unable to retrieve your position. Check that GPS is enabled.",
       "detection": {
-        "keywords": [
-          "nearby",
-          "vicinity",
-          "neighborhood",
-          "surroundings",
-          "area"
-        ],
+        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -3133,6 +3127,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_15": {
+          "title": "v1.25.15 — 📱 A showcase that fits your phone",
+          "date": "July 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>📱 The landing page finally looks right on phones</b> — no more clipped text or buttons, and the layout no longer shifts during the demo animation. An automated test now replays the whole animation cycle on every release so it never comes back.",
+            "i2": "<b>❓ Public FAQ redesigned</b> — instant search, section navigation, and 51 questions instead of 13 (connectors, phone calls, voice mode, image generation, privacy). The “What can I ask LIA?” answer is reorganized into 12 expandable domains — same content, finally readable.",
+            "i3": "<b>🎬 The demo animation has its own page</b> — /demo, free of menus and distractions, ready to share on social networks in all 6 languages.",
+            "i4": "<b>♿ Accessibility verified</b> — the public pages pass the accessibility audit (contrast included), in light and dark themes."
+          }
+        },
         "v1_25_14": {
           "title": "v1.25.14 — 🧠 Foundations for more natural moods",
           "date": "July 2026",

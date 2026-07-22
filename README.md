@@ -41,10 +41,9 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.25.14</strong> — <strong>The psyche becomes measurable.</strong> A month after ADR-104 de-saturated the assistant's mood, the promised production re-measurement finally gets its instrument — and the audit that built it found two defects the previous pass could not see. The <strong>dominance axis was structurally off-center</strong>: all 14 personalities (including the one literally named <em>Dépressif</em>) rest on the assertive side, five of the fourteen moods were unreachable at rest, and damping — a homothety — could <em>never</em> recenter them; the fix is a derived translation (<code>PSYCHE_DOMINANCE_CENTER</code>, catalogue mean +0.216 → candidate 0.20). The <strong>proactive joy pulse crowned an emotion the LLM never reported</strong> (55% of ordinary turns — the exact mechanism of the pride pulse ADR-104 removed); it is now gateable. Both knobs <strong>default to today's behavior</strong>: merging changes nothing, and a golden test freezes all 14 resting points at 1e-9 to prove it. <code>measure_psyche.py</code> replays the full ADR-104 battery read-only in prod (its first live run confirmed the lock: 4/14 moods, 100% single-octant, 99.3% emotion stickiness), and a CI reachability oracle turns the desired mood properties into permanent rules. The kindalive project that triggered the investigation was tested mechanism by mechanism and <strong>rejected on measurement</strong> — its lens found the defect; its architecture added nothing. (ADR-142) <strong>12,717 backend</strong> + <strong>2,305 frontend</strong> tests, mypy strict clean, i18n parity ×6, all ratchets hold. — 22 July 2026.
+  <strong>Version 1.25.15</strong> — <strong>The showcase learns to fit in your hand.</strong> The landing page claimed "responsive" while silently clipping itself on phones: the hero cut its own CTAs, the layout <strong>oscillated between 381px and 448px during the animation cycle</strong> (invisible on any static screenshot), and chapter 01 truncated every line at 412px for a 375px viewport. One root cause — flex/grid children whose intrinsic width inflates the track (<code>truncate</code> without <code>min-w-0</code>, chip rows without wrap) under <code>overflow-x: hidden</code> — one doctrine to fix it, and a Playwright guard that replays the <strong>full 79-second animation cycle in virtual time</strong>, asserting the no-overflow invariant at every beat (it immediately caught a fourth bug at the 320px WCAG reflow floor). The public FAQ adopts the landing's visual language — search, icon section rail, <strong>51 questions instead of 13</strong> — and the 10,000-character "What can I ask LIA?" wall becomes twelve per-domain accordions <strong>without touching one translated word</strong> (a presentation-only parser, proven word-for-word equal across all 6 locales). The four-act hero animation gets its own shareable URL (<code>/demo</code>, 6 languages, zero new i18n keys) plus a 1080×1350 MP4 export for social feeds; both redesigned pages pass the axe gate light AND dark, contrast included. <strong>12,717 backend</strong> + <strong>2,324 frontend</strong> tests, tsc clean, all ratchets hold. — 22 July 2026.
 
 </p>
-
 
 ---
 
@@ -75,13 +74,13 @@
 
 **LIA** solves the fundamental problems of today's AI assistants:
 
-| Problem | LIA Solution |
-|---------|---------------------|
-| **Unpredictable LLM costs** | Real-time token tracking, budget alerts, 93% optimization |
-| **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
-| **Fragmented integrations** | Unified multi-domain orchestration (19+ agents + MCP + sub-agents) |
-| **Limited observability** | 425 Prometheus metrics, 25 Grafana dashboards, email alerting with runbooks, GeoIP analytics |
-| **Inconsistent performance** | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring |
+| Problem                         | LIA Solution                                                                                 |
+| ------------------------------- | -------------------------------------------------------------------------------------------- |
+| **Unpredictable LLM costs**     | Real-time token tracking, budget alerts, 93% optimization                                    |
+| **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels                                              |
+| **Fragmented integrations**     | Unified multi-domain orchestration (19+ agents + MCP + sub-agents)                           |
+| **Limited observability**       | 425 Prometheus metrics, 25 Grafana dashboards, email alerting with runbooks, GeoIP analytics |
+| **Inconsistent performance**    | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring        |
 
 ### Primary Use Cases
 
@@ -108,16 +107,16 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 ## Built by an AI, Directed by a Human
 
-> *"Speed comes from the AI. Quality comes from the framework."*
+> _"Speed comes from the AI. Quality comes from the framework."_
 
 Nearly **100% of this codebase was written by an AI**, under human direction: a written
 engineering rulebook, blocking automated checks, systematic review, adversarial audits.
 The result is measured, not proclaimed:
 
-| | | | |
-|---|---|---|---|
-| **32** functional domains | **420,000** lines of code (excl. tests) | **11,900+** automated tests | **120+** ADRs |
-| **156** versions shipped | **6 languages**, parity enforced in CI | **425** Prometheus metrics | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+|                           |                                         |                             |                                                                         |
+| ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
+| **32** functional domains | **420,000** lines of code (excl. tests) | **11,900+** automated tests | **120+** ADRs                                                           |
+| **156** versions shipped  | **6 languages**, parity enforced in CI  | **425** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -227,6 +226,7 @@ The result is measured, not proclaimed:
 ### Voice: Input & Output
 
 **Voice Input (STT)**
+
 - **Push-to-Talk**: Hold microphone button to speak, release to transcribe. Optimized for mobile (anti-long-press CSS, touch gesture handling)
 - **Wake Word**: Say "OK Guy" to activate hands-free recording. Sherpa-onnx WASM (Whisper Tiny.en) runs entirely in-browser — no audio sent externally for wake word detection
 - **Per-User Language**: STT transcription uses the user's preferred language setting (Whisper Small, 99+ languages, fully offline)
@@ -234,13 +234,13 @@ The result is measured, not proclaimed:
 
 **Voice Output (TTS)**
 
-| Provider | Models | Cost | Latency (TTFA) | Notes |
-|----------|--------|------|---------------|-------|
-| Edge TTS (Microsoft Neural) | `edge-tts` | Free | ~250 ms | Multilingual neural voices, free fallback |
-| OpenAI TTS | `tts-1` / `tts-1-hd` | $15 / $30 per 1M chars | ~500 ms | 6 stable voices (alloy, echo, fable, onyx, nova, shimmer) |
-| ElevenLabs TTS | `eleven_multilingual_v2` | $100 / 1M chars | ~300 ms | High-quality multilingual, Voice Library access |
-|              | `eleven_turbo_v2_5` | $50 / 1M chars | ~250 ms | Sweet-spot quality / latency |
-|              | `eleven_flash_v2_5` | $50 / 1M chars | ~75 ms | Ultra-low-latency for conversational agents |
+| Provider                    | Models                   | Cost                   | Latency (TTFA) | Notes                                                     |
+| --------------------------- | ------------------------ | ---------------------- | -------------- | --------------------------------------------------------- |
+| Edge TTS (Microsoft Neural) | `edge-tts`               | Free                   | ~250 ms        | Multilingual neural voices, free fallback                 |
+| OpenAI TTS                  | `tts-1` / `tts-1-hd`     | $15 / $30 per 1M chars | ~500 ms        | 6 stable voices (alloy, echo, fable, onyx, nova, shimmer) |
+| ElevenLabs TTS              | `eleven_multilingual_v2` | $100 / 1M chars        | ~300 ms        | High-quality multilingual, Voice Library access           |
+|                             | `eleven_turbo_v2_5`      | $50 / 1M chars         | ~250 ms        | Sweet-spot quality / latency                              |
+|                             | `eleven_flash_v2_5`      | $50 / 1M chars         | ~75 ms         | Ultra-low-latency for conversational agents               |
 
 - **Catalogue-driven** (ADR-081): provider/model/voice are admin-controlled via Configuration LLM (LLM type `voice_tts`). Voice + tuning live in `provider_config` JSONB. No env vars to maintain across deployments.
 - **Sentence streaming** (ADR-082): TTS runs sentence-by-sentence pipelined with the LLM stream. First audio lands in ~1 s on chat mode (was ~5 s).
@@ -264,12 +264,12 @@ ExecutionStep(
 
 ### Smart Services (Token Savings 89%)
 
-| Service | Role | Optimization |
-|---------|------|--------------|
-| QueryAnalyzerService | Routing decision | LRU Cache |
-| SmartPlannerService | ExecutionPlan generation | Pattern Learning |
-| SmartCatalogueService | Tool filtering | 96% token reduction |
-| PlanPatternLearner | Bayesian learning | Bypass >90% confidence |
+| Service               | Role                     | Optimization           |
+| --------------------- | ------------------------ | ---------------------- |
+| QueryAnalyzerService  | Routing decision         | LRU Cache              |
+| SmartPlannerService   | ExecutionPlan generation | Pattern Learning       |
+| SmartCatalogueService | Tool filtering           | 96% token reduction    |
+| PlanPatternLearner    | Bayesian learning        | Bypass >90% confidence |
 
 ### Google Integrations (OAuth 2.1 + PKCE)
 
@@ -308,14 +308,14 @@ ExecutionStep(
 
 ### Human-in-the-Loop (HITL)
 
-| Type | Trigger | Severity |
-|------|---------|----------|
-| Plan Approval | Destructive actions | CRITICAL |
-| Clarification | Detected ambiguity | WARNING |
-| Draft Critique | Email/Event review | INFO |
-| Destructive Confirm | Deletion of >= 3 items | CRITICAL |
-| FOR_EACH Confirm | Bulk mutations | WARNING |
-| Modifier Review | Review and approve AI-suggested modifications to draft content | INFO |
+| Type                | Trigger                                                        | Severity |
+| ------------------- | -------------------------------------------------------------- | -------- |
+| Plan Approval       | Destructive actions                                            | CRITICAL |
+| Clarification       | Detected ambiguity                                             | WARNING  |
+| Draft Critique      | Email/Event review                                             | INFO     |
+| Destructive Confirm | Deletion of >= 3 items                                         | CRITICAL |
+| FOR_EACH Confirm    | Bulk mutations                                                 | WARNING  |
+| Modifier Review     | Review and approve AI-suggested modifications to draft content | INFO     |
 
 > Note: the plan-approval level is currently auto-approved — tool-level HITL supersedes it
 > (see [ADR-106](docs/architecture/ADR-106-HITL-Contract-Coherence.md)); the other five levels
@@ -333,11 +333,11 @@ ExecutionStep(
 
 ### Cost Tracking & Billing
 
-| Type | Tracking | Export |
-|------|----------|--------|
+| Type           | Tracking               | Export       |
+| -------------- | ---------------------- | ------------ |
 | **LLM Tokens** | Per node, per provider | Detailed CSV |
 | **Google API** | Per endpoint, per user | Detailed CSV |
-| **Aggregated** | Per user, per period | CSV summary |
+| **Aggregated** | Per user, per period   | CSV summary  |
 
 - **Google Maps Platform**: Places, Routes, Geocoding, Static Maps
 - **Dynamic Pricing**: Admin UI for full LLM catalogue CRUD — provider, 8 capability flags (max input/output tokens, tools, structured output, strict mode, streaming, vision, reasoning) and pricing per model, all stored in the database. Same surface for image generation models (provider + quality/size/pricing). Cross-worker cache invalidation via Redis Pub/Sub (ADR-063), live cross-sibling refresh in the frontend — no code change, no redeploy
@@ -500,36 +500,36 @@ LIA includes a **full-featured administration interface** — giving operators c
 
 A web-based administration panel covering every operational aspect:
 
-| Section | Capabilities |
-|---------|-------------|
-| **LLM Configuration** | Model selection per node, provider parameters, temperature/token limits, prompt versions |
-| **RAG Knowledge Spaces** | Manage document spaces, embedding configuration, user reindex operations, system knowledge spaces (FAQ staleness, reindex) |
-| **Personalities** | Create and manage assistant personalities (tone, language, behavior rules) |
-| **User Management** | User accounts, roles, permissions, connector status overview |
-| **Connector Management** | Google/Apple/Microsoft OAuth status, token health, per-user provider activation |
-| **Skills Management** | Enable/disable skills, edit descriptions, translate in 6 languages, delete |
-| **MCP Servers** | Admin-level MCP server configuration, tool discovery, domain descriptions |
-| **LLM Pricing** | CRUD for the full LLM catalogue — provider, 8 capability flags (max input/output tokens, tools, structured output, strict mode, streaming, vision, reasoning) and pricing (input/output/cache tokens) per model. Source of truth for the LangChain factory and the agent constraints. Live cross-worker invalidation, no redeploy |
-| **Image Generation Pricing** | CRUD for image models — provider, quality, size and pricing. Drives the user preferences dropdowns directly |
-| **Google API Pricing** | Per-endpoint pricing configuration for Google Maps Platform services |
-| **Voice Settings** | TTS catalogue management (Edge / OpenAI / ElevenLabs) via Configuration LLM (`voice_tts` type), per-provider tuning, voice picker (live ElevenLabs voices) |
-| **Broadcasting** | Send system-wide notifications to all users or targeted groups |
-| **Debug Settings** | Toggle debug panel visibility, configure diagnostic verbosity per user |
-| **Usage Limits** | Per-user token/message/cost quotas (period + global), real-time gauges, manual block/unblock, WebSocket live updates |
-| **Consumption Export** | CSV export of token usage, Google API usage, and aggregated consumption per user/period |
+| Section                      | Capabilities                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **LLM Configuration**        | Model selection per node, provider parameters, temperature/token limits, prompt versions                                                                                                                                                                                                                                          |
+| **RAG Knowledge Spaces**     | Manage document spaces, embedding configuration, user reindex operations, system knowledge spaces (FAQ staleness, reindex)                                                                                                                                                                                                        |
+| **Personalities**            | Create and manage assistant personalities (tone, language, behavior rules)                                                                                                                                                                                                                                                        |
+| **User Management**          | User accounts, roles, permissions, connector status overview                                                                                                                                                                                                                                                                      |
+| **Connector Management**     | Google/Apple/Microsoft OAuth status, token health, per-user provider activation                                                                                                                                                                                                                                                   |
+| **Skills Management**        | Enable/disable skills, edit descriptions, translate in 6 languages, delete                                                                                                                                                                                                                                                        |
+| **MCP Servers**              | Admin-level MCP server configuration, tool discovery, domain descriptions                                                                                                                                                                                                                                                         |
+| **LLM Pricing**              | CRUD for the full LLM catalogue — provider, 8 capability flags (max input/output tokens, tools, structured output, strict mode, streaming, vision, reasoning) and pricing (input/output/cache tokens) per model. Source of truth for the LangChain factory and the agent constraints. Live cross-worker invalidation, no redeploy |
+| **Image Generation Pricing** | CRUD for image models — provider, quality, size and pricing. Drives the user preferences dropdowns directly                                                                                                                                                                                                                       |
+| **Google API Pricing**       | Per-endpoint pricing configuration for Google Maps Platform services                                                                                                                                                                                                                                                              |
+| **Voice Settings**           | TTS catalogue management (Edge / OpenAI / ElevenLabs) via Configuration LLM (`voice_tts` type), per-provider tuning, voice picker (live ElevenLabs voices)                                                                                                                                                                        |
+| **Broadcasting**             | Send system-wide notifications to all users or targeted groups                                                                                                                                                                                                                                                                    |
+| **Debug Settings**           | Toggle debug panel visibility, configure diagnostic verbosity per user                                                                                                                                                                                                                                                            |
+| **Usage Limits**             | Per-user token/message/cost quotas (period + global), real-time gauges, manual block/unblock, WebSocket live updates                                                                                                                                                                                                              |
+| **Consumption Export**       | CSV export of token usage, Google API usage, and aggregated consumption per user/period                                                                                                                                                                                                                                           |
 
 ### Real-Time Debug Panel
 
 A 24-section debug panel embedded in the chat interface, organized into **6 logical groups** with always-visible sections (empty sections show "N/A" instead of disappearing):
 
-| Group | Sections |
-|-------|----------|
-| **Request Analysis** | Intent classification, Domain detection, Routing decision, Query transformations |
-| **Planning & Execution** | Planner output, Tool selection, Context resolution, Token budget, Execution timeline, ForEach analysis, Execution waves |
-| **Intelligent Mechanisms** | Cache hits, pattern learning, semantic expansion, Skills activation |
-| **Context Injection** | Memory injection (scores), RAG injection (scores), Knowledge enrichment (Brave), Journal injection (per-entry scores, budget) |
-| **Background Extraction** | Memory detection (create/update/delete), Journal extraction, Interest profile |
-| **LLM & API Pipeline** | Request lifecycle (timing breakdown per node), LLM Pipeline (chronological reconciliation), LLM call details (model, tokens, latency, cost), Google API calls |
+| Group                      | Sections                                                                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Request Analysis**       | Intent classification, Domain detection, Routing decision, Query transformations                                                                              |
+| **Planning & Execution**   | Planner output, Tool selection, Context resolution, Token budget, Execution timeline, ForEach analysis, Execution waves                                       |
+| **Intelligent Mechanisms** | Cache hits, pattern learning, semantic expansion, Skills activation                                                                                           |
+| **Context Injection**      | Memory injection (scores), RAG injection (scores), Knowledge enrichment (Brave), Journal injection (per-entry scores, budget)                                 |
+| **Background Extraction**  | Memory detection (create/update/delete), Journal extraction, Interest profile                                                                                 |
+| **LLM & API Pipeline**     | Request lifecycle (timing breakdown per node), LLM Pipeline (chronological reconciliation), LLM call details (model, tokens, latency, cost), Google API calls |
 
 > The debug panel is designed for **developers and operators** to diagnose issues, optimize prompts, and understand the agent's decision-making process in real time — without needing external tools or log access.
 
@@ -539,13 +539,13 @@ A 24-section debug panel embedded in the chat interface, organized into **6 logi
 
 ### Prerequisites
 
-| Software | Version | Required |
-|----------|---------|----------|
-| Python | 3.12+ | Yes |
-| Node.js | 24 LTS | Yes |
-| Docker | 24+ | Yes |
-| pnpm | 10+ | Yes |
-| [Task](https://taskfile.dev/) | 3+ | Yes (build tool) |
+| Software                      | Version | Required         |
+| ----------------------------- | ------- | ---------------- |
+| Python                        | 3.12+   | Yes              |
+| Node.js                       | 24 LTS  | Yes              |
+| Docker                        | 24+     | Yes              |
+| pnpm                          | 10+     | Yes              |
+| [Task](https://taskfile.dev/) | 3+      | Yes (build tool) |
 
 All commands are defined in `Taskfile.yml`. Quick start: `task setup` then `task dev`.
 
@@ -598,12 +598,12 @@ cd apps/web && pnpm dev
 
 ### Development URLs
 
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| Frontend | http://localhost:3000 | — |
-| API Docs | http://localhost:8000/docs | — |
-| Grafana | http://localhost:3001 | admin/admin |
-| Prometheus | http://localhost:9090 | — |
+| Service    | URL                        | Credentials |
+| ---------- | -------------------------- | ----------- |
+| Frontend   | http://localhost:3000      | —           |
+| API Docs   | http://localhost:8000/docs | —           |
+| Grafana    | http://localhost:3001      | admin/admin |
+| Prometheus | http://localhost:9090      | —           |
 
 ### Minimal Configuration (.env)
 
@@ -781,60 +781,60 @@ apps/api/src/
 
 ### Backend
 
-| Technology | Version | Role |
-|------------|---------|------|
-| Python | 3.12+ | Primary runtime |
-| FastAPI | 0.136.3 | REST API + SSE framework |
-| LangGraph | 1.2.4 | Multi-agent orchestration |
-| LangChain | 1.3.9 | LLM abstraction + tools |
-| SQLAlchemy | 2.0.50 | Async ORM |
-| Alembic | 1.18.4 | Database migrations |
-| PostgreSQL | 16 + pgvector | Database + vector search |
-| Redis | 7.4.0 | Cache, sessions, rate limiting |
-| Pydantic | 2.13.4 | Validation + serialization |
-| structlog | latest | Structured JSON logging |
-| openai | 2.x | LLM provider |
-| Edge TTS | 7.2+ | Voice synthesis (free) |
-| mcp | 1.9+ | Model Context Protocol SDK (Streamable HTTP) |
-| Docker | 24+ | Containerization (multi-arch amd64/arm64) |
+| Technology | Version       | Role                                         |
+| ---------- | ------------- | -------------------------------------------- |
+| Python     | 3.12+         | Primary runtime                              |
+| FastAPI    | 0.136.3       | REST API + SSE framework                     |
+| LangGraph  | 1.2.4         | Multi-agent orchestration                    |
+| LangChain  | 1.3.9         | LLM abstraction + tools                      |
+| SQLAlchemy | 2.0.50        | Async ORM                                    |
+| Alembic    | 1.18.4        | Database migrations                          |
+| PostgreSQL | 16 + pgvector | Database + vector search                     |
+| Redis      | 7.4.0         | Cache, sessions, rate limiting               |
+| Pydantic   | 2.13.4        | Validation + serialization                   |
+| structlog  | latest        | Structured JSON logging                      |
+| openai     | 2.x           | LLM provider                                 |
+| Edge TTS   | 7.2+          | Voice synthesis (free)                       |
+| mcp        | 1.9+          | Model Context Protocol SDK (Streamable HTTP) |
+| Docker     | 24+           | Containerization (multi-arch amd64/arm64)    |
 
 ### Frontend
 
-| Technology | Version | Role |
-|------------|---------|------|
-| Node.js | 24 LTS | JavaScript runtime |
-| Next.js | 16.2.10 | React framework |
-| React | 19.2.7 | UI library |
-| TypeScript | 6.0.2 | Type safety |
-| TailwindCSS | 4.3.2 | Styling |
-| TanStack Query | 5.101 | Server state management |
-| react-i18next | 17.0.8 | i18n (6 languages) |
-| Radix UI | latest | Accessible UI primitives |
+| Technology     | Version | Role                     |
+| -------------- | ------- | ------------------------ |
+| Node.js        | 24 LTS  | JavaScript runtime       |
+| Next.js        | 16.2.10 | React framework          |
+| React          | 19.2.7  | UI library               |
+| TypeScript     | 6.0.2   | Type safety              |
+| TailwindCSS    | 4.3.2   | Styling                  |
+| TanStack Query | 5.101   | Server state management  |
+| react-i18next  | 17.0.8  | i18n (6 languages)       |
+| Radix UI       | latest  | Accessible UI primitives |
 
 **Responsive Design**: Fully optimized for desktop, tablet, and smartphone. Adaptive layouts, touch-friendly interactions, and mobile-first components ensure a seamless experience on any device.
 
 ### Supported LLM Providers
 
-| Provider | Models | Use Case |
-|----------|--------|----------|
-| OpenAI | GPT-5.4, GPT-5.4-mini, GPT-5.2, GPT-5.1, GPT-5, GPT-5-mini/nano, GPT-4.1, GPT-4.1-mini/nano, GPT-4o, o1, o3-mini | Primary (prompt caching, reasoning) |
-| Anthropic | Claude Opus 4.6/4.5, Claude Sonnet 4.6, Claude Haiku 4.5 | Alternative (extended thinking) |
-| Google | Gemini 3.1/3/2.5 Pro, Gemini 3/2.5/2.0 Flash | Multimodal |
-| DeepSeek | **deepseek-v4-flash, deepseek-v4-pro** (V4 family — thinking-mode toggle, v1.19.1+), deepseek-chat (V3, legacy), deepseek-reasoner (R1, legacy) | Cost-effective reasoning. V4 supports tools + structured output via JSON-mode fallback when thinking is on. |
-| Perplexity | sonar-small/large-128k-online | Web-augmented responses. Base URL configurable via `PERPLEXITY_BASE_URL` env var (v1.19.1+). |
-| Qwen | qwen3-max, qwen3.5-plus, qwen3.5-flash | Thinking + tools + vision (Alibaba Cloud DashScope). Base URL configurable via `QWEN_BASE_URL` (regional US/CN swap, v1.19.1+). |
-| Ollama | Any local model (dynamic discovery) | Zero API cost, self-hosted. Base URL configurable via `OLLAMA_BASE_URL`. |
+| Provider   | Models                                                                                                                                          | Use Case                                                                                                                        |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| OpenAI     | GPT-5.4, GPT-5.4-mini, GPT-5.2, GPT-5.1, GPT-5, GPT-5-mini/nano, GPT-4.1, GPT-4.1-mini/nano, GPT-4o, o1, o3-mini                                | Primary (prompt caching, reasoning)                                                                                             |
+| Anthropic  | Claude Opus 4.6/4.5, Claude Sonnet 4.6, Claude Haiku 4.5                                                                                        | Alternative (extended thinking)                                                                                                 |
+| Google     | Gemini 3.1/3/2.5 Pro, Gemini 3/2.5/2.0 Flash                                                                                                    | Multimodal                                                                                                                      |
+| DeepSeek   | **deepseek-v4-flash, deepseek-v4-pro** (V4 family — thinking-mode toggle, v1.19.1+), deepseek-chat (V3, legacy), deepseek-reasoner (R1, legacy) | Cost-effective reasoning. V4 supports tools + structured output via JSON-mode fallback when thinking is on.                     |
+| Perplexity | sonar-small/large-128k-online                                                                                                                   | Web-augmented responses. Base URL configurable via `PERPLEXITY_BASE_URL` env var (v1.19.1+).                                    |
+| Qwen       | qwen3-max, qwen3.5-plus, qwen3.5-flash                                                                                                          | Thinking + tools + vision (Alibaba Cloud DashScope). Base URL configurable via `QWEN_BASE_URL` (regional US/CN swap, v1.19.1+). |
+| Ollama     | Any local model (dynamic discovery)                                                                                                             | Zero API cost, self-hosted. Base URL configurable via `OLLAMA_BASE_URL`.                                                        |
 
 ### Observability
 
-| Technology | Role |
-|------------|------|
-| Prometheus | 425 metrics |
-| Grafana | 25 dashboards |
-| Loki | Aggregated logs |
-| Tempo | Distributed tracing |
-| Langfuse | LLM observability |
-| structlog | Structured JSON logs |
+| Technology | Role                 |
+| ---------- | -------------------- |
+| Prometheus | 425 metrics          |
+| Grafana    | 25 dashboards        |
+| Loki       | Aggregated logs      |
+| Tempo      | Distributed tracing  |
+| Langfuse   | LLM observability    |
+| structlog  | Structured JSON logs |
 
 ---
 
@@ -842,44 +842,44 @@ apps/api/src/
 
 ### Main Documentation
 
-| Document | Description |
-|----------|-------------|
-| [GETTING_STARTED.md](./docs/GETTING_STARTED.md) | Detailed installation guide |
-| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Complete system architecture |
-| [INDEX.md](./docs/INDEX.md) | Full documentation map (190+ docs) |
+| Document                                        | Description                        |
+| ----------------------------------------------- | ---------------------------------- |
+| [GETTING_STARTED.md](./docs/GETTING_STARTED.md) | Detailed installation guide        |
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md)       | Complete system architecture       |
+| [INDEX.md](./docs/INDEX.md)                     | Full documentation map (190+ docs) |
 
 ### Technical Documentation
 
-| Domain | Documents |
-|--------|-----------|
-| **Agents & LLM** | [GRAPH_AND_AGENTS_ARCHITECTURE](./docs/technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) • [PLANNER](./docs/technical/PLANNER.md) • [SEMANTIC_ROUTER](./docs/technical/SEMANTIC_ROUTER.md) |
-| **HITL** | [HITL](./docs/technical/HITL.md) • [PLAN_HITL_STREAMING_VALIDATION](./docs/technical/PLAN_HITL_STREAMING_VALIDATION.md) |
-| **Voice** | [VOICE](./docs/technical/VOICE.md) • [VOICE_MODE](./docs/technical/VOICE_MODE.md) |
-| **Memory** | [LONG_TERM_MEMORY](./docs/technical/LONG_TERM_MEMORY.md) • [MEMORY_RESOLUTION](./docs/technical/MEMORY_RESOLUTION.md) |
-| **MCP** | [MCP_INTEGRATION](./docs/technical/MCP_INTEGRATION.md) • [GUIDE_MCP_INTEGRATION](./docs/guides/GUIDE_MCP_INTEGRATION.md) |
-| **Heartbeat** | [HEARTBEAT_AUTONOME](./docs/technical/HEARTBEAT_AUTONOME.md) • [GUIDE_HEARTBEAT](./docs/guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md) |
-| **Channels** | [CHANNELS_INTEGRATION](./docs/technical/CHANNELS_INTEGRATION.md) • [GUIDE_TELEGRAM](./docs/guides/GUIDE_TELEGRAM_INTEGRATION.md) |
-| **Scheduled Actions** | [SCHEDULED_ACTIONS](./docs/technical/SCHEDULED_ACTIONS.md) • [GUIDE_SCHEDULED_ACTIONS](./docs/guides/GUIDE_SCHEDULED_ACTIONS.md) |
-| **Skills** | [SKILLS_INTEGRATION](./docs/technical/SKILLS_INTEGRATION.md) |
-| **Sub-Agents** | [SUB_AGENTS](./docs/technical/SUB_AGENTS.md) |
-| **RAG Spaces** | [GUIDE_RAG_SPACES](./docs/guides/GUIDE_RAG_SPACES.md) • [ADR-055](./docs/architecture/ADR-055-RAG-Spaces-Architecture.md) • [ADR-058](./docs/architecture/ADR-058-System-RAG-Spaces.md) |
-| **Browser Control** | [BROWSER_CONTROL](./docs/technical/BROWSER_CONTROL.md) • [ADR-059](./docs/architecture/ADR-059-Browser-Control.md) |
-| **Personal Journals** | [JOURNALS](./docs/technical/JOURNALS.md) • [ADR-057](./docs/architecture/ADR-057-Personal-Journals.md) |
-| **LLM Providers** | [LLM_PROVIDERS](./docs/technical/LLM_PROVIDERS.md) |
-| **CI/CD** | [CI_CD](./docs/technical/CI_CD.md) |
-| **Security** | [SECURITY](./docs/technical/SECURITY.md) • [OAUTH](./docs/technical/OAUTH.md) • [RATE_LIMITING](./docs/technical/RATE_LIMITING.md) |
-| **Observability** | [OBSERVABILITY_AGENTS](./docs/technical/OBSERVABILITY_AGENTS.md) • [METRICS_REFERENCE](./docs/technical/METRICS_REFERENCE.md) |
-| **Cost Tracking** | [LLM_PRICING_MANAGEMENT](./docs/technical/LLM_PRICING_MANAGEMENT.md) • [GOOGLE_API_TRACKING](./docs/technical/GOOGLE_API_TRACKING.md) |
+| Domain                | Documents                                                                                                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Agents & LLM**      | [GRAPH_AND_AGENTS_ARCHITECTURE](./docs/technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) • [PLANNER](./docs/technical/PLANNER.md) • [SEMANTIC_ROUTER](./docs/technical/SEMANTIC_ROUTER.md)    |
+| **HITL**              | [HITL](./docs/technical/HITL.md) • [PLAN_HITL_STREAMING_VALIDATION](./docs/technical/PLAN_HITL_STREAMING_VALIDATION.md)                                                                 |
+| **Voice**             | [VOICE](./docs/technical/VOICE.md) • [VOICE_MODE](./docs/technical/VOICE_MODE.md)                                                                                                       |
+| **Memory**            | [LONG_TERM_MEMORY](./docs/technical/LONG_TERM_MEMORY.md) • [MEMORY_RESOLUTION](./docs/technical/MEMORY_RESOLUTION.md)                                                                   |
+| **MCP**               | [MCP_INTEGRATION](./docs/technical/MCP_INTEGRATION.md) • [GUIDE_MCP_INTEGRATION](./docs/guides/GUIDE_MCP_INTEGRATION.md)                                                                |
+| **Heartbeat**         | [HEARTBEAT_AUTONOME](./docs/technical/HEARTBEAT_AUTONOME.md) • [GUIDE_HEARTBEAT](./docs/guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md)                                              |
+| **Channels**          | [CHANNELS_INTEGRATION](./docs/technical/CHANNELS_INTEGRATION.md) • [GUIDE_TELEGRAM](./docs/guides/GUIDE_TELEGRAM_INTEGRATION.md)                                                        |
+| **Scheduled Actions** | [SCHEDULED_ACTIONS](./docs/technical/SCHEDULED_ACTIONS.md) • [GUIDE_SCHEDULED_ACTIONS](./docs/guides/GUIDE_SCHEDULED_ACTIONS.md)                                                        |
+| **Skills**            | [SKILLS_INTEGRATION](./docs/technical/SKILLS_INTEGRATION.md)                                                                                                                            |
+| **Sub-Agents**        | [SUB_AGENTS](./docs/technical/SUB_AGENTS.md)                                                                                                                                            |
+| **RAG Spaces**        | [GUIDE_RAG_SPACES](./docs/guides/GUIDE_RAG_SPACES.md) • [ADR-055](./docs/architecture/ADR-055-RAG-Spaces-Architecture.md) • [ADR-058](./docs/architecture/ADR-058-System-RAG-Spaces.md) |
+| **Browser Control**   | [BROWSER_CONTROL](./docs/technical/BROWSER_CONTROL.md) • [ADR-059](./docs/architecture/ADR-059-Browser-Control.md)                                                                      |
+| **Personal Journals** | [JOURNALS](./docs/technical/JOURNALS.md) • [ADR-057](./docs/architecture/ADR-057-Personal-Journals.md)                                                                                  |
+| **LLM Providers**     | [LLM_PROVIDERS](./docs/technical/LLM_PROVIDERS.md)                                                                                                                                      |
+| **CI/CD**             | [CI_CD](./docs/technical/CI_CD.md)                                                                                                                                                      |
+| **Security**          | [SECURITY](./docs/technical/SECURITY.md) • [OAUTH](./docs/technical/OAUTH.md) • [RATE_LIMITING](./docs/technical/RATE_LIMITING.md)                                                      |
+| **Observability**     | [OBSERVABILITY_AGENTS](./docs/technical/OBSERVABILITY_AGENTS.md) • [METRICS_REFERENCE](./docs/technical/METRICS_REFERENCE.md)                                                           |
+| **Cost Tracking**     | [LLM_PRICING_MANAGEMENT](./docs/technical/LLM_PRICING_MANAGEMENT.md) • [GOOGLE_API_TRACKING](./docs/technical/GOOGLE_API_TRACKING.md)                                                   |
 
 ### Practical Guides
 
-| Guide | Description |
-|-------|-------------|
-| [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md) | Complete development workflow |
-| [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent |
-| [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md) | How to create a new tool |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (~12,300 backend tests across 705 files) |
-| [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md) | LangGraph and log debugging |
+| Guide                                                         | Description                                               |
+| ------------------------------------------------------------- | --------------------------------------------------------- |
+| [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
+| [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
+| [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~12,300 backend tests across 705 files) |
+| [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
@@ -915,14 +915,14 @@ pytest --cov=src --cov-report=html -v
 
 ### Statistics
 
-| Metric | Value |
-|--------|-------|
-| Total backend tests | ~11,970 (pytest collected, 670 test files) |
-| Backend breakdown | unit fast ~10,150 · agents ~970 · integration ~580 (zero skips) |
-| Frontend tests (vitest) | 1,222 (+ 17 hermetic Playwright E2E incl. axe/dark/zoom) |
-| Coverage target | 45% backend (ratchet) · frontend thresholds locked per category |
-| CI Workflows | 3 (CI, Security, Release) |
-| Technical audit | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md) |
+| Metric                  | Value                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| Total backend tests     | ~11,970 (pytest collected, 670 test files)                                                    |
+| Backend breakdown       | unit fast ~10,150 · agents ~970 · integration ~580 (zero skips)                               |
+| Frontend tests (vitest) | 1,222 (+ 17 hermetic Playwright E2E incl. axe/dark/zoom)                                      |
+| Coverage target         | 45% backend (ratchet) · frontend thresholds locked per category                               |
+| CI Workflows            | 3 (CI, Security, Release)                                                                     |
+| Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md) |
 
 ---
 
@@ -953,23 +953,23 @@ ESLint + TypeScript check       ────────────────
 
 ### Key Practices
 
-| Practice | Implementation |
-|----------|---------------|
-| **SHA-pinned Actions** | All GitHub Actions pinned by commit SHA (supply-chain security) |
-| **Reproducible builds** | Universal Python lockfiles (linux/amd64 + arm64 + Windows), SHA256 hash-verified installs everywhere; CI guard fails manifest edits without lock regeneration ([ADR-112](./docs/architecture/ADR-112-Python-Dependency-Locking.md)) |
-| **Least privilege** | `permissions: contents: read` on CI workflow |
-| **Branch protection** | PR required (external contributors), 7 status checks, force push forbidden |
-| **Dependabot** | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped |
-| **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more) |
-| **Coverage threshold** | 45% minimum enforced in CI (ratchet +2 per release) |
+| Practice                      | Implementation                                                                                                                                                                                                                      |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **SHA-pinned Actions**        | All GitHub Actions pinned by commit SHA (supply-chain security)                                                                                                                                                                     |
+| **Reproducible builds**       | Universal Python lockfiles (linux/amd64 + arm64 + Windows), SHA256 hash-verified installs everywhere; CI guard fails manifest edits without lock regeneration ([ADR-112](./docs/architecture/ADR-112-Python-Dependency-Locking.md)) |
+| **Least privilege**           | `permissions: contents: read` on CI workflow                                                                                                                                                                                        |
+| **Branch protection**         | PR required (external contributors), 7 status checks, force push forbidden                                                                                                                                                          |
+| **Dependabot**                | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped                                                                                                                                                                  |
+| **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more)                                                                                                                                                                                 |
+| **Coverage threshold**        | 45% minimum enforced in CI (ratchet +2 per release)                                                                                                                                                                                 |
 
 ### Workflows
 
-| Workflow | Trigger | Jobs |
-|----------|---------|------|
-| **CI** (`ci.yml`) | Push to `main`, PR | 8 jobs: lint, unit tests, integration tests, code hygiene, docker build, secret scan |
-| **Security** (`security.yml`) | PR, weekly schedule, manual | CodeQL, dependency audit, Trivy, SBOM |
-| **Release** (`release.yml`) | Tag `v*` | Docker multi-arch build + push (ghcr.io), GitHub Release |
+| Workflow                      | Trigger                     | Jobs                                                                                 |
+| ----------------------------- | --------------------------- | ------------------------------------------------------------------------------------ |
+| **CI** (`ci.yml`)             | Push to `main`, PR          | 8 jobs: lint, unit tests, integration tests, code hygiene, docker build, secret scan |
+| **Security** (`security.yml`) | PR, weekly schedule, manual | CodeQL, dependency audit, Trivy, SBOM                                                |
+| **Release** (`release.yml`)   | Tag `v*`                    | Docker multi-arch build + push (ghcr.io), GitHub Release                             |
 
 > Full details: [CI/CD Documentation](./docs/technical/CI_CD.md)
 
@@ -979,15 +979,15 @@ ESLint + TypeScript check       ────────────────
 
 ### Key Metrics (P95)
 
-| Metric | Value | SLO |
-|--------|-------|-----|
-| API Latency | 450ms | < 500ms |
-| First SSE event (request acknowledged) | 380ms | < 500ms |
-| Router Latency | 800ms | < 2s |
-| Planner Latency | 2.5s | < 5s |
-| Gemini Embedding | ~100-200ms | < 300ms |
-| Token Reduction (Windowing) | 93% | > 80% |
-| Context Compaction Savings | ~60% per compaction | — |
+| Metric                                 | Value               | SLO     |
+| -------------------------------------- | ------------------- | ------- |
+| API Latency                            | 450ms               | < 500ms |
+| First SSE event (request acknowledged) | 380ms               | < 500ms |
+| Router Latency                         | 800ms               | < 2s    |
+| Planner Latency                        | 2.5s                | < 5s    |
+| Gemini Embedding                       | ~100-200ms          | < 300ms |
+| Token Reduction (Windowing)            | 93%                 | > 80%   |
+| Context Compaction Savings             | ~60% per compaction | —       |
 
 > These figures measure the infrastructure. The full perceived response time depends on the
 > LLM call cascade (seconds to tens of seconds depending on request complexity and hardware) —
@@ -1011,19 +1011,20 @@ ESLint + TypeScript check       ────────────────
 
 ### Compliance
 
-| Standard | Status |
-|----------|--------|
-| GDPR | PII filtering, data minimization |
-| OWASP Top 10 | XSS, SQL injection, CSRF protection |
-| Prompt Injection | External content wrapping (`<external_content>` safety markers) |
-| OAuth 2.1 | Mandatory PKCE |
-| Supply chain | Hash-verified universal lockfiles, pip-audit on the full transitive tree, SBOM per release |
+| Standard         | Status                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| GDPR             | PII filtering, data minimization                                                           |
+| OWASP Top 10     | XSS, SQL injection, CSRF protection                                                        |
+| Prompt Injection | External content wrapping (`<external_content>` safety markers)                            |
+| OAuth 2.1        | Mandatory PKCE                                                                             |
+| Supply chain     | Hash-verified universal lockfiles, pip-audit on the full transitive tree, SBOM per release |
 
 ### Reporting a Vulnerability
 
 **DO NOT create a GitHub Issue for security vulnerabilities.**
 
 Send an email to **liamyassistant@gmail.com** with:
+
 - Description of the vulnerability
 - Steps to reproduce
 - Potential impact
@@ -1083,11 +1084,11 @@ git push origin feature/my-feature
 
 ### Getting Help
 
-| Channel | Usage |
-|---------|-------|
-| [GitHub Issues](https://github.com/jgouviergmail/LIA-Assistant/issues) | Bugs, feature requests |
-| [GitHub Discussions](https://github.com/jgouviergmail/LIA-Assistant/discussions) | Questions, ideas |
-| liamyassistant@gmail.com | General inquiries |
+| Channel                                                                          | Usage                  |
+| -------------------------------------------------------------------------------- | ---------------------- |
+| [GitHub Issues](https://github.com/jgouviergmail/LIA-Assistant/issues)           | Bugs, feature requests |
+| [GitHub Discussions](https://github.com/jgouviergmail/LIA-Assistant/discussions) | Questions, ideas       |
+| liamyassistant@gmail.com                                                         | General inquiries      |
 
 ### Resources
 
@@ -1114,6 +1115,7 @@ A commercial license is also available for organizations that cannot comply with
 This project builds on excellent open source technologies:
 
 **Backend & Infrastructure**
+
 - [Python](https://www.python.org/) - Primary runtime
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern async web framework
 - [LangGraph](https://github.com/langchain-ai/langgraph) - Multi-agent orchestration
@@ -1129,6 +1131,7 @@ This project builds on excellent open source technologies:
 - [Docker](https://www.docker.com/) - Containerization & multi-arch builds
 
 **Frontend**
+
 - [Node.js](https://nodejs.org/) - JavaScript runtime
 - [Next.js](https://nextjs.org/) - React framework
 - [React](https://react.dev/) - UI library
@@ -1139,6 +1142,7 @@ This project builds on excellent open source technologies:
 - [react-i18next](https://react.i18next.com/) - Internationalization (6 languages)
 
 **Observability**
+
 - [Prometheus](https://prometheus.io/) - Metrics & alerting
 - [Grafana](https://grafana.com/) - Dashboards & visualization
 - [Loki](https://grafana.com/oss/loki/) - Log aggregation
